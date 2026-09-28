@@ -6,6 +6,7 @@ import {
   ChevronRight, ExternalLink, X, Paperclip, Lock, RefreshCw, PieChart, Sparkles, TrendingUp, Edit
 } from 'lucide-react';
 import { formatCurrency } from '../../../utils/currency';
+import { formatDateForDisplay } from '../../../utils/dateValidation';
 import { FinanceTransaction, FinancialAccount, FinancialCategory, FinancialBudget, TransactionType } from '../../../types';
 import { useData } from '../../../context/DataContext';
 import { useAuth } from '../../../context/AuthContext';
@@ -720,7 +721,7 @@ export const TransactionsMasterLedgerView: React.FC<TransactionsMasterLedgerView
                         {/* Txn ID & Date */}
                         <td className="p-4 font-mono font-bold text-slate-900 dark:text-white">
                           <span className="block text-sky-600 dark:text-sky-400">{txn.transactionId}</span>
-                          <span className="text-[10px] text-slate-400 font-normal">{txn.date} {txn.time || ''}</span>
+                          <span className="text-[10px] text-slate-400 font-normal">{formatDateForDisplay(txn.date)} {txn.time || ''}</span>
                         </td>
 
                         {/* Type & Category */}
@@ -1031,7 +1032,7 @@ export const TransactionsMasterLedgerView: React.FC<TransactionsMasterLedgerView
                 </div>
                 <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/50 border">
                   <span className="text-[10px] font-bold text-slate-400 uppercase">Date & Time</span>
-                  <p className="font-bold text-slate-900 dark:text-white">{selectedTxnForDetail.date} {selectedTxnForDetail.time || ''}</p>
+                  <p className="font-bold text-slate-900 dark:text-white">{formatDateForDisplay(selectedTxnForDetail.date)} {selectedTxnForDetail.time || ''}</p>
                 </div>
                 <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/50 border">
                   <span className="text-[10px] font-bold text-slate-400 uppercase">Branch & Academic Year</span>

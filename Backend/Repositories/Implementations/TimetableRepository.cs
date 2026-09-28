@@ -301,8 +301,13 @@ public class TimetableRepository : ITimetableRepository
                 a.SectionId == sectionId &&
                 a.SubjectId == subjectId);
 
-        if (assignment?.Staff != null)
-            return assignment.Staff;
+        if (assignment != null)
+        {
+            if (assignment.Staff != null)
+                return assignment.Staff;
+            if (assignment.StaffId > 0)
+                return await _context.Staff.FindAsync(assignment.StaffId);
+        }
 
         // Fallback: Check if section has a Subject Teacher or Class Teacher assigned
         var section = await _context.ClassSections
@@ -589,13 +594,32 @@ public class TimetableRepository : ITimetableRepository
 
     public async Task ReplaceSlotsInTransactionAsync(IEnumerable<int> headerIdsToDelete, IEnumerable<TimetableSlot> slotsToInsert, System.Threading.CancellationToken cancellationToken = default)
     {
+        var ids = headerIdsToDelete.ToList();
+        var newSlots = slotsToInsert.ToList();
+
+        if (_context.Database.ProviderName?.Contains("InMemory", StringComparison.OrdinalIgnoreCase) == true)
+        {
+            if (ids.Any())
+            {
+                var slotsToDelete = await _context.TimetableSlots
+                    .Where(s => ids.Contains(s.HeaderId))
+                    .ToListAsync(cancellationToken);
+                if (slotsToDelete.Any()) _context.TimetableSlots.RemoveRange(slotsToDelete);
+            }
+            if (newSlots.Any())
+            {
+                await _context.TimetableSlots.AddRangeAsync(newSlots, cancellationToken);
+            }
+            await _context.SaveChangesAsync(cancellationToken);
+            return;
+        }
+
         var strategy = _context.Database.CreateExecutionStrategy();
         await strategy.ExecuteAsync(async () =>
         {
             await using var tx = await _context.Database.BeginTransactionAsync(cancellationToken);
             try
             {
-                var ids = headerIdsToDelete.ToList();
                 if (ids.Any())
                 {
                     var slotsToDelete = await _context.TimetableSlots
@@ -609,7 +633,6 @@ public class TimetableRepository : ITimetableRepository
                     }
                 }
 
-                var newSlots = slotsToInsert.ToList();
                 if (newSlots.Any())
                 {
                     await _context.TimetableSlots.AddRangeAsync(newSlots, cancellationToken);

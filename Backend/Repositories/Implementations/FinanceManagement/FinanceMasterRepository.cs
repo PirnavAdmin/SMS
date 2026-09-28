@@ -499,7 +499,7 @@ public class FinanceMasterRepository : IFinanceMasterRepository
                 NumberOfTerms = entity.NumberOfTerms,
                 DueDateOffsetDays = offset,
                 Status = entity.Status,
-                AnnualDueDate = string.IsNullOrWhiteSpace(entity.AnnualDueDate) ? ayEntity.StartDate.AddDays(offset).ToString("yyyy-MM-dd") : entity.AnnualDueDate,
+                AnnualDueDate = calculatedTerms.FirstOrDefault()?.DueDate ?? ayEntity.StartDate.AddDays(offset).ToString("yyyy-MM-dd"),
                 OneTimeDueDate = string.IsNullOrWhiteSpace(entity.OneTimeDueDate) ? ayEntity.StartDate.AddDays(offset).ToString("yyyy-MM-dd") : entity.OneTimeDueDate,
                 Terms = calculatedTerms,
                 MonthlyConfig = monthly
@@ -519,7 +519,7 @@ public class FinanceMasterRepository : IFinanceMasterRepository
             NumberOfTerms = 4,
             DueDateOffsetDays = defaultOffset,
             Status = "Published",
-            AnnualDueDate = defaultDueDate,
+            AnnualDueDate = generatedTerms.FirstOrDefault()?.DueDate ?? defaultDueDate,
             OneTimeDueDate = defaultDueDate,
             Terms = generatedTerms,
             MonthlyConfig = generatedMonthly
@@ -566,13 +566,14 @@ public class FinanceMasterRepository : IFinanceMasterRepository
         bool applySameDay = schedule.MonthlyConfig?.ApplySameDayToAllMonths ?? true;
         int monthlyDueDay = schedule.MonthlyConfig?.DueDay ?? 10;
         string defaultDueDate = ayEntity.StartDate.AddDays(offset).ToString("yyyy-MM-dd");
+        string annualDueDateVal = calculatedTerms.FirstOrDefault()?.DueDate ?? defaultDueDate;
 
         if (existing != null)
         {
             existing.NumberOfTerms = schedule.NumberOfTerms;
             existing.DueDateOffsetDays = offset;
             existing.Status = string.IsNullOrWhiteSpace(schedule.Status) ? "Published" : schedule.Status;
-            existing.AnnualDueDate = string.IsNullOrWhiteSpace(schedule.AnnualDueDate) ? defaultDueDate : schedule.AnnualDueDate;
+            existing.AnnualDueDate = annualDueDateVal;
             existing.OneTimeDueDate = string.IsNullOrWhiteSpace(schedule.OneTimeDueDate) ? defaultDueDate : schedule.OneTimeDueDate;
             existing.ApplySameDayToAllMonths = applySameDay;
             existing.MonthlyDueDay = monthlyDueDay;
@@ -590,7 +591,7 @@ public class FinanceMasterRepository : IFinanceMasterRepository
                 NumberOfTerms = schedule.NumberOfTerms,
                 DueDateOffsetDays = offset,
                 Status = string.IsNullOrWhiteSpace(schedule.Status) ? "Published" : schedule.Status,
-                AnnualDueDate = string.IsNullOrWhiteSpace(schedule.AnnualDueDate) ? defaultDueDate : schedule.AnnualDueDate,
+                AnnualDueDate = annualDueDateVal,
                 OneTimeDueDate = string.IsNullOrWhiteSpace(schedule.OneTimeDueDate) ? defaultDueDate : schedule.OneTimeDueDate,
                 ApplySameDayToAllMonths = applySameDay,
                 MonthlyDueDay = monthlyDueDay,

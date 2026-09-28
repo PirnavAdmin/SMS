@@ -8,6 +8,7 @@ import {
   calculateClothOrItemPrice,
 } from "../../../utils/uniformUtils";
 import { matchesClassName, compareClassesAscending } from "../../../utils/classSorter";
+import { formatDateForDisplay } from "../../../utils/dateValidation";
 import {
   IndianRupee,
   Search,
@@ -2121,7 +2122,7 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
                           <td className="p-3 font-mono font-semibold text-slate-600">{index + 1}</td>
                           <td className="p-3 font-bold text-slate-900 dark:text-white">{inst.feeHeadName}</td>
                           <td className="p-3 text-slate-600 dark:text-slate-400">{inst.termName || "Term 1"}</td>
-                          <td className="p-3 text-slate-500 font-mono">{inst.dueDate || new Date().toISOString().split('T')[0]}</td>
+                          <td className="p-3 text-slate-500 font-mono">{formatDateForDisplay(inst.dueDate)}</td>
                           <td className="p-3 text-right font-mono font-semibold text-slate-800 dark:text-slate-200">{formatCurrency(inst.amount)}</td>
                           <td className="p-3 text-right font-mono text-emerald-600 font-semibold">₹ 0</td>
                           <td className="p-3 text-right font-mono font-bold text-emerald-600 dark:text-emerald-400">
@@ -2406,7 +2407,7 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
                         {p.receiptNo || p.id}
                       </p>
                       <p className="text-[10px] text-slate-400 mt-0.5">
-                        {p.paymentDate} • {p.paymentMode}
+                        {formatDateForDisplay(p.paymentDate)} • {p.paymentMode}
                       </p>
                     </div>
                     <div className="text-right">
@@ -2565,7 +2566,7 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
                         {p.receiptNo || p.id}
                       </p>
                       <p className="text-[10px] text-slate-500 mt-1">
-                        Date: {p.paymentDate} • Mode: {p.paymentMode}
+                        Date: {formatDateForDisplay(p.paymentDate)} • Mode: {p.paymentMode}
                       </p>
                     </div>
                     <div className="text-right">

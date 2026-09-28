@@ -1,5 +1,6 @@
 import { apiClient } from './client';
 import { FeeHead, DynamicFeeStructure, StudentFeeAssignment, FeePayment } from '../types';
+import { notifyFinanceUpdated } from '../utils/financeEvents';
 
 export const fetchDynamicFeeStructuresApi = async () => {
   const response: any = await apiClient('/api/finance/fee-structures', { method: 'GET' });
@@ -209,10 +210,12 @@ export const createFeePaymentApi = async (data: Omit<FeePayment, 'id' | 'receipt
     selectedInstallmentIds: data.selectedInstallmentIds || [],
     paymentAllocation: data.paymentAllocation || []
   };
-  return apiClient('/api/finance/fee-payments', {
+  const res = await apiClient('/api/finance/fee-payments', {
     method: 'POST',
     body: JSON.stringify(payload)
   });
+  notifyFinanceUpdated();
+  return res;
 };
 
 // =========================================================================
@@ -265,10 +268,12 @@ export const collectFeePaymentApi = async (payload: {
     amount: number;
   }>;
 }) => {
-  return apiClient('/api/finance/fee-collection/collect', {
+  const res = await apiClient('/api/finance/fee-collection/collect', {
     method: 'POST',
     body: JSON.stringify(payload)
   });
+  notifyFinanceUpdated();
+  return res;
 };
 
 export const fetchDueFeesApi = async (params?: {
@@ -283,6 +288,22 @@ export const fetchDueFeesApi = async (params?: {
 
   const qs = query.toString();
   return apiClient(`/api/finance/due-fees${qs ? `?${qs}` : ''}`, { method: 'GET' });
+};
+
+export const fetchCategoryDuesApi = async (params?: {
+  branch?: string;
+  academicYear?: string;
+  className?: string;
+  sectionName?: string;
+}) => {
+  const query = new URLSearchParams();
+  if (params?.branch) query.append('branch', params.branch);
+  if (params?.academicYear) query.append('academicYear', params.academicYear);
+  if (params?.className) query.append('className', params.className);
+  if (params?.sectionName) query.append('sectionName', params.sectionName);
+
+  const qs = query.toString();
+  return apiClient(`/api/finance/category-dues${qs ? `?${qs}` : ''}`, { method: 'GET' });
 };
 
 export const sendFeeReminderApi = async (payload: {
@@ -343,8 +364,16 @@ export const cancelReceiptApi = async (receiptNo: string, reason: string) => {
   });
 };
 
-export const fetchFinanceDashboardStatsApi = async () => {
-  return apiClient('/api/finance/dashboard', { method: 'GET' });
+export const fetchFinanceDashboardStatsApi = async (branch?: string, academicYear?: string) => {
+  const params = new URLSearchParams();
+  if (branch && branch !== 'All' && branch !== 'All Branches') params.append('branch', branch);
+  if (academicYear && academicYear !== 'All') params.append('academicYear', academicYear);
+  const queryString = params.toString() ? `?${params.toString()}` : '';
+  return apiClient(`/api/finance/dashboard${queryString}`, { method: 'GET' });
+};
+
+export const fetchFinanceDashboardSummaryApi = async (branch?: string, academicYear?: string) => {
+  return fetchFinanceDashboardStatsApi(branch, academicYear);
 };
 
 // =========================================================================

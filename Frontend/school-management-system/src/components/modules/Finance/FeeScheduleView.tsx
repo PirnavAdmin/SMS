@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { Calendar, ShieldAlert, Save, Clock, CalendarDays, Loader2, Lock, Info, RotateCcw } from 'lucide-react';
+import { Calendar, ShieldAlert, Save, Clock, CalendarDays, Loader2, Lock, Info, RotateCcw, AlertCircle } from 'lucide-react';
 import { useData } from '../../../context/DataContext';
 import { useToast } from '../../../context/ToastContext';
 import { useAuth } from '../../../context/AuthContext';
 import { AcademicYearFeeSchedule, FeeScheduleTerm, MonthlyDueDateConfig, MonthDueDateItem } from '../../../types';
 import { DateInput } from '../../common/DateInput';
+import { formatDateForDisplay } from '../../../utils/dateValidation';
 import { fetchFeeScheduleConfigApi, saveFeeScheduleConfigApi } from '../../../api/finance';
 import {
   generateTermsFromAcademicYear,
@@ -68,14 +69,21 @@ export const FeeScheduleView: React.FC = () => {
     ay => ay.academicYear === activeAY || ay.academicYear.replace(/\s+/g, '') === activeAY.replace(/\s+/g, '')
   );
 
+  const hasConfiguredDates = Boolean(currentAYMaster?.startDate && currentAYMaster?.endDate);
+
   const ayDates: AcademicYearDates = {
-    startDate: currentAYMaster?.startDate || '2026-06-01',
-    endDate: currentAYMaster?.endDate || '2027-06-01',
-    academicYear: activeAY || '2026-2027'
+    startDate: currentAYMaster?.startDate || '',
+    endDate: currentAYMaster?.endDate || '',
+    academicYear: activeAY || ''
   };
 
   // Configurable Due Date Offset (default 45 days)
   const [dueDateOffsetDays, setDueDateOffsetDays] = useState<number>(45);
+
+  // Loading & API persistence status
+  const [isLoadingSchedule, setIsLoadingSchedule] = useState<boolean>(false);
+  const [isPersistedInDb, setIsPersistedInDb] = useState<boolean>(false);
+  const [apiLoadError, setApiLoadError] = useState<string | null>(null);
 
   // Current editing schedule or a default one
   const [schedule, setSchedule] = useState<Partial<AcademicYearFeeSchedule>>({
@@ -85,26 +93,26 @@ export const FeeScheduleView: React.FC = () => {
     terms: []
   });
 
-  const [monthlyConfig, setMonthlyConfig] = useState<MonthlyDueDateConfig>(() =>
-    generateMonthlyDatesFromAcademicYear(ayDates, 10)
-  );
-  const [annualDueDate, setAnnualDueDate] = useState<string>('2026-06-15');
-  const [oneTimeDueDate, setOneTimeDueDate] = useState<string>('2026-06-15');
+  const [oneTimeDueDate, setOneTimeDueDate] = useState<string>('');
 
   const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
     if (!activeAY) return;
 
+    setIsLoadingSchedule(true);
+    setApiLoadError(null);
+    setIsPersistedInDb(false);
+
     const numTerms = schedule.numberOfTerms || 4;
     const offset = dueDateOffsetDays || 45;
-    const computedTerms = generateTermsFromAcademicYear(ayDates, numTerms, offset);
+    const computedTerms = hasConfiguredDates ? generateTermsFromAcademicYear(ayDates, numTerms, offset) : [];
 
     const existing = academicYearFeeSchedules.find(s => s.academicYear === activeAY);
     if (existing) {
       const loadedOffset = existing.dueDateOffsetDays || offset;
       setDueDateOffsetDays(loadedOffset);
-      const mergedTerms = generateTermsFromAcademicYear(ayDates, existing.numberOfTerms || 4, loadedOffset, existing.terms);
+      const mergedTerms = hasConfiguredDates ? generateTermsFromAcademicYear(ayDates, existing.numberOfTerms || 4, loadedOffset, existing.terms) : [];
 
       setSchedule({
         ...existing,
@@ -112,13 +120,7 @@ export const FeeScheduleView: React.FC = () => {
         terms: mergedTerms
       });
 
-      setMonthlyConfig(
-        existing.monthlyConfig
-          ? existing.monthlyConfig
-          : generateMonthlyDatesFromAcademicYear(ayDates, 10)
-      );
-      setAnnualDueDate(existing.annualDueDate || (ayDates.startDate ? ayDates.startDate : '2026-06-15'));
-      setOneTimeDueDate(existing.oneTimeDueDate || (ayDates.startDate ? ayDates.startDate : '2026-06-15'));
+      setOneTimeDueDate(existing.oneTimeDueDate || ayDates.startDate);
     } else {
       setSchedule({
         id: `SCH-${activeAY}`,
@@ -128,9 +130,7 @@ export const FeeScheduleView: React.FC = () => {
         status: 'Active',
         terms: computedTerms
       });
-      setMonthlyConfig(generateMonthlyDatesFromAcademicYear(ayDates, 10));
-      setAnnualDueDate(ayDates.startDate || '2026-06-15');
-      setOneTimeDueDate(ayDates.startDate || '2026-06-15');
+      setOneTimeDueDate(ayDates.startDate);
     }
 
     // Fetch persisted schedule from API
@@ -138,13 +138,15 @@ export const FeeScheduleView: React.FC = () => {
     fetchFeeScheduleConfigApi(activeAY)
       .then((res: any) => {
         if (!isSubscribed) return;
+        setIsLoadingSchedule(false);
         const apiData = res?.data || res;
         if (apiData && apiData.terms && apiData.terms.length > 0) {
+          setIsPersistedInDb(true);
           const loadedNumTerms = apiData.numberOfTerms || 4;
           const loadedOffset = apiData.dueDateOffsetDays || 45;
           setDueDateOffsetDays(loadedOffset);
 
-          const finalTerms = generateTermsFromAcademicYear(ayDates, loadedNumTerms, loadedOffset, apiData.terms);
+          const finalTerms = hasConfiguredDates ? generateTermsFromAcademicYear(ayDates, loadedNumTerms, loadedOffset, apiData.terms) : [];
 
           const loaded: AcademicYearFeeSchedule = {
             id: apiData.id || `SCH-${activeAY}`,
@@ -152,15 +154,12 @@ export const FeeScheduleView: React.FC = () => {
             numberOfTerms: loadedNumTerms,
             dueDateOffsetDays: loadedOffset,
             status: (apiData.status === 'Inactive' ? 'Inactive' : 'Active'),
-            annualDueDate: apiData.annualDueDate || ayDates.startDate,
+            annualDueDate: finalTerms[0]?.dueDate || apiData.annualDueDate || ayDates.startDate,
             oneTimeDueDate: apiData.oneTimeDueDate || ayDates.startDate,
             terms: finalTerms,
-            monthlyConfig: apiData.monthlyConfig || generateMonthlyDatesFromAcademicYear(ayDates, 10)
           };
 
           setSchedule(loaded);
-          if (loaded.monthlyConfig) setMonthlyConfig(loaded.monthlyConfig);
-          if (loaded.annualDueDate) setAnnualDueDate(loaded.annualDueDate);
           if (loaded.oneTimeDueDate) setOneTimeDueDate(loaded.oneTimeDueDate);
 
           setAcademicYearFeeSchedules(prev => [
@@ -170,7 +169,9 @@ export const FeeScheduleView: React.FC = () => {
         }
       })
       .catch((err) => {
-        console.warn('Could not fetch fee schedule from API:', err);
+        if (!isSubscribed) return;
+        setIsLoadingSchedule(false);
+        setApiLoadError('Unable to fetch saved schedule from server. Displaying local template.');
       });
 
     return () => {
@@ -187,10 +188,6 @@ export const FeeScheduleView: React.FC = () => {
       dueDateOffsetDays,
       terms: freshTerms
     }));
-
-    if (num === 1 && freshTerms[0]?.dueDate) {
-      setAnnualDueDate(freshTerms[0].dueDate);
-    }
   };
 
   const handleOffsetChange = (newOffset: number) => {
@@ -209,10 +206,6 @@ export const FeeScheduleView: React.FC = () => {
       dueDateOffsetDays: safeOffset,
       terms: updatedTerms
     }));
-
-    if (schedule.numberOfTerms === 1 && updatedTerms[0]?.dueDate) {
-      setAnnualDueDate(updatedTerms[0].dueDate);
-    }
   };
 
   const handleTermFieldChange = (index: number, field: keyof FeeScheduleTerm, value: any) => {
@@ -229,10 +222,6 @@ export const FeeScheduleView: React.FC = () => {
       ...prev,
       terms: updatedTerms
     }));
-
-    if (field === 'dueDate' && index === 0) {
-      setAnnualDueDate(value);
-    }
   };
 
   const handleResetTermToAuto = (index: number) => {
@@ -260,54 +249,11 @@ export const FeeScheduleView: React.FC = () => {
       terms: updatedTerms
     }));
 
-    if (index === 0 && schedule.numberOfTerms === 1) {
-      setAnnualDueDate(autoDueStr);
-    }
-
     addToast(
       'info',
       'Due Date Reset',
       `${target.termName} due date reset to automatic calculation (Start + ${dueDateOffsetDays} days).`
     );
-  };
-
-  // Monthly Due Date Configuration Handlers
-  const handleToggleApplySameDay = (checked: boolean) => {
-    if (checked) {
-      const regenerated = generateMonthlyDatesFromAcademicYear(ayDates, monthlyConfig.dueDay || 10);
-      setMonthlyConfig(regenerated);
-    } else {
-      setMonthlyConfig(prev => ({
-        ...prev,
-        applySameDayToAllMonths: false
-      }));
-    }
-  };
-
-  const handleDueDayChange = (newDay: number) => {
-    if (monthlyConfig.applySameDayToAllMonths) {
-      const regenerated = generateMonthlyDatesFromAcademicYear(ayDates, newDay);
-      setMonthlyConfig(regenerated);
-    } else {
-      setMonthlyConfig(prev => ({
-        ...prev,
-        dueDay: newDay
-      }));
-    }
-  };
-
-  const handleMonthDateChange = (index: number, newDateStr: string) => {
-    setMonthlyConfig(prev => {
-      const updatedMonths = [...prev.monthDueDates];
-      updatedMonths[index] = {
-        ...updatedMonths[index],
-        dueDate: newDateStr
-      };
-      return {
-        ...prev,
-        monthDueDates: updatedMonths
-      };
-    });
   };
 
   const validateSchedule = (): boolean => {
@@ -361,29 +307,9 @@ export const FeeScheduleView: React.FC = () => {
         addToast(
           'error',
           'Validation Error',
-          `Calculated due date (${term.dueDate}) for ${term.termName} falls outside the term period (${term.startDate} to ${term.endDate}). Please adjust the Due Date Offset or manually edit the due date.`
+          `Calculated due date (${formatDateForDisplay(term.dueDate)}) for ${term.termName} falls outside the term period (${formatDateForDisplay(term.startDate)} to ${formatDateForDisplay(term.endDate)}). Please adjust the Due Date Offset or manually edit the due date.`
         );
         return false;
-      }
-    }
-
-    // Monthly Due Dates Validation (Only validated if 12 Terms / Monthly Billing mode is selected)
-    if (schedule.numberOfTerms === 12) {
-      if (!monthlyConfig.monthDueDates || monthlyConfig.monthDueDates.length !== 12) {
-        addToast('error', 'Validation Error', 'All 12 monthly due dates must be configured.');
-        return false;
-      }
-
-      for (let i = 0; i < monthlyConfig.monthDueDates.length; i++) {
-        const mItem = monthlyConfig.monthDueDates[i];
-        if (!mItem.dueDate || mItem.dueDate.trim() === '') {
-          addToast('error', 'Validation Error', `Due date for ${mItem.monthName} is required.`);
-          return false;
-        }
-        if (isNaN(new Date(mItem.dueDate).getTime())) {
-          addToast('error', 'Validation Error', `Invalid due date for ${mItem.monthName}.`);
-          return false;
-        }
       }
     }
 
@@ -400,9 +326,7 @@ export const FeeScheduleView: React.FC = () => {
     if (!validateSchedule()) return;
 
     setIsSaving(true);
-    const finalAnnualDueDate = schedule.numberOfTerms === 1 && schedule.terms?.[0]?.dueDate
-      ? schedule.terms[0].dueDate
-      : annualDueDate;
+    const finalAnnualDueDate = schedule.terms?.[0]?.dueDate || ayDates.startDate;
 
     const finalSchedule: AcademicYearFeeSchedule = {
       id: schedule.id || `SCH-${activeAY}`,
@@ -411,7 +335,6 @@ export const FeeScheduleView: React.FC = () => {
       dueDateOffsetDays,
       terms: (schedule.terms || []).map(t => ({ ...t, status: 'Active' })),
       status: 'Active',
-      monthlyConfig,
       annualDueDate: finalAnnualDueDate,
       oneTimeDueDate
     };
@@ -442,7 +365,16 @@ export const FeeScheduleView: React.FC = () => {
               <Calendar className="w-6 h-6" />
             </div>
             <div>
-              <h3 className="text-base font-black text-slate-900 dark:text-white">Fee Schedule Management</h3>
+              <div className="flex items-center gap-2">
+                <h3 className="text-base font-black text-slate-900 dark:text-white">Fee Schedule Management</h3>
+                {isLoadingSchedule ? (
+                  <span className="px-2.5 py-0.5 text-[11px] font-bold rounded-full bg-slate-100 text-slate-600 animate-pulse">Loading API...</span>
+                ) : isPersistedInDb ? (
+                  <span className="px-2.5 py-0.5 text-[11px] font-bold rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300 dark:bg-emerald-950 dark:text-emerald-300 dark:border-emerald-800">✓ Persisted in DB</span>
+                ) : (
+                  <span className="px-2.5 py-0.5 text-[11px] font-bold rounded-full bg-amber-100 text-amber-800 border border-amber-300 dark:bg-amber-950 dark:text-amber-300 dark:border-amber-800">⚠ Unsaved Default / Draft</span>
+                )}
+              </div>
               <p className="text-xs font-semibold text-slate-500">Derives term start/end dates & automatic due dates from Academic Year Settings</p>
             </div>
           </div>
@@ -460,21 +392,34 @@ export const FeeScheduleView: React.FC = () => {
           </div>
         </div>
 
-        {/* Academic Year Single Source of Truth Banner */}
-        <div className="bg-sky-50 dark:bg-sky-950/40 p-4 rounded-2xl border border-sky-200 dark:border-sky-900/50 flex items-start gap-3 text-xs text-sky-900 dark:text-sky-200">
-          <Lock className="w-5 h-5 text-sky-600 dark:text-sky-400 shrink-0 mt-0.5" />
-          <div className="space-y-1">
-            <div className="font-black flex items-center gap-2 flex-wrap">
-              <span>Academic Year Period & Term Dates Synchronized</span>
-              <span className="px-2 py-0.5 rounded-md bg-sky-200/80 dark:bg-sky-900/80 text-sky-900 dark:text-sky-200 font-mono text-[11px]">
-                📅 {ayDates.startDate} to {ayDates.endDate}
-              </span>
+        {/* Missing Academic Year Dates Warning Banner */}
+        {!hasConfiguredDates ? (
+          <div className="bg-amber-50 dark:bg-amber-950/40 p-4 rounded-2xl border border-amber-200 dark:border-amber-900/50 flex items-start gap-3 text-xs text-amber-900 dark:text-amber-200">
+            <AlertCircle className="w-5 h-5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+            <div>
+              <span className="font-extrabold block">Missing Academic Year Configuration</span>
+              <p className="text-[11px] text-amber-800 dark:text-amber-300 mt-0.5">
+                Academic Year start and end dates are not configured for <strong>{activeAY}</strong>. Please configure valid Academic Year dates under <strong>School Settings</strong> before generating or saving fee schedules.
+              </p>
             </div>
-            <p className="text-[11px] text-sky-700 dark:text-sky-300">
-              The Academic Year Configuration under <strong>School Settings</strong> is the single source of truth. Term start & end dates are calculated automatically with zero gaps or overlaps and are read-only 🔒. Payment <strong>Due Dates</strong> are automatically calculated using the configured offset days from each term's start date.
-            </p>
           </div>
-        </div>
+        ) : (
+          /* Academic Year Single Source of Truth Banner */
+          <div className="bg-sky-50 dark:bg-sky-950/40 p-4 rounded-2xl border border-sky-200 dark:border-sky-900/50 flex items-start gap-3 text-xs text-sky-900 dark:text-sky-200">
+            <Lock className="w-5 h-5 text-sky-600 dark:text-sky-400 shrink-0 mt-0.5" />
+            <div className="space-y-1">
+              <div className="font-black flex items-center gap-2 flex-wrap">
+                <span>Academic Year Period & Term Dates Synchronized</span>
+                <span className="px-2 py-0.5 rounded-md bg-sky-200/80 dark:bg-sky-900/80 text-sky-900 dark:text-sky-200 font-mono text-[11px]">
+                  📅 {formatDateForDisplay(ayDates.startDate)} to {formatDateForDisplay(ayDates.endDate)}
+                </span>
+              </div>
+              <p className="text-[11px] text-sky-700 dark:text-sky-300">
+                The Academic Year Configuration under <strong>School Settings</strong> is the single source of truth. Term start & end dates are calculated automatically with zero gaps or overlaps and are read-only 🔒. Payment <strong>Due Dates</strong> are automatically calculated using the configured offset days from each term's start date.
+              </p>
+            </div>
+          </div>
+        )}
 
         {/* Section 1: Term / Installment Setup */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -593,8 +538,8 @@ export const FeeScheduleView: React.FC = () => {
                         </span>
                       </div>
                       <input
-                        type="date"
-                        value={term.startDate}
+                        type="text"
+                        value={formatDateForDisplay(term.startDate)}
                         readOnly
                         disabled
                         className="w-full px-2.5 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-bold text-[11px] text-slate-500 dark:text-slate-400 cursor-not-allowed"
@@ -608,8 +553,8 @@ export const FeeScheduleView: React.FC = () => {
                         </span>
                       </div>
                       <input
-                        type="date"
-                        value={term.endDate}
+                        type="text"
+                        value={formatDateForDisplay(term.endDate)}
                         readOnly
                         disabled
                         className="w-full px-2.5 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-bold text-[11px] text-slate-500 dark:text-slate-400 cursor-not-allowed"
@@ -637,77 +582,11 @@ export const FeeScheduleView: React.FC = () => {
           </div>
         </div>
 
-        {/* Section 2: Monthly Due Date Configuration — ONLY SHOWN WHEN NUMBER OF TERMS IS 12 (MONTHLY BILLING) */}
-        {schedule.numberOfTerms === 12 && (
-          <div className="bg-slate-50 dark:bg-slate-950/40 p-5 rounded-2xl border border-slate-200/60 dark:border-slate-800/80 space-y-4">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-200/80 dark:border-slate-800 pb-3">
-              <div>
-                <h4 className="text-xs font-extrabold text-slate-900 dark:text-white uppercase tracking-wider flex items-center gap-2">
-                  <CalendarDays className="w-4 h-4 text-sky-500" /> Monthly Due Date Configuration (12 Months)
-                </h4>
-              </div>
-              <div className="flex flex-wrap items-center gap-4">
-                <label className="flex items-center gap-2 cursor-pointer text-xs font-bold text-slate-700 dark:text-slate-300">
-                  <input
-                    type="checkbox"
-                    checked={monthlyConfig.applySameDayToAllMonths}
-                    onChange={e => handleToggleApplySameDay(e.target.checked)}
-                    className="w-4 h-4 rounded text-sky-600 focus:ring-sky-500 cursor-pointer"
-                  />
-                  <span>Apply same due day to all months</span>
-                </label>
-                <div className="flex items-center gap-2">
-                  <span className="text-xs font-bold text-slate-600 dark:text-slate-400">Due Day:</span>
-                  <select
-                    value={monthlyConfig.dueDay}
-                    onChange={e => handleDueDayChange(Number(e.target.value))}
-                    className="px-2.5 py-1 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 font-extrabold text-xs text-slate-900 dark:text-white outline-none"
-                  >
-                    {Array.from({ length: 31 }, (_, i) => i + 1).map(d => (
-                      <option key={d} value={d}>{d}</option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-            </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
-              {monthlyConfig.monthDueDates.map((item, index) => (
-                <div key={index} className="p-3 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800/80 shadow-xs flex items-center justify-between">
-                  <div>
-                    <span className="text-xs font-black text-slate-900 dark:text-white block">{item.monthName}</span>
-                    <span className="text-[10px] text-slate-400 font-medium">Month #{index + 1}</span>
-                  </div>
-                  <DateInput
-                    value={item.dueDate}
-                    onChange={e => handleMonthDateChange(index, e.target.value)}
-                    className="w-32 px-2.5 py-1 rounded-lg bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 font-bold text-xs text-slate-900 dark:text-white outline-none focus:border-brand-500"
-                  />
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
 
-        {/* Section 3: One-Time & Miscellaneous Fee Due Dates */}
-        <div className="bg-slate-50 dark:bg-slate-950/40 p-5 rounded-2xl border border-slate-200/60 dark:border-slate-800/80 grid grid-cols-1 md:grid-cols-2 gap-6">
-          {(schedule.numberOfTerms || 4) > 1 && (
-            <div className="space-y-2 bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800/80">
-              <h4 className="text-xs font-extrabold text-slate-900 dark:text-white uppercase tracking-wider flex items-center gap-2">
-                <Clock className="w-4 h-4 text-emerald-500" /> Annual Lump-Sum Fee Due Date
-              </h4>
-              <div className="flex items-center gap-3 pt-2">
-                <label className="text-xs font-bold text-slate-600 dark:text-slate-400">Due Date:</label>
-                <DateInput
-                  value={annualDueDate}
-                  onChange={e => setAnnualDueDate(e.target.value)}
-                  className="w-36 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 font-black text-xs text-slate-900 dark:text-white outline-none focus:border-brand-500"
-                />
-              </div>
-            </div>
-          )}
-
-          <div className={`space-y-2 bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800/80 ${(schedule.numberOfTerms || 4) === 1 ? 'md:col-span-2' : ''}`}>
+        {/* Section 3: One-Time / Admission Fee Due Date */}
+        <div className="bg-slate-50 dark:bg-slate-950/40 p-5 rounded-2xl border border-slate-200/60 dark:border-slate-800/80">
+          <div className="space-y-2 bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800/80">
             <h4 className="text-xs font-extrabold text-slate-900 dark:text-white uppercase tracking-wider flex items-center gap-2">
               <Clock className="w-4 h-4 text-purple-500" /> One-Time / Admission Fee Due Date
             </h4>

@@ -77,6 +77,18 @@ public class FeeCollectionController : ControllerBase
         return Ok(new { success = true, data = result });
     }
 
+    [HttpGet("category-dues")]
+    [Authorize(Roles = "Admin,Staff,SuperAdmin,Accountant")]
+    public async Task<IActionResult> GetCategoryWiseDues(
+        [FromQuery] string? branch,
+        [FromQuery] string? academicYear,
+        [FromQuery] string? className,
+        [FromQuery] string? sectionName)
+    {
+        var result = await _feeCollectionService.GetCategoryWiseDuesAsync(branch, academicYear, className, sectionName);
+        return Ok(new { success = true, data = result });
+    }
+
     [HttpPost("due-fees/send-reminder")]
     [Authorize(Roles = "Admin,Staff,SuperAdmin,Accountant")]
     public IActionResult SendFeeReminder([FromBody] SendFeeReminderRequestDto request)
@@ -153,10 +165,18 @@ public class FeeCollectionController : ControllerBase
     // =========================================================================
 
     [HttpGet("dashboard")]
+    [HttpGet("dashboard/summary")]
     [Authorize(Roles = "Admin,Staff,SuperAdmin,Accountant")]
-    public async Task<IActionResult> GetDashboardStats()
+    public async Task<IActionResult> GetDashboardStats(
+        [FromQuery] string? branch,
+        [FromQuery] string? academicYear,
+        [FromHeader(Name = "X-Branch-Id")] string? headerBranch,
+        [FromHeader(Name = "X-Academic-Year-Id")] string? headerAcademicYear)
     {
-        var result = await _feeCollectionService.GetDashboardStatsAsync();
+        string? effectiveBranch = !string.IsNullOrWhiteSpace(branch) ? branch : (!string.IsNullOrWhiteSpace(headerBranch) ? headerBranch : null);
+        string? effectiveAcademicYear = !string.IsNullOrWhiteSpace(academicYear) ? academicYear : (!string.IsNullOrWhiteSpace(headerAcademicYear) ? headerAcademicYear : null);
+
+        var result = await _feeCollectionService.GetDashboardStatsAsync(effectiveBranch, effectiveAcademicYear);
         return Ok(new { success = true, data = result });
     }
 }

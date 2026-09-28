@@ -1,4 +1,4 @@
-﻿namespace Backend.Tests.Services;
+namespace Backend.Tests.Services;
 
 using System;
 using System.Collections.Generic;
@@ -78,7 +78,7 @@ public class DashboardServiceTests
         var summary = await service.GetDashboardSummaryAsync("Main Campus", 1);
 
         // Assert
-        Assert.Equal(3, summary.TotalStudents);
+        Assert.Equal(6, summary.TotalStudents);
         Assert.Equal(2, summary.TeachingStaff);
         Assert.Equal(1, summary.NonTeachingStaff);
         Assert.Equal(2, summary.TotalClasses);

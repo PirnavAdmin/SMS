@@ -28,6 +28,8 @@ public class FinanceService : IFinanceService
         public string? academicYear { get; set; }
         public List<string>? applicableClasses { get; set; }
         public List<string>? applicableBranches { get; set; }
+        public string? paymentEligibility { get; set; }
+        public List<string>? applicableTerms { get; set; }
     }
 
     public async Task<IEnumerable<FeeHeadDto>> GetFeeHeadsAsync()
@@ -73,6 +75,8 @@ public class FinanceService : IFinanceService
                         if (!string.IsNullOrEmpty(meta.academicYear)) dto.AcademicYear = meta.academicYear;
                         if (meta.applicableClasses != null && meta.applicableClasses.Count > 0) dto.ApplicableClasses = meta.applicableClasses;
                         if (meta.applicableBranches != null && meta.applicableBranches.Count > 0) dto.ApplicableBranches = meta.applicableBranches;
+                        if (!string.IsNullOrEmpty(meta.paymentEligibility)) dto.PaymentEligibility = meta.paymentEligibility;
+                        if (meta.applicableTerms != null) dto.ApplicableTerms = meta.applicableTerms;
                     }
                 }
                 catch { }
@@ -130,7 +134,9 @@ public class FinanceService : IFinanceService
             taxPercentage = dto.TaxPercentage,
             academicYear = !string.IsNullOrWhiteSpace(dto.AcademicYear) ? dto.AcademicYear : "All",
             applicableClasses = dto.ApplicableClasses ?? new List<string>(),
-            applicableBranches = (dto.ApplicableBranches != null && dto.ApplicableBranches.Count > 0) ? dto.ApplicableBranches : new List<string> { "All Branches" }
+            applicableBranches = (dto.ApplicableBranches != null && dto.ApplicableBranches.Count > 0) ? dto.ApplicableBranches : new List<string> { "All Branches" },
+            paymentEligibility = !string.IsNullOrWhiteSpace(dto.PaymentEligibility) ? dto.PaymentEligibility : "Both One-Time and Term-Wise",
+            applicableTerms = dto.ApplicableTerms ?? new List<string>()
         };
 
         var model = new FeeHead
@@ -212,7 +218,9 @@ public class FinanceService : IFinanceService
             taxPercentage = dto.TaxPercentage,
             academicYear = !string.IsNullOrWhiteSpace(dto.AcademicYear) ? dto.AcademicYear : "All",
             applicableClasses = dto.ApplicableClasses ?? new List<string>(),
-            applicableBranches = (dto.ApplicableBranches != null && dto.ApplicableBranches.Count > 0) ? dto.ApplicableBranches : new List<string> { "All Branches" }
+            applicableBranches = (dto.ApplicableBranches != null && dto.ApplicableBranches.Count > 0) ? dto.ApplicableBranches : new List<string> { "All Branches" },
+            paymentEligibility = !string.IsNullOrWhiteSpace(dto.PaymentEligibility) ? dto.PaymentEligibility : "Both One-Time and Term-Wise",
+            applicableTerms = dto.ApplicableTerms ?? new List<string>()
         };
 
         var model = new FeeHead

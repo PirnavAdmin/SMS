@@ -15,9 +15,35 @@ export function formatDateIso(d: Date): string {
 
 export function parseDateIso(str: string): Date | null {
   if (!str) return null;
-  const parts = str.split('-').map(p => parseInt(p, 10));
-  if (parts.length < 3 || isNaN(parts[0]) || isNaN(parts[1]) || isNaN(parts[2])) return null;
-  return new Date(parts[0], parts[1] - 1, parts[2]);
+  const clean = String(str).trim().split(/[T ]/)[0];
+  const parts = clean.split(/[-/.]/).map(p => parseInt(p, 10));
+  if (parts.length < 3 || parts.some(p => isNaN(p))) return null;
+
+  if (parts[0] > 1000) {
+    // YYYY-MM-DD
+    return new Date(parts[0], parts[1] - 1, parts[2]);
+  } else if (parts[2] > 1000) {
+    const num1 = parts[0];
+    const num2 = parts[1];
+    const y = parts[2];
+    if (num1 > 12) {
+      // num1 is day, num2 is month (DD-MM-YYYY)
+      return new Date(y, num2 - 1, num1);
+    } else if (num2 > 12) {
+      // num2 is day, num1 is month (MM-DD-YYYY)
+      return new Date(y, num1 - 1, num2);
+    } else {
+      if (clean.includes('/')) {
+        // MM/DD/YYYY
+        return new Date(y, num1 - 1, num2);
+      } else {
+        // DD-MM-YYYY
+        return new Date(y, num2 - 1, num1);
+      }
+    }
+  }
+
+  return null;
 }
 
 export function generateTermsFromAcademicYear(
@@ -32,10 +58,7 @@ export function generateTermsFromAcademicYear(
   const end = parseDateIso(ay.endDate);
 
   if (!start || !end || end <= start) {
-    const fallbackStart = parseDateIso(ay.startDate || '2026-06-01') || new Date(2026, 5, 1);
-    const fallbackEnd = new Date(fallbackStart);
-    fallbackEnd.setFullYear(fallbackStart.getFullYear() + 1);
-    return generateTermsFromDates(fallbackStart, fallbackEnd, n, ay.academicYear, safeOffset, existingTerms);
+    return [];
   }
 
   return generateTermsFromDates(start, end, n, ay.academicYear, safeOffset, existingTerms);
@@ -49,11 +72,63 @@ function generateTermsFromDates(
   dueDateOffsetDays: number,
   existingTerms?: FeeScheduleTerm[]
 ): FeeScheduleTerm[] {
+  const result: FeeScheduleTerm[] = [];
+
+  if (numberOfTerms === 12) {
+    let currentStart = new Date(start);
+
+    for (let i = 1; i <= 12; i++) {
+      const termStart = new Date(currentStart);
+      let termEnd: Date;
+
+      if (i === 12) {
+        termEnd = new Date(end);
+      } else {
+        const nextMonthStart = new Date(start.getFullYear(), start.getMonth() + i, start.getDate());
+        termEnd = new Date(nextMonthStart);
+        termEnd.setDate(nextMonthStart.getDate() - 1);
+      }
+
+      const existingMatch = existingTerms?.find(t => t.sequence === i);
+      const mode = existingMatch?.dueDateMode === 'MANUAL' ? 'MANUAL' : 'AUTO';
+
+      let dueDateStr: string;
+      if (mode === 'MANUAL' && existingMatch?.dueDate) {
+        dueDateStr = existingMatch.dueDate;
+      } else {
+        const calculatedDue = new Date(termStart);
+        calculatedDue.setDate(termStart.getDate() + dueDateOffsetDays);
+        dueDateStr = formatDateIso(calculatedDue);
+      }
+
+      const monthLabel = termStart.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+      const termName = existingMatch?.termName || `Term ${i} (${monthLabel})`;
+
+      result.push({
+        id: existingMatch?.id || `T${i}-${ayName.replace(/\s+/g, '')}`,
+        sequence: i,
+        termName,
+        startDate: formatDateIso(termStart),
+        endDate: formatDateIso(termEnd),
+        dueDate: dueDateStr,
+        dueDateMode: mode,
+        dueDateOffsetDays,
+        status: 'Active',
+        percentageShare: Math.round((100 / 12) * 100) / 100,
+      });
+
+      if (i < 12) {
+        currentStart = new Date(start.getFullYear(), start.getMonth() + i, start.getDate());
+      }
+    }
+
+    return result;
+  }
+
   const totalDays = Math.round((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
   const baseDays = Math.floor(totalDays / numberOfTerms);
   const remainderDays = totalDays % numberOfTerms;
 
-  const result: FeeScheduleTerm[] = [];
   let currentStart = new Date(start);
 
   for (let i = 1; i <= numberOfTerms; i++) {
@@ -116,16 +191,32 @@ export function generateMonthlyDatesFromAcademicYear(
   ay: AcademicYearDates,
   dueDay: number = 10
 ): MonthlyDueDateConfig {
-  const start = parseDateIso(ay.startDate) || new Date(2026, 5, 1);
-  const end = parseDateIso(ay.endDate) || new Date(2027, 5, 1);
+  const start = parseDateIso(ay.startDate);
+  const end = parseDateIso(ay.endDate);
   const safeDueDay = Math.min(31, Math.max(1, dueDay || 10));
+
+  if (!start || !end || end <= start) {
+    return {
+      applySameDayToAllMonths: true,
+      dueDay: safeDueDay,
+      monthDueDates: [],
+    };
+  }
 
   const monthDueDates: MonthDueDateItem[] = [];
   let currentMonth = new Date(start.getFullYear(), start.getMonth(), 1);
-  const lastMonth = new Date(end.getFullYear(), end.getMonth(), 1);
+
+  // If academic year end date is on the 1st of a month (e.g., 2027-06-01), the final installment month is May 2027
+  let effectiveEnd = new Date(end);
+  if (effectiveEnd.getDate() === 1 && (effectiveEnd.getFullYear() > start.getFullYear() || effectiveEnd.getMonth() > start.getMonth())) {
+    effectiveEnd = new Date(effectiveEnd.getFullYear(), effectiveEnd.getMonth(), 0);
+  }
+
+  const lastMonth = new Date(effectiveEnd.getFullYear(), effectiveEnd.getMonth(), 1);
 
   let idx = 0;
-  while (currentMonth <= lastMonth) {
+  // Limit to exactly 12 monthly installments for a 1-year schedule
+  while (currentMonth <= lastMonth && idx < 12) {
     const year = currentMonth.getFullYear();
     const month = currentMonth.getMonth();
 

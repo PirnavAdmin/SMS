@@ -101,33 +101,86 @@ export function formatToISO(ddmmyyyy: string): string {
 }
 
 /**
- * Converts any date string (YYYY-MM-DD or DD-MM-YYYY) to standard DD-MM-YYYY format
+ * Converts any date string, timestamp, or Date object to standard DD-MM-YYYY format for display.
+ * Example: 2026-06-01 -> 01-06-2026, 06/01/2026 -> 01-06-2026
  */
-export function formatDateDDMMYYYY(dateStr?: string | null): string {
-  if (!dateStr || typeof dateStr !== 'string') return 'N/A';
-  const clean = dateStr.trim();
-  if (!clean) return 'N/A';
-  
-  const parts = clean.split(/[-/]/);
-  if (parts.length !== 3) return clean;
+export function formatDateForDisplay(dateInput?: string | Date | number | null, fallback: string = ''): string {
+  if (!dateInput) return fallback;
 
-  let day = '', month = '', year = '';
-
-  if (parts[0].length === 4) {
-    // YYYY-MM-DD format -> convert to DD-MM-YYYY
-    year = parts[0];
-    month = parts[1].padStart(2, '0');
-    day = parts[2].padStart(2, '0');
-    return `${day}-${month}-${year}`;
-  } else if (parts[2].length === 4) {
-    // Already DD-MM-YYYY format
-    day = parts[0].padStart(2, '0');
-    month = parts[1].padStart(2, '0');
-    year = parts[2];
-    return `${day}-${month}-${year}`;
+  if (dateInput instanceof Date) {
+    if (isNaN(dateInput.getTime())) return fallback;
+    const d = String(dateInput.getDate()).padStart(2, '0');
+    const m = String(dateInput.getMonth() + 1).padStart(2, '0');
+    const y = dateInput.getFullYear();
+    return `${d}-${m}-${y}`;
   }
 
-  return clean;
+  const str = String(dateInput).trim();
+  if (!str) return fallback;
+
+  // If ISO string like 2026-06-01T00:00:00 or 2026-06-01 00:00:00, take the date part
+  const cleanDateStr = str.split(/[T ]/)[0];
+  const parts = cleanDateStr.split(/[-/.]/);
+
+  if (parts.length === 3) {
+    let d = 0, m = 0, y = 0;
+
+    if (parts[0].length === 4) {
+      // YYYY-MM-DD or YYYY/MM/DD
+      y = parseInt(parts[0], 10);
+      m = parseInt(parts[1], 10);
+      d = parseInt(parts[2], 10);
+    } else if (parts[2].length === 4) {
+      // Could be DD-MM-YYYY or MM/DD/YYYY or DD/MM/YYYY
+      const num1 = parseInt(parts[0], 10);
+      const num2 = parseInt(parts[1], 10);
+      y = parseInt(parts[2], 10);
+
+      if (num1 > 12) {
+        // num1 is Day (e.g. 16/06/2026 or 30-06-2026)
+        d = num1;
+        m = num2;
+      } else if (num2 > 12) {
+        // num2 is Day (e.g. 06/16/2026 or 06-30-2026)
+        m = num1;
+        d = num2;
+      } else {
+        // Both <= 12 (e.g. 01-06-2026 or 06/01/2026)
+        if (cleanDateStr.includes('/')) {
+          // MM/DD/YYYY format (US style) -> num1=Month, num2=Day
+          m = num1;
+          d = num2;
+        } else {
+          // DD-MM-YYYY format -> num1=Day, num2=Month
+          d = num1;
+          m = num2;
+        }
+      }
+    }
+
+    if (!isNaN(d) && !isNaN(m) && !isNaN(y) && d > 0 && m > 0 && m <= 12 && y > 1000) {
+      const dayStr = String(d).padStart(2, '0');
+      const monthStr = String(m).padStart(2, '0');
+      return `${dayStr}-${monthStr}-${y}`;
+    }
+  }
+
+  const parsed = new Date(str);
+  if (!isNaN(parsed.getTime())) {
+    const d = String(parsed.getDate()).padStart(2, '0');
+    const m = String(parsed.getMonth() + 1).padStart(2, '0');
+    const y = parsed.getFullYear();
+    return `${d}-${m}-${y}`;
+  }
+
+  return cleanDateStr.replace(/\//g, '-') || fallback;
+}
+
+/**
+ * Legacy/compatibility wrapper mapping to formatDateForDisplay
+ */
+export function formatDateDDMMYYYY(dateStr?: string | null): string {
+  return formatDateForDisplay(dateStr, 'N/A');
 }
 
 export interface HolidayCheckResult {

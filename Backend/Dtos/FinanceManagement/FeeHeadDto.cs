@@ -21,4 +21,6 @@ public class FeeHeadDto
     public string AcademicYear { get; set; } = "All";
     public List<string> ApplicableClasses { get; set; } = new();
     public List<string> ApplicableBranches { get; set; } = new() { "All Branches" };
+    public string PaymentEligibility { get; set; } = "Both One-Time and Term-Wise";
+    public List<string> ApplicableTerms { get; set; } = new();
 }

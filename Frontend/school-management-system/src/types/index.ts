@@ -1211,6 +1211,8 @@ export type FeeHeadFrequency =
   | 'Annual'
   | 'Custom';
 
+export type FeePaymentEligibility = 'One-Time Only' | 'Term-Wise Allowed' | 'Both One-Time and Term-Wise';
+
 export interface FeeHead {
   id: string;
   name: string;
@@ -1220,6 +1222,8 @@ export interface FeeHead {
   mandatory: boolean;
   applicableClasses: string[];
   applicableBranches: string[];
+  paymentEligibility?: FeePaymentEligibility;
+  applicableTerms?: string[];
   academicYear?: string;
   amount?: number;
   defaultAmount?: number;
@@ -1236,6 +1240,8 @@ export interface FeeStructureItem {
   amount: number;
   frequency?: string;
   dueMonth?: string;
+  paymentEligibility?: FeePaymentEligibility;
+  applicableTerms?: string[];
 }
 
 export interface DynamicFeeStructure {
@@ -1261,6 +1267,7 @@ export interface FeeHeadAssignmentBreakdown {
   assignedAmount: number;
   adjustmentAmount: number;
   isEligibleForProRata?: boolean;
+  isSelected?: boolean;
 }
 
 export interface StudentFeeAssignment {

@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { Tag, Plus, Search, Edit, Trash2, CheckCircle2, XCircle, ArrowUpDown } from 'lucide-react';
-import { FeeHead, FeeHeadCategory, FeeHeadFrequency } from '../../../types';
+import { FeeHead, FeeHeadCategory, FeeHeadFrequency, FeePaymentEligibility } from '../../../types';
 import { useData } from '../../../context/DataContext';
 import { useAuth } from '../../../context/AuthContext';
 import { useToast } from '../../../context/ToastContext';
@@ -25,7 +25,7 @@ const DEFAULT_CLASSES = [
 ];
 
 export const FeeHeadsView: React.FC = () => {
-  const { feeHeads, addFeeHead, updateFeeHead, deleteFeeHead, toggleFeeHeadStatus, academicClasses, branches } = useData();
+  const { feeHeads, addFeeHead, updateFeeHead, deleteFeeHead, toggleFeeHeadStatus, academicClasses, branches, academicYearFeeSchedules } = useData();
   const { selectedAcademicYear } = useAuth();
   const { addToast } = useToast();
 
@@ -46,6 +46,15 @@ export const FeeHeadsView: React.FC = () => {
     }
     return ['All Branches', 'Main Campus', 'Madhapur Branch'];
   }, [branches]);
+
+  const availableAcademicTerms = useMemo(() => {
+    const activeAY = selectedAcademicYear || '2026-2027';
+    const schedule = (academicYearFeeSchedules || []).find((s) => s.academicYear === activeAY);
+    if (schedule && schedule.terms && schedule.terms.length > 0) {
+      return [...schedule.terms].sort((a, b) => a.sequence - b.sequence).map(t => t.termName || t.id);
+    }
+    return ['Term 1', 'Term 2', 'Term 3', 'Term 4'];
+  }, [academicYearFeeSchedules, selectedAcademicYear]);
 
   const formatClassDisplayName = (cls: string) => {
     if (!cls) return '';
@@ -74,6 +83,8 @@ export const FeeHeadsView: React.FC = () => {
     mandatory: true,
     applicableClasses: classOptions,
     applicableBranches: ['All Branches'],
+    paymentEligibility: 'Both One-Time and Term-Wise',
+    applicableTerms: [...availableAcademicTerms],
     taxPercentage: 0,
     displayOrder: 1,
     status: 'Active'
@@ -86,7 +97,6 @@ export const FeeHeadsView: React.FC = () => {
     const matchesStatus = selectedStatus === 'All' || h.status === selectedStatus;
     return matchesQuery && matchesCategory && matchesFrequency && matchesStatus;
   }).sort((a, b) => {
-    // Mandatory fee types always display at top
     if (a.mandatory && !b.mandatory) return -1;
     if (!a.mandatory && b.mandatory) return 1;
     return (a.displayOrder || 0) - (b.displayOrder || 0);
@@ -102,6 +112,8 @@ export const FeeHeadsView: React.FC = () => {
       mandatory: true,
       applicableClasses: classOptions,
       applicableBranches: ['All Branches'],
+      paymentEligibility: 'Both One-Time and Term-Wise',
+      applicableTerms: [...availableAcademicTerms],
       taxPercentage: 0,
       displayOrder: feeHeads.length + 1,
       status: 'Active'
@@ -116,6 +128,8 @@ export const FeeHeadsView: React.FC = () => {
       mandatory: h.mandatory === true,
       applicableClasses: h.applicableClasses && h.applicableClasses.length > 0 ? [...h.applicableClasses] : [...classOptions],
       applicableBranches: h.applicableBranches && h.applicableBranches.length > 0 ? [...h.applicableBranches] : ['All Branches'],
+      paymentEligibility: h.paymentEligibility || 'Both One-Time and Term-Wise',
+      applicableTerms: h.applicableTerms && h.applicableTerms.length > 0 ? [...h.applicableTerms] : [...availableAcademicTerms],
     });
     setIsModalOpen(true);
   };
@@ -132,11 +146,13 @@ export const FeeHeadsView: React.FC = () => {
       if (!formData.applicableClasses || formData.applicableClasses.length === 0) {
         throw new Error('Please select at least one applicable class for this fee type.');
       }
+      if (formData.paymentEligibility === 'Term-Wise Allowed' && (!formData.applicableTerms || formData.applicableTerms.length === 0)) {
+        throw new Error('Validation Error: Please select at least one applicable term for Term-Wise payment.');
+      }
 
       const cleanName = formData.name.trim().toLowerCase();
       const cleanCode = formData.code.trim().toLowerCase();
 
-      // Duplicate validation check using Exception Handling
       const existingDuplicate = feeHeads.find(h => {
         if (editingHead && String(h.id) === String(editingHead.id)) return false;
         const sameCode = h.code && h.code.trim().toLowerCase() === cleanCode;
@@ -161,6 +177,8 @@ export const FeeHeadsView: React.FC = () => {
         displayOrder: cleanOrder,
         mandatory: formData.mandatory === true,
         academicYear: selectedAcademicYear || 'All',
+        paymentEligibility: formData.paymentEligibility || 'Both One-Time and Term-Wise',
+        applicableTerms: formData.paymentEligibility === 'One-Time Only' ? [] : (formData.applicableTerms || [...availableAcademicTerms])
       };
 
       if (editingHead) {
@@ -249,7 +267,7 @@ export const FeeHeadsView: React.FC = () => {
                 <th className="py-3.5 px-4">Fee Type</th>
                 <th className="py-3.5 px-4">Code</th>
                 <th className="py-3.5 px-4">Category</th>
-                <th className="py-3.5 px-4">Frequency</th>
+                <th className="py-3.5 px-4">Payment Eligibility</th>
                 <th className="py-3.5 px-4">Mandatory</th>
                 <th className="py-3.5 px-4">Classes</th>
                 <th className="py-3.5 px-4">Status</th>
@@ -262,7 +280,7 @@ export const FeeHeadsView: React.FC = () => {
                   <td colSpan={9} className="py-12 text-center text-slate-400">
                     <Tag className="w-10 h-10 mx-auto text-slate-300 dark:text-slate-600 mb-2 opacity-50" />
                     <p className="font-bold text-slate-700 dark:text-slate-300">No fee types configured</p>
-                    <p className="text-xs text-slate-400 mt-1">Click "+ Add Fee Type" above to create fee heads dynamically.</p>
+                    <p className="text-xs text-slate-400 mt-1">Click "+ Add Fee Category" above to create fee heads dynamically.</p>
                   </td>
                 </tr>
               ) : (
@@ -276,7 +294,21 @@ export const FeeHeadsView: React.FC = () => {
                         {h.category}
                       </span>
                     </td>
-                    <td className="py-3 px-4 font-semibold text-slate-700 dark:text-slate-300">{h.frequency}</td>
+                    <td className="py-3 px-4">
+                      {h.paymentEligibility === 'One-Time Only' ? (
+                        <span className="px-2 py-0.5 rounded bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300 font-bold text-[10px]">
+                          One-Time Only
+                        </span>
+                      ) : h.paymentEligibility === 'Term-Wise Allowed' ? (
+                        <span className="px-2 py-0.5 rounded bg-indigo-50 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300 font-bold text-[10px]">
+                          Term-Wise ({(h.applicableTerms || []).length || 'All'} Terms)
+                        </span>
+                      ) : (
+                        <span className="px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300 font-bold text-[10px]">
+                          Both (One-Time / Term)
+                        </span>
+                      )}
+                    </td>
                     <td className="py-3 px-4">
                       {h.mandatory ? (
                         <span className="text-rose-500 font-bold flex items-center gap-1"><CheckCircle2 className="w-3.5 h-3.5" /> Mandatory</span>
@@ -316,10 +348,10 @@ export const FeeHeadsView: React.FC = () => {
       {/* Modal */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm animate-in fade-in">
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-md w-full p-6 shadow-2xl space-y-4">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-md w-full p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
               <h3 className="text-base font-bold text-slate-900 dark:text-white">
-                {editingHead ? 'Edit Fee Type' : 'Add Fee Type'}
+                {editingHead ? 'Edit Fee Category / Head' : 'Add Fee Category / Head'}
               </h3>
               <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-slate-600">✕</button>
             </div>
@@ -371,6 +403,93 @@ export const FeeHeadsView: React.FC = () => {
                     {FREQUENCIES.map(f => <option key={f} value={f}>{f}</option>)}
                   </select>
                 </div>
+              </div>
+
+              {/* Payment Configuration */}
+              <div className="space-y-2 p-3 rounded-2xl bg-sky-50/50 dark:bg-sky-950/30 border border-sky-200/80 dark:border-sky-800">
+                <label className="block font-black text-slate-900 dark:text-white uppercase tracking-wider text-[11px]">
+                  Payment Configuration
+                </label>
+
+                <div>
+                  <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1 text-[11px]">
+                    Payment Frequency / Eligibility <span className="text-rose-500 font-bold">*</span>
+                  </label>
+                  <select
+                    value={formData.paymentEligibility || 'Both One-Time and Term-Wise'}
+                    onChange={(e) => {
+                      const val = e.target.value as FeePaymentEligibility;
+                      setFormData({
+                        ...formData,
+                        paymentEligibility: val,
+                        applicableTerms: val === 'One-Time Only' ? [] : (formData.applicableTerms && formData.applicableTerms.length > 0 ? formData.applicableTerms : [...availableAcademicTerms])
+                      });
+                    }}
+                    className="w-full px-3 py-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-bold text-slate-900 dark:text-white text-xs outline-none"
+                  >
+                    <option value="One-Time Only">One-Time Only (Single Installment)</option>
+                    <option value="Term-Wise Allowed">Term-Wise Allowed Only</option>
+                    <option value="Both One-Time and Term-Wise">Both One-Time and Term-Wise (Flexible)</option>
+                  </select>
+                </div>
+
+                {formData.paymentEligibility !== 'One-Time Only' && (
+                  <div className="space-y-2 pt-1 border-t border-sky-100 dark:border-sky-900/60">
+                    <div className="flex items-center justify-between">
+                      <label className="font-extrabold text-slate-800 dark:text-slate-200 text-[11px]">
+                        Applicable Terms ({(formData.applicableTerms || []).length}/{availableAcademicTerms.length} Selected)
+                      </label>
+                      <div className="flex items-center gap-2 text-[10px]">
+                        <button
+                          type="button"
+                          onClick={() => setFormData({ ...formData, applicableTerms: [...availableAcademicTerms] })}
+                          className="text-sky-600 hover:text-sky-700 dark:text-sky-400 font-bold hover:underline cursor-pointer"
+                        >
+                          Select All
+                        </button>
+                        <span className="text-slate-300">|</span>
+                        <button
+                          type="button"
+                          onClick={() => setFormData({ ...formData, applicableTerms: [] })}
+                          className="text-slate-400 hover:text-slate-600 font-bold hover:underline cursor-pointer"
+                        >
+                          Deselect All
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-1.5 p-1 max-h-32 overflow-y-auto">
+                      {availableAcademicTerms.map((tName) => {
+                        const isChecked = (formData.applicableTerms || []).includes(tName);
+                        return (
+                          <label
+                            key={tName}
+                            className={`flex items-center gap-2 p-1.5 rounded-xl border text-[11px] font-semibold cursor-pointer transition-all ${
+                              isChecked
+                                ? 'bg-emerald-50 dark:bg-emerald-950/60 border-emerald-300 dark:border-emerald-800 text-emerald-900 dark:text-emerald-200'
+                                : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-100'
+                            }`}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={isChecked}
+                              onChange={(e) => {
+                                const current = formData.applicableTerms || [];
+                                if (e.target.checked) {
+                                  setFormData({ ...formData, applicableTerms: [...current, tName] });
+                                } else {
+                                  setFormData({ ...formData, applicableTerms: current.filter(t => t !== tName) });
+                                }
+                              }}
+                              className="w-3.5 h-3.5 rounded text-emerald-600 focus:ring-emerald-500 cursor-pointer"
+                            />
+                            <span className="truncate">{tName}</span>
+                          </label>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
               </div>
 
               <div className="grid grid-cols-2 gap-3">

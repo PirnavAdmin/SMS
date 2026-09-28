@@ -24,11 +24,74 @@ public static class AcademicYearTermCalculator
             end = start.AddYears(1);
         }
 
+        var result = new List<FeeScheduleTermDto>();
+
+        if (n == 12)
+        {
+            DateTime currentMonthStart = start.Date;
+
+            for (int i = 1; i <= 12; i++)
+            {
+                DateTime termStart = currentMonthStart;
+                DateTime termEnd;
+
+                if (i == 12)
+                {
+                    termEnd = end.Date;
+                }
+                else
+                {
+                    DateTime nextMonthStart = start.Date.AddMonths(i);
+                    termEnd = nextMonthStart.AddDays(-1);
+                }
+
+                var matchingExisting = existingTerms?.FirstOrDefault(t => t.Sequence == i);
+                string mode = matchingExisting?.DueDateMode ?? "AUTO";
+                string dueDateStr;
+
+                if (mode.Equals("MANUAL", StringComparison.OrdinalIgnoreCase) && !string.IsNullOrWhiteSpace(matchingExisting?.DueDate))
+                {
+                    dueDateStr = matchingExisting.DueDate;
+                }
+                else
+                {
+                    mode = "AUTO";
+                    DateTime calculatedDue = termStart.AddDays(safeOffsetDays);
+                    dueDateStr = calculatedDue.ToString("yyyy-MM-dd");
+                }
+
+                string monthLabel = termStart.ToString("MMMM yyyy");
+                string termName = matchingExisting?.TermName ?? $"Term {i} ({monthLabel})";
+
+                double share = Math.Round(100.0 / 12, 2);
+
+                result.Add(new FeeScheduleTermDto
+                {
+                    Id = matchingExisting?.Id ?? $"T{i}-{ay.AcademicYearName.Replace(" ", "")}",
+                    Sequence = i,
+                    TermName = termName,
+                    StartDate = termStart.ToString("yyyy-MM-dd"),
+                    EndDate = termEnd.ToString("yyyy-MM-dd"),
+                    DueDate = dueDateStr,
+                    DueDateMode = mode,
+                    DueDateOffsetDays = safeOffsetDays,
+                    Status = matchingExisting?.Status ?? "Active",
+                    PercentageShare = matchingExisting?.PercentageShare ?? share
+                });
+
+                if (i < 12)
+                {
+                    currentMonthStart = start.Date.AddMonths(i);
+                }
+            }
+
+            return result;
+        }
+
         int totalDays = (int)(end.Date - start.Date).TotalDays + 1;
         int baseDays = totalDays / n;
         int remainderDays = totalDays % n;
 
-        var result = new List<FeeScheduleTermDto>();
         DateTime currentStart = start.Date;
 
         for (int i = 1; i <= n; i++)

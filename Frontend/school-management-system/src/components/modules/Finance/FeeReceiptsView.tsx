@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { formatCurrency } from '../../../utils/currency';
+import { formatDateForDisplay } from '../../../utils/dateValidation';
 import { Receipt, Search, Printer, CheckCircle, Eye, Download, Mail } from 'lucide-react';
 import { FeePayment } from '../../../types';
 import { useData } from '../../../context/DataContext';
@@ -152,16 +153,14 @@ export const FeeReceiptsView: React.FC = () => {
                         ? `${student.className}-${student.section}`
                         : `Class ${student.className}-${student.section}`
                       : "Class 10-A");
-                  const displayDate = p.paymentDate
-                    ? p.paymentDate.split("T")[0]
-                    : new Date().toISOString().split("T")[0];
+                  const displayDate = formatDateForDisplay(p.paymentDate);
 
                   const fullPaymentObj: FeePayment = {
                     ...p,
                     receiptNo: displayReceiptNo,
                     studentName: displayStudentName,
                     className: displayClass,
-                    paymentDate: displayDate,
+                    paymentDate: p.paymentDate || new Date().toISOString().split("T")[0],
                   };
 
                   return (

@@ -218,6 +218,24 @@ public class DueFeesSummaryResponseDto
     public List<DueFeeStudentDto> Items { get; set; } = new();
 }
 
+public class CategoryWiseDuesItemDto
+{
+    public string CategoryName { get; set; } = string.Empty;
+    public decimal TotalOutstanding { get; set; }
+    public decimal OverdueAmount { get; set; }
+    public int StudentCount { get; set; }
+    public string FormattedTotalOutstanding => $"₹{TotalOutstanding:N0}";
+    public string FormattedOverdueAmount => $"₹{OverdueAmount:N0}";
+}
+
+public class CategoryWiseDuesResponseDto
+{
+    public decimal TotalOutstanding { get; set; }
+    public decimal TotalOverdue { get; set; }
+    public int TotalStudentsWithDues { get; set; }
+    public List<CategoryWiseDuesItemDto> Categories { get; set; } = new();
+}
+
 public class SendFeeReminderRequestDto
 {
     public int StudentId { get; set; }
@@ -349,6 +367,18 @@ public class ClassWiseCollectionShareDto
     public string FormattedCollected => $"₹{CollectedAmount:N0}";
 }
 
+public class FeeCategoryCollectionSummaryDto
+{
+    public string CategoryName { get; set; } = string.Empty;
+    public decimal ExpectedAmount { get; set; }
+    public decimal CollectedAmount { get; set; }
+    public decimal PendingAmount => Math.Max(0m, ExpectedAmount - CollectedAmount);
+    public double Percentage => ExpectedAmount > 0 ? Math.Min(100.0, Math.Round((double)(CollectedAmount / ExpectedAmount) * 100, 1)) : 0;
+    public string FormattedExpected => $"₹{ExpectedAmount:N0}";
+    public string FormattedCollected => $"₹{CollectedAmount:N0}";
+    public string FormattedPending => $"₹{PendingAmount:N0}";
+}
+
 public class FinanceDashboardStatsDto
 {
     public decimal TotalExpectedRevenue { get; set; }
@@ -360,11 +390,29 @@ public class FinanceDashboardStatsDto
     public int StudentsPaidCount { get; set; }
     public double CollectionEfficiencyPercentage { get; set; }
 
-    public decimal TransportRevenue { get; set; }
-    public decimal HostelRevenue { get; set; }
-    public decimal UniformRevenue { get; set; }
-    public decimal ScholarshipsGranted { get; set; }
-    public decimal FineCollected { get; set; }
+    // Module-Specific Financial Metrics (Expected, Collected, Pending)
+    public decimal HostelExpected { get; set; }
+    public decimal HostelCollected { get; set; }
+    public decimal HostelPending => Math.Max(0m, HostelExpected - HostelCollected);
+
+    public decimal TransportExpected { get; set; }
+    public decimal TransportCollected { get; set; }
+    public decimal TransportPending => Math.Max(0m, TransportExpected - TransportCollected);
+
+    public decimal UniformExpected { get; set; }
+    public decimal UniformCollected { get; set; }
+    public decimal UniformPending => Math.Max(0m, UniformExpected - UniformCollected);
+
+    public decimal FinesExpected { get; set; }
+    public decimal FinesCollected { get; set; }
+    public decimal FinesPending => Math.Max(0m, FinesExpected - FinesCollected);
+
+    // Backward-Compatibility Properties
+    public decimal TransportRevenue { get => TransportCollected; set => TransportCollected = value; }
+    public decimal HostelRevenue { get => HostelCollected; set => HostelCollected = value; }
+    public decimal UniformRevenue { get => UniformCollected; set => UniformCollected = value; }
+    public decimal ScholarshipsGranted { get => TotalConcessionsGranted; set => TotalConcessionsGranted = value; }
+    public decimal FineCollected { get => FinesCollected; set => FinesCollected = value; }
 
     public string FormattedExpected => $"₹{TotalExpectedRevenue:N0}";
     public string FormattedCollected => $"₹{TotalCollectedRevenue:N0}";
@@ -372,15 +420,16 @@ public class FinanceDashboardStatsDto
     public string FormattedConcessions => $"₹{TotalConcessionsGranted:N0}";
     public string FormattedToday => $"₹{TodayCollectionAmount:N0}";
     public string FormattedMonthly => $"₹{MonthlyCollectionAmount:N0}";
-    public string FormattedTransport => $"₹{TransportRevenue:N0}";
-    public string FormattedHostel => $"₹{HostelRevenue:N0}";
-    public string FormattedUniform => $"₹{UniformRevenue:N0}";
-    public string FormattedScholarships => $"₹{ScholarshipsGranted:N0}";
-    public string FormattedFine => $"₹{FineCollected:N0}";
+    public string FormattedTransport => $"₹{TransportCollected:N0}";
+    public string FormattedHostel => $"₹{HostelCollected:N0}";
+    public string FormattedUniform => $"₹{UniformCollected:N0}";
+    public string FormattedScholarships => $"₹{TotalConcessionsGranted:N0}";
+    public string FormattedFine => $"₹{FinesCollected:N0}";
 
     public List<ClassWiseCollectionShareDto> ClassWiseRevenue { get; set; } = new();
     public List<MonthlyCollectionTrendDto> MonthlyTrends { get; set; } = new();
     public List<FeeHeadCollectionShareDto> HeadWiseDistribution { get; set; } = new();
     public List<PaymentModeSplitDto> PaymentModeDistribution { get; set; } = new();
     public List<FeeReceiptDetailDto> RecentTransactions { get; set; } = new();
+    public List<FeeCategoryCollectionSummaryDto> CategoryBreakdown { get; set; } = new();
 }

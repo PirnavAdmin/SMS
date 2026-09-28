@@ -4,6 +4,7 @@ import { FeePayment } from '../../../types';
 import { useData } from '../../../context/DataContext';
 import { useAuth } from '../../../context/AuthContext';
 import { formatCurrency } from '../../../utils/currency';
+import { formatDateForDisplay } from '../../../utils/dateValidation';
 import { resolveMediaUrl } from '../../../utils/mediaUtils';
 import { numberToWords } from '../../../utils/numberToWords';
 
@@ -76,7 +77,7 @@ export const PrintableFeeReceipt: React.FC<PrintableFeeReceiptProps> = ({ paymen
   const schoolPhone = schoolProfile?.phone ? ` • Ph: ${schoolProfile.phone}` : "";
 
   const receiptNo = payment.receiptNo || "43358";
-  const paymentDate = payment.paymentDate || new Date().toLocaleDateString('en-GB');
+  const paymentDate = formatDateForDisplay(payment.paymentDate, new Date().toLocaleDateString('en-GB'));
   const payMode = payment.paymentMode || "Cash";
   const bankName = payment.bankName || "-";
   const transactionNumber = payment.chequeNo || payment.transactionId || "-";

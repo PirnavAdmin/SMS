@@ -926,30 +926,31 @@ public class SchoolService : ISchoolService
 	public async Task<bool> EnrollStudentAsync(int id)
 	{
 		var app = await _schoolRepository.GetApplicationByIdAsync(id);
-		if (app != null)
+		if (app == null)
 		{
-			if (app.Status != "Enrolled")
+			if (id > 100000)
 			{
-				app.Status = "Enrolled";
-				await _schoolRepository.SaveChangesAsync();
+				int studentId = id - 100000;
+				var st = await _context.Students.FindAsync(studentId);
+				if (st != null)
+				{
+					st.Status = "Enrolled";
+					st.IsDeleted = false;
+					await _context.SaveChangesAsync();
+					return true;
+				}
 			}
-			await SyncToAdmissionsTableAsync(app);
-			return true;
+			throw new NotFoundException($"Admission application with ID {id} not found.");
 		}
 
-		if (id > 100000)
+		if (string.Equals(app.Status, "Enrolled", StringComparison.OrdinalIgnoreCase))
 		{
-			int studentId = id - 100000;
-			var st = await _context.Students.FindAsync(studentId);
-			if (st != null)
-			{
-				st.Status = "Enrolled";
-				st.IsDeleted = false;
-				await _context.SaveChangesAsync();
-				return true;
-			}
+			throw new BadRequestException($"Application with ID {id} is already enrolled.");
 		}
 
+		app.Status = "Enrolled";
+		await _schoolRepository.SaveChangesAsync();
+		await SyncToAdmissionsTableAsync(app);
 		return true;
 	}
 

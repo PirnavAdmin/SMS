@@ -154,7 +154,7 @@ namespace SMS.Api.Data
         // =====================================================
         // Finance Management Module
         // =====================================================
-        public DbSet<SMS.Api.Models.FinanceManagement.FeeHead> FeeHeads { get; set; } = null!;
+        public DbSet<SMS.Api.Models.FinanceManagement.FeeHead> FeeHeadsy { get; set; } = null!;
         public DbSet<SMS.Api.Models.FinanceManagement.DynamicFeeStructure> DynamicFeeStructures { get; set; } = null!;
         public DbSet<SMS.Api.Models.FinanceManagement.StudentFeeAssignment> StudentFeeAssignments { get; set; } = null!;
         public DbSet<SMS.Api.Models.FinanceManagement.FeePayment> FeePayments { get; set; } = null!;

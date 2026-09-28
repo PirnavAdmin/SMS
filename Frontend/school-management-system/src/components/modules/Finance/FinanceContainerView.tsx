@@ -37,9 +37,18 @@ export const FinanceContainerView: React.FC<FinanceContainerViewProps> = ({ init
   }, [initialTab]);
 
   const handleNavigate = (tab: string) => {
-    setActiveTab(tab);
+    const lower = tab.toLowerCase();
+    if (lower.includes('transport') || lower.includes('hostel') || lower.includes('uniform')) {
+      const targetModule = lower.includes('transport') ? 'transport' : lower.includes('hostel') ? 'hostel' : 'uniforms';
+      if (onTabChange) {
+        onTabChange(targetModule);
+      }
+      return;
+    }
+    const cleanTab = tab.startsWith('finance-') ? tab.replace('finance-', '') : tab;
+    setActiveTab(cleanTab);
     if (onTabChange) {
-      onTabChange(`finance-${tab}`);
+      onTabChange(`finance-${cleanTab}`);
     }
   };
 

@@ -58,7 +58,7 @@ public class StaffService : IStaffService
         foreach (var id in existingIds)
         {
             if (string.IsNullOrWhiteSpace(id)) continue;
-            var match = System.Text.RegularExpressions.Regex.Match(id, @"\d+");
+            var match = System.Text.RegularExpressions.Regex.Match(id, @"\d+$");
             if (match.Success && int.TryParse(match.Value, out int num))
             {
                 if (num > maxNumber) maxNumber = num;
