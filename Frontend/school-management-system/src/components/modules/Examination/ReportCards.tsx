@@ -6,6 +6,7 @@ import { Panel } from './components/SharedUI';
 import { useResults } from './hooks/useResults';
 import { useData } from '../../../context/DataContext';
 import { printReportCard, downloadReportCardPdf } from './utils/reportCardPrinter';
+import { fetchReportCardsApi } from '../../../api/examination';
 
 interface ReportCardsProps {
   exam: ExamSetup | null;
@@ -24,8 +25,8 @@ export const ReportCards: React.FC<ReportCardsProps> = ({
   students,
   addToast
 }) => {
-  const { getResultsForExamClass } = useResults();
-  const { studentAttendance, coScholasticAssessments, academicClasses, schoolProfile } = useData();
+  const { getResultsForExamClass, saveProcessedResults } = useResults();
+  const { studentAttendance, coScholasticAssessments, academicClasses, schoolProfile, refreshReleasedExamResults } = useData();
 
   const [selectedClass, setSelectedClass] = useState<string>('');
   const [selectedSection, setSelectedSection] = useState<string>('');
@@ -37,6 +38,47 @@ export const ReportCards: React.FC<ReportCardsProps> = ({
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [isBulkDownloading, setIsBulkDownloading] = useState(false);
   const [isBulkSending, setIsBulkSending] = useState(false);
+
+  // Auto-fetch latest report cards from database on mount or class/section change
+  useEffect(() => {
+    let isMounted = true;
+    const loadFromDb = async () => {
+      try {
+        if (refreshReleasedExamResults) {
+          await refreshReleasedExamResults();
+        }
+        const res = await fetchReportCardsApi(selectedClass, selectedSection);
+        const cards = res?.data || res;
+        if (Array.isArray(cards) && cards.length > 0 && isMounted) {
+          saveProcessedResults(cards.map((r: any) => ({
+            id: String(r.id || r.resultId || `API-${r.studentId}`),
+            examId: String(r.examId || exam?.id || '1'),
+            studentId: String(r.studentId || ''),
+            studentName: r.studentName || '',
+            className: r.className || selectedClass,
+            section: r.sectionName || r.section || selectedSection,
+            rollNo: r.rollNumber || r.rollNo || '',
+            admissionNo: r.admissionNumber || r.admissionNo || String(r.studentId || ''),
+            totalMaxMarks: Number(r.totalMaxMarks ?? r.maxMarks ?? 0),
+            totalObtainedMarks: Number(r.totalMarksObtained ?? r.totalObtainedMarks ?? r.obtainedMarks ?? 0),
+            percentage: Number(r.percentage ?? 0),
+            gpa: Number(r.gpa || 0),
+            finalGrade: r.finalGrade || r.overallGrade || r.grade || '',
+            overallGrade: r.finalGrade || r.overallGrade || r.grade || '',
+            subjectMarks: Array.isArray(r.subjectMarks) ? r.subjectMarks : [],
+            passStatus: (r.resultStatus || r.passStatus || 'Pass') as 'Pass' | 'Fail',
+            status: 'Published',
+            rank: Number(r.rank || 0),
+            publishedAt: r.calculatedAt || new Date().toISOString().split('T')[0]
+          })));
+        }
+      } catch (err) {
+        console.warn('ReportCards DB fetch note:', err);
+      }
+    };
+    loadFromDb();
+    return () => { isMounted = false; };
+  }, [selectedClass, selectedSection, exam?.id]);
 
   // Pagination state - Default 20 entries per page
   const [currentPage, setCurrentPage] = useState<number>(1);

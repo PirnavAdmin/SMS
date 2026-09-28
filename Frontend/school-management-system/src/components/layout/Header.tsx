@@ -9,7 +9,7 @@ import { useData } from '../../context/DataContext';
 import { UserRole } from '../../types';
 import { ConfirmModal } from '../common/ConfirmModal';
 import { resolveMediaUrl, DEFAULT_USER_AVATAR, getInitialsAvatar } from '../../utils/mediaUtils';
-import { fetchBranchesApi, fetchAcademicYearsApi, createBranchApi, updateBranchApi } from '../../api/settings';
+import { fetchBranchesApi, fetchAcademicYearsApi, createBranchApi, updateBranchApi, deleteBranchApi } from '../../api/settings';
 
 interface HeaderProps {
   collapsed: boolean;
@@ -99,7 +99,7 @@ export const Header: React.FC<HeaderProps> = ({ collapsed, setCollapsed, onOpenS
   const [branchModalOpen, setBranchModalOpen] = useState(false);
   const [branchDraftName, setBranchDraftName] = useState('');
   const [editingBranchName, setEditingBranchName] = useState<string | null>(null);
-  const [deactivatingBranch, setDeactivatingBranch] = useState<string | null>(null);
+  const [deletingBranch, setDeletingBranch] = useState<string | null>(null);
 
   const notifRef = useRef<HTMLDivElement>(null);
   const branchRef = useRef<HTMLDivElement>(null);
@@ -314,15 +314,33 @@ export const Header: React.FC<HeaderProps> = ({ collapsed, setCollapsed, onOpenS
     }
   }, [ayOptions, selectedAcademicYear, setSelectedAcademicYear]);
 
-  const confirmDeactivateBranch = () => {
-    if (!deactivatingBranch || !canManageBranch) return;
-    setInactiveBranches(prev => Array.from(new Set([...(prev || []), deactivatingBranch])));
-    if (selectedBranch === deactivatingBranch) {
-      const fallback = branchOptions.find(branch => branch !== deactivatingBranch) || '';
+  const confirmDeleteBranch = async () => {
+    if (!deletingBranch || !canManageBranch) return;
+    const branchToDelete = deletingBranch;
+    setDeletingBranch(null);
+    setShowBranchMenu(false);
+
+    try {
+      const existing = (branches || []).find((b: any) => 
+        (b.name && b.name.toLowerCase() === branchToDelete.toLowerCase()) || 
+        (b.branchName && b.branchName.toLowerCase() === branchToDelete.toLowerCase()) ||
+        b.id === branchToDelete ||
+        b.branchId === branchToDelete
+      );
+      const targetId = existing?.id || existing?.branchId || branchToDelete;
+      await deleteBranchApi(targetId);
+      if (fetchBranches) await fetchBranches();
+      window.dispatchEvent(new Event('branches_updated'));
+      window.dispatchEvent(new CustomEvent('branch_deleted', { detail: { name: branchToDelete } }));
+    } catch (err) {
+      console.warn('Failed to delete branch via API:', err);
+    }
+
+    setManagedBranches(prev => (prev || []).filter(b => b !== branchToDelete));
+    if (selectedBranch === branchToDelete) {
+      const fallback = branchOptions.find(b => b !== branchToDelete) || '';
       setSelectedBranch(fallback);
     }
-    setDeactivatingBranch(null);
-    setShowBranchMenu(false);
   };
 
   const [readNotifIds, setReadNotifIds] = useState<string[]>(() => {
@@ -458,10 +476,10 @@ export const Header: React.FC<HeaderProps> = ({ collapsed, setCollapsed, onOpenS
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
-                                setDeactivatingBranch(branch);
+                                setDeletingBranch(branch);
                               }}
-                              className="p-1 hover:bg-rose-100 dark:hover:bg-rose-900/40 rounded text-rose-500"
-                              title="Deactivate branch"
+                              className="p-1 hover:bg-rose-100 dark:hover:bg-rose-900/40 rounded text-rose-500 cursor-pointer"
+                              title="Delete campus branch"
                             >
                               <Trash2 className="w-3 h-3" />
                             </button>
@@ -697,13 +715,13 @@ export const Header: React.FC<HeaderProps> = ({ collapsed, setCollapsed, onOpenS
       )}
 
       <ConfirmModal
-        isOpen={!!deactivatingBranch}
-        title="Deactivate Branch"
-        message={`Deactivate ${deactivatingBranch || 'this branch'}? Existing records will remain unchanged, but the branch will be hidden from active selection.`}
-        confirmLabel="Deactivate"
+        isOpen={!!deletingBranch}
+        title="Delete Campus Branch"
+        message={`Are you sure you want to permanently delete "${deletingBranch}"? This campus will be removed from system configurations.`}
+        confirmLabel="Delete Campus"
         variant="danger"
-        onConfirm={confirmDeactivateBranch}
-        onCancel={() => setDeactivatingBranch(null)}
+        onConfirm={confirmDeleteBranch}
+        onCancel={() => setDeletingBranch(null)}
       />
     </header>
   );
