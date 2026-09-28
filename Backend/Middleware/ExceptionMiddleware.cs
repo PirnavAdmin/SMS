@@ -27,8 +27,18 @@ public class ExceptionMiddleware
         {
             await _next(context);
         }
+        catch (OperationCanceledException) when (context.RequestAborted.IsCancellationRequested)
+        {
+            _logger.LogInformation("Request for {Method} {Path} was canceled by the client.", context.Request.Method, context.Request.Path);
+        }
         catch (Exception ex)
         {
+            if (context.Response.HasStarted)
+            {
+                _logger.LogWarning(ex, "Response already started for {Method} {Path}, unable to send error response: {Message}", context.Request.Method, context.Request.Path, ex.Message);
+                return;
+            }
+
             _logger.LogError(
                 ex,
                 "Unhandled exception: {Message}",
@@ -42,6 +52,11 @@ public class ExceptionMiddleware
         HttpContext context,
         Exception exception)
     {
+        if (context.Response.HasStarted)
+        {
+            return Task.CompletedTask;
+        }
+
         context.Response.ContentType = "application/json";
 
         var statusCode = HttpStatusCode.InternalServerError;
@@ -51,6 +66,11 @@ public class ExceptionMiddleware
         {
             statusCode = appException.StatusCode;
             message = appException.Message;
+        }
+        else if (exception is OperationCanceledException or TimeoutException)
+        {
+            statusCode = HttpStatusCode.RequestTimeout;
+            message = "The operation timed out or was canceled.";
         }
         else if (exception is InvalidOperationException || exception is ArgumentException)
         {
