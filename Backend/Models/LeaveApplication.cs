@@ -37,4 +37,8 @@ public class LeaveApplication
     public DateTime AppliedDate { get; set; } = DateTime.UtcNow;
 
     public string Status { get; set; } = "Pending"; // "Pending", "Approved", "Rejected", "Send Back"
+
+    public string? ApproverRemarks { get; set; }
+
+    public string? ApprovedBy { get; set; }
 }
