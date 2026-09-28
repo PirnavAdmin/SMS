@@ -1596,9 +1596,17 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   };
 
-  const [schoolProfile, setSchoolProfile] = useState<SchoolProfile>(() =>
-    getStored("profile", initialSchoolProfile),
-  );
+  const [schoolProfile, setSchoolProfile] = useState<SchoolProfile>(() => {
+    const profile = getStored("profile", initialSchoolProfile);
+    const storedLogo =
+      localStorage.getItem("school_logo") ??
+      localStorage.getItem("logoUrl") ??
+      localStorage.getItem("schoolLogo");
+    if (storedLogo !== null) {
+      return { ...profile, logoUrl: storedLogo };
+    }
+    return profile;
+  });
   const [academicYears, setAcademicYears] = useState<AcademicYearMaster[]>(() =>
     getStored("academic_years", []),
   );
@@ -1838,10 +1846,11 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   );
   const [holidays, setHolidays] = useState<Holiday[]>(() => {
     const stored = getStored("holidays", initialHolidays);
-    const rawList = !stored || stored.length <= 1 ? initialHolidays : stored;
+    const combined = Array.isArray(stored) && stored.length > 0 ? [...stored, ...initialHolidays] : initialHolidays;
     const seen = new Set<string>();
     const unique: Holiday[] = [];
-    rawList.forEach((h: any) => {
+    combined.forEach((h: any) => {
+      if (!h || !h.name || !h.startDate) return;
       const cleanName = (h.name || "").toLowerCase().replace(/[^a-z0-9]/g, "");
       const key = `${cleanName}_${h.startDate}`;
       if (!seen.has(key)) {
@@ -6161,15 +6170,10 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       try {
         localStorage.setItem("edu_db_profile", JSON.stringify(next));
         localStorage.setItem("profile", JSON.stringify(next));
-        if (next.logoUrl) {
-          localStorage.setItem("school_logo", next.logoUrl);
-          localStorage.setItem("logoUrl", next.logoUrl);
-          localStorage.setItem("schoolLogo", next.logoUrl);
-        } else {
-          localStorage.removeItem("school_logo");
-          localStorage.removeItem("logoUrl");
-          localStorage.removeItem("schoolLogo");
-        }
+        const logoVal = next.logoUrl ?? "";
+        localStorage.setItem("school_logo", logoVal);
+        localStorage.setItem("logoUrl", logoVal);
+        localStorage.setItem("schoolLogo", logoVal);
       } catch (e) {}
 
       // Asynchronously persist to database table
@@ -6208,17 +6212,18 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
             data.logoUrl !== undefined ||
             data.address !== undefined)
         ) {
-          const localCustomLogo =
-            localStorage.getItem("school_logo") ||
-            localStorage.getItem("logoUrl") ||
-            localStorage.getItem("schoolLogo") ||
-            "";
+          const localLogoRaw =
+            localStorage.getItem("school_logo") ??
+            localStorage.getItem("logoUrl") ??
+            localStorage.getItem("schoolLogo");
 
           const currentProfile = schoolProfile || initialSchoolProfile;
-          const effectiveLogo =
-            (data.logoUrl && data.logoUrl.trim() !== '')
-              ? data.logoUrl
-              : (localCustomLogo || currentProfile.logoUrl || initialSchoolProfile.logoUrl);
+          let effectiveLogo = currentProfile.logoUrl ?? "";
+          if (data.logoUrl !== undefined && data.logoUrl !== null) {
+            effectiveLogo = data.logoUrl;
+          } else if (localLogoRaw !== null) {
+            effectiveLogo = localLogoRaw;
+          }
 
           const next: SchoolProfile = {
             ...initialSchoolProfile,
@@ -6244,11 +6249,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           try {
             localStorage.setItem("edu_db_profile", JSON.stringify(next));
             localStorage.setItem("profile", JSON.stringify(next));
-            if (next.logoUrl) {
-              localStorage.setItem("school_logo", next.logoUrl);
-              localStorage.setItem("logoUrl", next.logoUrl);
-              localStorage.setItem("schoolLogo", next.logoUrl);
-            }
+            localStorage.setItem("school_logo", next.logoUrl || "");
+            localStorage.setItem("logoUrl", next.logoUrl || "");
+            localStorage.setItem("schoolLogo", next.logoUrl || "");
           } catch (e) {}
 
           setSchoolProfile(next);
@@ -6350,11 +6353,10 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
 
     const handleProfileUpdate = () => {
       try {
-        const schoolLogo =
-          localStorage.getItem("school_logo") ||
-          localStorage.getItem("logoUrl") ||
-          localStorage.getItem("schoolLogo") ||
-          "";
+        const storedLogo =
+          localStorage.getItem("school_logo") ??
+          localStorage.getItem("logoUrl") ??
+          localStorage.getItem("schoolLogo");
 
         const stored =
           localStorage.getItem("edu_db_profile") ||
@@ -6363,11 +6365,15 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
 
         setSchoolProfile((prev) => {
           const base = prev || initialSchoolProfile;
+          const effectiveLogo =
+            storedLogo !== null
+              ? storedLogo
+              : (parsed?.logoUrl !== undefined ? parsed.logoUrl : (base?.logoUrl ?? ""));
           return {
             ...initialSchoolProfile,
             ...base,
             ...(parsed || {}),
-            logoUrl: schoolLogo !== undefined && schoolLogo !== "" ? schoolLogo : (parsed?.logoUrl || base?.logoUrl || initialSchoolProfile.logoUrl),
+            logoUrl: effectiveLogo,
           };
         });
       } catch (e) {}
@@ -20946,7 +20952,29 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   });
   const filteredFinanceUniformConfigs = useMemo(() => filterByBranch(financeUniformConfigs), [financeUniformConfigs, selectedBranch, selectedAcademicYear]);
   const filteredLeaveApplications = useMemo(() => filterByBranch(leaveApplications), [leaveApplications, selectedBranch, selectedAcademicYear]);
-  const filteredHolidays = useMemo(() => filterByBranch(holidays), [holidays, selectedBranch, selectedAcademicYear]);
+  const filteredHolidays = useMemo(() => {
+    return (holidays || []).filter((h) => {
+      if (!h) return false;
+      const b = (h.branch || "").toLowerCase().trim();
+      const typeStr = (h.type || "").toLowerCase().trim();
+      const isGlobal =
+        !b ||
+        b === "all" ||
+        b === "all branches" ||
+        b === "global" ||
+        b === "main campus" ||
+        ["national", "festival", "gazetted", "vacation"].includes(typeStr);
+      if (isGlobal) return true;
+      if (
+        !selectedBranch ||
+        selectedBranch === "All" ||
+        selectedBranch === "All Branches"
+      )
+        return true;
+      const selB = selectedBranch.toLowerCase().trim();
+      return b.includes(selB) || selB.includes(b);
+    });
+  }, [holidays, selectedBranch, selectedAcademicYear]);
   const filteredPayslips = useMemo(() => filterByBranch(payslips), [payslips, selectedBranch, selectedAcademicYear]);
   const filteredPayrollConfigurations = useMemo(() => filterByBranch(payrollConfigurations), [payrollConfigurations, selectedBranch, selectedAcademicYear]);
   const filteredPayrollComponents = useMemo(() => filterByBranch(payrollComponents), [payrollComponents, selectedBranch, selectedAcademicYear]);
