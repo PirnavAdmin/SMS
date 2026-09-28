@@ -504,6 +504,25 @@ namespace SMS.Api.Services.Implementations.Settings
 
                 maxExisting = ExtractMaxNumber(existingEmpIds, prefix);
             }
+            else if (normType == "registration" || normType == "reg" || normType == "application" || normType == "applicationno")
+            {
+                prefix = "REG";
+                startNo = 1001;
+                padding = 4;
+                includeYear = false;
+                separator = "-";
+                position = "start";
+
+                var appRegNos = await _context.AdmissionApplications
+                    .Select(a => a.RegistrationNo)
+                    .ToListAsync();
+
+                var admAppNos = await _context.Admissions
+                    .Select(a => a.ApplicationNo)
+                    .ToListAsync();
+
+                maxExisting = ExtractMaxNumber(appRegNos.Concat(admAppNos), prefix);
+            }
             else if (normType == "custom")
             {
                 var customSeq = (config.CustomSequences ?? new List<CustomIdSequenceDto>())

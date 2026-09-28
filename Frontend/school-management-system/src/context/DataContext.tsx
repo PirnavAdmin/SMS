@@ -7769,7 +7769,22 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         ? Number(String(matchedClass.id).replace(/\D/g, ""))
         : 1;
 
-      const payload = {
+      let maxRegSeq = 1000;
+      admissions.forEach((a) => {
+        const regStr = a.registrationNo || a.applicationNo || "";
+        if (regStr.toUpperCase().startsWith("REG-")) {
+          const m = regStr.match(/\d+/);
+          if (m) {
+            const num = parseInt(m[0], 10);
+            if (!isNaN(num) && num > maxRegSeq) maxRegSeq = num;
+          }
+        }
+      });
+      const generatedRegNo = (appData as any).registrationNo || (appData as any).applicationNo || `REG-${maxRegSeq + 1}`;
+
+      const payload: any = {
+        registrationNo: generatedRegNo,
+        applicationNo: generatedRegNo,
         applicantFullName: appData.applicantName || "",
         appliedClass: appData.appliedClass || "",
         appliedClassId: appliedClassId,
@@ -7825,19 +7840,16 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
 
       const json = await createAdmissionApi(payload);
 
-      const resolvedStatus = appData.status || (json?.data?.status) || "Enrolled";
+      const resolvedStatus = appData.status || (json?.data?.status) || "Pending";
+      const assignedRegNo = json?.data?.registrationNo || generatedRegNo;
 
       const createdApp: AdmissionApplication = {
         id:
           json?.data?.applicationId?.toString() ||
           json?.data?.id?.toString() ||
           "ADM-" + Date.now(),
-        applicationNo:
-          json?.data?.registrationNo ||
-          "REG-" + Math.floor(1000 + Math.random() * 9000),
-        registrationNo:
-          json?.data?.registrationNo ||
-          "REG-" + Math.floor(1000 + Math.random() * 9000),
+        applicationNo: assignedRegNo,
+        registrationNo: assignedRegNo,
         applicantName: appData.applicantName,
         appliedClass: appData.appliedClass,
         gender: appData.gender || "Male",
@@ -7894,34 +7906,6 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       ]);
 
       if (json && json.success !== false) {
-        const createdApp: AdmissionApplication = {
-          id:
-            json?.data?.applicationId?.toString() ||
-            json?.data?.id?.toString() ||
-            `ADM-${Date.now()}`,
-          applicationNo:
-            json?.data?.registrationNo ||
-            (appData as any).applicationNo ||
-            `ADM2026-${Math.floor(100 + Math.random() * 900)}`,
-          registrationNo:
-            json?.data?.registrationNo || (appData as any).applicationNo || "",
-          ...appData,
-          selectedOptionalFees: appData.selectedOptionalFees || [],
-        } as AdmissionApplication;
-
-        savePersistedOptionalFees(
-          createdApp.id,
-          createdApp.registrationNo,
-          appData.applicantName,
-          appData.phone,
-          appData.selectedOptionalFees || [],
-        );
-
-        setAdmissions((prev) => [
-          createdApp,
-          ...prev.filter((a) => a.id !== createdApp.id),
-        ]);
-
         logActivity(
           "New Admission Application",
           `Received application from ${appData.applicantName}`,
@@ -7930,7 +7914,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           addToast(
             "success",
             "Application Submitted",
-            "New admission application has been registered.",
+            `New admission application registered with Registration No: ${assignedRegNo}`,
           );
           fetchAdmissions();
         }
@@ -8432,12 +8416,14 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
             baseFeeTotal + additionalFees - scholarshipAmount - discountAmount,
           );
 
+          const resolvedAdmissionNo =
+            json?.admissionNo ||
+            json?.data?.admissionNumber ||
+            generateNextAdmissionNo(students);
+
           const newStudent = addStudent(
             {
-              admissionNo:
-                app.applicationNo ||
-                (app as any).registrationNo ||
-                (app.id ? `ADM-${app.id}` : ""),
+              admissionNo: resolvedAdmissionNo,
               rollNo: (app as any).rollNo || "",
               firstName: (() => {
                 const parts = (app.applicantName || "").trim().split(" ");

@@ -525,6 +525,28 @@ export const SettingsView: React.FC = () => {
 
   const [idForm, setIdForm] = useState<IdSequenceSettings>(() => getIdSequenceSettings());
 
+  useEffect(() => {
+    let isMounted = true;
+    const loadIdSequenceSettings = async () => {
+      try {
+        const res = await fetchIdSequenceSettingsApi();
+        if (res && res.success && res.data && isMounted) {
+          setIdForm(prev => {
+            const merged = { ...prev, ...res.data };
+            saveIdSequenceSettings(merged);
+            return merged;
+          });
+        }
+      } catch (err) {
+        console.warn("Could not fetch remote ID sequence settings:", err);
+      }
+    };
+    loadIdSequenceSettings();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
   const handleUpdatePassword = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!passForm.newPassword || passForm.newPassword.length < 4) {

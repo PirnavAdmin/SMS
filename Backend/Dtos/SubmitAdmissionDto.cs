@@ -9,6 +9,16 @@ public class SubmitAdmissionDto
     [JsonPropertyName("avatar")]
     public string? ProfilePhotoUrl { get; set; }
 
+    [JsonPropertyName("registrationNo")]
+    public string? RegistrationNo { get; set; }
+
+    [JsonPropertyName("applicationNo")]
+    public string? ApplicationNo
+    {
+        get => RegistrationNo;
+        set => RegistrationNo = value;
+    }
+
     public string? FirstName { get; set; }
     public string? LastName { get; set; }
 

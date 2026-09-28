@@ -700,10 +700,26 @@ public class SchoolService : ISchoolService
 		var list = await _schoolRepository.GetAllApplicationsAsync(search, branch, classId, status);
 		var result = list.Select(a => MapToAdmissionResponseDto(a)).ToList();
 
-		var existingRegNos = new HashSet<string>(
-			result.Where(r => !string.IsNullOrWhiteSpace(r.RegistrationNo))
-				  .Select(r => r.RegistrationNo.Trim().ToLowerInvariant()),
-			StringComparer.OrdinalIgnoreCase);
+		var existingRegNos = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+		var existingStudentKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+		foreach (var r in result)
+		{
+			if (!string.IsNullOrWhiteSpace(r.RegistrationNo))
+				existingRegNos.Add(r.RegistrationNo.Trim().ToLowerInvariant());
+
+			var name = (r.ApplicantFullName ?? r.StudentName ?? $"{r.FirstName} {r.LastName}".Trim()).Trim().ToLowerInvariant();
+			var phone = (r.FatherMobileNo ?? r.Phone ?? r.FatherContact ?? "").Trim();
+			var cls = (r.AppliedClass ?? r.AppliedClassGrade ?? "").Trim().ToLowerInvariant();
+
+			if (!string.IsNullOrWhiteSpace(name))
+			{
+				if (!string.IsNullOrWhiteSpace(phone))
+					existingStudentKeys.Add($"{name}|{phone}");
+				if (!string.IsNullOrWhiteSpace(cls))
+					existingStudentKeys.Add($"{name}|{cls}");
+			}
+		}
 
 		var studentQuery = _context.Students
 			.AsNoTracking()
@@ -759,7 +775,19 @@ public class SchoolService : ISchoolService
 			var regNo = !string.IsNullOrWhiteSpace(s.AdmissionNumber) ? s.AdmissionNumber.Trim() : $"STU-{s.StudentId:D4}";
 			var regKey = regNo.ToLowerInvariant();
 
+			var sName = (s.StudentName ?? "").Trim().ToLowerInvariant();
+			var sPhone = (s.FatherMobile ?? s.MobileNumber ?? "").Trim();
+			var sCls = (s.ClassGrade != null ? s.ClassGrade.ClassName : (s.ClassId > 0 ? $"Class {s.ClassId}" : "")).Trim().ToLowerInvariant();
+
 			if (existingRegNos.Contains(regKey))
+			{
+				continue;
+			}
+			if (!string.IsNullOrWhiteSpace(sName) && !string.IsNullOrWhiteSpace(sPhone) && existingStudentKeys.Contains($"{sName}|{sPhone}"))
+			{
+				continue;
+			}
+			if (!string.IsNullOrWhiteSpace(sName) && !string.IsNullOrWhiteSpace(sCls) && existingStudentKeys.Contains($"{sName}|{sCls}"))
 			{
 				continue;
 			}
@@ -795,6 +823,13 @@ public class SchoolService : ISchoolService
 			});
 
 			existingRegNos.Add(regKey);
+			if (!string.IsNullOrWhiteSpace(sName))
+			{
+				if (!string.IsNullOrWhiteSpace(sPhone))
+					existingStudentKeys.Add($"{sName}|{sPhone}");
+				if (!string.IsNullOrWhiteSpace(sCls))
+					existingStudentKeys.Add($"{sName}|{sCls}");
+			}
 		}
 
 		static int GetClassSortWeight(string? cls)
@@ -923,7 +958,7 @@ public class SchoolService : ISchoolService
 		return true;
 	}
 
-	public async Task<bool> EnrollStudentAsync(int id)
+	public async Task<string?> EnrollStudentAsync(int id)
 	{
 		var app = await _schoolRepository.GetApplicationByIdAsync(id);
 		if (app != null)
@@ -933,8 +968,7 @@ public class SchoolService : ISchoolService
 				app.Status = "Enrolled";
 				await _schoolRepository.SaveChangesAsync();
 			}
-			await SyncToAdmissionsTableAsync(app);
-			return true;
+			return await SyncToAdmissionsTableAsync(app);
 		}
 
 		if (id > 100000)
@@ -946,11 +980,11 @@ public class SchoolService : ISchoolService
 				st.Status = "Enrolled";
 				st.IsDeleted = false;
 				await _context.SaveChangesAsync();
-				return true;
+				return st.AdmissionNumber;
 			}
 		}
 
-		return true;
+		return null;
 	}
 
 	public async Task<bool> UpdateApplicationStatusAsync(int id, string status)
@@ -1019,35 +1053,6 @@ public class SchoolService : ISchoolService
 				targetClassId = allClasses.First().ClassId;
 		}
 
-		// Generate sequential registration number (e.g. REG-1001, REG-1002, ...)
-		var allApps = await _schoolRepository.GetAllApplicationsAsync(null, null, null, null);
-		int maxSeq = 1000;
-		if (allApps != null)
-		{
-			foreach (var a in allApps)
-			{
-				if (!string.IsNullOrWhiteSpace(a.RegistrationNo) && a.RegistrationNo.StartsWith("REG-"))
-				{
-					if (int.TryParse(a.RegistrationNo.Substring(4), out int seqNum) && seqNum > maxSeq)
-					{
-						maxSeq = seqNum;
-					}
-				}
-			}
-		}
-
-		var allStudents = await _context.Students.AsNoTracking().Select(s => s.AdmissionNumber).ToListAsync();
-		foreach (var admNo in allStudents)
-		{
-			if (!string.IsNullOrWhiteSpace(admNo) && admNo.StartsWith("REG-"))
-			{
-				if (int.TryParse(admNo.Substring(4), out int seqNum) && seqNum > maxSeq)
-				{
-					maxSeq = seqNum;
-				}
-			}
-		}
-
 		// Prevent rapid duplicate submission within same student, parent contact and class
 		if (!string.IsNullOrWhiteSpace(dto.FirstName) && !string.IsNullOrWhiteSpace(dto.FatherContact))
 		{
@@ -1066,15 +1071,43 @@ public class SchoolService : ISchoolService
 			}
 		}
 
+		// Generate sequential registration number (e.g. REG-1001, REG-1002, ...)
 		string nextRegNo;
-		try
+		if (!string.IsNullOrWhiteSpace(dto.RegistrationNo) && dto.RegistrationNo.StartsWith("REG-", StringComparison.OrdinalIgnoreCase))
 		{
-			var genAdmission = await _settingsService.GenerateNextIdAsync("admission");
-			nextRegNo = genAdmission?.NextId ?? $"ADM-{DateTime.UtcNow.Year}-{maxSeq + 1:D4}";
+			nextRegNo = dto.RegistrationNo.Trim();
 		}
-		catch
+		else
 		{
-			nextRegNo = $"ADM-{DateTime.UtcNow.Year}-{maxSeq + 1:D4}";
+			try
+			{
+				var genReg = await _settingsService.GenerateNextIdAsync("registration");
+				nextRegNo = genReg?.NextId ?? "";
+			}
+			catch
+			{
+				nextRegNo = "";
+			}
+
+			if (string.IsNullOrWhiteSpace(nextRegNo))
+			{
+				int maxRegSeq = 1000;
+				var existingRegNos = await _context.AdmissionApplications
+					.AsNoTracking()
+					.Where(a => a.RegistrationNo != null && a.RegistrationNo.StartsWith("REG-"))
+					.Select(a => a.RegistrationNo!)
+					.ToListAsync();
+
+				foreach (var reg in existingRegNos)
+				{
+					var match = System.Text.RegularExpressions.Regex.Match(reg, @"\d+");
+					if (match.Success && int.TryParse(match.Value, out int num) && num > maxRegSeq)
+					{
+						maxRegSeq = num;
+					}
+				}
+				nextRegNo = $"REG-{maxRegSeq + 1}";
+			}
 		}
 
 		var app = new AdmissionApplication
@@ -1206,7 +1239,7 @@ public class SchoolService : ISchoolService
 
 
 
-	private async Task SyncToAdmissionsTableAsync(AdmissionApplication app, bool isDeleted = false)
+	private async Task<string?> SyncToAdmissionsTableAsync(AdmissionApplication app, bool isDeleted = false)
 	{
 		try
 		{
@@ -1290,12 +1323,14 @@ public class SchoolService : ISchoolService
 			                           string.Equals(app.Status, "Admitted", StringComparison.OrdinalIgnoreCase) ||
 			                           string.Equals(app.Status, "Approved", StringComparison.OrdinalIgnoreCase);
 
+			string? studentAdmissionNo = null;
+
 			if (!isDeleted)
 			{
 				if (matchedStudent == null && !isEnrolledOrAdmitted)
 				{
 					// Applications that are Pending or Rejected do NOT go to Student Directory until Enrolled
-					return;
+					return null;
 				}
 
 				if (matchedStudent != null && string.Equals(app.Status, "Rejected", StringComparison.OrdinalIgnoreCase))
@@ -1304,7 +1339,7 @@ public class SchoolService : ISchoolService
 					matchedStudent.UpdatedAt = DateTime.UtcNow;
 					_context.Entry(matchedStudent).State = Microsoft.EntityFrameworkCore.EntityState.Modified;
 					await _context.SaveChangesAsync();
-					return;
+					return null;
 				}
 
 				if (existing != null && existing.ClassId.HasValue)
@@ -1333,8 +1368,30 @@ public class SchoolService : ISchoolService
 									.Where(s => !string.IsNullOrWhiteSpace(s));
 								var fullAddress = string.Join(", ", addressParts);
 
+								studentAdmissionNo = "";
+								if (matchedStudent != null && !string.IsNullOrWhiteSpace(matchedStudent.AdmissionNumber) && !matchedStudent.AdmissionNumber.StartsWith("REG-", StringComparison.OrdinalIgnoreCase))
+								{
+									studentAdmissionNo = matchedStudent.AdmissionNumber;
+								}
+								else
+								{
+									try
+									{
+										var genAdmission = await _settingsService.GenerateNextIdAsync("admission");
+										studentAdmissionNo = genAdmission?.NextId ?? $"ADM-{DateTime.UtcNow.Year}-{existing.AdmissionId:D4}";
+									}
+									catch
+									{
+										studentAdmissionNo = $"ADM-{DateTime.UtcNow.Year}-{existing.AdmissionId:D4}";
+									}
+								}
+
 								if (matchedStudent != null)
 								{
+									if (string.IsNullOrWhiteSpace(matchedStudent.AdmissionNumber) || matchedStudent.AdmissionNumber.StartsWith("REG-", StringComparison.OrdinalIgnoreCase))
+									{
+										matchedStudent.AdmissionNumber = studentAdmissionNo;
+									}
 									matchedStudent.StudentName = existing.StudentName ?? $"{app.FirstName} {app.LastName}".Trim();
 									matchedStudent.DateOfBirth = existing.Dob ?? app.DateOfBirth;
 									matchedStudent.Gender = existing.Gender ?? app.Gender;
@@ -1373,7 +1430,7 @@ public class SchoolService : ISchoolService
 
 									var newStudent = new Student
 									{
-										AdmissionNumber = existing.ApplicationNo ?? app.RegistrationNo ?? $"ADM-{existing.AdmissionId}",
+										AdmissionNumber = studentAdmissionNo,
 										RollNumber = studentRollNo,
 										StudentName = existing.StudentName ?? $"{app.FirstName} {app.LastName}".Trim(),
 										DateOfBirth = existing.Dob ?? app.DateOfBirth,
@@ -1533,11 +1590,13 @@ public class SchoolService : ISchoolService
 					}
 				}
 			}
+			return studentAdmissionNo;
 		}
 		catch (Exception ex)
 		{
 			Console.WriteLine($"Error syncing to admissions table: {ex.Message}");
 		}
+		return null;
 	}
 
 	private static AdmissionApplicationResponseDto MapToAdmissionResponseDto(AdmissionApplication a) => new()
