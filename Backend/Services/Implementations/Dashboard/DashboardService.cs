@@ -100,7 +100,10 @@ public class DashboardService : IDashboardService
         }
 
         var unmappedAdmissions = await admissionAppsQuery
-            .Where(a => a.RegistrationNo != null && !_context.Students.Any(s => !s.IsDeleted && s.AdmissionNumber == a.RegistrationNo))
+            .Where(a => (a.RegistrationNo != null || a.AdmissionNo != null) && 
+                        !_context.Students.Any(s => !s.IsDeleted && 
+                            (s.AdmissionNumber == a.RegistrationNo || 
+                             (!string.IsNullOrEmpty(a.AdmissionNo) && s.AdmissionNumber == a.AdmissionNo))))
             .CountAsync(cancellationToken);
 
         totalStudents += unmappedAdmissions;
