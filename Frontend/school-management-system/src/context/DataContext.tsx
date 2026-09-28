@@ -20929,7 +20929,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
             itemB === "all" ||
             itemB === selB ||
             selB.includes(itemB) ||
-            itemB.includes(selB);
+            itemB.includes(selB) ||
+            (itemB === "main campus" && (selB === "madhapur branch" || (branches || []).length <= 1));
         }
       }
 

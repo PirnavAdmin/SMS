@@ -1110,6 +1110,16 @@ public class SchoolService : ISchoolService
 			}
 		}
 
+		var allBranches = await _context.Branches.AsNoTracking().ToListAsync();
+		var defaultBranch = allBranches.Find(b => b.BranchId == 6) ?? allBranches.FirstOrDefault();
+		string effectiveBranchName = dto.BranchName ?? "";
+		if (string.IsNullOrWhiteSpace(effectiveBranchName) || 
+		    effectiveBranchName.Equals("Main Campus", StringComparison.OrdinalIgnoreCase) || 
+		    !allBranches.Any(b => b.BranchName.Equals(effectiveBranchName, StringComparison.OrdinalIgnoreCase)))
+		{
+			effectiveBranchName = defaultBranch?.BranchName ?? "Madhapur Branch";
+		}
+
 		var app = new AdmissionApplication
 		{
 			RegistrationNo = nextRegNo,
@@ -1118,7 +1128,7 @@ public class SchoolService : ISchoolService
 			LastName = dto.LastName ?? "",
 			Gender = dto.Gender,
 			AppliedClassId = targetClassId,
-			BranchName = dto.BranchName,
+			BranchName = effectiveBranchName,
 			BloodGroup = dto.BloodGroup,
 			Religion = dto.Religion,
 			Caste = dto.Caste,
@@ -1194,7 +1204,12 @@ public class SchoolService : ISchoolService
 			}
 		}
 		if (targetClassId > 0) app.AppliedClassId = targetClassId;
-		app.BranchName = dto.BranchName;
+		if (!string.IsNullOrWhiteSpace(dto.BranchName))
+		{
+			app.BranchName = dto.BranchName.Equals("Main Campus", StringComparison.OrdinalIgnoreCase) 
+				? "Madhapur Branch" 
+				: dto.BranchName;
+		}
 		if (!string.IsNullOrWhiteSpace(dto.StudentType)) app.StudentType = dto.StudentType;
 		app.BloodGroup = dto.BloodGroup;
 		app.Religion = dto.Religion;

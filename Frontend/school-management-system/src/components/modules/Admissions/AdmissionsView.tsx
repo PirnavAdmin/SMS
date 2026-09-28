@@ -486,7 +486,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
       "Wright",
       "Class 1",
       "Male",
-      "Main Campus",
+      selectedBranch && selectedBranch !== "All" && selectedBranch !== "All Branches" ? selectedBranch : "Madhapur Branch",
       "15-08-2018",
       "O+",
       "Christianity",
@@ -624,8 +624,11 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
 
               const rowStatus = String(row.Status || row.status || "Enrolled").trim();
               const rowClass = String(row.AppliedClass || row.appliedClass || row.Class || row.className || row["Applied Class"] || "Class 1").trim();
-              const rowSection = String(row.Section || row.section || "A").trim();
-              const rowBranch = String(row.Campus || row.branch || row.Branch || row.CampusLocation || selectedBranch || "Main Campus").trim();
+              const defaultActiveBranch = selectedBranch && selectedBranch !== "All Branches" && selectedBranch !== "All" ? selectedBranch : "Madhapur Branch";
+              let rowBranch = String(row.Campus || row.branch || row.Branch || row.CampusLocation || "").trim();
+              if (!rowBranch || rowBranch.toLowerCase() === "main campus") {
+                rowBranch = defaultActiveBranch;
+              }
               const rowAcademicYear = String(row.AcademicYear || row.academicYear || row["Academic Year"] || selectedAcademicYear || "").trim();
 
               const newApp = {
