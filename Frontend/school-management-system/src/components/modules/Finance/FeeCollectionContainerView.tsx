@@ -1,11 +1,10 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { IndianRupee, Receipt, Clock, UserCheck } from 'lucide-react';
+import { IndianRupee, Receipt, UserCheck } from 'lucide-react';
 import { Student, FeePayment } from '../../../types';
 import { useData } from '../../../context/DataContext';
 import { ExportButton } from '../../common/ExportButton';
 import { FeeCollectionView } from './FeeCollectionView';
 import { FeeReceiptsView } from './FeeReceiptsView';
-import { DueFeesView } from './DueFeesView';
 import { PromotedStudentsDuesView } from '../FeeManagement/PromotedStudentsDuesView';
 
 interface FeeCollectionContainerViewProps {
@@ -19,8 +18,8 @@ export const FeeCollectionContainerView: React.FC<FeeCollectionContainerViewProp
   initialSubTab,
   initialStudent
 }) => {
-  const { students, feePayments, getStudentFeeOutstandingSummary, getPromotedStudentsWithPreviousDues } = useData();
-  const [activeSubTab, setActiveSubTab] = useState<'collect' | 'due' | 'promoted_dues' | 'receipts'>('collect');
+  const { feePayments, getPromotedStudentsWithPreviousDues } = useData();
+  const [activeSubTab, setActiveSubTab] = useState<'collect' | 'promoted_dues' | 'receipts'>('collect');
   const [selectedStudentForCollection, setSelectedStudentForCollection] = useState<Student | null>(initialStudent || null);
 
   useEffect(() => {
@@ -33,8 +32,8 @@ export const FeeCollectionContainerView: React.FC<FeeCollectionContainerViewProp
   useEffect(() => {
     if (initialSubTab === 'promoted_dues' || initialSubTab === 'promoted-dues') {
       setActiveSubTab('promoted_dues');
-    } else if (initialSubTab === 'due' || initialSubTab === 'due-fees' || initialSubTab === 'due_fees' || initialSubTab === 'dues') {
-      setActiveSubTab('due');
+    } else if (initialSubTab === 'receipts' || initialSubTab === 'fee-receipts') {
+      setActiveSubTab('receipts');
     }
   }, [initialSubTab]);
 
@@ -44,7 +43,6 @@ export const FeeCollectionContainerView: React.FC<FeeCollectionContainerViewProp
 
   const subTabs: { id: string; label: string; icon: any; count?: number }[] = [
     { id: 'collect', label: 'Fee Collection', icon: IndianRupee },
-    { id: 'due', label: 'Due Fees', icon: Clock },
     {
       id: 'promoted_dues',
       label: 'Promoted Students Dues',
@@ -69,8 +67,6 @@ export const FeeCollectionContainerView: React.FC<FeeCollectionContainerViewProp
             onClearInitialStudent={() => setSelectedStudentForCollection(null)}
           />
         );
-      case 'due':
-        return <DueFeesView onCollectStudentFee={handleCollectStudentFee} />;
       case 'promoted_dues':
         return <PromotedStudentsDuesView onCollectDue={handleCollectStudentFee} />;
       case 'receipts':
@@ -97,22 +93,6 @@ export const FeeCollectionContainerView: React.FC<FeeCollectionContainerViewProp
         </div>
 
         <div className="flex items-center gap-2">
-          {activeSubTab === 'due' && (
-            <ExportButton
-              data={students
-                .map((s) => ({ s, summary: getStudentFeeOutstandingSummary(s.id) }))
-                .filter((item) => item.summary.totalOutstanding > 0)
-                .map(({ s, summary }) => ({
-                  name: `${s.firstName} ${s.lastName}`,
-                  admissionNo: s.admissionNo,
-                  class: `${s.className}-${s.section}`,
-                  currentYearDue: summary.currentYearDue,
-                  previousYearsDue: summary.previousYearsDue,
-                  totalOutstanding: summary.totalOutstanding,
-                }))}
-              filename="outstanding_dues"
-            />
-          )}
           {activeSubTab === 'receipts' && (
             <ExportButton data={feePayments} filename="fee_receipts" />
           )}

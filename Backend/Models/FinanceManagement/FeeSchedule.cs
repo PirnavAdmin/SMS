@@ -10,15 +10,17 @@ public class FeeSchedule
     [Key]
     public string Id { get; set; } = string.Empty;
 
-    public string AcademicYear { get; set; } = "2026-2027";
+    public string AcademicYear { get; set; } = string.Empty;
 
     public int NumberOfTerms { get; set; } = 4;
 
+    public int DueDateOffsetDays { get; set; } = 45;
+
     public string Status { get; set; } = "Published";
 
-    public string AnnualDueDate { get; set; } = "2026-04-15";
+    public string AnnualDueDate { get; set; } = string.Empty;
 
-    public string OneTimeDueDate { get; set; } = "2026-04-15";
+    public string OneTimeDueDate { get; set; } = string.Empty;
 
     public bool ApplySameDayToAllMonths { get; set; } = true;
 

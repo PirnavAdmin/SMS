@@ -273,6 +273,8 @@ export const FeeStructuresView: React.FC = () => {
           feeHeadName: head.name,
           category: head.category,
           amount: Number(selectedHeadAmounts[headId]),
+          paymentEligibility: head.paymentEligibility,
+          applicableTerms: head.applicableTerms,
         };
       })
       .filter(Boolean) as FeeStructureItem[];

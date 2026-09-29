@@ -142,15 +142,38 @@ export const ParentExaminationView: React.FC = () => {
 
     if (subjectMarksList.length === 0 && !matchingResult) return null;
 
-    const formattedSubjects = subjectMarksList.map((sub: any) => {
+    // Deduplicate subjects by subject name so no duplicate rows appear
+    const uniqueSubjectsMap = new Map<string, any>();
+    subjectMarksList.forEach((sub: any) => {
+      const sName = (sub.subject || getSubjectName(sub.name || sub.subjectId) || '').trim();
+      if (!sName) return;
+      const key = sName.toLowerCase();
+      if (!uniqueSubjectsMap.has(key)) {
+        uniqueSubjectsMap.set(key, { ...sub, subject: sName });
+      }
+    });
+
+    const formattedSubjects = Array.from(uniqueSubjectsMap.values()).map((sub: any) => {
       const marksVal = sub.obtainedMarks !== undefined ? sub.obtainedMarks : (sub.marks !== undefined ? sub.marks : 0);
+      const rawPass = Number(sub.passMarks || sub.passLimit);
+      const passLimit = isNaN(rawPass) || rawPass === 0 ? 35 : rawPass;
+      const isAbsent = marksVal === 'AB';
+      const obtainedNum = typeof marksVal === 'number' ? marksVal : (parseFloat(String(marksVal)) || 0);
+
+      let isPass = true;
+      if (isAbsent) {
+        isPass = false;
+      } else {
+        isPass = obtainedNum >= passLimit;
+      }
+
       return {
         name: sub.subject || getSubjectName(sub.name || sub.subjectId),
         marks: marksVal,
         grade: sub.grade || '',
-        maxMarks: sub.maxMarks,
-        passMarks: sub.passMarks,
-        isPass: sub.isPass !== false
+        maxMarks: Number(sub.maxMarks) || 100,
+        passMarks: passLimit,
+        isPass
       };
     });
 

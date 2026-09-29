@@ -7,11 +7,15 @@ import { TransportScrollableTabs } from '../Transport/TransportScrollableTabs';
 
 interface StudentFeesViewProps {
   initialTab?: string;
+  initialClass?: string;
+  initialFeeHead?: string;
   onNavigateToCollect?: (studentId?: string) => void;
 }
 
 export const StudentFeesView: React.FC<StudentFeesViewProps> = ({
   initialTab = 'assign',
+  initialClass = 'All',
+  initialFeeHead = 'All',
   onNavigateToCollect,
 }) => {
   const [activeTab, setActiveTab] = useState<string>(initialTab);
@@ -29,7 +33,14 @@ export const StudentFeesView: React.FC<StudentFeesViewProps> = ({
         return <StudentFeeAssignmentView />;
       case 'dues':
       case 'due-fees':
-        return <DueFeesView onCollectStudentFee={(st) => onNavigateToCollect && onNavigateToCollect(st.id)} onCollectClick={(sId: string) => onNavigateToCollect && onNavigateToCollect(sId)} />;
+        return (
+          <DueFeesView
+            initialClass={initialClass}
+            initialFeeHead={initialFeeHead}
+            onCollectStudentFee={(st) => onNavigateToCollect && onNavigateToCollect(st.id)}
+            onCollectClick={(sId: string) => onNavigateToCollect && onNavigateToCollect(sId)}
+          />
+        );
       case 'ledger':
       case 'student-ledger':
         return <TransactionsMasterLedgerView />;

@@ -119,9 +119,12 @@ namespace Backend.Tests.Services
                 FullName = "Admin User",
                 Email = "admin@example.com",
                 MobileNumber = "1234567890",
+                Role = "Admin",
                 PasswordHash = BCrypt.Net.BCrypt.HashPassword("correctPassword")
             };
             user.Roles.Add(new Role { RoleName = "Admin" });
+            _dbContext.Users.Add(user);
+            await _dbContext.SaveChangesAsync();
 
             var dto = new LoginRequestDto("admin@example.com", "wrongPassword");
 
@@ -142,11 +145,14 @@ namespace Backend.Tests.Services
                 FullName = "Valid User",
                 Email = "valid@example.com",
                 MobileNumber = "9998887777",
+                Role = "Teacher",
                 PasswordHash = BCrypt.Net.BCrypt.HashPassword(password)
             };
             user.Roles.Add(new Role { RoleName = "Teacher" });
+            _dbContext.Users.Add(user);
+            await _dbContext.SaveChangesAsync();
 
-            var dto = new LoginRequestDto("valid@example.com", password);
+            var dto = new LoginRequestDto("valid@example.com", password, "Teacher");
 
             _userRepoMock.Setup(r => r.GetByIdentifierAsync(dto.EmailOrPhone))
                 .ReturnsAsync(user);

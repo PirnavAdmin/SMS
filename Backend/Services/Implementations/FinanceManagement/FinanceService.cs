@@ -28,6 +28,23 @@ public class FinanceService : IFinanceService
         public string? academicYear { get; set; }
         public List<string>? applicableClasses { get; set; }
         public List<string>? applicableBranches { get; set; }
+        public string? paymentEligibility { get; set; }
+        public List<string>? applicableTerms { get; set; }
+        public List<string>? applicableSections { get; set; }
+        public string? hostelBlockId { get; set; }
+        public string? hostelBlockName { get; set; }
+        public string? hostelRoomId { get; set; }
+        public string? hostelRoomNo { get; set; }
+        public string? hostelSharingType { get; set; }
+        public string? transportRouteId { get; set; }
+        public string? transportRouteName { get; set; }
+        public string? transportVehicleId { get; set; }
+        public string? transportVehicleNo { get; set; }
+        public string? transportStopId { get; set; }
+        public string? transportStopName { get; set; }
+        public string? uniformItemId { get; set; }
+        public string? uniformItemName { get; set; }
+        public string? uniformSize { get; set; }
     }
 
     public async Task<IEnumerable<FeeHeadDto>> GetFeeHeadsAsync()
@@ -73,6 +90,23 @@ public class FinanceService : IFinanceService
                         if (!string.IsNullOrEmpty(meta.academicYear)) dto.AcademicYear = meta.academicYear;
                         if (meta.applicableClasses != null && meta.applicableClasses.Count > 0) dto.ApplicableClasses = meta.applicableClasses;
                         if (meta.applicableBranches != null && meta.applicableBranches.Count > 0) dto.ApplicableBranches = meta.applicableBranches;
+                        if (!string.IsNullOrEmpty(meta.paymentEligibility)) dto.PaymentEligibility = meta.paymentEligibility;
+                        if (meta.applicableTerms != null) dto.ApplicableTerms = meta.applicableTerms;
+                        if (meta.applicableSections != null) dto.ApplicableSections = meta.applicableSections;
+                        if (!string.IsNullOrEmpty(meta.hostelBlockId)) dto.HostelBlockId = meta.hostelBlockId;
+                        if (!string.IsNullOrEmpty(meta.hostelBlockName)) dto.HostelBlockName = meta.hostelBlockName;
+                        if (!string.IsNullOrEmpty(meta.hostelRoomId)) dto.HostelRoomId = meta.hostelRoomId;
+                        if (!string.IsNullOrEmpty(meta.hostelRoomNo)) dto.HostelRoomNo = meta.hostelRoomNo;
+                        if (!string.IsNullOrEmpty(meta.hostelSharingType)) dto.HostelSharingType = meta.hostelSharingType;
+                        if (!string.IsNullOrEmpty(meta.transportRouteId)) dto.TransportRouteId = meta.transportRouteId;
+                        if (!string.IsNullOrEmpty(meta.transportRouteName)) dto.TransportRouteName = meta.transportRouteName;
+                        if (!string.IsNullOrEmpty(meta.transportVehicleId)) dto.TransportVehicleId = meta.transportVehicleId;
+                        if (!string.IsNullOrEmpty(meta.transportVehicleNo)) dto.TransportVehicleNo = meta.transportVehicleNo;
+                        if (!string.IsNullOrEmpty(meta.transportStopId)) dto.TransportStopId = meta.transportStopId;
+                        if (!string.IsNullOrEmpty(meta.transportStopName)) dto.TransportStopName = meta.transportStopName;
+                        if (!string.IsNullOrEmpty(meta.uniformItemId)) dto.UniformItemId = meta.uniformItemId;
+                        if (!string.IsNullOrEmpty(meta.uniformItemName)) dto.UniformItemName = meta.uniformItemName;
+                        if (!string.IsNullOrEmpty(meta.uniformSize)) dto.UniformSize = meta.uniformSize;
                     }
                 }
                 catch { }
@@ -130,7 +164,24 @@ public class FinanceService : IFinanceService
             taxPercentage = dto.TaxPercentage,
             academicYear = !string.IsNullOrWhiteSpace(dto.AcademicYear) ? dto.AcademicYear : "All",
             applicableClasses = dto.ApplicableClasses ?? new List<string>(),
-            applicableBranches = (dto.ApplicableBranches != null && dto.ApplicableBranches.Count > 0) ? dto.ApplicableBranches : new List<string> { "All Branches" }
+            applicableBranches = (dto.ApplicableBranches != null && dto.ApplicableBranches.Count > 0) ? dto.ApplicableBranches : new List<string> { "All Branches" },
+            paymentEligibility = !string.IsNullOrWhiteSpace(dto.PaymentEligibility) ? dto.PaymentEligibility : "Both One-Time and Term-Wise",
+            applicableTerms = dto.ApplicableTerms ?? new List<string>(),
+            applicableSections = dto.ApplicableSections,
+            hostelBlockId = dto.HostelBlockId,
+            hostelBlockName = dto.HostelBlockName,
+            hostelRoomId = dto.HostelRoomId,
+            hostelRoomNo = dto.HostelRoomNo,
+            hostelSharingType = dto.HostelSharingType,
+            transportRouteId = dto.TransportRouteId,
+            transportRouteName = dto.TransportRouteName,
+            transportVehicleId = dto.TransportVehicleId,
+            transportVehicleNo = dto.TransportVehicleNo,
+            transportStopId = dto.TransportStopId,
+            transportStopName = dto.TransportStopName,
+            uniformItemId = dto.UniformItemId,
+            uniformItemName = dto.UniformItemName,
+            uniformSize = dto.UniformSize
         };
 
         var model = new FeeHead
@@ -212,7 +263,9 @@ public class FinanceService : IFinanceService
             taxPercentage = dto.TaxPercentage,
             academicYear = !string.IsNullOrWhiteSpace(dto.AcademicYear) ? dto.AcademicYear : "All",
             applicableClasses = dto.ApplicableClasses ?? new List<string>(),
-            applicableBranches = (dto.ApplicableBranches != null && dto.ApplicableBranches.Count > 0) ? dto.ApplicableBranches : new List<string> { "All Branches" }
+            applicableBranches = (dto.ApplicableBranches != null && dto.ApplicableBranches.Count > 0) ? dto.ApplicableBranches : new List<string> { "All Branches" },
+            paymentEligibility = !string.IsNullOrWhiteSpace(dto.PaymentEligibility) ? dto.PaymentEligibility : "Both One-Time and Term-Wise",
+            applicableTerms = dto.ApplicableTerms ?? new List<string>()
         };
 
         var model = new FeeHead

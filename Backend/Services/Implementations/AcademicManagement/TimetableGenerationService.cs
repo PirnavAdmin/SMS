@@ -196,7 +196,7 @@ public class TimetableGenerationService : ITimetableGenerationService
 
             // Sync master PeriodSettings in database
             var periodMap = await SyncPeriodSettingsAsync(computedPeriods);
-            var allActivePeriods = (await _timetableRepository.GetPeriodSettingsAsync())
+            var allActivePeriods = ((await _timetableRepository.GetPeriodSettingsAsync()) ?? new List<PeriodSetting>())
                 .Where(p => p.IsActive && !p.IsDeleted).ToList();
 
             // =========================================================================
@@ -1209,7 +1209,7 @@ public class TimetableGenerationService : ITimetableGenerationService
             IsDeleted = false
         }).ToList();
 
-        var syncedList = await _timetableRepository.SyncPeriodSettingsAsync(entities);
+        var syncedList = (await _timetableRepository.SyncPeriodSettingsAsync(entities)) ?? entities;
         var periodMap = new Dictionary<string, PeriodSetting>();
         foreach (var p in syncedList)
         {

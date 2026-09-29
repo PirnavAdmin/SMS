@@ -16,6 +16,9 @@ public interface IFeeCollectionService
     Task<DueFeesSummaryResponseDto> GetDueFeesSummaryAsync(
         string? className, string? sectionName, int minDaysOverdue);
 
+    Task<CategoryWiseDuesResponseDto> GetCategoryWiseDuesAsync(
+        string? branch = null, string? academicYear = null, string? className = null, string? sectionName = null);
+
     Task<List<PromotedDueStudentDto>> GetPromotedStudentsDuesAsync(
         string? search = null, string? className = null, string? previousAcademicYear = null, string? status = null);
 
@@ -26,5 +29,5 @@ public interface IFeeCollectionService
 
     Task<bool> CancelReceiptAsync(string receiptNo, string reason);
 
-    Task<FinanceDashboardStatsDto> GetDashboardStatsAsync();
+    Task<FinanceDashboardStatsDto> GetDashboardStatsAsync(string? branch = null, string? academicYear = null);
 }

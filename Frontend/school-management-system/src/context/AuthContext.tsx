@@ -299,6 +299,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   useEffect(() => {
+    const handleUnauthorized = () => {
+      logout();
+    };
+
+    window.addEventListener('auth_unauthorized', handleUnauthorized);
+    window.addEventListener('session_expired', handleUnauthorized);
+
+    return () => {
+      window.removeEventListener('auth_unauthorized', handleUnauthorized);
+      window.removeEventListener('session_expired', handleUnauthorized);
+    };
+  }, []);
+
+  useEffect(() => {
     const checkSessionValidity = () => {
       if (token && !isTokenValid()) {
         console.warn('Session expired: 24-hour token duration reached.');

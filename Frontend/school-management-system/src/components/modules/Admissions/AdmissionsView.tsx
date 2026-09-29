@@ -3021,7 +3021,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                       <div className="space-y-3 pt-1">
                         <label
                           className={`flex items-center gap-3 p-4 rounded-2xl border-2 transition-all cursor-pointer ${
-                            formData.feeCalculationMethod === "Monthly"
+                            formData.feeCalculationMethod === "Full Annual Fee"
                               ? "bg-sky-50/70 dark:bg-sky-950/40 border-sky-500 text-slate-900 dark:text-white shadow-xs"
                               : "bg-slate-50/50 dark:bg-slate-800/50 border-slate-200 dark:border-slate-700 hover:border-slate-300 text-slate-700 dark:text-slate-300"
                           }`}
@@ -3029,26 +3029,24 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                           <input
                             type="radio"
                             name="popupMidYearMethod"
-                            value="Monthly"
+                            value="Full Annual Fee"
                             checked={
-                              formData.feeCalculationMethod === "Monthly"
+                              formData.feeCalculationMethod === "Full Annual Fee"
                             }
                             onChange={() =>
                               setFormData({
                                 ...formData,
-                                feeCalculationMethod: "Monthly",
+                                feeCalculationMethod: "Full Annual Fee",
                               })
                             }
                             className="w-4 h-4 text-sky-600 focus:ring-sky-500 cursor-pointer"
                           />
                           <div>
                             <span className="font-extrabold text-xs block">
-                              Monthly
+                              Full Annual Fee
                             </span>
                             <span className="text-[10px] text-slate-500">
-                              Calculates fee from student's admission month
-                              through end of Academic Year. Excludes past
-                              months.
+                              Assigns full annual fee (1 installment) regardless of admission date.
                             </span>
                           </div>
                         </label>
@@ -3083,11 +3081,10 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                           />
                           <div>
                             <span className="font-extrabold text-xs block">
-                              Remaining Terms
+                              Term-Wise Fee
                             </span>
                             <span className="text-[10px] text-slate-500">
-                              Calculates fee for applicable remaining terms from
-                              admission date. Excludes past terms.
+                              Calculates fee across applicable terms based on admission date schedule.
                             </span>
                           </div>
                         </label>

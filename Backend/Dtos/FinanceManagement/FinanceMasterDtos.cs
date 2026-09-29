@@ -172,12 +172,14 @@ public class FeeScheduleTermDto
 {
     public string Id { get; set; } = string.Empty;
     public int Sequence { get; set; } = 1;
-    public string TermName { get; set; } = "Term 1";
-    public string StartDate { get; set; } = "2026-04-01";
-    public string EndDate { get; set; } = "2026-06-30";
-    public string DueDate { get; set; } = "2026-04-15";
+    public string TermName { get; set; } = string.Empty;
+    public string StartDate { get; set; } = string.Empty;
+    public string EndDate { get; set; } = string.Empty;
+    public string DueDate { get; set; } = string.Empty;
+    public string DueDateMode { get; set; } = "AUTO"; // "AUTO" | "MANUAL"
+    public int DueDateOffsetDays { get; set; } = 45;
     public string Status { get; set; } = "Active";
-    public double PercentageShare { get; set; } = 25.0;
+    public double PercentageShare { get; set; } = 0.0;
 }
 
 public class MonthDueDateItemDto
@@ -197,13 +199,14 @@ public class MonthlyDueDateConfigDto
 public class FeeScheduleConfigDto
 {
     public string Id { get; set; } = string.Empty;
-    public string AcademicYear { get; set; } = "2026-2027";
+    public string AcademicYear { get; set; } = string.Empty;
     public int NumberOfTerms { get; set; } = 4;
+    public int DueDateOffsetDays { get; set; } = 45;
     public string Status { get; set; } = "Published";
     public List<FeeScheduleTermDto> Terms { get; set; } = new();
     public MonthlyDueDateConfigDto? MonthlyConfig { get; set; }
-    public string AnnualDueDate { get; set; } = "2026-04-15";
-    public string OneTimeDueDate { get; set; } = "2026-04-15";
+    public string AnnualDueDate { get; set; } = string.Empty;
+    public string OneTimeDueDate { get; set; } = string.Empty;
 }
 
 public class FinanceSettingsTaxDto

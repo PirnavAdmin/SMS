@@ -244,7 +244,7 @@ export const HRProvider: React.FC<{ children: React.ReactNode }> = ({ children }
 
       await createLeaveApplicationApi(payload);
       await fetchLeaveApplications();
-      await fetchLeaveBalances();
+      await fetchLeaveBalancesApi();
     } catch (err: any) {
       console.warn("Backend API leave submission fallback (persisted in local state):", err);
     }
