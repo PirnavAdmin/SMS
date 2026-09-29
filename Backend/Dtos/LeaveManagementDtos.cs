@@ -18,7 +18,9 @@ public class LeaveTypeConfigDto
 public class LeaveApplicationCreateDto
 {
     public int StaffId { get; set; }
+    public string? EmployeeId { get; set; }
     public int LeaveTypeId { get; set; }
+    public string? LeaveTypeCode { get; set; }
     public string FromDate { get; set; } = string.Empty;
     public string ToDate { get; set; } = string.Empty;
     public bool IsHalfDay { get; set; }
@@ -44,6 +46,8 @@ public class LeaveApplicationResponseDto
     public string Reason { get; set; } = string.Empty;
     public string AppliedDate { get; set; } = string.Empty;
     public string Status { get; set; } = "Pending";
+    public string? ApproverRemarks { get; set; }
+    public string? ApprovedBy { get; set; }
 }
 
 public class LeaveBalanceDto
@@ -72,4 +76,6 @@ public class HolidayCalendarDto
 public class UpdateLeaveStatusRequest
 {
     public string Status { get; set; } = string.Empty;
+    public string? ApproverRemarks { get; set; }
+    public string? ApprovedBy { get; set; }
 }

@@ -1212,13 +1212,13 @@ export const LandingView: React.FC<LandingViewProps> = ({ onLoginClick }) => {
       )}
 
       {/* Compact Dynamic Footer Section */}
-      <footer id="contact" className="relative z-10 border-t border-slate-800/90 bg-slate-900/95 dark:bg-slate-950/95 backdrop-blur-xl pt-5 sm:pt-6 pb-4 px-4 sm:px-6 lg:px-8 text-slate-300 dark:text-slate-400">
-        <div className="max-w-7xl mx-auto grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-5 lg:gap-6">
+      <footer id="contact" className="relative z-10 border-t border-slate-800/90 bg-slate-900/95 dark:bg-slate-950/95 backdrop-blur-xl pt-4 pb-3 px-4 sm:px-6 lg:px-8 text-slate-300 dark:text-slate-400">
+        <div className="max-w-7xl mx-auto grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 lg:gap-6">
           
           {/* Dynamic Institution Contact Info (Direct Logo without background box) */}
-          <div className="sm:col-span-2 space-y-2">
-            <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 sm:w-9 sm:h-9 shrink-0 flex items-center justify-center">
+          <div className="sm:col-span-2 space-y-1.5">
+            <div className="flex items-center gap-2">
+              <div className="w-7 h-7 sm:w-8 sm:h-8 shrink-0 flex items-center justify-center">
                 {schoolInfo.logoUrl ? (
                   <img
                     src={schoolInfo.logoUrl}
@@ -1242,34 +1242,22 @@ export const LandingView: React.FC<LandingViewProps> = ({ onLoginClick }) => {
             </p>
 
             {/* Dynamic Address & Contact */}
-            <div className="pt-1 text-xs text-slate-300 space-y-2.5">
-              <div className="flex items-start gap-2.5" title="School Location / Address">
-                <MapPin className="w-4 h-4 text-sky-400 shrink-0 mt-0.5" aria-label="School Location Icon" />
-                <div className="leading-tight">
-                  <span className="text-slate-400 font-semibold block text-[11px] uppercase tracking-wider">Location</span>
-                  <span className="text-slate-200">{schoolInfo.address || 'Main Campus, Education City, Hyderabad'}</span>
-                </div>
+            <div className="pt-1 text-xs text-slate-300 space-y-1.5">
+              <div className="flex items-center gap-2" title="School Location / Address">
+                <MapPin className="w-3.5 h-3.5 text-sky-400 shrink-0" aria-label="School Location Icon" />
+                <span className="text-slate-300">{schoolInfo.address || 'Main Campus, Education City, Hyderabad'}</span>
               </div>
-              <div className="flex items-center gap-2.5" title="School Contact Phone">
-                <Phone className="w-4 h-4 text-sky-400 shrink-0" aria-label="School Phone Icon" />
-                <div>
-                  <span className="text-slate-400 font-semibold block text-[11px] uppercase tracking-wider">Phone</span>
-                  <span className="text-slate-200">{schoolInfo.phone || '+91 98765 43210'}</span>
-                </div>
+              <div className="flex items-center gap-2" title="School Contact Phone">
+                <Phone className="w-3.5 h-3.5 text-sky-400 shrink-0" aria-label="School Phone Icon" />
+                <span className="text-slate-300">{schoolInfo.phone || '+91 98765 43210'}</span>
               </div>
-              <div className="flex items-center gap-2.5" title="School Contact Email">
-                <Mail className="w-4 h-4 text-sky-400 shrink-0" aria-label="School Email Icon" />
-                <div>
-                  <span className="text-slate-400 font-semibold block text-[11px] uppercase tracking-wider">Email</span>
-                  <span className="text-slate-200">{schoolInfo.email || 'contact@pirnavschool.edu.in'}</span>
-                </div>
+              <div className="flex items-center gap-2" title="School Contact Email">
+                <Mail className="w-3.5 h-3.5 text-sky-400 shrink-0" aria-label="School Email Icon" />
+                <span className="text-slate-300">{schoolInfo.email || 'contact@pirnavschool.edu.in'}</span>
               </div>
-              <div className="flex items-center gap-2.5" title="School Official Website">
-                <Globe className="w-4 h-4 text-sky-400 shrink-0" aria-label="School Website Icon" />
-                <div>
-                  <span className="text-slate-400 font-semibold block text-[11px] uppercase tracking-wider">Website</span>
-                  <span className="text-slate-200">{schoolInfo.website || 'www.pirnavschool.edu.in'}</span>
-                </div>
+              <div className="flex items-center gap-2" title="School Official Website">
+                <Globe className="w-3.5 h-3.5 text-sky-400 shrink-0" aria-label="School Website Icon" />
+                <span className="text-slate-300">{schoolInfo.website || 'www.pirnavschool.edu.in'}</span>
               </div>
             </div>
           </div>

@@ -466,11 +466,11 @@ namespace SMS.Api.Services.Implementations.Settings
                     .Select(a => a.ApplicationNo)
                     .ToListAsync();
 
-                var appRegNos = await _context.AdmissionApplications
-                    .Select(a => a.RegistrationNo)
+                var appAdmissionNos = await _context.AdmissionApplications
+                    .Select(a => a.AdmissionNo)
                     .ToListAsync();
 
-                maxExisting = ExtractMaxNumber(studentAdmissions.Concat(appAdmissions).Concat(appRegNos), prefix);
+                maxExisting = ExtractMaxNumber(studentAdmissions.Concat(appAdmissions).Concat(appAdmissionNos), prefix);
             }
             else if (normType == "teaching" || normType == "teacher" || normType == "teachingstaff")
             {
@@ -503,6 +503,25 @@ namespace SMS.Api.Services.Implementations.Settings
                     .ToListAsync();
 
                 maxExisting = ExtractMaxNumber(existingEmpIds, prefix);
+            }
+            else if (normType == "registration" || normType == "reg" || normType == "application" || normType == "applicationno")
+            {
+                prefix = "REG";
+                startNo = 1001;
+                padding = 4;
+                includeYear = false;
+                separator = "-";
+                position = "start";
+
+                var appRegNos = await _context.AdmissionApplications
+                    .Select(a => a.RegistrationNo)
+                    .ToListAsync();
+
+                var admAppNos = await _context.Admissions
+                    .Select(a => a.ApplicationNo)
+                    .ToListAsync();
+
+                maxExisting = ExtractMaxNumber(appRegNos.Concat(admAppNos), prefix);
             }
             else if (normType == "custom")
             {

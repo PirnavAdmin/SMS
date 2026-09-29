@@ -13,6 +13,8 @@ public class AdmissionApplication
 
     public string? RegistrationNo { get; set; } // e.g. "REG-8244"
 
+    public string? AdmissionNo { get; set; } // e.g. "ADM-2026-0001"
+
     // Profile Photo
     public string? ProfilePhotoUrl { get; set; }
 

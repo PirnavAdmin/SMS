@@ -50,7 +50,7 @@ public interface ISchoolService
     Task<AdmissionApplicationResponseDto> UpdateApplicationAsync(int id, SubmitAdmissionDto dto);
     Task<bool> DeleteApplicationAsync(int id);
     Task<bool> RejectApplicationAsync(int id);
-    Task<bool> EnrollStudentAsync(int id);
+    Task<string?> EnrollStudentAsync(int id);
     Task<bool> UpdateApplicationStatusAsync(int id, string status);
 
     // Leave Management Operations
@@ -58,7 +58,7 @@ public interface ISchoolService
     Task<LeaveTypeConfigDto> CreateLeaveTypeAsync(LeaveTypeConfigDto dto);
     Task<List<LeaveApplicationResponseDto>> GetAllLeaveApplicationsAsync(string? status);
     Task<LeaveApplicationResponseDto> SubmitLeaveApplicationAsync(LeaveApplicationCreateDto dto);
-    Task<LeaveApplicationResponseDto> UpdateLeaveStatusAsync(int applicationId, string status);
+    Task<LeaveApplicationResponseDto> UpdateLeaveStatusAsync(int applicationId, string status, string? approverRemarks = null, string? approvedBy = null);
     Task<List<LeaveBalanceDto>> GetLeaveBalancesAsync();
 
     // Holiday Calendar Operations

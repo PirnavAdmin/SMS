@@ -439,7 +439,12 @@ export const DriverLeaveView: React.FC = () => {
                   <input
                     type="date"
                     value={fromDate}
-                    onChange={(e) => setFromDate(e.target.value)}
+                    min={new Date().toISOString().split('T')[0]}
+                    onChange={(e) => {
+                      const newFrom = e.target.value;
+                      setFromDate(newFrom);
+                      if (toDate < newFrom) setToDate(newFrom);
+                    }}
                     className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-bold focus:ring-2 focus:ring-sky-500/20 outline-none cursor-pointer"
                     required
                   />
@@ -451,7 +456,7 @@ export const DriverLeaveView: React.FC = () => {
                   <input
                     type="date"
                     value={toDate}
-                    min={fromDate}
+                    min={fromDate || new Date().toISOString().split('T')[0]}
                     onChange={(e) => setToDate(e.target.value)}
                     className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-bold focus:ring-2 focus:ring-sky-500/20 outline-none cursor-pointer"
                     required

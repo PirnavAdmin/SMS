@@ -62,8 +62,17 @@ export const ParentExaminationView: React.FC = () => {
     motherPhone: ''
   };
 
+  // Combine DataContext processedResults with client-side published report cards cache
+  const localPublishedStr = typeof window !== 'undefined' ? localStorage.getItem('published_report_cards') : null;
+  let localPublishedList: ProcessedResult[] = [];
+  try {
+    localPublishedList = localPublishedStr ? JSON.parse(localPublishedStr) : [];
+  } catch (e) {}
+
+  const combinedResultsList = [...(processedResults || []), ...(Array.isArray(localPublishedList) ? localPublishedList : [])];
+
   // Get ALL raw processed results matching current ward
-  const wardResultsRaw = (processedResults || []).filter(r => isStudentMatch(r));
+  const wardResultsRaw = combinedResultsList.filter(r => isStudentMatch(r));
 
   // Build exam collection from DataContext exams, processedResults, and examMarks
   const examMap = new Map<string, { id: string; name: string; date?: string }>();
@@ -93,10 +102,27 @@ export const ParentExaminationView: React.FC = () => {
   });
 
   const dbChildExams = Array.from(examMap.values()).map(exam => {
-    const matchingResult = wardResultsRaw.find(r =>
-      String(r.examId).toLowerCase() === exam.id.toLowerCase() ||
-      String(r.examName || '').toLowerCase() === exam.name.toLowerCase()
-    );
+    const matchingExamResults = wardResultsRaw.filter(r => {
+      if (!r) return false;
+      if (!exam.id || exam.id === 'all' || !r.examId) return true;
+      return String(r.examId).toLowerCase() === String(exam.id).toLowerCase() ||
+        String(r.examName || '').toLowerCase() === String(exam.name || '').toLowerCase() ||
+        String(r.examId).includes(String(exam.id)) ||
+        String(exam.id).includes(String(r.examId));
+    });
+
+    let matchingResult: ProcessedResult | null = null;
+    if (matchingExamResults.length > 0) {
+      matchingExamResults.sort((a, b) => {
+        const aMax = a.totalMaxMarks || 0;
+        const bMax = b.totalMaxMarks || 0;
+        if (aMax !== bMax) return bMax - aMax;
+        const aSubj = Array.isArray(a.subjectMarks) ? a.subjectMarks.length : 0;
+        const bSubj = Array.isArray(b.subjectMarks) ? b.subjectMarks.length : 0;
+        return bSubj - aSubj;
+      });
+      matchingResult = matchingExamResults[0];
+    }
 
     const marksForExam = (examMarks || []).filter(m =>
       (String(m.examId).toLowerCase() === exam.id.toLowerCase() || String(m.examName || '').toLowerCase() === exam.name.toLowerCase()) &&
@@ -132,7 +158,7 @@ export const ParentExaminationView: React.FC = () => {
     const totalMax = matchingResult?.totalMaxMarks ?? matchingResult?.totalMax ?? (formattedSubjects.length > 0 ? formattedSubjects.reduce((sum: number, s: any) => sum + (Number(s.maxMarks) || 0), 0) : 0);
     const pct = matchingResult?.percentage ?? (totalMax > 0 ? (totalObtained / totalMax) * 100 : 0);
 
-    const overallG = matchingResult?.finalGrade || matchingResult?.overallGrade || '';
+    const overallG = matchingResult?.finalGrade || matchingResult?.overallGrade || (pct >= 90 ? 'A1' : pct >= 80 ? 'A2' : pct >= 70 ? 'B1' : pct >= 60 ? 'B2' : 'C1');
 
     return {
       examId: exam.id,

@@ -4762,8 +4762,12 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
                 id: item.applicationId
                   ? item.applicationId.toString()
                   : existing?.id || Math.random().toString(),
+                admissionNo:
+                  item.admissionNo || item.admissionNumber || existing?.admissionNo || "",
                 applicationNo:
-                  item.registrationNo || item.registrationNumber || existing?.applicationNo || "",
+                  (item.status === "Enrolled" || item.status === "Active" || item.status === "Approved")
+                    ? (item.admissionNo || item.admissionNumber || item.registrationNo || item.registrationNumber || existing?.applicationNo || "")
+                    : (item.registrationNo || item.registrationNumber || item.admissionNo || existing?.applicationNo || ""),
                 registrationNo:
                   item.registrationNo || item.registrationNumber || existing?.registrationNo || "",
                 applicantName:
@@ -7818,7 +7822,23 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         ? Number(String(matchedClass.id).replace(/\D/g, ""))
         : 1;
 
-      const payload = {
+      let maxRegSeq = 1000;
+      admissions.forEach((a) => {
+        const regStr = a.registrationNo || a.applicationNo || "";
+        if (regStr.toUpperCase().startsWith("REG-")) {
+          const m = regStr.match(/\d+/);
+          if (m) {
+            const num = parseInt(m[0], 10);
+            if (!isNaN(num) && num > maxRegSeq) maxRegSeq = num;
+          }
+        }
+      });
+      const customProvidedRegNo = (appData as any).registrationNo || (appData as any).applicationNo;
+      const generatedRegNo = customProvidedRegNo ? String(customProvidedRegNo).trim() : "";
+
+      const payload: any = {
+        registrationNo: generatedRegNo || undefined,
+        applicationNo: generatedRegNo || undefined,
         applicantFullName: appData.applicantName || "",
         appliedClass: appData.appliedClass || "",
         appliedClassId: appliedClassId,
@@ -7874,19 +7894,19 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
 
       const json = await createAdmissionApi(payload);
 
-      const resolvedStatus = appData.status || (json?.data?.status) || "Enrolled";
+      const resolvedStatus = appData.status || (json?.data?.status) || "Pending";
+      const assignedRegNo = json?.data?.registrationNo || generatedRegNo || `REG-${maxRegSeq + 1}`;
+      const assignedAdmNo = json?.data?.admissionNo || json?.data?.admissionNumber || (appData as any).admissionNo || "";
+      const effectiveAppNo = (resolvedStatus === "Enrolled" && assignedAdmNo) ? assignedAdmNo : (assignedRegNo || ("ADM-" + Date.now()));
 
       const createdApp: AdmissionApplication = {
         id:
           json?.data?.applicationId?.toString() ||
           json?.data?.id?.toString() ||
           "ADM-" + Date.now(),
-        applicationNo:
-          json?.data?.registrationNo ||
-          "REG-" + Math.floor(1000 + Math.random() * 9000),
-        registrationNo:
-          json?.data?.registrationNo ||
-          "REG-" + Math.floor(1000 + Math.random() * 9000),
+        applicationNo: effectiveAppNo,
+        registrationNo: assignedRegNo,
+        admissionNo: assignedAdmNo,
         applicantName: appData.applicantName,
         appliedClass: appData.appliedClass,
         gender: appData.gender || "Male",
@@ -7943,34 +7963,6 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       ]);
 
       if (json && json.success !== false) {
-        const createdApp: AdmissionApplication = {
-          id:
-            json?.data?.applicationId?.toString() ||
-            json?.data?.id?.toString() ||
-            `ADM-${Date.now()}`,
-          applicationNo:
-            json?.data?.registrationNo ||
-            (appData as any).applicationNo ||
-            `ADM2026-${Math.floor(100 + Math.random() * 900)}`,
-          registrationNo:
-            json?.data?.registrationNo || (appData as any).applicationNo || "",
-          ...appData,
-          selectedOptionalFees: appData.selectedOptionalFees || [],
-        } as AdmissionApplication;
-
-        savePersistedOptionalFees(
-          createdApp.id,
-          createdApp.registrationNo,
-          appData.applicantName,
-          appData.phone,
-          appData.selectedOptionalFees || [],
-        );
-
-        setAdmissions((prev) => [
-          createdApp,
-          ...prev.filter((a) => a.id !== createdApp.id),
-        ]);
-
         logActivity(
           "New Admission Application",
           `Received application from ${appData.applicantName}`,
@@ -7979,7 +7971,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           addToast(
             "success",
             "Application Submitted",
-            "New admission application has been registered.",
+            `New admission application registered with Registration No: ${assignedRegNo}`,
           );
           fetchAdmissions();
         }
@@ -8258,6 +8250,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
 
       if (json && json.success !== false) {
         let enrolledStudentId: string | null = null;
+        let assignedAdmissionNo: string = json?.admissionNo || json?.data?.admissionNumber || "";
         if (status === "Enrolled" && app) {
           const addressParts = [
             app.addressHouseNo ? `H.No ${app.addressHouseNo}` : "",
@@ -8481,12 +8474,15 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
             baseFeeTotal + additionalFees - scholarshipAmount - discountAmount,
           );
 
+          const resolvedAdmissionNo =
+            json?.admissionNo ||
+            json?.data?.admissionNumber ||
+            generateNextAdmissionNo(students);
+          assignedAdmissionNo = resolvedAdmissionNo;
+
           const newStudent = addStudent(
             {
-              admissionNo:
-                app.applicationNo ||
-                (app as any).registrationNo ||
-                (app.id ? `ADM-${app.id}` : ""),
+              admissionNo: resolvedAdmissionNo,
               rollNo: (app as any).rollNo || "",
               firstName: (() => {
                 const parts = (app.applicantName || "").trim().split(" ");
@@ -8686,8 +8682,20 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         }
 
         // Update state to match API success
+        const admNoToAssign = assignedAdmissionNo || json?.admissionNo;
         setAdmissions((prev) =>
-          prev.map((a) => (a.id === id ? { ...a, status } : a)),
+          prev.map((a) =>
+            a.id === id
+              ? {
+                  ...a,
+                  status,
+                  admissionNo: (status === "Enrolled" ? (admNoToAssign || a.admissionNo) : a.admissionNo),
+                  applicationNo: (status === "Enrolled" && (admNoToAssign || a.admissionNo))
+                    ? (admNoToAssign || a.admissionNo!)
+                    : a.applicationNo,
+                }
+              : a,
+          ),
         );
         logActivity(
           "Updated Application Status",
@@ -18016,11 +18024,21 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const saveProcessedResults = (results: ProcessedResult[]) => {
     setProcessedResults((prev) => {
-      const newKeys = results.map((r) => `${r.examId}_${r.studentId}`);
-      const filtered = prev.filter(
-        (p) => !newKeys.includes(`${p.examId}_${p.studentId}`),
-      );
-      return [...filtered, ...results];
+      const cleanMap = new Map<string, ProcessedResult>();
+      for (const r of results || []) {
+        if (!r) continue;
+        const k = `${String(r.examId || '').trim()}_${String(r.studentId || r.admissionNo || '').trim()}`.toLowerCase();
+        cleanMap.set(k, r);
+      }
+      const cleanIncoming = Array.from(cleanMap.values());
+      const incomingKeys = new Set(cleanIncoming.map(r => `${String(r.examId || '').trim()}_${String(r.studentId || r.admissionNo || '').trim()}`.toLowerCase()));
+
+      const filtered = prev.filter(p => {
+        if (!p) return false;
+        const pKey = `${String(p.examId || '').trim()}_${String(p.studentId || p.admissionNo || '').trim()}`.toLowerCase();
+        return !incomingKeys.has(pKey);
+      });
+      return [...filtered, ...cleanIncoming];
     });
 
     if (results && results.length > 0) {
@@ -19860,22 +19878,22 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         if (
           response &&
           response.success &&
-          Array.isArray(response.data) &&
-          response.data.length > 0
+          Array.isArray(response.data)
         ) {
           const mapped: LeaveApplication[] = response.data.map((item: any) => ({
             id:
               item.leaveApplicationId?.toString() || item.id?.toString() || "",
             employeeId: item.staffId?.toString() || item.id?.toString() || "",
             employeeName: item.staffName || item.employeeName || "Staff Member",
-            empId: item.empId || item.employeeId,
-            department: item.department || "Transport Dept",
+            empId: item.employeeId || item.empId,
+            department: item.department || "Academic Dept",
             designation: item.designation || "Staff",
             branchId:
+              item.branchId ||
               (selectedBranch as any)?.id ||
               (typeof selectedBranch === "string" ? selectedBranch : "") ||
               "BR-001",
-            branch: item.branch || "Main Campus",
+            branch: item.branch || item.branchName || "Main Campus",
             employeeCategory:
               item.employeeCategory === "Teacher" ? "Teacher" : "Staff",
             leaveTypeId: item.leaveTypeId ? item.leaveTypeId.toString() : "1",
@@ -19894,17 +19912,13 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
             approverRemarks: item.approverRemarks || "",
             approvedBy: item.approvedBy || "",
           }));
-          setLeaveApplications((prev) => {
-            const apiIds = new Set(mapped.map((m) => m.id));
-            const localOnly = prev.filter((p) => !apiIds.has(p.id));
-            const merged = [...mapped, ...localOnly];
-            localStorage.setItem(
-              "edu_db_leave_applications",
-              JSON.stringify(merged),
-            );
-            localStorage.setItem("leave_applications", JSON.stringify(merged));
-            return merged;
-          });
+          setLeaveApplications(mapped);
+          localStorage.setItem(
+            "edu_db_leave_applications",
+            JSON.stringify(mapped),
+          );
+          localStorage.setItem("leave_applications", JSON.stringify(mapped));
+          localStorage.setItem("sms_leave_applications", JSON.stringify(mapped));
         }
       } catch (err) {
         console.warn("Failed to fetch leave applications from API", err);
@@ -20038,6 +20052,61 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
 
   // Leave Applications CRUD
   const addLeaveApplication = async (appData: Omit<LeaveApplication, "id">) => {
+    let staffIdNum = 0;
+    const staffMatch = staff.find(
+      (s) =>
+        s.id === appData.employeeId ||
+        s.empId === appData.empId ||
+        s.empId === appData.employeeId ||
+        (s.email && (appData as any).email && s.email.toLowerCase() === (appData as any).email.toLowerCase()) ||
+        (`${s.firstName} ${s.lastName}`.trim().toLowerCase() === (appData.employeeName || "").trim().toLowerCase()),
+    );
+    if (staffMatch) {
+      staffIdNum = parseInt(staffMatch.id, 10) || 0;
+    }
+    if (!staffIdNum) {
+      const rawNum = parseInt((appData.employeeId || "").replace(/\D/g, ""), 10);
+      staffIdNum = isNaN(rawNum) ? 0 : rawNum;
+    }
+
+    let leaveTypeIdNum = 0;
+    const typeMatch = leaveTypes.find(
+      (t) =>
+        t.id === appData.leaveTypeId ||
+        t.name.toLowerCase() === (appData.leaveTypeName || "").toLowerCase() ||
+        (t.code && appData.leaveTypeName && t.code.toLowerCase() === appData.leaveTypeName.toLowerCase()),
+    );
+    if (typeMatch) {
+      leaveTypeIdNum = parseInt(String(typeMatch.id).replace(/\D/g, ""), 10) || 0;
+    }
+    if (!leaveTypeIdNum) {
+      const rawNum = parseInt(String(appData.leaveTypeId || "").replace(/\D/g, ""), 10);
+      leaveTypeIdNum = isNaN(rawNum) ? 0 : rawNum;
+    }
+
+    const payload = {
+      staffId: staffIdNum,
+      employeeId: staffMatch?.empId || appData.empId || appData.employeeId,
+      leaveTypeId: leaveTypeIdNum,
+      leaveTypeCode: typeMatch?.code || (appData as any).leaveTypeCode || "",
+      fromDate: appData.fromDate,
+      toDate: appData.toDate,
+      isHalfDay: !!appData.isHalfDay,
+      reason: appData.reason,
+    };
+
+    try {
+      const res = await createLeaveApplicationApi(payload);
+      if (res && res.success) {
+        addToast("success", "Request Filed", "Leave application submitted successfully.");
+        await fetchLeaveApplications();
+        await fetchLeaveBalances();
+        return;
+      }
+    } catch (err: any) {
+      console.warn("API error during leave submission (saving to local state fallback):", err);
+    }
+
     const newId = `LA-${Date.now()}`;
     const newApp: LeaveApplication = {
       id: newId,
@@ -20046,7 +20115,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         (selectedBranch as any)?.id ||
         (typeof selectedBranch === "string" ? selectedBranch : "") ||
         "BR-001",
-      branch: (appData as any).branch || "Main Campus",
+      branch: (appData as any).branch || staffMatch?.branchName || "Main Campus",
       status: appData.status || "Pending",
       appliedDate:
         appData.appliedDate || new Date().toISOString().split("T")[0],
@@ -20062,29 +20131,6 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       localStorage.setItem("sms_leave_applications", JSON.stringify(updated));
       return updated;
     });
-
-    try {
-      const parsedStaffId =
-        parseInt(appData.employeeId.replace(/\D/g, "")) || 1;
-      const parsedLeaveTypeId =
-        parseInt(appData.leaveTypeId.replace(/\D/g, "")) || 1;
-
-      const payload = {
-        staffId: parsedStaffId,
-        leaveTypeId: parsedLeaveTypeId,
-        fromDate: appData.fromDate,
-        toDate: appData.toDate,
-        isHalfDay: appData.isHalfDay,
-        reason: appData.reason,
-      };
-
-      await createLeaveApplicationApi(payload);
-    } catch (err: any) {
-      console.warn(
-        "API error during leave submission (saved to local state):",
-        err,
-      );
-    }
   };
   const updateLeaveApplication = (
     id: string,
@@ -20990,6 +21036,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     try {
       const payload = {
         status: status,
+        approverRemarks: remarks || "",
+        approvedBy: approvedBy || "Admin",
       };
 
       const parsedId = parseInt(id.replace(/\D/g, "")) || 1;
@@ -21001,6 +21049,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           "Status Updated",
           `Leave application status updated to ${status}.`,
         );
+        await fetchLeaveApplications();
+        await fetchLeaveBalances();
       }
     } catch (err: any) {
       console.warn("API warning during status update (saved locally):", err);
@@ -21039,7 +21089,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
             itemB === "all" ||
             itemB === selB ||
             selB.includes(itemB) ||
-            itemB.includes(selB);
+            itemB.includes(selB) ||
+            (itemB === "main campus" && (selB === "madhapur branch" || (branches || []).length <= 1));
         }
       }
 

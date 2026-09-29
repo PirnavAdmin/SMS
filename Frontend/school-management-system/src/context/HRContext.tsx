@@ -228,19 +228,23 @@ export const HRProvider: React.FC<{ children: React.ReactNode }> = ({ children }
     });
 
     try {
-      const parsedStaffId = parseInt((appData.employeeId || '').replace(/\D/g, '')) || 1;
-      const parsedLeaveTypeId = parseInt((appData.leaveTypeId || '').replace(/\D/g, '')) || 1;
+      const parsedStaffId = parseInt((appData.employeeId || '').replace(/\D/g, '')) || 0;
+      const parsedLeaveTypeId = parseInt((appData.leaveTypeId || '').replace(/\D/g, '')) || 0;
 
       const payload = {
         staffId: parsedStaffId,
+        employeeId: appData.empId || appData.employeeId,
         leaveTypeId: parsedLeaveTypeId,
+        leaveTypeCode: (appData as any).leaveTypeCode || (appData as any).leaveTypeName || "",
         fromDate: appData.fromDate,
         toDate: appData.toDate,
-        isHalfDay: appData.isHalfDay,
+        isHalfDay: !!appData.isHalfDay,
         reason: appData.reason,
       };
 
       await createLeaveApplicationApi(payload);
+      await fetchLeaveApplications();
+      await fetchLeaveBalances();
     } catch (err: any) {
       console.warn("Backend API leave submission fallback (persisted in local state):", err);
     }

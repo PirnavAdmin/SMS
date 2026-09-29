@@ -11,7 +11,7 @@ import { Homework, HomeworkAttachment, Student } from '../../../types';
 import { ConfirmModal } from '../../common/ConfirmModal';
 
 export const HomeworkView: React.FC = () => {
-  const { homework, addHomework, updateHomework, deleteHomework, staff, academicClasses, teacherAssignments, students, subjects = [], schoolProfile, fetchHomeworkData } = useData();
+  const { homework, addHomework, updateHomework, deleteHomework, staff, academicClasses, teacherAssignments, timetable = [], students, subjects = [], schoolProfile, fetchHomeworkData } = useData();
 
   useEffect(() => {
     if (fetchHomeworkData) {
@@ -99,12 +99,22 @@ export const HomeworkView: React.FC = () => {
     let raw = (dbTeacher as any)?.assignedClasses || (dbTeacher as any)?.classes || (dbTeacher as any)?.assignedClass || [];
     if (typeof raw === 'string') raw = [raw];
 
+    const tFirstName = (dbTeacher?.firstName || '').toLowerCase().trim();
+    const tLastName = (dbTeacher?.lastName || '').toLowerCase().trim();
+    const tFullName = `${dbTeacher?.firstName || ''} ${dbTeacher?.lastName || ''}`.toLowerCase().trim();
+    const tId = String(dbTeacher?.id || (dbTeacher as any)?.empId || user?.id || '').trim();
+
     // Merge Admin academic class assignments
     const adminClasses = (teacherAssignments || [])
       .filter((ta: any) => {
-        const taName = (ta.teacherName || '').toLowerCase();
-        const tName = (dbTeacher.firstName || '').toLowerCase();
-        return tName && taName.includes(tName);
+        if (!ta) return false;
+        const taName = (ta.teacherName || '').toLowerCase().trim();
+        const taId = String(ta.teacherId || '').trim();
+        const nameMatch = (tFullName && (taName === tFullName || taName.includes(tFullName))) ||
+          (tFirstName.length > 2 && taName.includes(tFirstName)) ||
+          (tLastName.length > 2 && taName.includes(tLastName));
+        const idMatch = tId && taId === tId;
+        return nameMatch || idMatch;
       })
       .map((ta: any) => {
         const c = (ta.className || '').trim();
@@ -114,11 +124,33 @@ export const HomeworkView: React.FC = () => {
       })
       .filter(Boolean);
 
-    const combined = Array.from(new Set([...(Array.isArray(raw) ? raw : []), ...adminClasses])).filter(Boolean);
+    // Merge Timetable class assignments
+    const timetableClasses = (timetable || [])
+      .filter((t: any) => {
+        if (!t) return false;
+        const slotTeacher = (t.teacherName || '').toLowerCase().trim();
+        const slotId = String(t.teacherId || '').trim();
+        const nameMatch = (tFullName && (slotTeacher === tFullName || slotTeacher.includes(tFullName))) ||
+          (tFirstName.length > 2 && slotTeacher.includes(tFirstName)) ||
+          (tLastName.length > 2 && slotTeacher.includes(tLastName));
+        const idMatch = tId && slotId === tId;
+        return nameMatch || idMatch;
+      })
+      .map((t: any) => {
+        const c = (t.className || '').trim();
+        const s = (t.section || '').trim();
+        if (!c) return '';
+        return c.startsWith('Class ') ? (s ? `${c}-${s}` : c) : (s ? `Class ${c}-${s}` : `Class ${c}`);
+      })
+      .filter(Boolean);
+
+    const combined = Array.from(new Set([...(Array.isArray(raw) ? raw : []), ...adminClasses, ...timetableClasses])).filter(Boolean);
     if (combined.length > 0) {
       return combined.map((c: string) => {
         let str = c.trim();
-        if (!str.toLowerCase().startsWith('class') && !str.toLowerCase().startsWith('grade')) str = `Class ${str}`;
+        if (!str.toLowerCase().startsWith('class') && !str.toLowerCase().startsWith('grade') && !str.toLowerCase().includes('nursery') && !str.toLowerCase().includes('lkg') && !str.toLowerCase().includes('ukg')) {
+          str = `Class ${str}`;
+        }
         return str;
       });
     }
@@ -139,7 +171,7 @@ export const HomeworkView: React.FC = () => {
     }
 
     return [];
-  }, [dbTeacher, teacherAssignments, academicClasses, students]);
+  }, [dbTeacher, teacherAssignments, timetable, user?.id, academicClasses, students]);
 
   const assignedSubjects = useMemo(() => {
     const defaultSubject = dbTeacher.department || (dbTeacher as any).primarySubject || '';
@@ -173,9 +205,22 @@ export const HomeworkView: React.FC = () => {
     if (teacherAssignedClasses.length > 0) {
       teacherAssignedClasses.forEach(ac => {
         let mainCls = ac.split('-')[0].trim();
-        if (mainCls) set.add(mainCls);
+        if (mainCls) {
+          if (!mainCls.toLowerCase().startsWith('class') && !mainCls.toLowerCase().startsWith('grade') && !mainCls.toLowerCase().includes('nursery') && !mainCls.toLowerCase().includes('lkg') && !mainCls.toLowerCase().includes('ukg')) {
+            mainCls = `Class ${mainCls}`;
+          }
+          set.add(mainCls);
+        }
+      });
+      const list = Array.from(set);
+      return list.sort((a, b) => {
+        const numA = parseInt(a.replace(/\D/g, ''), 10) || 0;
+        const numB = parseInt(b.replace(/\D/g, ''), 10) || 0;
+        if (numA !== numB) return numA - numB;
+        return a.localeCompare(b);
       });
     }
+
     if (academicClasses && academicClasses.length > 0) {
       academicClasses.forEach(ac => {
         if (ac.name) set.add(ac.name);
@@ -186,7 +231,14 @@ export const HomeworkView: React.FC = () => {
         if (s.className) set.add(s.className);
       });
     }
-    return Array.from(set);
+
+    const list = Array.from(set);
+    return list.sort((a, b) => {
+      const numA = parseInt(a.replace(/\D/g, ''), 10) || 0;
+      const numB = parseInt(b.replace(/\D/g, ''), 10) || 0;
+      if (numA !== numB) return numA - numB;
+      return a.localeCompare(b);
+    });
   }, [teacherAssignedClasses, academicClasses, students]);
 
   const subjectOptions = assignedSubjects;

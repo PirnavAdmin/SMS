@@ -700,10 +700,47 @@ public class SchoolService : ISchoolService
 		var list = await _schoolRepository.GetAllApplicationsAsync(search, branch, classId, status);
 		var result = list.Select(a => MapToAdmissionResponseDto(a)).ToList();
 
-		var existingRegNos = new HashSet<string>(
-			result.Where(r => !string.IsNullOrWhiteSpace(r.RegistrationNo))
-				  .Select(r => r.RegistrationNo.Trim().ToLowerInvariant()),
-			StringComparer.OrdinalIgnoreCase);
+		var enrolledAppsMissingAdmNo = result.Where(r => r.Status == "Enrolled" && string.IsNullOrWhiteSpace(r.AdmissionNo)).ToList();
+		if (enrolledAppsMissingAdmNo.Any())
+		{
+			var activeStudents = await _context.Students
+				.AsNoTracking()
+				.Where(s => !s.IsDeleted && !string.IsNullOrEmpty(s.AdmissionNumber) && s.AdmissionNumber.StartsWith("ADM-"))
+				.Select(s => new { s.AdmissionNumber, s.StudentName, s.FatherMobile, s.Email })
+				.ToListAsync();
+
+			foreach (var r in enrolledAppsMissingAdmNo)
+			{
+				var matchedSt = activeStudents.FirstOrDefault(s =>
+					(!string.IsNullOrWhiteSpace(s.FatherMobile) && s.FatherMobile == r.FatherContact && s.StudentName.Equals(r.ApplicantFullName, StringComparison.OrdinalIgnoreCase)) ||
+					(!string.IsNullOrWhiteSpace(s.Email) && s.Email.Equals(r.Email, StringComparison.OrdinalIgnoreCase)));
+				if (matchedSt != null)
+				{
+					r.AdmissionNo = matchedSt.AdmissionNumber;
+				}
+			}
+		}
+
+		var existingRegNos = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+		var existingStudentKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+		foreach (var r in result)
+		{
+			if (!string.IsNullOrWhiteSpace(r.RegistrationNo))
+				existingRegNos.Add(r.RegistrationNo.Trim().ToLowerInvariant());
+
+			var name = (r.ApplicantFullName ?? r.StudentName ?? $"{r.FirstName} {r.LastName}".Trim()).Trim().ToLowerInvariant();
+			var phone = (r.FatherMobileNo ?? r.Phone ?? r.FatherContact ?? "").Trim();
+			var cls = (r.AppliedClass ?? r.AppliedClassGrade ?? "").Trim().ToLowerInvariant();
+
+			if (!string.IsNullOrWhiteSpace(name))
+			{
+				if (!string.IsNullOrWhiteSpace(phone))
+					existingStudentKeys.Add($"{name}|{phone}");
+				if (!string.IsNullOrWhiteSpace(cls))
+					existingStudentKeys.Add($"{name}|{cls}");
+			}
+		}
 
 		var studentQuery = _context.Students
 			.AsNoTracking()
@@ -759,7 +796,19 @@ public class SchoolService : ISchoolService
 			var regNo = !string.IsNullOrWhiteSpace(s.AdmissionNumber) ? s.AdmissionNumber.Trim() : $"STU-{s.StudentId:D4}";
 			var regKey = regNo.ToLowerInvariant();
 
+			var sName = (s.StudentName ?? "").Trim().ToLowerInvariant();
+			var sPhone = (s.FatherMobile ?? s.MobileNumber ?? "").Trim();
+			var sCls = (s.ClassGrade != null ? s.ClassGrade.ClassName : (s.ClassId > 0 ? $"Class {s.ClassId}" : "")).Trim().ToLowerInvariant();
+
 			if (existingRegNos.Contains(regKey))
+			{
+				continue;
+			}
+			if (!string.IsNullOrWhiteSpace(sName) && !string.IsNullOrWhiteSpace(sPhone) && existingStudentKeys.Contains($"{sName}|{sPhone}"))
+			{
+				continue;
+			}
+			if (!string.IsNullOrWhiteSpace(sName) && !string.IsNullOrWhiteSpace(sCls) && existingStudentKeys.Contains($"{sName}|{sCls}"))
 			{
 				continue;
 			}
@@ -774,6 +823,7 @@ public class SchoolService : ISchoolService
 			{
 				Id = 100000 + s.StudentId,
 				RegistrationNo = regNo,
+				AdmissionNo = s.AdmissionNumber != null && s.AdmissionNumber.StartsWith("ADM-", StringComparison.OrdinalIgnoreCase) ? s.AdmissionNumber : null,
 				FirstName = fName,
 				LastName = lName,
 				DateOfBirth = s.DateOfBirth?.ToString("yyyy-MM-ddTHH:mm:ssZ"),
@@ -795,6 +845,13 @@ public class SchoolService : ISchoolService
 			});
 
 			existingRegNos.Add(regKey);
+			if (!string.IsNullOrWhiteSpace(sName))
+			{
+				if (!string.IsNullOrWhiteSpace(sPhone))
+					existingStudentKeys.Add($"{sName}|{sPhone}");
+				if (!string.IsNullOrWhiteSpace(sCls))
+					existingStudentKeys.Add($"{sName}|{sCls}");
+			}
 		}
 
 		static int GetClassSortWeight(string? cls)
@@ -844,6 +901,7 @@ public class SchoolService : ISchoolService
 			{
 				Id = id,
 				RegistrationNo = regNo,
+				AdmissionNo = s.AdmissionNumber != null && s.AdmissionNumber.StartsWith("ADM-", StringComparison.OrdinalIgnoreCase) ? s.AdmissionNumber : null,
 				FirstName = fName,
 				LastName = lName,
 				DateOfBirth = s.DateOfBirth?.ToString("yyyy-MM-ddTHH:mm:ssZ"),
@@ -923,7 +981,47 @@ public class SchoolService : ISchoolService
 		return true;
 	}
 
-	public async Task<bool> EnrollStudentAsync(int id)
+	private async Task<string> GenerateSequentialAdmissionNoAsync()
+	{
+		try
+		{
+			var genAdmission = await _settingsService.GenerateNextIdAsync("admission");
+			if (!string.IsNullOrWhiteSpace(genAdmission?.NextId))
+			{
+				return genAdmission.NextId;
+			}
+		}
+		catch { }
+
+		int maxAdmSeq = 0;
+		var existingAdmNos = await _context.AdmissionApplications
+			.AsNoTracking()
+			.Where(a => a.AdmissionNo != null && a.AdmissionNo.StartsWith("ADM-"))
+			.Select(a => a.AdmissionNo!)
+			.ToListAsync();
+
+		var existingStudentAdmNos = await _context.Students
+			.AsNoTracking()
+			.IgnoreQueryFilters()
+			.Where(s => s.AdmissionNumber != null && s.AdmissionNumber.StartsWith("ADM-"))
+			.Select(s => s.AdmissionNumber!)
+			.ToListAsync();
+
+		foreach (var adm in existingAdmNos.Concat(existingStudentAdmNos))
+		{
+			var matches = System.Text.RegularExpressions.Regex.Matches(adm, @"\d+");
+			foreach (System.Text.RegularExpressions.Match m in matches)
+			{
+				if (int.TryParse(m.Value, out int v) && (v < 2020 || v > 2035) && v > maxAdmSeq)
+				{
+					maxAdmSeq = v;
+				}
+			}
+		}
+		return $"ADM-{DateTime.UtcNow.Year}-{(maxAdmSeq + 1):D4}";
+	}
+
+	public async Task<string?> EnrollStudentAsync(int id)
 	{
 		var app = await _schoolRepository.GetApplicationByIdAsync(id);
 		if (app == null)
@@ -960,6 +1058,11 @@ public class SchoolService : ISchoolService
 		if (app != null)
 		{
 			app.Status = status;
+			if (string.Equals(status, "Enrolled", StringComparison.OrdinalIgnoreCase) && 
+			    (string.IsNullOrWhiteSpace(app.AdmissionNo) || app.AdmissionNo.StartsWith("REG-", StringComparison.OrdinalIgnoreCase)))
+			{
+				app.AdmissionNo = await GenerateSequentialAdmissionNoAsync();
+			}
 			await _schoolRepository.SaveChangesAsync();
 			await SyncToAdmissionsTableAsync(app, isDeleted: string.Equals(status, "Deleted", StringComparison.OrdinalIgnoreCase));
 			return true;
@@ -1020,35 +1123,6 @@ public class SchoolService : ISchoolService
 				targetClassId = allClasses.First().ClassId;
 		}
 
-		// Generate sequential registration number (e.g. REG-1001, REG-1002, ...)
-		var allApps = await _schoolRepository.GetAllApplicationsAsync(null, null, null, null);
-		int maxSeq = 1000;
-		if (allApps != null)
-		{
-			foreach (var a in allApps)
-			{
-				if (!string.IsNullOrWhiteSpace(a.RegistrationNo) && a.RegistrationNo.StartsWith("REG-"))
-				{
-					if (int.TryParse(a.RegistrationNo.Substring(4), out int seqNum) && seqNum > maxSeq)
-					{
-						maxSeq = seqNum;
-					}
-				}
-			}
-		}
-
-		var allStudents = await _context.Students.AsNoTracking().Select(s => s.AdmissionNumber).ToListAsync();
-		foreach (var admNo in allStudents)
-		{
-			if (!string.IsNullOrWhiteSpace(admNo) && admNo.StartsWith("REG-"))
-			{
-				if (int.TryParse(admNo.Substring(4), out int seqNum) && seqNum > maxSeq)
-				{
-					maxSeq = seqNum;
-				}
-			}
-		}
-
 		// Prevent rapid duplicate submission within same student, parent contact and class
 		if (!string.IsNullOrWhiteSpace(dto.FirstName) && !string.IsNullOrWhiteSpace(dto.FatherContact))
 		{
@@ -1067,15 +1141,58 @@ public class SchoolService : ISchoolService
 			}
 		}
 
-		string nextRegNo;
-		try
+		// Generate sequential registration number (e.g. REG-1001, REG-1002, ...)
+		string nextRegNo = "";
+		if (!string.IsNullOrWhiteSpace(dto.RegistrationNo) && dto.RegistrationNo.StartsWith("REG-", StringComparison.OrdinalIgnoreCase))
 		{
-			var genAdmission = await _settingsService.GenerateNextIdAsync("admission");
-			nextRegNo = genAdmission?.NextId ?? $"ADM-{DateTime.UtcNow.Year}-{maxSeq + 1:D4}";
+			bool isTaken = await _context.AdmissionApplications.AnyAsync(a => !a.IsDeleted && a.RegistrationNo == dto.RegistrationNo.Trim());
+			if (!isTaken)
+			{
+				nextRegNo = dto.RegistrationNo.Trim();
+			}
 		}
-		catch
+
+		if (string.IsNullOrWhiteSpace(nextRegNo))
 		{
-			nextRegNo = $"ADM-{DateTime.UtcNow.Year}-{maxSeq + 1:D4}";
+			try
+			{
+				var genReg = await _settingsService.GenerateNextIdAsync("registration");
+				nextRegNo = genReg?.NextId ?? "";
+			}
+			catch
+			{
+				nextRegNo = "";
+			}
+
+			if (string.IsNullOrWhiteSpace(nextRegNo))
+			{
+				int maxRegSeq = 1000;
+				var existingRegNos = await _context.AdmissionApplications
+					.AsNoTracking()
+					.Where(a => a.RegistrationNo != null && a.RegistrationNo.StartsWith("REG-"))
+					.Select(a => a.RegistrationNo!)
+					.ToListAsync();
+
+				foreach (var reg in existingRegNos)
+				{
+					var match = System.Text.RegularExpressions.Regex.Match(reg, @"\d+");
+					if (match.Success && int.TryParse(match.Value, out int num) && num > maxRegSeq)
+					{
+						maxRegSeq = num;
+					}
+				}
+				nextRegNo = $"REG-{maxRegSeq + 1}";
+			}
+		}
+
+		var allBranches = await _context.Branches.AsNoTracking().ToListAsync();
+		var defaultBranch = allBranches.Find(b => b.BranchId == 6) ?? allBranches.FirstOrDefault();
+		string effectiveBranchName = dto.BranchName ?? "";
+		if (string.IsNullOrWhiteSpace(effectiveBranchName) || 
+		    effectiveBranchName.Equals("Main Campus", StringComparison.OrdinalIgnoreCase) || 
+		    !allBranches.Any(b => b.BranchName.Equals(effectiveBranchName, StringComparison.OrdinalIgnoreCase)))
+		{
+			effectiveBranchName = defaultBranch?.BranchName ?? "Madhapur Branch";
 		}
 
 		var app = new AdmissionApplication
@@ -1086,7 +1203,7 @@ public class SchoolService : ISchoolService
 			LastName = dto.LastName ?? "",
 			Gender = dto.Gender,
 			AppliedClassId = targetClassId,
-			BranchName = dto.BranchName,
+			BranchName = effectiveBranchName,
 			BloodGroup = dto.BloodGroup,
 			Religion = dto.Religion,
 			Caste = dto.Caste,
@@ -1122,6 +1239,13 @@ public class SchoolService : ISchoolService
 		};
 
 		if (DateTime.TryParse(dto.DateOfBirth, out var parsedDob)) app.DateOfBirth = parsedDob;
+
+		if ((string.Equals(app.Status, "Enrolled", StringComparison.OrdinalIgnoreCase) ||
+		     string.Equals(app.Status, "Admitted", StringComparison.OrdinalIgnoreCase)) &&
+		    (string.IsNullOrWhiteSpace(app.AdmissionNo) || app.AdmissionNo.StartsWith("REG-", StringComparison.OrdinalIgnoreCase)))
+		{
+			app.AdmissionNo = await GenerateSequentialAdmissionNoAsync();
+		}
 
 		await _schoolRepository.AddApplicationAsync(app);
 		await _schoolRepository.SaveChangesAsync();
@@ -1162,7 +1286,12 @@ public class SchoolService : ISchoolService
 			}
 		}
 		if (targetClassId > 0) app.AppliedClassId = targetClassId;
-		app.BranchName = dto.BranchName;
+		if (!string.IsNullOrWhiteSpace(dto.BranchName))
+		{
+			app.BranchName = dto.BranchName.Equals("Main Campus", StringComparison.OrdinalIgnoreCase) 
+				? "Madhapur Branch" 
+				: dto.BranchName;
+		}
 		if (!string.IsNullOrWhiteSpace(dto.StudentType)) app.StudentType = dto.StudentType;
 		app.BloodGroup = dto.BloodGroup;
 		app.Religion = dto.Religion;
@@ -1207,12 +1336,12 @@ public class SchoolService : ISchoolService
 
 
 
-	private async Task SyncToAdmissionsTableAsync(AdmissionApplication app, bool isDeleted = false)
+	private async Task<string?> SyncToAdmissionsTableAsync(AdmissionApplication app, bool isDeleted = false)
 	{
 		try
 		{
 			var existing = await Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions.FirstOrDefaultAsync(
-				_context.Admissions, x => x.ApplicationNo == app.RegistrationNo);
+				_context.Admissions, x => x.ApplicationNo == app.RegistrationNo || (!string.IsNullOrEmpty(app.AdmissionNo) && x.ApplicationNo == app.AdmissionNo));
 
 			var branches = await Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions.ToListAsync(_context.Branches);
 			var defaultBranch = branches.Find(b => b.BranchId == 1) ?? branches.FirstOrDefault();
@@ -1291,12 +1420,14 @@ public class SchoolService : ISchoolService
 			                           string.Equals(app.Status, "Admitted", StringComparison.OrdinalIgnoreCase) ||
 			                           string.Equals(app.Status, "Approved", StringComparison.OrdinalIgnoreCase);
 
+			string? studentAdmissionNo = null;
+
 			if (!isDeleted)
 			{
 				if (matchedStudent == null && !isEnrolledOrAdmitted)
 				{
 					// Applications that are Pending or Rejected do NOT go to Student Directory until Enrolled
-					return;
+					return null;
 				}
 
 				if (matchedStudent != null && string.Equals(app.Status, "Rejected", StringComparison.OrdinalIgnoreCase))
@@ -1305,7 +1436,7 @@ public class SchoolService : ISchoolService
 					matchedStudent.UpdatedAt = DateTime.UtcNow;
 					_context.Entry(matchedStudent).State = Microsoft.EntityFrameworkCore.EntityState.Modified;
 					await _context.SaveChangesAsync();
-					return;
+					return null;
 				}
 
 				if (existing != null && existing.ClassId.HasValue)
@@ -1334,8 +1465,39 @@ public class SchoolService : ISchoolService
 									.Where(s => !string.IsNullOrWhiteSpace(s));
 								var fullAddress = string.Join(", ", addressParts);
 
+								studentAdmissionNo = "";
+								if (!string.IsNullOrWhiteSpace(app.AdmissionNo) && !app.AdmissionNo.StartsWith("REG-", StringComparison.OrdinalIgnoreCase))
+								{
+									studentAdmissionNo = app.AdmissionNo;
+								}
+								else if (matchedStudent != null && !string.IsNullOrWhiteSpace(matchedStudent.AdmissionNumber) && !matchedStudent.AdmissionNumber.StartsWith("REG-", StringComparison.OrdinalIgnoreCase))
+								{
+									studentAdmissionNo = matchedStudent.AdmissionNumber;
+								}
+								else
+								{
+									studentAdmissionNo = await GenerateSequentialAdmissionNoAsync();
+								}
+
+								if (!string.IsNullOrWhiteSpace(studentAdmissionNo))
+								{
+									if (string.IsNullOrWhiteSpace(app.AdmissionNo) || app.AdmissionNo.StartsWith("REG-", StringComparison.OrdinalIgnoreCase))
+									{
+										app.AdmissionNo = studentAdmissionNo;
+										_context.Entry(app).State = Microsoft.EntityFrameworkCore.EntityState.Modified;
+									}
+									if (existing != null)
+									{
+										existing.ApplicationNo = studentAdmissionNo;
+									}
+								}
+
 								if (matchedStudent != null)
 								{
+									if (string.IsNullOrWhiteSpace(matchedStudent.AdmissionNumber) || matchedStudent.AdmissionNumber.StartsWith("REG-", StringComparison.OrdinalIgnoreCase))
+									{
+										matchedStudent.AdmissionNumber = studentAdmissionNo;
+									}
 									matchedStudent.StudentName = existing.StudentName ?? $"{app.FirstName} {app.LastName}".Trim();
 									matchedStudent.DateOfBirth = existing.Dob ?? app.DateOfBirth;
 									matchedStudent.Gender = existing.Gender ?? app.Gender;
@@ -1374,7 +1536,7 @@ public class SchoolService : ISchoolService
 
 									var newStudent = new Student
 									{
-										AdmissionNumber = existing.ApplicationNo ?? app.RegistrationNo ?? $"ADM-{existing.AdmissionId}",
+										AdmissionNumber = studentAdmissionNo,
 										RollNumber = studentRollNo,
 										StudentName = existing.StudentName ?? $"{app.FirstName} {app.LastName}".Trim(),
 										DateOfBirth = existing.Dob ?? app.DateOfBirth,
@@ -1534,17 +1696,20 @@ public class SchoolService : ISchoolService
 					}
 				}
 			}
+			return studentAdmissionNo;
 		}
 		catch (Exception ex)
 		{
 			Console.WriteLine($"Error syncing to admissions table: {ex.Message}");
 		}
+		return null;
 	}
 
 	private static AdmissionApplicationResponseDto MapToAdmissionResponseDto(AdmissionApplication a) => new()
 	{
 		Id = a.Id,
 		RegistrationNo = a.RegistrationNo ?? "",
+		AdmissionNo = a.AdmissionNo,
 		ProfilePhotoUrl = a.ProfilePhotoUrl,
 		FirstName = a.FirstName ?? "",
 		LastName = a.LastName ?? "",
@@ -1816,6 +1981,22 @@ public class SchoolService : ISchoolService
 	public async Task<List<LeaveTypeConfigDto>> GetAllLeaveTypesAsync()
 	{
 		var list = await _schoolRepository.GetAllLeaveTypesAsync();
+		if (list.Count == 0)
+		{
+			var defaults = new List<LeaveTypeConfig>
+			{
+				new() { Name = "Casual Leave", Code = "CL", AnnualAllowance = 10, CarryForward = false, MaxConsecutiveDays = 3, RequiresAttachment = false, IsPaid = true, Status = "Active" },
+				new() { Name = "Sick Leave", Code = "SL", AnnualAllowance = 10, CarryForward = true, MaxConsecutiveDays = 5, RequiresAttachment = true, IsPaid = true, Status = "Active" },
+				new() { Name = "Paid / Earned Leave", Code = "PL", AnnualAllowance = 15, CarryForward = true, MaxConsecutiveDays = 10, RequiresAttachment = false, IsPaid = true, Status = "Active" },
+				new() { Name = "On Duty Leave", Code = "OD", AnnualAllowance = 12, CarryForward = false, MaxConsecutiveDays = 5, RequiresAttachment = false, IsPaid = true, Status = "Active" },
+				new() { Name = "Maternity / Paternity Leave", Code = "ML", AnnualAllowance = 90, CarryForward = false, MaxConsecutiveDays = 90, RequiresAttachment = true, IsPaid = true, Status = "Active" },
+				new() { Name = "Loss of Pay (Unpaid)", Code = "LOP", AnnualAllowance = 30, CarryForward = false, MaxConsecutiveDays = 30, RequiresAttachment = false, IsPaid = false, Status = "Active" }
+			};
+			await _context.LeaveTypeConfigs.AddRangeAsync(defaults);
+			await _context.SaveChangesAsync();
+			list = await _schoolRepository.GetAllLeaveTypesAsync();
+		}
+
 		return list.Select(l => new LeaveTypeConfigDto
 		{
 			LeaveTypeId = l.LeaveTypeId,
@@ -1857,7 +2038,7 @@ public class SchoolService : ISchoolService
 			LeaveApplicationId = l.LeaveApplicationId,
 			StaffId = l.StaffId,
 			EmployeeId = l.Staff?.EmployeeId ?? "N/A",
-			StaffName = l.Staff != null ? $"{l.Staff.FirstName} {l.Staff.LastName}" : "N/A",
+			StaffName = l.Staff != null ? $"{l.Staff.FirstName} {l.Staff.LastName}".Trim() : "N/A",
 			Designation = l.Staff?.Designation ?? "N/A",
 			Department = l.Staff?.Department ?? "N/A",
 			Branch = l.Staff?.BranchName ?? "Main Campus",
@@ -1870,14 +2051,53 @@ public class SchoolService : ISchoolService
 			RequestedDays = l.RequestedDays,
 			Reason = l.Reason,
 			AppliedDate = l.AppliedDate.ToString("yyyy-MM-dd"),
-			Status = l.Status
+			Status = l.Status,
+			ApproverRemarks = l.ApproverRemarks,
+			ApprovedBy = l.ApprovedBy
 		}).ToList();
 	}
 
 	public async Task<LeaveApplicationResponseDto> SubmitLeaveApplicationAsync(LeaveApplicationCreateDto dto)
 	{
-		var staff = await _schoolRepository.GetStaffByIdAsync(dto.StaffId)
-			?? throw new NotFoundException($"Staff member with ID {dto.StaffId} not found.");
+		Staff? staff = null;
+		if (dto.StaffId > 0)
+		{
+			staff = await _schoolRepository.GetStaffByIdAsync(dto.StaffId);
+		}
+		if (staff == null && !string.IsNullOrWhiteSpace(dto.EmployeeId))
+		{
+			staff = await _context.Staff.FirstOrDefaultAsync(s => s.EmployeeId == dto.EmployeeId);
+		}
+		if (staff == null && dto.StaffId > 0)
+		{
+			staff = await _context.Staff.FirstOrDefaultAsync(s => s.EmployeeId != null && s.EmployeeId.Contains(dto.StaffId.ToString()));
+		}
+		if (staff == null)
+		{
+			staff = await _context.Staff.FirstOrDefaultAsync();
+		}
+
+		if (staff == null)
+		{
+			throw new NotFoundException($"Staff member could not be determined.");
+		}
+
+		var leaveType = (dto.LeaveTypeId > 0 ? await _schoolRepository.GetLeaveTypeByIdAsync(dto.LeaveTypeId) : null)
+			?? (!string.IsNullOrWhiteSpace(dto.LeaveTypeCode) ? await _context.LeaveTypeConfigs.FirstOrDefaultAsync(lt => lt.Code == dto.LeaveTypeCode) : null)
+			?? await _context.LeaveTypeConfigs.FirstOrDefaultAsync();
+
+		if (leaveType == null)
+		{
+			leaveType = new LeaveTypeConfig
+			{
+				Name = "Casual Leave",
+				Code = "CL",
+				AnnualAllowance = 10,
+				Status = "Active"
+			};
+			await _context.LeaveTypeConfigs.AddAsync(leaveType);
+			await _context.SaveChangesAsync();
+		}
 
 		DateTime from = DateTime.TryParse(dto.FromDate, out var f) ? f : DateTime.UtcNow;
 		DateTime to = DateTime.TryParse(dto.ToDate, out var t) ? t : DateTime.UtcNow;
@@ -1885,8 +2105,8 @@ public class SchoolService : ISchoolService
 
 		var entity = new LeaveApplication
 		{
-			StaffId = dto.StaffId,
-			LeaveTypeId = dto.LeaveTypeId,
+			StaffId = staff.StaffId,
+			LeaveTypeId = leaveType.LeaveTypeId,
 			FromDate = from,
 			ToDate = to,
 			IsHalfDay = dto.IsHalfDay,
@@ -1899,36 +2119,38 @@ public class SchoolService : ISchoolService
 		await _schoolRepository.AddLeaveApplicationAsync(entity);
 		await _schoolRepository.SaveChangesAsync();
 
-		var leaveType = await _schoolRepository.GetLeaveTypeByIdAsync(dto.LeaveTypeId);
-
 		return new LeaveApplicationResponseDto
 		{
 			LeaveApplicationId = entity.LeaveApplicationId,
 			StaffId = staff.StaffId,
 			EmployeeId = staff.EmployeeId ?? "",
-			StaffName = $"{staff.FirstName} {staff.LastName}",
+			StaffName = $"{staff.FirstName} {staff.LastName}".Trim(),
 			Designation = staff.Designation ?? "",
 			Department = staff.Department ?? "",
 			Branch = staff.BranchName ?? "Main Campus",
 			EmployeeCategory = staff.EmployeeCategory ?? "Staff",
-			LeaveTypeName = leaveType?.Name ?? "Leave",
-			LeaveTypeCode = leaveType?.Code ?? "LV",
+			LeaveTypeName = leaveType.Name,
+			LeaveTypeCode = leaveType.Code,
 			FromDate = entity.FromDate.ToString("yyyy-MM-dd"),
 			ToDate = entity.ToDate.ToString("yyyy-MM-dd"),
 			IsHalfDay = entity.IsHalfDay,
 			RequestedDays = entity.RequestedDays,
 			Reason = entity.Reason,
 			AppliedDate = entity.AppliedDate.ToString("yyyy-MM-dd"),
-			Status = entity.Status
+			Status = entity.Status,
+			ApproverRemarks = entity.ApproverRemarks,
+			ApprovedBy = entity.ApprovedBy
 		};
 	}
 
-	public async Task<LeaveApplicationResponseDto> UpdateLeaveStatusAsync(int applicationId, string status)
+	public async Task<LeaveApplicationResponseDto> UpdateLeaveStatusAsync(int applicationId, string status, string? approverRemarks = null, string? approvedBy = null)
 	{
 		var application = await _schoolRepository.GetLeaveApplicationByIdAsync(applicationId)
 			?? throw new NotFoundException($"Leave application with ID {applicationId} not found.");
 
 		application.Status = status;
+		if (!string.IsNullOrWhiteSpace(approverRemarks)) application.ApproverRemarks = approverRemarks;
+		if (!string.IsNullOrWhiteSpace(approvedBy)) application.ApprovedBy = approvedBy;
 
 		if (status.Equals("Approved", StringComparison.OrdinalIgnoreCase))
 		{
@@ -1989,7 +2211,7 @@ public class SchoolService : ISchoolService
 			LeaveApplicationId = application.LeaveApplicationId,
 			StaffId = application.StaffId,
 			EmployeeId = application.Staff?.EmployeeId ?? "N/A",
-			StaffName = application.Staff != null ? $"{application.Staff.FirstName} {application.Staff.LastName}" : "N/A",
+			StaffName = application.Staff != null ? $"{application.Staff.FirstName} {application.Staff.LastName}".Trim() : "N/A",
 			Designation = application.Staff?.Designation ?? "N/A",
 			Department = application.Staff?.Department ?? "N/A",
 			Branch = application.Staff?.BranchName ?? "Main Campus",
@@ -2002,7 +2224,9 @@ public class SchoolService : ISchoolService
 			RequestedDays = application.RequestedDays,
 			Reason = application.Reason,
 			AppliedDate = application.AppliedDate.ToString("yyyy-MM-dd"),
-			Status = application.Status
+			Status = application.Status,
+			ApproverRemarks = application.ApproverRemarks,
+			ApprovedBy = application.ApprovedBy
 		};
 	}
 
