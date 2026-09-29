@@ -115,6 +115,51 @@ export const PrintableReportCard: React.FC<PrintableReportCardProps> = ({
     }
   }
 
+  // Deduplicate res.subjectMarks by subject name and set default passLimit (35)
+  if (res.subjectMarks && Array.isArray(res.subjectMarks)) {
+    const uniqueMap = new Map<string, any>();
+    res.subjectMarks.forEach((sub: any) => {
+      const name = (sub.subject || sub.name || '').trim();
+      if (!name) return;
+      const key = name.toLowerCase();
+      if (!uniqueMap.has(key)) {
+        uniqueMap.set(key, { ...sub, subject: name });
+      }
+    });
+
+    let hasFail = false;
+    res.subjectMarks = Array.from(uniqueMap.values()).map((sub: any) => {
+      const isAbsent = sub.obtainedMarks === 'AB' || sub.marks === 'AB';
+      const rawPass = Number(sub.passMarks || sub.passLimit);
+      const passLimit = isNaN(rawPass) || rawPass === 0 ? 35 : rawPass;
+      const obtainedNum = typeof sub.obtainedMarks === 'number'
+        ? sub.obtainedMarks
+        : (typeof sub.marks === 'number' ? sub.marks : (parseFloat(String(sub.obtainedMarks || sub.marks || 0)) || 0));
+
+      let isPass = true;
+      if (isAbsent) {
+        isPass = false;
+      } else {
+        isPass = obtainedNum >= passLimit;
+      }
+
+      if (!isPass) hasFail = true;
+
+      return {
+        ...sub,
+        subject: sub.subject || sub.name,
+        obtainedMarks: sub.obtainedMarks !== undefined ? sub.obtainedMarks : (sub.marks !== undefined ? sub.marks : 0),
+        passMarks: passLimit,
+        maxMarks: Number(sub.maxMarks) || 100,
+        isPass
+      };
+    });
+
+    if (res.subjectMarks.length > 0) {
+      res.overallResult = hasFail ? 'FAIL' : 'PASS';
+    }
+  }
+
   // Calculate Rank in Class Section (using standard competition ranking)
   const classStudents = students.filter(s => s.className === student.className && (!s.section || s.section === student.section));
   const studentScores = classStudents.map(st => {
