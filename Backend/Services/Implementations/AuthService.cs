@@ -183,7 +183,7 @@ namespace SMS.Api.Services.Implementations
                             UserId = linkedUser.UserId,
                             FullName = student.StudentName,
                             Email = linkedUser.Email ?? student.Email,
-                            MobileNumber = linkedUser.MobileNumber ?? student.MobileNumber ?? student.FatherMobile,
+                            MobileNumber = linkedUser.MobileNumber ?? student.MobileNumber ?? student.FatherMobile ?? "",
                             Role = "Student"
                         };
                         var studentRoles = new List<string> { "Student" };
@@ -240,7 +240,7 @@ namespace SMS.Api.Services.Implementations
                             UserId = linkedUser.UserId,
                             FullName = driverName,
                             Email = linkedUser.Email ?? driver.Email,
-                            MobileNumber = linkedUser.MobileNumber ?? driver.MobileNumber,
+                            MobileNumber = linkedUser.MobileNumber ?? driver.MobileNumber ?? "",
                             Role = "Driver"
                         };
                         var driverRoles = new List<string> { "Driver" };
@@ -325,7 +325,7 @@ namespace SMS.Api.Services.Implementations
                             UserId = linkedUser.UserId,
                             FullName = staffFullName,
                             Email = linkedUser.Email ?? staffMember.Email,
-                            MobileNumber = linkedUser.MobileNumber ?? staffMember.Phone,
+                            MobileNumber = linkedUser.MobileNumber ?? staffMember.Phone ?? "",
                             Role = resolvedRole
                         };
                         var staffRoles = new List<string> { resolvedRole };

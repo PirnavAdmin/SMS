@@ -37,15 +37,15 @@ public class HomeworkController : ControllerBase
     {
         var dbClasses = await _context.Classes
             .AsNoTracking()
-            .Select(c => c.ClassName)
-            .Where(n => !string.IsNullOrWhiteSpace(n))
+            .Where(c => !string.IsNullOrWhiteSpace(c.ClassName))
+            .Select(c => c.ClassName!)
             .Distinct()
             .ToListAsync();
 
         var dbSubjects = await _context.Subjects
             .AsNoTracking()
-            .Select(s => s.SubjectName)
-            .Where(n => !string.IsNullOrWhiteSpace(n))
+            .Where(s => !string.IsNullOrWhiteSpace(s.SubjectName))
+            .Select(s => s.SubjectName!)
             .Distinct()
             .ToListAsync();
 
@@ -57,8 +57,8 @@ public class HomeworkController : ControllerBase
 
         var academicYears = await _context.AcademicYears
             .AsNoTracking()
-            .Select(y => y.AcademicYearName)
-            .Where(n => !string.IsNullOrWhiteSpace(n))
+            .Where(y => !string.IsNullOrWhiteSpace(y.AcademicYearName))
+            .Select(y => y.AcademicYearName!)
             .Distinct()
             .ToListAsync();
 

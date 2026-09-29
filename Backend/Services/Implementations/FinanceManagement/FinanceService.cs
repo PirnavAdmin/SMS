@@ -188,7 +188,7 @@ public class FinanceService : IFinanceService
         {
             Code = meta.code,
             Name = dto.Name,
-            Category = dto.Category,
+            Category = dto.Category ?? "General",
             Frequency = dto.Frequency,
             DefaultAmount = effectiveAmount,
             Mandatory = dto.Mandatory,
@@ -273,7 +273,7 @@ public class FinanceService : IFinanceService
             Id = id,
             Code = meta.code,
             Name = dto.Name,
-            Category = dto.Category,
+            Category = dto.Category ?? "General",
             Frequency = dto.Frequency,
             DefaultAmount = effectiveAmount,
             Mandatory = dto.Mandatory,
