@@ -1230,6 +1230,21 @@ export interface FeeHead {
   taxPercentage?: number;
   displayOrder: number;
   status: 'Active' | 'Inactive';
+  applicableSections?: string[];
+  hostelBlockId?: string;
+  hostelBlockName?: string;
+  hostelRoomId?: string;
+  hostelRoomNo?: string;
+  hostelSharingType?: string;
+  transportRouteId?: string;
+  transportRouteName?: string;
+  transportVehicleId?: string;
+  transportVehicleNo?: string;
+  transportStopId?: string;
+  transportStopName?: string;
+  uniformItemId?: string;
+  uniformItemName?: string;
+  uniformSize?: string;
 }
 
 export interface FeeStructureItem {
@@ -1268,6 +1283,8 @@ export interface FeeHeadAssignmentBreakdown {
   adjustmentAmount: number;
   isEligibleForProRata?: boolean;
   isSelected?: boolean;
+  paymentEligibility?: FeePaymentEligibility;
+  applicableTerms?: string[];
 }
 
 export interface StudentFeeAssignment {

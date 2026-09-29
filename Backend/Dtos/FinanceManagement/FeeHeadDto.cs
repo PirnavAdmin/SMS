@@ -23,4 +23,21 @@ public class FeeHeadDto
     public List<string> ApplicableBranches { get; set; } = new() { "All Branches" };
     public string PaymentEligibility { get; set; } = "Both One-Time and Term-Wise";
     public List<string> ApplicableTerms { get; set; } = new();
+
+    // Module Integration References
+    public List<string>? ApplicableSections { get; set; }
+    public string? HostelBlockId { get; set; }
+    public string? HostelBlockName { get; set; }
+    public string? HostelRoomId { get; set; }
+    public string? HostelRoomNo { get; set; }
+    public string? HostelSharingType { get; set; }
+    public string? TransportRouteId { get; set; }
+    public string? TransportRouteName { get; set; }
+    public string? TransportVehicleId { get; set; }
+    public string? TransportVehicleNo { get; set; }
+    public string? TransportStopId { get; set; }
+    public string? TransportStopName { get; set; }
+    public string? UniformItemId { get; set; }
+    public string? UniformItemName { get; set; }
+    public string? UniformSize { get; set; }
 }

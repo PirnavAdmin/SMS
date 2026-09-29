@@ -1,9 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   FileSpreadsheet, ArrowUpRight, ArrowDownLeft, Plus, Search, Filter, Calendar,
   Building2, CreditCard, Eye, RotateCcw, AlertTriangle, ShieldCheck, CheckCircle2,
   Printer, Download, FileText, IndianRupee, Layers, SlidersHorizontal, BookOpen, Clock,
-  ChevronRight, ExternalLink, X, Paperclip, Lock, RefreshCw, PieChart, Sparkles, TrendingUp, Edit
+  ChevronRight, ExternalLink, X, Paperclip, Lock, RefreshCw, PieChart, Sparkles, TrendingUp, Edit, Trash2
 } from 'lucide-react';
 import { formatCurrency } from '../../../utils/currency';
 import { formatDateForDisplay } from '../../../utils/dateValidation';
@@ -15,13 +15,14 @@ import { exportToExcel } from '../../../utils/excelExport';
 
 interface TransactionsMasterLedgerViewProps {
   filterType?: string;
+  initialSubTab?: 'ledger' | 'categories-accounts' | 'budget';
 }
 
-export const TransactionsMasterLedgerView: React.FC<TransactionsMasterLedgerViewProps> = ({ filterType }) => {
+export const TransactionsMasterLedgerView: React.FC<TransactionsMasterLedgerViewProps> = ({ filterType, initialSubTab }) => {
   const {
     financeTransactions, addFinanceTransaction, reverseFinanceTransaction, cancelFinanceTransaction,
-    financialAccounts, addFinancialAccount, updateFinancialAccount,
-    financialCategories, addFinancialCategory, updateFinancialCategory,
+    financialAccounts, addFinancialAccount, updateFinancialAccount, deleteFinancialAccount,
+    financialCategories, addFinancialCategory, updateFinancialCategory, deleteFinancialCategory,
     financialBudgets, updateFinancialBudget,
     students, staff
   } = useData();
@@ -30,7 +31,15 @@ export const TransactionsMasterLedgerView: React.FC<TransactionsMasterLedgerView
   const { addToast } = useToast();
 
   // Active Sub-Tab: 'ledger' | 'manual' | 'categories-accounts' | 'budget' | 'audit'
-  const [activeSubTab, setActiveSubTab] = useState<'ledger' | 'categories-accounts' | 'budget'>('ledger');
+  const [activeSubTab, setActiveSubTab] = useState<'ledger' | 'categories-accounts' | 'budget'>(
+    initialSubTab || 'ledger'
+  );
+
+  useEffect(() => {
+    if (initialSubTab) {
+      setActiveSubTab(initialSubTab);
+    }
+  }, [initialSubTab]);
 
   // Filter States
   const [searchQuery, setSearchQuery] = useState('');
@@ -38,6 +47,14 @@ export const TransactionsMasterLedgerView: React.FC<TransactionsMasterLedgerView
   const [typeFilter, setTypeFilter] = useState<'All' | 'Income' | 'Expense'>(
     filterType === 'Expense' ? 'Expense' : filterType === 'Income' ? 'Income' : 'All'
   );
+
+  useEffect(() => {
+    if (filterType) {
+      const newType = filterType === 'Expense' ? 'Expense' : filterType === 'Income' ? 'Income' : 'All';
+      setTypeFilter(newType);
+      setAppliedFilters(prev => ({ ...prev, typeFilter: newType }));
+    }
+  }, [filterType]);
   const [sourceModuleFilter, setSourceModuleFilter] = useState<string>('All');
   const [categoryFilter, setCategoryFilter] = useState<string>('All');
   const [paymentModeFilter, setPaymentModeFilter] = useState<string>('All');
@@ -859,6 +876,21 @@ export const TransactionsMasterLedgerView: React.FC<TransactionsMasterLedgerView
                     >
                       <Edit className="w-3.5 h-3.5" />
                     </button>
+                    {!cat.isSystem && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (window.confirm(`Are you sure you want to delete category "${cat.name}"?`)) {
+                            deleteFinancialCategory(cat.id);
+                            addToast('info', 'Category Removed', `Category '${cat.name}' was deleted.`);
+                          }
+                        }}
+                        title="Delete Category"
+                        className="p-1.5 rounded-lg bg-rose-100 dark:bg-rose-950 text-rose-600 dark:text-rose-300 hover:bg-rose-200 dark:hover:bg-rose-900 transition-all cursor-pointer"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    )}
                   </div>
                 </div>
               ))}
@@ -903,6 +935,19 @@ export const TransactionsMasterLedgerView: React.FC<TransactionsMasterLedgerView
                       className="p-1.5 rounded-lg bg-emerald-100 dark:bg-emerald-950 text-emerald-600 dark:text-emerald-300 hover:bg-emerald-200 dark:hover:bg-emerald-900 transition-all cursor-pointer"
                     >
                       <Edit className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (window.confirm(`Are you sure you want to delete account "${acc.accountName}"?`)) {
+                          deleteFinancialAccount(acc.id);
+                          addToast('info', 'Account Removed', `Account '${acc.accountName}' was deleted.`);
+                        }
+                      }}
+                      title="Delete Account"
+                      className="p-1.5 rounded-lg bg-rose-100 dark:bg-rose-950 text-rose-600 dark:text-rose-300 hover:bg-rose-200 dark:hover:bg-rose-900 transition-all cursor-pointer"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
                     </button>
                   </div>
                 </div>

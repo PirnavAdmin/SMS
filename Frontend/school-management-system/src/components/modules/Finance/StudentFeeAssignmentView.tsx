@@ -187,6 +187,8 @@ export const StudentFeeAssignmentView: React.FC = () => {
       let p = existingAssign.feePolicy || 'Full Annual Fee';
       if (p === 'Pro-rata' || p === 'Monthly Pro-rated' || p === 'Monthly Pro-rated Fee') {
         p = 'Term-wise';
+      } else if (p === 'Custom' || p === 'Custom Amount') {
+        p = 'Full Annual Fee';
       }
       initialPolicy = p as FeePolicyType;
       setModalPolicy(initialPolicy);
@@ -236,8 +238,10 @@ export const StudentFeeAssignmentView: React.FC = () => {
         'Both One-Time and Term-Wise';
       const catApplicableTerms: string[] = item.applicableTerms || fh?.applicableTerms || [];
 
+      const isOneTimeOnly = eligibility === 'One-Time Only';
+
       const isFixedFullAmountHead =
-        eligibility === 'One-Time Only' ||
+        isOneTimeOnly ||
         freq === 'One Time' ||
         freq === 'Annual' ||
         freq === 'One Term' ||
@@ -251,11 +255,13 @@ export const StudentFeeAssignmentView: React.FC = () => {
       const prevMatch = (existingBreakdown || customBreakdown)?.find(
         (b) => b.feeHeadId === item.feeHeadId || b.feeHeadName?.toLowerCase() === item.feeHeadName?.toLowerCase()
       );
-      const isSelected = prevMatch ? prevMatch.isSelected !== false : true;
+      const isSelected = isOneTimeOnly ? true : (prevMatch ? prevMatch.isSelected !== false : true);
 
       let assigned = orig;
 
-      if (!isSelected) {
+      if (isOneTimeOnly) {
+        assigned = orig;
+      } else if (!isSelected) {
         assigned = 0;
       } else if (isFixedFullAmountHead || policy === 'Full Annual Fee') {
         // One Time, Annual, One Term -> Full amount
@@ -279,12 +285,6 @@ export const StudentFeeAssignmentView: React.FC = () => {
         }
         const categoryTermsRatio = configuredTerms.length > 0 ? appTerms.length / configuredTerms.length : 1.0;
         assigned = Math.round(orig * categoryTermsRatio);
-      } else if (policy === 'Custom' || policy === 'Custom Amount') {
-        if (prevMatch && typeof prevMatch.assignedAmount === 'number' && prevMatch.assignedAmount > 0) {
-          assigned = prevMatch.assignedAmount;
-        } else {
-          assigned = orig;
-        }
       }
 
       return {
@@ -295,7 +295,7 @@ export const StudentFeeAssignmentView: React.FC = () => {
           : item.feeHeadName.includes('Transport')
           ? 'Transport Fee'
           : 'Other Fee'),
-        billingType: isFixedFullAmountHead ? 'One-time' : 'Monthly',
+        billingType: isOneTimeOnly ? 'One-time' : (isFixedFullAmountHead ? 'One-time' : 'Monthly'),
         originalAmount: orig,
         assignedAmount: assigned,
         adjustmentAmount: isSelected ? (assigned - orig) : -orig,
@@ -347,6 +347,7 @@ export const StudentFeeAssignmentView: React.FC = () => {
     setCustomBreakdown((prev) =>
       prev.map((item) => {
         if (item.feeHeadId !== headId) return item;
+        if ((item as any).paymentEligibility === 'One-Time Only') return item;
         const nextSelected = item.isSelected === false ? true : false;
         
         const hNameLower = (item.feeHeadName || '').toLowerCase();
@@ -377,10 +378,14 @@ export const StudentFeeAssignmentView: React.FC = () => {
   };
 
   const handleToggleAllFeeHeads = () => {
-    const allSelected = customBreakdown.every((i) => i.isSelected !== false);
+    const selectable = customBreakdown.filter((i) => (i as any).paymentEligibility !== 'One-Time Only');
+    const allSelectableSelected = selectable.length > 0 && selectable.every((i) => i.isSelected !== false);
     setCustomBreakdown((prev) =>
       prev.map((item) => {
-        const nextSelected = !allSelected;
+        if ((item as any).paymentEligibility === 'One-Time Only') {
+          return { ...item, isSelected: true, assignedAmount: item.originalAmount, adjustmentAmount: 0 };
+        }
+        const nextSelected = !allSelectableSelected;
         const hNameLower = (item.feeHeadName || '').toLowerCase();
         const categoryLower = (item.category || '').toLowerCase();
         const isFixedFullAmountHead = !item.isEligibleForProRata || hNameLower.includes('admission') || categoryLower.includes('admission');
@@ -408,21 +413,6 @@ export const StudentFeeAssignmentView: React.FC = () => {
     );
   };
 
-  const handleCustomAmountChange = (headId: string, valStr: string) => {
-    const numericVal = parseFloat(valStr) || 0;
-    setCustomBreakdown((prev) =>
-      prev.map((item) =>
-        item.feeHeadId === headId
-          ? {
-              ...item,
-              assignedAmount: Math.max(0, numericVal),
-              adjustmentAmount: Math.max(0, numericVal) - item.originalAmount
-            }
-          : item
-      )
-    );
-  };
-
   const handleSaveModalAssignment = () => {
     if (!configStudent || !modalStructureId) return;
 
@@ -433,11 +423,6 @@ export const StudentFeeAssignmentView: React.FC = () => {
         'Invalid Admission Date',
         `Admission date (${modalAdmissionDate}) must fall within current academic year dates (${ayStartDate} to ${ayEndDate}).`
       );
-      return;
-    }
-
-    if (modalPolicy === 'Custom' && !modalAdjustmentReason.trim()) {
-      addToast('warning', 'Reason Required', 'Please provide an adjustment reason for Custom Amount policy.');
       return;
     }
 
@@ -458,7 +443,7 @@ export const StudentFeeAssignmentView: React.FC = () => {
     addToast(
       'success',
       'Fee Assignment Saved',
-      `Assigned ${modalPolicy === 'Custom' ? 'Custom Amount' : modalPolicy} policy for ${configStudent.firstName}.`
+      `Assigned ${modalPolicy} policy for ${configStudent.firstName}.`
     );
 
     setIsConfigModalOpen(false);
@@ -474,11 +459,6 @@ export const StudentFeeAssignmentView: React.FC = () => {
         'Invalid Admission Date',
         `Admission date (${modalAdmissionDate}) must fall within current academic year dates (${ayStartDate} to ${ayEndDate}).`
       );
-      return;
-    }
-
-    if (modalPolicy === 'Custom' && !modalAdjustmentReason.trim()) {
-      addToast('warning', 'Reason Required', 'Please provide an adjustment reason for Custom Amount policy.');
       return;
     }
 
@@ -549,8 +529,27 @@ export const StudentFeeAssignmentView: React.FC = () => {
     setIsPreviewOpen(true);
   };
 
-  const originalTotalSum = customBreakdown.reduce((sum, i) => sum + (i.isSelected !== false ? i.originalAmount : 0), 0);
-  const assignedTotalSum = customBreakdown.reduce((sum, i) => sum + (i.isSelected !== false ? i.assignedAmount : 0), 0);
+  const autoIncludedItems = customBreakdown.filter(
+    (i) => (i as any).paymentEligibility === 'One-Time Only'
+  );
+  const selectableItems = customBreakdown.filter(
+    (i) => (i as any).paymentEligibility !== 'One-Time Only'
+  );
+
+  const autoIncludedTotal = autoIncludedItems.reduce((sum, i) => sum + i.assignedAmount, 0);
+  const autoIncludedOriginalTotal = autoIncludedItems.reduce((sum, i) => sum + i.originalAmount, 0);
+
+  const selectableAssignedTotal = selectableItems.reduce(
+    (sum, i) => sum + (i.isSelected !== false ? i.assignedAmount : 0),
+    0
+  );
+  const selectableOriginalTotal = selectableItems.reduce(
+    (sum, i) => sum + (i.isSelected !== false ? i.originalAmount : 0),
+    0
+  );
+
+  const originalTotalSum = autoIncludedOriginalTotal + selectableOriginalTotal;
+  const assignedTotalSum = autoIncludedTotal + selectableAssignedTotal;
   const adjustmentTotalSum = assignedTotalSum - originalTotalSum;
 
   return (
@@ -561,7 +560,7 @@ export const StudentFeeAssignmentView: React.FC = () => {
           <UserPlus className="w-6 h-6 text-sky-500" /> Student Fee Assignment & Policy Management
         </h2>
         <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 font-medium">
-          Allocate standard fee structures or configure student fee policies (Full Annual Fee, Term-wise Fee, Custom Amount).
+          Allocate standard fee structures or configure student fee policies (Full Annual Fee, Term-wise Fee).
         </p>
       </div>
 
@@ -704,7 +703,7 @@ export const StudentFeeAssignmentView: React.FC = () => {
                           <span className="px-2.5 py-1 rounded-lg bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300 font-bold text-[11px]">
                             {assignment.feePolicy === 'Pro-rata' || assignment.feePolicy === 'Monthly Pro-rated' || assignment.feePolicy === 'Monthly Pro-rated Fee'
                               ? 'Term-wise Fee'
-                              : (assignment.feePolicy === 'Custom' || assignment.feePolicy === 'Custom Amount' ? 'Custom Amount' : assignment.feePolicy || 'Full Annual Fee')}
+                              : (assignment.feePolicy === 'Custom' || assignment.feePolicy === 'Custom Amount' ? 'Full Annual Fee' : assignment.feePolicy || 'Full Annual Fee')}
                           </span>
                         ) : (
                           <span className="px-2 py-0.5 rounded bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300 font-bold text-[11px]">
@@ -838,7 +837,7 @@ export const StudentFeeAssignmentView: React.FC = () => {
                     <label className="block font-black text-slate-900 dark:text-slate-100 uppercase tracking-wider text-[11px]">
                       Select Fee Policy:
                     </label>
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                       <label
                         className={`p-3 rounded-2xl border cursor-pointer transition-all flex flex-col justify-between ${
                           modalPolicy === 'Full Annual Fee'
@@ -877,28 +876,8 @@ export const StudentFeeAssignmentView: React.FC = () => {
                           />
                         </div>
                         <span className="text-[10px] text-slate-400 mt-1 font-medium">
-                          {selectedTermIds.length} of {configuredTerms.length} terms selected ({formatCurrency(selectedTermIds.length > 0 ? Math.floor(assignedTotalSum / selectedTermIds.length) : assignedTotalSum)}/term)
+                          {selectedTermIds.length} of {configuredTerms.length} terms selected ({formatCurrency(selectedTermIds.length > 0 ? Math.floor(selectableAssignedTotal / selectedTermIds.length) : selectableAssignedTotal)}/term {autoIncludedTotal > 0 ? `+ ${formatCurrency(autoIncludedTotal)} One-Time` : ''})
                         </span>
-                      </label>
-
-                      <label
-                        className={`p-3 rounded-2xl border cursor-pointer transition-all flex flex-col justify-between ${
-                          modalPolicy === 'Custom' || modalPolicy === 'Custom Amount'
-                            ? 'border-sky-600 bg-sky-50/80 dark:bg-sky-950/60 ring-2 ring-sky-500/20'
-                            : 'border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:border-slate-300'
-                        }`}
-                      >
-                        <div className="flex items-center justify-between">
-                          <span className="font-extrabold text-slate-900 dark:text-slate-100 text-xs">Custom Amount</span>
-                          <input
-                            type="radio"
-                            name="feePolicy"
-                            checked={modalPolicy === 'Custom' || modalPolicy === 'Custom Amount'}
-                            onChange={() => handlePolicyChange('Custom')}
-                            className="w-4 h-4 text-sky-600 focus:ring-sky-500 cursor-pointer"
-                          />
-                        </div>
-                        <span className="text-[10px] text-slate-400 mt-1 font-medium">Manual admin adjustments</span>
                       </label>
                     </div>
                   </div>
@@ -916,7 +895,7 @@ export const StudentFeeAssignmentView: React.FC = () => {
                           </span>
                         </div>
                         <span className="text-[11px] font-bold text-sky-600 dark:text-sky-400 bg-sky-50 dark:bg-sky-950/60 px-2.5 py-1 rounded-full border border-sky-200 dark:border-sky-800">
-                          {selectedTermIds.length} of {configuredTerms.length} Terms Selected ({formatCurrency(selectedTermIds.length > 0 ? Math.floor(assignedTotalSum / selectedTermIds.length) : assignedTotalSum)}/term)
+                          {selectedTermIds.length} of {configuredTerms.length} Terms Selected ({formatCurrency(selectedTermIds.length > 0 ? Math.floor(selectableAssignedTotal / selectedTermIds.length) : selectableAssignedTotal)}/term {autoIncludedTotal > 0 ? `+ ${formatCurrency(autoIncludedTotal)} One-Time` : ''})
                         </span>
                       </div>
 
@@ -978,7 +957,7 @@ export const StudentFeeAssignmentView: React.FC = () => {
                           </span>
                         </div>
                         <span className="px-2.5 py-1 rounded-lg bg-sky-600 text-white font-bold text-xs font-mono shrink-0 shadow-xs">
-                          {formatCurrency(selectedTermIds.length > 0 ? Math.floor(assignedTotalSum / selectedTermIds.length) : assignedTotalSum)} / term
+                          {formatCurrency(selectedTermIds.length > 0 ? Math.floor(selectableAssignedTotal / selectedTermIds.length) : selectableAssignedTotal)} / term {autoIncludedTotal > 0 ? `+ ${formatCurrency(autoIncludedTotal)} One-Time` : ''}
                         </span>
                       </div>
                     </div>
@@ -998,19 +977,42 @@ export const StudentFeeAssignmentView: React.FC = () => {
                     </div>
                   )}
 
-                  {/* Adjustment Reason input for Custom Amount */}
-                  {modalPolicy === 'Custom' && (
-                    <div className="p-3.5 rounded-2xl bg-amber-50/60 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900/60 space-y-2">
-                      <label className="block font-bold text-amber-900 dark:text-amber-300">
-                        Adjustment Reason / Notes (Required for Custom Amount):
-                      </label>
-                      <input
-                        type="text"
-                        placeholder="e.g. Mid-Year Late Joining Discount, Special Financial Concession"
-                        value={modalAdjustmentReason}
-                        onChange={(e) => setModalAdjustmentReason(e.target.value)}
-                        className="w-full px-3 py-2 rounded-xl border border-amber-300 dark:border-amber-800 bg-white dark:bg-slate-900 font-medium text-xs text-slate-900 dark:text-slate-100"
-                      />
+                  {/* Automatically Included One-Time Fees Banner */}
+                  {autoIncludedItems.length > 0 && (
+                    <div className="p-4 rounded-2xl bg-purple-50/80 dark:bg-purple-950/40 border border-purple-200 dark:border-purple-800 space-y-2.5 shadow-xs">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <CheckCircle2 className="w-4 h-4 text-purple-600 dark:text-purple-400" />
+                          <span className="font-black text-purple-900 dark:text-purple-200 uppercase tracking-wider text-[11px]">
+                            Automatically Included One-Time Fees:
+                          </span>
+                          <span className="px-2 py-0.5 rounded-full bg-purple-200/70 text-purple-900 dark:bg-purple-900 dark:text-purple-200 font-extrabold text-[10px]">
+                            {autoIncludedItems.length} Fee Head{autoIncludedItems.length > 1 ? 's' : ''} (Total: {formatCurrency(autoIncludedTotal)})
+                          </span>
+                        </div>
+                        <span className="px-2 py-0.5 rounded text-[10px] font-extrabold bg-purple-100 text-purple-800 dark:bg-purple-900/60 dark:text-purple-300">
+                          Auto-Assigned (Non-Deselectable)
+                        </span>
+                      </div>
+                      
+                      <p className="text-[11px] text-purple-700 dark:text-purple-300 font-medium">
+                        Fee categories configured with payment eligibility <strong>One-Time Only (Single Installment)</strong> are automatically included as single-installment obligations and cannot be deselected.
+                      </p>
+
+                      <div className="flex flex-wrap gap-2 pt-1">
+                        {autoIncludedItems.map((item) => (
+                          <div
+                            key={item.feeHeadId}
+                            className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white dark:bg-slate-900 border border-purple-200 dark:border-purple-800 text-slate-800 dark:text-slate-200 font-bold text-xs shadow-2xs"
+                          >
+                            <span className="text-purple-700 dark:text-purple-300">{item.feeHeadName}</span>
+                            <span className="font-mono text-slate-900 dark:text-white font-extrabold">{formatCurrency(item.assignedAmount)}</span>
+                            <span className="text-[9px] px-1.5 py-0.5 rounded bg-purple-100 text-purple-700 dark:bg-purple-950 dark:text-purple-300 uppercase font-black">
+                              One-Time
+                            </span>
+                          </div>
+                        ))}
+                      </div>
                     </div>
                   )}
 
@@ -1019,10 +1021,10 @@ export const StudentFeeAssignmentView: React.FC = () => {
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <div className="flex items-center gap-2">
                         <span className="font-black text-slate-900 dark:text-slate-100 uppercase tracking-wider text-[11px]">
-                          Dynamic Fee Types Breakdown:
+                          Selectable Fee Types Breakdown:
                         </span>
                         <span className="px-2.5 py-0.5 rounded-full bg-sky-100 text-sky-800 dark:bg-sky-950 dark:text-sky-300 font-extrabold text-[10px]">
-                          {customBreakdown.filter((i) => i.isSelected !== false).length} of {customBreakdown.length} Fee Types Selected
+                          {selectableItems.filter((i) => i.isSelected !== false).length} of {selectableItems.length} Fee Types Selected
                         </span>
                       </div>
                       <div className="flex items-center gap-3 text-[11px]">
@@ -1031,7 +1033,7 @@ export const StudentFeeAssignmentView: React.FC = () => {
                           onClick={handleToggleAllFeeHeads}
                           className="font-bold text-sky-600 hover:text-sky-700 underline cursor-pointer"
                         >
-                          {customBreakdown.every((i) => i.isSelected !== false) ? 'Deselect All' : 'Select All'}
+                          {selectableItems.length > 0 && selectableItems.every((i) => i.isSelected !== false) ? 'Deselect All' : 'Select All'}
                         </button>
                         <button
                           type="button"
@@ -1053,10 +1055,10 @@ export const StudentFeeAssignmentView: React.FC = () => {
                             <th className="p-3 w-10 text-center">
                               <input
                                 type="checkbox"
-                                checked={customBreakdown.length > 0 && customBreakdown.every((i) => i.isSelected !== false)}
+                                checked={selectableItems.length > 0 && selectableItems.every((i) => i.isSelected !== false)}
                                 onChange={handleToggleAllFeeHeads}
                                 className="w-4 h-4 rounded text-sky-600 focus:ring-sky-500 cursor-pointer"
-                                title="Select/Deselect All Fee Types"
+                                title="Select/Deselect All Selectable Fee Types"
                               />
                             </th>
                             <th className="p-3">Fee Head / Type</th>
@@ -1067,7 +1069,7 @@ export const StudentFeeAssignmentView: React.FC = () => {
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-medium">
-                          {customBreakdown.map((item) => {
+                          {selectableItems.map((item) => {
                             const isSelected = item.isSelected !== false;
                             return (
                               <tr
@@ -1110,7 +1112,7 @@ export const StudentFeeAssignmentView: React.FC = () => {
                                         : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400'
                                     }`}
                                   >
-                                    {(item as any).paymentEligibility || (item.isEligibleForProRata ? 'Term-Wise Allowed' : 'One-Time Only')}
+                                    {(item as any).paymentEligibility || (item.isEligibleForProRata ? 'Term-Wise Allowed' : 'Both One-Time and Term-Wise')}
                                   </span>
                                 </td>
                                 <td className="p-3 font-mono font-bold text-slate-600 dark:text-slate-400">
@@ -1121,13 +1123,6 @@ export const StudentFeeAssignmentView: React.FC = () => {
                                     <span className="text-slate-400 dark:text-slate-500 font-semibold italic text-[11px]">
                                       Excluded (₹0)
                                     </span>
-                                  ) : modalPolicy === 'Custom' ? (
-                                    <input
-                                      type="number"
-                                      value={item.assignedAmount}
-                                      onChange={(e) => handleCustomAmountChange(item.feeHeadId, e.target.value)}
-                                      className="w-28 px-2 py-1 rounded-lg border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 font-bold font-mono text-slate-900 dark:text-white text-xs"
-                                    />
                                   ) : (
                                     <span className="font-mono font-extrabold text-slate-900 dark:text-white">
                                       {formatCurrency(item.assignedAmount)}
@@ -1155,7 +1150,7 @@ export const StudentFeeAssignmentView: React.FC = () => {
                         </tbody>
                         <tfoot>
                           <tr className="bg-slate-100 dark:bg-slate-800 font-black border-t text-xs">
-                            <td colSpan={3} className="p-3 uppercase">Total Breakdown Summary ({customBreakdown.filter(i => i.isSelected !== false).length} Active Fee Heads):</td>
+                            <td colSpan={3} className="p-3 uppercase">Total Breakdown Summary ({autoIncludedItems.length + selectableItems.filter(i => i.isSelected !== false).length} Active Fee Heads):</td>
                             <td className="p-3 font-mono text-slate-600 dark:text-slate-400">{formatCurrency(originalTotalSum)}</td>
                             <td className="p-3 font-mono text-sky-700 dark:text-sky-300">{formatCurrency(assignedTotalSum)}</td>
                             <td className="p-3 font-mono text-right">

@@ -15,6 +15,7 @@ import {
   RefreshCw,
   ArrowUpRight,
   ChevronRight,
+  CreditCard,
 } from "lucide-react";
 import { useData } from "../../../context/DataContext";
 import { useAuth } from "../../../context/AuthContext";
@@ -35,6 +36,7 @@ export const FinanceDashboardView: React.FC<FinanceDashboardViewProps> = ({ onNa
     academicClasses,
     dynamicFeeStructures,
     studentFeeAssignments,
+    financialAccounts,
     fetchFinanceData,
   } = useData();
 
@@ -199,6 +201,20 @@ export const FinanceDashboardView: React.FC<FinanceDashboardViewProps> = ({ onNa
 
   const scholarshipAmount = Number(apiStats?.scholarshipsGranted || apiStats?.totalConcessionsGranted || 0);
 
+  const cashBalance = React.useMemo(() => {
+    return (financialAccounts || [])
+      .filter((a) => a.accountType === "Cash" || a.accountType === "Petty Cash Account" || (a.accountType || "").toLowerCase().includes("cash"))
+      .reduce((sum, a) => sum + Number(a.currentBalance || 0), 0);
+  }, [financialAccounts]);
+
+  const bankBalance = React.useMemo(() => {
+    return (financialAccounts || [])
+      .filter((a) => a.accountType !== "Cash" && a.accountType !== "Petty Cash Account" && !(a.accountType || "").toLowerCase().includes("cash"))
+      .reduce((sum, a) => sum + Number(a.currentBalance || 0), 0);
+  }, [financialAccounts]);
+
+  const totalLiquidity = cashBalance + bankBalance;
+
   const handleCardClick = (targetTab: string) => {
     if (onNavigate) {
       onNavigate(targetTab);
@@ -232,7 +248,7 @@ export const FinanceDashboardView: React.FC<FinanceDashboardViewProps> = ({ onNa
       </div>
 
       {/* Primary KPI Cards Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
         {/* Total Expected Collection */}
         <div
           onClick={() => handleCardClick("due-fees")}
@@ -321,6 +337,33 @@ export const FinanceDashboardView: React.FC<FinanceDashboardViewProps> = ({ onNa
           <div className="flex items-center justify-end pt-1">
             <span className="text-[11px] font-bold text-sky-600 dark:text-sky-400 flex items-center gap-0.5 group-hover:underline">
               Receipts <ArrowUpRight className="w-3.5 h-3.5" />
+            </span>
+          </div>
+        </div>
+
+        {/* Liquidity Accounts & Vaults KPI Card */}
+        <div
+          onClick={() => handleCardClick("accounts")}
+          className="glass-card p-5 rounded-3xl space-y-2 border-l-4 border-l-indigo-500 cursor-pointer transition-all duration-200 hover:scale-[1.02] hover:shadow-xl group"
+        >
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold text-slate-500 uppercase">
+              Liquidity Accounts
+            </span>
+            <div className="p-2 rounded-xl bg-indigo-50 dark:bg-indigo-950 text-indigo-500 group-hover:bg-indigo-500 group-hover:text-white transition-colors">
+              <CreditCard className="w-4 h-4" />
+            </div>
+          </div>
+          <h3 className="text-2xl font-black text-indigo-600 dark:text-indigo-400">
+            {formatCurrency(totalLiquidity)}
+          </h3>
+          <div className="flex flex-col gap-0.5 text-[10px] font-semibold text-slate-500 dark:text-slate-400">
+            <span>Bank: <strong className="text-sky-600 dark:text-sky-400">{formatCurrency(bankBalance)}</strong></span>
+            <span>Cash: <strong className="text-emerald-600 dark:text-emerald-400">{formatCurrency(cashBalance)}</strong></span>
+          </div>
+          <div className="flex items-center justify-end pt-1">
+            <span className="text-[11px] font-bold text-indigo-600 dark:text-indigo-400 flex items-center gap-0.5 group-hover:underline">
+              View Vaults <ArrowUpRight className="w-3.5 h-3.5" />
             </span>
           </div>
         </div>

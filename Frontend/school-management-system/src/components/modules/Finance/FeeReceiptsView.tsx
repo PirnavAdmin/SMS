@@ -21,18 +21,17 @@ export const FeeReceiptsView: React.FC = () => {
   const ITEMS_PER_PAGE = 10;
 
   const selectedClassObj = academicClasses.find(c => c.name === filterClass);
-  const availableSections = selectedClassObj ? selectedClassObj.sections : ['A', 'B', 'C', 'D'];
+  const availableSections = selectedClassObj && selectedClassObj.sections && selectedClassObj.sections.length > 0
+    ? selectedClassObj.sections
+    : Array.from(new Set(students.map(s => s.section).filter(Boolean))).sort();
 
   const filteredPayments = feePayments.filter((p) => {
     const student = students.find(
-      (s) => s.id === p.studentId || String(s.id) === String(p.studentId) || (s.admissionNo && (s.admissionNo === p.studentId || s.admissionNo.includes(p.studentId))),
+      (s) => s.id === p.studentId || String(s.id) === String(p.studentId) || (s.admissionNo && p.studentId && s.admissionNo === p.studentId),
     );
-    const receiptNoStr =
-      p.receiptNo || (p.id && p.id.startsWith("REC-") ? p.id : `REC-${(p.id || "1001").slice(-6)}`);
-    const studentNameStr =
-      p.studentName || (student ? `${student.firstName} ${student.lastName}`.trim() : (p.studentId ? `Student #${p.studentId}` : "Enrolled Student"));
-    const classNameStr =
-      p.className || (student ? (student.className?.toLowerCase().startsWith("class") ? `${student.className}-${student.section}` : `Class ${student.className}-${student.section}`) : "Class 10-A");
+    const receiptNoStr = p.receiptNo || p.id || "";
+    const studentNameStr = p.studentName || (student ? `${student.firstName || ''} ${student.lastName || ''}`.trim() : (p.studentId || ""));
+    const classNameStr = p.className || (student ? (student.section ? `${student.className}-${student.section}` : student.className) : "");
 
     const matchesSearch =
       query.trim() === "" ||
@@ -45,7 +44,8 @@ export const FeeReceiptsView: React.FC = () => {
       classNameStr.toLowerCase().includes(filterClass.toLowerCase());
     const matchesSection =
       filterSection === "All" ||
-      classNameStr.toLowerCase().endsWith(`-${filterSection.toLowerCase()}`);
+      classNameStr.toLowerCase().endsWith(`-${filterSection.toLowerCase()}`) ||
+      (student && student.section && student.section.toLowerCase() === filterSection.toLowerCase());
 
     return matchesSearch && matchesClass && matchesSection;
   });
@@ -138,21 +138,15 @@ export const FeeReceiptsView: React.FC = () => {
               ) : (
                 paginatedPayments.map((p) => {
                   const student = students.find(
-                    (s) => s.id === p.studentId || String(s.id) === String(p.studentId) || (s.admissionNo && (s.admissionNo === p.studentId || s.admissionNo.includes(p.studentId))),
+                    (s) => s.id === p.studentId || String(s.id) === String(p.studentId) || (s.admissionNo && p.studentId && s.admissionNo === p.studentId),
                   );
-                  const displayReceiptNo =
-                    p.receiptNo ||
-                    (p.id && p.id.startsWith("REC-") ? p.id : `REC-${(p.id || "1001").slice(-6)}`);
+                  const displayReceiptNo = p.receiptNo || p.id || "";
                   const displayStudentName =
                     p.studentName ||
-                    (student ? `${student.firstName} ${student.lastName}`.trim() : (p.studentId ? `Student #${p.studentId}` : "Enrolled Student"));
+                    (student ? `${student.firstName || ''} ${student.lastName || ''}`.trim() : (p.studentId || ""));
                   const displayClass =
                     p.className ||
-                    (student
-                      ? student.className.toLowerCase().startsWith("class")
-                        ? `${student.className}-${student.section}`
-                        : `Class ${student.className}-${student.section}`
-                      : "Class 10-A");
+                    (student ? (student.section ? `${student.className}-${student.section}` : student.className) : "");
                   const displayDate = formatDateForDisplay(p.paymentDate);
 
                   const fullPaymentObj: FeePayment = {

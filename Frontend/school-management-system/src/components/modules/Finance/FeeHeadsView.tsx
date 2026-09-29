@@ -1,10 +1,9 @@
 import React, { useState, useMemo } from 'react';
-import { Tag, Plus, Search, Edit, Trash2, CheckCircle2, XCircle, ArrowUpDown } from 'lucide-react';
+import { Tag, Plus, Search, Edit, Trash2, CheckCircle2, XCircle, Building2, Bus, Shirt, BookOpen, AlertTriangle } from 'lucide-react';
 import { FeeHead, FeeHeadCategory, FeeHeadFrequency, FeePaymentEligibility } from '../../../types';
 import { useData } from '../../../context/DataContext';
 import { useAuth } from '../../../context/AuthContext';
 import { useToast } from '../../../context/ToastContext';
-import { Badge } from '../../common/Badge';
 import { ExportButton } from '../../common/ExportButton';
 import { ConfirmModal } from '../../common/ConfirmModal';
 import { compareClassesAscending } from '../../../utils/classSorter';
@@ -25,13 +24,31 @@ const DEFAULT_CLASSES = [
 ];
 
 export const FeeHeadsView: React.FC = () => {
-  const { feeHeads, addFeeHead, updateFeeHead, deleteFeeHead, toggleFeeHeadStatus, academicClasses, branches, academicYearFeeSchedules } = useData();
+  const {
+    feeHeads,
+    addFeeHead,
+    updateFeeHead,
+    deleteFeeHead,
+    toggleFeeHeadStatus,
+    academicClasses,
+    branches,
+    academicYearFeeSchedules,
+    hostelBlocks,
+    hostelRooms,
+    routeMasters,
+    transportRoutes,
+    pickupPoints,
+    vehicleMasters,
+    uniforms,
+    uniformSizes
+  } = useData();
+
   const { selectedAcademicYear } = useAuth();
   const { addToast } = useToast();
 
   const classOptions = useMemo(() => {
     if (academicClasses && academicClasses.length > 0) {
-      const list = academicClasses.map(c => c.name || (c as any).className).filter(Boolean);
+      const list = academicClasses.map((c: any) => c.name || c.className).filter(Boolean);
       return Array.from(new Set(list)).sort(compareClassesAscending);
     }
     return DEFAULT_CLASSES;
@@ -47,6 +64,24 @@ export const FeeHeadsView: React.FC = () => {
     return ['All Branches', 'Main Campus', 'Madhapur Branch'];
   }, [branches]);
 
+  const sectionOptions = useMemo(() => {
+    if (academicClasses && Array.isArray(academicClasses)) {
+      const extracted: string[] = [];
+      academicClasses.forEach((c: any) => {
+        if (Array.isArray(c.sections)) {
+          c.sections.forEach((s: any) => {
+            const sName = typeof s === 'string' ? s : (s.name || s.sectionName);
+            if (sName) extracted.push(sName);
+          });
+        }
+      });
+      if (extracted.length > 0) {
+        return Array.from(new Set(['All Sections', ...extracted]));
+      }
+    }
+    return ['All Sections', 'Section A', 'Section B', 'Section C', 'Section D'];
+  }, [academicClasses]);
+
   const availableAcademicTerms = useMemo(() => {
     const activeAY = selectedAcademicYear || '2026-2027';
     const schedule = (academicYearFeeSchedules || []).find((s) => s.academicYear === activeAY);
@@ -55,6 +90,21 @@ export const FeeHeadsView: React.FC = () => {
     }
     return ['Term 1', 'Term 2', 'Term 3', 'Term 4'];
   }, [academicYearFeeSchedules, selectedAcademicYear]);
+
+  // Combined Route list from routeMasters or transportRoutes
+  const availableRoutes = useMemo(() => {
+    if (routeMasters && routeMasters.length > 0) {
+      return routeMasters.map(r => ({ id: r.id, routeName: r.routeName, routeCode: r.routeCode }));
+    }
+    if (transportRoutes && transportRoutes.length > 0) {
+      return transportRoutes.map((r: any) => ({
+        id: r.id,
+        routeName: r.routeName || r.name || 'Route',
+        routeCode: r.routeCode || r.code || ''
+      }));
+    }
+    return [];
+  }, [routeMasters, transportRoutes]);
 
   const formatClassDisplayName = (cls: string) => {
     if (!cls) return '';
@@ -83,12 +133,61 @@ export const FeeHeadsView: React.FC = () => {
     mandatory: true,
     applicableClasses: classOptions,
     applicableBranches: ['All Branches'],
+    applicableSections: ['All Sections'],
     paymentEligibility: 'Both One-Time and Term-Wise',
     applicableTerms: [...availableAcademicTerms],
     taxPercentage: 0,
     displayOrder: 1,
-    status: 'Active'
+    status: 'Active',
+    hostelBlockId: '',
+    hostelBlockName: '',
+    hostelRoomId: '',
+    hostelRoomNo: '',
+    hostelSharingType: '',
+    transportRouteId: '',
+    transportRouteName: '',
+    transportVehicleId: '',
+    transportVehicleNo: '',
+    transportStopId: '',
+    transportStopName: '',
+    uniformItemId: '',
+    uniformItemName: '',
+    uniformSize: ''
   });
+
+  // Dynamic filter for hostel rooms based on selected block
+  const availableHostelRooms = useMemo(() => {
+    if (!formData.hostelBlockId) return [];
+    return (hostelRooms || []).filter((r: any) => String(r.blockId) === String(formData.hostelBlockId));
+  }, [hostelRooms, formData.hostelBlockId]);
+
+  // Dynamic filter for pickup points based on selected route
+  const availablePickupPoints = useMemo(() => {
+    if (!formData.transportRouteId) return [];
+    return (pickupPoints || []).filter((p: any) =>
+      String(p.routeId) === String(formData.transportRouteId) ||
+      (p.routeName && formData.transportRouteName && p.routeName.toLowerCase() === formData.transportRouteName.toLowerCase())
+    );
+  }, [pickupPoints, formData.transportRouteId, formData.transportRouteName]);
+
+  // Dynamic filter for uniform sizes based on selected uniform item
+  const availableUniformSizes = useMemo(() => {
+    if (!formData.uniformItemId) {
+      return (uniformSizes || []).map((s: any) => s.sizeName || s.size || s.name).filter(Boolean);
+    }
+    const selectedItem = (uniforms || []).find((u: any) => String(u.id) === String(formData.uniformItemId));
+    if (selectedItem) {
+      if (selectedItem.size) {
+        const sizes = selectedItem.size.split(',').map((s: string) => s.trim()).filter(Boolean);
+        if (sizes.length > 0) return sizes;
+      }
+      if (selectedItem.category) {
+        const categorySizes = (uniformSizes || []).filter((s: any) => !s.category || s.category === selectedItem.category).map((s: any) => s.sizeName || s.size || s.name).filter(Boolean);
+        if (categorySizes.length > 0) return categorySizes;
+      }
+    }
+    return (uniformSizes || []).map((s: any) => s.sizeName || s.size || s.name).filter(Boolean);
+  }, [uniforms, uniformSizes, formData.uniformItemId]);
 
   const filteredHeads = feeHeads.filter(h => {
     const matchesQuery = h.name.toLowerCase().includes(query.toLowerCase()) || h.code.toLowerCase().includes(query.toLowerCase());
@@ -112,11 +211,26 @@ export const FeeHeadsView: React.FC = () => {
       mandatory: true,
       applicableClasses: classOptions,
       applicableBranches: ['All Branches'],
+      applicableSections: ['All Sections'],
       paymentEligibility: 'Both One-Time and Term-Wise',
       applicableTerms: [...availableAcademicTerms],
       taxPercentage: 0,
       displayOrder: feeHeads.length + 1,
-      status: 'Active'
+      status: 'Active',
+      hostelBlockId: '',
+      hostelBlockName: '',
+      hostelRoomId: '',
+      hostelRoomNo: '',
+      hostelSharingType: '',
+      transportRouteId: '',
+      transportRouteName: '',
+      transportVehicleId: '',
+      transportVehicleNo: '',
+      transportStopId: '',
+      transportStopName: '',
+      uniformItemId: '',
+      uniformItemName: '',
+      uniformSize: ''
     });
     setIsModalOpen(true);
   };
@@ -128,8 +242,23 @@ export const FeeHeadsView: React.FC = () => {
       mandatory: h.mandatory === true,
       applicableClasses: h.applicableClasses && h.applicableClasses.length > 0 ? [...h.applicableClasses] : [...classOptions],
       applicableBranches: h.applicableBranches && h.applicableBranches.length > 0 ? [...h.applicableBranches] : ['All Branches'],
+      applicableSections: h.applicableSections && h.applicableSections.length > 0 ? [...h.applicableSections] : ['All Sections'],
       paymentEligibility: h.paymentEligibility || 'Both One-Time and Term-Wise',
       applicableTerms: h.applicableTerms && h.applicableTerms.length > 0 ? [...h.applicableTerms] : [...availableAcademicTerms],
+      hostelBlockId: h.hostelBlockId || '',
+      hostelBlockName: h.hostelBlockName || '',
+      hostelRoomId: h.hostelRoomId || '',
+      hostelRoomNo: h.hostelRoomNo || '',
+      hostelSharingType: h.hostelSharingType || '',
+      transportRouteId: h.transportRouteId || '',
+      transportRouteName: h.transportRouteName || '',
+      transportVehicleId: h.transportVehicleId || '',
+      transportVehicleNo: h.transportVehicleNo || '',
+      transportStopId: h.transportStopId || '',
+      transportStopName: h.transportStopName || '',
+      uniformItemId: h.uniformItemId || '',
+      uniformItemName: h.uniformItemName || '',
+      uniformSize: h.uniformSize || ''
     });
     setIsModalOpen(true);
   };
@@ -202,7 +331,7 @@ export const FeeHeadsView: React.FC = () => {
           <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white flex items-center gap-2">
             <Tag className="w-6 h-6 text-sky-500" /> Fee Types
           </h2>
-          </div>
+        </div>
 
         <div className="flex items-center gap-3">
           <button
@@ -266,7 +395,7 @@ export const FeeHeadsView: React.FC = () => {
                 <th className="py-3.5 px-4">Order</th>
                 <th className="py-3.5 px-4">Fee Type</th>
                 <th className="py-3.5 px-4">Code</th>
-                <th className="py-3.5 px-4">Category</th>
+                <th className="py-3.5 px-4">Category & Module Mapping</th>
                 <th className="py-3.5 px-4">Payment Eligibility</th>
                 <th className="py-3.5 px-4">Mandatory</th>
                 <th className="py-3.5 px-4">Classes</th>
@@ -290,9 +419,33 @@ export const FeeHeadsView: React.FC = () => {
                     <td className="py-3 px-4 font-bold text-slate-900 dark:text-white">{h.name}</td>
                     <td className="py-3 px-4 font-mono text-slate-600 dark:text-slate-300">{h.code}</td>
                     <td className="py-3 px-4">
-                      <span className="px-2 py-0.5 rounded-lg bg-sky-50 dark:bg-sky-950 text-sky-600 dark:text-sky-400 font-bold">
-                        {h.category}
-                      </span>
+                      <div className="space-y-1">
+                        <span className="inline-block px-2 py-0.5 rounded-lg bg-sky-50 dark:bg-sky-950 text-sky-600 dark:text-sky-400 font-bold">
+                          {h.category}
+                        </span>
+
+                        {/* Module Mapping Badges */}
+                        {h.category === 'Hostel' && (h.hostelBlockName || h.hostelRoomNo) && (
+                          <div className="flex items-center gap-1 text-[10px] text-amber-600 dark:text-amber-400 font-semibold">
+                            <Building2 className="w-3 h-3 shrink-0" />
+                            <span>{h.hostelBlockName || 'Block'} {h.hostelRoomNo ? `(Room ${h.hostelRoomNo})` : ''} {h.hostelSharingType ? `- ${h.hostelSharingType}` : ''}</span>
+                          </div>
+                        )}
+
+                        {h.category === 'Transport' && (h.transportRouteName || h.transportStopName) && (
+                          <div className="flex items-center gap-1 text-[10px] text-indigo-600 dark:text-indigo-400 font-semibold">
+                            <Bus className="w-3 h-3 shrink-0" />
+                            <span>{h.transportRouteName || 'Route'} {h.transportStopName ? `(${h.transportStopName})` : ''}</span>
+                          </div>
+                        )}
+
+                        {h.category === 'Uniform' && (h.uniformItemName || h.uniformSize) && (
+                          <div className="flex items-center gap-1 text-[10px] text-emerald-600 dark:text-emerald-400 font-semibold">
+                            <Shirt className="w-3 h-3 shrink-0" />
+                            <span>{h.uniformItemName || 'Uniform'} {h.uniformSize ? `(Size: ${h.uniformSize})` : ''}</span>
+                          </div>
+                        )}
+                      </div>
                     </td>
                     <td className="py-3 px-4">
                       {h.paymentEligibility === 'One-Time Only' ? (
@@ -348,15 +501,16 @@ export const FeeHeadsView: React.FC = () => {
       {/* Modal */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm animate-in fade-in">
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-md w-full p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-xl w-full p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
-              <h3 className="text-base font-bold text-slate-900 dark:text-white">
+              <h3 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                <Tag className="w-5 h-5 text-sky-500" />
                 {editingHead ? 'Edit Fee Category / Head' : 'Add Fee Category / Head'}
               </h3>
-              <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-slate-600">✕</button>
+              <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-slate-600 font-bold text-lg">✕</button>
             </div>
 
-            <form onSubmit={handleSubmit} className="space-y-3 text-xs">
+            <form onSubmit={handleSubmit} className="space-y-4 text-xs">
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block font-semibold mb-1">Fee Type Name <span className="text-rose-500 font-bold ml-0.5">*</span></label>
@@ -366,7 +520,7 @@ export const FeeHeadsView: React.FC = () => {
                     value={formData.name}
                     onChange={e => setFormData({ ...formData, name: e.target.value })}
                     placeholder="e.g. Tuition Fee"
-                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border"
+                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 outline-none"
                   />
                 </div>
                 <div>
@@ -377,7 +531,7 @@ export const FeeHeadsView: React.FC = () => {
                     value={formData.code}
                     onChange={e => setFormData({ ...formData, code: e.target.value })}
                     placeholder="e.g. TUIT-101"
-                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-mono"
+                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-mono outline-none"
                   />
                 </div>
               </div>
@@ -387,8 +541,29 @@ export const FeeHeadsView: React.FC = () => {
                   <label className="block font-semibold mb-1">Category</label>
                   <select
                     value={formData.category}
-                    onChange={e => setFormData({ ...formData, category: e.target.value as any })}
-                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border"
+                    onChange={e => {
+                      const newCategory = e.target.value as FeeHeadCategory;
+                      setFormData({
+                        ...formData,
+                        category: newCategory,
+                        // Reset dependent module selections when switching categories
+                        hostelBlockId: '',
+                        hostelBlockName: '',
+                        hostelRoomId: '',
+                        hostelRoomNo: '',
+                        hostelSharingType: '',
+                        transportRouteId: '',
+                        transportRouteName: '',
+                        transportVehicleId: '',
+                        transportVehicleNo: '',
+                        transportStopId: '',
+                        transportStopName: '',
+                        uniformItemId: '',
+                        uniformItemName: '',
+                        uniformSize: ''
+                      });
+                    }}
+                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 outline-none font-bold"
                   >
                     {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
                   </select>
@@ -398,12 +573,270 @@ export const FeeHeadsView: React.FC = () => {
                   <select
                     value={formData.frequency}
                     onChange={e => setFormData({ ...formData, frequency: e.target.value as any })}
-                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border"
+                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 outline-none"
                   >
                     {FREQUENCIES.map(f => <option key={f} value={f}>{f}</option>)}
                   </select>
                 </div>
               </div>
+
+              {/* DYNAMIC MODULE INTEGRATION SECTIONS */}
+
+              {/* 1. HOSTEL MANAGEMENT DYNAMIC INTEGRATION */}
+              {formData.category === 'Hostel' && (
+                <div className="p-3.5 rounded-2xl bg-amber-50/60 dark:bg-amber-950/30 border border-amber-200/80 dark:border-amber-800/80 space-y-3">
+                  <div className="flex items-center justify-between border-b border-amber-200/60 dark:border-amber-800/60 pb-2">
+                    <label className="font-extrabold text-amber-900 dark:text-amber-200 flex items-center gap-1.5 text-xs">
+                      <Building2 className="w-4 h-4 text-amber-600" />
+                      Hostel Management Dynamic Integration
+                    </label>
+                    <span className="text-[10px] font-bold text-amber-700 dark:text-amber-400 bg-amber-100 dark:bg-amber-900/60 px-2 py-0.5 rounded-full">
+                      Hostel Module Sync
+                    </span>
+                  </div>
+
+                  {(!hostelBlocks || hostelBlocks.length === 0) ? (
+                    <div className="p-3 rounded-xl bg-amber-100/70 dark:bg-amber-900/40 text-amber-800 dark:text-amber-300 text-xs flex items-center gap-2">
+                      <AlertTriangle className="w-4 h-4 shrink-0 text-amber-600" />
+                      <span>No Hostel Blocks configured in Hostel Management. Please add blocks in Hostel Management first.</span>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                      <div>
+                        <label className="block font-semibold mb-1 text-[11px] text-slate-700 dark:text-slate-300">Hostel Block</label>
+                        <select
+                          value={formData.hostelBlockId || ''}
+                          onChange={(e) => {
+                            const bId = e.target.value;
+                            const block = (hostelBlocks || []).find((b: any) => String(b.id) === String(bId));
+                            setFormData({
+                              ...formData,
+                              hostelBlockId: bId,
+                              hostelBlockName: block ? block.name : '',
+                              hostelRoomId: '',
+                              hostelRoomNo: '',
+                              hostelSharingType: ''
+                            });
+                          }}
+                          className="w-full px-3 py-2 rounded-xl bg-white dark:bg-slate-900 border border-amber-200 dark:border-amber-800 text-xs font-semibold outline-none"
+                        >
+                          <option value="">Select Block (Optional)</option>
+                          {hostelBlocks.map((b: any) => (
+                            <option key={b.id} value={b.id}>{b.name}</option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="block font-semibold mb-1 text-[11px] text-slate-700 dark:text-slate-300">Hostel Room</label>
+                        <select
+                          disabled={!formData.hostelBlockId}
+                          value={formData.hostelRoomId || ''}
+                          onChange={(e) => {
+                            const rId = e.target.value;
+                            const room = availableHostelRooms.find((r: any) => String(r.id) === String(rId));
+                            const defaultSharing = room ? (room.capacity === 1 ? 'Single Occupancy' : `${room.capacity} Sharing`) : '';
+                            setFormData({
+                              ...formData,
+                              hostelRoomId: rId,
+                              hostelRoomNo: room ? room.roomNo : '',
+                              hostelSharingType: defaultSharing || formData.hostelSharingType || ''
+                            });
+                          }}
+                          className="w-full px-3 py-2 rounded-xl bg-white dark:bg-slate-900 border border-amber-200 dark:border-amber-800 text-xs font-semibold outline-none disabled:opacity-50"
+                        >
+                          <option value="">Select Room (Optional)</option>
+                          {availableHostelRooms.map((r: any) => (
+                            <option key={r.id} value={r.id}>Room {r.roomNo} ({r.capacity} Beds)</option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="block font-semibold mb-1 text-[11px] text-slate-700 dark:text-slate-300">Sharing / Occupancy</label>
+                        <select
+                          value={formData.hostelSharingType || ''}
+                          onChange={(e) => setFormData({ ...formData, hostelSharingType: e.target.value })}
+                          className="w-full px-3 py-2 rounded-xl bg-white dark:bg-slate-900 border border-amber-200 dark:border-amber-800 text-xs font-semibold outline-none"
+                        >
+                          <option value="">Select Sharing Type</option>
+                          <option value="Single Occupancy">Single Occupancy</option>
+                          <option value="2 Sharing">2 Sharing (Double)</option>
+                          <option value="3 Sharing">3 Sharing (Triple)</option>
+                          <option value="4 Sharing">4 Sharing (Quad)</option>
+                          <option value="Dormitory">Multi-Bed / Dormitory</option>
+                        </select>
+                      </div>
+                    </div>
+                  )}
+                  {formData.hostelBlockId && availableHostelRooms.length === 0 && (
+                    <p className="text-[11px] text-amber-700 dark:text-amber-400 italic">
+                      Note: No specific rooms configured for this block in Hostel Management. Block fee will apply to all rooms in this block.
+                    </p>
+                  )}
+                </div>
+              )}
+
+              {/* 2. TRANSPORT MANAGEMENT DYNAMIC INTEGRATION */}
+              {formData.category === 'Transport' && (
+                <div className="p-3.5 rounded-2xl bg-indigo-50/60 dark:bg-indigo-950/30 border border-indigo-200/80 dark:border-indigo-800/80 space-y-3">
+                  <div className="flex items-center justify-between border-b border-indigo-200/60 dark:border-indigo-800/60 pb-2">
+                    <label className="font-extrabold text-indigo-900 dark:text-indigo-200 flex items-center gap-1.5 text-xs">
+                      <Bus className="w-4 h-4 text-indigo-600" />
+                      Transport Management Dynamic Integration
+                    </label>
+                    <span className="text-[10px] font-bold text-indigo-700 dark:text-indigo-400 bg-indigo-100 dark:bg-indigo-900/60 px-2 py-0.5 rounded-full">
+                      Transport Module Sync
+                    </span>
+                  </div>
+
+                  {availableRoutes.length === 0 ? (
+                    <div className="p-3 rounded-xl bg-indigo-100/70 dark:bg-indigo-900/40 text-indigo-800 dark:text-indigo-300 text-xs flex items-center gap-2">
+                      <AlertTriangle className="w-4 h-4 shrink-0 text-indigo-600" />
+                      <span>No Transport Routes configured in Transport Management. Please add routes in Transport Management first.</span>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                      <div>
+                        <label className="block font-semibold mb-1 text-[11px] text-slate-700 dark:text-slate-300">Transport Route</label>
+                        <select
+                          value={formData.transportRouteId || ''}
+                          onChange={(e) => {
+                            const rId = e.target.value;
+                            const route = availableRoutes.find((r: any) => String(r.id) === String(rId));
+                            setFormData({
+                              ...formData,
+                              transportRouteId: rId,
+                              transportRouteName: route ? route.routeName : '',
+                              transportStopId: '',
+                              transportStopName: '',
+                              transportVehicleId: '',
+                              transportVehicleNo: ''
+                            });
+                          }}
+                          className="w-full px-3 py-2 rounded-xl bg-white dark:bg-slate-900 border border-indigo-200 dark:border-indigo-800 text-xs font-semibold outline-none"
+                        >
+                          <option value="">Select Route (Optional)</option>
+                          {availableRoutes.map((r: any) => (
+                            <option key={r.id} value={r.id}>{r.routeCode ? `${r.routeCode} - ` : ''}{r.routeName}</option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="block font-semibold mb-1 text-[11px] text-slate-700 dark:text-slate-300">Pickup Stop / Location</label>
+                        <select
+                          disabled={!formData.transportRouteId}
+                          value={formData.transportStopId || ''}
+                          onChange={(e) => {
+                            const pId = e.target.value;
+                            const stop = availablePickupPoints.find((p: any) => String(p.id) === String(pId));
+                            setFormData({
+                              ...formData,
+                              transportStopId: pId,
+                              transportStopName: stop ? stop.pickupName : ''
+                            });
+                          }}
+                          className="w-full px-3 py-2 rounded-xl bg-white dark:bg-slate-900 border border-indigo-200 dark:border-indigo-800 text-xs font-semibold outline-none disabled:opacity-50"
+                        >
+                          <option value="">Select Pickup Stop (Optional)</option>
+                          {availablePickupPoints.map((p: any) => (
+                            <option key={p.id} value={p.id}>{p.pickupName} ({p.distanceFromSchoolKm || 0} km)</option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="block font-semibold mb-1 text-[11px] text-slate-700 dark:text-slate-300">Assigned Vehicle</label>
+                        <select
+                          value={formData.transportVehicleId || ''}
+                          onChange={(e) => {
+                            const vId = e.target.value;
+                            const vehicle = (vehicleMasters || []).find((v: any) => String(v.id) === String(vId));
+                            setFormData({
+                              ...formData,
+                              transportVehicleId: vId,
+                              transportVehicleNo: vehicle ? (vehicle.vehicleNumber || vehicle.registrationNumber) : ''
+                            });
+                          }}
+                          className="w-full px-3 py-2 rounded-xl bg-white dark:bg-slate-900 border border-indigo-200 dark:border-indigo-800 text-xs font-semibold outline-none"
+                        >
+                          <option value="">Select Vehicle (Optional)</option>
+                          {(vehicleMasters || []).map((v: any) => (
+                            <option key={v.id} value={v.id}>{v.vehicleNumber} ({v.vehicleType || 'Bus'})</option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+                  )}
+                  {formData.transportRouteId && availablePickupPoints.length === 0 && (
+                    <p className="text-[11px] text-indigo-700 dark:text-indigo-400 italic">
+                      Note: No specific pickup stops configured for this route in Transport Management. Flat route fare will apply.
+                    </p>
+                  )}
+                </div>
+              )}
+
+              {/* 3. UNIFORM MANAGEMENT DYNAMIC INTEGRATION */}
+              {formData.category === 'Uniform' && (
+                <div className="p-3.5 rounded-2xl bg-emerald-50/60 dark:bg-emerald-950/30 border border-emerald-200/80 dark:border-emerald-800/80 space-y-3">
+                  <div className="flex items-center justify-between border-b border-emerald-200/60 dark:border-emerald-800/60 pb-2">
+                    <label className="font-extrabold text-emerald-900 dark:text-emerald-200 flex items-center gap-1.5 text-xs">
+                      <Shirt className="w-4 h-4 text-emerald-600" />
+                      Uniform Management Dynamic Integration
+                    </label>
+                    <span className="text-[10px] font-bold text-emerald-700 dark:text-emerald-400 bg-emerald-100 dark:bg-emerald-900/60 px-2 py-0.5 rounded-full">
+                      Uniform Module Sync
+                    </span>
+                  </div>
+
+                  {(!uniforms || uniforms.length === 0) ? (
+                    <div className="p-3 rounded-xl bg-emerald-100/70 dark:bg-emerald-900/40 text-emerald-800 dark:text-emerald-300 text-xs flex items-center gap-2">
+                      <AlertTriangle className="w-4 h-4 shrink-0 text-emerald-600" />
+                      <span>No Uniform items configured in Uniform Management. Please add uniform items in Uniform Management first.</span>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div>
+                        <label className="block font-semibold mb-1 text-[11px] text-slate-700 dark:text-slate-300">Uniform Item Catalog</label>
+                        <select
+                          value={formData.uniformItemId || ''}
+                          onChange={(e) => {
+                            const uId = e.target.value;
+                            const item = (uniforms || []).find((u: any) => String(u.id) === String(uId));
+                            setFormData({
+                              ...formData,
+                              uniformItemId: uId,
+                              uniformItemName: item ? (item.name || item.category) : '',
+                              uniformSize: ''
+                            });
+                          }}
+                          className="w-full px-3 py-2 rounded-xl bg-white dark:bg-slate-900 border border-emerald-200 dark:border-emerald-800 text-xs font-semibold outline-none"
+                        >
+                          <option value="">Select Item (Optional)</option>
+                          {uniforms.map((u: any) => (
+                            <option key={u.id} value={u.id}>{u.name || u.category} ({u.gender || 'Unisex'})</option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="block font-semibold mb-1 text-[11px] text-slate-700 dark:text-slate-300">Uniform Size</label>
+                        <select
+                          value={formData.uniformSize || ''}
+                          onChange={(e) => setFormData({ ...formData, uniformSize: e.target.value })}
+                          className="w-full px-3 py-2 rounded-xl bg-white dark:bg-slate-900 border border-emerald-200 dark:border-emerald-800 text-xs font-semibold outline-none"
+                        >
+                          <option value="">All Sizes / Default</option>
+                          {availableUniformSizes.map((sz: string) => (
+                            <option key={sz} value={sz}>{sz}</option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
 
               {/* Payment Configuration */}
               <div className="space-y-2 p-3 rounded-2xl bg-sky-50/50 dark:bg-sky-950/30 border border-sky-200/80 dark:border-sky-800">
@@ -528,7 +961,8 @@ export const FeeHeadsView: React.FC = () => {
               <div className="space-y-2 p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700">
                 <div className="flex items-center justify-between">
                   <label className="font-extrabold text-slate-800 dark:text-slate-200">
-                    Applicable Classes ({(formData.applicableClasses || []).length}/{classOptions.length}) <span className="text-rose-500 font-bold ml-0.5">*</span></label>
+                    Applicable Classes ({(formData.applicableClasses || []).length}/{classOptions.length}) <span className="text-rose-500 font-bold ml-0.5">*</span>
+                  </label>
                   <div className="flex items-center gap-2 text-[11px]">
                     <button
                       type="button"
@@ -574,6 +1008,51 @@ export const FeeHeadsView: React.FC = () => {
                           className="w-3.5 h-3.5 rounded text-sky-600 focus:ring-sky-500"
                         />
                         <span className="truncate">{formatClassDisplayName(cls)}</span>
+                      </label>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Applicable Sections Configuration */}
+              <div className="space-y-2 p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700">
+                <label className="block font-semibold text-slate-800 dark:text-slate-200 text-[11px]">
+                  Applicable Sections (Academic Management Integration)
+                </label>
+                <div className="flex flex-wrap gap-1.5 p-1">
+                  {sectionOptions.map((sec) => {
+                    const isAll = sec === 'All Sections';
+                    const currentSecs = formData.applicableSections || ['All Sections'];
+                    const isChecked = currentSecs.includes(sec) || (isAll && currentSecs.length === 0);
+                    return (
+                      <label
+                        key={sec}
+                        className={`flex items-center gap-1.5 px-2.5 py-1 rounded-xl border text-[11px] font-semibold cursor-pointer transition-all ${
+                          isChecked
+                            ? 'bg-sky-50 dark:bg-sky-950/60 border-sky-300 dark:border-sky-800 text-sky-900 dark:text-sky-200'
+                            : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-100'
+                        }`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={isChecked}
+                          onChange={(e) => {
+                            if (isAll) {
+                              setFormData({ ...formData, applicableSections: ['All Sections'] });
+                            } else {
+                              let next = currentSecs.filter(s => s !== 'All Sections');
+                              if (e.target.checked) {
+                                next.push(sec);
+                              } else {
+                                next = next.filter(s => s !== sec);
+                              }
+                              if (next.length === 0) next = ['All Sections'];
+                              setFormData({ ...formData, applicableSections: next });
+                            }
+                          }}
+                          className="w-3.5 h-3.5 rounded text-sky-600 focus:ring-sky-500"
+                        />
+                        <span>{sec}</span>
                       </label>
                     );
                   })}

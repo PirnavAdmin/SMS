@@ -341,9 +341,6 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
       .filter((s) => s && (!s.status || s.status === "Active" || s.status === "Enrolled"))
       .forEach((s) => {
         if (!s) return;
-        const admNoUpper = (s.admissionNo || s.id || "").toUpperCase();
-        if (admNoUpper === "ADM-2026-2020") return;
-
         const fullName = `${s.firstName || ''} ${s.lastName || ''}`.trim() || (s as any).studentName || '';
         const nameKey = fullName.toLowerCase().replace(/[^a-z0-9]/g, '');
         if (nameKey && map.has(nameKey)) return;
@@ -664,12 +661,13 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
         ledgerId: undefined,
         amount: allocAmt,
         installmentId: id,
-        feeHeadName: inst?.feeHeadName || "Fee",
+        feeHeadName: inst?.feeHeadName || inst?.headName || inst?.title || inst?.category || "Tuition Fee",
         termName: inst?.termName || inst?.termId || "Installment",
       };
     });
 
     const activeMode = (paymentMode && paymentMode.trim() !== "") ? paymentMode : "Cash";
+    const concessionTitle = allConcessionOptions.find(c => c.id === selectedConcessionId)?.name || "";
 
     const payment = addFeePayment({
       studentId: selectedStudent.id,
@@ -691,13 +689,15 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
       bankName: activeMode === "Cheque" ? bankName : undefined,
       paymentDate: new Date().toISOString().split("T")[0],
       status: numericAmount >= totalOutstanding ? "Paid" : "Partial",
-      remarks: remarks || fineReason || (selectedConcessionId ? "Concession Applied" : "Fee Collection Receipt"),
+      remarks: remarks 
+        ? (concessionTitle && !remarks.includes(concessionTitle) ? `${remarks} | Concession Applied (${concessionTitle})` : remarks)
+        : (fineReason || (concessionTitle ? `Concession Applied (${concessionTitle})` : "Fee Collection Receipt")),
       scholarshipId: selectedConcessionId,
-      scholarshipName: allConcessionOptions.find(c => c.id === selectedConcessionId)?.name || "",
+      scholarshipName: concessionTitle,
       scholarshipDescription: "",
       scholarshipAmount: effectiveDiscountAmount,
       discountId: selectedConcessionId,
-      discountName: allConcessionOptions.find(c => c.id === selectedConcessionId)?.name || "",
+      discountName: concessionTitle,
       discountDescription: "",
       discountAmount: effectiveDiscountAmount,
       grossAmount: baseSelectedAmount,

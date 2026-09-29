@@ -854,6 +854,7 @@ interface DataContextType {
     id: string,
     updates: Partial<FinancialAccount>,
   ) => void;
+  deleteFinancialAccount: (id: string) => void;
 
   financialCategories: FinancialCategory[];
   addFinancialCategory: (category: Omit<FinancialCategory, "id">) => void;
@@ -861,6 +862,7 @@ interface DataContextType {
     id: string,
     updates: Partial<FinancialCategory>,
   ) => void;
+  deleteFinancialCategory: (id: string) => void;
 
   financialBudgets: FinancialBudget[];
   updateFinancialBudget: (id: string, allocatedAmount: number) => void;
@@ -1771,12 +1773,14 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     getStored("fee_structures", initialFeeStructures),
   );
   const [feePayments, setFeePayments] = useState<FeePayment[]>(() => {
-    const versionKey = "edu_db_fee_payments_wipe_uniform_v999_fresh_wipe";
+    const versionKey = "edu_db_fee_payments_wipe_orphan_v1000";
     const stored = getStored<FeePayment[]>("fee_payments", initialFeePayments);
     
     if (!localStorage.getItem(versionKey)) {
       const cleaned = (stored || []).filter((p) => {
         if (!p) return false;
+        if (p.studentId === "1204" || p.receiptNo === "REC-2026-3912" || p.id === "3912") return false;
+        if (!p.studentName || p.studentName.startsWith("Student #")) return false;
         const notesLower = (p.notes || "").toLowerCase();
         const recLower = (p.receiptNo || "").toLowerCase();
         const hasAlloc =
@@ -2592,15 +2596,16 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   const [studentFeeLedgers, setStudentFeeLedgers] = useState<
     StudentFeeLedger[]
   >(() => {
-    const version = localStorage.getItem("edu_db_full_ledgers_v112_exact_classes");
+    const version = localStorage.getItem("edu_db_full_ledgers_v115_strictly_configured_only");
     if (!version) {
-      localStorage.setItem("edu_db_full_ledgers_v112_exact_classes", "true");
+      localStorage.setItem("edu_db_full_ledgers_v115_strictly_configured_only", "true");
       localStorage.removeItem("student_fee_ledgers");
       localStorage.removeItem("edu_db_student_fee_ledgers");
       localStorage.removeItem("student_fee_installments");
       localStorage.removeItem("edu_db_student_fee_installments");
       localStorage.removeItem("edu_db_fee_payments");
       localStorage.removeItem("fee_payments");
+      localStorage.removeItem("edu_db_full_ledgers_v112_exact_classes");
       localStorage.removeItem("edu_db_full_ledgers_v110_dynamic_only");
       localStorage.removeItem("edu_db_full_ledgers_v105_realmysql");
       localStorage.removeItem("edu_db_full_ledgers_v106_strictly_dynamic");
@@ -10245,6 +10250,26 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     );
   };
 
+  const deleteFinancialAccount = (id: string) => {
+    setFinancialAccounts((prev) => prev.filter((a) => String(a.id) !== String(id)));
+    const numId = parseInt(id, 10);
+    if (!isNaN(numId)) {
+      FinanceAPI.deleteFinancialAccountApi(numId).catch((err) => {
+        console.warn("Backend delete financial account fallback", err);
+      });
+    }
+  };
+
+  const deleteFinancialCategory = (id: string) => {
+    setFinancialCategories((prev) => prev.filter((c) => String(c.id) !== String(id)));
+    const numId = parseInt(id, 10);
+    if (!isNaN(numId)) {
+      FinanceAPI.deleteFinancialCategoryApi(numId).catch((err) => {
+        console.warn("Backend delete financial category fallback", err);
+      });
+    }
+  };
+
   const updateFinancialBudget = (id: string, allocatedAmount: number) => {
     setFinancialBudgets((prev) =>
       prev.map((b) => {
@@ -10753,17 +10778,29 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       let assignedAmt = orig;
       let isProRataEligible = false;
 
+      const fh = feeHeads.find(
+        (f) =>
+          f.id === item.feeHeadId ||
+          f.name?.toLowerCase() === item.feeHeadName?.toLowerCase(),
+      );
+      const eligibility =
+        item.paymentEligibility ||
+        fh?.paymentEligibility ||
+        "Both One-Time and Term-Wise";
+      const isOneTimeOnly = eligibility === "One-Time Only";
+
       // Fee head configuration check: Monthly / Quarterly / Term heads are pro-rata eligible
       const hNameLower = item.feeHeadName.toLowerCase();
       const categoryLower = (item.category || "").toLowerCase();
       if (
-        hNameLower.includes("tuition") ||
-        hNameLower.includes("transport") ||
-        hNameLower.includes("mess") ||
-        hNameLower.includes("monthly") ||
-        categoryLower.includes("tuition") ||
-        categoryLower.includes("transport") ||
-        categoryLower.includes("mess")
+        !isOneTimeOnly &&
+        (hNameLower.includes("tuition") ||
+          hNameLower.includes("transport") ||
+          hNameLower.includes("mess") ||
+          hNameLower.includes("monthly") ||
+          categoryLower.includes("tuition") ||
+          categoryLower.includes("transport") ||
+          categoryLower.includes("mess"))
       ) {
         isProRataEligible = true;
       }
@@ -10773,9 +10810,16 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           c.feeHeadId === item.feeHeadId ||
           c.feeHeadName.toLowerCase() === item.feeHeadName.toLowerCase(),
       );
-      const isSelected = matchingBreakdownItem ? matchingBreakdownItem.isSelected !== false : true;
 
-      if (!isSelected) {
+      const isSelected = isOneTimeOnly
+        ? true
+        : matchingBreakdownItem
+        ? matchingBreakdownItem.isSelected !== false
+        : true;
+
+      if (isOneTimeOnly) {
+        assignedAmt = orig;
+      } else if (!isSelected) {
         assignedAmt = 0;
       } else if (matchingBreakdownItem && typeof matchingBreakdownItem.assignedAmount === "number") {
         assignedAmt = matchingBreakdownItem.assignedAmount;
@@ -10810,11 +10854,13 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         adjustmentAmount: assignedAmt - orig,
         isEligibleForProRata: isProRataEligible,
         isSelected: isSelected,
+        paymentEligibility: eligibility as any,
       });
 
       assignedHeads.push({
         ...item,
         amount: assignedAmt,
+        paymentEligibility: eligibility as any,
       });
     });
 
@@ -11818,6 +11864,28 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     const admissionDate = normalizeToISODate(rawAdmissionDate);
     const firstTermStart = terms[0]?.startDate || `${ayStartYear}-04-01`;
 
+    const configDateStr =
+      assignment?.assignedDate ||
+      admissionDate ||
+      new Date().toISOString().split("T")[0];
+
+    const normalizedConfigDate =
+      normalizeToISODate(configDateStr) || new Date().toISOString().split("T")[0];
+
+    // Dynamic resolution of One-Time Fee Due Date:
+    // If configured on or before a term due date, set due date to that term's due date.
+    // If configured after a term due date has passed, roll over to the next upcoming term's due date.
+    const upcomingTerm = terms.find((t) => {
+      const tDue = normalizeToISODate(t.dueDate);
+      return tDue && tDue >= normalizedConfigDate;
+    });
+
+    const resolvedOneTimeDueDate = upcomingTerm?.dueDate
+      ? normalizeToISODate(upcomingTerm.dueDate)
+      : terms[terms.length - 1]?.dueDate
+      ? normalizeToISODate(terms[terms.length - 1].dueDate)
+      : oneTimeDueDate;
+
     const isExplicitLateAdmission =
       (student as any)?.isLateAdmission === true ||
       (student as any)?.isLateAdmission === "Yes" ||
@@ -11992,7 +12060,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           frequency: "One Time",
           termId: "ONETIME",
           termName: "One Time",
-          dueDate: oneTimeDueDate,
+          dueDate: resolvedOneTimeDueDate,
           amount: finalAmount,
           paidAmount: 0,
           dueAmount: finalAmount,
@@ -12018,7 +12086,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           frequency: "Annual",
           termId: "ANNUAL",
           termName: "Annual",
-          dueDate: annualDueDate,
+          dueDate: resolvedOneTimeDueDate,
           amount: finalAmount,
           paidAmount: 0,
           dueAmount: finalAmount,
@@ -12044,7 +12112,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           frequency: "One Term",
           termId: "ONETERM",
           termName: "One Term",
-          dueDate: annualDueDate,
+          dueDate: resolvedOneTimeDueDate,
           amount: finalAmount,
           paidAmount: 0,
           dueAmount: finalAmount,
@@ -13208,33 +13276,6 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           isApplicable: true,
           status: "Pending",
         });
-      } else {
-        // Fallback: If no custom dynamic fee structure or assignment exists for this class,
-        // build default fee items from active mandatory/tuition feeHeads matching the class
-        const applicableHeads = (feeHeads || []).filter(h =>
-          h.status === 'Active' &&
-          (h.mandatory || h.category === 'Tuition' || (h.applicableClasses && (h.applicableClasses.length === 0 || h.applicableClasses.some(c => matchesClassName(c, clsName)))))
-        );
-
-        if (applicableHeads.length > 0) {
-          applicableHeads.forEach(h => {
-            const amt = Number(h.defaultAmount || h.amount || 0);
-            if (amt > 0) {
-              ledgerItems.push({
-                headId: h.id,
-                headName: h.name,
-                category: h.category || 'Tuition Fee',
-                originalAmount: amt,
-                scholarshipDeduction: 0,
-                discountDeduction: 0,
-                fineAmount: 0,
-                finalAmount: amt,
-                isApplicable: true,
-                status: 'Pending',
-              });
-            }
-          });
-        }
       }
     }
 
@@ -22070,9 +22111,11 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         financialAccounts,
         addFinancialAccount,
         updateFinancialAccount,
+        deleteFinancialAccount,
         financialCategories,
         addFinancialCategory,
         updateFinancialCategory,
+        deleteFinancialCategory,
         financialBudgets,
         updateFinancialBudget,
 

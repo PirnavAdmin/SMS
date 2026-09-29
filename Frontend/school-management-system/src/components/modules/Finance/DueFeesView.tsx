@@ -56,7 +56,7 @@ export const DueFeesView: React.FC<DueFeesViewProps> = ({
     schoolProfile,
   } = useData();
 
-  const { selectedAcademicYear } = useAuth();
+  const { selectedAcademicYear, selectedBranch } = useAuth();
   const { addToast } = useToast();
 
   const activeAYDefault = selectedAcademicYear || financeSettings?.academicYear || "2026-2027";
@@ -123,6 +123,9 @@ export const DueFeesView: React.FC<DueFeesViewProps> = ({
 
     // 2. Iterate through student ledgers to calculate real pending dues per category
     students.forEach((st) => {
+      if (selectedBranch && selectedBranch !== 'All' && selectedBranch !== 'All Branches') {
+        if (st.branch && st.branch.toLowerCase() !== selectedBranch.toLowerCase()) return;
+      }
       if (selectedClass !== "All" && !matchesClassName(st.className, selectedClass)) return;
       if (selectedSection !== "All" && st.section !== selectedSection) return;
 
@@ -238,6 +241,10 @@ export const DueFeesView: React.FC<DueFeesViewProps> = ({
   }[] = [];
 
   students.forEach((st) => {
+    // Branch filter
+    if (selectedBranch && selectedBranch !== 'All' && selectedBranch !== 'All Branches') {
+      if (st.branch && st.branch.toLowerCase() !== selectedBranch.toLowerCase()) return;
+    }
     // Basic class & section filters
     if (selectedClass !== "All" && !matchesClassName(st.className, selectedClass)) return;
     if (selectedSection !== "All" && st.section !== selectedSection) return;
