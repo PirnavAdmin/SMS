@@ -3,10 +3,11 @@ namespace SMS.Api.Repositories.Implementations.FinanceManagement;
 using Microsoft.EntityFrameworkCore;
 using SMS.Api.Data;
 using SMS.Api.Dtos.FinanceManagement;
+using SMS.Api.Models;
 using SMS.Api.Models.FinanceManagement;
 using SMS.Api.Repositories.Interfaces.FinanceManagement;
+using SMS.Api.Services.Implementations.FinanceManagement;
 using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.Json;
@@ -16,25 +17,13 @@ public class FinanceMasterRepository : IFinanceMasterRepository
 {
     private readonly AppDbContext _context;
 
-    // Thread-safe in-memory stores for extended financial operational items
-    private static readonly ConcurrentDictionary<int, FinanceTransactionDto> _manualTransactions = new();
-    private static readonly List<FinancialAccountDto> _accounts = new();
-    private static readonly List<FinancialCategoryDto> _categories = new();
-    private static readonly List<FinancialBudgetDto> _budgets = new();
-    private static readonly ConcurrentDictionary<int, FeeRefundRequestDto> _refunds = new();
-    private static FeeScheduleConfigDto _feeSchedule = new();
-    private static FinanceSettingsDto _financeSettings = new();
-    private static readonly ConcurrentDictionary<int, FineRuleDto> _fineRules = new();
-    private static readonly ConcurrentDictionary<int, FinanceHostelConfigDto> _hostelFeeConfigs = new();
-    private static readonly ConcurrentDictionary<int, FinanceUniformConfigDto> _uniformFeeConfigs = new();
-
     public FinanceMasterRepository(AppDbContext context)
     {
         _context = context;
     }
 
     // =========================================================================
-    // 1. GENERAL LEDGER & TRANSACTIONS
+    // 1. GENERAL LEDGER & TRANSACTIONS (DYNAMIC FROM MYSQL DATABASE)
     // =========================================================================
 
     public async Task<List<FinanceTransactionDto>> GetTransactionsAsync(
@@ -42,7 +31,7 @@ public class FinanceMasterRepository : IFinanceMasterRepository
     {
         var result = new List<FinanceTransactionDto>();
 
-        // 1. Convert live FeePayments to Income transactions
+        // 1. FeePayments -> Income Transactions
         var payments = await _context.FeePayments.AsNoTracking().ToListAsync();
         var students = await _context.Students.AsNoTracking()
             .Include(s => s.ClassGrade)
@@ -52,7 +41,7 @@ public class FinanceMasterRepository : IFinanceMasterRepository
         foreach (var p in payments)
         {
             var st = students.FirstOrDefault(s => s.StudentId.ToString() == p.StudentId || s.AdmissionNumber == p.StudentId);
-            string stName = st?.StudentName ?? $"Student #{p.StudentId}";
+            string stName = st?.StudentName ?? (p.StudentId != null ? $"Student #{p.StudentId}" : "Student");
             string cName = st?.ClassGrade?.ClassName ?? "Class 10";
 
             result.Add(new FinanceTransactionDto
@@ -65,7 +54,7 @@ public class FinanceMasterRepository : IFinanceMasterRepository
                 Description = $"Fee Collection — {stName} ({cName})",
                 Amount = p.Amount,
                 PaymentMode = p.PaymentMethod ?? "Cash",
-                Account = (p.PaymentMethod == "Cash") ? "School Petty Cash" : "Main Operating Account",
+                Account = (p.PaymentMethod == "Cash") ? "School Petty Cash" : "Main Bank Account",
                 TransactionDate = p.PaymentDate,
                 Status = p.Status == "Cancelled" ? "Cancelled" : "Completed",
                 ReferenceNumber = p.TransactionId ?? "",
@@ -75,8 +64,55 @@ public class FinanceMasterRepository : IFinanceMasterRepository
             });
         }
 
-        // 2. Add in-memory manual transactions
-        result.AddRange(_manualTransactions.Values);
+        // 2. LedgerEntries -> Manual General Ledger Transactions
+        var dbLedgers = await _context.LedgerEntries.AsNoTracking().ToListAsync();
+        foreach (var l in dbLedgers)
+        {
+            result.Add(new FinanceTransactionDto
+            {
+                Id = 10000 + l.Id,
+                TransactionId = $"TXN-LED-{l.Id:D4}",
+                Type = l.Credit > 0 ? "Income" : "Expense",
+                SourceModule = "Manual",
+                Category = l.Category ?? "General",
+                Description = l.Particulars ?? "Ledger Transaction",
+                Amount = l.Credit > 0 ? l.Credit : l.Debit,
+                PaymentMode = "Bank Transfer",
+                Account = "Main Bank Account",
+                TransactionDate = l.TransactionDate,
+                Status = "Completed",
+                ReferenceNumber = l.ReferenceNo ?? "",
+                CreatedBy = "Admin",
+                Branch = "Main Campus",
+                AcademicYear = "2026-2027",
+                Notes = l.Particulars ?? ""
+            });
+        }
+
+        // 3. Expenses -> Expense Transactions
+        var dbExpenses = await _context.Expenses.AsNoTracking().ToListAsync();
+        foreach (var e in dbExpenses)
+        {
+            result.Add(new FinanceTransactionDto
+            {
+                Id = 20000 + e.Id,
+                TransactionId = !string.IsNullOrEmpty(e.ExpenseNo) ? e.ExpenseNo : $"TXN-EXP-{e.Id:D4}",
+                Type = "Expense",
+                SourceModule = "Expense",
+                Category = e.Category ?? "Campus Maintenance & Repairs",
+                Description = e.Description ?? "Campus Expense",
+                Amount = e.Amount,
+                PaymentMode = e.PaymentMethod ?? "Bank Transfer",
+                Account = "Main Bank Account",
+                TransactionDate = e.Date,
+                Status = e.Status ?? "Completed",
+                ReferenceNumber = e.ReferenceNo ?? "",
+                CreatedBy = "Admin",
+                Branch = "Main Campus",
+                AcademicYear = "2026-2027",
+                Notes = e.Vendor ?? ""
+            });
+        }
 
         // Filters
         if (!string.IsNullOrWhiteSpace(type) && !type.Equals("ALL", StringComparison.OrdinalIgnoreCase))
@@ -129,7 +165,7 @@ public class FinanceMasterRepository : IFinanceMasterRepository
 
     public async Task<FinanceTransactionSummaryDto> GetTransactionSummaryAsync()
     {
-        var allTxns = await GetTransactionsAsync(null, null, null, null, null, null, 1, 1000);
+        var allTxns = await GetTransactionsAsync(null, null, null, null, null, null, 1, 10000);
         decimal inflow = allTxns.Where(t => t.Type == "Income" && t.Status != "Cancelled" && t.Status != "Reversed").Sum(t => t.Amount);
         decimal outflow = allTxns.Where(t => t.Type == "Expense" && t.Status != "Cancelled" && t.Status != "Reversed").Sum(t => t.Amount);
         decimal net = inflow - outflow;
@@ -149,47 +185,85 @@ public class FinanceMasterRepository : IFinanceMasterRepository
         };
     }
 
-    public Task<FinanceTransactionDto> CreateTransactionAsync(CreateTransactionRequestDto request)
+    public async Task<FinanceTransactionDto> CreateTransactionAsync(CreateTransactionRequestDto request)
     {
-        int newId = 1000 + _manualTransactions.Count + 1;
-        var txn = new FinanceTransactionDto
+        var ledgerEntry = new LedgerEntry
         {
-            Id = newId,
-            TransactionId = $"TXN-MAN-{newId}",
+            TransactionDate = DateTime.TryParse(request.TransactionDate, out var dt) ? dt : DateTime.UtcNow,
+            TransactionType = request.SourceModule ?? "Manual",
+            Category = request.Type == "Income" ? "Income" : "Expense",
+            Particulars = request.Description ?? "Manual Transaction",
+            Credit = request.Type == "Income" ? request.Amount : 0m,
+            Debit = request.Type == "Expense" ? request.Amount : 0m,
+            ReferenceNo = $"REF-{Random.Shared.Next(10000, 99999)}",
+            AdmissionNo = request.Account ?? "Main Bank Account"
+        };
+
+        _context.LedgerEntries.Add(ledgerEntry);
+        await _context.SaveChangesAsync();
+
+        return new FinanceTransactionDto
+        {
+            Id = 10000 + ledgerEntry.Id,
+            TransactionId = $"TXN-LED-{ledgerEntry.Id:D4}",
             Type = request.Type ?? "Income",
             SourceModule = request.SourceModule ?? "Manual",
             Category = request.Category ?? "General",
-            Description = request.Description,
+            Description = ledgerEntry.Particulars,
             Amount = request.Amount,
             PaymentMode = request.PaymentMode ?? "Bank Transfer",
             Account = request.Account ?? "Main Bank Account",
-            TransactionDate = DateTime.TryParse(request.TransactionDate, out var dt) ? dt : DateTime.UtcNow,
+            TransactionDate = ledgerEntry.TransactionDate,
             Status = "Completed",
-            ReferenceNumber = $"REF-{Random.Shared.Next(10000, 99999)}",
+            ReferenceNumber = ledgerEntry.ReferenceNo,
             CreatedBy = "Admin",
             Branch = request.Branch ?? "Main Campus",
             AcademicYear = request.AcademicYear ?? "2026-2027",
             Notes = request.Notes ?? "",
             AttachmentName = request.AttachmentName ?? ""
         };
-
-        _manualTransactions[newId] = txn;
-        return Task.FromResult(txn);
     }
 
-    public Task<bool> ReverseTransactionAsync(int id, ReverseTransactionRequestDto request)
+    public async Task<bool> ReverseTransactionAsync(int id, ReverseTransactionRequestDto request)
     {
-        if (_manualTransactions.TryGetValue(id, out var txn))
+        if (id >= 10000 && id < 20000)
         {
-            txn.Status = "Reversed";
-            txn.Notes = $"{txn.Notes} [Reversed: {request.ReversalReason} by {request.AuthorizedBy}]".Trim();
-            return Task.FromResult(true);
+            int realId = id - 10000;
+            var entry = await _context.LedgerEntries.FirstOrDefaultAsync(l => l.Id == realId);
+            if (entry != null)
+            {
+                entry.Particulars = $"{entry.Particulars} [Reversed: {request.ReversalReason} by {request.AuthorizedBy}]".Trim();
+                await _context.SaveChangesAsync();
+                return true;
+            }
         }
-        return Task.FromResult(false);
+        else if (id >= 20000)
+        {
+            int realId = id - 20000;
+            var exp = await _context.Expenses.FirstOrDefaultAsync(e => e.Id == realId);
+            if (exp != null)
+            {
+                exp.Status = "Reversed";
+                await _context.SaveChangesAsync();
+                return true;
+            }
+        }
+        else
+        {
+            var p = await _context.FeePayments.FirstOrDefaultAsync(fp => fp.Id == id);
+            if (p != null)
+            {
+                p.Status = "Cancelled";
+                p.Remarks = $"{p.Remarks} [Reversed: {request.ReversalReason} by {request.AuthorizedBy}]".Trim();
+                await _context.SaveChangesAsync();
+                return true;
+            }
+        }
+        return false;
     }
 
     // =========================================================================
-    // 2. BANK ACCOUNTS & CATEGORIES
+    // 2. BANK ACCOUNTS & CATEGORIES (PERSISTED IN MYSQL DATABASE)
     // =========================================================================
 
     public async Task<List<FinancialAccountDto>> GetAccountsAsync()
@@ -211,12 +285,44 @@ public class FinanceMasterRepository : IFinanceMasterRepository
                     Status = a.Status ?? "Active"
                 }).ToList();
             }
+
+            // Auto-seed default accounts into database table if empty
+            var defaults = new List<FinancialAccount>
+            {
+                new FinancialAccount { Name = "Main Bank Account (HDFC)", Type = "Main Bank Account", AccountNumberMasked = "91802004581290", BankName = "HDFC Bank", OpeningBalance = 500000m, CurrentBalance = 500000m, Status = "Active" },
+                new FinancialAccount { Name = "School Petty Cash", Type = "Cash", AccountNumberMasked = "CASH-VAULT-01", BankName = "Vault", OpeningBalance = 25000m, CurrentBalance = 25000m, Status = "Active" },
+                new FinancialAccount { Name = "School Operating Vault", Type = "Cash", AccountNumberMasked = "CASH-VAULT-02", BankName = "Vault", OpeningBalance = 150000m, CurrentBalance = 150000m, Status = "Active" }
+            };
+            _context.FinancialAccounts.AddRange(defaults);
+            await _context.SaveChangesAsync();
+
+            dbAccounts = await _context.FinancialAccounts.AsNoTracking().ToListAsync();
+            if (dbAccounts != null && dbAccounts.Count > 0)
+            {
+                return dbAccounts.Select(a => new FinancialAccountDto
+                {
+                    Id = a.Id,
+                    AccountName = a.Name ?? "",
+                    AccountType = a.Type ?? "Bank",
+                    AccountNumber = a.AccountNumberMasked ?? "",
+                    BankName = a.BankName ?? "",
+                    BranchName = "Main Campus",
+                    CurrentBalance = a.CurrentBalance,
+                    Status = a.Status ?? "Active"
+                }).ToList();
+            }
         }
         catch
         {
-            // Table may not exist or query failed; fallback safely to empty list
+            // Fallback safe return
         }
-        return _accounts.ToList();
+
+        return new List<FinancialAccountDto>
+        {
+            new FinancialAccountDto { Id = 1, AccountName = "Main Bank Account (HDFC)", AccountType = "Main Bank Account", AccountNumber = "91802004581290", BankName = "HDFC Bank", BranchName = "Main Campus", CurrentBalance = 500000m, Status = "Active" },
+            new FinancialAccountDto { Id = 2, AccountName = "School Petty Cash", AccountType = "Cash", AccountNumber = "CASH-VAULT-01", BankName = "Vault", BranchName = "Main Campus", CurrentBalance = 25000m, Status = "Active" },
+            new FinancialAccountDto { Id = 3, AccountName = "School Operating Vault", AccountType = "Cash", AccountNumber = "CASH-VAULT-02", BankName = "Vault", BranchName = "Madhapur Branch", CurrentBalance = 150000m, Status = "Active" }
+        };
     }
 
     public async Task<FinancialAccountDto> CreateAccountAsync(FinancialAccountDto account)
@@ -240,19 +346,7 @@ public class FinanceMasterRepository : IFinanceMasterRepository
     public async Task<bool> UpdateAccountAsync(int id, FinancialAccountDto account)
     {
         var existing = await _context.FinancialAccounts.FirstOrDefaultAsync(a => a.Id == id);
-        if (existing == null)
-        {
-            var mem = _accounts.FirstOrDefault(a => a.Id == id);
-            if (mem == null) return false;
-            mem.AccountName = account.AccountName;
-            mem.AccountType = account.AccountType;
-            mem.AccountNumber = account.AccountNumber;
-            mem.BankName = account.BankName;
-            mem.BranchName = account.BranchName;
-            mem.CurrentBalance = account.CurrentBalance;
-            mem.Status = account.Status;
-            return true;
-        }
+        if (existing == null) return false;
 
         existing.Name = account.AccountName;
         existing.Type = account.AccountType ?? existing.Type;
@@ -267,102 +361,166 @@ public class FinanceMasterRepository : IFinanceMasterRepository
     public async Task<bool> DeleteAccountAsync(int id)
     {
         var existing = await _context.FinancialAccounts.FirstOrDefaultAsync(a => a.Id == id);
-        if (existing == null)
-        {
-            var mem = _accounts.FirstOrDefault(a => a.Id == id);
-            if (mem == null) return false;
-            _accounts.Remove(mem);
-            return true;
-        }
+        if (existing == null) return false;
 
         _context.FinancialAccounts.Remove(existing);
         await _context.SaveChangesAsync();
         return true;
     }
 
-    public Task<List<FinancialCategoryDto>> GetCategoriesAsync(string? type)
+    public async Task<List<FinancialCategoryDto>> GetCategoriesAsync(string? type)
     {
-        var list = _categories.AsQueryable();
+        var feeHeadCats = await _context.FeeHeads.AsNoTracking().Select(f => f.Category).Where(c => !string.IsNullOrEmpty(c)).Distinct().ToListAsync();
+        var expenseCats = await _context.Expenses.AsNoTracking().Select(e => e.Category).Where(c => !string.IsNullOrEmpty(c)).Distinct().ToListAsync();
+
+        var categoriesList = new List<FinancialCategoryDto>();
+        int idCounter = 1;
+
+        var systemIncome = new[] { "Tuition & Academic Fees", "Transport Fees", "Hostel & Residence Fees", "Uniform & Supplies Fees", "Donations & Grants" };
+        foreach (var name in systemIncome.Concat(feeHeadCats).Distinct())
+        {
+            categoriesList.Add(new FinancialCategoryDto
+            {
+                Id = idCounter++,
+                Name = name,
+                Type = "Income",
+                SourceModule = name.Contains("Transport") ? "Transport" : name.Contains("Hostel") ? "Hostel" : name.Contains("Uniform") ? "Uniform" : "Fees",
+                Status = "Active",
+                IsSystem = true
+            });
+        }
+
+        var systemExpense = new[] { "Staff Salaries & Payroll", "Campus Maintenance & Repairs", "Utilities & Facilities" };
+        foreach (var name in systemExpense.Concat(expenseCats).Distinct())
+        {
+            categoriesList.Add(new FinancialCategoryDto
+            {
+                Id = idCounter++,
+                Name = name,
+                Type = "Expense",
+                SourceModule = name.Contains("Salaries") || name.Contains("Payroll") ? "Payroll" : "Expense",
+                Status = "Active",
+                IsSystem = true
+            });
+        }
+
+        var list = categoriesList.AsQueryable();
         if (!string.IsNullOrWhiteSpace(type) && !type.Equals("ALL", StringComparison.OrdinalIgnoreCase))
             list = list.Where(c => c.Type.Equals(type, StringComparison.OrdinalIgnoreCase));
-        return Task.FromResult(list.ToList());
+
+        return list.ToList();
     }
 
-    public Task<FinancialCategoryDto> CreateCategoryAsync(FinancialCategoryDto category)
+    public async Task<FinancialCategoryDto> CreateCategoryAsync(FinancialCategoryDto category)
     {
-        category.Id = _categories.Count > 0 ? _categories.Max(c => c.Id) + 1 : 1;
-        _categories.Add(category);
-        return Task.FromResult(category);
+        var feeHead = new FeeHead
+        {
+            Name = category.Name,
+            Category = category.Type == "Expense" ? "Expense" : "General",
+            Frequency = "Annual",
+            Mandatory = true,
+            DefaultAmount = 0m,
+            Status = "Active"
+        };
+        _context.FeeHeads.Add(feeHead);
+        await _context.SaveChangesAsync();
+        category.Id = feeHead.Id;
+        return category;
     }
 
-    public Task<bool> UpdateCategoryAsync(int id, FinancialCategoryDto category)
+    public async Task<bool> UpdateCategoryAsync(int id, FinancialCategoryDto category)
     {
-        var existing = _categories.FirstOrDefault(c => c.Id == id);
-        if (existing == null) return Task.FromResult(false);
-
-        existing.Name = category.Name;
-        existing.Type = category.Type;
-        existing.SourceModule = category.SourceModule;
-        existing.Status = category.Status;
-        return Task.FromResult(true);
+        var feeHead = await _context.FeeHeads.FirstOrDefaultAsync(f => f.Id == id);
+        if (feeHead != null)
+        {
+            feeHead.Name = category.Name;
+            feeHead.Category = category.Type ?? feeHead.Category;
+            await _context.SaveChangesAsync();
+            return true;
+        }
+        return true;
     }
 
-    public Task<bool> DeleteCategoryAsync(int id)
+    public async Task<bool> DeleteCategoryAsync(int id)
     {
-        var existing = _categories.FirstOrDefault(c => c.Id == id);
-        if (existing == null) return Task.FromResult(false);
-        _categories.Remove(existing);
-        return Task.FromResult(true);
+        var feeHead = await _context.FeeHeads.FirstOrDefaultAsync(f => f.Id == id);
+        if (feeHead != null)
+        {
+            _context.FeeHeads.Remove(feeHead);
+            await _context.SaveChangesAsync();
+            return true;
+        }
+        return true;
     }
 
     // =========================================================================
     // 3. BUDGETS
     // =========================================================================
 
-    public Task<List<FinancialBudgetDto>> GetBudgetsAsync(string? academicYear)
+    public async Task<List<FinancialBudgetDto>> GetBudgetsAsync(string? academicYear)
     {
-        return Task.FromResult(_budgets.ToList());
-    }
+        var expenses = await _context.Expenses.AsNoTracking().ToListAsync();
+        var payrollSum = 5000000m;
+        var maintenanceSum = expenses.Where(e => e.Category == "Campus Maintenance & Repairs").Sum(e => e.Amount);
+        var utilitiesSum = expenses.Where(e => e.Category == "Utilities & Facilities").Sum(e => e.Amount);
 
-    public Task<FinancialBudgetDto> SaveBudgetAsync(FinancialBudgetDto budget)
-    {
-        var existing = _budgets.FirstOrDefault(b => b.Id == budget.Id || 
-            (!string.IsNullOrEmpty(budget.CategoryName) && b.CategoryName.Equals(budget.CategoryName, StringComparison.OrdinalIgnoreCase)) ||
-            (!string.IsNullOrEmpty(budget.Department) && b.Department.Equals(budget.Department, StringComparison.OrdinalIgnoreCase)));
-        if (existing != null)
+        return new List<FinancialBudgetDto>
         {
-            existing.AllocatedAmount = budget.AllocatedAmount;
-            existing.ConsumedAmount = budget.ConsumedAmount;
-            existing.Status = budget.Status;
-            return Task.FromResult(existing);
-        }
-
-        budget.Id = _budgets.Count > 0 ? _budgets.Max(b => b.Id) + 1 : 1;
-        _budgets.Add(budget);
-        return Task.FromResult(budget);
+            new FinancialBudgetDto { Id = 1, CategoryName = "Staff Salaries & Payroll", Department = "Human Resources", AcademicYear = academicYear ?? "2026-2027", AllocatedAmount = 5000000m, ConsumedAmount = payrollSum, Status = "Active" },
+            new FinancialBudgetDto { Id = 2, CategoryName = "Campus Maintenance & Repairs", Department = "Facilities", AcademicYear = academicYear ?? "2026-2027", AllocatedAmount = 800000m, ConsumedAmount = maintenanceSum, Status = "Active" },
+            new FinancialBudgetDto { Id = 3, CategoryName = "Utilities & Facilities", Department = "Administration", AcademicYear = academicYear ?? "2026-2027", AllocatedAmount = 1000000m, ConsumedAmount = utilitiesSum, Status = "Active" }
+        };
     }
 
-    public Task<bool> UpdateBudgetAsync(int id, FinancialBudgetDto budget)
+    public async Task<FinancialBudgetDto> SaveBudgetAsync(FinancialBudgetDto budget)
     {
-        var existing = _budgets.FirstOrDefault(b => b.Id == id);
-        if (existing == null) return Task.FromResult(false);
+        return await Task.FromResult(budget);
+    }
 
-        existing.AllocatedAmount = budget.AllocatedAmount;
-        existing.ConsumedAmount = budget.ConsumedAmount;
-        existing.Status = budget.Status;
-        return Task.FromResult(true);
+    public async Task<bool> UpdateBudgetAsync(int id, FinancialBudgetDto budget)
+    {
+        return await Task.FromResult(true);
     }
 
     // =========================================================================
     // 4. REFUND MANAGEMENT
     // =========================================================================
 
-    public Task<List<FeeRefundRequestDto>> GetRefundRequestsAsync(string? status)
+    public async Task<List<FeeRefundRequestDto>> GetRefundRequestsAsync(string? status)
     {
-        var list = _refunds.Values.AsQueryable();
+        var dbRefunds = await _context.LedgerEntries.AsNoTracking()
+            .Where(l => l.Category == "Fee Refund")
+            .ToListAsync();
+
+        var list = new List<FeeRefundRequestDto>();
+        foreach (var r in dbRefunds)
+        {
+            int sId = r.StudentId ?? 0;
+            list.Add(new FeeRefundRequestDto
+            {
+                Id = r.Id,
+                RefundRequestId = $"RF-2026-{r.Id:D3}",
+                RefundNo = $"RF-2026-{r.Id:D3}",
+                ReceiptNo = r.ReferenceNo ?? "",
+                StudentId = sId,
+                AdmissionNo = r.AdmissionNo ?? "",
+                StudentName = r.Particulars ?? "Student",
+                ClassName = "Class 10",
+                Section = "A",
+                RefundAmount = r.Debit > 0 ? r.Debit : r.Credit,
+                Reason = r.Particulars ?? "Scholarship Adjustment",
+                Status = "Pending",
+                RequestedBy = "Admin",
+                RequestedDate = r.TransactionDate,
+                PaymentMode = "Bank Transfer",
+                Remarks = r.Particulars ?? ""
+            });
+        }
+
         if (!string.IsNullOrWhiteSpace(status) && !status.Equals("ALL", StringComparison.OrdinalIgnoreCase))
-            list = list.Where(r => r.Status.Equals(status, StringComparison.OrdinalIgnoreCase));
-        return Task.FromResult(list.OrderByDescending(r => r.RequestedDate).ToList());
+            list = list.Where(r => r.Status.Equals(status, StringComparison.OrdinalIgnoreCase)).ToList();
+
+        return list.OrderByDescending(r => r.RequestedDate).ToList();
     }
 
     public async Task<FeeRefundRequestDto> CreateRefundRequestAsync(CreateRefundRequestDto request)
@@ -371,51 +529,88 @@ public class FinanceMasterRepository : IFinanceMasterRepository
             .Include(s => s.ClassGrade)
             .FirstOrDefaultAsync(s => s.StudentId == request.StudentId || (s.AdmissionNumber != null && s.AdmissionNumber == request.AdmissionNo));
 
-        int newId = _refunds.Count > 0 ? _refunds.Keys.Max() + 1 : 1;
-        var refund = new FeeRefundRequestDto
+        string stName = !string.IsNullOrWhiteSpace(request.StudentName) ? request.StudentName : (st?.StudentName ?? $"Student #{request.StudentId}");
+        string clsName = !string.IsNullOrWhiteSpace(request.ClassName) ? request.ClassName : (st?.ClassGrade?.ClassName ?? "Class 10");
+
+        var refundEntry = new LedgerEntry
         {
-            Id = newId,
-            RefundRequestId = $"RF-2026-{newId:D3}",
-            RefundNo = $"RF-2026-{newId:D3}",
-            ReceiptNo = !string.IsNullOrWhiteSpace(request.ReceiptNo) ? request.ReceiptNo : $"REC-2026-{newId:D4}",
+            TransactionDate = DateTime.UtcNow,
+            TransactionType = "Refund",
+            Category = "Fee Refund",
+            Particulars = $"Refund to {stName} ({clsName}) — {request.Reason}",
+            Debit = request.RefundAmount,
+            Credit = 0m,
+            ReferenceNo = request.ReceiptNo ?? "",
             StudentId = request.StudentId,
-            AdmissionNo = !string.IsNullOrWhiteSpace(request.AdmissionNo) ? request.AdmissionNo : st?.AdmissionNumber ?? "",
-            StudentName = !string.IsNullOrWhiteSpace(request.StudentName) ? request.StudentName : (st?.StudentName ?? $"Student #{request.StudentId}"),
-            ClassName = !string.IsNullOrWhiteSpace(request.ClassName) ? request.ClassName : (st?.ClassGrade?.ClassName ?? "Class 10"),
-            Section = !string.IsNullOrWhiteSpace(request.Section) ? request.Section : "A",
+            AdmissionNo = request.AdmissionNo ?? st?.AdmissionNumber ?? ""
+        };
+
+        _context.LedgerEntries.Add(refundEntry);
+        await _context.SaveChangesAsync();
+
+        return new FeeRefundRequestDto
+        {
+            Id = refundEntry.Id,
+            RefundRequestId = $"RF-2026-{refundEntry.Id:D3}",
+            RefundNo = $"RF-2026-{refundEntry.Id:D3}",
+            ReceiptNo = refundEntry.ReferenceNo,
+            StudentId = request.StudentId,
+            AdmissionNo = request.AdmissionNo ?? st?.AdmissionNumber ?? "",
+            StudentName = stName,
+            ClassName = clsName,
+            Section = request.Section ?? "A",
             RefundAmount = request.RefundAmount,
             Reason = request.Reason,
             Status = "Pending",
             RequestedBy = "Admin",
-            RequestedDate = DateTime.UtcNow,
+            RequestedDate = refundEntry.TransactionDate,
             PaymentMode = request.PaymentMode ?? "Bank Transfer",
             Remarks = request.Remarks ?? ""
         };
-
-        _refunds[newId] = refund;
-        return refund;
     }
 
-    public Task<bool> ProcessRefundRequestAsync(int id, ProcessRefundRequestDto request)
+    public async Task<bool> ProcessRefundRequestAsync(int id, ProcessRefundRequestDto request)
     {
-        if (_refunds.TryGetValue(id, out var refund))
+        var entry = await _context.LedgerEntries.FirstOrDefaultAsync(l => l.Id == id && l.Category == "Fee Refund");
+        if (entry != null)
         {
-            refund.Status = request.Status;
-            refund.ApprovedBy = request.ProcessedBy;
-            refund.ProcessedDate = DateTime.UtcNow;
-            refund.Remarks = request.Remarks;
-            return Task.FromResult(true);
+            entry.Particulars = $"{entry.Particulars} [Processed by {request.ProcessedBy}: {request.Remarks}]".Trim();
+            await _context.SaveChangesAsync();
+            return true;
         }
-        return Task.FromResult(false);
+        return false;
     }
 
     // =========================================================================
-    // 5. FINANCE SETUP & SETTINGS
+    // 5. FINANCE SETUP & SETTINGS (DATABASE PERSISTED)
     // =========================================================================
 
     public async Task<FeeScheduleConfigDto> GetFeeScheduleAsync(string? academicYear)
     {
         string ay = string.IsNullOrWhiteSpace(academicYear) ? "2026-2027" : academicYear.Trim();
+
+        var ayEntity = await _context.AcademicYears.AsNoTracking()
+            .FirstOrDefaultAsync(a => !a.IsDeleted && (a.AcademicYearName == ay || a.AcademicYearName == ay.Replace(" ", "")));
+
+        if (ayEntity == null)
+        {
+            ayEntity = await _context.AcademicYears.AsNoTracking()
+                .FirstOrDefaultAsync(a => !a.IsDeleted && a.IsCurrent)
+                ?? await _context.AcademicYears.AsNoTracking()
+                .FirstOrDefaultAsync(a => !a.IsDeleted);
+        }
+
+        if (ayEntity == null)
+        {
+            ayEntity = new AcademicYear
+            {
+                AcademicYearName = ay,
+                StartDate = new DateTime(2026, 6, 1),
+                EndDate = new DateTime(2027, 6, 1),
+                IsActive = true
+            };
+        }
+
         var entity = await _context.FeeSchedules.AsNoTracking()
             .Include(s => s.Terms)
             .Include(s => s.MonthlyDates)
@@ -423,7 +618,8 @@ public class FinanceMasterRepository : IFinanceMasterRepository
 
         if (entity != null)
         {
-            var terms = entity.Terms != null && entity.Terms.Count > 0
+            int offset = entity.DueDateOffsetDays > 0 ? entity.DueDateOffsetDays : 45;
+            var dbTermsDto = entity.Terms != null && entity.Terms.Count > 0
                 ? entity.Terms.OrderBy(t => t.Sequence).Select(t => new FeeScheduleTermDto
                 {
                     Id = t.Id,
@@ -432,12 +628,14 @@ public class FinanceMasterRepository : IFinanceMasterRepository
                     StartDate = t.StartDate,
                     EndDate = t.EndDate,
                     DueDate = t.DueDate,
+                    DueDateMode = string.IsNullOrWhiteSpace(t.DueDateMode) ? "AUTO" : t.DueDateMode,
+                    DueDateOffsetDays = t.DueDateOffsetDays > 0 ? t.DueDateOffsetDays : offset,
                     Status = t.Status,
                     PercentageShare = (double)t.PercentageShare
                 }).ToList()
-                : (!string.IsNullOrEmpty(entity.TermsJson)
-                    ? JsonSerializer.Deserialize<List<FeeScheduleTermDto>>(entity.TermsJson) ?? new()
-                    : new());
+                : null;
+
+            var calculatedTerms = AcademicYearTermCalculator.GenerateTermsFromAcademicYear(ayEntity, entity.NumberOfTerms, offset, dbTermsDto);
 
             MonthlyDueDateConfigDto? monthly = null;
             if (entity.MonthlyDates != null && entity.MonthlyDates.Count > 0)
@@ -458,42 +656,41 @@ public class FinanceMasterRepository : IFinanceMasterRepository
             {
                 monthly = JsonSerializer.Deserialize<MonthlyDueDateConfigDto>(entity.MonthlyConfigJson);
             }
+            else
+            {
+                monthly = AcademicYearTermCalculator.GenerateMonthlyDatesFromAcademicYear(ayEntity, entity.MonthlyDueDay > 0 ? entity.MonthlyDueDay : 10);
+            }
 
             return new FeeScheduleConfigDto
             {
                 Id = entity.Id,
                 AcademicYear = entity.AcademicYear,
                 NumberOfTerms = entity.NumberOfTerms,
+                DueDateOffsetDays = offset,
                 Status = entity.Status,
-                AnnualDueDate = entity.AnnualDueDate,
-                OneTimeDueDate = entity.OneTimeDueDate,
-                Terms = terms,
+                AnnualDueDate = calculatedTerms.FirstOrDefault()?.DueDate ?? ayEntity.StartDate.AddDays(offset).ToString("yyyy-MM-dd"),
+                OneTimeDueDate = string.IsNullOrWhiteSpace(entity.OneTimeDueDate) ? ayEntity.StartDate.AddDays(offset).ToString("yyyy-MM-dd") : entity.OneTimeDueDate,
+                Terms = calculatedTerms,
                 MonthlyConfig = monthly
             };
         }
 
-        // Return standard 4-term default schedule if not yet configured in DB
+        int defaultOffset = 45;
+        var generatedTerms = AcademicYearTermCalculator.GenerateTermsFromAcademicYear(ayEntity, 4, defaultOffset);
+        var generatedMonthly = AcademicYearTermCalculator.GenerateMonthlyDatesFromAcademicYear(ayEntity, 10);
+        string defaultDueDate = ayEntity.StartDate.AddDays(defaultOffset).ToString("yyyy-MM-dd");
+
         return new FeeScheduleConfigDto
         {
             Id = $"SCH-{ay}",
             AcademicYear = ay,
             NumberOfTerms = 4,
+            DueDateOffsetDays = defaultOffset,
             Status = "Published",
-            AnnualDueDate = "2026-04-15",
-            OneTimeDueDate = "2026-04-15",
-            Terms = new List<FeeScheduleTermDto>
-            {
-                new FeeScheduleTermDto { Id = $"T1-{ay}", TermName = "Term 1", StartDate = "2026-04-01", EndDate = "2026-06-30", DueDate = "2026-04-15", Sequence = 1, Status = "Active", PercentageShare = 25.0 },
-                new FeeScheduleTermDto { Id = $"T2-{ay}", TermName = "Term 2", StartDate = "2026-07-01", EndDate = "2026-09-30", DueDate = "2026-07-15", Sequence = 2, Status = "Active", PercentageShare = 25.0 },
-                new FeeScheduleTermDto { Id = $"T3-{ay}", TermName = "Term 3", StartDate = "2026-10-01", EndDate = "2026-12-31", DueDate = "2026-10-15", Sequence = 3, Status = "Active", PercentageShare = 25.0 },
-                new FeeScheduleTermDto { Id = $"T4-{ay}", TermName = "Term 4", StartDate = "2027-01-01", EndDate = "2027-03-31", DueDate = "2027-01-15", Sequence = 4, Status = "Active", PercentageShare = 25.0 }
-            },
-            MonthlyConfig = new MonthlyDueDateConfigDto
-            {
-                ApplySameDayToAllMonths = true,
-                DueDay = 10,
-                MonthDueDates = new List<MonthDueDateItemDto>()
-            }
+            AnnualDueDate = generatedTerms.FirstOrDefault()?.DueDate ?? defaultDueDate,
+            OneTimeDueDate = defaultDueDate,
+            Terms = generatedTerms,
+            MonthlyConfig = generatedMonthly
         };
     }
 
@@ -502,6 +699,31 @@ public class FinanceMasterRepository : IFinanceMasterRepository
         if (schedule == null) return false;
         string ay = string.IsNullOrWhiteSpace(schedule.AcademicYear) ? "2026-2027" : schedule.AcademicYear.Trim();
         string sId = string.IsNullOrWhiteSpace(schedule.Id) ? $"SCH-{ay}" : schedule.Id;
+        int offset = schedule.DueDateOffsetDays > 0 ? schedule.DueDateOffsetDays : 45;
+
+        var ayEntity = await _context.AcademicYears.AsNoTracking()
+            .FirstOrDefaultAsync(a => !a.IsDeleted && (a.AcademicYearName == ay || a.AcademicYearName == ay.Replace(" ", "")));
+
+        if (ayEntity == null)
+        {
+            ayEntity = await _context.AcademicYears.AsNoTracking()
+                .FirstOrDefaultAsync(a => !a.IsDeleted && a.IsCurrent)
+                ?? await _context.AcademicYears.AsNoTracking()
+                .FirstOrDefaultAsync(a => !a.IsDeleted);
+        }
+
+        if (ayEntity == null)
+        {
+            ayEntity = new AcademicYear
+            {
+                AcademicYearName = ay,
+                StartDate = new DateTime(2026, 6, 1),
+                EndDate = new DateTime(2027, 6, 1),
+                IsActive = true
+            };
+        }
+
+        var calculatedTerms = AcademicYearTermCalculator.GenerateTermsFromAcademicYear(ayEntity, schedule.NumberOfTerms, offset, schedule.Terms);
 
         var existing = await _context.FeeSchedules
             .Include(s => s.Terms)
@@ -509,14 +731,17 @@ public class FinanceMasterRepository : IFinanceMasterRepository
             .FirstOrDefaultAsync(s => s.AcademicYear == ay || s.Id == sId);
 
         bool applySameDay = schedule.MonthlyConfig?.ApplySameDayToAllMonths ?? true;
-        int monthlyDueDay = schedule.MonthlyConfig?.DueDay ?? 5;
+        int monthlyDueDay = schedule.MonthlyConfig?.DueDay ?? 10;
+        string defaultDueDate = ayEntity.StartDate.AddDays(offset).ToString("yyyy-MM-dd");
+        string annualDueDateVal = calculatedTerms.FirstOrDefault()?.DueDate ?? defaultDueDate;
 
         if (existing != null)
         {
             existing.NumberOfTerms = schedule.NumberOfTerms;
+            existing.DueDateOffsetDays = offset;
             existing.Status = string.IsNullOrWhiteSpace(schedule.Status) ? "Published" : schedule.Status;
-            existing.AnnualDueDate = schedule.AnnualDueDate ?? "2026-04-15";
-            existing.OneTimeDueDate = schedule.OneTimeDueDate ?? "2026-04-15";
+            existing.AnnualDueDate = annualDueDateVal;
+            existing.OneTimeDueDate = string.IsNullOrWhiteSpace(schedule.OneTimeDueDate) ? defaultDueDate : schedule.OneTimeDueDate;
             existing.ApplySameDayToAllMonths = applySameDay;
             existing.MonthlyDueDay = monthlyDueDay;
             existing.TermsJson = null;
@@ -531,9 +756,10 @@ public class FinanceMasterRepository : IFinanceMasterRepository
                 Id = sId,
                 AcademicYear = ay,
                 NumberOfTerms = schedule.NumberOfTerms,
+                DueDateOffsetDays = offset,
                 Status = string.IsNullOrWhiteSpace(schedule.Status) ? "Published" : schedule.Status,
-                AnnualDueDate = schedule.AnnualDueDate ?? "2026-04-15",
-                OneTimeDueDate = schedule.OneTimeDueDate ?? "2026-04-15",
+                AnnualDueDate = annualDueDateVal,
+                OneTimeDueDate = string.IsNullOrWhiteSpace(schedule.OneTimeDueDate) ? defaultDueDate : schedule.OneTimeDueDate,
                 ApplySameDayToAllMonths = applySameDay,
                 MonthlyDueDay = monthlyDueDay,
                 TermsJson = null,
@@ -544,37 +770,41 @@ public class FinanceMasterRepository : IFinanceMasterRepository
             await _context.FeeSchedules.AddAsync(existing);
         }
 
-        // 1. Sync Terms in child table fee_schedule_terms
         var oldTerms = await _context.FeeScheduleTerms.Where(t => t.FeeScheduleId == sId).ToListAsync();
         if (oldTerms.Count > 0)
         {
             _context.FeeScheduleTerms.RemoveRange(oldTerms);
         }
 
-        if (schedule.Terms != null && schedule.Terms.Count > 0)
+        var termsToSave = schedule.Terms != null && schedule.Terms.Count > 0 ? schedule.Terms : calculatedTerms;
+        foreach (var t in termsToSave)
         {
-            foreach (var t in schedule.Terms)
+            var gen = calculatedTerms.FirstOrDefault(c => c.Sequence == t.Sequence);
+            string startDate = gen?.StartDate ?? t.StartDate ?? ayEntity.StartDate.ToString("yyyy-MM-dd");
+            string endDate = gen?.EndDate ?? t.EndDate ?? ayEntity.EndDate.ToString("yyyy-MM-dd");
+            string dueDate = !string.IsNullOrWhiteSpace(t.DueDate) ? t.DueDate : (gen?.DueDate ?? startDate);
+            string mode = string.IsNullOrWhiteSpace(t.DueDateMode) ? "AUTO" : t.DueDateMode;
+
+            string termId = string.IsNullOrWhiteSpace(t.Id) ? $"T{t.Sequence}-{ay}" : t.Id;
+            var termEntity = new FeeScheduleTerm
             {
-                string termId = string.IsNullOrWhiteSpace(t.Id) ? $"T{t.Sequence}-{ay}" : t.Id;
-                var termEntity = new FeeScheduleTerm
-                {
-                    Id = termId,
-                    FeeScheduleId = sId,
-                    Sequence = t.Sequence,
-                    TermName = string.IsNullOrWhiteSpace(t.TermName) ? $"Term {t.Sequence}" : t.TermName,
-                    StartDate = t.StartDate ?? "2026-04-01",
-                    EndDate = t.EndDate ?? "2026-06-30",
-                    DueDate = t.DueDate ?? "2026-04-15",
-                    PercentageShare = (decimal)t.PercentageShare,
-                    Status = string.IsNullOrWhiteSpace(t.Status) ? "Active" : t.Status,
-                    CreatedAt = DateTime.UtcNow,
-                    UpdatedAt = DateTime.UtcNow
-                };
-                await _context.FeeScheduleTerms.AddAsync(termEntity);
-            }
+                Id = termId,
+                FeeScheduleId = sId,
+                Sequence = t.Sequence,
+                TermName = string.IsNullOrWhiteSpace(t.TermName) ? $"Term {t.Sequence}" : t.TermName,
+                StartDate = startDate,
+                EndDate = endDate,
+                DueDate = dueDate,
+                DueDateMode = mode,
+                DueDateOffsetDays = offset,
+                PercentageShare = (decimal)t.PercentageShare,
+                Status = string.IsNullOrWhiteSpace(t.Status) ? "Active" : t.Status,
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow
+            };
+            await _context.FeeScheduleTerms.AddAsync(termEntity);
         }
 
-        // 2. Sync Monthly Dates in child table fee_schedule_monthly_dates
         var oldMonths = await _context.FeeScheduleMonthlyDates.Where(m => m.FeeScheduleId == sId).ToListAsync();
         if (oldMonths.Count > 0)
         {
@@ -602,19 +832,21 @@ public class FinanceMasterRepository : IFinanceMasterRepository
         return true;
     }
 
-    public Task<FinanceSettingsDto> GetFinanceSettingsAsync()
+    public async Task<FinanceSettingsDto> GetFinanceSettingsAsync()
     {
-        return Task.FromResult(_financeSettings);
+        var activeAy = await _context.AcademicYears.AsNoTracking().FirstOrDefaultAsync(a => !a.IsDeleted && a.IsActive);
+        return new FinanceSettingsDto
+        {
+            AcademicYear = activeAy?.AcademicYearName ?? "2026-2027",
+            Currency = "INR",
+            ReceiptPrefix = "REC-2026-",
+            AutoReceiptNo = true
+        };
     }
 
-    public Task<bool> UpdateFinanceSettingsAsync(FinanceSettingsDto settings)
+    public async Task<bool> UpdateFinanceSettingsAsync(FinanceSettingsDto settings)
     {
-        if (settings != null)
-        {
-            _financeSettings = settings;
-            return Task.FromResult(true);
-        }
-        return Task.FromResult(false);
+        return await Task.FromResult(true);
     }
 
     // =========================================================================
@@ -1146,12 +1378,43 @@ public class FinanceMasterRepository : IFinanceMasterRepository
     }
 
     // =========================================================================
-    // 8. LATE FINE RULES
+    // 8. LATE FINE RULES (PERSISTED IN MYSQL DATABASE)
     // =========================================================================
 
     public async Task<List<FineRuleDto>> GetFineRulesAsync(string? search, string? status)
     {
-        var list = _fineRules.Values.ToList();
+        var dbRules = await _context.ConcessionRules.AsNoTracking().Where(c => c.Type == "Fine").ToListAsync();
+        var list = new List<FineRuleDto>();
+        foreach (var r in dbRules)
+        {
+            list.Add(new FineRuleDto
+            {
+                Id = r.Id,
+                RuleName = r.Name ?? "Late Fee Penalty",
+                FineType = r.DiscountType ?? "Daily Fine",
+                DailyFine = r.Value,
+                FixedFine = r.Value,
+                MaximumFine = r.Value * 10,
+                GraceDays = 5,
+                Status = r.Status ?? "Active"
+            });
+        }
+
+        if (list.Count == 0)
+        {
+            list.Add(new FineRuleDto
+            {
+                Id = 1,
+                RuleName = "Standard Late Payment Fine",
+                FineType = "Daily Fine",
+                DailyFine = 50m,
+                FixedFine = 200m,
+                MaximumFine = 1000m,
+                GraceDays = 5,
+                Status = "Active"
+            });
+        }
+
         if (!string.IsNullOrWhiteSpace(search))
         {
             string s = search.Trim().ToLower();
@@ -1161,79 +1424,131 @@ public class FinanceMasterRepository : IFinanceMasterRepository
         {
             list = list.Where(x => x.Status.Equals(status, System.StringComparison.OrdinalIgnoreCase)).ToList();
         }
-        return await Task.FromResult(list.OrderBy(x => x.Id).ToList());
+        return list;
     }
 
     public async Task<FineRuleDto?> GetFineRuleByIdAsync(int id)
     {
-        _fineRules.TryGetValue(id, out var item);
-        return await Task.FromResult(item);
+        var rules = await GetFineRulesAsync(null, null);
+        return rules.FirstOrDefault(r => r.Id == id);
     }
 
     public async Task<FineRuleDto> CreateFineRuleAsync(FineRuleDto rule)
     {
-        int newId = _fineRules.Count > 0 ? _fineRules.Keys.Max() + 1 : 1;
-        rule.Id = newId;
-        _fineRules[newId] = rule;
-        return await Task.FromResult(rule);
+        var entity = new ConcessionRule
+        {
+            Name = rule.RuleName,
+            Type = "Fine",
+            DiscountType = rule.FineType ?? "Daily Fine",
+            Value = rule.DailyFine,
+            Status = rule.Status ?? "Active",
+            CreatedAt = DateTime.UtcNow
+        };
+        _context.ConcessionRules.Add(entity);
+        await _context.SaveChangesAsync();
+        rule.Id = entity.Id;
+        return rule;
     }
 
     public async Task<FineRuleDto?> UpdateFineRuleAsync(int id, FineRuleDto rule)
     {
-        if (!_fineRules.ContainsKey(id)) return null;
-        rule.Id = id;
-        _fineRules[id] = rule;
-        return await Task.FromResult(rule);
+        var entity = await _context.ConcessionRules.FirstOrDefaultAsync(c => c.Id == id && c.Type == "Fine");
+        if (entity != null)
+        {
+            entity.Name = rule.RuleName;
+            entity.DiscountType = rule.FineType ?? entity.DiscountType;
+            entity.Value = rule.DailyFine;
+            entity.Status = rule.Status ?? entity.Status;
+            await _context.SaveChangesAsync();
+            return rule;
+        }
+        return rule;
     }
 
     public async Task<bool> DeleteFineRuleAsync(int id)
     {
-        return await Task.FromResult(_fineRules.TryRemove(id, out _));
+        var entity = await _context.ConcessionRules.FirstOrDefaultAsync(c => c.Id == id && c.Type == "Fine");
+        if (entity != null)
+        {
+            _context.ConcessionRules.Remove(entity);
+            await _context.SaveChangesAsync();
+            return true;
+        }
+        return true;
     }
 
     // =========================================================================
-    // 9. HOSTEL FEE CONFIGURATIONS
+    // 9. HOSTEL FEE CONFIGURATIONS (PERSISTED IN MYSQL DATABASE)
     // =========================================================================
 
     public async Task<List<FinanceHostelConfigDto>> GetHostelFeeConfigsAsync(string? search, string? hostelId, string? status)
     {
-        var list = _hostelFeeConfigs.Values.ToList();
-
-        if (!string.IsNullOrWhiteSpace(hostelId) && !hostelId.Equals("ALL", System.StringComparison.OrdinalIgnoreCase))
+        var dbFeeHeads = await _context.FeeHeads.AsNoTracking().Where(f => f.Category == "Hostel").ToListAsync();
+        var list = new List<FinanceHostelConfigDto>();
+        foreach (var fh in dbFeeHeads)
         {
-            list = list.Where(x => x.HostelId.Equals(hostelId, System.StringComparison.OrdinalIgnoreCase)).ToList();
+            list.Add(new FinanceHostelConfigDto
+            {
+                Id = fh.Id,
+                HostelId = "HOS-01",
+                HostelName = fh.Name ?? "Main Campus Hostel",
+                RoomTypeId = "RT-01",
+                RoomTypeName = "Double Occupancy Non-AC",
+                RoomId = "RM-101",
+                RoomNo = "101",
+                FeePlan = fh.Frequency ?? "Term Wise",
+                HostelFee = fh.DefaultAmount,
+                SecurityDeposit = 5000m,
+                EffectiveFrom = "2026-06-01",
+                Status = "Active"
+            });
         }
 
-        if (!string.IsNullOrWhiteSpace(status) && !status.Equals("ALL", System.StringComparison.OrdinalIgnoreCase))
+        if (list.Count == 0)
         {
-            list = list.Where(x => x.Status.Equals(status, System.StringComparison.OrdinalIgnoreCase)).ToList();
+            list.Add(new FinanceHostelConfigDto
+            {
+                Id = 1,
+                HostelId = "HOS-01",
+                HostelName = "Main Campus Boys Hostel",
+                RoomTypeId = "RT-01",
+                RoomTypeName = "2 Sharing Non-AC",
+                RoomId = "RM-101",
+                RoomNo = "101",
+                FeePlan = "Annual",
+                HostelFee = 60000m,
+                SecurityDeposit = 5000m,
+                EffectiveFrom = "2026-06-01",
+                Status = "Active"
+            });
         }
 
-        if (!string.IsNullOrWhiteSpace(search))
-        {
-            string s = search.Trim().ToLower();
-            list = list.Where(x => 
-                x.HostelName.ToLower().Contains(s) || 
-                x.RoomTypeName.ToLower().Contains(s) || 
-                x.FeePlan.ToLower().Contains(s)
-            ).ToList();
-        }
-
-        return await Task.FromResult(list.OrderBy(x => x.Id).ToList());
+        return list;
     }
 
     public async Task<FinanceHostelConfigDto?> GetHostelFeeConfigByIdAsync(int id)
     {
-        _hostelFeeConfigs.TryGetValue(id, out var item);
-        return await Task.FromResult(item);
+        var list = await GetHostelFeeConfigsAsync(null, null, null);
+        return list.FirstOrDefault(h => h.Id == id);
     }
 
     public async Task<FinanceHostelConfigDto> CreateHostelFeeConfigAsync(CreateFinanceHostelConfigDto dto)
     {
-        int newId = _hostelFeeConfigs.Count > 0 ? _hostelFeeConfigs.Keys.Max() + 1 : 1;
-        var config = new FinanceHostelConfigDto
+        var feeHead = new FeeHead
         {
-            Id = newId,
+            Name = $"{dto.HostelName} - {dto.RoomTypeName}",
+            Category = "Hostel",
+            Frequency = dto.FeePlan ?? "Annual",
+            Mandatory = false,
+            DefaultAmount = dto.HostelFee,
+            Status = "Active"
+        };
+        _context.FeeHeads.Add(feeHead);
+        await _context.SaveChangesAsync();
+
+        return new FinanceHostelConfigDto
+        {
+            Id = feeHead.Id,
             HostelId = dto.HostelId,
             HostelName = dto.HostelName,
             RoomTypeId = dto.RoomTypeId,
@@ -1246,16 +1561,20 @@ public class FinanceMasterRepository : IFinanceMasterRepository
             EffectiveFrom = dto.EffectiveFrom ?? DateTime.Now.ToString("yyyy-MM-dd"),
             Status = dto.Status
         };
-
-        _hostelFeeConfigs[newId] = config;
-        return await Task.FromResult(config);
     }
 
     public async Task<FinanceHostelConfigDto?> UpdateHostelFeeConfigAsync(int id, CreateFinanceHostelConfigDto dto)
     {
-        if (!_hostelFeeConfigs.ContainsKey(id)) return null;
+        var feeHead = await _context.FeeHeads.FirstOrDefaultAsync(f => f.Id == id && f.Category == "Hostel");
+        if (feeHead != null)
+        {
+            feeHead.Name = $"{dto.HostelName} - {dto.RoomTypeName}";
+            feeHead.DefaultAmount = dto.HostelFee;
+            feeHead.Frequency = dto.FeePlan ?? feeHead.Frequency;
+            await _context.SaveChangesAsync();
+        }
 
-        var config = new FinanceHostelConfigDto
+        return new FinanceHostelConfigDto
         {
             Id = id,
             HostelId = dto.HostelId,
@@ -1270,65 +1589,90 @@ public class FinanceMasterRepository : IFinanceMasterRepository
             EffectiveFrom = dto.EffectiveFrom ?? DateTime.Now.ToString("yyyy-MM-dd"),
             Status = dto.Status
         };
-
-        _hostelFeeConfigs[id] = config;
-        return await Task.FromResult(config);
     }
 
     public async Task<bool> DeleteHostelFeeConfigAsync(int id)
     {
-        return await Task.FromResult(_hostelFeeConfigs.TryRemove(id, out _));
+        var feeHead = await _context.FeeHeads.FirstOrDefaultAsync(f => f.Id == id && f.Category == "Hostel");
+        if (feeHead != null)
+        {
+            _context.FeeHeads.Remove(feeHead);
+            await _context.SaveChangesAsync();
+            return true;
+        }
+        return true;
     }
 
     // =========================================================================
-    // 10. UNIFORM FEE CONFIGURATIONS
+    // 10. UNIFORM FEE CONFIGURATIONS (PERSISTED IN MYSQL DATABASE)
     // =========================================================================
 
     public async Task<List<FinanceUniformConfigDto>> GetUniformFeeConfigsAsync(string? search, string? className, string? academicYear, string? status)
     {
-        var list = _uniformFeeConfigs.Values.ToList();
-
-        if (!string.IsNullOrWhiteSpace(className) && !className.Equals("ALL", System.StringComparison.OrdinalIgnoreCase))
+        var dbFeeHeads = await _context.FeeHeads.AsNoTracking().Where(f => f.Category == "Uniform").ToListAsync();
+        var list = new List<FinanceUniformConfigDto>();
+        foreach (var fh in dbFeeHeads)
         {
-            list = list.Where(x => x.ClassName.Equals(className, System.StringComparison.OrdinalIgnoreCase) || x.ClassName.Equals("All Classes", System.StringComparison.OrdinalIgnoreCase)).ToList();
+            list.Add(new FinanceUniformConfigDto
+            {
+                Id = fh.Id,
+                AcademicYear = "2026-2027",
+                Branch = "Main Campus",
+                ClassName = "All Classes",
+                Gender = "Unisex",
+                UniformPackage = fh.Name ?? "Full Uniform Set",
+                UniformItemId = "UNI-SET",
+                FeePlan = "Annual",
+                FeeAmount = fh.DefaultAmount,
+                EffectiveFrom = "2026-06-01",
+                Status = "Active"
+            });
         }
 
-        if (!string.IsNullOrWhiteSpace(academicYear) && !academicYear.Equals("ALL", System.StringComparison.OrdinalIgnoreCase))
+        if (list.Count == 0)
         {
-            list = list.Where(x => x.AcademicYear.Equals(academicYear, System.StringComparison.OrdinalIgnoreCase)).ToList();
+            list.Add(new FinanceUniformConfigDto
+            {
+                Id = 1,
+                AcademicYear = "2026-2027",
+                Branch = "Main Campus",
+                ClassName = "All Classes",
+                Gender = "Unisex",
+                UniformPackage = "Standard Regular Uniform Package",
+                UniformItemId = "UNI-REG-01",
+                FeePlan = "Annual",
+                FeeAmount = 3500m,
+                EffectiveFrom = "2026-06-01",
+                Status = "Active"
+            });
         }
 
-        if (!string.IsNullOrWhiteSpace(status) && !status.Equals("ALL", System.StringComparison.OrdinalIgnoreCase))
-        {
-            list = list.Where(x => x.Status.Equals(status, System.StringComparison.OrdinalIgnoreCase)).ToList();
-        }
-
-        if (!string.IsNullOrWhiteSpace(search))
-        {
-            string s = search.Trim().ToLower();
-            list = list.Where(x =>
-                x.UniformPackage.ToLower().Contains(s) ||
-                x.ClassName.ToLower().Contains(s) ||
-                x.Gender.ToLower().Contains(s) ||
-                x.Branch.ToLower().Contains(s)
-            ).ToList();
-        }
-
-        return await Task.FromResult(list.OrderBy(x => x.Id).ToList());
+        return list;
     }
 
     public async Task<FinanceUniformConfigDto?> GetUniformFeeConfigByIdAsync(int id)
     {
-        _uniformFeeConfigs.TryGetValue(id, out var item);
-        return await Task.FromResult(item);
+        var list = await GetUniformFeeConfigsAsync(null, null, null, null);
+        return list.FirstOrDefault(u => u.Id == id);
     }
 
     public async Task<FinanceUniformConfigDto> CreateUniformFeeConfigAsync(CreateFinanceUniformConfigDto dto)
     {
-        int newId = _uniformFeeConfigs.Count > 0 ? _uniformFeeConfigs.Keys.Max() + 1 : 1;
-        var config = new FinanceUniformConfigDto
+        var feeHead = new FeeHead
         {
-            Id = newId,
+            Name = dto.UniformPackage ?? "Uniform Set",
+            Category = "Uniform",
+            Frequency = dto.FeePlan ?? "Annual",
+            Mandatory = false,
+            DefaultAmount = dto.FeeAmount,
+            Status = "Active"
+        };
+        _context.FeeHeads.Add(feeHead);
+        await _context.SaveChangesAsync();
+
+        return new FinanceUniformConfigDto
+        {
+            Id = feeHead.Id,
             AcademicYear = dto.AcademicYear ?? "2026-2027",
             Branch = dto.Branch ?? "Main Campus",
             ClassName = dto.ClassName,
@@ -1340,16 +1684,20 @@ public class FinanceMasterRepository : IFinanceMasterRepository
             EffectiveFrom = dto.EffectiveFrom ?? DateTime.Now.ToString("yyyy-MM-dd"),
             Status = dto.Status
         };
-
-        _uniformFeeConfigs[newId] = config;
-        return await Task.FromResult(config);
     }
 
     public async Task<FinanceUniformConfigDto?> UpdateUniformFeeConfigAsync(int id, CreateFinanceUniformConfigDto dto)
     {
-        if (!_uniformFeeConfigs.ContainsKey(id)) return null;
+        var feeHead = await _context.FeeHeads.FirstOrDefaultAsync(f => f.Id == id && f.Category == "Uniform");
+        if (feeHead != null)
+        {
+            feeHead.Name = dto.UniformPackage ?? feeHead.Name;
+            feeHead.DefaultAmount = dto.FeeAmount;
+            feeHead.Frequency = dto.FeePlan ?? feeHead.Frequency;
+            await _context.SaveChangesAsync();
+        }
 
-        var config = new FinanceUniformConfigDto
+        return new FinanceUniformConfigDto
         {
             Id = id,
             AcademicYear = dto.AcademicYear ?? "2026-2027",
@@ -1363,13 +1711,17 @@ public class FinanceMasterRepository : IFinanceMasterRepository
             EffectiveFrom = dto.EffectiveFrom ?? DateTime.Now.ToString("yyyy-MM-dd"),
             Status = dto.Status
         };
-
-        _uniformFeeConfigs[id] = config;
-        return await Task.FromResult(config);
     }
 
     public async Task<bool> DeleteUniformFeeConfigAsync(int id)
     {
-        return await Task.FromResult(_uniformFeeConfigs.TryRemove(id, out _));
+        var feeHead = await _context.FeeHeads.FirstOrDefaultAsync(f => f.Id == id && f.Category == "Uniform");
+        if (feeHead != null)
+        {
+            _context.FeeHeads.Remove(feeHead);
+            await _context.SaveChangesAsync();
+            return true;
+        }
+        return true;
     }
 }

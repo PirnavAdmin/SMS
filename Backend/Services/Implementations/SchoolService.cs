@@ -1024,34 +1024,32 @@ public class SchoolService : ISchoolService
 	public async Task<string?> EnrollStudentAsync(int id)
 	{
 		var app = await _schoolRepository.GetApplicationByIdAsync(id);
-		if (app != null)
+		if (app == null)
 		{
-			if (app.Status != "Enrolled")
+			if (id > 100000)
 			{
-				app.Status = "Enrolled";
+				int studentId = id - 100000;
+				var st = await _context.Students.FindAsync(studentId);
+				if (st != null)
+				{
+					st.Status = "Enrolled";
+					st.IsDeleted = false;
+					await _context.SaveChangesAsync();
+					return true;
+				}
 			}
-			if (string.IsNullOrWhiteSpace(app.AdmissionNo) || app.AdmissionNo.StartsWith("REG-", StringComparison.OrdinalIgnoreCase))
-			{
-				app.AdmissionNo = await GenerateSequentialAdmissionNoAsync();
-			}
-			await _schoolRepository.SaveChangesAsync();
-			return await SyncToAdmissionsTableAsync(app);
+			throw new NotFoundException($"Admission application with ID {id} not found.");
 		}
 
-		if (id > 100000)
+		if (string.Equals(app.Status, "Enrolled", StringComparison.OrdinalIgnoreCase))
 		{
-			int studentId = id - 100000;
-			var st = await _context.Students.FindAsync(studentId);
-			if (st != null)
-			{
-				st.Status = "Enrolled";
-				st.IsDeleted = false;
-				await _context.SaveChangesAsync();
-				return st.AdmissionNumber;
-			}
+			throw new BadRequestException($"Application with ID {id} is already enrolled.");
 		}
 
-		return null;
+		app.Status = "Enrolled";
+		await _schoolRepository.SaveChangesAsync();
+		await SyncToAdmissionsTableAsync(app);
+		return true;
 	}
 
 	public async Task<bool> UpdateApplicationStatusAsync(int id, string status)

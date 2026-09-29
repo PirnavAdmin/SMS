@@ -804,15 +804,22 @@ export const Sidebar: React.FC<SidebarProps> = ({
                             const SubIcon = sub.icon;
                             const isSubActive =
                               activeModule === sub.id ||
+                              (sub.id === "finance-student-fees" &&
+                                [
+                                  "finance-student-fees",
+                                  "finance-student-assignment",
+                                  "finance-student-fee-assignment",
+                                  "finance-due-fees",
+                                  "finance-due",
+                                  "finance-dues",
+                                  "finance-ledger",
+                                  "finance-student-ledger",
+                                ].includes(activeModule)) ||
                               (sub.id === "finance-fee-collection" &&
                                 [
                                   "finance-fee-collection",
                                   "finance-fee-receipts",
-                                  "finance-due-fees",
-                                  "finance-due",
-                                  "finance-dues",
                                   "finance-promoted-dues",
-                                  "finance-dashboard",
                                   "fees",
                                 ].includes(activeModule)) ||
                               (sub.id === "finance-masters" &&

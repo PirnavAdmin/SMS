@@ -46,11 +46,11 @@ export const RefundManagementView: React.FC = () => {
 
   // Refund Form Fields
   const [receiptSelectionMode, setReceiptSelectionMode] = useState<'select' | 'manual'>('select');
-  const [receiptNo, setReceiptNo] = useState('REC-2026-0891');
-  const [amount, setAmount] = useState<number>(1000);
-  const [reason, setReason] = useState<string>('Scholarship Adjustment');
+  const [receiptNo, setReceiptNo] = useState('');
+  const [amount, setAmount] = useState<number>(0);
+  const [reason, setReason] = useState<string>('');
   const [refundMode, setRefundMode] = useState<string>('Bank Transfer');
-  const [remarks, setRemarks] = useState('Refund adjustment request');
+  const [remarks, setRemarks] = useState('');
 
   // Unique Classes and Sections across students
   const availableClasses = useMemo(() => {
@@ -110,10 +110,10 @@ export const RefundManagementView: React.FC = () => {
         (st.admissionNumber && (fp as any).admissionNo === st.admissionNumber)
       );
       if (studentReceipts.length > 0) {
-        setReceiptNo(studentReceipts[0].receiptNo || `REC-2026-${st.id}`);
+        setReceiptNo(studentReceipts[0].receiptNo || '');
         setReceiptSelectionMode('select');
       } else {
-        setReceiptNo(`REC-2026-${Math.floor(1000 + Math.random() * 9000)}`);
+        setReceiptNo('');
         setReceiptSelectionMode('manual');
       }
     }

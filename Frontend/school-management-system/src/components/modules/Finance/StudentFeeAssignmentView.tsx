@@ -4,13 +4,16 @@ import { UserPlus, Search, CheckSquare, Square, CheckCircle, CheckCircle2, Arrow
 import { useData } from '../../../context/DataContext';
 import { useAuth } from '../../../context/AuthContext';
 import { useToast } from '../../../context/ToastContext';
-import { FeePolicyType, FeeHeadAssignmentBreakdown, Student } from '../../../types';
+import { FeePolicyType, FeeHeadAssignmentBreakdown, Student, FeeScheduleTerm } from '../../../types';
 import { matchesClassName, compareClassesAscending } from '../../../utils/classSorter';
+import { formatDateForDisplay } from '../../../utils/dateValidation';
+import { getApplicableTermsForLateAdmission, getApplicableMonthIndicesForLateAdmission } from '../../../utils/lateAdmission';
 
 export const StudentFeeAssignmentView: React.FC = () => {
   const {
     students,
     updateStudent,
+    feeHeads,
     dynamicFeeStructures,
     studentFeeAssignments,
     assignFeeStructure,
@@ -18,6 +21,7 @@ export const StudentFeeAssignmentView: React.FC = () => {
     bulkAssignFeeStructure,
     academicClasses,
     academicYears,
+    academicYearFeeSchedules,
     generateInstallmentsForStudent,
     getStudentFeeLedger
   } = useData();
@@ -36,6 +40,7 @@ export const StudentFeeAssignmentView: React.FC = () => {
   const [isConfigModalOpen, setIsConfigModalOpen] = useState(false);
   const [modalPolicy, setModalPolicy] = useState<FeePolicyType>('Full Annual Fee');
   const [modalAdmissionDate, setModalAdmissionDate] = useState<string>('');
+  const [selectedTermIds, setSelectedTermIds] = useState<string[]>([]);
   const [modalAdjustmentReason, setModalAdjustmentReason] = useState<string>('');
   const [modalStructureId, setModalStructureId] = useState<string>('');
   const [customBreakdown, setCustomBreakdown] = useState<FeeHeadAssignmentBreakdown[]>([]);
@@ -48,6 +53,54 @@ export const StudentFeeAssignmentView: React.FC = () => {
   const currentAYObj = academicYears.find((ay) => ay.academicYear === activeAY);
   const ayStartDate = currentAYObj?.startDate || `${activeAY.slice(0, 4)}-06-01`;
   const ayEndDate = currentAYObj?.endDate || `${parseInt(activeAY.slice(0, 4), 10) + 1}-05-31`;
+
+  // Active Schedule & Configured Terms for Policy calculation
+  const activeAYSchedule = (academicYearFeeSchedules || []).find((s) => s.academicYear === activeAY);
+  const configuredTerms: FeeScheduleTerm[] =
+    activeAYSchedule && activeAYSchedule.terms && activeAYSchedule.terms.length > 0
+      ? [...activeAYSchedule.terms].sort((a, b) => a.sequence - b.sequence)
+      : [
+          {
+            id: `T1-${activeAY}`,
+            termName: 'Term 1',
+            startDate: ayStartDate,
+            endDate: `${activeAY.slice(0, 4)}-08-31`,
+            dueDate: `${activeAY.slice(0, 4)}-06-15`,
+            sequence: 1,
+            status: 'Active'
+          },
+          {
+            id: `T2-${activeAY}`,
+            termName: 'Term 2',
+            startDate: `${activeAY.slice(0, 4)}-09-01`,
+            endDate: `${activeAY.slice(0, 4)}-11-30`,
+            dueDate: `${activeAY.slice(0, 4)}-09-15`,
+            sequence: 2,
+            status: 'Active'
+          },
+          {
+            id: `T3-${activeAY}`,
+            termName: 'Term 3',
+            startDate: `${activeAY.slice(0, 4)}-12-01`,
+            endDate: `${parseInt(activeAY.slice(0, 4), 10) + 1}-02-28`,
+            dueDate: `${activeAY.slice(0, 4)}-12-15`,
+            sequence: 3,
+            status: 'Active'
+          },
+          {
+            id: `T4-${activeAY}`,
+            termName: 'Term 4',
+            startDate: `${parseInt(activeAY.slice(0, 4), 10) + 1}-03-01`,
+            endDate: ayEndDate,
+            dueDate: `${parseInt(activeAY.slice(0, 4), 10) + 1}-03-15`,
+            sequence: 4,
+            status: 'Active'
+          }
+        ];
+
+  const applicableTerms = getApplicableTermsForLateAdmission(modalAdmissionDate, configuredTerms);
+  const ayStartYear = parseInt(activeAY.split('-')[0], 10) || 2026;
+  const applicableMonthIndices = getApplicableMonthIndicesForLateAdmission(modalAdmissionDate, ayStartYear);
 
   const filteredStudents = students
     .filter((s) => {
@@ -120,6 +173,10 @@ export const StudentFeeAssignmentView: React.FC = () => {
     const admDate = st.joiningDate || (st as any).admissionDate || `${activeAY.slice(0, 4)}-08-15`;
     setModalAdmissionDate(admDate);
 
+    const initialApplicableTerms = getApplicableTermsForLateAdmission(admDate, configuredTerms);
+    const initialTermIds = initialApplicableTerms.map((t) => t.id || t.termName);
+    setSelectedTermIds(initialTermIds);
+
     // Check existing assignment
     const existingAssign = studentFeeAssignments.find(
       (a) => a.studentId === st.id && a.academicYear === activeAY
@@ -127,7 +184,12 @@ export const StudentFeeAssignmentView: React.FC = () => {
 
     let initialPolicy: FeePolicyType = 'Full Annual Fee';
     if (existingAssign) {
-      const p = existingAssign.feePolicy === 'Pro-rata' ? 'Monthly Pro-rated Fee' : (existingAssign.feePolicy || 'Full Annual Fee');
+      let p = existingAssign.feePolicy || 'Full Annual Fee';
+      if (p === 'Pro-rata' || p === 'Monthly Pro-rated' || p === 'Monthly Pro-rated Fee') {
+        p = 'Term-wise';
+      } else if (p === 'Custom' || p === 'Custom Amount') {
+        p = 'Full Annual Fee';
+      }
       initialPolicy = p as FeePolicyType;
       setModalPolicy(initialPolicy);
       setModalAdjustmentReason(existingAssign.adjustmentReason || '');
@@ -137,17 +199,27 @@ export const StudentFeeAssignmentView: React.FC = () => {
     }
 
     // Initialize Breakdown Table
-    buildModalBreakdown(matchingDfs, initialPolicy, admDate);
+    buildModalBreakdown(matchingDfs, initialPolicy, admDate, existingAssign?.feeBreakdown, initialTermIds);
     setIsPreviewOpen(false);
     setIsConfigModalOpen(true);
   };
 
   // Build Breakdown Table
-  const buildModalBreakdown = (dfsObj: any, policy: FeePolicyType, admDateStr: string) => {
+  const buildModalBreakdown = (
+    dfsObj: any,
+    policy: FeePolicyType,
+    admDateStr: string,
+    existingBreakdown?: FeeHeadAssignmentBreakdown[],
+    overrideTermIds?: string[]
+  ) => {
     if (!dfsObj || !dfsObj.items) {
       setCustomBreakdown([]);
       return;
     }
+
+    const activeTerms = overrideTermIds || selectedTermIds;
+    const activeTermsCount = activeTerms.length > 0 ? activeTerms.length : configuredTerms.length;
+    const termsRatio = configuredTerms.length > 0 ? activeTermsCount / configuredTerms.length : 1.0;
 
     const itemsList: FeeHeadAssignmentBreakdown[] = dfsObj.items.map((item: any) => {
       const orig = item.amount;
@@ -155,7 +227,21 @@ export const StudentFeeAssignmentView: React.FC = () => {
       const categoryLower = (item.category || '').toLowerCase();
       const freq = item.frequency || item.feePlan || '';
 
+      const fh = (feeHeads || []).find(
+        (f) =>
+          f.id === item.feeHeadId ||
+          f.name?.toLowerCase() === item.feeHeadName?.toLowerCase()
+      );
+      const eligibility =
+        item.paymentEligibility ||
+        fh?.paymentEligibility ||
+        'Both One-Time and Term-Wise';
+      const catApplicableTerms: string[] = item.applicableTerms || fh?.applicableTerms || [];
+
+      const isOneTimeOnly = eligibility === 'One-Time Only';
+
       const isFixedFullAmountHead =
+        isOneTimeOnly ||
         freq === 'One Time' ||
         freq === 'Annual' ||
         freq === 'One Term' ||
@@ -166,53 +252,57 @@ export const StudentFeeAssignmentView: React.FC = () => {
         categoryLower.includes('caution') ||
         hNameLower.includes('annual');
 
+      const prevMatch = (existingBreakdown || customBreakdown)?.find(
+        (b) => b.feeHeadId === item.feeHeadId || b.feeHeadName?.toLowerCase() === item.feeHeadName?.toLowerCase()
+      );
+      const isSelected = isOneTimeOnly ? true : (prevMatch ? prevMatch.isSelected !== false : true);
+
       let assigned = orig;
 
-      if (isFixedFullAmountHead || policy === 'Full Annual Fee') {
+      if (isOneTimeOnly) {
+        assigned = orig;
+      } else if (!isSelected) {
+        assigned = 0;
+      } else if (isFixedFullAmountHead || policy === 'Full Annual Fee') {
         // One Time, Annual, One Term -> Full amount
         assigned = orig;
-      } else if (
-        policy === 'Monthly Pro-rated Fee' ||
-        policy === 'Monthly Pro-rated' ||
-        policy === 'Pro-rata' ||
-        (policy as string) === 'Monthly'
-      ) {
-        // Late Admission = Monthly -> Apply remaining months
-        if (admDateStr) {
-          const admMonth = new Date(admDateStr).getMonth() + 1; // 1-12 (Jan=1, Apr=4, Jun=6)
-          const startMonthIdx = admMonth >= 4 ? admMonth - 4 : admMonth + 8;
-          const remainingMonths = Math.max(1, 12 - startMonthIdx);
-          assigned = Math.round((orig / 12) * remainingMonths);
-        }
       } else if (policy === 'Term-wise' || policy === 'Term-wise Fee') {
-        // Late Admission = Term-wise -> Apply remaining terms
-        if (admDateStr) {
-          const admMonth = new Date(admDateStr).getMonth() + 1;
-          let remainingTermsRatio = 1.0;
-          if (admMonth >= 4 && admMonth <= 6) remainingTermsRatio = 1.0;
-          else if (admMonth >= 7 && admMonth <= 9) remainingTermsRatio = 0.75;
-          else if (admMonth >= 10 && admMonth <= 12) remainingTermsRatio = 0.50;
-          else remainingTermsRatio = 0.25;
-
-          assigned = Math.round(orig * remainingTermsRatio);
+        let catTerms = configuredTerms;
+        if (catApplicableTerms && catApplicableTerms.length > 0) {
+          const filtered = configuredTerms.filter((t) =>
+            catApplicableTerms.some((at) =>
+              String(at).toLowerCase() === String(t.id).toLowerCase() ||
+              String(at).toLowerCase() === String(t.termName).toLowerCase() ||
+              String(at) === String(t.sequence)
+            )
+          );
+          if (filtered.length > 0) catTerms = filtered;
         }
-      } else if (policy === 'Custom' || policy === 'Custom Amount') {
-        assigned = orig;
+
+        let appTerms = catTerms;
+        if (admDateStr) {
+          appTerms = getApplicableTermsForLateAdmission(admDateStr, catTerms);
+        }
+        const categoryTermsRatio = configuredTerms.length > 0 ? appTerms.length / configuredTerms.length : 1.0;
+        assigned = Math.round(orig * categoryTermsRatio);
       }
 
       return {
         feeHeadId: item.feeHeadId,
         feeHeadName: item.feeHeadName,
-        category: item.feeHeadName.includes('Tuition')
+        category: item.category || (item.feeHeadName.includes('Tuition')
           ? 'Tuition Fee'
           : item.feeHeadName.includes('Transport')
           ? 'Transport Fee'
-          : 'Other Fee',
-        billingType: isFixedFullAmountHead ? 'One-time' : 'Monthly',
+          : 'Other Fee'),
+        billingType: isOneTimeOnly ? 'One-time' : (isFixedFullAmountHead ? 'One-time' : 'Monthly'),
         originalAmount: orig,
         assignedAmount: assigned,
-        adjustmentAmount: assigned - orig,
-        isEligibleForProRata: !isFixedFullAmountHead
+        adjustmentAmount: isSelected ? (assigned - orig) : -orig,
+        isEligibleForProRata: !isFixedFullAmountHead,
+        isSelected: isSelected,
+        paymentEligibility: eligibility,
+        applicableTerms: catApplicableTerms
       };
     });
 
@@ -222,27 +312,104 @@ export const StudentFeeAssignmentView: React.FC = () => {
   const handlePolicyChange = (newPolicy: FeePolicyType) => {
     setModalPolicy(newPolicy);
     const dfsObj = dynamicFeeStructures.find((d) => d.id === modalStructureId);
-    buildModalBreakdown(dfsObj, newPolicy, modalAdmissionDate);
+    buildModalBreakdown(dfsObj, newPolicy, modalAdmissionDate, customBreakdown);
   };
 
   const handleAdmissionDateChange = (newDate: string) => {
     setModalAdmissionDate(newDate);
     const dfsObj = dynamicFeeStructures.find((d) => d.id === modalStructureId);
-    buildModalBreakdown(dfsObj, modalPolicy, newDate);
+    const appTerms = getApplicableTermsForLateAdmission(newDate, configuredTerms);
+    const termIds = appTerms.map((t) => t.id || t.termName);
+    setSelectedTermIds(termIds);
+    buildModalBreakdown(dfsObj, modalPolicy, newDate, customBreakdown, termIds);
   };
 
-  const handleCustomAmountChange = (headId: string, valStr: string) => {
-    const numericVal = parseFloat(valStr) || 0;
+  const handleToggleTerm = (termId: string) => {
+    setSelectedTermIds((prev) => {
+      let next: string[];
+      if (prev.includes(termId)) {
+        if (prev.length <= 1) {
+          addToast('warning', 'Minimum Term Required', 'At least one term must be selected.');
+          return prev;
+        }
+        next = prev.filter((id) => id !== termId);
+      } else {
+        next = [...prev, termId];
+      }
+
+      const dfsObj = dynamicFeeStructures.find((d) => d.id === modalStructureId);
+      buildModalBreakdown(dfsObj, modalPolicy, modalAdmissionDate, customBreakdown, next);
+      return next;
+    });
+  };
+
+  const handleToggleFeeHead = (headId: string) => {
     setCustomBreakdown((prev) =>
-      prev.map((item) =>
-        item.feeHeadId === headId
-          ? {
-              ...item,
-              assignedAmount: Math.max(0, numericVal),
-              adjustmentAmount: Math.max(0, numericVal) - item.originalAmount
-            }
-          : item
-      )
+      prev.map((item) => {
+        if (item.feeHeadId !== headId) return item;
+        if ((item as any).paymentEligibility === 'One-Time Only') return item;
+        const nextSelected = item.isSelected === false ? true : false;
+        
+        const hNameLower = (item.feeHeadName || '').toLowerCase();
+        const categoryLower = (item.category || '').toLowerCase();
+        const isFixedFullAmountHead = !item.isEligibleForProRata || hNameLower.includes('admission') || categoryLower.includes('admission');
+
+        let assigned = item.originalAmount;
+        if (!nextSelected) {
+          assigned = 0;
+        } else if (isFixedFullAmountHead || modalPolicy === 'Full Annual Fee') {
+          assigned = item.originalAmount;
+        } else if (modalPolicy === 'Term-wise' || modalPolicy === 'Term-wise Fee') {
+          if (modalAdmissionDate) {
+            const appTerms = getApplicableTermsForLateAdmission(modalAdmissionDate, configuredTerms);
+            const remainingTermsRatio = configuredTerms.length > 0 ? appTerms.length / configuredTerms.length : 1.0;
+            assigned = Math.round(item.originalAmount * remainingTermsRatio);
+          }
+        }
+
+        return {
+          ...item,
+          isSelected: nextSelected,
+          assignedAmount: assigned,
+          adjustmentAmount: nextSelected ? (assigned - item.originalAmount) : -item.originalAmount
+        };
+      })
+    );
+  };
+
+  const handleToggleAllFeeHeads = () => {
+    const selectable = customBreakdown.filter((i) => (i as any).paymentEligibility !== 'One-Time Only');
+    const allSelectableSelected = selectable.length > 0 && selectable.every((i) => i.isSelected !== false);
+    setCustomBreakdown((prev) =>
+      prev.map((item) => {
+        if ((item as any).paymentEligibility === 'One-Time Only') {
+          return { ...item, isSelected: true, assignedAmount: item.originalAmount, adjustmentAmount: 0 };
+        }
+        const nextSelected = !allSelectableSelected;
+        const hNameLower = (item.feeHeadName || '').toLowerCase();
+        const categoryLower = (item.category || '').toLowerCase();
+        const isFixedFullAmountHead = !item.isEligibleForProRata || hNameLower.includes('admission') || categoryLower.includes('admission');
+
+        let assigned = item.originalAmount;
+        if (!nextSelected) {
+          assigned = 0;
+        } else if (isFixedFullAmountHead || modalPolicy === 'Full Annual Fee') {
+          assigned = item.originalAmount;
+        } else if (modalPolicy === 'Term-wise' || modalPolicy === 'Term-wise Fee') {
+          if (modalAdmissionDate) {
+            const appTerms = getApplicableTermsForLateAdmission(modalAdmissionDate, configuredTerms);
+            const remainingTermsRatio = configuredTerms.length > 0 ? appTerms.length / configuredTerms.length : 1.0;
+            assigned = Math.round(item.originalAmount * remainingTermsRatio);
+          }
+        }
+
+        return {
+          ...item,
+          isSelected: nextSelected,
+          assignedAmount: assigned,
+          adjustmentAmount: nextSelected ? (assigned - item.originalAmount) : -item.originalAmount
+        };
+      })
     );
   };
 
@@ -256,11 +423,6 @@ export const StudentFeeAssignmentView: React.FC = () => {
         'Invalid Admission Date',
         `Admission date (${modalAdmissionDate}) must fall within current academic year dates (${ayStartDate} to ${ayEndDate}).`
       );
-      return;
-    }
-
-    if (modalPolicy === 'Custom' && !modalAdjustmentReason.trim()) {
-      addToast('warning', 'Reason Required', 'Please provide an adjustment reason for Custom Amount policy.');
       return;
     }
 
@@ -281,7 +443,7 @@ export const StudentFeeAssignmentView: React.FC = () => {
     addToast(
       'success',
       'Fee Assignment Saved',
-      `Assigned ${modalPolicy === 'Custom' ? 'Custom Amount' : modalPolicy} policy for ${configStudent.firstName}.`
+      `Assigned ${modalPolicy} policy for ${configStudent.firstName}.`
     );
 
     setIsConfigModalOpen(false);
@@ -300,11 +462,6 @@ export const StudentFeeAssignmentView: React.FC = () => {
       return;
     }
 
-    if (modalPolicy === 'Custom' && !modalAdjustmentReason.trim()) {
-      addToast('warning', 'Reason Required', 'Please provide an adjustment reason for Custom Amount policy.');
-      return;
-    }
-
     const tempAssignment = {
       id: 'TEMP-ASSIGN',
       studentId: configStudent.id,
@@ -315,13 +472,15 @@ export const StudentFeeAssignmentView: React.FC = () => {
       className: configStudent.className,
       section: configStudent.section,
       feeStructureId: modalStructureId,
-      assignedFeeHeads: customBreakdown.map(i => ({
-        feeHeadId: i.feeHeadId,
-        feeHeadName: i.feeHeadName,
-        category: i.category,
-        amount: i.assignedAmount
-      })),
-      baseFeeTotal: assignedTotalSum,
+      assignedFeeHeads: customBreakdown
+        .filter((i) => i.isSelected !== false && i.assignedAmount > 0)
+        .map((i) => ({
+          feeHeadId: i.feeHeadId,
+          feeHeadName: i.feeHeadName,
+          category: i.category,
+          amount: i.assignedAmount
+        })),
+      baseFeeTotal: customBreakdown.reduce((sum, i) => sum + (i.isSelected !== false ? i.assignedAmount : 0), 0),
       assignedDate: new Date().toISOString().split('T')[0],
       status: 'Active' as const,
       feePolicy: modalPolicy
@@ -336,7 +495,7 @@ export const StudentFeeAssignmentView: React.FC = () => {
       section: configStudent.section,
       studentType: (configStudent.studentType === 'Residential' ? 'Hosteller' : 'Day Scholar') as 'Day Scholar' | 'Hosteller',
       academicYear: activeAY,
-      feeItems: customBreakdown.map(i => ({
+      feeItems: customBreakdown.map((i) => ({
         headId: i.feeHeadId,
         headName: i.feeHeadName,
         category: i.category,
@@ -344,18 +503,19 @@ export const StudentFeeAssignmentView: React.FC = () => {
         scholarshipDeduction: 0,
         discountDeduction: 0,
         fineAmount: 0,
-        finalAmount: i.assignedAmount,
-        isApplicable: true,
-        status: 'Pending' as const
+        finalAmount: i.isSelected !== false ? i.assignedAmount : 0,
+        isApplicable: i.isSelected !== false && i.assignedAmount > 0,
+        status: 'Pending' as const,
+        remarks: i.isSelected === false ? 'Excluded for student' : undefined
       })),
-      totalOriginalAmount: originalTotalSum,
-      grossAmount: originalTotalSum,
+      totalOriginalAmount: customBreakdown.reduce((sum, i) => sum + (i.isSelected !== false ? i.originalAmount : 0), 0),
+      grossAmount: customBreakdown.reduce((sum, i) => sum + (i.isSelected !== false ? i.originalAmount : 0), 0),
       totalScholarship: 0,
       totalDiscount: 0,
       totalFine: 0,
-      totalPayable: assignedTotalSum,
+      totalPayable: customBreakdown.reduce((sum, i) => sum + (i.isSelected !== false ? i.assignedAmount : 0), 0),
       paidAmount: 0,
-      dueBalance: assignedTotalSum,
+      dueBalance: customBreakdown.reduce((sum, i) => sum + (i.isSelected !== false ? i.assignedAmount : 0), 0),
       createdAt: new Date().toISOString().split('T')[0],
       updatedAt: new Date().toISOString().split('T')[0],
       scholarshipAmount: 0,
@@ -369,8 +529,27 @@ export const StudentFeeAssignmentView: React.FC = () => {
     setIsPreviewOpen(true);
   };
 
-  const originalTotalSum = customBreakdown.reduce((sum, i) => sum + i.originalAmount, 0);
-  const assignedTotalSum = customBreakdown.reduce((sum, i) => sum + i.assignedAmount, 0);
+  const autoIncludedItems = customBreakdown.filter(
+    (i) => (i as any).paymentEligibility === 'One-Time Only'
+  );
+  const selectableItems = customBreakdown.filter(
+    (i) => (i as any).paymentEligibility !== 'One-Time Only'
+  );
+
+  const autoIncludedTotal = autoIncludedItems.reduce((sum, i) => sum + i.assignedAmount, 0);
+  const autoIncludedOriginalTotal = autoIncludedItems.reduce((sum, i) => sum + i.originalAmount, 0);
+
+  const selectableAssignedTotal = selectableItems.reduce(
+    (sum, i) => sum + (i.isSelected !== false ? i.assignedAmount : 0),
+    0
+  );
+  const selectableOriginalTotal = selectableItems.reduce(
+    (sum, i) => sum + (i.isSelected !== false ? i.originalAmount : 0),
+    0
+  );
+
+  const originalTotalSum = autoIncludedOriginalTotal + selectableOriginalTotal;
+  const assignedTotalSum = autoIncludedTotal + selectableAssignedTotal;
   const adjustmentTotalSum = assignedTotalSum - originalTotalSum;
 
   return (
@@ -381,7 +560,7 @@ export const StudentFeeAssignmentView: React.FC = () => {
           <UserPlus className="w-6 h-6 text-sky-500" /> Student Fee Assignment & Policy Management
         </h2>
         <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 font-medium">
-          Allocate standard fee structures or configure mid-year admission adjustments (Full Annual Fee, Monthly Pro-rated Fee, Term-wise Fee, Custom Amount).
+          Allocate standard fee structures or configure student fee policies (Full Annual Fee, Term-wise Fee).
         </p>
       </div>
 
@@ -523,8 +702,8 @@ export const StudentFeeAssignmentView: React.FC = () => {
                         {assignment ? (
                           <span className="px-2.5 py-1 rounded-lg bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300 font-bold text-[11px]">
                             {assignment.feePolicy === 'Pro-rata' || assignment.feePolicy === 'Monthly Pro-rated' || assignment.feePolicy === 'Monthly Pro-rated Fee'
-                              ? 'Monthly Pro-rated Fee'
-                              : (assignment.feePolicy === 'Custom' || assignment.feePolicy === 'Custom Amount' ? 'Custom Amount' : assignment.feePolicy || 'Full Annual Fee')}
+                              ? 'Term-wise Fee'
+                              : (assignment.feePolicy === 'Custom' || assignment.feePolicy === 'Custom Amount' ? 'Full Annual Fee' : assignment.feePolicy || 'Full Annual Fee')}
                           </span>
                         ) : (
                           <span className="px-2 py-0.5 rounded bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300 font-bold text-[11px]">
@@ -658,123 +837,231 @@ export const StudentFeeAssignmentView: React.FC = () => {
                     <label className="block font-black text-slate-900 dark:text-slate-100 uppercase tracking-wider text-[11px]">
                       Select Fee Policy:
                     </label>
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                       <label
                         className={`p-3 rounded-2xl border cursor-pointer transition-all flex flex-col justify-between ${
                           modalPolicy === 'Full Annual Fee'
                             ? 'border-sky-600 bg-sky-50/80 dark:bg-sky-950/60 ring-2 ring-sky-500/20'
-                            : 'border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900'
+                            : 'border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:border-slate-300'
                         }`}
                       >
                         <div className="flex items-center justify-between">
-                          <span className="font-bold text-slate-900 dark:text-slate-100">Full Annual Fee</span>
+                          <span className="font-extrabold text-slate-900 dark:text-slate-100 text-xs">Full Annual Fee</span>
                           <input
                             type="radio"
                             name="feePolicy"
                             checked={modalPolicy === 'Full Annual Fee'}
                             onChange={() => handlePolicyChange('Full Annual Fee')}
+                            className="w-4 h-4 text-sky-600 focus:ring-sky-500 cursor-pointer"
                           />
                         </div>
-                        <span className="text-[10px] text-slate-400 mt-1">Standard full session fee</span>
+                        <span className="text-[10px] text-slate-400 mt-1 font-medium">Standard full annual fee (1 installment)</span>
                       </label>
 
                       <label
                         className={`p-3 rounded-2xl border cursor-pointer transition-all flex flex-col justify-between ${
-                          modalPolicy === 'Monthly Pro-rated Fee' || modalPolicy === 'Monthly Pro-rated' || modalPolicy === 'Pro-rata'
+                          modalPolicy === 'Term-wise' || modalPolicy === 'Term-wise Fee'
                             ? 'border-sky-600 bg-sky-50/80 dark:bg-sky-950/60 ring-2 ring-sky-500/20'
-                            : 'border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900'
+                            : 'border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:border-slate-300'
                         }`}
                       >
                         <div className="flex items-center justify-between">
-                          <span className="font-bold text-slate-900 dark:text-slate-100">Monthly Pro-rated</span>
+                          <span className="font-extrabold text-slate-900 dark:text-slate-100 text-xs">Term-wise Fee</span>
                           <input
                             type="radio"
                             name="feePolicy"
-                            checked={modalPolicy === 'Monthly Pro-rated Fee' || modalPolicy === 'Monthly Pro-rated' || modalPolicy === 'Pro-rata'}
-                            onChange={() => handlePolicyChange('Monthly Pro-rated Fee')}
-                          />
-                        </div>
-                        <span className="text-[10px] text-slate-400 mt-1">Pro-rated for remaining months</span>
-                      </label>
-
-                      <label
-                        className={`p-3 rounded-2xl border cursor-pointer transition-all flex flex-col justify-between ${
-                          modalPolicy === 'Term-wise'
-                            ? 'border-sky-600 bg-sky-50/80 dark:bg-sky-950/60 ring-2 ring-sky-500/20'
-                            : 'border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900'
-                        }`}
-                      >
-                        <div className="flex items-center justify-between">
-                          <span className="font-bold text-slate-900 dark:text-slate-100">Term-wise Fee</span>
-                          <input
-                            type="radio"
-                            name="feePolicy"
-                            checked={modalPolicy === 'Term-wise'}
+                            checked={modalPolicy === 'Term-wise' || modalPolicy === 'Term-wise Fee'}
                             onChange={() => handlePolicyChange('Term-wise')}
+                            className="w-4 h-4 text-sky-600 focus:ring-sky-500 cursor-pointer"
                           />
                         </div>
-                        <span className="text-[10px] text-slate-400 mt-1">Applicable terms remaining</span>
-                      </label>
-
-                      <label
-                        className={`p-3 rounded-2xl border cursor-pointer transition-all flex flex-col justify-between ${
-                          modalPolicy === 'Custom'
-                            ? 'border-sky-600 bg-sky-50/80 dark:bg-sky-950/60 ring-2 ring-sky-500/20'
-                            : 'border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900'
-                        }`}
-                      >
-                        <div className="flex items-center justify-between">
-                          <span className="font-bold text-slate-900 dark:text-slate-100">Custom Amount</span>
-                          <input
-                            type="radio"
-                            name="feePolicy"
-                            checked={modalPolicy === 'Custom'}
-                            onChange={() => handlePolicyChange('Custom')}
-                          />
-                        </div>
-                        <span className="text-[10px] text-slate-400 mt-1">Manual admin adjustments</span>
+                        <span className="text-[10px] text-slate-400 mt-1 font-medium">
+                          {selectedTermIds.length} of {configuredTerms.length} terms selected ({formatCurrency(selectedTermIds.length > 0 ? Math.floor(selectableAssignedTotal / selectedTermIds.length) : selectableAssignedTotal)}/term {autoIncludedTotal > 0 ? `+ ${formatCurrency(autoIncludedTotal)} One-Time` : ''})
+                        </span>
                       </label>
                     </div>
                   </div>
 
-                  {/* Adjustment Reason input for Custom Amount */}
-                  {modalPolicy === 'Custom' && (
-                    <div className="p-3.5 rounded-2xl bg-amber-50/60 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900/60 space-y-2">
-                      <label className="block font-bold text-amber-900 dark:text-amber-300">
-                        Adjustment Reason / Notes (Required for Custom Amount):
-                      </label>
-                      <input
-                        type="text"
-                        placeholder="e.g. Mid-Year Late Joining Discount, Special Financial Concession"
-                        value={modalAdjustmentReason}
-                        onChange={(e) => setModalAdjustmentReason(e.target.value)}
-                        className="w-full px-3 py-2 rounded-xl border border-amber-300 dark:border-amber-800 bg-white dark:bg-slate-900 font-medium text-xs text-slate-900 dark:text-slate-100"
-                      />
+                  {/* Academic Year Terms & Schedule Breakdown */}
+                  {modalPolicy !== 'Full Annual Fee' && (
+                    <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-3 shadow-xs">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
+                        <div className="flex items-center gap-2">
+                          <span className="font-black text-slate-900 dark:text-slate-100 uppercase tracking-wider text-[11px]">
+                            Select Terms to Configure ({configuredTerms.length} Terms Configured):
+                          </span>
+                          <span className="px-2 py-0.5 rounded-md bg-sky-100 text-sky-800 dark:bg-sky-950 dark:text-sky-300 font-extrabold text-[10px] font-mono">
+                            {activeAY}
+                          </span>
+                        </div>
+                        <span className="text-[11px] font-bold text-sky-600 dark:text-sky-400 bg-sky-50 dark:bg-sky-950/60 px-2.5 py-1 rounded-full border border-sky-200 dark:border-sky-800">
+                          {selectedTermIds.length} of {configuredTerms.length} Terms Selected ({formatCurrency(selectedTermIds.length > 0 ? Math.floor(selectableAssignedTotal / selectedTermIds.length) : selectableAssignedTotal)}/term {autoIncludedTotal > 0 ? `+ ${formatCurrency(autoIncludedTotal)} One-Time` : ''})
+                        </span>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-2.5">
+                        {configuredTerms.map((term) => {
+                          const termKey = term.id || term.termName;
+                          const isSelected = selectedTermIds.includes(termKey);
+                          return (
+                            <div
+                              key={termKey}
+                              onClick={() => handleToggleTerm(termKey)}
+                              className={`p-3 rounded-2xl border text-xs flex flex-col justify-between transition-all cursor-pointer select-none ${
+                                isSelected
+                                  ? 'border-emerald-500 bg-emerald-50/80 dark:bg-emerald-950/40 ring-2 ring-emerald-500/20 shadow-xs'
+                                  : 'border-slate-200 bg-slate-100/70 dark:bg-slate-800/40 dark:border-slate-800 opacity-60 hover:opacity-100'
+                              }`}
+                            >
+                              <div className="flex items-center justify-between font-bold">
+                                <div className="flex items-center gap-2">
+                                  <input
+                                    type="checkbox"
+                                    checked={isSelected}
+                                    onChange={() => {}} // handled by parent onClick
+                                    className="w-4 h-4 rounded text-emerald-600 focus:ring-emerald-500 cursor-pointer"
+                                  />
+                                  <span className="text-slate-900 dark:text-white font-extrabold">{term.termName}</span>
+                                </div>
+                                {isSelected ? (
+                                  <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200 text-[10px] font-black flex items-center gap-1">
+                                    <Check className="w-3 h-3" /> Configured
+                                  </span>
+                                ) : (
+                                  <span className="px-2 py-0.5 rounded-full bg-slate-200 text-slate-600 dark:bg-slate-700 dark:text-slate-400 text-[10px] font-semibold">
+                                    Excluded
+                                  </span>
+                                )}
+                              </div>
+
+                              <div className="mt-2 space-y-0.5 text-[10px] font-medium text-slate-600 dark:text-slate-400">
+                                <div>
+                                  <span className="text-slate-400">Period: </span>
+                                  <span className="font-mono">{formatDateForDisplay(term.startDate)}</span> to <span className="font-mono">{formatDateForDisplay(term.endDate)}</span>
+                                </div>
+                                <div>
+                                  <span className="text-slate-400">Due Date: </span>
+                                  <span className="font-mono font-bold text-slate-800 dark:text-slate-200">{formatDateForDisplay(term.dueDate)}</span>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+
+                      <div className="p-2.5 rounded-xl bg-sky-50 dark:bg-sky-950/40 border border-sky-200 dark:border-sky-900 text-[11px] text-sky-800 dark:text-sky-300 font-semibold flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-2">
+                          <Info className="w-4 h-4 shrink-0 text-sky-600" />
+                          <span>
+                            Configuring <strong>{selectedTermIds.length} of {configuredTerms.length} terms</strong> ({configuredTerms.filter(t => selectedTermIds.includes(t.id || t.termName)).map(t => t.termName).join(', ')}) for student fee assignment.
+                          </span>
+                        </div>
+                        <span className="px-2.5 py-1 rounded-lg bg-sky-600 text-white font-bold text-xs font-mono shrink-0 shadow-xs">
+                          {formatCurrency(selectedTermIds.length > 0 ? Math.floor(selectableAssignedTotal / selectedTermIds.length) : selectableAssignedTotal)} / term {autoIncludedTotal > 0 ? `+ ${formatCurrency(autoIncludedTotal)} One-Time` : ''}
+                        </span>
+                      </div>
+                    </div>
+                  )}
+
+                  {modalPolicy === 'Full Annual Fee' && (
+                    <div className="p-3.5 rounded-2xl bg-sky-50 dark:bg-sky-950/40 border border-sky-200 dark:border-sky-900 text-[11px] text-sky-800 dark:text-sky-300 font-semibold flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2">
+                        <Info className="w-4 h-4 shrink-0 text-sky-600" />
+                        <span>
+                          Full Annual Fee policy selected. The complete annual fee (<strong>{formatCurrency(assignedTotalSum)}</strong>) will be charged in 1 installment.
+                        </span>
+                      </div>
+                      <span className="px-2.5 py-1 rounded-lg bg-sky-600 text-white font-bold text-xs font-mono shrink-0 shadow-xs">
+                        1 Installment ({formatCurrency(assignedTotalSum)})
+                      </span>
+                    </div>
+                  )}
+
+                  {/* Automatically Included One-Time Fees Banner */}
+                  {autoIncludedItems.length > 0 && (
+                    <div className="p-4 rounded-2xl bg-purple-50/80 dark:bg-purple-950/40 border border-purple-200 dark:border-purple-800 space-y-2.5 shadow-xs">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <CheckCircle2 className="w-4 h-4 text-purple-600 dark:text-purple-400" />
+                          <span className="font-black text-purple-900 dark:text-purple-200 uppercase tracking-wider text-[11px]">
+                            Automatically Included One-Time Fees:
+                          </span>
+                          <span className="px-2 py-0.5 rounded-full bg-purple-200/70 text-purple-900 dark:bg-purple-900 dark:text-purple-200 font-extrabold text-[10px]">
+                            {autoIncludedItems.length} Fee Head{autoIncludedItems.length > 1 ? 's' : ''} (Total: {formatCurrency(autoIncludedTotal)})
+                          </span>
+                        </div>
+                        <span className="px-2 py-0.5 rounded text-[10px] font-extrabold bg-purple-100 text-purple-800 dark:bg-purple-900/60 dark:text-purple-300">
+                          Auto-Assigned (Non-Deselectable)
+                        </span>
+                      </div>
+                      
+                      <p className="text-[11px] text-purple-700 dark:text-purple-300 font-medium">
+                        Fee categories configured with payment eligibility <strong>One-Time Only (Single Installment)</strong> are automatically included as single-installment obligations and cannot be deselected.
+                      </p>
+
+                      <div className="flex flex-wrap gap-2 pt-1">
+                        {autoIncludedItems.map((item) => (
+                          <div
+                            key={item.feeHeadId}
+                            className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white dark:bg-slate-900 border border-purple-200 dark:border-purple-800 text-slate-800 dark:text-slate-200 font-bold text-xs shadow-2xs"
+                          >
+                            <span className="text-purple-700 dark:text-purple-300">{item.feeHeadName}</span>
+                            <span className="font-mono text-slate-900 dark:text-white font-extrabold">{formatCurrency(item.assignedAmount)}</span>
+                            <span className="text-[9px] px-1.5 py-0.5 rounded bg-purple-100 text-purple-700 dark:bg-purple-950 dark:text-purple-300 uppercase font-black">
+                              One-Time
+                            </span>
+                          </div>
+                        ))}
+                      </div>
                     </div>
                   )}
 
                   {/* Fee Head Breakdown Table */}
                   <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <span className="font-black text-slate-900 dark:text-slate-100 uppercase tracking-wider text-[11px]">
-                        Fee Head Breakdown:
-                      </span>
-                      <button
-                        onClick={() => {
-                          const dfsObj = dynamicFeeStructures.find((d) => d.id === modalStructureId);
-                          buildModalBreakdown(dfsObj, modalPolicy, modalAdmissionDate);
-                        }}
-                        className="text-[11px] font-bold text-sky-600 hover:text-sky-700 flex items-center gap-1 cursor-pointer"
-                      >
-                        <RefreshCw className="w-3.5 h-3.5" /> Recalculate
-                      </button>
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div className="flex items-center gap-2">
+                        <span className="font-black text-slate-900 dark:text-slate-100 uppercase tracking-wider text-[11px]">
+                          Selectable Fee Types Breakdown:
+                        </span>
+                        <span className="px-2.5 py-0.5 rounded-full bg-sky-100 text-sky-800 dark:bg-sky-950 dark:text-sky-300 font-extrabold text-[10px]">
+                          {selectableItems.filter((i) => i.isSelected !== false).length} of {selectableItems.length} Fee Types Selected
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-3 text-[11px]">
+                        <button
+                          type="button"
+                          onClick={handleToggleAllFeeHeads}
+                          className="font-bold text-sky-600 hover:text-sky-700 underline cursor-pointer"
+                        >
+                          {selectableItems.length > 0 && selectableItems.every((i) => i.isSelected !== false) ? 'Deselect All' : 'Select All'}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const dfsObj = dynamicFeeStructures.find((d) => d.id === modalStructureId);
+                            buildModalBreakdown(dfsObj, modalPolicy, modalAdmissionDate);
+                          }}
+                          className="font-bold text-slate-500 hover:text-slate-700 flex items-center gap-1 cursor-pointer"
+                        >
+                          <RefreshCw className="w-3.5 h-3.5" /> Recalculate
+                        </button>
+                      </div>
                     </div>
 
                     <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-hidden shadow-xs">
                       <table className="w-full text-left text-xs border-collapse">
                         <thead>
                           <tr className="bg-slate-100 dark:bg-slate-800/80 text-[10px] font-black uppercase tracking-wider text-slate-500 border-b">
-                            <th className="p-3">Fee Head</th>
+                            <th className="p-3 w-10 text-center">
+                              <input
+                                type="checkbox"
+                                checked={selectableItems.length > 0 && selectableItems.every((i) => i.isSelected !== false)}
+                                onChange={handleToggleAllFeeHeads}
+                                className="w-4 h-4 rounded text-sky-600 focus:ring-sky-500 cursor-pointer"
+                                title="Select/Deselect All Selectable Fee Types"
+                              />
+                            </th>
+                            <th className="p-3">Fee Head / Type</th>
                             <th className="p-3">Billing Config</th>
                             <th className="p-3 font-mono">Standard Amount</th>
                             <th className="p-3 font-mono">Assigned Amount</th>
@@ -782,58 +1069,88 @@ export const StudentFeeAssignmentView: React.FC = () => {
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-medium">
-                          {customBreakdown.map((item) => (
-                            <tr key={item.feeHeadId}>
-                              <td className="p-3 font-bold text-slate-800 dark:text-slate-200">
-                                {item.feeHeadName}
-                              </td>
-                              <td className="p-3">
-                                <span
-                                  className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                                    item.isEligibleForProRata
-                                      ? 'bg-sky-100 text-sky-700 dark:bg-sky-950 dark:text-sky-300'
-                                      : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400'
-                                  }`}
-                                >
-                                  {item.isEligibleForProRata ? 'Monthly (Pro-rata Eligible)' : 'One-Time (Fixed)'}
-                                </span>
-                              </td>
-                              <td className="p-3 font-mono font-bold text-slate-600 dark:text-slate-400">
-                                {formatCurrency(item.originalAmount)}
-                              </td>
-                              <td className="p-3">
-                                {modalPolicy === 'Custom' ? (
+                          {selectableItems.map((item) => {
+                            const isSelected = item.isSelected !== false;
+                            return (
+                              <tr
+                                key={item.feeHeadId}
+                                className={`transition-colors ${
+                                  isSelected
+                                    ? 'bg-white dark:bg-slate-900 hover:bg-slate-50/80 dark:hover:bg-slate-800/40'
+                                    : 'bg-slate-50/60 dark:bg-slate-950/40 opacity-60 hover:opacity-100'
+                                }`}
+                              >
+                                <td className="p-3 text-center">
                                   <input
-                                    type="number"
-                                    value={item.assignedAmount}
-                                    onChange={(e) => handleCustomAmountChange(item.feeHeadId, e.target.value)}
-                                    className="w-28 px-2 py-1 rounded-lg border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 font-bold font-mono text-slate-900 dark:text-white text-xs"
+                                    type="checkbox"
+                                    checked={isSelected}
+                                    onChange={() => handleToggleFeeHead(item.feeHeadId)}
+                                    className="w-4 h-4 rounded text-sky-600 focus:ring-sky-500 cursor-pointer"
                                   />
-                                ) : (
-                                  <span className="font-mono font-extrabold text-slate-900 dark:text-white">
-                                    {formatCurrency(item.assignedAmount)}
+                                </td>
+                                <td className="p-3 font-bold text-slate-800 dark:text-slate-200">
+                                  <div className="flex items-center gap-2">
+                                    <span className={isSelected ? 'text-slate-900 dark:text-white font-extrabold' : 'line-through text-slate-400'}>
+                                      {item.feeHeadName}
+                                    </span>
+                                    {!isSelected && (
+                                      <span className="px-1.5 py-0.5 rounded bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-300 text-[9px] font-black uppercase">
+                                        Not Applied
+                                      </span>
+                                    )}
+                                  </div>
+                                </td>
+                                <td className="p-3">
+                                  <span
+                                    className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                                      (item as any).paymentEligibility === 'One-Time Only'
+                                        ? 'bg-purple-100 text-purple-700 dark:bg-purple-950 dark:text-purple-300'
+                                        : (item as any).paymentEligibility === 'Term-Wise Allowed'
+                                        ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300'
+                                        : item.isEligibleForProRata
+                                        ? 'bg-sky-100 text-sky-700 dark:bg-sky-950 dark:text-sky-300'
+                                        : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400'
+                                    }`}
+                                  >
+                                    {(item as any).paymentEligibility || (item.isEligibleForProRata ? 'Term-Wise Allowed' : 'Both One-Time and Term-Wise')}
                                   </span>
-                                )}
-                              </td>
-                              <td className="p-3 font-mono font-bold text-right">
-                                <span
-                                  className={
-                                    item.adjustmentAmount < 0
-                                      ? 'text-emerald-600 dark:text-emerald-400'
-                                      : item.adjustmentAmount > 0
-                                      ? 'text-rose-600'
-                                      : 'text-slate-400'
-                                  }
-                                >
-                                  {item.adjustmentAmount === 0 ? '₹0' : formatCurrency(item.adjustmentAmount)}
-                                </span>
-                              </td>
-                            </tr>
-                          ))}
+                                </td>
+                                <td className="p-3 font-mono font-bold text-slate-600 dark:text-slate-400">
+                                  {formatCurrency(item.originalAmount)}
+                                </td>
+                                <td className="p-3">
+                                  {!isSelected ? (
+                                    <span className="text-slate-400 dark:text-slate-500 font-semibold italic text-[11px]">
+                                      Excluded (₹0)
+                                    </span>
+                                  ) : (
+                                    <span className="font-mono font-extrabold text-slate-900 dark:text-white">
+                                      {formatCurrency(item.assignedAmount)}
+                                    </span>
+                                  )}
+                                </td>
+                                <td className="p-3 font-mono font-bold text-right">
+                                  <span
+                                    className={
+                                      !isSelected
+                                        ? 'text-slate-400 line-through'
+                                        : item.adjustmentAmount < 0
+                                        ? 'text-emerald-600 dark:text-emerald-400'
+                                        : item.adjustmentAmount > 0
+                                        ? 'text-rose-600'
+                                        : 'text-slate-400'
+                                    }
+                                  >
+                                    {!isSelected ? `-${formatCurrency(item.originalAmount)}` : item.adjustmentAmount === 0 ? '₹0' : formatCurrency(item.adjustmentAmount)}
+                                  </span>
+                                </td>
+                              </tr>
+                            );
+                          })}
                         </tbody>
                         <tfoot>
                           <tr className="bg-slate-100 dark:bg-slate-800 font-black border-t text-xs">
-                            <td colSpan={2} className="p-3 uppercase">Total Breakdown Summary:</td>
+                            <td colSpan={3} className="p-3 uppercase">Total Breakdown Summary ({autoIncludedItems.length + selectableItems.filter(i => i.isSelected !== false).length} Active Fee Heads):</td>
                             <td className="p-3 font-mono text-slate-600 dark:text-slate-400">{formatCurrency(originalTotalSum)}</td>
                             <td className="p-3 font-mono text-sky-700 dark:text-sky-300">{formatCurrency(assignedTotalSum)}</td>
                             <td className="p-3 font-mono text-right">

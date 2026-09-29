@@ -1,11 +1,12 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   FileSpreadsheet, ArrowUpRight, ArrowDownLeft, Plus, Search, Filter, Calendar,
   Building2, CreditCard, Eye, RotateCcw, AlertTriangle, ShieldCheck, CheckCircle2,
   Printer, Download, FileText, IndianRupee, Layers, SlidersHorizontal, BookOpen, Clock,
-  ChevronRight, ExternalLink, X, Paperclip, Lock, RefreshCw, PieChart, Sparkles, TrendingUp, Edit
+  ChevronRight, ExternalLink, X, Paperclip, Lock, RefreshCw, PieChart, Sparkles, TrendingUp, Edit, Trash2
 } from 'lucide-react';
 import { formatCurrency } from '../../../utils/currency';
+import { formatDateForDisplay } from '../../../utils/dateValidation';
 import { FinanceTransaction, FinancialAccount, FinancialCategory, FinancialBudget, TransactionType } from '../../../types';
 import { useData } from '../../../context/DataContext';
 import { useAuth } from '../../../context/AuthContext';
@@ -14,13 +15,14 @@ import { exportToExcel } from '../../../utils/excelExport';
 
 interface TransactionsMasterLedgerViewProps {
   filterType?: string;
+  initialSubTab?: 'ledger' | 'categories-accounts' | 'budget';
 }
 
-export const TransactionsMasterLedgerView: React.FC<TransactionsMasterLedgerViewProps> = ({ filterType }) => {
+export const TransactionsMasterLedgerView: React.FC<TransactionsMasterLedgerViewProps> = ({ filterType, initialSubTab }) => {
   const {
     financeTransactions, addFinanceTransaction, reverseFinanceTransaction, cancelFinanceTransaction,
-    financialAccounts, addFinancialAccount, updateFinancialAccount,
-    financialCategories, addFinancialCategory, updateFinancialCategory,
+    financialAccounts, addFinancialAccount, updateFinancialAccount, deleteFinancialAccount,
+    financialCategories, addFinancialCategory, updateFinancialCategory, deleteFinancialCategory,
     financialBudgets, updateFinancialBudget,
     students, staff
   } = useData();
@@ -29,7 +31,15 @@ export const TransactionsMasterLedgerView: React.FC<TransactionsMasterLedgerView
   const { addToast } = useToast();
 
   // Active Sub-Tab: 'ledger' | 'manual' | 'categories-accounts' | 'budget' | 'audit'
-  const [activeSubTab, setActiveSubTab] = useState<'ledger' | 'categories-accounts' | 'budget'>('ledger');
+  const [activeSubTab, setActiveSubTab] = useState<'ledger' | 'categories-accounts' | 'budget'>(
+    initialSubTab || 'ledger'
+  );
+
+  useEffect(() => {
+    if (initialSubTab) {
+      setActiveSubTab(initialSubTab);
+    }
+  }, [initialSubTab]);
 
   // Filter States
   const [searchQuery, setSearchQuery] = useState('');
@@ -37,6 +47,14 @@ export const TransactionsMasterLedgerView: React.FC<TransactionsMasterLedgerView
   const [typeFilter, setTypeFilter] = useState<'All' | 'Income' | 'Expense'>(
     filterType === 'Expense' ? 'Expense' : filterType === 'Income' ? 'Income' : 'All'
   );
+
+  useEffect(() => {
+    if (filterType) {
+      const newType = filterType === 'Expense' ? 'Expense' : filterType === 'Income' ? 'Income' : 'All';
+      setTypeFilter(newType);
+      setAppliedFilters(prev => ({ ...prev, typeFilter: newType }));
+    }
+  }, [filterType]);
   const [sourceModuleFilter, setSourceModuleFilter] = useState<string>('All');
   const [categoryFilter, setCategoryFilter] = useState<string>('All');
   const [paymentModeFilter, setPaymentModeFilter] = useState<string>('All');
@@ -720,7 +738,7 @@ export const TransactionsMasterLedgerView: React.FC<TransactionsMasterLedgerView
                         {/* Txn ID & Date */}
                         <td className="p-4 font-mono font-bold text-slate-900 dark:text-white">
                           <span className="block text-sky-600 dark:text-sky-400">{txn.transactionId}</span>
-                          <span className="text-[10px] text-slate-400 font-normal">{txn.date} {txn.time || ''}</span>
+                          <span className="text-[10px] text-slate-400 font-normal">{formatDateForDisplay(txn.date)} {txn.time || ''}</span>
                         </td>
 
                         {/* Type & Category */}
@@ -858,6 +876,21 @@ export const TransactionsMasterLedgerView: React.FC<TransactionsMasterLedgerView
                     >
                       <Edit className="w-3.5 h-3.5" />
                     </button>
+                    {!cat.isSystem && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (window.confirm(`Are you sure you want to delete category "${cat.name}"?`)) {
+                            deleteFinancialCategory(cat.id);
+                            addToast('info', 'Category Removed', `Category '${cat.name}' was deleted.`);
+                          }
+                        }}
+                        title="Delete Category"
+                        className="p-1.5 rounded-lg bg-rose-100 dark:bg-rose-950 text-rose-600 dark:text-rose-300 hover:bg-rose-200 dark:hover:bg-rose-900 transition-all cursor-pointer"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    )}
                   </div>
                 </div>
               ))}
@@ -902,6 +935,19 @@ export const TransactionsMasterLedgerView: React.FC<TransactionsMasterLedgerView
                       className="p-1.5 rounded-lg bg-emerald-100 dark:bg-emerald-950 text-emerald-600 dark:text-emerald-300 hover:bg-emerald-200 dark:hover:bg-emerald-900 transition-all cursor-pointer"
                     >
                       <Edit className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (window.confirm(`Are you sure you want to delete account "${acc.accountName}"?`)) {
+                          deleteFinancialAccount(acc.id);
+                          addToast('info', 'Account Removed', `Account '${acc.accountName}' was deleted.`);
+                        }
+                      }}
+                      title="Delete Account"
+                      className="p-1.5 rounded-lg bg-rose-100 dark:bg-rose-950 text-rose-600 dark:text-rose-300 hover:bg-rose-200 dark:hover:bg-rose-900 transition-all cursor-pointer"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
                     </button>
                   </div>
                 </div>
@@ -1031,7 +1077,7 @@ export const TransactionsMasterLedgerView: React.FC<TransactionsMasterLedgerView
                 </div>
                 <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/50 border">
                   <span className="text-[10px] font-bold text-slate-400 uppercase">Date & Time</span>
-                  <p className="font-bold text-slate-900 dark:text-white">{selectedTxnForDetail.date} {selectedTxnForDetail.time || ''}</p>
+                  <p className="font-bold text-slate-900 dark:text-white">{formatDateForDisplay(selectedTxnForDetail.date)} {selectedTxnForDetail.time || ''}</p>
                 </div>
                 <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/50 border">
                   <span className="text-[10px] font-bold text-slate-400 uppercase">Branch & Academic Year</span>

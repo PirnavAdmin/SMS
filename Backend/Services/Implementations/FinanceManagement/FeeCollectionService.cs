@@ -37,6 +37,12 @@ public class FeeCollectionService : IFeeCollectionService
         return _repository.GetDueFeesSummaryAsync(className, sectionName, minDaysOverdue);
     }
 
+    public Task<CategoryWiseDuesResponseDto> GetCategoryWiseDuesAsync(
+        string? branch = null, string? academicYear = null, string? className = null, string? sectionName = null)
+    {
+        return _repository.GetCategoryWiseDuesAsync(branch, academicYear, className, sectionName);
+    }
+
     public Task<List<PromotedDueStudentDto>> GetPromotedStudentsDuesAsync(
         string? search = null, string? className = null, string? previousAcademicYear = null, string? status = null)
     {
@@ -59,8 +65,8 @@ public class FeeCollectionService : IFeeCollectionService
         return _repository.CancelReceiptAsync(receiptNo, reason);
     }
 
-    public Task<FinanceDashboardStatsDto> GetDashboardStatsAsync()
+    public Task<FinanceDashboardStatsDto> GetDashboardStatsAsync(string? branch = null, string? academicYear = null)
     {
-        return _repository.GetDashboardStatsAsync();
+        return _repository.GetDashboardStatsAsync(branch, academicYear);
     }
 }

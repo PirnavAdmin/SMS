@@ -34,6 +34,7 @@ import {
   getItemFeeFromFinanceConfig,
 } from "../utils/uniformUtils";
 import { matchesClassName, normalizeClassName, compareClassesAscending } from "../utils/classSorter";
+import { buildTermMonthMap } from "../utils/lateAdmission";
 import {
   createStaffLetterRecord,
   saveStaffLetterRecord,
@@ -228,6 +229,48 @@ export function normalizeToISODate(dateStr?: string | null): string {
   }
 
   return trimmed;
+}
+
+export function normalizeAcademicYear(dateOrAy?: string | null): string {
+  if (!dateOrAy || typeof dateOrAy !== "string") return "2026-2027";
+  const trimmed = dateOrAy.trim();
+  if (!trimmed) return "2026-2027";
+  const match = trimmed.match(/^(\d{4})[-/](\d{2,4})$/);
+  if (match) {
+    const startYear = parseInt(match[1], 10);
+    let endYear = parseInt(match[2], 10);
+    if (endYear < 100) {
+      const century = Math.floor(startYear / 100) * 100;
+      endYear = century + endYear;
+    }
+    return `${startYear}-${endYear}`;
+  }
+  return trimmed;
+}
+
+export function matchesAcademicYear(ay1?: string | null, ay2?: string | null): boolean {
+  if (!ay1 || !ay2) return true;
+  return normalizeAcademicYear(ay1) === normalizeAcademicYear(ay2);
+}
+
+export function normalizeInstId(id?: string | null): string {
+  if (!id) return "";
+  let norm = id.replace(/(\d{4})-(\d{2})(?!\d)/g, (match, p1, p2) => {
+    const start = parseInt(p1, 10);
+    const end = parseInt(p2, 10);
+    const century = Math.floor(start / 100) * 100;
+    return `${start}-${century + end}`;
+  });
+  return norm.toLowerCase().trim();
+}
+
+export function matchesInstallmentId(id1?: string | null, id2?: string | null): boolean {
+  if (!id1 || !id2) return false;
+  const n1 = normalizeInstId(id1);
+  const n2 = normalizeInstId(id2);
+  if (n1 === n2) return true;
+  if (n1.length > 5 && n2.length > 5 && (n1.includes(n2) || n2.includes(n1))) return true;
+  return false;
 }
 import {
   initialCertificateTemplates,
@@ -811,6 +854,7 @@ interface DataContextType {
     id: string,
     updates: Partial<FinancialAccount>,
   ) => void;
+  deleteFinancialAccount: (id: string) => void;
 
   financialCategories: FinancialCategory[];
   addFinancialCategory: (category: Omit<FinancialCategory, "id">) => void;
@@ -818,6 +862,7 @@ interface DataContextType {
     id: string,
     updates: Partial<FinancialCategory>,
   ) => void;
+  deleteFinancialCategory: (id: string) => void;
 
   financialBudgets: FinancialBudget[];
   updateFinancialBudget: (id: string, allocatedAmount: number) => void;
@@ -1728,12 +1773,14 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     getStored("fee_structures", initialFeeStructures),
   );
   const [feePayments, setFeePayments] = useState<FeePayment[]>(() => {
-    const versionKey = "edu_db_fee_payments_wipe_uniform_v999_fresh_wipe";
+    const versionKey = "edu_db_fee_payments_wipe_orphan_v1000";
     const stored = getStored<FeePayment[]>("fee_payments", initialFeePayments);
     
     if (!localStorage.getItem(versionKey)) {
       const cleaned = (stored || []).filter((p) => {
         if (!p) return false;
+        if (p.studentId === "1204" || p.receiptNo === "REC-2026-3912" || p.id === "3912") return false;
+        if (!p.studentName || p.studentName.startsWith("Student #")) return false;
         const notesLower = (p.notes || "").toLowerCase();
         const recLower = (p.receiptNo || "").toLowerCase();
         const hasAlloc =
@@ -2549,15 +2596,16 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   const [studentFeeLedgers, setStudentFeeLedgers] = useState<
     StudentFeeLedger[]
   >(() => {
-    const version = localStorage.getItem("edu_db_full_ledgers_v112_exact_classes");
+    const version = localStorage.getItem("edu_db_full_ledgers_v115_strictly_configured_only");
     if (!version) {
-      localStorage.setItem("edu_db_full_ledgers_v112_exact_classes", "true");
+      localStorage.setItem("edu_db_full_ledgers_v115_strictly_configured_only", "true");
       localStorage.removeItem("student_fee_ledgers");
       localStorage.removeItem("edu_db_student_fee_ledgers");
       localStorage.removeItem("student_fee_installments");
       localStorage.removeItem("edu_db_student_fee_installments");
       localStorage.removeItem("edu_db_fee_payments");
       localStorage.removeItem("fee_payments");
+      localStorage.removeItem("edu_db_full_ledgers_v112_exact_classes");
       localStorage.removeItem("edu_db_full_ledgers_v110_dynamic_only");
       localStorage.removeItem("edu_db_full_ledgers_v105_realmysql");
       localStorage.removeItem("edu_db_full_ledgers_v106_strictly_dynamic");
@@ -4279,7 +4327,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     return [];
   };
 
-  const fetchAcademicClasses = async () => {
+  const fetchAcademicClasses = useCallback(async () => {
     if (activeRequests.current["classes"]) {
       return activeRequests.current["classes"];
     }
@@ -4462,10 +4510,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       }
     })();
     activeRequests.current["classes"] = promise;
-    return promise;
-  };
+  }, []);
 
-  const fetchSubjects = async () => {
+  const fetchSubjects = useCallback(async () => {
     try {
       const data: any = await fetchAcademicSubjectsApi();
       const dataArray = Array.isArray(data) ? data : data?.data || [];
@@ -4486,9 +4533,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     } catch (err: any) {
       console.warn("Error fetching subjects", err);
     }
-  };
+  }, []);
 
-  const fetchPeriods = async () => {
+  const fetchPeriods = useCallback(async () => {
     try {
       const data: any = await fetchAcademicPeriodsApi();
       const dataArray = Array.isArray(data) ? data : data?.data || [];
@@ -4551,9 +4598,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     } catch (err: any) {
       console.warn("Error fetching periods", err);
     }
-  };
+  }, []);
 
-  const fetchTimetables = async (force: boolean = false) => {
+  const fetchTimetables = useCallback(async (force: boolean = false) => {
     try {
       const data: any = await fetchAllTimetablesApi(selectedAcademicYear);
       const dataArray = Array.isArray(data) ? data : data?.data || [];
@@ -4595,7 +4642,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     } catch (err) {
       console.warn("Failed to fetch all timetables from backend", err);
     }
-  };
+  }, [selectedAcademicYear, selectedBranch]);
 
   const getPersistedOptionalFees = (
     appId?: string,
@@ -4645,7 +4692,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     } catch (e) {}
   };
 
-  const fetchAdmissions = async () => {
+  const fetchAdmissions = useCallback(async () => {
     if (activeRequests.current["admissions"]) {
       return activeRequests.current["admissions"];
     }
@@ -4861,9 +4908,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     })();
     activeRequests.current["admissions"] = promise;
     return promise;
-  };
+  }, [addToast]);
 
-  const fetchDepartments = async () => {
+  const fetchDepartments = useCallback(async () => {
     try {
       const response: any = await fetchDepartmentsApi();
       const dataArray = Array.isArray(response)
@@ -4883,9 +4930,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     } catch (err) {
       console.warn("Failed to fetch departments", err);
     }
-  };
+  }, []);
 
-  const fetchDesignations = async () => {
+  const fetchDesignations = useCallback(async () => {
     try {
       const response: any = await fetchDesignationsApi();
       const dataArray = Array.isArray(response)
@@ -4908,7 +4955,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     } catch (err) {
       console.warn("Failed to fetch designations", err);
     }
-  };
+  }, []);
 
   const fetchBranches = useCallback(async () => {
     try {
@@ -4933,7 +4980,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     };
   }, [fetchBranches]);
 
-  const fetchStaff = async () => {
+  const fetchStaff = useCallback(async () => {
     if (activeRequests.current["staff"]) {
       return activeRequests.current["staff"];
     }
@@ -4941,99 +4988,101 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       try {
         const response = await fetchStaffApi();
         if (response && response.success && response.data) {
-          const mappedStaff: Staff[] = response.data.map((item: any) => {
-            const cat = (item.employeeCategory || "").toLowerCase();
-            const isTeaching =
-              (cat.includes("teaching") && !cat.includes("non-teaching")) ||
-              cat.includes("teacher") ||
-              cat.includes("faculty") ||
-              cat.includes("professor");
+          setStaff((prevStaff) => {
+            const mappedStaff: Staff[] = response.data.map((item: any) => {
+              const cat = (item.employeeCategory || "").toLowerCase();
+              const isTeaching =
+                (cat.includes("teaching") && !cat.includes("non-teaching")) ||
+                cat.includes("teacher") ||
+                cat.includes("faculty") ||
+                cat.includes("professor");
 
-            const itemId = (
-              item.staffId !== undefined && item.staffId !== null
-                ? item.staffId
-                : item.id !== undefined && item.id !== null
-                  ? item.id
-                  : ""
-            ).toString();
-            const itemEmpId = item.employeeId || item.empId || "";
+              const itemId = (
+                item.staffId !== undefined && item.staffId !== null
+                  ? item.staffId
+                  : item.id !== undefined && item.id !== null
+                    ? item.id
+                    : ""
+              ).toString();
+              const itemEmpId = item.employeeId || item.empId || "";
 
-            // Look up in current staff state to preserve local workload data
-            const existing = staff.find(
-              (s) => s.id === itemId || s.empId === itemEmpId,
-            );
+              // Look up in current staff state to preserve local workload data
+              const existing = prevStaff.find(
+                (s) => s.id === itemId || s.empId === itemEmpId,
+              );
 
-            return {
-              id: itemId,
-              empId: itemEmpId,
-              employeeCategory: isTeaching ? "Teacher" : "Staff",
-              firstName: item.firstName,
-              middleName: item.middleName || "",
-              lastName: item.lastName,
-              email: item.email || "",
-              phone: item.phone || "",
-              alternateMobile: item.alternateMobile || "",
-              gender: item.gender || "Male",
-              dob: item.dateOfBirth ? item.dateOfBirth.split("T")[0] : "",
-              bloodGroup: item.bloodGroup || "",
-              aadhaarNumber: item.aadhaarNumber || "",
-              panNumber: item.panNumber || "",
-              joiningDate: item.joiningDate
-                ? item.joiningDate.split("T")[0]
-                : "",
-              qualification: item.qualification || "",
-              experienceYears: item.experienceRecords
-                ? item.experienceRecords.reduce(
-                    (total: number, rec: any) =>
-                      total + (rec.yearsOfExperience || 0),
-                    0,
-                  )
-                : 0,
-              salary: item.monthlySalary || 0,
-              designation: item.designation || "",
-              department: item.department || "",
-              role: item.systemRole || (isTeaching ? "Teacher" : "Staff"),
-              profileStatus: "Completed",
-              status: item.isActive ? "Active" : "Inactive",
-              employmentType:
-                item.employmentType || existing?.employmentType || "",
-              address:
-                item.presentAddress ||
-                item.residentialAddress ||
-                item.address ||
-                "",
-              presentAddress:
-                item.presentAddress || item.residentialAddress || "",
-              permanentAddress: item.permanentAddress || "",
-              city: item.city || "",
-              state: item.state || "",
-              pinCode: item.pinCode || "",
-              country: item.country || "India",
-              assignedClasses:
-                item.assignedClasses || existing?.assignedClasses || [],
-              assignedSubjects:
-                item.assignedSubjects || existing?.assignedSubjects || [],
-              isClassTeacherEligible:
-                item.isClassTeacherEligible !== undefined
-                  ? item.isClassTeacherEligible
-                  : existing?.isClassTeacherEligible || false,
-              bankDetails: {
-                accountHolderName: item.accountHolderName || "",
-                accountNumber: item.accountNumber || "",
-                bankName: item.bankName || "",
-                branch: item.branchName || "",
-                ifscCode: item.ifscCode || "",
-                upiId: item.upiId || "",
-              },
-              qualifications:
-                item.qualifications || existing?.qualifications || [],
-              experienceRecords:
-                item.experienceRecords || existing?.experienceRecords || [],
-              documents: item.documents || existing?.documents || [],
-              branch: item.branchName || item.branch || existing?.branch || "Main Campus",
-            };
+              return {
+                id: itemId,
+                empId: itemEmpId,
+                employeeCategory: isTeaching ? "Teacher" : "Staff",
+                firstName: item.firstName,
+                middleName: item.middleName || "",
+                lastName: item.lastName,
+                email: item.email || "",
+                phone: item.phone || "",
+                alternateMobile: item.alternateMobile || "",
+                gender: item.gender || "Male",
+                dob: item.dateOfBirth ? item.dateOfBirth.split("T")[0] : "",
+                bloodGroup: item.bloodGroup || "",
+                aadhaarNumber: item.aadhaarNumber || "",
+                panNumber: item.panNumber || "",
+                joiningDate: item.joiningDate
+                  ? item.joiningDate.split("T")[0]
+                  : "",
+                qualification: item.qualification || "",
+                experienceYears: item.experienceRecords
+                  ? item.experienceRecords.reduce(
+                      (total: number, rec: any) =>
+                        total + (rec.yearsOfExperience || 0),
+                      0,
+                    )
+                  : 0,
+                salary: item.monthlySalary || 0,
+                designation: item.designation || "",
+                department: item.department || "",
+                role: item.systemRole || (isTeaching ? "Teacher" : "Staff"),
+                profileStatus: "Completed",
+                status: item.isActive ? "Active" : "Inactive",
+                employmentType:
+                  item.employmentType || existing?.employmentType || "",
+                address:
+                  item.presentAddress ||
+                  item.residentialAddress ||
+                  item.address ||
+                  "",
+                presentAddress:
+                  item.presentAddress || item.residentialAddress || "",
+                permanentAddress: item.permanentAddress || "",
+                city: item.city || "",
+                state: item.state || "",
+                pinCode: item.pinCode || "",
+                country: item.country || "India",
+                assignedClasses:
+                  item.assignedClasses || existing?.assignedClasses || [],
+                assignedSubjects:
+                  item.assignedSubjects || existing?.assignedSubjects || [],
+                isClassTeacherEligible:
+                  item.isClassTeacherEligible !== undefined
+                    ? item.isClassTeacherEligible
+                    : existing?.isClassTeacherEligible || false,
+                bankDetails: {
+                  accountHolderName: item.accountHolderName || "",
+                  accountNumber: item.accountNumber || "",
+                  bankName: item.bankName || "",
+                  branch: item.branchName || "",
+                  ifscCode: item.ifscCode || "",
+                  upiId: item.upiId || "",
+                },
+                qualifications:
+                  item.qualifications || existing?.qualifications || [],
+                experienceRecords:
+                  item.experienceRecords || existing?.experienceRecords || [],
+                documents: item.documents || existing?.documents || [],
+                branch: item.branchName || item.branch || existing?.branch || "Main Campus",
+              };
+            });
+            return mappedStaff;
           });
-          setStaff(mappedStaff);
         }
       } catch (err) {
         console.warn("Failed to fetch staff from API", err);
@@ -5043,13 +5092,13 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     })();
     activeRequests.current["staff"] = promise;
     return promise;
-  };
+  }, []);
 
   // =========================================================
   // FETCH FUNCTIONS — REAL API REPLACEMENTS FOR MOCK DATA
   // =========================================================
 
-  const fetchStudents = async () => {
+  const fetchStudents = useCallback(async () => {
     if (activeRequests.current["students"]) {
       return activeRequests.current["students"];
     }
@@ -5139,9 +5188,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     })();
     activeRequests.current["students"] = promise;
     return promise;
-  };
+  }, []);
 
-  const fetchBooks = async () => {
+  const fetchBooks = useCallback(async () => {
     try {
       const response: any = await fetchBooksApi();
       const items = Array.isArray(response)
@@ -5157,9 +5206,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     } catch (err) {
       console.warn("Failed to fetch books from API", err);
     }
-  };
+  }, []);
 
-  const fetchBookIssues = async () => {
+  const fetchBookIssues = useCallback(async () => {
     try {
       const response: any = await fetchIssuedBooksApi();
       const items = Array.isArray(response)
@@ -5175,7 +5224,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     } catch (err) {
       console.warn("Failed to fetch issued books from API", err);
     }
-  };
+  }, []);
 
   const fetchHomeworkData = useCallback(async () => {
     try {
@@ -5235,7 +5284,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   }, []);
 
-  const fetchInventoryData = async () => {
+  const fetchInventoryData = useCallback(async () => {
     try {
       const response: any = await fetchInventoryItemsApi();
       const items = Array.isArray(response)
@@ -5251,7 +5300,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     } catch (err) {
       console.warn("Failed to fetch inventory from API", err);
     }
-  };
+  }, []);
 
   const fetchStudentAttendanceData = useCallback(async (query?: any) => {
     const reqKey = "student-attendance" + (query ? JSON.stringify(query) : "");
@@ -5477,7 +5526,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     return promise;
   };
 
-  const fetchSchoolEventsData = async () => {
+  const fetchSchoolEventsData = useCallback(async () => {
     try {
       const response: any = await fetchSchoolEventsApi();
       const items = Array.isArray(response)
@@ -5493,9 +5542,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     } catch (err) {
       console.warn("Failed to fetch school events from API", err);
     }
-  };
+  }, []);
 
-  const fetchHolidaysData = async () => {
+  const fetchHolidaysData = useCallback(async () => {
     try {
       const response: any = await fetchHolidaysApi();
       const items = Array.isArray(response)
@@ -5511,9 +5560,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     } catch (err) {
       console.warn("Failed to fetch holidays from API", err);
     }
-  };
+  }, []);
 
-  const fetchAnnouncementsData = async () => {
+  const fetchAnnouncementsData = useCallback(async () => {
     try {
       const response: any = await fetchNotificationsApi();
       const items = Array.isArray(response)
@@ -5529,9 +5578,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     } catch (err) {
       console.warn("Failed to fetch announcements from API", err);
     }
-  };
+  }, []);
 
-  const fetchMeetingsData = async () => {
+  const fetchMeetingsData = useCallback(async () => {
     try {
       const response: any = await fetchMeetingsApi();
       const items = Array.isArray(response)
@@ -5547,7 +5596,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     } catch (err) {
       console.warn("Failed to fetch meetings from API", err);
     }
-  };
+  }, []);
   const fetchFinanceData = useCallback(async () => {
     if (activeRequests.current["finance-data"]) {
       return activeRequests.current["finance-data"];
@@ -6005,7 +6054,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     return promise;
   }, []);
 
-  const fetchFacultyTrainingData = async () => {
+  const fetchFacultyTrainingData = useCallback(async () => {
     try {
       const [workshopsRes, assessmentsRes] = await Promise.allSettled([
         fetchWorkshopsApi(),
@@ -6101,7 +6150,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     } catch (err) {
       console.warn("Failed to fetch faculty training data from API", err);
     }
-  };
+  }, []);
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -9547,6 +9596,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     ) {
       // 1. EXPLICIT CUSTOM ALLOCATION PER INSTALLMENT
       paymentData.paymentAllocation.forEach((allocItem) => {
+        if (remainingAmountToAllocate <= 0) return;
         let instIndex = nextInstallments.findIndex(
           (i) => i.id === allocItem.installmentId,
         );
@@ -9562,7 +9612,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
 
         if (instIndex !== -1) {
           const inst = { ...nextInstallments[instIndex] };
-          const allocAmount = Math.min(inst.dueAmount > 0 ? inst.dueAmount : allocItem.amount, allocItem.amount);
+          const maxTarget = inst.dueAmount > 0 ? inst.dueAmount : allocItem.amount;
+          const allocAmount = Math.min(maxTarget, allocItem.amount, remainingAmountToAllocate);
           remainingAmountToAllocate -= allocAmount;
 
           inst.paidAmount += allocAmount;
@@ -9777,7 +9828,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       id,
       receiptNo,
       academicYear: paymentData.academicYear || activeAY,
-      paymentAllocation: paymentData.paymentAllocation || allocations,
+      paymentAllocation: allocations.length > 0 ? allocations : (paymentData.paymentAllocation || []),
       branch: (paymentData as any).branch || selectedBranch || "Main Campus",
     } as any;
 
@@ -10205,6 +10256,26 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         return c;
       }),
     );
+  };
+
+  const deleteFinancialAccount = (id: string) => {
+    setFinancialAccounts((prev) => prev.filter((a) => String(a.id) !== String(id)));
+    const numId = parseInt(id, 10);
+    if (!isNaN(numId)) {
+      FinanceAPI.deleteFinancialAccountApi(numId).catch((err) => {
+        console.warn("Backend delete financial account fallback", err);
+      });
+    }
+  };
+
+  const deleteFinancialCategory = (id: string) => {
+    setFinancialCategories((prev) => prev.filter((c) => String(c.id) !== String(id)));
+    const numId = parseInt(id, 10);
+    if (!isNaN(numId)) {
+      FinanceAPI.deleteFinancialCategoryApi(numId).catch((err) => {
+        console.warn("Backend delete financial category fallback", err);
+      });
+    }
   };
 
   const updateFinancialBudget = (id: string, allocatedAmount: number) => {
@@ -10715,33 +10786,51 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       let assignedAmt = orig;
       let isProRataEligible = false;
 
+      const fh = feeHeads.find(
+        (f) =>
+          f.id === item.feeHeadId ||
+          f.name?.toLowerCase() === item.feeHeadName?.toLowerCase(),
+      );
+      const eligibility =
+        item.paymentEligibility ||
+        fh?.paymentEligibility ||
+        "Both One-Time and Term-Wise";
+      const isOneTimeOnly = eligibility === "One-Time Only";
+
       // Fee head configuration check: Monthly / Quarterly / Term heads are pro-rata eligible
       const hNameLower = item.feeHeadName.toLowerCase();
       const categoryLower = (item.category || "").toLowerCase();
       if (
-        hNameLower.includes("tuition") ||
-        hNameLower.includes("transport") ||
-        hNameLower.includes("mess") ||
-        hNameLower.includes("monthly") ||
-        categoryLower.includes("tuition") ||
-        categoryLower.includes("transport") ||
-        categoryLower.includes("mess")
+        !isOneTimeOnly &&
+        (hNameLower.includes("tuition") ||
+          hNameLower.includes("transport") ||
+          hNameLower.includes("mess") ||
+          hNameLower.includes("monthly") ||
+          categoryLower.includes("tuition") ||
+          categoryLower.includes("transport") ||
+          categoryLower.includes("mess"))
       ) {
         isProRataEligible = true;
       }
 
-      if (
-        (feePolicy === "Custom" || feePolicy === "Custom Amount") &&
-        customBreakdown
-      ) {
-        const found = customBreakdown.find(
-          (c) =>
-            c.feeHeadId === item.feeHeadId ||
-            c.feeHeadName === item.feeHeadName,
-        );
-        if (found && typeof found.assignedAmount === "number") {
-          assignedAmt = found.assignedAmount;
-        }
+      const matchingBreakdownItem = customBreakdown?.find(
+        (c) =>
+          c.feeHeadId === item.feeHeadId ||
+          c.feeHeadName.toLowerCase() === item.feeHeadName.toLowerCase(),
+      );
+
+      const isSelected = isOneTimeOnly
+        ? true
+        : matchingBreakdownItem
+        ? matchingBreakdownItem.isSelected !== false
+        : true;
+
+      if (isOneTimeOnly) {
+        assignedAmt = orig;
+      } else if (!isSelected) {
+        assignedAmt = 0;
+      } else if (matchingBreakdownItem && typeof matchingBreakdownItem.assignedAmount === "number") {
+        assignedAmt = matchingBreakdownItem.assignedAmount;
       } else if (
         feePolicy === "Pro-rata" ||
         feePolicy === "Monthly Pro-rated Fee" ||
@@ -10763,20 +10852,23 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       finalBreakdown.push({
         feeHeadId: item.feeHeadId,
         feeHeadName: item.feeHeadName,
-        category: item.feeHeadName.includes("Tuition")
+        category: item.category || (item.feeHeadName.includes("Tuition")
           ? "Tuition Fee"
           : item.feeHeadName.includes("Transport")
             ? "Transport Fee"
-            : "Other Fee",
+            : "Other Fee"),
         originalAmount: orig,
         assignedAmount: assignedAmt,
         adjustmentAmount: assignedAmt - orig,
         isEligibleForProRata: isProRataEligible,
+        isSelected: isSelected,
+        paymentEligibility: eligibility as any,
       });
 
       assignedHeads.push({
         ...item,
         amount: assignedAmt,
+        paymentEligibility: eligibility as any,
       });
     });
 
@@ -11780,6 +11872,28 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     const admissionDate = normalizeToISODate(rawAdmissionDate);
     const firstTermStart = terms[0]?.startDate || `${ayStartYear}-04-01`;
 
+    const configDateStr =
+      assignment?.assignedDate ||
+      admissionDate ||
+      new Date().toISOString().split("T")[0];
+
+    const normalizedConfigDate =
+      normalizeToISODate(configDateStr) || new Date().toISOString().split("T")[0];
+
+    // Dynamic resolution of One-Time Fee Due Date:
+    // If configured on or before a term due date, set due date to that term's due date.
+    // If configured after a term due date has passed, roll over to the next upcoming term's due date.
+    const upcomingTerm = terms.find((t) => {
+      const tDue = normalizeToISODate(t.dueDate);
+      return tDue && tDue >= normalizedConfigDate;
+    });
+
+    const resolvedOneTimeDueDate = upcomingTerm?.dueDate
+      ? normalizeToISODate(upcomingTerm.dueDate)
+      : terms[terms.length - 1]?.dueDate
+      ? normalizeToISODate(terms[terms.length - 1].dueDate)
+      : oneTimeDueDate;
+
     const isExplicitLateAdmission =
       (student as any)?.isLateAdmission === true ||
       (student as any)?.isLateAdmission === "Yes" ||
@@ -11900,6 +12014,21 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         frequency = "Half-Yearly";
       }
 
+      const catPaymentEligibility = (item as any).paymentEligibility || feeHead?.paymentEligibility;
+      const catApplicableTerms: string[] = (item as any).applicableTerms || feeHead?.applicableTerms || [];
+
+      const studentPolicy = assignment?.feePolicy || (student as any)?.feeCalculationMethod || rawMethod || "Full Annual Fee";
+
+      if (studentPolicy === "Full Annual Fee") {
+        frequency = "One Time";
+      } else if (catPaymentEligibility === "One-Time Only") {
+        frequency = "One Time";
+      } else if (catPaymentEligibility === "Term-Wise Allowed") {
+        if (frequency === "One Time" || frequency === "Annual" || frequency === "One Term") {
+          frequency = "Term-wise";
+        }
+      }
+
       // ENFORCE ADMIN SELECTION FOR LATE ADMISSION METHOD:
       // If isLateAdmission is active, honor admin's choice (Term-wise vs Monthly) for recurring fee heads
       if (isLateAdmission) {
@@ -11939,7 +12068,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           frequency: "One Time",
           termId: "ONETIME",
           termName: "One Time",
-          dueDate: oneTimeDueDate,
+          dueDate: resolvedOneTimeDueDate,
           amount: finalAmount,
           paidAmount: 0,
           dueAmount: finalAmount,
@@ -11965,7 +12094,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           frequency: "Annual",
           termId: "ANNUAL",
           termName: "Annual",
-          dueDate: annualDueDate,
+          dueDate: resolvedOneTimeDueDate,
           amount: finalAmount,
           paidAmount: 0,
           dueAmount: finalAmount,
@@ -11991,7 +12120,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           frequency: "One Term",
           termId: "ONETERM",
           termName: "One Term",
-          dueDate: annualDueDate,
+          dueDate: resolvedOneTimeDueDate,
           amount: finalAmount,
           paidAmount: 0,
           dueAmount: finalAmount,
@@ -12038,12 +12167,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
                 ? remainingTerms
                 : [terms[terms.length - 1]];
 
-            const termMonthMap: Record<number, number[]> = {
-              1: [0, 1, 2],
-              2: [3, 4, 5],
-              3: [6, 7, 8],
-              4: [9, 10, 11],
-            };
+            const termMonthMap = buildTermMonthMap(terms.length);
 
             let termIndices: number[] = [];
             validTerms.forEach((t) => {
@@ -12115,10 +12239,21 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       }
       // 5. QUARTERLY / TERM-WISE
       else if (frequency === "Quarterly" || frequency === "Term-wise") {
-        const totalTermsCount = terms.length || 4;
-        const standardTermFee = Math.floor(finalAmount / totalTermsCount);
+        let categoryTerms = terms;
+        if (catApplicableTerms && catApplicableTerms.length > 0) {
+          const filtered = terms.filter((t) =>
+            catApplicableTerms.some((at) =>
+              String(at).toLowerCase() === String(t.id).toLowerCase() ||
+              String(at).toLowerCase() === String(t.termName).toLowerCase() ||
+              String(at) === String(t.sequence)
+            )
+          );
+          if (filtered.length > 0) {
+            categoryTerms = filtered;
+          }
+        }
 
-        let applicableTerms = terms;
+        let applicableTerms = categoryTerms;
 
         if (isLateAdmission && admissionDate) {
           if (feeCalculationMethod === "Monthly") {
@@ -12135,10 +12270,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
             }
 
             const standardMonthlyFee = Math.floor(finalAmount / 12);
-            const admTime = new Date(admissionDate).getTime();
 
             const admIso = normalizeToISODate(admissionDate);
-            applicableTerms = terms.filter((term) => {
+            applicableTerms = categoryTerms.filter((term) => {
               const termDueIso = normalizeToISODate(term.dueDate);
               const termEndIso = normalizeToISODate(term.endDate);
 
@@ -12147,15 +12281,10 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
               return true;
             });
             if (applicableTerms.length === 0) {
-              applicableTerms = [terms[terms.length - 1]];
+              applicableTerms = [categoryTerms[categoryTerms.length - 1]];
             }
 
-            const termMonthIndices: Record<number, number[]> = {
-              1: [0, 1, 2],
-              2: [3, 4, 5],
-              3: [6, 7, 8],
-              4: [9, 10, 11],
-            };
+            const termMonthIndices = buildTermMonthMap(categoryTerms.length);
 
             applicableTerms.forEach((term, tIdx) => {
               const qNumber = term.sequence || tIdx + 1;
@@ -12176,7 +12305,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
                   frequency:
                     frequency === "Quarterly" ? "Quarterly" : "Term-wise",
                   termId: term.id,
-                  termName: `Q${qNumber} (${term.termName})`,
+                  termName: term.termName || `Term ${qNumber}`,
                   dueDate: term.dueDate,
                   amount: amt,
                   paidAmount: 0,
@@ -12193,17 +12322,21 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           } else {
             // Late Admission = Term-wise: Apply remaining terms (Section 5 & 9: admissionDate <= term.endDate)
             const admIso = normalizeToISODate(admissionDate);
-            applicableTerms = terms.filter((term) => {
+            applicableTerms = categoryTerms.filter((term) => {
               const termEndIso = normalizeToISODate(term.endDate);
               if (!termEndIso) return true;
               return admIso <= termEndIso;
             });
             if (applicableTerms.length === 0) {
-              applicableTerms = [terms[terms.length - 1]];
+              applicableTerms = [categoryTerms[categoryTerms.length - 1]];
             }
 
+            const count = Math.max(1, applicableTerms.length);
+            const baseAmt = Math.floor(finalAmount / count);
+            const remainder = finalAmount - (baseAmt * count);
+
             applicableTerms.forEach((term, tIdx) => {
-              const amt = standardTermFee;
+              const amt = baseAmt + (tIdx < remainder ? 1 : 0);
               const qNumber = term.sequence || tIdx + 1;
 
               installments.push({
@@ -12216,7 +12349,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
                 frequency:
                   frequency === "Quarterly" ? "Quarterly" : "Term-wise",
                 termId: term.id,
-                termName: `Q${qNumber} (${term.termName})`,
+                termName: term.termName || `Term ${qNumber}`,
                 dueDate: term.dueDate,
                 amount: amt,
                 paidAmount: 0,
@@ -12232,8 +12365,12 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           }
         } else {
           // Regular (Not Late Admission)
+          const count = Math.max(1, applicableTerms.length);
+          const baseAmt = Math.floor(finalAmount / count);
+          const remainder = finalAmount - (baseAmt * count);
+
           applicableTerms.forEach((term, tIdx) => {
-            const amt = standardTermFee;
+            const amt = baseAmt + (tIdx < remainder ? 1 : 0);
             const qNumber = term.sequence || tIdx + 1;
 
             installments.push({
@@ -12245,7 +12382,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
               feeHeadName: item.headName,
               frequency: frequency === "Quarterly" ? "Quarterly" : "Term-wise",
               termId: term.id,
-              termName: `Q${qNumber} (${term.termName})`,
+              termName: term.termName || `Term ${qNumber}`,
               dueDate: term.dueDate,
               amount: amt,
               paidAmount: 0,
@@ -12261,11 +12398,23 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       }
       // 5. HALF-YEARLY
       else if (frequency === "Half-Yearly") {
-        let applicableTerms = terms;
+        let categoryTerms = terms;
+        if (catApplicableTerms && catApplicableTerms.length > 0) {
+          const filtered = terms.filter((t) =>
+            catApplicableTerms.some((at) =>
+              String(at).toLowerCase() === String(t.id).toLowerCase() ||
+              String(at).toLowerCase() === String(t.termName).toLowerCase() ||
+              String(at) === String(t.sequence)
+            )
+          );
+          if (filtered.length > 0) categoryTerms = filtered;
+        }
+
+        let applicableTerms = categoryTerms;
 
         if (isLateAdmission && admissionDate) {
           const admTime = new Date(admissionDate).getTime();
-          applicableTerms = terms.filter((term) => {
+          applicableTerms = categoryTerms.filter((term) => {
             if (!term.endDate) return true;
             return new Date(term.endDate).getTime() >= admTime;
           });
@@ -12273,11 +12422,11 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
 
         const count = Math.min(2, Math.max(1, applicableTerms.length));
         const baseAmt = Math.floor(finalAmount / count);
+        const remainder = finalAmount - (baseAmt * count);
 
         for (let h = 0; h < count; h++) {
-          const term = applicableTerms[h] || terms[0];
-          const amt =
-            h === count - 1 ? finalAmount - baseAmt * (count - 1) : baseAmt;
+          const term = applicableTerms[h] || categoryTerms[0];
+          const amt = baseAmt + (h < remainder ? 1 : 0);
 
           installments.push({
             id: `INST-${studentId}-${academicYear}-${item.headId}-h-${h + 1}`,
@@ -12365,12 +12514,22 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       .filter(
         (p) =>
           isPaymentForThisStudent(p) &&
-          (p.academicYear === academicYear || !p.academicYear),
+          (!p.academicYear || matchesAcademicYear(p.academicYear, academicYear)),
       )
       .sort(
         (a, b) =>
           new Date(a.paymentDate).getTime() - new Date(b.paymentDate).getTime(),
       );
+
+    // Deduplicate fee payments by receipt number to prevent applying duplicate database payment rows
+    const uniqueStudentPayments: FeePayment[] = [];
+    const seenReceiptKeys = new Set<string>();
+    for (const p of studentPayments) {
+      const rKey = (p.receiptNo || String(p.id || "")).toLowerCase().trim();
+      if (rKey && seenReceiptKeys.has(rKey)) continue;
+      if (rKey) seenReceiptKeys.add(rKey);
+      uniqueStudentPayments.push(p);
+    }
 
     const matchTermNameStr = (instTermRaw?: string, allocTermRaw?: string): boolean => {
       if (!instTermRaw || !allocTermRaw) return false;
@@ -12392,7 +12551,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       return false;
     };
 
-    studentPayments.forEach((payment) => {
+    uniqueStudentPayments.forEach((payment) => {
       let allocs: PaymentAllocationItem[] = payment.paymentAllocation || [];
 
       if ((!allocs || allocs.length === 0) && (payment as any).paidItemsJson) {
@@ -12424,15 +12583,15 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
 
       if (allocs && allocs.length > 0) {
         allocs.forEach((alloc) => {
-          if (alloc.academicYear === academicYear || !alloc.academicYear) {
+          if (!alloc.academicYear || matchesAcademicYear(alloc.academicYear, academicYear)) {
             let remaining = Number(alloc.amount) || 0;
             if (remaining <= 0) return;
 
             const matchedInst = installments.find((inst) => {
               if (inst.dueAmount <= 0) return false;
 
-              if (alloc.installmentId && (inst.id === alloc.installmentId || inst.id.includes(alloc.installmentId))) return true;
-              if (payment.selectedInstallmentIds && payment.selectedInstallmentIds.includes(inst.id)) return true;
+              if (alloc.installmentId && matchesInstallmentId(inst.id, alloc.installmentId)) return true;
+              if (payment.selectedInstallmentIds && payment.selectedInstallmentIds.some((sId) => matchesInstallmentId(inst.id, sId))) return true;
 
               const headMatch = matchHeadNameStr(inst.feeHeadName, alloc.feeHeadName || payment.feeHeadName || "");
               const termMatch = matchTermNameStr(inst.termName, alloc.termName || payment.termName || "");
@@ -13016,21 +13175,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         ledgerItems.push({
           headId: h.feeHeadId,
           headName: h.feeHeadName,
-          category:
-            h.category ||
-            (h.feeHeadName.includes("Tuition")
-              ? "Tuition Fee"
-              : h.feeHeadName.includes("Admission")
-                ? "Admission Fee"
-                : h.feeHeadName.includes("Book")
-                  ? "Books Fee"
-                  : isUni
-                    ? "Uniform Fee"
-                    : h.feeHeadName.includes("Lab")
-                      ? "Lab Fee"
-                      : h.feeHeadName.includes("Sports")
-                        ? "Sports Fee"
-                        : "Other Fee"),
+          category: h.category || h.feeHeadName,
           originalAmount: itemAmount,
           scholarshipDeduction: 0,
           discountDeduction: 0,
@@ -13072,19 +13217,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           ledgerItems.push({
             headId: i.feeHeadId,
             headName: i.feeHeadName,
-            category: i.feeHeadName.includes("Tuition")
-              ? "Tuition Fee"
-              : i.feeHeadName.includes("Admission")
-                ? "Admission Fee"
-                : i.feeHeadName.includes("Book")
-                  ? "Books Fee"
-                  : isUni
-                    ? "Uniform Fee"
-                    : i.feeHeadName.includes("Lab")
-                      ? "Lab Fee"
-                      : i.feeHeadName.includes("Sports")
-                        ? "Sports Fee"
-                        : "Other Fee",
+            category: i.category || i.feeHeadName,
             originalAmount: itemAmount,
             scholarshipDeduction: 0,
             discountDeduction: 0,
@@ -13151,33 +13284,6 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           isApplicable: true,
           status: "Pending",
         });
-      } else {
-        // Fallback: If no custom dynamic fee structure or assignment exists for this class,
-        // build default fee items from active mandatory/tuition feeHeads matching the class
-        const applicableHeads = (feeHeads || []).filter(h =>
-          h.status === 'Active' &&
-          (h.mandatory || h.category === 'Tuition' || (h.applicableClasses && (h.applicableClasses.length === 0 || h.applicableClasses.some(c => matchesClassName(c, clsName)))))
-        );
-
-        if (applicableHeads.length > 0) {
-          applicableHeads.forEach(h => {
-            const amt = Number(h.defaultAmount || h.amount || 0);
-            if (amt > 0) {
-              ledgerItems.push({
-                headId: h.id,
-                headName: h.name,
-                category: h.category || 'Tuition Fee',
-                originalAmount: amt,
-                scholarshipDeduction: 0,
-                discountDeduction: 0,
-                fineAmount: 0,
-                finalAmount: amt,
-                isApplicable: true,
-                status: 'Pending',
-              });
-            }
-          });
-        }
       }
     }
 
@@ -19728,7 +19834,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   };
 
   // Leave Management Fetchers
-  const fetchLeaveTypes = async () => {
+  const fetchLeaveTypes = useCallback(async () => {
     try {
       const response = await fetchLeaveTypesApi();
       if (response && response.success && response.data) {
@@ -19748,9 +19854,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     } catch (err) {
       console.warn("Failed to fetch leave types from API", err);
     }
-  };
+  }, []);
 
-  const fetchLeaveApplications = async () => {
+  const fetchLeaveApplications = useCallback(async () => {
     if (activeRequests.current["leave-applications"]) {
       return activeRequests.current["leave-applications"];
     }
@@ -19822,9 +19928,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     })();
     activeRequests.current["leave-applications"] = promise;
     return promise;
-  };
+  }, [selectedBranch]);
 
-  const fetchLeaveBalances = async () => {
+  const fetchLeaveBalances = useCallback(async () => {
     try {
       const response = await fetchLeaveBalancesApi();
       if (response && response.success && response.data) {
@@ -19850,9 +19956,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     } catch (err) {
       console.warn("Failed to fetch leave balances from API", err);
     }
-  };
+  }, []);
 
-  const fetchSalaryStructures = async () => {
+  const fetchSalaryStructures = useCallback(async () => {
     try {
       const response = await fetchSalaryStructuresApi();
       if (response && response.success && response.data) {
@@ -19861,9 +19967,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     } catch (err) {
       console.warn("Failed to fetch salary structures from API", err);
     }
-  };
+  }, []);
 
-  const fetchSalaryAssignments = async () => {
+  const fetchSalaryAssignments = useCallback(async () => {
     try {
       const response = await fetchSalaryAssignmentsApi();
       if (response && response.success && response.data) {
@@ -19872,9 +19978,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     } catch (err) {
       console.warn("Failed to fetch salary assignments from API", err);
     }
-  };
+  }, []);
 
-  const fetchPayrollConfigurations = async () => {
+  const fetchPayrollConfigurations = useCallback(async () => {
     try {
       const response = await fetchPayrollConfigurationsApi();
       if (response && response.success && response.data) {
@@ -19883,9 +19989,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     } catch (err) {
       console.warn("Failed to fetch payroll configurations from API", err);
     }
-  };
+  }, []);
 
-  const fetchPayrollComponents = async () => {
+  const fetchPayrollComponents = useCallback(async () => {
     try {
       const response = await fetchPayrollComponentsApi();
       if (response && response.success && response.data) {
@@ -19894,9 +20000,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     } catch (err) {
       console.warn("Failed to fetch payroll components from API", err);
     }
-  };
+  }, []);
 
-  const fetchPayrollRuns = async () => {
+  const fetchPayrollRuns = useCallback(async () => {
     try {
       const response = await fetchPayrollRunsApi();
       if (response && response.success && response.data) {
@@ -19905,9 +20011,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     } catch (err) {
       console.warn("Failed to fetch payroll runs from API", err);
     }
-  };
+  }, []);
 
-  const fetchPayslips = async () => {
+  const fetchPayslips = useCallback(async () => {
     try {
       const response = await fetchPayslipsApi();
       if (response && response.success && response.data) {
@@ -19916,7 +20022,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     } catch (err) {
       console.warn("Failed to fetch payslips from API", err);
     }
-  };
+  }, []);
 
   // Leave Types CRUD
   const addLeaveType = async (tData: Omit<LeaveType, "id">) => {
@@ -21020,7 +21126,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
 
   useEffect(() => {
     setTotalStudentCount(filteredStudents.length);
-  }, [filteredStudents]);
+  }, [students.length, selectedBranch, selectedAcademicYear]);
 
   const filteredStaff = useMemo(() => filterByBranch(staff), [staff, selectedBranch, selectedAcademicYear]);
   const filteredAdmissions = useMemo(() => filterByBranch(admissions), [admissions, selectedBranch, selectedAcademicYear]);
@@ -21049,11 +21155,11 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   const filteredBusAttendants = useMemo(() => filterByBranch(busAttendants), [busAttendants, selectedBranch, selectedAcademicYear]);
   const filteredVehicleAssignments = useMemo(() => filterByBranch(vehicleAssignments), [vehicleAssignments, selectedBranch, selectedAcademicYear]);
   const filteredVehicleMaintenances = useMemo(() => filterByBranch(vehicleMaintenances), [vehicleMaintenances, selectedBranch, selectedAcademicYear]);
-  const filteredUniformCategories = filterByBranch(uniformCategories).filter(c => {
+  const filteredUniformCategories = useMemo(() => filterByBranch(uniformCategories).filter(c => {
     const name = (c?.name || (c as any)?.categoryName || '').toLowerCase().trim();
     return (name !== 'uniform package' && name !== 'package') || name.includes('boys') || name.includes('girls');
-  });
-  const filteredUniforms = filterByBranch(uniforms).filter(u => {
+  }), [uniformCategories, selectedBranch, selectedAcademicYear]);
+  const filteredUniforms = useMemo(() => filterByBranch(uniforms).filter(u => {
     if (!u) return false;
     const name = (u.name || u.category || "").toLowerCase().trim();
     return (
@@ -21061,10 +21167,10 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       name.includes("boys") ||
       name.includes("girls")
     );
-  });
-  const filteredUniformSizes = filterByBranch(uniformSizes);
-  const filteredUniformSuppliers = filterByBranch(uniformSuppliers);
-  const filteredUniformInventory = filterByBranch(uniformInventory).filter(
+  }), [uniforms, selectedBranch, selectedAcademicYear]);
+  const filteredUniformSizes = useMemo(() => filterByBranch(uniformSizes), [uniformSizes, selectedBranch, selectedAcademicYear]);
+  const filteredUniformSuppliers = useMemo(() => filterByBranch(uniformSuppliers), [uniformSuppliers, selectedBranch, selectedAcademicYear]);
+  const filteredUniformInventory = useMemo(() => filterByBranch(uniformInventory).filter(
     (inv) => {
       if (!inv) return false;
       const name = (inv.itemName || inv.category || "").toLowerCase().trim();
@@ -21074,8 +21180,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         name.includes("girls")
       );
     },
-  );
-  const filteredStudentUniformIssues = filterByBranch(
+  ), [uniformInventory, selectedBranch, selectedAcademicYear]);
+  const filteredStudentUniformIssues = useMemo(() => filterByBranch(
     studentUniformIssues,
   ).filter((i) => {
     const name = (i?.studentName || "").toLowerCase();
@@ -21093,7 +21199,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       adm === "REG-1022" ||
       adm === "REG-1021";
     return !isDummy;
-  });
+  }), [studentUniformIssues, selectedBranch, selectedAcademicYear]);
   const filteredFinanceUniformConfigs = useMemo(() => filterByBranch(financeUniformConfigs), [financeUniformConfigs, selectedBranch, selectedAcademicYear]);
   const filteredLeaveApplications = useMemo(() => filterByBranch(leaveApplications), [leaveApplications, selectedBranch, selectedAcademicYear]);
   const filteredHolidays = useMemo(() => {
@@ -21125,8 +21231,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   const filteredSalaryStructures = useMemo(() => filterByBranch(salaryStructures), [salaryStructures, selectedBranch, selectedAcademicYear]);
   const filteredEmployeeSalaryAssignments = useMemo(() => filterByBranch(employeeSalaryAssignments), [employeeSalaryAssignments, selectedBranch, selectedAcademicYear]);
   const filteredPayrollRuns = useMemo(() => filterByBranch(payrollRuns), [payrollRuns, selectedBranch, selectedAcademicYear]);
+  const filteredAlumniRecords = useMemo(() => filterByBranch(alumniRecords), [alumniRecords, selectedBranch, selectedAcademicYear]);
 
-  const filteredAttendance = attendance.filter((a) => {
+  const filteredAttendance = useMemo(() => attendance.filter((a) => {
     if (!selectedBranch) return true;
     if (a.entityType === "Student") {
       const stud = students.find((s) => s.id === a.entityId);
@@ -21135,9 +21242,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       const st = staff.find((s) => s.id === a.entityId);
       return st && st.branch ? st.branch === selectedBranch : true;
     }
-  });
+  }), [attendance, students, staff, selectedBranch]);
 
-  const filteredBookIssues = bookIssues.filter((bi) => {
+  const filteredBookIssues = useMemo(() => bookIssues.filter((bi) => {
     if (!selectedBranch) return true;
     if (bi.borrowerRole === "Student") {
       const stud = students.find((s) => s.id === bi.borrowerId);
@@ -21146,7 +21253,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       const st = staff.find((s) => s.id === bi.borrowerId);
       return st ? st.branch === selectedBranch : true;
     }
-  });
+  }), [bookIssues, students, staff, selectedBranch]);
 
   const updateCertificateTemplate = (
     id: string,
@@ -21691,7 +21798,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         transferStudent,
         completeStudent,
         getHighestClass,
-        alumniRecords: filterByBranch(alumniRecords),
+        alumniRecords: filteredAlumniRecords,
         addAlumniRecord,
         updateAlumniStatus,
         staff: filteredStaff,
@@ -22055,9 +22162,11 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         financialAccounts,
         addFinancialAccount,
         updateFinancialAccount,
+        deleteFinancialAccount,
         financialCategories,
         addFinancialCategory,
         updateFinancialCategory,
+        deleteFinancialCategory,
         financialBudgets,
         updateFinancialBudget,
 

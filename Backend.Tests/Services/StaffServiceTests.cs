@@ -66,24 +66,24 @@ namespace Backend.Tests.Services
 
             var nextId = await _service.GetNextEmployeeIdAsync();
 
-            Assert.Equal("EMP001", nextId);
+            Assert.Equal("TCH-2026-0001", nextId);
         }
 
         [Fact]
         public async Task GetNextEmployeeIdAsync_ExistingEMP006_ReturnsEMP007()
         {
-            var existingIds = new List<string> { "EMP001", "EMP002", "EMP003", "EMP004", "EMP005", "EMP006" };
+            var existingIds = new List<string> { "TCH-2026-0001", "TCH-2026-0002", "TCH-2026-0003", "TCH-2026-0004", "TCH-2026-0005", "TCH-2026-0006" };
             _repoMock.Setup(r => r.GetAllEmployeeIdsAsync()).ReturnsAsync(existingIds);
 
             var nextId = await _service.GetNextEmployeeIdAsync();
 
-            Assert.Equal("EMP007", nextId);
+            Assert.Equal("TCH-2026-0007", nextId);
         }
 
         [Fact]
         public async Task CreateStaffAsync_AutoGeneratesSequentialEmployeeId()
         {
-            var existingIds = new List<string> { "EMP001", "EMP006" };
+            var existingIds = new List<string> { "TCH-2026-0001", "TCH-2026-0006" };
             _repoMock.Setup(r => r.GetAllEmployeeIdsAsync()).ReturnsAsync(existingIds);
 
             var dto = new StaffCreateDto
@@ -98,8 +98,8 @@ namespace Backend.Tests.Services
 
             var result = await _service.CreateStaffAsync(dto);
 
-            Assert.Equal("EMP007", result.EmployeeId);
-            _repoMock.Verify(r => r.AddStaffAsync(It.Is<Staff>(s => s.EmployeeId == "EMP007")), Times.Once);
+            Assert.Equal("TCH-2026-0007", result.EmployeeId);
+            _repoMock.Verify(r => r.AddStaffAsync(It.Is<Staff>(s => s.EmployeeId == "TCH-2026-0007")), Times.Once);
         }
     }
 }

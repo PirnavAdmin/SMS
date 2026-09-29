@@ -4,6 +4,7 @@ import { FeePayment } from '../../../types';
 import { useData } from '../../../context/DataContext';
 import { useAuth } from '../../../context/AuthContext';
 import { formatCurrency } from '../../../utils/currency';
+import { formatDateForDisplay } from '../../../utils/dateValidation';
 import { resolveMediaUrl } from '../../../utils/mediaUtils';
 import { numberToWords } from '../../../utils/numberToWords';
 
@@ -14,7 +15,7 @@ interface PrintableFeeReceiptProps {
 }
 
 export const PrintableFeeReceipt: React.FC<PrintableFeeReceiptProps> = ({ payment, isOpen, onClose }) => {
-  const { schoolProfile, students, admissions, financeSettings } = useData();
+  const { schoolProfile, students, admissions, financeSettings, studentFeeInstallments } = useData();
   const { selectedAcademicYear } = useAuth();
 
   if (!isOpen || !payment) return null;
@@ -26,35 +27,57 @@ export const PrintableFeeReceipt: React.FC<PrintableFeeReceiptProps> = ({ paymen
 
   const rawStudentName = student
     ? `${(student as any).firstName || (student as any).applicantName || ''} ${(student as any).lastName || ''}`.trim()
-    : (payment.studentName && payment.studentName !== "Enrolled Student" ? payment.studentName : (payment.studentId ? `Student #${payment.studentId}` : "Enrolled Student"));
+    : (payment.studentName || payment.studentId || "");
 
-  const studentNameUpper = (rawStudentName || 'STUDENT').toUpperCase();
+  const studentNameUpper = (rawStudentName || "").toUpperCase();
 
-  const rawClass = student ? ((student as any).className || (student as any).appliedClass || "Nursery") : (payment.className && payment.className !== "—" ? payment.className : "Nursery");
-  const rawSec = student ? (student.section || "A") : "A";
-  const formattedClass = rawClass.toLowerCase().includes("nursery") || rawClass.toLowerCase().includes("lkg") || rawClass.toLowerCase().includes("ukg")
-    ? rawClass
-    : (rawClass.toLowerCase().startsWith("class") ? rawClass : `Class ${rawClass}`);
-  const classNameDisplay = `${formattedClass} - ${rawSec}`;
+  const rawClass = student ? ((student as any).className || (student as any).appliedClass || "") : (payment.className || "");
+  const rawSec = student ? (student.section || "") : "";
+  const classNameDisplay = rawSec ? `${rawClass} - ${rawSec}` : rawClass;
 
-  const admissionNo = student ? (student.admissionNo || (student as any).applicationNo || (student as any).registrationNo) : ((payment as any).admissionNo || (payment.studentId ? `REG-${payment.studentId}` : "140516"));
-  const currentAY = payment.academicYear || selectedAcademicYear || financeSettings?.academicYear || "2026-2027";
+  const admissionNo = student ? (student.admissionNo || (student as any).applicationNo || (student as any).registrationNo) : ((payment as any).admissionNo || payment.studentId || "");
+  const currentAY = payment.academicYear || selectedAcademicYear || financeSettings?.academicYear || "";
+
+  // Extract key financial amounts
+  const discountVal = payment.discount || payment.discountAmount || payment.scholarshipAmount || 0;
+  const fineVal = payment.fine || (payment as any).fineAmount || 0;
+  const totalAmountPaid = payment.amountPaid || payment.amount || 0;
+  const grossFee = payment.grossAmount || (totalAmountPaid + discountVal - fineVal);
+  const discountTitle = payment.discountName || payment.scholarshipName || (payment as any).concessionName || (discountVal > 0 ? "Concession / Discount" : "");
 
   // Build fee table rows
   let feeRows: Array<{ slNo: number; description: string; due: number; con: number; paid: number }> = [];
 
   if (payment.paymentAllocation && payment.paymentAllocation.length > 0) {
+    const totalCount = payment.paymentAllocation.length;
+    const itemCon = discountVal > 0 ? Math.round((discountVal / totalCount) * 100) / 100 : 0;
+    
     feeRows = payment.paymentAllocation.map((alloc, idx) => {
       const paid = alloc.amount || 0;
-      const con = 0; // Concession allocated if applicable
-      const due = paid + con;
-      const desc = alloc.feeHeadName || alloc.termName || `Fee Item ${idx + 1}`;
+      const con = idx === totalCount - 1
+        ? Math.max(0, Math.round((discountVal - itemCon * (totalCount - 1)) * 100) / 100)
+        : itemCon;
+      const inst = alloc.installmentId ? (studentFeeInstallments || []).find(i => i.id === alloc.installmentId) : null;
+      const due = inst?.amount || (alloc as any).dueAmount || (payment.grossAmount ? Math.round(payment.grossAmount / totalCount) : (paid + con));
+
+      const headName = alloc.feeHeadName || inst?.feeHeadName || (inst as any)?.headName || "";
+      const termName = alloc.termName || inst?.termName || "";
+      
+      let desc = "";
+      if (headName && headName !== "Fee" && !headName.startsWith("Fee Item")) {
+        desc = (termName && termName !== headName && termName !== "Installment") ? `${headName} (${termName})` : headName;
+      } else if (termName && termName !== "Installment") {
+        desc = termName;
+      } else {
+        desc = inst?.feeHeadName || inst?.termName || `Fee Item ${idx + 1}`;
+      }
+
       return { slNo: idx + 1, description: desc, due, con, paid };
     });
   } else {
-    const paid = payment.amountPaid || payment.amount || 0;
-    const con = payment.discount || payment.discountAmount || 0;
-    const due = payment.grossAmount || (paid + con);
+    const paid = totalAmountPaid;
+    const con = discountVal;
+    const due = grossFee;
     const desc = payment.feeHeadName || payment.notes || "Tuition / Academic Fees";
     feeRows = [{ slNo: 1, description: desc, due, con, paid }];
   }
@@ -70,19 +93,18 @@ export const PrintableFeeReceipt: React.FC<PrintableFeeReceiptProps> = ({ paymen
     installmentLabel = payment.notes.toUpperCase();
   }
 
-  const schoolName = schoolProfile?.name || "Delhi Public School";
-  const schoolAddress = schoolProfile?.address || "Site No.1, Sector-45, Urban Estate, Gurgaon, Haryana";
+  const schoolName = schoolProfile?.name || "";
+  const schoolAddress = schoolProfile?.address || "";
   const schoolPhone = schoolProfile?.phone ? ` • Ph: ${schoolProfile.phone}` : "";
 
-  const receiptNo = payment.receiptNo || "43358";
-  const paymentDate = payment.paymentDate || new Date().toLocaleDateString('en-GB');
+  const receiptNo = payment.receiptNo || payment.id || "";
+  const paymentDate = formatDateForDisplay(payment.paymentDate, new Date().toLocaleDateString('en-GB'));
   const payMode = payment.paymentMode || "Cash";
   const bankName = payment.bankName || "-";
   const transactionNumber = payment.chequeNo || payment.transactionId || "-";
-  const counterNo = (payment as any).receivedBy || "DPS-RECEIPT";
-  const remarksNote = payment.remarks || (payment as any).receiptNo || "356";
+  const counterNo = (payment as any).receivedBy || schoolProfile?.name || "Counter";
+  const remarksNote = payment.remarks || "";
 
-  const totalAmountPaid = payment.amountPaid || payment.amount || 0;
   const amountWords = numberToWords(totalAmountPaid);
 
   const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=90x90&data=${encodeURIComponent(receiptNo)}`;
@@ -228,6 +250,26 @@ export const PrintableFeeReceipt: React.FC<PrintableFeeReceiptProps> = ({ paymen
                   <div className="flex"><span className="w-24 font-bold">Number</span><span className="font-sans">{transactionNumber}</span></div>
                 </div>
 
+                {/* Financial Summary Breakdown Row */}
+                {discountVal > 0 && (
+                  <div className="border-t border-dashed border-gray-400 mt-1.5 pt-1.5 space-y-0.5 text-[11px] font-sans bg-gray-50 p-1.5 rounded border border-gray-200">
+                    <div className="flex justify-between items-center text-gray-700">
+                      <span>Total Gross Fee Due:</span>
+                      <span className="font-semibold">{formatCurrency(grossFee)}</span>
+                    </div>
+                    <div className="flex justify-between items-center text-emerald-700 font-semibold">
+                      <span>Concession / Discount ({discountTitle}):</span>
+                      <span>- {formatCurrency(discountVal)}</span>
+                    </div>
+                    {fineVal > 0 && (
+                      <div className="flex justify-between items-center text-rose-700 font-semibold">
+                        <span>Late Fee Fine:</span>
+                        <span>+ {formatCurrency(fineVal)}</span>
+                      </div>
+                    )}
+                  </div>
+                )}
+
                 {/* Total Bar Row inside Pay Mode */}
                 <div className="bg-gray-300 border-y border-black py-1 px-2 flex justify-between items-center font-bold text-xs mt-1 font-sans">
                   <span>Total</span>
@@ -255,7 +297,13 @@ export const PrintableFeeReceipt: React.FC<PrintableFeeReceiptProps> = ({ paymen
                     className="w-16 h-16 object-contain border border-gray-300"
                   />
                   <div>
-                    <p className="font-bold text-xs font-sans">Note :{remarksNote}</p>
+                    <p className="font-bold text-xs font-sans">
+                      Note :{discountVal > 0 ? (
+                        remarksNote && remarksNote.includes("Concession Applied")
+                          ? (remarksNote.includes(" - ") || remarksNote.includes("Discount:") ? remarksNote : `${remarksNote} (${discountTitle} - Discount: ${formatCurrency(discountVal)})`)
+                          : `Concession Applied (${discountTitle} - Discount: ${formatCurrency(discountVal)})`
+                      ) : (remarksNote || "Receipt generated successfully")}
+                    </p>
                   </div>
                 </div>
                 <div className="text-right font-bold text-gray-800 max-w-[260px] font-sans">

@@ -45,7 +45,7 @@ namespace Backend.Tests.Controllers
             _schoolServiceMock.Setup(s => s.GetApplicationByIdAsync(1))
                 .ReturnsAsync(expectedDto);
 
-            var result = await _controller.GetApplicationById(1);
+            var result = await _controller.GetApplicationById("1");
 
             var okResult = Assert.IsType<OkObjectResult>(result);
             Assert.NotNull(okResult.Value);
@@ -87,7 +87,7 @@ namespace Backend.Tests.Controllers
             _schoolServiceMock.Setup(s => s.DeleteApplicationAsync(2))
                 .ReturnsAsync(true);
 
-            var result = await _controller.DeleteApplication(2);
+            var result = await _controller.DeleteApplication("2");
 
             var okResult = Assert.IsType<OkObjectResult>(result);
             Assert.NotNull(okResult.Value);
@@ -99,7 +99,7 @@ namespace Backend.Tests.Controllers
             _schoolServiceMock.Setup(s => s.RejectApplicationAsync(5))
                 .ReturnsAsync(true);
 
-            var result = await _controller.RejectApplication(5);
+            var result = await _controller.RejectApplication("5");
 
             var okResult = Assert.IsType<OkObjectResult>(result);
             Assert.NotNull(okResult.Value);
@@ -111,7 +111,7 @@ namespace Backend.Tests.Controllers
             _schoolServiceMock.Setup(s => s.EnrollStudentAsync(10))
                 .ReturnsAsync(true);
 
-            var result = await _controller.EnrollStudent(10);
+            var result = await _controller.EnrollStudent("10");
 
             var okResult = Assert.IsType<OkObjectResult>(result);
             Assert.NotNull(okResult.Value);

@@ -19,17 +19,20 @@ public class OtpService : IOtpService
     private readonly IUserRepository _userRepository;
     private readonly IAdminRepository _adminRepository;
     private readonly IConfiguration _configuration;
+    private readonly Microsoft.Extensions.Hosting.IHostEnvironment? _environment;
 
     public OtpService(
         IOtpRepository otpRepository,
         IUserRepository userRepository,
         IAdminRepository adminRepository,
-        IConfiguration configuration)
+        IConfiguration configuration,
+        Microsoft.Extensions.Hosting.IHostEnvironment? environment = null)
     {
         _otpRepository = otpRepository;
         _userRepository = userRepository;
         _adminRepository = adminRepository;
         _configuration = configuration;
+        _environment = environment;
     }
 
     public async Task<SendOtpResponseDto> SendOtpAsync(SendOtpRequestDto dto)
@@ -64,10 +67,15 @@ public class OtpService : IOtpService
         // 2. Generate 6-digit OTP
         var rawOtpCode = new Random().Next(100000, 999999).ToString();
 
-        Console.WriteLine("=================================================");
-        Console.WriteLine($"[DEV DEBUG] Generated OTP for {dto.EmailOrPhone} (UserId: {userId}, AdminId: {adminId}): {rawOtpCode}");
-        Console.WriteLine($"[DEV DEBUG] Delivery Method: {dto.DeliveryMethod}");
-        Console.WriteLine("=================================================");
+        bool isDevTestMode = (_environment != null && _environment.IsDevelopment()) && _configuration.GetValue<bool>("ExposeTestOtpInDev", false);
+
+        if (isDevTestMode)
+        {
+            Console.WriteLine("=================================================");
+            Console.WriteLine($"[DEV DEBUG] Generated OTP for {dto.EmailOrPhone} (UserId: {userId}, AdminId: {adminId}): {rawOtpCode}");
+            Console.WriteLine($"[DEV DEBUG] Delivery Method: {dto.DeliveryMethod}");
+            Console.WriteLine("=================================================");
+        }
 
         // 3. Save OTP in DB
         await _otpRepository.SaveOtpAsync(new OtpVerification
@@ -95,7 +103,7 @@ public class OtpService : IOtpService
         {
             Message = $"OTP sent successfully to your {dto.DeliveryMethod}.",
             DeliveryMethod = dto.DeliveryMethod,
-            TestOtpCode = rawOtpCode
+            TestOtpCode = isDevTestMode ? rawOtpCode : null
         };
     }
 

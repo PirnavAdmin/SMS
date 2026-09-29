@@ -35,21 +35,34 @@ export const apiClient = async (endpoint: string, options: RequestInit = {}) => 
   const rawBase = (import.meta.env.VITE_API_URL as string) || '';
   const baseUrl = rawBase.trim().replace(/\/+$/, '');
   const cleanEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
-  const url = endpoint.startsWith('http') ? endpoint : `${baseUrl}${cleanEndpoint}`;
+
+  const isLocalHost = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+
+  // When running locally on localhost, prefer direct local backend port 5151 first to avoid ngrok CORS/preflight noise and network latency.
+  let primaryUrl = endpoint.startsWith('http') ? endpoint : `${baseUrl}${cleanEndpoint}`;
+  let fallbackUrl = '';
+
+  if (endpoint.startsWith('http')) {
+    primaryUrl = endpoint;
+  } else if (isLocalHost && (baseUrl.includes('ngrok') || !baseUrl)) {
+    primaryUrl = `http://127.0.0.1:5151${cleanEndpoint}`;
+    if (baseUrl && baseUrl.includes('ngrok')) {
+      fallbackUrl = `${baseUrl}${cleanEndpoint}`;
+    }
+  } else if (baseUrl.includes('ngrok') && isLocalHost) {
+    fallbackUrl = `http://127.0.0.1:5151${cleanEndpoint}`;
+  }
 
   let response: Response;
   try {
-    response = await fetch(url, {
+    response = await fetch(primaryUrl, {
       ...options,
       headers,
     });
   } catch (fetchError: any) {
-    // If ngrok tunnel fails or hits limit on localhost, transparently fallback to direct backend port 5151
-    if (url.includes('ngrok') && (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'))) {
-      console.warn(`[API Client] Request to ngrok (${url}) failed (${fetchError?.message || fetchError}). Falling back to local backend port 5151.`);
-      const localUrl = `http://127.0.0.1:5151${cleanEndpoint}`;
+    if (fallbackUrl) {
       try {
-        response = await fetch(localUrl, {
+        response = await fetch(fallbackUrl, {
           ...options,
           headers,
         });
@@ -61,10 +74,9 @@ export const apiClient = async (endpoint: string, options: RequestInit = {}) => 
     }
   }
 
-  if (!response.ok && (response.status === 502 || response.status === 503 || response.status === 504) && url.includes('ngrok') && (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'))) {
+  if (!response.ok && (response.status === 502 || response.status === 503 || response.status === 504) && fallbackUrl) {
     try {
-      const localUrl = `http://127.0.0.1:5151${endpoint}`;
-      const fallbackRes = await fetch(localUrl, {
+      const fallbackRes = await fetch(fallbackUrl, {
         ...options,
         headers,
       });
@@ -76,13 +88,14 @@ export const apiClient = async (endpoint: string, options: RequestInit = {}) => 
 
   if (!response.ok) {
     if (response.status === 401 && !endpoint.includes('/auth/')) {
-      const hadToken = !!localStorage.getItem('auth_token');
       localStorage.removeItem('auth_user');
       localStorage.removeItem('auth_token');
+      localStorage.removeItem('auth_token_timestamp');
+      localStorage.removeItem('roles');
       localStorage.removeItem('active_module');
-      if (hadToken) {
-        window.location.reload();
-      }
+      try {
+        window.dispatchEvent(new CustomEvent('auth_unauthorized'));
+      } catch (e) {}
     }
     let errorMessage = `HTTP error! status: ${response.status}`;
     if (response.status === 502) {

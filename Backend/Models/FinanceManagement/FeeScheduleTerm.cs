@@ -19,22 +19,27 @@ public class FeeScheduleTerm
 
     [Required]
     [MaxLength(100)]
-    public string TermName { get; set; } = "Term 1";
+    public string TermName { get; set; } = string.Empty;
 
     [Required]
     [MaxLength(50)]
-    public string StartDate { get; set; } = "2026-04-01";
+    public string StartDate { get; set; } = string.Empty;
 
     [Required]
     [MaxLength(50)]
-    public string EndDate { get; set; } = "2026-06-30";
+    public string EndDate { get; set; } = string.Empty;
 
     [Required]
     [MaxLength(50)]
-    public string DueDate { get; set; } = "2026-04-15";
+    public string DueDate { get; set; } = string.Empty;
+
+    [MaxLength(20)]
+    public string DueDateMode { get; set; } = "AUTO";
+
+    public int DueDateOffsetDays { get; set; } = 45;
 
     [Column(TypeName = "decimal(5,2)")]
-    public decimal PercentageShare { get; set; } = 25.00m;
+    public decimal PercentageShare { get; set; } = 0.00m;
 
     [MaxLength(50)]
     public string Status { get; set; } = "Active";

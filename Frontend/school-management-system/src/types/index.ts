@@ -1211,6 +1211,8 @@ export type FeeHeadFrequency =
   | 'Annual'
   | 'Custom';
 
+export type FeePaymentEligibility = 'One-Time Only' | 'Term-Wise Allowed' | 'Both One-Time and Term-Wise';
+
 export interface FeeHead {
   id: string;
   name: string;
@@ -1220,12 +1222,29 @@ export interface FeeHead {
   mandatory: boolean;
   applicableClasses: string[];
   applicableBranches: string[];
+  paymentEligibility?: FeePaymentEligibility;
+  applicableTerms?: string[];
   academicYear?: string;
   amount?: number;
   defaultAmount?: number;
   taxPercentage?: number;
   displayOrder: number;
   status: 'Active' | 'Inactive';
+  applicableSections?: string[];
+  hostelBlockId?: string;
+  hostelBlockName?: string;
+  hostelRoomId?: string;
+  hostelRoomNo?: string;
+  hostelSharingType?: string;
+  transportRouteId?: string;
+  transportRouteName?: string;
+  transportVehicleId?: string;
+  transportVehicleNo?: string;
+  transportStopId?: string;
+  transportStopName?: string;
+  uniformItemId?: string;
+  uniformItemName?: string;
+  uniformSize?: string;
 }
 
 export interface FeeStructureItem {
@@ -1236,6 +1255,8 @@ export interface FeeStructureItem {
   amount: number;
   frequency?: string;
   dueMonth?: string;
+  paymentEligibility?: FeePaymentEligibility;
+  applicableTerms?: string[];
 }
 
 export interface DynamicFeeStructure {
@@ -1261,6 +1282,9 @@ export interface FeeHeadAssignmentBreakdown {
   assignedAmount: number;
   adjustmentAmount: number;
   isEligibleForProRata?: boolean;
+  isSelected?: boolean;
+  paymentEligibility?: FeePaymentEligibility;
+  applicableTerms?: string[];
 }
 
 export interface StudentFeeAssignment {
@@ -2620,8 +2644,11 @@ export interface FeeScheduleTerm {
   startDate: string;
   endDate: string;
   dueDate: string;
+  dueDateMode?: 'AUTO' | 'MANUAL';
+  dueDateOffsetDays?: number;
   sequence: number;
   status: 'Active' | 'Inactive';
+  percentageShare?: number;
 }
 
 export interface MonthDueDateItem {
@@ -2640,6 +2667,7 @@ export interface AcademicYearFeeSchedule {
   id: string;
   academicYear: string;
   numberOfTerms: number;
+  dueDateOffsetDays?: number;
   terms: FeeScheduleTerm[];
   status: 'Active' | 'Inactive';
 

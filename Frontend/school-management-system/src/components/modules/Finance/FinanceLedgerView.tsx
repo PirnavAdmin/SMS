@@ -24,71 +24,18 @@ export const FinanceLedgerView: React.FC<FinanceLedgerViewProps> = ({ initialTab
       case 'transactions':
       case 'ledger':
       case 'master-ledger':
-        return <TransactionsMasterLedgerView />;
+        return <TransactionsMasterLedgerView initialSubTab="ledger" />;
       case 'expenses':
-        return (
-          <div className="glass-card p-6 rounded-2xl border border-slate-200/80 dark:border-slate-800 space-y-4">
-            <h3 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
-              <Receipt className="w-5 h-5 text-sky-500" /> Expense Management
-            </h3>
-            <p className="text-xs text-slate-500">Record, approve, and track school expenditures across categories and vendors.</p>
-            <TransactionsMasterLedgerView filterType="Expense" />
-          </div>
-        );
+        return <TransactionsMasterLedgerView filterType="Expense" initialSubTab="ledger" />;
       case 'accounts':
-        return (
-          <div className="glass-card p-6 rounded-2xl border border-slate-200/80 dark:border-slate-800 space-y-4">
-            <h3 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
-              <CreditCard className="w-5 h-5 text-emerald-500" /> Cash & Bank Accounts
-            </h3>
-            <p className="text-xs text-slate-500">Real-time ledger-derived cash and bank account balances.</p>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 font-mono">
-              <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800 border">
-                <p className="text-xs text-slate-500 font-sans font-bold">School Cash Account</p>
-                <p className="text-lg font-black text-slate-900 dark:text-white mt-1">₹1,45,000</p>
-                <span className="text-[10px] text-emerald-600 font-sans font-semibold">● Active • Reconciled</span>
-              </div>
-              <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800 border">
-                <p className="text-xs text-slate-500 font-sans font-bold">Main Bank Account (HDFC)</p>
-                <p className="text-lg font-black text-slate-900 dark:text-white mt-1">₹42,80,500</p>
-                <span className="text-[10px] text-emerald-600 font-sans font-semibold">● Active • Reconciled</span>
-              </div>
-              <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800 border">
-                <p className="text-xs text-slate-500 font-sans font-bold">Petty Cash Account</p>
-                <p className="text-lg font-black text-slate-900 dark:text-white mt-1">₹25,000</p>
-                <span className="text-[10px] text-emerald-600 font-sans font-semibold">● Active • Reconciled</span>
-              </div>
-            </div>
-          </div>
-        );
+        return <TransactionsMasterLedgerView initialSubTab="categories-accounts" />;
       case 'refunds':
       case 'refund-management':
         return <RefundManagementView />;
       case 'budget':
-        return (
-          <div className="glass-card p-6 rounded-2xl border border-slate-200/80 dark:border-slate-800 space-y-4">
-            <h3 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
-              <PieChart className="w-5 h-5 text-indigo-500" /> Annual Budgeting & Allocations
-            </h3>
-            <p className="text-xs text-slate-500">Compare allocated budgets against actual income and expenditure.</p>
-            <div className="space-y-3 text-xs font-semibold">
-              <div className="flex items-center justify-between p-3 rounded-xl bg-slate-50 dark:bg-slate-800 border">
-                <span>Staff Salaries & Payroll</span>
-                <span className="font-mono text-slate-700 dark:text-slate-300">Budget: ₹50,00,000 | Spent: ₹32,00,000 | Remaining: ₹18,00,000</span>
-              </div>
-              <div className="flex items-center justify-between p-3 rounded-xl bg-slate-50 dark:bg-slate-800 border">
-                <span>Utilities & Facilities</span>
-                <span className="font-mono text-slate-700 dark:text-slate-300">Budget: ₹10,00,000 | Spent: ₹6,40,000 | Remaining: ₹3,60,000</span>
-              </div>
-              <div className="flex items-center justify-between p-3 rounded-xl bg-slate-50 dark:bg-slate-800 border">
-                <span>Campus Maintenance & Repairs</span>
-                <span className="font-mono text-slate-700 dark:text-slate-300">Budget: ₹8,00,000 | Spent: ₹5,10,000 | Remaining: ₹2,90,000</span>
-              </div>
-            </div>
-          </div>
-        );
+        return <TransactionsMasterLedgerView initialSubTab="budget" />;
       default:
-        return <TransactionsMasterLedgerView />;
+        return <TransactionsMasterLedgerView initialSubTab="ledger" />;
     }
   };
 

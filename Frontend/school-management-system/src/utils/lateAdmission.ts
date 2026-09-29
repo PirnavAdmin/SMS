@@ -30,6 +30,36 @@ export interface LateAdmissionCalculationResult {
 }
 
 /**
+ * Dynamically builds a mapping from term sequence index (1..N) to applicable 0-indexed month indices (0..11)
+ * based on the number of installment terms configured for the academic year.
+ * Supports 1 Term (Annual), 2 Terms (Semester), 3 Terms (Tri-semester), 4 Terms (Quarterly),
+ * 6 Terms (Bi-monthly), and 12 Terms (Monthly).
+ */
+export function buildTermMonthMap(numberOfTerms: number): Record<number, number[]> {
+  const n = Math.max(1, Math.min(12, numberOfTerms || 4));
+  const map: Record<number, number[]> = {};
+
+  if (n === 12) {
+    for (let i = 1; i <= 12; i++) {
+      map[i] = [i - 1];
+    }
+    return map;
+  }
+
+  const monthsPerTerm = 12 / n;
+  for (let i = 1; i <= n; i++) {
+    const startM = Math.floor((i - 1) * monthsPerTerm);
+    const endM = i === n ? 11 : Math.floor(i * monthsPerTerm) - 1;
+    const months: number[] = [];
+    for (let m = startM; m <= endM; m++) {
+      months.push(m);
+    }
+    map[i] = months;
+  }
+  return map;
+}
+
+/**
  * Filter terms for late admission.
  * RULE (Section 5 & 9):
  * If admissionDate > term.endDate -> NOT applicable (completed).
@@ -181,12 +211,7 @@ export function calculateLateAdmissionFees(params: {
         }
       } else if (freq === 'Monthly') {
         if (feeCalculationMethod === 'Term-wise' || feeCalculationMethod === 'Remaining Terms') {
-          const termMonthMap: Record<number, number[]> = {
-            1: [0, 1, 2],
-            2: [3, 4, 5],
-            3: [6, 7, 8],
-            4: [9, 10, 11]
-          };
+          const termMonthMap = buildTermMonthMap(totalTermsCount);
           let termMonthIndices: number[] = [];
           applicableTerms.forEach((t) => {
             const seq = t.sequence || 1;

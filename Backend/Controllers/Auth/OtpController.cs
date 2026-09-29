@@ -20,8 +20,8 @@ public class OtpController : ControllerBase
 	[HttpPost("send")]
 	public async Task<IActionResult> SendOtp([FromBody] SendOtpRequestDto dto)
 	{
-		var otpCode = await _otpService.SendOtpAsync(dto);
-		return Ok(new { Message = "OTP sent successfully.", TestOtpCode = otpCode });
+		var response = await _otpService.SendOtpAsync(dto);
+		return Ok(response);
 	}
 
 	[HttpPost("verify")]

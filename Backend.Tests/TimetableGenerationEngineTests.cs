@@ -93,6 +93,8 @@ public class TimetableGenerationEngineTests
             new ClassSubjectMapping { ClassId = classId, SubjectId = 104, WeeklyPeriods = 5 }
         };
         _mockRepo.Setup(r => r.GetAllClassSubjectMappingsAsync()).ReturnsAsync(mapList);
+        _mockRepo.Setup(r => r.GetClassSubjectMappingsByClassAsync(It.IsAny<int>()))
+            .ReturnsAsync((int cId) => mapList.Where(m => m.ClassId == cId || m.ClassId == 0).ToList());
 
         var teacherLookup = subjectTeachers ?? new Dictionary<int, Staff>
         {
