@@ -475,6 +475,17 @@ export const LeaveManagementView: React.FC = () => {
       return;
     }
 
+    const todayStr = new Date().toISOString().split('T')[0];
+    if (!editingApplication && applyForm.fromDate < todayStr) {
+      addToast('error', 'Invalid Date', 'Leave cannot be requested for past dates.');
+      return;
+    }
+
+    if (applyForm.toDate < applyForm.fromDate) {
+      addToast('error', 'Invalid Date Range', 'End date cannot be earlier than start date.');
+      return;
+    }
+
     if (hasOverlappingLeaves(employee.id, applyForm.fromDate, applyForm.toDate, editingApplication?.id)) {
       addToast('error', 'Date Overlap', 'Leave has already been applied for the selected dates.');
       return;
@@ -1367,8 +1378,16 @@ export const LeaveManagementView: React.FC = () => {
                   <input
                     type="date"
                     required
+                    min={editingApplication ? undefined : new Date().toISOString().split('T')[0]}
                     value={applyForm.fromDate}
-                    onChange={e => setApplyForm({ ...applyForm, fromDate: e.target.value })}
+                    onChange={e => {
+                      const newFrom = e.target.value;
+                      setApplyForm(prev => ({
+                        ...prev,
+                        fromDate: newFrom,
+                        toDate: prev.toDate < newFrom ? newFrom : prev.toDate
+                      }));
+                    }}
                     className="w-full px-2.5 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 outline-none text-xs"
                   />
                 </div>
@@ -1379,6 +1398,7 @@ export const LeaveManagementView: React.FC = () => {
                   <input
                     type="date"
                     required
+                    min={applyForm.fromDate || new Date().toISOString().split('T')[0]}
                     value={applyForm.toDate}
                     disabled={applyForm.isHalfDay}
                     onChange={e => setApplyForm({ ...applyForm, toDate: e.target.value })}

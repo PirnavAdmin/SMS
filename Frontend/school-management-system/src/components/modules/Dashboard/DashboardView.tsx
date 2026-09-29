@@ -292,6 +292,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
         }
       }
     };
+
     loadDashboardData();
     return () => { isMounted = false; };
   }, [userRole, selectedAcademicYear, selectedBranch]);
