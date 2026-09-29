@@ -48,6 +48,7 @@ import {
 import { PrintableCertificateContainer } from "../Certificates/PrintableCertificateContainer";
 import { formatDateDDMMYYYY } from "../../../utils/dateValidation";
 import { resolveMediaUrl, DEFAULT_USER_AVATAR, createOptimizedAvatarDataUrl } from "../../../utils/mediaUtils";
+import { validateFullName, validateEmail, validate10DigitPhone } from "../../../utils/validation";
 import { SchoolLogoUploader } from "./SchoolLogoUploader";
 import { CertificateSettingsTab } from "./CertificateSettingsTab";
 import {
@@ -306,6 +307,37 @@ export const SettingsView: React.FC = () => {
 
   const [isSavingProfile, setIsSavingProfile] = useState(false);
   const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
+  const [profileErrors, setProfileErrors] = useState<{
+    name?: string;
+    email?: string;
+    phone?: string;
+  }>({});
+
+  const validateProfileForm = (form: { name: string; email: string; phone: string }) => {
+    const nameRes = validateFullName(form.name, true);
+    const emailRes = validateEmail(form.email, true);
+    const phoneRes = validate10DigitPhone(form.phone);
+
+    const errors: { name?: string; email?: string; phone?: string } = {};
+    if (!nameRes.isValid) errors.name = nameRes.error;
+    if (!emailRes.isValid) errors.email = emailRes.error;
+    if (form.phone.trim() && !phoneRes.isValid) errors.phone = phoneRes.error;
+
+    return {
+      isValid: nameRes.isValid && emailRes.isValid && (!form.phone.trim() || phoneRes.isValid),
+      errors,
+      firstError: nameRes.error || emailRes.error || (form.phone.trim() ? phoneRes.error : undefined),
+    };
+  };
+
+  const isProfileFormInvalid = useMemo(() => {
+    const nameRes = validateFullName(myProfileForm.name, true);
+    const emailRes = validateEmail(myProfileForm.email, true);
+    const phoneRes = validate10DigitPhone(myProfileForm.phone);
+    const phoneInvalid = myProfileForm.phone.trim() ? !phoneRes.isValid : false;
+
+    return !nameRes.isValid || !emailRes.isValid || phoneInvalid;
+  }, [myProfileForm.name, myProfileForm.email, myProfileForm.phone]);
 
   useEffect(() => {
     let isMounted = true;
@@ -316,26 +348,24 @@ export const SettingsView: React.FC = () => {
         const data = res?.data;
         if (data && isMounted && (data.name || data.avatar)) {
           setMyProfileForm((prev) => {
-            const hasUploadedAvatar = (user?.avatar && user.avatar.startsWith("data:image/")) || (prev.avatar && prev.avatar.startsWith("data:image/"));
-            const profileAvatar = hasUploadedAvatar ? (user?.avatar || prev.avatar) : (data.avatar || user?.avatar || DEFAULT_USER_AVATAR);
+            const currentAvatar = prev.avatar === "" ? "" : (prev.avatar || user?.avatar || DEFAULT_USER_AVATAR);
             return {
               ...prev,
               name: data.name || prev.name,
               phone: data.phone || prev.phone,
-              avatar: profileAvatar,
+              avatar: currentAvatar,
               branch: data.branch || prev.branch,
               role: data.role || prev.role,
             };
           });
 
           if (user && setUser) {
-            const hasUploadedAvatar = user.avatar && user.avatar.startsWith("data:image/");
-            const profileAvatar = hasUploadedAvatar ? user.avatar : (data.avatar || user.avatar || DEFAULT_USER_AVATAR);
+            const currentAvatar = user.avatar || DEFAULT_USER_AVATAR;
             const updatedUser = {
               ...user,
               name: data.name || user.name,
               phone: data.phone || user.phone,
-              avatar: profileAvatar,
+              avatar: currentAvatar,
               branch: data.branch || user.branch,
             };
             setUser(updatedUser);
@@ -441,11 +471,15 @@ export const SettingsView: React.FC = () => {
 
   const handleSaveMyProfile = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!myProfileForm.name.trim()) {
+
+    const { isValid, errors, firstError } = validateProfileForm(myProfileForm);
+    setProfileErrors(errors);
+
+    if (!isValid) {
       addToast(
         "error",
         "Validation Error",
-        "Please provide a valid full name.",
+        firstError || "Please correct the invalid profile fields before saving.",
       );
       return;
     }
@@ -466,8 +500,9 @@ export const SettingsView: React.FC = () => {
 
       const res = await updateUserProfileApi(payload);
       const savedData = res?.data || payload;
-      const isDataUrl = (myProfileForm.avatar && myProfileForm.avatar.startsWith("data:image/")) || (user?.avatar && user.avatar.startsWith("data:image/"));
-      const finalAvatar = isDataUrl ? (myProfileForm.avatar || user?.avatar) : (savedData?.avatar || myProfileForm.avatar || DEFAULT_USER_AVATAR);
+      const finalAvatar = (myProfileForm.avatar && myProfileForm.avatar !== DEFAULT_USER_AVATAR)
+        ? myProfileForm.avatar
+        : DEFAULT_USER_AVATAR;
 
       const updatedUser: User = {
         ...user!,
@@ -1164,34 +1199,51 @@ export const SettingsView: React.FC = () => {
                     required
                     placeholder="Enter your full name"
                     value={myProfileForm.name}
-                    onChange={(e) =>
-                      setMyProfileForm({
-                        ...myProfileForm,
-                        name: e.target.value,
-                      })
-                    }
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 font-semibold text-slate-900 dark:text-white focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition"
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setMyProfileForm((prev) => ({ ...prev, name: val }));
+                      const res = validateFullName(val, true);
+                      setProfileErrors((prev) => ({ ...prev, name: res.error }));
+                    }}
+                    className={`w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/80 border font-semibold text-slate-900 dark:text-white focus:ring-2 transition ${
+                      profileErrors.name
+                        ? "border-rose-500 focus:border-rose-500 focus:ring-rose-500/20 bg-rose-50/20"
+                        : "border-slate-200 dark:border-slate-700 focus:ring-brand-500/20 focus:border-brand-500"
+                    }`}
                   />
+                  {profileErrors.name && (
+                    <p className="mt-1 text-xs font-bold text-rose-500 flex items-center gap-1">
+                      <span>⚠️</span> {profileErrors.name}
+                    </p>
+                  )}
                 </div>
 
                 <div>
                   <label className="block font-extrabold text-slate-700 dark:text-slate-300 mb-1">
-                    Email Address{" "}
-                    <span className="text-rose-500 font-bold">*</span>
+                    Email Address <span className="text-rose-500 font-bold">*</span>
                   </label>
                   <input
                     type="email"
                     required
                     placeholder="warden@pirnavschools.edu"
                     value={myProfileForm.email}
-                    onChange={(e) =>
-                      setMyProfileForm({
-                        ...myProfileForm,
-                        email: e.target.value,
-                      })
-                    }
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 font-semibold text-slate-900 dark:text-white focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition"
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setMyProfileForm((prev) => ({ ...prev, email: val }));
+                      const res = validateEmail(val, true);
+                      setProfileErrors((prev) => ({ ...prev, email: res.error }));
+                    }}
+                    className={`w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/80 border font-semibold text-slate-900 dark:text-white focus:ring-2 transition ${
+                      profileErrors.email
+                        ? "border-rose-500 focus:border-rose-500 focus:ring-rose-500/20 bg-rose-50/20"
+                        : "border-slate-200 dark:border-slate-700 focus:ring-brand-500/20 focus:border-brand-500"
+                    }`}
                   />
+                  {profileErrors.email && (
+                    <p className="mt-1 text-xs font-bold text-rose-500 flex items-center gap-1">
+                      <span>⚠️</span> {profileErrors.email}
+                    </p>
+                  )}
                 </div>
 
                 <div>
@@ -1200,16 +1252,25 @@ export const SettingsView: React.FC = () => {
                   </label>
                   <input
                     type="tel"
-                    placeholder="+91 9876543210"
+                    placeholder="9876543210"
                     value={myProfileForm.phone}
-                    onChange={(e) =>
-                      setMyProfileForm({
-                        ...myProfileForm,
-                        phone: e.target.value,
-                      })
-                    }
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 font-semibold text-slate-900 dark:text-white focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition"
+                    onChange={(e) => {
+                      const cleaned = e.target.value.replace(/\D/g, '').slice(0, 10);
+                      setMyProfileForm((prev) => ({ ...prev, phone: cleaned }));
+                      const res = validate10DigitPhone(cleaned);
+                      setProfileErrors((prev) => ({ ...prev, phone: cleaned ? res.error : undefined }));
+                    }}
+                    className={`w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/80 border font-semibold text-slate-900 dark:text-white focus:ring-2 transition ${
+                      profileErrors.phone
+                        ? "border-rose-500 focus:border-rose-500 focus:ring-rose-500/20 bg-rose-50/20"
+                        : "border-slate-200 dark:border-slate-700 focus:ring-brand-500/20 focus:border-brand-500"
+                    }`}
                   />
+                  {profileErrors.phone && (
+                    <p className="mt-1 text-xs font-bold text-rose-500 flex items-center gap-1">
+                      <span>⚠️</span> {profileErrors.phone}
+                    </p>
+                  )}
                 </div>
 
                 <div>
@@ -1259,8 +1320,8 @@ export const SettingsView: React.FC = () => {
               <div className="pt-3 flex justify-end">
                 <button
                   type="submit"
-                  disabled={isSavingProfile}
-                  className="px-6 py-2.5 rounded-2xl bg-brand-600 hover:bg-brand-500 text-white font-extrabold text-xs shadow-md shadow-brand-500/20 flex items-center gap-2 transition-all cursor-pointer active:scale-95 disabled:opacity-50"
+                  disabled={isSavingProfile || isProfileFormInvalid}
+                  className="px-6 py-2.5 rounded-2xl bg-brand-600 hover:bg-brand-500 text-white font-extrabold text-xs shadow-md shadow-brand-500/20 flex items-center gap-2 transition-all cursor-pointer active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:pointer-events-none"
                 >
                   <Save className="w-4 h-4" /> {isSavingProfile ? "Saving..." : "Save Basic Details"}
                 </button>
