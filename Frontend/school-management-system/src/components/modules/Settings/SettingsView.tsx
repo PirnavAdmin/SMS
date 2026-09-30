@@ -249,6 +249,7 @@ export const SettingsView: React.FC = () => {
     setCurrentAcademicYear,
     certificateTemplates: contextTemplates,
     updateCertificateTemplate: contextUpdateTemplate,
+    branches = [],
   } = useData();
   const { user, setUser, role, changePassword } = useAuth();
   const { addToast } = useToast();
@@ -301,9 +302,22 @@ export const SettingsView: React.FC = () => {
     email: getCleanUserEmail(user?.email),
     phone: user?.phone || "+91 9581768555",
     avatar: user?.avatar || DEFAULT_USER_AVATAR,
-    branch: user?.branch || "Main Campus",
+    branch: user?.branch || "",
     role: user?.role || role || "Admin",
   });
+
+  const configuredBranches = useMemo(() => {
+    const list = (branches || [])
+      .map((b: any) => (typeof b === "string" ? b : (b.name || b.branchName || b.branch || b.code)))
+      .filter(Boolean);
+    if (myProfileForm.branch && !list.includes(myProfileForm.branch)) {
+      list.push(myProfileForm.branch);
+    }
+    if (user?.branch && !list.includes(user.branch)) {
+      list.push(user.branch);
+    }
+    return Array.from(new Set(list));
+  }, [branches, myProfileForm.branch, user?.branch]);
 
   const [isSavingProfile, setIsSavingProfile] = useState(false);
   const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
@@ -431,7 +445,7 @@ export const SettingsView: React.FC = () => {
         email: cleanEmail,
         phone: myProfileForm.phone.trim() || user?.phone || "+91 9581768555",
         avatar: optimizedDataUrl,
-        branch: myProfileForm.branch || user?.branch || "Main Campus",
+        branch: myProfileForm.branch || user?.branch || "",
         role: (user?.role || role) as Role,
         status: user?.status || "Active",
       };
@@ -1104,68 +1118,154 @@ export const SettingsView: React.FC = () => {
       {activeTab === "my-profile" && (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Main Basic Details Form Card */}
-          <div className="lg:col-span-2 glass-card p-4 sm:p-5 rounded-3xl space-y-3 border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xs">
+          <div className="lg:col-span-2 glass-card p-4 sm:p-5 rounded-2xl space-y-3 border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xs">
             <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-2.5">
               <div>
-                <h3 className="font-extrabold text-base text-slate-900 dark:text-white flex items-center gap-2">
+                <h3 className="font-extrabold text-lg text-slate-900 dark:text-white flex items-center gap-2">
                   <UserCheck className="w-5 h-5 text-brand-600" /> Basic Details
                   & Profile Setup
                 </h3>
               </div>
-              <span className="px-3 py-1 rounded-full text-xs font-black bg-brand-50 text-brand-700 dark:bg-brand-950 dark:text-brand-300 border border-brand-200 dark:border-brand-800">
+              <span className="px-3.5 py-1 rounded-full text-xs font-black bg-brand-50 text-brand-700 dark:bg-brand-950 dark:text-brand-300 border border-brand-200 dark:border-brand-800">
                 {myProfileForm.role}
               </span>
             </div>
 
-            <form onSubmit={handleSaveMyProfile} className="space-y-3 text-xs">
-              {/* Profile Photo Uploader */}
-              <div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/70 dark:border-slate-700 space-y-2">
-                <label className="block font-bold text-slate-800 dark:text-slate-200 text-xs">
-                  Profile Photo{" "}
-                  <span className="text-rose-500 font-bold">*</span>
-                </label>
-
-                <div className="flex flex-col sm:flex-row items-center gap-3">
-                  <div className="relative group">
-                    <img
-                      src={resolveMediaUrl(myProfileForm.avatar) || DEFAULT_USER_AVATAR}
-                      alt="Profile Avatar"
-                      onError={(e) => {
-                        const target = e.target as HTMLImageElement;
-                        if (target.src !== DEFAULT_USER_AVATAR) {
-                          target.src = DEFAULT_USER_AVATAR;
-                        }
+            <form onSubmit={handleSaveMyProfile} className="space-y-3 text-sm">
+              <div className="flex flex-col md:flex-row items-center gap-4 md:gap-5">
+                {/* Left: Input Fields Grid */}
+                <div className="flex-1 w-full grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block font-extrabold text-sm text-slate-800 dark:text-slate-200 mb-1">
+                      Full Name <span className="text-rose-500 font-bold">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="Enter your full name"
+                      value={myProfileForm.name}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setMyProfileForm((prev) => ({ ...prev, name: val }));
+                        const res = validateFullName(val, true);
+                        setProfileErrors((prev) => ({ ...prev, name: res.error }));
                       }}
-                      className="w-16 h-16 rounded-2xl object-cover border-2 border-brand-500 shadow-md bg-white dark:bg-slate-800"
+                      className={`w-full px-4 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/80 border font-semibold text-sm text-slate-900 dark:text-white focus:ring-2 transition ${
+                        profileErrors.name
+                          ? "border-rose-500 focus:border-rose-500 focus:ring-rose-500/20 bg-rose-50/20"
+                          : "border-slate-200 dark:border-slate-700 focus:ring-brand-500/20 focus:border-brand-500"
+                      }`}
                     />
-                    <button
-                      type="button"
-                      onClick={() => avatarFileInputRef.current?.click()}
-                      className="absolute -bottom-1 -right-1 p-1 rounded-xl bg-brand-600 hover:bg-brand-500 text-white shadow-md cursor-pointer transition-transform group-hover:scale-110"
-                      title="Upload New Photo"
-                    >
-                      <Camera className="w-3 h-3" />
-                    </button>
+                    {profileErrors.name && (
+                      <p className="mt-1 text-xs font-bold text-rose-500 flex items-center gap-1">
+                        <span>⚠️</span> {profileErrors.name}
+                      </p>
+                    )}
                   </div>
 
-                  <div className="space-y-1.5 flex-1 w-full">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <input
-                        ref={avatarFileInputRef}
-                        type="file"
-                        accept="image/png, image/jpeg, image/jpg, image/webp"
-                        onChange={handleAvatarFileChange}
-                        className="hidden"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => avatarFileInputRef.current?.click()}
-                        className="px-3.5 py-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 font-bold text-xs shadow-xs flex items-center gap-1.5 cursor-pointer transition"
-                      >
-                        <Upload className="w-3.5 h-3.5 text-brand-600" /> Upload
-                        Profile Image
-                      </button>
-                      {Boolean(myProfileForm.avatar && myProfileForm.avatar !== DEFAULT_USER_AVATAR) && (
+                  <div>
+                    <label className="block font-extrabold text-sm text-slate-800 dark:text-slate-200 mb-1">
+                      Email Address <span className="text-rose-500 font-bold">*</span>
+                    </label>
+                    <input
+                      type="email"
+                      required
+                      placeholder="warden@pirnavschools.edu"
+                      value={myProfileForm.email}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setMyProfileForm((prev) => ({ ...prev, email: val }));
+                        const res = validateEmail(val, true);
+                        setProfileErrors((prev) => ({ ...prev, email: res.error }));
+                      }}
+                      className={`w-full px-4 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/80 border font-semibold text-sm text-slate-900 dark:text-white focus:ring-2 transition ${
+                        profileErrors.email
+                          ? "border-rose-500 focus:border-rose-500 focus:ring-rose-500/20 bg-rose-50/20"
+                          : "border-slate-200 dark:border-slate-700 focus:ring-brand-500/20 focus:border-brand-500"
+                      }`}
+                    />
+                    {profileErrors.email && (
+                      <p className="mt-1 text-xs font-bold text-rose-500 flex items-center gap-1">
+                        <span>⚠️</span> {profileErrors.email}
+                      </p>
+                    )}
+                  </div>
+
+                  <div>
+                    <label className="block font-extrabold text-sm text-slate-800 dark:text-slate-200 mb-1 whitespace-nowrap">
+                      Contact Number
+                    </label>
+                    <input
+                      type="tel"
+                      placeholder="9876543210"
+                      value={myProfileForm.phone}
+                      onChange={(e) => {
+                        const cleaned = e.target.value.replace(/\D/g, '').slice(0, 10);
+                        setMyProfileForm((prev) => ({ ...prev, phone: cleaned }));
+                        const res = validate10DigitPhone(cleaned);
+                        setProfileErrors((prev) => ({ ...prev, phone: cleaned ? res.error : undefined }));
+                      }}
+                      className={`w-full px-4 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/80 border font-semibold text-sm text-slate-900 dark:text-white focus:ring-2 transition ${
+                        profileErrors.phone
+                          ? "border-rose-500 focus:border-rose-500 focus:ring-rose-500/20 bg-rose-50/20"
+                          : "border-slate-200 dark:border-slate-700 focus:ring-brand-500/20 focus:border-brand-500"
+                      }`}
+                    />
+                    {profileErrors.phone && (
+                      <p className="mt-1 text-xs font-bold text-rose-500 flex items-center gap-1">
+                        <span>⚠️</span> {profileErrors.phone}
+                      </p>
+                    )}
+                  </div>
+
+                  <div>
+                    <label className="block font-extrabold text-sm text-slate-800 dark:text-slate-200 mb-1 whitespace-nowrap">
+                      Assigned Campus
+                    </label>
+                    <select
+                      value={myProfileForm.branch}
+                      onChange={(e) =>
+                        setMyProfileForm({
+                          ...myProfileForm,
+                          branch: e.target.value,
+                        })
+                      }
+                      className="w-full px-4 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 font-semibold text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition cursor-pointer"
+                    >
+                      <option value="">Select Campus</option>
+                      {configuredBranches.map((bName: string) => (
+                        <option key={bName} value={bName}>
+                          {bName}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                {/* Right: Profile Photo Uploader directly next to fields */}
+                <div className="shrink-0 flex flex-col items-center justify-center space-y-1 self-center pt-2 md:pt-0">
+                  <input
+                    ref={avatarFileInputRef}
+                    type="file"
+                    accept="image/png, image/jpeg, image/jpg, image/webp"
+                    onChange={handleAvatarFileChange}
+                    className="hidden"
+                  />
+
+                  <div className="relative shrink-0">
+                    {Boolean(myProfileForm.avatar && myProfileForm.avatar !== DEFAULT_USER_AVATAR) ? (
+                      <div className="relative">
+                        <img
+                          src={resolveMediaUrl(myProfileForm.avatar) || DEFAULT_USER_AVATAR}
+                          alt="Profile Avatar"
+                          onError={(e) => {
+                            const target = e.target as HTMLImageElement;
+                            if (target.src !== DEFAULT_USER_AVATAR) {
+                              target.src = DEFAULT_USER_AVATAR;
+                            }
+                          }}
+                          className="w-20 h-20 rounded-2xl object-cover ring-2 ring-brand-500/20 shadow-xs bg-white dark:bg-slate-800"
+                        />
                         <button
                           type="button"
                           onClick={() =>
@@ -1174,156 +1274,76 @@ export const SettingsView: React.FC = () => {
                               avatar: "",
                             }))
                           }
-                          className="px-3 py-2 rounded-xl bg-rose-50 dark:bg-rose-950/40 text-rose-600 hover:bg-rose-100 dark:hover:bg-rose-900/60 font-bold text-xs transition cursor-pointer"
+                          className="absolute -top-1.5 -right-1.5 p-1 rounded-full bg-rose-50 dark:bg-rose-950 text-rose-600 dark:text-rose-400 hover:bg-rose-100 dark:hover:bg-rose-900 border border-rose-200 dark:border-rose-800 transition cursor-pointer shadow-xs"
+                          title="Delete Photo"
                         >
-                          Remove Photo
+                          <Trash2 className="w-3.5 h-3.5" />
                         </button>
-                      )}
-                    </div>
-                    <p className="text-[11px] text-slate-400 font-medium">
-                      Supports JPG, PNG, WEBP files up to 3MB. Click upload or
-                      change button.
-                    </p>
+                      </div>
+                    ) : (
+                      <div className="w-20 h-20 rounded-2xl bg-slate-100 dark:bg-slate-800 ring-2 ring-slate-100/50 dark:ring-slate-800/50 flex flex-col items-center justify-center text-slate-400 dark:text-slate-500 border border-slate-200/60 dark:border-slate-700/60">
+                        <UserIcon className="w-9 h-9" />
+                      </div>
+                    )}
                   </div>
+
+                  <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 tracking-tight text-center">
+                    Max size: 3MB
+                  </span>
+
+                  {!Boolean(myProfileForm.avatar && myProfileForm.avatar !== DEFAULT_USER_AVATAR) ? (
+                    <button
+                      type="button"
+                      onClick={() => avatarFileInputRef.current?.click()}
+                      className="w-20 py-1.5 rounded-xl bg-brand-600 hover:bg-brand-500 text-white text-[11px] font-extrabold cursor-pointer flex items-center justify-center gap-1 shadow-xs transition-all shrink-0"
+                    >
+                      <Camera className="w-3.5 h-3.5" /> Upload
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => avatarFileInputRef.current?.click()}
+                      className="w-20 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-[10px] font-bold cursor-pointer flex items-center justify-center gap-1 transition-all shrink-0"
+                    >
+                      <Camera className="w-3.5 h-3.5" /> Change
+                    </button>
+                  )}
                 </div>
               </div>
 
-              {/* Input Fields Grid */}
+              {/* Bottom Row Input Fields */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-extrabold text-slate-700 dark:text-slate-300 mb-1">
-                    Full Name <span className="text-rose-500 font-bold">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="Enter your full name"
-                    value={myProfileForm.name}
-                    onChange={(e) => {
-                      const val = e.target.value;
-                      setMyProfileForm((prev) => ({ ...prev, name: val }));
-                      const res = validateFullName(val, true);
-                      setProfileErrors((prev) => ({ ...prev, name: res.error }));
-                    }}
-                    className={`w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/80 border font-semibold text-slate-900 dark:text-white focus:ring-2 transition ${
-                      profileErrors.name
-                        ? "border-rose-500 focus:border-rose-500 focus:ring-rose-500/20 bg-rose-50/20"
-                        : "border-slate-200 dark:border-slate-700 focus:ring-brand-500/20 focus:border-brand-500"
-                    }`}
-                  />
-                  {profileErrors.name && (
-                    <p className="mt-1 text-xs font-bold text-rose-500 flex items-center gap-1">
-                      <span>⚠️</span> {profileErrors.name}
-                    </p>
-                  )}
-                </div>
-
-                <div>
-                  <label className="block font-extrabold text-slate-700 dark:text-slate-300 mb-1">
-                    Email Address <span className="text-rose-500 font-bold">*</span>
-                  </label>
-                  <input
-                    type="email"
-                    required
-                    placeholder="warden@pirnavschools.edu"
-                    value={myProfileForm.email}
-                    onChange={(e) => {
-                      const val = e.target.value;
-                      setMyProfileForm((prev) => ({ ...prev, email: val }));
-                      const res = validateEmail(val, true);
-                      setProfileErrors((prev) => ({ ...prev, email: res.error }));
-                    }}
-                    className={`w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/80 border font-semibold text-slate-900 dark:text-white focus:ring-2 transition ${
-                      profileErrors.email
-                        ? "border-rose-500 focus:border-rose-500 focus:ring-rose-500/20 bg-rose-50/20"
-                        : "border-slate-200 dark:border-slate-700 focus:ring-brand-500/20 focus:border-brand-500"
-                    }`}
-                  />
-                  {profileErrors.email && (
-                    <p className="mt-1 text-xs font-bold text-rose-500 flex items-center gap-1">
-                      <span>⚠️</span> {profileErrors.email}
-                    </p>
-                  )}
-                </div>
-
-                <div>
-                  <label className="block font-extrabold text-slate-700 dark:text-slate-300 mb-1">
-                    Contact Phone Number
-                  </label>
-                  <input
-                    type="tel"
-                    placeholder="9876543210"
-                    value={myProfileForm.phone}
-                    onChange={(e) => {
-                      const cleaned = e.target.value.replace(/\D/g, '').slice(0, 10);
-                      setMyProfileForm((prev) => ({ ...prev, phone: cleaned }));
-                      const res = validate10DigitPhone(cleaned);
-                      setProfileErrors((prev) => ({ ...prev, phone: cleaned ? res.error : undefined }));
-                    }}
-                    className={`w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/80 border font-semibold text-slate-900 dark:text-white focus:ring-2 transition ${
-                      profileErrors.phone
-                        ? "border-rose-500 focus:border-rose-500 focus:ring-rose-500/20 bg-rose-50/20"
-                        : "border-slate-200 dark:border-slate-700 focus:ring-brand-500/20 focus:border-brand-500"
-                    }`}
-                  />
-                  {profileErrors.phone && (
-                    <p className="mt-1 text-xs font-bold text-rose-500 flex items-center gap-1">
-                      <span>⚠️</span> {profileErrors.phone}
-                    </p>
-                  )}
-                </div>
-
-                <div>
-                  <label className="block font-extrabold text-slate-700 dark:text-slate-300 mb-1">
-                    Campus / Branch Assignment
-                  </label>
-                  <select
-                    value={myProfileForm.branch}
-                    onChange={(e) =>
-                      setMyProfileForm({
-                        ...myProfileForm,
-                        branch: e.target.value,
-                      })
-                    }
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 font-semibold text-slate-900 dark:text-white focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition"
-                  >
-                    <option value="Main Campus">Main Campus</option>
-                    <option value="North Branch">North Branch</option>
-                    <option value="West Campus">West Campus</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block font-extrabold text-slate-700 dark:text-slate-300 mb-1">
+                  <label className="block font-extrabold text-sm text-slate-800 dark:text-slate-200 mb-1 whitespace-nowrap">
                     Assigned Role
                   </label>
                   <input
                     type="text"
                     disabled
                     value={myProfileForm.role}
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-extrabold text-slate-500 cursor-not-allowed"
+                    className="w-full px-4 py-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-extrabold text-sm text-slate-500 cursor-not-allowed"
                   />
                 </div>
 
                 <div>
-                  <label className="block font-extrabold text-slate-700 dark:text-slate-300 mb-1">
+                  <label className="block font-extrabold text-sm text-slate-800 dark:text-slate-200 mb-1 whitespace-nowrap">
                     Account Status
                   </label>
-                  <div className="px-3.5 py-2.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300 font-bold flex items-center gap-1.5">
-                    <span className="w-2 h-2 rounded-full bg-emerald-500" />{" "}
-                    Active Account
+                  <div className="px-4 py-2.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300 font-extrabold text-sm flex items-center gap-2">
+                    <span className="w-2.5 h-2.5 rounded-full bg-emerald-500" />{" "}
+                    Active
                   </div>
                 </div>
               </div>
 
               {/* Submit Button */}
-              <div className="pt-3 flex justify-end">
+              <div className="pt-1 flex justify-end">
                 <button
                   type="submit"
                   disabled={isSavingProfile || isProfileFormInvalid}
-                  className="px-6 py-2.5 rounded-2xl bg-brand-600 hover:bg-brand-500 text-white font-extrabold text-xs shadow-md shadow-brand-500/20 flex items-center gap-2 transition-all cursor-pointer active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:pointer-events-none"
+                  className="px-6 py-3 rounded-2xl bg-brand-600 hover:bg-brand-500 text-white font-extrabold text-sm shadow-md shadow-brand-500/20 flex items-center gap-2 transition-all cursor-pointer active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:pointer-events-none"
                 >
-                  <Save className="w-4 h-4" /> {isSavingProfile ? "Saving..." : "Save Basic Details"}
+                  <Save className="w-4.5 h-4.5" /> {isSavingProfile ? "Saving..." : "Save Basic Details"}
                 </button>
               </div>
             </form>
@@ -1331,16 +1351,16 @@ export const SettingsView: React.FC = () => {
 
           {/* Right Column: Password & Account Security Card */}
           <div className="space-y-6">
-            <div className="glass-card p-6 rounded-3xl space-y-4 border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xs">
-              <div className="flex items-center gap-2.5 border-b border-slate-100 dark:border-slate-800 pb-3">
-                <div className="w-9 h-9 rounded-xl bg-amber-50 dark:bg-amber-950 text-amber-600 flex items-center justify-center border border-amber-100 dark:border-amber-900">
+            <div className="glass-card p-4 sm:p-5 rounded-2xl space-y-3 border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xs">
+              <div className="flex items-center gap-2.5 border-b border-slate-100 dark:border-slate-800 pb-2.5">
+                <div className="w-10 h-10 rounded-xl bg-amber-50 dark:bg-amber-950 text-amber-600 flex items-center justify-center border border-amber-100 dark:border-amber-900">
                   <Key className="w-5 h-5" />
                 </div>
                 <div>
-                  <h3 className="font-extrabold text-sm text-slate-900 dark:text-white">
+                  <h3 className="font-extrabold text-base text-slate-900 dark:text-white">
                     Account Security
                   </h3>
-                  <p className="text-[11px] text-slate-400 font-medium">
+                  <p className="text-xs text-slate-500 dark:text-slate-400 font-semibold">
                     Update your login password
                   </p>
                 </div>
@@ -1348,10 +1368,10 @@ export const SettingsView: React.FC = () => {
 
               <form
                 onSubmit={handleUpdatePassword}
-                className="space-y-3.5 text-xs"
+                className="space-y-3 text-sm"
               >
                 <div>
-                  <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
+                  <label className="block font-extrabold text-sm text-slate-800 dark:text-slate-200 mb-1">
                     Current Password
                   </label>
                   <input
@@ -1365,12 +1385,12 @@ export const SettingsView: React.FC = () => {
                         currentPassword: e.target.value,
                       })
                     }
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-mono text-xs text-slate-900 dark:text-white"
+                    className="w-full px-4 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-mono text-sm text-slate-900 dark:text-white"
                   />
                 </div>
 
                 <div>
-                  <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
+                  <label className="block font-extrabold text-sm text-slate-800 dark:text-slate-200 mb-1">
                     New Password
                   </label>
                   <input
@@ -1381,12 +1401,12 @@ export const SettingsView: React.FC = () => {
                     onChange={(e) =>
                       setPassForm({ ...passForm, newPassword: e.target.value })
                     }
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-mono text-xs text-slate-900 dark:text-white"
+                    className="w-full px-4 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-mono text-sm text-slate-900 dark:text-white"
                   />
                 </div>
 
                 <div>
-                  <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
+                  <label className="block font-extrabold text-sm text-slate-800 dark:text-slate-200 mb-1">
                     Confirm New Password
                   </label>
                   <input
@@ -1400,15 +1420,15 @@ export const SettingsView: React.FC = () => {
                         confirmPassword: e.target.value,
                       })
                     }
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-mono text-xs text-slate-900 dark:text-white"
+                    className="w-full px-4 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-mono text-sm text-slate-900 dark:text-white"
                   />
                 </div>
 
                 <button
                   type="submit"
-                  className="w-full py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 dark:bg-slate-700 dark:hover:bg-slate-600 text-white font-extrabold text-xs shadow-xs flex items-center justify-center gap-1.5 transition cursor-pointer active:scale-95"
+                  className="w-full py-3 rounded-xl bg-slate-900 hover:bg-slate-800 dark:bg-slate-700 dark:hover:bg-slate-600 text-white font-extrabold text-sm shadow-xs flex items-center justify-center gap-1.5 transition cursor-pointer active:scale-95"
                 >
-                  <Lock className="w-3.5 h-3.5" /> Update Password
+                  <Lock className="w-4 h-4" /> Update Password
                 </button>
               </form>
             </div>
