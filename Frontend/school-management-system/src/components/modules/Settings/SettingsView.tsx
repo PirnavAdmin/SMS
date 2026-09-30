@@ -48,7 +48,7 @@ import {
 import { PrintableCertificateContainer } from "../Certificates/PrintableCertificateContainer";
 import { formatDateDDMMYYYY } from "../../../utils/dateValidation";
 import { resolveMediaUrl, DEFAULT_USER_AVATAR, createOptimizedAvatarDataUrl } from "../../../utils/mediaUtils";
-import { validateFullName, validateEmail, validate10DigitPhone } from "../../../utils/validation";
+import { validateFullName, validateEmail, validate10DigitPhone, validatePhoneNumber, sanitizePhoneInput } from "../../../utils/validation";
 import { SchoolLogoUploader } from "./SchoolLogoUploader";
 import { CertificateSettingsTab } from "./CertificateSettingsTab";
 import {
@@ -319,6 +319,7 @@ export const SettingsView: React.FC = () => {
     return Array.from(new Set(list));
   }, [branches, myProfileForm.branch, user?.branch]);
 
+  const [isEditingProfile, setIsEditingProfile] = useState(false);
   const [isSavingProfile, setIsSavingProfile] = useState(false);
   const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
   const [profileErrors, setProfileErrors] = useState<{
@@ -330,7 +331,7 @@ export const SettingsView: React.FC = () => {
   const validateProfileForm = (form: { name: string; email: string; phone: string }) => {
     const nameRes = validateFullName(form.name, true);
     const emailRes = validateEmail(form.email, true);
-    const phoneRes = validate10DigitPhone(form.phone);
+    const phoneRes = validatePhoneNumber(form.phone, false);
 
     const errors: { name?: string; email?: string; phone?: string } = {};
     if (!nameRes.isValid) errors.name = nameRes.error;
@@ -347,7 +348,7 @@ export const SettingsView: React.FC = () => {
   const isProfileFormInvalid = useMemo(() => {
     const nameRes = validateFullName(myProfileForm.name, true);
     const emailRes = validateEmail(myProfileForm.email, true);
-    const phoneRes = validate10DigitPhone(myProfileForm.phone);
+    const phoneRes = validatePhoneNumber(myProfileForm.phone, false);
     const phoneInvalid = myProfileForm.phone.trim() ? !phoneRes.isValid : false;
 
     return !nameRes.isValid || !emailRes.isValid || phoneInvalid;
@@ -557,6 +558,7 @@ export const SettingsView: React.FC = () => {
         "Profile Saved",
         "Your basic details and profile photo have been saved successfully.",
       );
+      setIsEditingProfile(false);
     } catch (err: any) {
       console.error("Failed to save profile:", err);
       addToast("error", "Save Failed", err?.message || "Failed to save profile details.");
@@ -776,6 +778,23 @@ export const SettingsView: React.FC = () => {
 
   const handleSaveProfile = (e: React.SyntheticEvent) => {
     e.preventDefault();
+
+    if (profileForm.phone) {
+      const phoneRes = validatePhoneNumber(profileForm.phone, false);
+      if (!phoneRes.isValid) {
+        addToast("error", "Invalid Phone Number", phoneRes.error || "Phone number must be exactly 10 digits.");
+        return;
+      }
+    }
+
+    if (profileForm.email) {
+      const emailRes = validateEmail(profileForm.email, false);
+      if (!emailRes.isValid) {
+        addToast("error", "Invalid Email", emailRes.error || "Enter a valid email address.");
+        return;
+      }
+    }
+
     updateSchoolProfile(profileForm);
     try {
       localStorage.setItem("edu_db_profile", JSON.stringify(profileForm));
@@ -887,6 +906,14 @@ export const SettingsView: React.FC = () => {
   const handleSaveCampus = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!campusForm.name.trim() || !campusForm.code.trim()) return;
+
+    if (campusForm.phone) {
+      const phoneRes = validatePhoneNumber(campusForm.phone, false);
+      if (!phoneRes.isValid) {
+        addToast("error", "Invalid Phone Number", phoneRes.error || "Phone number must be exactly 10 digits.");
+        return;
+      }
+    }
 
     let updated: CampusItem[];
     if (editingCampus) {
@@ -1116,7 +1143,7 @@ export const SettingsView: React.FC = () => {
 
       {/* TAB 0: PERSONAL BASIC DETAILS & PHOTO (FOR ALL ROLES INCLUDING WARDEN & ADMIN) */}
       {activeTab === "my-profile" && (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
           {/* Main Basic Details Form Card */}
           <div className="lg:col-span-2 glass-card p-4 sm:p-5 rounded-2xl space-y-3 border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xs">
             <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-2.5">
@@ -1126,9 +1153,28 @@ export const SettingsView: React.FC = () => {
                   & Profile Setup
                 </h3>
               </div>
-              <span className="px-3.5 py-1 rounded-full text-xs font-black bg-brand-50 text-brand-700 dark:bg-brand-950 dark:text-brand-300 border border-brand-200 dark:border-brand-800">
-                {myProfileForm.role}
-              </span>
+              <button
+                type="button"
+                onClick={() => setIsEditingProfile((prev) => !prev)}
+                className={`px-3 py-1.5 rounded-xl border flex items-center gap-1.5 text-xs font-extrabold transition cursor-pointer active:scale-95 ${
+                  isEditingProfile
+                    ? "bg-rose-50 text-rose-600 dark:bg-rose-950/40 dark:text-rose-400 border-rose-200 dark:border-rose-800 shadow-xs hover:bg-rose-100 dark:hover:bg-rose-900/50"
+                    : "bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700"
+                }`}
+                title={isEditingProfile ? "Cancel Editing" : "Edit Profile"}
+              >
+                {isEditingProfile ? (
+                  <>
+                    <X className="w-3.5 h-3.5 text-rose-600 dark:text-rose-400" />
+                    <span>Cancel</span>
+                  </>
+                ) : (
+                  <>
+                    <Edit className="w-3.5 h-3.5 text-brand-600" />
+                    <span>Edit</span>
+                  </>
+                )}
+              </button>
             </div>
 
             <form onSubmit={handleSaveMyProfile} className="space-y-3 text-sm">
@@ -1142,6 +1188,7 @@ export const SettingsView: React.FC = () => {
                     <input
                       type="text"
                       required
+                      disabled={!isEditingProfile}
                       placeholder="Enter your full name"
                       value={myProfileForm.name}
                       onChange={(e) => {
@@ -1150,10 +1197,12 @@ export const SettingsView: React.FC = () => {
                         const res = validateFullName(val, true);
                         setProfileErrors((prev) => ({ ...prev, name: res.error }));
                       }}
-                      className={`w-full px-4 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/80 border font-semibold text-sm text-slate-900 dark:text-white focus:ring-2 transition ${
-                        profileErrors.name
+                      className={`w-full px-4 py-2.5 rounded-xl border font-semibold text-sm text-slate-900 dark:text-white focus:ring-2 transition disabled:bg-slate-100/80 dark:disabled:bg-slate-800/60 disabled:text-slate-500 disabled:cursor-not-allowed ${
+                        !isEditingProfile
+                          ? "bg-slate-100/70 dark:bg-slate-800/70 border-slate-200/80 dark:border-slate-700/80"
+                          : profileErrors.name
                           ? "border-rose-500 focus:border-rose-500 focus:ring-rose-500/20 bg-rose-50/20"
-                          : "border-slate-200 dark:border-slate-700 focus:ring-brand-500/20 focus:border-brand-500"
+                          : "bg-slate-50 dark:bg-slate-800/80 border-slate-200 dark:border-slate-700 focus:ring-brand-500/20 focus:border-brand-500"
                       }`}
                     />
                     {profileErrors.name && (
@@ -1170,6 +1219,7 @@ export const SettingsView: React.FC = () => {
                     <input
                       type="email"
                       required
+                      disabled={!isEditingProfile}
                       placeholder="warden@pirnavschools.edu"
                       value={myProfileForm.email}
                       onChange={(e) => {
@@ -1178,10 +1228,12 @@ export const SettingsView: React.FC = () => {
                         const res = validateEmail(val, true);
                         setProfileErrors((prev) => ({ ...prev, email: res.error }));
                       }}
-                      className={`w-full px-4 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/80 border font-semibold text-sm text-slate-900 dark:text-white focus:ring-2 transition ${
-                        profileErrors.email
+                      className={`w-full px-4 py-2.5 rounded-xl border font-semibold text-sm text-slate-900 dark:text-white focus:ring-2 transition disabled:bg-slate-100/80 dark:disabled:bg-slate-800/60 disabled:text-slate-500 disabled:cursor-not-allowed ${
+                        !isEditingProfile
+                          ? "bg-slate-100/70 dark:bg-slate-800/70 border-slate-200/80 dark:border-slate-700/80"
+                          : profileErrors.email
                           ? "border-rose-500 focus:border-rose-500 focus:ring-rose-500/20 bg-rose-50/20"
-                          : "border-slate-200 dark:border-slate-700 focus:ring-brand-500/20 focus:border-brand-500"
+                          : "bg-slate-50 dark:bg-slate-800/80 border-slate-200 dark:border-slate-700 focus:ring-brand-500/20 focus:border-brand-500"
                       }`}
                     />
                     {profileErrors.email && (
@@ -1197,18 +1249,22 @@ export const SettingsView: React.FC = () => {
                     </label>
                     <input
                       type="tel"
+                      disabled={!isEditingProfile}
+                      maxLength={10}
                       placeholder="9876543210"
                       value={myProfileForm.phone}
                       onChange={(e) => {
-                        const cleaned = e.target.value.replace(/\D/g, '').slice(0, 10);
+                        const cleaned = sanitizePhoneInput(e.target.value);
                         setMyProfileForm((prev) => ({ ...prev, phone: cleaned }));
-                        const res = validate10DigitPhone(cleaned);
+                        const res = validatePhoneNumber(cleaned, false);
                         setProfileErrors((prev) => ({ ...prev, phone: cleaned ? res.error : undefined }));
                       }}
-                      className={`w-full px-4 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/80 border font-semibold text-sm text-slate-900 dark:text-white focus:ring-2 transition ${
-                        profileErrors.phone
+                      className={`w-full px-4 py-2.5 rounded-xl border font-semibold text-sm text-slate-900 dark:text-white focus:ring-2 transition disabled:bg-slate-100/80 dark:disabled:bg-slate-800/60 disabled:text-slate-500 disabled:cursor-not-allowed ${
+                        !isEditingProfile
+                          ? "bg-slate-100/70 dark:bg-slate-800/70 border-slate-200/80 dark:border-slate-700/80"
+                          : profileErrors.phone
                           ? "border-rose-500 focus:border-rose-500 focus:ring-rose-500/20 bg-rose-50/20"
-                          : "border-slate-200 dark:border-slate-700 focus:ring-brand-500/20 focus:border-brand-500"
+                          : "bg-slate-50 dark:bg-slate-800/80 border-slate-200 dark:border-slate-700 focus:ring-brand-500/20 focus:border-brand-500"
                       }`}
                     />
                     {profileErrors.phone && (
@@ -1223,6 +1279,7 @@ export const SettingsView: React.FC = () => {
                       Assigned Campus
                     </label>
                     <select
+                      disabled={!isEditingProfile}
                       value={myProfileForm.branch}
                       onChange={(e) =>
                         setMyProfileForm({
@@ -1230,7 +1287,11 @@ export const SettingsView: React.FC = () => {
                           branch: e.target.value,
                         })
                       }
-                      className="w-full px-4 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 font-semibold text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition cursor-pointer"
+                      className={`w-full px-4 py-2.5 rounded-xl border font-semibold text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition disabled:bg-slate-100/80 dark:disabled:bg-slate-800/60 disabled:text-slate-500 disabled:cursor-not-allowed ${
+                        !isEditingProfile
+                          ? "bg-slate-100/70 dark:bg-slate-800/70 border-slate-200/80 dark:border-slate-700/80"
+                          : "bg-slate-50 dark:bg-slate-800/80 border-slate-200 dark:border-slate-700 cursor-pointer"
+                      }`}
                     >
                       <option value="">Select Campus</option>
                       {configuredBranches.map((bName: string) => (
@@ -1268,13 +1329,14 @@ export const SettingsView: React.FC = () => {
                         />
                         <button
                           type="button"
+                          disabled={!isEditingProfile}
                           onClick={() =>
                             setMyProfileForm((prev) => ({
                               ...prev,
                               avatar: "",
                             }))
                           }
-                          className="absolute -top-1.5 -right-1.5 p-1 rounded-full bg-rose-50 dark:bg-rose-950 text-rose-600 dark:text-rose-400 hover:bg-rose-100 dark:hover:bg-rose-900 border border-rose-200 dark:border-rose-800 transition cursor-pointer shadow-xs"
+                          className="absolute -top-1.5 -right-1.5 p-1 rounded-full bg-rose-50 dark:bg-rose-950 text-rose-600 dark:text-rose-400 hover:bg-rose-100 dark:hover:bg-rose-900 border border-rose-200 dark:border-rose-800 transition cursor-pointer shadow-xs disabled:opacity-40 disabled:cursor-not-allowed disabled:pointer-events-none"
                           title="Delete Photo"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
@@ -1294,16 +1356,18 @@ export const SettingsView: React.FC = () => {
                   {!Boolean(myProfileForm.avatar && myProfileForm.avatar !== DEFAULT_USER_AVATAR) ? (
                     <button
                       type="button"
+                      disabled={!isEditingProfile}
                       onClick={() => avatarFileInputRef.current?.click()}
-                      className="w-20 py-1.5 rounded-xl bg-brand-600 hover:bg-brand-500 text-white text-[11px] font-extrabold cursor-pointer flex items-center justify-center gap-1 shadow-xs transition-all shrink-0"
+                      className="w-20 py-1.5 rounded-xl bg-brand-600 hover:bg-brand-500 text-white text-[11px] font-extrabold cursor-pointer flex items-center justify-center gap-1 shadow-xs transition-all shrink-0 disabled:opacity-40 disabled:cursor-not-allowed disabled:pointer-events-none"
                     >
                       <Camera className="w-3.5 h-3.5" /> Upload
                     </button>
                   ) : (
                     <button
                       type="button"
+                      disabled={!isEditingProfile}
                       onClick={() => avatarFileInputRef.current?.click()}
-                      className="w-20 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-[10px] font-bold cursor-pointer flex items-center justify-center gap-1 transition-all shrink-0"
+                      className="w-20 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-[10px] font-bold cursor-pointer flex items-center justify-center gap-1 transition-all shrink-0 disabled:opacity-40 disabled:cursor-not-allowed disabled:pointer-events-none"
                     >
                       <Camera className="w-3.5 h-3.5" /> Change
                     </button>
@@ -1311,41 +1375,20 @@ export const SettingsView: React.FC = () => {
                 </div>
               </div>
 
-              {/* Bottom Row Input Fields */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label className="block font-extrabold text-sm text-slate-800 dark:text-slate-200 mb-1 whitespace-nowrap">
-                    Assigned Role
-                  </label>
-                  <input
-                    type="text"
-                    disabled
-                    value={myProfileForm.role}
-                    className="w-full px-4 py-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-extrabold text-sm text-slate-500 cursor-not-allowed"
-                  />
-                </div>
 
-                <div>
-                  <label className="block font-extrabold text-sm text-slate-800 dark:text-slate-200 mb-1 whitespace-nowrap">
-                    Account Status
-                  </label>
-                  <div className="px-4 py-2.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300 font-extrabold text-sm flex items-center gap-2">
-                    <span className="w-2.5 h-2.5 rounded-full bg-emerald-500" />{" "}
-                    Active
-                  </div>
-                </div>
-              </div>
 
               {/* Submit Button */}
-              <div className="pt-1 flex justify-end">
-                <button
-                  type="submit"
-                  disabled={isSavingProfile || isProfileFormInvalid}
-                  className="px-6 py-3 rounded-2xl bg-brand-600 hover:bg-brand-500 text-white font-extrabold text-sm shadow-md shadow-brand-500/20 flex items-center gap-2 transition-all cursor-pointer active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:pointer-events-none"
-                >
-                  <Save className="w-4.5 h-4.5" /> {isSavingProfile ? "Saving..." : "Save Basic Details"}
-                </button>
-              </div>
+              {isEditingProfile && (
+                <div className="pt-1 flex justify-end">
+                  <button
+                    type="submit"
+                    disabled={isSavingProfile || isProfileFormInvalid}
+                    className="px-4.5 py-2 rounded-xl bg-brand-600 hover:bg-brand-500 text-white font-extrabold text-xs sm:text-sm shadow-sm flex items-center gap-1.5 transition-all cursor-pointer active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:pointer-events-none"
+                  >
+                    <Save className="w-4 h-4" /> {isSavingProfile ? "Saving..." : "Save"}
+                  </button>
+                </div>
+              )}
             </form>
           </div>
 
@@ -1489,9 +1532,11 @@ export const SettingsView: React.FC = () => {
                 </label>
                 <input
                   type="text"
+                  maxLength={10}
+                  placeholder="9876543210"
                   value={profileForm.phone}
                   onChange={(e) =>
-                    setProfileForm({ ...profileForm, phone: e.target.value })
+                    setProfileForm({ ...profileForm, phone: sanitizePhoneInput(e.target.value) })
                   }
                   className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border"
                 />
@@ -2586,10 +2631,11 @@ export const SettingsView: React.FC = () => {
                   </label>
                   <input
                     type="text"
-                    placeholder="+1 555-..."
+                    maxLength={10}
+                    placeholder="9876543210"
                     value={campusForm.phone}
                     onChange={(e) =>
-                      setCampusForm({ ...campusForm, phone: e.target.value })
+                      setCampusForm({ ...campusForm, phone: sanitizePhoneInput(e.target.value) })
                     }
                     className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border"
                   />
