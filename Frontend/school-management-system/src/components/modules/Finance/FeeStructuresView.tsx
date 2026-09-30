@@ -47,7 +47,9 @@ export const FeeStructuresView: React.FC = () => {
   >({});
   const [isLoadingFeeTypes, setIsLoadingFeeTypes] = useState(false);
 
-  const activeFeeHeads = feeHeads.filter((h) => h.status === "Active");
+  const activeFeeHeads = feeHeads
+    .filter((h) => h.status === "Active")
+    .sort((a, b) => (a.displayOrder ?? 999) - (b.displayOrder ?? 999));
 
   const totalCalculated = selectedHeadIds.reduce((sum, id) => {
     const val = Number(selectedHeadAmounts[id]) || 0;
@@ -279,6 +281,14 @@ export const FeeStructuresView: React.FC = () => {
       })
       .filter(Boolean) as FeeStructureItem[];
 
+    itemsList.sort((a, b) => {
+      const headA = feeHeads.find((h) => h.id === a.feeHeadId || h.name.toLowerCase().trim() === a.feeHeadName.toLowerCase().trim());
+      const headB = feeHeads.find((h) => h.id === b.feeHeadId || h.name.toLowerCase().trim() === b.feeHeadName.toLowerCase().trim());
+      const orderA = headA?.displayOrder ?? 999;
+      const orderB = headB?.displayOrder ?? 999;
+      return orderA - orderB;
+    });
+
     const payload: Omit<DynamicFeeStructure, "id"> = {
       academicYear: editingStruct
         ? editingStruct.academicYear
@@ -438,13 +448,30 @@ export const FeeStructuresView: React.FC = () => {
               </div>
 
               {(() => {
-                const validItems = s.items.filter((item) =>
-                  activeFeeHeads.some(
-                    (h) =>
-                      h.id === item.feeHeadId ||
-                      h.name.toLowerCase().trim() === item.feeHeadName.toLowerCase().trim(),
-                  ),
-                );
+                const validItems = s.items
+                  .filter((item) =>
+                    activeFeeHeads.some(
+                      (h) =>
+                        h.id === item.feeHeadId ||
+                        h.name.toLowerCase().trim() === item.feeHeadName.toLowerCase().trim(),
+                    ),
+                  )
+                  .sort((a, b) => {
+                    const headA = activeFeeHeads.find(
+                      (h) =>
+                        h.id === a.feeHeadId ||
+                        h.name.toLowerCase().trim() === a.feeHeadName.toLowerCase().trim(),
+                    );
+                    const headB = activeFeeHeads.find(
+                      (h) =>
+                        h.id === b.feeHeadId ||
+                        h.name.toLowerCase().trim() === b.feeHeadName.toLowerCase().trim(),
+                    );
+                    const orderA = headA?.displayOrder ?? 999;
+                    const orderB = headB?.displayOrder ?? 999;
+                    if (orderA !== orderB) return orderA - orderB;
+                    return (a.feeHeadName || "").localeCompare(b.feeHeadName || "");
+                  });
                 const cardTotal = validItems.reduce(
                   (sum, item) => sum + (Number(item.amount) || 0),
                   0,

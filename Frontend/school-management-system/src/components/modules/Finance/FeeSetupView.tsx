@@ -43,9 +43,6 @@ export const FeeSetupView: React.FC<FeeSetupViewProps> = ({ initialTab = 'heads'
           <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white flex items-center gap-2">
             <Tag className="w-6 h-6 text-sky-500" /> Fee Setup
           </h2>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-            Configure fee heads, class-wise structures, and payment schedule deadlines.
-          </p>
         </div>
       </div>
 

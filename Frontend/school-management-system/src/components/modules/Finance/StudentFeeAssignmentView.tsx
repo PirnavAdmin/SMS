@@ -306,6 +306,19 @@ export const StudentFeeAssignmentView: React.FC = () => {
       };
     });
 
+    itemsList.sort((a, b) => {
+      const headA = feeHeads.find(
+        (h) => h.id === a.feeHeadId || h.name.toLowerCase().trim() === a.feeHeadName.toLowerCase().trim()
+      );
+      const headB = feeHeads.find(
+        (h) => h.id === b.feeHeadId || h.name.toLowerCase().trim() === b.feeHeadName.toLowerCase().trim()
+      );
+      const orderA = headA?.displayOrder ?? 999;
+      const orderB = headB?.displayOrder ?? 999;
+      if (orderA !== orderB) return orderA - orderB;
+      return (a.feeHeadName || '').localeCompare(b.feeHeadName || '');
+    });
+
     setCustomBreakdown(itemsList);
   };
 
@@ -559,9 +572,6 @@ export const StudentFeeAssignmentView: React.FC = () => {
         <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white flex items-center gap-2">
           <UserPlus className="w-6 h-6 text-sky-500" /> Student Fee Assignment & Policy Management
         </h2>
-        <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 font-medium">
-          Allocate standard fee structures or configure student fee policies (Full Annual Fee, Term-wise Fee).
-        </p>
       </div>
 
       {/* Filter & Bulk Control Bar */}

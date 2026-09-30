@@ -812,7 +812,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
                                   "finance-due-fees",
                                   "finance-due",
                                   "finance-dues",
-                                  "finance-ledger",
                                   "finance-student-ledger",
                                 ].includes(activeModule)) ||
                               (sub.id === "finance-fee-collection" &&
@@ -838,7 +837,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                                   "finance-refund-management",
                                   "finance-settings",
                                 ].includes(activeModule)) ||
-                              (sub.id === "finance-transactions" &&
+                              ((sub.id === "finance-ledger" || sub.id === "finance-transactions") &&
                                 [
                                   "finance-transactions",
                                   "finance-ledger",
