@@ -44,13 +44,7 @@ export const MarksEntryTable: React.FC<MarksEntryTableProps> = ({
       });
       if (matched) return matched.grade || matched.gradeName || '—';
     }
-    // Standard percentage fallbacks if not matched by scale
-    if (percent >= 90) return 'A+';
-    if (percent >= 80) return 'A';
-    if (percent >= 70) return 'B';
-    if (percent >= 60) return 'C';
-    if (percent >= 33) return 'D';
-    return 'F';
+    return '-';
   };
 
   const getAttendanceBadgeClass = (status: string) => {

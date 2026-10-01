@@ -45,16 +45,7 @@ export function calculateGrade(
     }
   }
 
-  // Standard Auto-Grade system by marks / percentage
-  const pct = Math.max(0, Math.min(100, Number(value) || 0));
-  if (pct >= 90) return 'A+';
-  if (pct >= 80) return 'A';
-  if (pct >= 70) return 'B+';
-  if (pct >= 60) return 'B';
-  if (pct >= 50) return 'C+';
-  if (pct >= 40) return 'C';
-  if (pct >= 35) return 'D';
-  return 'F';
+  return '-';
 }
 
 export function calculateGpa(
