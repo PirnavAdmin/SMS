@@ -793,13 +793,6 @@ export const LandingView: React.FC<LandingViewProps> = ({ onLoginClick }) => {
                       <Sparkles className="w-3.5 h-3.5 text-sky-600 dark:text-sky-400" />
                       <span>Multi-Role Sign In</span>
                     </div>
-                    <button
-                      onClick={() => onLoginClick()}
-                      className="text-[11px] font-bold text-sky-600 dark:text-sky-400 hover:text-sky-700 dark:hover:text-sky-300 flex items-center gap-1"
-                    >
-                      <span>Launch Portal</span>
-                      <ArrowRight className="w-3 h-3" />
-                    </button>
                   </div>
 
                 </div>
