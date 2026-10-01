@@ -41,6 +41,7 @@ import { AttendanceView } from "./components/modules/Attendance/AttendanceView";
 import { TimetableView } from "./components/modules/Timetable/TimetableView";
 import { ExaminationView } from "./components/modules/Examination/ExaminationView";
 import { MarksEntryView } from "./components/modules/Examination/MarksEntryView";
+import { ClassTeacherMarksEntryView } from "./components/modules/Examination/ClassTeacherMarksEntryView";
 import { GlobalReportCardsView } from "./components/modules/Examination/GlobalReportCardsView";
 import { HomeworkView } from "./components/modules/Homework/HomeworkView";
 import { ParentHomeworkView } from "./components/modules/Academics/ParentHomeworkView";
@@ -488,6 +489,11 @@ const MainLayout: React.FC = () => {
         ) : (
           <ExaminationView />
         );
+      case "marks-entry":
+      case "teacher-marks-entry":
+      case "examination-marks":
+      case "examination-marks-entry":
+        return <ClassTeacherMarksEntryView onNavigate={setActiveModule} />;
       case "report-cards":
       case "examination-report-cards":
         return userRole === "parent" || userRole === "student" ? (
