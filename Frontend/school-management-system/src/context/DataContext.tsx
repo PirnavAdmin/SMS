@@ -5510,10 +5510,22 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           );
           setStudentUniformIssues((prev) => {
             const apiIds = new Set(validMappedDists.map((d: any) => d.id));
-            const localOnly = (prev || []).filter(
-              (d: any) => !apiIds.has(d.id) && !deletedTrack.has(d.id),
-            );
-            return [...validMappedDists, ...localOnly];
+            const apiKeys = new Set(validMappedDists.map((d: any) => `${(d.studentId || d.admissionNo || '').toLowerCase()}_${(d.itemName || '').toLowerCase()}_${(d.size || '').toLowerCase()}`));
+
+            const localOnly = (prev || []).filter((d: any) => {
+              if (!d) return false;
+              if (deletedTrack.has(d.id)) return false;
+              if (apiIds.has(d.id)) return false;
+              const localKey = `${(d.studentId || d.admissionNo || '').toLowerCase()}_${(d.itemName || '').toLowerCase()}_${(d.size || '').toLowerCase()}`;
+              if (apiKeys.has(localKey)) return false;
+              return true;
+            });
+            const merged = [...validMappedDists, ...localOnly];
+            try {
+              localStorage.setItem("edu_db_student_uniform_issues", JSON.stringify(merged));
+              localStorage.setItem("student_uniform_issues", JSON.stringify(merged));
+            } catch (e) {}
+            return merged;
           });
         }
       } catch (err) {
@@ -5808,11 +5820,43 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           } catch (e) {}
         }
         if (structsRes.status === "fulfilled") {
-          setDynamicFeeStructures(structs);
-          try {
-            localStorage.setItem("dynamic_fee_structures", JSON.stringify(structs));
-            localStorage.setItem("edu_db_dynamic_fee_structures", JSON.stringify(structs));
-          } catch (e) {}
+          const apiStructs = Array.isArray(structs) ? structs : [];
+          setDynamicFeeStructures((prev) => {
+            let currentLocal = prev;
+            if (!currentLocal || currentLocal.length === 0) {
+              try {
+                const stored = localStorage.getItem("edu_db_dynamic_fee_structures") || localStorage.getItem("dynamic_fee_structures");
+                if (stored) {
+                  const parsed = JSON.parse(stored);
+                  if (Array.isArray(parsed) && parsed.length > 0) {
+                    currentLocal = parsed;
+                  }
+                }
+              } catch (e) {}
+            }
+
+            if (!currentLocal || currentLocal.length === 0) {
+              try {
+                localStorage.setItem("dynamic_fee_structures", JSON.stringify(apiStructs));
+                localStorage.setItem("edu_db_dynamic_fee_structures", JSON.stringify(apiStructs));
+              } catch (e) {}
+              return apiStructs;
+            }
+
+            const localMap = new Map((currentLocal || []).map((s: any) => [(s.className || s.name || s.id || "").trim().toLowerCase(), s]));
+            apiStructs.forEach((s: any) => {
+              const key = (s.className || s.name || s.id || "").trim().toLowerCase();
+              if (!localMap.has(key)) {
+                localMap.set(key, s);
+              }
+            });
+            const merged = Array.from(localMap.values());
+            try {
+              localStorage.setItem("dynamic_fee_structures", JSON.stringify(merged));
+              localStorage.setItem("edu_db_dynamic_fee_structures", JSON.stringify(merged));
+            } catch (e) {}
+            return merged;
+          });
         }
         setDbAssignments(assignments);
         if (paymentsRes.status === "fulfilled") {
@@ -10616,7 +10660,12 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           String(d.id) !== String(id) &&
           (d.className || "").trim().toLowerCase() !== normClass,
       );
-      return [...filtered, newDfs];
+      const updated = [...filtered, newDfs];
+      try {
+        localStorage.setItem("dynamic_fee_structures", JSON.stringify(updated));
+        localStorage.setItem("edu_db_dynamic_fee_structures", JSON.stringify(updated));
+      } catch (e) {}
+      return updated;
     });
     applyFeeStructureToClassStudents(newDfs);
     logActivity(
@@ -10640,6 +10689,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       const next = prev.map((d) => (String(d.id) === String(id) ? updatedDfs : d));
       try {
         localStorage.setItem("dynamic_fee_structures", JSON.stringify(next));
+        localStorage.setItem("edu_db_dynamic_fee_structures", JSON.stringify(next));
       } catch (e) {}
       return next;
     });
@@ -10670,6 +10720,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       });
       try {
         localStorage.setItem("dynamic_fee_structures", JSON.stringify(filtered));
+        localStorage.setItem("edu_db_dynamic_fee_structures", JSON.stringify(filtered));
       } catch (e) {}
       return filtered;
     });
@@ -19247,19 +19298,25 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     const newIssue = {
       ...issueData,
       id: "UIS-" + Date.now() + "-" + Math.floor(Math.random() * 1000000),
-      branch: issueData.branch || selectedBranch || "Main Campus",
+      branch: (selectedBranch && selectedBranch !== "All Branches" && selectedBranch !== "All")
+        ? selectedBranch
+        : (issueData.branch || "Main Campus"),
     };
 
-    setStudentUniformIssues((prev) => [newIssue, ...prev]);
-    try {
-      const stored =
-        localStorage.getItem("edu_db_student_uniform_issues") || "[]";
-      const parsed = JSON.parse(stored);
-      localStorage.setItem(
-        "edu_db_student_uniform_issues",
-        JSON.stringify([newIssue, ...parsed]),
-      );
-    } catch (e) {}
+    setStudentUniformIssues((prev) => {
+      const updated = [newIssue, ...prev];
+      try {
+        localStorage.setItem(
+          "edu_db_student_uniform_issues",
+          JSON.stringify(updated),
+        );
+        localStorage.setItem(
+          "student_uniform_issues",
+          JSON.stringify(updated),
+        );
+      } catch (e) {}
+      return updated;
+    });
 
     try {
       const res: any = await issueUniformApi({
@@ -19280,9 +19337,14 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       });
       if (res?.success && res?.data) {
         const serverId = String(res.data.distributionId || res.data.id);
-        setStudentUniformIssues((prev) =>
-          prev.map((i) => (i.id === newIssue.id ? { ...i, id: serverId } : i)),
-        );
+        setStudentUniformIssues((prev) => {
+          const updated = prev.map((i) => (i.id === newIssue.id ? { ...i, id: serverId } : i));
+          try {
+            localStorage.setItem("edu_db_student_uniform_issues", JSON.stringify(updated));
+            localStorage.setItem("student_uniform_issues", JSON.stringify(updated));
+          } catch (e) {}
+          return updated;
+        });
       }
     } catch (err) {
       console.warn("Failed to issue uniform on backend:", err);
@@ -20115,7 +20177,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         (selectedBranch as any)?.id ||
         (typeof selectedBranch === "string" ? selectedBranch : "") ||
         "BR-001",
-      branch: (appData as any).branch || (staffMatch as any)?.branchName || staffMatch?.branch || "Main Campus",
+      branch: (appData as any).branch || (staffMatch as any)?.branchName || (staffMatch as any)?.branch || "Main Campus",
       status: appData.status || "Pending",
       appliedDate:
         appData.appliedDate || new Date().toISOString().split("T")[0],

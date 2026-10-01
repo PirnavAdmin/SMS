@@ -1,5 +1,6 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Award } from 'lucide-react';
+import { useData } from '../../../../context/DataContext';
 
 interface CoScholasticAssessmentProps {
   studentId: string;
@@ -22,6 +23,17 @@ export const CoScholasticAssessment: React.FC<CoScholasticAssessmentProps> = ({
   onChange,
   onSave
 }) => {
+  const { gradeConfigurations = [] } = useData();
+
+  const availableGrades = useMemo(() => {
+    if (gradeConfigurations && gradeConfigurations.length > 0) {
+      const names = gradeConfigurations.map(g => g.gradeName || g.grade || (g as any).name).filter(Boolean);
+      const unique = Array.from(new Set(names));
+      if (unique.length > 0) return unique;
+    }
+    return ['A+', 'A', 'B+', 'B', 'C', 'D', 'F'];
+  }, [gradeConfigurations]);
+
   const selectClass = "w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-850 outline-none text-slate-900 dark:text-white font-bold text-xs h-[36px] transition cursor-pointer";
   const labelClass = "text-[10px] font-black uppercase tracking-[0.18em] text-slate-400 block mb-1";
 
@@ -41,11 +53,11 @@ export const CoScholasticAssessment: React.FC<CoScholasticAssessmentProps> = ({
         <div className="space-y-0.5">
           <label className={labelClass}>Discipline</label>
           <select
-            value={discipline || 'A'}
+            value={discipline || availableGrades[0] || 'A'}
             onChange={e => onChange({ discipline: e.target.value })}
             className={selectClass}
           >
-            {['A+', 'A', 'B+', 'B', 'C', 'D', 'F'].map(g => (
+            {availableGrades.map(g => (
               <option key={g} value={g}>{g}</option>
             ))}
           </select>
@@ -54,24 +66,24 @@ export const CoScholasticAssessment: React.FC<CoScholasticAssessmentProps> = ({
         <div className="space-y-0.5">
           <label className={labelClass}>Sports</label>
           <select
-            value={sports || 'A'}
+            value={sports || availableGrades[0] || 'A'}
             onChange={e => onChange({ sports: e.target.value })}
             className={selectClass}
           >
-            {['A+', 'A', 'B+', 'B', 'C', 'D', 'F'].map(g => (
+            {availableGrades.map(g => (
               <option key={g} value={g}>{g}</option>
             ))}
           </select>
         </div>
 
         <div className="space-y-0.5">
-          <label className={labelClass}>Art & Craft</label>
+          <label className={labelClass}>Art &amp; Craft</label>
           <select
-            value={artAndCraft || 'B+'}
+            value={artAndCraft || availableGrades[0] || 'B+'}
             onChange={e => onChange({ artAndCraft: e.target.value })}
             className={selectClass}
           >
-            {['A+', 'A', 'B+', 'B', 'C', 'D', 'F'].map(g => (
+            {availableGrades.map(g => (
               <option key={g} value={g}>{g}</option>
             ))}
           </select>
@@ -80,11 +92,11 @@ export const CoScholasticAssessment: React.FC<CoScholasticAssessmentProps> = ({
         <div className="space-y-0.5">
           <label className={labelClass}>General Conduct</label>
           <select
-            value={generalConduct || 'A'}
+            value={generalConduct || availableGrades[0] || 'A'}
             onChange={e => onChange({ generalConduct: e.target.value })}
             className={selectClass}
           >
-            {['A+', 'A', 'B+', 'B', 'C', 'D', 'F'].map(g => (
+            {availableGrades.map(g => (
               <option key={g} value={g}>{g}</option>
             ))}
           </select>

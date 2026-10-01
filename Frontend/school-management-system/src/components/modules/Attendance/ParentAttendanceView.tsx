@@ -125,11 +125,31 @@ export const ParentAttendanceView: React.FC = () => {
       );
       if (!isChildMatch) return false;
       
-      const recDateParts = String(a.date || '').split('T')[0].split('-');
-      if (recDateParts.length !== 3) return false;
-      const recYear = recDateParts[0];
-      const recMonth = String(parseInt(recDateParts[1], 10) - 1);
-      const recDateStr = `${recDateParts[0]}-${recDateParts[1]}-${recDateParts[2]}`;
+      const rawDateStr = String(a.date || '').split('T')[0].trim();
+      let recYear = '';
+      let recMonth = '';
+      let recDateStr = '';
+
+      if (/^\d{4}-\d{2}-\d{2}$/.test(rawDateStr)) {
+        const [y, m, d] = rawDateStr.split('-');
+        recYear = y;
+        recMonth = String(parseInt(m, 10) - 1);
+        recDateStr = `${y}-${m}-${d}`;
+      } else if (/^\d{1,2}[\/-]\d{1,2}[\/-]\d{4}$/.test(rawDateStr)) {
+        const [d, m, y] = rawDateStr.split(/[\/-]/);
+        recYear = y;
+        recMonth = String(parseInt(m, 10) - 1);
+        recDateStr = `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
+      } else {
+        const parsed = new Date(rawDateStr);
+        if (!isNaN(parsed.getTime())) {
+          recYear = String(parsed.getFullYear());
+          recMonth = String(parsed.getMonth());
+          recDateStr = `${parsed.getFullYear()}-${String(parsed.getMonth() + 1).padStart(2, '0')}-${String(parsed.getDate()).padStart(2, '0')}`;
+        } else {
+          return false;
+        }
+      }
 
       if (filterType === 'Month') {
         const isMatchMonth = recMonth === selectedMonth;

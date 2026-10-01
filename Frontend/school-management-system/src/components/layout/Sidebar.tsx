@@ -740,7 +740,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           return (
             <div key={idx} className="space-y-1.5">
               {!collapsed && (
-                <h3 className="px-3 text-[10px] font-extrabold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
+                <h3 className="px-3 text-[11px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider">
                   {group.title}
                 </h3>
               )}
@@ -768,14 +768,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
                             );
                           }
                         }}
-                        className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl font-medium text-xs transition-all ${
+                        className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-sm transition-all ${
                           isFinanceActive
                             ? financeExpanded &&
                               financeSubItems.length > 0 &&
                               !collapsed
                               ? "text-sky-700 dark:text-sky-400 font-bold"
                               : "bg-sky-600 text-white shadow-md shadow-sky-500/20 font-bold"
-                            : "text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/80 hover:text-slate-900 dark:hover:text-white"
+                            : "text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/80 hover:text-slate-900 dark:hover:text-white font-semibold"
                         }`}
                       >
                         <div className="flex items-center gap-3 truncate">
@@ -853,7 +853,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                                 key={sub.id}
                                 data-active={isSubActive ? "true" : undefined}
                                 onClick={() => setActiveModule(sub.id)}
-                                className={`w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-[11px] font-medium transition-all ${
+                                className={`w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all ${
                                   isSubActive
                                     ? "bg-sky-600 text-white font-bold"
                                     : "text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800/60 hover:text-slate-800 dark:hover:text-slate-200"
@@ -892,14 +892,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
                             );
                           }
                         }}
-                        className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl font-medium text-xs transition-all ${
+                        className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-sm transition-all ${
                           isHostelActive
                             ? hostelExpanded &&
                               hostelSubItems.length > 0 &&
                               !collapsed
                               ? "text-sky-700 dark:text-sky-400 font-bold"
                               : "bg-sky-600 text-white shadow-md shadow-sky-500/20 font-bold"
-                            : "text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/80 hover:text-slate-900 dark:hover:text-white"
+                            : "text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/80 hover:text-slate-900 dark:hover:text-white font-semibold"
                         }`}
                       >
                         <div className="flex items-center gap-3 truncate">
@@ -965,7 +965,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                                 key={sub.id}
                                 data-active={isSubActive ? "true" : undefined}
                                 onClick={() => setActiveModule(sub.id)}
-                                className={`w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-[11px] font-medium transition-all ${
+                                className={`w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all ${
                                   isSubActive
                                     ? "bg-sky-600 text-white font-bold"
                                     : "text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800/60 hover:text-slate-800 dark:hover:text-slate-200"
@@ -1008,14 +1008,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
                             }
                           }
                         }}
-                        className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl font-medium text-xs transition-all ${
+                        className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-sm transition-all ${
                           isTransportActive
                             ? transportExpanded &&
                               transportSubItems.length > 0 &&
                               !collapsed
                               ? "text-sky-700 dark:text-sky-400 font-bold"
                               : "bg-sky-600 text-white shadow-md shadow-sky-500/20 font-bold"
-                            : "text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/80 hover:text-slate-900 dark:hover:text-white"
+                            : "text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/80 hover:text-slate-900 dark:hover:text-white font-semibold"
                         }`}
                       >
                         <div className="flex items-center gap-3 truncate">
@@ -1069,7 +1069,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                                 key={sub.id}
                                 data-active={isSubActive ? "true" : undefined}
                                 onClick={() => setActiveModule(sub.id)}
-                                className={`w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-[11px] font-medium transition-all ${
+                                className={`w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all ${
                                   isSubActive
                                     ? "bg-sky-600 text-white font-bold"
                                     : "text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800/60 hover:text-slate-800 dark:hover:text-slate-200"
@@ -1103,14 +1103,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
                             setActiveModule("uniform-dashboard");
                           }
                         }}
-                        className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl font-medium text-xs transition-all ${
+                        className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-sm transition-all ${
                           isUniformActive
                             ? uniformExpanded &&
                               uniformSubItems.length > 0 &&
                               !collapsed
                               ? "text-sky-700 dark:text-sky-400 font-bold"
                               : "bg-sky-600 text-white shadow-md shadow-sky-500/20 font-bold"
-                            : "text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/80 hover:text-slate-900 dark:hover:text-white"
+                            : "text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/80 hover:text-slate-900 dark:hover:text-white font-semibold"
                         }`}
                       >
                         <div className="flex items-center gap-3 truncate">
@@ -1160,7 +1160,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                                 key={sub.id}
                                 data-active={isSubActive ? "true" : undefined}
                                 onClick={() => setActiveModule(sub.id)}
-                                className={`w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-[11px] font-medium transition-all ${
+                                className={`w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all ${
                                   isSubActive
                                     ? "bg-sky-600 text-white font-bold"
                                     : "text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800/60 hover:text-slate-800 dark:hover:text-slate-200"
@@ -1199,14 +1199,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
                             setActiveModule("library");
                           }
                         }}
-                        className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl font-medium text-xs transition-all ${
+                        className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-sm transition-all ${
                           isLibraryActive
                             ? libraryExpanded &&
                               librarySubItems.length > 0 &&
                               !collapsed
                               ? "text-sky-700 dark:text-sky-400 font-bold"
                               : "bg-sky-600 text-white shadow-md shadow-sky-500/20 font-bold"
-                            : "text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/80 hover:text-slate-900 dark:hover:text-white"
+                            : "text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/80 hover:text-slate-900 dark:hover:text-white font-semibold"
                         }`}
                       >
                         <div className="flex items-center gap-3 truncate">
@@ -1250,7 +1250,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                                 key={sub.id}
                                 data-active={isSubActive ? "true" : undefined}
                                 onClick={() => setActiveModule(sub.id)}
-                                className={`w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-[11px] font-medium transition-all ${
+                                className={`w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all ${
                                   isSubActive
                                     ? "bg-sky-600 text-white font-bold"
                                     : "text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800/60 hover:text-slate-800 dark:hover:text-slate-200"
@@ -1312,14 +1312,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
                             setActiveModule("academic-dashboard");
                           }
                         }}
-                        className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl font-medium text-xs transition-all ${
+                        className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-sm transition-all ${
                           isAcademicsActive
                             ? academicsExpanded &&
                               academicSubItems.length > 0 &&
                               !collapsed
                               ? "text-sky-700 dark:text-sky-400 font-bold"
                               : "bg-sky-600 text-white shadow-md shadow-sky-500/20 font-bold"
-                            : "text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/80 hover:text-slate-900 dark:hover:text-white"
+                            : "text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/80 hover:text-slate-900 dark:hover:text-white font-semibold"
                         }`}
                       >
                         <div className="flex items-center gap-3 truncate">
@@ -1368,7 +1368,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                                 key={sub.id}
                                 data-active={isSubActive ? "true" : undefined}
                                 onClick={() => setActiveModule(sub.id)}
-                                className={`w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-[11px] font-medium transition-all ${
+                                className={`w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all ${
                                   isSubActive
                                     ? "bg-sky-600 text-white font-bold"
                                     : "text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800/60 hover:text-slate-800 dark:hover:text-slate-200"
@@ -1421,14 +1421,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
                             }
                           }
                         }}
-                        className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl font-medium text-xs transition-all ${
+                        className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-sm transition-all ${
                           isStaffActive
                             ? staffExpanded &&
                               staffSubItems.length > 0 &&
                               !collapsed
                               ? "text-sky-700 dark:text-sky-400 font-bold"
                               : "bg-sky-600 text-white shadow-md shadow-sky-500/20 font-bold"
-                            : "text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/80 hover:text-slate-900 dark:hover:text-white"
+                            : "text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/80 hover:text-slate-900 dark:hover:text-white font-semibold"
                         }`}
                       >
                         <div className="flex items-center gap-3 truncate">
@@ -1501,7 +1501,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                                 key={sub.id}
                                 data-active={isSubActive ? "true" : undefined}
                                 onClick={() => setActiveModule(sub.id)}
-                                className={`w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-[11px] font-medium transition-all ${
+                                className={`w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all ${
                                   isSubActive
                                     ? "bg-sky-600 text-white font-bold"
                                     : "text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800/60 hover:text-slate-800 dark:hover:text-slate-200"
@@ -1558,10 +1558,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
                       setAcademicsExpanded(false);
                     }}
                     title={collapsed ? item.label : undefined}
-                    className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl font-medium text-xs transition-all ${
+                    className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-sm transition-all ${
                       isActive
                         ? "bg-sky-600 text-white shadow-md shadow-sky-500/20 font-bold"
-                        : "text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/80 hover:text-slate-900 dark:hover:text-white"
+                        : "text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/80 hover:text-slate-900 dark:hover:text-white font-semibold"
                     }`}
                   >
                     <div className="flex items-center gap-3 truncate">
