@@ -158,23 +158,29 @@ export const PrintableReportCard: React.FC<PrintableReportCardProps> = ({
     }
   }
 
-  // Ensure res.subjectMarks is strictly deduplicated and has normalized passMarks and isPass flags
+  // Deduplicate res.subjectMarks by subject name and resolve pass/max marks dynamically
   if (Array.isArray(res.subjectMarks)) {
     const finalSubMap = new Map<string, any>();
     res.subjectMarks.forEach((sm: any) => {
       const sName = (sm.subject || sm.subjectName || sm.name || '').trim();
-      if (sName && !finalSubMap.has(sName)) {
-        const maxM = Number(sm.maxMarks) || 100;
-        const passM = (Number(sm.passMarks) && Number(sm.passMarks) > 0) ? Number(sm.passMarks) : Math.round(maxM * 0.35);
-        const obtainedM = sm.obtainedMarks;
+      if (!sName) return;
+      const key = sName.toLowerCase();
+      if (!finalSubMap.has(key)) {
+        const spec = (subjectWiseMap && subjectWiseMap[sName]) || (subjectWiseMap && subjectWiseMap[key]) || {};
+        const maxM = Number(sm.maxMarks || sm.totalMarks || spec.maxMarks || 0) || 100;
+        const passM = (Number(sm.passMarks || sm.passLimit || spec.passMarks || 0) && Number(sm.passMarks || sm.passLimit || spec.passMarks || 0) > 0)
+          ? Number(sm.passMarks || sm.passLimit || spec.passMarks || 0)
+          : Math.round(maxM * 0.35);
+
+        const obtainedM = sm.obtainedMarks !== undefined ? sm.obtainedMarks : (sm.marks !== undefined ? sm.marks : 0);
         const isAbsent = obtainedM === 'AB' || String(obtainedM).toLowerCase() === 'absent';
-        const numObtained = typeof obtainedM === 'number' ? obtainedM : Number(obtainedM || 0);
+        const numObtained = typeof obtainedM === 'number' ? obtainedM : (parseFloat(String(obtainedM || 0)) || 0);
         const isPass = isAbsent ? false : (sm.isPass !== undefined ? Boolean(sm.isPass) : numObtained >= passM);
         
         const subPct = maxM > 0 ? (numObtained / maxM) * 100 : 0;
         const subGrade = (sm.grade && sm.grade !== '-') ? sm.grade : (isAbsent ? '-' : calculateGrade(subPct, gradeConfigurations));
 
-        finalSubMap.set(sName, {
+        finalSubMap.set(key, {
           ...sm,
           subject: sName,
           maxMarks: maxM,
