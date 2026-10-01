@@ -36,15 +36,16 @@ export const MarksEntryTable: React.FC<MarksEntryTableProps> = ({
 
   const calculateGrade = (percent: number, rules: GradeConfig[]): string => {
     if (rules && rules.length > 0) {
-      const sorted = [...rules].sort((a, b) => (b.minPercent ?? b.minMark ?? 0) - (a.minPercent ?? a.minMark ?? 0));
+      const sorted = [...rules].sort((a, b) => (Number(b.minPercent ?? b.minMark ?? 0)) - (Number(a.minPercent ?? a.minMark ?? 0)));
       const matched = sorted.find(r => {
-        const min = r.minPercent ?? r.minMark ?? 0;
-        const max = r.maxPercent ?? r.maxMark ?? 100;
+        const min = Number(r.minPercent ?? r.minMark ?? 0);
+        const max = Number(r.maxPercent ?? r.maxMark ?? 100);
         return percent >= min && percent <= max;
       });
       if (matched) return matched.grade || matched.gradeName || '—';
     }
-    return '-';
+    // No hardcoded grading if no rules exist for this assessment type
+    return '—';
   };
 
   const getAttendanceBadgeClass = (status: string) => {

@@ -1,5 +1,5 @@
 import React from 'react';
-import { X, Printer, Award, AlertTriangle, ShieldCheck, GraduationCap } from 'lucide-react';
+import { X, Printer, Award, AlertTriangle, GraduationCap } from 'lucide-react';
 import { Student, ExamSetup, ExamMark, ProcessedResult } from '../../../types';
 import { useData } from '../../../context/DataContext';
 import { calculateCompetitionRanks } from './utils/ranking';
@@ -118,6 +118,16 @@ export const PrintableReportCard: React.FC<PrintableReportCardProps> = ({
     ...(result?.subjectMarks || []).map((sm: any) => sm.subject || sm.subjectName || sm.name)
   ].map(s => (s || '').trim()))).filter(Boolean);
 
+  const fullExam = (contextData.exams || []).find((e: any) => String(e.id) === String(activeExam.id));
+  const effectiveExamType = (activeExam as any).examType || 
+    (activeExam as any).assessmentType || 
+    fullExam?.examType || 
+    (fullExam as any)?.assessmentType || 
+    (result as any)?.examType || 
+    (result as any)?.assessmentType || 
+    (activeExam as any).gradeSchemeName ||
+    '';
+
   // Get custom subject wise specs (max & pass marks)
   const subjectWiseMap: Record<string, { maxMarks: number; passMarks: number }> = {};
   classSchedules.forEach(s => {
@@ -126,7 +136,7 @@ export const PrintableReportCard: React.FC<PrintableReportCardProps> = ({
     }
   });
 
-  const res: any = calculateStudentResult(marks, subjectsList, gradeConfigurations, subjectWiseMap);
+  const res: any = calculateStudentResult(marks, subjectsList, gradeConfigurations, subjectWiseMap, effectiveExamType);
 
   // If result has official subjectMarks from the database/release, deduplicate and use them!
   if (result?.subjectMarks && Array.isArray(result.subjectMarks) && result.subjectMarks.length > 0) {
@@ -178,7 +188,9 @@ export const PrintableReportCard: React.FC<PrintableReportCardProps> = ({
         const isPass = isAbsent ? false : (sm.isPass !== undefined ? Boolean(sm.isPass) : numObtained >= passM);
         
         const subPct = maxM > 0 ? (numObtained / maxM) * 100 : 0;
-        const subGrade = (sm.grade && sm.grade !== '-') ? sm.grade : (isAbsent ? '-' : calculateGrade(subPct, gradeConfigurations));
+        const subGrade = (sm.grade && sm.grade !== '-' && sm.grade !== '—' && sm.grade !== '') 
+          ? sm.grade 
+          : (isAbsent ? '-' : calculateGrade(subPct, gradeConfigurations, 'Percentage', effectiveExamType));
 
         finalSubMap.set(key, {
           ...sm,
@@ -195,7 +207,7 @@ export const PrintableReportCard: React.FC<PrintableReportCardProps> = ({
   }
 
   if (!res.finalGrade || res.finalGrade === '-') {
-    res.finalGrade = calculateGrade(res.percentage, gradeConfigurations);
+    res.finalGrade = calculateGrade(res.percentage, gradeConfigurations, 'Percentage', effectiveExamType);
   }
 
   // Compute Overall Result status dynamically if absent or fails are present
@@ -206,7 +218,7 @@ export const PrintableReportCard: React.FC<PrintableReportCardProps> = ({
   const classStudents = students.filter(s => s.className === activeStudent.className && (!s.section || s.section === activeStudent.section));
   const studentScores = classStudents.map(st => {
     const stMarks = allExamMarks.filter(m => m.examId === activeExam.id && m.studentId === st.id);
-    const calculated = calculateStudentResult(stMarks, subjectsList, gradeConfigurations, subjectWiseMap);
+    const calculated = calculateStudentResult(stMarks, subjectsList, gradeConfigurations, subjectWiseMap, effectiveExamType);
     return { studentId: st.id, score: calculated.totalObtained };
   });
   
@@ -416,23 +428,15 @@ export const PrintableReportCard: React.FC<PrintableReportCardProps> = ({
       )}
 
       {/* Bottom Official Signatures Block */}
-      <div className="grid grid-cols-3 gap-6 items-center pt-5 border-t border-slate-200 dark:border-slate-800">
+      <div className="grid grid-cols-2 gap-8 items-center pt-5 border-t border-slate-200 dark:border-slate-800">
         <div className="text-center space-y-1">
-          <div className="w-32 mx-auto border-t-2 border-slate-900 dark:border-slate-100 pt-2 text-[10px] font-extrabold text-slate-700 dark:text-slate-300 uppercase">
+          <div className="w-40 mx-auto border-t-2 border-slate-900 dark:border-slate-100 pt-2 text-[10px] font-extrabold text-slate-700 dark:text-slate-300 uppercase">
             Class Teacher Signature
           </div>
         </div>
 
-        {/* Verification Security Stamp */}
-        <div className="flex flex-col items-center justify-center space-y-1 text-center">
-          <div className="p-1 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800">
-            <ShieldCheck className="w-5 h-5 text-sky-600 mx-auto" />
-          </div>
-          <span className="text-[9px] text-slate-400 font-mono font-bold uppercase tracking-wider">OFFICIALLY VERIFIED</span>
-        </div>
-
         <div className="text-center space-y-1">
-          <div className="w-32 mx-auto border-t-2 border-slate-900 dark:border-slate-100 pt-2 text-[10px] font-extrabold text-slate-700 dark:text-slate-300 uppercase">
+          <div className="w-40 mx-auto border-t-2 border-slate-900 dark:border-slate-100 pt-2 text-[10px] font-extrabold text-slate-700 dark:text-slate-300 uppercase">
             Principal Signature & Stamp
           </div>
         </div>

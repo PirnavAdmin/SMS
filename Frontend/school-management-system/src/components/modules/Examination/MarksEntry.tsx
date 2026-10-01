@@ -16,6 +16,7 @@ interface MarksEntryProps {
   addToast: (type: 'success' | 'info' | 'warning' | 'error', title: string, message: string) => void;
   onGotoSetup?: () => void;
   onProceedToResults?: () => void;
+  onGotoGrading?: () => void;
 
   selectedClass?: string;
   setSelectedClass?: (cls: string) => void;
@@ -34,6 +35,7 @@ export const MarksEntry: React.FC<MarksEntryProps> = ({
   addToast,
   onGotoSetup,
   onProceedToResults,
+  onGotoGrading,
   selectedClass: propClass,
   setSelectedClass: propSetClass,
   selectedSection: propSection,
@@ -178,29 +180,37 @@ export const MarksEntry: React.FC<MarksEntryProps> = ({
 
   const filteredGradeRules = useMemo(() => {
     const allRules = gradeRules || [];
-    
+    if (!exam) return [];
+
+    const examTypeStr = (exam.examType || (exam as any).assessmentType || '').trim();
+    const schemeNameStr = (exam.gradeSchemeName || '').trim();
+
+    const normalize = (s: string) => (s || '').toLowerCase().replace(/[\s\/\-_]+/g, '');
+    const normScheme = normalize(schemeNameStr);
+    const normType = normalize(examTypeStr);
+
     // 1. Try selected gradeSchemeName
-    if (exam?.gradeSchemeName) {
-      const matched = allRules.filter(r => r.schemeName === exam.gradeSchemeName);
-      if (matched.length > 0) return matched;
-    }
-    
-    // 2. Try examType name
-    if (exam?.examType) {
-      const typeStr = exam.examType;
+    if (normScheme) {
       const matched = allRules.filter(r => 
-        r.schemeName === typeStr || 
-        r.examType === typeStr ||
-        (r.schemeName && r.schemeName.toLowerCase().includes(typeStr.toLowerCase()))
+        (r.schemeName && normalize(r.schemeName) === normScheme) || 
+        (r.examType && normalize(r.examType) === normScheme) ||
+        r.examType === 'All'
       );
       if (matched.length > 0) return matched;
     }
-    
-    // 3. Fallback to Default Scholastic
-    const defaultScholastic = allRules.filter(r => r.schemeName === 'Default Scholastic');
-    if (defaultScholastic.length > 0) return defaultScholastic;
-    
-    return allRules;
+
+    // 2. Try examType / assessmentType name
+    if (normType) {
+      const matched = allRules.filter(r => 
+        (r.examType && normalize(r.examType) === normType) ||
+        (r.schemeName && normalize(r.schemeName) === normType) ||
+        r.examType === 'All'
+      );
+      if (matched.length > 0) return matched;
+    }
+
+    // Strict: return empty array if no grading scale is configured for this assessment type
+    return [];
   }, [gradeRules, exam]);
 
   // Load roster marks from context / draft
@@ -497,7 +507,32 @@ export const MarksEntry: React.FC<MarksEntryProps> = ({
                 />
 
                 {/* Roster Table */}
-                <div className="w-full">
+                <div className="w-full space-y-3">
+                  {filteredGradeRules.length === 0 && (
+                    <div className="p-3.5 rounded-2xl bg-amber-50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-800 text-amber-900 dark:text-amber-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-xs">
+                      <div className="flex items-center gap-2.5">
+                        <AlertCircle className="w-5 h-5 text-amber-600 dark:text-amber-400 shrink-0" />
+                        <div>
+                          <h4 className="text-xs font-black uppercase tracking-wide">
+                            No Grading Scale Configured
+                          </h4>
+                          <p className="text-xs text-amber-700 dark:text-amber-300 font-medium">
+                            No grading scale rules found for Assessment Type: <strong>"{exam?.examType || (exam as any)?.assessmentType || 'Selected Assessment'}"</strong>. Grades will remain unassigned (—) until scale rules are configured.
+                          </p>
+                        </div>
+                      </div>
+                      {onGotoGrading && (
+                        <button
+                          type="button"
+                          onClick={onGotoGrading}
+                          className="px-3.5 py-1.5 rounded-xl bg-amber-600 hover:bg-amber-500 text-white font-bold text-xs shrink-0 cursor-pointer shadow-xs transition"
+                        >
+                          Configure Scale in Grading Tab →
+                        </button>
+                      )}
+                    </div>
+                  )}
+
                   <MarksEntryTable
                     students={activeClassStudents}
                     marksState={marksState}

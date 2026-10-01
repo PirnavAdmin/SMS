@@ -359,7 +359,9 @@ export const GlobalReportCardsView: React.FC<GlobalReportCardsViewProps> = ({ on
       const maxMarks = Number(r.totalMaxMarks ?? r.maxMarks ?? 0);
       const obtainedMarks = Number(r.totalMarksObtained ?? r.totalObtainedMarks ?? r.obtainedMarks ?? 0);
       const pct = Number(r.percentage ?? (maxMarks > 0 ? (obtainedMarks / maxMarks) * 100 : 0));
-      const calcGrade = calculateGrade(pct, gradeConfigurations);
+      const matchingExam = (exams || []).find(e => String(e.id) === String(r.examId || selectedExamId));
+      const examType = matchingExam?.examType || (matchingExam as any)?.assessmentType || r.examType || (r as any)?.assessmentType || '';
+      const calcGrade = calculateGrade(pct, gradeConfigurations, 'Percentage', examType);
       const grade = (r.finalGrade && r.finalGrade !== '-') ? r.finalGrade : ((r.overallGrade && r.overallGrade !== '-') ? r.overallGrade : calcGrade);
       const rankVal = r.rank ? Number(r.rank) : 0;
       const passFail = computePassStatus(r);
@@ -415,7 +417,9 @@ export const GlobalReportCardsView: React.FC<GlobalReportCardsViewProps> = ({ on
       const existing = uniqueMap.get(key);
       const computedStatus = computePassStatus(item);
       const itemPct = item.percentage ?? (item.totalMaxMarks ? (item.totalObtainedMarks / item.totalMaxMarks) * 100 : 0);
-      const computedGrade = (item.finalGrade && item.finalGrade !== '-') ? item.finalGrade : ((item.overallGrade && item.overallGrade !== '-') ? item.overallGrade : calculateGrade(itemPct, gradeConfigurations));
+      const matchingExam = (exams || []).find(e => String(e.id) === String(item.examId || selectedExamId));
+      const examType = matchingExam?.examType || (matchingExam as any)?.assessmentType || (item as any)?.examType || '';
+      const computedGrade = (item.finalGrade && item.finalGrade !== '-') ? item.finalGrade : ((item.overallGrade && item.overallGrade !== '-') ? item.overallGrade : calculateGrade(itemPct, gradeConfigurations, 'Percentage', examType));
       const updatedItem = { ...item, passStatus: computedStatus, finalGrade: computedGrade, overallGrade: computedGrade };
 
       if (!existing) {
@@ -588,7 +592,7 @@ export const GlobalReportCardsView: React.FC<GlobalReportCardsViewProps> = ({ on
       targetResultsForBulk.forEach((res, idx) => {
         setTimeout(() => {
           const resExam = exams.find(e => e.id === res.examId) || activeExamObj;
-          downloadReportCardPdf(res, resExam, schoolProfile, subjects);
+          downloadReportCardPdf(res, resExam, schoolProfile, subjects, gradeConfigurations);
         }, idx * 200);
       });
       setIsBulkDownloading(false);
@@ -601,7 +605,7 @@ export const GlobalReportCardsView: React.FC<GlobalReportCardsViewProps> = ({ on
       addToast('warning', 'No Students Selected', 'Please select report cards to print.');
       return;
     }
-    printBulkReportCards(targetResultsForBulk, activeExamObj, schoolProfile, subjects);
+    printBulkReportCards(targetResultsForBulk, activeExamObj, schoolProfile, subjects, gradeConfigurations);
     addToast('info', 'Print Job Sent', `Opening printer window for ${targetResultsForBulk.length} report cards.`);
   };
 
@@ -619,12 +623,12 @@ export const GlobalReportCardsView: React.FC<GlobalReportCardsViewProps> = ({ on
 
   const handleSinglePrint = (res: ProcessedResult) => {
     const resExam = exams.find(e => e.id === res.examId) || activeExamObj;
-    printReportCard(res, resExam, schoolProfile, subjects);
+    printReportCard(res, resExam, schoolProfile, subjects, gradeConfigurations);
   };
 
   const handleSingleDownload = (res: ProcessedResult) => {
     const resExam = exams.find(e => e.id === res.examId) || activeExamObj;
-    downloadReportCardPdf(res, resExam, schoolProfile, subjects);
+    downloadReportCardPdf(res, resExam, schoolProfile, subjects, gradeConfigurations);
     addToast('success', 'Downloaded', `Saved official report card for ${res.studentName}.`);
   };
 

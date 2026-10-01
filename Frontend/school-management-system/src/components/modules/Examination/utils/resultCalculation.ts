@@ -26,26 +26,44 @@ export function calculateGrade(
   examType?: string
 ): string {
   if (gradeRules && gradeRules.length > 0) {
-    // Filter by examType if specified
-    const applicableRules = examType
-      ? gradeRules.filter(r => !r.examType || r.examType === 'All' || r.examType === examType)
-      : gradeRules;
+    const normalize = (s: string) => (s || '').toLowerCase().replace(/[\s\/\-_]+/g, '');
+    const normTarget = examType ? normalize(examType) : '';
 
-    const targetRules = applicableRules.length > 0 ? applicableRules : gradeRules;
+    // 1. Try exact or normalized assessment / scheme match
+    let targetRules = normTarget
+      ? gradeRules.filter(r => 
+          (r.examType && normalize(r.examType) === normTarget) ||
+          (r.schemeName && normalize(r.schemeName) === normTarget)
+        )
+      : [];
 
-    const matched = targetRules.find(r => {
-      const isMarksMode = mode === 'Marks' || r.gradingType === 'Marks';
-      const min = isMarksMode ? (r.minMark ?? r.minPercent ?? 0) : (r.minPercent ?? r.minMark ?? 0);
-      const max = isMarksMode ? (r.maxMark ?? r.maxPercent ?? 100) : (r.maxPercent ?? r.maxMark ?? 100);
-      return value >= min && value <= max;
-    });
+    // 2. Try 'All' or general default rules
+    if (targetRules.length === 0) {
+      targetRules = gradeRules.filter(r => !r.examType || r.examType === 'All' || !r.schemeName || r.schemeName === 'Default Scholastic');
+    }
 
-    if (matched && (matched.gradeName || matched.grade)) {
-      return (matched.gradeName || matched.grade) as string;
+    // 3. If still empty, use all configured grade rules
+    if (targetRules.length === 0) {
+      targetRules = gradeRules;
+    }
+
+    if (targetRules.length > 0) {
+      const sorted = [...targetRules].sort((a, b) => (Number(b.minPercent ?? b.minMark ?? 0)) - (Number(a.minPercent ?? a.minMark ?? 0)));
+      const matched = sorted.find(r => {
+        const isMarksMode = mode === 'Marks' || r.gradingType === 'Marks';
+        const min = isMarksMode ? Number(r.minMark ?? r.minPercent ?? 0) : Number(r.minPercent ?? r.minMark ?? 0);
+        const max = isMarksMode ? Number(r.maxMark ?? r.maxPercent ?? 100) : Number(r.maxPercent ?? r.maxMark ?? 100);
+        return value >= min && value <= max;
+      });
+
+      if (matched && (matched.gradeName || matched.grade)) {
+        return String(matched.gradeName || matched.grade).trim();
+      }
     }
   }
 
-  return '-';
+  // No hardcoded grading if no rules exist or match
+  return '—';
 }
 
 export function calculateGpa(
@@ -54,18 +72,30 @@ export function calculateGpa(
   examType?: string
 ): number {
   if (gradeRules && gradeRules.length > 0) {
-    const applicableRules = examType
-      ? gradeRules.filter(r => !r.examType || r.examType === 'All' || r.examType === examType)
-      : gradeRules;
+    const normalize = (s: string) => (s || '').toLowerCase().replace(/[\s\/\-_]+/g, '');
+    const normTarget = examType ? normalize(examType) : '';
 
-    const targetRules = applicableRules.length > 0 ? applicableRules : gradeRules;
+    let targetRules = normTarget
+      ? gradeRules.filter(r => 
+          (r.examType && normalize(r.examType) === normTarget) ||
+          (r.schemeName && normalize(r.schemeName) === normTarget)
+        )
+      : [];
+
+    if (targetRules.length === 0) {
+      targetRules = gradeRules.filter(r => !r.examType || r.examType === 'All');
+    }
+
+    if (targetRules.length === 0) {
+      targetRules = gradeRules;
+    }
 
     const matched = targetRules.find(r => {
-      const min = r.minPercent ?? r.minMark ?? 0;
-      const max = r.maxPercent ?? r.maxMark ?? 100;
+      const min = Number(r.minPercent ?? r.minMark ?? 0);
+      const max = Number(r.maxPercent ?? r.maxMark ?? 100);
       return percentage >= min && percentage <= max;
     });
-    if (matched) return matched.gradePoints ?? matched.gradePoint ?? 0;
+    if (matched) return Number(matched.gradePoints ?? matched.gradePoint ?? 0);
   }
 
   return 0;
@@ -86,18 +116,19 @@ export function calculateStudentResult(
   let hasActiveMarks = false;
 
   subjectsList.forEach(subject => {
-    const m = marks.find(mark => mark.subject === subject);
-    const config = subjectWiseConfig?.[subject] || subjectWiseConfig?.['default'] || { maxMarks: 0, passMarks: 0 };
-    const maxM = m?.maxMarks || config.maxMarks || 100;
+    const trimmedSub = (subject || '').trim();
+    const m = marks.find(mark => (mark.subject || '').trim().toLowerCase() === trimmedSub.toLowerCase());
+    const config = subjectWiseConfig?.[trimmedSub] || subjectWiseConfig?.[trimmedSub.toLowerCase()] || subjectWiseConfig?.['default'] || { maxMarks: 0, passMarks: 0 };
+    const maxM = Number(m?.maxMarks || (m as any)?.totalMarks || config.maxMarks || 0) || 100;
     const passM = (m?.passMarks && m.passMarks > 0) ? m.passMarks : (config.passMarks && config.passMarks > 0 ? config.passMarks : Math.round(maxM * 0.35));
     
     let obtained: number | 'AB' | 'EX' = 0;
     let isPass = true;
-    let grade = '-';
+    let grade = '—';
 
     if (m) {
       hasActiveMarks = true;
-      if (m.isAbsent) {
+      if (m.isAbsent || (m.marksObtained as any) === 'AB' || String((m as any).attendanceStatus).toLowerCase() === 'absent') {
         obtained = 'AB';
         isPass = false;
         grade = '-';
@@ -109,11 +140,13 @@ export function calculateStudentResult(
         if (!isPass) hasFail = true;
         
         const pct = maxM > 0 ? (obtained / maxM) * 100 : 0;
-        grade = calculateGrade(pct, gradeRules, 'Percentage', examType);
+        grade = (m.grade && m.grade !== '-' && m.grade !== '—' && m.grade !== '') 
+          ? m.grade 
+          : calculateGrade(pct, gradeRules, 'Percentage', examType);
         totalObtained += obtained;
       }
     } else {
-      // If no marks record exists for this subject, check if marks array has active marks
+      // If no marks record exists for this subject
       obtained = 'AB';
       isPass = false;
       grade = '-';
