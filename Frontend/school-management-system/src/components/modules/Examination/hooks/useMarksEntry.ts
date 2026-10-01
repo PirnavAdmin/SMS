@@ -21,11 +21,13 @@ export function useMarksEntry() {
     return r === 'admin' || r === 'super admin' || r === 'principal';
   }, [user]);
 
-  // Filter options based on logged-in teacher assignments (with clean fallback to all academic options)
+  // Filter options based on logged-in teacher assignments
   const allowedClasses = useMemo(() => {
-    const allCls = Array.from(new Set((academicClasses || []).map(c => c.name).filter(Boolean)));
+    const fromAcademic = (academicClasses || []).map(c => c.name).filter(Boolean);
+    const fromStudents = (students || []).map(s => s.className).filter(Boolean);
+    const allCls = Array.from(new Set([...fromAcademic, ...fromStudents]));
     if (isUserAdmin || !allCls.length) {
-      return allCls.length > 0 ? allCls : ['Class 1', 'Class 2', 'Class 3', 'Class 4', 'Class 5', 'Class 6', 'Class 7', 'Class 8', 'Class 9', 'Class 10'];
+      return allCls;
     }
     const teacherName = (user?.name || '').toLowerCase().trim();
     const assigned = (teacherAssignments || []).filter(
@@ -33,14 +35,19 @@ export function useMarksEntry() {
     );
     const assignedCls = Array.from(new Set(assigned.map(ta => ta.className).filter(Boolean)));
     return assignedCls.length > 0 ? assignedCls : allCls;
-  }, [academicClasses, teacherAssignments, user, isUserAdmin]);
+  }, [academicClasses, students, teacherAssignments, user, isUserAdmin]);
 
   const getAllowedSections = (className: string) => {
     if (!className) return [];
     const clsObj = (academicClasses || []).find(c => c.name === className);
-    const allSecs = clsObj && clsObj.sections && clsObj.sections.length > 0
+    const academicSections = clsObj && clsObj.sections && clsObj.sections.length > 0
       ? Array.from(new Set(clsObj.sections.map((s: any) => typeof s === 'string' ? s : (s.name || s.sectionName || '')).filter(Boolean)))
-      : ['A', 'B', 'C'];
+      : [];
+    const studentSections = (students || [])
+      .filter(s => s.className === className)
+      .map(s => s.section)
+      .filter(Boolean);
+    const allSecs = Array.from(new Set([...academicSections, ...studentSections]));
 
     if (isUserAdmin) return allSecs;
 
