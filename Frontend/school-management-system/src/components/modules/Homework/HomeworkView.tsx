@@ -510,6 +510,9 @@ export const HomeworkView: React.FC = () => {
       addHomework(dataToSave as Omit<Homework, 'id'>);
       addToast('success', 'Homework Posted', `Posted homework assignment: ${formData.title}`);
     }
+    try {
+      window.dispatchEvent(new Event('homework_updated'));
+    } catch (e) {}
     setIsFormOpen(false);
     setIsBigScreenOpen(false);
   };

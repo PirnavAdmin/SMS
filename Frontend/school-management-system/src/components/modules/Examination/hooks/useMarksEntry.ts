@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { useData } from '../../../../context/DataContext';
 import { useAuth } from '../../../../context/AuthContext';
 import { ExamMark, Student } from '../../../../types';
+import { saveMarksEntryDraftApi, submitMarksEntryApi } from '../../../../api/examination';
 
 export interface RosterMarkRowState {
   attendance: 'Present' | 'Absent' | 'Medical Leave' | 'Exempted';
@@ -11,7 +12,7 @@ export interface RosterMarkRowState {
 }
 
 export function useMarksEntry() {
-  const { examMarks, saveMarks, teacherAssignments, academicClasses, students } = useData();
+  const { examMarks, saveMarks, teacherAssignments, academicClasses, students, subjects = [] } = useData();
   const { user } = useAuth();
 
   const isUserAdmin = useMemo(() => {
@@ -20,49 +21,52 @@ export function useMarksEntry() {
     return r === 'admin' || r === 'super admin' || r === 'principal';
   }, [user]);
 
-  // Filter options based on logged-in teacher assignments
+  // Filter options based on logged-in teacher assignments (with clean fallback to all academic options)
   const allowedClasses = useMemo(() => {
-    if (isUserAdmin) {
-      return Array.from(new Set((academicClasses || []).map(c => c.name).filter(Boolean)));
+    const allCls = Array.from(new Set((academicClasses || []).map(c => c.name).filter(Boolean)));
+    if (isUserAdmin || !allCls.length) {
+      return allCls.length > 0 ? allCls : ['Class 1', 'Class 2', 'Class 3', 'Class 4', 'Class 5', 'Class 6', 'Class 7', 'Class 8', 'Class 9', 'Class 10'];
     }
-    // Filter classes assigned to this teacher
-    const teacherName = user?.name || '';
-    const assigned = teacherAssignments.filter(
-      ta => ta.teacherName?.toLowerCase() === teacherName.toLowerCase()
+    const teacherName = (user?.name || '').toLowerCase().trim();
+    const assigned = (teacherAssignments || []).filter(
+      ta => (ta.teacherName || '').toLowerCase().trim().includes(teacherName) || teacherName.includes((ta.teacherName || '').toLowerCase().trim())
     );
-    return Array.from(new Set(assigned.map(ta => ta.className).filter(Boolean)));
+    const assignedCls = Array.from(new Set(assigned.map(ta => ta.className).filter(Boolean)));
+    return assignedCls.length > 0 ? assignedCls : allCls;
   }, [academicClasses, teacherAssignments, user, isUserAdmin]);
 
   const getAllowedSections = (className: string) => {
     if (!className) return [];
-    if (isUserAdmin) {
-      const clsObj = academicClasses.find(c => c.name === className);
-      if (!clsObj || !clsObj.sections || clsObj.sections.length === 0) return [];
-      const raw = clsObj.sections.map((s: any) => typeof s === 'string' ? s : (s.name || s.sectionName || ''));
-      return Array.from(new Set(raw.filter(Boolean)));
-    }
-    const teacherName = user?.name || '';
-    const assigned = teacherAssignments.filter(
-      ta => ta.className === className && ta.teacherName?.toLowerCase() === teacherName.toLowerCase()
+    const clsObj = (academicClasses || []).find(c => c.name === className);
+    const allSecs = clsObj && clsObj.sections && clsObj.sections.length > 0
+      ? Array.from(new Set(clsObj.sections.map((s: any) => typeof s === 'string' ? s : (s.name || s.sectionName || '')).filter(Boolean)))
+      : ['A', 'B', 'C'];
+
+    if (isUserAdmin) return allSecs;
+
+    const teacherName = (user?.name || '').toLowerCase().trim();
+    const assigned = (teacherAssignments || []).filter(
+      ta => ta.className === className && ((ta.teacherName || '').toLowerCase().trim().includes(teacherName) || teacherName.includes((ta.teacherName || '').toLowerCase().trim()))
     );
     const result = Array.from(new Set(assigned.map(ta => ta.section).filter(Boolean)));
-    return result;
+    return result.length > 0 ? result : allSecs;
   };
 
   const getAllowedSubjects = (className: string, section: string) => {
     if (!className || !section) return [];
-    if (isUserAdmin) {
-      const clsObj = academicClasses.find(c => c.name === className);
-      if (clsObj && clsObj.subjects && clsObj.subjects.length > 0) {
-        return clsObj.subjects.map((s: any) => typeof s === 'string' ? s : (s.subjectName || s.name || s.subjectCode || s.code || ''));
-      }
-      return [];
-    }
-    const teacherName = user?.name || '';
-    const assigned = teacherAssignments.filter(
-      ta => ta.className === className && ta.section === section && ta.teacherName?.toLowerCase() === teacherName.toLowerCase()
+    const clsObj = (academicClasses || []).find(c => c.name === className);
+    const allSubs = clsObj && clsObj.subjects && clsObj.subjects.length > 0
+      ? clsObj.subjects.map((s: any) => typeof s === 'string' ? s : (s.subjectName || s.name || s.subjectCode || s.code || ''))
+      : (subjects || []).map((s: any) => s.name || s.subjectName || s.code || '');
+
+    if (isUserAdmin) return allSubs;
+
+    const teacherName = (user?.name || '').toLowerCase().trim();
+    const assigned = (teacherAssignments || []).filter(
+      ta => ta.className === className && (ta.section === section || !ta.section) && ((ta.teacherName || '').toLowerCase().trim().includes(teacherName) || teacherName.includes((ta.teacherName || '').toLowerCase().trim()))
     );
-    return Array.from(new Set(assigned.map(ta => ta.subject)));
+    const result = Array.from(new Set(assigned.map(ta => ta.subject).filter(Boolean)));
+    return result.length > 0 ? result : allSubs;
   };
 
   const loadRosterMarks = (
@@ -122,6 +126,27 @@ export function useMarksEntry() {
       const draftKey = `draft_marks_${examId}_${className}_${section}_${subject}_${studentId}`;
       localStorage.setItem(draftKey, JSON.stringify({ ...state, status: 'In Progress' }));
     });
+
+    try {
+      saveMarksEntryDraftApi({
+        examId,
+        className,
+        sectionName: section,
+        subjectCode: subject,
+        students: Object.entries(marksState).map(([studentId, state], idx) => ({
+          entryId: idx + 1,
+          rollNo: '',
+          studentName: '',
+          admissionNo: studentId,
+          attendanceStatus: state.attendance,
+          marksObtained: Number(state.marks) || 0,
+          maxMarks: 100,
+          grade: '',
+          evaluatorRemarks: state.remarks,
+          status: 'In Progress'
+        }))
+      }).catch(err => console.warn('Marks draft API note:', err));
+    } catch (e) {}
   };
 
   const submitRosterMarks = (
@@ -155,6 +180,28 @@ export function useMarksEntry() {
     });
 
     saveMarks(formattedList);
+
+    try {
+      submitMarksEntryApi({
+        examId,
+        className,
+        sectionName: section,
+        subjectCode: subject,
+        isFinalSubmit: true,
+        students: Object.entries(marksState).map(([studentId, state], idx) => ({
+          entryId: idx + 1,
+          rollNo: '',
+          studentName: '',
+          admissionNo: studentId,
+          attendanceStatus: state.attendance,
+          marksObtained: state.attendance === 'Absent' ? 0 : Number(state.marks) || 0,
+          maxMarks,
+          grade: '',
+          evaluatorRemarks: state.remarks,
+          status: 'Submitted'
+        }))
+      }).catch(err => console.warn('Submit marks API note:', err));
+    } catch (e) {}
 
     // Clean drafts
     Object.keys(marksState).forEach(studentId => {

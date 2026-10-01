@@ -3,7 +3,7 @@ import { X, Printer, Award, AlertTriangle, ShieldCheck, GraduationCap } from 'lu
 import { Student, ExamSetup, ExamMark, ProcessedResult } from '../../../types';
 import { useData } from '../../../context/DataContext';
 import { calculateCompetitionRanks } from './utils/ranking';
-import { calculateStudentResult } from './utils/resultCalculation';
+import { calculateStudentResult, calculateGrade } from './utils/resultCalculation';
 import { resolveMediaUrl } from '../../../utils/mediaUtils';
 
 export interface PrintableReportCardProps {
@@ -49,38 +49,74 @@ export const PrintableReportCard: React.FC<PrintableReportCardProps> = ({
   const gradeConfigurations = contextData.gradeConfigurations;
   const students = contextData.students;
 
-  if (!student || !exam) return null;
+  const effectiveStudent: Student | null = student || (propProcessedResult ? {
+    id: propProcessedResult.studentId || '1',
+    firstName: (propProcessedResult.studentName || 'Student').trim().split(' ')[0] || 'Student',
+    lastName: (propProcessedResult.studentName || '').trim().split(' ').slice(1).join(' ') || '',
+    rollNo: propProcessedResult.rollNo || '',
+    admissionNo: propProcessedResult.admissionNo || propProcessedResult.studentId || '',
+    className: propProcessedResult.className || '',
+    section: propProcessedResult.section || '',
+    fatherName: 'Parent/Guardian',
+    status: 'Active'
+  } as Student : null);
+
+  const effectiveExam: ExamSetup | null = exam || (propProcessedResult ? ({
+    id: propProcessedResult.examId || '1',
+    name: 'Academic Examination',
+    academicYear: '2026-2027',
+    className: propProcessedResult.className || '',
+    startDate: new Date().toISOString().split('T')[0],
+    endDate: new Date().toISOString().split('T')[0],
+    status: 'Published',
+    publishStatus: 'Published'
+  } as unknown as ExamSetup) : null);
+
+  if (!effectiveStudent || !effectiveExam) return null;
+
+  const activeStudent = effectiveStudent;
+  const activeExam = effectiveExam;
 
   // Find processed result for aggregate values
   const result = propProcessedResult || allProcessedResults.find(r => 
-    r.examId === exam.id && 
+    r.examId === activeExam.id && 
     (
-      String(r.studentId) === String(student.id) ||
-      (student.rollNo && String(r.rollNo) === String(student.rollNo)) ||
-      (student.admissionNo && String(r.admissionNo) === String(student.admissionNo))
+      String(r.studentId) === String(activeStudent.id) ||
+      (activeStudent.rollNo && String(r.rollNo) === String(activeStudent.rollNo)) ||
+      (activeStudent.admissionNo && String(r.admissionNo) === String(activeStudent.admissionNo))
     )
   );
-  const isReleased = exam.publishStatus === 'Published' || exam.status === 'Results Published' || result?.status === 'Published';
+  const isReleased = activeExam.publishStatus === 'Published' || activeExam.status === 'Results Published' || result?.status === 'Published';
 
-  // Get student marks list
-  const marks = (propExamMarks && propExamMarks.length > 0)
+  // Get student marks list and deduplicate by subject name
+  const rawMarks = (propExamMarks && propExamMarks.length > 0)
     ? propExamMarks
     : allExamMarks.filter(m => 
-        m.examId === exam.id && 
+        m.examId === activeExam.id && 
         (
-          String(m.studentId) === String(student.id) ||
-          (student.rollNo && String((m as any).rollNo) === String(student.rollNo)) ||
-          (student.admissionNo && String((m as any).admissionNo) === String(student.admissionNo))
+          String(m.studentId) === String(activeStudent.id) ||
+          (activeStudent.rollNo && String((m as any).rollNo) === String(activeStudent.rollNo)) ||
+          (activeStudent.admissionNo && String((m as any).admissionNo) === String(activeStudent.admissionNo))
         )
       );
-  const classSchedules = examSchedules.filter(s => s.examId === exam.id && s.className === student.className);
 
-  // Compute subjects list
+  const uniqueMarksMap = new Map<string, ExamMark>();
+  rawMarks.forEach(m => {
+    const sName = (m.subject || '').trim();
+    if (sName && !uniqueMarksMap.has(sName)) {
+      uniqueMarksMap.set(sName, m);
+    }
+  });
+  const marks = Array.from(uniqueMarksMap.values());
+
+  const classSchedules = examSchedules.filter(s => s.examId === activeExam.id && s.className === activeStudent.className);
+
+  // Compute subjects list (unique subject names)
   const subjectsList = Array.from(new Set([
     ...classSchedules.map(s => s.subject),
     ...marks.map(m => m.subject),
-    ...(result?.subjectMarks || []).map((sm: any) => sm.subject)
-  ])).filter(Boolean);
+    ...(result?.subjectMarks || []).map((sm: any) => sm.subject || sm.subjectName || sm.name)
+  ].map(s => (s || '').trim()))).filter(Boolean);
 
   // Get custom subject wise specs (max & pass marks)
   const subjectWiseMap: Record<string, { maxMarks: number; passMarks: number }> = {};
@@ -92,12 +128,19 @@ export const PrintableReportCard: React.FC<PrintableReportCardProps> = ({
 
   const res: any = calculateStudentResult(marks, subjectsList, gradeConfigurations, subjectWiseMap);
 
-  // If result has official subjectMarks from the database/release, use result's subjectMarks!
+  // If result has official subjectMarks from the database/release, deduplicate and use them!
   if (result?.subjectMarks && Array.isArray(result.subjectMarks) && result.subjectMarks.length > 0) {
-    res.subjectMarks = result.subjectMarks;
-    res.totalObtained = result.totalObtainedMarks ?? (result as any).totalObtained ?? res.totalObtained ?? 0;
-    res.totalMax = result.totalMaxMarks ?? (result as any).totalMax ?? res.totalMax ?? (result.subjectMarks.reduce((sum: number, sm: any) => sum + (Number(sm.maxMarks) || 0), 0));
-    res.percentage = result.percentage ?? (res.totalMax > 0 ? (res.totalObtained / res.totalMax) * 100 : 0);
+    const subMap = new Map<string, any>();
+    result.subjectMarks.forEach((sm: any) => {
+      const sName = (sm.subject || sm.subjectName || sm.name || '').trim();
+      if (sName && !subMap.has(sName)) {
+        subMap.set(sName, sm);
+      }
+    });
+    res.subjectMarks = Array.from(subMap.values());
+    res.totalMax = result.totalMaxMarks ?? (result as any).totalMax ?? (res.subjectMarks.reduce((sum: number, sm: any) => sum + (Number(sm.maxMarks) || 100), 0));
+    res.totalObtained = result.totalObtainedMarks ?? (result as any).totalObtained ?? (res.subjectMarks.reduce((sum: number, sm: any) => sum + (typeof sm.obtainedMarks === 'number' ? sm.obtainedMarks : (Number(sm.obtainedMarks) || 0)), 0));
+    res.percentage = result.percentage ?? (res.totalMax > 0 ? parseFloat(((res.totalObtained / res.totalMax) * 100).toFixed(1)) : 0);
     res.finalGrade = result.finalGrade || result.overallGrade || res.finalGrade || '';
     res.passStatus = result.passStatus || (result as any).resultStatus || (result as any).status || '-';
   } else if (result) {
@@ -115,71 +158,64 @@ export const PrintableReportCard: React.FC<PrintableReportCardProps> = ({
     }
   }
 
-  // Deduplicate res.subjectMarks by subject name and set default passLimit (35)
-  if (res.subjectMarks && Array.isArray(res.subjectMarks)) {
-    const uniqueMap = new Map<string, any>();
-    res.subjectMarks.forEach((sub: any) => {
-      const name = (sub.subject || sub.name || '').trim();
-      if (!name) return;
-      const key = name.toLowerCase();
-      if (!uniqueMap.has(key)) {
-        uniqueMap.set(key, { ...sub, subject: name });
+  // Ensure res.subjectMarks is strictly deduplicated and has normalized passMarks and isPass flags
+  if (Array.isArray(res.subjectMarks)) {
+    const finalSubMap = new Map<string, any>();
+    res.subjectMarks.forEach((sm: any) => {
+      const sName = (sm.subject || sm.subjectName || sm.name || '').trim();
+      if (sName && !finalSubMap.has(sName)) {
+        const maxM = Number(sm.maxMarks) || 100;
+        const passM = (Number(sm.passMarks) && Number(sm.passMarks) > 0) ? Number(sm.passMarks) : Math.round(maxM * 0.35);
+        const obtainedM = sm.obtainedMarks;
+        const isAbsent = obtainedM === 'AB' || String(obtainedM).toLowerCase() === 'absent';
+        const numObtained = typeof obtainedM === 'number' ? obtainedM : Number(obtainedM || 0);
+        const isPass = isAbsent ? false : (sm.isPass !== undefined ? Boolean(sm.isPass) : numObtained >= passM);
+        
+        const subPct = maxM > 0 ? (numObtained / maxM) * 100 : 0;
+        const subGrade = (sm.grade && sm.grade !== '-') ? sm.grade : (isAbsent ? '-' : calculateGrade(subPct, gradeConfigurations));
+
+        finalSubMap.set(sName, {
+          ...sm,
+          subject: sName,
+          maxMarks: maxM,
+          passMarks: passM,
+          obtainedMarks: obtainedM,
+          grade: subGrade,
+          isPass
+        });
       }
     });
-
-    let hasFail = false;
-    res.subjectMarks = Array.from(uniqueMap.values()).map((sub: any) => {
-      const isAbsent = sub.obtainedMarks === 'AB' || sub.marks === 'AB';
-      const rawPass = Number(sub.passMarks || sub.passLimit);
-      const passLimit = isNaN(rawPass) || rawPass === 0 ? 35 : rawPass;
-      const obtainedNum = typeof sub.obtainedMarks === 'number'
-        ? sub.obtainedMarks
-        : (typeof sub.marks === 'number' ? sub.marks : (parseFloat(String(sub.obtainedMarks || sub.marks || 0)) || 0));
-
-      let isPass = true;
-      if (isAbsent) {
-        isPass = false;
-      } else {
-        isPass = obtainedNum >= passLimit;
-      }
-
-      if (!isPass) hasFail = true;
-
-      return {
-        ...sub,
-        subject: sub.subject || sub.name,
-        obtainedMarks: sub.obtainedMarks !== undefined ? sub.obtainedMarks : (sub.marks !== undefined ? sub.marks : 0),
-        passMarks: passLimit,
-        maxMarks: Number(sub.maxMarks) || 100,
-        isPass
-      };
-    });
-
-    if (res.subjectMarks.length > 0) {
-      res.overallResult = hasFail ? 'FAIL' : 'PASS';
-    }
+    res.subjectMarks = Array.from(finalSubMap.values());
   }
 
+  if (!res.finalGrade || res.finalGrade === '-') {
+    res.finalGrade = calculateGrade(res.percentage, gradeConfigurations);
+  }
+
+  // Compute Overall Result status dynamically if absent or fails are present
+  const hasSubjectFails = (res.subjectMarks || []).some((sub: any) => !sub.isPass);
+  const allSubjAbsent = (res.subjectMarks || []).length > 0 && (res.subjectMarks || []).every((sub: any) => sub.obtainedMarks === 'AB' || String(sub.obtainedMarks).toLowerCase() === 'absent');
+  res.overallResult = allSubjAbsent ? 'ABSENT' : (hasSubjectFails || res.percentage < 35 ? 'FAIL' : 'PASS');
   // Calculate Rank in Class Section (using standard competition ranking)
-  const classStudents = students.filter(s => s.className === student.className && (!s.section || s.section === student.section));
+  const classStudents = students.filter(s => s.className === activeStudent.className && (!s.section || s.section === activeStudent.section));
   const studentScores = classStudents.map(st => {
-    const stMarks = allExamMarks.filter(m => m.examId === exam.id && m.studentId === st.id);
+    const stMarks = allExamMarks.filter(m => m.examId === activeExam.id && m.studentId === st.id);
     const calculated = calculateStudentResult(stMarks, subjectsList, gradeConfigurations, subjectWiseMap);
     return { studentId: st.id, score: calculated.totalObtained };
   });
   
   const ranksMap = calculateCompetitionRanks(studentScores);
-  const rank = result?.rank ?? ranksMap[student.id] ?? '';
+  const rank = result?.rank ?? ranksMap[activeStudent.id] ?? '';
 
   // Attendance stats
-  const attData = propAttendance || (contextData as any).studentAttendance?.find((a: any) => a.studentId === student.id) || null;
+  const attData = propAttendance || (contextData as any).studentAttendance?.find((a: any) => a.studentId === activeStudent.id) || null;
   const workingDays = Number(attData?.workingDays) || 0;
   const presentDays = Number(attData?.presentDays) || 0;
   const absentDays = Math.max(0, workingDays - presentDays);
   const attendanceRate = workingDays > 0 ? ((presentDays / workingDays) * 100).toFixed(1) : '0.0';
 
   // Co-Scholastic parameters
-  const csData = propCoScholastic || contextData.coScholasticAssessments?.find((c: any) => c.studentId === student.id) || null;
+  const csData = propCoScholastic || contextData.coScholasticAssessments?.find((c: any) => c.studentId === activeStudent.id) || null;
 
   const handlePrint = () => {
     window.print();
@@ -257,7 +293,7 @@ export const PrintableReportCard: React.FC<PrintableReportCardProps> = ({
             <span className="inline-block px-4 py-1 rounded-full bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900 text-[10px] font-black tracking-widest uppercase shadow-xs">
               STUDENT ACADEMIC PROGRESS REPORT CARD
             </span>
-            <span className="text-xs font-black text-sky-600 dark:text-sky-400 uppercase">({exam.name})</span>
+            <span className="text-xs font-black text-sky-600 dark:text-sky-400 uppercase">({activeExam.name})</span>
           </div>
         </div>
       </div>
@@ -266,19 +302,19 @@ export const PrintableReportCard: React.FC<PrintableReportCardProps> = ({
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 text-xs font-semibold">
         <div>
           <span className="block text-[10px] uppercase font-bold text-slate-400">Student Full Name</span>
-          <p className="font-black text-slate-900 dark:text-white text-xs mt-0.5">{student.firstName} {student.lastName}</p>
+          <p className="font-black text-slate-900 dark:text-white text-xs mt-0.5">{activeStudent.firstName} {activeStudent.lastName}</p>
         </div>
         <div>
           <span className="block text-[10px] uppercase font-bold text-slate-400">Roll / Admission No</span>
-          <p className="font-mono font-black text-slate-800 dark:text-slate-200 text-xs mt-0.5">{student.rollNo || 'N/A'} / {student.admissionNo || student.id}</p>
+          <p className="font-mono font-black text-slate-800 dark:text-slate-200 text-xs mt-0.5">{activeStudent.rollNo || 'N/A'} / {activeStudent.admissionNo || activeStudent.id}</p>
         </div>
         <div>
           <span className="block text-[10px] uppercase font-bold text-slate-400">Class & Section</span>
-          <p className="font-bold text-slate-800 dark:text-slate-200 text-xs mt-0.5">{student.className}{student.section ? ` (Section ${student.section})` : ''}</p>
+          <p className="font-bold text-slate-800 dark:text-slate-200 text-xs mt-0.5">{activeStudent.className}{activeStudent.section ? ` (Section ${activeStudent.section})` : ''}</p>
         </div>
         <div>
           <span className="block text-[10px] uppercase font-bold text-slate-400">Father / Guardian Name</span>
-          <p className="font-bold text-slate-800 dark:text-slate-200 text-xs mt-0.5">{student.fatherName || 'Parent/Guardian'}</p>
+          <p className="font-bold text-slate-800 dark:text-slate-200 text-xs mt-0.5">{activeStudent.fatherName || 'Parent/Guardian'}</p>
         </div>
       </div>
 
@@ -412,7 +448,7 @@ export const PrintableReportCard: React.FC<PrintableReportCardProps> = ({
             </div>
             <div>
               <h3 className="font-extrabold text-xs uppercase tracking-tight">Academic Progress Report Card</h3>
-              <p className="text-[10px] text-slate-500 font-bold">{student.firstName} {student.lastName} ({student.className}{student.section ? `-${student.section}` : ''})</p>
+              <p className="text-[10px] text-slate-500 font-bold">{activeStudent.firstName} {activeStudent.lastName} ({activeStudent.className}{activeStudent.section ? `-${activeStudent.section}` : ''})</p>
             </div>
           </div>
           

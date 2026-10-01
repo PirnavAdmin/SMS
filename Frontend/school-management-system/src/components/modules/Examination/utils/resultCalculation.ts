@@ -21,7 +21,7 @@ export interface CalculatedResult {
 
 export function calculateGrade(
   value: number, 
-  gradeRules: GradeConfig[], 
+  gradeRules?: GradeConfig[], 
   mode: 'Percentage' | 'Marks' = 'Percentage',
   examType?: string
 ): string {
@@ -40,10 +40,21 @@ export function calculateGrade(
       return value >= min && value <= max;
     });
 
-    if (matched) return matched.gradeName || matched.grade || '-';
+    if (matched && (matched.gradeName || matched.grade)) {
+      return (matched.gradeName || matched.grade) as string;
+    }
   }
 
-  return '-';
+  // Standard Auto-Grade system by marks / percentage
+  const pct = Math.max(0, Math.min(100, Number(value) || 0));
+  if (pct >= 90) return 'A+';
+  if (pct >= 80) return 'A';
+  if (pct >= 70) return 'B+';
+  if (pct >= 60) return 'B';
+  if (pct >= 50) return 'C+';
+  if (pct >= 40) return 'C';
+  if (pct >= 35) return 'D';
+  return 'F';
 }
 
 export function calculateGpa(
@@ -87,7 +98,7 @@ export function calculateStudentResult(
     const m = marks.find(mark => mark.subject === subject);
     const config = subjectWiseConfig?.[subject] || { maxMarks: 0, passMarks: 0 };
     const maxM = m?.maxMarks || config.maxMarks || 100;
-    const passM = m?.passMarks || config.passMarks || 35;
+    const passM = (m?.passMarks && m.passMarks > 0) ? m.passMarks : (config.passMarks && config.passMarks > 0 ? config.passMarks : Math.round(maxM * 0.35));
     
     let obtained: number | 'AB' | 'EX' = 0;
     let isPass = true;
@@ -99,10 +110,11 @@ export function calculateStudentResult(
         obtained = 'AB';
         isPass = false;
         grade = '-';
+        hasFail = true;
       } else {
         allAbsent = false;
-        obtained = m.marksObtained;
-        isPass = passM > 0 ? obtained >= passM : true;
+        obtained = Number(m.marksObtained) || 0;
+        isPass = obtained >= passM;
         if (!isPass) hasFail = true;
         
         const pct = maxM > 0 ? (obtained / maxM) * 100 : 0;
@@ -110,6 +122,7 @@ export function calculateStudentResult(
         totalObtained += obtained;
       }
     } else {
+      // If no marks record exists for this subject, check if marks array has active marks
       obtained = 'AB';
       isPass = false;
       grade = '-';
@@ -131,9 +144,9 @@ export function calculateStudentResult(
   const gpa = calculateGpa(percentage, gradeRules, examType);
 
   let overallResult: CalculatedResult['overallResult'] = 'PASS';
-  if (!hasActiveMarks || allAbsent) {
+  if (!hasActiveMarks || (subjectMarks.length > 0 && subjectMarks.every(s => s.obtainedMarks === 'AB'))) {
     overallResult = 'ABSENT';
-  } else if (hasFail) {
+  } else if (hasFail || percentage < 35) {
     overallResult = 'FAIL';
   }
 

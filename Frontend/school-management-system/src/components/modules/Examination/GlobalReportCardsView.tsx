@@ -31,6 +31,7 @@ import { useData } from '../../../context/DataContext';
 import { useAuth } from '../../../context/AuthContext';
 import { useToast } from '../../../context/ToastContext';
 import { fetchReportCardsApi, fetchExamOptionsApi } from '../../../api/examination';
+import { calculateGrade } from './utils/resultCalculation';
 import { printReportCard, printBulkReportCards, downloadReportCardPdf } from './utils/reportCardPrinter';
 
 interface GlobalReportCardsViewProps {
@@ -73,11 +74,26 @@ export const GlobalReportCardsView: React.FC<GlobalReportCardsViewProps> = ({ on
   const [isBulkSending, setIsBulkSending] = useState(false);
   const [isApiLoading, setIsApiLoading] = useState(false);
   const [apiReportCards, setApiReportCards] = useState<any[] | null>(null);
+  const [apiExamOptions, setApiExamOptions] = useState<any[]>([]);
   const [apiError, setApiError] = useState<string | null>(null);
 
   // Pagination
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [pageSize, setPageSize] = useState<number>(20);
+
+  // Fetch exam options on mount to get official exam names
+  useEffect(() => {
+    let isMounted = true;
+    fetchExamOptionsApi()
+      .then((res: any) => {
+        if (isMounted) {
+          const list = res?.data?.existingExams || res?.data || res || [];
+          if (Array.isArray(list)) setApiExamOptions(list);
+        }
+      })
+      .catch(() => {});
+    return () => { isMounted = false; };
+  }, []);
 
   // Close student dropdown on outside click
   useEffect(() => {
@@ -90,51 +106,180 @@ export const GlobalReportCardsView: React.FC<GlobalReportCardsViewProps> = ({ on
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // Determine released exams
+  // Helper matchers
+  const normalizeClass = (cls?: string) => (cls || '').toLowerCase().replace(/class/i, '').trim();
+  const normalizeSection = (sec?: string) => (sec || '').toLowerCase().replace(/section/i, '').trim();
+
+  // 1. All examinations created in Admin Examinations with resolved real exam names
   const releasedExams = useMemo(() => {
+    const safeExams = Array.isArray(exams) ? exams : [];
     const safeResults = Array.isArray(contextResults) ? contextResults : [];
-    return (exams || []).filter(e => 
-      e.publishStatus === 'Published' || 
-      e.status === 'Results Published' || 
-      e.status === 'Published' ||
-      safeResults.some(r => r.examId === e.id && (r.status === 'Published' || r.status === 'Approved' || !!r.publishedAt))
-    );
-  }, [exams, contextResults]);
+    const safeApiOptions = Array.isArray(apiExamOptions) ? apiExamOptions : [];
+    const map = new Map<string, ExamSetup>();
 
-  // Available classes
+    // Helper to resolve clean exam name
+    const resolveExamName = (item: any, idKey: string) => {
+      // Check API options first
+      const matchedApi = safeApiOptions.find(o => String(o.examId || o.id) === String(idKey));
+      if (matchedApi?.examName || matchedApi?.name) return matchedApi.examName || matchedApi.name;
+
+      // Check context exams
+      const matchedExam = safeExams.find(e => String(e.id) === String(idKey));
+      if (matchedExam && matchedExam.name && !matchedExam.name.match(/^Exam\s*\d+$/i)) return matchedExam.name;
+      if (matchedExam && (matchedExam as any).examName && !(matchedExam as any).examName.match(/^Exam\s*\d+$/i)) return (matchedExam as any).examName;
+
+      // Check item properties
+      if (item?.name && !item.name.match(/^Exam\s*\d+$/i)) return item.name;
+      if (item?.examName && !item.examName.match(/^Exam\s*\d+$/i)) return item.examName;
+
+      if (matchedExam?.name) return matchedExam.name;
+      if ((matchedExam as any)?.examName) return (matchedExam as any).examName;
+
+      return item?.name || item?.examName || `Examination ${idKey}`;
+    };
+
+    // Add all exams created in Admin panel
+    safeExams.forEach(e => {
+      if (e && e.id) {
+        const cleanName = resolveExamName(e, String(e.id));
+        map.set(String(e.id), {
+          ...e,
+          name: cleanName
+        });
+      }
+    });
+
+    // Add any exam from api options
+    safeApiOptions.forEach(o => {
+      const eId = String(o.examId || o.id);
+      if (eId && !map.has(eId)) {
+        map.set(eId, {
+          id: eId,
+          name: o.examName || o.name || `Examination ${eId}`,
+          academicYear: o.academicYear || '2026-2027',
+          status: 'Published',
+          publishStatus: 'Published',
+          term: o.academicTerm || o.term || ''
+        } as ExamSetup);
+      }
+    });
+
+    // Add any exam referenced in results
+    safeResults.forEach(r => {
+      if (r && r.examId && !map.has(String(r.examId))) {
+        const cleanName = resolveExamName(r, String(r.examId));
+        map.set(String(r.examId), {
+          id: String(r.examId),
+          name: cleanName,
+          academicYear: '2026-2027',
+          status: 'Published',
+          publishStatus: 'Published'
+        } as ExamSetup);
+      }
+    });
+
+    return Array.from(map.values());
+  }, [exams, contextResults, apiExamOptions]);
+
+  // 2. All available classes from all data sources
   const classOptions = useMemo(() => {
-    const fromAcademic = (academicClasses || []).map(c => c.name).filter(Boolean);
+    const fromAcademic = (academicClasses || []).map(c => c.name || (c as any).className).filter(Boolean);
     const fromStudents = (students || []).map(s => s.className).filter(Boolean);
-    return Array.from(new Set([...fromAcademic, ...fromStudents])).sort((a, b) => {
-      const numA = parseInt(a.replace(/\D/g, '')) || 0;
-      const numB = parseInt(b.replace(/\D/g, '')) || 0;
-      return numA - numB;
-    });
-  }, [academicClasses, students]);
+    const fromExams = (exams || []).map(e => e.className).filter(Boolean);
+    const fromResults = (contextResults || []).map(r => r.className).filter(Boolean);
+    const fromApi = (apiReportCards || []).map(r => r.className).filter(Boolean);
+    
+    return Array.from(new Set([...fromAcademic, ...fromStudents, ...fromExams, ...fromResults, ...fromApi]))
+      .filter(Boolean)
+      .sort((a, b) => {
+        const numA = parseInt(a.replace(/\D/g, '')) || 0;
+        const numB = parseInt(b.replace(/\D/g, '')) || 0;
+        return numA - numB;
+      });
+  }, [academicClasses, students, exams, contextResults, apiReportCards]);
 
-  // Available sections based on selected class
+  // 3. All available sections based on selected class or all sections
   const availableSections = useMemo(() => {
-    if (!selectedClass) return [];
-    const matched = (academicClasses || []).find(c => c.name === selectedClass);
-    if (matched && matched.sections && matched.sections.length > 0) {
-      const raw = matched.sections.map((s: any) => typeof s === 'string' ? s : (s.name || s.sectionName || ''));
-      return Array.from(new Set(raw.filter(Boolean)));
-    }
-    const studentSecs = (students || [])
-      .filter(s => s.className === selectedClass && s.section)
-      .map(s => s.section!);
-    return Array.from(new Set(studentSecs)).sort();
-  }, [academicClasses, selectedClass, students]);
+    const sectionsSet = new Set<string>();
 
-  // Students list for dropdown (filtered by class and section)
+    if (selectedClass) {
+      const targetCls = normalizeClass(selectedClass);
+      const matched = (academicClasses || []).find(c => normalizeClass(c.name) === targetCls);
+      if (matched && matched.sections && matched.sections.length > 0) {
+        matched.sections.forEach((s: any) => {
+          const sName = typeof s === 'string' ? s : (s.name || s.sectionName || '');
+          if (sName) sectionsSet.add(sName);
+        });
+      }
+      (students || []).filter(s => normalizeClass(s.className) === targetCls && s.section).forEach(s => sectionsSet.add(s.section!));
+      (contextResults || []).filter(r => normalizeClass(r.className) === targetCls && r.section).forEach(r => sectionsSet.add(r.section!));
+      (apiReportCards || []).filter(r => normalizeClass(r.className) === targetCls && (r.section || r.sectionName)).forEach(r => sectionsSet.add(r.section || r.sectionName));
+    } else {
+      (academicClasses || []).forEach(c => (c.sections || []).forEach((s: any) => {
+        const sName = typeof s === 'string' ? s : (s.name || s.sectionName || '');
+        if (sName) sectionsSet.add(sName);
+      }));
+      (students || []).forEach(s => { if (s.section) sectionsSet.add(s.section); });
+      (contextResults || []).forEach(r => { if (r.section) sectionsSet.add(r.section); });
+      (apiReportCards || []).forEach(r => { if (r.section || r.sectionName) sectionsSet.add(r.section || r.sectionName); });
+    }
+
+    return Array.from(sectionsSet).filter(Boolean).sort();
+  }, [academicClasses, selectedClass, students, contextResults, apiReportCards]);
+
+  // 4. Students list for Search Student dropdown (combining students context and released report card entries)
   const candidateStudents = useMemo(() => {
-    return (students || []).filter(s => {
-      if (s.status !== 'Active') return false;
-      if (selectedClass && s.className !== selectedClass) return false;
-      if (selectedSection && selectedSection !== 'all' && s.section !== selectedSection) return false;
-      return true;
+    const map = new Map<string, { id: string; firstName: string; lastName: string; rollNo: string; admissionNo: string; className: string; section: string }>();
+
+    const targetClass = selectedClass ? normalizeClass(selectedClass) : '';
+    const targetSec = selectedSection && selectedSection !== 'all' ? normalizeSection(selectedSection) : '';
+
+    // Add from students context
+    (students || []).forEach(s => {
+      if (!s) return;
+      if (targetClass && normalizeClass(s.className) !== targetClass) return;
+      if (targetSec && normalizeSection(s.section) !== targetSec) return;
+
+      const key = String(s.id || s.admissionNo || `${s.firstName}_${s.lastName}`).toLowerCase();
+      map.set(key, {
+        id: String(s.id),
+        firstName: s.firstName || 'Student',
+        lastName: s.lastName || '',
+        rollNo: s.rollNo || '',
+        admissionNo: s.admissionNo || String(s.id),
+        className: s.className || '',
+        section: s.section || ''
+      });
     });
-  }, [students, selectedClass, selectedSection]);
+
+    // Add from api/context results so all students in the report card table are searchable
+    (apiReportCards || []).concat(contextResults || []).forEach(r => {
+      if (!r) return;
+      const rClass = r.className || '';
+      const rSec = r.sectionName || r.section || '';
+      if (targetClass && normalizeClass(rClass) !== targetClass) return;
+      if (targetSec && normalizeSection(rSec) !== targetSec) return;
+
+      const sId = String(r.studentId || r.id || '');
+      const sName = r.studentName || `${r.firstName || ''} ${r.lastName || ''}`.trim() || 'Student';
+      const key = (sId || r.admissionNo || sName).toLowerCase();
+
+      if (!map.has(key)) {
+        const nameParts = sName.split(' ');
+        map.set(key, {
+          id: sId,
+          firstName: nameParts[0] || 'Student',
+          lastName: nameParts.slice(1).join(' ') || '',
+          rollNo: r.rollNo || r.rollNumber || '',
+          admissionNo: r.admissionNo || r.admissionNumber || sId,
+          className: rClass,
+          section: rSec
+        });
+      }
+    });
+
+    return Array.from(map.values()).sort((a, b) => `${a.firstName} ${a.lastName}`.localeCompare(`${b.firstName} ${b.lastName}`));
+  }, [students, contextResults, apiReportCards, selectedClass, selectedSection]);
 
   // Filter candidate students inside the searchable dropdown
   const filteredDropdownStudents = useMemo(() => {
@@ -188,13 +333,36 @@ export const GlobalReportCardsView: React.FC<GlobalReportCardsViewProps> = ({ on
   const releasedResults = useMemo(() => {
     let resultsList: ProcessedResult[] = [];
 
+    const computePassStatus = (item: any): 'Pass' | 'Fail' => {
+      const maxM = Number(item.totalMaxMarks ?? item.maxMarks ?? 0);
+      const obtainedM = Number(item.totalMarksObtained ?? item.totalObtainedMarks ?? item.obtainedMarks ?? 0);
+      const pct = Number(item.percentage ?? (maxM > 0 ? (obtainedM / maxM) * 100 : 0));
+      
+      const rawSubs = Array.isArray(item.subjectMarks) ? item.subjectMarks : (Array.isArray(item.subjectScores) ? item.subjectScores : []);
+      if (rawSubs.length > 0) {
+        const hasFailSub = rawSubs.some((sub: any) => {
+          const sMax = Number(sub.maxMarks) || 100;
+          const sPass = (Number(sub.passMarks) && Number(sub.passMarks) > 0) ? Number(sub.passMarks) : Math.round(sMax * 0.35);
+          const sObt = sub.obtainedMarks;
+          if (sObt === 'AB' || String(sObt).toLowerCase() === 'absent') return true;
+          const numObt = typeof sObt === 'number' ? sObt : Number(sObt || 0);
+          return sub.isPass !== undefined ? !sub.isPass : numObt < sPass;
+        });
+        if (hasFailSub) return 'Fail';
+      }
+      
+      if (pct < 35) return 'Fail';
+      return 'Pass';
+    };
+
     const apiMapped: ProcessedResult[] = (apiReportCards || []).map((r: any) => {
       const maxMarks = Number(r.totalMaxMarks ?? r.maxMarks ?? 0);
       const obtainedMarks = Number(r.totalMarksObtained ?? r.totalObtainedMarks ?? r.obtainedMarks ?? 0);
       const pct = Number(r.percentage ?? (maxMarks > 0 ? (obtainedMarks / maxMarks) * 100 : 0));
-      const grade = r.finalGrade || r.overallGrade || r.grade || '';
-      const passFail = r.resultStatus || r.passStatus || '';
+      const calcGrade = calculateGrade(pct, gradeConfigurations);
+      const grade = (r.finalGrade && r.finalGrade !== '-') ? r.finalGrade : ((r.overallGrade && r.overallGrade !== '-') ? r.overallGrade : calcGrade);
       const rankVal = r.rank ? Number(r.rank) : 0;
+      const passFail = computePassStatus(r);
 
       return {
         id: String(r.id || r.resultId || `API-${r.studentId}`),
@@ -212,7 +380,7 @@ export const GlobalReportCardsView: React.FC<GlobalReportCardsViewProps> = ({ on
         finalGrade: grade,
         overallGrade: grade,
         subjectMarks: Array.isArray(r.subjectMarks) ? r.subjectMarks : (Array.isArray(r.subjectScores) ? r.subjectScores : []),
-        passStatus: passFail as 'Pass' | 'Fail',
+        passStatus: passFail,
         status: 'Published',
         rank: rankVal
       };
@@ -234,21 +402,31 @@ export const GlobalReportCardsView: React.FC<GlobalReportCardsViewProps> = ({ on
       const nameKey = (item.studentName || `${(item as any).firstName || ''} ${(item as any).lastName || ''}`).toLowerCase().trim().replace(/\s+/g, ' ');
       const admKey = (item.admissionNo || (item as any).admissionNumber || '').toLowerCase().trim();
       const rollKey = (item.rollNo || (item as any).rollNumber || '').toLowerCase().trim();
-      return `${item.examId || ''}_${item.className || ''}_${nameKey || admKey || rollKey || String(item.studentId || item.id || '').trim().toLowerCase()}`;
+      const studentIdKey = nameKey || admKey || rollKey || String(item.studentId || item.id || '').trim().toLowerCase();
+
+      if (selectedExamId && selectedExamId !== 'all') {
+        return `${selectedExamId}_${studentIdKey}`;
+      }
+      return studentIdKey;
     };
 
     for (const item of [...apiMapped, ...contextReleased]) {
       const key = getDedupeKey(item);
       const existing = uniqueMap.get(key);
+      const computedStatus = computePassStatus(item);
+      const itemPct = item.percentage ?? (item.totalMaxMarks ? (item.totalObtainedMarks / item.totalMaxMarks) * 100 : 0);
+      const computedGrade = (item.finalGrade && item.finalGrade !== '-') ? item.finalGrade : ((item.overallGrade && item.overallGrade !== '-') ? item.overallGrade : calculateGrade(itemPct, gradeConfigurations));
+      const updatedItem = { ...item, passStatus: computedStatus, finalGrade: computedGrade, overallGrade: computedGrade };
+
       if (!existing) {
-        uniqueMap.set(key, item);
+        uniqueMap.set(key, updatedItem);
       } else {
         const itemMax = item.totalMaxMarks || 0;
         const exMax = existing.totalMaxMarks || 0;
         const itemSubj = Array.isArray(item.subjectMarks) ? item.subjectMarks.length : 0;
         const exSubj = Array.isArray(existing.subjectMarks) ? existing.subjectMarks.length : 0;
         if (itemMax > exMax || (itemMax === exMax && itemSubj > exSubj) || (itemMax === exMax && (item.totalObtainedMarks || 0) > (existing.totalObtainedMarks || 0))) {
-          uniqueMap.set(key, item);
+          uniqueMap.set(key, updatedItem);
         }
       }
     }
@@ -261,21 +439,24 @@ export const GlobalReportCardsView: React.FC<GlobalReportCardsViewProps> = ({ on
 
     // 3. Filter by Class
     if (selectedClass) {
-      resultsList = resultsList.filter(r => r.className === selectedClass);
+      const targetCls = normalizeClass(selectedClass);
+      resultsList = resultsList.filter(r => normalizeClass(r.className) === targetCls);
     }
 
     // 4. Filter by Section
     if (selectedSection && selectedSection !== 'all') {
-      const cleanSec = selectedSection.replace('Section ', '').trim().toUpperCase();
-      resultsList = resultsList.filter(r => {
-        const rSec = (r.section || '').replace('Section ', '').trim().toUpperCase();
-        return rSec === cleanSec || r.section === selectedSection;
-      });
+      const targetSec = normalizeSection(selectedSection);
+      resultsList = resultsList.filter(r => normalizeSection(r.section) === targetSec);
     }
 
     // 5. Filter by Specific Student
     if (selectedStudentId && selectedStudentId !== 'all') {
-      resultsList = resultsList.filter(r => String(r.studentId) === String(selectedStudentId));
+      const targetId = selectedStudentId.toLowerCase().trim();
+      resultsList = resultsList.filter(r => 
+        String(r.studentId).toLowerCase().trim() === targetId ||
+        (r.admissionNo && String(r.admissionNo).toLowerCase().trim() === targetId) ||
+        (r.rollNo && String(r.rollNo).toLowerCase().trim() === targetId)
+      );
     }
 
     // 6. Filter by Status (Pass / Fail)
@@ -294,13 +475,34 @@ export const GlobalReportCardsView: React.FC<GlobalReportCardsViewProps> = ({ on
       );
     }
 
+    // Re-calculate competition ranks for deduplicated list
+    const sortedByPerformance = [...resultsList].sort((a, b) => {
+      const pctA = a.percentage ?? (a.totalMaxMarks ? (a.totalObtainedMarks / a.totalMaxMarks) * 100 : 0);
+      const pctB = b.percentage ?? (b.totalMaxMarks ? (b.totalObtainedMarks / b.totalMaxMarks) * 100 : 0);
+      if (pctB !== pctA) return pctB - pctA;
+      return (b.totalObtainedMarks || 0) - (a.totalObtainedMarks || 0);
+    });
+
+    let currentRank = 1;
+    sortedByPerformance.forEach((r, idx) => {
+      if (idx > 0) {
+        const prev = sortedByPerformance[idx - 1];
+        const prevPct = prev.percentage ?? (prev.totalMaxMarks ? (prev.totalObtainedMarks / prev.totalMaxMarks) * 100 : 0);
+        const currPct = r.percentage ?? (r.totalMaxMarks ? (r.totalObtainedMarks / r.totalMaxMarks) * 100 : 0);
+        if (currPct < prevPct) {
+          currentRank = idx + 1;
+        }
+      }
+      r.rank = currentRank;
+    });
+
     // 8. Sorting
     return [...resultsList].sort((a, b) => {
-      if (sortOrder === 'rank-asc') return (a.rank ?? 999) - (b.rank ?? 999);
+      if (sortOrder === 'rank-asc' || !sortOrder) return (a.rank ?? 999) - (b.rank ?? 999);
       if (sortOrder === 'rank-desc') return (b.rank ?? 999) - (a.rank ?? 999);
       if (sortOrder === 'name-asc') return a.studentName.localeCompare(b.studentName);
-      if (sortOrder === 'pct-desc') return b.percentage - a.percentage;
-      return 0;
+      if (sortOrder === 'pct-desc') return (b.percentage || 0) - (a.percentage || 0);
+      return (a.rank ?? 999) - (b.rank ?? 999);
     });
   }, [
     apiReportCards, 
@@ -441,8 +643,45 @@ export const GlobalReportCardsView: React.FC<GlobalReportCardsViewProps> = ({ on
     setStudentSearchText('');
   };
 
-  const previewStudentObj = previewResult ? students.find(s => String(s.id) === String(previewResult.studentId)) || null : null;
-  const previewExamObj = previewResult ? exams.find(e => e.id === previewResult.examId) || activeExamObj : activeExamObj;
+  const previewStudentObj = useMemo(() => {
+    if (!previewResult) return null;
+    const found = (students || []).find(s => 
+      String(s.id) === String(previewResult.studentId) ||
+      (previewResult.admissionNo && String(s.admissionNo).toLowerCase().trim() === String(previewResult.admissionNo).toLowerCase().trim()) ||
+      (previewResult.rollNo && String(s.rollNo).toLowerCase().trim() === String(previewResult.rollNo).toLowerCase().trim()) ||
+      (previewResult.studentName && `${s.firstName} ${s.lastName}`.toLowerCase().trim() === previewResult.studentName.toLowerCase().trim())
+    );
+    if (found) return found;
+
+    const nameParts = (previewResult.studentName || 'Student').trim().split(' ');
+    const firstName = nameParts[0] || 'Student';
+    const lastName = nameParts.slice(1).join(' ') || '';
+
+    return {
+      id: previewResult.studentId || '1',
+      firstName,
+      lastName,
+      rollNo: previewResult.rollNo || '',
+      admissionNo: previewResult.admissionNo || previewResult.studentId || '',
+      className: previewResult.className || selectedClass || '5',
+      section: previewResult.section || selectedSection || 'A',
+      fatherName: 'Parent/Guardian',
+      status: 'Active'
+    } as Student;
+  }, [previewResult, students, selectedClass, selectedSection]);
+
+  const previewExamObj = useMemo(() => {
+    if (!previewResult) return null;
+    const found = (exams || []).find(e => String(e.id) === String(previewResult.examId));
+    if (found) return found;
+    return activeExamObj || ({
+      id: previewResult.examId || '1',
+      name: 'Academic Examination',
+      academicYear: '2026-2027',
+      status: 'Results Published',
+      publishStatus: 'Published'
+    } as ExamSetup);
+  }, [previewResult, exams, activeExamObj]);
 
   return (
     <div className="space-y-4 text-left w-full">
@@ -573,11 +812,14 @@ export const GlobalReportCardsView: React.FC<GlobalReportCardsViewProps> = ({ on
               className="w-full px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-xs font-extrabold text-slate-900 dark:text-white outline-none cursor-pointer h-[38px] shadow-xs"
             >
               <option value="all">All Released Exams</option>
-              {releasedExams.map(ex => (
-                <option key={ex.id} value={ex.id}>
-                  {ex.name} ({ex.term || ex.academicTerm || 'Term'})
-                </option>
-              ))}
+              {releasedExams.map(ex => {
+                const showTerm = ex.term && ex.term.trim() && ex.term.toLowerCase() !== 'term' && !ex.name.toLowerCase().includes(ex.term.toLowerCase());
+                return (
+                  <option key={ex.id} value={ex.id}>
+                    {ex.name}{showTerm ? ` (${ex.term})` : ''}
+                  </option>
+                );
+              })}
             </select>
           </div>
 

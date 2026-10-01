@@ -13,7 +13,17 @@ export function generateReportCardHtml(
   const examName = exam?.name || 'Term Assessment Examination';
   const academicYear = exam?.academicYear || '2026-2027';
 
-  const subjectRows = (data.subjectMarks || []).map((sub: any) => {
+  const rawSubjects = (data.subjectMarks || []) as any[];
+  const subMap = new Map<string, any>();
+  rawSubjects.forEach((sub: any) => {
+    const sName = (sub.subject || sub.subjectName || sub.name || '').trim();
+    if (sName && !subMap.has(sName)) {
+      subMap.set(sName, sub);
+    }
+  });
+  const cleanSubjects = Array.from(subMap.values());
+
+  const subjectRows = cleanSubjects.map((sub: any) => {
     const match = subjects.find(s => s.name === sub.subject || s.code === sub.subject || s.id === sub.subject);
     const subCode = match?.code || `${sub.subject.substring(0, 3).toUpperCase()}-101`;
     const isPass = sub.isPass !== false;

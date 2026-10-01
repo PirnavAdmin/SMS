@@ -8,11 +8,30 @@ import { Student, ExamSetup, ExamMark, ProcessedResult } from '../../../types';
 import { useParentWards, ParentStudentSelector } from '../../common/ParentStudentSelector';
 
 export const ParentExaminationView: React.FC = () => {
-  const { students = [], exams = [], processedResults = [], subjects = [], examMarks = [] } = useData();
+  const { students = [], exams = [], processedResults = [], subjects = [], examMarks = [], refreshReleasedExamResults } = useData();
   const { user, role } = useAuth();
   const parentWards = useParentWards();
   const [selectedChildIdx, setSelectedChildIdx] = useState(0);
   const [selectedExamId, setSelectedExamId] = useState<string>('');
+  const [resultsVersion, setResultsVersion] = useState(0);
+
+  useEffect(() => {
+    if (refreshReleasedExamResults) {
+      refreshReleasedExamResults().catch(() => {});
+    }
+    const handleUpdate = () => {
+      setResultsVersion(v => v + 1);
+      if (refreshReleasedExamResults) refreshReleasedExamResults().catch(() => {});
+    };
+    window.addEventListener('storage', handleUpdate);
+    window.addEventListener('results_published', handleUpdate);
+    window.addEventListener('refresh_released_results', handleUpdate);
+    return () => {
+      window.removeEventListener('storage', handleUpdate);
+      window.removeEventListener('results_published', handleUpdate);
+      window.removeEventListener('refresh_released_results', handleUpdate);
+    };
+  }, [refreshReleasedExamResults]);
 
   const getSubjectName = (id: string) => (subjects || []).find(s => s.id === id || s.name === id)?.name || id;
 
