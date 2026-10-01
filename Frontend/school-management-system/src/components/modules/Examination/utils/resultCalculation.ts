@@ -87,7 +87,7 @@ export function calculateStudentResult(
 
   subjectsList.forEach(subject => {
     const m = marks.find(mark => mark.subject === subject);
-    const config = subjectWiseConfig?.[subject] || { maxMarks: 0, passMarks: 0 };
+    const config = subjectWiseConfig?.[subject] || subjectWiseConfig?.['default'] || { maxMarks: 0, passMarks: 0 };
     const maxM = m?.maxMarks || config.maxMarks || 100;
     const passM = (m?.passMarks && m.passMarks > 0) ? m.passMarks : (config.passMarks && config.passMarks > 0 ? config.passMarks : Math.round(maxM * 0.35));
     

@@ -174,23 +174,27 @@ export const ParentExaminationView: React.FC = () => {
 
     const formattedSubjects = Array.from(uniqueSubjectsMap.values()).map((sub: any) => {
       const marksVal = sub.obtainedMarks !== undefined ? sub.obtainedMarks : (sub.marks !== undefined ? sub.marks : 0);
-      const rawPass = Number(sub.passMarks || sub.passLimit);
-      const passLimit = isNaN(rawPass) || rawPass === 0 ? 35 : rawPass;
+      const passLimit = Number(sub.passMarks || sub.passLimit || 0);
+      const maxLimit = Number(sub.maxMarks || sub.totalMarks || 0);
       const isAbsent = marksVal === 'AB';
       const obtainedNum = typeof marksVal === 'number' ? marksVal : (parseFloat(String(marksVal)) || 0);
 
       let isPass = true;
       if (isAbsent) {
         isPass = false;
-      } else {
+      } else if (passLimit > 0) {
         isPass = obtainedNum >= passLimit;
+      } else if (typeof sub.isPass === 'boolean') {
+        isPass = sub.isPass;
+      } else {
+        isPass = true;
       }
 
       return {
         name: sub.subject || getSubjectName(sub.name || sub.subjectId),
         marks: marksVal,
         grade: sub.grade || '',
-        maxMarks: Number(sub.maxMarks) || 100,
+        maxMarks: maxLimit,
         passMarks: passLimit,
         isPass
       };
