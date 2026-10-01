@@ -19,9 +19,10 @@ public class ExamGradingScaleService : IExamGradingScaleService
 
     public async Task<GradingScaleOptionsDto> GetGradingScaleOptionsAsync()
     {
+        var types = await _repository.GetDistinctExamTypesAsync();
         return new GradingScaleOptionsDto
         {
-            ExamTypes = new List<string> { "All", "Summative Assessment (SA)", "Formative Assessment (FA)", "Unit Test" },
+            ExamTypes = types,
             PassFailOptions = new List<string> { "PASS", "FAIL" }
         };
     }
