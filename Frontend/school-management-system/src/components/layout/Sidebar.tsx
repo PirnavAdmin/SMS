@@ -604,6 +604,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
           icon: Award,
         },
         {
+          id: "marks-entry",
+          label: "Marks Entry",
+          icon: Award,
+        },
+        {
           id: "report-cards",
           label: "Report Cards",
           icon: ClipboardList,
@@ -709,6 +714,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
           const visibleItems = group.items.filter(
             (item: any) => {
               if (item.roles && !item.roles.includes(role || "")) return false;
+              if (item.id === "marks-entry" && safeRole !== "teacher") {
+                return false;
+              }
               if (safeRole === "teacher") {
                 if (item.id === "examination") {
                   return false;
