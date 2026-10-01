@@ -389,3 +389,80 @@ export function validateCampusCode(code: string, required: boolean = true): { is
 
   return { isValid: true };
 }
+
+/**
+ * Validates a custom role title to ensure it contains recognizable words, valid letters, spaces,
+ * and limited allowed special characters, while rejecting random gibberish or keyboard mashing.
+ */
+export function validateRoleTitle(title: string, required: boolean = true): { isValid: boolean; error?: string } {
+  if (!title || typeof title !== 'string' || !title.trim()) {
+    if (required) {
+      return { isValid: false, error: 'Enter a valid role title.' };
+    }
+    return { isValid: true };
+  }
+
+  const trimmed = title.trim();
+
+  if (trimmed.length < 2) {
+    return { isValid: false, error: 'Role title must be at least 2 characters.' };
+  }
+
+  if (trimmed.length > 50) {
+    return { isValid: false, error: 'Role title cannot exceed 50 characters.' };
+  }
+
+  if (!/^[a-zA-Z0-9\s\-\/\&\(\)\,\.]+$/.test(trimmed)) {
+    return { isValid: false, error: 'Role title contains invalid special characters.' };
+  }
+
+  const letterCount = (trimmed.match(/[a-zA-Z]/g) || []).length;
+  if (letterCount < 2) {
+    return { isValid: false, error: 'Role title must contain valid alphabetic words.' };
+  }
+
+  if (/(.)\1{2,}/i.test(trimmed)) {
+    return { isValid: false, error: 'Enter a valid role title without repetitive characters.' };
+  }
+
+  if (/(..)\1{2,}/i.test(trimmed) || /(...)\1{2,}/i.test(trimmed)) {
+    return { isValid: false, error: 'Enter a valid role title without repeating patterns.' };
+  }
+
+  if (/(qwerty|wertyu|ertyui|rtyuio|tyuiop|asdfgh|sdfghj|dfghjk|fghjkl|zxcvbn|xcvbnm)/i.test(trimmed)) {
+    return { isValid: false, error: 'Enter a valid role title without keyboard-mash patterns.' };
+  }
+
+  const words = trimmed.split(/\s+/);
+  for (const word of words) {
+    const cleanWord = word.replace(/[^a-zA-Z]/g, '');
+    if (!cleanWord) continue;
+    const lower = cleanWord.toLowerCase();
+
+    if (/[bcdfghjklmnpqrstvwxz]{5,}/i.test(cleanWord)) {
+      return { isValid: false, error: 'Enter a valid role title (random character sequences not allowed).' };
+    }
+
+    if (cleanWord.length > 3 && !/[aeiouy]/i.test(cleanWord)) {
+      return { isValid: false, error: 'Enter a valid role title with recognizable words.' };
+    }
+
+    if (cleanWord.length >= 6) {
+      const vowelsCount = (cleanWord.match(/[aeiouy]/gi) || []).length;
+      if (vowelsCount / cleanWord.length < 0.20) {
+        return { isValid: false, error: 'Enter a valid role title (random character sequences not allowed).' };
+      }
+
+      const charCounts: Record<string, number> = {};
+      for (const char of lower) {
+        charCounts[char] = (charCounts[char] || 0) + 1;
+      }
+      const maxCharCount = Math.max(...Object.values(charCounts));
+      if (maxCharCount / cleanWord.length > 0.45) {
+        return { isValid: false, error: 'Enter a valid role title without repetitive characters.' };
+      }
+    }
+  }
+
+  return { isValid: true };
+}
