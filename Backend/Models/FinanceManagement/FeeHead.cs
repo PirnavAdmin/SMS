@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
 namespace SMS.Api.Models.FinanceManagement;
 
 public class FeeHead
@@ -17,4 +18,6 @@ public class FeeHead
     public decimal TaxPercentage { get; set; }
     public int DisplayOrder { get; set; } = 1;
     public string Status { get; set; } = "Active";
+    [Column("hostel_config_json")]
+    public string? HostelConfigJson { get; set; }
 }

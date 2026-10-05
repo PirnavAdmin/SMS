@@ -1213,6 +1213,24 @@ export type FeeHeadFrequency =
 
 export type FeePaymentEligibility = 'One-Time Only' | 'Term-Wise Allowed' | 'Both One-Time and Term-Wise';
 
+export interface HostelConfigItem {
+  blockId: string | number;
+  blockName: string;
+  acType: 'AC' | 'Non-AC';
+  sharingType: string;
+  applyToAllNonAc?: boolean;
+  amount: number;
+  matchingRoomCount?: number;
+}
+
+export interface HostelFeeCategoryConfig {
+  hostelId: string | number;
+  hostelName: string;
+  selectedBlockIds: (string | number)[];
+  selectedBlockNames: string[];
+  configurations: HostelConfigItem[];
+}
+
 export interface FeeHead {
   id: string;
   name: string;
@@ -1236,6 +1254,8 @@ export interface FeeHead {
   hostelRoomId?: string;
   hostelRoomNo?: string;
   hostelSharingType?: string;
+  hostelConfig?: HostelFeeCategoryConfig;
+  hostelConfigJson?: string;
   transportRouteId?: string;
   transportRouteName?: string;
   transportVehicleId?: string;

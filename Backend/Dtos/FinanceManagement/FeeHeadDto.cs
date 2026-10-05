@@ -40,4 +40,5 @@ public class FeeHeadDto
     public string? UniformItemId { get; set; }
     public string? UniformItemName { get; set; }
     public string? UniformSize { get; set; }
+    public string? HostelConfigJson { get; set; }
 }

@@ -35,19 +35,25 @@ public class HomeworkController : ControllerBase
     [Authorize(Roles = "Admin,Teacher,Student,Parent")]
     public async Task<IActionResult> GetHomeworkDropdownOptions()
     {
-        var dbClasses = await _context.Classes
+        var dbClasses = (await _context.Classes
             .AsNoTracking()
             .Select(c => c.ClassName)
             .Where(n => !string.IsNullOrWhiteSpace(n))
             .Distinct()
-            .ToListAsync();
+            .ToListAsync())
+            .Where(n => n != null)
+            .Select(n => n!)
+            .ToList();
 
-        var dbSubjects = await _context.Subjects
+        var dbSubjects = (await _context.Subjects
             .AsNoTracking()
             .Select(s => s.SubjectName)
             .Where(n => !string.IsNullOrWhiteSpace(n))
             .Distinct()
-            .ToListAsync();
+            .ToListAsync())
+            .Where(n => n != null)
+            .Select(n => n!)
+            .ToList();
 
         var classList = new List<string> { "All Classes" };
         if (dbClasses.Any()) classList.AddRange(dbClasses);

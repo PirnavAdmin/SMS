@@ -2425,7 +2425,8 @@ using (var scope = app.Services.CreateScope())
                 ("IsTaxable", "TINYINT(1) NOT NULL DEFAULT 0"),
                 ("TaxPercentage", "DECIMAL(18,2) NOT NULL DEFAULT 0.00"),
                 ("DisplayOrder", "INT NOT NULL DEFAULT 1"),
-                ("Status", "VARCHAR(50) NOT NULL DEFAULT 'Active'")
+                ("Status", "VARCHAR(50) NOT NULL DEFAULT 'Active'"),
+                ("hostel_config_json", "LONGTEXT NULL")
             };
 
             foreach (var (colName, colDef) in feeHeadColsCheck)

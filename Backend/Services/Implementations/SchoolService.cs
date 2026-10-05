@@ -1035,7 +1035,7 @@ public class SchoolService : ISchoolService
 					st.Status = "Enrolled";
 					st.IsDeleted = false;
 					await _context.SaveChangesAsync();
-					return true;
+					return st.AdmissionNumber ?? $"ADM-{st.StudentId}";
 				}
 			}
 			throw new NotFoundException($"Admission application with ID {id} not found.");
@@ -1046,10 +1046,15 @@ public class SchoolService : ISchoolService
 			throw new BadRequestException($"Application with ID {id} is already enrolled.");
 		}
 
+		if (string.IsNullOrWhiteSpace(app.AdmissionNo) || app.AdmissionNo.StartsWith("REG-", StringComparison.OrdinalIgnoreCase))
+		{
+			app.AdmissionNo = await GenerateSequentialAdmissionNoAsync();
+		}
+
 		app.Status = "Enrolled";
 		await _schoolRepository.SaveChangesAsync();
 		await SyncToAdmissionsTableAsync(app);
-		return true;
+		return app.AdmissionNo;
 	}
 
 	public async Task<bool> UpdateApplicationStatusAsync(int id, string status)

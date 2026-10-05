@@ -20115,7 +20115,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         (selectedBranch as any)?.id ||
         (typeof selectedBranch === "string" ? selectedBranch : "") ||
         "BR-001",
-      branch: (appData as any).branch || staffMatch?.branchName || "Main Campus",
+      branch: (appData as any).branch || (staffMatch as any)?.branchName || staffMatch?.branch || "Main Campus",
       status: appData.status || "Pending",
       appliedDate:
         appData.appliedDate || new Date().toISOString().split("T")[0],

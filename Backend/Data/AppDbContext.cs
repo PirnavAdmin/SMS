@@ -1154,7 +1154,11 @@ namespace SMS.Api.Data
             modelBuilder.Entity<TransportAttendant>().ToTable("transport_attendants");
 
             // Finance Management mappings
-            modelBuilder.Entity<SMS.Api.Models.FinanceManagement.FeeHead>().ToTable("feeheads");
+            modelBuilder.Entity<SMS.Api.Models.FinanceManagement.FeeHead>(entity =>
+            {
+                entity.ToTable("feeheads");
+                entity.Property(x => x.HostelConfigJson).HasColumnName("hostel_config_json");
+            });
             modelBuilder.Entity<SMS.Api.Models.FinanceManagement.DynamicFeeStructure>(entity =>
             {
                 entity.ToTable("dynamicfeestructures");
