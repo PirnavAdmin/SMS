@@ -1842,15 +1842,12 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-slate-200/80 dark:border-slate-800">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl bg-blue-600 text-white flex items-center justify-center shadow-md shadow-blue-500/20">
-            <Receipt className="w-5 h-5" />
+            <IndianRupee className="w-5 h-5" />
           </div>
           <div>
             <h2 className="text-xl font-black text-slate-900 dark:text-white flex items-center gap-2">
               Accounts
             </h2>
-            <p className="text-xs text-slate-500 dark:text-slate-400">
-              Make payments and generate receipts
-            </p>
           </div>
         </div>
       </div>

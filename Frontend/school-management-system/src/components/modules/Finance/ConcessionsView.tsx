@@ -37,9 +37,6 @@ export const ConcessionsView: React.FC<ConcessionsViewProps> = ({ initialTab = '
           <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white flex items-center gap-2">
             <Percent className="w-6 h-6 text-sky-500" /> Concessions & Waivers
           </h2>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-            Configure unified concession rules (Scholarships, Sibling/Staff discounts, Waivers) and assign them to students.
-          </p>
         </div>
       </div>
 

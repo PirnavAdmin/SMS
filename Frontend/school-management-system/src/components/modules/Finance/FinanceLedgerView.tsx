@@ -47,9 +47,6 @@ export const FinanceLedgerView: React.FC<FinanceLedgerViewProps> = ({ initialTab
           <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white flex items-center gap-2">
             <FileSpreadsheet className="w-6 h-6 text-sky-500" /> Finance Ledger & Accounts
           </h2>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-            Master double-entry transaction ledger, cash/bank accounts, school expenses, refunds, and budget tracking.
-          </p>
         </div>
       </div>
 

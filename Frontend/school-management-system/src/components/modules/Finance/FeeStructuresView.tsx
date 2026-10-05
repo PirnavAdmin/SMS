@@ -540,21 +540,20 @@ export const FeeStructuresView: React.FC = () => {
         })
         .filter(Boolean) as FeeStructureItem[];
 
-      const defaultAy = selectedAcademicYear || (academicYears && (academicYears[0]?.academicYear || (academicYears[0] as any)?.name)) || "";
-      const defaultBranch = selectedBranch || (branches && (branches[0] as any)?.name) || (typeof branches?.[0] === "string" ? branches[0] : "");
-
-      const payload: Omit<DynamicFeeStructure, "id"> = {
-        academicYear: editingStruct ? editingStruct.academicYear : defaultAy,
-        branch: editingStruct ? editingStruct.branch : defaultBranch,
-        className,
-        section: "A",
-        studentCategory: "General",
-        category: "Tuition",
-        feeCategory: "Tuition",
-        items: itemsList,
-        totalAmount: totalTuitionCalculated,
-        status: "Active",
-      };
+    const payload: Omit<DynamicFeeStructure, "id"> = {
+      academicYear: editingStruct
+        ? editingStruct.academicYear
+        : selectedAcademicYear || "2026-2027",
+      branch: editingStruct
+        ? editingStruct.branch
+        : selectedBranch || "Main Campus",
+      className,
+      section: "A",
+      studentCategory: "General",
+      items: itemsList,
+      totalAmount: totalCalculated,
+      status: "Active",
+    };
 
       if (editingStruct) {
         updateDynamicFeeStructure(editingStruct.id, payload);
@@ -928,85 +927,18 @@ export const FeeStructuresView: React.FC = () => {
                     </div>
                   </div>
 
-                  {/* Block Badges */}
-                  <div className="flex flex-wrap items-center gap-1.5">
-                    <span className="text-[11px] font-bold text-slate-500">Applicable Blocks:</span>
-                    {blockNames.map((bName) => (
-                      <span
-                        key={bName}
-                        className="px-2 py-0.5 rounded-md bg-amber-50 dark:bg-amber-950/60 text-amber-900 dark:text-amber-200 border border-amber-200 dark:border-amber-800 text-[10px] font-semibold"
-                      >
-                        {bName}
-                      </span>
-                    ))}
-                  </div>
-
-                  {/* Configured Room Rates breakdown */}
-                  <div className="space-y-1.5 p-3 rounded-xl bg-slate-50/70 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800 text-xs">
-                    <div className="flex items-center justify-between text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1">
-                      <span>Room Type & Sharing</span>
-                      <span>Configured Fee</span>
-                    </div>
-
-                    {configs.length === 0 ? (
-                      <p className="text-slate-400 italic text-[11px]">No specific sharing rates configured</p>
-                    ) : (
-                      configs.slice(0, 5).map((cfg, idx) => (
-                        <div key={idx} className="flex items-center justify-between py-0.5">
-                          <span className="text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
-                            <span
-                              className={`w-1.5 h-1.5 rounded-full ${
-                                cfg.acType === "AC" ? "bg-sky-500" : "bg-emerald-500"
-                              }`}
-                            />
-                            <strong>{cfg.blockName}:</strong> {cfg.acType} ({cfg.sharingType})
-                          </span>
-                          <span className="font-mono font-bold text-slate-900 dark:text-white">
-                            {formatCurrency(cfg.amount)}
-                          </span>
-                        </div>
-                      ))
-                    )}
-
-                    {configs.length > 5 && (
-                      <p className="text-[10px] text-slate-400 pt-1">
-                        + {configs.length - 5} additional sharing configurations
-                      </p>
-                    )}
-                  </div>
-
-                  {/* Schedule & Effective Date Footer */}
-                  <div className="pt-2 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-xs">
-                    <div className="flex items-center gap-1.5 text-slate-500">
-                      <Clock className="w-3.5 h-3.5 text-amber-500" />
-                      <span className="font-semibold">
-                        {s.paymentEligibility || "Both (One-Time / Term)"}
-                      </span>
-                      {s.applicableTerms && s.applicableTerms.length > 0 && s.paymentEligibility !== "One-Time Only" && (
-                        <span className="text-[10px] text-amber-700 dark:text-amber-400 font-bold">
-                          ({s.applicableTerms.length} Terms)
-                        </span>
-                      )}
-                    </div>
-                    {s.effectiveDate && (
-                      <span className="text-[10px] text-slate-400">
-                        Effective: {s.effectiveDate}
-                      </span>
-                    )}
-                  </div>
-                </div>
-              );
-            }
-
-            // TUITION FEE STRUCTURE CARD
-            const validItems = (s.items || []).filter((item) =>
-              activeFeeHeads.some(
-                (h) =>
-                  h.id === item.feeHeadId ||
-                  h.name.toLowerCase().trim() === item.feeHeadName.toLowerCase().trim()
-              )
-            );
-            const cardTotal = validItems.reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
+              {(() => {
+                const validItems = s.items.filter((item) =>
+                  activeFeeHeads.some(
+                    (h) =>
+                      h.id === item.feeHeadId ||
+                      h.name.toLowerCase().trim() === item.feeHeadName.toLowerCase().trim(),
+                  ),
+                );
+                const cardTotal = validItems.reduce(
+                  (sum, item) => sum + (Number(item.amount) || 0),
+                  0,
+                );
 
             return (
               <div

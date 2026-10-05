@@ -430,7 +430,11 @@ export const ExaminationView: React.FC<ExaminationViewProps> = ({ initialTab = '
         )}
 
         {activeTab === 'grading' && (
-          <GradingConfiguration addToast={addToast} />
+          <GradingConfiguration 
+            addToast={addToast} 
+            exams={exams} 
+            options={options} 
+          />
         )}
       </div>
 

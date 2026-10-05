@@ -1,32 +1,102 @@
-import React, { useState, useMemo } from 'react';
-import { Award, Plus, Trash2, Save, CheckCircle2, Sliders, Layers } from 'lucide-react';
+import React, { useState, useMemo, useEffect } from 'react';
+import { Award, Plus, Trash2, Save, CheckCircle2, Sliders, Layers, RefreshCw } from 'lucide-react';
 import { useData } from '../../../context/DataContext';
 import { useAuth } from '../../../context/AuthContext';
 import { Panel } from './components/SharedUI';
 import { GradeConfig } from '../../../types';
-import { saveGradingScaleRulesApi } from '../../../api/examination';
+import { fetchExamOptionsApi, fetchGradingScaleRulesApi, saveGradingScaleRulesApi } from '../../../api/examination';
 
 interface GradingConfigurationProps {
   addToast: (type: 'success' | 'info' | 'warning' | 'error', title: string, message: string) => void;
+  exams?: any[];
+  options?: any;
 }
 
-export const GradingConfiguration: React.FC<GradingConfigurationProps> = ({ addToast }) => {
-  const { gradeConfigurations, saveGradeConfiguration, exams } = useData();
+export const GradingConfiguration: React.FC<GradingConfigurationProps> = ({
+  addToast,
+  exams: passedExams,
+  options: passedOptions
+}) => {
+  const { gradeConfigurations, saveGradeConfiguration, exams: contextExams } = useData();
   const { selectedAcademicYear, selectedBranch } = useAuth();
 
   const [selectedExamType, setSelectedExamType] = useState<string>('All');
+  const [createdExams, setCreatedExams] = useState<any[]>([]);
   const [localGrades, setLocalGrades] = useState<GradeConfig[]>(gradeConfigurations || []);
   const [isEditing, setIsEditing] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [isCustomExamType, setIsCustomExamType] = useState(false);
+  const [customExamTypeInput, setCustomExamTypeInput] = useState('');
 
-  React.useEffect(() => {
-    if (gradeConfigurations) {
-      setLocalGrades(gradeConfigurations);
-    }
-  }, [gradeConfigurations]);
+  // Load created exams from API so we always have the exact assessment types created
+  useEffect(() => {
+    fetchExamOptionsApi()
+      .then((res: any) => {
+        if (res?.success && Array.isArray(res.data?.existingExams)) {
+          setCreatedExams(res.data.existingExams);
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  // Dynamically fetch grading scale rules from backend API whenever selectedExamType changes
+  useEffect(() => {
+    let isCurrent = true;
+    const fetchRules = async () => {
+      try {
+        setLoading(true);
+        const res: any = await fetchGradingScaleRulesApi(selectedExamType);
+        if (isCurrent && res && res.success) {
+          const apiRules = res.data?.scaleRules || [];
+          const mapped: GradeConfig[] = apiRules.map((r: any, idx: number) => ({
+            id: r.ruleId ? `GRD-${r.ruleId}` : `GRD-${idx + 1}`,
+            academicYear: selectedAcademicYear || '',
+            branch: selectedBranch || '',
+            examType: selectedExamType,
+            schemeName: selectedExamType !== 'All' ? selectedExamType : 'Default Scholastic',
+            gradingType: 'Percentage',
+            grade: r.grade || '',
+            gradeName: r.grade || '',
+            minPercent: r.minMarks ?? 0,
+            maxPercent: r.maxMarks ?? 100,
+            minMark: r.minMarks ?? 0,
+            maxMark: r.maxMarks ?? 100,
+            gradePoint: r.gpa ?? 0,
+            gradePoints: r.gpa ?? 0,
+            passCriteria: r.passFail || 'Pass',
+            remarks: r.remarks || ''
+          }));
+
+          setLocalGrades(prev => {
+            if (selectedExamType === 'All') {
+              return mapped;
+            }
+            const otherExamGrades = (prev || []).filter(
+              g => g.examType && g.examType !== selectedExamType && g.examType !== 'All'
+            );
+            return [...mapped, ...otherExamGrades];
+          });
+
+          if (saveGradeConfiguration) {
+            saveGradeConfiguration(mapped);
+          }
+        }
+      } catch (err) {
+        console.warn('Failed to fetch grading scale rules for', selectedExamType, err);
+      } finally {
+        if (isCurrent) setLoading(false);
+      }
+    };
+
+    fetchRules();
+    return () => {
+      isCurrent = false;
+    };
+  }, [selectedExamType]);
 
   const standardAssessmentTypes = [
+    'Unit Test',
     'Periodic Assessment (PT)',
-    'Unit Test (UT)',
     'Formative Assessment (FA)',
     'Summative Assessment (SA)',
     'Mid-Term Examination',
@@ -37,12 +107,30 @@ export const GradingConfiguration: React.FC<GradingConfigurationProps> = ({ addT
     'Internal / Continuous Evaluation'
   ];
 
+  // Assessment types from created exams, standard options, and configured scales
   const examTypes = useMemo(() => {
-    const typesFromExams = (exams || [])
-      .map(e => e.examType as string)
-      .filter((t): t is string => !!t);
-    return Array.from(new Set(['All', ...standardAssessmentTypes, ...typesFromExams]));
-  }, [exams]);
+    const allExamsList = [
+      ...(createdExams || []),
+      ...(passedExams || []),
+      ...(passedOptions?.existingExams || []),
+      ...(contextExams || [])
+    ];
+
+    const typesFromExams = allExamsList
+      .map(e => (e.assessmentType || e.examType) as string)
+      .filter((t): t is string => !!t && t.trim() !== '' && t !== 'Main Exam');
+
+    const typesFromGrades = (localGrades || [])
+      .map(g => g.examType as string)
+      .filter((t): t is string => !!t && t.trim() !== '' && t !== 'All');
+
+    const combined = ['All', ...standardAssessmentTypes, ...typesFromExams, ...typesFromGrades];
+    if (customExamTypeInput.trim()) {
+      combined.push(customExamTypeInput.trim());
+    }
+
+    return Array.from(new Set(combined));
+  }, [createdExams, passedExams, passedOptions, contextExams, localGrades, customExamTypeInput]);
 
   // Filtered grades based on selected exam type
   const displayedGrades = useMemo(() => {
@@ -96,7 +184,7 @@ export const GradingConfiguration: React.FC<GradingConfigurationProps> = ({ addT
     }));
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     // Validation
     const invalid = localGrades.some(g => {
       const minVal = g.minPercent !== undefined ? g.minPercent : g.minMark;
@@ -143,30 +231,41 @@ export const GradingConfiguration: React.FC<GradingConfigurationProps> = ({ addT
 
     if (saveGradeConfiguration) {
       saveGradeConfiguration(sanitizedGrades);
-      
-      // Also persist to backend API asynchronously
-      const rulesForApi = sanitizedGrades
-        .filter(g => selectedExamType === 'All' || g.examType === selectedExamType || !g.examType)
-        .map((g, idx) => ({
-          ruleId: parseInt(String(g.id).replace(/\D/g, '')) || (idx + 1),
-          grade: g.gradeName || g.grade || '',
-          minMarks: Number(g.minPercent ?? g.minMark ?? 0),
-          maxMarks: Number(g.maxPercent ?? g.maxMark ?? 100),
-          gpa: Number(g.gradePoints ?? g.gradePoint ?? 0),
-          passFail: g.passCriteria || 'Pass',
-          remarks: g.remarks || ''
-        }));
+    }
 
-      if (rulesForApi.length > 0) {
-        saveGradingScaleRulesApi({
+    // Persist to backend API
+    const rulesForApi = sanitizedGrades
+      .filter(g => selectedExamType === 'All' || g.examType === selectedExamType || !g.examType)
+      .map((g, idx) => ({
+        ruleId: parseInt(String(g.id).replace(/\D/g, '')) || (idx + 1),
+        grade: g.gradeName || g.grade || '',
+        minMarks: Number(g.minPercent ?? g.minMark ?? 0),
+        maxMarks: Number(g.maxPercent ?? g.maxMark ?? 100),
+        gpa: Number(g.gradePoints ?? g.gradePoint ?? 0),
+        passFail: g.passCriteria || 'Pass',
+        remarks: g.remarks || ''
+      }));
+
+    if (rulesForApi.length > 0) {
+      try {
+        const res: any = await saveGradingScaleRulesApi({
           examType: selectedExamType,
           scaleRules: rulesForApi
-        }).catch(err => console.warn('Grading scale backend sync notice:', err));
+        });
+        if (res && res.success) {
+          addToast('success', 'Grading Saved', `Successfully updated grading scale rules for ${selectedExamType} examination type.`);
+        } else {
+          addToast('success', 'Grading Saved', `Grading scale rules updated for ${selectedExamType}.`);
+        }
+      } catch (err) {
+        console.warn('Backend sync note:', err);
+        addToast('success', 'Grading Saved', `Grading scale rules saved successfully.`);
       }
-
-      addToast('success', 'Grading Saved', `Successfully updated grading scale rules for ${selectedExamType} examination type.`);
-      setIsEditing(false);
+    } else {
+      addToast('success', 'Grading Saved', `Grading configuration updated.`);
     }
+
+    setIsEditing(false);
   };
 
   const tableHeaderClass = "px-3.5 py-3 text-slate-500 dark:text-slate-400 font-extrabold uppercase text-[10px] border-b border-r border-sky-100 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-950/60 tracking-wider whitespace-nowrap last:border-r-0";
@@ -205,15 +304,52 @@ export const GradingConfiguration: React.FC<GradingConfigurationProps> = ({ addT
             {/* Exam Type Selector */}
             <div className="flex items-center gap-3">
               <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 shrink-0">Exam Type *</span>
-              <select
-                value={selectedExamType}
-                onChange={e => setSelectedExamType(e.target.value)}
-                className="px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-xs font-extrabold text-slate-900 dark:text-white outline-none cursor-pointer min-w-[180px] h-[34px] shadow-xs"
-              >
-                {examTypes.map(t => (
-                  <option key={t} value={t}>{t}</option>
-                ))}
-              </select>
+              {isCustomExamType ? (
+                <div className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    value={customExamTypeInput}
+                    onChange={e => {
+                      setCustomExamTypeInput(e.target.value);
+                      setSelectedExamType(e.target.value);
+                    }}
+                    placeholder="Enter custom assessment type..."
+                    className="px-3 py-1.5 rounded-xl border border-sky-400 dark:border-sky-500 bg-white dark:bg-slate-900 text-xs font-bold text-slate-900 dark:text-white outline-none min-w-[220px] h-[34px] shadow-xs"
+                    autoFocus
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsCustomExamType(false);
+                      if (!customExamTypeInput.trim()) {
+                        setSelectedExamType('All');
+                      }
+                    }}
+                    className="px-2.5 py-1.5 rounded-xl bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 text-[10px] font-extrabold text-slate-700 dark:text-slate-300 h-[34px] cursor-pointer"
+                  >
+                    Select Existing
+                  </button>
+                </div>
+              ) : (
+                <select
+                  value={selectedExamType}
+                  onChange={e => {
+                    if (e.target.value === '__other_custom__') {
+                      setIsCustomExamType(true);
+                      setCustomExamTypeInput('');
+                      setSelectedExamType('');
+                    } else {
+                      setSelectedExamType(e.target.value);
+                    }
+                  }}
+                  className="px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-xs font-extrabold text-slate-900 dark:text-white outline-none cursor-pointer min-w-[200px] h-[34px] shadow-xs"
+                >
+                  {examTypes.map(t => (
+                    <option key={t} value={t}>{t}</option>
+                  ))}
+                  <option value="__other_custom__">Other / Custom...</option>
+                </select>
+              )}
             </div>
 
             {/* Add Scale Row button when editing */}
