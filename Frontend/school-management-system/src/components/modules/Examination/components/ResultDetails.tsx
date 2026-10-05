@@ -56,7 +56,17 @@ export const ResultDetails: React.FC<ResultDetailsProps> = ({
     }, 450);
   };
 
-  const subjectMarksList = (data.subjectMarks || []) as any[];
+  const rawSubjectMarks = (data.subjectMarks || []) as any[];
+  const subjectMarksList = (() => {
+    const subMap = new Map<string, any>();
+    rawSubjectMarks.forEach((sub: any) => {
+      const sName = (sub.subject || sub.subjectName || sub.name || '').trim();
+      if (sName && !subMap.has(sName)) {
+        subMap.set(sName, sub);
+      }
+    });
+    return Array.from(subMap.values());
+  })();
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-md animate-in fade-in overflow-y-auto text-left">

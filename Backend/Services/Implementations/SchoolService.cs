@@ -798,7 +798,7 @@ public class SchoolService : ISchoolService
 
 			var sName = (s.StudentName ?? "").Trim().ToLowerInvariant();
 			var sPhone = (s.FatherMobile ?? s.MobileNumber ?? "").Trim();
-			var sCls = (s.ClassGrade != null ? s.ClassGrade.ClassName : (s.ClassId > 0 ? $"Class {s.ClassId}" : "")).Trim().ToLowerInvariant();
+			var sCls = ((s.ClassGrade != null && s.ClassGrade.ClassName != null) ? s.ClassGrade.ClassName : (s.ClassId > 0 ? $"Class {s.ClassId}" : "")).Trim().ToLowerInvariant();
 
 			if (existingRegNos.Contains(regKey))
 			{
@@ -828,7 +828,7 @@ public class SchoolService : ISchoolService
 				LastName = lName,
 				DateOfBirth = s.DateOfBirth?.ToString("yyyy-MM-ddTHH:mm:ssZ"),
 				Gender = s.Gender ?? adm?.Gender ?? "",
-				AppliedClassGrade = s.ClassGrade != null ? s.ClassGrade.ClassName : (adm?.ClassId != null ? $"Class {adm.ClassId}" : ""),
+				AppliedClassGrade = (s.ClassGrade != null && s.ClassGrade.ClassName != null) ? s.ClassGrade.ClassName : (adm?.ClassId != null ? $"Class {adm.ClassId}" : ""),
 				BranchName = s.Branch != null ? s.Branch.BranchName : (branch ?? ""),
 				BloodGroup = adm?.BloodGroup ?? "",
 				Religion = "",
@@ -906,7 +906,7 @@ public class SchoolService : ISchoolService
 				LastName = lName,
 				DateOfBirth = s.DateOfBirth?.ToString("yyyy-MM-ddTHH:mm:ssZ"),
 				Gender = s.Gender ?? adm?.Gender ?? "",
-				AppliedClassGrade = s.ClassGrade != null ? s.ClassGrade.ClassName : (adm?.ClassId != null ? $"Class {adm.ClassId}" : ""),
+				AppliedClassGrade = (s.ClassGrade != null && s.ClassGrade.ClassName != null) ? s.ClassGrade.ClassName : (adm?.ClassId != null ? $"Class {adm.ClassId}" : ""),
 				BranchName = s.Branch != null ? s.Branch.BranchName : "",
 				BloodGroup = adm?.BloodGroup ?? "",
 				Religion = "",
@@ -1503,20 +1503,20 @@ public class SchoolService : ISchoolService
 									{
 										matchedStudent.AdmissionNumber = studentAdmissionNo;
 									}
-									matchedStudent.StudentName = existing.StudentName ?? $"{app.FirstName} {app.LastName}".Trim();
-									matchedStudent.DateOfBirth = existing.Dob ?? app.DateOfBirth;
-									matchedStudent.Gender = existing.Gender ?? app.Gender;
-									matchedStudent.FatherName = app.FatherName ?? existing.FatherName;
-									matchedStudent.FatherMobile = app.FatherContact ?? existing.FatherMobile;
+									matchedStudent.StudentName = existing?.StudentName ?? $"{app.FirstName} {app.LastName}".Trim();
+									matchedStudent.DateOfBirth = existing?.Dob ?? app.DateOfBirth;
+									matchedStudent.Gender = existing?.Gender ?? app.Gender;
+									matchedStudent.FatherName = app.FatherName ?? existing?.FatherName;
+									matchedStudent.FatherMobile = app.FatherContact ?? existing?.FatherMobile;
 									matchedStudent.MotherName = app.MotherName ?? matchedStudent.MotherName;
 									matchedStudent.MotherMobile = app.MotherMobileNumber ?? matchedStudent.MotherMobile;
 									matchedStudent.Email = !string.IsNullOrWhiteSpace(app.ParentEmail) ? app.ParentEmail.Trim() : matchedStudent.Email;
 									matchedStudent.MobileNumber = app.FatherContact ?? matchedStudent.MobileNumber;
 									if (!string.IsNullOrWhiteSpace(fullAddress)) matchedStudent.Address = fullAddress;
-									matchedStudent.ClassId = existing.ClassId.Value;
+									matchedStudent.ClassId = (existing != null && existing.ClassId.HasValue) ? existing.ClassId.Value : matchedStudent.ClassId;
 									matchedStudent.SectionId = sectionObj.SectionId;
-									matchedStudent.RollNumber = existing.RollNo ?? matchedStudent.RollNumber;
-									matchedStudent.BranchId = (int)existing.BranchId;
+									matchedStudent.RollNumber = existing?.RollNo ?? matchedStudent.RollNumber;
+									matchedStudent.BranchId = existing != null ? (int)existing.BranchId : matchedStudent.BranchId;
 									matchedStudent.Status = "Active";
 									matchedStudent.IsDeleted = false;
 									matchedStudent.UpdatedAt = DateTime.UtcNow;
@@ -1524,7 +1524,7 @@ public class SchoolService : ISchoolService
 								}
 								else
 								{
-									string studentRollNo = existing.RollNo ?? "";
+									string studentRollNo = existing?.RollNo ?? "";
 									if (string.IsNullOrWhiteSpace(studentRollNo))
 									{
 										try
@@ -1536,26 +1536,29 @@ public class SchoolService : ISchoolService
 										{
 											studentRollNo = $"STU-{DateTime.UtcNow.Year}-1001";
 										}
-										existing.RollNo = studentRollNo;
+										if (existing != null)
+										{
+											existing.RollNo = studentRollNo;
+										}
 									}
 
 									var newStudent = new Student
 									{
 										AdmissionNumber = studentAdmissionNo,
 										RollNumber = studentRollNo,
-										StudentName = existing.StudentName ?? $"{app.FirstName} {app.LastName}".Trim(),
-										DateOfBirth = existing.Dob ?? app.DateOfBirth,
-										Gender = existing.Gender ?? app.Gender,
-										FatherName = app.FatherName ?? existing.FatherName,
-										FatherMobile = app.FatherContact ?? existing.FatherMobile,
+										StudentName = existing?.StudentName ?? $"{app.FirstName} {app.LastName}".Trim(),
+										DateOfBirth = existing?.Dob ?? app.DateOfBirth,
+										Gender = existing?.Gender ?? app.Gender,
+										FatherName = app.FatherName ?? existing?.FatherName,
+										FatherMobile = app.FatherContact ?? existing?.FatherMobile,
 										MotherName = app.MotherName,
 										MotherMobile = app.MotherMobileNumber,
 										Email = !string.IsNullOrWhiteSpace(app.ParentEmail) ? app.ParentEmail.Trim() : null,
 										MobileNumber = app.FatherContact,
 										Address = !string.IsNullOrWhiteSpace(fullAddress) ? fullAddress : "Main Campus Area",
-										BranchId = (int)existing.BranchId,
+										BranchId = existing != null ? (int)existing.BranchId : 1,
 										AcademicYearId = defaultAcademicYear.AcademicYearId,
-										ClassId = existing.ClassId.Value,
+										ClassId = (existing != null && existing.ClassId.HasValue) ? existing.ClassId.Value : (app.AppliedClassId ?? 1),
 										SectionId = sectionObj.SectionId,
 										Status = "Active",
 										IsDeleted = false,
@@ -1569,7 +1572,7 @@ public class SchoolService : ISchoolService
 								try
 								{
 									var parentEmail = !string.IsNullOrWhiteSpace(app.ParentEmail) ? app.ParentEmail.Trim() : null;
-									var parentMobile = !string.IsNullOrWhiteSpace(app.FatherContact) ? app.FatherContact.Trim() : (!string.IsNullOrWhiteSpace(existing.FatherMobile) ? existing.FatherMobile.Trim() : null);
+									var parentMobile = !string.IsNullOrWhiteSpace(app.FatherContact) ? app.FatherContact.Trim() : (!string.IsNullOrWhiteSpace(existing?.FatherMobile) ? existing!.FatherMobile.Trim() : null);
 									var parentFullName = !string.IsNullOrWhiteSpace(app.FatherName) ? app.FatherName.Trim() : (!string.IsNullOrWhiteSpace(app.MotherName) ? app.MotherName.Trim() : "Parent");
 
 									if (!string.IsNullOrWhiteSpace(parentEmail) || !string.IsNullOrWhiteSpace(parentMobile))
@@ -1636,7 +1639,7 @@ public class SchoolService : ISchoolService
 									try
 									{
 										var studentEmail = !string.IsNullOrWhiteSpace(app.ParentEmail) ? app.ParentEmail.Trim() : null;
-										var studentMobile = !string.IsNullOrWhiteSpace(app.FatherContact) ? app.FatherContact.Trim() : (!string.IsNullOrWhiteSpace(existing.FatherMobile) ? existing.FatherMobile.Trim() : $"STU{existing.AdmissionId}");
+										var studentMobile = !string.IsNullOrWhiteSpace(app.FatherContact) ? app.FatherContact.Trim() : (!string.IsNullOrWhiteSpace(existing?.FatherMobile) ? existing!.FatherMobile.Trim() : (existing != null ? $"STU{existing.AdmissionId}" : $"STU{app.Id}"));
 										var studentFullName = $"{app.FirstName} {app.LastName}".Trim();
 
 										var existingUser = await Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions.FirstOrDefaultAsync(

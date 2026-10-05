@@ -1761,8 +1761,7 @@ using (var scope = app.Services.CreateScope())
             context.Database.ExecuteSqlRaw("UPDATE `staff` SET `EmployeeCategory` = 'Non-Teaching Staff' WHERE `EmployeeCategory` IS NULL OR `EmployeeCategory` = '';");
             context.Database.ExecuteSqlRaw("UPDATE `subjects` SET `SubjectCode` = CONCAT('SUB', `SubjectId`) WHERE `SubjectCode` IS NULL OR `SubjectCode` = '';");
             context.Database.ExecuteSqlRaw("UPDATE `subjects` SET `SubjectName` = 'General Subject' WHERE `SubjectName` IS NULL OR `SubjectName` = '';");
-            context.Database.ExecuteSqlRaw("UPDATE `admission_applications` SET `BranchName` = 'Madhapur Branch' WHERE `BranchName` = 'Main Campus' OR `BranchName` IS NULL OR `BranchName` = '';");
-            context.Database.ExecuteSqlRaw("UPDATE `admissions` SET `BranchId` = 6 WHERE `BranchId` = 1;");
+            try { context.Database.ExecuteSqlRaw("UPDATE `admissions` SET `branch_id` = 6 WHERE `branch_id` = 1;"); } catch { }
         }
         catch { }
 

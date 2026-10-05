@@ -281,6 +281,8 @@ public class DashboardService : IDashboardService
 
         foreach (var ac in admissionClasses)
         {
+            if (string.IsNullOrEmpty(ac.ClassName)) continue;
+
             if (dictStrengths.ContainsKey(ac.ClassName))
             {
                 dictStrengths[ac.ClassName] += ac.StudentCount;

@@ -13,8 +13,10 @@ export const ParentHomeworkView: React.FC = () => {
   const [filterSubject, setFilterSubject] = useState('All');
   const [filterDate, setFilterDate] = useState('');
   const [filterStatus, setFilterStatus] = useState<'Upcoming' | 'Closed'>('Upcoming');
-  const [searchQuery, setSearchQuery] = useState('');
   const [popupDescription, setPopupDescription] = useState<string | null>(null);
+
+  const isStudentRole = (role || '').toLowerCase() === 'student';
+  const canSubmitHomework = isStudentRole || (role || '').toLowerCase() === 'super admin' || (role || '').toLowerCase() === 'admin';
 
   useEffect(() => {
     if (fetchHomeworkData) {
@@ -37,21 +39,38 @@ export const ParentHomeworkView: React.FC = () => {
 
   const currentWard = parentWards[selectedChildIdx] || parentWards[0];
   
+  const [homeworkVersion, setHomeworkVersion] = useState(0);
+  useEffect(() => {
+    const handleUpdate = () => {
+      setHomeworkVersion(v => v + 1);
+      if (fetchHomeworkData) fetchHomeworkData();
+    };
+    window.addEventListener('storage', handleUpdate);
+    window.addEventListener('homework_updated', handleUpdate);
+    return () => {
+      window.removeEventListener('storage', handleUpdate);
+      window.removeEventListener('homework_updated', handleUpdate);
+    };
+  }, [fetchHomeworkData]);
+
   // Robust parser for class and section matching across all formats
   const normalizeClassNum = (str?: string) => {
     if (!str) return '';
-    const clean = str.toLowerCase().replace(/class|grade|sec|section/gi, '').replace(/\s+/g, '').trim();
-    if (clean.includes('-')) return clean.split('-')[0].trim();
-    return clean;
+    const numMatch = str.match(/\d+/);
+    if (numMatch) return numMatch[0];
+    const clean = str.toLowerCase().replace(/class|grade|sec|section/gi, '').trim();
+    return clean.split(/[\s-]/)[0].trim();
   };
 
   const normalizeSection = (secStr?: string, fullClsStr?: string) => {
     if (secStr && secStr.trim()) {
-      return secStr.toLowerCase().replace(/section|sec/gi, '').trim();
+      const cleanSec = secStr.toLowerCase().replace(/section|sec/gi, '').trim();
+      if (cleanSec) return cleanSec;
     }
-    if (fullClsStr && fullClsStr.includes('-')) {
-      const parts = fullClsStr.split('-');
-      return parts[1].toLowerCase().replace(/section|sec/gi, '').trim();
+    if (fullClsStr) {
+      const clean = fullClsStr.toLowerCase().replace(/class|grade/gi, '').trim();
+      const match = clean.match(/(?:sec|section|[\s-])\s*([a-z0-9]+)/i);
+      if (match) return match[1].trim();
     }
     return '';
   };
@@ -77,7 +96,7 @@ export const ParentHomeworkView: React.FC = () => {
 
     // Show homework that is active/published/assigned (case-insensitive)
     const hStatus = (h.status || 'PUBLISHED').toString().toLowerCase().trim();
-    const isPublished = ['published', 'active', 'assigned', 'completed', 'pending'].includes(hStatus);
+    const isPublished = ['published', 'active', 'assigned', 'completed', 'pending', 'open', 'draft'].includes(hStatus);
     if (!isPublished) return false;
 
     // Show only if targeted to this student specifically or distributed to class-wide audience
@@ -315,7 +334,7 @@ export const ParentHomeworkView: React.FC = () => {
                     </td>
                     <td className="py-3 px-4 text-xs text-right">
                       <div className="flex items-center justify-end gap-2">
-                        {hw.status === 'Pending' ? (
+                        {canSubmitHomework && hw.status === 'Pending' ? (
                           <button
                             onClick={() => {
                               setActiveSubmittingHw(hw);
@@ -323,9 +342,9 @@ export const ParentHomeworkView: React.FC = () => {
                             }}
                             className="px-3 py-1.5 bg-brand-600 hover:bg-brand-700 text-white rounded-lg text-xs font-bold transition-all shadow-xs"
                           >
-                            Submit
+                            Submit Homework
                           </button>
-                        ) : hw.status === 'Submitted' ? (
+                        ) : canSubmitHomework && hw.status === 'Submitted' ? (
                           <button
                             onClick={() => {
                               setActiveSubmittingHw(hw);
@@ -337,10 +356,10 @@ export const ParentHomeworkView: React.FC = () => {
                           </button>
                         ) : (
                           <button
-                            onClick={() => setPopupDescription(`Marks: ${hw.marksObtained || hw.maxMarks}/${hw.maxMarks}\nEvaluation Note: Completed and evaluated.`)}
+                            onClick={() => setPopupDescription(`Topic: ${hw.title}\nDetails: ${hw.description}\nStatus: ${hw.status}\nNote: ${hw.note || 'No submission notes.'}`)}
                             className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-lg text-xs font-bold transition-all"
                           >
-                            View Result
+                            View Details
                           </button>
                         )}
                         {(hw.documentUrl || hw.attachment) && (

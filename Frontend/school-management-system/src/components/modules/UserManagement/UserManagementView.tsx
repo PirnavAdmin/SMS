@@ -5,6 +5,7 @@ import { useToast } from '../../../context/ToastContext';
 import { UserRole, CustomRole, ModulePermissions } from '../../../types';
 import { Badge } from '../../common/Badge';
 import { ConfirmModal } from '../../common/ConfirmModal';
+import { validateRoleTitle } from '../../../utils/validation';
 
 export const UserManagementView: React.FC = () => {
   const { customRoles, addCustomRole, updateCustomRole, deleteCustomRole } = useData();
@@ -21,10 +22,11 @@ export const UserManagementView: React.FC = () => {
     'Transport', 'Hostel', 'Uniform Store', 'System Settings'
   ];
 
-  const [selectedRole, setSelectedRole] = useState<string>('Admin');
+  const [selectedRole, setSelectedRole] = useState<string | null>(null);
   const [isRoleModalOpen, setIsRoleModalOpen] = useState(false);
   const [editingRole, setEditingRole] = useState<CustomRole | null>(null);
   const [deletingRole, setDeletingRole] = useState<CustomRole | null>(null);
+  const [roleTitleError, setRoleTitleError] = useState<string | undefined>(undefined);
 
   const [roleForm, setRoleForm] = useState<Partial<CustomRole>>({
     name: '',
@@ -54,18 +56,24 @@ export const UserManagementView: React.FC = () => {
   const handleOpenAdd = () => {
     setEditingRole(null);
     setRoleForm({ name: '', description: '' });
+    setRoleTitleError(undefined);
     setIsRoleModalOpen(true);
   };
 
   const handleRoleSubmit = (e: React.SyntheticEvent) => {
     e.preventDefault();
-    if (!roleForm.name) return;
+    const titleRes = validateRoleTitle(roleForm.name || '', true);
+    if (!titleRes.isValid) {
+      setRoleTitleError(titleRes.error);
+      addToast('error', 'Invalid Role Title', titleRes.error || 'Enter a valid role title.');
+      return;
+    }
 
     if (editingRole) {
-      updateCustomRole(editingRole.id, { ...roleForm, permissions: permMatrix });
+      updateCustomRole(editingRole.id, { ...roleForm, name: roleForm.name!.trim(), permissions: permMatrix });
       addToast('success', 'Role Updated', `Updated permissions for ${roleForm.name}`);
     } else {
-      addCustomRole({ name: roleForm.name, description: roleForm.description || '', permissions: permMatrix });
+      addCustomRole({ name: roleForm.name!.trim(), description: roleForm.description || '', permissions: permMatrix });
       addToast('success', 'Role Created', `Created custom role ${roleForm.name}`);
     }
     setIsRoleModalOpen(false);
@@ -107,60 +115,117 @@ export const UserManagementView: React.FC = () => {
         ))}
       </div>
 
-      {/* Permission Matrix Table */}
-      <div className="glass-card rounded-2xl overflow-hidden border border-slate-200/80 dark:border-slate-800 space-y-4 p-6">
-        <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
-          <div>
-            <h3 className="font-bold text-base text-slate-900 dark:text-white">
-              Granular Permission Matrix: <span className="text-brand-600">{selectedRole}</span>
-            </h3>
-            <p className="text-xs text-slate-500">Configure feature actions for each functional area</p>
+      {/* Permission Matrix Table / Selection Prompt */}
+      {selectedRole ? (
+        <div className="glass-card rounded-2xl overflow-hidden border border-slate-200/80 dark:border-slate-800 space-y-4 p-6">
+          <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
+            <div>
+              <h3 className="font-bold text-base text-slate-900 dark:text-white">
+                Granular Permission Matrix: <span className="text-brand-600">{selectedRole}</span>
+              </h3>
+              <p className="text-xs text-slate-500">Configure feature actions for each functional area</p>
+            </div>
+
+            <span className="px-3 py-1 rounded-full bg-emerald-50 text-emerald-700 dark:bg-emerald-950 text-xs font-bold">
+              Full Access Active
+            </span>
           </div>
 
-          <span className="px-3 py-1 rounded-full bg-emerald-50 text-emerald-700 dark:bg-emerald-950 text-xs font-bold">
-            Full Access Active
-          </span>
-        </div>
-
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse text-xs">
-            <thead>
-              <tr className="bg-slate-100/70 dark:bg-slate-800/60 text-slate-500 font-bold uppercase">
-                <th className="py-3 px-4">System Module</th>
-                <th className="py-3 px-4 text-center">View</th>
-                <th className="py-3 px-4 text-center">Create</th>
-                <th className="py-3 px-4 text-center">Edit</th>
-                <th className="py-3 px-4 text-center">Delete</th>
-                <th className="py-3 px-4 text-center">Export</th>
-                <th className="py-3 px-4 text-center">Approve</th>
-                <th className="py-3 px-4 text-center">Assign</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-medium">
-              {modulesList.map(mod => {
-                const p = permMatrix[mod] || { view: true, create: true, edit: true, delete: true, export: true, approve: true, assign: true };
-                return (
-                  <tr key={mod} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40">
-                    <td className="py-3 px-4 font-bold text-slate-900 dark:text-white">{mod}</td>
-                    {(['view', 'create', 'edit', 'delete', 'export', 'approve', 'assign'] as const).map(act => (
-                      <td key={act} className="py-3 px-4 text-center">
-                        <button
-                          onClick={() => handleTogglePerm(mod, act)}
-                          className={`p-1 rounded-lg transition-colors ${
-                            p[act] ? 'text-emerald-600 bg-emerald-50 dark:bg-emerald-950' : 'text-slate-300 dark:text-slate-700'
-                          }`}
-                        >
-                          <CheckCircle2 className="w-4 h-4" />
-                        </button>
+          <div className="overflow-x-auto rounded-xl border border-slate-200/80 dark:border-slate-800">
+            <table className="w-full text-left border-collapse text-xs table-fixed">
+              <thead>
+                <tr className="bg-slate-100/80 dark:bg-slate-800/80 text-slate-600 dark:text-slate-300 font-extrabold uppercase border-b border-slate-200 dark:border-slate-800">
+                  <th className="py-3.5 px-5 text-left text-xs font-black uppercase text-slate-500 dark:text-slate-400 tracking-wider w-64 sm:w-80">
+                    System Module
+                  </th>
+                  <th className="py-3.5 px-3 text-center text-xs font-black uppercase text-slate-500 dark:text-slate-400 tracking-wider">
+                    View
+                  </th>
+                  <th className="py-3.5 px-3 text-center text-xs font-black uppercase text-slate-500 dark:text-slate-400 tracking-wider">
+                    Create
+                  </th>
+                  <th className="py-3.5 px-3 text-center text-xs font-black uppercase text-slate-500 dark:text-slate-400 tracking-wider">
+                    Edit
+                  </th>
+                  <th className="py-3.5 px-3 text-center text-xs font-black uppercase text-slate-500 dark:text-slate-400 tracking-wider">
+                    Delete
+                  </th>
+                  <th className="py-3.5 px-3 text-center text-xs font-black uppercase text-slate-500 dark:text-slate-400 tracking-wider">
+                    Export
+                  </th>
+                  <th className="py-3.5 px-3 text-center text-xs font-black uppercase text-slate-500 dark:text-slate-400 tracking-wider">
+                    Approve
+                  </th>
+                  <th className="py-3.5 px-3 text-center text-xs font-black uppercase text-slate-500 dark:text-slate-400 tracking-wider">
+                    Assign
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-medium">
+                {modulesList.map((mod) => {
+                  const p = permMatrix[mod] || {
+                    view: true,
+                    create: true,
+                    edit: true,
+                    delete: true,
+                    export: true,
+                    approve: true,
+                    assign: true,
+                  };
+                  return (
+                    <tr
+                      key={mod}
+                      className="hover:bg-slate-100 dark:hover:bg-slate-800/80 transition-colors group"
+                    >
+                      <td className="py-3.5 px-5 text-left font-bold text-xs sm:text-sm text-slate-900 dark:text-white truncate">
+                        {mod}
                       </td>
-                    ))}
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+                      {(
+                        [
+                          "view",
+                          "create",
+                          "edit",
+                          "delete",
+                          "export",
+                          "approve",
+                          "assign",
+                        ] as const
+                      ).map((act) => (
+                        <td key={act} className="py-3.5 px-3 text-center align-middle">
+                          <button
+                            type="button"
+                            onClick={() => handleTogglePerm(mod, act)}
+                            title={`Toggle ${act} for ${mod}`}
+                            className={`p-1.5 rounded-xl transition-all cursor-pointer inline-flex items-center justify-center ${
+                              p[act]
+                                ? "text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/80 border border-emerald-200/50 dark:border-emerald-800/50 hover:bg-emerald-100 dark:hover:bg-emerald-900/90 hover:scale-110 hover:shadow-xs"
+                                : "text-slate-300 dark:text-slate-600 bg-transparent hover:bg-slate-200/80 dark:hover:bg-slate-800 hover:text-slate-600 dark:hover:text-slate-300 hover:scale-110"
+                            }`}
+                          >
+                            <CheckCircle2 className="w-4 h-4" />
+                          </button>
+                        </td>
+                      ))}
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
         </div>
-      </div>
+      ) : (
+        <div className="glass-card rounded-2xl border border-slate-200/80 dark:border-slate-800 p-12 text-center space-y-3 bg-white/50 dark:bg-slate-900/50">
+          <div className="w-12 h-12 rounded-2xl bg-brand-50 dark:bg-brand-950/50 border border-brand-100 dark:border-brand-900 text-brand-600 dark:text-brand-400 flex items-center justify-center mx-auto">
+            <ShieldCheck className="w-6 h-6" />
+          </div>
+          <h3 className="text-base font-bold text-slate-900 dark:text-white">
+            Select a Role to View Permissions
+          </h3>
+          <p className="text-xs text-slate-500 dark:text-slate-400 max-w-sm mx-auto">
+            Please select a system role from the cards above to inspect or configure its granular feature permissions.
+          </p>
+        </div>
+      )}
 
       {/* Role Form Modal */}
       {isRoleModalOpen && (
@@ -173,8 +238,29 @@ export const UserManagementView: React.FC = () => {
 
             <form onSubmit={handleRoleSubmit} className="space-y-3 text-xs">
               <div>
-                <label className="block font-semibold mb-1">Role Title <span className="text-rose-500 font-bold ml-0.5">*</span></label>
-                <input type="text" required placeholder="e.g. Vice Principal, IT Lead" value={roleForm.name} onChange={e => setRoleForm({ ...roleForm, name: e.target.value })} className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border" />
+                <label className="block font-semibold mb-1">
+                  Role Title <span className="text-rose-500 font-bold ml-0.5">*</span>
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Vice Principal, IT Lead"
+                  value={roleForm.name || ""}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setRoleForm({ ...roleForm, name: val });
+                    const res = validateRoleTitle(val, false);
+                    setRoleTitleError(res.error);
+                  }}
+                  className={`w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border ${
+                    roleTitleError ? "border-rose-500 focus:ring-rose-500" : ""
+                  }`}
+                />
+                {roleTitleError && (
+                  <p className="text-xs text-rose-500 mt-1 font-semibold flex items-center gap-1">
+                    <span>⚠️</span> {roleTitleError}
+                  </p>
+                )}
               </div>
               <div>
                 <label className="block font-semibold mb-1">Description</label>

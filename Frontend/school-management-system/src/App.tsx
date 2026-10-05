@@ -41,6 +41,7 @@ import { AttendanceView } from "./components/modules/Attendance/AttendanceView";
 import { TimetableView } from "./components/modules/Timetable/TimetableView";
 import { ExaminationView } from "./components/modules/Examination/ExaminationView";
 import { MarksEntryView } from "./components/modules/Examination/MarksEntryView";
+import { ClassTeacherMarksEntryView } from "./components/modules/Examination/ClassTeacherMarksEntryView";
 import { GlobalReportCardsView } from "./components/modules/Examination/GlobalReportCardsView";
 import { HomeworkView } from "./components/modules/Homework/HomeworkView";
 import { ParentHomeworkView } from "./components/modules/Academics/ParentHomeworkView";
@@ -488,6 +489,11 @@ const MainLayout: React.FC = () => {
         ) : (
           <ExaminationView />
         );
+      case "marks-entry":
+      case "teacher-marks-entry":
+      case "examination-marks":
+      case "examination-marks-entry":
+        return <ClassTeacherMarksEntryView onNavigate={setActiveModule} />;
       case "report-cards":
       case "examination-report-cards":
         return userRole === "parent" || userRole === "student" ? (
@@ -639,7 +645,7 @@ const MainLayout: React.FC = () => {
       />
 
       <main
-        className={`pt-18 pb-8 px-3 sm:px-4 transition-all duration-300 print:ml-0 print:m-0 print:p-0 print:w-full ${
+        className={`pt-18 pb-8 px-4 sm:px-6 transition-all duration-300 print:ml-0 print:m-0 print:p-0 print:w-full ${
           collapsed ? "ml-20" : "ml-56"
         }`}
       >

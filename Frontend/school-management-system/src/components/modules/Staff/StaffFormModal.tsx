@@ -16,7 +16,7 @@ import {
   normalizeStaffType,
 } from "./staffFlowOptions";
 import { BasicStaffFormFields } from "./BasicStaffFormFields";
-import { validateEmail } from "../../../utils/validation";
+import { validateEmail, validate10DigitPhone } from "../../../utils/validation";
 
 interface StaffFormModalProps {
   isOpen: boolean;
@@ -167,8 +167,9 @@ export const StaffFormModal: React.FC<StaffFormModalProps> = ({
     require("mobileNumber", !!form.mobileNumber.trim(), "Mobile number is required.");
     if (form.mobileNumber.trim()) {
       const localPart = form.mobileNumber.split("-").pop() || "";
-      if (!/^\d{10}$/.test(localPart.replace(/[^\d]/g, ""))) {
-        nextErrors.mobileNumber = "Mobile number must be exactly 10 digits.";
+      const phoneRes = validate10DigitPhone(localPart.replace(/[^\d]/g, ""));
+      if (!phoneRes.isValid && phoneRes.error) {
+        nextErrors.mobileNumber = phoneRes.error;
       }
     }
     require("branch", !!form.branch.trim(), "Branch is required.");

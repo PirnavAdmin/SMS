@@ -26,8 +26,7 @@ import {
 
 import { DateInput } from '../../common/DateInput';
 import { SearchableSelect } from '../../common/SearchableSelect';
-import { lookupPostalCode, getOfflinePostalInfo, validateStateName, validateCityName, VALID_INDIAN_STATES, KNOWN_INDIAN_CITIES, WORLD_COUNTRIES, COUNTRY_DIAL_CODES } from '../../../utils/postalLookup';
-import { validateEmail } from '../../../utils/validation';
+import { validateEmail, validate10DigitPhone } from '../../../utils/validation';
 
 interface BasicStaffFormFieldsProps {
   value: BasicStaffFormState;
@@ -246,8 +245,9 @@ export const BasicStaffFormFields: React.FC<BasicStaffFormFieldsProps> = ({
       require("mobileNumber", !!value.mobileNumber.trim(), "Mobile number is required.");
       if (value.mobileNumber.trim()) {
         const localPart = value.mobileNumber.split("-").pop() || "";
-        if (!/^\d{10}$/.test(localPart.replace(/[^\d]/g, ""))) {
-          stepErrors.mobileNumber = "Mobile number must be exactly 10 digits.";
+        const phoneRes = validate10DigitPhone(localPart.replace(/[^\d]/g, ""));
+        if (!phoneRes.isValid && phoneRes.error) {
+          stepErrors.mobileNumber = phoneRes.error;
         }
       }
       require("presentAddress", !!value.presentAddress.trim(), "Present Address is required.");

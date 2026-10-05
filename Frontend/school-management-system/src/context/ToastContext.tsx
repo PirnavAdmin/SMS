@@ -57,13 +57,13 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   return (
     <ToastContext.Provider value={value}>
       {children}
-      <div className="fixed bottom-5 right-5 z-50 flex flex-col gap-2 max-w-sm w-full pointer-events-none no-print print:hidden">
+      <div className="fixed top-20 right-6 z-[9999] flex flex-col gap-2.5 max-w-sm w-full pointer-events-none no-print print:hidden">
         {toasts.map(toast => {
           const bgColors: Record<ToastType, string> = {
-            success: 'bg-emerald-500 text-white',
-            error: 'bg-rose-500 text-white',
-            warning: 'bg-amber-500 text-white',
-            info: 'bg-blue-500 text-white'
+            success: 'bg-emerald-600 text-white shadow-xl shadow-emerald-600/20 border border-emerald-500/40',
+            error: 'bg-rose-600 text-white shadow-xl shadow-rose-600/20 border border-rose-500/40',
+            warning: 'bg-amber-600 text-white shadow-xl shadow-amber-600/20 border border-amber-500/40',
+            info: 'bg-sky-600 text-white shadow-xl shadow-sky-600/20 border border-sky-500/40'
           };
           const Icons: Record<ToastType, React.FC<any>> = {
             success: CheckCircle2,
@@ -72,21 +72,21 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             info: Info
           };
           const IconComponent = Icons[toast.type] || Info;
-          const bgStyle = bgColors[toast.type] || 'bg-blue-500 text-white';
+          const bgStyle = bgColors[toast.type] || 'bg-sky-600 text-white';
 
           return (
             <div
               key={toast.id}
-              className={`pointer-events-auto flex items-start gap-3 p-4 rounded-xl shadow-xl transition-all duration-300 animate-in slide-in-from-right ${bgStyle}`}
+              className={`pointer-events-auto flex items-start gap-3 p-4 rounded-2xl shadow-2xl transition-all duration-300 animate-in slide-in-from-top-4 fade-in ${bgStyle}`}
             >
               <IconComponent className="w-5 h-5 mt-0.5 shrink-0" />
               <div className="flex-1 text-sm">
-                <p className="font-semibold">{toast.title}</p>
-                {toast.message && <p className="text-xs opacity-90 mt-0.5">{toast.message}</p>}
+                <p className="font-bold leading-snug">{toast.title}</p>
+                {toast.message && <p className="text-xs opacity-95 mt-1 leading-relaxed">{toast.message}</p>}
               </div>
               <button
                 onClick={() => removeToast(toast.id)}
-                className="shrink-0 p-1 hover:bg-white/20 rounded-lg transition-colors"
+                className="shrink-0 p-1 hover:bg-white/20 rounded-lg transition-colors cursor-pointer"
               >
                 <X className="w-4 h-4" />
               </button>

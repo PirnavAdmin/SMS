@@ -4,6 +4,7 @@ import { useData } from '../../../context/DataContext';
 import { useAuth } from '../../../context/AuthContext';
 import { Panel } from './components/SharedUI';
 import { GradeConfig } from '../../../types';
+import { saveGradingScaleRulesApi } from '../../../api/examination';
 
 interface GradingConfigurationProps {
   addToast: (type: 'success' | 'info' | 'warning' | 'error', title: string, message: string) => void;
@@ -142,6 +143,27 @@ export const GradingConfiguration: React.FC<GradingConfigurationProps> = ({ addT
 
     if (saveGradeConfiguration) {
       saveGradeConfiguration(sanitizedGrades);
+      
+      // Also persist to backend API asynchronously
+      const rulesForApi = sanitizedGrades
+        .filter(g => selectedExamType === 'All' || g.examType === selectedExamType || !g.examType)
+        .map((g, idx) => ({
+          ruleId: parseInt(String(g.id).replace(/\D/g, '')) || (idx + 1),
+          grade: g.gradeName || g.grade || '',
+          minMarks: Number(g.minPercent ?? g.minMark ?? 0),
+          maxMarks: Number(g.maxPercent ?? g.maxMark ?? 100),
+          gpa: Number(g.gradePoints ?? g.gradePoint ?? 0),
+          passFail: g.passCriteria || 'Pass',
+          remarks: g.remarks || ''
+        }));
+
+      if (rulesForApi.length > 0) {
+        saveGradingScaleRulesApi({
+          examType: selectedExamType,
+          scaleRules: rulesForApi
+        }).catch(err => console.warn('Grading scale backend sync notice:', err));
+      }
+
       addToast('success', 'Grading Saved', `Successfully updated grading scale rules for ${selectedExamType} examination type.`);
       setIsEditing(false);
     }

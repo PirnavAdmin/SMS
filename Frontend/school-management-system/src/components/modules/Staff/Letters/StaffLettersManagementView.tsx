@@ -52,6 +52,7 @@ import { initialStaff } from '../../../../services/mockData';
 import { StaffLetterModal } from './StaffLetterModal';
 import { Badge } from '../../../common/Badge';
 import { ConfirmModal } from '../../../common/ConfirmModal';
+import { Pagination } from '../../../common/Pagination';
 
 const getSafeStaffFallback = (schoolProfile?: any): Staff => ({
   id: '',
@@ -86,6 +87,8 @@ export const StaffLettersManagementView: React.FC<StaffLettersManagementViewProp
   const [searchQuery, setSearchQuery] = useState('');
   const [typeFilter, setTypeFilter] = useState<string>('all');
   const [branchFilter, setBranchFilter] = useState<string>('all');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
 
   // Generator Modal State
   const [generatorOpen, setGeneratorOpen] = useState(false);
@@ -309,6 +312,17 @@ export const StaffLettersManagementView: React.FC<StaffLettersManagementViewProp
     });
   }, [letters, searchQuery, typeFilter, branchFilter]);
 
+  // Reset to page 1 whenever filter or query changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, typeFilter, branchFilter]);
+
+  // Paginated letters slice
+  const paginatedLetters = useMemo(() => {
+    const startIndex = (currentPage - 1) * pageSize;
+    return filteredLetters.slice(startIndex, startIndex + pageSize);
+  }, [filteredLetters, currentPage, pageSize]);
+
   // KPI calculations
   const totalIssued = letters.length;
   const offerCount = letters.filter((l) => l.letterType === 'offer').length;
@@ -509,14 +523,14 @@ export const StaffLettersManagementView: React.FC<StaffLettersManagementViewProp
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                    {filteredLetters.map((letter, idx) => {
+                    {paginatedLetters.map((letter, idx) => {
                       const matchedStaff = staff.find(
                         (s) => s.id === letter.staffId || s.empId === letter.staffEmpId
                       );
                       return (
                         <tr key={letter.id} className="hover:bg-slate-50/70 dark:hover:bg-slate-850/60 transition">
                           <td className="py-3.5 px-4 text-center font-bold text-slate-500 dark:text-slate-400">
-                            {idx + 1}
+                            {(currentPage - 1) * pageSize + idx + 1}
                           </td>
                           <td className="py-3.5 px-4 text-center">
                             <p className="font-bold text-slate-900 dark:text-white text-xs">{letter.staffName}</p>
@@ -585,6 +599,23 @@ export const StaffLettersManagementView: React.FC<StaffLettersManagementViewProp
                     })}
                   </tbody>
                 </table>
+              </div>
+            )}
+
+            {/* Pagination Controls */}
+            {filteredLetters.length > 0 && (
+              <div className="px-4 pb-3 border-t border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900">
+                <Pagination
+                  currentPage={currentPage}
+                  totalItems={filteredLetters.length}
+                  itemsPerPage={pageSize}
+                  onPageChange={setCurrentPage}
+                  onItemsPerPageChange={(n) => {
+                    setPageSize(n);
+                    setCurrentPage(1);
+                  }}
+                  label="letters"
+                />
               </div>
             )}
           </div>

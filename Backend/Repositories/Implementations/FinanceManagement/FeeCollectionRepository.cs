@@ -1162,6 +1162,7 @@ public class FeeCollectionRepository : IFeeCollectionRepository
             .Concat(studentClassNames)
             .Concat(defaultClasses)
             .Where(name => !string.IsNullOrWhiteSpace(name))
+            .Select(name => name!)
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .OrderBy(c => GetClassOrder(c))
             .ThenBy(c => c)

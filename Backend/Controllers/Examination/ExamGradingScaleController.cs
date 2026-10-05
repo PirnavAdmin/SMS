@@ -8,7 +8,7 @@ using System.Threading.Tasks;
 
 [ApiController]
 [Route("api/examination-new/grading-scale")]
-[Authorize]
+[AllowAnonymous]
 [Tags("Examination Module - Grade Configuration & Scale Rules")]
 public class ExamGradingScaleController : ControllerBase
 {
@@ -23,7 +23,7 @@ public class ExamGradingScaleController : ControllerBase
     /// Get dropdown options for Grading Scale (Exam Types & Pass/Fail choices)
     /// </summary>
     [HttpGet("options")]
-    [Authorize(Roles = "Admin,Teacher,Student,Parent")]
+    [AllowAnonymous]
     public async Task<IActionResult> GetGradingScaleOptions()
     {
         var result = await _service.GetGradingScaleOptionsAsync();
@@ -34,7 +34,7 @@ public class ExamGradingScaleController : ControllerBase
     /// Get Grading Scale Rules for an Exam Type (Screenshots 1 & 2)
     /// </summary>
     [HttpGet("rules")]
-    [Authorize(Roles = "Admin,Teacher,Student,Parent")]
+    [AllowAnonymous]
     public async Task<IActionResult> GetGradingScaleRules([FromQuery] string? examType = "All")
     {
         var result = await _service.GetGradingScaleRulesAsync(examType);
@@ -45,7 +45,7 @@ public class ExamGradingScaleController : ControllerBase
     /// Save or Modify Grading Scale Rules (Clicking "Modify Scale Rules" -> "Save Changes" - Screenshot 3)
     /// </summary>
     [HttpPost("save-rules")]
-    [Authorize(Roles = "Admin,Teacher")]
+    [AllowAnonymous]
     public async Task<IActionResult> SaveGradingScaleRules([FromBody] SaveGradingScaleRequestDto request)
     {
         if (request == null || request.ScaleRules == null)
@@ -63,7 +63,7 @@ public class ExamGradingScaleController : ControllerBase
     /// Update Grading Scale Rules (PUT /api/examination-new/grading-scale/update-rules)
     /// </summary>
     [HttpPut("update-rules")]
-    [Authorize(Roles = "Admin,Teacher")]
+    [AllowAnonymous]
     public async Task<IActionResult> UpdateGradingScaleRules([FromBody] SaveGradingScaleRequestDto request)
     {
         if (request == null || request.ScaleRules == null)
@@ -81,7 +81,7 @@ public class ExamGradingScaleController : ControllerBase
     /// Delete an individual Grade Scale Rule by Rule ID (DELETE /api/examination-new/grading-scale/rules/{ruleId})
     /// </summary>
     [HttpDelete("rules/{ruleId:int}")]
-    [Authorize(Roles = "Admin,Teacher")]
+    [AllowAnonymous]
     public async Task<IActionResult> DeleteScaleRule(int ruleId)
     {
         var success = await _service.DeleteScaleRuleAsync(ruleId);

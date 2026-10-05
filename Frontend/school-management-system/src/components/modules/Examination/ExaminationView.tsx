@@ -406,6 +406,7 @@ export const ExaminationView: React.FC<ExaminationViewProps> = ({ initialTab = '
             addToast={addToast}
             onGotoSetup={() => setActiveTab('setup')}
             onProceedToResults={() => setActiveTab('results-reports')}
+            onGotoGrading={() => setActiveTab('grading')}
             selectedClass={selectedClass}
             setSelectedClass={setSelectedClass}
             selectedSection={selectedSection}

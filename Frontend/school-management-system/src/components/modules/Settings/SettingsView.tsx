@@ -48,6 +48,7 @@ import {
 import { PrintableCertificateContainer } from "../Certificates/PrintableCertificateContainer";
 import { formatDateDDMMYYYY } from "../../../utils/dateValidation";
 import { resolveMediaUrl, DEFAULT_USER_AVATAR, createOptimizedAvatarDataUrl } from "../../../utils/mediaUtils";
+import { validateFullName, validateEmail, validate10DigitPhone, validatePhoneNumber, sanitizePhoneInput, sanitizeEmailInput, validateCampusName, validateCampusCode } from "../../../utils/validation";
 import { SchoolLogoUploader } from "./SchoolLogoUploader";
 import { CertificateSettingsTab } from "./CertificateSettingsTab";
 import {
@@ -248,6 +249,7 @@ export const SettingsView: React.FC = () => {
     setCurrentAcademicYear,
     certificateTemplates: contextTemplates,
     updateCertificateTemplate: contextUpdateTemplate,
+    branches = [],
   } = useData();
   const { user, setUser, role, changePassword } = useAuth();
   const { addToast } = useToast();
@@ -300,12 +302,57 @@ export const SettingsView: React.FC = () => {
     email: getCleanUserEmail(user?.email),
     phone: user?.phone || "+91 9581768555",
     avatar: user?.avatar || DEFAULT_USER_AVATAR,
-    branch: user?.branch || "Main Campus",
+    branch: user?.branch || "",
     role: user?.role || role || "Admin",
   });
 
+  const configuredBranches = useMemo(() => {
+    const list = (branches || [])
+      .map((b: any) => (typeof b === "string" ? b : (b.name || b.branchName || b.branch || b.code)))
+      .filter(Boolean);
+    if (myProfileForm.branch && !list.includes(myProfileForm.branch)) {
+      list.push(myProfileForm.branch);
+    }
+    if (user?.branch && !list.includes(user.branch)) {
+      list.push(user.branch);
+    }
+    return Array.from(new Set(list));
+  }, [branches, myProfileForm.branch, user?.branch]);
+
+  const [isEditingProfile, setIsEditingProfile] = useState(false);
   const [isSavingProfile, setIsSavingProfile] = useState(false);
   const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
+  const [profileErrors, setProfileErrors] = useState<{
+    name?: string;
+    email?: string;
+    phone?: string;
+  }>({});
+
+  const validateProfileForm = (form: { name: string; email: string; phone: string }) => {
+    const nameRes = validateFullName(form.name, true);
+    const emailRes = validateEmail(form.email, true);
+    const phoneRes = validatePhoneNumber(form.phone, false);
+
+    const errors: { name?: string; email?: string; phone?: string } = {};
+    if (!nameRes.isValid) errors.name = nameRes.error;
+    if (!emailRes.isValid) errors.email = emailRes.error;
+    if (form.phone.trim() && !phoneRes.isValid) errors.phone = phoneRes.error;
+
+    return {
+      isValid: nameRes.isValid && emailRes.isValid && (!form.phone.trim() || phoneRes.isValid),
+      errors,
+      firstError: nameRes.error || emailRes.error || (form.phone.trim() ? phoneRes.error : undefined),
+    };
+  };
+
+  const isProfileFormInvalid = useMemo(() => {
+    const nameRes = validateFullName(myProfileForm.name, true);
+    const emailRes = validateEmail(myProfileForm.email, true);
+    const phoneRes = validatePhoneNumber(myProfileForm.phone, false);
+    const phoneInvalid = myProfileForm.phone.trim() ? !phoneRes.isValid : false;
+
+    return !nameRes.isValid || !emailRes.isValid || phoneInvalid;
+  }, [myProfileForm.name, myProfileForm.email, myProfileForm.phone]);
 
   useEffect(() => {
     let isMounted = true;
@@ -316,26 +363,24 @@ export const SettingsView: React.FC = () => {
         const data = res?.data;
         if (data && isMounted && (data.name || data.avatar)) {
           setMyProfileForm((prev) => {
-            const hasUploadedAvatar = (user?.avatar && user.avatar.startsWith("data:image/")) || (prev.avatar && prev.avatar.startsWith("data:image/"));
-            const profileAvatar = hasUploadedAvatar ? (user?.avatar || prev.avatar) : (data.avatar || user?.avatar || DEFAULT_USER_AVATAR);
+            const currentAvatar = prev.avatar === "" ? "" : (prev.avatar || user?.avatar || DEFAULT_USER_AVATAR);
             return {
               ...prev,
               name: data.name || prev.name,
               phone: data.phone || prev.phone,
-              avatar: profileAvatar,
+              avatar: currentAvatar,
               branch: data.branch || prev.branch,
               role: data.role || prev.role,
             };
           });
 
           if (user && setUser) {
-            const hasUploadedAvatar = user.avatar && user.avatar.startsWith("data:image/");
-            const profileAvatar = hasUploadedAvatar ? user.avatar : (data.avatar || user.avatar || DEFAULT_USER_AVATAR);
+            const currentAvatar = user.avatar || DEFAULT_USER_AVATAR;
             const updatedUser = {
               ...user,
               name: data.name || user.name,
               phone: data.phone || user.phone,
-              avatar: profileAvatar,
+              avatar: currentAvatar,
               branch: data.branch || user.branch,
             };
             setUser(updatedUser);
@@ -401,7 +446,7 @@ export const SettingsView: React.FC = () => {
         email: cleanEmail,
         phone: myProfileForm.phone.trim() || user?.phone || "+91 9581768555",
         avatar: optimizedDataUrl,
-        branch: myProfileForm.branch || user?.branch || "Main Campus",
+        branch: myProfileForm.branch || user?.branch || "",
         role: (user?.role || role) as Role,
         status: user?.status || "Active",
       };
@@ -441,11 +486,15 @@ export const SettingsView: React.FC = () => {
 
   const handleSaveMyProfile = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!myProfileForm.name.trim()) {
+
+    const { isValid, errors, firstError } = validateProfileForm(myProfileForm);
+    setProfileErrors(errors);
+
+    if (!isValid) {
       addToast(
         "error",
         "Validation Error",
-        "Please provide a valid full name.",
+        firstError || "Please correct the invalid profile fields before saving.",
       );
       return;
     }
@@ -466,8 +515,9 @@ export const SettingsView: React.FC = () => {
 
       const res = await updateUserProfileApi(payload);
       const savedData = res?.data || payload;
-      const isDataUrl = (myProfileForm.avatar && myProfileForm.avatar.startsWith("data:image/")) || (user?.avatar && user.avatar.startsWith("data:image/"));
-      const finalAvatar = isDataUrl ? (myProfileForm.avatar || user?.avatar) : (savedData?.avatar || myProfileForm.avatar || DEFAULT_USER_AVATAR);
+      const finalAvatar = (myProfileForm.avatar && myProfileForm.avatar !== DEFAULT_USER_AVATAR)
+        ? myProfileForm.avatar
+        : DEFAULT_USER_AVATAR;
 
       const updatedUser: User = {
         ...user!,
@@ -508,6 +558,7 @@ export const SettingsView: React.FC = () => {
         "Profile Saved",
         "Your basic details and profile photo have been saved successfully.",
       );
+      setIsEditingProfile(false);
     } catch (err: any) {
       console.error("Failed to save profile:", err);
       addToast("error", "Save Failed", err?.message || "Failed to save profile details.");
@@ -637,18 +688,19 @@ export const SettingsView: React.FC = () => {
   const [isAYModalOpen, setIsAYModalOpen] = useState(false);
   const [editingAY, setEditingAY] = useState<AcademicYearMaster | null>(null);
   const [deletingAY, setDeletingAY] = useState<AcademicYearMaster | null>(null);
+  const [ayErrors, setAyErrors] = useState<{ academicYear?: string; status?: string }>({});
   const [ayForm, setAyForm] = useState<{
     academicYear: string;
     startDate: string;
     endDate: string;
-    status: "Active" | "Closed" | "Upcoming";
+    status: "Active" | "Closed" | "Upcoming" | "";
     description: string;
     isCurrentAcademicYear: boolean;
   }>({
     academicYear: "",
     startDate: "",
     endDate: "",
-    status: "Upcoming",
+    status: "",
     description: "",
     isCurrentAcademicYear: false,
   });
@@ -660,6 +712,8 @@ export const SettingsView: React.FC = () => {
   const [isCampusModalOpen, setIsCampusModalOpen] = useState(false);
   const [editingCampus, setEditingCampus] = useState<CampusItem | null>(null);
   const [deletingCampus, setDeletingCampus] = useState<CampusItem | null>(null);
+  const [campusErrors, setCampusErrors] = useState<{ name?: string; code?: string; phone?: string; email?: string; status?: string }>({});
+  const [schoolProfileErrors, setSchoolProfileErrors] = useState<{ name?: string; email?: string; principalName?: string }>({});
 
   const [campusForm, setCampusForm] = useState<{
     name: string;
@@ -667,14 +721,14 @@ export const SettingsView: React.FC = () => {
     address: string;
     phone: string;
     email: string;
-    status: "Active" | "Inactive";
+    status: "Active" | "Inactive" | "";
   }>({
     name: "",
     code: "",
     address: "",
     phone: "",
     email: "",
-    status: "Active",
+    status: "",
   });
 
   // Certificate Template Configuration States
@@ -727,6 +781,58 @@ export const SettingsView: React.FC = () => {
 
   const handleSaveProfile = (e: React.SyntheticEvent) => {
     e.preventDefault();
+
+    if (!profileForm.name || !profileForm.name.trim()) {
+      setSchoolProfileErrors((prev) => ({ ...prev, name: "School name is required." }));
+      addToast("error", "School Name Required", "Please enter the school name.");
+      return;
+    }
+    const nameRes = validateFullName(profileForm.name, true);
+    if (!nameRes.isValid) {
+      setSchoolProfileErrors((prev) => ({ ...prev, name: nameRes.error }));
+      addToast("error", "Invalid School Name", nameRes.error || "Enter a valid school name.");
+      return;
+    }
+
+    if (!profileForm.address || !profileForm.address.trim()) {
+      addToast("error", "Address Required", "Please enter the full address.");
+      return;
+    }
+
+    if (!profileForm.phone || !profileForm.phone.trim()) {
+      addToast("error", "Contact Phone Required", "Please enter a 10-digit contact phone number.");
+      return;
+    }
+    const phoneRes = validatePhoneNumber(profileForm.phone, true);
+    if (!phoneRes.isValid) {
+      addToast("error", "Invalid Phone Number", phoneRes.error || "Phone number must be exactly 10 digits.");
+      return;
+    }
+
+    if (!profileForm.email || !profileForm.email.trim()) {
+      setSchoolProfileErrors((prev) => ({ ...prev, email: "Contact email is required." }));
+      addToast("error", "Contact Email Required", "Please enter the contact email address.");
+      return;
+    }
+    const emailRes = validateEmail(profileForm.email, true);
+    if (!emailRes.isValid) {
+      setSchoolProfileErrors((prev) => ({ ...prev, email: emailRes.error }));
+      addToast("error", "Invalid Email", emailRes.error || "Enter a valid email address.");
+      return;
+    }
+
+    if (!profileForm.principalName || !profileForm.principalName.trim()) {
+      setSchoolProfileErrors((prev) => ({ ...prev, principalName: "Principal name is required." }));
+      addToast("error", "Principal Name Required", "Please enter the principal name.");
+      return;
+    }
+    const pNameRes = validateFullName(profileForm.principalName, true);
+    if (!pNameRes.isValid) {
+      setSchoolProfileErrors((prev) => ({ ...prev, principalName: pNameRes.error }));
+      addToast("error", "Invalid Principal Name", pNameRes.error || "Enter a valid principal name.");
+      return;
+    }
+
     updateSchoolProfile(profileForm);
     try {
       localStorage.setItem("edu_db_profile", JSON.stringify(profileForm));
@@ -776,19 +882,21 @@ export const SettingsView: React.FC = () => {
 
   const handleOpenAddCampus = () => {
     setEditingCampus(null);
+    setCampusErrors({});
     setCampusForm({
       name: "",
       code: "",
       address: "",
       phone: "",
       email: "",
-      status: "Active",
+      status: "",
     });
     setIsCampusModalOpen(true);
   };
 
   const handleOpenEditCampus = (campus: CampusItem) => {
     setEditingCampus(campus);
+    setCampusErrors({});
     setCampusForm({
       name: campus.name,
       code: campus.code,
@@ -839,10 +947,53 @@ export const SettingsView: React.FC = () => {
     e.preventDefault();
     if (!campusForm.name.trim() || !campusForm.code.trim()) return;
 
+    const campusNameRes = validateCampusName(campusForm.name, true);
+    if (!campusNameRes.isValid) {
+      setCampusErrors((prev) => ({ ...prev, name: campusNameRes.error }));
+      addToast("error", "Invalid Campus Name", campusNameRes.error || "Enter a valid campus name.");
+      return;
+    }
+
+    const campusCodeRes = validateCampusCode(campusForm.code, true);
+    if (!campusCodeRes.isValid) {
+      setCampusErrors((prev) => ({ ...prev, code: campusCodeRes.error }));
+      addToast("error", "Invalid Campus Code", campusCodeRes.error || "Campus code must be 2 to 10 characters.");
+      return;
+    }
+
+    if (!campusForm.status) {
+      setCampusErrors((prev) => ({ ...prev, status: "Please select a status." }));
+      addToast("error", "Status Required", "Please select a status (Active or Inactive).");
+      return;
+    }
+
+    if (campusForm.phone) {
+      const phoneRes = validatePhoneNumber(campusForm.phone, false);
+      if (!phoneRes.isValid) {
+        addToast("error", "Invalid Phone Number", phoneRes.error || "Phone number must be exactly 10 digits.");
+        return;
+      }
+    }
+
+    if (campusForm.email) {
+      const emailRes = validateEmail(campusForm.email, false);
+      if (!emailRes.isValid) {
+        setCampusErrors((prev) => ({ ...prev, email: emailRes.error }));
+        addToast("error", "Invalid Email", emailRes.error || "Enter a valid email address.");
+        return;
+      }
+    }
+
+    const validStatus = campusForm.status as "Active" | "Inactive";
+    const campusData = {
+      ...campusForm,
+      status: validStatus,
+    };
+
     let updated: CampusItem[];
     if (editingCampus) {
       updated = campuses.map((c) =>
-        c.id === editingCampus.id ? { ...editingCampus, ...campusForm } : c,
+        c.id === editingCampus.id ? { ...editingCampus, ...campusData } : c,
       );
       addToast(
         "success",
@@ -850,7 +1001,7 @@ export const SettingsView: React.FC = () => {
         `Updated settings for ${campusForm.name}`,
       );
       try {
-        await updateBranchApi(editingCampus.id, campusForm);
+        await updateBranchApi(editingCampus.id, campusData);
       } catch (err) {
         console.warn("Failed to update branch on backend:", err);
       }
@@ -858,7 +1009,7 @@ export const SettingsView: React.FC = () => {
       const tempId = `CMP-${Date.now().toString().slice(-4)}`;
       const newCampus: CampusItem = {
         id: tempId,
-        ...campusForm,
+        ...campusData,
       };
       updated = [...campuses, newCampus];
       addToast(
@@ -867,7 +1018,7 @@ export const SettingsView: React.FC = () => {
         `Added new campus ${campusForm.name}`,
       );
       try {
-        const res: any = await createBranchApi(campusForm);
+        const res: any = await createBranchApi(campusData);
         if (res?.success && res?.data) {
           const serverId = res.data.id || `CMP-${res.data.branchId}`;
           updated = updated.map((c) =>
@@ -908,10 +1059,11 @@ export const SettingsView: React.FC = () => {
       academicYear: "",
       startDate: "",
       endDate: "",
-      status: "Upcoming",
+      status: "",
       description: "",
       isCurrentAcademicYear: false,
     });
+    setAyErrors({});
     setIsAYModalOpen(true);
   };
 
@@ -925,22 +1077,38 @@ export const SettingsView: React.FC = () => {
       description: ay.description || "",
       isCurrentAcademicYear: ay.isCurrentAcademicYear || false,
     });
+    setAyErrors({});
     setIsAYModalOpen(true);
   };
 
   const handleSaveAY = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!ayForm.academicYear.trim()) return;
+    if (!ayForm.academicYear.trim()) {
+      setAyErrors((prev) => ({ ...prev, academicYear: "Academic Session Name is required." }));
+      addToast("error", "Academic Session Required", "Please enter academic session name.");
+      return;
+    }
+
+    if (!ayForm.status) {
+      setAyErrors((prev) => ({ ...prev, status: "Please select a session status." }));
+      addToast("error", "Status Required", "Please select a session status (Active, Upcoming, or Closed).");
+      return;
+    }
+
+    const payload = {
+      ...ayForm,
+      status: ayForm.status as "Active" | "Closed" | "Upcoming",
+    };
 
     if (editingAY) {
-      updateAcademicYear(editingAY.id, ayForm);
+      updateAcademicYear(editingAY.id, payload);
       addToast(
         "success",
         "Academic Year Updated",
         `Academic year ${ayForm.academicYear} configuration updated.`,
       );
     } else {
-      addAcademicYear(ayForm);
+      addAcademicYear(payload);
       addToast(
         "success",
         "Academic Year Added",
@@ -1053,10 +1221,10 @@ export const SettingsView: React.FC = () => {
                 key={tab.id}
                 type="button"
                 onClick={() => setActiveTab(tab.id as any)}
-                className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap shrink-0 text-center ${
+                className={`px-4 py-2 rounded-xl text-sm font-bold transition-all cursor-pointer whitespace-nowrap shrink-0 text-center ${
                   isActive
-                    ? "bg-sky-50 dark:bg-sky-950/60 text-[#0088cc] dark:text-sky-400 shadow-2xs border border-sky-300 dark:border-sky-800 font-black"
-                    : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-50 dark:hover:bg-slate-800/60 font-bold border border-transparent"
+                    ? "bg-sky-50 dark:bg-sky-950/60 text-[#0088cc] dark:text-sky-400 shadow-2xs border border-sky-300 dark:border-sky-800 font-extrabold"
+                    : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-50 dark:hover:bg-slate-800/60 font-semibold border border-transparent"
                 }`}
               >
                 <span>{tab.label}</span>
@@ -1067,219 +1235,267 @@ export const SettingsView: React.FC = () => {
 
       {/* TAB 0: PERSONAL BASIC DETAILS & PHOTO (FOR ALL ROLES INCLUDING WARDEN & ADMIN) */}
       {activeTab === "my-profile" && (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
           {/* Main Basic Details Form Card */}
-          <div className="lg:col-span-2 glass-card p-4 sm:p-5 rounded-3xl space-y-3 border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xs">
+          <div className="lg:col-span-2 glass-card p-4 sm:p-5 rounded-2xl space-y-3 border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xs">
             <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-2.5">
               <div>
-                <h3 className="font-extrabold text-base text-slate-900 dark:text-white flex items-center gap-2">
+                <h3 className="font-extrabold text-lg text-slate-900 dark:text-white flex items-center gap-2">
                   <UserCheck className="w-5 h-5 text-brand-600" /> Basic Details
                   & Profile Setup
                 </h3>
               </div>
-              <span className="px-3 py-1 rounded-full text-xs font-black bg-brand-50 text-brand-700 dark:bg-brand-950 dark:text-brand-300 border border-brand-200 dark:border-brand-800">
-                {myProfileForm.role}
-              </span>
+              <button
+                type="button"
+                onClick={() => setIsEditingProfile((prev) => !prev)}
+                className={`px-3 py-1.5 rounded-xl border flex items-center gap-1.5 text-xs font-extrabold transition cursor-pointer active:scale-95 ${
+                  isEditingProfile
+                    ? "bg-rose-50 text-rose-600 dark:bg-rose-950/40 dark:text-rose-400 border-rose-200 dark:border-rose-800 shadow-xs hover:bg-rose-100 dark:hover:bg-rose-900/50"
+                    : "bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700"
+                }`}
+                title={isEditingProfile ? "Cancel Editing" : "Edit Profile"}
+              >
+                {isEditingProfile ? (
+                  <>
+                    <X className="w-3.5 h-3.5 text-rose-600 dark:text-rose-400" />
+                    <span>Cancel</span>
+                  </>
+                ) : (
+                  <>
+                    <Edit className="w-3.5 h-3.5 text-brand-600" />
+                    <span>Edit</span>
+                  </>
+                )}
+              </button>
             </div>
 
-            <form onSubmit={handleSaveMyProfile} className="space-y-3 text-xs">
-              {/* Profile Photo Uploader */}
-              <div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/70 dark:border-slate-700 space-y-2">
-                <label className="block font-bold text-slate-800 dark:text-slate-200 text-xs">
-                  Profile Photo{" "}
-                  <span className="text-rose-500 font-bold">*</span>
-                </label>
-
-                <div className="flex flex-col sm:flex-row items-center gap-3">
-                  <div className="relative group">
-                    <img
-                      src={resolveMediaUrl(myProfileForm.avatar) || DEFAULT_USER_AVATAR}
-                      alt="Profile Avatar"
-                      onError={(e) => {
-                        const target = e.target as HTMLImageElement;
-                        if (target.src !== DEFAULT_USER_AVATAR) {
-                          target.src = DEFAULT_USER_AVATAR;
-                        }
+            <form onSubmit={handleSaveMyProfile} className="space-y-3 text-sm">
+              <div className="flex flex-col md:flex-row items-center gap-4 md:gap-5">
+                {/* Left: Input Fields Grid */}
+                <div className="flex-1 w-full grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block font-extrabold text-sm text-slate-800 dark:text-slate-200 mb-1">
+                      Full Name <span className="text-rose-500 font-bold">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      disabled={!isEditingProfile}
+                      placeholder="Enter your full name"
+                      value={myProfileForm.name}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setMyProfileForm((prev) => ({ ...prev, name: val }));
+                        const res = validateFullName(val, true);
+                        setProfileErrors((prev) => ({ ...prev, name: res.error }));
                       }}
-                      className="w-16 h-16 rounded-2xl object-cover border-2 border-brand-500 shadow-md bg-white dark:bg-slate-800"
+                      className={`w-full px-4 py-2.5 rounded-xl border font-semibold text-sm text-slate-900 dark:text-white focus:ring-2 transition disabled:bg-slate-100/80 dark:disabled:bg-slate-800/60 disabled:text-slate-500 disabled:cursor-not-allowed ${
+                        !isEditingProfile
+                          ? "bg-slate-100/70 dark:bg-slate-800/70 border-slate-200/80 dark:border-slate-700/80"
+                          : profileErrors.name
+                          ? "border-rose-500 focus:border-rose-500 focus:ring-rose-500/20 bg-rose-50/20"
+                          : "bg-slate-50 dark:bg-slate-800/80 border-slate-200 dark:border-slate-700 focus:ring-brand-500/20 focus:border-brand-500"
+                      }`}
                     />
-                    <button
-                      type="button"
-                      onClick={() => avatarFileInputRef.current?.click()}
-                      className="absolute -bottom-1 -right-1 p-1 rounded-xl bg-brand-600 hover:bg-brand-500 text-white shadow-md cursor-pointer transition-transform group-hover:scale-110"
-                      title="Upload New Photo"
-                    >
-                      <Camera className="w-3 h-3" />
-                    </button>
+                    {profileErrors.name && (
+                      <p className="mt-1 text-xs font-bold text-rose-500 flex items-center gap-1">
+                        <span>⚠️</span> {profileErrors.name}
+                      </p>
+                    )}
                   </div>
 
-                  <div className="space-y-1.5 flex-1 w-full">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <input
-                        ref={avatarFileInputRef}
-                        type="file"
-                        accept="image/png, image/jpeg, image/jpg, image/webp"
-                        onChange={handleAvatarFileChange}
-                        className="hidden"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => avatarFileInputRef.current?.click()}
-                        className="px-3.5 py-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 font-bold text-xs shadow-xs flex items-center gap-1.5 cursor-pointer transition"
-                      >
-                        <Upload className="w-3.5 h-3.5 text-brand-600" /> Upload
-                        Profile Image
-                      </button>
-                      {Boolean(myProfileForm.avatar && myProfileForm.avatar !== DEFAULT_USER_AVATAR) && (
+                  <div>
+                    <label className="block font-extrabold text-sm text-slate-800 dark:text-slate-200 mb-1">
+                      Email Address <span className="text-rose-500 font-bold">*</span>
+                    </label>
+                    <input
+                      type="email"
+                      required
+                      disabled={!isEditingProfile}
+                      placeholder="warden@pirnavschools.edu"
+                      value={myProfileForm.email}
+                      onChange={(e) => {
+                        const sanitized = sanitizeEmailInput(e.target.value);
+                        setMyProfileForm((prev) => ({ ...prev, email: sanitized }));
+                        const res = validateEmail(sanitized, true);
+                        setProfileErrors((prev) => ({ ...prev, email: res.error }));
+                      }}
+                      className={`w-full px-4 py-2.5 rounded-xl border font-semibold text-sm text-slate-900 dark:text-white focus:ring-2 transition disabled:bg-slate-100/80 dark:disabled:bg-slate-800/60 disabled:text-slate-500 disabled:cursor-not-allowed ${
+                        !isEditingProfile
+                          ? "bg-slate-100/70 dark:bg-slate-800/70 border-slate-200/80 dark:border-slate-700/80"
+                          : profileErrors.email
+                          ? "border-rose-500 focus:border-rose-500 focus:ring-rose-500/20 bg-rose-50/20"
+                          : "bg-slate-50 dark:bg-slate-800/80 border-slate-200 dark:border-slate-700 focus:ring-brand-500/20 focus:border-brand-500"
+                      }`}
+                    />
+                    {profileErrors.email && (
+                      <p className="mt-1 text-xs font-bold text-rose-500 flex items-center gap-1">
+                        <span>⚠️</span> {profileErrors.email}
+                      </p>
+                    )}
+                  </div>
+
+                  <div>
+                    <label className="block font-extrabold text-sm text-slate-800 dark:text-slate-200 mb-1 whitespace-nowrap">
+                      Contact Number
+                    </label>
+                    <input
+                      type="tel"
+                      disabled={!isEditingProfile}
+                      maxLength={10}
+                      placeholder="9876543210"
+                      value={myProfileForm.phone}
+                      onChange={(e) => {
+                        const cleaned = sanitizePhoneInput(e.target.value);
+                        setMyProfileForm((prev) => ({ ...prev, phone: cleaned }));
+                        const res = validatePhoneNumber(cleaned, false);
+                        setProfileErrors((prev) => ({ ...prev, phone: cleaned ? res.error : undefined }));
+                      }}
+                      className={`w-full px-4 py-2.5 rounded-xl border font-semibold text-sm text-slate-900 dark:text-white focus:ring-2 transition disabled:bg-slate-100/80 dark:disabled:bg-slate-800/60 disabled:text-slate-500 disabled:cursor-not-allowed ${
+                        !isEditingProfile
+                          ? "bg-slate-100/70 dark:bg-slate-800/70 border-slate-200/80 dark:border-slate-700/80"
+                          : profileErrors.phone
+                          ? "border-rose-500 focus:border-rose-500 focus:ring-rose-500/20 bg-rose-50/20"
+                          : "bg-slate-50 dark:bg-slate-800/80 border-slate-200 dark:border-slate-700 focus:ring-brand-500/20 focus:border-brand-500"
+                      }`}
+                    />
+                    {profileErrors.phone && (
+                      <p className="mt-1 text-xs font-bold text-rose-500 flex items-center gap-1">
+                        <span>⚠️</span> {profileErrors.phone}
+                      </p>
+                    )}
+                  </div>
+
+                  <div>
+                    <label className="block font-extrabold text-sm text-slate-800 dark:text-slate-200 mb-1 whitespace-nowrap">
+                      Assigned Campus
+                    </label>
+                    <select
+                      disabled={!isEditingProfile}
+                      value={myProfileForm.branch}
+                      onChange={(e) =>
+                        setMyProfileForm({
+                          ...myProfileForm,
+                          branch: e.target.value,
+                        })
+                      }
+                      className={`w-full px-4 py-2.5 rounded-xl border font-semibold text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition disabled:bg-slate-100/80 dark:disabled:bg-slate-800/60 disabled:text-slate-500 disabled:cursor-not-allowed ${
+                        !isEditingProfile
+                          ? "bg-slate-100/70 dark:bg-slate-800/70 border-slate-200/80 dark:border-slate-700/80"
+                          : "bg-slate-50 dark:bg-slate-800/80 border-slate-200 dark:border-slate-700 cursor-pointer"
+                      }`}
+                    >
+                      <option value="">Select Campus</option>
+                      {configuredBranches.map((bName: string) => (
+                        <option key={bName} value={bName}>
+                          {bName}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                {/* Right: Profile Photo Uploader directly next to fields */}
+                <div className="shrink-0 flex flex-col items-center justify-center space-y-1 self-center pt-2 md:pt-0">
+                  <input
+                    ref={avatarFileInputRef}
+                    type="file"
+                    accept="image/png, image/jpeg, image/jpg, image/webp"
+                    onChange={handleAvatarFileChange}
+                    className="hidden"
+                  />
+
+                  <div className="relative shrink-0">
+                    {Boolean(myProfileForm.avatar && myProfileForm.avatar !== DEFAULT_USER_AVATAR) ? (
+                      <div className="relative">
+                        <img
+                          src={resolveMediaUrl(myProfileForm.avatar) || DEFAULT_USER_AVATAR}
+                          alt="Profile Avatar"
+                          onError={(e) => {
+                            const target = e.target as HTMLImageElement;
+                            if (target.src !== DEFAULT_USER_AVATAR) {
+                              target.src = DEFAULT_USER_AVATAR;
+                            }
+                          }}
+                          className="w-20 h-20 rounded-2xl object-cover ring-2 ring-brand-500/20 shadow-xs bg-white dark:bg-slate-800"
+                        />
                         <button
                           type="button"
+                          disabled={!isEditingProfile}
                           onClick={() =>
                             setMyProfileForm((prev) => ({
                               ...prev,
                               avatar: "",
                             }))
                           }
-                          className="px-3 py-2 rounded-xl bg-rose-50 dark:bg-rose-950/40 text-rose-600 hover:bg-rose-100 dark:hover:bg-rose-900/60 font-bold text-xs transition cursor-pointer"
+                          className="absolute -top-1.5 -right-1.5 p-1 rounded-full bg-rose-50 dark:bg-rose-950 text-rose-600 dark:text-rose-400 hover:bg-rose-100 dark:hover:bg-rose-900 border border-rose-200 dark:border-rose-800 transition cursor-pointer shadow-xs disabled:opacity-40 disabled:cursor-not-allowed disabled:pointer-events-none"
+                          title="Delete Photo"
                         >
-                          Remove Photo
+                          <Trash2 className="w-3.5 h-3.5" />
                         </button>
-                      )}
-                    </div>
-                    <p className="text-[11px] text-slate-400 font-medium">
-                      Supports JPG, PNG, WEBP files up to 3MB. Click upload or
-                      change button.
-                    </p>
+                      </div>
+                    ) : (
+                      <div className="w-20 h-20 rounded-2xl bg-slate-100 dark:bg-slate-800 ring-2 ring-slate-100/50 dark:ring-slate-800/50 flex flex-col items-center justify-center text-slate-400 dark:text-slate-500 border border-slate-200/60 dark:border-slate-700/60">
+                        <UserIcon className="w-9 h-9" />
+                      </div>
+                    )}
                   </div>
+
+                  <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 tracking-tight text-center">
+                    Max size: 3MB
+                  </span>
+
+                  {!Boolean(myProfileForm.avatar && myProfileForm.avatar !== DEFAULT_USER_AVATAR) ? (
+                    <button
+                      type="button"
+                      disabled={!isEditingProfile}
+                      onClick={() => avatarFileInputRef.current?.click()}
+                      className="w-20 py-1.5 rounded-xl bg-brand-600 hover:bg-brand-500 text-white text-[11px] font-extrabold cursor-pointer flex items-center justify-center gap-1 shadow-xs transition-all shrink-0 disabled:opacity-40 disabled:cursor-not-allowed disabled:pointer-events-none"
+                    >
+                      <Camera className="w-3.5 h-3.5" /> Upload
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      disabled={!isEditingProfile}
+                      onClick={() => avatarFileInputRef.current?.click()}
+                      className="w-20 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-[10px] font-bold cursor-pointer flex items-center justify-center gap-1 transition-all shrink-0 disabled:opacity-40 disabled:cursor-not-allowed disabled:pointer-events-none"
+                    >
+                      <Camera className="w-3.5 h-3.5" /> Change
+                    </button>
+                  )}
                 </div>
               </div>
 
-              {/* Input Fields Grid */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label className="block font-extrabold text-slate-700 dark:text-slate-300 mb-1">
-                    Full Name <span className="text-rose-500 font-bold">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="Enter your full name"
-                    value={myProfileForm.name}
-                    onChange={(e) =>
-                      setMyProfileForm({
-                        ...myProfileForm,
-                        name: e.target.value,
-                      })
-                    }
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 font-semibold text-slate-900 dark:text-white focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition"
-                  />
-                </div>
 
-                <div>
-                  <label className="block font-extrabold text-slate-700 dark:text-slate-300 mb-1">
-                    Email Address{" "}
-                    <span className="text-rose-500 font-bold">*</span>
-                  </label>
-                  <input
-                    type="email"
-                    required
-                    placeholder="warden@pirnavschools.edu"
-                    value={myProfileForm.email}
-                    onChange={(e) =>
-                      setMyProfileForm({
-                        ...myProfileForm,
-                        email: e.target.value,
-                      })
-                    }
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 font-semibold text-slate-900 dark:text-white focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition"
-                  />
-                </div>
-
-                <div>
-                  <label className="block font-extrabold text-slate-700 dark:text-slate-300 mb-1">
-                    Contact Phone Number
-                  </label>
-                  <input
-                    type="tel"
-                    placeholder="+91 9876543210"
-                    value={myProfileForm.phone}
-                    onChange={(e) =>
-                      setMyProfileForm({
-                        ...myProfileForm,
-                        phone: e.target.value,
-                      })
-                    }
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 font-semibold text-slate-900 dark:text-white focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition"
-                  />
-                </div>
-
-                <div>
-                  <label className="block font-extrabold text-slate-700 dark:text-slate-300 mb-1">
-                    Campus / Branch Assignment
-                  </label>
-                  <select
-                    value={myProfileForm.branch}
-                    onChange={(e) =>
-                      setMyProfileForm({
-                        ...myProfileForm,
-                        branch: e.target.value,
-                      })
-                    }
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 font-semibold text-slate-900 dark:text-white focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition"
-                  >
-                    <option value="Main Campus">Main Campus</option>
-                    <option value="North Branch">North Branch</option>
-                    <option value="West Campus">West Campus</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block font-extrabold text-slate-700 dark:text-slate-300 mb-1">
-                    Assigned Role
-                  </label>
-                  <input
-                    type="text"
-                    disabled
-                    value={myProfileForm.role}
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-extrabold text-slate-500 cursor-not-allowed"
-                  />
-                </div>
-
-                <div>
-                  <label className="block font-extrabold text-slate-700 dark:text-slate-300 mb-1">
-                    Account Status
-                  </label>
-                  <div className="px-3.5 py-2.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300 font-bold flex items-center gap-1.5">
-                    <span className="w-2 h-2 rounded-full bg-emerald-500" />{" "}
-                    Active Account
-                  </div>
-                </div>
-              </div>
 
               {/* Submit Button */}
-              <div className="pt-3 flex justify-end">
-                <button
-                  type="submit"
-                  disabled={isSavingProfile}
-                  className="px-6 py-2.5 rounded-2xl bg-brand-600 hover:bg-brand-500 text-white font-extrabold text-xs shadow-md shadow-brand-500/20 flex items-center gap-2 transition-all cursor-pointer active:scale-95 disabled:opacity-50"
-                >
-                  <Save className="w-4 h-4" /> {isSavingProfile ? "Saving..." : "Save Basic Details"}
-                </button>
-              </div>
+              {isEditingProfile && (
+                <div className="pt-1 flex justify-end">
+                  <button
+                    type="submit"
+                    disabled={isSavingProfile || isProfileFormInvalid}
+                    className="px-4.5 py-2 rounded-xl bg-brand-600 hover:bg-brand-500 text-white font-extrabold text-xs sm:text-sm shadow-sm flex items-center gap-1.5 transition-all cursor-pointer active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:pointer-events-none"
+                  >
+                    <Save className="w-4 h-4" /> {isSavingProfile ? "Saving..." : "Save"}
+                  </button>
+                </div>
+              )}
             </form>
           </div>
 
           {/* Right Column: Password & Account Security Card */}
           <div className="space-y-6">
-            <div className="glass-card p-6 rounded-3xl space-y-4 border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xs">
-              <div className="flex items-center gap-2.5 border-b border-slate-100 dark:border-slate-800 pb-3">
-                <div className="w-9 h-9 rounded-xl bg-amber-50 dark:bg-amber-950 text-amber-600 flex items-center justify-center border border-amber-100 dark:border-amber-900">
+            <div className="glass-card p-4 sm:p-5 rounded-2xl space-y-3 border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xs">
+              <div className="flex items-center gap-2.5 border-b border-slate-100 dark:border-slate-800 pb-2.5">
+                <div className="w-10 h-10 rounded-xl bg-amber-50 dark:bg-amber-950 text-amber-600 flex items-center justify-center border border-amber-100 dark:border-amber-900">
                   <Key className="w-5 h-5" />
                 </div>
                 <div>
-                  <h3 className="font-extrabold text-sm text-slate-900 dark:text-white">
+                  <h3 className="font-extrabold text-base text-slate-900 dark:text-white">
                     Account Security
                   </h3>
-                  <p className="text-[11px] text-slate-400 font-medium">
+                  <p className="text-xs text-slate-500 dark:text-slate-400 font-semibold">
                     Update your login password
                   </p>
                 </div>
@@ -1287,10 +1503,10 @@ export const SettingsView: React.FC = () => {
 
               <form
                 onSubmit={handleUpdatePassword}
-                className="space-y-3.5 text-xs"
+                className="space-y-3 text-sm"
               >
                 <div>
-                  <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
+                  <label className="block font-extrabold text-sm text-slate-800 dark:text-slate-200 mb-1">
                     Current Password
                   </label>
                   <input
@@ -1304,12 +1520,12 @@ export const SettingsView: React.FC = () => {
                         currentPassword: e.target.value,
                       })
                     }
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-mono text-xs text-slate-900 dark:text-white"
+                    className="w-full px-4 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-mono text-sm text-slate-900 dark:text-white"
                   />
                 </div>
 
                 <div>
-                  <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
+                  <label className="block font-extrabold text-sm text-slate-800 dark:text-slate-200 mb-1">
                     New Password
                   </label>
                   <input
@@ -1320,12 +1536,12 @@ export const SettingsView: React.FC = () => {
                     onChange={(e) =>
                       setPassForm({ ...passForm, newPassword: e.target.value })
                     }
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-mono text-xs text-slate-900 dark:text-white"
+                    className="w-full px-4 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-mono text-sm text-slate-900 dark:text-white"
                   />
                 </div>
 
                 <div>
-                  <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
+                  <label className="block font-extrabold text-sm text-slate-800 dark:text-slate-200 mb-1">
                     Confirm New Password
                   </label>
                   <input
@@ -1339,15 +1555,15 @@ export const SettingsView: React.FC = () => {
                         confirmPassword: e.target.value,
                       })
                     }
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-mono text-xs text-slate-900 dark:text-white"
+                    className="w-full px-4 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-mono text-sm text-slate-900 dark:text-white"
                   />
                 </div>
 
                 <button
                   type="submit"
-                  className="w-full py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 dark:bg-slate-700 dark:hover:bg-slate-600 text-white font-extrabold text-xs shadow-xs flex items-center justify-center gap-1.5 transition cursor-pointer active:scale-95"
+                  className="w-full py-3 rounded-xl bg-slate-900 hover:bg-slate-800 dark:bg-slate-700 dark:hover:bg-slate-600 text-white font-extrabold text-sm shadow-xs flex items-center justify-center gap-1.5 transition cursor-pointer active:scale-95"
                 >
-                  <Lock className="w-3.5 h-3.5" /> Update Password
+                  <Lock className="w-4 h-4" /> Update Password
                 </button>
               </form>
             </div>
@@ -1370,12 +1586,26 @@ export const SettingsView: React.FC = () => {
               <input
                 type="text"
                 required
+                maxLength={80}
+                placeholder="e.g. Pirnav Educational Institutions"
                 value={profileForm.name}
-                onChange={(e) =>
-                  setProfileForm({ ...profileForm, name: e.target.value })
-                }
-                className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border"
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setProfileForm({ ...profileForm, name: val });
+                  const res = validateFullName(val, true);
+                  setSchoolProfileErrors((prev) => ({ ...prev, name: val ? res.error : undefined }));
+                }}
+                className={`w-full px-3 py-2 rounded-xl border transition ${
+                  schoolProfileErrors.name
+                    ? "border-rose-500 focus:border-rose-500 focus:ring-rose-500/20 bg-rose-50/20"
+                    : "bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700"
+                }`}
               />
+              {schoolProfileErrors.name && (
+                <p className="mt-1 text-xs font-bold text-rose-500 flex items-center gap-1">
+                  <span>⚠️</span> {schoolProfileErrors.name}
+                </p>
+              )}
             </div>
             <div>
               <label className="block font-semibold mb-1">
@@ -1383,6 +1613,8 @@ export const SettingsView: React.FC = () => {
               </label>
               <input
                 type="text"
+                maxLength={100}
+                placeholder="e.g. Empowering Excellence"
                 value={profileForm.tagline}
                 onChange={(e) =>
                   setProfileForm({ ...profileForm, tagline: e.target.value })
@@ -1391,9 +1623,15 @@ export const SettingsView: React.FC = () => {
               />
             </div>
             <div>
-              <label className="block font-semibold mb-1">Full Address</label>
+              <label className="block font-semibold mb-1">
+                Full Address{" "}
+                <span className="text-rose-500 font-bold ml-0.5">*</span>
+              </label>
               <textarea
+                required
                 rows={2}
+                maxLength={250}
+                placeholder="Full street address..."
                 value={profileForm.address}
                 onChange={(e) =>
                   setProfileForm({ ...profileForm, address: e.target.value })
@@ -1404,29 +1642,49 @@ export const SettingsView: React.FC = () => {
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="block font-semibold mb-1">
-                  Contact Phone
+                  Contact Phone{" "}
+                  <span className="text-rose-500 font-bold ml-0.5">*</span>
                 </label>
                 <input
                   type="text"
+                  required
+                  maxLength={10}
+                  placeholder="9876543210"
                   value={profileForm.phone}
                   onChange={(e) =>
-                    setProfileForm({ ...profileForm, phone: e.target.value })
+                    setProfileForm({ ...profileForm, phone: sanitizePhoneInput(e.target.value) })
                   }
                   className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border"
                 />
               </div>
               <div>
                 <label className="block font-semibold mb-1">
-                  Contact Email
+                  Contact Email{" "}
+                  <span className="text-rose-500 font-bold ml-0.5">*</span>
                 </label>
                 <input
                   type="email"
+                  required
+                  maxLength={60}
+                  placeholder="contact@school.edu"
                   value={profileForm.email}
-                  onChange={(e) =>
-                    setProfileForm({ ...profileForm, email: e.target.value })
-                  }
-                  className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border"
+                  onChange={(e) => {
+                    const sanitized = sanitizeEmailInput(e.target.value);
+                    setProfileForm({ ...profileForm, email: sanitized });
+                    const res = validateEmail(sanitized, true);
+                    setSchoolProfileErrors((prev) => ({ ...prev, email: sanitized ? res.error : undefined }));
+                  }}
+                  className={`w-full px-3 py-2 rounded-xl border transition ${
+                    schoolProfileErrors.email
+                      ? "border-rose-500 focus:border-rose-500 focus:ring-rose-500/20 bg-rose-50/20"
+                      : "bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700"
+                  }`}
                 />
+                {schoolProfileErrors.email && (
+                  <p className="mt-1 text-xs font-bold text-rose-500 flex items-center gap-1">
+                    <span>⚠️</span> {schoolProfileErrors.email}
+                  </p>
+                )}
               </div>
             </div>
             <div className="grid grid-cols-2 gap-3">
@@ -1434,6 +1692,8 @@ export const SettingsView: React.FC = () => {
                 <label className="block font-semibold mb-1">Website URL</label>
                 <input
                   type="text"
+                  maxLength={100}
+                  placeholder="https://school.edu"
                   value={profileForm.website}
                   onChange={(e) =>
                     setProfileForm({ ...profileForm, website: e.target.value })
@@ -1443,19 +1703,35 @@ export const SettingsView: React.FC = () => {
               </div>
               <div>
                 <label className="block font-semibold mb-1">
-                  Principal Name
+                  Principal Name{" "}
+                  <span className="text-rose-500 font-bold ml-0.5">*</span>
                 </label>
                 <input
                   type="text"
+                  required
+                  maxLength={60}
+                  placeholder="e.g. Dr. Eleanor Vance"
                   value={profileForm.principalName}
-                  onChange={(e) =>
+                  onChange={(e) => {
+                    const val = e.target.value;
                     setProfileForm({
                       ...profileForm,
-                      principalName: e.target.value,
-                    })
-                  }
-                  className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border"
+                      principalName: val,
+                    });
+                    const res = validateFullName(val, true);
+                    setSchoolProfileErrors((prev) => ({ ...prev, principalName: val ? res.error : undefined }));
+                  }}
+                  className={`w-full px-3 py-2 rounded-xl border transition ${
+                    schoolProfileErrors.principalName
+                      ? "border-rose-500 focus:border-rose-500 focus:ring-rose-500/20 bg-rose-50/20"
+                      : "bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700"
+                  }`}
                 />
+                {schoolProfileErrors.principalName && (
+                  <p className="mt-1 text-xs font-bold text-rose-500 flex items-center gap-1">
+                    <span>⚠️</span> {schoolProfileErrors.principalName}
+                  </p>
+                )}
               </div>
             </div>
             {/* Timings & Educational Board Settings */}
@@ -2454,13 +2730,26 @@ export const SettingsView: React.FC = () => {
                 <input
                   type="text"
                   required
+                  maxLength={50}
                   placeholder="e.g. North Branch"
                   value={campusForm.name}
-                  onChange={(e) =>
-                    setCampusForm({ ...campusForm, name: e.target.value })
-                  }
-                  className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border"
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setCampusForm({ ...campusForm, name: val });
+                    const res = validateCampusName(val, true);
+                    setCampusErrors((prev) => ({ ...prev, name: val ? res.error : undefined }));
+                  }}
+                  className={`w-full px-3 py-2 rounded-xl border transition ${
+                    campusErrors.name
+                      ? "border-rose-500 focus:border-rose-500 focus:ring-rose-500/20 bg-rose-50/20"
+                      : "bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700"
+                  }`}
                 />
+                {campusErrors.name && (
+                  <p className="mt-1 text-xs font-bold text-rose-500 flex items-center gap-1">
+                    <span>⚠️</span> {campusErrors.name}
+                  </p>
+                )}
               </div>
 
               <div>
@@ -2471,16 +2760,29 @@ export const SettingsView: React.FC = () => {
                 <input
                   type="text"
                   required
+                  maxLength={10}
                   placeholder="e.g. NORTH"
                   value={campusForm.code}
-                  onChange={(e) =>
+                  onChange={(e) => {
+                    const val = e.target.value.toUpperCase();
                     setCampusForm({
                       ...campusForm,
-                      code: e.target.value.toUpperCase(),
-                    })
-                  }
-                  className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-mono font-bold"
+                      code: val,
+                    });
+                    const res = validateCampusCode(val, true);
+                    setCampusErrors((prev) => ({ ...prev, code: val ? res.error : undefined }));
+                  }}
+                  className={`w-full px-3 py-2 rounded-xl border font-mono font-bold transition ${
+                    campusErrors.code
+                      ? "border-rose-500 focus:border-rose-500 focus:ring-rose-500/20 bg-rose-50/20"
+                      : "bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700"
+                  }`}
                 />
+                {campusErrors.code && (
+                  <p className="mt-1 text-xs font-bold text-rose-500 flex items-center gap-1">
+                    <span>⚠️</span> {campusErrors.code}
+                  </p>
+                )}
               </div>
 
               <div>
@@ -2489,6 +2791,7 @@ export const SettingsView: React.FC = () => {
                 </label>
                 <input
                   type="text"
+                  maxLength={150}
                   placeholder="Full street address..."
                   value={campusForm.address}
                   onChange={(e) =>
@@ -2505,13 +2808,23 @@ export const SettingsView: React.FC = () => {
                   </label>
                   <input
                     type="text"
-                    placeholder="+1 555-..."
+                    maxLength={10}
+                    placeholder="9876543210"
                     value={campusForm.phone}
-                    onChange={(e) =>
-                      setCampusForm({ ...campusForm, phone: e.target.value })
-                    }
-                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border"
+                    onChange={(e) => {
+                      const val = sanitizePhoneInput(e.target.value);
+                      setCampusForm({ ...campusForm, phone: val });
+                      if (campusErrors.phone) setCampusErrors((prev) => ({ ...prev, phone: undefined }));
+                    }}
+                    className={`w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border ${
+                      campusErrors.phone ? "border-rose-500 focus:ring-rose-500" : ""
+                    }`}
                   />
+                  {campusErrors.phone && (
+                    <p className="text-xs text-rose-500 mt-1 font-semibold flex items-center gap-1">
+                      <span>⚠️</span> {campusErrors.phone}
+                    </p>
+                  )}
                 </div>
                 <div>
                   <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
@@ -2521,35 +2834,56 @@ export const SettingsView: React.FC = () => {
                     type="email"
                     placeholder="campus@domain.com"
                     value={campusForm.email}
-                    onChange={(e) =>
-                      setCampusForm({ ...campusForm, email: e.target.value })
-                    }
-                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border"
+                    onChange={(e) => {
+                      const sanitized = sanitizeEmailInput(e.target.value);
+                      setCampusForm({ ...campusForm, email: sanitized });
+                      const res = validateEmail(sanitized, false);
+                      setCampusErrors((prev) => ({ ...prev, email: res.error }));
+                    }}
+                    className={`w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border ${
+                      campusErrors.email ? "border-rose-500 focus:ring-rose-500" : ""
+                    }`}
                   />
+                  {campusErrors.email && (
+                    <p className="text-xs text-rose-500 mt-1 font-semibold flex items-center gap-1">
+                      <span>⚠️</span> {campusErrors.email}
+                    </p>
+                  )}
                 </div>
               </div>
 
               <div>
                 <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
-                  Initial Status
+                  Initial Status <span className="text-rose-500 font-bold ml-0.5">*</span>
                 </label>
                 <select
+                  required
                   value={campusForm.status}
-                  onChange={(e) =>
+                  onChange={(e) => {
+                    const val = e.target.value as "Active" | "Inactive" | "";
                     setCampusForm({
                       ...campusForm,
-                      status: e.target.value as "Active" | "Inactive",
-                    })
-                  }
-                  className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold"
+                      status: val,
+                    });
+                    if (val) {
+                      setCampusErrors((prev) => ({ ...prev, status: undefined }));
+                    }
+                  }}
+                  className={`w-full px-3 py-2 rounded-xl border font-bold transition ${
+                    campusErrors.status
+                      ? "border-rose-500 focus:border-rose-500 focus:ring-rose-500/20 bg-rose-50/20 text-rose-600"
+                      : "bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white"
+                  }`}
                 >
-                  <option value="Active">
-                    Active (Displays in Header Selector)
-                  </option>
-                  <option value="Inactive">
-                    Inactive (Hidden from Header Selector)
-                  </option>
+                  <option value="" disabled>Select Status</option>
+                  <option value="Active">Active</option>
+                  <option value="Inactive">Inactive</option>
                 </select>
+                {campusErrors.status && (
+                  <p className="mt-1 text-xs font-bold text-rose-500 flex items-center gap-1">
+                    <span>⚠️</span> {campusErrors.status}
+                  </p>
+                )}
               </div>
 
               <div className="flex justify-end gap-2 pt-3 border-t border-slate-100 dark:border-slate-800">
@@ -2599,11 +2933,19 @@ export const SettingsView: React.FC = () => {
                   required
                   placeholder="e.g. 2026–27 or 2026-2027"
                   value={ayForm.academicYear}
-                  onChange={(e) =>
-                    setAyForm({ ...ayForm, academicYear: e.target.value })
-                  }
-                  className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-mono font-bold"
+                  onChange={(e) => {
+                    setAyForm({ ...ayForm, academicYear: e.target.value });
+                    if (ayErrors.academicYear) setAyErrors((prev) => ({ ...prev, academicYear: undefined }));
+                  }}
+                  className={`w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-mono font-bold ${
+                    ayErrors.academicYear ? "border-rose-500 focus:ring-rose-500" : ""
+                  }`}
                 />
+                {ayErrors.academicYear && (
+                  <p className="text-xs text-rose-500 mt-1 font-semibold flex items-center gap-1">
+                    <span>⚠️</span> {ayErrors.academicYear}
+                  </p>
+                )}
               </div>
 
               <div className="grid grid-cols-2 gap-3">
@@ -2641,19 +2983,32 @@ export const SettingsView: React.FC = () => {
 
               <div>
                 <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
-                  Session Status
+                  Session Status <span className="text-rose-500 font-bold ml-0.5">*</span>
                 </label>
                 <select
+                  required
                   value={ayForm.status}
-                  onChange={(e) =>
-                    setAyForm({ ...ayForm, status: e.target.value as any })
-                  }
-                  className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold cursor-pointer"
+                  onChange={(e) => {
+                    const val = e.target.value as "Active" | "Closed" | "Upcoming" | "";
+                    setAyForm({ ...ayForm, status: val });
+                    if (ayErrors.status) setAyErrors((prev) => ({ ...prev, status: undefined }));
+                  }}
+                  className={`w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold cursor-pointer ${
+                    ayErrors.status ? "border-rose-500 focus:ring-rose-500" : ""
+                  }`}
                 >
+                  <option value="" disabled hidden>
+                    Select Session Status
+                  </option>
                   <option value="Active">Active Session</option>
                   <option value="Upcoming">Upcoming Session</option>
                   <option value="Closed">Closed Session</option>
                 </select>
+                {ayErrors.status && (
+                  <p className="text-xs text-rose-500 mt-1 font-semibold flex items-center gap-1">
+                    <span>⚠️</span> {ayErrors.status}
+                  </p>
+                )}
               </div>
 
               <div>

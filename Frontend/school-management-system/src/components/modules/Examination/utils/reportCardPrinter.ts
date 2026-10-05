@@ -1,11 +1,13 @@
-import { ProcessedResult, ExamSetup, SubjectItem } from '../../../../types';
+import { ProcessedResult, ExamSetup, SubjectItem, GradeConfig } from '../../../../types';
 import { resolveMediaUrl } from '../../../../utils/mediaUtils';
+import { calculateGrade } from './resultCalculation';
 
 export function generateReportCardHtml(
   data: ProcessedResult,
   exam: ExamSetup | null,
   schoolProfile: any = {},
-  subjects: SubjectItem[] = []
+  subjects: SubjectItem[] = [],
+  gradeRules?: GradeConfig[]
 ): string {
   const schoolName = schoolProfile?.name || 'Central School ERP';
   const schoolAddress = schoolProfile?.address || 'Institutional Campus, Main Road';
@@ -13,11 +15,30 @@ export function generateReportCardHtml(
   const examName = exam?.name || 'Term Assessment Examination';
   const academicYear = exam?.academicYear || '2026-2027';
 
-  const subjectRows = (data.subjectMarks || []).map((sub: any) => {
+  const rawSubjects = (data.subjectMarks || []) as any[];
+  const subMap = new Map<string, any>();
+  rawSubjects.forEach((sub: any) => {
+    const sName = (sub.subject || sub.subjectName || sub.name || '').trim();
+    if (sName && !subMap.has(sName)) {
+      subMap.set(sName, sub);
+    }
+  });
+  const cleanSubjects = Array.from(subMap.values());
+
+  const examType = exam?.examType || (exam as any)?.assessmentType || '';
+
+  const subjectRows = cleanSubjects.map((sub: any) => {
     const match = subjects.find(s => s.name === sub.subject || s.code === sub.subject || s.id === sub.subject);
     const subCode = match?.code || `${sub.subject.substring(0, 3).toUpperCase()}-101`;
     const isPass = sub.isPass !== false;
-    const isAbsent = sub.obtainedMarks === 'AB' || (sub.obtainedMarks === '0' && sub.isAbsent);
+    const rawObtained = sub.obtainedMarks;
+    const isAbsent = rawObtained === 'AB' || (rawObtained === '0' && sub.isAbsent) || String(rawObtained).toLowerCase() === 'absent';
+    const numObtained = typeof rawObtained === 'number' ? rawObtained : (parseFloat(String(rawObtained || 0)) || 0);
+    const maxMarks = Number(sub.maxMarks || 100) || 100;
+    const pct = maxMarks > 0 ? (numObtained / maxMarks) * 100 : 0;
+    const dynGrade = (sub.grade && sub.grade !== '-' && sub.grade !== '—' && sub.grade !== '')
+      ? sub.grade
+      : (isAbsent ? '-' : calculateGrade(pct, gradeRules, 'Percentage', examType));
 
     return `
       <tr style="border-bottom: 1px solid #e2e8f0;">
@@ -25,11 +46,11 @@ export function generateReportCardHtml(
           ${sub.subject}
           <span style="display: block; font-size: 9.5px; color: #64748b; font-family: monospace;">${subCode}</span>
         </td>
-        <td style="padding: 7px 12px; text-align: center; font-family: monospace; font-weight: 700; color: #475569;">${sub.maxMarks || 100}</td>
+        <td style="padding: 7px 12px; text-align: center; font-family: monospace; font-weight: 700; color: #475569;">${maxMarks}</td>
         <td style="padding: 7px 12px; text-align: center; font-family: monospace; font-weight: 800; color: ${isAbsent ? '#ef4444' : '#0f172a'};">
           ${sub.obtainedMarks}
         </td>
-        <td style="padding: 7px 12px; text-align: center; font-weight: 800; color: #4f46e5;">${sub.grade || '—'}</td>
+        <td style="padding: 7px 12px; text-align: center; font-weight: 800; color: #4f46e5;">${dynGrade || '—'}</td>
         <td style="padding: 7px 12px; text-align: center;">
           <span style="display: inline-block; padding: 2px 8px; border-radius: 9999px; font-size: 9.5px; font-weight: 800; text-transform: uppercase; background-color: ${isPass ? '#dcfce7' : '#fee2e2'}; color: ${isPass ? '#166534' : '#991b1b'};">
             ${isAbsent ? 'Absent' : isPass ? 'Pass' : 'Fail'}
@@ -180,9 +201,10 @@ export function printReportCard(
   data: ProcessedResult,
   exam: ExamSetup | null,
   schoolProfile: any = {},
-  subjects: SubjectItem[] = []
+  subjects: SubjectItem[] = [],
+  gradeRules?: GradeConfig[]
 ) {
-  const cardHtml = generateReportCardHtml(data, exam, schoolProfile, subjects);
+  const cardHtml = generateReportCardHtml(data, exam, schoolProfile, subjects, gradeRules);
   const fullHtml = generateFullDocumentHtml(cardHtml);
   const printWindow = window.open('', '_blank', 'width=880,height=950');
   if (printWindow) {
@@ -200,10 +222,11 @@ export function printBulkReportCards(
   resultsList: ProcessedResult[],
   exam: ExamSetup | null,
   schoolProfile: any = {},
-  subjects: SubjectItem[] = []
+  subjects: SubjectItem[] = [],
+  gradeRules?: GradeConfig[]
 ) {
   const allCardsHtml = resultsList
-    .map(r => generateReportCardHtml(r, exam, schoolProfile, subjects))
+    .map(r => generateReportCardHtml(r, exam, schoolProfile, subjects, gradeRules))
     .join('');
   const fullHtml = generateFullDocumentHtml(allCardsHtml);
   const printWindow = window.open('', '_blank', 'width=880,height=950');
@@ -222,9 +245,10 @@ export function downloadReportCardPdf(
   data: ProcessedResult,
   exam: ExamSetup | null,
   schoolProfile: any = {},
-  subjects: SubjectItem[] = []
+  subjects: SubjectItem[] = [],
+  gradeRules?: GradeConfig[]
 ) {
-  const cardHtml = generateReportCardHtml(data, exam, schoolProfile, subjects);
+  const cardHtml = generateReportCardHtml(data, exam, schoolProfile, subjects, gradeRules);
   const fullHtml = generateFullDocumentHtml(cardHtml);
   const blob = new Blob([fullHtml], { type: 'text/html;charset=utf-8' });
   const url = URL.createObjectURL(blob);
