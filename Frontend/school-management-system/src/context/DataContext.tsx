@@ -15,7 +15,7 @@ import {
   fetchStudentAttendanceAllApi,
   saveBulkStudentAttendanceApi,
 } from "../api/attendance";
-import { fetchReportCardsApi, publishExamResultsApi, saveMarksEntryDraftApi, submitMarksEntryApi } from "../api/examination";
+import { fetchGradingScaleRulesApi, fetchReportCardsApi, publishExamResultsApi, saveMarksEntryDraftApi, submitMarksEntryApi } from "../api/examination";
 import {
   createAcademicYearApi,
   updateAcademicYearApi,
@@ -1116,6 +1116,7 @@ interface DataContextType {
 
   gradeConfigurations: GradeConfig[];
   saveGradeConfiguration: (grades: GradeConfig[]) => void;
+  fetchGradingScaleRules?: (examType?: string) => Promise<void>;
   studentAttendance: any[];
   saveStudentAttendance: (record: any) => void;
   coScholasticAssessments: any[];
@@ -5354,6 +5355,38 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     return promise;
   }, []);
 
+  const fetchGradingScaleRules = useCallback(async (examType: string = "All") => {
+    try {
+      const res: any = await fetchGradingScaleRulesApi(examType);
+      if (res && res.success && res.data?.scaleRules && Array.isArray(res.data.scaleRules) && res.data.scaleRules.length > 0) {
+        const mapped: GradeConfig[] = res.data.scaleRules.map((r: any, idx: number) => ({
+          id: r.ruleId ? `GRD-${r.ruleId}` : `GRD-${idx + 1}`,
+          academicYear: "",
+          branch: "",
+          examType: res.data.examType || examType,
+          schemeName: res.data.examType || examType || "Default Scholastic",
+          gradingType: "Percentage" as const,
+          grade: r.grade || "",
+          gradeName: r.grade || "",
+          minPercent: r.minMarks ?? 0,
+          maxPercent: r.maxMarks ?? 100,
+          minMark: r.minMarks ?? 0,
+          maxMark: r.maxMarks ?? 100,
+          gradePoint: r.gpa ?? 0,
+          gradePoints: r.gpa ?? 0,
+          passCriteria: r.passFail || "Pass",
+          remarks: r.remarks || ""
+        }));
+        setGradeConfigurations(mapped);
+        try {
+          localStorage.setItem("edu_db_grade_configurations", JSON.stringify(mapped));
+        } catch {}
+      }
+    } catch (err) {
+      console.warn("Failed to fetch grading scale rules in DataContext:", err);
+    }
+  }, []);
+
   const fetchUniformData = async () => {
     if (activeRequests.current["uniform-data"]) {
       return activeRequests.current["uniform-data"];
@@ -6208,6 +6241,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       fetchMeetingsData();
       fetchHomeworkData();
       fetchStudentAttendanceData();
+      fetchGradingScaleRules();
 
       // Always fetch students (handles ward lookup for parents)
       fetchStudents();
@@ -22091,6 +22125,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         deleteDesignation,
         gradeConfigurations,
         saveGradeConfiguration,
+        fetchGradingScaleRules,
         processedResults,
         saveProcessedResults,
         updateResultStatus,
