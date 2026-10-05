@@ -246,7 +246,7 @@ public class PayrollProcessingController : ControllerBase
             EmployeeId = p.EmployeeId,
             EmpId = !string.IsNullOrEmpty(p.EmpId) ? p.EmpId : p.EmployeeId,
             EmployeeName = p.EmployeeName,
-            Branch = p.Branch ?? "Main Campus",
+            Branch = p.Branch ?? "",
             Department = p.Department,
             Designation = p.Designation,
             EmployeeCategory = p.EmployeeCategory ?? "Teaching Staff",
@@ -354,6 +354,7 @@ public class PayrollProcessingController : ControllerBase
             .Include(s => s.Items)
             .AsNoTracking()
             .ToListAsync();
+
         return Ok(new { success = true, data = list.Select(MapStructureToDto).ToList() });
     }
 
@@ -572,7 +573,7 @@ public class PayrollProcessingController : ControllerBase
             EmployeeName = a.Staff != null ? $"{a.Staff.FirstName} {a.Staff.LastName}" : "N/A",
             EmpId = a.Staff?.EmployeeId ?? "N/A",
             EmployeeCategory = a.Staff?.EmployeeCategory ?? "Teacher",
-            Branch = a.Staff?.BranchName ?? "Main Campus",
+            Branch = a.Staff?.BranchName ?? "",
             Department = a.Staff?.Department ?? "General",
             SalaryStructureId = a.StructureId.ToString(),
             SalaryStructureName = a.Structure?.StructureName ?? "Unassigned",
@@ -602,19 +603,68 @@ public class PayrollProcessingController : ControllerBase
         {
             staff = await _context.Staff.FindAsync(parsedStaffId);
         }
+        if (staff == null && !string.IsNullOrEmpty(dto.EmpId))
+        {
+            staff = await _context.Staff.FirstOrDefaultAsync(s => s.EmployeeId == dto.EmpId);
+        }
         if (staff == null && !string.IsNullOrEmpty(dto.EmployeeId))
         {
             staff = await _context.Staff.FirstOrDefaultAsync(s => s.EmployeeId == dto.EmployeeId);
         }
+        if (staff == null && !string.IsNullOrEmpty(dto.EmployeeId))
+        {
+            var matchDigits = System.Text.RegularExpressions.Regex.Match(dto.EmployeeId, @"\d+");
+            if (matchDigits.Success && int.TryParse(matchDigits.Value, out int extractedStaffId))
+            {
+                staff = await _context.Staff.FindAsync(extractedStaffId);
+            }
+        }
+        if (staff == null && !string.IsNullOrEmpty(dto.EmployeeName))
+        {
+            var nameParts = dto.EmployeeName.Trim().Split(' ', 2, StringSplitOptions.RemoveEmptyEntries);
+            if (nameParts.Length > 0)
+            {
+                var fn = nameParts[0];
+                var ln = nameParts.Length > 1 ? nameParts[1] : "";
+                staff = await _context.Staff.FirstOrDefaultAsync(s =>
+                    s.FirstName.ToLower() == fn.ToLower() &&
+                    (string.IsNullOrEmpty(ln) || s.LastName.ToLower() == ln.ToLower()));
+            }
+        }
+
         if (staff == null) return NotFound(new { success = false, message = "Staff member not found." });
 
-        int structureId = int.Parse(dto.SalaryStructureId);
-        var structure = await _context.SalaryStructures
-            .Include(s => s.Items)
-            .FirstOrDefaultAsync(s => s.StructureId == structureId);
-        if (structure == null) return NotFound(new { success = false, message = "Salary structure not found." });
+        SalaryStructure? structure = null;
+        if (int.TryParse(dto.SalaryStructureId, out int parsedStructureId))
+        {
+            structure = await _context.SalaryStructures
+                .Include(s => s.Items)
+                .FirstOrDefaultAsync(s => s.StructureId == parsedStructureId);
+        }
+        if (structure == null && !string.IsNullOrEmpty(dto.SalaryStructureId))
+        {
+            var matchDigits = System.Text.RegularExpressions.Regex.Match(dto.SalaryStructureId, @"\d+");
+            if (matchDigits.Success && int.TryParse(matchDigits.Value, out int numStructId))
+            {
+                structure = await _context.SalaryStructures
+                    .Include(s => s.Items)
+                    .FirstOrDefaultAsync(s => s.StructureId == numStructId);
+            }
+        }
+        if (structure == null && !string.IsNullOrEmpty(dto.SalaryStructureName))
+        {
+            structure = await _context.SalaryStructures
+                .Include(s => s.Items)
+                .FirstOrDefaultAsync(s => s.StructureName.ToLower() == dto.SalaryStructureName.ToLower());
+        }
+
+        if (structure == null)
+        {
+            return NotFound(new { success = false, message = "Salary structure not found in database. Please configure a salary structure first." });
+        }
 
         int staffId = staff.StaffId;
+        int structureId = structure.StructureId;
 
         // Deactivate previous active assignment
         var prevActive = await _context.EmployeeSalaryAssignments
@@ -629,7 +679,7 @@ public class PayrollProcessingController : ControllerBase
         {
             StaffId = staffId,
             StructureId = structureId,
-            Status = dto.Status,
+            Status = dto.Status ?? "Active",
             EffectiveDate = ParseEffectiveDate(dto.EffectiveDate),
             AssignedDate = DateTime.UtcNow.Date,
             Reason = dto.Reason,
@@ -653,7 +703,7 @@ public class PayrollProcessingController : ControllerBase
         staff.SalaryStructureEffectiveDate = assignment.EffectiveDate;
         staff.GrossSalary = gross;
         staff.NetSalary = net;
-        staff.MonthlySalary = gross; // Keep MonthlySalary in sync
+        staff.MonthlySalary = gross;
 
         await _context.SaveChangesAsync();
 
@@ -663,7 +713,34 @@ public class PayrollProcessingController : ControllerBase
         structure.AssignedEmployeesCount = totalActiveForStructure;
         await _context.SaveChangesAsync();
 
-        return Ok(new { success = true, message = "Salary structure assigned successfully." });
+        return Ok(new { 
+            success = true, 
+            message = "Salary structure assigned successfully.",
+            data = new EmployeeSalaryAssignmentDto
+            {
+                Id = assignment.AssignmentId.ToString(),
+                EmployeeId = staff.StaffId.ToString(),
+                EmployeeName = $"{staff.FirstName} {staff.LastName}".Trim(),
+                EmpId = staff.EmployeeId ?? "",
+                EmployeeCategory = staff.EmployeeCategory ?? "Teacher",
+                Branch = staff.BranchName ?? "",
+                Department = staff.Department ?? "General",
+                SalaryStructureId = structure.StructureId.ToString(),
+                SalaryStructureName = structure.StructureName,
+                EffectiveDate = assignment.EffectiveDate.ToString("yyyy-MM-dd"),
+                Status = assignment.Status,
+                MonthlyGross = gross,
+                PreviousGross = 0,
+                AssignedDate = assignment.AssignedDate.ToString("yyyy-MM-dd"),
+                Reason = assignment.Reason,
+                SalaryOverride = assignment.SalaryOverride,
+                OverrideBasicSalary = assignment.OverrideBasicSalary,
+                OverrideAllowances = assignment.OverrideAllowances,
+                OverrideDeductions = assignment.OverrideDeductions,
+                OverrideNetSalary = assignment.OverrideNetSalary,
+                UpdatedAt = assignment.UpdatedAt?.ToString("yyyy-MM-dd HH:mm")
+            }
+        });
     }
 
     private static (decimal basic, decimal allowances, decimal deductions) CalculateBreakdown(SalaryStructure structure)
@@ -966,7 +1043,7 @@ public class PayrollProcessingController : ControllerBase
         string department = !string.IsNullOrEmpty(dto.Department) ? dto.Department : (staff?.Department ?? "General");
         string designation = !string.IsNullOrEmpty(dto.Designation) ? dto.Designation : (staff?.Designation ?? "Staff");
         string employeeCategory = !string.IsNullOrEmpty(dto.EmployeeCategory) ? dto.EmployeeCategory : (staff?.EmployeeCategory ?? "Teaching Staff");
-        string branch = !string.IsNullOrEmpty(dto.Branch) ? dto.Branch : (staff?.BranchName ?? "Main Campus");
+        string branch = !string.IsNullOrEmpty(dto.Branch) ? dto.Branch : (staff?.BranchName ?? "");
 
         decimal basicSalary = dto.BasicSalary ?? 0;
         decimal grossSalary = dto.GrossSalary ?? dto.GrossEarnings ?? 0;

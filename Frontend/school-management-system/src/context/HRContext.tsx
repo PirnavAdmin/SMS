@@ -163,6 +163,13 @@ export const HRProvider: React.FC<{ children: React.ReactNode }> = ({ children }
     }
   }, []);
 
+  useEffect(() => {
+    fetchLeaveTypes();
+    fetchLeaveApplications();
+    fetchSalaryStructures();
+    fetchSalaryAssignments();
+  }, [fetchLeaveTypes, fetchLeaveApplications, fetchSalaryStructures, fetchSalaryAssignments]);
+
   // Leave Types CRUD
   const addLeaveType = async (tData: Omit<LeaveType, "id">) => {
     try {
@@ -249,7 +256,7 @@ export const HRProvider: React.FC<{ children: React.ReactNode }> = ({ children }
     try {
       const response = await createSalaryStructureApi({
         ...structureData,
-        branch: structureData.branch || "Main Campus",
+        branch: structureData.branch || "",
       });
       if (response && (response.success || response.id || response.data)) {
         addToast("success", "Salary Structure Created", "Salary structure configuration saved successfully.");
@@ -311,81 +318,31 @@ export const HRProvider: React.FC<{ children: React.ReactNode }> = ({ children }
   // Assignments
   const assignEmployeeSalaryStructure = async (assignmentData: Omit<EmployeeSalaryAssignment, "id">) => {
     try {
-      const rawId = String(assignmentData.salaryStructureId);
-      const isTempId = rawId.startsWith('struct-') && !/^\d+$/.test(rawId.replace('struct-', ''));
-      const parsedId = parseInt(rawId.replace(/\D/g, ''));
-      const validStructId = !isNaN(parsedId) && parsedId > 0 ? parsedId : rawId;
-
       const payload = {
         employeeId: assignmentData.employeeId,
-        salaryStructureId: validStructId,
+        empId: assignmentData.empId,
+        employeeName: assignmentData.employeeName,
+        salaryStructureId: assignmentData.salaryStructureId,
+        salaryStructureName: assignmentData.salaryStructureName,
         effectiveDate: assignmentData.effectiveDate,
         status: assignmentData.status || 'Active',
         reason: assignmentData.reason,
-        salaryOverride: assignmentData.salaryOverride,
+        salaryOverride: !!assignmentData.salaryOverride,
         overrideBasicSalary: assignmentData.overrideBasicSalary,
         overrideAllowances: assignmentData.overrideAllowances,
         overrideDeductions: assignmentData.overrideDeductions,
         overrideNetSalary: assignmentData.overrideNetSalary,
       };
 
-      if (!isTempId) {
-        const response = await assignSalaryStructureApi(payload);
-        if (response && response.success) {
-          addToast("success", "Salary Structure Assigned", "Employee salary assignment saved successfully.");
-          await fetchSalaryAssignments();
-          return response.data || response;
-        }
-      } else {
-        const newAssignment: EmployeeSalaryAssignment = {
-          id: `asgn-${Date.now()}`,
-          employeeId: assignmentData.employeeId,
-          employeeName: assignmentData.employeeName || '',
-          empId: assignmentData.empId || '',
-          employeeCategory: assignmentData.employeeCategory || 'Staff',
-          branch: assignmentData.branch || 'Main Campus',
-          department: assignmentData.department || '',
-          salaryStructureId: rawId,
-          salaryStructureName: assignmentData.salaryStructureName || '',
-          effectiveDate: assignmentData.effectiveDate,
-          status: assignmentData.status || 'Active',
-          salaryOverride: !!assignmentData.salaryOverride,
-          overrideBasicSalary: assignmentData.overrideBasicSalary,
-          overrideAllowances: assignmentData.overrideAllowances,
-          overrideDeductions: assignmentData.overrideDeductions,
-          overrideNetSalary: assignmentData.overrideNetSalary
-        };
-        setEmployeeSalaryAssignments(prev => [
-          ...prev.filter(a => String(a.employeeId) !== String(assignmentData.employeeId)),
-          newAssignment
-        ]);
-        addToast("success", "Salary Structure Assigned", "Employee salary assignment saved successfully.");
+      const response = await assignSalaryStructureApi(payload);
+      if (response && (response.success || response.data)) {
+        addToast("success", "Salary Structure Assigned", `${assignmentData.employeeName || 'Employee'} is now linked to ${assignmentData.salaryStructureName || 'salary structure'}.`);
+        await fetchSalaryAssignments();
+        return response.data || response;
       }
     } catch (err: any) {
       console.error("Error assigning salary structure:", err);
-      const newAssignment: EmployeeSalaryAssignment = {
-        id: `asgn-${Date.now()}`,
-        employeeId: assignmentData.employeeId,
-        employeeName: assignmentData.employeeName || '',
-        empId: assignmentData.empId || '',
-        employeeCategory: assignmentData.employeeCategory || 'Staff',
-        branch: assignmentData.branch || 'Main Campus',
-        department: assignmentData.department || '',
-        salaryStructureId: String(assignmentData.salaryStructureId),
-        salaryStructureName: assignmentData.salaryStructureName || '',
-        effectiveDate: assignmentData.effectiveDate,
-        status: assignmentData.status || 'Active',
-        salaryOverride: !!assignmentData.salaryOverride,
-        overrideBasicSalary: assignmentData.overrideBasicSalary,
-        overrideAllowances: assignmentData.overrideAllowances,
-        overrideDeductions: assignmentData.overrideDeductions,
-        overrideNetSalary: assignmentData.overrideNetSalary
-      };
-      setEmployeeSalaryAssignments(prev => [
-        ...prev.filter(a => String(a.employeeId) !== String(assignmentData.employeeId)),
-        newAssignment
-      ]);
-      addToast("info", "Assigned (Local)", "Employee salary assignment applied.");
+      addToast("error", "API Error", "Failed to assign salary structure to staff.");
     }
   };
 

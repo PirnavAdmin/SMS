@@ -72,7 +72,10 @@ public class EmployeeSalaryAssignmentDto
 public class EmployeeSalaryAssignmentCreateDto
 {
     public string EmployeeId { get; set; } = string.Empty; // StaffId
+    public string? EmpId { get; set; }
+    public string? EmployeeName { get; set; }
     public string SalaryStructureId { get; set; } = string.Empty; // StructureId
+    public string? SalaryStructureName { get; set; }
     public string EffectiveDate { get; set; } = string.Empty;
     public string Status { get; set; } = "Active";
     public string? Reason { get; set; }

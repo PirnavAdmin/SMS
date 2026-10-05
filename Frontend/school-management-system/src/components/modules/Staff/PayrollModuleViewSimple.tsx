@@ -1602,7 +1602,7 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
             employeeName: empFullName,
             empId: linkedStaffMember.empId,
             employeeCategory: resolveCategory(linkedStaffMember),
-            branch: linkedStaffMember.branch || 'Main Campus',
+            branch: linkedStaffMember.branch || '',
             department: linkedStaffMember.department,
             salaryStructureId: structureEditingId,
             salaryStructureName: payload.structureName,
@@ -1633,7 +1633,7 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
             employeeName: empFullName,
             empId: linkedStaffMember.empId,
             employeeCategory: resolveCategory(linkedStaffMember),
-            branch: linkedStaffMember.branch || 'Main Campus',
+            branch: linkedStaffMember.branch || '',
             department: linkedStaffMember.department,
             salaryStructureId: newStructureId,
             salaryStructureName: payload.structureName,
@@ -1653,7 +1653,7 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
     closeStructureModal();
   };
 
-  const assignSalary = () => {
+  const assignSalary = async () => {
     const member = staff.find(item => item.id === assignmentDraft.employeeId);
     const structure = salaryStructures.find(item => item.id === assignmentDraft.salaryStructureId);
     if (!member || !structure) {
@@ -1667,12 +1667,12 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
       overrideDeductions: Number(assignmentDraft.deductions) || 0
     } : undefined);
 
-    assignEmployeeSalaryStructure({
+    await assignEmployeeSalaryStructure({
       employeeId: member.id,
       employeeName: `${member.firstName} ${member.lastName}`.trim(),
       empId: member.empId,
       employeeCategory: resolveCategory(member),
-      branch: member.branch || 'Main Campus',
+      branch: member.branch || '',
       department: member.department,
       salaryStructureId: structure.id,
       salaryStructureName: structure.structureName,
@@ -1686,7 +1686,6 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
       monthlyGross: breakdown.grossSalary
     });
 
-    addToast('success', 'Salary assigned', `${member.firstName} ${member.lastName} is now linked to ${structure.structureName}.`);
     closeAssignmentModal();
   };
 
