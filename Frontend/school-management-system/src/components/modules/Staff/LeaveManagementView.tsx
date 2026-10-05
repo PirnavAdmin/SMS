@@ -237,7 +237,18 @@ export const LeaveManagementView: React.FC = () => {
 
   // Filter applications for current user if self service staff (teacher, warden, driver, accountant)
   const myApplications = useMemo(() => {
-    if (!isSelfServiceStaff) return leaveApplications;
+    if (!isSelfServiceStaff) {
+      const seen = new Set<string>();
+      const deduped: LeaveApplication[] = [];
+      for (const a of leaveApplications) {
+        const logicalKey = `${(a.empId || a.employeeId || a.employeeName || '').toLowerCase()}_${a.fromDate}_${a.toDate}_${a.leaveTypeId}_${a.status}`;
+        if (!seen.has(logicalKey)) {
+          seen.add(logicalKey);
+          deduped.push(a);
+        }
+      }
+      return deduped;
+    }
 
     const loggedEmpId = (loggedUserStaffMember.empId || loggedUserStaffMember.id || '').toString().toLowerCase().trim();
     const loggedId = (loggedUserStaffMember.id || '').toString().toLowerCase().trim();
@@ -248,7 +259,7 @@ export const LeaveManagementView: React.FC = () => {
     const cleanUserName = rawUserName.replace(/^warden\s+/i, '').replace(/^mr\.?\s+/i, '').replace(/^dr\.?\s+/i, '').trim();
     const isGenericAdmin = !user?.name || user.name.toLowerCase().includes('admin');
 
-    return leaveApplications.filter(a => {
+    const filtered = leaveApplications.filter(a => {
       const appEmpId = (a.empId || '').toString().toLowerCase().trim();
       const appEmployeeId = (a.employeeId || '').toString().toLowerCase().trim();
       const rawAppName = (a.employeeName || '').toLowerCase().trim();
@@ -270,11 +281,22 @@ export const LeaveManagementView: React.FC = () => {
 
       return isIdMatch || isExactNameMatch;
     });
+
+    const seen = new Set<string>();
+    const deduped: LeaveApplication[] = [];
+    for (const a of filtered) {
+      const logicalKey = `${(a.empId || a.employeeId || a.employeeName || '').toLowerCase()}_${a.fromDate}_${a.toDate}_${a.leaveTypeId}_${a.status}`;
+      if (!seen.has(logicalKey)) {
+        seen.add(logicalKey);
+        deduped.push(a);
+      }
+    }
+    return deduped;
   }, [leaveApplications, isSelfServiceStaff, loggedUserStaffMember, user]);
 
   // Filter applications by selected branch/campus for Admin
   const campusApplications = useMemo(() => {
-    return leaveApplications.filter(a => {
+    const filtered = leaveApplications.filter(a => {
       if (!selectedBranch || selectedBranch === 'All Branches' || selectedBranch === 'All Campuses' || selectedBranch === 'All') return true;
       const appBranch = a.branch || (a as any).branchId || '';
       if (!appBranch) return true;
@@ -282,6 +304,17 @@ export const LeaveManagementView: React.FC = () => {
       const cleanSel = selectedBranch.trim().toLowerCase();
       return cleanApp === cleanSel || cleanApp.includes(cleanSel) || cleanSel.includes(cleanApp);
     });
+
+    const seen = new Set<string>();
+    const deduped: LeaveApplication[] = [];
+    for (const a of filtered) {
+      const logicalKey = `${(a.empId || a.employeeId || a.employeeName || '').toLowerCase()}_${a.fromDate}_${a.toDate}_${a.leaveTypeId}_${a.status}`;
+      if (!seen.has(logicalKey)) {
+        seen.add(logicalKey);
+        deduped.push(a);
+      }
+    }
+    return deduped;
   }, [leaveApplications, selectedBranch]);
 
   // Filter States
@@ -415,13 +448,28 @@ export const LeaveManagementView: React.FC = () => {
   const hasOverlappingLeaves = (empId: string, from: string, to: string, skipId?: string) => {
     const start = new Date(from);
     const end = new Date(to);
+    const cleanEmpId = (empId || '').toString().toLowerCase().trim();
+    const cleanName = (user?.name || `${loggedUserStaffMember.firstName || ''} ${loggedUserStaffMember.lastName || ''}`).toLowerCase().trim();
+
     return leaveApplications.some(app => {
-      if (app.id === skipId || app.employeeId !== empId || app.status === 'Rejected') return false;
+      if (app.id === skipId || app.status === 'Rejected' || app.status === 'Cancelled') return false;
+      const appEmpId = (app.empId || app.employeeId || '').toString().toLowerCase().trim();
+      const appEmployeeId = (app.employeeId || '').toString().toLowerCase().trim();
+      const appName = (app.employeeName || '').toLowerCase().trim();
+
+      const isMatch = (
+        (cleanEmpId && (appEmpId === cleanEmpId || appEmployeeId === cleanEmpId)) ||
+        (cleanName && appName && (cleanName === appName || appName.includes(cleanName) || cleanName.includes(appName)))
+      );
+      if (!isMatch) return false;
+
       const appStart = new Date(app.fromDate);
       const appEnd = new Date(app.toDate);
       return start <= appEnd && end >= appStart;
     });
   };
+
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Form State for Apply Leave
   const [applyForm, setApplyForm] = useState({
@@ -464,6 +512,8 @@ export const LeaveManagementView: React.FC = () => {
   // Submit Leave application
   const handleApplySubmit = (e: React.SyntheticEvent) => {
     e.preventDefault();
+    if (isSubmitting) return;
+
     const employee = isSelfServiceStaff
       ? loggedUserStaffMember
       : (staff.find(s => s.id === applyForm.employeeId) || loggedUserStaffMember);
@@ -530,17 +580,24 @@ export const LeaveManagementView: React.FC = () => {
     saveApplication(appData);
   };
 
-  const saveApplication = (appData: Omit<LeaveApplication, 'id'>) => {
-    if (editingApplication) {
-      updateLeaveApplication(editingApplication.id, appData);
-      addToast('success', 'Request Updated', 'Leave application updated.');
-      setEditingApplication(null);
-    } else {
-      addLeaveApplication(appData);
-      addToast('success', 'Request Filed', 'Leave application has been submitted for approval.');
+  const saveApplication = async (appData: Omit<LeaveApplication, 'id'>) => {
+    if (isSubmitting) return;
+    try {
+      setIsSubmitting(true);
+      if (editingApplication) {
+        await updateLeaveApplication(editingApplication.id, appData);
+        addToast('success', 'Request Updated', 'Leave application updated.');
+        setEditingApplication(null);
+      } else {
+        await addLeaveApplication(appData);
+      }
+      setIsApplyOpen(false);
+      resetApplyForm();
+    } catch (err) {
+      console.warn('Error saving application:', err);
+    } finally {
+      setIsSubmitting(false);
     }
-    setIsApplyOpen(false);
-    resetApplyForm();
   };
 
   const handleContinueAsLop = () => {
@@ -1428,8 +1485,12 @@ export const LeaveManagementView: React.FC = () => {
                 </span>
                 <div className="flex gap-2">
                   <button type="button" onClick={() => setIsApplyOpen(false)} className="px-3.5 py-1.5 font-bold bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-lg text-xs transition-colors">Cancel</button>
-                  <button type="submit" className="px-4 py-1.5 font-extrabold text-white bg-brand-600 hover:bg-brand-500 rounded-lg text-xs shadow-md transition-all active:scale-95">
-                    {editingApplication ? 'Save Changes' : 'Submit Request'}
+                  <button
+                    type="submit"
+                    disabled={isSubmitting}
+                    className="px-4 py-1.5 font-extrabold text-white bg-brand-600 hover:bg-brand-500 rounded-lg text-xs shadow-md transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {isSubmitting ? 'Submitting...' : editingApplication ? 'Save Changes' : 'Submit Request'}
                   </button>
                 </div>
               </div>

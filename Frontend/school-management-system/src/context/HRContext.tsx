@@ -6,6 +6,7 @@ import {
   fetchLeaveApplicationsApi,
   createLeaveApplicationApi,
   updateLeaveApplicationStatusApi,
+  deleteLeaveApplicationApi,
   fetchLeaveBalancesApi
 } from '../api/hr';
 import {
@@ -60,32 +61,10 @@ const HRContext = createContext<HRContextType | undefined>(undefined);
 export const HRProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { addToast } = useToast();
   const [leaveTypes, setLeaveTypes] = useState<LeaveType[]>([]);
-  const [leaveApplications, setLeaveApplications] = useState<LeaveApplication[]>(() => {
-    try {
-      const stored = localStorage.getItem("edu_db_leave_applications");
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-      }
-    } catch {
-      /* Ignored */
-    }
-    return initialLeaveApplications;
-  });
+  const [leaveApplications, setLeaveApplications] = useState<LeaveApplication[]>([]);
   const [salaryStructures, setSalaryStructures] = useState<SalaryStructure[]>([]);
   const [employeeSalaryAssignments, setEmployeeSalaryAssignments] = useState<EmployeeSalaryAssignment[]>([]);
   const [payrollRuns, setPayrollRuns] = useState<PayrollRun[]>([]);
-
-  useEffect(() => {
-    try {
-      const dataStr = JSON.stringify(leaveApplications);
-      localStorage.setItem("edu_db_leave_applications", dataStr);
-      localStorage.setItem("leave_applications", dataStr);
-      localStorage.setItem("sms_leave_applications", dataStr);
-    } catch {
-      /* Ignored */
-    }
-  }, [leaveApplications]);
 
   const fetchLeaveTypes = useCallback(async () => {
     try {
@@ -145,15 +124,15 @@ export const HRProvider: React.FC<{ children: React.ReactNode }> = ({ children }
           approvedBy: item.approvedBy || "",
         }));
         setLeaveApplications(prev => {
-          const apiIds = new Set(mapped.map(m => m.id));
-          const localOnly = prev.filter(p => !apiIds.has(p.id));
-          const merged = [...mapped, ...localOnly];
-          try {
-            const dataStr = JSON.stringify(merged);
-            localStorage.setItem("edu_db_leave_applications", dataStr);
-            localStorage.setItem("leave_applications", dataStr);
-            localStorage.setItem("sms_leave_applications", dataStr);
-          } catch {}
+          const seen = new Set<string>();
+          const merged: LeaveApplication[] = [];
+          for (const item of mapped) {
+            const key = `${item.empId || item.employeeId}_${item.fromDate}_${item.toDate}_${item.leaveTypeId}_${item.status}`;
+            if (!seen.has(key)) {
+              seen.add(key);
+              merged.push(item);
+            }
+          }
           return merged;
         });
       }
@@ -208,25 +187,6 @@ export const HRProvider: React.FC<{ children: React.ReactNode }> = ({ children }
 
   // Leave Applications CRUD
   const addLeaveApplication = async (appData: Omit<LeaveApplication, "id">) => {
-    const id = "LA-2026-" + Math.floor(100 + Math.random() * 900);
-    const newApp: LeaveApplication = {
-      ...appData,
-      id,
-      status: appData.status || "Pending",
-      appliedDate: appData.appliedDate || new Date().toISOString().split("T")[0],
-    };
-
-    setLeaveApplications(prev => {
-      const updated = [newApp, ...prev];
-      try {
-        const dataStr = JSON.stringify(updated);
-        localStorage.setItem("edu_db_leave_applications", dataStr);
-        localStorage.setItem("leave_applications", dataStr);
-        localStorage.setItem("sms_leave_applications", dataStr);
-      } catch {}
-      return updated;
-    });
-
     try {
       const parsedStaffId = parseInt((appData.employeeId || '').replace(/\D/g, '')) || 0;
       const parsedLeaveTypeId = parseInt((appData.leaveTypeId || '').replace(/\D/g, '')) || 0;
@@ -246,34 +206,25 @@ export const HRProvider: React.FC<{ children: React.ReactNode }> = ({ children }
       await fetchLeaveApplications();
       try { await fetchLeaveBalancesApi(); } catch(e){}
     } catch (err: any) {
-      console.warn("Backend API leave submission fallback (persisted in local state):", err);
+      console.warn("Backend API leave submission error:", err);
     }
   };
 
   const updateLeaveApplication = async (id: string, updates: Partial<LeaveApplication>) => {
-    setLeaveApplications(prev => {
-      const updated = prev.map(app => app.id === id ? { ...app, ...updates } : app);
-      try {
-        const dataStr = JSON.stringify(updated);
-        localStorage.setItem("edu_db_leave_applications", dataStr);
-        localStorage.setItem("leave_applications", dataStr);
-        localStorage.setItem("sms_leave_applications", dataStr);
-      } catch {}
-      return updated;
-    });
+    setLeaveApplications(prev => prev.map(app => app.id === id ? { ...app, ...updates } : app));
   };
 
   const deleteLeaveApplication = async (id: string) => {
-    setLeaveApplications(prev => {
-      const updated = prev.filter(app => app.id !== id);
-      try {
-        const dataStr = JSON.stringify(updated);
-        localStorage.setItem("edu_db_leave_applications", dataStr);
-        localStorage.setItem("leave_applications", dataStr);
-        localStorage.setItem("sms_leave_applications", dataStr);
-      } catch {}
-      return updated;
-    });
+    try {
+      const numericId = parseInt(id.replace(/\D/g, ''), 10);
+      if (numericId) {
+        await deleteLeaveApplicationApi(numericId);
+      }
+      setLeaveApplications(prev => prev.filter(app => app.id !== id));
+      await fetchLeaveApplications();
+    } catch (err) {
+      console.warn("Error deleting leave application:", err);
+    }
   };
 
   const updateLeaveApplicationStatus = async (
@@ -282,32 +233,14 @@ export const HRProvider: React.FC<{ children: React.ReactNode }> = ({ children }
     remarks?: string,
     approvedBy?: string
   ) => {
-    setLeaveApplications(prev => {
-      const updated = prev.map(app =>
-        app.id === id
-          ? {
-              ...app,
-              status,
-              approvedBy: approvedBy || app.approvedBy || "Admin",
-              approverRemarks: remarks || app.approverRemarks,
-            }
-          : app
-      );
-      try {
-        const dataStr = JSON.stringify(updated);
-        localStorage.setItem("edu_db_leave_applications", dataStr);
-        localStorage.setItem("leave_applications", dataStr);
-        localStorage.setItem("sms_leave_applications", dataStr);
-      } catch {}
-      return updated;
-    });
-
     try {
       const numericId = parseInt(id.replace(/\D/g, '')) || 1;
       const payload = { status, approverRemarks: remarks, approvedBy };
       await updateLeaveApplicationStatusApi(numericId, payload);
+      await fetchLeaveApplications();
+      try { await fetchLeaveBalancesApi(); } catch(e){}
     } catch (err: any) {
-      console.warn("Backend API status update fallback (persisted in local state):", err);
+      console.warn("Failed to update leave status via API:", err);
     }
   };
 

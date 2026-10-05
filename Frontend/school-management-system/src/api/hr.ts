@@ -49,6 +49,12 @@ export const updateLeaveApplicationStatusApi = async (
   });
 };
 
+export const deleteLeaveApplicationApi = async (id: number | string) => {
+  return apiClient(`/api/hr/leave-applications/${id}`, {
+    method: 'DELETE'
+  });
+};
+
 // ============================
 // LEAVE BALANCES API
 // ============================
