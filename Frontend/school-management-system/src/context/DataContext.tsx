@@ -400,6 +400,7 @@ import {
   fetchLeaveApplicationsApi,
   createLeaveApplicationApi,
   updateLeaveApplicationStatusApi,
+  deleteLeaveApplicationApi,
   fetchLeaveBalancesApi,
 } from "../api/hr";
 import {
@@ -2017,7 +2018,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   });
   const [leaveApplications, setLeaveApplications] = useState<
     LeaveApplication[]
-  >(() => getStored("leave_applications", initialLeaveApplications));
+  >([]);
   const [payslips, setPayslips] = useState<Payslip[]>(() =>
     getStored("payslips", initialPayslips),
   );
@@ -2845,14 +2846,6 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       localStorage.setItem("edu_db_attendance", JSON.stringify(attendance));
     } catch {}
   }, [attendance]);
-  useEffect(() => {
-    try {
-      localStorage.setItem(
-        "edu_db_leave_applications",
-        JSON.stringify(leaveApplications),
-      );
-    } catch {}
-  }, [leaveApplications]);
   useEffect(() => {
     localStorage.setItem("edu_db_subjects", JSON.stringify(subjects));
   }, [subjects]);
@@ -4187,12 +4180,6 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   useEffect(() => {
     localStorage.setItem("edu_db_leave_types", JSON.stringify(leaveTypes));
   }, [leaveTypes]);
-  useEffect(() => {
-    localStorage.setItem(
-      "edu_db_leave_applications",
-      JSON.stringify(leaveApplications),
-    );
-  }, [leaveApplications]);
   useEffect(() => {
     localStorage.setItem("edu_db_payslips", JSON.stringify(payslips));
   }, [payslips]);
@@ -20077,13 +20064,16 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
             approverRemarks: item.approverRemarks || "",
             approvedBy: item.approvedBy || "",
           }));
-          setLeaveApplications(mapped);
-          localStorage.setItem(
-            "edu_db_leave_applications",
-            JSON.stringify(mapped),
-          );
-          localStorage.setItem("leave_applications", JSON.stringify(mapped));
-          localStorage.setItem("sms_leave_applications", JSON.stringify(mapped));
+          const seen = new Set<string>();
+          const deduped: LeaveApplication[] = [];
+          for (const item of mapped) {
+            const key = `${item.empId || item.employeeId}_${item.fromDate}_${item.toDate}_${item.leaveTypeId}_${item.status}`;
+            if (!seen.has(key)) {
+              seen.add(key);
+              deduped.push(item);
+            }
+          }
+          setLeaveApplications(deduped);
         }
       } catch (err) {
         console.warn("Failed to fetch leave applications from API", err);
@@ -20269,7 +20259,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         return;
       }
     } catch (err: any) {
-      console.warn("API error during leave submission (saving to local state fallback):", err);
+      console.warn("API error during leave submission:", err);
+      addToast("error", "Submission Failed", "Failed to submit leave application to server.");
     }
 
     const newId = `LA-${Date.now()}`;
@@ -20297,7 +20288,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       return updated;
     });
   };
-  const updateLeaveApplication = (
+  const updateLeaveApplication = async (
     id: string,
     updates: Partial<LeaveApplication>,
   ) => {
@@ -20305,8 +20296,18 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       prev.map((app) => (app.id === id ? { ...app, ...updates } : app)),
     );
   };
-  const deleteLeaveApplication = (id: string) => {
-    setLeaveApplications((prev) => prev.filter((app) => app.id !== id));
+  const deleteLeaveApplication = async (id: string) => {
+    try {
+      const numericId = parseInt(id.replace(/\D/g, ""), 10);
+      if (numericId) {
+        await deleteLeaveApplicationApi(numericId);
+      }
+      setLeaveApplications((prev) => prev.filter((app) => app.id !== id));
+      await fetchLeaveApplications();
+      await fetchLeaveBalances();
+    } catch (err) {
+      console.warn("Error deleting leave application:", err);
+    }
   };
 
   // Holiday CRUD
@@ -21191,10 +21192,6 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
             }
           : app,
       );
-      const dataStr = JSON.stringify(updated);
-      localStorage.setItem("edu_db_leave_applications", dataStr);
-      localStorage.setItem("leave_applications", dataStr);
-      localStorage.setItem("sms_leave_applications", dataStr);
       return updated;
     });
 
