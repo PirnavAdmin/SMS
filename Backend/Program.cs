@@ -532,6 +532,34 @@ using (var scope = app.Services.CreateScope())
                         System.Console.WriteLine("[Database Schema Upgrade] Added column `OutTime` to `staff_attendances`.");
                     }
 
+                    // Upgrade payslips table to add detailed breakdown and attendance deduction columns if not exist
+                    var payslipCols = new (string col, string colType)[]
+                    {
+                        ("EmpId", "longtext NULL"),
+                        ("EmployeeCategory", "longtext NULL"),
+                        ("Branch", "longtext NULL"),
+                        ("LeaveDeduction", "decimal(18,2) NOT NULL DEFAULT 0.00"),
+                        ("LopDeduction", "decimal(18,2) NOT NULL DEFAULT 0.00"),
+                        ("EarningsJson", "longtext NULL"),
+                        ("DeductionsJson", "longtext NULL"),
+                        ("LeaveDetailsJson", "longtext NULL"),
+                        ("BankAccount", "longtext NULL"),
+                        ("DisbursedDate", "longtext NULL"),
+                        ("PaymentDate", "longtext NULL")
+                    };
+
+                    foreach (var (col, colType) in payslipCols)
+                    {
+                        cmd.CommandText = $"SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = '{dbName}' AND TABLE_NAME = 'payslips' AND COLUMN_NAME = '{col}';";
+                        var exists = System.Convert.ToInt32(cmd.ExecuteScalar());
+                        if (exists == 0)
+                        {
+                            cmd.CommandText = $"ALTER TABLE `payslips` ADD COLUMN `{col}` {colType};";
+                            cmd.ExecuteNonQuery();
+                            System.Console.WriteLine($"[Database Schema Upgrade] Added column `{col}` to `payslips`.");
+                        }
+                    }
+
                     // Upgrade SchoolSettings table to add IdSequenceSettingsJson column if not exists
                     cmd.CommandText = $"SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = '{dbName}' AND TABLE_NAME = 'SchoolSettings' AND COLUMN_NAME = 'IdSequenceSettingsJson';";
                     var idSeqExists = System.Convert.ToInt32(cmd.ExecuteScalar());

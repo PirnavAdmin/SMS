@@ -42,6 +42,11 @@ public class StaffResponseDto
 	public string? PrimarySubject { get; set; }
 	public string? Specialization { get; set; }
 	public decimal MonthlySalary { get; set; }
+	public int? SalaryStructureId { get; set; }
+	public string? SalaryStructureName { get; set; }
+	public string? SalaryStructureEffectiveDate { get; set; }
+	public decimal? GrossSalary { get; set; }
+	public decimal? NetSalary { get; set; }
 	public string? AccountHolderName { get; set; }
 	public string? AccountNumber { get; set; }
 	public string? BankName { get; set; }

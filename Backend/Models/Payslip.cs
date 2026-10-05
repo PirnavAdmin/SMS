@@ -37,7 +37,43 @@ public class Payslip
     public string PfNumber { get; set; } = "MH/BAN/0012345/000/0000123";
     public string EsiNumber { get; set; } = "31-00-123456-000-1234";
 
+    public string? EmpId { get; set; }
+    public string? EmployeeCategory { get; set; } = "Teaching Staff";
+    public string? Branch { get; set; } = "Main Campus";
+
+    public decimal LeaveDeduction { get; set; } = 0;
+    public decimal LopDeduction { get; set; } = 0;
+
+    public string? EarningsJson { get; set; }
+    public string? DeductionsJson { get; set; }
+    public string? LeaveDetailsJson { get; set; }
+
+    public string? BankAccount { get; set; }
+    public string? DisbursedDate { get; set; }
+    public string? PaymentDate { get; set; }
+
     public string Status { get; set; } = "Generated";
 
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+
+    [System.ComponentModel.DataAnnotations.Schema.NotMapped]
+    public decimal GrossSalary
+    {
+        get => GrossEarnings;
+        set => GrossEarnings = value;
+    }
+
+    [System.ComponentModel.DataAnnotations.Schema.NotMapped]
+    public decimal NetSalary
+    {
+        get => NetPay;
+        set => NetPay = value;
+    }
+
+    [System.ComponentModel.DataAnnotations.Schema.NotMapped]
+    public decimal OtherDeductions
+    {
+        get => TotalDeductions;
+        set => TotalDeductions = value;
+    }
 }

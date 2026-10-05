@@ -221,13 +221,66 @@ public class PayrollProcessingController : ControllerBase
         var query = _context.Payslips.AsNoTracking().AsQueryable();
 
         if (!string.IsNullOrWhiteSpace(month))
-            query = query.Where(p => p.Month.ToLower() == month.ToLower());
+        {
+            var cleanMonth = month.Trim();
+            var parts = cleanMonth.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+            var mName = parts[0];
+            int? parsedYear = parts.Length > 1 && int.TryParse(parts[1], out var py) ? py : null;
+
+            query = query.Where(p => p.Month.ToLower() == mName.ToLower());
+            if (parsedYear.HasValue && !year.HasValue)
+            {
+                year = parsedYear;
+            }
+        }
 
         if (year.HasValue)
             query = query.Where(p => p.Year == year.Value);
 
-        var payslips = await query.ToListAsync();
-        return Ok(new { success = true, data = payslips });
+        var payslips = await query.OrderByDescending(p => p.CreatedAt).ToListAsync();
+
+        var dtos = payslips.Select(p => new PayslipResponseDto
+        {
+            Id = p.PayslipId.ToString(),
+            PayslipId = p.PayslipId,
+            EmployeeId = p.EmployeeId,
+            EmpId = !string.IsNullOrEmpty(p.EmpId) ? p.EmpId : p.EmployeeId,
+            EmployeeName = p.EmployeeName,
+            Branch = p.Branch ?? "Main Campus",
+            Department = p.Department,
+            Designation = p.Designation,
+            EmployeeCategory = p.EmployeeCategory ?? "Teaching Staff",
+            Month = $"{p.Month} {p.Year}".Trim(),
+            Year = p.Year,
+            BasicSalary = p.BasicSalary,
+            Hra = p.HouseRentAllowance,
+            Da = p.DearnessAllowance,
+            HouseRentAllowance = p.HouseRentAllowance,
+            DearnessAllowance = p.DearnessAllowance,
+            GrossSalary = p.GrossEarnings,
+            GrossEarnings = p.GrossEarnings,
+            OtherDeductions = p.TotalDeductions,
+            TotalDeductions = p.TotalDeductions,
+            PfDeduction = p.ProvidentFund,
+            ProvidentFund = p.ProvidentFund,
+            Esi = p.Esi,
+            LeaveDeduction = p.LeaveDeduction,
+            LopDeduction = p.LopDeduction,
+            NetSalary = p.NetPay,
+            NetPay = p.NetPay,
+            BankAccount = p.BankAccount ?? "N/A",
+            DisbursedDate = p.DisbursedDate ?? p.CreatedAt.ToString("yyyy-MM-dd"),
+            PaymentDate = p.PaymentDate ?? p.CreatedAt.ToString("yyyy-MM-dd"),
+            PanNumber = p.PanNumber,
+            PfNumber = p.PfNumber,
+            EsiNumber = p.EsiNumber,
+            Status = p.Status,
+            Earnings = !string.IsNullOrEmpty(p.EarningsJson) ? System.Text.Json.JsonSerializer.Deserialize<object>(p.EarningsJson) : null,
+            Deductions = !string.IsNullOrEmpty(p.DeductionsJson) ? System.Text.Json.JsonSerializer.Deserialize<object>(p.DeductionsJson) : null,
+            LeaveDetails = !string.IsNullOrEmpty(p.LeaveDetailsJson) ? System.Text.Json.JsonSerializer.Deserialize<object>(p.LeaveDetailsJson) : null
+        }).ToList();
+
+        return Ok(new { success = true, data = dtos });
     }
 
     [HttpPost("process/step8-publish")]
@@ -544,16 +597,24 @@ public class PayrollProcessingController : ControllerBase
     [HttpPost("salary-assignments")]
     public async Task<IActionResult> AssignSalaryStructure([FromBody] EmployeeSalaryAssignmentCreateDto dto)
     {
-        int staffId = int.Parse(dto.EmployeeId);
-        int structureId = int.Parse(dto.SalaryStructureId);
-
-        var staff = await _context.Staff.FindAsync(staffId);
+        Staff? staff = null;
+        if (int.TryParse(dto.EmployeeId, out int parsedStaffId))
+        {
+            staff = await _context.Staff.FindAsync(parsedStaffId);
+        }
+        if (staff == null && !string.IsNullOrEmpty(dto.EmployeeId))
+        {
+            staff = await _context.Staff.FirstOrDefaultAsync(s => s.EmployeeId == dto.EmployeeId);
+        }
         if (staff == null) return NotFound(new { success = false, message = "Staff member not found." });
 
+        int structureId = int.Parse(dto.SalaryStructureId);
         var structure = await _context.SalaryStructures
             .Include(s => s.Items)
             .FirstOrDefaultAsync(s => s.StructureId == structureId);
         if (structure == null) return NotFound(new { success = false, message = "Salary structure not found." });
+
+        int staffId = staff.StaffId;
 
         // Deactivate previous active assignment
         var prevActive = await _context.EmployeeSalaryAssignments
@@ -594,6 +655,12 @@ public class PayrollProcessingController : ControllerBase
         staff.NetSalary = net;
         staff.MonthlySalary = gross; // Keep MonthlySalary in sync
 
+        await _context.SaveChangesAsync();
+
+        // Recalculate assigned employees count on structure
+        var totalActiveForStructure = await _context.EmployeeSalaryAssignments
+            .CountAsync(a => a.StructureId == structureId && a.Status == "Active");
+        structure.AssignedEmployeesCount = totalActiveForStructure;
         await _context.SaveChangesAsync();
 
         return Ok(new { success = true, message = "Salary structure assigned successfully." });
@@ -860,23 +927,155 @@ public class PayrollProcessingController : ControllerBase
     }
 
     [HttpPost("payslips")]
-    public async Task<IActionResult> CreatePayslip([FromBody] Payslip payslip)
+    public async Task<IActionResult> CreatePayslip([FromBody] PayslipCreateDto dto)
     {
-        if (payslip == null) return BadRequest(new { success = false, message = "Payslip data is required." });
+        if (dto == null) return BadRequest(new { success = false, message = "Payslip data is required." });
 
-        payslip.CreatedAt = DateTime.UtcNow;
-        if (string.IsNullOrEmpty(payslip.Status)) payslip.Status = "Generated";
+        // Parse month and year
+        string monthName = "July";
+        int year = dto.Year ?? DateTime.UtcNow.Year;
 
-        var existing = await _context.Payslips
-            .FirstOrDefaultAsync(p => p.EmployeeId == payslip.EmployeeId && p.Month == payslip.Month && p.Year == payslip.Year);
-        if (existing != null)
+        if (!string.IsNullOrEmpty(dto.Month))
         {
-            _context.Payslips.Remove(existing);
+            var parts = dto.Month.Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries);
+            monthName = parts[0];
+            if (parts.Length > 1 && int.TryParse(parts[1], out var parsedYear) && !dto.Year.HasValue)
+            {
+                year = parsedYear;
+            }
         }
 
-        await _context.Payslips.AddAsync(payslip);
+        // Look up staff
+        Staff? staff = null;
+        if (!string.IsNullOrEmpty(dto.EmployeeId) && int.TryParse(dto.EmployeeId, out int parsedStaffId))
+        {
+            staff = await _context.Staff.FindAsync(parsedStaffId);
+        }
+        if (staff == null && !string.IsNullOrEmpty(dto.EmpId))
+        {
+            staff = await _context.Staff.FirstOrDefaultAsync(s => s.EmployeeId == dto.EmpId);
+        }
+        if (staff == null && !string.IsNullOrEmpty(dto.EmployeeId))
+        {
+            staff = await _context.Staff.FirstOrDefaultAsync(s => s.EmployeeId == dto.EmployeeId);
+        }
+
+        string employeeId = dto.EmployeeId ?? staff?.StaffId.ToString() ?? "";
+        string empId = dto.EmpId ?? staff?.EmployeeId ?? dto.EmployeeId ?? "";
+        string employeeName = !string.IsNullOrEmpty(dto.EmployeeName) ? dto.EmployeeName : (staff != null ? $"{staff.FirstName} {staff.LastName}".Trim() : "Staff Member");
+        string department = !string.IsNullOrEmpty(dto.Department) ? dto.Department : (staff?.Department ?? "General");
+        string designation = !string.IsNullOrEmpty(dto.Designation) ? dto.Designation : (staff?.Designation ?? "Staff");
+        string employeeCategory = !string.IsNullOrEmpty(dto.EmployeeCategory) ? dto.EmployeeCategory : (staff?.EmployeeCategory ?? "Teaching Staff");
+        string branch = !string.IsNullOrEmpty(dto.Branch) ? dto.Branch : (staff?.BranchName ?? "Main Campus");
+
+        decimal basicSalary = dto.BasicSalary ?? 0;
+        decimal grossSalary = dto.GrossSalary ?? dto.GrossEarnings ?? 0;
+        decimal totalDeductions = dto.OtherDeductions ?? dto.TotalDeductions ?? 0;
+        decimal netSalary = dto.NetSalary ?? dto.NetPay ?? Math.Max(0, grossSalary - totalDeductions);
+        decimal pf = dto.PfDeduction ?? dto.ProvidentFund ?? 0;
+        decimal hra = dto.Hra ?? dto.HouseRentAllowance ?? 0;
+        decimal da = dto.Da ?? dto.DearnessAllowance ?? 0;
+        decimal leaveDeduction = dto.LeaveDeduction ?? 0;
+        decimal lopDeduction = dto.LopDeduction ?? 0;
+
+        // Remove existing payslip for this employee, month, and year
+        var existing = await _context.Payslips
+            .Where(p => (p.EmployeeId == employeeId || p.EmpId == empId || (staff != null && p.EmployeeId == staff.StaffId.ToString())) && p.Month.ToLower() == monthName.ToLower() && p.Year == year)
+            .ToListAsync();
+        if (existing.Any())
+        {
+            _context.Payslips.RemoveRange(existing);
+        }
+
+        var entity = new Payslip
+        {
+            EmployeeId = employeeId,
+            EmpId = empId,
+            EmployeeName = employeeName,
+            Department = department,
+            Designation = designation,
+            EmployeeCategory = employeeCategory,
+            Branch = branch,
+            Month = monthName,
+            Year = year,
+            BasicSalary = basicSalary,
+            HouseRentAllowance = hra,
+            DearnessAllowance = da,
+            GrossEarnings = grossSalary,
+            ProvidentFund = pf,
+            Esi = dto.Esi ?? 0,
+            TotalDeductions = totalDeductions,
+            LeaveDeduction = leaveDeduction,
+            LopDeduction = lopDeduction,
+            NetPay = netSalary,
+            BankAccount = dto.BankAccount ?? staff?.AccountNumber ?? "N/A",
+            DisbursedDate = dto.DisbursedDate ?? DateTime.UtcNow.ToString("yyyy-MM-dd"),
+            PaymentDate = dto.PaymentDate ?? DateTime.UtcNow.ToString("yyyy-MM-dd"),
+            PanNumber = dto.PanNumber ?? staff?.PanNumber ?? "N/A",
+            PfNumber = dto.PfNumber ?? "N/A",
+            EsiNumber = dto.EsiNumber ?? "N/A",
+            Status = dto.Status ?? "Generated",
+            EarningsJson = dto.Earnings != null ? System.Text.Json.JsonSerializer.Serialize(dto.Earnings) : null,
+            DeductionsJson = dto.Deductions != null ? System.Text.Json.JsonSerializer.Serialize(dto.Deductions) : null,
+            LeaveDetailsJson = dto.LeaveDetails != null ? System.Text.Json.JsonSerializer.Serialize(dto.LeaveDetails) : null,
+            CreatedAt = DateTime.UtcNow
+        };
+
+        await _context.Payslips.AddAsync(entity);
         await _context.SaveChangesAsync();
 
-        return Ok(new { success = true, message = "Payslip saved successfully.", data = payslip });
+        var responseDto = new PayslipResponseDto
+        {
+            Id = entity.PayslipId.ToString(),
+            PayslipId = entity.PayslipId,
+            EmployeeId = entity.EmployeeId,
+            EmpId = entity.EmpId,
+            EmployeeName = entity.EmployeeName,
+            Department = entity.Department,
+            Designation = entity.Designation,
+            EmployeeCategory = entity.EmployeeCategory,
+            Branch = entity.Branch,
+            Month = $"{entity.Month} {entity.Year}".Trim(),
+            Year = entity.Year,
+            BasicSalary = entity.BasicSalary,
+            Hra = entity.HouseRentAllowance,
+            Da = entity.DearnessAllowance,
+            HouseRentAllowance = entity.HouseRentAllowance,
+            DearnessAllowance = entity.DearnessAllowance,
+            GrossSalary = entity.GrossEarnings,
+            GrossEarnings = entity.GrossEarnings,
+            OtherDeductions = entity.TotalDeductions,
+            TotalDeductions = entity.TotalDeductions,
+            PfDeduction = entity.ProvidentFund,
+            ProvidentFund = entity.ProvidentFund,
+            Esi = entity.Esi,
+            LeaveDeduction = entity.LeaveDeduction,
+            LopDeduction = entity.LopDeduction,
+            NetSalary = entity.NetPay,
+            NetPay = entity.NetPay,
+            BankAccount = entity.BankAccount,
+            DisbursedDate = entity.DisbursedDate,
+            PaymentDate = entity.PaymentDate,
+            PanNumber = entity.PanNumber,
+            PfNumber = entity.PfNumber,
+            EsiNumber = entity.EsiNumber,
+            Status = entity.Status,
+            Earnings = dto.Earnings,
+            Deductions = dto.Deductions,
+            LeaveDetails = dto.LeaveDetails
+        };
+
+        return Ok(new { success = true, message = "Payslip saved successfully.", data = responseDto });
+    }
+
+    [HttpDelete("payslips/{id:int}")]
+    public async Task<IActionResult> DeletePayslip(int id)
+    {
+        var existing = await _context.Payslips.FindAsync(id);
+        if (existing == null) return NotFound(new { success = false, message = "Payslip not found." });
+
+        _context.Payslips.Remove(existing);
+        await _context.SaveChangesAsync();
+        return Ok(new { success = true, message = "Payslip deleted successfully." });
     }
 }
