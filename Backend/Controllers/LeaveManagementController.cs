@@ -41,6 +41,13 @@ public class LeaveManagementController : ControllerBase
     public async Task<IActionResult> UpdateLeaveStatus(int id, [FromBody] UpdateLeaveStatusRequest request) =>
         Ok(new { success = true, message = $"Leave application {request.Status.ToLower()} successfully.", data = await _schoolService.UpdateLeaveStatusAsync(id, request.Status, request.ApproverRemarks, request.ApprovedBy) });
 
+    [HttpDelete("leave-applications/{id:int}")]
+    public async Task<IActionResult> DeleteLeaveApplication(int id)
+    {
+        await _schoolService.DeleteLeaveApplicationAsync(id);
+        return Ok(new { success = true, message = "Leave application deleted successfully." });
+    }
+
     // Leave Balances
     [HttpGet("leave-balances")]
     public async Task<IActionResult> GetLeaveBalances() =>

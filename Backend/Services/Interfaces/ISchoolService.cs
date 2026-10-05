@@ -59,6 +59,7 @@ public interface ISchoolService
     Task<List<LeaveApplicationResponseDto>> GetAllLeaveApplicationsAsync(string? status);
     Task<LeaveApplicationResponseDto> SubmitLeaveApplicationAsync(LeaveApplicationCreateDto dto);
     Task<LeaveApplicationResponseDto> UpdateLeaveStatusAsync(int applicationId, string status, string? approverRemarks = null, string? approvedBy = null);
+    Task<bool> DeleteLeaveApplicationAsync(int id);
     Task<List<LeaveBalanceDto>> GetLeaveBalancesAsync();
 
     // Holiday Calendar Operations

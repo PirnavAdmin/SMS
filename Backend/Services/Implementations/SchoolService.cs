@@ -2036,7 +2036,12 @@ public class SchoolService : ISchoolService
 	public async Task<List<LeaveApplicationResponseDto>> GetAllLeaveApplicationsAsync(string? status)
 	{
 		var list = await _schoolRepository.GetAllLeaveApplicationsAsync(status);
-		return list.Select(l => new LeaveApplicationResponseDto
+		var distinctList = list
+			.GroupBy(l => new { l.StaffId, From = l.FromDate.Date, To = l.ToDate.Date, l.LeaveTypeId, l.Status })
+			.Select(g => g.First())
+			.ToList();
+
+		return distinctList.Select(l => new LeaveApplicationResponseDto
 		{
 			LeaveApplicationId = l.LeaveApplicationId,
 			StaffId = l.StaffId,
@@ -2044,7 +2049,7 @@ public class SchoolService : ISchoolService
 			StaffName = l.Staff != null ? $"{l.Staff.FirstName} {l.Staff.LastName}".Trim() : "N/A",
 			Designation = l.Staff?.Designation ?? "N/A",
 			Department = l.Staff?.Department ?? "N/A",
-			Branch = l.Staff?.BranchName ?? "Main Campus",
+			Branch = l.Staff?.BranchName ?? "",
 			EmployeeCategory = l.Staff?.EmployeeCategory ?? "Staff",
 			LeaveTypeName = l.LeaveType?.Name ?? "N/A",
 			LeaveTypeCode = l.LeaveType?.Code ?? "N/A",
@@ -2106,6 +2111,42 @@ public class SchoolService : ISchoolService
 		DateTime to = DateTime.TryParse(dto.ToDate, out var t) ? t : DateTime.UtcNow;
 		int days = Math.Max(1, (int)(to - from).TotalDays + 1);
 
+		// Check for duplicate existing pending/approved request for same staff and dates
+		var existingPending = await _context.LeaveApplications
+			.Include(l => l.LeaveType)
+			.Include(l => l.Staff)
+			.FirstOrDefaultAsync(l =>
+				l.StaffId == staff.StaffId &&
+				l.FromDate.Date == from.Date &&
+				l.ToDate.Date == to.Date &&
+				(l.Status == "Pending" || l.Status == "Approved"));
+
+		if (existingPending != null)
+		{
+			return new LeaveApplicationResponseDto
+			{
+				LeaveApplicationId = existingPending.LeaveApplicationId,
+				StaffId = staff.StaffId,
+				EmployeeId = staff.EmployeeId ?? "",
+				StaffName = $"{staff.FirstName} {staff.LastName}".Trim(),
+				Designation = staff.Designation ?? "",
+				Department = staff.Department ?? "",
+				Branch = staff.BranchName ?? "",
+				EmployeeCategory = staff.EmployeeCategory ?? "Staff",
+				LeaveTypeName = existingPending.LeaveType?.Name ?? leaveType.Name,
+				LeaveTypeCode = existingPending.LeaveType?.Code ?? leaveType.Code,
+				FromDate = existingPending.FromDate.ToString("yyyy-MM-dd"),
+				ToDate = existingPending.ToDate.ToString("yyyy-MM-dd"),
+				IsHalfDay = existingPending.IsHalfDay,
+				RequestedDays = existingPending.RequestedDays,
+				Reason = existingPending.Reason,
+				AppliedDate = existingPending.AppliedDate.ToString("yyyy-MM-dd"),
+				Status = existingPending.Status,
+				ApproverRemarks = existingPending.ApproverRemarks,
+				ApprovedBy = existingPending.ApprovedBy
+			};
+		}
+
 		var entity = new LeaveApplication
 		{
 			StaffId = staff.StaffId,
@@ -2130,7 +2171,7 @@ public class SchoolService : ISchoolService
 			StaffName = $"{staff.FirstName} {staff.LastName}".Trim(),
 			Designation = staff.Designation ?? "",
 			Department = staff.Department ?? "",
-			Branch = staff.BranchName ?? "Main Campus",
+			Branch = staff.BranchName ?? "",
 			EmployeeCategory = staff.EmployeeCategory ?? "Staff",
 			LeaveTypeName = leaveType.Name,
 			LeaveTypeCode = leaveType.Code,
@@ -2200,7 +2241,7 @@ public class SchoolService : ISchoolService
 						InTime = "00:00",
 						OutTime = "00:00",
 						AcademicYear = "2026-2027",
-						Branch = staff?.BranchName ?? "Main Campus"
+						Branch = staff?.BranchName ?? ""
 					};
 					await _context.StaffAttendances.AddAsync(newAttendance);
 				}
@@ -2217,7 +2258,7 @@ public class SchoolService : ISchoolService
 			StaffName = application.Staff != null ? $"{application.Staff.FirstName} {application.Staff.LastName}".Trim() : "N/A",
 			Designation = application.Staff?.Designation ?? "N/A",
 			Department = application.Staff?.Department ?? "N/A",
-			Branch = application.Staff?.BranchName ?? "Main Campus",
+			Branch = application.Staff?.BranchName ?? "",
 			EmployeeCategory = application.Staff?.EmployeeCategory ?? "Staff",
 			LeaveTypeName = application.LeaveType?.Name ?? "N/A",
 			LeaveTypeCode = application.LeaveType?.Code ?? "N/A",
@@ -2231,6 +2272,18 @@ public class SchoolService : ISchoolService
 			ApproverRemarks = application.ApproverRemarks,
 			ApprovedBy = application.ApprovedBy
 		};
+	}
+
+	public async Task<bool> DeleteLeaveApplicationAsync(int id)
+	{
+		var application = await _context.LeaveApplications.FindAsync(id);
+		if (application != null)
+		{
+			_context.LeaveApplications.Remove(application);
+			await _context.SaveChangesAsync();
+			return true;
+		}
+		return false;
 	}
 
 	public async Task<List<LeaveBalanceDto>> GetLeaveBalancesAsync()
