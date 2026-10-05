@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { Tag, Plus, Search, Edit, Trash2, CheckCircle2, XCircle, Building2, Bus, Shirt, BookOpen, AlertTriangle, Calculator } from 'lucide-react';
-import { FeeHead, FeeHeadCategory, FeeHeadFrequency, FeePaymentEligibility, HostelConfigItem, HostelFeeCategoryConfig } from '../../../types';
+import { FeeHead, FeeHeadCategory, FeeHeadFrequency, FeePaymentEligibility } from '../../../types';
 import { useData } from '../../../context/DataContext';
 import { useAuth } from '../../../context/AuthContext';
 import { useToast } from '../../../context/ToastContext';
@@ -33,9 +33,7 @@ export const FeeHeadsView: React.FC = () => {
     academicClasses,
     branches,
     academicYearFeeSchedules,
-    hostelMasters,
-    hostelBlocks,
-    hostelRooms,
+    academicYears,
     routeMasters,
     transportRoutes,
     pickupPoints,
@@ -62,7 +60,7 @@ export const FeeHeadsView: React.FC = () => {
       if (!unique.includes('All Branches')) unique.unshift('All Branches');
       return unique;
     }
-    return ['All Branches', 'Main Campus', 'Madhapur Branch'];
+    return ['All Branches'];
   }, [branches]);
 
   const sectionOptions = useMemo(() => {
@@ -84,13 +82,17 @@ export const FeeHeadsView: React.FC = () => {
   }, [academicClasses]);
 
   const availableAcademicTerms = useMemo(() => {
-    const activeAY = selectedAcademicYear || '2026-2027';
+    const activeAY = selectedAcademicYear || (academicYears && (academicYears[0]?.academicYear || (academicYears[0] as any)?.name)) || '';
     const schedule = (academicYearFeeSchedules || []).find((s) => s.academicYear === activeAY);
     if (schedule && schedule.terms && schedule.terms.length > 0) {
       return [...schedule.terms].sort((a, b) => a.sequence - b.sequence).map(t => t.termName || t.id);
     }
-    return ['Term 1', 'Term 2', 'Term 3', 'Term 4'];
-  }, [academicYearFeeSchedules, selectedAcademicYear]);
+    const anyScheduleWithTerms = (academicYearFeeSchedules || []).find(s => s.terms && s.terms.length > 0);
+    if (anyScheduleWithTerms) {
+      return [...anyScheduleWithTerms.terms].sort((a, b) => a.sequence - b.sequence).map((t) => t.termName || t.id);
+    }
+    return [];
+  }, [academicYearFeeSchedules, selectedAcademicYear, academicYears]);
 
   // Combined Route list from routeMasters or transportRoutes
   const availableRoutes = useMemo(() => {
@@ -140,11 +142,6 @@ export const FeeHeadsView: React.FC = () => {
     taxPercentage: 0,
     displayOrder: 1,
     status: 'Active',
-    hostelBlockId: '',
-    hostelBlockName: '',
-    hostelRoomId: '',
-    hostelRoomNo: '',
-    hostelSharingType: '',
     transportRouteId: '',
     transportRouteName: '',
     transportVehicleId: '',
@@ -155,149 +152,6 @@ export const FeeHeadsView: React.FC = () => {
     uniformItemName: '',
     uniformSize: ''
   });
-
-  // Dynamic Hostel Fee Configuration State
-  const [hostelConfigHostelId, setHostelConfigHostelId] = useState<string>('');
-  const [hostelConfigHostelName, setHostelConfigHostelName] = useState<string>('');
-  const [hostelConfigSelectedBlockIds, setHostelConfigSelectedBlockIds] = useState<string[]>([]);
-  const [blockConfigState, setBlockConfigState] = useState<Record<string, { selected: boolean; amount: number }>>({});
-  const [blockNonAcAllState, setBlockNonAcAllState] = useState<Record<string, boolean>>({});
-  const [blockNonAcAllAmountState, setBlockNonAcAllAmountState] = useState<Record<string, number>>({});
-
-  // Extract unique Hostels dynamically
-  const availableHostelList = useMemo(() => {
-    const list: { id: string; name: string }[] = [];
-    if (hostelMasters && Array.isArray(hostelMasters) && hostelMasters.length > 0) {
-      hostelMasters.forEach((h: any) => {
-        const name = h.name || h.hostelName;
-        if (name && !list.some(item => item.name === name)) {
-          list.push({ id: String(h.id), name });
-        }
-      });
-    }
-    if (hostelBlocks && Array.isArray(hostelBlocks) && hostelBlocks.length > 0) {
-      hostelBlocks.forEach((b: any) => {
-        const name = b.hostelName || b.hostel || 'Main Campus Hostel';
-        if (name && !list.some(item => item.name === name)) {
-          list.push({ id: String(b.hostelId || b.id), name });
-        }
-      });
-    }
-    if (list.length === 0) {
-      list.push({ id: 'hos-boys', name: 'Boys Hostel' });
-      list.push({ id: 'hos-girls', name: 'Girls Hostel' });
-      list.push({ id: 'hos-main', name: 'Main Campus Hostel' });
-    }
-    return list;
-  }, [hostelMasters, hostelBlocks]);
-
-  // Extract available blocks for selected hostel
-  const availableBlocksForSelectedHostel = useMemo(() => {
-    if (!hostelConfigHostelName && !hostelConfigHostelId) return [];
-    if (hostelBlocks && Array.isArray(hostelBlocks) && hostelBlocks.length > 0) {
-      const filtered = hostelBlocks.filter((b: any) => {
-        const bHostelName = b.hostelName || b.hostel || '';
-        const bHostelId = String(b.hostelId || '');
-        return (
-          (hostelConfigHostelId && bHostelId === String(hostelConfigHostelId)) ||
-          (hostelConfigHostelName && bHostelName.toLowerCase() === hostelConfigHostelName.toLowerCase())
-        );
-      });
-      if (filtered.length > 0) {
-        return filtered.map((b: any) => ({
-          id: String(b.id || b.blockId),
-          name: b.name || b.blockName || `Block ${b.id}`
-        }));
-      }
-    }
-    return [
-      { id: 'blk-a', name: 'Block A' },
-      { id: 'blk-b', name: 'Block B' },
-      { id: 'blk-c', name: 'Block C' }
-    ];
-  }, [hostelBlocks, hostelConfigHostelId, hostelConfigHostelName]);
-
-  // Room Configurations helper for each block
-  const getBlockRoomConfigurations = (blockId: string, blockName: string) => {
-    const blockRooms = (hostelRooms || []).filter((r: any) =>
-      String(r.blockId || r.hostelId) === String(blockId) ||
-      (r.blockName && r.blockName.toLowerCase() === blockName.toLowerCase())
-    );
-
-    const acSharingOptions = [
-      { sharingType: '2-bed sharing', label: 'AC 2-Bed Sharing' },
-      { sharingType: '3-bed sharing', label: 'AC 3-Bed Sharing' },
-      { sharingType: '4-bed sharing', label: 'AC 4-Bed Sharing' },
-      { sharingType: 'Single Occupancy', label: 'AC Single Occupancy' }
-    ];
-
-    const nonAcSharingOptions = [
-      { sharingType: '2-bed sharing', label: 'Non-AC 2-Bed Sharing' },
-      { sharingType: '3-bed sharing', label: 'Non-AC 3-Bed Sharing' },
-      { sharingType: '4-bed sharing', label: 'Non-AC 4-Bed Sharing' },
-      { sharingType: 'Dormitory', label: 'Non-AC Dormitory' }
-    ];
-
-    const getRoomCount = (acType: 'AC' | 'Non-AC', sharingType: string) => {
-      if (!blockRooms || blockRooms.length === 0) return 4;
-      const count = blockRooms.filter((r: any) => {
-        const isAc = r.acType === 'AC' || r.isAc === true || (r.roomType && String(r.roomType).toUpperCase().includes('AC') && !String(r.roomType).toUpperCase().includes('NON'));
-        const matchesAc = acType === 'AC' ? isAc : !isAc;
-        const capStr = r.capacity ? `${r.capacity}-bed sharing` : (r.sharingType || '');
-        const matchesSharing = capStr.toLowerCase().includes(sharingType.toLowerCase().replace(' sharing', '')) ||
-                               sharingType.toLowerCase().includes(r.capacity ? String(r.capacity) : '');
-        return matchesAc && matchesSharing;
-      }).length;
-      return count || 3;
-    };
-
-    const totalNonAcRoomCount = (blockRooms || []).filter((r: any) => {
-      const isAc = r.acType === 'AC' || r.isAc === true || (r.roomType && String(r.roomType).toUpperCase().includes('AC') && !String(r.roomType).toUpperCase().includes('NON'));
-      return !isAc;
-    }).length || 6;
-
-    return {
-      acSharingOptions: acSharingOptions.map(opt => ({
-        ...opt,
-        matchingRoomCount: getRoomCount('AC', opt.sharingType)
-      })),
-      nonAcSharingOptions: nonAcSharingOptions.map(opt => ({
-        ...opt,
-        matchingRoomCount: getRoomCount('Non-AC', opt.sharingType)
-      })),
-      totalNonAcRoomCount
-    };
-  };
-
-  const updateBlockConfigState = (key: string, updates: Partial<{ selected: boolean; amount: number }>) => {
-    setBlockConfigState(prev => ({
-      ...prev,
-      [key]: {
-        selected: updates.selected !== undefined ? updates.selected : (prev[key]?.selected || false),
-        amount: updates.amount !== undefined ? updates.amount : (prev[key]?.amount || 0)
-      }
-    }));
-  };
-
-  const updateBlockNonAcAllState = (blockId: string, applyAll: boolean) => {
-    setBlockNonAcAllState(prev => ({
-      ...prev,
-      [blockId]: applyAll
-    }));
-  };
-
-  const updateBlockNonAcAllAmountState = (blockId: string, amount: number) => {
-    setBlockNonAcAllAmountState(prev => ({
-      ...prev,
-      [blockId]: amount
-    }));
-  };
-
-  // Dynamic filter for hostel rooms based on selected block
-  const availableHostelRooms = useMemo(() => {
-    if (!formData.hostelBlockId) return [];
-    return (hostelRooms || []).filter((r: any) => String(r.blockId) === String(formData.hostelBlockId));
-  }, [hostelRooms, formData.hostelBlockId]);
 
   // Dynamic filter for pickup points based on selected route
   const availablePickupPoints = useMemo(() => {
@@ -345,12 +199,6 @@ export const FeeHeadsView: React.FC = () => {
 
   const handleOpenAdd = () => {
     setEditingHead(null);
-    setHostelConfigHostelId('');
-    setHostelConfigHostelName('');
-    setHostelConfigSelectedBlockIds([]);
-    setBlockConfigState({});
-    setBlockNonAcAllState({});
-    setBlockNonAcAllAmountState({});
     setFormData({
       name: '',
       code: 'FH-' + Math.floor(100 + Math.random() * 900),
@@ -365,11 +213,6 @@ export const FeeHeadsView: React.FC = () => {
       taxPercentage: 0,
       displayOrder: feeHeads.length + 1,
       status: 'Active',
-      hostelBlockId: '',
-      hostelBlockName: '',
-      hostelRoomId: '',
-      hostelRoomNo: '',
-      hostelSharingType: '',
       transportRouteId: '',
       transportRouteName: '',
       transportVehicleId: '',
@@ -385,46 +228,6 @@ export const FeeHeadsView: React.FC = () => {
 
   const handleOpenEdit = (h: FeeHead) => {
     setEditingHead(h);
-    if (h.category === 'Hostel' && (h.hostelConfig || h.hostelConfigJson)) {
-      try {
-        const parsedConfig: HostelFeeCategoryConfig = h.hostelConfig || (typeof h.hostelConfigJson === 'string' ? JSON.parse(h.hostelConfigJson) : h.hostelConfigJson);
-        if (parsedConfig) {
-          setHostelConfigHostelId(String(parsedConfig.hostelId || ''));
-          setHostelConfigHostelName(parsedConfig.hostelName || '');
-          setHostelConfigSelectedBlockIds(parsedConfig.selectedBlockIds ? parsedConfig.selectedBlockIds.map(String) : []);
-
-          const newBlockConfigState: Record<string, { selected: boolean; amount: number }> = {};
-          const newNonAcAllState: Record<string, boolean> = {};
-          const newNonAcAllAmountState: Record<string, number> = {};
-
-          (parsedConfig.configurations || []).forEach(item => {
-            const bId = String(item.blockId);
-            if (item.acType === 'Non-AC' && item.applyToAllNonAc) {
-              newNonAcAllState[bId] = true;
-              newNonAcAllAmountState[bId] = item.amount;
-            } else {
-              const key = `${bId}_${item.acType === 'AC' ? 'AC' : 'NonAC'}_${item.sharingType}`;
-              newBlockConfigState[key] = { selected: true, amount: item.amount };
-              if (item.acType === 'Non-AC') {
-                newNonAcAllState[bId] = false;
-              }
-            }
-          });
-
-          setBlockConfigState(newBlockConfigState);
-          setBlockNonAcAllState(newNonAcAllState);
-          setBlockNonAcAllAmountState(newNonAcAllAmountState);
-        }
-      } catch (e) {}
-    } else {
-      setHostelConfigHostelId('');
-      setHostelConfigHostelName('');
-      setHostelConfigSelectedBlockIds([]);
-      setBlockConfigState({});
-      setBlockNonAcAllState({});
-      setBlockNonAcAllAmountState({});
-    }
-
     setFormData({
       ...h,
       mandatory: h.mandatory === true,
@@ -433,11 +236,6 @@ export const FeeHeadsView: React.FC = () => {
       applicableSections: h.applicableSections && h.applicableSections.length > 0 ? [...h.applicableSections] : ['All Sections'],
       paymentEligibility: h.paymentEligibility || 'Both One-Time and Term-Wise',
       applicableTerms: h.applicableTerms && h.applicableTerms.length > 0 ? [...h.applicableTerms] : [...availableAcademicTerms],
-      hostelBlockId: h.hostelBlockId || '',
-      hostelBlockName: h.hostelBlockName || '',
-      hostelRoomId: h.hostelRoomId || '',
-      hostelRoomNo: h.hostelRoomNo || '',
-      hostelSharingType: h.hostelSharingType || '',
       transportRouteId: h.transportRouteId || '',
       transportRouteName: h.transportRouteName || '',
       transportVehicleId: h.transportVehicleId || '',
@@ -488,88 +286,6 @@ export const FeeHeadsView: React.FC = () => {
       const cleanTax = (formData.taxPercentage as any) === '' || formData.taxPercentage === undefined || formData.taxPercentage === null ? 0 : Number(formData.taxPercentage);
       const cleanOrder = (formData.displayOrder as any) === '' || formData.displayOrder === undefined || formData.displayOrder === null ? feeHeads.length + 1 : Number(formData.displayOrder);
 
-      let hostelCategoryConfig: HostelFeeCategoryConfig | undefined = undefined;
-      let hostelConfigJsonStr: string | undefined = undefined;
-
-      if (formData.category === 'Hostel') {
-        if (!hostelConfigHostelName) {
-          throw new Error('Validation Error: Please select a Hostel facility.');
-        }
-        if (hostelConfigSelectedBlockIds.length === 0) {
-          throw new Error('Validation Error: Please select at least one Block for the selected hostel.');
-        }
-
-        const configItems: HostelConfigItem[] = [];
-        hostelConfigSelectedBlockIds.forEach(bId => {
-          const blockObj = availableBlocksForSelectedHostel.find(b => String(b.id) === bId);
-          const blockName = blockObj ? (blockObj.name || (blockObj as any).blockName) : `Block ${bId}`;
-
-          // AC Configurations
-          Object.keys(blockConfigState).forEach(key => {
-            if (key.startsWith(`${bId}_AC_`) && blockConfigState[key].selected) {
-              const sharingType = key.replace(`${bId}_AC_`, '');
-              configItems.push({
-                blockId: bId,
-                blockName: blockName,
-                acType: 'AC',
-                sharingType: sharingType,
-                applyToAllNonAc: false,
-                amount: blockConfigState[key].amount || 0
-              });
-            }
-          });
-
-          // Non-AC Configurations
-          if (blockNonAcAllState[bId] !== false) {
-            configItems.push({
-              blockId: bId,
-              blockName: blockName,
-              acType: 'Non-AC',
-              sharingType: 'All sharing',
-              applyToAllNonAc: true,
-              amount: blockNonAcAllAmountState[bId] || 0
-            });
-          } else {
-            Object.keys(blockConfigState).forEach(key => {
-              if (key.startsWith(`${bId}_NonAC_`) && blockConfigState[key].selected) {
-                const sharingType = key.replace(`${bId}_NonAC_`, '');
-                configItems.push({
-                  blockId: bId,
-                  blockName: blockName,
-                  acType: 'Non-AC',
-                  sharingType: sharingType,
-                  applyToAllNonAc: false,
-                  amount: blockConfigState[key].amount || 0
-                });
-              }
-            });
-          }
-        });
-
-        if (configItems.length === 0) {
-          throw new Error('Validation Error: Please select at least one room configuration / sharing option for the selected blocks.');
-        }
-
-        const invalidAmount = configItems.find(c => !c.amount || c.amount <= 0);
-        if (invalidAmount) {
-          throw new Error(`Validation Error: Please enter a valid fee amount (> ₹0) for ${invalidAmount.blockName} (${invalidAmount.acType} - ${invalidAmount.sharingType}).`);
-        }
-
-        const selectedBlockNames = hostelConfigSelectedBlockIds.map(bId => {
-          const bObj = availableBlocksForSelectedHostel.find(b => String(b.id) === bId);
-          return bObj ? (bObj.name || (bObj as any).blockName) : `Block ${bId}`;
-        });
-
-        hostelCategoryConfig = {
-          hostelId: hostelConfigHostelId || hostelConfigHostelName,
-          hostelName: hostelConfigHostelName,
-          selectedBlockIds: hostelConfigSelectedBlockIds,
-          selectedBlockNames: selectedBlockNames,
-          configurations: configItems
-        };
-        hostelConfigJsonStr = JSON.stringify(hostelCategoryConfig);
-      }
-
       const calculatedFrequency: FeeHeadFrequency =
         formData.paymentEligibility === 'One-Time Only' ? 'One Time' :
         formData.paymentEligibility === 'Term-Wise Allowed' ? 'Quarterly' : 'Quarterly';
@@ -577,10 +293,6 @@ export const FeeHeadsView: React.FC = () => {
       const payload = {
         ...formData,
         frequency: calculatedFrequency,
-        hostelConfig: hostelCategoryConfig,
-        hostelConfigJson: hostelConfigJsonStr,
-        defaultAmount: hostelCategoryConfig && hostelCategoryConfig.configurations.length > 0 ? hostelCategoryConfig.configurations[0].amount : (formData.defaultAmount || 0),
-        amount: hostelCategoryConfig && hostelCategoryConfig.configurations.length > 0 ? hostelCategoryConfig.configurations[0].amount : (formData.amount || 0),
         taxPercentage: cleanTax,
         displayOrder: cleanOrder,
         mandatory: formData.mandatory === true,
@@ -704,10 +416,10 @@ export const FeeHeadsView: React.FC = () => {
                         </span>
 
                         {/* Module Mapping Badges */}
-                        {h.category === 'Hostel' && (h.hostelBlockName || h.hostelRoomNo) && (
+                        {h.category === 'Hostel' && (
                           <div className="flex items-center gap-1 text-[10px] text-amber-600 dark:text-amber-400 font-semibold">
                             <Building2 className="w-3 h-3 shrink-0" />
-                            <span>{h.hostelBlockName || 'Block'} {h.hostelRoomNo ? `(Room ${h.hostelRoomNo})` : ''} {h.hostelSharingType ? `- ${h.hostelSharingType}` : ''}</span>
+                            <span>Configured in Fee Structures</span>
                           </div>
                         )}
 
@@ -849,260 +561,16 @@ export const FeeHeadsView: React.FC = () => {
 
               {/* DYNAMIC MODULE INTEGRATION SECTIONS */}
 
-              {/* 1. HOSTEL MANAGEMENT DYNAMIC INTEGRATION */}
+              {/* 1. HOSTEL MANAGEMENT MASTER NOTICE */}
               {formData.category === 'Hostel' && (
-                <div className="p-4 rounded-2xl bg-amber-50/60 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 space-y-4">
-                  <div className="flex items-center justify-between border-b border-amber-200 dark:border-amber-800 pb-2">
-                    <label className="font-extrabold text-amber-900 dark:text-amber-200 flex items-center gap-2 text-xs">
-                      <Building2 className="w-4 h-4 text-amber-600" />
-                      Dynamic Hostel Fee Configuration
-                    </label>
-                    <span className="text-[10px] font-bold text-amber-700 dark:text-amber-400 bg-amber-100 dark:bg-amber-900/60 px-2.5 py-0.5 rounded-full">
-                      Hostel Module Bulk Sync
-                    </span>
+                <div className="p-3.5 rounded-2xl bg-amber-50/70 dark:bg-amber-950/30 border border-amber-200/80 dark:border-amber-800/80 space-y-1">
+                  <div className="flex items-center gap-2 text-xs font-bold text-amber-900 dark:text-amber-200">
+                    <Building2 className="w-4 h-4 text-amber-600" />
+                    Hostel Fee Head Definition
                   </div>
-
-                  {/* A. Select Hostel */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div>
-                      <label className="block font-semibold mb-1 text-[11px] text-slate-700 dark:text-slate-300">
-                        Select Hostel <span className="text-rose-500">*</span>
-                      </label>
-                      <select
-                        value={hostelConfigHostelId || hostelConfigHostelName || ''}
-                        onChange={(e) => {
-                          const val = e.target.value;
-                          const selectedHostel = availableHostelList.find(h => String(h.id) === val || h.name === val);
-                          setHostelConfigHostelId(selectedHostel ? String(selectedHostel.id) : val);
-                          setHostelConfigHostelName(selectedHostel ? selectedHostel.name : val);
-                          setHostelConfigSelectedBlockIds([]); // Reset blocks on hostel change
-                        }}
-                        className="w-full px-3 py-2 rounded-xl bg-white dark:bg-slate-900 border border-amber-300 dark:border-amber-700 text-xs font-semibold outline-none"
-                      >
-                        <option value="">Select Hostel Facility...</option>
-                        {availableHostelList.map(h => (
-                          <option key={h.id} value={h.id}>{h.name}</option>
-                        ))}
-                      </select>
-                    </div>
-
-                    <div>
-                      <label className="block font-semibold mb-1 text-[11px] text-slate-700 dark:text-slate-300">
-                        Hostel Facility Summary
-                      </label>
-                      <div className="px-3 py-2 rounded-xl bg-white/70 dark:bg-slate-900/70 border border-amber-200 dark:border-amber-800 text-xs text-slate-600 dark:text-slate-300 font-medium">
-                        {hostelConfigHostelName ? (
-                          <span>Hostel: <strong className="text-amber-700 dark:text-amber-400">{hostelConfigHostelName}</strong> ({availableBlocksForSelectedHostel.length} Blocks Available)</span>
-                        ) : (
-                          <span className="italic text-slate-400">Select a hostel to view available blocks</span>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* B. Block Selection */}
-                  {hostelConfigHostelName && (
-                    <div className="space-y-2 pt-2 border-t border-amber-200/70 dark:border-amber-800/70">
-                      <div className="flex items-center justify-between">
-                        <label className="font-extrabold text-amber-900 dark:text-amber-200 text-xs flex items-center gap-1.5">
-                          Block Selection ({hostelConfigSelectedBlockIds.length}/{availableBlocksForSelectedHostel.length} Selected)
-                        </label>
-                        <div className="flex items-center gap-2 text-[10px]">
-                          <button
-                            type="button"
-                            onClick={() => {
-                              const allIds = availableBlocksForSelectedHostel.map(b => String(b.id));
-                              setHostelConfigSelectedBlockIds(allIds);
-                            }}
-                            className="text-amber-700 hover:text-amber-800 dark:text-amber-400 font-bold hover:underline cursor-pointer"
-                          >
-                            Select All
-                          </button>
-                          <span className="text-slate-300">|</span>
-                          <button
-                            type="button"
-                            onClick={() => setHostelConfigSelectedBlockIds([])}
-                            className="text-slate-400 hover:text-slate-600 font-bold hover:underline cursor-pointer"
-                          >
-                            Deselect All
-                          </button>
-                        </div>
-                      </div>
-
-                      {availableBlocksForSelectedHostel.length === 0 ? (
-                        <p className="text-xs text-amber-700 dark:text-amber-400 italic">No blocks configured for this hostel. Please add blocks in Hostel Management first.</p>
-                      ) : (
-                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                          {availableBlocksForSelectedHostel.map(b => {
-                            const bId = String(b.id);
-                            const isChecked = hostelConfigSelectedBlockIds.includes(bId);
-                            return (
-                              <label
-                                key={bId}
-                                className={`flex items-center gap-2 p-2 rounded-xl border text-xs font-semibold cursor-pointer transition-all ${
-                                  isChecked
-                                    ? 'bg-amber-100 dark:bg-amber-900/60 border-amber-400 dark:border-amber-600 text-amber-950 dark:text-amber-100 shadow-sm'
-                                    : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-50'
-                                }`}
-                              >
-                                <input
-                                  type="checkbox"
-                                  checked={isChecked}
-                                  onChange={(e) => {
-                                    if (e.target.checked) {
-                                      setHostelConfigSelectedBlockIds([...hostelConfigSelectedBlockIds, bId]);
-                                    } else {
-                                      setHostelConfigSelectedBlockIds(hostelConfigSelectedBlockIds.filter(id => id !== bId));
-                                    }
-                                  }}
-                                  className="w-3.5 h-3.5 text-amber-600 rounded focus:ring-amber-500"
-                                />
-                                <span className="truncate">{b.name}</span>
-                              </label>
-                            );
-                          })}
-                        </div>
-                      )}
-                    </div>
-                  )}
-
-                  {/* C. Room Type and Sharing Configuration per Block */}
-                  {hostelConfigSelectedBlockIds.length > 0 && (
-                    <div className="space-y-4 pt-3 border-t border-amber-200/70 dark:border-amber-800/70">
-                      <label className="font-extrabold text-amber-900 dark:text-amber-200 text-xs block">
-                        Room Type & Sharing Configurations ({hostelConfigSelectedBlockIds.length} Block(s) Configured)
-                      </label>
-
-                      {hostelConfigSelectedBlockIds.map(blockId => {
-                        const blockObj = availableBlocksForSelectedHostel.find(b => String(b.id) === blockId);
-                        const blockName = blockObj ? blockObj.name : `Block ${blockId}`;
-                        const configs = getBlockRoomConfigurations(blockId, blockName);
-
-                        return (
-                          <div key={blockId} className="p-3.5 rounded-xl bg-white dark:bg-slate-900 border border-amber-200 dark:border-amber-800/80 space-y-3 shadow-sm">
-                            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-2">
-                              <span className="font-black text-amber-900 dark:text-amber-200 text-xs flex items-center gap-1.5">
-                                <span className="w-2 h-2 rounded-full bg-amber-500"></span>
-                                {blockName} Configuration
-                              </span>
-                              <span className="text-[10px] text-slate-500 dark:text-slate-400">
-                                Bulk Block Fee Assignment
-                              </span>
-                            </div>
-
-                            {/* AC Rooms Section */}
-                            <div className="space-y-2">
-                              <span className="text-[11px] font-extrabold text-sky-800 dark:text-sky-300 block">
-                                AC Rooms Sharing Selections
-                              </span>
-                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                                {configs.acSharingOptions.map(acOpt => {
-                                  const configKey = `${blockId}_AC_${acOpt.sharingType}`;
-                                  const currentConfig = blockConfigState[configKey] || { selected: false, amount: formData.defaultAmount || 0 };
-                                  return (
-                                    <div key={configKey} className="flex items-center justify-between p-2 rounded-lg bg-sky-50/50 dark:bg-sky-950/20 border border-sky-100 dark:border-sky-900/50 text-xs">
-                                      <label className="flex items-center gap-2 cursor-pointer">
-                                        <input
-                                          type="checkbox"
-                                          checked={currentConfig.selected}
-                                          onChange={(e) => updateBlockConfigState(configKey, { selected: e.target.checked })}
-                                          className="w-3.5 h-3.5 text-sky-600 rounded focus:ring-sky-500"
-                                        />
-                                        <span className="font-semibold text-slate-800 dark:text-slate-200">{acOpt.label}</span>
-                                        <span className="text-[10px] text-slate-400">({acOpt.matchingRoomCount} rooms)</span>
-                                      </label>
-                                      {currentConfig.selected && (
-                                        <div className="flex items-center gap-1">
-                                          <span className="text-[10px] font-bold text-slate-500">₹</span>
-                                          <input
-                                            type="number"
-                                            value={currentConfig.amount || ''}
-                                            onChange={(e) => updateBlockConfigState(configKey, { amount: Number(e.target.value) })}
-                                            placeholder="Amount"
-                                            className="w-24 px-2 py-1 text-xs font-bold bg-white dark:bg-slate-900 border border-sky-300 dark:border-sky-700 rounded-md outline-none text-right"
-                                          />
-                                        </div>
-                                      )}
-                                    </div>
-                                  );
-                                })}
-                              </div>
-                            </div>
-
-                            {/* Non-AC Rooms Section */}
-                            <div className="space-y-2 pt-2 border-t border-slate-100 dark:border-slate-800">
-                              <div className="flex items-center justify-between">
-                                <span className="text-[11px] font-extrabold text-emerald-800 dark:text-emerald-300 block">
-                                  Non-AC Rooms Configuration
-                                </span>
-                                <label className="flex items-center gap-1.5 text-xs cursor-pointer font-bold text-emerald-700 dark:text-emerald-400">
-                                  <input
-                                    type="checkbox"
-                                    checked={blockNonAcAllState[blockId] ?? true}
-                                    onChange={(e) => updateBlockNonAcAllState(blockId, e.target.checked)}
-                                    className="w-3.5 h-3.5 text-emerald-600 rounded focus:ring-emerald-500"
-                                  />
-                                  Apply to All Non-AC Rooms
-                                </label>
-                              </div>
-
-                              {blockNonAcAllState[blockId] !== false ? (
-                                <div className="flex items-center justify-between p-2.5 rounded-lg bg-emerald-50/50 dark:bg-emerald-950/20 border border-emerald-100 dark:border-emerald-900/50 text-xs">
-                                  <div>
-                                    <span className="font-bold text-emerald-900 dark:text-emerald-200">All Non-AC Rooms ({configs.totalNonAcRoomCount} rooms)</span>
-                                    <p className="text-[10px] text-emerald-700 dark:text-emerald-400">Applies to all current & future Non-AC rooms in {blockName}</p>
-                                  </div>
-                                  <div className="flex items-center gap-1">
-                                    <span className="text-[10px] font-bold text-slate-500">₹</span>
-                                    <input
-                                      type="number"
-                                      value={blockNonAcAllAmountState[blockId] || ''}
-                                      onChange={(e) => updateBlockNonAcAllAmountState(blockId, Number(e.target.value))}
-                                      placeholder="Amount"
-                                      className="w-28 px-2 py-1 text-xs font-bold bg-white dark:bg-slate-900 border border-emerald-300 dark:border-emerald-700 rounded-md outline-none text-right"
-                                    />
-                                  </div>
-                                </div>
-                              ) : (
-                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                                  {configs.nonAcSharingOptions.map(nonAcOpt => {
-                                    const configKey = `${blockId}_NonAC_${nonAcOpt.sharingType}`;
-                                    const currentConfig = blockConfigState[configKey] || { selected: false, amount: formData.defaultAmount || 0 };
-                                    return (
-                                      <div key={configKey} className="flex items-center justify-between p-2 rounded-lg bg-emerald-50/40 dark:bg-emerald-950/20 border border-emerald-100 dark:border-emerald-900/40 text-xs">
-                                        <label className="flex items-center gap-2 cursor-pointer">
-                                          <input
-                                            type="checkbox"
-                                            checked={currentConfig.selected}
-                                            onChange={(e) => updateBlockConfigState(configKey, { selected: e.target.checked })}
-                                            className="w-3.5 h-3.5 text-emerald-600 rounded focus:ring-emerald-500"
-                                          />
-                                          <span className="font-semibold text-slate-800 dark:text-slate-200">{nonAcOpt.label}</span>
-                                          <span className="text-[10px] text-slate-400">({nonAcOpt.matchingRoomCount} rooms)</span>
-                                        </label>
-                                        {currentConfig.selected && (
-                                          <div className="flex items-center gap-1">
-                                            <span className="text-[10px] font-bold text-slate-500">₹</span>
-                                            <input
-                                              type="number"
-                                              value={currentConfig.amount || ''}
-                                              onChange={(e) => updateBlockConfigState(configKey, { amount: Number(e.target.value) })}
-                                              placeholder="Amount"
-                                              className="w-24 px-2 py-1 text-xs font-bold bg-white dark:bg-slate-900 border border-emerald-300 dark:border-emerald-700 rounded-md outline-none text-right"
-                                            />
-                                          </div>
-                                        )}
-                                      </div>
-                                    );
-                                  })}
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
+                  <p className="text-[11px] text-amber-700 dark:text-amber-300">
+                    Define the master fee head here (e.g. Code, Payment Eligibility, Applicable Terms, Classes). Block-level room types (AC/Non-AC) and sharing capacity fee amounts are configured dynamically in the <strong>Fee Structures</strong> tab.
+                  </p>
                 </div>
               )}
 

@@ -1281,11 +1281,26 @@ export interface FeeStructureItem {
 
 export interface DynamicFeeStructure {
   id: string;
+  name?: string;
+  description?: string;
   academicYear: string;
   branch: string;
   className: string;
   section?: string;
   studentCategory: string;
+  category?: 'Tuition' | 'Hostel' | string;
+  feeCategory?: 'Tuition' | 'Hostel' | string;
+  feeHeadId?: string;
+  feeHeadName?: string;
+  hostelId?: string | number;
+  hostelName?: string;
+  selectedBlockIds?: (string | number)[];
+  selectedBlockNames?: string[];
+  hostelConfig?: HostelFeeCategoryConfig;
+  hostelConfigJson?: string;
+  effectiveDate?: string;
+  paymentEligibility?: FeePaymentEligibility;
+  applicableTerms?: string[];
   items: FeeStructureItem[];
   totalAmount: number;
   status: 'Active' | 'Inactive';

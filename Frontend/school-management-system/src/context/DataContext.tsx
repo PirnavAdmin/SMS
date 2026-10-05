@@ -10654,12 +10654,17 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       branch: dfs.branch || selectedBranch || "Main Campus",
     };
     setDynamicFeeStructures((prev) => {
+      const isHostel = newDfs.category === "Hostel";
       const normClass = (newDfs.className || "").trim().toLowerCase();
-      const filtered = prev.filter(
-        (d) =>
-          String(d.id) !== String(id) &&
-          (d.className || "").trim().toLowerCase() !== normClass,
-      );
+      const normHostel = (newDfs.hostelName || "").trim().toLowerCase();
+      const filtered = prev.filter((d) => {
+        if (String(d.id) === String(id)) return false;
+        if (isHostel) {
+          return !(d.category === "Hostel" && (d.hostelName || "").trim().toLowerCase() === normHostel && (!d.academicYear || d.academicYear === newDfs.academicYear));
+        } else {
+          return d.category === "Hostel" || (d.className || "").trim().toLowerCase() !== normClass;
+        }
+      });
       const updated = [...filtered, newDfs];
       try {
         localStorage.setItem("dynamic_fee_structures", JSON.stringify(updated));
@@ -10667,10 +10672,12 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       } catch (e) {}
       return updated;
     });
-    applyFeeStructureToClassStudents(newDfs);
+    if (newDfs.category !== "Hostel") {
+      applyFeeStructureToClassStudents(newDfs);
+    }
     logActivity(
       "Created Dynamic Fee Structure",
-      `Added structure for ${newDfs.className}`,
+      `Added structure for ${newDfs.category === "Hostel" ? (newDfs.hostelName || "Hostel") : newDfs.className}`,
     );
   };
 
@@ -10698,17 +10705,21 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     } catch (err) {
       console.warn("API update dynamic fee structure failed:", err);
     }
-    applyFeeStructureToClassStudents(updatedDfs);
+    if (updatedDfs.category !== "Hostel") {
+      applyFeeStructureToClassStudents(updatedDfs);
+    }
     logActivity("Updated Dynamic Fee Structure", `Updated structure ID ${id}`);
   };
 
   const deleteDynamicFeeStructure = async (id: string) => {
     const target = dynamicFeeStructures.find((d) => String(d.id) === String(id));
     const targetClass = target?.className;
+    const isHostel = target?.category === "Hostel";
     setDynamicFeeStructures((prev) => {
       const filtered = prev.filter((d) => {
         if (String(d.id) === String(id)) return false;
         if (
+          !isHostel &&
           targetClass &&
           d.className &&
           d.className.toLowerCase().trim() === targetClass.toLowerCase().trim() &&
@@ -13479,59 +13490,117 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         const roomType =
           (activeHostelAssign as any)?.roomTypeName ||
           (student as any)?.roomType ||
-          (admApp as any)?.roomType;
+          (admApp as any)?.roomType || "";
 
-        let fhc = financeHostelConfigs.find((c) => {
-          if (c.status !== "Active") return false;
-          const blockMatch =
-            (c.hostelId && String(c.hostelId) === String(hstBlockName)) ||
-            (c.hostelName &&
-              c.hostelName.toLowerCase() === hstBlockName.toLowerCase()) ||
-            (c.hostelName &&
-              c.hostelName
-                .toLowerCase()
-                .includes(hstBlockName.toLowerCase())) ||
-            (c.hostelName &&
-              hstBlockName.toLowerCase().includes(c.hostelName.toLowerCase()));
+        // First check matching Room in hostelRooms for block, acType, capacity
+        const matchedRoomObj = (hostelRooms || []).find((r: any) =>
+          (String(r.roomNo).toLowerCase() === String(hstRoomName).toLowerCase() ||
+           String(r.id) === String((activeHostelAssign as any)?.roomId)) &&
+          (String(r.blockId) === String((activeHostelAssign as any)?.blockId) ||
+           !r.blockId ||
+           !hstBlockName)
+        );
 
-          if (!blockMatch) return false;
-          if (!roomType) return true;
+        const isRoomAc = (matchedRoomObj as any)?.acType === 'AC' ||
+          (matchedRoomObj as any)?.isAc === true ||
+          (String(roomType).toUpperCase().includes('AC') && !String(roomType).toUpperCase().includes('NON'));
+        const acTypeStr = isRoomAc ? 'AC' : 'Non-AC';
 
-          return (
-            (c.roomTypeName &&
-              c.roomTypeName.toLowerCase().trim() ===
-                String(roomType).toLowerCase().trim()) ||
-            (c.roomTypeName &&
-              c.roomTypeName
-                .toLowerCase()
-                .includes(String(roomType).toLowerCase())) ||
-            (c.roomTypeName &&
-              String(roomType)
-                .toLowerCase()
-                .includes(c.roomTypeName.toLowerCase()))
-          );
+        const parsedCapMatch = roomType.match(/\d+/);
+        const roomCap = matchedRoomObj?.capacity ||
+          (activeHostelAssign as any)?.capacity ||
+          (parsedCapMatch ? parseInt(parsedCapMatch[0], 10) : undefined);
+        const sharingStr = roomCap ? `${roomCap}-bed sharing` : "";
+
+        // Check if there is an active DynamicFeeStructure for Hostel
+        const activeHostelStruct = (dynamicFeeStructures || []).find((s) => {
+          if (s.category !== 'Hostel' && s.feeCategory !== 'Hostel') return false;
+          if (s.status === 'Inactive') return false;
+          if (s.academicYear && selectedAcademicYear && s.academicYear !== selectedAcademicYear) return false;
+          const config = s.hostelConfig;
+          if (!config) return false;
+
+          const hostelMatches = !config.hostelName || !hstBlockName ||
+            config.hostelName.toLowerCase().includes(hstBlockName.toLowerCase()) ||
+            hstBlockName.toLowerCase().includes(config.hostelName.toLowerCase()) ||
+            (config.selectedBlockNames && config.selectedBlockNames.some(b => b.toLowerCase().includes(hstBlockName.toLowerCase()) || hstBlockName.toLowerCase().includes(b.toLowerCase())));
+          return hostelMatches;
         });
 
-        if (!fhc) {
-          fhc =
-            financeHostelConfigs.find(
-              (c) =>
-                c.status === "Active" &&
-                ((c.hostelId && String(c.hostelId) === String(hstBlockName)) ||
-                  (c.hostelName &&
-                    c.hostelName
-                      .toLowerCase()
-                      .includes(hstBlockName.toLowerCase()))),
-            ) || financeHostelConfigs.find((c) => c.status === "Active");
+        let matchedDynamicHostelFee = 0;
+        if (activeHostelStruct && activeHostelStruct.hostelConfig) {
+          const configs = activeHostelStruct.hostelConfig.configurations || [];
+          const matchedItem = configs.find(c => {
+            if (c.acType !== acTypeStr) return false;
+            if (c.acType === 'Non-AC' && c.applyToAllNonAc) return true;
+            return (roomCap && c.sharingType.toLowerCase().includes(String(roomCap))) ||
+                   (sharingStr && c.sharingType.toLowerCase().includes(sharingStr.toLowerCase().replace(' sharing', ''))) ||
+                   (roomType && roomType.toLowerCase().includes(c.sharingType.toLowerCase()));
+          }) || configs.find(c => c.acType === acTypeStr);
+
+          if (matchedItem && matchedItem.amount > 0) {
+            matchedDynamicHostelFee = matchedItem.amount;
+            combinedHostelTotal = matchedItem.amount;
+            const hostelFeeHead = (feeHeads || []).find(h => h.id === activeHostelStruct.feeHeadId || h.category === 'Hostel');
+            hostelFrequency = hostelFeeHead?.frequency ||
+              (activeHostelStruct.paymentEligibility === 'One-Time Only' ? 'One Time' : 'Quarterly');
+            hostelApplicable = true;
+          }
         }
 
-        if (fhc) {
-          const hstFee = fhc.hostelFee;
-          const secDep =
-            fhc.securityDeposit !== undefined ? fhc.securityDeposit : 5000;
-          combinedHostelTotal = hstFee + secDep;
-          hostelFrequency = fhc.feePlan || (fhc as any).frequency || "Annual";
-          hostelApplicable = true;
+        if (!matchedDynamicHostelFee) {
+          let fhc = financeHostelConfigs.find((c) => {
+            if (c.status !== "Active") return false;
+            const blockMatch =
+              (c.hostelId && String(c.hostelId) === String(hstBlockName)) ||
+              (c.hostelName &&
+                c.hostelName.toLowerCase() === hstBlockName.toLowerCase()) ||
+              (c.hostelName &&
+                c.hostelName
+                  .toLowerCase()
+                  .includes(hstBlockName.toLowerCase())) ||
+              (c.hostelName &&
+                hstBlockName.toLowerCase().includes(c.hostelName.toLowerCase()));
+
+            if (!blockMatch) return false;
+            if (!roomType) return true;
+
+            return (
+              (c.roomTypeName &&
+                c.roomTypeName.toLowerCase().trim() ===
+                  String(roomType).toLowerCase().trim()) ||
+              (c.roomTypeName &&
+                c.roomTypeName
+                  .toLowerCase()
+                  .includes(String(roomType).toLowerCase())) ||
+              (c.roomTypeName &&
+                String(roomType)
+                  .toLowerCase()
+                  .includes(c.roomTypeName.toLowerCase()))
+            );
+          });
+
+          if (!fhc) {
+            fhc =
+              financeHostelConfigs.find(
+                (c) =>
+                  c.status === "Active" &&
+                  ((c.hostelId && String(c.hostelId) === String(hstBlockName)) ||
+                    (c.hostelName &&
+                      c.hostelName
+                        .toLowerCase()
+                        .includes(hstBlockName.toLowerCase()))),
+              ) || financeHostelConfigs.find((c) => c.status === "Active");
+          }
+
+          if (fhc) {
+            const hstFee = fhc.hostelFee;
+            const secDep =
+              fhc.securityDeposit !== undefined ? fhc.securityDeposit : 0;
+            combinedHostelTotal = hstFee + secDep;
+            hostelFrequency = fhc.feePlan || (fhc as any).frequency || "Annual";
+            hostelApplicable = true;
+          }
         }
       }
     }

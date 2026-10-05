@@ -8,34 +8,58 @@ export const fetchDynamicFeeStructuresApi = async () => {
     ? response
     : response?.data?.items || response?.data || [];
   if (Array.isArray(items)) {
-    return items.map((item: any) => ({
-      id: item.id?.toString() || "",
-      academicYear: item.academicYear || "2026-2027",
-      branch: item.branch || "Main Campus",
-      className: item.className || "",
-      section: item.section || "",
-      studentCategory: item.studentCategory || "General",
-      items: (item.items || []).map((x: any) => ({
-        feeHeadId: x.feeHeadId?.toString() || "",
-        feeHeadName: x.feeHeadName || "",
-        category: x.category || "",
-        amount: x.amount ?? 0
-      })),
-      totalAmount: item.totalAmount ?? 0,
-      status: item.status || "Active"
-    }));
+    return items.map((item: any) => {
+      let isHostel = item.targetAudience === "Hostel" || (item.className && item.className.toLowerCase() === "hostel");
+      let parsedHostelConfig: any = undefined;
+      if (item.description && (item.description.includes('"configurations"') || item.description.startsWith("{"))) {
+        try {
+          parsedHostelConfig = JSON.parse(item.description);
+          isHostel = true;
+        } catch {}
+      }
+
+      return {
+        id: item.id?.toString() || "",
+        academicYear: item.academicYear || "",
+        branch: item.branch || "",
+        className: item.className || "",
+        section: item.section || "",
+        studentCategory: item.studentCategory || "General",
+        category: isHostel ? 'Hostel' : 'Tuition',
+        feeCategory: isHostel ? 'Hostel' : 'Tuition',
+        hostelName: parsedHostelConfig?.hostelName,
+        hostelId: parsedHostelConfig?.hostelId,
+        selectedBlockIds: parsedHostelConfig?.selectedBlockIds,
+        selectedBlockNames: parsedHostelConfig?.selectedBlockNames,
+        hostelConfig: parsedHostelConfig,
+        hostelConfigJson: item.description && item.description.startsWith("{") ? item.description : undefined,
+        items: (item.items || []).map((x: any) => ({
+          feeHeadId: x.feeHeadId?.toString() || "",
+          feeHeadName: x.feeHeadName || "",
+          category: x.category || "",
+          amount: x.amount ?? 0
+        })),
+        totalAmount: item.totalAmount ?? 0,
+        status: item.status || "Active"
+      };
+    });
   }
   return [];
 };
 
 export const createDynamicFeeStructureApi = async (data: Omit<DynamicFeeStructure, 'id'>) => {
+  const isHostel = data.category === 'Hostel';
   const payload = {
-    name: `${data.className} Structure`,
-    description: `Dynamic fee structure for ${data.className}`,
-    targetAudience: data.studentCategory || "All",
-    academicYear: data.academicYear || "2026-2027",
-    branch: data.branch || "Main Campus",
-    className: data.className || "",
+    name: isHostel
+      ? (data.hostelName ? `${data.hostelName} Hostel Fee Structure` : "Hostel Fee Structure")
+      : `${data.className} Structure`,
+    description: isHostel
+      ? (data.hostelConfigJson || JSON.stringify(data.hostelConfig || {}))
+      : `Dynamic fee structure for ${data.className}`,
+    targetAudience: isHostel ? "Hostel" : (data.studentCategory || "All"),
+    academicYear: data.academicYear || "",
+    branch: data.branch || "",
+    className: isHostel ? (data.className || "Hostel") : (data.className || ""),
     section: data.section || "",
     studentCategory: data.studentCategory || "General",
     totalAmount: Number(data.totalAmount) || 0,
@@ -55,9 +79,18 @@ export const createDynamicFeeStructureApi = async (data: Omit<DynamicFeeStructur
 
 export const updateDynamicFeeStructureApi = async (id: string, data: Partial<DynamicFeeStructure>) => {
   const cleanId = id.toString().replace(/\D/g, '') || id;
+  const isHostel = data.category === 'Hostel';
   const payload = {
     ...data,
     id: parseInt(cleanId, 10) || 0,
+    name: isHostel
+      ? (data.hostelName ? `${data.hostelName} Hostel Fee Structure` : "Hostel Fee Structure")
+      : `${data.className} Structure`,
+    description: isHostel
+      ? (data.hostelConfigJson || JSON.stringify(data.hostelConfig || {}))
+      : (data.description || `Dynamic fee structure for ${data.className}`),
+    targetAudience: isHostel ? "Hostel" : (data.studentCategory || "All"),
+    className: isHostel ? (data.className || "Hostel") : (data.className || ""),
     totalAmount: Number(data.totalAmount) || 0,
     items: (data.items || []).map((x: any) => ({
       feeHeadId: (x.feeHeadId || "").toString(),

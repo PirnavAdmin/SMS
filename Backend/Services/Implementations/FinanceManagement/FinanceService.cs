@@ -315,13 +315,15 @@ public class FinanceService : IFinanceService
     public async Task<IEnumerable<DynamicFeeStructureDto>> GetDynamicFeeStructuresAsync()
     {
         var list = await _repo.GetDynamicFeeStructuresAsync();
-        // Group and deduplicate by class name, academic year and branch to guarantee no duplicate fee structures are ever returned
+        // Group and deduplicate by class name (or hostel name if Hostel structure), academic year and branch
         var grouped = list
             .GroupBy(x => new
             {
-                ClassName = (x.ClassName ?? "").Trim().ToLowerInvariant(),
-                AcademicYear = (x.AcademicYear ?? "2026-2027").Trim().ToLowerInvariant(),
-                Branch = (x.Branch ?? "Main Campus").Trim().ToLowerInvariant()
+                Key = (x.TargetAudience != null && x.TargetAudience.Equals("Hostel", StringComparison.OrdinalIgnoreCase))
+                    ? $"hostel_{(x.Name ?? "").Trim().ToLowerInvariant()}"
+                    : (x.ClassName ?? "").Trim().ToLowerInvariant(),
+                AcademicYear = (x.AcademicYear ?? string.Empty).Trim().ToLowerInvariant(),
+                Branch = (x.Branch ?? string.Empty).Trim().ToLowerInvariant()
             })
             .Select(g => g.OrderByDescending(x => x.Id).First())
             .ToList();
@@ -370,15 +372,18 @@ public class FinanceService : IFinanceService
 
     public async Task<DynamicFeeStructureDto> CreateDynamicFeeStructureAsync(DynamicFeeStructureDto dto)
     {
-        var academicYear = string.IsNullOrEmpty(dto.AcademicYear) ? "2026-2027" : dto.AcademicYear;
-        var branch = string.IsNullOrEmpty(dto.Branch) ? "Main Campus" : dto.Branch;
+        var academicYear = dto.AcademicYear ?? string.Empty;
+        var branch = dto.Branch ?? string.Empty;
         var className = (dto.ClassName ?? "").Trim();
+        var isHostel = (dto.TargetAudience != null && dto.TargetAudience.Equals("Hostel", StringComparison.OrdinalIgnoreCase))
+            || (dto.ClassName != null && dto.ClassName.Equals("Hostel", StringComparison.OrdinalIgnoreCase));
 
-        // Check if a fee structure already exists for this class, academic year, and branch
+        // Check if a fee structure already exists
         var existingList = await _repo.GetDynamicFeeStructuresAsync();
         var existing = existingList.FirstOrDefault(x =>
-            x.ClassName != null &&
-            x.ClassName.Trim().Equals(className, StringComparison.OrdinalIgnoreCase) &&
+            (isHostel
+                ? (x.TargetAudience != null && x.TargetAudience.Equals("Hostel", StringComparison.OrdinalIgnoreCase) && (x.Name ?? "").Trim().Equals((dto.Name ?? "").Trim(), StringComparison.OrdinalIgnoreCase))
+                : (x.ClassName != null && x.ClassName.Trim().Equals(className, StringComparison.OrdinalIgnoreCase))) &&
             (string.IsNullOrEmpty(x.AcademicYear) || x.AcademicYear.Equals(academicYear, StringComparison.OrdinalIgnoreCase)) &&
             (string.IsNullOrEmpty(x.Branch) || x.Branch.Equals(branch, StringComparison.OrdinalIgnoreCase)));
 
@@ -391,8 +396,8 @@ public class FinanceService : IFinanceService
         var model = new DynamicFeeStructure
         {
             Name = string.IsNullOrEmpty(dto.Name) ? $"{className} Structure" : dto.Name,
-            Description = dto.Description,
-            TargetAudience = dto.TargetAudience,
+            Description = dto.Description ?? string.Empty,
+            TargetAudience = dto.TargetAudience ?? string.Empty,
             AcademicYear = academicYear,
             Branch = branch,
             ClassName = className,
@@ -415,10 +420,10 @@ public class FinanceService : IFinanceService
         {
             Id = id,
             Name = string.IsNullOrEmpty(dto.Name) ? $"{dto.ClassName} Fee Structure" : dto.Name,
-            Description = dto.Description,
-            TargetAudience = dto.TargetAudience,
-            AcademicYear = string.IsNullOrEmpty(dto.AcademicYear) ? "2026-2027" : dto.AcademicYear,
-            Branch = string.IsNullOrEmpty(dto.Branch) ? "Main Campus" : dto.Branch,
+            Description = dto.Description ?? string.Empty,
+            TargetAudience = dto.TargetAudience ?? string.Empty,
+            AcademicYear = dto.AcademicYear ?? string.Empty,
+            Branch = dto.Branch ?? string.Empty,
             ClassName = dto.ClassName,
             Section = string.IsNullOrEmpty(dto.Section) ? "All Sections" : dto.Section,
             StudentCategory = string.IsNullOrEmpty(dto.StudentCategory) ? "General" : dto.StudentCategory,
