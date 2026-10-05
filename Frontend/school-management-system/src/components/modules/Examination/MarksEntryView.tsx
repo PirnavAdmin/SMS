@@ -1,8 +1,8 @@
 import React from 'react';
-import { ExaminationView } from './ExaminationView';
+import { ClassTeacherMarksEntryView } from './ClassTeacherMarksEntryView';
 
-export const MarksEntryView: React.FC = () => {
-  return <ExaminationView initialTab="evaluation" />;
+export const MarksEntryView: React.FC<{ onNavigate?: (mod: string) => void }> = ({ onNavigate }) => {
+  return <ClassTeacherMarksEntryView onNavigate={onNavigate} />;
 };
 
 export default MarksEntryView;

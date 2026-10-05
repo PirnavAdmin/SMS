@@ -1,5 +1,5 @@
 import { useData } from '../../../../context/DataContext';
-import { ProcessedResult, Student } from '../../../../types';
+import { ProcessedResult, Student, GradeConfig } from '../../../../types';
 import { calculateStudentResult } from '../utils/resultCalculation';
 import { calculateCompetitionRanks } from '../utils/ranking';
 
@@ -88,23 +88,36 @@ export function useResults() {
 
     const activeExam = (exams || []).find(e => e.id === examId) || null;
 
-    // Filter grade rules
-    let filteredRules = gradeConfigurations || [];
+    // Filter grade rules strictly for this exam's assessment type
+    let filteredRules: GradeConfig[] = [];
+    let effectiveExamType = '';
     if (activeExam) {
-      if (activeExam.gradeSchemeName) {
-        const matched = (gradeConfigurations || []).filter(r => r.schemeName === activeExam.gradeSchemeName);
-        if (matched.length > 0) filteredRules = matched;
-      } else if (activeExam.examType) {
-        const typeStr = activeExam.examType;
-        const matched = (gradeConfigurations || []).filter(r =>
-          r.schemeName === typeStr ||
-          r.examType === typeStr ||
-          (r.schemeName && r.schemeName.toLowerCase().includes(typeStr.toLowerCase()))
+      const typeStr = (activeExam.examType || (activeExam as any).assessmentType || '').trim();
+      const schemeStr = (activeExam.gradeSchemeName || '').trim();
+      effectiveExamType = schemeStr || typeStr;
+
+      const normalize = (s: string) => (s || '').toLowerCase().replace(/[\s\/\-_]+/g, '');
+      const normScheme = normalize(schemeStr);
+      const normType = normalize(typeStr);
+
+      if (normScheme) {
+        const matched = (gradeConfigurations || []).filter(r => 
+          (r.schemeName && normalize(r.schemeName) === normScheme) || 
+          (r.examType && normalize(r.examType) === normScheme) ||
+          r.examType === 'All'
         );
         if (matched.length > 0) filteredRules = matched;
-      } else {
-        const defaultScholastic = (gradeConfigurations || []).filter(r => r.schemeName === 'Default Scholastic');
-        if (defaultScholastic.length > 0) filteredRules = defaultScholastic;
+      }
+      if (filteredRules.length === 0 && normType) {
+        const matched = (gradeConfigurations || []).filter(r =>
+          (r.examType && normalize(r.examType) === normType) ||
+          (r.schemeName && normalize(r.schemeName) === normType) ||
+          r.examType === 'All'
+        );
+        if (matched.length > 0) filteredRules = matched;
+      }
+      if (filteredRules.length === 0) {
+        filteredRules = gradeConfigurations || [];
       }
     }
 
@@ -114,7 +127,7 @@ export function useResults() {
         m => m && m.examId === examId && m.studentId === student.id
       );
 
-      const res = calculateStudentResult(studentMarks, subjectsList, filteredRules);
+      const res = calculateStudentResult(studentMarks, subjectsList, filteredRules, undefined, effectiveExamType);
       return {
         student,
         res

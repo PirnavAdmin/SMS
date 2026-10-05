@@ -406,6 +406,7 @@ export const ExaminationView: React.FC<ExaminationViewProps> = ({ initialTab = '
             addToast={addToast}
             onGotoSetup={() => setActiveTab('setup')}
             onProceedToResults={() => setActiveTab('results-reports')}
+            onGotoGrading={() => setActiveTab('grading')}
             selectedClass={selectedClass}
             setSelectedClass={setSelectedClass}
             selectedSection={selectedSection}
@@ -429,7 +430,11 @@ export const ExaminationView: React.FC<ExaminationViewProps> = ({ initialTab = '
         )}
 
         {activeTab === 'grading' && (
-          <GradingConfiguration addToast={addToast} />
+          <GradingConfiguration 
+            addToast={addToast} 
+            exams={exams} 
+            options={options} 
+          />
         )}
       </div>
 

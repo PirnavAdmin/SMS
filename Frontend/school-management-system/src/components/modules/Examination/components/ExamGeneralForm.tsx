@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Award, CheckCircle2, Calendar } from 'lucide-react';
 import { DatePickerInput } from './SharedUI';
+import { useData } from '../../../../context/DataContext';
 
 interface ExamGeneralFormProps {
   name: string;
@@ -33,23 +34,30 @@ export const ExamGeneralForm: React.FC<ExamGeneralFormProps> = ({
   assessmentTypesOptions,
   termCyclesOptions
 }) => {
+  const { gradeConfigurations } = useData();
   const inputClass = "w-full px-3.5 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-800 outline-none text-slate-900 dark:text-white focus:border-sky-500 font-bold text-xs h-[38px] transition";
   const selectClass = "w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-800 outline-none text-slate-900 dark:text-white focus:border-sky-500 font-bold text-xs h-[38px] transition cursor-pointer";
 
-  const assessmentTypes = assessmentTypesOptions && assessmentTypesOptions.length > 0
-    ? assessmentTypesOptions.filter(t => t !== "Other / Custom...")
-    : [
-        'Unit Test',
-        'Periodic Assessment (PT)',
-        'Formative Assessment (FA)',
-        'Summative Assessment (SA)',
-        'Mid-Term Examination',
-        'Half-Yearly Examination',
-        'Pre-Board Examination',
-        'Annual / Final Examination',
-        'Practical & Laboratory Assessment',
-        'Internal / Continuous Evaluation'
-      ];
+  const standardTypes = [
+    'Unit Test',
+    'Periodic Assessment (PT)',
+    'Formative Assessment (FA)',
+    'Summative Assessment (SA)',
+    'Mid-Term Examination',
+    'Half-Yearly Examination',
+    'Pre-Board Examination',
+    'Annual / Final Examination',
+    'Practical & Laboratory Assessment',
+    'Internal / Continuous Evaluation'
+  ];
+
+  const assessmentTypes = useMemo(() => {
+    const fromOptions = (assessmentTypesOptions || []).filter(t => t !== "Other / Custom...");
+    const fromGrades = (gradeConfigurations || [])
+      .map(g => g.examType)
+      .filter((t): t is string => !!t && t !== 'All');
+    return Array.from(new Set([...standardTypes, ...fromOptions, ...fromGrades]));
+  }, [assessmentTypesOptions, gradeConfigurations]);
 
   const [isCustomType, setIsCustomType] = useState(() => {
     if (!examType) return false;

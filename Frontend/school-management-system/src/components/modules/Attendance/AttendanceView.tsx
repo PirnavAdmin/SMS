@@ -119,13 +119,43 @@ export const AttendanceView = () => {
   }, [user, staff]);
 
   // Extract assigned classes & sections for teacher merging Admin assignments & timetable
+  // Extract single assigned Class Teacher class & section for teacher
   const teacherClasses = useMemo(() => {
     const tName = `${dbTeacher.firstName || ''} ${dbTeacher.lastName || ''}`.toLowerCase().trim();
+    const tId = String(dbTeacher.id || (dbTeacher as any).empId || '').toLowerCase().trim();
 
-    const fromAssignments = (teacherAssignments || [])
+    // 1. Check teacherAssignments for Class Teacher role
+    const ctAssignments = (teacherAssignments || [])
       .filter((ta: any) => {
         const nameMatch = ta.teacherName && (ta.teacherName.toLowerCase().includes(tName) || tName.includes(ta.teacherName.toLowerCase()));
-        const idMatch = ta.teacherId && (String(ta.teacherId) === String(dbTeacher.id) || String(ta.teacherId) === String((dbTeacher as any).empId));
+        const idMatch = ta.teacherId && (String(ta.teacherId).toLowerCase() === tId);
+        const isCT = ta.role === 'Class Teacher' || ta.isClassTeacher === true || (ta.designation || '').toLowerCase().includes('class teacher');
+        return (nameMatch || idMatch) && isCT;
+      })
+      .map((ta: any) => {
+        const cls = (ta.className || '').trim();
+        const sec = (ta.section || '').trim();
+        return sec ? `${cls}-${sec}` : cls;
+      });
+
+    // 2. Check academicClasses for sections where this teacher is assigned as classTeacher
+    const fromAcademic: string[] = [];
+    (academicClasses || []).forEach((ac: any) => {
+      const cName = ac.name || '';
+      (ac.sections || []).forEach((secObj: any) => {
+        const sName = typeof secObj === 'string' ? secObj : secObj.name || secObj.sectionName || '';
+        const ctName = (typeof secObj === 'object' && secObj.classTeacher) ? String(secObj.classTeacher).toLowerCase() : String(ac.classTeacher || '').toLowerCase();
+        if (ctName && (ctName.includes(tName) || tName.includes(ctName) || ctName === tId)) {
+          fromAcademic.push(`${cName}-${sName || 'A'}`);
+        }
+      });
+    });
+
+    // 3. Fallback to general teacherAssignments or assignedClasses
+    const generalAssignments = (teacherAssignments || [])
+      .filter((ta: any) => {
+        const nameMatch = ta.teacherName && (ta.teacherName.toLowerCase().includes(tName) || tName.includes(ta.teacherName.toLowerCase()));
+        const idMatch = ta.teacherId && (String(ta.teacherId).toLowerCase() === tId);
         return nameMatch || idMatch;
       })
       .map((ta: any) => {
@@ -134,20 +164,14 @@ export const AttendanceView = () => {
         return sec ? `${cls}-${sec}` : cls;
       });
 
-    const fromTimetable = (timetable || [])
-      .filter((t: any) => t.teacherName && (t.teacherName.toLowerCase().includes(tName) || tName.includes(t.teacherName.toLowerCase())))
-      .map((t: any) => {
-        const cls = (t.className || '').trim();
-        const sec = (t.section || '').trim();
-        return sec ? `${cls}-${sec}` : cls;
-      });
-
     let raw = (dbTeacher as any)?.assignedClasses || (dbTeacher as any)?.classes || [];
     if (!Array.isArray(raw)) raw = [raw];
 
-    const merged = Array.from(new Set([...raw, ...fromAssignments, ...fromTimetable])).filter(Boolean);
+    const mergedCT = [...ctAssignments, ...fromAcademic];
+    const mergedAll = mergedCT.length > 0 ? mergedCT : [...generalAssignments, ...raw];
+    const uniqueList = Array.from(new Set(mergedAll)).filter(Boolean);
 
-    const result = merged.map((c: any) => {
+    const result = uniqueList.map((c: any) => {
       const str = typeof c === 'string' ? c : (c.className ? `${c.className}-${c.section || 'A'}` : '');
       const parts = str.split('-');
       let className = formatDisplayClassName(parts[0].trim());
@@ -155,12 +179,11 @@ export const AttendanceView = () => {
       return { className, section };
     }).filter((c: any) => Boolean(c.className) && !c.className.toLowerCase().includes('nursery') && !c.className.toLowerCase().includes('lkg') && !c.className.toLowerCase().includes('ukg'));
 
-    return result.length > 0 ? result : [
-      { className: 'Class 10', section: 'A' },
-      { className: 'Class 9', section: 'B' },
-      { className: 'Class 8', section: 'A' }
+    // Strictly limit teacher to ONLY her 1 primary Class Teacher assigned class
+    return result.length > 0 ? [result[0]] : [
+      { className: 'Class 10', section: 'A' }
     ];
-  }, [dbTeacher, teacherAssignments, timetable]);
+  }, [dbTeacher, teacherAssignments, academicClasses]);
 
   const teacherFullName = `${dbTeacher.firstName || 'Suteja'} ${dbTeacher.lastName || 'K'}`.trim();
 
@@ -220,6 +243,75 @@ export const AttendanceView = () => {
     const validSections = merged.length > 0 ? merged.sort() : ['A'];
     return ['Select Section', ...validSections];
   }, [isTeacher, teacherClasses, selectedClass, academicClasses, allStudents]);
+
+  // Combined Class & Section Options
+  const classSectionOptions = useMemo(() => {
+    if (isTeacher && teacherClasses.length > 0) {
+      const items = teacherClasses.map(c => {
+        const cName = formatDisplayClassName(c.className);
+        const sec = c.section || 'A';
+        return {
+          label: `${cName} - Section ${sec}`,
+          className: cName,
+          section: sec
+        };
+      });
+      const uniqueMap = new Map<string, { label: string; className: string; section: string }>();
+      items.forEach(it => {
+        if (!uniqueMap.has(it.label)) uniqueMap.set(it.label, it);
+      });
+      return Array.from(uniqueMap.values());
+    }
+
+    const map = new Map<string, Set<string>>();
+
+    (academicClasses || []).forEach(ac => {
+      if (!ac.name) return;
+      const cName = formatDisplayClassName(ac.name);
+      if (!map.has(cName)) map.set(cName, new Set<string>());
+      const secList = (ac.sections || []).map((s: any) => typeof s === 'string' ? s : s.name || s.sectionName || 'A');
+      secList.forEach(s => { if (s) map.get(cName)!.add(s); });
+    });
+
+    (allStudents || []).forEach(s => {
+      if (!s.className) return;
+      const cName = formatDisplayClassName(s.className);
+      if (!map.has(cName)) map.set(cName, new Set<string>());
+      if (s.section) map.get(cName)!.add(s.section);
+    });
+
+    const result: Array<{ label: string; className: string; section: string }> = [];
+    const sortedClassNames = Array.from(map.keys()).sort(compareClassesAscending);
+
+    sortedClassNames.forEach(cName => {
+      const secSet = map.get(cName)!;
+      const secArr = secSet.size > 0 ? Array.from(secSet).sort() : ['A'];
+      secArr.forEach(sec => {
+        result.push({
+          label: `${cName} - Section ${sec}`,
+          className: cName,
+          section: sec
+        });
+      });
+    });
+
+    return result;
+  }, [isTeacher, teacherClasses, academicClasses, allStudents]);
+
+  const currentClassSectionValue = useMemo(() => {
+    if (!selectedClass || selectedClass === 'Select Class' || selectedClass === 'All Classes') return 'Select Class';
+    return `${selectedClass} - Section ${selectedSection}`;
+  }, [selectedClass, selectedSection]);
+
+  // Auto-select primary class teacher class for teacher
+  useEffect(() => {
+    if (isTeacher && teacherClasses.length > 0) {
+      if (selectedClass === 'Select Class' || !teacherClasses.some(c => c.className === selectedClass && c.section === selectedSection)) {
+        setSelectedClass(teacherClasses[0].className);
+        setSelectedSection(teacherClasses[0].section);
+      }
+    }
+  }, [isTeacher, teacherClasses]);
 
   // Dynamic list of period options matching selected Class, Section, Teacher & Day from Timetable
   const dynamicPeriodsList = useMemo(() => {
@@ -422,7 +514,7 @@ export const AttendanceView = () => {
         setSelectedPeriod(labels[0]);
       }
     } else {
-      setSelectedPeriod('Select Period');
+      setSelectedPeriod('Morning 1st Period');
     }
   }, [dynamicPeriodsList]);
 
@@ -1118,7 +1210,7 @@ export const AttendanceView = () => {
 
       {/* Control Filters Row */}
       <div className="glass-card p-4 rounded-2xl border border-slate-200/60 dark:border-slate-800/60 bg-white dark:bg-slate-900 space-y-4">
-        <div className={`grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 ${dateMode === 'Custom Range' ? 'xl:grid-cols-8' : 'xl:grid-cols-7'} gap-3 items-end`}>
+        <div className={`grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 ${dateMode === 'Custom Range' ? 'lg:grid-cols-5' : 'lg:grid-cols-4'} gap-3 items-end`}>
           <div className="space-y-1">
             <label className="text-[10px] font-black uppercase text-slate-400">Date Mode</label>
             <select
@@ -1139,7 +1231,7 @@ export const AttendanceView = () => {
             </select>
           </div>
 
-          <div className={`space-y-1 ${dateMode === 'Custom Range' ? 'sm:col-span-2 xl:col-span-2' : ''}`}>
+          <div className={`space-y-1 ${dateMode === 'Custom Range' ? 'sm:col-span-2 lg:col-span-2' : ''}`}>
             <label className="text-[10px] font-black uppercase text-slate-400">Date Selection</label>
             {(dateMode === 'Daily' || dateMode === 'Select') && (
               <input
@@ -1219,45 +1311,28 @@ export const AttendanceView = () => {
           <div className="space-y-1">
             <label className="text-[10px] font-black uppercase text-slate-400">Class</label>
             <select
-              value={selectedClass}
-              onChange={e => setSelectedClass(e.target.value)}
+              value={currentClassSectionValue}
+              onChange={e => {
+                const val = e.target.value;
+                if (val === 'Select Class') {
+                  setSelectedClass('Select Class');
+                  setSelectedSection('Select Section');
+                } else {
+                  const matched = classSectionOptions.find(opt => opt.label === val);
+                  if (matched) {
+                    setSelectedClass(matched.className);
+                    setSelectedSection(matched.section);
+                  }
+                }
+              }}
               className="w-full px-2.5 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none focus:border-brand-500 transition-colors cursor-pointer"
             >
-              {classOptions.map(cls => (
-                <option key={cls} value={cls}>{cls}</option>
+              <option value="Select Class">Select Class</option>
+              {classSectionOptions.map(opt => (
+                <option key={opt.label} value={opt.label}>
+                  {opt.label}
+                </option>
               ))}
-            </select>
-          </div>
-
-          <div className="space-y-1">
-            <label className="text-[10px] font-black uppercase text-slate-400">Section</label>
-            <select
-              value={selectedSection}
-              onChange={e => setSelectedSection(e.target.value)}
-              disabled={isTeacher ? sectionOptions.length <= 1 : (!selectedClass || selectedClass === 'Select Class' || selectedClass === 'All Classes')}
-              className="w-full px-2.5 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none focus:border-brand-500 transition-colors disabled:opacity-75 disabled:cursor-not-allowed cursor-pointer"
-            >
-              {sectionOptions.map(sec => (
-                <option key={sec} value={sec}>{sec === 'Select Section' ? 'Select Section' : sec === 'All Sections' ? 'All Sections' : `Section ${sec}`}</option>
-              ))}
-            </select>
-          </div>
-
-          <div className="space-y-1">
-            <label className="text-[10px] font-black uppercase text-slate-400">Period</label>
-            <select
-              value={selectedPeriod}
-              onChange={e => setSelectedPeriod(e.target.value)}
-              disabled={!selectedClass || selectedClass === 'Select Class' || selectedClass === 'All Classes' || !selectedSection || selectedSection === 'Select Section' || selectedSection === 'All Sections'}
-              className="w-full px-2.5 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none focus:border-brand-500 transition-colors disabled:opacity-75 disabled:cursor-not-allowed cursor-pointer"
-            >
-              {(!selectedClass || selectedClass === 'Select Class' || selectedClass === 'All Classes' || !selectedSection || selectedSection === 'Select Section' || selectedSection === 'All Sections' || dynamicPeriodsList.length === 0) ? (
-                <option value="Select Period">Select Period</option>
-              ) : (
-                periodOptions.map(prd => (
-                  <option key={prd} value={prd}>{prd}</option>
-                ))
-              )}
             </select>
           </div>
 
@@ -1286,7 +1361,7 @@ export const AttendanceView = () => {
           <div className="space-y-1.5 max-w-md mx-auto">
             <h3 className="text-base font-black text-slate-900 dark:text-white">Select Filter Options</h3>
             <p className="text-xs text-slate-500 dark:text-slate-400 font-medium leading-relaxed">
-              Please select a specific <strong>Class</strong> and <strong>Section</strong> from the filter bar above to view attendance records and summary metrics.
+              Please select a specific <strong>Class &amp; Section</strong> from the filter bar above to view attendance records and summary metrics.
             </p>
           </div>
         </div>

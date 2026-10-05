@@ -133,6 +133,51 @@ const currentYear = new Date().getFullYear();
 const yearOptions = [String(currentYear), String(currentYear - 1), String(currentYear - 2)];
 const roundOffOptions = ['No Round Off', 'Nearest 1', 'Nearest 10', 'Nearest 50'];
 
+export const isFutureMonthYear = (monthName: string, yearStr: string | number): boolean => {
+  const now = new Date();
+  const currentYr = now.getFullYear();
+  const currentMo = now.getMonth(); // 0 = Jan, 8 = Sep
+  const yr = Number(yearStr);
+  const moIndex = monthOptions.indexOf(monthName);
+  if (moIndex === -1) return false;
+  if (yr > currentYr) return true;
+  if (yr === currentYr && moIndex > currentMo) return true;
+  return false;
+};
+
+export const isBeforeJoiningDate = (joiningDateStr?: string, monthName?: string, yearStr?: string | number): boolean => {
+  if (!joiningDateStr || !monthName || !yearStr) return false;
+  const moIndex = monthOptions.indexOf(monthName);
+  if (moIndex === -1) return false;
+  const yr = Number(yearStr);
+  
+  const joinDate = new Date(joiningDateStr);
+  if (isNaN(joinDate.getTime())) return false;
+  
+  const joinYear = joinDate.getFullYear();
+  const joinMonth = joinDate.getMonth(); // 0 = Jan
+  
+  // If the payroll period year is before joining year
+  if (yr < joinYear) return true;
+  // If the payroll period year is the same as joining year and payroll month is strictly before joining month
+  if (yr === joinYear && moIndex < joinMonth) return true;
+  return false;
+};
+
+export const getAvailableMonthsForYear = (yearStr: string | number): string[] => {
+  const yr = Number(yearStr);
+  const now = new Date();
+  const currentYr = now.getFullYear();
+  const currentMo = now.getMonth();
+  if (yr === currentYr) {
+    return monthOptions.slice(0, currentMo + 1);
+  }
+  if (yr < currentYr) {
+    return monthOptions;
+  }
+  return [];
+};
+
 const inputClass =
   'h-11 w-full rounded-2xl border border-slate-200 bg-slate-50 px-3 text-sm font-semibold text-slate-900 outline-none transition focus:border-brand-400 focus:bg-white dark:border-slate-700 dark:bg-slate-950 dark:text-white';
 
@@ -1291,7 +1336,13 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
   };
 
   const generationCandidates = useMemo(() => {
+    if (isFutureMonthYear(generationMonth, generationYear)) {
+      return [];
+    }
     return employeeRows.filter(row => {
+      if (isBeforeJoiningDate(row.member.joiningDate, generationMonth, generationYear)) {
+        return false;
+      }
       const isSelected = selectedGenerationIds.includes(row.member.id);
       if (!isSelected && row.payrollStatus !== 'Active' && (!row.assignment || row.assignment.status !== 'Active')) return false;
       const staffBranch = row.member.branch || 'Main Campus';
@@ -1307,7 +1358,7 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
         `${row.member.firstName} ${row.member.lastName}`.trim() === generationEmployee;
       return matchesBranch && matchesDepartment && matchesCategory && matchesEmployee;
     });
-  }, [employeeRows, generationBranch, generationCategory, generationDepartment, generationEmployee, selectedGenerationIds]);
+  }, [employeeRows, generationBranch, generationCategory, generationDepartment, generationEmployee, generationMonth, generationYear, selectedGenerationIds]);
 
   const generationRows = useMemo(() => {
     return generationCandidates.map(row => {
@@ -1646,6 +1697,16 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
     }
 
     const member = row.member;
+    if (isFutureMonthYear(generationMonth, generationYear)) {
+      addToast('error', 'Generation Blocked', 'Cannot generate payroll for future dates or months.');
+      return null;
+    }
+
+    if (isBeforeJoiningDate(member.joiningDate, generationMonth, generationYear)) {
+      addToast('error', 'Generation Blocked', `${member.firstName} ${member.lastName} joined on ${member.joiningDate} and cannot receive payroll for ${payrollMonthLabel}.`);
+      return null;
+    }
+
     const structure = row.structure;
     const breakdown = row.breakdown;
     const grossSalary = breakdown.grossSalary > 0 ? breakdown.grossSalary : Number(member.salary || 0);
@@ -1697,14 +1758,25 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
     return payload as Payslip;
   };
 
-  const handleBulkGenerate = () => setIsGenerateModalOpen(true);
+  const handleBulkGenerate = () => {
+    if (isFutureMonthYear(generationMonth, generationYear)) {
+      addToast('error', 'Cannot Generate Payroll', 'Payroll cannot be generated for future dates or months.');
+      return;
+    }
+    setIsGenerateModalOpen(true);
+  };
   
   const confirmBulkGenerate = () => {
     setIsGenerateModalOpen(false);
+    if (isFutureMonthYear(generationMonth, generationYear)) {
+      addToast('error', 'Cannot Generate Payroll', 'Payroll cannot be generated for future dates or months.');
+      return;
+    }
     const targetRows = selectedGenerationIds.length > 0
       ? generationRows.filter(row => selectedGenerationIds.includes(row.member.id))
       : generationRows;
-    const created = targetRows.filter(row => !row.existing).map(createPayslipForRow).length;
+    const validRows = targetRows.filter(row => !isBeforeJoiningDate(row.member.joiningDate, generationMonth, generationYear));
+    const created = validRows.filter(row => !row.existing).map(createPayslipForRow).filter(Boolean).length;
     addToast('success', 'Payslips generated', created > 0 ? `${created} payslip${created === 1 ? '' : 's'} generated for ${payrollMonthLabel}.` : 'Nothing new to generate for this payroll period.');
   };
 
@@ -2188,6 +2260,16 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
       return matchesCategory && matchesSearch;
     });
 
+    const eligibleLeftStaff = filteredLeftStaff.filter(
+      member => !isBeforeJoiningDate(member.joiningDate, generationMonth, generationYear)
+    );
+    const eligibleSelectedCount = selectedGenerationIds.filter(id => {
+      const s = staff.find((m, idx) => getEmployeeUniqueId(m, idx) === id || m.id === id);
+      return s && !isBeforeJoiningDate(s.joiningDate, generationMonth, generationYear);
+    }).length;
+    const isFutureSelected = isFutureMonthYear(generationMonth, generationYear);
+    const availableMonths = getAvailableMonthsForYear(generationYear);
+
     return (
       <div className="space-y-6">
         {/* Top Header & Payslip Mode Bar */}
@@ -2197,10 +2279,12 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
               <h2 className="text-base font-black text-slate-900 dark:text-white flex items-center gap-2">
                 All Employees
                 <span className="text-xs font-bold text-slate-500">
-                  ({selectedCount > 0 ? `${selectedCount} selected` : `Showing payslips for ${filteredLeftStaff.length} employees`})
+                  ({eligibleSelectedCount > 0 ? `${eligibleSelectedCount} selected` : `Showing payslips for ${eligibleLeftStaff.length} eligible employees`})
                 </span>
               </h2>
-              <p className="text-xs text-slate-500">Showing payslips for all employees</p>
+              <p className="text-xs text-slate-500">
+                Period: <span className="font-bold text-slate-700 dark:text-slate-300">{currentPeriodLabel}</span>
+              </p>
             </div>
           </div>
 
@@ -2275,16 +2359,16 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
                 <input
                   type="checkbox"
                   className="rounded border-slate-300 text-brand-600 focus:ring-brand-600 h-4 w-4"
-                  checked={filteredLeftStaff.length > 0 && filteredLeftStaff.every((s, idx) => selectedGenerationIds.includes(getEmployeeUniqueId(s, idx)))}
+                  checked={eligibleLeftStaff.length > 0 && eligibleLeftStaff.every((s, idx) => selectedGenerationIds.includes(getEmployeeUniqueId(s, idx)))}
                   onChange={e => {
                     if (e.target.checked) {
-                      setSelectedGenerationIds(filteredLeftStaff.map((s, idx) => getEmployeeUniqueId(s, idx)));
+                      setSelectedGenerationIds(eligibleLeftStaff.map((s, idx) => getEmployeeUniqueId(s, idx)));
                     } else {
                       setSelectedGenerationIds([]);
                     }
                   }}
                 />
-                <span>Select All ({filteredLeftStaff.length})</span>
+                <span>Select All Eligible ({eligibleLeftStaff.length})</span>
               </label>
               {selectedCount > 0 && (
                 <button
@@ -2300,36 +2384,53 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
             <div className="max-h-[380px] overflow-y-auto space-y-1 pr-1">
               {filteredLeftStaff.map((member, idx) => {
                 const memberId = getEmployeeUniqueId(member, idx);
-                const isChecked = selectedGenerationIds.includes(memberId);
+                const isBeforeJoin = isBeforeJoiningDate(member.joiningDate, generationMonth, generationYear);
+                const isChecked = selectedGenerationIds.includes(memberId) && !isBeforeJoin;
                 const dept = member.department || member.designation || member.role || 'Staff';
                 return (
                   <div
                     key={memberId}
                     onClick={() => {
+                      if (isBeforeJoin) {
+                        addToast(
+                          'warning',
+                          'Not in Service',
+                          `${member.firstName} ${member.lastName} joined on ${member.joiningDate || 'a later date'} and cannot have payroll generated for ${currentPeriodLabel}.`
+                        );
+                        return;
+                      }
                       if (isChecked) {
                         setSelectedGenerationIds(prev => prev.filter(id => id !== memberId));
                       } else {
                         setSelectedGenerationIds(prev => [...prev.filter(id => id !== memberId), memberId]);
                       }
                     }}
-                    className={`flex items-center justify-between p-2.5 rounded-xl border transition-all cursor-pointer ${
-                      isChecked
-                        ? 'bg-sky-50/70 border-sky-300 dark:bg-sky-950/40 dark:border-sky-800'
-                        : 'bg-slate-50/50 border-slate-200 hover:bg-slate-100 dark:bg-slate-950 dark:border-slate-800'
+                    className={`flex items-center justify-between p-2.5 rounded-xl border transition-all ${
+                      isBeforeJoin
+                        ? 'opacity-60 bg-slate-100/70 border-slate-200 dark:bg-slate-900/60 dark:border-slate-800 cursor-not-allowed'
+                        : isChecked
+                        ? 'bg-sky-50/70 border-sky-300 dark:bg-sky-950/40 dark:border-sky-800 cursor-pointer'
+                        : 'bg-slate-50/50 border-slate-200 hover:bg-slate-100 dark:bg-slate-950 dark:border-slate-800 cursor-pointer'
                     }`}
                   >
                     <div className="flex items-center gap-2.5">
                       <input
                         type="checkbox"
                         checked={isChecked}
+                        disabled={isBeforeJoin}
                         onChange={() => {}}
-                        className="rounded border-slate-300 text-brand-600 focus:ring-brand-600 h-4 w-4"
+                        className="rounded border-slate-300 text-brand-600 focus:ring-brand-600 h-4 w-4 disabled:opacity-40"
                       />
                       <div>
                         <p className="text-xs font-extrabold text-slate-900 dark:text-white leading-tight">
                           {member.firstName} {member.lastName}
                         </p>
                         <p className="text-[10px] font-semibold text-slate-400">{member.empId}</p>
+                        {isBeforeJoin && (
+                          <span className="inline-block mt-0.5 text-[9px] font-bold text-amber-600 dark:text-amber-400">
+                            Joined: {member.joiningDate || 'Later'} (Not in Service)
+                          </span>
+                        )}
                       </div>
                     </div>
                     <span className="text-[10px] font-black uppercase text-slate-500 bg-slate-200/60 dark:bg-slate-800 px-2 py-0.5 rounded-md">
@@ -2351,10 +2452,17 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
                 <h3 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-wider">
                   Generate Payslip
                 </h3>
-                <Badge variant={selectedCount > 0 ? 'success' : 'slate'} size="sm">
-                  {selectedCount > 0 ? `${selectedCount} Selected` : 'No Selection'}
+                <Badge variant={eligibleSelectedCount > 0 ? 'success' : 'slate'} size="sm">
+                  {eligibleSelectedCount > 0 ? `${eligibleSelectedCount} Selected` : 'No Selection'}
                 </Badge>
               </div>
+
+              {isFutureSelected && (
+                <div className="p-3 rounded-xl bg-amber-50 dark:bg-amber-950/50 border border-amber-200 dark:border-amber-800 text-amber-800 dark:text-amber-200 text-xs font-bold flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 shrink-0 text-amber-600" />
+                  <span>Future month/year payroll cannot be generated. Please select the current or a past month.</span>
+                </div>
+              )}
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
@@ -2384,14 +2492,34 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
                     SPECIFIC PERIOD
                   </label>
                   <div className="flex items-center gap-2">
-                    <SelectField value={generationMonth} onChange={e => setGenerationMonth(e.target.value)}>
-                      {monthOptions.map(month => (
-                        <option key={month}>{month}</option>
+                    <SelectField
+                      value={generationMonth}
+                      onChange={e => {
+                        const val = e.target.value;
+                        if (isFutureMonthYear(val, generationYear)) {
+                          addToast('warning', 'Future Month Blocked', 'Cannot select a future month for payroll generation.');
+                          return;
+                        }
+                        setGenerationMonth(val);
+                      }}
+                    >
+                      {availableMonths.map(month => (
+                        <option key={month} value={month}>{month}</option>
                       ))}
                     </SelectField>
-                    <SelectField value={generationYear} onChange={e => setGenerationYear(e.target.value)}>
+                    <SelectField
+                      value={generationYear}
+                      onChange={e => {
+                        const val = e.target.value;
+                        setGenerationYear(val);
+                        const monthsForNewYear = getAvailableMonthsForYear(val);
+                        if (!monthsForNewYear.includes(generationMonth)) {
+                          setGenerationMonth(monthsForNewYear[monthsForNewYear.length - 1] || monthOptions[0]);
+                        }
+                      }}
+                    >
                       {yearOptions.map(year => (
-                        <option key={year}>{year}</option>
+                        <option key={year} value={year}>{year}</option>
                       ))}
                     </SelectField>
                   </div>
@@ -2401,17 +2529,19 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
               <button
                 type="button"
                 onClick={handleBulkGenerate}
-                disabled={selectedCount === 0}
+                disabled={eligibleSelectedCount === 0 || isFutureSelected}
                 className={`w-full py-3.5 rounded-xl font-black text-sm transition-all shadow-lg flex items-center justify-center gap-2 ${
-                  selectedCount > 0
+                  eligibleSelectedCount > 0 && !isFutureSelected
                     ? 'bg-brand-600 text-white hover:bg-brand-700 shadow-brand-500/25 cursor-pointer'
                     : 'bg-slate-200 text-slate-400 cursor-not-allowed dark:bg-slate-800 dark:text-slate-600'
                 }`}
               >
                 <ReceiptText className="w-4 h-4" />
-                {selectedCount > 0
-                  ? `Generate Payslips for ${selectedCount} Employee(s) (${standardPeriod} / ${currentPeriodLabel})`
-                  : 'Select employee(s) to generate'}
+                {isFutureSelected
+                  ? 'Cannot generate payroll for future period'
+                  : eligibleSelectedCount > 0
+                  ? `Generate Payslips for ${eligibleSelectedCount} Employee(s) (${standardPeriod} / ${currentPeriodLabel})`
+                  : 'Select eligible employee(s) to generate'}
               </button>
             </div>
 

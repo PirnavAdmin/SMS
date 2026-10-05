@@ -2190,7 +2190,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
     );
 
     const gnd = formData.gender || "Unisex";
-    const uniFeeAmount = getUniformFeeForClass(clsName, gnd, financeUniformConfigs);
+    const uniFeeAmount = getUniformFeeForClass(clsName, gnd, financeUniformConfigs, dynamicFeeStructures);
 
     const feeInputs: FeeItemInput[] = baseItems.map((i) => {
       const isMandatory = isItemMandatory(i);
@@ -4213,7 +4213,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                           const lowerName = String(item.feeHeadName || "").toLowerCase();
                           const isUniform = lowerName.includes("uniform") || lowerName.includes("kit");
                           const gnd = formData.gender || "Unisex";
-                          const currentUniFeeAmount = getUniformFeeForClass(clsName, gnd, financeUniformConfigs);
+                          const currentUniFeeAmount = getUniformFeeForClass(clsName, gnd, financeUniformConfigs, dynamicFeeStructures);
                           const displayAmount = isUniform && currentUniFeeAmount > 0 ? currentUniFeeAmount : item.amount;
                           const matchedHead = (feeHeads || []).find(
                             (h) =>
