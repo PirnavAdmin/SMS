@@ -81,7 +81,12 @@ public class ExamMarksEntryController : ControllerBase
         }
         catch (System.Exception ex)
         {
-            return StatusCode(500, new { success = false, message = "Failed to save marks draft.", error = ex.Message });
+            return StatusCode(500, new { 
+                success = false, 
+                message = "Failed to save marks draft.", 
+                error = ex.Message, 
+                stackTrace = ex.ToString() 
+            });
         }
     }
 
