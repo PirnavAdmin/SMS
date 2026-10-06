@@ -39,7 +39,14 @@ export const ExamSchedule: React.FC<ExamScheduleProps> = ({
   onNavigateNext,
   onGotoSetup
 }) => {
-  const { academicClasses } = useData();
+  const { academicClasses, schoolProfile, academicYears = [] } = useData();
+  const currentYear =
+    selectedAcademicYear ||
+    exam?.academicYear ||
+    schoolProfile?.academicYear ||
+    academicYears.find((y: any) => y.status === 'Active')?.academicYear ||
+    academicYears[0]?.academicYear ||
+    '';
   
   const [selectedClass, setSelectedClass] = useState<string>('');
   const [selectedSection, setSelectedSection] = useState<string>('');
@@ -295,7 +302,7 @@ export const ExamSchedule: React.FC<ExamScheduleProps> = ({
   const loadPreview = async () => {
     setLoading(true);
     try {
-      const year = selectedAcademicYear || '2026-27';
+      const year = currentYear;
       const res = await fetchExamSchedulePreviewApi(year, auditClassFilter, auditSectionFilter, exam?.id).catch(() => null);
       if (res && res.success && res.data?.sectionSchedules) {
         const mapped: any[] = [];

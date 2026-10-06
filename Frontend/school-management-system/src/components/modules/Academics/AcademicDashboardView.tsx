@@ -16,25 +16,30 @@ export const AcademicDashboardView: React.FC<AcademicDashboardViewProps> = ({
   setClassWorkspaceTab,
   setAutoOpenClassModal
 }) => {
-  const { academicClasses, students, subjects } = useData();
+  const { academicClasses = [], students = [], subjects = [] } = useData();
+
+  const safeClasses = Array.isArray(academicClasses) ? academicClasses : [];
+  const safeStudents = Array.isArray(students) ? students : [];
+  const safeSubjects = Array.isArray(subjects) ? subjects : [];
 
   // Core KPIs
-  const totalClasses = academicClasses.length;
+  const totalClasses = safeClasses.length;
   const totalSections = useMemo(() => {
-    return academicClasses.reduce((acc, c) => acc + (c.sections || []).length, 0);
-  }, [academicClasses]);
-  const totalSubjects = subjects.length;
-  const totalStudents = students.length;
+    return safeClasses.reduce((acc, c) => acc + ((c && Array.isArray(c.sections)) ? c.sections.length : 0), 0);
+  }, [safeClasses]);
+  const totalSubjects = safeSubjects.length;
+  const totalStudents = safeStudents.length;
 
   // Class Summary List
   const classSummaryList = useMemo(() => {
-    const list = academicClasses.map(cl => {
-      const clStudents = students.filter(s => s.className === cl.name);
-      const status = cl.sections.length === 0 ? 'Draft' : 'Configured';
+    const list = safeClasses.map(cl => {
+      const clStudents = safeStudents.filter(s => s && s.className === cl?.name);
+      const sections = (cl && Array.isArray(cl.sections)) ? cl.sections : [];
+      const status = sections.length === 0 ? 'Draft' : 'Configured';
 
       return {
         class: cl,
-        sectionsCount: cl.sections.length,
+        sectionsCount: sections.length,
         studentsCount: clStudents.length,
         status
       };
@@ -77,7 +82,7 @@ export const AcademicDashboardView: React.FC<AcademicDashboardViewProps> = ({
 
       return a.class.name.localeCompare(b.class.name, undefined, { numeric: true, sensitivity: 'base' });
     });
-  }, [academicClasses, students]);
+  }, [safeClasses, safeStudents]);
 
   const handleOpenClass = (classId: string, tab: any = 'overview') => {
     setSelectedClassId(classId);

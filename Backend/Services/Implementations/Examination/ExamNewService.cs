@@ -27,7 +27,12 @@ public class ExamNewService : IExamNewService
         {
             ExamId = e.ExamId,
             ExamName = e.ExamName,
-            Status = e.Status
+            AssessmentType = e.AssessmentType,
+            AcademicTerm = e.AcademicTerm,
+            Status = e.Status,
+            ApplicableClasses = (e.ApplicableClasses ?? "").Split(',', StringSplitOptions.RemoveEmptyEntries).Select(c => c.Trim()).ToList(),
+            StartDate = e.StartDate.ToString("yyyy-MM-dd"),
+            EndDate = e.EndDate.ToString("yyyy-MM-dd")
         }).ToList();
 
         return options;

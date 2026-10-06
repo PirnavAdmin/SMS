@@ -15,11 +15,12 @@ interface StaffProfileDrawerProps {
 
 export const StaffProfileDrawer: React.FC<StaffProfileDrawerProps> = ({ staff: staffProp, isOpen, onClose }) => {
   const {
-    staff: allStaff, salaryStructures, employeeSalaryAssignments, getRequiredDocuments
+    staff: allStaff = [], salaryStructures = [], employeeSalaryAssignments = [], getRequiredDocuments
   } = useData();
 
   // Resolve live staff object from DataContext state
-  const staff = allStaff.find(s => s.id === staffProp?.id) || staffProp;
+  const safeStaffList = Array.isArray(allStaff) ? allStaff : [];
+  const staff = safeStaffList.find(s => s?.id === staffProp?.id) || staffProp;
 
   const [activeTab, setActiveTab] = useState<'info' | 'docs' | 'bank' | 'payroll'>('info');
 

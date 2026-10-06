@@ -755,6 +755,98 @@ export interface TimetableSlot {
   status?: 'Draft' | 'Published' | 'Archived';
 }
 
+export interface TeacherSubstitution {
+  id: string;
+  substitutionId?: number;
+  date: string;
+  dayOfWeek: string;
+  slotId?: number;
+  periodId?: number;
+  periodName?: string;
+  startTime: string;
+  endTime: string;
+  timeSlot?: string;
+  classId?: number;
+  className: string;
+  sectionId?: number;
+  sectionName: string;
+  section?: string;
+  subjectId?: number;
+  subjectName: string;
+  subject?: string;
+  originalTeacherId: number;
+  originalTeacherName: string;
+  substituteTeacherId: number;
+  substituteTeacherName: string;
+  roomNo?: string;
+  reason?: string;
+  leaveApplicationId?: number;
+  status: 'Assigned' | 'Completed' | 'Cancelled';
+  remarks?: string;
+  createdAt?: string;
+  createdBy?: string;
+  academicYear?: string;
+  branchName?: string;
+}
+
+export interface AvailableLeisureTeacher {
+  teacherId: number;
+  teacherName: string;
+  employeeId: string;
+  department: string;
+  designation: string;
+  assignedSubjects: string[];
+  isSubjectMatch: boolean;
+  isDepartmentMatch: boolean;
+  todaySubstitutionsCount: number;
+  todayScheduledLecturesCount: number;
+  availabilityStatus: string;
+}
+
+export interface AbsentTeacherPeriod {
+  slotId?: number;
+  periodId?: number;
+  periodName: string;
+  startTime: string;
+  endTime: string;
+  timeSlot: string;
+  classId: number;
+  className: string;
+  sectionId: number;
+  sectionName: string;
+  subjectId: number;
+  subjectName: string;
+  roomNo?: string;
+  isReplaced: boolean;
+  activeSubstitution?: TeacherSubstitution;
+  availableLeisureTeachers: AvailableLeisureTeacher[];
+}
+
+export interface AbsentTeacherSchedule {
+  teacherId: number;
+  teacherName: string;
+  employeeId: string;
+  department: string;
+  leaveType: string;
+  leaveReason: string;
+  leaveApplicationId?: number;
+  isHalfDay: boolean;
+  totalPeriodsToday: number;
+  replacedPeriodsCount: number;
+  pendingPeriodsCount: number;
+  periods: AbsentTeacherPeriod[];
+}
+
+export interface AutoReplaceResult {
+  success: boolean;
+  message: string;
+  totalUnassignedPeriods: number;
+  successfullyReplacedCount: number;
+  uncoveredCount: number;
+  createdSubstitutions: TeacherSubstitution[];
+  uncoveredPeriodDescriptions: string[];
+}
+
 export interface PeriodSetting {
   id: string;
   academicYear: string;

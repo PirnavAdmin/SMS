@@ -405,12 +405,13 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
   });
 
   // Track async creation redirection
-  const prevClassesLength = useRef(academicClasses.length);
+  const prevClassesLength = useRef((academicClasses || []).length);
   const newlyCreatedClassRef = useRef<{ name: string; campus: string; academicYear: string } | null>(null);
 
   useEffect(() => {
-    if (academicClasses.length > prevClassesLength.current && newlyCreatedClassRef.current) {
-      const match = academicClasses.find(c => 
+    const currentLen = (academicClasses || []).length;
+    if (currentLen > prevClassesLength.current && newlyCreatedClassRef.current) {
+      const match = (academicClasses || []).find(c => 
         c.name === newlyCreatedClassRef.current?.name &&
         ((c as any).campus === newlyCreatedClassRef.current?.campus || (c as any).branch === newlyCreatedClassRef.current?.campus) &&
         ((c as any).academicYear === newlyCreatedClassRef.current?.academicYear)
@@ -422,7 +423,7 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
         newlyCreatedClassRef.current = null;
       }
     }
-    prevClassesLength.current = academicClasses.length;
+    prevClassesLength.current = currentLen;
   }, [academicClasses]);
 
   // Scroll to top on class selection or tab switch

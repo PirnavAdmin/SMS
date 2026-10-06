@@ -150,6 +150,7 @@ namespace SMS.Api.Data
         public DbSet<TeacherSubjectAssignment> TeacherSubjectAssignments { get; set; } = null!;
         public DbSet<TimetableHeader> TimetableHeaders { get; set; } = null!;
         public DbSet<TimetableSlot> TimetableSlots { get; set; } = null!;
+        public DbSet<TeacherSubstitution> TeacherSubstitutions { get; set; } = null!;
         
         // =====================================================
         // Finance Management Module
@@ -212,6 +213,7 @@ namespace SMS.Api.Data
             ConfigureTeacherSubjectAssignment(modelBuilder);
             ConfigureTimetableHeader(modelBuilder);
             ConfigureTimetableSlot(modelBuilder);
+            ConfigureTeacherSubstitution(modelBuilder);
             ConfigureStudentBedAllocation(modelBuilder);
             ConfigureTeacherAttendanceCorrection(modelBuilder);
             ConfigureAdmission(modelBuilder);
@@ -333,6 +335,18 @@ namespace SMS.Api.Data
                 entity.HasIndex(x => new { x.HeaderId, x.DayOfWeek });
                 entity.HasIndex(x => new { x.TeacherId, x.DayOfWeek, x.StartTime, x.EndTime });
                 entity.HasIndex(x => new { x.RoomNo, x.DayOfWeek, x.StartTime, x.EndTime });
+            });
+        }
+
+        private static void ConfigureTeacherSubstitution(ModelBuilder modelBuilder)
+        {
+            modelBuilder.Entity<TeacherSubstitution>(entity =>
+            {
+                entity.ToTable("teacher_substitutions");
+                entity.HasKey(x => x.SubstitutionId);
+                entity.HasIndex(x => new { x.Date, x.SubstituteTeacherId });
+                entity.HasIndex(x => new { x.Date, x.OriginalTeacherId });
+                entity.HasIndex(x => new { x.Date, x.Status });
             });
         }
 

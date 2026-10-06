@@ -129,22 +129,23 @@ const SectionBlock: React.FC<{ title: string; subtitle?: string; children: React
 
 export const StaffProfileDrawer: React.FC<StaffProfileDrawerProps> = ({ staff: staffProp, isOpen, onClose }) => {
   const {
-    staff: allStaff,
-    salaryStructures,
-    employeeSalaryAssignments,
+    staff: allStaff = [],
+    salaryStructures = [],
+    employeeSalaryAssignments = [],
     getRequiredDocuments,
-    attendance,
-    timetable,
-    teacherAssignments,
-    payslips,
-    leaveApplications,
-    workshops,
-    employeeAssessments,
-    issuedCertificates,
-    auditLogs
+    attendance = [],
+    timetable = [],
+    teacherAssignments = [],
+    payslips = [],
+    leaveApplications = [],
+    workshops = [],
+    employeeAssessments = [],
+    issuedCertificates = [],
+    auditLogs = []
   } = useData();
 
-  const staff = allStaff.find(s => s.id === staffProp?.id) || staffProp;
+  const safeStaffList = Array.isArray(allStaff) ? allStaff : [];
+  const staff = safeStaffList.find(s => s?.id === staffProp?.id) || staffProp;
   const [activeTab, setActiveTab] = useState<DrawerTab>('overview');
   const [previewDoc, setPreviewDoc] = useState<StaffDocument | null>(null);
   const [imgErr, setImgErr] = useState(false);
@@ -178,22 +179,28 @@ export const StaffProfileDrawer: React.FC<StaffProfileDrawerProps> = ({ staff: s
   const fullName = staff ? `${staff.firstName} ${staff.lastName}`.trim() : '';
   const department = staff?.department || 'Not Provided';
   const designation = staff?.designation || 'Not Provided';
-  const currentAssignment = employeeSalaryAssignments?.find(a => a.employeeId === staff?.id);
-  const currentStructure = salaryStructures?.find(s => s.id === currentAssignment?.salaryStructureId);
+  const currentAssignment = Array.isArray(employeeSalaryAssignments) ? employeeSalaryAssignments.find(a => a.employeeId === staff?.id) : undefined;
+  const currentStructure = Array.isArray(salaryStructures) ? salaryStructures.find(s => s.id === currentAssignment?.salaryStructureId) : undefined;
 
-  const requiredDocs = useMemo(() => getRequiredDocuments(staff?.department, staff?.designation), [getRequiredDocuments, staff?.department, staff?.designation]);
-  const staffDocs = staff?.documents || [];
-  const uploadedRequiredCount = requiredDocs.filter(req => staffDocs.some(doc => matchesRequiredDoc(doc, req))).length;
-  const attendanceLogs = attendance.filter(item => item.entityType === 'Staff' && item.entityId === staff?.id);
-  const teacherTimetable = timetable.filter(item => item.teacherId === staff?.id || item.teacherName === fullName);
-  const classAssignments = teacherAssignments.filter(item => item.teacherId === staff?.id || item.teacherName === fullName);
-  const payslipHistory = payslips.filter(item => item.employeeId === staff?.id).slice(0, 5);
-  const leaveHistory = leaveApplications.filter(item => item.employeeId === staff?.id).slice(0, 5);
-  const workshopCount = workshops.filter(w => w.participants.some(p => p.employeeId === staff?.id)).length;
-  const assessmentResults = employeeAssessments.flatMap(a => a.results.filter(r => r.employeeId === staff?.id));
-  const certificates = issuedCertificates.filter(c => c.employeeId === staff?.id);
-  const recentLogs = auditLogs
-    .filter(log => log.details.toLowerCase().includes((staff?.empId || '').toLowerCase()) || log.details.toLowerCase().includes(fullName.toLowerCase()))
+  const requiredDocs = useMemo(() => {
+    if (typeof getRequiredDocuments === 'function') {
+      return getRequiredDocuments(staff?.department, staff?.designation) || [];
+    }
+    return [];
+  }, [getRequiredDocuments, staff?.department, staff?.designation]);
+
+  const staffDocs = Array.isArray(staff?.documents) ? staff.documents : [];
+  const uploadedRequiredCount = (Array.isArray(requiredDocs) ? requiredDocs : []).filter(req => staffDocs.some(doc => matchesRequiredDoc(doc, req))).length;
+  const attendanceLogs = (Array.isArray(attendance) ? attendance : []).filter(item => item && item.entityType === 'Staff' && item.entityId === staff?.id);
+  const teacherTimetable = (Array.isArray(timetable) ? timetable : []).filter(item => item && (item.teacherId === staff?.id || item.teacherName === fullName));
+  const classAssignments = (Array.isArray(teacherAssignments) ? teacherAssignments : []).filter(item => item && (item.teacherId === staff?.id || item.teacherName === fullName));
+  const payslipHistory = (Array.isArray(payslips) ? payslips : []).filter(item => item && item.employeeId === staff?.id).slice(0, 5);
+  const leaveHistory = (Array.isArray(leaveApplications) ? leaveApplications : []).filter(item => item && item.employeeId === staff?.id).slice(0, 5);
+  const workshopCount = (Array.isArray(workshops) ? workshops : []).filter(w => Array.isArray(w?.participants) && w.participants.some(p => p.employeeId === staff?.id)).length;
+  const assessmentResults = (Array.isArray(employeeAssessments) ? employeeAssessments : []).flatMap(a => Array.isArray(a?.results) ? a.results.filter(r => r.employeeId === staff?.id) : []);
+  const certificates = (Array.isArray(issuedCertificates) ? issuedCertificates : []).filter(c => c && c.employeeId === staff?.id);
+  const recentLogs = (Array.isArray(auditLogs) ? auditLogs : [])
+    .filter(log => (log?.details || '').toLowerCase().includes((staff?.empId || '').toLowerCase()) || (log?.details || '').toLowerCase().includes(fullName.toLowerCase()))
     .slice(0, 8);
 
   const attendanceCounts = attendanceLogs.reduce(

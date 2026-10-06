@@ -47,11 +47,22 @@ export const GlobalReportCardsView: React.FC<GlobalReportCardsViewProps> = ({ on
     schoolProfile, 
     processedResults: contextResults = [],
     examMarks,
-    gradeConfigurations
+    gradeConfigurations,
+    academicYears = []
   } = useData();
   const { selectedAcademicYear, selectedBranch, user, role } = useAuth();
   const { addToast } = useToast();
   const { calculateClassResults } = useResults();
+
+  const currentAcademicYear = useMemo(() => {
+    return (
+      selectedAcademicYear ||
+      schoolProfile?.academicYear ||
+      academicYears.find((y: any) => y.status === 'Active')?.academicYear ||
+      academicYears[0]?.academicYear ||
+      ''
+    );
+  }, [selectedAcademicYear, schoolProfile?.academicYear, academicYears]);
 
   // Filter States
   const [selectedExamId, setSelectedExamId] = useState<string>('all');
@@ -156,7 +167,7 @@ export const GlobalReportCardsView: React.FC<GlobalReportCardsViewProps> = ({ on
         map.set(eId, {
           id: eId,
           name: o.examName || o.name || `Examination ${eId}`,
-          academicYear: o.academicYear || '2026-2027',
+          academicYear: o.academicYear || currentAcademicYear,
           status: 'Published',
           publishStatus: 'Published',
           term: o.academicTerm || o.term || ''
@@ -171,7 +182,7 @@ export const GlobalReportCardsView: React.FC<GlobalReportCardsViewProps> = ({ on
         map.set(String(r.examId), {
           id: String(r.examId),
           name: cleanName,
-          academicYear: '2026-2027',
+          academicYear: currentAcademicYear,
           status: 'Published',
           publishStatus: 'Published'
         } as ExamSetup);
@@ -681,7 +692,7 @@ export const GlobalReportCardsView: React.FC<GlobalReportCardsViewProps> = ({ on
     return activeExamObj || ({
       id: previewResult.examId || '1',
       name: 'Academic Examination',
-      academicYear: '2026-2027',
+      academicYear: currentAcademicYear,
       status: 'Results Published',
       publishStatus: 'Published'
     } as ExamSetup);

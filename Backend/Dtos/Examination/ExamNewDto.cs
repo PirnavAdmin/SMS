@@ -46,7 +46,13 @@ public class ExamDropdownItemDto
 {
     public int ExamId { get; set; }
     public string ExamName { get; set; } = string.Empty;
+    public string AssessmentType { get; set; } = string.Empty;
+    public string AcademicTerm { get; set; } = string.Empty;
     public string Status { get; set; } = "Draft";
+    public List<string> ApplicableClasses { get; set; } = new List<string>();
+    public string StartDate { get; set; } = string.Empty;
+    public string EndDate { get; set; } = string.Empty;
+    public string AcademicYear { get; set; } = string.Empty;
     public string DisplayText => $"{ExamName} ({Status})";
 }
 
@@ -58,6 +64,7 @@ public class SaveExamDetailsRequestDto
     public string AcademicTerm { get; set; } = string.Empty;
     public string StartDate { get; set; } = string.Empty;
     public string EndDate { get; set; } = string.Empty;
+    public string AcademicYear { get; set; } = string.Empty;
     public List<string> ApplicableClasses { get; set; } = new List<string>();
 }
 
@@ -69,6 +76,7 @@ public class ExamDetailsResponseDto
     public string AcademicTerm { get; set; } = string.Empty;
     public string StartDate { get; set; } = string.Empty;
     public string EndDate { get; set; } = string.Empty;
+    public string AcademicYear { get; set; } = string.Empty;
     public List<string> ApplicableClasses { get; set; } = new List<string>();
     public string Status { get; set; } = "Draft";
 }
