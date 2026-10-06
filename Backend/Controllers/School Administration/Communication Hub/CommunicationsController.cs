@@ -34,20 +34,21 @@ public class CommunicationsController : ControllerBase
     {
         var list = await _context.Circulars.AsNoTracking().OrderByDescending(c => c.CreatedDate).ToListAsync();
         
-        // Do not return fallback mock circulars. Everything should come from the database.
-
-        var dtos = list.Select(c => new CircularDto
-        {
-            CircularId = c.CircularId,
-            Title = c.Title,
-            Category = c.Category,
-            Content = c.Content,
-            TargetAudience = c.TargetAudience,
-            CreatedDate = c.CreatedDate.ToString("yyyy-MM-dd"),
-            SmsSent = c.SmsSent,
-            EmailSent = c.EmailSent,
-            PushDelivered = c.PushDelivered
-        }).ToList();
+        var dtos = list
+            .GroupBy(c => new { Title = (c.Title ?? "").Trim().ToLower(), Date = c.CreatedDate.Date, Target = (c.TargetAudience ?? "").Trim().ToLower() })
+            .Select(g => g.First())
+            .Select(c => new CircularDto
+            {
+                CircularId = c.CircularId,
+                Title = c.Title,
+                Category = c.Category,
+                Content = c.Content,
+                TargetAudience = c.TargetAudience,
+                CreatedDate = c.CreatedDate.ToString("yyyy-MM-dd"),
+                SmsSent = c.SmsSent,
+                EmailSent = c.EmailSent,
+                PushDelivered = c.PushDelivered
+            }).ToList();
 
         return Ok(new { success = true, data = dtos });
     }
@@ -78,20 +79,7 @@ public class CommunicationsController : ControllerBase
         }
         catch { }
 
-        var sample = new CircularDto
-        {
-            CircularId = id,
-            Title = "Annual Sports Meet Registration Open",
-            Category = "SPORTS • ALL",
-            Content = "Submit entries to PE department before August 5th.",
-            TargetAudience = "ALL",
-            CreatedDate = "2026-07-20",
-            SmsSent = true,
-            EmailSent = true,
-            PushDelivered = true
-        };
-
-        return Ok(new { success = true, data = sample });
+        return NotFound(new { success = false, message = "Circular not found in database." });
     }
 
     [HttpPost("circulars")]
@@ -255,30 +243,7 @@ public class CommunicationsController : ControllerBase
         }
         catch { }
 
-        var sample = new MeetingResponseDto
-        {
-            MeetingId = id,
-            MeetingAudience = "Individual Meeting",
-            ParticipantType = "Parent",
-            ParticipantName = "Robert Morgan",
-            ParticipantPhone = "9876543210",
-            WardStudentName = "Alex Morgan",
-            WardAdmissionNo = "ADM-101",
-            WardClass = "Class 10-A",
-            MeetingTitle = "Parent-Teacher Performance Sync",
-            Agenda = "In-person discussion regarding Class 10 Mid-Term progress.",
-            MeetingMode = "In-Person",
-            Building = "Academic Block A",
-            Floor = "2nd Floor",
-            MeetingRoom = "Conference Room 204",
-            RoomCapacity = 15,
-            MeetingDate = "2026-08-10",
-            StartTime = "14:00",
-            EndTime = "14:30",
-            MeetingStatus = "SCHEDULED"
-        };
-
-        return Ok(new { success = true, data = sample });
+        return NotFound(new { success = false, message = "Meeting not found in database." });
     }
 
     [HttpPost("meetings")]
@@ -291,21 +256,21 @@ public class CommunicationsController : ControllerBase
         {
             MeetingAudience = !string.IsNullOrWhiteSpace(dto.MeetingAudience) ? dto.MeetingAudience : "Individual Meeting",
             ParticipantType = !string.IsNullOrWhiteSpace(dto.ParticipantType) ? dto.ParticipantType : "Parent",
-            ParticipantName = !string.IsNullOrWhiteSpace(dto.ParticipantName) ? dto.ParticipantName : "Robert Wright",
-            ParticipantPhone = dto.ParticipantPhone ?? "9876543210",
-            WardStudentName = dto.WardStudentName,
-            WardAdmissionNo = dto.WardAdmissionNo,
-            WardClass = dto.WardClass,
-            MeetingTitle = dto.MeetingTitle,
-            Agenda = dto.Agenda,
+            ParticipantName = dto.ParticipantName?.Trim() ?? string.Empty,
+            ParticipantPhone = dto.ParticipantPhone?.Trim() ?? string.Empty,
+            WardStudentName = dto.WardStudentName?.Trim(),
+            WardAdmissionNo = dto.WardAdmissionNo?.Trim(),
+            WardClass = dto.WardClass?.Trim(),
+            MeetingTitle = dto.MeetingTitle?.Trim() ?? string.Empty,
+            Agenda = dto.Agenda?.Trim(),
             MeetingMode = !string.IsNullOrWhiteSpace(dto.MeetingMode) ? dto.MeetingMode : "In-Person",
-            Building = dto.Building ?? "Academic Block A",
-            Floor = dto.Floor ?? "1st Floor",
-            MeetingRoom = dto.MeetingRoom ?? "Conference Room 102",
-            RoomCapacity = dto.RoomCapacity > 0 ? dto.RoomCapacity : 15,
+            Building = dto.Building?.Trim() ?? string.Empty,
+            Floor = dto.Floor?.Trim() ?? string.Empty,
+            MeetingRoom = dto.MeetingRoom?.Trim() ?? string.Empty,
+            RoomCapacity = dto.RoomCapacity > 0 ? dto.RoomCapacity : 0,
             MeetingDate = mDate,
-            StartTime = dto.StartTime ?? "10:00",
-            EndTime = dto.EndTime ?? "10:30",
+            StartTime = dto.StartTime?.Trim() ?? string.Empty,
+            EndTime = dto.EndTime?.Trim() ?? string.Empty,
             MeetingStatus = !string.IsNullOrWhiteSpace(dto.MeetingStatus) ? dto.MeetingStatus.ToUpper() : "SCHEDULED",
             CreatedAt = DateTime.UtcNow
         };

@@ -34,24 +34,27 @@ export const CommunicationView: React.FC = () => {
   const { addToast } = useToast();
 
   const totalUserCount = useMemo(() => {
-    const sCount = students.length > 0 ? students.length : 650;
-    const stCount = staff.length > 0 ? staff.length : 120;
-    return sCount + sCount + stCount; // Students + Parents + Staff
-  }, [students.length, staff.length]);
+    const sCount = students?.length || 0;
+    const stCount = staff?.length || 0;
+    return (sCount * 2) + stCount; // Students + Parents + Staff
+  }, [students, staff]);
 
   const getTargetRecipientsCount = (targetAudience: string) => {
-    const sCount = students.length > 0 ? students.length : 650;
-    const stCount = staff.length > 0 ? staff.length : 120;
+    const sCount = students?.length || 0;
+    const stCount = staff?.length || 0;
     switch (targetAudience?.toUpperCase()) {
       case 'STUDENTS ONLY':
+      case 'STUDENTS':
         return sCount;
       case 'STAFF ONLY':
+      case 'STAFF':
         return stCount;
       case 'PARENTS ONLY':
+      case 'PARENTS':
         return sCount;
       case 'ALL':
       default:
-        return sCount + sCount + stCount;
+        return (sCount * 2) + stCount;
     }
   };
 
@@ -84,107 +87,90 @@ export const CommunicationView: React.FC = () => {
   const [sendEmail, setSendEmail] = useState(true);
   const [sendPush, setSendPush] = useState(true);
 
-  // Initial Default sample circulars with Date & Time
-  const defaultAnnouncements: AnnouncementItem[] = useMemo(() => [
-    {
-      id: 'ANN-REAL-2',
-      title: '🚨 EMERGENCY ALERT: Heavy Rainfall & Weather Advisory - Unexpected Holiday',
-      content: 'Urgent notification regarding Heavy Rainfall & Weather Advisory - Unexpected Holiday (Dispatched on 2026-08-24 at 02:48 PM). All parents and staff members please note the immediate advisory. Further details will be communicated via official SMS.',
-      targetAudience: 'ALL',
-      category: 'URGENT',
-      date: '2026-08-24',
-      time: '09:30 AM',
-      author: 'Principal Office',
-      isPinned: true,
-      recipientsCount: 1420,
-      deliveryChannels: 'SMS & Email'
-    },
-    {
-      id: 'ANN-REAL-3',
-      title: 'All-School Morning Assembly & Leadership Talk',
-      content: 'A special morning assembly will be held tomorrow at 08:30 AM in the Main Campus Auditorium. Attendance is mandatory for all students and faculty members. Dr. Eleanor Vance will present the new student council members.',
-      targetAudience: 'ALL',
-      category: 'ASSEMBLY',
-      date: '2026-08-18',
-      time: '09:00 AM',
-      author: 'School Administration',
-      isPinned: false,
-      recipientsCount: 1420,
-      deliveryChannels: 'SMS & Email'
-    }
-  ], []);
-
-  // Local list state synchronized with DataContext & Local Storage for instant updates
-  const [localList, setLocalList] = useState<AnnouncementItem[]>(() => {
-    try {
-      const saved = localStorage.getItem('broadcast_announcements_store');
-      if (saved) {
-        const parsed: AnnouncementItem[] = JSON.parse(saved);
-        return parsed.filter(item => !item.title.includes('Early School Dismissal') && !item.title.includes('Early Bus'));
-      }
-    } catch (e) {
-      // Fallback
-    }
-    return defaultAnnouncements;
-  });
+  // Dynamic list state loaded purely from API and DataContext
+  const [localList, setLocalList] = useState<AnnouncementItem[]>([]);
 
   // Fetch backend broadcast notifications on mount
-  useEffect(() => {
-    const loadBackendNotifications = async () => {
-      try {
-        const res: any = await fetchNotificationsApi();
-        if (res?.success && Array.isArray(res.data) && res.data.length > 0) {
-          const mapped: AnnouncementItem[] = res.data.map((item: any) => ({
-            id: String(item.id || item.circularId || `ANN-${item.circularId}`),
-            title: item.title,
-            content: item.content,
-            targetAudience: item.targetAudience || 'ALL',
-            category: (item.category || 'GENERAL').toUpperCase(),
-            date: item.createdDate || item.date || new Date().toISOString().split('T')[0],
-            time: item.time || '09:30 AM',
-            author: item.author || 'School Administration',
-            isPinned: !!item.isPinned,
-            recipientsCount: item.deliveredCount || 1420,
-            deliveryChannels: (item.smsSent && item.emailSent) ? 'SMS & Email' : (item.smsSent ? 'SMS' : 'Email')
-          }));
+  const loadBackendNotifications = async () => {
+    try {
+      const res: any = await fetchNotificationsApi();
+      const rawData = res?.data || (Array.isArray(res) ? res : []);
+      if (Array.isArray(rawData)) {
+        const seen = new Set<string>();
+        const mapped: AnnouncementItem[] = [];
+        rawData.forEach((item: any) => {
+          const id = String(item.id || item.circularId || `ANN-${item.circularId || Math.random()}`);
+          const title = (item.title || '').trim();
+          const date = item.createdDate || item.date || new Date().toISOString().split('T')[0];
+          const target = (item.targetAudience || 'ALL').trim();
+          const contentKey = `${title.toLowerCase()}_${date}_${target.toLowerCase()}`;
+          if (!seen.has(id) && !seen.has(contentKey)) {
+            seen.add(id);
+            seen.add(contentKey);
 
-          setLocalList(mapped);
-          localStorage.setItem('broadcast_announcements_store', JSON.stringify(mapped));
-        }
-      } catch (err) {
-        console.warn("Backend notifications load notice:", err);
+            const channelsList: string[] = [];
+            if (item.smsSent) channelsList.push('SMS');
+            if (item.emailSent) channelsList.push('Email');
+            if (item.pushDelivered) channelsList.push('Push');
+            const deliveryChannels = channelsList.join(' & ');
+
+            mapped.push({
+              id,
+              title,
+              content: item.content || '',
+              targetAudience: target,
+              category: (item.category || 'GENERAL').toUpperCase(),
+              date,
+              time: item.time || '',
+              author: item.author || '',
+              isPinned: !!item.isPinned,
+              recipientsCount: item.deliveredCount || 0,
+              deliveryChannels
+            });
+          }
+        });
+
+        setLocalList(mapped);
       }
-    };
+    } catch (err) {
+      console.warn("Backend notifications load notice:", err);
+    }
+  };
 
+  useEffect(() => {
     loadBackendNotifications();
   }, []);
 
   // Sync contextAnnouncements into localList if available
   useEffect(() => {
-    if (contextAnnouncements && contextAnnouncements.length > 0) {
-      const contextMapped: AnnouncementItem[] = contextAnnouncements
-        .filter(a => !a.title.includes('Early School Dismissal') && !a.title.includes('Early Bus'))
-        .map(a => ({
-          id: a.id || `ANN-${Math.random()}`,
-          title: a.title,
-          content: a.content,
-          targetAudience: a.targetAudience || 'ALL',
-          category: (a.category || 'GENERAL').toUpperCase(),
-          date: a.date || new Date().toISOString().split('T')[0],
-          time: (a as any).time || '09:30 AM',
-          author: a.author || 'School Administration',
-          isPinned: (a as any).isPinned || false,
-          recipientsCount: (a as any).recipientsCount || 1420,
-          deliveryChannels: (a as any).deliveryChannels || 'SMS & Email'
-        }));
-
-      const mergedMap = new Map<string, AnnouncementItem>();
-      [...contextMapped, ...localList, ...defaultAnnouncements].forEach(item => {
-        if (!mergedMap.has(item.id)) {
-          mergedMap.set(item.id, item);
+    if (contextAnnouncements && Array.isArray(contextAnnouncements)) {
+      const seen = new Set<string>();
+      const contextMapped: AnnouncementItem[] = [];
+      contextAnnouncements.forEach(a => {
+        const id = a.id;
+        const title = (a.title || '').trim();
+        const date = a.date || new Date().toISOString().split('T')[0];
+        const target = (a.targetAudience || 'ALL').trim();
+        const contentKey = `${title.toLowerCase()}_${date}_${target.toLowerCase()}`;
+        if (!seen.has(id) && !seen.has(contentKey)) {
+          seen.add(id);
+          seen.add(contentKey);
+          contextMapped.push({
+            id,
+            title,
+            content: a.content,
+            targetAudience: target,
+            category: (a.category || 'GENERAL').toUpperCase(),
+            date,
+            time: (a as any).time || '',
+            author: a.author || '',
+            isPinned: (a as any).isPinned || false,
+            recipientsCount: (a as any).recipientsCount || 0,
+            deliveryChannels: (a as any).deliveryChannels || ''
+          });
         }
       });
-      setLocalList(Array.from(mergedMap.values()));
+      setLocalList(contextMapped);
     }
   }, [contextAnnouncements]);
 
@@ -197,18 +183,27 @@ export const CommunicationView: React.FC = () => {
         return target === 'ALL' || target === 'STAFF ONLY' || target === 'STAFF' || a.category === 'URGENT' || a.category === 'HOLIDAY';
       });
     }
-    return list.sort((a, b) => (b.isPinned ? 1 : 0) - (a.isPinned ? 1 : 0));
+    const seen = new Set<string>();
+    const deduplicated: AnnouncementItem[] = [];
+    list.forEach(item => {
+      const keyById = String(item.id);
+      const keyByContent = `${item.title.trim().toLowerCase()}_${item.date}_${(item.targetAudience || '').toLowerCase()}`;
+      if (!seen.has(keyById) && !seen.has(keyByContent)) {
+        seen.add(keyById);
+        seen.add(keyByContent);
+        deduplicated.push(item);
+      }
+    });
+    return deduplicated.sort((a, b) => (b.isPinned ? 1 : 0) - (a.isPinned ? 1 : 0));
   }, [localList, isDriverRole]);
 
-  // Helper to persist list
+  // Helper to persist list in memory and DataContext
   const updateLocalList = (newList: AnnouncementItem[]) => {
     setLocalList(newList);
-    try {
-      localStorage.setItem('broadcast_announcements_store', JSON.stringify(newList));
-    } catch (e) {}
     if (saveAnnouncements) {
       saveAnnouncements(newList as any);
     }
+    window.dispatchEvent(new Event('announcements_updated'));
   };
 
   // Pagination calculation
@@ -263,7 +258,7 @@ export const CommunicationView: React.FC = () => {
         category: 'URGENT',
         targetAudience: 'ALL',
         createdDate: emergencyDate,
-        author: 'Principal Office',
+        author: user?.name || role || '',
         isPinned: true,
         deliveredCount: totalUserCount,
         smsSent: true,
@@ -271,39 +266,15 @@ export const CommunicationView: React.FC = () => {
         pushDelivered: true
       });
       if (res?.data?.circularId) serverId = res.data.circularId.toString();
+      await loadBackendNotifications();
     } catch (err) {
       console.warn("API createNotification emergency error:", err);
     }
 
-    const newEmergencyItem: AnnouncementItem = {
-      id: serverId,
-      title: emergencyTitle,
-      content: emergencyContent,
-      targetAudience: 'ALL',
-      category: 'URGENT',
-      date: emergencyDate,
-      time: emergencyTime,
-      author: 'Principal Office',
-      isPinned: true,
-      recipientsCount: totalUserCount,
-      deliveryChannels: 'SMS & Call Advisory'
-    };
-
-    const updated = [newEmergencyItem, ...localList];
-    updateLocalList(updated);
-
-    addAnnouncement({
-      title: emergencyTitle,
-      content: emergencyContent,
-      targetAudience: 'ALL' as any,
-      date: emergencyDate,
-      author: 'Principal Office',
-      category: 'URGENT' as any
-    });
-
     addToast('success', '📱 Instant SMS & Emergency Call Advisory Sent!', `Dispatched ${totalUserCount.toLocaleString()} High-Priority SMS & Push Advisories via SMS Gateway on ${emergencyDate} at ${emergencyTime}!`);
     setIsEmergencyModalOpen(false);
     setCurrentPage(1);
+    window.dispatchEvent(new Event('announcements_updated'));
   };
 
   // Quick Auto Templates Handler
@@ -397,72 +368,33 @@ export const CommunicationView: React.FC = () => {
           console.warn("API updateNotification error:", err);
         }
       }
-      const updated = localList.map(item =>
-        item.id === editingItem.id
-          ? {
-              ...item,
-              title: title.trim(),
-              content: content.trim(),
-              date: broadcastDate,
-              time: broadcastTime,
-              category: category.toUpperCase(),
-              targetAudience: target.toUpperCase()
-            }
-          : item
-      );
-      updateLocalList(updated);
       addToast('success', 'Broadcast Circular Updated', `Saved changes for "${title}"`);
     } else {
       const channelStr = `${sendSMS ? 'SMS' : ''}${sendSMS && sendEmail ? ' & ' : ''}${sendEmail ? 'Email' : ''}${sendPush ? ' & Push' : ''}`;
-      let serverId = `ANN-${Date.now()}`;
+      const recCount = getTargetRecipientsCount(target);
       try {
-        const res = await createNotificationApi({
+        await createNotificationApi({
           title: title.trim(),
           content: content.trim(),
           category: category.toUpperCase(),
           targetAudience: target.toUpperCase(),
           createdDate: broadcastDate,
-          author: role.toLowerCase().includes('teacher') ? 'Teacher' : 'Principal Office',
+          author: user?.name || role || '',
           isPinned: false,
-          deliveredCount: 1420,
+          deliveredCount: recCount,
           smsSent: sendSMS,
           emailSent: sendEmail,
           pushDelivered: sendPush
         });
-        if (res?.data?.circularId) serverId = res.data.circularId.toString();
       } catch (err) {
         console.warn("API createNotification error:", err);
       }
 
-      const newCircular: AnnouncementItem = {
-        id: serverId,
-        title: title.trim(),
-        content: content.trim(),
-        targetAudience: target,
-        category: category.toUpperCase(),
-        date: broadcastDate,
-        time: broadcastTime,
-        author: role.toLowerCase().includes('teacher') ? 'Teacher' : 'Principal Office',
-        isPinned: false,
-        recipientsCount: 1420,
-        deliveryChannels: channelStr || 'SMS & Email'
-      };
-
-      const updated = [newCircular, ...localList];
-      updateLocalList(updated);
-
-      addAnnouncement({
-        title: newCircular.title,
-        content: newCircular.content,
-        targetAudience: newCircular.targetAudience as any,
-        date: newCircular.date,
-        author: newCircular.author,
-        category: newCircular.category as any
-      });
-
       addToast('success', '📢 Broadcast Notification Published!', `Sent circular for ${broadcastDate} at ${broadcastTime} to ${target} via ${channelStr}`);
     }
 
+    await loadBackendNotifications();
+    window.dispatchEvent(new Event('announcements_updated'));
     setIsComposeModalOpen(false);
     setCurrentPage(1);
   };
@@ -478,10 +410,8 @@ export const CommunicationView: React.FC = () => {
         console.warn("API pin update error:", e);
       }
     }
-    const updated = localList.map(item =>
-      item.id === id ? { ...item, isPinned: newPinStatus } : item
-    );
-    updateLocalList(updated);
+    await loadBackendNotifications();
+    window.dispatchEvent(new Event('announcements_updated'));
     addToast('info', newPinStatus ? 'Pinned Circular to Top' : 'Unpinned Circular', `Updated pin status for "${targetItem?.title}"`);
   };
 
@@ -494,8 +424,8 @@ export const CommunicationView: React.FC = () => {
         console.warn("API delete circular error:", e);
       }
     }
-    const updated = localList.filter(item => item.id !== id);
-    updateLocalList(updated);
+    await loadBackendNotifications();
+    window.dispatchEvent(new Event('announcements_updated'));
     addToast('success', 'Circular Removed', `Deleted "${titleStr}"`);
   };
 
@@ -601,10 +531,14 @@ export const CommunicationView: React.FC = () => {
                       <span className="flex items-center gap-1 text-sky-700 dark:text-sky-300">
                         <Calendar className="w-3 h-3" /> {a.date}
                       </span>
-                      <span>•</span>
-                      <span className="flex items-center gap-1 text-slate-700 dark:text-slate-300">
-                        <Clock className="w-3 h-3 text-amber-600" /> {a.time || '09:30 AM'}
-                      </span>
+                      {a.time && (
+                        <>
+                          <span>•</span>
+                          <span className="flex items-center gap-1 text-slate-700 dark:text-slate-300">
+                            <Clock className="w-3 h-3 text-amber-600" /> {a.time}
+                          </span>
+                        </>
+                      )}
                     </div>
 
                     {canModify && (
@@ -649,12 +583,17 @@ export const CommunicationView: React.FC = () => {
                 <div className="pt-2 border-t border-slate-100 dark:border-slate-800/80 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
                   <div className="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400 font-bold">
                     <CheckCircle2 className="w-3.5 h-3.5" />
-                    <span>Sent via {a.deliveryChannels || 'SMS & Email'} ({a.recipientsCount || 1420} Recipients)</span>
+                    <span>
+                      Sent {a.deliveryChannels ? `via ${a.deliveryChannels}` : 'successfully'}
+                      {a.recipientsCount > 0 ? ` (${a.recipientsCount.toLocaleString()} Recipients)` : ''}
+                    </span>
                   </div>
 
-                  <span className="text-slate-400 dark:text-slate-500 italic font-medium">
-                    Issued by {a.author || 'Principal Office'}
-                  </span>
+                  {a.author && (
+                    <span className="text-slate-400 dark:text-slate-500 italic font-medium">
+                      Issued by {a.author}
+                    </span>
+                  )}
                 </div>
               </div>
             ))}
@@ -762,7 +701,7 @@ export const CommunicationView: React.FC = () => {
                     required
                     value={emergencyTime}
                     onChange={e => setEmergencyTime(e.target.value)}
-                    placeholder="09:30 AM"
+                    placeholder="e.g. 10:00 AM"
                     className="w-full px-3 py-2 rounded-xl bg-white dark:bg-slate-900 border text-slate-900 dark:text-white font-mono font-bold text-xs outline-none"
                   />
                 </div>
@@ -993,7 +932,7 @@ export const CommunicationView: React.FC = () => {
                   required
                   value={title}
                   onChange={e => setTitle(e.target.value)}
-                  placeholder="Annual Sports Meet Registration Open"
+                  placeholder="Enter broadcast notification title"
                   className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border text-slate-900 dark:text-white font-bold outline-none"
                 />
               </div>
@@ -1017,7 +956,7 @@ export const CommunicationView: React.FC = () => {
                     required
                     value={broadcastTime}
                     onChange={e => setBroadcastTime(e.target.value)}
-                    placeholder="09:30 AM"
+                    placeholder="e.g. 10:00 AM"
                     className="w-full px-2.5 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-slate-900 dark:text-white font-bold outline-none font-mono text-[11px]"
                   />
                 </div>

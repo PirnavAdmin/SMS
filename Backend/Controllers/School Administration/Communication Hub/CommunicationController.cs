@@ -154,23 +154,25 @@ public class CommunicationController : ControllerBase
 
         var list = await query.OrderByDescending(c => c.IsPinned).ThenByDescending(c => c.CreatedDate).ToListAsync();
 
-        // Do not seed default circulars. Everything should come from the database.
-
-        var dtos = list.Select(c => new CircularDto
-        {
-            CircularId = c.CircularId,
-            Title = c.Title,
-            Category = c.Category,
-            Content = c.Content,
-            TargetAudience = c.TargetAudience,
-            CreatedDate = c.CreatedDate.ToString("yyyy-MM-dd"),
-            Author = c.Author,
-            DeliveredCount = c.DeliveredCount,
-            IsPinned = c.IsPinned,
-            SmsSent = c.SmsSent,
-            EmailSent = c.EmailSent,
-            PushDelivered = c.PushDelivered
-        }).ToList();
+        // Deduplicate any repeated circular items
+        var dtos = list
+            .GroupBy(c => new { Title = (c.Title ?? "").Trim().ToLower(), Date = c.CreatedDate.Date, Target = (c.TargetAudience ?? "").Trim().ToLower() })
+            .Select(g => g.First())
+            .Select(c => new CircularDto
+            {
+                CircularId = c.CircularId,
+                Title = c.Title,
+                Category = c.Category,
+                Content = c.Content,
+                TargetAudience = c.TargetAudience,
+                CreatedDate = c.CreatedDate.ToString("yyyy-MM-dd"),
+                Author = c.Author,
+                DeliveredCount = c.DeliveredCount,
+                IsPinned = c.IsPinned,
+                SmsSent = c.SmsSent,
+                EmailSent = c.EmailSent,
+                PushDelivered = c.PushDelivered
+            }).ToList();
 
         return Ok(new { success = true, totalCount = dtos.Count, data = dtos });
     }
@@ -217,8 +219,8 @@ public class CommunicationController : ControllerBase
             Content = dto.Content.Trim(),
             TargetAudience = !string.IsNullOrWhiteSpace(dto.TargetAudience) ? dto.TargetAudience.Trim().ToUpper() : "ALL",
             CreatedDate = DateTime.TryParse(dto.CreatedDate, out var dt) ? dt : DateTime.UtcNow,
-            Author = !string.IsNullOrWhiteSpace(dto.Author) ? dto.Author.Trim() : "School Administration",
-            DeliveredCount = dto.DeliveredCount > 0 ? dto.DeliveredCount : 1420,
+            Author = dto.Author ?? string.Empty,
+            DeliveredCount = dto.DeliveredCount,
             IsPinned = dto.IsPinned,
             SmsSent = dto.SmsSent,
             EmailSent = dto.EmailSent,
@@ -237,17 +239,17 @@ public class CommunicationController : ControllerBase
     {
         var entity = new Circular
         {
-            Title = dto.Title ?? "🚨 EMERGENCY ALERT",
+            Title = dto.Title ?? string.Empty,
             Category = "URGENT",
-            Content = dto.Content ?? "Urgent broadcast notification.",
-            TargetAudience = "ALL",
+            Content = dto.Content ?? string.Empty,
+            TargetAudience = !string.IsNullOrWhiteSpace(dto.TargetAudience) ? dto.TargetAudience : "ALL",
             CreatedDate = DateTime.UtcNow,
-            Author = "Principal Office",
-            DeliveredCount = 1420,
+            Author = dto.Author ?? string.Empty,
+            DeliveredCount = dto.DeliveredCount,
             IsPinned = true,
-            SmsSent = true,
-            EmailSent = true,
-            PushDelivered = true
+            SmsSent = dto.SmsSent,
+            EmailSent = dto.EmailSent,
+            PushDelivered = dto.PushDelivered
         };
 
         await _context.Circulars.AddAsync(entity);
@@ -383,26 +385,26 @@ public class CommunicationController : ControllerBase
         {
             MeetingAudience = !string.IsNullOrWhiteSpace(dto.MeetingAudience) ? dto.MeetingAudience.Trim() : "Individual Meeting",
             ParticipantType = !string.IsNullOrWhiteSpace(dto.ParticipantType) ? dto.ParticipantType.Trim() : "Parent",
-            ParticipantName = !string.IsNullOrWhiteSpace(dto.ParticipantName) ? dto.ParticipantName.Trim() : "Robert Wright",
-            ParticipantPhone = dto.ParticipantPhone?.Trim() ?? "9876543210",
+            ParticipantName = dto.ParticipantName?.Trim() ?? string.Empty,
+            ParticipantPhone = dto.ParticipantPhone?.Trim() ?? string.Empty,
             WardStudentName = dto.WardStudentName?.Trim(),
             WardAdmissionNo = dto.WardAdmissionNo?.Trim(),
             WardClass = dto.WardClass?.Trim(),
             MeetingTitle = dto.MeetingTitle.Trim(),
             Agenda = dto.Agenda?.Trim(),
             MeetingMode = !string.IsNullOrWhiteSpace(dto.MeetingMode) ? dto.MeetingMode.Trim() : "In-Person",
-            Building = dto.Building?.Trim() ?? "Academic Block A",
-            Floor = dto.Floor?.Trim() ?? "1st Floor",
-            MeetingRoom = dto.MeetingRoom?.Trim() ?? "Conference Room 102",
-            RoomCapacity = dto.RoomCapacity > 0 ? dto.RoomCapacity : 15,
+            Building = dto.Building?.Trim() ?? string.Empty,
+            Floor = dto.Floor?.Trim() ?? string.Empty,
+            MeetingRoom = dto.MeetingRoom?.Trim() ?? string.Empty,
+            RoomCapacity = dto.RoomCapacity > 0 ? dto.RoomCapacity : 0,
             OnlineMeetingUrl = dto.OnlineMeetingUrl?.Trim(),
             MeetingDate = mDate,
-            StartTime = !string.IsNullOrWhiteSpace(dto.StartTime) ? dto.StartTime.Trim() : "10:00",
-            EndTime = !string.IsNullOrWhiteSpace(dto.EndTime) ? dto.EndTime.Trim() : "10:30",
+            StartTime = dto.StartTime?.Trim() ?? string.Empty,
+            EndTime = dto.EndTime?.Trim() ?? string.Empty,
             MeetingStatus = !string.IsNullOrWhiteSpace(dto.MeetingStatus) ? dto.MeetingStatus.Trim().ToUpper() : "SCHEDULED",
             Priority = !string.IsNullOrWhiteSpace(dto.Priority) ? dto.Priority.Trim() : "Normal",
-            AttendancePolicy = !string.IsNullOrWhiteSpace(dto.AttendancePolicy) ? dto.AttendancePolicy.Trim() : "Mandatory",
-            Recurrence = !string.IsNullOrWhiteSpace(dto.Recurrence) ? dto.Recurrence.Trim() : "None (One-time)",
+            AttendancePolicy = dto.AttendancePolicy?.Trim() ?? string.Empty,
+            Recurrence = dto.Recurrence?.Trim() ?? string.Empty,
             TotalRecipients = dto.TotalRecipients > 0 ? dto.TotalRecipients : 1,
             CreatedAt = DateTime.UtcNow
         };
@@ -474,18 +476,18 @@ public class CommunicationController : ControllerBase
         MeetingTitle = m.MeetingTitle ?? "",
         Agenda = m.Agenda ?? "",
         MeetingMode = m.MeetingMode ?? "In-Person",
-        Building = m.Building ?? "Academic Block A",
-        Floor = m.Floor ?? "1st Floor",
-        MeetingRoom = m.MeetingRoom ?? "Conference Room 102",
-        RoomCapacity = m.RoomCapacity > 0 ? m.RoomCapacity : 15,
+        Building = m.Building ?? "",
+        Floor = m.Floor ?? "",
+        MeetingRoom = m.MeetingRoom ?? "",
+        RoomCapacity = m.RoomCapacity,
         OnlineMeetingUrl = m.OnlineMeetingUrl ?? "",
         MeetingDate = m.MeetingDate.ToString("yyyy-MM-dd"),
-        StartTime = m.StartTime ?? "10:00",
-        EndTime = m.EndTime ?? "10:30",
+        StartTime = m.StartTime ?? "",
+        EndTime = m.EndTime ?? "",
         MeetingStatus = m.MeetingStatus ?? "SCHEDULED",
         Priority = m.Priority ?? "Normal",
-        AttendancePolicy = m.AttendancePolicy ?? "Mandatory",
-        Recurrence = m.Recurrence ?? "None (One-time)",
+        AttendancePolicy = m.AttendancePolicy ?? "",
+        Recurrence = m.Recurrence ?? "",
         TotalRecipients = m.TotalRecipients > 0 ? m.TotalRecipients : 1
     };
 }
