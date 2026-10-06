@@ -27,6 +27,34 @@ export function generateReportCardHtml(
 
   const examType = exam?.examType || (exam as any)?.assessmentType || '';
 
+  const calculatedSubSum = cleanSubjects.reduce((sum: number, s: any) => {
+    const obt = s.obtainedMarks ?? s.marks;
+    if (obt === 'AB' || String(obt).toLowerCase() === 'absent') return sum;
+    return sum + (Number(obt) || 0);
+  }, 0);
+  const calculatedMaxSum = cleanSubjects.reduce((sum: number, s: any) => sum + (Number(s.maxMarks || s.totalMarks) || 100), 0);
+
+  const displayObtained = (data.totalObtainedMarks !== undefined && data.totalObtainedMarks !== null && Number(data.totalObtainedMarks) > 0)
+    ? Number(data.totalObtainedMarks)
+    : ((data as any).totalMarks !== undefined && (data as any).totalMarks !== null && Number((data as any).totalMarks) > 0)
+      ? Number((data as any).totalMarks)
+      : ((data as any).totalMarksObtained !== undefined && (data as any).totalMarksObtained !== null && Number((data as any).totalMarksObtained) > 0)
+        ? Number((data as any).totalMarksObtained)
+        : calculatedSubSum;
+
+  const displayMax = (data.totalMaxMarks !== undefined && data.totalMaxMarks !== null && Number(data.totalMaxMarks) > 0)
+    ? Number(data.totalMaxMarks)
+    : ((data as any).totalMax !== undefined && Number((data as any).totalMax) > 0)
+      ? Number((data as any).totalMax)
+      : calculatedMaxSum;
+
+  const displayPct = (data.percentage !== undefined && data.percentage !== null && Number(data.percentage) > 0)
+    ? Number(data.percentage)
+    : (displayMax > 0 ? (displayObtained / displayMax) * 100 : 0);
+
+  const displayGrade = data.finalGrade || (data as any).overallGrade || (data as any).grade || calculateGrade(displayPct, gradeRules, 'Percentage', examType);
+  const displayStatus = data.passStatus || (data as any).resultStatus || (data as any).result || (displayPct >= 35 ? 'Pass' : 'Fail');
+
   const subjectRows = cleanSubjects.map((sub: any) => {
     const match = subjects.find(s => s.name === sub.subject || s.code === sub.subject || s.id === sub.subject);
     const subCode = match?.code || `${sub.subject.substring(0, 3).toUpperCase()}-101`;
@@ -115,23 +143,23 @@ export function generateReportCardHtml(
       <div style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; background: #f0f9ff; border: 1px solid #bae6fd; border-radius: 10px; padding: 8px; text-align: center; margin-bottom: 16px;">
         <div style="background: #ffffff; border: 1px solid #e0f2fe; border-radius: 6px; padding: 6px 2px;">
           <label style="display: block; font-size: 8.5px; font-weight: 800; text-transform: uppercase; color: #64748b; margin-bottom: 1px;">Total Marks</label>
-          <div style="font-size: 12.5px; font-weight: 900; color: #0f172a;">${data.totalObtainedMarks} / ${data.totalMaxMarks}</div>
+          <div style="font-size: 12.5px; font-weight: 900; color: #0f172a;">${displayObtained} / ${displayMax}</div>
         </div>
         <div style="background: #ffffff; border: 1px solid #e0f2fe; border-radius: 6px; padding: 6px 2px;">
           <label style="display: block; font-size: 8.5px; font-weight: 800; text-transform: uppercase; color: #64748b; margin-bottom: 1px;">Percentage</label>
-          <div style="font-size: 12.5px; font-weight: 900; color: #0284c7;">${data.percentage.toFixed(1)}%</div>
+          <div style="font-size: 12.5px; font-weight: 900; color: #0284c7;">${displayPct.toFixed(1)}%</div>
         </div>
         <div style="background: #ffffff; border: 1px solid #e0f2fe; border-radius: 6px; padding: 6px 2px;">
           <label style="display: block; font-size: 8.5px; font-weight: 800; text-transform: uppercase; color: #64748b; margin-bottom: 1px;">Overall Grade</label>
-          <div style="font-size: 12.5px; font-weight: 900; color: #4f46e5;">${data.finalGrade}</div>
+          <div style="font-size: 12.5px; font-weight: 900; color: #4f46e5;">${displayGrade}</div>
         </div>
         <div style="background: #ffffff; border: 1px solid #e0f2fe; border-radius: 6px; padding: 6px 2px;">
           <label style="display: block; font-size: 8.5px; font-weight: 800; text-transform: uppercase; color: #64748b; margin-bottom: 1px;">Class Rank</label>
-          <div style="font-size: 12.5px; font-weight: 900; color: #d97706;">#${data.rank}</div>
+          <div style="font-size: 12.5px; font-weight: 900; color: #d97706;">#${data.rank || 1}</div>
         </div>
         <div style="background: #ffffff; border: 1px solid #e0f2fe; border-radius: 6px; padding: 6px 2px;">
           <label style="display: block; font-size: 8.5px; font-weight: 800; text-transform: uppercase; color: #64748b; margin-bottom: 1px;">Final Status</label>
-          <div style="font-size: 12.5px; font-weight: 900; color: ${data.passStatus === 'Pass' ? '#166534' : '#991b1b'};">${data.passStatus}</div>
+          <div style="font-size: 12.5px; font-weight: 900; color: ${displayStatus === 'Pass' ? '#166534' : '#991b1b'};">${displayStatus}</div>
         </div>
       </div>
 

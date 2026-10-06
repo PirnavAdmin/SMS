@@ -32,15 +32,7 @@ export const PrintableReportCard: React.FC<PrintableReportCardProps> = ({
   const contextData = useData();
   const schoolProfile = propSchoolProfile || contextData.schoolProfile;
 
-  // Retrieve logoUrl from Settings school profile or localStorage fallback
-  const savedProfileStr = typeof window !== 'undefined' ? (localStorage.getItem('edu_db_profile') || localStorage.getItem('profile')) : null;
-  let savedProfile: any = null;
-  if (savedProfileStr) {
-    try { savedProfile = JSON.parse(savedProfileStr); } catch (e) {}
-  }
-  const directLogoKey = typeof window !== 'undefined' ? (localStorage.getItem('school_logo') || localStorage.getItem('logoUrl') || localStorage.getItem('schoolLogo')) : null;
-
-  const rawLogo = schoolProfile?.logoUrl || savedProfile?.logoUrl || contextData.schoolProfile?.logoUrl || directLogoKey;
+  const rawLogo = schoolProfile?.logoUrl || contextData.schoolProfile?.logoUrl;
   const logoUrl = resolveMediaUrl(rawLogo);
 
   const allExamMarks = contextData.examMarks;
@@ -154,23 +146,44 @@ export const PrintableReportCard: React.FC<PrintableReportCardProps> = ({
       }
     });
     res.subjectMarks = Array.from(subMap.values());
-    res.totalMax = result.totalMaxMarks ?? (result as any).totalMax ?? (res.subjectMarks.reduce((sum: number, sm: any) => sum + (Number(sm.maxMarks) || 100), 0));
-    res.totalObtained = result.totalObtainedMarks ?? (result as any).totalObtained ?? (res.subjectMarks.reduce((sum: number, sm: any) => sum + (typeof sm.obtainedMarks === 'number' ? sm.obtainedMarks : (Number(sm.obtainedMarks) || 0)), 0));
-    res.percentage = result.percentage ?? (res.totalMax > 0 ? parseFloat(((res.totalObtained / res.totalMax) * 100).toFixed(1)) : 0);
-    res.finalGrade = result.finalGrade || result.overallGrade || res.finalGrade || '';
-    res.passStatus = result.passStatus || (result as any).resultStatus || (result as any).status || '-';
+    const sumSubObtained = res.subjectMarks.reduce((sum: number, sm: any) => {
+      const obt = sm.obtainedMarks ?? sm.marks;
+      if (obt === 'AB' || String(obt).toLowerCase() === 'absent') return sum;
+      return sum + (typeof obt === 'number' ? obt : (Number(obt) || 0));
+    }, 0);
+    const sumSubMax = res.subjectMarks.reduce((sum: number, sm: any) => sum + (Number(sm.maxMarks || sm.totalMarks) || 100), 0);
+
+    const explicitObt = result.totalObtainedMarks ?? (result as any).totalMarksObtained ?? (result as any).totalMarks ?? (result as any).totalObtained ?? (result as any).obtainedMarks;
+    res.totalObtained = (explicitObt !== undefined && explicitObt !== null && Number(explicitObt) > 0)
+      ? Number(explicitObt)
+      : (sumSubObtained > 0 ? sumSubObtained : (res.totalObtained > 0 ? res.totalObtained : 0));
+
+    const explicitMax = result.totalMaxMarks ?? (result as any).totalMax ?? (result as any).maxMarks;
+    res.totalMax = (explicitMax !== undefined && explicitMax !== null && Number(explicitMax) > 0)
+      ? Number(explicitMax)
+      : (sumSubMax > 0 ? sumSubMax : (res.totalMax > 0 ? res.totalMax : 0));
+
+    res.percentage = (result.percentage !== undefined && result.percentage !== null && result.percentage > 0)
+      ? result.percentage
+      : (res.totalMax > 0 ? parseFloat(((res.totalObtained / res.totalMax) * 100).toFixed(1)) : 0);
+    res.finalGrade = result.finalGrade || result.overallGrade || (result as any).grade || res.finalGrade || '';
+    res.overallGrade = res.finalGrade;
+    res.passStatus = result.passStatus || (result as any).resultStatus || (result as any).result || (result as any).status || '-';
   } else if (result) {
-    if (result.totalObtainedMarks !== undefined || (result as any).totalObtained !== undefined) {
-      res.totalObtained = result.totalObtainedMarks ?? (result as any).totalObtained ?? res.totalObtained;
+    const explicitObt = result.totalObtainedMarks ?? (result as any).totalMarksObtained ?? (result as any).totalMarks ?? (result as any).totalObtained ?? (result as any).obtainedMarks;
+    if (explicitObt !== undefined && explicitObt !== null) {
+      res.totalObtained = Number(explicitObt);
     }
-    if (result.totalMaxMarks !== undefined || (result as any).totalMax !== undefined) {
-      res.totalMax = result.totalMaxMarks ?? (result as any).totalMax ?? res.totalMax;
+    const explicitMax = result.totalMaxMarks ?? (result as any).totalMax ?? (result as any).maxMarks;
+    if (explicitMax !== undefined && explicitMax !== null) {
+      res.totalMax = Number(explicitMax);
     }
-    if (result.percentage !== undefined) {
+    if (result.percentage !== undefined && result.percentage !== null) {
       res.percentage = result.percentage;
     }
-    if (result.finalGrade || result.overallGrade) {
-      res.finalGrade = result.finalGrade || result.overallGrade;
+    if (result.finalGrade || result.overallGrade || (result as any).grade) {
+      res.finalGrade = result.finalGrade || result.overallGrade || (result as any).grade;
+      res.overallGrade = res.finalGrade;
     }
   }
 
@@ -210,10 +223,28 @@ export const PrintableReportCard: React.FC<PrintableReportCardProps> = ({
       }
     });
     res.subjectMarks = Array.from(finalSubMap.values());
+
+    // If totalObtained was 0 but subject marks are present, recalculate grand total
+    const sumCalculatedObt = res.subjectMarks.reduce((sum: number, sm: any) => {
+      const obt = sm.obtainedMarks;
+      if (obt === 'AB' || String(obt).toLowerCase() === 'absent') return sum;
+      return sum + (typeof obt === 'number' ? obt : (Number(obt) || 0));
+    }, 0);
+    const sumCalculatedMax = res.subjectMarks.reduce((sum: number, sm: any) => sum + (Number(sm.maxMarks) || 100), 0);
+    if (!res.totalObtained || res.totalObtained === 0) {
+      res.totalObtained = sumCalculatedObt;
+    }
+    if (!res.totalMax || res.totalMax === 0) {
+      res.totalMax = sumCalculatedMax;
+    }
+    if (!res.percentage || res.percentage === 0) {
+      res.percentage = res.totalMax > 0 ? parseFloat(((res.totalObtained / res.totalMax) * 100).toFixed(1)) : 0;
+    }
   }
 
   if (!res.finalGrade || res.finalGrade === '-') {
     res.finalGrade = calculateGrade(res.percentage, gradeConfigurations, 'Percentage', effectiveExamType);
+    res.overallGrade = res.finalGrade;
   }
 
   // Compute Overall Result status dynamically if absent or fails are present

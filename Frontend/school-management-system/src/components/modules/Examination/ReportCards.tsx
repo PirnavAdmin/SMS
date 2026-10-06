@@ -236,17 +236,6 @@ export const ReportCards: React.FC<ReportCardsProps> = ({
     // Save into DataContext
     saveProcessedResults(publishedResults);
 
-    // Save to client-side localStorage cache for immediate persistence
-    try {
-      const storedStr = localStorage.getItem('published_report_cards') || '[]';
-      const storedArr: ProcessedResult[] = JSON.parse(storedStr);
-      const incomingKeys = new Set(publishedResults.map(p => `${p.examId}_${p.studentId || p.admissionNo || p.studentName}`.toLowerCase()));
-      const remaining = storedArr.filter(s => !incomingKeys.has(`${s.examId}_${s.studentId || s.admissionNo || s.studentName}`.toLowerCase()));
-      localStorage.setItem('published_report_cards', JSON.stringify([...remaining, ...publishedResults]));
-    } catch (e) {
-      console.warn('localStorage publish save error:', e);
-    }
-
     // Attempt API publish call
     try {
       await publishExamResultsApi({
@@ -293,14 +282,6 @@ export const ReportCards: React.FC<ReportCardsProps> = ({
       publishedAt: new Date().toISOString()
     };
     saveProcessedResults([publishedRes]);
-
-    try {
-      const storedStr = localStorage.getItem('published_report_cards') || '[]';
-      const storedArr: ProcessedResult[] = JSON.parse(storedStr);
-      const key = `${publishedRes.examId}_${publishedRes.studentId || publishedRes.admissionNo || publishedRes.studentName}`.toLowerCase();
-      const remaining = storedArr.filter(s => `${s.examId}_${s.studentId || s.admissionNo || s.studentName}`.toLowerCase() !== key);
-      localStorage.setItem('published_report_cards', JSON.stringify([...remaining, publishedRes]));
-    } catch (e) {}
 
     addToast('success', 'Report Card Dispatched', `Official report card sent to parents of ${res.studentName} via Portal & WhatsApp.`);
   };

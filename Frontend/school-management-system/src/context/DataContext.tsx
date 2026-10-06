@@ -1846,9 +1846,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   const [gradeConfigurations, setGradeConfigurations] = useState<GradeConfig[]>(
     () => getStored("edu_db_grade_configurations", getStored("grade_configurations", defaultGradeConfigurations)),
   );
-  const [processedResults, setProcessedResults] = useState<ProcessedResult[]>(
-    () => getStored("processed_results", []),
-  );
+  const [processedResults, setProcessedResults] = useState<ProcessedResult[]>([]);
   const [studentAttendance, setStudentAttendance] = useState<any[]>([]);
   const [todayStudentAttendanceSummary, setTodayStudentAttendanceSummary] =
     useState<any>(null);
@@ -4302,12 +4300,6 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       JSON.stringify(gradeConfigurations),
     );
   }, [gradeConfigurations]);
-  useEffect(() => {
-    localStorage.setItem(
-      "edu_db_processed_results",
-      JSON.stringify(processedResults),
-    );
-  }, [processedResults]);
   useEffect(() => {
     localStorage.setItem(
       "edu_db_student_attendance",
