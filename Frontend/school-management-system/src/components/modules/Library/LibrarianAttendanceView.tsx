@@ -111,16 +111,7 @@ export const LibrarianAttendanceView: React.FC = () => {
   const canManageAttendance = isLibrarian;
   const isReadOnlyAccess = !canManageAttendance;
 
-  const [librarianAttendance, setLibrarianAttendance] = useState<LibrarianAttendanceRecord[]>(() => {
-    const s = localStorage.getItem(LIBRARIAN_ATTENDANCE_KEY);
-    if (!s) return [];
-    try {
-      const parsed: LibrarianAttendanceRecord[] = JSON.parse(s);
-      return Array.isArray(parsed) ? parsed : [];
-    } catch {
-      return [];
-    }
-  });
+  const [librarianAttendance, setLibrarianAttendance] = useState<LibrarianAttendanceRecord[]>([]);
 
   const [attendanceViewMode, setAttendanceViewMode] = useState<'daily' | 'weekly' | 'monthly'>('daily');
   const [selectedAttendanceDate, setSelectedAttendanceDate] = useState<string>(new Date().toISOString().split('T')[0]);
@@ -133,7 +124,6 @@ export const LibrarianAttendanceView: React.FC = () => {
 
   const saveLibrarianAttendance = (data: LibrarianAttendanceRecord[]) => {
     setLibrarianAttendance(data);
-    localStorage.setItem(LIBRARIAN_ATTENDANCE_KEY, JSON.stringify(data));
     if (typeof window !== 'undefined') {
       window.dispatchEvent(new Event('librarian_attendance_updated'));
     }
@@ -197,7 +187,6 @@ export const LibrarianAttendanceView: React.FC = () => {
               }
             });
             const merged = Array.from(map.values());
-            localStorage.setItem(LIBRARIAN_ATTENDANCE_KEY, JSON.stringify(merged));
             return merged;
           });
         }
@@ -211,21 +200,32 @@ export const LibrarianAttendanceView: React.FC = () => {
   // Listen for external attendance updates
   useEffect(() => {
     const handleUpdate = () => {
-      const s = localStorage.getItem(LIBRARIAN_ATTENDANCE_KEY);
-      if (s) {
-        try {
-          const parsed = JSON.parse(s);
-          if (Array.isArray(parsed)) setLibrarianAttendance(parsed);
-        } catch (e) {}
-      }
+      LibraryAPI.fetchLibrarianAttendanceApi(attendanceViewMode, selectedAttendanceDate, selectedAttendanceMonth)
+        .then((res: any) => {
+          if (res?.success && Array.isArray(res.data)) {
+            const mapped: LibrarianAttendanceRecord[] = res.data.map((item: any) => ({
+              id: String(item.id || item.attendanceId || `ATT-LIB-${item.attendanceId}`),
+              staffId: item.staffId || item.employeeCode || currentStaffId,
+              staffName: item.staffName || item.librarian || currentStaffName,
+              role: item.role || 'Librarian',
+              date: String(item.date || todayStr).split('T')[0],
+              checkInTime: item.checkInTime || item.checkIn,
+              checkOutTime: (item.checkOutTime || item.checkOut || '').replace('Active Shift', ''),
+              workingHours: item.workingHours || item.hours,
+              shift: item.shift || item.shiftDetails || 'Morning Shift (08:30 - 17:00)',
+              status: item.status || 'Present',
+              remarks: item.remarks || item.dutyRemarks || ''
+            }));
+            setLibrarianAttendance(mapped);
+          }
+        })
+        .catch(() => {});
     };
     window.addEventListener('librarian_attendance_updated', handleUpdate);
-    window.addEventListener('storage', handleUpdate);
     return () => {
       window.removeEventListener('librarian_attendance_updated', handleUpdate);
-      window.removeEventListener('storage', handleUpdate);
     };
-  }, []);
+  }, [attendanceViewMode, selectedAttendanceDate, selectedAttendanceMonth, currentStaffId, currentStaffName, todayStr]);
 
   // Available library staff members for Mark Attendance dropdown (strictly Library Department / Librarians)
   const availableLibrarianMembers = useMemo(() => {
@@ -335,16 +335,6 @@ export const LibrarianAttendanceView: React.FC = () => {
 
     // 1. Add records from DataContext attendance (which Admin Staff Attendance updates)
     processDailyRecords(attendance);
-
-    // 2. Add records from localStorage keys edu_db_attendance and attendance
-    if (typeof window !== 'undefined') {
-      try {
-        const storedAtt = localStorage.getItem('edu_db_attendance') || localStorage.getItem('attendance');
-        if (storedAtt) {
-          processDailyRecords(JSON.parse(storedAtt));
-        }
-      } catch (e) {}
-    }
 
     // 3. Add/Override with local librarian attendance (punches from Librarian login take absolute priority!)
     (librarianAttendance || []).forEach((r) => {

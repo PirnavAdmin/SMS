@@ -87,19 +87,27 @@ export const LoginView: React.FC<LoginViewProps> = ({ onBack, initialRole }) => 
     };
   }, []);
 
-  const [rememberMe, setRememberMe] = useState(() => {
-    return localStorage.getItem('remember_me') === 'true';
-  });
-  const [identifier, setIdentifier] = useState(() => {
-    if (localStorage.getItem('remember_me') === 'true') {
-      return localStorage.getItem('remember_me_identifier') || '';
+  const [rememberMe, setRememberMe] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem('remember_me') === 'true';
+    } catch {
+      return false;
     }
+  });
+  const [identifier, setIdentifier] = useState<string>(() => {
+    try {
+      if (localStorage.getItem('remember_me') === 'true') {
+        return localStorage.getItem('remember_me_identifier') || '';
+      }
+    } catch {}
     return '';
   });
-  const [password, setPassword] = useState(() => {
-    if (localStorage.getItem('remember_me') === 'true') {
-      return localStorage.getItem('remember_me_password') || '';
-    }
+  const [password, setPassword] = useState<string>(() => {
+    try {
+      if (localStorage.getItem('remember_me') === 'true') {
+        return localStorage.getItem('remember_me_password') || '';
+      }
+    } catch {}
     return '';
   });
   const [showPassword, setShowPassword] = useState(false);
@@ -107,6 +115,20 @@ export const LoginView: React.FC<LoginViewProps> = ({ onBack, initialRole }) => 
   const [identifierTouched, setIdentifierTouched] = useState(false);
   const [passwordTouched, setPasswordTouched] = useState(false);
   const [loginSubmitted, setLoginSubmitted] = useState(false);
+
+  // Re-hydrate remembered credentials on mount
+  useEffect(() => {
+    try {
+      const isRemembered = localStorage.getItem('remember_me') === 'true';
+      if (isRemembered) {
+        setRememberMe(true);
+        const savedId = localStorage.getItem('remember_me_identifier') || '';
+        const savedPw = localStorage.getItem('remember_me_password') || '';
+        if (savedId) setIdentifier(savedId);
+        if (savedPw) setPassword(savedPw);
+      }
+    } catch {}
+  }, []);
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -143,15 +165,40 @@ export const LoginView: React.FC<LoginViewProps> = ({ onBack, initialRole }) => 
   const handleRememberMeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const isChecked = e.target.checked;
     setRememberMe(isChecked);
-    if (isChecked) {
-      const savedId = localStorage.getItem('remember_me_identifier');
-      const savedPw = localStorage.getItem('remember_me_password');
-      if (savedId && !identifier) setIdentifier(savedId);
-      if (savedPw && !password) setPassword(savedPw);
-    } else {
-      localStorage.removeItem('remember_me');
-      localStorage.removeItem('remember_me_identifier');
-      localStorage.removeItem('remember_me_password');
+    try {
+      if (isChecked) {
+        localStorage.setItem('remember_me', 'true');
+        if (identifier.trim()) {
+          localStorage.setItem('remember_me_identifier', identifier.trim());
+        }
+        if (password) {
+          localStorage.setItem('remember_me_password', password);
+        }
+      } else {
+        localStorage.removeItem('remember_me');
+        localStorage.removeItem('remember_me_identifier');
+        localStorage.removeItem('remember_me_password');
+      }
+    } catch {}
+  };
+
+  const handleIdentifierChange = (value: string) => {
+    setIdentifier(value);
+    if (error) setError('');
+    if (rememberMe) {
+      try {
+        localStorage.setItem('remember_me_identifier', value.trim());
+      } catch {}
+    }
+  };
+
+  const handlePasswordChange = (value: string) => {
+    setPassword(value);
+    if (error) setError('');
+    if (rememberMe) {
+      try {
+        localStorage.setItem('remember_me_password', value);
+      } catch {}
     }
   };
 
@@ -379,10 +426,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onBack, initialRole }) => 
                     <input
                       type="text"
                       value={identifier}
-                      onChange={e => {
-                        setIdentifier(e.target.value);
-                        if (error) setError('');
-                      }}
+                      onChange={e => handleIdentifierChange(e.target.value)}
                       onBlur={() => setIdentifierTouched(true)}
                       placeholder="Enter registered email or phone"
                       className={`w-full pl-11 pr-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-950 border text-slate-900 dark:text-white text-sm placeholder-slate-400 focus:outline-none focus:ring-2 transition-all font-medium ${
@@ -412,10 +456,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onBack, initialRole }) => 
                     <input
                       type={showPassword ? 'text' : 'password'}
                       value={password}
-                      onChange={e => {
-                        setPassword(e.target.value);
-                        if (error) setError('');
-                      }}
+                      onChange={e => handlePasswordChange(e.target.value)}
                       onBlur={() => setPasswordTouched(true)}
                       placeholder="Enter your password"
                       className={`w-full pl-11 pr-11 py-3 rounded-xl bg-slate-50 dark:bg-slate-950 border text-slate-900 dark:text-white text-sm placeholder-slate-400 focus:outline-none focus:ring-2 transition-all font-medium ${

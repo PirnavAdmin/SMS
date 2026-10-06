@@ -86,30 +86,10 @@ export const WardenAttendanceView: React.FC = () => {
     };
   }, [user, staff]);
 
-  // 2. Local State Check-In & Check-Out persistence
-  const [checkInTime, setCheckInTime] = useState<string | null>(() => {
-    const storedDate = localStorage.getItem('warden_attendance_date');
-    if (storedDate && storedDate !== todayStr) {
-      localStorage.removeItem('warden_check_in_time');
-      localStorage.removeItem('warden_check_out_time');
-      localStorage.removeItem('warden_is_checked_out');
-      localStorage.setItem('warden_attendance_date', todayStr);
-      return null;
-    }
-    return localStorage.getItem('warden_check_in_time');
-  });
-
-  const [checkOutTime, setCheckOutTime] = useState<string | null>(() => {
-    const storedDate = localStorage.getItem('warden_attendance_date');
-    if (storedDate && storedDate !== todayStr) return null;
-    return localStorage.getItem('warden_check_out_time');
-  });
-
-  const [isCheckedOut, setIsCheckedOut] = useState<boolean>(() => {
-    const storedDate = localStorage.getItem('warden_attendance_date');
-    if (storedDate && storedDate !== todayStr) return false;
-    return localStorage.getItem('warden_is_checked_out') === 'true';
-  });
+  // 2. State Check-In & Check-Out purely dynamic
+  const [checkInTime, setCheckInTime] = useState<string | null>(null);
+  const [checkOutTime, setCheckOutTime] = useState<string | null>(null);
+  const [isCheckedOut, setIsCheckedOut] = useState<boolean>(false);
 
   // Load today's check-in status from backend on mount
   useEffect(() => {
@@ -122,13 +102,9 @@ export const WardenAttendanceView: React.FC = () => {
           if (attendanceData && attendanceData.inTime) {
             const inTimeStr = attendanceData.inTime;
             setCheckInTime(inTimeStr);
-            localStorage.setItem('warden_check_in_time', inTimeStr);
-            localStorage.setItem('warden_attendance_date', todayStr);
             if (attendanceData.outTime) {
               const outTimeStr = attendanceData.outTime;
               setCheckOutTime(outTimeStr);
-              localStorage.setItem('warden_check_out_time', outTimeStr);
-              localStorage.setItem('warden_is_checked_out', 'true');
               setIsCheckedOut(true);
             }
           }
@@ -142,61 +118,7 @@ export const WardenAttendanceView: React.FC = () => {
   }, [todayStr]);
 
   // 3. Attendance Logs List State
-  const [attendanceLogs, setAttendanceLogs] = useState<WardenAttendanceRecord[]>(() => {
-    const saved = localStorage.getItem(WARDEN_ATTENDANCE_KEY);
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-      } catch (e) {}
-    }
-    // Default initial mock history for September 2026
-    return [
-      {
-        id: 'LOG-001',
-        wardenId: wardenInfo.id,
-        wardenName: wardenInfo.name,
-        role: 'Hostel Warden',
-        date: '2026-09-01',
-        shift: 'Day & Night Shift',
-        checkInTime: '08:30 AM',
-        checkOutTime: '06:00 PM',
-        workingHours: '9.5 Hours',
-        status: 'Present',
-        remarks: 'Night roll call verified cleanly'
-      },
-      {
-        id: 'LOG-002',
-        wardenId: wardenInfo.id,
-        wardenName: wardenInfo.name,
-        role: 'Hostel Warden',
-        date: '2026-09-02',
-        shift: 'Day Shift',
-        checkInTime: '08:45 AM',
-        checkOutTime: '05:30 PM',
-        workingHours: '8.8 Hours',
-        status: 'Present',
-        remarks: 'Regular morning inspection conducted'
-      },
-      {
-        id: 'LOG-003',
-        wardenId: wardenInfo.id,
-        wardenName: wardenInfo.name,
-        role: 'Hostel Warden',
-        date: '2026-09-03',
-        shift: 'Day Shift',
-        checkInTime: '09:10 AM',
-        checkOutTime: '05:45 PM',
-        workingHours: '8.6 Hours',
-        status: 'Late',
-        remarks: 'Slight traffic delay morning check-in'
-      }
-    ];
-  });
-
-  useEffect(() => {
-    localStorage.setItem(WARDEN_ATTENDANCE_KEY, JSON.stringify(attendanceLogs));
-  }, [attendanceLogs]);
+  const [attendanceLogs, setAttendanceLogs] = useState<WardenAttendanceRecord[]>([]);
 
   // Sync today's log entry if present
   useEffect(() => {
@@ -248,23 +170,7 @@ export const WardenAttendanceView: React.FC = () => {
     setCheckInTime(timeNow);
     setIsCheckedOut(false);
 
-    localStorage.setItem('warden_check_in_time', timeNow);
-    localStorage.removeItem('warden_check_out_time');
-    localStorage.setItem('warden_is_checked_out', 'false');
-    localStorage.setItem('warden_attendance_date', todayStr);
-
-    // Sync to staff attendance keys across all possible ID forms so StaffAttendanceView reads check-in
     const activeWardenId = wardenInfo.id;
-    const wardenEmpId = wardenInfo.empId || (user as any)?.empId || user?.id || "410";
-    const keysToSet = Array.from(new Set([activeWardenId, wardenEmpId, user?.id, (user as any)?.empId].filter(Boolean)));
-
-    keysToSet.forEach(k => {
-      localStorage.setItem(`teacher_attendance_date_${k}`, todayStr);
-      localStorage.setItem(`teacher_check_in_time_${k}`, timeNow);
-      localStorage.removeItem(`teacher_check_out_time_${k}`);
-      localStorage.setItem(`teacher_is_checked_out_${k}`, "false");
-    });
-
     const now = new Date();
     const checkInHour = now.getHours();
     const checkInMinute = now.getMinutes();
@@ -307,19 +213,7 @@ export const WardenAttendanceView: React.FC = () => {
     setCheckOutTime(timeNow);
     setIsCheckedOut(true);
 
-    localStorage.setItem('warden_check_out_time', timeNow);
-    localStorage.setItem('warden_is_checked_out', 'true');
-    localStorage.setItem('warden_attendance_date', todayStr);
-
     const activeWardenId = wardenInfo.id;
-    const wardenEmpId = wardenInfo.empId || (user as any)?.empId || user?.id || "410";
-    const keysToSet = Array.from(new Set([activeWardenId, wardenEmpId, user?.id, (user as any)?.empId].filter(Boolean)));
-
-    keysToSet.forEach(k => {
-      localStorage.setItem(`teacher_attendance_date_${k}`, todayStr);
-      localStorage.setItem(`teacher_check_out_time_${k}`, timeNow);
-      localStorage.setItem(`teacher_is_checked_out_${k}`, "true");
-    });
 
     if (markAttendance && activeWardenId) {
       try {

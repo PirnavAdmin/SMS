@@ -478,7 +478,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         ]
       : [
           { id: "staff-directory", label: "Staff Directory", icon: Users },
-          { id: "staff-letters", label: "Offer & Relieving Letters", icon: FileText },
+          { id: "staff-letters", label: "Offer & Relieving", icon: FileText },
           {
             id: "staff-attendance",
             label: "Staff Attendance",
@@ -860,6 +860,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                                 key={sub.id}
                                 data-active={isSubActive ? "true" : undefined}
                                 onClick={() => setActiveModule(sub.id)}
+                                title={sub.label}
                                 className={`w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all ${
                                   isSubActive
                                     ? "bg-sky-600 text-white font-bold"
@@ -869,7 +870,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                                 <SubIcon
                                   className={`w-3.5 h-3.5 shrink-0 ${isSubActive ? "text-white" : "text-slate-400"}`}
                                 />
-                                <span className="truncate">{sub.label}</span>
+                                <span className="truncate text-left">{sub.label}</span>
                               </button>
                             );
                           })}
@@ -972,6 +973,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                                 key={sub.id}
                                 data-active={isSubActive ? "true" : undefined}
                                 onClick={() => setActiveModule(sub.id)}
+                                title={sub.label}
                                 className={`w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all ${
                                   isSubActive
                                     ? "bg-sky-600 text-white font-bold"
@@ -981,7 +983,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                                 <SubIcon
                                   className={`w-3.5 h-3.5 shrink-0 ${isSubActive ? "text-white" : "text-slate-400"}`}
                                 />
-                                <span className="truncate">{sub.label}</span>
+                                <span className="truncate text-left">{sub.label}</span>
                               </button>
                             );
                           })}
@@ -1076,6 +1078,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                                 key={sub.id}
                                 data-active={isSubActive ? "true" : undefined}
                                 onClick={() => setActiveModule(sub.id)}
+                                title={sub.label}
                                 className={`w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all ${
                                   isSubActive
                                     ? "bg-sky-600 text-white font-bold"
@@ -1085,7 +1088,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                                 <SubIcon
                                   className={`w-3.5 h-3.5 shrink-0 ${isSubActive ? "text-white" : "text-slate-400"}`}
                                 />
-                                <span className="truncate">{sub.label}</span>
+                                <span className="truncate text-left">{sub.label}</span>
                               </button>
                             );
                           })}
@@ -1167,6 +1170,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                                 key={sub.id}
                                 data-active={isSubActive ? "true" : undefined}
                                 onClick={() => setActiveModule(sub.id)}
+                                title={sub.label}
                                 className={`w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all ${
                                   isSubActive
                                     ? "bg-sky-600 text-white font-bold"
@@ -1176,7 +1180,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                                 <SubIcon
                                   className={`w-3.5 h-3.5 shrink-0 ${isSubActive ? "text-white" : "text-slate-400"}`}
                                 />
-                                <span className="truncate">{sub.label}</span>
+                                <span className="truncate text-left">{sub.label}</span>
                               </button>
                             );
                           })}
@@ -1257,6 +1261,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                                 key={sub.id}
                                 data-active={isSubActive ? "true" : undefined}
                                 onClick={() => setActiveModule(sub.id)}
+                                title={sub.label}
                                 className={`w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all ${
                                   isSubActive
                                     ? "bg-sky-600 text-white font-bold"
@@ -1266,7 +1271,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                                 <SubIcon
                                   className={`w-3.5 h-3.5 shrink-0 ${isSubActive ? "text-white" : "text-slate-400"}`}
                                 />
-                                <span className="truncate">{sub.label}</span>
+                                <span className="truncate text-left">{sub.label}</span>
                               </button>
                             );
                           })}
@@ -1375,6 +1380,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                                 key={sub.id}
                                 data-active={isSubActive ? "true" : undefined}
                                 onClick={() => setActiveModule(sub.id)}
+                                title={sub.label}
                                 className={`w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all ${
                                   isSubActive
                                     ? "bg-sky-600 text-white font-bold"
@@ -1384,7 +1390,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                                 <SubIcon
                                   className={`w-3.5 h-3.5 shrink-0 ${isSubActive ? "text-white" : "text-slate-400"}`}
                                 />
-                                <span className="truncate">{sub.label}</span>
+                                <span className="truncate text-left">{sub.label}</span>
                               </button>
                             );
                           })}
@@ -1508,6 +1514,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                                 key={sub.id}
                                 data-active={isSubActive ? "true" : undefined}
                                 onClick={() => setActiveModule(sub.id)}
+                                title={sub.label}
                                 className={`w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all ${
                                   isSubActive
                                     ? "bg-sky-600 text-white font-bold"
@@ -1517,7 +1524,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                                 <SubIcon
                                   className={`w-3.5 h-3.5 shrink-0 ${isSubActive ? "text-white" : "text-slate-400"}`}
                                 />
-                                <span className="truncate">{sub.label}</span>
+                                <span className="truncate text-left">{sub.label}</span>
                               </button>
                             );
                           })}

@@ -1807,9 +1807,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     }
     return stored;
   });
-  const [attendance, setAttendance] = useState<DailyAttendance[]>(() =>
-    getStored("attendance", []),
-  );
+  const [attendance, setAttendance] = useState<DailyAttendance[]>([]);
   const [lastAttendancePayload, setLastAttendancePayload] = useState<any>(null);
   const [lastAttendanceResponse, setLastAttendanceResponse] =
     useState<any>(null);
@@ -2910,11 +2908,6 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       );
     } catch {}
   }, [academicClasses]);
-  useEffect(() => {
-    try {
-      localStorage.setItem("edu_db_attendance", JSON.stringify(attendance));
-    } catch {}
-  }, [attendance]);
   useEffect(() => {
     localStorage.setItem("edu_db_subjects", JSON.stringify(subjects));
   }, [subjects]);
@@ -17749,12 +17742,6 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
             if (JSON.stringify(prev) === JSON.stringify(updated)) {
               return prev;
             }
-            try {
-              localStorage.setItem("attendance", JSON.stringify(updated));
-              localStorage.setItem("edu_db_attendance", JSON.stringify(updated));
-            } catch {
-              /* Ignored */
-            }
             return updated;
           });
         }
@@ -17811,11 +17798,6 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
             if (JSON.stringify(prev) === JSON.stringify(updated)) {
               return prev;
             }
-            try {
-              localStorage.setItem("attendance", JSON.stringify(updated));
-            } catch {
-              /* Ignored */
-            }
             return updated;
           });
         }
@@ -17867,10 +17849,6 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         ...records,
         ...prev.filter((r) => !filterDates.includes(`${r.entityId}_${r.date}`))
       ];
-      try {
-        localStorage.setItem("attendance", JSON.stringify(updated));
-        localStorage.setItem("edu_db_attendance", JSON.stringify(updated));
-      } catch {}
       return updated;
     });
     logActivity(
@@ -22170,7 +22148,6 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         next = [newAtt, ...next.filter((a) => a.id !== newAtt.id)];
         successCount++;
       });
-      localStorage.setItem("edu_db_attendance", JSON.stringify(next));
       return next;
     });
 
