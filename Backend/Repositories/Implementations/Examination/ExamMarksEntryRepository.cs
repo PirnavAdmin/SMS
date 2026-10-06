@@ -23,11 +23,14 @@ public class ExamMarksEntryRepository : IExamMarksEntryRepository
 
     public async Task<List<NewStudentMarksEntry>> GetMarksEntriesAsync(string className, string sectionName, string subjectCode)
     {
+        string cleanSec = sectionName.Replace("Section ", "").Trim();
         try
         {
             var dbEntries = await _context.NewStudentMarksEntries
                 .AsNoTracking()
-                .Where(m => m.ClassName == className && m.SectionName == sectionName && m.SubjectCode == subjectCode)
+                .Where(m => m.ClassName == className && 
+                           (m.SectionName == sectionName || m.SectionName == cleanSec || m.SectionName == "Section " + cleanSec) && 
+                           (m.SubjectCode == subjectCode || m.SubjectName == subjectCode))
                 .ToListAsync();
 
             if (dbEntries != null && dbEntries.Any())
@@ -42,9 +45,68 @@ public class ExamMarksEntryRepository : IExamMarksEntryRepository
         {
             return _inMemoryMarks
                 .Where(m => m.ClassName.Equals(className, StringComparison.OrdinalIgnoreCase) &&
-                            m.SectionName.Equals(sectionName, StringComparison.OrdinalIgnoreCase) &&
-                            m.SubjectCode.Equals(subjectCode, StringComparison.OrdinalIgnoreCase))
+                            (m.SectionName.Equals(sectionName, StringComparison.OrdinalIgnoreCase) ||
+                             m.SectionName.Equals(cleanSec, StringComparison.OrdinalIgnoreCase) ||
+                             m.SectionName.Equals("Section " + cleanSec, StringComparison.OrdinalIgnoreCase)) &&
+                            (m.SubjectCode.Equals(subjectCode, StringComparison.OrdinalIgnoreCase) ||
+                             m.SubjectName.Equals(subjectCode, StringComparison.OrdinalIgnoreCase)))
                 .ToList();
+        }
+    }
+
+    public async Task<List<NewStudentMarksEntry>> GetClassMarksEntriesAsync(string className, string sectionName, int? examId = null)
+    {
+        string cleanSec = sectionName.Replace("Section ", "").Trim();
+        try
+        {
+            var query = _context.NewStudentMarksEntries.AsNoTracking().AsQueryable();
+
+            if (!string.IsNullOrWhiteSpace(className) && !className.Equals("all", StringComparison.OrdinalIgnoreCase))
+            {
+                query = query.Where(m => m.ClassName == className);
+            }
+
+            if (!string.IsNullOrWhiteSpace(sectionName) && !sectionName.Equals("all", StringComparison.OrdinalIgnoreCase))
+            {
+                query = query.Where(m => m.SectionName == sectionName || m.SectionName == cleanSec || m.SectionName == "Section " + cleanSec);
+            }
+
+            if (examId.HasValue && examId.Value > 0)
+            {
+                query = query.Where(m => m.ExamId == examId.Value);
+            }
+
+            var dbEntries = await query.ToListAsync();
+            if (dbEntries != null && dbEntries.Any())
+                return dbEntries;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[ExamMarksEntryRepository] GetClassMarksEntriesAsync fallback: {ex.Message}");
+        }
+
+        lock (_lock)
+        {
+            var memQuery = _inMemoryMarks.AsQueryable();
+
+            if (!string.IsNullOrWhiteSpace(className) && !className.Equals("all", StringComparison.OrdinalIgnoreCase))
+            {
+                memQuery = memQuery.Where(m => m.ClassName.Equals(className, StringComparison.OrdinalIgnoreCase));
+            }
+
+            if (!string.IsNullOrWhiteSpace(sectionName) && !sectionName.Equals("all", StringComparison.OrdinalIgnoreCase))
+            {
+                memQuery = memQuery.Where(m => m.SectionName.Equals(sectionName, StringComparison.OrdinalIgnoreCase) ||
+                                               m.SectionName.Equals(cleanSec, StringComparison.OrdinalIgnoreCase) ||
+                                               m.SectionName.Equals("Section " + cleanSec, StringComparison.OrdinalIgnoreCase));
+            }
+
+            if (examId.HasValue && examId.Value > 0)
+            {
+                memQuery = memQuery.Where(m => m.ExamId == examId.Value);
+            }
+
+            return memQuery.ToList();
         }
     }
 
@@ -98,11 +160,22 @@ public class ExamMarksEntryRepository : IExamMarksEntryRepository
             entry.Status = statusText;
         }
 
+        string cleanSec = sectionName.Replace("Section ", "").Trim();
+        int examId = entries.FirstOrDefault()?.ExamId ?? 0;
+
         try
         {
-            var existingDb = await _context.NewStudentMarksEntries
-                .Where(m => m.ClassName == className && m.SectionName == sectionName && m.SubjectCode == subjectCode)
-                .ToListAsync();
+            var query = _context.NewStudentMarksEntries
+                .Where(m => m.ClassName == className && 
+                           (m.SectionName == sectionName || m.SectionName == cleanSec || m.SectionName == "Section " + cleanSec) && 
+                           (m.SubjectCode == subjectCode || m.SubjectName == subjectCode));
+
+            if (examId > 0)
+            {
+                query = query.Where(m => m.ExamId == examId);
+            }
+
+            var existingDb = await query.ToListAsync();
 
             if (existingDb.Any())
             {
@@ -125,8 +198,12 @@ public class ExamMarksEntryRepository : IExamMarksEntryRepository
         lock (_lock)
         {
             _inMemoryMarks.RemoveAll(m => m.ClassName.Equals(className, StringComparison.OrdinalIgnoreCase) &&
-                                          m.SectionName.Equals(sectionName, StringComparison.OrdinalIgnoreCase) &&
-                                          m.SubjectCode.Equals(subjectCode, StringComparison.OrdinalIgnoreCase));
+                                          (m.SectionName.Equals(sectionName, StringComparison.OrdinalIgnoreCase) ||
+                                           m.SectionName.Equals(cleanSec, StringComparison.OrdinalIgnoreCase) ||
+                                           m.SectionName.Equals("Section " + cleanSec, StringComparison.OrdinalIgnoreCase)) &&
+                                          (m.SubjectCode.Equals(subjectCode, StringComparison.OrdinalIgnoreCase) ||
+                                           m.SubjectName.Equals(subjectCode, StringComparison.OrdinalIgnoreCase)) &&
+                                          (examId <= 0 || m.ExamId == examId));
             _inMemoryMarks.AddRange(entries);
         }
 
@@ -139,17 +216,24 @@ public class ExamMarksEntryRepository : IExamMarksEntryRepository
 
         try
         {
+            var examIds = entries.Select(e => e.ExamId).Distinct().ToList();
             var classNames = entries.Select(e => e.ClassName).Distinct().ToList();
-            var sectionNames = entries.Select(e => e.SectionName).Distinct().ToList();
-            var subjectCodes = entries.Select(e => e.SubjectCode).Distinct().ToList();
 
             var existingDb = await _context.NewStudentMarksEntries
-                .Where(m => classNames.Contains(m.ClassName) && sectionNames.Contains(m.SectionName) && subjectCodes.Contains(m.SubjectCode))
+                .Where(m => examIds.Contains(m.ExamId) && classNames.Contains(m.ClassName))
                 .ToListAsync();
 
             if (existingDb.Any())
             {
-                var toRemove = existingDb.Where(ex => entries.Any(e => e.ClassName == ex.ClassName && e.SectionName == ex.SectionName && e.SubjectCode == ex.SubjectCode && (e.RollNo == ex.RollNo || e.AdmissionNo == ex.AdmissionNo))).ToList();
+                var toRemove = existingDb.Where(ex => entries.Any(e => 
+                    e.ExamId == ex.ExamId &&
+                    e.ClassName.Equals(ex.ClassName, StringComparison.OrdinalIgnoreCase) && 
+                    (e.SectionName.Equals(ex.SectionName, StringComparison.OrdinalIgnoreCase) ||
+                     e.SectionName.Replace("Section ", "").Trim().Equals(ex.SectionName.Replace("Section ", "").Trim(), StringComparison.OrdinalIgnoreCase)) && 
+                    (e.SubjectCode.Equals(ex.SubjectCode, StringComparison.OrdinalIgnoreCase) || e.SubjectName.Equals(ex.SubjectName, StringComparison.OrdinalIgnoreCase)) && 
+                    (e.RollNo.Equals(ex.RollNo, StringComparison.OrdinalIgnoreCase) || e.AdmissionNo.Equals(ex.AdmissionNo, StringComparison.OrdinalIgnoreCase))
+                )).ToList();
+
                 if (toRemove.Any())
                 {
                     _context.NewStudentMarksEntries.RemoveRange(toRemove);
@@ -174,10 +258,16 @@ public class ExamMarksEntryRepository : IExamMarksEntryRepository
         {
             foreach (var e in entries)
             {
-                _inMemoryMarks.RemoveAll(m => m.ClassName.Equals(e.ClassName, StringComparison.OrdinalIgnoreCase) &&
-                                              m.SectionName.Equals(e.SectionName, StringComparison.OrdinalIgnoreCase) &&
-                                              m.SubjectCode.Equals(e.SubjectCode, StringComparison.OrdinalIgnoreCase) &&
-                                              (m.RollNo.Equals(e.RollNo, StringComparison.OrdinalIgnoreCase) || m.AdmissionNo.Equals(e.AdmissionNo, StringComparison.OrdinalIgnoreCase)));
+                string cleanSec = e.SectionName.Replace("Section ", "").Trim();
+                _inMemoryMarks.RemoveAll(m => 
+                    m.ExamId == e.ExamId &&
+                    m.ClassName.Equals(e.ClassName, StringComparison.OrdinalIgnoreCase) &&
+                    (m.SectionName.Equals(e.SectionName, StringComparison.OrdinalIgnoreCase) ||
+                     m.SectionName.Equals(cleanSec, StringComparison.OrdinalIgnoreCase) ||
+                     m.SectionName.Equals("Section " + cleanSec, StringComparison.OrdinalIgnoreCase)) &&
+                    (m.SubjectCode.Equals(e.SubjectCode, StringComparison.OrdinalIgnoreCase) ||
+                     m.SubjectName.Equals(e.SubjectName, StringComparison.OrdinalIgnoreCase)) &&
+                    (m.RollNo.Equals(e.RollNo, StringComparison.OrdinalIgnoreCase) || m.AdmissionNo.Equals(e.AdmissionNo, StringComparison.OrdinalIgnoreCase)));
                 _inMemoryMarks.Add(e);
             }
         }

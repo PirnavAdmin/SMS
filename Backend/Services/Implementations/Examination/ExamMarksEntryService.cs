@@ -77,6 +77,26 @@ public class ExamMarksEntryService : IExamMarksEntryService
         };
     }
 
+    public async Task<List<NewStudentMarksEntry>> GetClassMarksEntriesAsync(string className, string sectionName, int? examId = null)
+    {
+        var entries = await _repository.GetClassMarksEntriesAsync(className, sectionName, examId);
+        if (entries != null && entries.Any())
+        {
+            return entries;
+        }
+
+        if (examId.HasValue && examId.Value > 0)
+        {
+            var fallbackEntries = await _repository.GetClassMarksEntriesAsync(className, sectionName, null);
+            if (fallbackEntries != null && fallbackEntries.Any())
+            {
+                return fallbackEntries;
+            }
+        }
+
+        return new List<NewStudentMarksEntry>();
+    }
+
     public async Task<bool> SaveMarksSheetAsync(SaveMarksSheetRequestDto request)
     {
         if (request == null) return false;

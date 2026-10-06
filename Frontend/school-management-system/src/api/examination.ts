@@ -251,13 +251,14 @@ export const fetchReportCardsApi = async (
   className?: string,
   sectionName?: string,
   resultStatus?: string,
-  rankOrder?: string
+  search?: string
 ) => {
   const clsQ = className && className !== 'all' ? `className=${encodeURIComponent(className)}&` : '';
   const secQ = sectionName && sectionName !== 'all' ? `sectionName=${encodeURIComponent(sectionName)}&` : '';
   const statusQ = resultStatus && resultStatus !== 'All' ? `statusFilter=${encodeURIComponent(resultStatus)}&` : '';
-  const rankQ = rankOrder ? `search=${encodeURIComponent(rankOrder)}` : '';
-  const qs = `${clsQ}${secQ}${statusQ}${rankQ}`.replace(/[?&]$/, '');
+  const isSortKey = search && ['rank-asc', 'rank-desc', 'name-asc', 'pct-desc', 'asc', 'desc'].includes(search.toLowerCase().trim());
+  const searchQ = search && !isSortKey && search.trim() ? `search=${encodeURIComponent(search.trim())}&` : '';
+  const qs = `${clsQ}${secQ}${statusQ}${searchQ}`.replace(/[?&]$/, '');
   const url = qs ? `/api/examination-new/results-reports/report-cards?${qs}` : '/api/examination-new/results-reports/report-cards';
   return apiClient(url, {
     method: 'GET'
@@ -287,6 +288,13 @@ export const clearResultsReportsApi = async (params: { examId?: number | string;
 
 export const fetchMarksEntryOptionsApi = async () => {
   return apiClient('/api/examination-new/marks-entry/options', { method: 'GET' });
+};
+
+export const fetchClassMarksApi = async (className: string, sectionName: string, examId?: number | string) => {
+  const examQ = examId ? `&examId=${encodeURIComponent(examId)}` : '';
+  return apiClient(`/api/examination-new/marks-entry/class-marks?className=${encodeURIComponent(className)}&sectionName=${encodeURIComponent(sectionName)}${examQ}`, {
+    method: 'GET'
+  });
 };
 
 export const fetchMarksEntryStudentsApi = async (className: string, sectionName: string, subjectCode: string) => {

@@ -9,6 +9,7 @@ public interface IExamMarksEntryRepository
     Task<List<string>> GetClassNamesAsync();
     Task<List<SMS.Api.Dtos.Examination.SubjectOptionItemDto>> GetSubjectsAsync();
     Task<List<NewStudentMarksEntry>> GetMarksEntriesAsync(string className, string sectionName, string subjectCode);
+    Task<List<NewStudentMarksEntry>> GetClassMarksEntriesAsync(string className, string sectionName, int? examId = null);
     Task<List<NewStudentMarksEntry>> GetAllMarksForClassSectionAsync(string? className = null, string? sectionName = null);
     Task<bool> SaveMarksEntriesAsync(string className, string sectionName, string subjectCode, List<NewStudentMarksEntry> entries, bool isFinalSubmit);
     Task<bool> SaveBulkMarksEntriesAsync(List<NewStudentMarksEntry> entries);

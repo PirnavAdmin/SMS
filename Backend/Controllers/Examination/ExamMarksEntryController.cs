@@ -60,6 +60,27 @@ public class ExamMarksEntryController : ControllerBase
     }
 
     /// <summary>
+    /// Get all Marks Entries for a Class, Section, and optional ExamId across all subjects
+    /// </summary>
+    [HttpGet("class-marks")]
+    [AllowAnonymous]
+    public async Task<IActionResult> GetClassMarks(
+        [FromQuery] string className = "",
+        [FromQuery] string sectionName = "",
+        [FromQuery] int? examId = null)
+    {
+        try
+        {
+            var result = await _service.GetClassMarksEntriesAsync(className, sectionName, examId);
+            return Ok(new { success = true, data = result });
+        }
+        catch (System.Exception ex)
+        {
+            return StatusCode(500, new { success = false, message = "Failed to fetch class marks.", error = ex.Message });
+        }
+    }
+
+    /// <summary>
     /// Save Draft marks entry (Clicking "Save Draft")
     /// </summary>
     [HttpPost("save-draft")]

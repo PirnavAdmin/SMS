@@ -311,40 +311,49 @@ export const GlobalReportCardsView: React.FC<GlobalReportCardsViewProps> = ({ on
   }, [candidateStudents, studentSearchText]);
 
   // Fetch Report Cards from API with graceful fallback
-  useEffect(() => {
-    let isMounted = true;
-    const loadReportCards = async () => {
-      setIsApiLoading(true);
-      setApiError(null);
-      try {
-        const res = await fetchReportCardsApi(
-          selectedClass && selectedClass !== 'all' ? selectedClass : '', 
-          selectedSection && selectedSection !== 'all' ? selectedSection : '', 
-          statusFilter !== 'All' ? statusFilter : undefined,
-          sortOrder
-        );
-        if (isMounted) {
-          if (res && res.success && Array.isArray(res.data)) {
-            setApiReportCards(res.data);
-          } else if (res && Array.isArray(res)) {
-            setApiReportCards(res);
-          } else {
-            setApiReportCards([]);
-          }
-        }
-      } catch (err: any) {
-        if (isMounted) {
-          console.warn('Report cards API request note (using local released data):', err);
-          setApiReportCards([]);
-        }
-      } finally {
-        if (isMounted) setIsApiLoading(false);
+  const loadReportCards = async () => {
+    setIsApiLoading(true);
+    setApiError(null);
+    try {
+      const res = await fetchReportCardsApi(
+        selectedClass && selectedClass !== 'all' ? selectedClass : '', 
+        selectedSection && selectedSection !== 'all' ? selectedSection : '', 
+        statusFilter !== 'All' ? statusFilter : undefined,
+        searchQuery
+      );
+      if (res && res.success && Array.isArray(res.data)) {
+        setApiReportCards(res.data);
+      } else if (res && Array.isArray(res)) {
+        setApiReportCards(res);
+      } else {
+        setApiReportCards([]);
       }
-    };
+    } catch (err: any) {
+      console.warn('Report cards API request note (using local released data):', err);
+      setApiReportCards([]);
+    } finally {
+      setIsApiLoading(false);
+    }
+  };
 
+  useEffect(() => {
     loadReportCards();
-    return () => { isMounted = false; };
-  }, [selectedClass, selectedSection, statusFilter, sortOrder]);
+  }, [selectedClass, selectedSection, statusFilter, searchQuery]);
+
+  // Listen for publish events to reload report cards in real-time
+  useEffect(() => {
+    const handleRefresh = () => {
+      loadReportCards();
+    };
+    window.addEventListener('results_published', handleRefresh);
+    window.addEventListener('refresh_released_results', handleRefresh);
+    window.addEventListener('storage', handleRefresh);
+    return () => {
+      window.removeEventListener('results_published', handleRefresh);
+      window.removeEventListener('refresh_released_results', handleRefresh);
+      window.removeEventListener('storage', handleRefresh);
+    };
+  }, [selectedClass, selectedSection, statusFilter, searchQuery]);
 
   // Combine and filter released results
   const releasedResults = useMemo(() => {
@@ -424,6 +433,8 @@ export const GlobalReportCardsView: React.FC<GlobalReportCardsViewProps> = ({ on
     };
 
     const apiMapped: ProcessedResult[] = (apiReportCards || []).map((r: any) => normalizeResultItem(r, 'API'));
+    const contextMapped: ProcessedResult[] = (contextResults || []).map((r: any) => normalizeResultItem(r, 'CTX'));
+    const combinedCandidates = [...apiMapped, ...contextMapped];
 
     const uniqueMap = new Map<string, ProcessedResult>();
     const getDedupeKey = (item: ProcessedResult) => {
@@ -438,7 +449,7 @@ export const GlobalReportCardsView: React.FC<GlobalReportCardsViewProps> = ({ on
       return studentIdKey;
     };
 
-    for (const item of apiMapped) {
+    for (const item of combinedCandidates) {
       const key = getDedupeKey(item);
       const existing = uniqueMap.get(key);
       const computedStatus = computePassStatus(item);
@@ -464,11 +475,11 @@ export const GlobalReportCardsView: React.FC<GlobalReportCardsViewProps> = ({ on
 
     // 2. Filter by Exam
     if (selectedExamId && selectedExamId !== 'all') {
-      resultsList = resultsList.filter(r => r.examId === selectedExamId);
+      resultsList = resultsList.filter(r => String(r.examId) === String(selectedExamId));
     }
 
     // 3. Filter by Class
-    if (selectedClass) {
+    if (selectedClass && selectedClass !== 'all') {
       const targetCls = normalizeClass(selectedClass);
       resultsList = resultsList.filter(r => normalizeClass(r.className) === targetCls);
     }

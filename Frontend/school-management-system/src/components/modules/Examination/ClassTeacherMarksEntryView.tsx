@@ -33,7 +33,7 @@ import { useAuth } from '../../../context/AuthContext';
 import { useToast } from '../../../context/ToastContext';
 import { ExamSetup, Student, GradeConfig, SubjectItem, ProcessedResult, ExamMark } from '../../../types';
 import { calculateGrade, determinePassFail } from './utils/resultCalculation';
-import { publishExamResultsApi, submitMarksEntryApi, saveMarksEntryDraftApi, fetchExamSubjectsApi, fetchExamOptionsApi, fetchExamByIdApi } from '../../../api/examination';
+import { publishExamResultsApi, submitMarksEntryApi, saveMarksEntryDraftApi, fetchExamSubjectsApi, fetchExamOptionsApi, fetchExamByIdApi, fetchClassMarksApi } from '../../../api/examination';
 
 interface ClassTeacherMarksEntryViewProps {
   onNavigate?: (module: string) => void;
@@ -797,36 +797,116 @@ export const ClassTeacherMarksEntryView: React.FC<ClassTeacherMarksEntryViewProp
   // Local Marks State Matrix: { [studentId]: { [subjectName]: { marks: string; attendance: 'Present' | 'Absent' | 'Medical Leave' | 'Exempted'; remarks?: string } } }
   const [matrixMarks, setMatrixMarks] = useState<Record<string, Record<string, { marks: string; attendance: string; remarks: string }>>>({});
 
-  // Sync / Load Marks dynamically from DataContext examMarks
+  // Sync / Load Marks dynamically from Backend Database, Processed Results, and DataContext
   useEffect(() => {
-    if (!currentExam?.id || !selectedClass || !selectedSection || classStudents.length === 0) return;
+    if (!currentExam?.id || !selectedClass || !selectedSection || classStudents.length === 0 || classSubjects.length === 0) return;
 
+    let isMounted = true;
+
+    // 1. Initial immediate fast-populate from context (processedResults & examMarks)
     const initialMatrix: Record<string, Record<string, { marks: string; attendance: string; remarks: string }>> = {};
 
     classStudents.forEach(student => {
       initialMatrix[student.id] = {};
-      classSubjects.forEach(sub => {
-        // Check DataContext examMarks dynamically
-        const existing = (examMarks || []).find(m => 
-          String(m.examId) === String(currentExam.id) &&
-          String(m.studentId) === String(student.id) &&
-          (m.subject || '').trim().toLowerCase() === sub.name.trim().toLowerCase()
-        );
+      
+      // Check for published processed result first
+      const studentResult = (processedResults || []).find(r => 
+        String(r.examId) === String(currentExam.id) &&
+        (String(r.studentId) === String(student.id) || 
+         (r.admissionNo && r.admissionNo === student.admissionNo) ||
+         (r.rollNo && r.rollNo === student.rollNo))
+      );
 
-        if (existing) {
-          initialMatrix[student.id][sub.name] = {
-            marks: existing.isAbsent ? '' : String(existing.marksObtained ?? ''),
-            attendance: existing.isAbsent ? 'Absent' : ((existing as any).attendanceStatus || 'Present'),
-            remarks: existing.remarks || ''
-          };
-        } else {
-          initialMatrix[student.id][sub.name] = { marks: '', attendance: 'Present', remarks: '' };
+      classSubjects.forEach(sub => {
+        let matchedMark = '';
+        let matchedAttendance = 'Present';
+        let matchedRemarks = '';
+
+        if (studentResult && Array.isArray((studentResult as any).subjectMarks)) {
+          const resSub = (studentResult as any).subjectMarks.find((s: any) => 
+            (s.subject || '').trim().toLowerCase() === sub.name.trim().toLowerCase() ||
+            (s.subjectCode || '').trim().toLowerCase() === (sub.code || '').trim().toLowerCase()
+          );
+          if (resSub) {
+            if (resSub.obtainedMarks === 'Ab' || resSub.obtainedMarks === 'AB' || resSub.status === 'Absent') {
+              matchedAttendance = 'Absent';
+            } else if (resSub.obtainedMarks !== undefined && resSub.obtainedMarks !== null) {
+              matchedMark = String(resSub.obtainedMarks);
+            }
+          }
         }
+
+        // If not found in processedResults, check DataContext examMarks
+        if (!matchedMark && matchedAttendance === 'Present') {
+          const existing = (examMarks || []).find(m => 
+            String(m.examId) === String(currentExam.id) &&
+            String(m.studentId) === String(student.id) &&
+            (m.subject || '').trim().toLowerCase() === sub.name.trim().toLowerCase()
+          );
+          if (existing) {
+            matchedMark = existing.isAbsent ? '' : String(existing.marksObtained ?? '');
+            matchedAttendance = existing.isAbsent ? 'Absent' : ((existing as any).attendanceStatus || 'Present');
+            matchedRemarks = existing.remarks || '';
+          }
+        }
+
+        initialMatrix[student.id][sub.name] = {
+          marks: matchedMark,
+          attendance: matchedAttendance,
+          remarks: matchedRemarks
+        };
       });
     });
 
     setMatrixMarks(initialMatrix);
-  }, [currentExam?.id, selectedClass, selectedSection, classStudents, classSubjects, examMarks]);
+
+    // 2. Fetch authoritative saved/draft/published marks from Backend API
+    fetchClassMarksApi(selectedClass, selectedSection, currentExam.id)
+      .then((res: any) => {
+        if (!isMounted) return;
+        const markEntries: any[] = res?.data || (Array.isArray(res) ? res : []);
+        if (Array.isArray(markEntries) && markEntries.length > 0) {
+          setMatrixMarks(prev => {
+            const updated = { ...prev };
+            classStudents.forEach(student => {
+              if (!updated[student.id]) updated[student.id] = {};
+              
+              const studentRows = markEntries.filter(m => 
+                String(m.studentId) === String(student.id) ||
+                (m.admissionNo && student.admissionNo && m.admissionNo.toLowerCase().trim() === student.admissionNo.toLowerCase().trim()) ||
+                (m.rollNo && student.rollNo && m.rollNo.toLowerCase().trim() === student.rollNo.toLowerCase().trim()) ||
+                (m.studentName && `${student.firstName || ''} ${student.lastName || ''}`.toLowerCase().trim() === m.studentName.toLowerCase().trim())
+              );
+
+              classSubjects.forEach(sub => {
+                const subRow = studentRows.find(m => 
+                  (m.subjectCode && (m.subjectCode.toLowerCase() === (sub.code || '').toLowerCase() || m.subjectCode.toLowerCase() === sub.name.toLowerCase())) ||
+                  (m.subjectName && (m.subjectName.toLowerCase() === sub.name.toLowerCase() || m.subjectName.toLowerCase() === (sub.code || '').toLowerCase()))
+                );
+
+                if (subRow) {
+                  const isAbsent = (subRow.attendanceStatus || '').toLowerCase() === 'absent';
+                  const marksVal = isAbsent ? '' : (subRow.marksObtained !== undefined && subRow.marksObtained !== null ? String(subRow.marksObtained) : '');
+                  updated[student.id][sub.name] = {
+                    marks: marksVal,
+                    attendance: isAbsent ? 'Absent' : (subRow.attendanceStatus || 'Present'),
+                    remarks: subRow.evaluatorRemarks || ''
+                  };
+                }
+              });
+            });
+            return updated;
+          });
+        }
+      })
+      .catch((err) => {
+        console.warn('Backend marks fetch notice (using context data):', err);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [currentExam?.id, selectedClass, selectedSection, classStudents.length, classSubjects.length]);
 
   // Handle Mark Change
   const handleMarkChange = (studentId: string, subjectName: string, value: string) => {
@@ -1192,6 +1272,7 @@ export const ClassTeacherMarksEntryView: React.FC<ClassTeacherMarksEntryViewProp
       }
 
       setShowPublishModal(false);
+      setIsEditingPublished(false);
       addToast(
         'success',
         'Marks Published Successfully!',
@@ -1311,7 +1392,44 @@ export const ClassTeacherMarksEntryView: React.FC<ClassTeacherMarksEntryViewProp
               type="button"
               onClick={() => {
                 setIsEditingPublished(true);
-                addToast('info', 'Edit Mode Enabled', 'Marks fields are unlocked for editing. You can modify marks and click Re-Publish to commit changes.');
+                fetchClassMarksApi(selectedClass, selectedSection, currentExam?.id)
+                  .then((res: any) => {
+                    const markEntries: any[] = res?.data || (Array.isArray(res) ? res : []);
+                    if (Array.isArray(markEntries) && markEntries.length > 0) {
+                      setMatrixMarks(prev => {
+                        const updated = { ...prev };
+                        classStudents.forEach(student => {
+                          if (!updated[student.id]) updated[student.id] = {};
+                          const studentRows = markEntries.filter(m => 
+                            String(m.studentId) === String(student.id) ||
+                            (m.admissionNo && student.admissionNo && m.admissionNo.toLowerCase().trim() === student.admissionNo.toLowerCase().trim()) ||
+                            (m.rollNo && student.rollNo && m.rollNo.toLowerCase().trim() === student.rollNo.toLowerCase().trim()) ||
+                            (m.studentName && `${student.firstName || ''} ${student.lastName || ''}`.toLowerCase().trim() === m.studentName.toLowerCase().trim())
+                          );
+                          classSubjects.forEach(sub => {
+                            const subRow = studentRows.find(m => 
+                              (m.subjectCode && (m.subjectCode.toLowerCase() === (sub.code || '').toLowerCase() || m.subjectCode.toLowerCase() === sub.name.toLowerCase())) ||
+                              (m.subjectName && (m.subjectName.toLowerCase() === sub.name.toLowerCase() || m.subjectName.toLowerCase() === (sub.code || '').toLowerCase()))
+                            );
+                            if (subRow) {
+                              const isAbsent = (subRow.attendanceStatus || '').toLowerCase() === 'absent';
+                              const currentVal = updated[student.id]?.[sub.name]?.marks;
+                              if (!currentVal || currentVal === '' || currentVal === '0') {
+                                updated[student.id][sub.name] = {
+                                  marks: isAbsent ? '' : (subRow.marksObtained !== undefined && subRow.marksObtained !== null ? String(subRow.marksObtained) : ''),
+                                  attendance: isAbsent ? 'Absent' : (subRow.attendanceStatus || 'Present'),
+                                  remarks: subRow.evaluatorRemarks || ''
+                                };
+                              }
+                            }
+                          });
+                        });
+                        return updated;
+                      });
+                    }
+                  })
+                  .catch(() => {});
+                addToast('info', 'Edit Mode Enabled', 'Marks fields are unlocked for editing. Past marks are loaded. You can modify marks and click Re-Publish to commit changes.');
               }}
               className="inline-flex items-center gap-1.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white px-3.5 py-2 text-xs font-bold transition shadow-xs cursor-pointer"
             >
