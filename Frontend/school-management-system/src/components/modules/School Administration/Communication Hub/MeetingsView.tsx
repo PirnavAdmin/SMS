@@ -116,20 +116,11 @@ export const MeetingsView: React.FC = () => {
   const [recurrence, setRecurrence] = useState<'None' | 'Daily' | 'Weekly' | 'Monthly'>('None');
 
   // Audience Template State
-  const [savedTemplates, setSavedTemplates] = useState<Array<{ name: string; types: MeetingParticipantType[]; desc: string }>>(() => {
-    try {
-      const saved = localStorage.getItem('edu_db_meeting_audience_templates');
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-      }
-    } catch (e) {}
-    return [
-      { name: 'Grade 10 Parents & Teachers Body', types: ['Teaching Staff', 'Parent'], desc: 'Grade 10 Teachers & Parents' },
-      { name: 'School Administrative Committee', types: ['Teaching Staff', 'Non-Teaching Staff'], desc: 'All HODs & Office Staff' },
-      { name: 'Complete Institution Convocation', types: ['Teaching Staff', 'Non-Teaching Staff', 'Student', 'Parent'], desc: 'All Stakeholders' }
-    ];
-  });
+  const [savedTemplates, setSavedTemplates] = useState<Array<{ name: string; types: MeetingParticipantType[]; desc: string }>>([
+    { name: 'Grade 10 Parents & Teachers Body', types: ['Teaching Staff', 'Parent'], desc: 'Grade 10 Teachers & Parents' },
+    { name: 'School Administrative Committee', types: ['Teaching Staff', 'Non-Teaching Staff'], desc: 'All HODs & Office Staff' },
+    { name: 'Complete Institution Convocation', types: ['Teaching Staff', 'Non-Teaching Staff', 'Student', 'Parent'], desc: 'All Stakeholders' }
+  ]);
   const [selectedPresetName, setSelectedPresetName] = useState<string>('');
   const [newTemplateName, setNewTemplateName] = useState<string>('');
   const [showSaveTemplateModal, setShowSaveTemplateModal] = useState<boolean>(false);
@@ -1489,7 +1480,6 @@ export const MeetingsView: React.FC = () => {
                                 types: [...selectedGroupParticipantTypes],
                                 desc: `${selectedGroupParticipantTypes.join(', ')} Audience`
                               }];
-                              localStorage.setItem('edu_db_meeting_audience_templates', JSON.stringify(updated));
                               return updated;
                             });
                             setSelectedPresetName(trimmed);
@@ -1537,7 +1527,6 @@ export const MeetingsView: React.FC = () => {
                               const targetName = selectedPresetName;
                               setSavedTemplates(prev => {
                                 const next = prev.filter(t => t.name !== targetName);
-                                localStorage.setItem('edu_db_meeting_audience_templates', JSON.stringify(next));
                                 return next;
                               });
                               setSelectedPresetName('');
@@ -2387,8 +2376,12 @@ export const MeetingsView: React.FC = () => {
               )}
 
               <div className="flex items-center justify-between pt-2 border-t text-[10px] text-slate-400 font-medium">
-                <span>Organized by: <strong className="text-slate-600 dark:text-slate-300">{viewingMeeting.organizerName || 'School Administration'} ({viewingMeeting.organizerRole || 'Admin'})</strong></span>
-                <span>Created: <strong className="font-mono text-slate-600 dark:text-slate-300">{viewingMeeting.createdAt || new Date().toISOString().split('T')[0]}</strong></span>
+                {viewingMeeting.organizerName ? (
+                  <span>Organized by: <strong className="text-slate-600 dark:text-slate-300">{viewingMeeting.organizerName} {viewingMeeting.organizerRole ? `(${viewingMeeting.organizerRole})` : ''}</strong></span>
+                ) : <span />}
+                {viewingMeeting.createdAt && (
+                  <span>Created: <strong className="font-mono text-slate-600 dark:text-slate-300">{viewingMeeting.createdAt}</strong></span>
+                )}
               </div>
             </div>
           </div>

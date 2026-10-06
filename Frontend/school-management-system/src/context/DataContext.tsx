@@ -1205,6 +1205,7 @@ interface DataContextType {
   announcements: Announcement[];
   addAnnouncement: (ann: Omit<Announcement, "id">) => void;
   saveAnnouncements?: (anns: Announcement[]) => void;
+  fetchAnnouncements?: () => Promise<void>;
 
   holidays: Holiday[];
   birthdays: Birthday[];
@@ -1625,6 +1626,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   const { addToast } = useToast();
   const activeRequests = useRef<Record<string, any>>({});
   const {
+    user,
     selectedBranch,
     selectedAcademicYear,
     setSelectedAcademicYear,
@@ -1892,9 +1894,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   const [inventory, setInventory] = useState<InventoryItem[]>(() =>
     getStored("inventory", initialInventory),
   );
-  const [announcements, setAnnouncements] = useState<Announcement[]>(() =>
-    getStored("announcements", initialAnnouncements),
-  );
+  const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [holidays, setHolidays] = useState<Holiday[]>(() => {
     const stored = getStored("holidays", initialHolidays);
     const combined = Array.isArray(stored) && stored.length > 0 ? [...stored, ...initialHolidays] : initialHolidays;
@@ -5665,20 +5665,56 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   const fetchAnnouncementsData = useCallback(async () => {
     try {
       const response: any = await fetchNotificationsApi();
-      const items = Array.isArray(response)
+      const rawItems = Array.isArray(response)
         ? response
         : response?.data?.items || response?.data || [];
-      if (Array.isArray(items) && items.length > 0) {
-        setAnnouncements((prev) => {
-          const apiIds = new Set(items.map((i: any) => i.id));
-          const localOnly = (prev || []).filter((i: any) => !apiIds.has(i.id));
-          return [...items, ...localOnly];
+      if (Array.isArray(rawItems)) {
+        const seen = new Set<string>();
+        const mapped: Announcement[] = [];
+        rawItems.forEach((item: any) => {
+          const id = String(item.id || item.circularId || `ANC-${item.title || Math.random()}`);
+          const title = (item.title || 'Announcement').trim();
+          const date = item.createdDate || item.date || new Date().toISOString().split('T')[0];
+          const targetAudience = (item.targetAudience || 'All').trim();
+          const contentKey = `${title.toLowerCase()}_${date}_${targetAudience.toLowerCase()}`;
+          if (!seen.has(id) && !seen.has(contentKey)) {
+            seen.add(id);
+            seen.add(contentKey);
+            mapped.push({
+              id,
+              title,
+              content: item.content || '',
+              targetAudience,
+              date,
+              author: item.author || '',
+              category: (item.category || 'GENERAL').toUpperCase(),
+              targetClass: item.targetClass || '',
+              targetSection: item.targetSection || ''
+            });
+          }
         });
+        setAnnouncements(mapped);
       }
     } catch (err) {
       console.warn("Failed to fetch announcements from API", err);
     }
   }, []);
+
+  useEffect(() => {
+    const handleAnnouncementsUpdated = () => {
+      fetchAnnouncementsData();
+    };
+    window.addEventListener('announcements_updated', handleAnnouncementsUpdated);
+    window.addEventListener('circulars_updated', handleAnnouncementsUpdated);
+    const interval = setInterval(() => {
+      fetchAnnouncementsData();
+    }, 30000);
+    return () => {
+      window.removeEventListener('announcements_updated', handleAnnouncementsUpdated);
+      window.removeEventListener('circulars_updated', handleAnnouncementsUpdated);
+      clearInterval(interval);
+    };
+  }, [fetchAnnouncementsData]);
 
   const fetchMeetingsData = useCallback(async () => {
     try {
@@ -19144,7 +19180,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       content: newAnn.content,
       targetAudience: newAnn.targetAudience || "ALL",
       createdDate: newAnn.date || new Date().toISOString().split("T")[0],
-      author: newAnn.author || "School Administration",
+      author: newAnn.author || (user?.name || (typeof role === 'string' ? role : '') || ''),
       isPinned: (newAnn as any).isPinned || false,
       smsSent: true,
       emailSent: true,
@@ -22581,6 +22617,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         announcements,
         addAnnouncement,
         saveAnnouncements: setAnnouncements,
+        fetchAnnouncements: fetchAnnouncementsData,
         holidays: filteredHolidays,
         birthdays,
         auditLogs,
