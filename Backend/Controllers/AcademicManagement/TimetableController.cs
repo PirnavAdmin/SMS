@@ -20,12 +20,18 @@ namespace SMS.Api.Controllers.AcademicManagement
     {
         private readonly ITimetableService _timetableService;
         private readonly IAcademicYearService _academicYearService;
+        private readonly ITeacherSubstitutionService _substitutionService;
         private readonly AppDbContext _context;
 
-        public TimetableController(ITimetableService timetableService, IAcademicYearService academicYearService, AppDbContext context)
+        public TimetableController(
+            ITimetableService timetableService, 
+            IAcademicYearService academicYearService, 
+            ITeacherSubstitutionService substitutionService,
+            AppDbContext context)
         {
             _timetableService = timetableService;
             _academicYearService = academicYearService;
+            _substitutionService = substitutionService;
             _context = context;
         }
 
@@ -682,23 +688,183 @@ namespace SMS.Api.Controllers.AcademicManagement
         }
 
         /// <summary>
-        /// Get today's dynamic substitution duties for a teacher
+        /// Get dynamic substitution duties (for a teacher or date)
         /// </summary>
         [HttpGet("substitutions")]
         [HttpGet("/api/academics/timetable/substitutions")]
         [Authorize(Roles = "SuperAdmin,Admin,Teacher,Student,Parent,Principal")]
-        public async Task<IActionResult> GetTeacherSubstitutions([FromQuery] string? teacherName = null, [FromQuery] int? teacherId = null)
+        public async Task<IActionResult> GetTeacherSubstitutions(
+            [FromQuery] string? date = null,
+            [FromQuery] string? teacherName = null, 
+            [FromQuery] int? teacherId = null,
+            [FromQuery] string? academicYear = null,
+            [FromQuery] string? branch = null)
         {
             try
             {
-                var activePeriods = await _context.PeriodSettings
-                    .Where(p => !p.IsDeleted && p.IsActive && p.PeriodType != "Break / Recess")
-                    .OrderBy(p => p.DisplayOrder)
-                    .ToListAsync();
+                DateTime? targetDate = null;
+                if (!string.IsNullOrWhiteSpace(date) && DateTime.TryParse(date, out var parsed))
+                {
+                    targetDate = parsed;
+                }
 
-                var substitutions = new List<object>();
+                var resolvedAcademicYear = !string.IsNullOrWhiteSpace(academicYear)
+                    ? academicYear
+                    : await _academicYearService.GetCurrentAcademicYearAsync();
+
+                var substitutions = await _substitutionService.GetSubstitutionsAsync(
+                    targetDate, 
+                    teacherId, 
+                    teacherName, 
+                    resolvedAcademicYear, 
+                    branch);
 
                 return Ok(new { success = true, data = substitutions });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { success = false, message = ex.Message });
+            }
+        }
+
+        /// <summary>
+        /// Get absent teachers on leave and their scheduled timetable periods for a specific date
+        /// </summary>
+        [HttpGet("substitutions/absent-teachers")]
+        [HttpGet("/api/academics/timetable/substitutions/absent-teachers")]
+        [Authorize(Roles = "SuperAdmin,Admin,Teacher,Principal")]
+        public async Task<IActionResult> GetAbsentTeachersSchedule(
+            [FromQuery] string? date = null,
+            [FromQuery] string? academicYear = null,
+            [FromQuery] string? branch = null)
+        {
+            try
+            {
+                var targetDate = !string.IsNullOrWhiteSpace(date) && DateTime.TryParse(date, out var parsed)
+                    ? parsed
+                    : DateTime.Today;
+
+                var resolvedAcademicYear = !string.IsNullOrWhiteSpace(academicYear)
+                    ? academicYear
+                    : await _academicYearService.GetCurrentAcademicYearAsync();
+
+                var schedules = await _substitutionService.GetAbsentTeachersScheduleAsync(
+                    targetDate, 
+                    resolvedAcademicYear, 
+                    branch);
+
+                return Ok(new { success = true, data = schedules });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { success = false, message = ex.Message });
+            }
+        }
+
+        /// <summary>
+        /// Get available leisure teachers (free period) for a specific time slot on a date
+        /// </summary>
+        [HttpGet("substitutions/leisure-teachers")]
+        [HttpGet("/api/academics/timetable/substitutions/leisure-teachers")]
+        [Authorize(Roles = "SuperAdmin,Admin,Teacher,Principal")]
+        public async Task<IActionResult> GetAvailableLeisureTeachers(
+            [FromQuery] string date,
+            [FromQuery] string? dayOfWeek,
+            [FromQuery] string startTime,
+            [FromQuery] string endTime,
+            [FromQuery] int? subjectId = null,
+            [FromQuery] int? excludeTeacherId = null)
+        {
+            try
+            {
+                var targetDate = !string.IsNullOrWhiteSpace(date) && DateTime.TryParse(date, out var parsed)
+                    ? parsed
+                    : DateTime.Today;
+
+                var resolvedDay = !string.IsNullOrWhiteSpace(dayOfWeek)
+                    ? dayOfWeek
+                    : targetDate.DayOfWeek.ToString();
+
+                var leisureTeachers = await _substitutionService.GetAvailableLeisureTeachersAsync(
+                    targetDate, 
+                    resolvedDay, 
+                    startTime, 
+                    endTime, 
+                    subjectId, 
+                    excludeTeacherId);
+
+                return Ok(new { success = true, data = leisureTeachers });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { success = false, message = ex.Message });
+            }
+        }
+
+        /// <summary>
+        /// Assign a leisure teacher as substitute replacement for an absent teacher's class
+        /// </summary>
+        [HttpPost("substitutions/assign")]
+        [HttpPost("/api/academics/timetable/substitutions/assign")]
+        [Authorize(Roles = "SuperAdmin,Admin,Teacher,Principal")]
+        public async Task<IActionResult> AssignSubstitution([FromBody] AssignTeacherSubstitutionDto dto)
+        {
+            try
+            {
+                var currentUserName = User?.Identity?.Name ?? "Administrator";
+                var result = await _substitutionService.AssignSubstitutionAsync(dto, currentUserName);
+                return Ok(new { success = true, message = $"Period replaced successfully with {result.SubstituteTeacherName}.", data = result });
+            }
+            catch (BadRequestException ex)
+            {
+                return BadRequest(new { success = false, message = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { success = false, message = ex.Message });
+            }
+        }
+
+        /// <summary>
+        /// Auto-replace all uncovered periods of absent teachers with available leisure teachers
+        /// </summary>
+        [HttpPost("substitutions/auto-replace")]
+        [HttpPost("/api/academics/timetable/substitutions/auto-replace")]
+        [Authorize(Roles = "SuperAdmin,Admin,Principal")]
+        public async Task<IActionResult> AutoReplaceSubstitutions([FromBody] AutoReplaceSubstitutionsRequestDto dto)
+        {
+            try
+            {
+                var currentUserName = User?.Identity?.Name ?? "Administrator";
+                var result = await _substitutionService.AutoReplaceSubstitutionsAsync(dto, currentUserName);
+                return Ok(new { success = result.Success, message = result.Message, data = result });
+            }
+            catch (BadRequestException ex)
+            {
+                return BadRequest(new { success = false, message = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { success = false, message = ex.Message });
+            }
+        }
+
+        /// <summary>
+        /// Cancel / Remove a teacher substitution assignment
+        /// </summary>
+        [HttpDelete("substitutions/{id:int}")]
+        [HttpDelete("/api/academics/timetable/substitutions/{id:int}")]
+        [Authorize(Roles = "SuperAdmin,Admin,Principal")]
+        public async Task<IActionResult> CancelSubstitution(int id)
+        {
+            try
+            {
+                var success = await _substitutionService.CancelSubstitutionAsync(id);
+                return Ok(new { success = true, message = "Teacher substitution assignment cancelled successfully." });
+            }
+            catch (NotFoundException ex)
+            {
+                return NotFound(new { success = false, message = ex.Message });
             }
             catch (Exception ex)
             {

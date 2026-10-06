@@ -180,6 +180,7 @@ builder.Services.AddScoped<ITimetableValidationService, TimetableValidationServi
 builder.Services.AddScoped<ITimetableIntegrityValidator, TimetableIntegrityValidator>();
 builder.Services.AddScoped<ITimetableGenerationService, TimetableGenerationService>();
 builder.Services.AddScoped<ITimetableService, TimetableService>();
+builder.Services.AddScoped<ITeacherSubstitutionService, TeacherSubstitutionService>();
 
 //teacher dashboard
 // Teacher Dashboard Module
@@ -1114,6 +1115,40 @@ using (var scope = app.Services.CreateScope())
                 PRIMARY KEY (`SlotId`),
                 KEY `ix_timetable_slot_teacher` (`TeacherId`, `DayOfWeek`, `StartTime`, `EndTime`),
                 KEY `ix_timetable_slot_room` (`RoomNo`, `DayOfWeek`, `StartTime`, `EndTime`)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;",
+
+            @"CREATE TABLE IF NOT EXISTS `teacher_substitutions` (
+                `SubstitutionId` int NOT NULL AUTO_INCREMENT,
+                `Date` datetime NOT NULL,
+                `DayOfWeek` varchar(20) NOT NULL,
+                `SlotId` int NULL,
+                `PeriodId` int NULL,
+                `PeriodName` varchar(50) NULL,
+                `StartTime` time NOT NULL,
+                `EndTime` time NOT NULL,
+                `ClassId` int NULL,
+                `ClassName` varchar(50) NULL,
+                `SectionId` int NULL,
+                `SectionName` varchar(50) NULL,
+                `SubjectId` int NULL,
+                `SubjectName` varchar(100) NULL,
+                `OriginalTeacherId` int NOT NULL,
+                `OriginalTeacherName` varchar(100) NULL,
+                `SubstituteTeacherId` int NOT NULL,
+                `SubstituteTeacherName` varchar(100) NULL,
+                `RoomNo` varchar(50) NULL,
+                `Reason` varchar(150) NULL,
+                `LeaveApplicationId` int NULL,
+                `Status` varchar(30) NOT NULL DEFAULT 'Assigned',
+                `Remarks` varchar(255) NULL,
+                `CreatedAt` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                `CreatedBy` varchar(100) NULL,
+                `AcademicYear` varchar(50) NULL,
+                `BranchName` varchar(100) NULL,
+                PRIMARY KEY (`SubstitutionId`),
+                KEY `ix_sub_date_substitute` (`Date`, `SubstituteTeacherId`),
+                KEY `ix_sub_date_original` (`Date`, `OriginalTeacherId`),
+                KEY `ix_sub_date_status` (`Date`, `Status`)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;",
 
             @"CREATE TABLE IF NOT EXISTS `schools` (
