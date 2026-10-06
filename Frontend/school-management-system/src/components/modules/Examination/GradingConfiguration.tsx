@@ -1,10 +1,15 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { Award, Plus, Trash2, Save, CheckCircle2, Sliders, Layers, RefreshCw } from 'lucide-react';
 import { useData } from '../../../context/DataContext';
 import { useAuth } from '../../../context/AuthContext';
 import { Panel } from './components/SharedUI';
 import { GradeConfig } from '../../../types';
-import { fetchExamOptionsApi, fetchGradingScaleRulesApi, saveGradingScaleRulesApi } from '../../../api/examination';
+import { 
+  fetchExamOptionsApi, 
+  fetchGradingScaleRulesApi, 
+  saveGradingScaleRulesApi,
+  deleteGradingScaleRuleApi 
+} from '../../../api/examination';
 
 interface GradingConfigurationProps {
   addToast: (type: 'success' | 'info' | 'warning' | 'error', title: string, message: string) => void;
@@ -20,7 +25,21 @@ export const GradingConfiguration: React.FC<GradingConfigurationProps> = ({
   const { gradeConfigurations, saveGradeConfiguration, exams: contextExams } = useData();
   const { selectedAcademicYear, selectedBranch } = useAuth();
 
-  const [selectedExamType, setSelectedExamType] = useState<string>('All');
+  const [selectedExamType, setSelectedExamType] = useState<string>(() => {
+    try {
+      return localStorage.getItem('sms_grading_selected_exam_type') || 'All';
+    } catch {
+      return 'All';
+    }
+  });
+
+  const handleSelectExamType = (type: string) => {
+    setSelectedExamType(type);
+    try {
+      localStorage.setItem('sms_grading_selected_exam_type', type);
+    } catch {}
+  };
+
   const [createdExams, setCreatedExams] = useState<any[]>([]);
   const [localGrades, setLocalGrades] = useState<GradeConfig[]>(gradeConfigurations || []);
   const [isEditing, setIsEditing] = useState(false);
@@ -39,60 +58,56 @@ export const GradingConfiguration: React.FC<GradingConfigurationProps> = ({
       .catch(() => {});
   }, []);
 
+  const fetchRules = useCallback(async (examType: string) => {
+    try {
+      setLoading(true);
+      const res: any = await fetchGradingScaleRulesApi(examType);
+      if (res && res.success) {
+        const apiRules = res.data?.scaleRules || [];
+        const mapped: GradeConfig[] = apiRules.map((r: any, idx: number) => ({
+          id: r.ruleId ? `GRD-${r.ruleId}` : `GRD-${idx + 1}`,
+          academicYear: selectedAcademicYear || '',
+          branch: selectedBranch || '',
+          examType: examType,
+          schemeName: examType !== 'All' ? examType : 'Default Scholastic',
+          gradingType: 'Percentage',
+          grade: r.grade || '',
+          gradeName: r.grade || '',
+          minPercent: r.minMarks ?? 0,
+          maxPercent: r.maxMarks ?? 100,
+          minMark: r.minMarks ?? 0,
+          maxMark: r.maxMarks ?? 100,
+          gradePoint: r.gpa ?? 0,
+          gradePoints: r.gpa ?? 0,
+          passCriteria: r.passFail || 'Pass',
+          remarks: r.remarks || ''
+        }));
+
+        setLocalGrades(prev => {
+          if (examType === 'All') {
+            return mapped;
+          }
+          const otherExamGrades = (prev || []).filter(
+            g => g.examType && g.examType !== examType && g.examType !== 'All'
+          );
+          return [...mapped, ...otherExamGrades];
+        });
+
+        if (saveGradeConfiguration) {
+          saveGradeConfiguration(mapped);
+        }
+      }
+    } catch (err) {
+      console.warn('Failed to fetch grading scale rules for', examType, err);
+    } finally {
+      setLoading(false);
+    }
+  }, [selectedAcademicYear, selectedBranch, saveGradeConfiguration]);
+
   // Dynamically fetch grading scale rules from backend API whenever selectedExamType changes
   useEffect(() => {
-    let isCurrent = true;
-    const fetchRules = async () => {
-      try {
-        setLoading(true);
-        const res: any = await fetchGradingScaleRulesApi(selectedExamType);
-        if (isCurrent && res && res.success) {
-          const apiRules = res.data?.scaleRules || [];
-          const mapped: GradeConfig[] = apiRules.map((r: any, idx: number) => ({
-            id: r.ruleId ? `GRD-${r.ruleId}` : `GRD-${idx + 1}`,
-            academicYear: selectedAcademicYear || '',
-            branch: selectedBranch || '',
-            examType: selectedExamType,
-            schemeName: selectedExamType !== 'All' ? selectedExamType : 'Default Scholastic',
-            gradingType: 'Percentage',
-            grade: r.grade || '',
-            gradeName: r.grade || '',
-            minPercent: r.minMarks ?? 0,
-            maxPercent: r.maxMarks ?? 100,
-            minMark: r.minMarks ?? 0,
-            maxMark: r.maxMarks ?? 100,
-            gradePoint: r.gpa ?? 0,
-            gradePoints: r.gpa ?? 0,
-            passCriteria: r.passFail || 'Pass',
-            remarks: r.remarks || ''
-          }));
-
-          setLocalGrades(prev => {
-            if (selectedExamType === 'All') {
-              return mapped;
-            }
-            const otherExamGrades = (prev || []).filter(
-              g => g.examType && g.examType !== selectedExamType && g.examType !== 'All'
-            );
-            return [...mapped, ...otherExamGrades];
-          });
-
-          if (saveGradeConfiguration) {
-            saveGradeConfiguration(mapped);
-          }
-        }
-      } catch (err) {
-        console.warn('Failed to fetch grading scale rules for', selectedExamType, err);
-      } finally {
-        if (isCurrent) setLoading(false);
-      }
-    };
-
-    fetchRules();
-    return () => {
-      isCurrent = false;
-    };
-  }, [selectedExamType]);
+    fetchRules(selectedExamType);
+  }, [selectedExamType, fetchRules]);
 
   const standardAssessmentTypes = [
     'Unit Test',
@@ -141,9 +156,10 @@ export const GradingConfiguration: React.FC<GradingConfigurationProps> = ({
   }, [localGrades, selectedExamType]);
 
   const handleAddRow = () => {
-    const newId = 'GRD-' + Math.floor(100 + Math.random() * 900);
+    setIsEditing(true);
+    const tempId = `GRD-TEMP-${Date.now()}-${Math.floor(100 + Math.random() * 900)}`;
     const newRow: any = {
-      id: newId,
+      id: tempId,
       academicYear: selectedAcademicYear,
       branch: selectedBranch,
       examType: selectedExamType,
@@ -157,14 +173,28 @@ export const GradingConfiguration: React.FC<GradingConfigurationProps> = ({
       maxMark: '',
       gradePoint: '',
       gradePoints: '',
-      passCriteria: '',
+      passCriteria: 'Pass',
       remarks: ''
     };
     setLocalGrades(prev => [...prev, newRow]);
   };
 
-  const handleDeleteRow = (id: string) => {
+  const handleDeleteRow = async (id: string) => {
+    const isTemp = String(id).includes('TEMP');
+    const numericId = parseInt(String(id).replace(/\D/g, ''));
+
+    // Optimistically update local state immediately
     setLocalGrades(prev => prev.filter(g => g.id !== id));
+
+    // If it's a persisted rule in the database, delete via API
+    if (!isTemp && numericId > 0) {
+      try {
+        await deleteGradingScaleRuleApi(numericId);
+        addToast('info', 'Row Removed', 'Scale rule deleted.');
+      } catch (err: any) {
+        console.warn('API direct delete note:', err);
+      }
+    }
   };
 
   const handleUpdateField = (id: string, field: keyof GradeConfig, val: any) => {
@@ -185,8 +215,17 @@ export const GradingConfiguration: React.FC<GradingConfigurationProps> = ({
   };
 
   const handleSave = async () => {
-    // Validation
-    const invalid = localGrades.some(g => {
+    const currentRules = displayedGrades;
+
+    // Check for empty grade identifier
+    const hasEmptyGrade = currentRules.some(g => !(g.grade || g.gradeName || '').trim());
+    if (hasEmptyGrade) {
+      addToast('error', 'Validation Error', 'Please enter a Grade name for all scale rows.');
+      return;
+    }
+
+    // Range Validation
+    const invalid = currentRules.some(g => {
       const minVal = g.minPercent !== undefined ? g.minPercent : g.minMark;
       const maxVal = g.maxPercent !== undefined ? g.maxPercent : g.maxMark;
       
@@ -200,72 +239,40 @@ export const GradingConfiguration: React.FC<GradingConfigurationProps> = ({
       return;
     }
 
-    const targetType = selectedExamType !== 'All' ? selectedExamType : undefined;
-
-    const sanitizedGrades = localGrades.map(g => {
-      const isCurrentlyDisplayed = displayedGrades.some(dg => dg.id === g.id);
-
-      const minP = (g.minPercent as any) === '' || g.minPercent === undefined || g.minPercent === null ? 0 : Number(g.minPercent);
-      const maxP = (g.maxPercent as any) === '' || g.maxPercent === undefined || g.maxPercent === null ? 100 : Number(g.maxPercent);
-      const minM = (g.minMark as any) === '' || g.minMark === undefined || g.minMark === null ? 0 : Number(g.minMark);
-      const maxM = (g.maxMark as any) === '' || g.maxMark === undefined || g.maxMark === null ? 100 : Number(g.maxMark);
-      const gPt = (g.gradePoint as any) === '' || g.gradePoint === undefined || g.gradePoint === null ? 0 : Number(g.gradePoint);
-      const passC = (g.passCriteria as any) === '' || g.passCriteria === undefined || g.passCriteria === null ? 'Pass' : g.passCriteria;
-
-      const effectiveExamType = (isCurrentlyDisplayed && targetType) ? targetType : (g.examType || targetType);
-
+    const rulesForApi = currentRules.map((g) => {
+      const isTemp = String(g.id).includes('TEMP');
+      const numId = parseInt(String(g.id).replace(/\D/g, ''));
       return {
-        ...g,
-        examType: effectiveExamType,
-        schemeName: effectiveExamType || g.schemeName || 'Default Scholastic',
-        gradingType: 'Percentage' as const,
-        minPercent: minP,
-        maxPercent: maxP,
-        minMark: minM,
-        maxMark: maxM,
-        gradePoint: gPt,
-        gradePoints: gPt,
-        passCriteria: passC
-      };
-    });
-
-    if (saveGradeConfiguration) {
-      saveGradeConfiguration(sanitizedGrades);
-    }
-
-    // Persist to backend API
-    const rulesForApi = sanitizedGrades
-      .filter(g => selectedExamType === 'All' || g.examType === selectedExamType || !g.examType)
-      .map((g, idx) => ({
-        ruleId: parseInt(String(g.id).replace(/\D/g, '')) || (idx + 1),
-        grade: g.gradeName || g.grade || '',
+        ruleId: (!isTemp && numId > 0) ? numId : 0,
+        grade: (g.gradeName || g.grade || '').trim(),
         minMarks: Number(g.minPercent ?? g.minMark ?? 0),
         maxMarks: Number(g.maxPercent ?? g.maxMark ?? 100),
         gpa: Number(g.gradePoints ?? g.gradePoint ?? 0),
         passFail: g.passCriteria || 'Pass',
         remarks: g.remarks || ''
-      }));
+      };
+    });
 
-    if (rulesForApi.length > 0) {
-      try {
-        const res: any = await saveGradingScaleRulesApi({
-          examType: selectedExamType,
-          scaleRules: rulesForApi
-        });
-        if (res && res.success) {
-          addToast('success', 'Grading Saved', `Successfully updated grading scale rules for ${selectedExamType} examination type.`);
-        } else {
-          addToast('success', 'Grading Saved', `Grading scale rules updated for ${selectedExamType}.`);
-        }
-      } catch (err) {
-        console.warn('Backend sync note:', err);
-        addToast('success', 'Grading Saved', `Grading scale rules saved successfully.`);
+    try {
+      setLoading(true);
+      const res: any = await saveGradingScaleRulesApi({
+        examType: selectedExamType,
+        scaleRules: rulesForApi
+      });
+
+      if (res && res.success) {
+        addToast('success', 'Grading Saved', `Successfully updated grading scale rules for ${selectedExamType} examination type.`);
+        setIsEditing(false);
+        // Refresh directly from API to ensure fresh IDs and exact server state
+        await fetchRules(selectedExamType);
+      } else {
+        addToast('error', 'Save Failed', res?.message || 'Failed to save grading scale rules.');
       }
-    } else {
-      addToast('success', 'Grading Saved', `Grading configuration updated.`);
+    } catch (err: any) {
+      addToast('error', 'API Error', err?.message || 'Failed to save grading scale rules.');
+    } finally {
+      setLoading(false);
     }
-
-    setIsEditing(false);
   };
 
   const tableHeaderClass = "px-3.5 py-3 text-slate-500 dark:text-slate-400 font-extrabold uppercase text-[10px] border-b border-r border-sky-100 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-950/60 tracking-wider whitespace-nowrap last:border-r-0";
@@ -311,7 +318,7 @@ export const GradingConfiguration: React.FC<GradingConfigurationProps> = ({
                     value={customExamTypeInput}
                     onChange={e => {
                       setCustomExamTypeInput(e.target.value);
-                      setSelectedExamType(e.target.value);
+                      handleSelectExamType(e.target.value);
                     }}
                     placeholder="Enter custom assessment type..."
                     className="px-3 py-1.5 rounded-xl border border-sky-400 dark:border-sky-500 bg-white dark:bg-slate-900 text-xs font-bold text-slate-900 dark:text-white outline-none min-w-[220px] h-[34px] shadow-xs"
@@ -322,7 +329,7 @@ export const GradingConfiguration: React.FC<GradingConfigurationProps> = ({
                     onClick={() => {
                       setIsCustomExamType(false);
                       if (!customExamTypeInput.trim()) {
-                        setSelectedExamType('All');
+                        handleSelectExamType('All');
                       }
                     }}
                     className="px-2.5 py-1.5 rounded-xl bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 text-[10px] font-extrabold text-slate-700 dark:text-slate-300 h-[34px] cursor-pointer"
@@ -337,9 +344,9 @@ export const GradingConfiguration: React.FC<GradingConfigurationProps> = ({
                     if (e.target.value === '__other_custom__') {
                       setIsCustomExamType(true);
                       setCustomExamTypeInput('');
-                      setSelectedExamType('');
+                      handleSelectExamType('');
                     } else {
-                      setSelectedExamType(e.target.value);
+                      handleSelectExamType(e.target.value);
                     }
                   }}
                   className="px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-xs font-extrabold text-slate-900 dark:text-white outline-none cursor-pointer min-w-[200px] h-[34px] shadow-xs"

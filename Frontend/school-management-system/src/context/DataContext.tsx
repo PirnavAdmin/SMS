@@ -1841,7 +1841,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     getStored("designations", initialDesignations),
   );
   const [gradeConfigurations, setGradeConfigurations] = useState<GradeConfig[]>(
-    () => getStored("grade_configurations", defaultGradeConfigurations),
+    () => getStored("edu_db_grade_configurations", getStored("grade_configurations", defaultGradeConfigurations)),
   );
   const [processedResults, setProcessedResults] = useState<ProcessedResult[]>(
     () => getStored("processed_results", []),
@@ -5345,7 +5345,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   const fetchGradingScaleRules = useCallback(async (examType: string = "All") => {
     try {
       const res: any = await fetchGradingScaleRulesApi(examType);
-      if (res && res.success && res.data?.scaleRules && Array.isArray(res.data.scaleRules) && res.data.scaleRules.length > 0) {
+      if (res && res.success && res.data?.scaleRules && Array.isArray(res.data.scaleRules)) {
         const mapped: GradeConfig[] = res.data.scaleRules.map((r: any, idx: number) => ({
           id: r.ruleId ? `GRD-${r.ruleId}` : `GRD-${idx + 1}`,
           academicYear: "",
