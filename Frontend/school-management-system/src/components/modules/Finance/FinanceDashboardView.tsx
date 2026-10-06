@@ -103,8 +103,11 @@ export const FinanceDashboardView: React.FC<FinanceDashboardViewProps> = ({ onNa
 
   // Client-side fallback calculations if API response is empty
   const computedExpected = React.useMemo(() => {
-    if (apiStats && Number(apiStats?.totalExpectedRevenue || 0) > 0) {
+    if (apiStats && typeof apiStats.totalExpectedRevenue === 'number') {
       return Number(apiStats.totalExpectedRevenue);
+    }
+    if (!dynamicFeeStructures || dynamicFeeStructures.length === 0) {
+      return 0;
     }
     let expected = 0;
     (students || []).forEach((st) => {
@@ -112,7 +115,13 @@ export const FinanceDashboardView: React.FC<FinanceDashboardViewProps> = ({ onNa
         (a) => (String(a.studentId) === String(st.id) || (st.admissionNo && String(a.studentId) === String(st.admissionNo))) && (a.status === 'Active' || !a.status)
       );
       if (assignment) {
-        expected += Number(assignment.baseFeeTotal || (assignment as any).totalAmount || 0);
+        const assignStructId = assignment.feeStructureId || (assignment as any).dynamicFeeStructureId;
+        const validStructure = (dynamicFeeStructures || []).some(
+          (d) => String(d.id) === String(assignStructId)
+        );
+        if (validStructure || !assignStructId) {
+          expected += Number(assignment.baseFeeTotal || (assignment as any).totalAmount || 0);
+        }
       } else {
         const dfs = (dynamicFeeStructures || []).find(
           (d) => matchesClassName(d.className, st.className) && (d.status === 'Active' || !d.status)
@@ -126,7 +135,7 @@ export const FinanceDashboardView: React.FC<FinanceDashboardViewProps> = ({ onNa
   }, [apiStats, students, studentFeeAssignments, dynamicFeeStructures]);
 
   const computedCollected = React.useMemo(() => {
-    if (apiStats && Number(apiStats?.totalCollectedRevenue || 0) > 0) {
+    if (apiStats && typeof apiStats.totalCollectedRevenue === 'number') {
       return Number(apiStats.totalCollectedRevenue);
     }
     return (feePayments || []).reduce(
@@ -146,21 +155,31 @@ export const FinanceDashboardView: React.FC<FinanceDashboardViewProps> = ({ onNa
       let expected = 0;
       let collected = 0;
 
-      classStudents.forEach((st) => {
-        const assignment = (studentFeeAssignments || []).find(
-          (a) => (String(a.studentId) === String(st.id) || (st.admissionNo && String(a.studentId) === String(st.admissionNo))) && (a.status === 'Active' || !a.status)
-        );
-        if (assignment) {
-          expected += Number(assignment.baseFeeTotal || (assignment as any).totalAmount || 0);
-        } else {
-          const dfs = (dynamicFeeStructures || []).find(
-            (d) => matchesClassName(d.className, st.className) && (d.status === 'Active' || !d.status)
+      if (dynamicFeeStructures && dynamicFeeStructures.length > 0) {
+        classStudents.forEach((st) => {
+          const assignment = (studentFeeAssignments || []).find(
+            (a) => (String(a.studentId) === String(st.id) || (st.admissionNo && String(a.studentId) === String(st.admissionNo))) && (a.status === 'Active' || !a.status)
           );
-          if (dfs) {
-            expected += Number(dfs.totalAmount || 0);
+          if (assignment) {
+            const assignStructId = assignment.feeStructureId || (assignment as any).dynamicFeeStructureId;
+            const validStructure = (dynamicFeeStructures || []).some(
+              (d) => String(d.id) === String(assignStructId)
+            );
+            if (validStructure || !assignStructId) {
+              expected += Number(assignment.baseFeeTotal || (assignment as any).totalAmount || 0);
+            }
+          } else {
+            const dfs = (dynamicFeeStructures || []).find(
+              (d) => matchesClassName(d.className, st.className) && (d.status === 'Active' || !d.status)
+            );
+            if (dfs) {
+              expected += Number(dfs.totalAmount || 0);
+            }
           }
-        }
+        });
+      }
 
+      classStudents.forEach((st) => {
         const studentPayments = (feePayments || []).filter(
           (p) => String(p.studentId) === String(st.id) || (st.admissionNo && String(p.studentId) === String(st.admissionNo))
         );

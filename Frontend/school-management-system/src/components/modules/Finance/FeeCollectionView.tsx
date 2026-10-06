@@ -1594,15 +1594,6 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
         value: d.value || 0
       });
     });
-    if (opts.length === 0) {
-      opts.push(
-        { id: "sch-merit", name: "Merit Scholarship (15%)", type: "Percentage", value: 15 },
-        { id: "sch-sports", name: "Sports Quota (20%)", type: "Percentage", value: 20 },
-        { id: "sch-ews", name: "EWS Special Grant (₹5,000 Flat)", type: "Fixed Amount", value: 5000 },
-        { id: "disc-sibling", name: "Sibling Discount (10%)", type: "Percentage", value: 10 },
-        { id: "disc-staff", name: "Staff Child Concession (50%)", type: "Percentage", value: 50 }
-      );
-    }
     return opts;
   }, [scholarships, discounts]);
 

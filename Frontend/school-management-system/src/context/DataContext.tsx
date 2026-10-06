@@ -357,6 +357,7 @@ import {
 } from "../api/admission";
 import * as TransportAPI from "../api/transport";
 import * as FinanceAPI from "../api/finance";
+import { getHostelBlocks, getRooms } from "../api/hostel";
 import {
   BusAttendantMaster,
   initialBusAttendants,
@@ -866,7 +867,9 @@ interface DataContextType {
   deleteFinancialCategory: (id: string) => void;
 
   financialBudgets: FinancialBudget[];
-  updateFinancialBudget: (id: string, allocatedAmount: number) => void;
+  addFinancialBudget: (budget: Omit<FinancialBudget, "id" | "consumedAmount" | "remainingAmount">) => Promise<FinancialBudget>;
+  updateFinancialBudget: (id: string, allocatedAmount: number, extra?: Partial<FinancialBudget>) => Promise<boolean>;
+  deleteFinancialBudget: (id: string) => Promise<boolean>;
 
   // Academic Calendar & School Events System
   schoolEvents: SchoolEvent[];
@@ -1885,7 +1888,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   const [transportRoutes, setTransportRoutes] = useState<TransportRoute[]>(() =>
     getStored("transport", initialTransportRoutes),
   );
-  const [hostelRooms] = useState<HostelRoom[]>(() =>
+  const [hostelRooms, setHostelRooms] = useState<HostelRoom[]>(() =>
     getStored("hostel", initialHostelRooms),
   );
   const [inventory, setInventory] = useState<InventoryItem[]>(() =>
@@ -2242,57 +2245,118 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   const [dbAssignments, setDbAssignments] = useState<any[]>([]);
 
   useEffect(() => {
-    if (!dbAssignments.length) return;
-    const mapped = dbAssignments.map((a) => {
-      const student = students.find(
-        (s) =>
-          s.id === a.studentId?.toString() || s.admissionNo === a.studentId,
-      );
-      const dfs = dynamicFeeStructures.find(
-        (d) =>
-          d.id === a.dynamicFeeStructureId?.toString() ||
-          d.id === a.feeStructureId,
-      );
-      return {
-        id: a.id?.toString() || a.id || "",
-        studentId: a.studentId || "",
-        studentName:
-          (student as any)?.studentName ||
-          (student ? `${student.firstName} ${student.lastName}` : "") ||
-          a.studentName ||
-          "",
-        admissionNo: student?.admissionNo || a.admissionNo || a.studentId || "",
-        branch: student?.branch || a.branch || "Main Campus",
-        academicYear:
-          (student as any)?.academicYear || a.academicYear || "2026-2027",
-        className: student?.className || a.className || "",
-        section: student?.section || a.section || "",
-        feeStructureId:
-          a.dynamicFeeStructureId?.toString() || a.feeStructureId || "",
-        assignedFeeHeads: dfs?.items || a.assignedFeeHeads || [],
-        baseFeeTotal: a.totalAmount ?? a.baseFeeTotal ?? dfs?.totalAmount ?? 0,
-        originalFeeTotal:
-          a.totalAmount ?? a.originalFeeTotal ?? dfs?.totalAmount ?? 0,
-        adjustmentTotal: a.adjustmentTotal || 0,
-        feePolicy: (a.feePolicy || "Full Annual Fee") as any,
-        assignedDate: a.assignedDate || new Date().toISOString(),
-        status: a.status || "Active",
-      };
-    });
+    if (!dbAssignments.length) {
+      setStudentFeeAssignments([]);
+      try {
+        localStorage.setItem("student_fee_assignments", JSON.stringify([]));
+        localStorage.setItem("edu_db_student_fee_assignments", JSON.stringify([]));
+      } catch (e) {}
+      return;
+    }
+    const mapped = dbAssignments
+      .map((a) => {
+        const student = students.find(
+          (s) =>
+            s.id === a.studentId?.toString() || s.admissionNo === a.studentId,
+        );
+        const dfs = dynamicFeeStructures.find(
+          (d) =>
+            String(d.id) === String(a.dynamicFeeStructureId) ||
+            String(d.id) === String(a.feeStructureId),
+        );
+
+        // If no dynamic fee structures exist, or if an assignment points to a deleted structure, omit it!
+        if (dynamicFeeStructures.length === 0) return null;
+        if (a.dynamicFeeStructureId && !dfs) return null;
+
+        const effectiveTotal = dfs ? dfs.totalAmount : (a.totalAmount ?? 0);
+        return {
+          id: a.id?.toString() || a.id || "",
+          studentId: a.studentId || "",
+          studentName:
+            (student as any)?.studentName ||
+            (student ? `${student.firstName} ${student.lastName}` : "") ||
+            a.studentName ||
+            "",
+          admissionNo: student?.admissionNo || a.admissionNo || a.studentId || "",
+          branch: student?.branch || a.branch || "Main Campus",
+          academicYear:
+            (student as any)?.academicYear || a.academicYear || "2026-2027",
+          className: student?.className || a.className || "",
+          section: student?.section || a.section || "",
+          feeStructureId:
+            a.dynamicFeeStructureId?.toString() || a.feeStructureId || "",
+          assignedFeeHeads: dfs?.items || a.assignedFeeHeads || [],
+          baseFeeTotal: effectiveTotal,
+          originalFeeTotal: effectiveTotal,
+          adjustmentTotal: a.adjustmentTotal || 0,
+          feePolicy: (a.feePolicy || "Full Annual Fee") as any,
+          assignedDate: a.assignedDate || new Date().toISOString(),
+          status: a.status || "Active",
+        };
+      })
+      .filter(Boolean) as StudentFeeAssignment[];
     setStudentFeeAssignments(mapped);
+    try {
+      localStorage.setItem("student_fee_assignments", JSON.stringify(mapped));
+      localStorage.setItem("edu_db_student_fee_assignments", JSON.stringify(mapped));
+    } catch (e) {}
   }, [dbAssignments, students, dynamicFeeStructures]);
+
+  useEffect(() => {
+    if (dynamicFeeStructures.length === 0) {
+      setStudents((prev) => {
+        const hasNonZero = prev.some((s) => (s.totalFee || 0) > 0);
+        if (!hasNonZero) return prev;
+        const updated = prev.map((s) => ({
+          ...s,
+          totalFee: 0,
+          dueFee: Math.max(0, 0 - (s.paidFee || 0)),
+        }));
+        try {
+          localStorage.setItem("students", JSON.stringify(updated));
+          localStorage.setItem("edu_db_students", JSON.stringify(updated));
+        } catch (e) {}
+        return updated;
+      });
+      setStudentFeeAssignments((prev) => {
+        if (prev.length === 0) return prev;
+        try {
+          localStorage.setItem("student_fee_assignments", JSON.stringify([]));
+          localStorage.setItem("edu_db_student_fee_assignments", JSON.stringify([]));
+        } catch (e) {}
+        return [];
+      });
+    }
+  }, [dynamicFeeStructures]);
   const [scholarships, setScholarships] = useState<Scholarship[]>(() =>
     getStored("scholarships", initialScholarships),
   );
   const [studentScholarships, setStudentScholarships] = useState<
     StudentScholarship[]
   >(() => getStored("student_scholarships", initialStudentScholarships));
-  const [discounts, setDiscounts] = useState<Discount[]>(() =>
-    getStored("discounts", initialDiscounts),
-  );
-  const [studentDiscounts, setStudentDiscounts] = useState<StudentDiscount[]>(
-    () => getStored("student_discounts", initialStudentDiscounts),
-  );
+  const [discounts, setDiscounts] = useState<Discount[]>(() => {
+    const versionKey = "edu_db_discounts_clean_v1";
+    if (!localStorage.getItem(versionKey)) {
+      localStorage.setItem(versionKey, "true");
+      localStorage.setItem("edu_db_discounts", JSON.stringify([]));
+      localStorage.setItem("discounts", JSON.stringify([]));
+      return [];
+    }
+    const stored = getStored("discounts", initialDiscounts);
+    return Array.isArray(stored) ? stored : [];
+  });
+  const [studentDiscounts, setStudentDiscounts] = useState<StudentDiscount[]>(() => {
+    const versionKey = "edu_db_student_discounts_clean_v1";
+    if (!localStorage.getItem(versionKey)) {
+      localStorage.setItem(versionKey, "true");
+      localStorage.setItem("edu_db_student_discounts", JSON.stringify([]));
+      localStorage.setItem("student_discounts", JSON.stringify([]));
+      return [];
+    }
+    const stored = getStored("student_discounts", initialStudentDiscounts);
+    return Array.isArray(stored) ? stored : [];
+  });
   const [fineRules, setFineRules] = useState<FineRule[]>(() =>
     getStored("fine_rules", initialFineRules),
   );
@@ -2659,13 +2723,20 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   >(() => getStored("finance_transactions", initialFinanceTransactions));
   const [financialAccounts, setFinancialAccounts] = useState<
     FinancialAccount[]
-  >(() => getStored("financial_accounts", initialFinancialAccounts));
+  >(() => getStored("financial_accounts", getStored("edu_db_financial_accounts", initialFinancialAccounts)));
   const [financialCategories, setFinancialCategories] = useState<
     FinancialCategory[]
-  >(() => getStored("financial_categories", initialFinancialCategories));
-  const [financialBudgets, setFinancialBudgets] = useState<FinancialBudget[]>(
-    () => getStored("financial_budgets", initialFinancialBudgets),
-  );
+  >(() => getStored("financial_categories", getStored("edu_db_financial_categories", initialFinancialCategories)));
+  const [financialBudgets, setFinancialBudgets] = useState<FinancialBudget[]>(() => {
+    const versionKey = "edu_db_financial_budgets_clean_v1";
+    if (!localStorage.getItem(versionKey)) {
+      localStorage.setItem(versionKey, "true");
+      localStorage.removeItem("edu_db_financial_budgets");
+      localStorage.removeItem("financial_budgets");
+      return [];
+    }
+    return getStored("financial_budgets", initialFinancialBudgets);
+  });
 
   const addAcademicYear = async (ayData: Omit<AcademicYearMaster, "id">) => {
     const id = `AY-${ayData.academicYear.replace(/\s+/g, "") || Date.now()}`;
@@ -2934,16 +3005,16 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     );
   }, [financeTransactions]);
   useEffect(() => {
-    localStorage.setItem(
-      "edu_db_financial_accounts",
-      JSON.stringify(financialAccounts),
-    );
+    try {
+      localStorage.setItem("financial_accounts", JSON.stringify(financialAccounts));
+      localStorage.setItem("edu_db_financial_accounts", JSON.stringify(financialAccounts));
+    } catch (e) {}
   }, [financialAccounts]);
   useEffect(() => {
-    localStorage.setItem(
-      "edu_db_financial_categories",
-      JSON.stringify(financialCategories),
-    );
+    try {
+      localStorage.setItem("financial_categories", JSON.stringify(financialCategories));
+      localStorage.setItem("edu_db_financial_categories", JSON.stringify(financialCategories));
+    } catch (e) {}
   }, [financialCategories]);
   useEffect(() => {
     localStorage.setItem(
@@ -3107,10 +3178,15 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   }, [studentScholarships]);
   useEffect(() => {
     localStorage.setItem("edu_db_discounts", JSON.stringify(discounts));
+    localStorage.setItem("discounts", JSON.stringify(discounts));
   }, [discounts]);
   useEffect(() => {
     localStorage.setItem(
       "edu_db_student_discounts",
+      JSON.stringify(studentDiscounts),
+    );
+    localStorage.setItem(
+      "student_discounts",
       JSON.stringify(studentDiscounts),
     );
   }, [studentDiscounts]);
@@ -5665,7 +5741,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           FinanceAPI.fetchFinanceTransactionsApi({ pageSize: 100 }),
           FinanceAPI.fetchFinancialAccountsApi(),
           FinanceAPI.fetchFinancialCategoriesApi(),
-          FinanceAPI.fetchFinancialBudgetsApi(),
+          FinanceAPI.fetchFinancialBudgetsApi(selectedBranch, selectedAcademicYear),
           FinanceAPI.fetchFeeScheduleConfigApi("2026-2027"),
           FinanceAPI.fetchScholarshipsApi(),
           FinanceAPI.fetchStudentScholarshipsApi(),
@@ -5752,7 +5828,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         }
 
         const apiScholarships = extract(scholarshipsRes);
-        if (Array.isArray(apiScholarships) && apiScholarships.length > 0) {
+        if (scholarshipsRes.status === "fulfilled" && Array.isArray(apiScholarships)) {
           const mappedScholarships: Scholarship[] = apiScholarships.map((s: any) => ({
             id: String(s.id || s.code),
             name: s.name || "",
@@ -5770,10 +5846,14 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
             status: s.status || "Active",
           }));
           setScholarships(mappedScholarships);
+          try {
+            localStorage.setItem("edu_db_scholarships", JSON.stringify(mappedScholarships));
+            localStorage.setItem("scholarships", JSON.stringify(mappedScholarships));
+          } catch (e) {}
         }
 
         const apiStudentScholarships = extract(studentScholarshipsRes);
-        if (Array.isArray(apiStudentScholarships)) {
+        if (studentScholarshipsRes.status === "fulfilled" && Array.isArray(apiStudentScholarships)) {
           const mappedStudentScholarships: StudentScholarship[] = apiStudentScholarships.map((ss: any) => ({
             id: String(ss.id),
             studentId: String(ss.studentId),
@@ -5786,10 +5866,14 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
             status: ss.status || "Active",
           }));
           setStudentScholarships(mappedStudentScholarships);
+          try {
+            localStorage.setItem("edu_db_student_scholarships", JSON.stringify(mappedStudentScholarships));
+            localStorage.setItem("student_scholarships", JSON.stringify(mappedStudentScholarships));
+          } catch (e) {}
         }
 
         const apiDiscounts = extract(discountsRes);
-        if (Array.isArray(apiDiscounts) && apiDiscounts.length > 0) {
+        if (discountsRes.status === "fulfilled" && Array.isArray(apiDiscounts)) {
           const mappedDiscounts: Discount[] = apiDiscounts.map((d: any) => ({
             id: String(d.id || d.code),
             name: d.name || "",
@@ -5801,10 +5885,14 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
             status: d.status || "Active",
           }));
           setDiscounts(mappedDiscounts);
+          try {
+            localStorage.setItem("edu_db_discounts", JSON.stringify(mappedDiscounts));
+            localStorage.setItem("discounts", JSON.stringify(mappedDiscounts));
+          } catch (e) {}
         }
 
         const apiStudentDiscounts = extract(studentDiscountsRes);
-        if (Array.isArray(apiStudentDiscounts)) {
+        if (studentDiscountsRes.status === "fulfilled" && Array.isArray(apiStudentDiscounts)) {
           const mappedStudentDiscounts: StudentDiscount[] = apiStudentDiscounts.map((sd: any) => ({
             id: String(sd.id),
             studentId: String(sd.studentId),
@@ -5813,6 +5901,10 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
             appliedDate: sd.appliedDate || "",
           }));
           setStudentDiscounts(mappedStudentDiscounts);
+          try {
+            localStorage.setItem("edu_db_student_discounts", JSON.stringify(mappedStudentDiscounts));
+            localStorage.setItem("student_discounts", JSON.stringify(mappedStudentDiscounts));
+          } catch (e) {}
         }
 
         const mappedHeads: FeeHead[] = (heads || []).map((h: any) => ({
@@ -5831,8 +5923,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           status: (h.status === 'Inactive' ? 'Inactive' : 'Active') as 'Active' | 'Inactive',
           academicYear: h.academicYear || "All",
         }));
+        const cleanHeads = headsRes.status === "fulfilled" ? deduplicateFeeHeads(mappedHeads) : feeHeads;
         if (headsRes.status === "fulfilled") {
-          const cleanHeads = deduplicateFeeHeads(mappedHeads);
           setFeeHeads(cleanHeads);
           try {
             localStorage.setItem("fee_heads", JSON.stringify(cleanHeads));
@@ -5841,42 +5933,39 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         }
         if (structsRes.status === "fulfilled") {
           const apiStructs = Array.isArray(structs) ? structs : [];
-          setDynamicFeeStructures((prev) => {
-            let currentLocal = prev;
-            if (!currentLocal || currentLocal.length === 0) {
-              try {
-                const stored = localStorage.getItem("edu_db_dynamic_fee_structures") || localStorage.getItem("dynamic_fee_structures");
-                if (stored) {
-                  const parsed = JSON.parse(stored);
-                  if (Array.isArray(parsed) && parsed.length > 0) {
-                    currentLocal = parsed;
-                  }
-                }
-              } catch (e) {}
-            }
+          const activeHeadIds = new Set(cleanHeads.map((h: any) => String(h.id)));
+          const activeHeadNames = new Set(cleanHeads.map((h: any) => (h.name || "").trim().toLowerCase()));
 
-            if (!currentLocal || currentLocal.length === 0) {
-              try {
-                localStorage.setItem("dynamic_fee_structures", JSON.stringify(apiStructs));
-                localStorage.setItem("edu_db_dynamic_fee_structures", JSON.stringify(apiStructs));
-              } catch (e) {}
-              return apiStructs;
-            }
+          const validStructs = apiStructs
+            .map((s: any) => {
+              const cat = (s.category || s.feeCategory || s.targetAudience || "").trim().toLowerCase();
+              const isTuitionOrOthers = cat === "" || cat === "tuition" || cat === "tuition fee" || cat === "others" || cat === "other" || cat === "general";
+              if (!isTuitionOrOthers) return s;
 
-            const localMap = new Map((currentLocal || []).map((s: any) => [(s.className || s.name || s.id || "").trim().toLowerCase(), s]));
-            apiStructs.forEach((s: any) => {
-              const key = (s.className || s.name || s.id || "").trim().toLowerCase();
-              if (!localMap.has(key)) {
-                localMap.set(key, s);
+              const validItems = (s.items || []).filter((item: any) => {
+                const idMatch = item.feeHeadId && activeHeadIds.has(String(item.feeHeadId));
+                const nameMatch = item.feeHeadName && activeHeadNames.has(item.feeHeadName.trim().toLowerCase());
+                return idMatch || nameMatch;
+              });
+
+              if (validItems.length === 0) {
+                return null;
               }
-            });
-            const merged = Array.from(localMap.values());
-            try {
-              localStorage.setItem("dynamic_fee_structures", JSON.stringify(merged));
-              localStorage.setItem("edu_db_dynamic_fee_structures", JSON.stringify(merged));
-            } catch (e) {}
-            return merged;
-          });
+
+              const newTotal = validItems.reduce((sum: number, it: any) => sum + (Number(it.amount) || 0), 0);
+              return {
+                ...s,
+                items: validItems,
+                totalAmount: newTotal,
+              };
+            })
+            .filter(Boolean);
+
+          setDynamicFeeStructures(validStructs);
+          try {
+            localStorage.setItem("dynamic_fee_structures", JSON.stringify(validStructs));
+            localStorage.setItem("edu_db_dynamic_fee_structures", JSON.stringify(validStructs));
+          } catch (e) {}
         }
         setDbAssignments(assignments);
         if (paymentsRes.status === "fulfilled") {
@@ -5951,6 +6040,43 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
             status: apiItem.status || "Active",
           })),
         );
+
+        // Sync active Hostel Facilities & Rooms from existing Hostel Management module
+        try {
+          const [blocksRes, roomsRes] = await Promise.allSettled([
+            getHostelBlocks(),
+            getRooms(),
+          ]);
+          if (blocksRes.status === "fulfilled" && Array.isArray(blocksRes.value) && blocksRes.value.length > 0) {
+            const mappedBlocks: HostelBlock[] = blocksRes.value.map((b: any) => ({
+              id: String(b.hostelId || b.id),
+              name: b.hostelName || b.name || `Hostel ${b.hostelId}`,
+              wardenName: b.wardenName || "Unassigned",
+              wardenPhone: b.primaryMobileNumber || b.wardenPhone || "",
+              totalFloors: b.totalFloors || 4,
+            }));
+            setHostelBlocks(mappedBlocks);
+            try {
+              localStorage.setItem("hostel_blocks", JSON.stringify(mappedBlocks));
+              localStorage.setItem("edu_db_hostel_blocks", JSON.stringify(mappedBlocks));
+            } catch (e) {}
+          }
+          if (roomsRes.status === "fulfilled" && Array.isArray(roomsRes.value) && roomsRes.value.length > 0) {
+            const mappedRooms: any[] = roomsRes.value.map((r: any) => ({
+              id: String(r.roomId || r.id),
+              blockId: String(r.hostelId || r.blockId),
+              roomNo: r.roomNumber || r.roomNo || `Room ${r.roomId}`,
+              capacity: r.bedCapacity || r.capacity || 1,
+              occupiedBeds: r.occupiedBeds || 0,
+              monthlyRent: r.monthlyFee || 0,
+            }));
+            setHostelRooms(mappedRooms);
+            try {
+              localStorage.setItem("hostel", JSON.stringify(mappedRooms));
+              localStorage.setItem("edu_db_hostel_rooms", JSON.stringify(mappedRooms));
+            } catch (e) {}
+          }
+        } catch (e) {}
 
         if (Array.isArray(uniformFees) && uniformFees.length > 0) {
           setFinanceUniformConfigs((prev) => {
@@ -6099,12 +6225,12 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
             return {
               id: String(item.id || "BDG-" + Date.now()),
               categoryName: bName,
-              academicYear: item.academicYear || "2025-2026",
-              branch: item.branch || "Main Campus",
+              academicYear: item.academicYear || selectedAcademicYear || "2026-27",
+              branch: item.branch || selectedBranch || "Madhapur Branch",
               allocatedAmount: alloc,
               consumedAmount: cons,
               remainingAmount: Math.max(0, alloc - cons),
-              status: cons > alloc ? "Exceeded" : "Active",
+              status: cons > alloc ? "Exceeded" : (item.status || "Active"),
             };
           }),
         );
@@ -10323,57 +10449,148 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     );
   };
 
-  const deleteFinancialAccount = (id: string) => {
-    setFinancialAccounts((prev) => prev.filter((a) => String(a.id) !== String(id)));
+  const deleteFinancialAccount = async (id: string) => {
+    setFinancialAccounts((prev) => {
+      const next = prev.filter((a) => String(a.id) !== String(id));
+      try {
+        localStorage.setItem("financial_accounts", JSON.stringify(next));
+        localStorage.setItem("edu_db_financial_accounts", JSON.stringify(next));
+      } catch (e) {}
+      return next;
+    });
     const numId = parseInt(id, 10);
     if (!isNaN(numId)) {
-      FinanceAPI.deleteFinancialAccountApi(numId).catch((err) => {
+      try {
+        await FinanceAPI.deleteFinancialAccountApi(numId);
+      } catch (err) {
         console.warn("Backend delete financial account fallback", err);
-      });
+      }
     }
   };
 
-  const deleteFinancialCategory = (id: string) => {
-    setFinancialCategories((prev) => prev.filter((c) => String(c.id) !== String(id)));
+  const deleteFinancialCategory = async (id: string) => {
+    setFinancialCategories((prev) => {
+      const next = prev.filter((c) => String(c.id) !== String(id));
+      try {
+        localStorage.setItem("financial_categories", JSON.stringify(next));
+        localStorage.setItem("edu_db_financial_categories", JSON.stringify(next));
+      } catch (e) {}
+      return next;
+    });
     const numId = parseInt(id, 10);
     if (!isNaN(numId)) {
-      FinanceAPI.deleteFinancialCategoryApi(numId).catch((err) => {
+      try {
+        await FinanceAPI.deleteFinancialCategoryApi(numId);
+      } catch (err) {
         console.warn("Backend delete financial category fallback", err);
-      });
+      }
     }
   };
 
-  const updateFinancialBudget = (id: string, allocatedAmount: number) => {
-    setFinancialBudgets((prev) =>
-      prev.map((b) => {
-        if (b.id === id) {
-          const remaining = Math.max(0, allocatedAmount - b.consumedAmount);
-          const updated: FinancialBudget = {
-            ...b,
-            allocatedAmount,
-            remainingAmount: remaining,
-            status: b.consumedAmount > allocatedAmount ? "Exceeded" : "Active",
-          };
-          const numId = parseInt(id, 10);
-          if (!isNaN(numId)) {
-            FinanceAPI.updateFinancialBudgetApi(numId, {
-              id: numId,
-              categoryName: b.categoryName,
-              department: b.categoryName,
-              academicYear: b.academicYear,
-              branch: b.branch,
-              allocatedAmount,
-              consumedAmount: b.consumedAmount,
-              status: updated.status,
-            }).catch((err) => {
-              console.warn("Backend update budget fallback", err);
-            });
-          }
-          return updated;
-        }
-        return b;
-      }),
-    );
+  const addFinancialBudget = async (budgetData: Omit<FinancialBudget, "id" | "consumedAmount" | "remainingAmount">) => {
+    const payload = {
+      categoryName: budgetData.categoryName,
+      department: (budgetData as any).department || budgetData.categoryName,
+      academicYear: budgetData.academicYear || selectedAcademicYear || "2026-27",
+      branch: budgetData.branch || selectedBranch || "Madhapur Branch",
+      allocatedAmount: Number(budgetData.allocatedAmount) || 0,
+      status: budgetData.status || "Active",
+    };
+    try {
+      const res = await FinanceAPI.saveFinancialBudgetApi(payload);
+      const saved = res?.data || res;
+      const newBudget: FinancialBudget = {
+        id: String(saved?.id || "BDG-" + Date.now()),
+        categoryName: saved?.categoryName || payload.categoryName,
+        academicYear: saved?.academicYear || payload.academicYear,
+        branch: saved?.branch || payload.branch,
+        allocatedAmount: Number(saved?.allocatedAmount ?? payload.allocatedAmount),
+        consumedAmount: Number(saved?.consumedAmount ?? 0),
+        remainingAmount: Math.max(0, Number(saved?.allocatedAmount ?? payload.allocatedAmount) - Number(saved?.consumedAmount ?? 0)),
+        status: saved?.status || "Active",
+      };
+      setFinancialBudgets((prev) => [...prev, newBudget]);
+      addToast({
+        title: "Budget Allocated",
+        description: `Successfully allocated budget for ${newBudget.categoryName}`,
+        type: "success",
+      });
+      return newBudget;
+    } catch (err: any) {
+      console.error("Failed to allocate budget", err);
+      const fallbackBudget: FinancialBudget = {
+        id: "BDG-" + Date.now(),
+        categoryName: payload.categoryName,
+        academicYear: payload.academicYear,
+        branch: payload.branch,
+        allocatedAmount: payload.allocatedAmount,
+        consumedAmount: 0,
+        remainingAmount: payload.allocatedAmount,
+        status: "Active",
+      };
+      setFinancialBudgets((prev) => [...prev, fallbackBudget]);
+      return fallbackBudget;
+    }
+  };
+
+  const updateFinancialBudget = async (id: string, allocatedAmount: number, extra?: Partial<FinancialBudget>) => {
+    const target = financialBudgets.find((b) => b.id === id);
+    const categoryName = extra?.categoryName || target?.categoryName || "General";
+    const academicYear = extra?.academicYear || target?.academicYear || selectedAcademicYear || "2026-27";
+    const branch = extra?.branch || target?.branch || selectedBranch || "Madhapur Branch";
+    const consumed = target ? target.consumedAmount : 0;
+    const remaining = Math.max(0, allocatedAmount - consumed);
+    const status = consumed > allocatedAmount ? "Exceeded" : (extra?.status || target?.status || "Active");
+
+    const updated: FinancialBudget = {
+      id,
+      categoryName,
+      academicYear,
+      branch,
+      allocatedAmount,
+      consumedAmount: consumed,
+      remainingAmount: remaining,
+      status: status as any,
+    };
+
+    setFinancialBudgets((prev) => prev.map((b) => (b.id === id ? updated : b)));
+
+    const numId = parseInt(id, 10);
+    if (!isNaN(numId)) {
+      try {
+        await FinanceAPI.updateFinancialBudgetApi(numId, {
+          id: numId,
+          categoryName,
+          department: categoryName,
+          academicYear,
+          branch,
+          allocatedAmount,
+          consumedAmount: consumed,
+          status,
+        });
+      } catch (err) {
+        console.warn("Backend update budget fallback", err);
+      }
+    }
+    return true;
+  };
+
+  const deleteFinancialBudget = async (id: string) => {
+    const numId = parseInt(id, 10);
+    setFinancialBudgets((prev) => prev.filter((b) => b.id !== id));
+    if (!isNaN(numId)) {
+      try {
+        await FinanceAPI.deleteFinancialBudgetApi(numId);
+        addToast({
+          title: "Budget Deleted",
+          description: "Budget record has been removed.",
+          type: "success",
+        });
+      } catch (err) {
+        console.warn("Backend delete budget fallback", err);
+      }
+    }
+    return true;
   };
 
   // ==========================================
@@ -10545,12 +10762,100 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     const stringId = String(id);
     const numId = Number(id);
 
+    const targetHead = feeHeads.find((f) => String(f.id) === stringId);
+    const targetHeadName = targetHead?.name?.trim().toLowerCase();
+
     setFeeHeads((prev) => {
       const next = prev.filter((f) => String(f.id) !== stringId);
       try {
         localStorage.setItem("fee_heads", JSON.stringify(next));
+        localStorage.setItem("edu_db_fee_heads", JSON.stringify(next));
       } catch (e) {}
       return next;
+    });
+
+    // Cascade deletion to dynamic fee structures
+    setDynamicFeeStructures((prev) => {
+      const updated = prev
+        .map((s) => {
+          const items = s.items || [];
+          const remainingItems = items.filter((item) => {
+            const matchesId = String(item.feeHeadId) === stringId;
+            const matchesName = targetHeadName && item.feeHeadName && item.feeHeadName.trim().toLowerCase() === targetHeadName;
+            return !matchesId && !matchesName;
+          });
+
+          // If no items were removed, retain as is
+          if (remainingItems.length === items.length) {
+            return s;
+          }
+
+          const cat = (s.category || s.feeCategory || s.targetAudience || "").trim().toLowerCase();
+          const isTuitionOrOthers = cat === "" || cat === "tuition" || cat === "tuition fee" || cat === "others" || cat === "other" || cat === "general";
+
+          // If all items were removed from tuition/others structure, remove the structure
+          if (remainingItems.length === 0 && isTuitionOrOthers) {
+            return null;
+          }
+
+          const newTotal = remainingItems.reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
+          return {
+            ...s,
+            items: remainingItems,
+            totalAmount: newTotal,
+          };
+        })
+        .filter(Boolean) as DynamicFeeStructure[];
+
+      const remainingStructIds = new Set(updated.map((s) => String(s.id)));
+      setStudentFeeAssignments((prevAssignments) => {
+        const nextAssigns = prevAssignments
+          .map((a) => {
+            if (a.feeStructureId && !remainingStructIds.has(String(a.feeStructureId))) {
+              return null;
+            }
+            if (updated.length === 0) {
+              return null;
+            }
+            const struct = updated.find((s) => String(s.id) === String(a.feeStructureId));
+            const newTotal = struct ? struct.totalAmount : a.baseFeeTotal;
+            return {
+              ...a,
+              baseFeeTotal: newTotal,
+              originalFeeTotal: newTotal,
+            };
+          })
+          .filter(Boolean) as StudentFeeAssignment[];
+
+        try {
+          localStorage.setItem("student_fee_assignments", JSON.stringify(nextAssigns));
+          localStorage.setItem("edu_db_student_fee_assignments", JSON.stringify(nextAssigns));
+        } catch (e) {}
+        return nextAssigns;
+      });
+
+      setStudents((prevStudents) => {
+        const nextStudents = prevStudents.map((st) => {
+          const matchingStructure = updated.find((s) => matchesClassName(s.className, st.className));
+          const newFee = matchingStructure ? matchingStructure.totalAmount : 0;
+          return {
+            ...st,
+            totalFee: newFee,
+            dueFee: Math.max(0, newFee - (st.paidFee || 0)),
+          };
+        });
+        try {
+          localStorage.setItem("students", JSON.stringify(nextStudents));
+          localStorage.setItem("edu_db_students", JSON.stringify(nextStudents));
+        } catch (e) {}
+        return nextStudents;
+      });
+
+      try {
+        localStorage.setItem("dynamic_fee_structures", JSON.stringify(updated));
+        localStorage.setItem("edu_db_dynamic_fee_structures", JSON.stringify(updated));
+      } catch (e) {}
+      return updated;
     });
 
     try {
@@ -10736,6 +11041,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     const target = dynamicFeeStructures.find((d) => String(d.id) === String(id));
     const targetClass = target?.className;
     const isHostel = target?.category === "Hostel";
+    let remainingStructures: DynamicFeeStructure[] = [];
     setDynamicFeeStructures((prev) => {
       const filtered = prev.filter((d) => {
         if (String(d.id) === String(id)) return false;
@@ -10750,12 +11056,51 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         }
         return true;
       });
+      remainingStructures = filtered;
       try {
         localStorage.setItem("dynamic_fee_structures", JSON.stringify(filtered));
         localStorage.setItem("edu_db_dynamic_fee_structures", JSON.stringify(filtered));
       } catch (e) {}
       return filtered;
     });
+
+    setStudentFeeAssignments((prev) => {
+      const filtered = prev.filter((a) => {
+        if (String(a.feeStructureId) === String(id) || String((a as any).dynamicFeeStructureId) === String(id)) {
+          return false;
+        }
+        if (!isHostel && targetClass && a.className && matchesClassName(a.className, targetClass)) {
+          return false;
+        }
+        return true;
+      });
+      try {
+        localStorage.setItem("student_fee_assignments", JSON.stringify(filtered));
+        localStorage.setItem("edu_db_student_fee_assignments", JSON.stringify(filtered));
+      } catch (e) {}
+      return filtered;
+    });
+
+    setStudents((prev) => {
+      const nextStudents = prev.map((s) => {
+        if (!isHostel && targetClass && matchesClassName(s.className, targetClass)) {
+          const otherStructure = remainingStructures.find((d) => matchesClassName(d.className, s.className));
+          const newFee = otherStructure ? otherStructure.totalAmount : 0;
+          return {
+            ...s,
+            totalFee: newFee,
+            dueFee: Math.max(0, newFee - (s.paidFee || 0)),
+          };
+        }
+        return s;
+      });
+      try {
+        localStorage.setItem("students", JSON.stringify(nextStudents));
+        localStorage.setItem("edu_db_students", JSON.stringify(nextStudents));
+      } catch (e) {}
+      return nextStudents;
+    });
+
     try {
       await FinanceAPI.deleteDynamicFeeStructureApi(id);
     } catch (err) {
@@ -11225,9 +11570,11 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   };
 
   const deleteDiscount = async (id: string) => {
-    setDiscounts((prev) => prev.filter((d) => d.id !== id));
+    const existing = discounts.find((d) => d.id === id || d.code === id);
+    setDiscounts((prev) => prev.filter((d) => d.id !== id && d.code !== id));
     try {
-      const numId = parseInt(id, 10);
+      const targetId = existing ? existing.id : id;
+      const numId = parseInt(targetId, 10);
       if (!isNaN(numId)) {
         await FinanceAPI.deleteDiscountApi(numId);
       }
@@ -11279,9 +11626,11 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   };
 
   const removeStudentDiscount = async (id: string) => {
+    const existing = studentDiscounts.find((d) => d.id === id);
     setStudentDiscounts((prev) => prev.filter((d) => d.id !== id));
     try {
-      const numId = parseInt(id, 10);
+      const targetId = existing ? existing.id : id;
+      const numId = parseInt(targetId, 10);
       if (!isNaN(numId)) {
         await FinanceAPI.removeStudentDiscountApi(numId);
       }
@@ -22331,7 +22680,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         updateFinancialCategory,
         deleteFinancialCategory,
         financialBudgets,
+        addFinancialBudget,
         updateFinancialBudget,
+        deleteFinancialBudget,
 
         // ACADEMIC CALENDAR & SCHOOL EVENTS MAPPINGS
         schoolEvents,

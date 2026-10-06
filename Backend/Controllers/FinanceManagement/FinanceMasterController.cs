@@ -105,7 +105,7 @@ public class FinanceMasterController : ControllerBase
     }
 
     [HttpDelete("accounts/{id:int}")]
-    [Authorize(Roles = "Admin,SuperAdmin")]
+    [Authorize(Roles = "Admin,SuperAdmin,Accountant")]
     public async Task<IActionResult> DeleteAccount(int id)
     {
         var success = await _masterService.DeleteAccountAsync(id);
@@ -146,7 +146,7 @@ public class FinanceMasterController : ControllerBase
     }
 
     [HttpDelete("categories/{id:int}")]
-    [Authorize(Roles = "Admin,SuperAdmin")]
+    [Authorize(Roles = "Admin,SuperAdmin,Accountant")]
     public async Task<IActionResult> DeleteCategory(int id)
     {
         var success = await _masterService.DeleteCategoryAsync(id);
@@ -162,9 +162,9 @@ public class FinanceMasterController : ControllerBase
 
     [HttpGet("budgets")]
     [Authorize(Roles = "Admin,Staff,SuperAdmin,Accountant")]
-    public async Task<IActionResult> GetBudgets([FromQuery] string? academicYear = "2025-2026")
+    public async Task<IActionResult> GetBudgets([FromQuery] string? branch, [FromQuery] string? academicYear)
     {
-        var result = await _masterService.GetBudgetsAsync(academicYear);
+        var result = await _masterService.GetBudgetsAsync(branch, academicYear);
         return Ok(new { success = true, data = result });
     }
 
@@ -188,6 +188,17 @@ public class FinanceMasterController : ControllerBase
             return NotFound(new { success = false, message = "Budget not found." });
 
         return Ok(new { success = true, message = "Budget allocation updated successfully." });
+    }
+
+    [HttpDelete("budgets/{id:int}")]
+    [Authorize(Roles = "Admin,SuperAdmin,Accountant")]
+    public async Task<IActionResult> DeleteBudget(int id)
+    {
+        var success = await _masterService.DeleteBudgetAsync(id);
+        if (!success)
+            return NotFound(new { success = false, message = "Budget not found." });
+
+        return Ok(new { success = true, message = "Budget allocation deleted successfully." });
     }
 
     // =========================================================================

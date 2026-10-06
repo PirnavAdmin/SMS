@@ -2617,6 +2617,19 @@ using (var scope = app.Services.CreateScope())
                     `Status` VARCHAR(30) NOT NULL DEFAULT 'Active',
                     `CreatedAt` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+                CREATE TABLE IF NOT EXISTS `financial_budgets` (
+                    `Id` INT AUTO_INCREMENT PRIMARY KEY,
+                    `CategoryName` VARCHAR(150) NOT NULL,
+                    `Department` VARCHAR(100) NULL,
+                    `AcademicYear` VARCHAR(50) NOT NULL,
+                    `Branch` VARCHAR(100) NOT NULL,
+                    `BranchId` INT NULL,
+                    `AllocatedAmount` DECIMAL(18,2) NOT NULL DEFAULT 0.00,
+                    `Status` VARCHAR(50) NOT NULL DEFAULT 'Active',
+                    `CreatedAt` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                    `UpdatedAt` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
             ");
 
             if (!feeWasOpen) await feeDbConn.OpenAsync();

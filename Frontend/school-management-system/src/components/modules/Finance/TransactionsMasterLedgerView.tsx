@@ -23,7 +23,7 @@ export const TransactionsMasterLedgerView: React.FC<TransactionsMasterLedgerView
     financeTransactions, addFinanceTransaction, reverseFinanceTransaction, cancelFinanceTransaction,
     financialAccounts, addFinancialAccount, updateFinancialAccount, deleteFinancialAccount,
     financialCategories, addFinancialCategory, updateFinancialCategory, deleteFinancialCategory,
-    financialBudgets, updateFinancialBudget,
+    financialBudgets, addFinancialBudget, updateFinancialBudget, deleteFinancialBudget,
     students, staff
   } = useData();
 
@@ -114,6 +114,78 @@ export const TransactionsMasterLedgerView: React.FC<TransactionsMasterLedgerView
   const [isAddAccountOpen, setIsAddAccountOpen] = useState(false);
   const [editingCat, setEditingCat] = useState<FinancialCategory | null>(null);
   const [editingAcc, setEditingAcc] = useState<FinancialAccount | null>(null);
+
+  // Budget Modal State & Handlers
+  const [isBudgetModalOpen, setIsBudgetModalOpen] = useState(false);
+  const [editingBudget, setEditingBudget] = useState<FinancialBudget | null>(null);
+  const [budgetForm, setBudgetForm] = useState({
+    categoryName: '',
+    allocatedAmount: '',
+    branch: '',
+    academicYear: '',
+  });
+
+  const handleOpenAddBudget = () => {
+    setEditingBudget(null);
+    setBudgetForm({
+      categoryName: '',
+      allocatedAmount: '',
+      branch: selectedBranch || 'Madhapur Branch',
+      academicYear: selectedAcademicYear || '2026-27',
+    });
+    setIsBudgetModalOpen(true);
+  };
+
+  const handleOpenEditBudget = (budget: FinancialBudget) => {
+    setEditingBudget(budget);
+    setBudgetForm({
+      categoryName: budget.categoryName,
+      allocatedAmount: budget.allocatedAmount.toString(),
+      branch: budget.branch,
+      academicYear: budget.academicYear,
+    });
+    setIsBudgetModalOpen(true);
+  };
+
+  const handleSaveBudget = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const amount = parseFloat(budgetForm.allocatedAmount);
+    if (isNaN(amount) || amount <= 0) {
+      addToast('warning', 'Invalid Amount', 'Allocated budget must be greater than 0');
+      return;
+    }
+    if (!budgetForm.categoryName.trim()) {
+      addToast('warning', 'Required Field', 'Budget category is required');
+      return;
+    }
+
+    if (editingBudget) {
+      await updateFinancialBudget(editingBudget.id, amount, {
+        categoryName: budgetForm.categoryName.trim(),
+        branch: budgetForm.branch || selectedBranch || 'Madhapur Branch',
+        academicYear: budgetForm.academicYear || selectedAcademicYear || '2026-27',
+      });
+      addToast('success', 'Budget Updated', 'Budget allocation updated successfully.');
+    } else {
+      await addFinancialBudget({
+        categoryName: budgetForm.categoryName.trim(),
+        allocatedAmount: amount,
+        branch: budgetForm.branch || selectedBranch || 'Madhapur Branch',
+        academicYear: budgetForm.academicYear || selectedAcademicYear || '2026-27',
+        status: 'Active',
+      });
+      addToast('success', 'Budget Allocated', `Budget allocated for ${budgetForm.categoryName.trim()}`);
+    }
+    setIsBudgetModalOpen(false);
+    setEditingBudget(null);
+  };
+
+  const handleDeleteBudget = async (id: string, name: string) => {
+    if (window.confirm(`Are you sure you want to delete the budget allocation for "${name}"?`)) {
+      await deleteFinancialBudget(id);
+      addToast('info', 'Budget Removed', `Budget allocation for '${name}' was deleted.`);
+    }
+  };
 
   const handleOpenAddCategory = () => {
     setEditingCat(null);
@@ -249,6 +321,24 @@ export const TransactionsMasterLedgerView: React.FC<TransactionsMasterLedgerView
     if (appliedFilters.sortBy === 'amount-desc') return b.amount - a.amount;
     if (appliedFilters.sortBy === 'amount-asc') return a.amount - b.amount;
     return 0;
+  });
+
+  const filteredBudgets = (financialBudgets || []).filter(b => {
+    const bBranch = (b.branch || '').trim().toLowerCase();
+    const sBranch = (selectedBranch || '').trim().toLowerCase();
+    const matchBranch = !selectedBranch || sBranch === 'all' || sBranch === 'all branches' ||
+      !b.branch || bBranch === 'all' || bBranch === 'all branches' || bBranch === sBranch;
+
+    const bYearClean = (b.academicYear || '').replace(/[^0-9]/g, '').slice(0, 4);
+    const sYearClean = (selectedAcademicYear || '').replace(/[^0-9]/g, '').slice(0, 4);
+    const matchAy = !selectedAcademicYear ||
+      selectedAcademicYear === 'All' ||
+      selectedAcademicYear === 'All Years' ||
+      !b.academicYear ||
+      b.academicYear.trim().toLowerCase() === selectedAcademicYear.trim().toLowerCase() ||
+      (bYearClean.length === 4 && sYearClean.length === 4 && bYearClean === sYearClean);
+
+    return matchBranch && matchAy;
   });
 
   const totalIncome = financeTransactions
@@ -879,10 +969,14 @@ export const TransactionsMasterLedgerView: React.FC<TransactionsMasterLedgerView
                     {!cat.isSystem && (
                       <button
                         type="button"
-                        onClick={() => {
+                        onClick={async () => {
                           if (window.confirm(`Are you sure you want to delete category "${cat.name}"?`)) {
-                            deleteFinancialCategory(cat.id);
-                            addToast('info', 'Category Removed', `Category '${cat.name}' was deleted.`);
+                            try {
+                              await deleteFinancialCategory(cat.id);
+                              addToast('info', 'Category Removed', `Category '${cat.name}' was deleted.`);
+                            } catch (err: any) {
+                              addToast('error', 'Delete Failed', err?.message || 'Could not delete category.');
+                            }
                           }
                         }}
                         title="Delete Category"
@@ -938,10 +1032,14 @@ export const TransactionsMasterLedgerView: React.FC<TransactionsMasterLedgerView
                     </button>
                     <button
                       type="button"
-                      onClick={() => {
+                      onClick={async () => {
                         if (window.confirm(`Are you sure you want to delete account "${acc.accountName}"?`)) {
-                          deleteFinancialAccount(acc.id);
-                          addToast('info', 'Account Removed', `Account '${acc.accountName}' was deleted.`);
+                          try {
+                            await deleteFinancialAccount(acc.id);
+                            addToast('info', 'Account Removed', `Account '${acc.accountName}' was deleted.`);
+                          } catch (err: any) {
+                            addToast('error', 'Delete Failed', err?.message || 'Could not delete account.');
+                          }
                         }
                       }}
                       title="Delete Account"
@@ -962,58 +1060,122 @@ export const TransactionsMasterLedgerView: React.FC<TransactionsMasterLedgerView
       {activeSubTab === 'budget' && (
         <div className="space-y-4">
           <div className="p-5 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm space-y-4">
-            <div className="flex items-center justify-between border-b pb-3">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b pb-3">
               <div>
                 <h3 className="font-bold text-sm text-slate-900 dark:text-white flex items-center gap-2">
                   <PieChart className="w-4 h-4 text-sky-600" />
                   Budget Allocation & Consumption Tracking
                 </h3>
-                <p className="text-[11px] text-slate-400">Automated budget deduction based on Master Ledger expenses</p>
+                <p className="text-[11px] text-slate-400">
+                  Automated real-time budget deduction based on Master Ledger expenses & payslips for {selectedBranch || 'All Branches'} • AY {selectedAcademicYear || 'All'}
+                </p>
               </div>
+              <button
+                type="button"
+                onClick={handleOpenAddBudget}
+                className="px-3.5 py-1.5 rounded-xl bg-sky-600 hover:bg-sky-500 text-white text-xs font-bold shadow-xs flex items-center gap-1.5 transition-colors cursor-pointer"
+              >
+                <Plus className="w-4 h-4" /> Allocate Budget
+              </button>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {financialBudgets.map(b => {
-                const percent = Math.min(100, Math.round((b.consumedAmount / (b.allocatedAmount || 1)) * 100));
-                return (
-                  <div key={b.id} className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border space-y-3">
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <h4 className="font-bold text-xs text-slate-900 dark:text-white">{b.categoryName}</h4>
-                        <p className="text-[10px] text-slate-400">{b.branch} • AY {b.academicYear}</p>
-                      </div>
-                      <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold ${
-                        percent >= 90 ? 'bg-rose-100 text-rose-800' : 'bg-emerald-100 text-emerald-800'
-                      }`}>
-                        {percent}% Consumed
-                      </span>
-                    </div>
+            {filteredBudgets.length === 0 ? (
+              <div className="py-12 px-6 text-center border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-2xl flex flex-col items-center justify-center space-y-3">
+                <div className="w-12 h-12 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-400">
+                  <PieChart className="w-6 h-6" />
+                </div>
+                <div className="space-y-1">
+                  <h4 className="font-bold text-sm text-slate-800 dark:text-slate-200">
+                    No budgets configured for this branch and period
+                  </h4>
+                  <p className="text-xs text-slate-500 max-w-md">
+                    There are no budget allocation records configured in the database for {selectedBranch || 'the active branch'} ({selectedAcademicYear || 'selected academic year'}). Click below to allocate a real budget.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleOpenAddBudget}
+                  className="inline-flex items-center gap-1.5 px-4 py-2 bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs rounded-xl shadow-xs transition-colors cursor-pointer"
+                >
+                  <Plus className="w-4 h-4" /> Allocate Budget
+                </button>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {filteredBudgets.map(b => {
+                  const isOverBudget = b.consumedAmount > b.allocatedAmount;
+                  const percent = b.allocatedAmount > 0
+                    ? Math.round((b.consumedAmount / b.allocatedAmount) * 100)
+                    : (b.consumedAmount > 0 ? 100 : 0);
+                  const progressPercent = Math.min(100, percent);
+                  const remaining = Math.max(0, b.allocatedAmount - b.consumedAmount);
 
-                    <div className="w-full bg-slate-200 dark:bg-slate-700 h-2.5 rounded-full overflow-hidden">
-                      <div
-                        className={`h-full transition-all ${percent >= 90 ? 'bg-rose-500' : 'bg-sky-600'}`}
-                        style={{ width: `${percent}%` }}
-                      />
-                    </div>
+                  return (
+                    <div key={b.id} className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/60 space-y-3">
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <h4 className="font-bold text-xs text-slate-900 dark:text-white flex items-center gap-2">
+                            {b.categoryName}
+                          </h4>
+                          <p className="text-[10px] text-slate-400">{b.branch} • AY {b.academicYear}</p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          {isOverBudget ? (
+                            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-rose-600 text-white shadow-xs">
+                              OVER BUDGET ({percent}%)
+                            </span>
+                          ) : (
+                            <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold ${
+                              percent >= 90 ? 'bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-400' : 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-400'
+                            }`}>
+                              {percent}% Consumed
+                            </span>
+                          )}
+                          <button
+                            type="button"
+                            onClick={() => handleOpenEditBudget(b)}
+                            title="Edit Budget"
+                            className="p-1 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-colors cursor-pointer"
+                          >
+                            <Edit className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteBudget(b.id, b.categoryName)}
+                            title="Delete Budget"
+                            className="p-1 rounded-lg hover:bg-rose-100 dark:hover:bg-rose-950/60 text-slate-400 hover:text-rose-600 transition-colors cursor-pointer"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </div>
 
-                    <div className="grid grid-cols-3 text-center text-xs pt-1 border-t border-slate-200/80 dark:border-slate-700/60">
-                      <div>
-                        <span className="block text-[9px] font-bold text-slate-400 uppercase">Allocated</span>
-                        <span className="font-extrabold text-slate-800 dark:text-slate-200">{formatCurrency(b.allocatedAmount)}</span>
+                      <div className="w-full bg-slate-200 dark:bg-slate-700 h-2.5 rounded-full overflow-hidden">
+                        <div
+                          className={`h-full transition-all ${isOverBudget ? 'bg-rose-600' : percent >= 90 ? 'bg-amber-500' : 'bg-sky-600'}`}
+                          style={{ width: `${progressPercent}%` }}
+                        />
                       </div>
-                      <div>
-                        <span className="block text-[9px] font-bold text-slate-400 uppercase">Consumed</span>
-                        <span className="font-extrabold text-rose-600">{formatCurrency(b.consumedAmount)}</span>
-                      </div>
-                      <div>
-                        <span className="block text-[9px] font-bold text-slate-400 uppercase">Remaining</span>
-                        <span className="font-extrabold text-emerald-600">{formatCurrency(b.remainingAmount)}</span>
+
+                      <div className="grid grid-cols-3 text-center text-xs pt-1 border-t border-slate-200/80 dark:border-slate-700/60">
+                        <div>
+                          <span className="block text-[9px] font-bold text-slate-400 uppercase">Allocated</span>
+                          <span className="font-extrabold text-slate-800 dark:text-slate-200">{formatCurrency(b.allocatedAmount)}</span>
+                        </div>
+                        <div>
+                          <span className="block text-[9px] font-bold text-slate-400 uppercase">Consumed</span>
+                          <span className={`font-extrabold ${isOverBudget ? 'text-rose-600 font-black' : 'text-slate-700 dark:text-slate-300'}`}>{formatCurrency(b.consumedAmount)}</span>
+                        </div>
+                        <div>
+                          <span className="block text-[9px] font-bold text-slate-400 uppercase">Remaining</span>
+                          <span className={`font-extrabold ${isOverBudget ? 'text-slate-400' : 'text-emerald-600'}`}>{formatCurrency(remaining)}</span>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                );
-              })}
-            </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -1351,6 +1513,92 @@ export const TransactionsMasterLedgerView: React.FC<TransactionsMasterLedgerView
               <div className="flex justify-end gap-2 pt-2 border-t">
                 <button type="button" onClick={() => { setIsAddAccountOpen(false); setEditingAcc(null); }} className="px-3 py-1.5 rounded-xl bg-slate-200 dark:bg-slate-800 font-semibold cursor-pointer">Cancel</button>
                 <button type="submit" className="px-4 py-1.5 rounded-xl bg-emerald-600 text-white font-bold cursor-pointer">{editingAcc ? 'Update Account' : 'Save Account'}</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ADD / EDIT BUDGET MODAL */}
+      {isBudgetModalOpen && (
+        <div className="fixed inset-0 z-60 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm animate-in fade-in">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-md w-full p-6 shadow-2xl space-y-4 text-xs">
+            <div className="flex justify-between items-center border-b pb-3">
+              <h3 className="font-bold text-sm text-slate-900 dark:text-white flex items-center gap-2">
+                <PieChart className="w-4 h-4 text-sky-600" />
+                {editingBudget ? 'Edit Budget Allocation' : 'Allocate Departmental Budget'}
+              </h3>
+              <button
+                type="button"
+                onClick={() => { setIsBudgetModalOpen(false); setEditingBudget(null); }}
+                className="p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <form onSubmit={handleSaveBudget} className="space-y-3.5">
+              <div>
+                <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">
+                  Category / Head <span className="text-rose-500 font-bold">*</span>
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Campus Maintenance & Repairs, Utilities & Facilities"
+                  value={budgetForm.categoryName}
+                  onChange={e => setBudgetForm({ ...budgetForm, categoryName: e.target.value })}
+                  className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700"
+                />
+              </div>
+              <div>
+                <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">
+                  Allocated Amount (₹) <span className="text-rose-500 font-bold">*</span>
+                </label>
+                <input
+                  type="number"
+                  required
+                  min="1"
+                  step="any"
+                  placeholder="e.g. 500000"
+                  value={budgetForm.allocatedAmount}
+                  onChange={e => setBudgetForm({ ...budgetForm, allocatedAmount: e.target.value })}
+                  className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-mono"
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Branch</label>
+                  <input
+                    type="text"
+                    value={budgetForm.branch}
+                    onChange={e => setBudgetForm({ ...budgetForm, branch: e.target.value })}
+                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700"
+                  />
+                </div>
+                <div>
+                  <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Academic Year</label>
+                  <input
+                    type="text"
+                    value={budgetForm.academicYear}
+                    onChange={e => setBudgetForm({ ...budgetForm, academicYear: e.target.value })}
+                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700"
+                  />
+                </div>
+              </div>
+              <div className="flex justify-end gap-2 pt-3 border-t border-slate-200 dark:border-slate-800">
+                <button
+                  type="button"
+                  onClick={() => { setIsBudgetModalOpen(false); setEditingBudget(null); }}
+                  className="px-3.5 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 font-semibold text-slate-700 dark:text-slate-300 cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-1.5 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-bold shadow-xs cursor-pointer"
+                >
+                  {editingBudget ? 'Update Budget' : 'Save Allocation'}
+                </button>
               </div>
             </form>
           </div>

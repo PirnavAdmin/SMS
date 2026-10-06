@@ -265,41 +265,47 @@ export const DiscountsView: React.FC = () => {
       {/* Tab 1: Discount Rules */}
       {activeTab === "master" && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {filteredDiscounts.map((d) => (
-            <div
-              key={d.id}
-              className="glass-card p-5 rounded-2xl flex items-center justify-between hover:shadow-md transition-shadow"
-            >
-              <div>
-                <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-sky-50 text-sky-700 dark:bg-sky-950 dark:text-sky-300">
-                  {d.type} • {d.code}
-                </span>
-                <h3 className="font-bold text-sm text-slate-900 dark:text-white mt-1">
-                  {d.name}
-                </h3>
-                <p className="text-xs font-extrabold text-emerald-600 dark:text-emerald-400 mt-1">
-                  {d.mode === "Percentage"
-                    ? `${d.value}% Concession`
-                    : `${formatCurrency(d.value)} Flat Off`}
-                </p>
-              </div>
-
-              <div className="flex items-center gap-1">
-                <button
-                  onClick={() => handleOpenEdit(d)}
-                  className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-sky-600"
-                >
-                  <Edit className="w-4 h-4" />
-                </button>
-                <button
-                  onClick={() => setDeletingDisc(d)}
-                  className="p-1.5 rounded-lg hover:bg-rose-50 dark:hover:bg-rose-950/40 text-rose-600"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </button>
-              </div>
+          {filteredDiscounts.length === 0 ? (
+            <div className="col-span-full py-12 text-center text-slate-400 glass-card rounded-2xl">
+              No discount rules found. Click &quot;+ Create Discount&quot; to add one.
             </div>
-          ))}
+          ) : (
+            filteredDiscounts.map((d) => (
+              <div
+                key={d.id}
+                className="glass-card p-5 rounded-2xl flex items-center justify-between hover:shadow-md transition-shadow"
+              >
+                <div>
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-sky-50 text-sky-700 dark:bg-sky-950 dark:text-sky-300">
+                    {d.type} • {d.code}
+                  </span>
+                  <h3 className="font-bold text-sm text-slate-900 dark:text-white mt-1">
+                    {d.name}
+                  </h3>
+                  <p className="text-xs font-extrabold text-emerald-600 dark:text-emerald-400 mt-1">
+                    {d.mode === "Percentage"
+                      ? `${d.value}% Concession`
+                      : `${formatCurrency(d.value)} Flat Off`}
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={() => handleOpenEdit(d)}
+                    className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-sky-600"
+                  >
+                    <Edit className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={() => setDeletingDisc(d)}
+                    className="p-1.5 rounded-lg hover:bg-rose-50 dark:hover:bg-rose-950/40 text-rose-600"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+            ))
+          )}
         </div>
       )}
 
@@ -645,15 +651,19 @@ export const DiscountsView: React.FC = () => {
                   className="w-full px-3 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-bold text-slate-900 dark:text-white outline-none"
                   required
                 >
-                  {discounts.map((d) => (
-                    <option key={d.id} value={d.id}>
-                      {d.name} (
-                      {d.mode === "Percentage"
-                        ? `${d.value}% Concession`
-                        : `${formatCurrency(d.value)} Flat Off`}
-                      )
-                    </option>
-                  ))}
+                  {discounts.length === 0 ? (
+                    <option value="">No discount rules available</option>
+                  ) : (
+                    discounts.map((d) => (
+                      <option key={d.id} value={d.id}>
+                        {d.name} (
+                        {d.mode === "Percentage"
+                          ? `${d.value}% Concession`
+                          : `${formatCurrency(d.value)} Flat Off`}
+                        )
+                      </option>
+                    ))
+                  )}
                 </select>
               </div>
 

@@ -172,6 +172,7 @@ namespace SMS.Api.Data
         public DbSet<SMS.Api.Models.FinanceManagement.FinancialAccount> FinancialAccounts { get; set; } = null!;
         public DbSet<SMS.Api.Models.FinanceManagement.LedgerEntry> LedgerEntries { get; set; } = null!;
         public DbSet<SMS.Api.Models.FinanceManagement.Expense> Expenses { get; set; } = null!;
+        public DbSet<SMS.Api.Models.FinanceManagement.FinancialBudget> FinancialBudgets { get; set; } = null!;
 
         //student
         public DbSet<Student> Students { get; set; } = null!;
@@ -1214,6 +1215,26 @@ namespace SMS.Api.Data
             modelBuilder.Entity<SMS.Api.Models.FinanceManagement.StudentDiscount>(entity =>
             {
                 entity.ToTable("student_discounts");
+                entity.HasKey(x => x.Id);
+            });
+            modelBuilder.Entity<SMS.Api.Models.FinanceManagement.FinancialAccount>(entity =>
+            {
+                entity.ToTable("financialaccounts");
+                entity.HasKey(x => x.Id);
+            });
+            modelBuilder.Entity<SMS.Api.Models.FinanceManagement.Expense>(entity =>
+            {
+                entity.ToTable("expenses");
+                entity.HasKey(x => x.Id);
+            });
+            modelBuilder.Entity<SMS.Api.Models.FinanceManagement.LedgerEntry>(entity =>
+            {
+                entity.ToTable("ledgerentries");
+                entity.HasKey(x => x.Id);
+            });
+            modelBuilder.Entity<SMS.Api.Models.FinanceManagement.FinancialBudget>(entity =>
+            {
+                entity.ToTable("financial_budgets");
                 entity.HasKey(x => x.Id);
             });
         }

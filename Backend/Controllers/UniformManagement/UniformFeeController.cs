@@ -32,21 +32,6 @@ public class UniformFeeController : ControllerBase
         [FromQuery] string? search,
         [FromQuery] string? className)
     {
-        var defaultFeeConfigs = new List<UniformFeeConfigDto>
-        {
-            new UniformFeeConfigDto
-            {
-                Id = 1,
-                ClassName = "Class 10",
-                PackageOrItemName = "Full Kit",
-                Gender = "Unisex",
-                AcademicYear = "2025-2026",
-                FeeAmount = 3500.00m,
-                Status = "Active",
-                CreatedAt = DateTime.UtcNow.AddDays(-30)
-            }
-        };
-
         try
         {
             var query = _context.UniformFeeConfigs.AsNoTracking().AsQueryable();
@@ -65,38 +50,29 @@ public class UniformFeeController : ControllerBase
 
             var dbItems = await query.OrderByDescending(f => f.Id).ToListAsync();
 
-            if (dbItems.Any())
+            var dtos = dbItems.Select(f => new UniformFeeConfigDto
             {
-                var dtos = dbItems.Select(f => new UniformFeeConfigDto
-                {
-                    Id = f.Id,
-                    ClassName = f.ClassName,
-                    PackageOrItemName = f.PackageOrItemName,
-                    Gender = f.Gender,
-                    AcademicYear = f.AcademicYear,
-                    FeeAmount = f.FeeAmount,
-                    Status = f.Status,
-                    CreatedAt = f.CreatedAt
-                }).ToList();
+                Id = f.Id,
+                ClassName = f.ClassName,
+                PackageOrItemName = f.PackageOrItemName,
+                Gender = f.Gender,
+                AcademicYear = f.AcademicYear,
+                FeeAmount = f.FeeAmount,
+                Status = f.Status,
+                CreatedAt = f.CreatedAt
+            }).ToList();
 
-                return Ok(new { success = true, totalCount = dtos.Count, data = dtos });
-            }
+            return Ok(new { success = true, totalCount = dtos.Count, data = dtos });
         }
-        catch { }
-
-        return Ok(new { success = true, totalCount = defaultFeeConfigs.Count, data = defaultFeeConfigs });
+        catch (Exception ex)
+        {
+            return StatusCode(500, new { success = false, message = ex.Message });
+        }
     }
 
     [HttpGet("options")]
     public async Task<IActionResult> GetUniformFeeOptions()
     {
-        var defaultClasses = new List<string>
-        {
-            "All Classes", "Nursery", "LKG", "UKG",
-            "Class 1", "Class 2", "Class 3", "Class 4", "Class 5",
-            "Class 6", "Class 7", "Class 8", "Class 9", "Class 10", "Class 11", "Class 12"
-        };
-
         var dbClasses = new List<string>();
         try
         {
@@ -110,7 +86,7 @@ public class UniformFeeController : ControllerBase
 
         var classes = dbClasses.Any()
             ? new List<string> { "All Classes" }.Concat(dbClasses).Distinct().ToList()
-            : defaultClasses;
+            : new List<string> { "All Classes" };
 
         var genders = new List<string>
         {

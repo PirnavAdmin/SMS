@@ -197,9 +197,9 @@ namespace Backend.Tests.Services
             var app = new AdmissionApplication { Id = 1, Status = "Pending" };
             _repoMock.Setup(r => r.GetApplicationByIdAsync(1)).ReturnsAsync(app);
 
-            bool result = await _service.EnrollStudentAsync(1);
+            string? result = await _service.EnrollStudentAsync(1);
 
-            Assert.True(result);
+            Assert.NotNull(result);
             Assert.Equal("Enrolled", app.Status);
             _repoMock.Verify(r => r.SaveChangesAsync(), Times.Once);
         }

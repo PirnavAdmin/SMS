@@ -1188,6 +1188,8 @@ export interface SubjectItem {
 
 export type FeeHeadCategory =
   | 'Tuition'
+  | 'Tuition Fee'
+  | 'Others'
   | 'Admission'
   | 'Books'
   | 'Uniform'
@@ -1199,7 +1201,8 @@ export type FeeHeadCategory =
   | 'Exam'
   | 'Transport'
   | 'Hostel'
-  | 'Miscellaneous';
+  | 'Miscellaneous'
+  | (string & {});
 
 export type FeeHeadFrequency =
   | 'One Time'
@@ -1277,6 +1280,33 @@ export interface FeeStructureItem {
   dueMonth?: string;
   paymentEligibility?: FeePaymentEligibility;
   applicableTerms?: string[];
+  term?: string;
+  className?: string;
+  // Hostel
+  hostelBlockId?: string | number;
+  hostelBlockName?: string;
+  roomId?: string | number;
+  roomName?: string;
+  roomNo?: string;
+  roomType?: string;
+  capacity?: number;
+  sharingType?: string;
+  // Transport
+  transportRouteId?: string | number;
+  routeName?: string;
+  pickupPointId?: string | number;
+  stopName?: string;
+  pickupName?: string;
+  vehicleId?: string | number;
+  vehicleNumber?: string;
+  // Uniform
+  uniformItemId?: string | number;
+  uniformItemName?: string;
+  uniformCategoryId?: string | number;
+  uniformCategoryName?: string;
+  uniformSizeId?: string | number;
+  uniformSizeName?: string;
+  quantity?: number;
 }
 
 export interface DynamicFeeStructure {
@@ -1288,8 +1318,9 @@ export interface DynamicFeeStructure {
   className: string;
   section?: string;
   studentCategory: string;
-  category?: 'Tuition' | 'Hostel' | string;
-  feeCategory?: 'Tuition' | 'Hostel' | string;
+  category?: 'Tuition' | 'Tuition Fee' | 'Others' | 'Hostel' | 'Transport' | 'Uniform' | string;
+  feeCategory?: 'Tuition' | 'Tuition Fee' | 'Others' | 'Hostel' | 'Transport' | 'Uniform' | string;
+  targetAudience?: string;
   feeHeadId?: string;
   feeHeadName?: string;
   hostelId?: string | number;

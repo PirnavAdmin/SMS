@@ -52,15 +52,13 @@ export const FinanceMastersView: React.FC = () => {
       case 'fine-rules':
         return <FineRulesView />;
       case 'hostel-fee':
-        return <FinanceHostelConfigView />;
+        return <FeeStructuresView initialCategory="Hostel" />;
       case 'uniform-fee':
-        return <FinanceUniformConfigView />;
+        return <FeeStructuresView initialCategory="Uniform" />;
       case 'student-assignment':
         return <StudentFeeAssignmentView />;
       case 'refunds':
         return <RefundManagementView />;
-      case 'uniform-fee':
-        return <FinanceUniformConfigView />;
       case 'settings':
         return <FinanceSettingsView />;
       default:

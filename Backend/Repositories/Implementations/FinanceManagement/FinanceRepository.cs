@@ -2,10 +2,13 @@ namespace SMS.Api.Repositories.Implementations.FinanceManagement;
 
 using Microsoft.EntityFrameworkCore;
 using SMS.Api.Data;
+using SMS.Api.Dtos.FinanceManagement;
 using SMS.Api.Models.FinanceManagement;
 using SMS.Api.Repositories.Interfaces.FinanceManagement;
+using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text.Json;
 using System.Threading.Tasks;
 
 public class FinanceRepository : IFinanceRepository
@@ -60,6 +63,63 @@ public class FinanceRepository : IFinanceRepository
         var item = await _context.FeeHeads.FindAsync(id);
         if (item != null)
         {
+            var headIdStr = id.ToString();
+            var headName = item.Name?.Trim();
+
+            // Cascade removal: clean up any Fee Structure containing this deleted fee head
+            var structures = await _context.DynamicFeeStructures.ToListAsync();
+            foreach (var s in structures)
+            {
+                if (string.IsNullOrWhiteSpace(s.ItemsJson))
+                    continue;
+
+                try
+                {
+                    var items = JsonSerializer.Deserialize<List<FeeStructureItemDto>>(s.ItemsJson);
+                    if (items != null && items.Count > 0)
+                    {
+                        var remainingItems = items.Where(i =>
+                            !string.Equals(i.FeeHeadId, headIdStr, StringComparison.OrdinalIgnoreCase) &&
+                            (string.IsNullOrEmpty(headName) || !string.Equals(i.FeeHeadName?.Trim(), headName, StringComparison.OrdinalIgnoreCase))
+                        ).ToList();
+
+                        if (remainingItems.Count != items.Count)
+                        {
+                            var cat = (s.TargetAudience ?? "").Trim().ToLowerInvariant();
+                            bool isTuitionOrOthers = cat == "" || cat == "tuition" || cat == "tuition fee" || cat == "others" || cat == "other" || cat == "general";
+
+                            if (remainingItems.Count == 0 && isTuitionOrOthers)
+                            {
+                                _context.DynamicFeeStructures.Remove(s);
+                                var linked = await _context.StudentFeeAssignments.Where(a => a.DynamicFeeStructureId == s.Id).ToListAsync();
+                                if (linked.Count > 0)
+                                {
+                                    _context.StudentFeeAssignments.RemoveRange(linked);
+                                }
+                            }
+                            else
+                            {
+                                s.ItemsJson = JsonSerializer.Serialize(remainingItems);
+                                s.TotalAmount = remainingItems.Sum(x => x.Amount);
+                                _context.DynamicFeeStructures.Update(s);
+
+                                var linked = await _context.StudentFeeAssignments.Where(a => a.DynamicFeeStructureId == s.Id).ToListAsync();
+                                foreach (var la in linked)
+                                {
+                                    la.TotalAmount = s.TotalAmount;
+                                    la.DueAmount = Math.Max(0m, s.TotalAmount - la.PaidAmount);
+                                    _context.StudentFeeAssignments.Update(la);
+                                }
+                            }
+                        }
+                    }
+                }
+                catch
+                {
+                    // Ignore JSON parsing failures on legacy structures
+                }
+            }
+
             _context.FeeHeads.Remove(item);
             await _context.SaveChangesAsync();
         }
@@ -113,8 +173,17 @@ public class FinanceRepository : IFinanceRepository
         if (item != null)
         {
             _context.DynamicFeeStructures.Remove(item);
-            await _context.SaveChangesAsync();
         }
+
+        var linkedAssignments = await _context.StudentFeeAssignments
+            .Where(a => a.DynamicFeeStructureId == id)
+            .ToListAsync();
+        if (linkedAssignments.Count > 0)
+        {
+            _context.StudentFeeAssignments.RemoveRange(linkedAssignments);
+        }
+
+        await _context.SaveChangesAsync();
     }
 
     public async Task<IEnumerable<StudentFeeAssignment>> GetStudentFeeAssignmentsAsync()

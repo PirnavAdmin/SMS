@@ -24,9 +24,10 @@ public interface IFinanceMasterService
     Task<bool> DeleteCategoryAsync(int id);
 
     // Budgets
-    Task<List<FinancialBudgetDto>> GetBudgetsAsync(string? academicYear);
+    Task<List<FinancialBudgetDto>> GetBudgetsAsync(string? branch, string? academicYear);
     Task<FinancialBudgetDto> SaveBudgetAsync(FinancialBudgetDto budget);
     Task<bool> UpdateBudgetAsync(int id, FinancialBudgetDto budget);
+    Task<bool> DeleteBudgetAsync(int id);
 
     // Refund Management
     Task<List<FeeRefundRequestDto>> GetRefundRequestsAsync(string? status);

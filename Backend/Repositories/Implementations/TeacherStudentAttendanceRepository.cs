@@ -7,6 +7,7 @@ using SMS.Api.Data;
 using SMS.Api.Dtos;
 using SMS.Api.Models;
 using SMS.Api.Repositories.Interfaces;
+using Backend.Helpers;
 
 public class TeacherStudentAttendanceRepository
     : ITeacherStudentAttendanceRepository
@@ -195,14 +196,20 @@ public class TeacherStudentAttendanceRepository
                 && x.SubjectId == query.SubjectId
                 && x.PeriodId == query.PeriodId);
 
-        var students = await _context.Students
+        var rawStudents = await _context.Students
             .AsNoTracking()
+            .Include(x => x.ClassGrade)
             .Where(x => x.BranchId == query.BranchId
                         && x.AcademicYearId == query.AcademicYearId
                         && x.ClassId == query.ClassId
                         && x.SectionId == query.SectionId
                         && x.Status == "Active"
                         && !x.IsDeleted)
+            .ToListAsync();
+
+        var canonicalStudents = StudentCanonicalHelper.DeduplicateStudents(rawStudents);
+
+        var students = canonicalStudents
             .OrderBy(x => x.RollNumber)
             .ThenBy(x => x.StudentName)
             .Select(x => new
@@ -212,7 +219,7 @@ public class TeacherStudentAttendanceRepository
                 x.RollNumber,
                 x.StudentName
             })
-            .ToListAsync();
+            .ToList();
 
 
 

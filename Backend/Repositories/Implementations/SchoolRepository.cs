@@ -10,6 +10,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using Backend.Helpers;
 
 public class SchoolRepository : ISchoolRepository
 {
@@ -364,6 +365,7 @@ public class SchoolRepository : ISchoolRepository
             .Include(s => s.AcademicYear)
             .Include(s => s.ClassGrade)
             .Include(s => s.ClassSection)
+            .Where(s => !s.IsDeleted)
             .AsQueryable();
 
         if (!string.IsNullOrWhiteSpace(filter.Search))
@@ -397,31 +399,34 @@ public class SchoolRepository : ISchoolRepository
             query = query.Where(s => s.Status == status);
         }
 
+        var rawStudents = await query.ToListAsync();
+        var uniqueStudents = StudentCanonicalHelper.DeduplicateStudents(rawStudents);
+
         var descending = filter.SortOrder.Equals("desc", StringComparison.OrdinalIgnoreCase);
-        query = filter.SortBy.Trim().ToLowerInvariant() switch
+        IEnumerable<Student> sorted = filter.SortBy.Trim().ToLowerInvariant() switch
         {
             "admissionnumber" => descending
-                ? query.OrderByDescending(s => s.AdmissionNumber)
-                : query.OrderBy(s => s.AdmissionNumber),
+                ? uniqueStudents.OrderByDescending(s => s.AdmissionNumber)
+                : uniqueStudents.OrderBy(s => s.AdmissionNumber),
             "rollnumber" => descending
-                ? query.OrderByDescending(s => s.RollNumber)
-                : query.OrderBy(s => s.RollNumber),
+                ? uniqueStudents.OrderByDescending(s => s.RollNumber)
+                : uniqueStudents.OrderBy(s => s.RollNumber),
             "classname" => descending
-                ? query.OrderByDescending(s => s.ClassGrade.ClassName)
-                : query.OrderBy(s => s.ClassGrade.ClassName),
+                ? uniqueStudents.OrderByDescending(s => s.ClassGrade?.ClassName)
+                : uniqueStudents.OrderBy(s => s.ClassGrade?.ClassName),
             "sectionname" => descending
-                ? query.OrderByDescending(s => s.ClassSection.SectionName)
-                : query.OrderBy(s => s.ClassSection.SectionName),
+                ? uniqueStudents.OrderByDescending(s => s.ClassSection?.SectionName)
+                : uniqueStudents.OrderBy(s => s.ClassSection?.SectionName),
             "status" => descending
-                ? query.OrderByDescending(s => s.Status)
-                : query.OrderBy(s => s.Status),
+                ? uniqueStudents.OrderByDescending(s => s.Status)
+                : uniqueStudents.OrderBy(s => s.Status),
             _ => descending
-                ? query.OrderByDescending(s => s.StudentName)
-                : query.OrderBy(s => s.StudentName)
+                ? uniqueStudents.OrderByDescending(s => s.StudentName)
+                : uniqueStudents.OrderBy(s => s.StudentName)
         };
 
-        var totalRecords = await query.CountAsync();
-        var items = await query
+        var totalRecords = uniqueStudents.Count;
+        var items = sorted
             .Skip((pageNumber - 1) * pageSize)
             .Take(pageSize)
             .Select(s => new StudentDto
@@ -431,13 +436,13 @@ public class SchoolRepository : ISchoolRepository
                 RollNumber = s.RollNumber,
                 StudentName = s.StudentName,
                 BranchId = s.BranchId,
-                BranchName = s.Branch.BranchName,
+                BranchName = s.Branch?.BranchName ?? "",
                 AcademicYearId = s.AcademicYearId,
-                AcademicYearName = s.AcademicYear.AcademicYearName,
+                AcademicYearName = s.AcademicYear?.AcademicYearName ?? "",
                 ClassId = s.ClassId,
-                ClassName = s.ClassGrade.ClassName ?? "",
+                ClassName = s.ClassGrade?.ClassName ?? "",
                 SectionId = s.SectionId,
-                SectionName = s.ClassSection.SectionName,
+                SectionName = s.ClassSection?.SectionName ?? "",
                 Status = s.Status,
                 FatherName = s.FatherName,
                 FatherMobile = s.FatherMobile,
@@ -451,7 +456,7 @@ public class SchoolRepository : ISchoolRepository
                 AttendancePercentage = null,
                 Performance = null
             })
-            .ToListAsync();
+            .ToList();
 
         return new PagedStudentResponseDto
         {

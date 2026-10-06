@@ -8,19 +8,16 @@ import { ExportButton } from '../../common/ExportButton';
 import { ConfirmModal } from '../../common/ConfirmModal';
 import { compareClassesAscending } from '../../../utils/classSorter';
 
-const CATEGORIES: FeeHeadCategory[] = [
-  'Tuition', 'Admission', 'Books', 'Uniform', 'Lab', 'Computer',
-  'Library', 'Sports', 'Activity', 'Exam', 'Transport', 'Hostel', 'Miscellaneous'
+const SYSTEM_FEE_TYPES: FeeHeadCategory[] = [
+  'Tuition Fee',
+  'Others',
+  'Hostel',
+  'Transport',
+  'Uniform'
 ];
 
 const FREQUENCIES: FeeHeadFrequency[] = [
   'One Time', 'Monthly', 'Quarterly', 'Half Yearly', 'Annual', 'Custom'
-];
-
-const DEFAULT_CLASSES = [
-  'Playgroup', 'Nursery', 'LKG', 'UKG',
-  'Class 1', 'Class 2', 'Class 3', 'Class 4', 'Class 5',
-  'Class 6', 'Class 7', 'Class 8', 'Class 9', 'Class 10', 'Class 11', 'Class 12'
 ];
 
 export const FeeHeadsView: React.FC = () => {
@@ -50,8 +47,18 @@ export const FeeHeadsView: React.FC = () => {
       const list = academicClasses.map((c: any) => c.name || c.className).filter(Boolean);
       return Array.from(new Set(list)).sort(compareClassesAscending);
     }
-    return DEFAULT_CLASSES;
+    return [];
   }, [academicClasses]);
+
+  const categoryOptions = useMemo(() => {
+    const list = [...SYSTEM_FEE_TYPES];
+    (feeHeads || []).forEach(h => {
+      if (h.category && !list.includes(h.category) && h.category !== 'Tuition') {
+        list.push(h.category);
+      }
+    });
+    return list;
+  }, [feeHeads]);
 
   const branchOptions = useMemo(() => {
     if (branches && branches.length > 0) {
@@ -202,7 +209,7 @@ export const FeeHeadsView: React.FC = () => {
     setFormData({
       name: '',
       code: 'FH-' + Math.floor(100 + Math.random() * 900),
-      category: 'Tuition',
+      category: 'Tuition Fee',
       frequency: 'Quarterly',
       mandatory: true,
       applicableClasses: classOptions,
@@ -212,16 +219,7 @@ export const FeeHeadsView: React.FC = () => {
       applicableTerms: [...availableAcademicTerms],
       taxPercentage: 0,
       displayOrder: feeHeads.length + 1,
-      status: 'Active',
-      transportRouteId: '',
-      transportRouteName: '',
-      transportVehicleId: '',
-      transportVehicleNo: '',
-      transportStopId: '',
-      transportStopName: '',
-      uniformItemId: '',
-      uniformItemName: '',
-      uniformSize: ''
+      status: 'Active'
     });
     setIsModalOpen(true);
   };
@@ -354,7 +352,7 @@ export const FeeHeadsView: React.FC = () => {
           className="px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-xs text-slate-900 dark:text-white outline-none"
         >
           <option value="All">All Categories</option>
-          {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+          {categoryOptions.map(c => <option key={c} value={c}>{c}</option>)}
         </select>
 
         <select
@@ -535,203 +533,73 @@ export const FeeHeadsView: React.FC = () => {
                     const newCategory = e.target.value as FeeHeadCategory;
                     setFormData({
                       ...formData,
-                      category: newCategory,
-                      // Reset dependent module selections when switching categories
-                      hostelBlockId: '',
-                      hostelBlockName: '',
-                      hostelRoomId: '',
-                      hostelRoomNo: '',
-                      hostelSharingType: '',
-                      transportRouteId: '',
-                      transportRouteName: '',
-                      transportVehicleId: '',
-                      transportVehicleNo: '',
-                      transportStopId: '',
-                      transportStopName: '',
-                      uniformItemId: '',
-                      uniformItemName: '',
-                      uniformSize: ''
+                      category: newCategory
                     });
                   }}
                   className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 outline-none font-bold text-xs"
                 >
-                  {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+                  {categoryOptions.map(c => <option key={c} value={c}>{c}</option>)}
                 </select>
               </div>
 
-              {/* DYNAMIC MODULE INTEGRATION SECTIONS */}
-
-              {/* 1. HOSTEL MANAGEMENT MASTER NOTICE */}
+              {/* DYNAMIC MODULE ARCHITECTURE NOTICES */}
               {formData.category === 'Hostel' && (
                 <div className="p-3.5 rounded-2xl bg-amber-50/70 dark:bg-amber-950/30 border border-amber-200/80 dark:border-amber-800/80 space-y-1">
                   <div className="flex items-center gap-2 text-xs font-bold text-amber-900 dark:text-amber-200">
                     <Building2 className="w-4 h-4 text-amber-600" />
-                    Hostel Fee Head Definition
+                    Hostel Fee Head Master
                   </div>
                   <p className="text-[11px] text-amber-700 dark:text-amber-300">
-                    Define the master fee head here (e.g. Code, Payment Eligibility, Applicable Terms, Classes). Block-level room types (AC/Non-AC) and sharing capacity fee amounts are configured dynamically in the <strong>Fee Structures</strong> tab.
+                    Define the master fee head here (Code, Frequency, Payment Eligibility, Tax %, Applicable Classes). Block, room, sharing capacity, and term fee amounts are configured dynamically in the <strong>Fee Structures</strong> tab.
                   </p>
                 </div>
               )}
 
-              {/* 2. TRANSPORT MANAGEMENT DYNAMIC INTEGRATION */}
               {formData.category === 'Transport' && (
-                <div className="p-3.5 rounded-2xl bg-indigo-50/60 dark:bg-indigo-950/30 border border-indigo-200/80 dark:border-indigo-800/80 space-y-3">
-                  <div className="flex items-center justify-between border-b border-indigo-200/60 dark:border-indigo-800/60 pb-2">
-                    <label className="font-extrabold text-indigo-900 dark:text-indigo-200 flex items-center gap-1.5 text-xs">
-                      <Bus className="w-4 h-4 text-indigo-600" />
-                      Transport Management Dynamic Integration
-                    </label>
-                    <span className="text-[10px] font-bold text-indigo-700 dark:text-indigo-400 bg-indigo-100 dark:bg-indigo-900/60 px-2 py-0.5 rounded-full">
-                      Transport Module Sync
-                    </span>
+                <div className="p-3.5 rounded-2xl bg-indigo-50/70 dark:bg-indigo-950/30 border border-indigo-200/80 dark:border-indigo-800/80 space-y-1">
+                  <div className="flex items-center gap-2 text-xs font-bold text-indigo-900 dark:text-indigo-200">
+                    <Bus className="w-4 h-4 text-indigo-600" />
+                    Transport Fee Head Master
                   </div>
-
-                  {availableRoutes.length === 0 ? (
-                    <div className="p-3 rounded-xl bg-indigo-100/70 dark:bg-indigo-900/40 text-indigo-800 dark:text-indigo-300 text-xs flex items-center gap-2">
-                      <AlertTriangle className="w-4 h-4 shrink-0 text-indigo-600" />
-                      <span>No Transport Routes configured in Transport Management. Please add routes in Transport Management first.</span>
-                    </div>
-                  ) : (
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                      <div>
-                        <label className="block font-semibold mb-1 text-[11px] text-slate-700 dark:text-slate-300">Transport Route</label>
-                        <select
-                          value={formData.transportRouteId || ''}
-                          onChange={(e) => {
-                            const rId = e.target.value;
-                            const route = availableRoutes.find((r: any) => String(r.id) === String(rId));
-                            setFormData({
-                              ...formData,
-                              transportRouteId: rId,
-                              transportRouteName: route ? route.routeName : '',
-                              transportStopId: '',
-                              transportStopName: '',
-                              transportVehicleId: '',
-                              transportVehicleNo: ''
-                            });
-                          }}
-                          className="w-full px-3 py-2 rounded-xl bg-white dark:bg-slate-900 border border-indigo-200 dark:border-indigo-800 text-xs font-semibold outline-none"
-                        >
-                          <option value="">Select Route (Optional)</option>
-                          {availableRoutes.map((r: any) => (
-                            <option key={r.id} value={r.id}>{r.routeCode ? `${r.routeCode} - ` : ''}{r.routeName}</option>
-                          ))}
-                        </select>
-                      </div>
-
-                      <div>
-                        <label className="block font-semibold mb-1 text-[11px] text-slate-700 dark:text-slate-300">Pickup Stop / Location</label>
-                        <select
-                          disabled={!formData.transportRouteId}
-                          value={formData.transportStopId || ''}
-                          onChange={(e) => {
-                            const pId = e.target.value;
-                            const stop = availablePickupPoints.find((p: any) => String(p.id) === String(pId));
-                            setFormData({
-                              ...formData,
-                              transportStopId: pId,
-                              transportStopName: stop ? stop.pickupName : ''
-                            });
-                          }}
-                          className="w-full px-3 py-2 rounded-xl bg-white dark:bg-slate-900 border border-indigo-200 dark:border-indigo-800 text-xs font-semibold outline-none disabled:opacity-50"
-                        >
-                          <option value="">Select Pickup Stop (Optional)</option>
-                          {availablePickupPoints.map((p: any) => (
-                            <option key={p.id} value={p.id}>{p.pickupName} ({p.distanceFromSchoolKm || 0} km)</option>
-                          ))}
-                        </select>
-                      </div>
-
-                      <div>
-                        <label className="block font-semibold mb-1 text-[11px] text-slate-700 dark:text-slate-300">Assigned Vehicle</label>
-                        <select
-                          value={formData.transportVehicleId || ''}
-                          onChange={(e) => {
-                            const vId = e.target.value;
-                            const vehicle = (vehicleMasters || []).find((v: any) => String(v.id) === String(vId));
-                            setFormData({
-                              ...formData,
-                              transportVehicleId: vId,
-                              transportVehicleNo: vehicle ? (vehicle.vehicleNumber || vehicle.registrationNumber) : ''
-                            });
-                          }}
-                          className="w-full px-3 py-2 rounded-xl bg-white dark:bg-slate-900 border border-indigo-200 dark:border-indigo-800 text-xs font-semibold outline-none"
-                        >
-                          <option value="">Select Vehicle (Optional)</option>
-                          {(vehicleMasters || []).map((v: any) => (
-                            <option key={v.id} value={v.id}>{v.vehicleNumber} ({v.vehicleType || 'Bus'})</option>
-                          ))}
-                        </select>
-                      </div>
-                    </div>
-                  )}
-                  {formData.transportRouteId && availablePickupPoints.length === 0 && (
-                    <p className="text-[11px] text-indigo-700 dark:text-indigo-400 italic">
-                      Note: No specific pickup stops configured for this route in Transport Management. Flat route fare will apply.
-                    </p>
-                  )}
+                  <p className="text-[11px] text-indigo-700 dark:text-indigo-300">
+                    Define the master fee head here (Code, Frequency, Payment Eligibility, Tax %, Applicable Classes). Transport routes, pickup stops, assigned vehicles, and term amounts are configured dynamically in the <strong>Fee Structures</strong> tab.
+                  </p>
                 </div>
               )}
 
-              {/* 3. UNIFORM MANAGEMENT DYNAMIC INTEGRATION */}
               {formData.category === 'Uniform' && (
-                <div className="p-3.5 rounded-2xl bg-emerald-50/60 dark:bg-emerald-950/30 border border-emerald-200/80 dark:border-emerald-800/80 space-y-3">
-                  <div className="flex items-center justify-between border-b border-emerald-200/60 dark:border-emerald-800/60 pb-2">
-                    <label className="font-extrabold text-emerald-900 dark:text-emerald-200 flex items-center gap-1.5 text-xs">
-                      <Shirt className="w-4 h-4 text-emerald-600" />
-                      Uniform Management Dynamic Integration
-                    </label>
-                    <span className="text-[10px] font-bold text-emerald-700 dark:text-emerald-400 bg-emerald-100 dark:bg-emerald-900/60 px-2 py-0.5 rounded-full">
-                      Uniform Module Sync
-                    </span>
+                <div className="p-3.5 rounded-2xl bg-emerald-50/70 dark:bg-emerald-950/30 border border-emerald-200/80 dark:border-emerald-800/80 space-y-1">
+                  <div className="flex items-center gap-2 text-xs font-bold text-emerald-900 dark:text-emerald-200">
+                    <Shirt className="w-4 h-4 text-emerald-600" />
+                    Uniform Fee Head Master
                   </div>
+                  <p className="text-[11px] text-emerald-700 dark:text-emerald-300">
+                    Define the master fee head here (Code, Frequency, Payment Eligibility, Tax %, Applicable Classes). Uniform items, categories, sizes, packages, and fee amounts are configured dynamically in the <strong>Fee Structures</strong> tab.
+                  </p>
+                </div>
+              )}
 
-                  {(!uniforms || uniforms.length === 0) ? (
-                    <div className="p-3 rounded-xl bg-emerald-100/70 dark:bg-emerald-900/40 text-emerald-800 dark:text-emerald-300 text-xs flex items-center gap-2">
-                      <AlertTriangle className="w-4 h-4 shrink-0 text-emerald-600" />
-                      <span>No Uniform items configured in Uniform Management. Please add uniform items in Uniform Management first.</span>
-                    </div>
-                  ) : (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      <div>
-                        <label className="block font-semibold mb-1 text-[11px] text-slate-700 dark:text-slate-300">Uniform Item Catalog</label>
-                        <select
-                          value={formData.uniformItemId || ''}
-                          onChange={(e) => {
-                            const uId = e.target.value;
-                            const item = (uniforms || []).find((u: any) => String(u.id) === String(uId));
-                            setFormData({
-                              ...formData,
-                              uniformItemId: uId,
-                              uniformItemName: item ? (item.name || item.category) : '',
-                              uniformSize: ''
-                            });
-                          }}
-                          className="w-full px-3 py-2 rounded-xl bg-white dark:bg-slate-900 border border-emerald-200 dark:border-emerald-800 text-xs font-semibold outline-none"
-                        >
-                          <option value="">Select Item (Optional)</option>
-                          {uniforms.map((u: any) => (
-                            <option key={u.id} value={u.id}>{u.name || u.category} ({u.gender || 'Unisex'})</option>
-                          ))}
-                        </select>
-                      </div>
+              {(formData.category === 'Tuition Fee' || formData.category === 'Tuition') && (
+                <div className="p-3.5 rounded-2xl bg-sky-50/70 dark:bg-sky-950/30 border border-sky-200/80 dark:border-sky-800/80 space-y-1">
+                  <div className="flex items-center gap-2 text-xs font-bold text-sky-900 dark:text-sky-200">
+                    <BookOpen className="w-4 h-4 text-sky-600" />
+                    Tuition Fee Head Master
+                  </div>
+                  <p className="text-[11px] text-sky-700 dark:text-sky-300">
+                    Define the core tuition fee head master here. Class-wise and term-wise breakdown amounts are configured dynamically in the <strong>Fee Structures</strong> tab.
+                  </p>
+                </div>
+              )}
 
-                      <div>
-                        <label className="block font-semibold mb-1 text-[11px] text-slate-700 dark:text-slate-300">Uniform Size</label>
-                        <select
-                          value={formData.uniformSize || ''}
-                          onChange={(e) => setFormData({ ...formData, uniformSize: e.target.value })}
-                          className="w-full px-3 py-2 rounded-xl bg-white dark:bg-slate-900 border border-emerald-200 dark:border-emerald-800 text-xs font-semibold outline-none"
-                        >
-                          <option value="">All Sizes / Default</option>
-                          {availableUniformSizes.map((sz: string) => (
-                            <option key={sz} value={sz}>{sz}</option>
-                          ))}
-                        </select>
-                      </div>
-                    </div>
-                  )}
+              {formData.category === 'Others' && (
+                <div className="p-3.5 rounded-2xl bg-purple-50/70 dark:bg-purple-950/30 border border-purple-200/80 dark:border-purple-800/80 space-y-1">
+                  <div className="flex items-center gap-2 text-xs font-bold text-purple-900 dark:text-purple-200">
+                    <Tag className="w-4 h-4 text-purple-600" />
+                    General Fee Head Master
+                  </div>
+                  <p className="text-[11px] text-purple-700 dark:text-purple-300">
+                    Define miscellaneous and extracurricular fee heads here (e.g. Sports, Library, Lab, Activities). Amounts and class applicability are configured in the <strong>Fee Structures</strong> tab.
+                  </p>
                 </div>
               )}
 

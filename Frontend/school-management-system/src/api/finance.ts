@@ -9,35 +9,69 @@ export const fetchDynamicFeeStructuresApi = async () => {
     : response?.data?.items || response?.data || [];
   if (Array.isArray(items)) {
     return items.map((item: any) => {
-      let isHostel = item.targetAudience === "Hostel" || (item.className && item.className.toLowerCase() === "hostel");
+      const rawCategory = item.category || item.feeCategory || item.targetAudience;
+      let category = rawCategory || 'Tuition Fee';
+      if (category === 'Tuition') category = 'Tuition Fee';
+
       let parsedHostelConfig: any = undefined;
       if (item.description && (item.description.includes('"configurations"') || item.description.startsWith("{"))) {
         try {
           parsedHostelConfig = JSON.parse(item.description);
-          isHostel = true;
         } catch {}
       }
 
       return {
         id: item.id?.toString() || "",
+        name: item.name || "",
+        description: item.description || "",
         academicYear: item.academicYear || "",
         branch: item.branch || "",
         className: item.className || "",
         section: item.section || "",
         studentCategory: item.studentCategory || "General",
-        category: isHostel ? 'Hostel' : 'Tuition',
-        feeCategory: isHostel ? 'Hostel' : 'Tuition',
-        hostelName: parsedHostelConfig?.hostelName,
-        hostelId: parsedHostelConfig?.hostelId,
-        selectedBlockIds: parsedHostelConfig?.selectedBlockIds,
-        selectedBlockNames: parsedHostelConfig?.selectedBlockNames,
+        category: category,
+        feeCategory: category,
+        hostelName: item.hostelName || parsedHostelConfig?.hostelName,
+        hostelId: item.hostelId || parsedHostelConfig?.hostelId,
+        selectedBlockIds: item.selectedBlockIds || parsedHostelConfig?.selectedBlockIds,
+        selectedBlockNames: item.selectedBlockNames || parsedHostelConfig?.selectedBlockNames,
         hostelConfig: parsedHostelConfig,
         hostelConfigJson: item.description && item.description.startsWith("{") ? item.description : undefined,
+        effectiveDate: item.effectiveDate,
+        paymentEligibility: item.paymentEligibility,
+        applicableTerms: item.applicableTerms,
         items: (item.items || []).map((x: any) => ({
           feeHeadId: x.feeHeadId?.toString() || "",
           feeHeadName: x.feeHeadName || "",
-          category: x.category || "",
-          amount: x.amount ?? 0
+          category: x.category || category,
+          amount: x.amount ?? 0,
+          term: x.term,
+          className: x.className,
+          frequency: x.frequency,
+          paymentEligibility: x.paymentEligibility,
+          applicableTerms: x.applicableTerms,
+          hostelBlockId: x.hostelBlockId,
+          hostelBlockName: x.hostelBlockName,
+          roomId: x.roomId,
+          roomName: x.roomName,
+          roomNo: x.roomNo,
+          roomType: x.roomType,
+          capacity: x.capacity,
+          sharingType: x.sharingType,
+          transportRouteId: x.transportRouteId,
+          routeName: x.routeName,
+          pickupPointId: x.pickupPointId,
+          stopName: x.stopName,
+          pickupName: x.pickupName || x.stopName,
+          vehicleId: x.vehicleId,
+          vehicleNumber: x.vehicleNumber,
+          uniformItemId: x.uniformItemId,
+          uniformItemName: x.uniformItemName,
+          uniformCategoryId: x.uniformCategoryId,
+          uniformCategoryName: x.uniformCategoryName,
+          uniformSizeId: x.uniformSizeId,
+          uniformSizeName: x.uniformSizeName,
+          quantity: x.quantity
         })),
         totalAmount: item.totalAmount ?? 0,
         status: item.status || "Active"
@@ -48,27 +82,59 @@ export const fetchDynamicFeeStructuresApi = async () => {
 };
 
 export const createDynamicFeeStructureApi = async (data: Omit<DynamicFeeStructure, 'id'>) => {
-  const isHostel = data.category === 'Hostel';
+  const cat = data.category || data.feeCategory || "Tuition Fee";
+  const isHostel = cat === 'Hostel';
   const payload = {
-    name: isHostel
+    name: data.name || (isHostel
       ? (data.hostelName ? `${data.hostelName} Hostel Fee Structure` : "Hostel Fee Structure")
-      : `${data.className} Structure`,
+      : `${data.className || cat} Fee Structure`),
     description: isHostel
       ? (data.hostelConfigJson || JSON.stringify(data.hostelConfig || {}))
-      : `Dynamic fee structure for ${data.className}`,
-    targetAudience: isHostel ? "Hostel" : (data.studentCategory || "All"),
+      : (data.description || `Dynamic fee structure for ${data.className || cat}`),
+    targetAudience: cat,
+    category: cat,
+    feeCategory: cat,
     academicYear: data.academicYear || "",
     branch: data.branch || "",
-    className: isHostel ? (data.className || "Hostel") : (data.className || ""),
+    className: data.className || (isHostel ? "Hostel" : cat),
     section: data.section || "",
     studentCategory: data.studentCategory || "General",
     totalAmount: Number(data.totalAmount) || 0,
     status: data.status || "Active",
+    effectiveDate: data.effectiveDate,
+    paymentEligibility: data.paymentEligibility,
+    applicableTerms: data.applicableTerms,
     items: (data.items || []).map((x: any) => ({
       feeHeadId: (x.feeHeadId || "").toString(),
       feeHeadName: x.feeHeadName || "",
-      category: x.category || "",
-      amount: Number(x.amount) || 0
+      category: x.category || cat,
+      amount: Number(x.amount) || 0,
+      term: x.term,
+      className: x.className,
+      frequency: x.frequency,
+      paymentEligibility: x.paymentEligibility,
+      applicableTerms: x.applicableTerms,
+      hostelBlockId: x.hostelBlockId ? String(x.hostelBlockId) : undefined,
+      hostelBlockName: x.hostelBlockName,
+      roomId: x.roomId ? String(x.roomId) : undefined,
+      roomName: x.roomName,
+      roomNo: x.roomNo,
+      roomType: x.roomType,
+      capacity: x.capacity ? Number(x.capacity) : undefined,
+      sharingType: x.sharingType,
+      transportRouteId: x.transportRouteId ? String(x.transportRouteId) : undefined,
+      routeName: x.routeName,
+      pickupPointId: x.pickupPointId ? String(x.pickupPointId) : undefined,
+      stopName: x.stopName || x.pickupName,
+      vehicleId: x.vehicleId ? String(x.vehicleId) : undefined,
+      vehicleNumber: x.vehicleNumber,
+      uniformItemId: x.uniformItemId ? String(x.uniformItemId) : undefined,
+      uniformItemName: x.uniformItemName,
+      uniformCategoryId: x.uniformCategoryId ? String(x.uniformCategoryId) : undefined,
+      uniformCategoryName: x.uniformCategoryName,
+      uniformSizeId: x.uniformSizeId ? String(x.uniformSizeId) : undefined,
+      uniformSizeName: x.uniformSizeName,
+      quantity: x.quantity ? Number(x.quantity) : undefined
     }))
   };
   return apiClient('/api/finance/fee-structures', {
@@ -79,24 +145,53 @@ export const createDynamicFeeStructureApi = async (data: Omit<DynamicFeeStructur
 
 export const updateDynamicFeeStructureApi = async (id: string, data: Partial<DynamicFeeStructure>) => {
   const cleanId = id.toString().replace(/\D/g, '') || id;
-  const isHostel = data.category === 'Hostel';
+  const cat = data.category || data.feeCategory || "Tuition Fee";
+  const isHostel = cat === 'Hostel';
   const payload = {
     ...data,
     id: parseInt(cleanId, 10) || 0,
-    name: isHostel
+    name: data.name || (isHostel
       ? (data.hostelName ? `${data.hostelName} Hostel Fee Structure` : "Hostel Fee Structure")
-      : `${data.className} Structure`,
+      : `${data.className || cat} Fee Structure`),
     description: isHostel
       ? (data.hostelConfigJson || JSON.stringify(data.hostelConfig || {}))
-      : (data.description || `Dynamic fee structure for ${data.className}`),
-    targetAudience: isHostel ? "Hostel" : (data.studentCategory || "All"),
-    className: isHostel ? (data.className || "Hostel") : (data.className || ""),
+      : (data.description || `Dynamic fee structure for ${data.className || cat}`),
+    targetAudience: cat,
+    category: cat,
+    feeCategory: cat,
+    className: data.className || (isHostel ? "Hostel" : cat),
     totalAmount: Number(data.totalAmount) || 0,
     items: (data.items || []).map((x: any) => ({
       feeHeadId: (x.feeHeadId || "").toString(),
       feeHeadName: x.feeHeadName || "",
-      category: x.category || "",
-      amount: Number(x.amount) || 0
+      category: x.category || cat,
+      amount: Number(x.amount) || 0,
+      term: x.term,
+      className: x.className,
+      frequency: x.frequency,
+      paymentEligibility: x.paymentEligibility,
+      applicableTerms: x.applicableTerms,
+      hostelBlockId: x.hostelBlockId ? String(x.hostelBlockId) : undefined,
+      hostelBlockName: x.hostelBlockName,
+      roomId: x.roomId ? String(x.roomId) : undefined,
+      roomName: x.roomName,
+      roomNo: x.roomNo,
+      roomType: x.roomType,
+      capacity: x.capacity ? Number(x.capacity) : undefined,
+      sharingType: x.sharingType,
+      transportRouteId: x.transportRouteId ? String(x.transportRouteId) : undefined,
+      routeName: x.routeName,
+      pickupPointId: x.pickupPointId ? String(x.pickupPointId) : undefined,
+      stopName: x.stopName || x.pickupName,
+      vehicleId: x.vehicleId ? String(x.vehicleId) : undefined,
+      vehicleNumber: x.vehicleNumber,
+      uniformItemId: x.uniformItemId ? String(x.uniformItemId) : undefined,
+      uniformItemName: x.uniformItemName,
+      uniformCategoryId: x.uniformCategoryId ? String(x.uniformCategoryId) : undefined,
+      uniformCategoryName: x.uniformCategoryName,
+      uniformSizeId: x.uniformSizeId ? String(x.uniformSizeId) : undefined,
+      uniformSizeName: x.uniformSizeName,
+      quantity: x.quantity ? Number(x.quantity) : undefined
     }))
   };
   return apiClient(`/api/finance/fee-structures/${cleanId}`, {
@@ -550,8 +645,12 @@ export const deleteFinancialCategoryApi = async (id: number | string) => {
   });
 };
 
-export const fetchFinancialBudgetsApi = async (academicYear = '2025-2026') => {
-  return apiClient(`/api/finance/budgets?academicYear=${encodeURIComponent(academicYear)}`, { method: 'GET' });
+export const fetchFinancialBudgetsApi = async (branch?: string, academicYear?: string) => {
+  const query = new URLSearchParams();
+  if (branch) query.append('branch', branch);
+  if (academicYear) query.append('academicYear', academicYear);
+  const qs = query.toString();
+  return apiClient(`/api/finance/budgets${qs ? `?${qs}` : ''}`, { method: 'GET' });
 };
 
 export const saveFinancialBudgetApi = async (payload: any) => {
@@ -565,6 +664,12 @@ export const updateFinancialBudgetApi = async (id: number | string, payload: any
   return apiClient(`/api/finance/budgets/${id}`, {
     method: 'PUT',
     body: JSON.stringify(payload)
+  });
+};
+
+export const deleteFinancialBudgetApi = async (id: number | string) => {
+  return apiClient(`/api/finance/budgets/${id}`, {
+    method: 'DELETE'
   });
 };
 

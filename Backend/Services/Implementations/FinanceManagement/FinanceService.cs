@@ -71,7 +71,7 @@ public class FinanceService : IFinanceService
                 DisplayOrder = x.DisplayOrder > 0 ? x.DisplayOrder : x.Id,
                 TaxPercentage = x.TaxPercentage,
                 AcademicYear = "All",
-                ApplicableClasses = new List<string> { "Nursery", "LKG", "UKG", "Class 1", "Class 2", "Class 3", "Class 4", "Class 5", "Class 6", "Class 7", "Class 8", "Class 9", "Class 10" },
+                ApplicableClasses = new List<string>(),
                 ApplicableBranches = new List<string> { "All Branches" }
             };
 
@@ -314,13 +314,18 @@ public class FinanceService : IFinanceService
 
     public async Task<IEnumerable<DynamicFeeStructureDto>> GetDynamicFeeStructuresAsync()
     {
-        var list = await _repo.GetDynamicFeeStructuresAsync();
-        // Group and deduplicate by class name (or hostel name if Hostel structure), academic year and branch
+        var list = (await _repo.GetDynamicFeeStructuresAsync()).ToList();
+        var feeHeads = (await _repo.GetFeeHeadsAsync()).ToList();
+        var activeHeadIds = new HashSet<string>(feeHeads.Select(h => h.Id.ToString()), StringComparer.OrdinalIgnoreCase);
+        var activeHeadNames = new HashSet<string>(feeHeads.Where(h => !string.IsNullOrEmpty(h.Name)).Select(h => h.Name.Trim()), StringComparer.OrdinalIgnoreCase);
+
+        // Group and deduplicate by category/target-audience, identifying name/class, academic year and branch
         var grouped = list
             .GroupBy(x => new
             {
-                Key = (x.TargetAudience != null && x.TargetAudience.Equals("Hostel", StringComparison.OrdinalIgnoreCase))
-                    ? $"hostel_{(x.Name ?? "").Trim().ToLowerInvariant()}"
+                Category = (x.TargetAudience ?? "Tuition").Trim().ToLowerInvariant(),
+                Key = (x.TargetAudience != null && !x.TargetAudience.Equals("Tuition", StringComparison.OrdinalIgnoreCase) && !x.TargetAudience.Equals("Tuition Fee", StringComparison.OrdinalIgnoreCase))
+                    ? (x.Name ?? "").Trim().ToLowerInvariant()
                     : (x.ClassName ?? "").Trim().ToLowerInvariant(),
                 AcademicYear = (x.AcademicYear ?? string.Empty).Trim().ToLowerInvariant(),
                 Branch = (x.Branch ?? string.Empty).Trim().ToLowerInvariant()
@@ -328,45 +333,118 @@ public class FinanceService : IFinanceService
             .Select(g => g.OrderByDescending(x => x.Id).First())
             .ToList();
 
-        return grouped.Select(x => new DynamicFeeStructureDto
+        var result = new List<DynamicFeeStructureDto>();
+        foreach (var x in grouped)
         {
-            Id = x.Id,
-            Name = x.Name,
-            Description = x.Description,
-            TargetAudience = x.TargetAudience,
-            AcademicYear = x.AcademicYear,
-            Branch = x.Branch,
-            ClassName = x.ClassName,
-            Section = x.Section,
-            StudentCategory = x.StudentCategory,
-            TotalAmount = x.TotalAmount,
-            Status = x.Status,
-            Items = string.IsNullOrEmpty(x.ItemsJson)
+            var rawItems = string.IsNullOrEmpty(x.ItemsJson)
                 ? new List<FeeStructureItemDto>()
-                : JsonSerializer.Deserialize<List<FeeStructureItemDto>>(x.ItemsJson) ?? new List<FeeStructureItemDto>()
-        });
+                : JsonSerializer.Deserialize<List<FeeStructureItemDto>>(x.ItemsJson) ?? new List<FeeStructureItemDto>();
+            var cat = string.IsNullOrWhiteSpace(x.TargetAudience) ? "Tuition" : x.TargetAudience;
+            bool isTuitionOrOthers = cat.Equals("Tuition", StringComparison.OrdinalIgnoreCase) ||
+                                     cat.Equals("Tuition Fee", StringComparison.OrdinalIgnoreCase) ||
+                                     cat.Equals("Others", StringComparison.OrdinalIgnoreCase) ||
+                                     cat.Equals("Other", StringComparison.OrdinalIgnoreCase);
+
+            List<FeeStructureItemDto> items;
+            if (isTuitionOrOthers && feeHeads.Count > 0)
+            {
+                // Filter items whose fee heads still exist
+                items = rawItems.Where(i =>
+                    (!string.IsNullOrEmpty(i.FeeHeadId) && activeHeadIds.Contains(i.FeeHeadId)) ||
+                    (!string.IsNullOrEmpty(i.FeeHeadName) && activeHeadNames.Contains(i.FeeHeadName.Trim()))
+                ).ToList();
+
+                // If all fee heads were deleted or no valid items remain, remove orphan structure from DB and skip
+                if (items.Count == 0)
+                {
+                    try { await _repo.DeleteDynamicFeeStructureAsync(x.Id); } catch { }
+                    continue;
+                }
+            }
+            else
+            {
+                items = rawItems;
+            }
+
+            decimal totalAmount = items.Count > 0 ? items.Sum(i => i.Amount) : x.TotalAmount;
+
+            result.Add(new DynamicFeeStructureDto
+            {
+                Id = x.Id,
+                Name = x.Name,
+                Description = x.Description,
+                TargetAudience = x.TargetAudience,
+                Category = cat,
+                FeeCategory = cat,
+                AcademicYear = x.AcademicYear,
+                Branch = x.Branch,
+                ClassName = x.ClassName,
+                Section = x.Section,
+                StudentCategory = x.StudentCategory,
+                TotalAmount = totalAmount,
+                Status = x.Status,
+                Items = items
+            });
+        }
+
+        return result;
     }
 
     public async Task<DynamicFeeStructureDto?> GetDynamicFeeStructureByIdAsync(int id)
     {
         var x = await _repo.GetDynamicFeeStructureByIdAsync(id);
         if (x == null) return null;
+
+        var feeHeads = (await _repo.GetFeeHeadsAsync())?.ToList() ?? new List<FeeHead>();
+        var activeHeadIds = new HashSet<string>(feeHeads.Select(h => h.Id.ToString()), StringComparer.OrdinalIgnoreCase);
+        var activeHeadNames = new HashSet<string>(feeHeads.Where(h => !string.IsNullOrEmpty(h.Name)).Select(h => h.Name.Trim()), StringComparer.OrdinalIgnoreCase);
+
+        var rawItems = string.IsNullOrEmpty(x.ItemsJson)
+            ? new List<FeeStructureItemDto>()
+            : JsonSerializer.Deserialize<List<FeeStructureItemDto>>(x.ItemsJson) ?? new List<FeeStructureItemDto>();
+        var cat = string.IsNullOrWhiteSpace(x.TargetAudience) ? "Tuition" : x.TargetAudience;
+        bool isTuitionOrOthers = cat.Equals("Tuition", StringComparison.OrdinalIgnoreCase) ||
+                                 cat.Equals("Tuition Fee", StringComparison.OrdinalIgnoreCase) ||
+                                 cat.Equals("Others", StringComparison.OrdinalIgnoreCase) ||
+                                 cat.Equals("Other", StringComparison.OrdinalIgnoreCase);
+
+        List<FeeStructureItemDto> items;
+        if (isTuitionOrOthers && feeHeads.Count > 0)
+        {
+            items = rawItems.Where(i =>
+                (!string.IsNullOrEmpty(i.FeeHeadId) && activeHeadIds.Contains(i.FeeHeadId)) ||
+                (!string.IsNullOrEmpty(i.FeeHeadName) && activeHeadNames.Contains(i.FeeHeadName.Trim()))
+            ).ToList();
+
+            if (items.Count == 0)
+            {
+                try { await _repo.DeleteDynamicFeeStructureAsync(x.Id); } catch { }
+                return null;
+            }
+        }
+        else
+        {
+            items = rawItems;
+        }
+
+        decimal totalAmount = items.Count > 0 ? items.Sum(i => i.Amount) : x.TotalAmount;
+
         return new DynamicFeeStructureDto
         {
             Id = x.Id,
             Name = x.Name,
             Description = x.Description,
             TargetAudience = x.TargetAudience,
+            Category = cat,
+            FeeCategory = cat,
             AcademicYear = x.AcademicYear,
             Branch = x.Branch,
             ClassName = x.ClassName,
             Section = x.Section,
             StudentCategory = x.StudentCategory,
-            TotalAmount = x.TotalAmount,
+            TotalAmount = totalAmount,
             Status = x.Status,
-            Items = string.IsNullOrEmpty(x.ItemsJson)
-                ? new List<FeeStructureItemDto>()
-                : JsonSerializer.Deserialize<List<FeeStructureItemDto>>(x.ItemsJson) ?? new List<FeeStructureItemDto>()
+            Items = items
         };
     }
 
@@ -375,17 +453,21 @@ public class FinanceService : IFinanceService
         var academicYear = dto.AcademicYear ?? string.Empty;
         var branch = dto.Branch ?? string.Empty;
         var className = (dto.ClassName ?? "").Trim();
-        var isHostel = (dto.TargetAudience != null && dto.TargetAudience.Equals("Hostel", StringComparison.OrdinalIgnoreCase))
-            || (dto.ClassName != null && dto.ClassName.Equals("Hostel", StringComparison.OrdinalIgnoreCase));
+        var category = !string.IsNullOrWhiteSpace(dto.Category)
+            ? dto.Category.Trim()
+            : (!string.IsNullOrWhiteSpace(dto.FeeCategory) ? dto.FeeCategory.Trim() : (!string.IsNullOrWhiteSpace(dto.TargetAudience) ? dto.TargetAudience.Trim() : "Tuition"));
 
-        // Check if a fee structure already exists
+        var isTuition = category.Equals("Tuition", StringComparison.OrdinalIgnoreCase) || category.Equals("Tuition Fee", StringComparison.OrdinalIgnoreCase);
+
+        // Check if a fee structure already exists for the same dimensions
         var existingList = await _repo.GetDynamicFeeStructuresAsync();
         var existing = existingList.FirstOrDefault(x =>
-            (isHostel
-                ? (x.TargetAudience != null && x.TargetAudience.Equals("Hostel", StringComparison.OrdinalIgnoreCase) && (x.Name ?? "").Trim().Equals((dto.Name ?? "").Trim(), StringComparison.OrdinalIgnoreCase))
-                : (x.ClassName != null && x.ClassName.Trim().Equals(className, StringComparison.OrdinalIgnoreCase))) &&
+            (x.TargetAudience ?? "").Equals(category, StringComparison.OrdinalIgnoreCase) &&
             (string.IsNullOrEmpty(x.AcademicYear) || x.AcademicYear.Equals(academicYear, StringComparison.OrdinalIgnoreCase)) &&
-            (string.IsNullOrEmpty(x.Branch) || x.Branch.Equals(branch, StringComparison.OrdinalIgnoreCase)));
+            (string.IsNullOrEmpty(x.Branch) || x.Branch.Equals(branch, StringComparison.OrdinalIgnoreCase)) &&
+            (isTuition
+                ? (x.ClassName != null && x.ClassName.Trim().Equals(className, StringComparison.OrdinalIgnoreCase))
+                : (x.Name != null && x.Name.Trim().Equals((dto.Name ?? "").Trim(), StringComparison.OrdinalIgnoreCase))));
 
         if (existing != null)
         {
@@ -397,7 +479,7 @@ public class FinanceService : IFinanceService
         {
             Name = string.IsNullOrEmpty(dto.Name) ? $"{className} Structure" : dto.Name,
             Description = dto.Description ?? string.Empty,
-            TargetAudience = dto.TargetAudience ?? string.Empty,
+            TargetAudience = category,
             AcademicYear = academicYear,
             Branch = branch,
             ClassName = className,
@@ -411,17 +493,23 @@ public class FinanceService : IFinanceService
         dto.Id = res.Id;
         dto.TotalAmount = model.TotalAmount;
         dto.Name = model.Name;
+        dto.Category = category;
+        dto.FeeCategory = category;
         return dto;
     }
 
     public async Task<DynamicFeeStructureDto?> UpdateDynamicFeeStructureAsync(int id, DynamicFeeStructureDto dto)
     {
+        var category = !string.IsNullOrWhiteSpace(dto.Category)
+            ? dto.Category.Trim()
+            : (!string.IsNullOrWhiteSpace(dto.FeeCategory) ? dto.FeeCategory.Trim() : (!string.IsNullOrWhiteSpace(dto.TargetAudience) ? dto.TargetAudience.Trim() : "Tuition"));
+
         var model = new DynamicFeeStructure
         {
             Id = id,
             Name = string.IsNullOrEmpty(dto.Name) ? $"{dto.ClassName} Fee Structure" : dto.Name,
             Description = dto.Description ?? string.Empty,
-            TargetAudience = dto.TargetAudience ?? string.Empty,
+            TargetAudience = category,
             AcademicYear = dto.AcademicYear ?? string.Empty,
             Branch = dto.Branch ?? string.Empty,
             ClassName = dto.ClassName,
@@ -435,6 +523,8 @@ public class FinanceService : IFinanceService
         dto.Id = id;
         dto.TotalAmount = model.TotalAmount;
         dto.Name = model.Name;
+        dto.Category = category;
+        dto.FeeCategory = category;
         return dto;
     }
 
@@ -445,24 +535,67 @@ public class FinanceService : IFinanceService
 
     public async Task<IEnumerable<StudentFeeAssignmentDto>> GetStudentFeeAssignmentsAsync()
     {
-        var list = await _repo.GetStudentFeeAssignmentsAsync();
-        return list.Select(x => new StudentFeeAssignmentDto
+        var list = (await _repo.GetStudentFeeAssignmentsAsync()).ToList();
+        var structures = (await _repo.GetDynamicFeeStructuresAsync())?.ToList() ?? new List<DynamicFeeStructure>();
+        var structureDict = structures.ToDictionary(s => s.Id);
+
+        var validList = new List<StudentFeeAssignmentDto>();
+        foreach (var x in list)
         {
-            Id = x.Id,
-            StudentId = x.StudentId,
-            DynamicFeeStructureId = x.DynamicFeeStructureId,
-            TotalAmount = x.TotalAmount,
-            PaidAmount = x.PaidAmount,
-            DueAmount = x.DueAmount,
-            Status = x.Status,
-            FeePolicy = string.IsNullOrWhiteSpace(x.FeePolicy) ? "Full Annual Fee" : x.FeePolicy
-        });
+            if (x.DynamicFeeStructureId.HasValue)
+            {
+                if (!structureDict.TryGetValue(x.DynamicFeeStructureId.Value, out var structObj))
+                {
+                    // The assigned structure was deleted! Clean up orphan assignment
+                    try { await _repo.DeleteStudentFeeAssignmentAsync(x.Id); } catch { }
+                    continue;
+                }
+
+                if (x.TotalAmount != structObj.TotalAmount)
+                {
+                    x.TotalAmount = structObj.TotalAmount;
+                    x.DueAmount = Math.Max(0m, structObj.TotalAmount - x.PaidAmount);
+                    try { await _repo.UpdateStudentFeeAssignmentAsync(x); } catch { }
+                }
+            }
+            else if (structures.Count == 0)
+            {
+                // No fee structures exist in system
+                try { await _repo.DeleteStudentFeeAssignmentAsync(x.Id); } catch { }
+                continue;
+            }
+
+            validList.Add(new StudentFeeAssignmentDto
+            {
+                Id = x.Id,
+                StudentId = x.StudentId,
+                DynamicFeeStructureId = x.DynamicFeeStructureId,
+                TotalAmount = x.TotalAmount,
+                PaidAmount = x.PaidAmount,
+                DueAmount = x.DueAmount,
+                Status = x.Status,
+                FeePolicy = string.IsNullOrWhiteSpace(x.FeePolicy) ? "Full Annual Fee" : x.FeePolicy
+            });
+        }
+
+        return validList;
     }
 
     public async Task<StudentFeeAssignmentDto?> GetStudentFeeAssignmentByIdAsync(int id)
     {
         var x = await _repo.GetStudentFeeAssignmentByIdAsync(id);
         if (x == null) return null;
+
+        if (x.DynamicFeeStructureId.HasValue)
+        {
+            var structures = (await _repo.GetDynamicFeeStructuresAsync())?.ToList() ?? new List<DynamicFeeStructure>();
+            if (!structures.Any(s => s.Id == x.DynamicFeeStructureId.Value))
+            {
+                try { await _repo.DeleteStudentFeeAssignmentAsync(id); } catch { }
+                return null;
+            }
+        }
+
         return new StudentFeeAssignmentDto
         {
             Id = x.Id,

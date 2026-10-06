@@ -12,6 +12,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
+using Backend.Helpers;
 
 public class SchoolService : ISchoolService
 {
@@ -783,7 +784,8 @@ public class SchoolService : ISchoolService
 				(s.MobileNumber != null && s.MobileNumber.ToLower().Contains(cleanSearch)));
 		}
 
-		var students = await studentQuery.ToListAsync();
+		var rawStudents = await studentQuery.ToListAsync();
+		var students = StudentCanonicalHelper.DeduplicateStudents(rawStudents);
 
 		var admList = await _context.Admissions.AsNoTracking().ToListAsync();
 		var admDict = admList

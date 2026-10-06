@@ -709,20 +709,41 @@ export const StudentFeeAssignmentView: React.FC = () => {
                         {st.category || 'General'}
                       </td>
                       <td className="py-3 px-4">
-                        {assignment ? (
-                          <span className="px-2.5 py-1 rounded-lg bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300 font-bold text-[11px]">
-                            {assignment.feePolicy === 'Pro-rata' || assignment.feePolicy === 'Monthly Pro-rated' || assignment.feePolicy === 'Monthly Pro-rated Fee'
-                              ? 'Term-wise Fee'
-                              : (assignment.feePolicy === 'Custom' || assignment.feePolicy === 'Custom Amount' ? 'Full Annual Fee' : assignment.feePolicy || 'Full Annual Fee')}
-                          </span>
-                        ) : (
-                          <span className="px-2 py-0.5 rounded bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300 font-bold text-[11px]">
-                            Default Annual
-                          </span>
-                        )}
+                        {(() => {
+                          const validAssignment = assignment && (
+                            (!assignment.feeStructureId && !(assignment as any).dynamicFeeStructureId) ||
+                            (dynamicFeeStructures || []).some((d) => String(d.id) === String(assignment.feeStructureId || (assignment as any).dynamicFeeStructureId))
+                          );
+                          if (validAssignment) {
+                            return (
+                              <span className="px-2.5 py-1 rounded-lg bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300 font-bold text-[11px]">
+                                {assignment.feePolicy === 'Pro-rata' || assignment.feePolicy === 'Monthly Pro-rated' || assignment.feePolicy === 'Monthly Pro-rated Fee'
+                                  ? 'Term-wise Fee'
+                                  : (assignment.feePolicy === 'Custom' || assignment.feePolicy === 'Custom Amount' ? 'Full Annual Fee' : assignment.feePolicy || 'Full Annual Fee')}
+                              </span>
+                            );
+                          }
+                          return (
+                            <span className="px-2 py-0.5 rounded bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300 font-bold text-[11px]">
+                              Default Annual
+                            </span>
+                          );
+                        })()}
                       </td>
                       <td className="py-3 px-4 font-extrabold text-slate-900 dark:text-white font-mono">
-                        {formatCurrency(assignment ? assignment.baseFeeTotal : st.totalFee || 0)}
+                        {(() => {
+                          const validAssignment = assignment && (
+                            (!assignment.feeStructureId && !(assignment as any).dynamicFeeStructureId) ||
+                            (dynamicFeeStructures || []).some((d) => String(d.id) === String(assignment.feeStructureId || (assignment as any).dynamicFeeStructureId))
+                          );
+                          if (validAssignment) {
+                            return formatCurrency(assignment.baseFeeTotal || (assignment as any).totalAmount || 0);
+                          }
+                          const matchingDfs = (dynamicFeeStructures || []).find(
+                            (d) => matchesClassName(d.className, st.className) && (d.academicYear === activeAY || !d.academicYear) && (d.status === 'Active' || !d.status)
+                          );
+                          return formatCurrency(matchingDfs ? (matchingDfs.totalAmount || 0) : 0);
+                        })()}
                       </td>
                       <td className="py-3 px-4 text-right">
                         <button

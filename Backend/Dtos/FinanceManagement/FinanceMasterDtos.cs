@@ -101,8 +101,9 @@ public class FinancialBudgetDto
     public int Id { get; set; }
     public string CategoryName { get; set; } = string.Empty;
     public string Department { get; set; } = string.Empty;
-    public string AcademicYear { get; set; } = "2025-2026";
-    public string Branch { get; set; } = "Main Campus";
+    public string AcademicYear { get; set; } = "2026-27";
+    public string Branch { get; set; } = "Madhapur Branch";
+    public int? BranchId { get; set; }
     public decimal AllocatedAmount { get; set; }
     public decimal ConsumedAmount { get; set; }
     public decimal RemainingAmount => Math.Max(0m, AllocatedAmount - ConsumedAmount);

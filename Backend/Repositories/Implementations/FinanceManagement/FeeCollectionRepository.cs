@@ -403,6 +403,27 @@ public class FeeCollectionRepository : IFeeCollectionRepository
             PaidHeads = !string.IsNullOrEmpty(p.FeeHeadName) ? new List<string> { p.FeeHeadName } : new List<string> { "Tuition Fee" }
         }).ToList();
 
+        var dbScholarships = await _context.Scholarships.AsNoTracking().Where(s => s.Status == "Active").ToListAsync();
+        var dbDiscounts = await _context.Discounts.AsNoTracking().Where(d => d.Status == "Active").ToListAsync();
+
+        var availableScholarships = dbScholarships.Select(s => new ConcessionOptionDto
+        {
+            Id = s.Id.ToString(),
+            Name = s.Name,
+            Type = s.DiscountType ?? "Percentage",
+            Value = s.DiscountType == "Fixed" ? s.FixedAmount : s.Percentage,
+            ApplicableHead = "Tuition Fee"
+        }).ToList();
+
+        var availableDiscounts = dbDiscounts.Select(d => new ConcessionOptionDto
+        {
+            Id = d.Id.ToString(),
+            Name = d.Name,
+            Type = d.Mode ?? "Percentage",
+            Value = d.Value,
+            ApplicableHead = "Tuition Fee"
+        }).ToList();
+
         return new StudentFeeProfileResponseDto
         {
             StudentId = student.StudentId,
@@ -426,18 +447,8 @@ public class FeeCollectionRepository : IFeeCollectionRepository
                 CalculatedFineAmount = 0m,
                 IsWaived = totalOutstanding == 0
             },
-            AvailableScholarships = new List<ConcessionOptionDto>
-            {
-                new ConcessionOptionDto { Id = "sch-merit", Name = "Merit Scholarship (15%)", Type = "Percentage", Value = 15, ApplicableHead = "Tuition Fee" },
-                new ConcessionOptionDto { Id = "sch-sports", Name = "Sports Excellence (20%)", Type = "Percentage", Value = 20, ApplicableHead = "Tuition Fee" },
-                new ConcessionOptionDto { Id = "sch-ews", Name = "EWS Special Grant (₹5,000 Flat)", Type = "Fixed", Value = 5000, ApplicableHead = "Tuition Fee" }
-            },
-            AvailableDiscounts = new List<ConcessionOptionDto>
-            {
-                new ConcessionOptionDto { Id = "disc-sibling", Name = "Sibling Discount (10%)", Type = "Percentage", Value = 10, ApplicableHead = "Tuition Fee" },
-                new ConcessionOptionDto { Id = "disc-staff", Name = "Staff Child Concession (50%)", Type = "Percentage", Value = 50, ApplicableHead = "Tuition Fee" },
-                new ConcessionOptionDto { Id = "disc-early", Name = "Early Bird Full Payment (5%)", Type = "Percentage", Value = 5, ApplicableHead = "Tuition Fee" }
-            },
+            AvailableScholarships = availableScholarships,
+            AvailableDiscounts = availableDiscounts,
             CurrentAcademicYearFees = lineItems,
             RecordedReceipts = receiptDtos
         };
@@ -976,11 +987,28 @@ public class FeeCollectionRepository : IFeeCollectionRepository
         // 2. Tuition / Academic Fees Calculation
         var assignments = await _context.StudentFeeAssignments.AsNoTracking().ToListAsync();
         var dynamicStructures = await _context.DynamicFeeStructures.AsNoTracking().Where(d => d.Status == "Active" || string.IsNullOrEmpty(d.Status)).ToListAsync();
+        var validStructureIds = dynamicStructures.Select(d => d.Id).ToHashSet();
+        var validStructuresDict = dynamicStructures.ToDictionary(d => d.Id);
 
-        var assignmentDict = assignments
-            .Where(a => a.Status == "Active" || string.IsNullOrEmpty(a.Status))
-            .GroupBy(a => a.StudentId.ToString())
-            .ToDictionary(g => g.Key, g => g.First().TotalAmount);
+        // Filter assignments so orphan assignments pointing to deleted fee structures are never counted
+        var validAssignments = assignments
+            .Where(a => (a.Status == "Active" || string.IsNullOrEmpty(a.Status)) &&
+                        (!a.DynamicFeeStructureId.HasValue || validStructureIds.Contains(a.DynamicFeeStructureId.Value)))
+            .ToList();
+
+        var assignmentDict = (dynamicStructures.Count > 0)
+            ? validAssignments
+                .GroupBy(a => a.StudentId.ToString())
+                .ToDictionary(g => g.Key, g =>
+                {
+                    var a = g.First();
+                    if (a.DynamicFeeStructureId.HasValue && validStructuresDict.TryGetValue(a.DynamicFeeStructureId.Value, out var dfs))
+                    {
+                        return dfs.TotalAmount;
+                    }
+                    return a.TotalAmount;
+                })
+            : new Dictionary<string, decimal>();
 
         decimal tuitionExpected = 0m;
         foreach (var s in activeStudents)
@@ -1151,16 +1179,8 @@ public class FeeCollectionRepository : IFeeCollectionRepository
             .Distinct()
             .ToList();
 
-        var defaultClasses = new List<string>
-        {
-            "Nursery", "LKG", "UKG",
-            "Class 1", "Class 2", "Class 3", "Class 4", "Class 5",
-            "Class 6", "Class 7", "Class 8", "Class 9", "Class 10"
-        };
-
         var allClassNames = dbClassNames
             .Concat(studentClassNames)
-            .Concat(defaultClasses)
             .Where(name => !string.IsNullOrWhiteSpace(name))
             .Select(name => name!)
             .Distinct(StringComparer.OrdinalIgnoreCase)
@@ -1168,7 +1188,7 @@ public class FeeCollectionRepository : IFeeCollectionRepository
             .ThenBy(c => c)
             .ToList();
 
-        var defaultStructureAmount = dynamicStructures.FirstOrDefault()?.TotalAmount ?? 25000m;
+        var defaultStructureAmount = dynamicStructures.FirstOrDefault()?.TotalAmount ?? 0m;
 
         var classWiseList = new List<ClassWiseCollectionShareDto>();
 

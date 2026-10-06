@@ -109,7 +109,7 @@ namespace Backend.Tests.Controllers
         public async Task EnrollStudent_ReturnsOk()
         {
             _schoolServiceMock.Setup(s => s.EnrollStudentAsync(10))
-                .ReturnsAsync(true);
+                .ReturnsAsync("ADM-10");
 
             var result = await _controller.EnrollStudent("10");
 

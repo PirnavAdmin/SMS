@@ -187,19 +187,47 @@ public class FinanceMasterRepository : IFinanceMasterRepository
 
     public async Task<FinanceTransactionDto> CreateTransactionAsync(CreateTransactionRequestDto request)
     {
+        int branchId = 0;
+        if (!string.IsNullOrWhiteSpace(request.Branch))
+        {
+            var dbBr = await _context.Branches.AsNoTracking().FirstOrDefaultAsync(b => b.BranchName == request.Branch);
+            if (dbBr != null) branchId = dbBr.BranchId;
+        }
+
         var ledgerEntry = new LedgerEntry
         {
             TransactionDate = DateTime.TryParse(request.TransactionDate, out var dt) ? dt : DateTime.UtcNow,
             TransactionType = request.SourceModule ?? "Manual",
-            Category = request.Type == "Income" ? "Income" : "Expense",
+            Category = !string.IsNullOrWhiteSpace(request.Category) ? request.Category : (request.Type == "Income" ? "Income" : "Expense"),
             Particulars = request.Description ?? "Manual Transaction",
             Credit = request.Type == "Income" ? request.Amount : 0m,
             Debit = request.Type == "Expense" ? request.Amount : 0m,
             ReferenceNo = $"REF-{Random.Shared.Next(10000, 99999)}",
-            AdmissionNo = request.Account ?? "Main Bank Account"
+            AdmissionNo = request.Account ?? "Main Bank Account",
+            BranchId = branchId
         };
 
         _context.LedgerEntries.Add(ledgerEntry);
+
+        if (request.Type == "Expense")
+        {
+            var expense = new Expense
+            {
+                ExpenseNo = $"EXP-{DateTime.UtcNow:yyyyMMdd}-{Random.Shared.Next(1000, 9999)}",
+                Date = ledgerEntry.TransactionDate,
+                Category = !string.IsNullOrWhiteSpace(request.Category) ? request.Category : "General",
+                Vendor = request.Description ?? "General Vendor",
+                Description = request.Description ?? "Manual Expense Entry",
+                Amount = request.Amount,
+                PaymentMethod = request.PaymentMode ?? "Bank Transfer",
+                ReferenceNo = ledgerEntry.ReferenceNo,
+                Status = "Approved",
+                BranchId = branchId,
+                CreatedAt = DateTime.UtcNow
+            };
+            _context.Expenses.Add(expense);
+        }
+
         await _context.SaveChangesAsync();
 
         return new FinanceTransactionDto
@@ -271,58 +299,22 @@ public class FinanceMasterRepository : IFinanceMasterRepository
         try
         {
             var dbAccounts = await _context.FinancialAccounts.AsNoTracking().ToListAsync();
-            if (dbAccounts != null && dbAccounts.Count > 0)
+            return dbAccounts.Select(a => new FinancialAccountDto
             {
-                return dbAccounts.Select(a => new FinancialAccountDto
-                {
-                    Id = a.Id,
-                    AccountName = a.Name ?? "",
-                    AccountType = a.Type ?? "Bank",
-                    AccountNumber = a.AccountNumberMasked ?? "",
-                    BankName = a.BankName ?? "",
-                    BranchName = "Main Campus",
-                    CurrentBalance = a.CurrentBalance,
-                    Status = a.Status ?? "Active"
-                }).ToList();
-            }
-
-            // Auto-seed default accounts into database table if empty
-            var defaults = new List<FinancialAccount>
-            {
-                new FinancialAccount { Name = "Main Bank Account (HDFC)", Type = "Main Bank Account", AccountNumberMasked = "91802004581290", BankName = "HDFC Bank", OpeningBalance = 500000m, CurrentBalance = 500000m, Status = "Active" },
-                new FinancialAccount { Name = "School Petty Cash", Type = "Cash", AccountNumberMasked = "CASH-VAULT-01", BankName = "Vault", OpeningBalance = 25000m, CurrentBalance = 25000m, Status = "Active" },
-                new FinancialAccount { Name = "School Operating Vault", Type = "Cash", AccountNumberMasked = "CASH-VAULT-02", BankName = "Vault", OpeningBalance = 150000m, CurrentBalance = 150000m, Status = "Active" }
-            };
-            _context.FinancialAccounts.AddRange(defaults);
-            await _context.SaveChangesAsync();
-
-            dbAccounts = await _context.FinancialAccounts.AsNoTracking().ToListAsync();
-            if (dbAccounts != null && dbAccounts.Count > 0)
-            {
-                return dbAccounts.Select(a => new FinancialAccountDto
-                {
-                    Id = a.Id,
-                    AccountName = a.Name ?? "",
-                    AccountType = a.Type ?? "Bank",
-                    AccountNumber = a.AccountNumberMasked ?? "",
-                    BankName = a.BankName ?? "",
-                    BranchName = "Main Campus",
-                    CurrentBalance = a.CurrentBalance,
-                    Status = a.Status ?? "Active"
-                }).ToList();
-            }
+                Id = a.Id,
+                AccountName = a.Name ?? "",
+                AccountType = a.Type ?? "Bank",
+                AccountNumber = a.AccountNumberMasked ?? "",
+                BankName = a.BankName ?? "",
+                BranchName = "Main Campus",
+                CurrentBalance = a.CurrentBalance,
+                Status = a.Status ?? "Active"
+            }).ToList();
         }
         catch
         {
-            // Fallback safe return
+            return new List<FinancialAccountDto>();
         }
-
-        return new List<FinancialAccountDto>
-        {
-            new FinancialAccountDto { Id = 1, AccountName = "Main Bank Account (HDFC)", AccountType = "Main Bank Account", AccountNumber = "91802004581290", BankName = "HDFC Bank", BranchName = "Main Campus", CurrentBalance = 500000m, Status = "Active" },
-            new FinancialAccountDto { Id = 2, AccountName = "School Petty Cash", AccountType = "Cash", AccountNumber = "CASH-VAULT-01", BankName = "Vault", BranchName = "Main Campus", CurrentBalance = 25000m, Status = "Active" },
-            new FinancialAccountDto { Id = 3, AccountName = "School Operating Vault", AccountType = "Cash", AccountNumber = "CASH-VAULT-02", BankName = "Vault", BranchName = "Madhapur Branch", CurrentBalance = 150000m, Status = "Active" }
-        };
     }
 
     public async Task<FinancialAccountDto> CreateAccountAsync(FinancialAccountDto account)
@@ -362,6 +354,22 @@ public class FinanceMasterRepository : IFinanceMasterRepository
     {
         var existing = await _context.FinancialAccounts.FirstOrDefaultAsync(a => a.Id == id);
         if (existing == null) return false;
+
+        try
+        {
+            var linkedExpenses = await _context.Expenses.Where(e => e.FinancialAccountId == id).ToListAsync();
+            foreach (var exp in linkedExpenses)
+            {
+                exp.FinancialAccountId = null;
+            }
+
+            var linkedLedger = await _context.LedgerEntries.Where(l => l.FinancialAccountId == id).ToListAsync();
+            foreach (var led in linkedLedger)
+            {
+                led.FinancialAccountId = null;
+            }
+        }
+        catch { }
 
         _context.FinancialAccounts.Remove(existing);
         await _context.SaveChangesAsync();
@@ -446,6 +454,46 @@ public class FinanceMasterRepository : IFinanceMasterRepository
         var feeHead = await _context.FeeHeads.FirstOrDefaultAsync(f => f.Id == id);
         if (feeHead != null)
         {
+            var headIdStr = id.ToString();
+            var headName = feeHead.Name?.Trim();
+
+            var structures = await _context.DynamicFeeStructures.ToListAsync();
+            foreach (var s in structures)
+            {
+                if (string.IsNullOrWhiteSpace(s.ItemsJson))
+                    continue;
+
+                try
+                {
+                    var items = JsonSerializer.Deserialize<List<FeeStructureItemDto>>(s.ItemsJson);
+                    if (items != null && items.Count > 0)
+                    {
+                        var remainingItems = items.Where(i =>
+                            !string.Equals(i.FeeHeadId, headIdStr, StringComparison.OrdinalIgnoreCase) &&
+                            (string.IsNullOrEmpty(headName) || !string.Equals(i.FeeHeadName?.Trim(), headName, StringComparison.OrdinalIgnoreCase))
+                        ).ToList();
+
+                        if (remainingItems.Count != items.Count)
+                        {
+                            var cat = (s.TargetAudience ?? "").Trim().ToLowerInvariant();
+                            bool isTuitionOrOthers = cat == "" || cat == "tuition" || cat == "tuition fee" || cat == "others" || cat == "other" || cat == "general";
+
+                            if (remainingItems.Count == 0 && isTuitionOrOthers)
+                            {
+                                _context.DynamicFeeStructures.Remove(s);
+                            }
+                            else
+                            {
+                                s.ItemsJson = JsonSerializer.Serialize(remainingItems);
+                                s.TotalAmount = remainingItems.Sum(x => x.Amount);
+                                _context.DynamicFeeStructures.Update(s);
+                            }
+                        }
+                    }
+                }
+                catch { }
+            }
+
             _context.FeeHeads.Remove(feeHead);
             await _context.SaveChangesAsync();
             return true;
@@ -457,29 +505,160 @@ public class FinanceMasterRepository : IFinanceMasterRepository
     // 3. BUDGETS
     // =========================================================================
 
-    public async Task<List<FinancialBudgetDto>> GetBudgetsAsync(string? academicYear)
+    public async Task<List<FinancialBudgetDto>> GetBudgetsAsync(string? branch, string? academicYear)
     {
-        var expenses = await _context.Expenses.AsNoTracking().ToListAsync();
-        var payrollSum = 5000000m;
-        var maintenanceSum = expenses.Where(e => e.Category == "Campus Maintenance & Repairs").Sum(e => e.Amount);
-        var utilitiesSum = expenses.Where(e => e.Category == "Utilities & Facilities").Sum(e => e.Amount);
+        var query = _context.FinancialBudgets.AsNoTracking().AsQueryable();
 
-        return new List<FinancialBudgetDto>
+        if (!string.IsNullOrWhiteSpace(academicYear))
         {
-            new FinancialBudgetDto { Id = 1, CategoryName = "Staff Salaries & Payroll", Department = "Human Resources", AcademicYear = academicYear ?? "2026-2027", AllocatedAmount = 5000000m, ConsumedAmount = payrollSum, Status = "Active" },
-            new FinancialBudgetDto { Id = 2, CategoryName = "Campus Maintenance & Repairs", Department = "Facilities", AcademicYear = academicYear ?? "2026-2027", AllocatedAmount = 800000m, ConsumedAmount = maintenanceSum, Status = "Active" },
-            new FinancialBudgetDto { Id = 3, CategoryName = "Utilities & Facilities", Department = "Administration", AcademicYear = academicYear ?? "2026-2027", AllocatedAmount = 1000000m, ConsumedAmount = utilitiesSum, Status = "Active" }
-        };
+            var ayClean = academicYear.Trim().Replace(" ", "");
+            query = query.Where(b => b.AcademicYear == academicYear || b.AcademicYear.Replace(" ", "") == ayClean);
+        }
+
+        if (!string.IsNullOrWhiteSpace(branch) && !branch.Equals("All", StringComparison.OrdinalIgnoreCase) && !branch.Equals("All Branches", StringComparison.OrdinalIgnoreCase))
+        {
+            query = query.Where(b => b.Branch == branch || b.Branch == "All" || b.Branch == "All Branches");
+        }
+
+        var dbBudgets = await query.ToListAsync();
+        if (dbBudgets.Count == 0)
+        {
+            return new List<FinancialBudgetDto>();
+        }
+
+        // Fetch real expenses, ledger entries, and payslips to aggregate actual consumed amounts
+        var expensesQuery = _context.Expenses.AsNoTracking()
+            .Where(e => e.Status != "Cancelled" && e.Status != "Reversed" && e.Status != "Rejected");
+
+        var ledgerQuery = _context.LedgerEntries.AsNoTracking()
+            .Where(l => l.Debit > 0 && !l.Particulars.Contains("[Reversed"));
+
+        var payslipsQuery = _context.Payslips.AsNoTracking()
+            .Where(p => p.Status == "Paid" || p.Status == "Disbursed");
+
+        // Filter by branch if specific branch provided
+        if (!string.IsNullOrWhiteSpace(branch) && !branch.Equals("All", StringComparison.OrdinalIgnoreCase))
+        {
+            var matchedBranch = await _context.Branches.AsNoTracking()
+                .FirstOrDefaultAsync(b => b.BranchName == branch);
+            if (matchedBranch != null)
+            {
+                expensesQuery = expensesQuery.Where(e => e.BranchId == matchedBranch.BranchId || e.BranchId == 0);
+                ledgerQuery = ledgerQuery.Where(l => l.BranchId == matchedBranch.BranchId || l.BranchId == 0);
+            }
+            payslipsQuery = payslipsQuery.Where(p => p.Branch == branch || string.IsNullOrEmpty(p.Branch));
+        }
+
+        var expensesList = await expensesQuery.ToListAsync();
+        var ledgerList = await ledgerQuery.ToListAsync();
+        var payslipsList = await payslipsQuery.ToListAsync();
+
+        var result = new List<FinancialBudgetDto>();
+
+        foreach (var b in dbBudgets)
+        {
+            bool isPayroll = b.CategoryName.Contains("Salaries", StringComparison.OrdinalIgnoreCase) ||
+                             b.CategoryName.Contains("Salary", StringComparison.OrdinalIgnoreCase) ||
+                             b.CategoryName.Contains("Payroll", StringComparison.OrdinalIgnoreCase);
+
+            decimal catExpenses = expensesList
+                .Where(e => string.Equals(e.Category, b.CategoryName, StringComparison.OrdinalIgnoreCase) ||
+                            (!string.IsNullOrEmpty(e.Description) && e.Description.Contains(b.CategoryName, StringComparison.OrdinalIgnoreCase)))
+                .Sum(e => e.Amount);
+
+            decimal catLedger = ledgerList
+                .Where(l => string.Equals(l.Particulars, b.CategoryName, StringComparison.OrdinalIgnoreCase) ||
+                            string.Equals(l.Category, b.CategoryName, StringComparison.OrdinalIgnoreCase) ||
+                            (!string.IsNullOrEmpty(l.Particulars) && l.Particulars.Contains(b.CategoryName, StringComparison.OrdinalIgnoreCase)))
+                .Sum(l => l.Debit);
+
+            decimal consumed = Math.Max(catExpenses, catLedger);
+
+            if (isPayroll)
+            {
+                var payrollSum = payslipsList.Sum(p => p.NetPay);
+                consumed += payrollSum;
+            }
+
+            result.Add(new FinancialBudgetDto
+            {
+                Id = b.Id,
+                CategoryName = b.CategoryName,
+                Department = b.Department ?? string.Empty,
+                AcademicYear = b.AcademicYear,
+                Branch = b.Branch,
+                BranchId = b.BranchId,
+                AllocatedAmount = b.AllocatedAmount,
+                ConsumedAmount = consumed,
+                Status = consumed > b.AllocatedAmount ? "Exceeded" : b.Status
+            });
+        }
+
+        return result;
     }
 
     public async Task<FinancialBudgetDto> SaveBudgetAsync(FinancialBudgetDto budget)
     {
-        return await Task.FromResult(budget);
+        var entity = new FinancialBudget
+        {
+            CategoryName = string.IsNullOrWhiteSpace(budget.CategoryName) ? (budget.Department ?? "General") : budget.CategoryName,
+            Department = string.IsNullOrWhiteSpace(budget.Department) ? (budget.CategoryName ?? "General") : budget.Department,
+            AcademicYear = string.IsNullOrWhiteSpace(budget.AcademicYear) ? "2026-27" : budget.AcademicYear,
+            Branch = string.IsNullOrWhiteSpace(budget.Branch) ? "Madhapur Branch" : budget.Branch,
+            BranchId = budget.BranchId,
+            AllocatedAmount = budget.AllocatedAmount,
+            Status = string.IsNullOrWhiteSpace(budget.Status) ? "Active" : budget.Status,
+            CreatedAt = DateTime.UtcNow,
+            UpdatedAt = DateTime.UtcNow
+        };
+
+        if (entity.BranchId == null && !string.IsNullOrWhiteSpace(entity.Branch))
+        {
+            var branch = await _context.Branches.AsNoTracking().FirstOrDefaultAsync(x => x.BranchName == entity.Branch);
+            if (branch != null) entity.BranchId = branch.BranchId;
+        }
+
+        _context.FinancialBudgets.Add(entity);
+        await _context.SaveChangesAsync();
+
+        budget.Id = entity.Id;
+        budget.AcademicYear = entity.AcademicYear;
+        budget.Branch = entity.Branch;
+        budget.BranchId = entity.BranchId;
+        budget.ConsumedAmount = 0m;
+        return budget;
     }
 
     public async Task<bool> UpdateBudgetAsync(int id, FinancialBudgetDto budget)
     {
-        return await Task.FromResult(true);
+        var entity = await _context.FinancialBudgets.FindAsync(id);
+        if (entity == null)
+        {
+            entity = await _context.FinancialBudgets.FirstOrDefaultAsync(b => b.CategoryName == budget.CategoryName && b.AcademicYear == budget.AcademicYear);
+            if (entity == null) return false;
+        }
+
+        if (!string.IsNullOrWhiteSpace(budget.CategoryName)) entity.CategoryName = budget.CategoryName;
+        if (!string.IsNullOrWhiteSpace(budget.Department)) entity.Department = budget.Department;
+        if (!string.IsNullOrWhiteSpace(budget.AcademicYear)) entity.AcademicYear = budget.AcademicYear;
+        if (!string.IsNullOrWhiteSpace(budget.Branch)) entity.Branch = budget.Branch;
+        if (budget.BranchId.HasValue) entity.BranchId = budget.BranchId.Value;
+        if (budget.AllocatedAmount > 0) entity.AllocatedAmount = budget.AllocatedAmount;
+        if (!string.IsNullOrWhiteSpace(budget.Status)) entity.Status = budget.Status;
+        entity.UpdatedAt = DateTime.UtcNow;
+
+        await _context.SaveChangesAsync();
+        return true;
+    }
+
+    public async Task<bool> DeleteBudgetAsync(int id)
+    {
+        var entity = await _context.FinancialBudgets.FindAsync(id);
+        if (entity == null) return false;
+
+        _context.FinancialBudgets.Remove(entity);
+        await _context.SaveChangesAsync();
+        return true;
     }
 
     // =========================================================================
@@ -861,8 +1040,12 @@ public class FinanceMasterRepository : IFinanceMasterRepository
         DateTime monthStart = new DateTime(today.Year, today.Month, 1);
         decimal monthlyCollection = validPayments.Where(p => p.PaymentDate >= monthStart).Sum(p => p.Amount);
 
-        var assignments = await _context.StudentFeeAssignments.AsNoTracking().ToListAsync();
-        decimal totalExpected = assignments.Count > 0 ? assignments.Sum(a => a.TotalAmount) : 0m;
+        var dynamicStructures = await _context.DynamicFeeStructures.AsNoTracking().ToListAsync();
+        var validStructureIds = dynamicStructures.Select(d => d.Id).ToHashSet();
+        var assignments = await _context.StudentFeeAssignments.AsNoTracking()
+            .Where(a => !a.DynamicFeeStructureId.HasValue || validStructureIds.Contains(a.DynamicFeeStructureId.Value))
+            .ToListAsync();
+        decimal totalExpected = (dynamicStructures.Count > 0 && assignments.Count > 0) ? assignments.Sum(a => a.TotalAmount) : 0m;
         decimal totalCollected = validPayments.Sum(p => p.Amount);
         decimal pendingDues = Math.Max(0m, totalExpected - totalCollected);
 
@@ -1504,25 +1687,6 @@ public class FinanceMasterRepository : IFinanceMasterRepository
             });
         }
 
-        if (list.Count == 0)
-        {
-            list.Add(new FinanceHostelConfigDto
-            {
-                Id = 1,
-                HostelId = "HOS-01",
-                HostelName = "Main Campus Boys Hostel",
-                RoomTypeId = "RT-01",
-                RoomTypeName = "2 Sharing Non-AC",
-                RoomId = "RM-101",
-                RoomNo = "101",
-                FeePlan = "Annual",
-                HostelFee = 60000m,
-                SecurityDeposit = 5000m,
-                EffectiveFrom = "2026-06-01",
-                Status = "Active"
-            });
-        }
-
         return list;
     }
 
@@ -1624,24 +1788,6 @@ public class FinanceMasterRepository : IFinanceMasterRepository
                 UniformItemId = "UNI-SET",
                 FeePlan = "Annual",
                 FeeAmount = fh.DefaultAmount,
-                EffectiveFrom = "2026-06-01",
-                Status = "Active"
-            });
-        }
-
-        if (list.Count == 0)
-        {
-            list.Add(new FinanceUniformConfigDto
-            {
-                Id = 1,
-                AcademicYear = "2026-2027",
-                Branch = "Main Campus",
-                ClassName = "All Classes",
-                Gender = "Unisex",
-                UniformPackage = "Standard Regular Uniform Package",
-                UniformItemId = "UNI-REG-01",
-                FeePlan = "Annual",
-                FeeAmount = 3500m,
                 EffectiveFrom = "2026-06-01",
                 Status = "Active"
             });

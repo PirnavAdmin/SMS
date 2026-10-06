@@ -8,6 +8,7 @@ using Microsoft.EntityFrameworkCore;
 using SMS.Api.Data;
 using SMS.Api.Dtos;
 using SMS.Api.Models;
+using Backend.Helpers;
 
 namespace SMS.Api.Controllers
 {
@@ -62,12 +63,14 @@ namespace SMS.Api.Controllers
             string nextClass = GetNextClassName(currentClass);
 
             // Query active students matching class
-            var students = await _context.Students
+            var rawStudents = await _context.Students
                 .AsNoTracking()
                 .Include(s => s.ClassGrade)
                 .Include(s => s.ClassSection)
                 .Where(s => !s.IsDeleted && (s.Status == "Active" || s.Status == "Promoted"))
                 .ToListAsync();
+
+            var students = StudentCanonicalHelper.DeduplicateStudents(rawStudents);
 
             var filtered = students.Where(s =>
                 string.Equals(s.ClassGrade?.ClassName ?? "", currentClass, StringComparison.OrdinalIgnoreCase) ||

@@ -6,6 +6,17 @@ public class DynamicFeeStructureDto
     public string Name { get; set; } = string.Empty;
     public string Description { get; set; } = string.Empty;
     public string TargetAudience { get; set; } = string.Empty;
+    public string Category { get; set; } = string.Empty;
+    public string FeeCategory { get; set; } = string.Empty;
+    public string? FeeHeadId { get; set; }
+    public string? FeeHeadName { get; set; }
+    public string? HostelId { get; set; }
+    public string? HostelName { get; set; }
+    public List<string>? SelectedBlockIds { get; set; }
+    public List<string>? SelectedBlockNames { get; set; }
+    public string? EffectiveDate { get; set; }
+    public string? PaymentEligibility { get; set; }
+    public List<string>? ApplicableTerms { get; set; }
     public string AcademicYear { get; set; } = string.Empty;
     public string Branch { get; set; } = string.Empty;
     public string ClassName { get; set; } = string.Empty;
@@ -44,6 +55,38 @@ public class FeeStructureItemDto
     public string FeeHeadName { get; set; } = string.Empty;
     public string Category { get; set; } = string.Empty;
     public decimal Amount { get; set; }
+    public string? Term { get; set; }
+    public string? ClassName { get; set; }
+    public string? Frequency { get; set; }
+    public string? PaymentEligibility { get; set; }
+    public List<string>? ApplicableTerms { get; set; }
+
+    // Hostel dimensions
+    public string? HostelBlockId { get; set; }
+    public string? HostelBlockName { get; set; }
+    public string? RoomId { get; set; }
+    public string? RoomName { get; set; }
+    public string? RoomNo { get; set; }
+    public string? RoomType { get; set; }
+    public int? Capacity { get; set; }
+    public string? SharingType { get; set; }
+
+    // Transport dimensions
+    public string? TransportRouteId { get; set; }
+    public string? RouteName { get; set; }
+    public string? PickupPointId { get; set; }
+    public string? StopName { get; set; }
+    public string? VehicleId { get; set; }
+    public string? VehicleNumber { get; set; }
+
+    // Uniform dimensions
+    public string? UniformItemId { get; set; }
+    public string? UniformItemName { get; set; }
+    public string? UniformCategoryId { get; set; }
+    public string? UniformCategoryName { get; set; }
+    public string? UniformSizeId { get; set; }
+    public string? UniformSizeName { get; set; }
+    public int? Quantity { get; set; }
 }
 
 public class StudentFeeAssignmentDto

@@ -9,6 +9,7 @@ using Microsoft.EntityFrameworkCore;
 using SMS.Api.Data;
 using SMS.Api.Dtos.Dashboard;
 using SMS.Api.Services.Interfaces.Dashboard;
+using Backend.Helpers;
 
 public class DashboardService : IDashboardService
 {
@@ -72,6 +73,8 @@ public class DashboardService : IDashboardService
 
         // 1. Total Active Students (matches Student Directory query)
         var studentQuery = _context.Students.AsNoTracking()
+            .Include(s => s.ClassGrade)
+            .Include(s => s.Branch)
             .Where(s => !s.IsDeleted && (s.Status == "Active" || string.IsNullOrEmpty(s.Status)));
 
         if (targetBranchId.HasValue)
@@ -88,10 +91,13 @@ public class DashboardService : IDashboardService
             studentQuery = studentQuery.Where(s => s.AcademicYearId == effectiveYearId.Value || s.AcademicYearId == 0);
         }
 
-        int totalStudents = await studentQuery.CountAsync(cancellationToken);
+        var candidateStudents = await studentQuery.ToListAsync(cancellationToken);
+        var canonicalStudents = StudentCanonicalHelper.DeduplicateStudents(candidateStudents);
+        int totalStudents = canonicalStudents.Count;
 
         // Also check if there are any enrolled/admitted applications in AdmissionApplications not yet in Students table
         var admissionAppsQuery = _context.AdmissionApplications.AsNoTracking()
+            .Include(a => a.AppliedClass)
             .Where(a => !a.IsDeleted && (a.Status == "Enrolled" || a.Status == "Admitted"));
 
         if (!string.IsNullOrEmpty(targetBranchName) && !targetBranchName.Equals("All Branches", StringComparison.OrdinalIgnoreCase) && !targetBranchName.Equals("All", StringComparison.OrdinalIgnoreCase))
@@ -99,14 +105,19 @@ public class DashboardService : IDashboardService
             admissionAppsQuery = admissionAppsQuery.Where(a => a.BranchName != null && a.BranchName.ToLower() == targetBranchName.ToLower());
         }
 
-        var unmappedAdmissions = await admissionAppsQuery
-            .Where(a => (a.RegistrationNo != null || a.AdmissionNo != null) && 
-                        !_context.Students.Any(s => !s.IsDeleted && 
-                            (s.AdmissionNumber == a.RegistrationNo || 
-                             (!string.IsNullOrEmpty(a.AdmissionNo) && s.AdmissionNumber == a.AdmissionNo))))
-            .CountAsync(cancellationToken);
+        var candidateAdmissions = await admissionAppsQuery.ToListAsync(cancellationToken);
+        var existingAdmSet = new HashSet<string>(
+            canonicalStudents.SelectMany(s => new[] { s.AdmissionNumber, $"STU-{s.StudentId:D4}" })
+                .Where(x => !string.IsNullOrWhiteSpace(x))
+                .Select(x => x!.Trim().ToLowerInvariant()),
+            StringComparer.OrdinalIgnoreCase);
 
-        totalStudents += unmappedAdmissions;
+        var unmappedAdmissionsList = candidateAdmissions
+            .Where(a => (!string.IsNullOrWhiteSpace(a.RegistrationNo) && !existingAdmSet.Contains(a.RegistrationNo.Trim().ToLowerInvariant())) &&
+                        (string.IsNullOrWhiteSpace(a.AdmissionNo) || !existingAdmSet.Contains(a.AdmissionNo.Trim().ToLowerInvariant())))
+            .ToList();
+
+        totalStudents += unmappedAdmissionsList.Count;
 
         // 2. Staff Counts (Teaching & Non-Teaching)
         var staffQuery = _context.Staff.AsNoTracking()
@@ -259,25 +270,15 @@ public class DashboardService : IDashboardService
         }
 
         // 7. Class-wise Student Strength
-        var rawClassStrengths = await studentQuery
-            .GroupBy(s => s.ClassGrade != null ? s.ClassGrade.ClassName : "Unassigned")
-            .Select(g => new
-            {
-                ClassName = g.Key ?? "Unassigned",
-                StudentCount = g.Count()
-            })
-            .ToListAsync(cancellationToken);
+        var dictStrengths = canonicalStudents
+            .GroupBy(s => s.ClassGrade != null && !string.IsNullOrEmpty(s.ClassGrade.ClassName) ? s.ClassGrade.ClassName : "Unassigned")
+            .ToDictionary(g => g.Key, g => g.Count(), StringComparer.OrdinalIgnoreCase);
 
-        var dictStrengths = rawClassStrengths.ToDictionary(x => x.ClassName, x => x.StudentCount, StringComparer.OrdinalIgnoreCase);
-
-        var admissionClasses = await admissionAppsQuery
-            .Where(a => a.RegistrationNo != null 
-                && !_context.Students.Any(s => !s.IsDeleted && s.AdmissionNumber == a.RegistrationNo)
-                && a.AppliedClass != null 
-                && !string.IsNullOrEmpty(a.AppliedClass.ClassName))
+        var admissionClasses = unmappedAdmissionsList
+            .Where(a => a.AppliedClass != null && !string.IsNullOrEmpty(a.AppliedClass.ClassName))
             .GroupBy(a => a.AppliedClass!.ClassName)
             .Select(g => new { ClassName = g.Key, StudentCount = g.Count() })
-            .ToListAsync(cancellationToken);
+            .ToList();
 
         foreach (var ac in admissionClasses)
         {

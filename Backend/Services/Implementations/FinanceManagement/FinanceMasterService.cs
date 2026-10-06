@@ -76,9 +76,9 @@ public class FinanceMasterService : IFinanceMasterService
         return _repository.DeleteCategoryAsync(id);
     }
 
-    public Task<List<FinancialBudgetDto>> GetBudgetsAsync(string? academicYear)
+    public Task<List<FinancialBudgetDto>> GetBudgetsAsync(string? branch, string? academicYear)
     {
-        return _repository.GetBudgetsAsync(academicYear);
+        return _repository.GetBudgetsAsync(branch, academicYear);
     }
 
     public Task<FinancialBudgetDto> SaveBudgetAsync(FinancialBudgetDto budget)
@@ -89,6 +89,11 @@ public class FinanceMasterService : IFinanceMasterService
     public Task<bool> UpdateBudgetAsync(int id, FinancialBudgetDto budget)
     {
         return _repository.UpdateBudgetAsync(id, budget);
+    }
+
+    public Task<bool> DeleteBudgetAsync(int id)
+    {
+        return _repository.DeleteBudgetAsync(id);
     }
 
     public Task<List<FeeRefundRequestDto>> GetRefundRequestsAsync(string? status)
