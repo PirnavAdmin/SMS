@@ -79,24 +79,30 @@ public class ExamMarksEntryService : IExamMarksEntryService
 
     public async Task<bool> SaveMarksSheetAsync(SaveMarksSheetRequestDto request)
     {
-        var entities = request.Students.Select(s => new NewStudentMarksEntry
+        if (request == null) return false;
+
+        var studentRows = request.Students ?? new List<StudentMarksRowDto>();
+        var entities = studentRows.Select(s => new NewStudentMarksEntry
         {
             EntryId = s.EntryId,
-            ClassName = request.ClassName,
-            SectionName = request.SectionName,
-            SubjectCode = request.SubjectCode,
-            SubjectName = s.StudentName,
-            RollNo = s.RollNo,
-            StudentName = s.StudentName,
-            AdmissionNo = s.AdmissionNo,
-            AttendanceStatus = s.AttendanceStatus,
+            ExamId = request.ExamId > 0 ? request.ExamId : 1,
+            ClassName = request.ClassName ?? string.Empty,
+            SectionName = request.SectionName ?? string.Empty,
+            SubjectCode = request.SubjectCode ?? string.Empty,
+            SubjectName = !string.IsNullOrWhiteSpace(request.SubjectCode) ? request.SubjectCode : "Subject",
+            RollNo = s.RollNo ?? string.Empty,
+            StudentName = s.StudentName ?? string.Empty,
+            AdmissionNo = s.AdmissionNo ?? string.Empty,
+            AttendanceStatus = s.AttendanceStatus ?? "Present",
             MarksObtained = s.MarksObtained,
-            MaxMarks = s.MaxMarks,
-            Grade = CalculateGrade(s.MarksObtained, s.MaxMarks),
-            EvaluatorRemarks = s.EvaluatorRemarks
+            MaxMarks = s.MaxMarks > 0 ? s.MaxMarks : 100,
+            Grade = !string.IsNullOrWhiteSpace(s.Grade) ? s.Grade : CalculateGrade(s.MarksObtained, s.MaxMarks),
+            EvaluatorRemarks = s.EvaluatorRemarks ?? string.Empty,
+            Status = request.IsFinalSubmit ? "Submitted" : "Draft",
+            UpdatedAt = DateTime.UtcNow
         }).ToList();
 
-        return await _repository.SaveMarksEntriesAsync(request.ClassName, request.SectionName, request.SubjectCode, entities, request.IsFinalSubmit);
+        return await _repository.SaveMarksEntriesAsync(request.ClassName ?? string.Empty, request.SectionName ?? string.Empty, request.SubjectCode ?? string.Empty, entities, request.IsFinalSubmit);
     }
 
     public async Task<bool> ClearMarksEntriesAsync(string className, string sectionName, string subjectCode)
