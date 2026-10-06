@@ -1086,7 +1086,7 @@ interface DataContextType {
   addExam: (exam: Omit<ExamSetup, "id">) => void;
   updateExam: (id: string, updates: Partial<ExamSetup>) => void;
   deleteExam: (id: string) => void;
-  saveMarks: (marks: Omit<ExamMark, "id">[]) => void;
+  saveMarks: (marks: Omit<ExamMark, "id">[], skipBackendSync?: boolean) => void;
 
   examSchedules: ExamSchedule[];
   addExamSchedule: (schedule: Omit<ExamSchedule, "id">) => void;
@@ -17953,7 +17953,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     logActivity("Deleted Examination", `Removed exam ID ${id}`);
   };
 
-  const saveMarks = (marksData: Omit<ExamMark, "id">[]) => {
+  const saveMarks = (marksData: Omit<ExamMark, "id">[], skipBackendSync?: boolean) => {
     const blockedLockedMarks = marksData.filter((m) => {
       const existing = examMarks.find(
         (em) =>
@@ -18002,48 +18002,50 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       return [...filtered, ...newMarks];
     });
 
-    // Directly persist marks entries to backend database API
-    try {
-      const groups: Record<string, typeof newMarks> = {};
-      newMarks.forEach((m) => {
-        const key = `${m.examId || 1}__${m.className || ''}__${m.section || ''}__${m.subject || ''}`;
-        if (!groups[key]) groups[key] = [];
-        groups[key].push(m);
-      });
-      Object.entries(groups).forEach(([_, group]) => {
-        const first = group[0];
-        if (!first || !first.className || !first.section || !first.subject) return;
-        const isFinal = group.every((m) => m.isLocked);
-        const payload = {
-          examId: Number(first.examId) || 1,
-          className: first.className || "",
-          sectionName: first.section || "",
-          subjectCode: first.subject || "",
-          students: group.map((m) => {
-            const student = students.find((s) => s.id === m.studentId);
-            return {
-              entryId: 0,
-              rollNo: (m as any).rollNo || student?.rollNo || "",
-              studentName: (m as any).studentName || (student ? `${student.firstName} ${student.lastName}` : ""),
-              admissionNo: (m as any).admissionNo || student?.admissionNo || "",
-              attendanceStatus: m.isAbsent ? "Absent" : ((m as any).attendanceStatus || "Present"),
-              marksObtained: Number(m.marksObtained || 0),
-              maxMarks: Number(m.maxMarks || m.totalMarks || 100),
-              grade: m.grade || "",
-              evaluatorRemarks: m.remarks || "",
-              status: m.isLocked ? "Submitted" : "Draft"
-            };
-          }),
-          isFinalSubmit: isFinal
-        };
-        if (isFinal) {
-          submitMarksEntryApi(payload).catch((err) => console.warn("Backend save marks error:", err));
-        } else {
-          saveMarksEntryDraftApi(payload).catch((err) => console.warn("Backend save marks error:", err));
-        }
-      });
-    } catch (err) {
-      console.warn("Backend auto save marks sync error:", err);
+    // Directly persist marks entries to backend database API unless skipped by caller
+    if (!skipBackendSync) {
+      try {
+        const groups: Record<string, typeof newMarks> = {};
+        newMarks.forEach((m) => {
+          const key = `${m.examId || 1}__${m.className || ''}__${m.section || ''}__${m.subject || ''}`;
+          if (!groups[key]) groups[key] = [];
+          groups[key].push(m);
+        });
+        Object.entries(groups).forEach(([_, group]) => {
+          const first = group[0];
+          if (!first || !first.className || !first.section || !first.subject) return;
+          const isFinal = group.every((m) => m.isLocked);
+          const payload = {
+            examId: Number(first.examId) || 1,
+            className: first.className || "",
+            sectionName: first.section || "",
+            subjectCode: first.subject || "",
+            students: group.map((m) => {
+              const student = students.find((s) => s.id === m.studentId);
+              return {
+                entryId: 0,
+                rollNo: (m as any).rollNo || student?.rollNo || "",
+                studentName: (m as any).studentName || (student ? `${student.firstName} ${student.lastName}` : ""),
+                admissionNo: (m as any).admissionNo || student?.admissionNo || "",
+                attendanceStatus: m.isAbsent ? "Absent" : ((m as any).attendanceStatus || "Present"),
+                marksObtained: Number(m.marksObtained || 0),
+                maxMarks: Number(m.maxMarks || m.totalMarks || 100),
+                grade: m.grade || "",
+                evaluatorRemarks: m.remarks || "",
+                status: m.isLocked ? "Submitted" : "Draft"
+              };
+            }),
+            isFinalSubmit: isFinal
+          };
+          if (isFinal) {
+            submitMarksEntryApi(payload).catch((err) => console.warn("Backend save marks error:", err));
+          } else {
+            saveMarksEntryDraftApi(payload).catch((err) => console.warn("Backend save marks error:", err));
+          }
+        });
+      } catch (err) {
+        console.warn("Backend auto save marks sync error:", err);
+      }
     }
 
     logActivity(

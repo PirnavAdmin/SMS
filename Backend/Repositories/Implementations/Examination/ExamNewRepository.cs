@@ -14,6 +14,7 @@ public class ExamNewRepository : IExamNewRepository
     private readonly AppDbContext _context;
     private static readonly List<NewExamSubjectConfig> _inMemorySubjectConfigs = new List<NewExamSubjectConfig>();
     private static readonly List<NewExamination> _inMemoryExams = new List<NewExamination>();
+    private static readonly object _lock = new object();
 
     public ExamNewRepository(AppDbContext context)
     {
@@ -33,7 +34,10 @@ public class ExamNewRepository : IExamNewRepository
             // Fallback
         }
 
-        return _inMemoryExams;
+        lock (_lock)
+        {
+            return _inMemoryExams.ToList();
+        }
     }
 
     public async Task<NewExamination?> GetExamByIdAsync(int examId)
@@ -49,7 +53,10 @@ public class ExamNewRepository : IExamNewRepository
             // Fallback
         }
 
-        return _inMemoryExams.FirstOrDefault(e => e.ExamId == examId);
+        lock (_lock)
+        {
+            return _inMemoryExams.FirstOrDefault(e => e.ExamId == examId);
+        }
     }
 
     public async Task<NewExamination> SaveExamDetailsAsync(NewExamination exam)
@@ -82,45 +89,51 @@ public class ExamNewRepository : IExamNewRepository
             await _context.SaveChangesAsync();
 
             // Sync in memory
-            var existingInMem = _inMemoryExams.FirstOrDefault(e => e.ExamId == exam.ExamId);
-            if (existingInMem != null)
+            lock (_lock)
             {
-                existingInMem.ExamName = exam.ExamName;
-                existingInMem.AssessmentType = exam.AssessmentType;
-                existingInMem.AcademicTerm = exam.AcademicTerm;
-                existingInMem.StartDate = exam.StartDate;
-                existingInMem.EndDate = exam.EndDate;
-                existingInMem.ApplicableClasses = exam.ApplicableClasses;
-                existingInMem.Status = exam.Status;
-            }
-            else
-            {
-                _inMemoryExams.Add(exam);
+                var existingInMem = _inMemoryExams.FirstOrDefault(e => e.ExamId == exam.ExamId);
+                if (existingInMem != null)
+                {
+                    existingInMem.ExamName = exam.ExamName;
+                    existingInMem.AssessmentType = exam.AssessmentType;
+                    existingInMem.AcademicTerm = exam.AcademicTerm;
+                    existingInMem.StartDate = exam.StartDate;
+                    existingInMem.EndDate = exam.EndDate;
+                    existingInMem.ApplicableClasses = exam.ApplicableClasses;
+                    existingInMem.Status = exam.Status;
+                }
+                else
+                {
+                    _inMemoryExams.Add(exam);
+                }
             }
 
             return exam;
         }
         catch
         {
-            if (exam.ExamId == 0)
+            lock (_lock)
             {
-                exam.ExamId = _inMemoryExams.Any() ? _inMemoryExams.Max(e => e.ExamId) + 1 : 1;
-            }
+                if (exam.ExamId == 0)
+                {
+                    exam.ExamId = _inMemoryExams.Any() ? _inMemoryExams.Max(e => e.ExamId) + 1 : 1;
+                }
 
-            var existingInMem = _inMemoryExams.FirstOrDefault(e => e.ExamId == exam.ExamId);
-            if (existingInMem != null)
-            {
-                existingInMem.ExamName = exam.ExamName;
-                existingInMem.AssessmentType = exam.AssessmentType;
-                existingInMem.AcademicTerm = exam.AcademicTerm;
-                existingInMem.StartDate = exam.StartDate;
-                existingInMem.EndDate = exam.EndDate;
-                existingInMem.ApplicableClasses = exam.ApplicableClasses;
-                existingInMem.Status = exam.Status;
-            }
-            else
-            {
-                _inMemoryExams.Add(exam);
+                var existingInMem = _inMemoryExams.FirstOrDefault(e => e.ExamId == exam.ExamId);
+                if (existingInMem != null)
+                {
+                    existingInMem.ExamName = exam.ExamName;
+                    existingInMem.AssessmentType = exam.AssessmentType;
+                    existingInMem.AcademicTerm = exam.AcademicTerm;
+                    existingInMem.StartDate = exam.StartDate;
+                    existingInMem.EndDate = exam.EndDate;
+                    existingInMem.ApplicableClasses = exam.ApplicableClasses;
+                    existingInMem.Status = exam.Status;
+                }
+                else
+                {
+                    _inMemoryExams.Add(exam);
+                }
             }
 
             return exam;
@@ -152,14 +165,18 @@ public class ExamNewRepository : IExamNewRepository
         catch
         {
             // Fallback
-            _inMemorySubjectConfigs.RemoveAll(c => c.ExamId == examId && c.ClassName == className);
-            _inMemorySubjectConfigs.AddRange(configs);
         }
 
-        var inMem = _inMemoryExams.FirstOrDefault(e => e.ExamId == examId);
-        if (inMem != null && markAsScheduled)
+        lock (_lock)
         {
-            inMem.Status = "Scheduled";
+            _inMemorySubjectConfigs.RemoveAll(c => c.ExamId == examId && c.ClassName == className);
+            _inMemorySubjectConfigs.AddRange(configs);
+
+            var inMem = _inMemoryExams.FirstOrDefault(e => e.ExamId == examId);
+            if (inMem != null && markAsScheduled)
+            {
+                inMem.Status = "Scheduled";
+            }
         }
 
         return true;
@@ -181,9 +198,12 @@ public class ExamNewRepository : IExamNewRepository
             // Fallback
         }
 
-        return _inMemorySubjectConfigs
-            .Where(c => c.ExamId == examId && c.ClassName == className)
-            .ToList();
+        lock (_lock)
+        {
+            return _inMemorySubjectConfigs
+                .Where(c => c.ExamId == examId && c.ClassName == className)
+                .ToList();
+        }
     }
 
     public async Task<bool> DeleteExamAsync(int examId)
@@ -202,10 +222,13 @@ public class ExamNewRepository : IExamNewRepository
             // Fallback
         }
 
-        var inMem = _inMemoryExams.FirstOrDefault(e => e.ExamId == examId);
-        if (inMem != null)
+        lock (_lock)
         {
-            _inMemoryExams.Remove(inMem);
+            var inMem = _inMemoryExams.FirstOrDefault(e => e.ExamId == examId);
+            if (inMem != null)
+            {
+                _inMemoryExams.Remove(inMem);
+            }
         }
 
         return true;

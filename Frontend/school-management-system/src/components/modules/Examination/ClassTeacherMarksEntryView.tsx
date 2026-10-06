@@ -1007,7 +1007,7 @@ export const ClassTeacherMarksEntryView: React.FC<ClassTeacherMarksEntryViewProp
       });
 
       if (marksPayload.length > 0) {
-        saveMarks(marksPayload);
+        saveMarks(marksPayload, true);
       }
 
       // 3. Post to backend API for each active subject
@@ -1153,7 +1153,7 @@ export const ClassTeacherMarksEntryView: React.FC<ClassTeacherMarksEntryViewProp
       });
 
       // 3. Save to DataContext
-      saveMarks(marksPayload);
+      saveMarks(marksPayload, true);
       saveProcessedResults(processedList);
 
       // 4. Post dynamically to backend API

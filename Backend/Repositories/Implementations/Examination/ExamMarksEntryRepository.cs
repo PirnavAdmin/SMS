@@ -14,6 +14,7 @@ public class ExamMarksEntryRepository : IExamMarksEntryRepository
     private readonly AppDbContext _context;
 
     private static readonly List<NewStudentMarksEntry> _inMemoryMarks = new List<NewStudentMarksEntry>();
+    private static readonly object _lock = new object();
 
     public ExamMarksEntryRepository(AppDbContext context)
     {
@@ -37,11 +38,14 @@ public class ExamMarksEntryRepository : IExamMarksEntryRepository
             // Fallback
         }
 
-        return _inMemoryMarks
-            .Where(m => m.ClassName.Equals(className, StringComparison.OrdinalIgnoreCase) &&
-                        m.SectionName.Equals(sectionName, StringComparison.OrdinalIgnoreCase) &&
-                        m.SubjectCode.Equals(subjectCode, StringComparison.OrdinalIgnoreCase))
-            .ToList();
+        lock (_lock)
+        {
+            return _inMemoryMarks
+                .Where(m => m.ClassName.Equals(className, StringComparison.OrdinalIgnoreCase) &&
+                            m.SectionName.Equals(sectionName, StringComparison.OrdinalIgnoreCase) &&
+                            m.SubjectCode.Equals(subjectCode, StringComparison.OrdinalIgnoreCase))
+                .ToList();
+        }
     }
 
     public async Task<List<NewStudentMarksEntry>> GetAllMarksForClassSectionAsync(string? className = null, string? sectionName = null)
@@ -68,19 +72,22 @@ public class ExamMarksEntryRepository : IExamMarksEntryRepository
             // Fallback
         }
 
-        var memQuery = _inMemoryMarks.AsQueryable();
-        if (!string.IsNullOrWhiteSpace(className) && !className.Equals("all", StringComparison.OrdinalIgnoreCase))
+        lock (_lock)
         {
-            memQuery = memQuery.Where(m => m.ClassName.Equals(className, StringComparison.OrdinalIgnoreCase));
+            var memQuery = _inMemoryMarks.AsQueryable();
+            if (!string.IsNullOrWhiteSpace(className) && !className.Equals("all", StringComparison.OrdinalIgnoreCase))
+            {
+                memQuery = memQuery.Where(m => m.ClassName.Equals(className, StringComparison.OrdinalIgnoreCase));
+            }
+            if (!string.IsNullOrWhiteSpace(sectionName) && !sectionName.Equals("all", StringComparison.OrdinalIgnoreCase))
+            {
+                string cleanSec = sectionName.Replace("Section ", "").Trim();
+                memQuery = memQuery.Where(m => m.SectionName.Equals(sectionName, StringComparison.OrdinalIgnoreCase) ||
+                                               m.SectionName.Equals(cleanSec, StringComparison.OrdinalIgnoreCase) ||
+                                               m.SectionName.Equals("Section " + cleanSec, StringComparison.OrdinalIgnoreCase));
+            }
+            return memQuery.ToList();
         }
-        if (!string.IsNullOrWhiteSpace(sectionName) && !sectionName.Equals("all", StringComparison.OrdinalIgnoreCase))
-        {
-            string cleanSec = sectionName.Replace("Section ", "").Trim();
-            memQuery = memQuery.Where(m => m.SectionName.Equals(sectionName, StringComparison.OrdinalIgnoreCase) ||
-                                           m.SectionName.Equals(cleanSec, StringComparison.OrdinalIgnoreCase) ||
-                                           m.SectionName.Equals("Section " + cleanSec, StringComparison.OrdinalIgnoreCase));
-        }
-        return memQuery.ToList();
     }
 
     public async Task<bool> SaveMarksEntriesAsync(string className, string sectionName, string subjectCode, List<NewStudentMarksEntry> entries, bool isFinalSubmit)
@@ -110,15 +117,18 @@ public class ExamMarksEntryRepository : IExamMarksEntryRepository
             await _context.NewStudentMarksEntries.AddRangeAsync(entries);
             await _context.SaveChangesAsync();
         }
-        catch
+        catch (Exception ex)
         {
-            // Fallback
+            Console.WriteLine($"[ExamMarksEntryRepository] DB save fallback: {ex.Message}");
         }
 
-        _inMemoryMarks.RemoveAll(m => m.ClassName.Equals(className, StringComparison.OrdinalIgnoreCase) &&
-                                      m.SectionName.Equals(sectionName, StringComparison.OrdinalIgnoreCase) &&
-                                      m.SubjectCode.Equals(subjectCode, StringComparison.OrdinalIgnoreCase));
-        _inMemoryMarks.AddRange(entries);
+        lock (_lock)
+        {
+            _inMemoryMarks.RemoveAll(m => m.ClassName.Equals(className, StringComparison.OrdinalIgnoreCase) &&
+                                          m.SectionName.Equals(sectionName, StringComparison.OrdinalIgnoreCase) &&
+                                          m.SubjectCode.Equals(subjectCode, StringComparison.OrdinalIgnoreCase));
+            _inMemoryMarks.AddRange(entries);
+        }
 
         return true;
     }
@@ -155,18 +165,21 @@ public class ExamMarksEntryRepository : IExamMarksEntryRepository
             await _context.NewStudentMarksEntries.AddRangeAsync(entries);
             await _context.SaveChangesAsync();
         }
-        catch
+        catch (Exception ex)
         {
-            // Fallback
+            Console.WriteLine($"[ExamMarksEntryRepository] DB save bulk fallback: {ex.Message}");
         }
 
-        foreach (var e in entries)
+        lock (_lock)
         {
-            _inMemoryMarks.RemoveAll(m => m.ClassName.Equals(e.ClassName, StringComparison.OrdinalIgnoreCase) &&
-                                          m.SectionName.Equals(e.SectionName, StringComparison.OrdinalIgnoreCase) &&
-                                          m.SubjectCode.Equals(e.SubjectCode, StringComparison.OrdinalIgnoreCase) &&
-                                          (m.RollNo.Equals(e.RollNo, StringComparison.OrdinalIgnoreCase) || m.AdmissionNo.Equals(e.AdmissionNo, StringComparison.OrdinalIgnoreCase)));
-            _inMemoryMarks.Add(e);
+            foreach (var e in entries)
+            {
+                _inMemoryMarks.RemoveAll(m => m.ClassName.Equals(e.ClassName, StringComparison.OrdinalIgnoreCase) &&
+                                              m.SectionName.Equals(e.SectionName, StringComparison.OrdinalIgnoreCase) &&
+                                              m.SubjectCode.Equals(e.SubjectCode, StringComparison.OrdinalIgnoreCase) &&
+                                              (m.RollNo.Equals(e.RollNo, StringComparison.OrdinalIgnoreCase) || m.AdmissionNo.Equals(e.AdmissionNo, StringComparison.OrdinalIgnoreCase)));
+                _inMemoryMarks.Add(e);
+            }
         }
 
         return true;
@@ -174,9 +187,12 @@ public class ExamMarksEntryRepository : IExamMarksEntryRepository
 
     public async Task<bool> ClearMarksEntriesAsync(string className, string sectionName, string subjectCode)
     {
-        _inMemoryMarks.RemoveAll(m => m.ClassName.Equals(className, StringComparison.OrdinalIgnoreCase) &&
-                                      m.SectionName.Equals(sectionName, StringComparison.OrdinalIgnoreCase) &&
-                                      m.SubjectCode.Equals(subjectCode, StringComparison.OrdinalIgnoreCase));
+        lock (_lock)
+        {
+            _inMemoryMarks.RemoveAll(m => m.ClassName.Equals(className, StringComparison.OrdinalIgnoreCase) &&
+                                          m.SectionName.Equals(sectionName, StringComparison.OrdinalIgnoreCase) &&
+                                          m.SubjectCode.Equals(subjectCode, StringComparison.OrdinalIgnoreCase));
+        }
 
         try
         {

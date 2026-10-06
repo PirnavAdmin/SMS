@@ -14,6 +14,7 @@ public class ExamScheduleRepository : IExamScheduleRepository
     private readonly AppDbContext _context;
 
     private static readonly List<NewExamTimetableSlot> _inMemoryTimetable = new List<NewExamTimetableSlot>();
+    private static readonly object _lock = new object();
 
     public ExamScheduleRepository(AppDbContext context)
     {
@@ -41,16 +42,19 @@ public class ExamScheduleRepository : IExamScheduleRepository
             // Fallback
         }
 
-        var inMemQuery = _inMemoryTimetable.AsQueryable();
-        if (examId.HasValue && examId.Value > 0)
+        lock (_lock)
         {
-            inMemQuery = inMemQuery.Where(s => s.ExamId == examId.Value);
-        }
+            var inMemQuery = _inMemoryTimetable.AsQueryable();
+            if (examId.HasValue && examId.Value > 0)
+            {
+                inMemQuery = inMemQuery.Where(s => s.ExamId == examId.Value);
+            }
 
-        return inMemQuery
-            .Where(s => (s.ClassName ?? "").Equals(className, StringComparison.OrdinalIgnoreCase) &&
-                        (s.SectionName ?? "").Equals(sectionName, StringComparison.OrdinalIgnoreCase))
-            .ToList();
+            return inMemQuery
+                .Where(s => (s.ClassName ?? "").Equals(className, StringComparison.OrdinalIgnoreCase) &&
+                            (s.SectionName ?? "").Equals(sectionName, StringComparison.OrdinalIgnoreCase))
+                .ToList();
+        }
     }
 
     public async Task<bool> SaveTimetableSlotsAsync(int? examId, string className, string sectionName, List<NewExamTimetableSlot> slots)
@@ -85,15 +89,18 @@ public class ExamScheduleRepository : IExamScheduleRepository
             // Fallback
         }
 
-        if (examId.HasValue && examId.Value > 0)
+        lock (_lock)
         {
-            _inMemoryTimetable.RemoveAll(s => s.ExamId == examId.Value && (s.ClassName ?? "").Equals(className, StringComparison.OrdinalIgnoreCase) && (s.SectionName ?? "").Equals(sectionName, StringComparison.OrdinalIgnoreCase));
+            if (examId.HasValue && examId.Value > 0)
+            {
+                _inMemoryTimetable.RemoveAll(s => s.ExamId == examId.Value && (s.ClassName ?? "").Equals(className, StringComparison.OrdinalIgnoreCase) && (s.SectionName ?? "").Equals(sectionName, StringComparison.OrdinalIgnoreCase));
+            }
+            else
+            {
+                _inMemoryTimetable.RemoveAll(s => (s.ClassName ?? "").Equals(className, StringComparison.OrdinalIgnoreCase) && (s.SectionName ?? "").Equals(sectionName, StringComparison.OrdinalIgnoreCase));
+            }
+            _inMemoryTimetable.AddRange(slots);
         }
-        else
-        {
-            _inMemoryTimetable.RemoveAll(s => (s.ClassName ?? "").Equals(className, StringComparison.OrdinalIgnoreCase) && (s.SectionName ?? "").Equals(sectionName, StringComparison.OrdinalIgnoreCase));
-        }
-        _inMemoryTimetable.AddRange(slots);
 
         return true;
     }
@@ -111,12 +118,18 @@ public class ExamScheduleRepository : IExamScheduleRepository
             // Fallback
         }
 
-        return _inMemoryTimetable;
+        lock (_lock)
+        {
+            return _inMemoryTimetable.ToList();
+        }
     }
 
     public async Task<bool> DeleteSlotAsync(int slotId)
     {
-        _inMemoryTimetable.RemoveAll(s => s.SlotId == slotId);
+        lock (_lock)
+        {
+            _inMemoryTimetable.RemoveAll(s => s.SlotId == slotId);
+        }
 
         try
         {
@@ -136,13 +149,16 @@ public class ExamScheduleRepository : IExamScheduleRepository
 
     public async Task<bool> ClearTimetableAsync(int? examId, string className, string sectionName)
     {
-        if (examId.HasValue && examId.Value > 0)
+        lock (_lock)
         {
-            _inMemoryTimetable.RemoveAll(s => s.ExamId == examId.Value && (s.ClassName ?? "").Equals(className, StringComparison.OrdinalIgnoreCase) && (s.SectionName ?? "").Equals(sectionName, StringComparison.OrdinalIgnoreCase));
-        }
-        else
-        {
-            _inMemoryTimetable.RemoveAll(s => (s.ClassName ?? "").Equals(className, StringComparison.OrdinalIgnoreCase) && (s.SectionName ?? "").Equals(sectionName, StringComparison.OrdinalIgnoreCase));
+            if (examId.HasValue && examId.Value > 0)
+            {
+                _inMemoryTimetable.RemoveAll(s => s.ExamId == examId.Value && (s.ClassName ?? "").Equals(className, StringComparison.OrdinalIgnoreCase) && (s.SectionName ?? "").Equals(sectionName, StringComparison.OrdinalIgnoreCase));
+            }
+            else
+            {
+                _inMemoryTimetable.RemoveAll(s => (s.ClassName ?? "").Equals(className, StringComparison.OrdinalIgnoreCase) && (s.SectionName ?? "").Equals(sectionName, StringComparison.OrdinalIgnoreCase));
+            }
         }
 
         try

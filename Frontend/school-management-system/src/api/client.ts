@@ -38,18 +38,19 @@ export const apiClient = async (endpoint: string, options: RequestInit = {}) => 
 
   const isLocalHost = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
 
-  // When running locally on localhost, prefer direct local backend port 5151 first to avoid ngrok CORS/preflight noise and network latency.
+  // When running locally on localhost, prefer direct local backend port 5151 first to avoid tunnel CORS/preflight noise and network latency.
   let primaryUrl = endpoint.startsWith('http') ? endpoint : `${baseUrl}${cleanEndpoint}`;
   let fallbackUrl = '';
+  const isTunnel = baseUrl.includes('ngrok') || baseUrl.includes('trycloudflare') || baseUrl.includes('cloudflare');
 
   if (endpoint.startsWith('http')) {
     primaryUrl = endpoint;
-  } else if (isLocalHost && (baseUrl.includes('ngrok') || !baseUrl)) {
+  } else if (isLocalHost && (isTunnel || !baseUrl)) {
     primaryUrl = `http://127.0.0.1:5151${cleanEndpoint}`;
-    if (baseUrl && baseUrl.includes('ngrok')) {
+    if (baseUrl && isTunnel) {
       fallbackUrl = `${baseUrl}${cleanEndpoint}`;
     }
-  } else if (baseUrl.includes('ngrok') && isLocalHost) {
+  } else if (isTunnel && isLocalHost) {
     fallbackUrl = `http://127.0.0.1:5151${cleanEndpoint}`;
   }
 

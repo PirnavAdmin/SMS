@@ -25,10 +25,19 @@ export const GradingConfiguration: React.FC<GradingConfigurationProps> = ({
   const { gradeConfigurations, saveGradeConfiguration, exams: contextExams } = useData();
   const { selectedAcademicYear, selectedBranch } = useAuth();
 
-  const [selectedExamType, setSelectedExamType] = useState<string>('All');
+  const [selectedExamType, setSelectedExamType] = useState<string>(() => {
+    try {
+      return sessionStorage.getItem('sms_grading_selected_exam_type') || 'All';
+    } catch {
+      return 'All';
+    }
+  });
 
   const handleSelectExamType = (type: string) => {
     setSelectedExamType(type);
+    try {
+      sessionStorage.setItem('sms_grading_selected_exam_type', type);
+    } catch {}
   };
 
   const [createdExams, setCreatedExams] = useState<any[]>([]);
@@ -74,15 +83,7 @@ export const GradingConfiguration: React.FC<GradingConfigurationProps> = ({
           remarks: r.remarks || ''
         }));
 
-        setLocalGrades(prev => {
-          if (examType === 'All') {
-            return mapped;
-          }
-          const otherExamGrades = (prev || []).filter(
-            g => g.examType && g.examType !== examType && g.examType !== 'All'
-          );
-          return [...mapped, ...otherExamGrades];
-        });
+        setLocalGrades(mapped);
 
         if (saveGradeConfiguration) {
           saveGradeConfiguration(mapped);
@@ -138,13 +139,10 @@ export const GradingConfiguration: React.FC<GradingConfigurationProps> = ({
     return Array.from(new Set(combined));
   }, [createdExams, passedExams, passedOptions, contextExams, localGrades, customExamTypeInput]);
 
-  // Filtered grades based on selected exam type
+  // Current grades displayed for selected exam type
   const displayedGrades = useMemo(() => {
-    return localGrades.filter(g => {
-      const matchExam = selectedExamType === 'All' || !g.examType || g.examType === 'All' || g.examType === selectedExamType;
-      return matchExam;
-    });
-  }, [localGrades, selectedExamType]);
+    return localGrades;
+  }, [localGrades]);
 
   const handleAddRow = () => {
     setIsEditing(true);
@@ -175,7 +173,13 @@ export const GradingConfiguration: React.FC<GradingConfigurationProps> = ({
     const numericId = parseInt(String(id).replace(/\D/g, ''));
 
     // Optimistically update local state immediately
-    setLocalGrades(prev => prev.filter(g => g.id !== id));
+    const updated = localGrades.filter(g => g.id !== id);
+    setLocalGrades(updated);
+
+    // Sync immediately to DataContext so tab switches retain the deletion
+    if (saveGradeConfiguration) {
+      saveGradeConfiguration(updated);
+    }
 
     // If it's a persisted rule in the database, delete via API
     if (!isTemp && numericId > 0) {

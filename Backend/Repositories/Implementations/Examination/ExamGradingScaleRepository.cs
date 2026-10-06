@@ -14,6 +14,7 @@ public class ExamGradingScaleRepository : IExamGradingScaleRepository
     private readonly AppDbContext _context;
 
     private static readonly List<NewGradingScaleRule> _inMemoryRules = new List<NewGradingScaleRule>();
+    private static readonly object _lock = new object();
 
     public ExamGradingScaleRepository(AppDbContext context)
     {
@@ -65,18 +66,22 @@ public class ExamGradingScaleRepository : IExamGradingScaleRepository
                     return allDbRules;
                 }
 
-                // Auto-seed clean default rules for "All" if none exist yet
-                var seedRules = new List<NewGradingScaleRule>
+                // Auto-seed clean default rules for "All" only if none exist in DB at all
+                var hasAnyRules = await _context.NewGradingScaleRules.AnyAsync();
+                if (!hasAnyRules)
                 {
-                    new NewGradingScaleRule { ExamType = "All", Grade = "O", MinMarks = 80, MaxMarks = 100, Gpa = 10.0m, PassFail = "Pass", Remarks = "Outstanding", UpdatedAt = DateTime.UtcNow },
-                    new NewGradingScaleRule { ExamType = "All", Grade = "A+", MinMarks = 60, MaxMarks = 79, Gpa = 9.0m, PassFail = "Pass", Remarks = "Excellent", UpdatedAt = DateTime.UtcNow },
-                    new NewGradingScaleRule { ExamType = "All", Grade = "B+", MinMarks = 40, MaxMarks = 59, Gpa = 8.0m, PassFail = "Pass", Remarks = "Good", UpdatedAt = DateTime.UtcNow },
-                    new NewGradingScaleRule { ExamType = "All", Grade = "C", MinMarks = 0, MaxMarks = 39, Gpa = 7.0m, PassFail = "Fail", Remarks = "Needs Improvement", UpdatedAt = DateTime.UtcNow }
-                };
+                    var seedRules = new List<NewGradingScaleRule>
+                    {
+                        new NewGradingScaleRule { ExamType = "All", Grade = "O", MinMarks = 80, MaxMarks = 100, Gpa = 10.0m, PassFail = "Pass", Remarks = "Outstanding", UpdatedAt = DateTime.UtcNow },
+                        new NewGradingScaleRule { ExamType = "All", Grade = "A+", MinMarks = 60, MaxMarks = 79, Gpa = 9.0m, PassFail = "Pass", Remarks = "Excellent", UpdatedAt = DateTime.UtcNow },
+                        new NewGradingScaleRule { ExamType = "All", Grade = "B+", MinMarks = 40, MaxMarks = 59, Gpa = 8.0m, PassFail = "Pass", Remarks = "Good", UpdatedAt = DateTime.UtcNow },
+                        new NewGradingScaleRule { ExamType = "All", Grade = "C", MinMarks = 0, MaxMarks = 39, Gpa = 7.0m, PassFail = "Fail", Remarks = "Needs Improvement", UpdatedAt = DateTime.UtcNow }
+                    };
 
-                await _context.NewGradingScaleRules.AddRangeAsync(seedRules);
-                await _context.SaveChangesAsync();
-                return seedRules;
+                    await _context.NewGradingScaleRules.AddRangeAsync(seedRules);
+                    await _context.SaveChangesAsync();
+                    return seedRules;
+                }
             }
         }
         catch
@@ -84,33 +89,36 @@ public class ExamGradingScaleRepository : IExamGradingScaleRepository
             // Fallback to in-memory if DB query fails
         }
 
-        if (!isAll)
+        lock (_lock)
         {
-            var specificInMemory = _inMemoryRules
-                .Where(r => r.ExamType.Equals(targetType, StringComparison.OrdinalIgnoreCase))
-                .OrderByDescending(r => r.MinMarks)
-                .ToList();
+            if (!isAll)
+            {
+                var specificInMemory = _inMemoryRules
+                    .Where(r => r.ExamType.Equals(targetType, StringComparison.OrdinalIgnoreCase))
+                    .OrderByDescending(r => r.MinMarks)
+                    .ToList();
 
-            if (specificInMemory.Any()) return specificInMemory;
+                if (specificInMemory.Any()) return specificInMemory;
 
-            var allInMemory = _inMemoryRules
-                .Where(r => r.ExamType.Equals("All", StringComparison.OrdinalIgnoreCase) || string.IsNullOrEmpty(r.ExamType))
-                .OrderByDescending(r => r.MinMarks)
-                .ToList();
+                var allInMemory = _inMemoryRules
+                    .Where(r => r.ExamType.Equals("All", StringComparison.OrdinalIgnoreCase) || string.IsNullOrEmpty(r.ExamType))
+                    .OrderByDescending(r => r.MinMarks)
+                    .ToList();
 
-            if (allInMemory.Any()) return allInMemory;
+                if (allInMemory.Any()) return allInMemory;
+            }
+            else
+            {
+                var allInMemory = _inMemoryRules
+                    .Where(r => r.ExamType.Equals("All", StringComparison.OrdinalIgnoreCase) || string.IsNullOrEmpty(r.ExamType))
+                    .OrderByDescending(r => r.MinMarks)
+                    .ToList();
+
+                if (allInMemory.Any()) return allInMemory;
+            }
+
+            return new List<NewGradingScaleRule>();
         }
-        else
-        {
-            var allInMemory = _inMemoryRules
-                .Where(r => r.ExamType.Equals("All", StringComparison.OrdinalIgnoreCase) || string.IsNullOrEmpty(r.ExamType))
-                .OrderByDescending(r => r.MinMarks)
-                .ToList();
-
-            if (allInMemory.Any()) return allInMemory;
-        }
-
-        return new List<NewGradingScaleRule>();
     }
 
     public async Task<List<string>> GetDistinctExamTypesAsync()
@@ -142,9 +150,12 @@ public class ExamGradingScaleRepository : IExamGradingScaleRepository
             // Fallback
         }
 
-        foreach (var r in _inMemoryRules)
+        lock (_lock)
         {
-            if (!string.IsNullOrEmpty(r.ExamType) && r.ExamType != "Main Exam") types.Add(r.ExamType);
+            foreach (var r in _inMemoryRules)
+            {
+                if (!string.IsNullOrEmpty(r.ExamType) && r.ExamType != "Main Exam") types.Add(r.ExamType);
+            }
         }
 
         return types.ToList();
@@ -185,15 +196,21 @@ public class ExamGradingScaleRepository : IExamGradingScaleRepository
             Console.WriteLine($"Error saving grading scale rules: {ex.Message}");
         }
 
-        _inMemoryRules.RemoveAll(r => r.ExamType.Equals(targetType, StringComparison.OrdinalIgnoreCase) || (isAll && string.IsNullOrEmpty(r.ExamType)));
-        _inMemoryRules.AddRange(rules);
+        lock (_lock)
+        {
+            _inMemoryRules.RemoveAll(r => r.ExamType.Equals(targetType, StringComparison.OrdinalIgnoreCase) || (isAll && string.IsNullOrEmpty(r.ExamType)));
+            _inMemoryRules.AddRange(rules);
+        }
 
         return true;
     }
 
     public async Task<bool> DeleteScaleRuleAsync(int ruleId)
     {
-        _inMemoryRules.RemoveAll(r => r.RuleId == ruleId);
+        lock (_lock)
+        {
+            _inMemoryRules.RemoveAll(r => r.RuleId == ruleId);
+        }
 
         try
         {

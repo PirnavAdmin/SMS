@@ -14,6 +14,7 @@ public class ExamResultsReportsRepository : IExamResultsReportsRepository
     private readonly AppDbContext _context;
 
     private static readonly List<NewStudentExamResult> _inMemoryResults = new List<NewStudentExamResult>();
+    private static readonly object _lock = new object();
 
     public ExamResultsReportsRepository(AppDbContext context)
     {
@@ -45,19 +46,22 @@ public class ExamResultsReportsRepository : IExamResultsReportsRepository
             // Fallback
         }
 
-        var memQuery = _inMemoryResults.AsQueryable();
-        if (!string.IsNullOrWhiteSpace(className) && !className.Equals("all", StringComparison.OrdinalIgnoreCase))
+        lock (_lock)
         {
-            memQuery = memQuery.Where(r => r.ClassName.Equals(className, StringComparison.OrdinalIgnoreCase));
+            var memQuery = _inMemoryResults.AsQueryable();
+            if (!string.IsNullOrWhiteSpace(className) && !className.Equals("all", StringComparison.OrdinalIgnoreCase))
+            {
+                memQuery = memQuery.Where(r => r.ClassName.Equals(className, StringComparison.OrdinalIgnoreCase));
+            }
+            if (!string.IsNullOrWhiteSpace(sectionName) && !sectionName.Equals("all", StringComparison.OrdinalIgnoreCase))
+            {
+                string cleanSec = sectionName.Replace("Section ", "").Trim();
+                memQuery = memQuery.Where(r => r.SectionName.Equals(sectionName, StringComparison.OrdinalIgnoreCase) ||
+                                               r.SectionName.Equals(cleanSec, StringComparison.OrdinalIgnoreCase) ||
+                                               r.SectionName.Equals("Section " + cleanSec, StringComparison.OrdinalIgnoreCase));
+            }
+            return memQuery.ToList();
         }
-        if (!string.IsNullOrWhiteSpace(sectionName) && !sectionName.Equals("all", StringComparison.OrdinalIgnoreCase))
-        {
-            string cleanSec = sectionName.Replace("Section ", "").Trim();
-            memQuery = memQuery.Where(r => r.SectionName.Equals(sectionName, StringComparison.OrdinalIgnoreCase) ||
-                                           r.SectionName.Equals(cleanSec, StringComparison.OrdinalIgnoreCase) ||
-                                           r.SectionName.Equals("Section " + cleanSec, StringComparison.OrdinalIgnoreCase));
-        }
-        return memQuery.ToList();
     }
 
     public async Task<bool> SaveExamResultsAsync(string className, string sectionName, List<NewStudentExamResult> results)
@@ -87,9 +91,12 @@ public class ExamResultsReportsRepository : IExamResultsReportsRepository
             // Fallback
         }
 
-        _inMemoryResults.RemoveAll(r => r.ClassName.Equals(className, StringComparison.OrdinalIgnoreCase) &&
-                                        r.SectionName.Equals(sectionName, StringComparison.OrdinalIgnoreCase));
-        _inMemoryResults.AddRange(results);
+        lock (_lock)
+        {
+            _inMemoryResults.RemoveAll(r => r.ClassName.Equals(className, StringComparison.OrdinalIgnoreCase) &&
+                                            r.SectionName.Equals(sectionName, StringComparison.OrdinalIgnoreCase));
+            _inMemoryResults.AddRange(results);
+        }
 
         return true;
     }
@@ -131,10 +138,13 @@ public class ExamResultsReportsRepository : IExamResultsReportsRepository
             // Fallback to in-memory
         }
 
-        foreach (var r in results)
+        lock (_lock)
         {
-            _inMemoryResults.RemoveAll(m => m.ExamId == r.ExamId && (m.StudentId == r.StudentId || (m.ClassName.Equals(r.ClassName, StringComparison.OrdinalIgnoreCase) && m.RollNo.Equals(r.RollNo, StringComparison.OrdinalIgnoreCase))));
-            _inMemoryResults.Add(r);
+            foreach (var r in results)
+            {
+                _inMemoryResults.RemoveAll(m => m.ExamId == r.ExamId && (m.StudentId == r.StudentId || (m.ClassName.Equals(r.ClassName, StringComparison.OrdinalIgnoreCase) && m.RollNo.Equals(r.RollNo, StringComparison.OrdinalIgnoreCase))));
+                _inMemoryResults.Add(r);
+            }
         }
 
         return true;
@@ -142,8 +152,11 @@ public class ExamResultsReportsRepository : IExamResultsReportsRepository
 
     public async Task<bool> ClearExamResultsAsync(string className, string sectionName)
     {
-        _inMemoryResults.RemoveAll(r => r.ClassName.Equals(className, StringComparison.OrdinalIgnoreCase) &&
-                                        r.SectionName.Equals(sectionName, StringComparison.OrdinalIgnoreCase));
+        lock (_lock)
+        {
+            _inMemoryResults.RemoveAll(r => r.ClassName.Equals(className, StringComparison.OrdinalIgnoreCase) &&
+                                            r.SectionName.Equals(sectionName, StringComparison.OrdinalIgnoreCase));
+        }
 
         try
         {
@@ -166,15 +179,18 @@ public class ExamResultsReportsRepository : IExamResultsReportsRepository
 
     public async Task<bool> UpdateExamResultAsync(NewStudentExamResult result)
     {
-        var existingMem = _inMemoryResults.FirstOrDefault(r => r.ResultId == result.ResultId || (r.StudentId == result.StudentId && r.ClassName == result.ClassName && r.SectionName == result.SectionName));
-        if (existingMem != null)
+        lock (_lock)
         {
-            existingMem.TotalMarksObtained = result.TotalMarksObtained;
-            existingMem.TotalMaxMarks = result.TotalMaxMarks;
-            existingMem.Percentage = result.Percentage;
-            existingMem.Grade = result.Grade;
-            existingMem.Rank = result.Rank;
-            existingMem.ResultStatus = result.ResultStatus;
+            var existingMem = _inMemoryResults.FirstOrDefault(r => r.ResultId == result.ResultId || (r.StudentId == result.StudentId && r.ClassName == result.ClassName && r.SectionName == result.SectionName));
+            if (existingMem != null)
+            {
+                existingMem.TotalMarksObtained = result.TotalMarksObtained;
+                existingMem.TotalMaxMarks = result.TotalMaxMarks;
+                existingMem.Percentage = result.Percentage;
+                existingMem.Grade = result.Grade;
+                existingMem.Rank = result.Rank;
+                existingMem.ResultStatus = result.ResultStatus;
+            }
         }
 
         try
