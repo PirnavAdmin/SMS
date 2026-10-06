@@ -720,6 +720,12 @@ export const LeaveManagementView: React.FC = () => {
     }
 
     updateLeaveApplicationStatus(selectedQueueApp.id, queueActionType, approvalRemarks, 'Principal / HR Administrator');
+    if (queueActionType === 'Approved') {
+      const isApplicantTeacher = (selectedQueueApp.employeeCategory || selectedQueueApp.designation || '').toLowerCase().includes('teach') || (selectedQueueApp.department || '').toLowerCase().includes('academic');
+      if (isApplicantTeacher) {
+        addToast('info', 'Leisure Replacement Available', `You can assign leisure teachers to cover classes for ${selectedQueueApp.employeeName} in Timetable > Substitution.`);
+      }
+    }
     setSelectedQueueApp(null);
     setApprovalRemarks('');
     setQueueActionType(null);

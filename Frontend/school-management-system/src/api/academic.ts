@@ -496,9 +496,78 @@ export const validateTimetableApi = async (classId: number | string, sectionId: 
   );
 };
 
-export const fetchTeacherSubstitutionsApi = async (teacherName?: string, teacherId?: number | string) => {
-  const query = teacherId ? `?teacherId=${teacherId}` : teacherName ? `?teacherName=${encodeURIComponent(teacherName)}` : '';
-  return apiClient(`/api/academics/timetable/substitutions${query}`, { method: 'GET' });
+export const fetchTeacherSubstitutionsApi = async (
+  date?: string,
+  teacherId?: number | string,
+  teacherName?: string,
+  academicYear?: string,
+  branch?: string
+) => {
+  const params = new URLSearchParams();
+  if (date) params.append('date', date);
+  if (teacherId) params.append('teacherId', String(teacherId));
+  if (teacherName) params.append('teacherName', teacherName);
+  if (academicYear && academicYear !== 'All') params.append('academicYear', academicYear);
+  if (branch && branch !== 'All' && branch !== 'All Branches') params.append('branch', branch);
+  const queryString = params.toString();
+  return apiClient(`/api/academics/timetable/substitutions${queryString ? `?${queryString}` : ''}`, { method: 'GET' });
+};
+
+export const fetchAbsentTeachersScheduleApi = async (
+  date?: string,
+  academicYear?: string,
+  branch?: string
+) => {
+  const params = new URLSearchParams();
+  if (date) params.append('date', date);
+  if (academicYear && academicYear !== 'All') params.append('academicYear', academicYear);
+  if (branch && branch !== 'All' && branch !== 'All Branches') params.append('branch', branch);
+  const queryString = params.toString();
+  return apiClient(`/api/academics/timetable/substitutions/absent-teachers${queryString ? `?${queryString}` : ''}`, { method: 'GET' });
+};
+
+export const fetchAvailableLeisureTeachersApi = async (params: {
+  date: string;
+  dayOfWeek?: string;
+  startTime: string;
+  endTime: string;
+  subjectId?: number;
+  excludeTeacherId?: number;
+}) => {
+  const searchParams = new URLSearchParams();
+  searchParams.append('date', params.date);
+  if (params.dayOfWeek) searchParams.append('dayOfWeek', params.dayOfWeek);
+  searchParams.append('startTime', params.startTime);
+  searchParams.append('endTime', params.endTime);
+  if (params.subjectId) searchParams.append('subjectId', String(params.subjectId));
+  if (params.excludeTeacherId) searchParams.append('excludeTeacherId', String(params.excludeTeacherId));
+  return apiClient(`/api/academics/timetable/substitutions/leisure-teachers?${searchParams.toString()}`, { method: 'GET' });
+};
+
+export const assignTeacherSubstitutionApi = async (payload: any) => {
+  return apiClient('/api/academics/timetable/substitutions/assign', {
+    method: 'POST',
+    body: JSON.stringify(payload)
+  });
+};
+
+export const autoReplaceTeacherSubstitutionsApi = async (payload: {
+  date: string;
+  teacherId?: number;
+  academicYear?: string;
+  branchName?: string;
+  remarks?: string;
+}) => {
+  return apiClient('/api/academics/timetable/substitutions/auto-replace', {
+    method: 'POST',
+    body: JSON.stringify(payload)
+  });
+};
+
+export const deleteTeacherSubstitutionApi = async (substitutionId: number | string) => {
+  return apiClient(`/api/academics/timetable/substitutions/${substitutionId}`, {
+    method: 'DELETE'
+  });
 };
 
 export const fetchAllTimetablesApi = async (academicYear?: string) => {

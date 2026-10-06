@@ -13,6 +13,7 @@ import { TimetableSlot, PeriodSetting, TeacherAssignment } from '../../../types'
 import { ConfirmModal } from '../../common/ConfirmModal';
 import { SchoolPrintHeader } from '../../common/SchoolPrintHeader';
 import { AutoTimetableGeneratorModal } from './AutoTimetableGeneratorModal';
+import { TeacherSubstitutionWorkspace } from './TeacherSubstitutionWorkspace';
 import { 
   fetchPeriodsApi, savePeriodApi, deletePeriodApi,
   fetchTimetableGridApi, saveTimetableSlotApi, deleteTimetableSlotApi,
@@ -20,16 +21,16 @@ import {
 } from '../../../api/academic';
 import { compareClassesAscending } from '../../../utils/classSorter';
 
-type TimetableTab = 'period-settings' | 'class-timetable' | 'teacher-timetable';
+type TimetableTab = 'period-settings' | 'class-timetable' | 'teacher-timetable' | 'teacher-substitution';
 
 export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> = ({ onNavigate }) => {
   const {
-    timetable, addTimetableSlot, updateTimetableSlot, deleteTimetableSlot, clearClassTimetable, publishClassTimetable, loadTimetableForClassSection,
-    periodSettings, addPeriodSetting, updatePeriodSetting, deletePeriodSetting, bulkAssignPeriods, resetClassPeriods,
-    teacherAssignments, addTeacherAssignment, updateTeacherAssignment, deleteTeacherAssignment,
-    staff, academicClasses, rawClasses, subjects, holidays, students,
+    timetable = [], addTimetableSlot, updateTimetableSlot, deleteTimetableSlot, clearClassTimetable, publishClassTimetable, loadTimetableForClassSection,
+    periodSettings = [], addPeriodSetting, updatePeriodSetting, deletePeriodSetting, bulkAssignPeriods, resetClassPeriods,
+    teacherAssignments = [], addTeacherAssignment, updateTeacherAssignment, deleteTeacherAssignment,
+    staff = [], academicClasses = [], rawClasses = [], subjects = [], holidays = [], students = [],
     fetchAcademicClasses, fetchSubjects, fetchPeriods, fetchTimetables,
-    academicYears
+    academicYears = []
   } = useData();
   const { user, role, selectedBranch, setSelectedBranch, selectedAcademicYear } = useAuth();
   const { addToast } = useToast();
@@ -345,12 +346,14 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
   };
 
   const classOptions = useMemo(() => {
-    const names = academicClasses.map(c => c.name);
+    const list = Array.isArray(academicClasses) ? academicClasses : [];
+    const names = list.map(c => c?.name).filter(Boolean);
     return names.sort(compareClassesAscending);
   }, [academicClasses]);
   const getSectionsForClass = (className?: string) => {
     if (!className) return [];
-    return academicClasses.find(c => c.name === className)?.sections || [];
+    const list = Array.isArray(academicClasses) ? academicClasses : [];
+    return list.find(c => c?.name === className)?.sections || [];
   };
 
   const [selectedClass, setSelectedClass] = useState('');
@@ -1192,11 +1195,19 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
               
               {/* 1. Substitution Card */}
               <div className="glass-card p-6 rounded-3xl border border-slate-205/60 dark:border-slate-800/60 bg-white dark:bg-slate-900 space-y-4 shadow-sm flex flex-col justify-between">
-                <div className="space-y-0.5 border-b border-slate-100 dark:border-slate-800/80 pb-3">
-                  <h3 className="font-extrabold text-sm text-slate-900 dark:text-white flex items-center gap-2">
-                    <AlertTriangle className="w-5 h-5 text-amber-500" /> Substitution Duties
-                  </h3>
-                  <p className="text-[10px] text-slate-400 font-medium">Substitute schedules or room adjustments today</p>
+                <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800/80 pb-3">
+                  <div className="space-y-0.5">
+                    <h3 className="font-extrabold text-sm text-slate-900 dark:text-white flex items-center gap-2">
+                      <AlertTriangle className="w-5 h-5 text-amber-500" /> Substitution Duties
+                    </h3>
+                    <p className="text-[10px] text-slate-400 font-medium">Substitute schedules or room adjustments today</p>
+                  </div>
+                  <button
+                    onClick={() => setActiveTab('teacher-substitution')}
+                    className="px-2.5 py-1 text-[11px] font-bold text-sky-600 dark:text-sky-400 hover:bg-sky-50 dark:hover:bg-sky-950/40 rounded-lg transition-colors"
+                  >
+                    Manage
+                  </button>
                 </div>
 
                 <div className="space-y-3 flex-grow pt-1">
@@ -1510,6 +1521,7 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
           { id: 'period-settings', label: 'Period Settings', icon: SlidersHorizontal },
           { id: 'class-timetable', label: 'Class Timetable', icon: Calendar },
           { id: 'teacher-timetable', label: 'Teacher Timetable', icon: User },
+          { id: 'teacher-substitution', label: 'Teacher Substitution & Leisure', icon: UserCheck },
         ].map(tab => {
           const Icon = tab.icon;
           const isActive = activeTab === tab.id;
@@ -2543,6 +2555,11 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
         </div>
       )}
 
+      {/* TAB 4: TEACHER SUBSTITUTION & LEISURE REPLACEMENT */}
+      {activeTab === 'teacher-substitution' && (
+        <TeacherSubstitutionWorkspace onNavigate={onNavigate} />
+      )}
+
 
       {/* Add Period Setting Modal */}
       {isPeriodModalOpen && (
@@ -2655,9 +2672,9 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
                        {/* Selection Options & Class List (Remaining Only) */}
             {(() => {
               const remainingList: { className: string; section: string; key: string }[] = [];
-              academicClasses.forEach(c => {
-                (c.sections || ['A']).forEach(sec => {
-                  const hasCustom = periodSettings.some(p => p.className === c.name && p.section === sec && p.status === 'Active');
+              (Array.isArray(academicClasses) ? academicClasses : []).forEach(c => {
+                (c?.sections || ['A']).forEach(sec => {
+                  const hasCustom = (Array.isArray(periodSettings) ? periodSettings : []).some(p => p.className === c.name && p.section === sec && p.status === 'Active');
                   if (!hasCustom) {
                     remainingList.push({ className: c.name, section: sec, key: `${c.name}-${sec}` });
                   }
