@@ -92,9 +92,15 @@ export const GlobalReportCardsView: React.FC<GlobalReportCardsViewProps> = ({ on
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [pageSize, setPageSize] = useState<number>(20);
 
-  // Fetch exam options on mount to get official exam names
+  // Fetch exam options on mount to get official exam names & clean legacy keys
   useEffect(() => {
     let isMounted = true;
+    try {
+      localStorage.removeItem('published_report_cards');
+      localStorage.removeItem('edu_db_processed_results');
+      localStorage.removeItem('processed_results');
+    } catch {}
+
     fetchExamOptionsApi()
       .then((res: any) => {
         if (isMounted) {
@@ -346,7 +352,7 @@ export const GlobalReportCardsView: React.FC<GlobalReportCardsViewProps> = ({ on
 
     const computePassStatus = (item: any): 'Pass' | 'Fail' => {
       const maxM = Number(item.totalMaxMarks ?? item.maxMarks ?? 0);
-      const obtainedM = Number(item.totalMarksObtained ?? item.totalObtainedMarks ?? item.obtainedMarks ?? 0);
+      const obtainedM = Number(item.totalMarksObtained ?? item.totalObtainedMarks ?? item.totalMarks ?? item.obtainedMarks ?? 0);
       const pct = Number(item.percentage ?? (maxM > 0 ? (obtainedM / maxM) * 100 : 0));
       
       const rawSubs = Array.isArray(item.subjectMarks) ? item.subjectMarks : (Array.isArray(item.subjectScores) ? item.subjectScores : []);
@@ -366,22 +372,40 @@ export const GlobalReportCardsView: React.FC<GlobalReportCardsViewProps> = ({ on
       return 'Pass';
     };
 
-    const apiMapped: ProcessedResult[] = (apiReportCards || []).map((r: any) => {
-      const maxMarks = Number(r.totalMaxMarks ?? r.maxMarks ?? 0);
-      const obtainedMarks = Number(r.totalMarksObtained ?? r.totalObtainedMarks ?? r.obtainedMarks ?? 0);
+    const normalizeResultItem = (r: any, sourcePrefix: string): ProcessedResult => {
+      const rawSubs = Array.isArray(r.subjectMarks) ? r.subjectMarks : (Array.isArray(r.subjectScores) ? r.subjectScores : []);
+      
+      // Calculate totals from subjects if explicit total is missing or 0
+      const subObtainedSum = rawSubs.reduce((sum: number, s: any) => {
+        const obt = s.obtainedMarks ?? s.marks;
+        if (obt === 'AB' || String(obt).toLowerCase() === 'absent') return sum;
+        return sum + (Number(obt) || 0);
+      }, 0);
+      const subMaxSum = rawSubs.reduce((sum: number, s: any) => sum + (Number(s.maxMarks || s.totalMarks) || 100), 0);
+
+      const explicitObt = r.totalObtainedMarks ?? r.totalMarksObtained ?? r.totalMarks ?? r.obtainedMarks;
+      const obtainedMarks = (explicitObt !== undefined && explicitObt !== null && Number(explicitObt) > 0)
+        ? Number(explicitObt)
+        : (subObtainedSum > 0 ? subObtainedSum : Number(explicitObt || 0));
+
+      const explicitMax = r.totalMaxMarks ?? r.maxMarks ?? r.totalMax;
+      const maxMarks = (explicitMax !== undefined && explicitMax !== null && Number(explicitMax) > 0)
+        ? Number(explicitMax)
+        : subMaxSum;
+
       const pct = Number(r.percentage ?? (maxMarks > 0 ? (obtainedMarks / maxMarks) * 100 : 0));
       const matchingExam = (exams || []).find(e => String(e.id) === String(r.examId || selectedExamId));
       const examType = matchingExam?.examType || (matchingExam as any)?.assessmentType || r.examType || (r as any)?.assessmentType || '';
       const calcGrade = calculateGrade(pct, gradeConfigurations, 'Percentage', examType);
-      const grade = (r.finalGrade && r.finalGrade !== '-') ? r.finalGrade : ((r.overallGrade && r.overallGrade !== '-') ? r.overallGrade : calcGrade);
+      const grade = (r.finalGrade && r.finalGrade !== '-') ? r.finalGrade : ((r.overallGrade && r.overallGrade !== '-') ? r.overallGrade : (r.grade && r.grade !== '-' ? r.grade : calcGrade));
       const rankVal = r.rank ? Number(r.rank) : 0;
-      const passFail = computePassStatus(r);
+      const passFail = computePassStatus({ ...r, totalMaxMarks: maxMarks, totalObtainedMarks: obtainedMarks, percentage: pct, subjectMarks: rawSubs });
 
       return {
-        id: String(r.id || r.resultId || `API-${r.studentId}`),
+        id: String(r.id || r.resultId || `${sourcePrefix}-${r.examId || 'EX'}-${r.studentId}`),
         examId: String(r.examId || (selectedExamId !== 'all' ? selectedExamId : '') || ''),
         studentId: String(r.studentId || ''),
-        studentName: r.studentName || `${r.firstName || ''} ${r.lastName || ''}`.trim(),
+        studentName: r.studentName || `${r.firstName || ''} ${r.lastName || ''}`.trim() || 'Student',
         className: r.className || selectedClass || '',
         section: r.sectionName || r.section || selectedSection || '',
         rollNo: r.rollNumber || r.rollNo || '',
@@ -392,23 +416,14 @@ export const GlobalReportCardsView: React.FC<GlobalReportCardsViewProps> = ({ on
         gpa: Number(r.gpa || 0),
         finalGrade: grade,
         overallGrade: grade,
-        subjectMarks: Array.isArray(r.subjectMarks) ? r.subjectMarks : (Array.isArray(r.subjectScores) ? r.subjectScores : []),
+        subjectMarks: rawSubs,
         passStatus: passFail,
         status: 'Published',
         rank: rankVal
       };
-    });
+    };
 
-    const contextReleased = (contextResults || []).filter(r => {
-      const matchingExam = (exams || []).find(e => e.id === r.examId);
-      const isExamReleased = matchingExam && (
-        matchingExam.publishStatus === 'Published' || 
-        matchingExam.status === 'Results Published' || 
-        matchingExam.status === 'Published'
-      );
-      const isResultReleased = r.status === 'Published' || r.status === 'Approved' || !!r.publishedAt;
-      return isExamReleased || isResultReleased;
-    });
+    const apiMapped: ProcessedResult[] = (apiReportCards || []).map((r: any) => normalizeResultItem(r, 'API'));
 
     const uniqueMap = new Map<string, ProcessedResult>();
     const getDedupeKey = (item: ProcessedResult) => {
@@ -423,7 +438,7 @@ export const GlobalReportCardsView: React.FC<GlobalReportCardsViewProps> = ({ on
       return studentIdKey;
     };
 
-    for (const item of [...apiMapped, ...contextReleased]) {
+    for (const item of apiMapped) {
       const key = getDedupeKey(item);
       const existing = uniqueMap.get(key);
       const computedStatus = computePassStatus(item);

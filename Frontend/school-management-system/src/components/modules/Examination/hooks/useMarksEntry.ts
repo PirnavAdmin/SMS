@@ -100,23 +100,12 @@ export function useMarksEntry() {
           status: (existing.isLocked ? 'Locked' : (existing as any).marksStatus || 'In Progress')
         };
       } else {
-        // Load from local storage draft if exists
-        const draftKey = `draft_marks_${examId}_${className}_${section}_${subject}_${student.id}`;
-        const draft = localStorage.getItem(draftKey);
-        if (draft) {
-          try {
-            rosterMarks[student.id] = JSON.parse(draft);
-          } catch (e) {
-            // Ignore parse errors
-          }
-        } else {
-          rosterMarks[student.id] = {
-            attendance: 'Present',
-            marks: '',
-            remarks: '',
-            status: 'Not Started'
-          };
-        }
+        rosterMarks[student.id] = {
+          attendance: 'Present',
+          marks: '',
+          remarks: '',
+          status: 'Not Started'
+        };
       }
     });
 
@@ -130,11 +119,6 @@ export function useMarksEntry() {
     subject: string,
     marksState: Record<string, RosterMarkRowState>
   ) => {
-    Object.entries(marksState).forEach(([studentId, state]) => {
-      const draftKey = `draft_marks_${examId}_${className}_${section}_${subject}_${studentId}`;
-      localStorage.setItem(draftKey, JSON.stringify({ ...state, status: 'In Progress' }));
-    });
-
     const exam = (exams || []).find(e => String(e.id) === String(examId));
     const examType = exam?.examType || (exam as any)?.assessmentType || '';
 
@@ -238,12 +222,6 @@ export function useMarksEntry() {
         })
       }).catch(err => console.warn('Submit marks API note:', err));
     } catch (e) {}
-
-    // Clean drafts
-    Object.keys(marksState).forEach(studentId => {
-      const draftKey = `draft_marks_${examId}_${className}_${section}_${subject}_${studentId}`;
-      localStorage.removeItem(draftKey);
-    });
   };
 
   return {

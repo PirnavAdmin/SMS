@@ -797,7 +797,7 @@ export const ClassTeacherMarksEntryView: React.FC<ClassTeacherMarksEntryViewProp
   // Local Marks State Matrix: { [studentId]: { [subjectName]: { marks: string; attendance: 'Present' | 'Absent' | 'Medical Leave' | 'Exempted'; remarks?: string } } }
   const [matrixMarks, setMatrixMarks] = useState<Record<string, Record<string, { marks: string; attendance: string; remarks: string }>>>({});
 
-  // Sync / Load Marks from DataContext examMarks and localStorage drafts
+  // Sync / Load Marks dynamically from DataContext examMarks
   useEffect(() => {
     if (!currentExam?.id || !selectedClass || !selectedSection || classStudents.length === 0) return;
 
@@ -806,7 +806,7 @@ export const ClassTeacherMarksEntryView: React.FC<ClassTeacherMarksEntryViewProp
     classStudents.forEach(student => {
       initialMatrix[student.id] = {};
       classSubjects.forEach(sub => {
-        // 1. Check DataContext examMarks
+        // Check DataContext examMarks dynamically
         const existing = (examMarks || []).find(m => 
           String(m.examId) === String(currentExam.id) &&
           String(m.studentId) === String(student.id) &&
@@ -820,18 +820,7 @@ export const ClassTeacherMarksEntryView: React.FC<ClassTeacherMarksEntryViewProp
             remarks: existing.remarks || ''
           };
         } else {
-          // 2. Check draft storage
-          const draftKey = `draft_matrix_${currentExam.id}_${selectedClass}_${selectedSection}_${student.id}_${sub.name}`;
-          const localDraft = localStorage.getItem(draftKey);
-          if (localDraft) {
-            try {
-              initialMatrix[student.id][sub.name] = JSON.parse(localDraft);
-            } catch (e) {
-              initialMatrix[student.id][sub.name] = { marks: '', attendance: 'Present', remarks: '' };
-            }
-          } else {
-            initialMatrix[student.id][sub.name] = { marks: '', attendance: 'Present', remarks: '' };
-          }
+          initialMatrix[student.id][sub.name] = { marks: '', attendance: 'Present', remarks: '' };
         }
       });
     });
@@ -992,18 +981,7 @@ export const ClassTeacherMarksEntryView: React.FC<ClassTeacherMarksEntryViewProp
   const handleSaveDraft = async () => {
     setIsSavingDraft(true);
     try {
-      // 1. Save to localStorage drafts
-      classStudents.forEach(student => {
-        classSubjects.forEach(sub => {
-          const entry = matrixMarks[student.id]?.[sub.name];
-          if (entry) {
-            const draftKey = `draft_matrix_${currentExam?.id}_${selectedClass}_${selectedSection}_${student.id}_${sub.name}`;
-            localStorage.setItem(draftKey, JSON.stringify(entry));
-          }
-        });
-      });
-
-      // 2. Prepare payload for DataContext saveMarks
+      // 1. Prepare payload for DataContext saveMarks
       const marksPayload: Omit<ExamMark, 'id'>[] = [];
       classStudents.forEach(student => {
         classSubjects.forEach(sub => {
@@ -1156,11 +1134,16 @@ export const ClassTeacherMarksEntryView: React.FC<ClassTeacherMarksEntryViewProp
           admissionNo: student.admissionNo || '',
           className: selectedClass,
           section: selectedSection,
+          totalObtainedMarks: evalInfo.totalObtained,
+          totalMarksObtained: evalInfo.totalObtained,
           totalMarks: evalInfo.totalObtained,
           totalMaxMarks: evalInfo.totalMax,
           percentage: evalInfo.percentage,
+          finalGrade: evalInfo.grade,
+          overallGrade: evalInfo.grade,
           grade: evalInfo.grade,
           rank: idx + 1,
+          passStatus: evalInfo.status === 'PASS' ? 'Pass' : 'Fail',
           result: evalInfo.status === 'PASS' ? 'PASS' : 'FAIL',
           status: 'Published',
           publishedDate: new Date().toISOString(),
@@ -1173,16 +1156,7 @@ export const ClassTeacherMarksEntryView: React.FC<ClassTeacherMarksEntryViewProp
       saveMarks(marksPayload);
       saveProcessedResults(processedList);
 
-      // 4. Save to localStorage for instant local/parent/student reactivity
-      try {
-        const existingPublished = JSON.parse(localStorage.getItem('published_report_cards') || '[]');
-        const filtered = existingPublished.filter(
-          (r: any) => !(String(r.examId) === String(currentExam.id) && r.className === selectedClass && r.section === selectedSection)
-        );
-        localStorage.setItem('published_report_cards', JSON.stringify([...filtered, ...processedList]));
-      } catch (e) {}
-
-      // 5. Post to backend API
+      // 4. Post dynamically to backend API
       try {
         await publishExamResultsApi({
           examId: Number(currentExam.id) || 1,

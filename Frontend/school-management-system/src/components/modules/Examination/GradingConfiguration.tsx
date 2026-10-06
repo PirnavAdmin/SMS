@@ -25,19 +25,10 @@ export const GradingConfiguration: React.FC<GradingConfigurationProps> = ({
   const { gradeConfigurations, saveGradeConfiguration, exams: contextExams } = useData();
   const { selectedAcademicYear, selectedBranch } = useAuth();
 
-  const [selectedExamType, setSelectedExamType] = useState<string>(() => {
-    try {
-      return localStorage.getItem('sms_grading_selected_exam_type') || 'All';
-    } catch {
-      return 'All';
-    }
-  });
+  const [selectedExamType, setSelectedExamType] = useState<string>('All');
 
   const handleSelectExamType = (type: string) => {
     setSelectedExamType(type);
-    try {
-      localStorage.setItem('sms_grading_selected_exam_type', type);
-    } catch {}
   };
 
   const [createdExams, setCreatedExams] = useState<any[]>([]);
