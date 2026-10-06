@@ -61,10 +61,16 @@ export const PrintableReportCard: React.FC<PrintableReportCardProps> = ({
     status: 'Active'
   } as Student : null);
 
+  const currentAcademicYear =
+    schoolProfile?.academicYear ||
+    contextData.academicYears?.find((y: any) => y.status === 'Active')?.academicYear ||
+    contextData.academicYears?.[0]?.academicYear ||
+    '';
+
   const effectiveExam: ExamSetup | null = exam || (propProcessedResult ? ({
     id: propProcessedResult.examId || '1',
     name: 'Academic Examination',
-    academicYear: '2026-2027',
+    academicYear: currentAcademicYear,
     className: propProcessedResult.className || '',
     startDate: new Date().toISOString().split('T')[0],
     endDate: new Date().toISOString().split('T')[0],

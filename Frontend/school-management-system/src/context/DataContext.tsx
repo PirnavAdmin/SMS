@@ -17671,6 +17671,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       });
       Object.entries(groups).forEach(([_, group]) => {
         const first = group[0];
+        if (!first || !first.className || !first.section || !first.subject) return;
         const isFinal = group.every((m) => m.isLocked);
         const payload = {
           examId: Number(first.examId) || 1,
