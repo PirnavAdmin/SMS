@@ -1259,20 +1259,6 @@ export const ClassTeacherMarksEntryView: React.FC<ClassTeacherMarksEntryViewProp
         </div>
 
         <div className="flex items-center gap-2.5 w-full sm:w-auto justify-end flex-wrap">
-          {isAlreadyPublished && !isEditingPublished && (
-            <button
-              type="button"
-              onClick={() => {
-                setIsEditingPublished(true);
-                addToast('info', 'Edit Mode Enabled', 'Marks are now unlocked for editing. Make changes and click Re-Publish Marks to update records.');
-              }}
-              className="inline-flex h-9 items-center justify-center gap-1.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white px-3.5 text-xs font-bold transition shadow-xs cursor-pointer"
-            >
-              <Edit3 className="h-3.5 w-3.5" />
-              Edit Published Marks
-            </button>
-          )}
-
           {isAlreadyPublished && isEditingPublished && (
             <button
               type="button"
