@@ -884,22 +884,45 @@ namespace SMS.Api.Data
 
                 entity.HasKey(x => x.DriverId);
 
-                entity.HasIndex(x => x.LicenceNumber)
-                    .IsUnique();
-
-                entity.HasIndex(x => x.MobileNumber);
-
                 entity.Property(x => x.DriverName)
-                    .IsRequired()
+                    .IsRequired(false)
                     .HasMaxLength(100);
 
                 entity.Property(x => x.MobileNumber)
-                    .IsRequired()
+                    .IsRequired(false)
                     .HasMaxLength(20);
 
                 entity.Property(x => x.LicenceNumber)
-                    .IsRequired()
+                    .IsRequired(false)
                     .HasMaxLength(50);
+
+                entity.Property(x => x.EmployeeId)
+                    .IsRequired(false)
+                    .HasMaxLength(50);
+
+                entity.Property(x => x.AlternateMobileNumber)
+                    .IsRequired(false)
+                    .HasMaxLength(20);
+
+                entity.Property(x => x.Email)
+                    .IsRequired(false)
+                    .HasMaxLength(150);
+
+                entity.Property(x => x.Address)
+                    .IsRequired(false)
+                    .HasMaxLength(255);
+
+                entity.Property(x => x.BloodGroup)
+                    .IsRequired(false)
+                    .HasMaxLength(10);
+
+                entity.Property(x => x.EmergencyContactName)
+                    .IsRequired(false)
+                    .HasMaxLength(100);
+
+                entity.Property(x => x.EmergencyContactNumber)
+                    .IsRequired(false)
+                    .HasMaxLength(20);
 
                 entity.Property(x => x.Status)
                     .HasDefaultValue(true);

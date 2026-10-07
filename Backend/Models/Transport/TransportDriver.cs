@@ -10,7 +10,7 @@ public class TransportDriver
 
     public string? DriverName { get; set; }
 
-    public string? EmployeeId { get; set; } = "DRV-1";
+    public string? EmployeeId { get; set; }
 
     public string? LicenceNumber { get; set; }
 
