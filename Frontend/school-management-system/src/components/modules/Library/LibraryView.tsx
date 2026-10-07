@@ -2815,22 +2815,22 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ initialPhase = 'phase1
               >
                 <option value="">-- Select from Admission List / Students --</option>
                 <optgroup label="📋 Admission Applications & Candidates">
-                  {studentAdmissionCandidates.filter(c => c.className.toLowerCase().includes('admission')).map(c => (
-                    <option key={c.id} value={c.id}>
+                  {studentAdmissionCandidates.filter(c => c.className.toLowerCase().includes('admission')).map((c, idx) => (
+                    <option key={`cand-adm-${c.id}-${c.admissionNo}-${idx}`} value={c.id}>
                       {c.name} ({c.admissionNo} • {c.className})
                     </option>
                   ))}
                 </optgroup>
                 <optgroup label="🎓 Enrolled Students">
-                  {studentAdmissionCandidates.filter(c => !c.className.toLowerCase().includes('admission')).map(c => (
-                    <option key={c.id} value={c.id}>
+                  {studentAdmissionCandidates.filter(c => !c.className.toLowerCase().includes('admission')).map((c, idx) => (
+                    <option key={`cand-enr-${c.id}-${c.admissionNo}-${idx}`} value={c.id}>
                       {c.name} ({c.admissionNo} • {c.className})
                     </option>
                   ))}
                 </optgroup>
                 <optgroup label="👔 Faculty & Staff">
-                  {staffCandidates.map(c => (
-                    <option key={c.id} value={c.id}>
+                  {staffCandidates.map((c, idx) => (
+                    <option key={`cand-stf-${c.id}-${c.admissionNo}-${idx}`} value={c.id}>
                       {c.name} ({c.admissionNo} • {c.className})
                     </option>
                   ))}
@@ -3570,15 +3570,18 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ initialPhase = 'phase1
             </div>
             <form onSubmit={e => {
               e.preventDefault();
+              const staffMem = (staff || []).find(s => (s.empId || s.id) === modalData?.staffId);
+              const fallbackName = user?.name || 'Staff Member';
+              const selectedName = modalData?.staffName || (staffMem ? `${staffMem.firstName} ${staffMem.lastName}`.trim() : fallbackName);
               const newRec: LibrarianAttendanceRecord = {
                 id: `ATT-LIB-${Date.now()}`,
-                staffId: modalData?.staffId || 'EMP-LIB-01',
-                staffName: modalData?.staffName || 'Bhanu Prakash',
+                staffId: modalData?.staffId || (staffMem ? (staffMem.empId || staffMem.id) : (user?.empId || 'STAFF')),
+                staffName: selectedName,
                 role: 'Librarian',
                 date: modalData?.date || new Date().toISOString().split('T')[0],
-                checkInTime: modalData?.checkInTime || '08:30 AM',
-                checkOutTime: modalData?.checkOutTime || '05:00 PM',
-                workingHours: modalData?.workingHours || calculateWorkedHours(modalData?.checkInTime || '08:30 AM', modalData?.checkOutTime || '05:00 PM'),
+                checkInTime: modalData?.checkInTime || '',
+                checkOutTime: modalData?.checkOutTime || '',
+                workingHours: modalData?.workingHours || calculateWorkedHours(modalData?.checkInTime, modalData?.checkOutTime),
                 shift: modalData?.shift || 'Morning Shift (08:30 - 17:00)',
                 status: modalData?.status || 'Present',
                 remarks: modalData?.remarks || 'Manual shift record entry'
@@ -3594,14 +3597,24 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ initialPhase = 'phase1
                     value={modalData?.staffId}
                     onChange={e => {
                       const selected = e.target.value;
-                      const name = selected === 'EMP-LIB-01' ? 'Bhanu Prakash' : selected === 'EMP-LIB-02' ? 'Rachel Green' : 'Sarah Jenkins';
+                      const staffMem = (staff || []).find(s => (s.empId || s.id) === selected);
+                      const name = staffMem ? `${staffMem.firstName} ${staffMem.lastName}`.trim() : (user?.name || 'Staff');
                       setModalData((prev: any) => ({ ...prev, staffId: selected, staffName: name }));
                     }}
                     className="w-full px-3 py-2 rounded-xl border bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white font-bold outline-none cursor-pointer"
                   >
-                    <option value="EMP-LIB-01">Bhanu Prakash (Librarian)</option>
-                    <option value="EMP-LIB-02">Rachel Green (Assistant Librarian)</option>
-                    <option value="EMP-LIB-03">Sarah Jenkins (Library Attendant)</option>
+                    {(staff || []).filter(s => (s.designation || '').toLowerCase().includes('librarian') || (s.department || '').toLowerCase().includes('library')).map(s => (
+                      <option key={s.id} value={s.empId || s.id}>
+                        {s.firstName} {s.lastName} ({s.designation || 'Library Staff'})
+                      </option>
+                    ))}
+                    {(!(staff || []).some(s => (s.designation || '').toLowerCase().includes('librarian') || (s.department || '').toLowerCase().includes('library'))) && (
+                      (staff || []).map(s => (
+                        <option key={s.id} value={s.empId || s.id}>
+                          {s.firstName} {s.lastName} ({s.designation || 'Staff'})
+                        </option>
+                      ))
+                    )}
                   </select>
                 </div>
                 <div>

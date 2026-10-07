@@ -829,8 +829,8 @@ export const LibrarianAttendanceView: React.FC = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                {myLeaveApplications.map((app: any) => (
-                  <tr key={app.id || Math.random()} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/50">
+                {myLeaveApplications.map((app: any, idx: number) => (
+                  <tr key={app.id ? `leave-app-${app.id}` : `leave-app-idx-${idx}-${app.startDate || ''}`} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/50">
                     <td className="py-3 px-3 font-mono font-bold text-slate-600 dark:text-slate-400">
                       {app.appliedOn || app.startDate}
                     </td>

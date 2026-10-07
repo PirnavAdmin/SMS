@@ -22,7 +22,7 @@ namespace SMS.Api.Controllers.AcademicManagement
         }
 
         [HttpGet]
-        [Authorize(Roles = "SuperAdmin,Admin,Teacher,Principal")]
+        [Authorize]
         public async Task<IActionResult> GetDesignations([FromQuery] string? search)
         {
             try
@@ -37,7 +37,7 @@ namespace SMS.Api.Controllers.AcademicManagement
         }
 
         [HttpGet("{id:int}")]
-        [Authorize(Roles = "SuperAdmin,Admin,Teacher,Principal")]
+        [Authorize]
         public async Task<IActionResult> GetDesignationById(int id)
         {
             try

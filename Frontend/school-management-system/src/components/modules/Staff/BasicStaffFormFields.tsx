@@ -27,6 +27,16 @@ import {
 import { DateInput } from '../../common/DateInput';
 import { SearchableSelect } from '../../common/SearchableSelect';
 import { validateEmail, validate10DigitPhone } from '../../../utils/validation';
+import {
+  COUNTRY_DIAL_CODES,
+  VALID_INDIAN_STATES,
+  KNOWN_INDIAN_CITIES,
+  WORLD_COUNTRIES,
+  validateStateName,
+  validateCityName,
+  getOfflinePostalInfo,
+  lookupPostalCode
+} from '../../../utils/postalLookup';
 
 interface BasicStaffFormFieldsProps {
   value: BasicStaffFormState;

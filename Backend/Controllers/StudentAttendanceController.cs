@@ -24,7 +24,7 @@ public class StudentAttendanceController : ControllerBase
     /// Get Attendance Register with Summary Cards and Daily Records (accessible by Student, Parent, Teacher, Admin)
     /// </summary>
     [HttpGet("register")]
-    [Authorize(Roles = "Admin,Teacher,Student,Parent,Staff")]
+    [Authorize]
     public async Task<IActionResult> GetStudentAttendanceRegister([FromQuery] StudentAttendanceRegisterQueryDto query)
     {
         var result = await _service.GetStudentAttendanceRegisterAsync(query);
@@ -35,7 +35,7 @@ public class StudentAttendanceController : ControllerBase
     /// Get all student attendance records matching optional filters
     /// </summary>
     [HttpGet("all")]
-    [Authorize(Roles = "Admin,Teacher,Student,Parent,Staff")]
+    [Authorize]
     public async Task<IActionResult> GetAllStudentAttendanceRecords([FromQuery] StudentAttendanceUniversalQueryDto query)
     {
         var result = await _service.GetAllAttendanceRecordsAsync(query);
@@ -46,7 +46,7 @@ public class StudentAttendanceController : ControllerBase
     /// Alias endpoint for fetching records
     /// </summary>
     [HttpGet("records")]
-    [Authorize(Roles = "Admin,Teacher,Student,Parent,Staff")]
+    [Authorize]
     public async Task<IActionResult> GetRecords([FromQuery] StudentAttendanceUniversalQueryDto query)
     {
         var result = await _service.GetAllAttendanceRecordsAsync(query);

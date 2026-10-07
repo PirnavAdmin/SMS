@@ -25,9 +25,34 @@ public class LibrarianAttendanceController : ControllerBase
         _context = context;
     }
 
+    private static bool _tableEnsured = false;
+
     private async Task EnsureDefaultAttendanceLogsAsync()
     {
-        await Task.CompletedTask;
+        if (_tableEnsured) return;
+        try
+        {
+            var createSql = @"
+CREATE TABLE IF NOT EXISTS `librarian_attendances` (
+  `AttendanceId` INT NOT NULL AUTO_INCREMENT,
+  `Date` DATETIME(6) NOT NULL,
+  `StaffName` VARCHAR(255) NOT NULL,
+  `EmployeeCode` VARCHAR(100) NOT NULL DEFAULT '',
+  `ShiftDetails` VARCHAR(255) NULL,
+  `CheckInTime` VARCHAR(50) NULL,
+  `CheckOutTime` VARCHAR(50) NULL,
+  `TotalHours` DOUBLE NOT NULL DEFAULT 0,
+  `Status` VARCHAR(50) NOT NULL DEFAULT '',
+  `DutyRemarks` LONGTEXT NULL,
+  PRIMARY KEY (`AttendanceId`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;";
+            await _context.Database.ExecuteSqlRawAsync(createSql);
+            _tableEnsured = true;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[LibrarianAttendance] Table ensure notice: {ex.Message}");
+        }
     }
 
     [HttpGet]
@@ -121,15 +146,17 @@ public class LibrarianAttendanceController : ControllerBase
     [HttpPost]
     public async Task<IActionResult> LogAttendance([FromBody] CreateLibrarianAttendanceDto dto)
     {
+        await EnsureDefaultAttendanceLogsAsync();
         if (dto == null) return BadRequest(new { success = false, message = "Invalid attendance payload." });
 
-        string staffName = !string.IsNullOrWhiteSpace(dto.StaffName) ? dto.StaffName.Trim() : "Bhanu Prakash";
-        string empCode = !string.IsNullOrWhiteSpace(dto.StaffId) ? dto.StaffId.Trim() : (!string.IsNullOrWhiteSpace(dto.EmployeeCode) ? dto.EmployeeCode.Trim() : "EMP-LIB-01");
+        string staffName = !string.IsNullOrWhiteSpace(dto.StaffName) ? dto.StaffName.Trim() : (User?.Identity?.Name ?? "Staff");
+        string empCode = !string.IsNullOrWhiteSpace(dto.StaffId) ? dto.StaffId.Trim() : (!string.IsNullOrWhiteSpace(dto.EmployeeCode) ? dto.EmployeeCode.Trim() : "");
         DateTime attDate = DateTime.TryParse(dto.Date, out var pDate) ? pDate.Date : DateTime.UtcNow.Date;
 
         // Check if attendance record already exists for staff on this date
-        var existing = await _context.LibrarianAttendances
-            .FirstOrDefaultAsync(a => a.EmployeeCode.ToLower() == empCode.ToLower() && a.Date.Date == attDate.Date);
+        var existing = !string.IsNullOrWhiteSpace(empCode)
+            ? await _context.LibrarianAttendances.FirstOrDefaultAsync(a => a.EmployeeCode.ToLower() == empCode.ToLower() && a.Date.Date == attDate.Date)
+            : null;
 
         if (existing != null)
         {
@@ -166,12 +193,12 @@ public class LibrarianAttendanceController : ControllerBase
             Date = attDate,
             StaffName = staffName,
             EmployeeCode = empCode,
-            ShiftDetails = !string.IsNullOrWhiteSpace(dto.Shift) ? dto.Shift.Trim() : (!string.IsNullOrWhiteSpace(dto.ShiftDetails) ? dto.ShiftDetails.Trim() : "Morning Shift (08:30 - 17:00)"),
+            ShiftDetails = !string.IsNullOrWhiteSpace(dto.Shift) ? dto.Shift.Trim() : (!string.IsNullOrWhiteSpace(dto.ShiftDetails) ? dto.ShiftDetails.Trim() : ""),
             CheckInTime = !string.IsNullOrWhiteSpace(dto.CheckInTime) ? dto.CheckInTime.Trim() : DateTime.Now.ToString("hh:mm tt"),
             CheckOutTime = !string.IsNullOrWhiteSpace(dto.CheckOutTime) ? dto.CheckOutTime.Trim() : null,
-            TotalHours = dto.TotalHours > 0 ? dto.TotalHours : 8.5,
+            TotalHours = dto.TotalHours > 0 ? dto.TotalHours : 0,
             Status = !string.IsNullOrWhiteSpace(dto.Status) ? dto.Status.Trim() : "Present",
-            DutyRemarks = dto.Remarks ?? dto.DutyRemarks ?? "Routine shift check-in"
+            DutyRemarks = dto.Remarks ?? dto.DutyRemarks ?? ""
         };
 
         await _context.LibrarianAttendances.AddAsync(entity);
@@ -201,6 +228,7 @@ public class LibrarianAttendanceController : ControllerBase
     [HttpPut("/api/librarian-attendance/{id}")]
     public async Task<IActionResult> UpdateAttendance(string id, [FromBody] CreateLibrarianAttendanceDto dto)
     {
+        await EnsureDefaultAttendanceLogsAsync();
         if (dto == null) return BadRequest(new { success = false, message = "Invalid attendance update payload." });
 
         int numId = 0;
@@ -216,13 +244,14 @@ public class LibrarianAttendanceController : ControllerBase
 
         if (item == null)
         {
-            // Try matching by today's date and staff code if ID was client-generated timestamp
-            string staffCode = !string.IsNullOrWhiteSpace(dto.StaffId) ? dto.StaffId.Trim() : (!string.IsNullOrWhiteSpace(dto.EmployeeCode) ? dto.EmployeeCode.Trim() : "EMP-LIB-01");
+            string staffCode = !string.IsNullOrWhiteSpace(dto.StaffId) ? dto.StaffId.Trim() : (!string.IsNullOrWhiteSpace(dto.EmployeeCode) ? dto.EmployeeCode.Trim() : "");
             DateTime targetDate = DateTime.TryParse(dto.Date, out var d) ? d.Date : DateTime.UtcNow.Date;
 
-            item = await _context.LibrarianAttendances
-                .FirstOrDefaultAsync(a => a.EmployeeCode.ToLower() == staffCode.ToLower() && a.Date.Date == targetDate.Date)
-                ?? await _context.LibrarianAttendances.OrderByDescending(a => a.AttendanceId).FirstOrDefaultAsync();
+            if (!string.IsNullOrWhiteSpace(staffCode))
+            {
+                item = await _context.LibrarianAttendances
+                    .FirstOrDefaultAsync(a => a.EmployeeCode.ToLower() == staffCode.ToLower() && a.Date.Date == targetDate.Date);
+            }
         }
 
         if (item == null) return NotFound(new { success = false, message = "Attendance record not found." });
@@ -260,6 +289,7 @@ public class LibrarianAttendanceController : ControllerBase
     [HttpDelete("/api/librarian-attendance/{id}")]
     public async Task<IActionResult> DeleteAttendance(string id)
     {
+        await EnsureDefaultAttendanceLogsAsync();
         int numId = 0;
         if (int.TryParse(id, out var parsed)) numId = parsed;
         else if (id.StartsWith("ATT-LIB-") && int.TryParse(id.Replace("ATT-LIB-", ""), out var parsedLib)) numId = parsedLib;

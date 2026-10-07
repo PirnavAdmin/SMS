@@ -21,17 +21,17 @@ namespace SMS.Api.Controllers.AcademicManagement
         }
 
         [HttpGet]
-        [Authorize(Roles = "SuperAdmin,Admin,Teacher,Principal")]
+        [Authorize]
         public async Task<IActionResult> GetSubjects([FromQuery] string? search) =>
             Ok(new { success = true, data = await _schoolService.GetAllSubjectsAsync(search) });
 
         [HttpGet("{id:int}")]
-        [Authorize(Roles = "SuperAdmin,Admin,Teacher,Principal")]
+        [Authorize]
         public async Task<IActionResult> GetSubjectById(int id) =>
             Ok(new { success = true, data = await _schoolService.GetSubjectByIdAsync(id) });
 
         [HttpGet("dropdown")]
-        [Authorize(Roles = "SuperAdmin,Admin,Teacher,Principal")]
+        [Authorize]
         public async Task<IActionResult> GetSubjectsDropdown([FromQuery] string? search) =>
             Ok(new { success = true, data = await _schoolService.GetSubjectsDropdownAsync(search) });
 

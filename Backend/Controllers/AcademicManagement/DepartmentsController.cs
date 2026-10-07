@@ -20,22 +20,22 @@ namespace SMS.Api.Controllers.AcademicManagement
         }
 
         [HttpGet]
-        [Authorize(Roles = "SuperAdmin,Admin,Teacher,Principal")]
+        [Authorize]
         public async Task<IActionResult> GetDepartments([FromQuery] string? search) =>
             Ok(new { success = true, data = await _schoolService.GetAllDepartmentsAsync(search) });
 
         [HttpGet("{id}")]
-        [Authorize(Roles = "SuperAdmin,Admin,Teacher,Principal")]
+        [Authorize]
         public async Task<IActionResult> GetDepartmentById(string id) =>
             Ok(new { success = true, data = await _schoolService.GetDepartmentByIdAsync(id) });
 
         [HttpGet("dropdown")]
-        [Authorize(Roles = "SuperAdmin,Admin,Teacher,Principal")]
+        [Authorize]
         public async Task<IActionResult> GetDepartmentsDropdown([FromQuery] string? search) =>
             Ok(new { success = true, data = await _schoolService.GetActiveDepartmentsDropdownAsync(search) });
 
         [HttpGet("{id}/subjects")]
-        [Authorize(Roles = "SuperAdmin,Admin,Teacher,Principal")]
+        [Authorize]
         public async Task<IActionResult> GetSubjectsByDepartment(string id) =>
             Ok(new { success = true, data = await _schoolService.GetSubjectsByDepartmentIdAsync(id) });
 

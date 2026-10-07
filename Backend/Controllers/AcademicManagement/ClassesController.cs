@@ -34,7 +34,7 @@ namespace SMS.Api.Controllers.AcademicManagement
         // --- GET ALL TEACHER ASSIGNMENTS (for frontend persistence on reload) ---
 
         [HttpGet("teacher-assignments")]
-        [Authorize(Roles = "SuperAdmin,Admin,Teacher,Principal")]
+        [Authorize]
         public async Task<IActionResult> GetAllTeacherAssignments()
         {
             var assignments = await _context.TeacherAssignments
@@ -75,7 +75,7 @@ namespace SMS.Api.Controllers.AcademicManagement
         }
 
         [HttpGet]
-        [Authorize(Roles = "SuperAdmin,Admin,Teacher,Principal")]
+        [Authorize]
         public async Task<IActionResult> GetClasses()
         {
             var campus = Request.Headers["X-Branch-Id"].ToString();
@@ -140,7 +140,7 @@ namespace SMS.Api.Controllers.AcademicManagement
 
 
         [HttpGet("{id:int}")]
-        [Authorize(Roles = "SuperAdmin,Admin,Teacher,Principal")]
+        [Authorize]
         public async Task<IActionResult> GetClassById(int id)
         {
             var classObj = await _context.Classes
@@ -844,7 +844,7 @@ namespace SMS.Api.Controllers.AcademicManagement
         // --- STUDENTS SUB-ROUTES ---
 
         [HttpGet("{id:int}/students")]
-        [Authorize(Roles = "SuperAdmin,Admin,Teacher,Principal")]
+        [Authorize]
         public async Task<IActionResult> GetClassStudents(int id, [FromQuery] string? section)
         {
             var classObj = await _context.Classes.FindAsync(id);

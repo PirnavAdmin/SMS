@@ -1067,6 +1067,19 @@ using (var scope = app.Services.CreateScope())
                 UNIQUE KEY `ux_staff_attendances_staff_date` (`StaffId`, `Date`),
                 CONSTRAINT `fk_staff_attendances_staff` FOREIGN KEY (`StaffId`) REFERENCES `staff` (`StaffId`) ON DELETE CASCADE
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;",
+            @"CREATE TABLE IF NOT EXISTS `librarian_attendances` (
+                `AttendanceId` INT NOT NULL AUTO_INCREMENT,
+                `Date` DATETIME(6) NOT NULL,
+                `StaffName` VARCHAR(255) NOT NULL,
+                `EmployeeCode` VARCHAR(100) NOT NULL DEFAULT '',
+                `ShiftDetails` VARCHAR(255) NULL,
+                `CheckInTime` VARCHAR(50) NULL,
+                `CheckOutTime` VARCHAR(50) NULL,
+                `TotalHours` DOUBLE NOT NULL DEFAULT 0,
+                `Status` VARCHAR(50) NOT NULL DEFAULT '',
+                `DutyRemarks` LONGTEXT NULL,
+                PRIMARY KEY (`AttendanceId`)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;",
             @"CREATE TABLE IF NOT EXISTS `period_settings` (
                 `PeriodId` int NOT NULL AUTO_INCREMENT,
                 `PeriodName` varchar(100) NOT NULL,

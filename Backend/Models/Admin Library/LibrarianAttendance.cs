@@ -17,15 +17,15 @@ public class LibrarianAttendance
 
     public string EmployeeCode { get; set; } = string.Empty;
 
-    public string ShiftDetails { get; set; } = "Morning Shift (08:30 - 17:00)";
+    public string ShiftDetails { get; set; } = string.Empty;
 
-    public string CheckInTime { get; set; } = "08:30 AM";
+    public string CheckInTime { get; set; } = string.Empty;
 
-    public string? CheckOutTime { get; set; } = "05:00 PM";
+    public string? CheckOutTime { get; set; }
 
-    public double TotalHours { get; set; } = 8.5;
+    public double TotalHours { get; set; } = 0;
 
-    public string Status { get; set; } = "Present";
+    public string Status { get; set; } = string.Empty;
 
     public string? DutyRemarks { get; set; }
 }

@@ -39,7 +39,7 @@ namespace SMS.Api.Controllers.AcademicManagement
         /// Get dropdown options for Academic Years and Days of the Week
         /// </summary>
         [HttpGet("options")]
-        [Authorize(Roles = "SuperAdmin,Admin,Teacher,Student,Parent,Principal")]
+        [Authorize]
         public async Task<IActionResult> GetTimetableDropdownOptions()
         {
             var academicYears = await _context.AcademicYears
@@ -93,7 +93,7 @@ namespace SMS.Api.Controllers.AcademicManagement
         /// Get Student Class Schedule Timetable (supports Academic Year & Day Filter: Monday, Tuesday, etc.)
         /// </summary>
         [HttpGet("student")]
-        [Authorize(Roles = "SuperAdmin,Admin,Teacher,Student,Parent,Principal")]
+        [Authorize]
         public async Task<IActionResult> GetStudentTimetable(
             [FromQuery] int classId = 0,
             [FromQuery] int sectionId = 0,
@@ -143,7 +143,7 @@ namespace SMS.Api.Controllers.AcademicManagement
         }
 
         [HttpGet("class-grid")]
-        [Authorize(Roles = "SuperAdmin,Admin,Teacher,Student,Parent,Principal")]
+        [Authorize]
         public async Task<IActionResult> GetClassTimetableGrid(
             [FromQuery] int classId = 0, 
             [FromQuery] int sectionId = 0, 
@@ -190,7 +190,7 @@ namespace SMS.Api.Controllers.AcademicManagement
 
         [HttpGet("periods")]
         [HttpGet("/api/academics/periods")]
-        [Authorize(Roles = "SuperAdmin,Admin,Teacher,Student,Parent,Principal")]
+        [Authorize]
         public async Task<IActionResult> GetPeriodSettings()
         {
             try
@@ -206,7 +206,7 @@ namespace SMS.Api.Controllers.AcademicManagement
 
         [HttpGet("all")]
         [HttpGet("/api/academics/timetable/all")]
-        [Authorize(Roles = "SuperAdmin,Admin,Teacher,Student,Parent,Principal")]
+        [Authorize]
         public async Task<IActionResult> GetAllTimetableSlots([FromQuery] string? academicYear = null)
         {
             try
@@ -274,7 +274,7 @@ namespace SMS.Api.Controllers.AcademicManagement
         }
 
         [HttpGet("/api/academics/timetable")]
-        [Authorize(Roles = "SuperAdmin,Admin,Teacher,Student,Parent,Principal")]
+        [Authorize]
         public async Task<IActionResult> GetAcademicsTimetable(
             [FromQuery] string classId,
             [FromQuery] string section,
@@ -365,7 +365,7 @@ namespace SMS.Api.Controllers.AcademicManagement
         }
 
         [HttpGet("teacher/{teacherId:int}")]
-        [Authorize(Roles = "SuperAdmin,Admin,Teacher,Student,Parent,Principal")]
+        [Authorize]
         public async Task<IActionResult> GetTeacherTimetable(int teacherId, [FromQuery] string? academicYear = null)
         {
             try
@@ -388,7 +388,7 @@ namespace SMS.Api.Controllers.AcademicManagement
         }
 
         [HttpGet("subjects-for-class")]
-        [Authorize(Roles = "SuperAdmin,Admin,Teacher,Student,Parent,Principal")]
+        [Authorize]
         public async Task<IActionResult> GetSubjectsForClass([FromQuery] int classId, [FromQuery] int sectionId)
         {
             try
@@ -407,7 +407,7 @@ namespace SMS.Api.Controllers.AcademicManagement
         /// </summary>
         [HttpGet("class-details")]
         [HttpGet("/api/academics/class-details")]
-        [Authorize(Roles = "SuperAdmin,Admin,Teacher,Student,Parent,Principal")]
+        [Authorize]
         public async Task<IActionResult> GetClassDetails([FromQuery] string className, [FromQuery] string? section = "A")
         {
             try
@@ -692,7 +692,7 @@ namespace SMS.Api.Controllers.AcademicManagement
         /// </summary>
         [HttpGet("substitutions")]
         [HttpGet("/api/academics/timetable/substitutions")]
-        [Authorize(Roles = "SuperAdmin,Admin,Teacher,Student,Parent,Principal")]
+        [Authorize]
         public async Task<IActionResult> GetTeacherSubstitutions(
             [FromQuery] string? date = null,
             [FromQuery] string? teacherName = null, 
@@ -732,7 +732,7 @@ namespace SMS.Api.Controllers.AcademicManagement
         /// </summary>
         [HttpGet("substitutions/absent-teachers")]
         [HttpGet("/api/academics/timetable/substitutions/absent-teachers")]
-        [Authorize(Roles = "SuperAdmin,Admin,Teacher,Principal")]
+        [Authorize]
         public async Task<IActionResult> GetAbsentTeachersSchedule(
             [FromQuery] string? date = null,
             [FromQuery] string? academicYear = null,
@@ -766,7 +766,7 @@ namespace SMS.Api.Controllers.AcademicManagement
         /// </summary>
         [HttpGet("substitutions/leisure-teachers")]
         [HttpGet("/api/academics/timetable/substitutions/leisure-teachers")]
-        [Authorize(Roles = "SuperAdmin,Admin,Teacher,Principal")]
+        [Authorize]
         public async Task<IActionResult> GetAvailableLeisureTeachers(
             [FromQuery] string date,
             [FromQuery] string? dayOfWeek,

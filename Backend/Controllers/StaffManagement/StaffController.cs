@@ -26,7 +26,7 @@ public class StaffController : ControllerBase
         Ok(new { success = true, data = new { nextEmployeeId = await _staffService.GetNextEmployeeIdAsync(category) } });
 
     [HttpGet]
-    [Authorize(Roles = "SuperAdmin,Admin,Principal,Teacher")]
+    [Authorize]
     public async Task<IActionResult> GetAllStaff(
         [FromQuery] string? search = null,
         [FromQuery] string? department = null,
@@ -41,12 +41,12 @@ public class StaffController : ControllerBase
     }
 
     [HttpGet("{id:int}")]
-    [Authorize(Roles = "SuperAdmin,Admin,Principal,Teacher")]
+    [Authorize]
     public async Task<IActionResult> GetStaffById(int id) =>
         Ok(new { success = true, data = await _staffService.GetStaffByIdAsync(id) });
 
     [HttpGet("teachers/dropdown")]
-    [Authorize(Roles = "SuperAdmin,Admin,Principal,Teacher")]
+    [Authorize]
     public async Task<IActionResult> GetTeachersDropdown([FromQuery] string? search) =>
         Ok(new { success = true, data = await _staffService.GetTeachersForDropdownAsync(search) });
 
