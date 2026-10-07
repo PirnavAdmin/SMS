@@ -186,7 +186,8 @@ export const uploadUserProfileImageApi = async (file: File): Promise<{ success: 
     (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
   ) {
     try {
-      const localRes = await fetch('http://127.0.0.1:5151/api/Settings/profile/upload', {
+      const localHost = window.location.hostname === '127.0.0.1' ? '127.0.0.1:5151' : 'localhost:5151';
+      const localRes = await fetch(`http://${localHost}/api/Settings/profile/upload`, {
         method: 'POST',
         headers,
         body: formData,

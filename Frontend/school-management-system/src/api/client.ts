@@ -38,20 +38,22 @@ export const apiClient = async (endpoint: string, options: RequestInit = {}) => 
 
   const isLocalHost = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
 
-  // When running locally on localhost, prefer direct local backend port 5151 first to avoid tunnel CORS/preflight noise and network latency.
-  let primaryUrl = endpoint.startsWith('http') ? endpoint : `${baseUrl}${cleanEndpoint}`;
+  // Primary URL is always based on the configured VITE_API_URL
+  let primaryUrl = endpoint.startsWith('http') ? endpoint : (baseUrl ? `${baseUrl}${cleanEndpoint}` : cleanEndpoint);
   let fallbackUrl = '';
   const isTunnel = baseUrl.includes('ngrok') || baseUrl.includes('trycloudflare') || baseUrl.includes('cloudflare');
 
+  // When running locally on localhost with a tunnel, keep tunnel as primary and local port 5151 as transparent fallback
   if (endpoint.startsWith('http')) {
     primaryUrl = endpoint;
-  } else if (isLocalHost && (isTunnel || !baseUrl)) {
-    primaryUrl = `http://127.0.0.1:5151${cleanEndpoint}`;
-    if (baseUrl && isTunnel) {
-      fallbackUrl = `${baseUrl}${cleanEndpoint}`;
-    }
-  } else if (isTunnel && isLocalHost) {
-    fallbackUrl = `http://127.0.0.1:5151${cleanEndpoint}`;
+  } else if (isLocalHost && isTunnel) {
+    primaryUrl = `${baseUrl}${cleanEndpoint}`;
+    const localHost = window.location.hostname === '127.0.0.1' ? '127.0.0.1:5151' : 'localhost:5151';
+    fallbackUrl = `http://${localHost}${cleanEndpoint}`;
+  } else if (isLocalHost && !baseUrl) {
+    primaryUrl = cleanEndpoint;
+    const localHost = window.location.hostname === '127.0.0.1' ? '127.0.0.1:5151' : 'localhost:5151';
+    fallbackUrl = `http://${localHost}${cleanEndpoint}`;
   }
 
   let response: Response;
@@ -67,8 +69,8 @@ export const apiClient = async (endpoint: string, options: RequestInit = {}) => 
           ...options,
           headers,
         });
-      } catch {
-        throw fetchError;
+      } catch (fallbackError: any) {
+        throw fallbackError || fetchError;
       }
     } else {
       throw fetchError;
