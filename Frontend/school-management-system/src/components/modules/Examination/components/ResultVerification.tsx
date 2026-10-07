@@ -22,7 +22,9 @@ export const ResultVerification: React.FC<ResultVerificationProps> = ({
 }) => {
   const cardClass = "p-5 rounded-3xl border shadow-sm text-xs space-y-4";
 
-  if (issues.length > 0) {
+  const isCompletedState = isApproved || isPublished || status === 'Approved' || status === 'Published' || (status === 'Locked' && isApproved);
+
+  if (!isCompletedState && issues.length > 0) {
     return (
       <div className={`${cardClass} bg-rose-50/50 dark:bg-rose-950/20 border-rose-200 dark:border-rose-900/60`}>
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-rose-100 dark:border-rose-900/40 pb-3">
@@ -37,7 +39,7 @@ export const ResultVerification: React.FC<ResultVerificationProps> = ({
           </span>
         </div>
 
-        <ul className="list-disc pl-5 space-y-1 font-semibold text-rose-800 dark:text-rose-300">
+        <ul className="list-disc pl-5 space-y-1 font-semibold text-rose-800 dark:text-rose-300 max-h-60 overflow-y-auto">
           {issues.map((issue, idx) => (
             <li key={idx}>{issue}</li>
           ))}
@@ -45,8 +47,6 @@ export const ResultVerification: React.FC<ResultVerificationProps> = ({
       </div>
     );
   }
-
-  const isCompletedState = isApproved || isPublished || status === 'Approved' || status === 'Published' || (status === 'Locked' && isApproved);
 
   return (
     <div className={`${cardClass} bg-emerald-50/40 dark:bg-emerald-950/20 border-emerald-200 dark:border-emerald-900/60 flex flex-col sm:flex-row sm:items-center justify-between gap-4`}>

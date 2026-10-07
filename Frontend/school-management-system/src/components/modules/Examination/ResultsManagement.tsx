@@ -85,34 +85,81 @@ export const ResultsManagement: React.FC<ResultsManagementProps> = ({
     return Object.keys(exam.marksConfig?.subjectWiseConfig || {});
   }, [exam, selectedClass, academicClasses]);
 
+  const isPublished = visibleResults.length > 0 && visibleResults.some(r => r.status === 'Published' || !!r.publishedAt);
+  const isApproved = visibleResults.length > 0 && visibleResults.some(r => r.status === 'Approved' || r.status === 'Published' || !!r.approvedAt || !!r.publishedAt);
+  const isLocked = visibleResults.length > 0 && visibleResults.some(r => r.status === 'Locked' || !!r.lockedAt);
+
   // Pre-calculations validation
   const validationIssues = useMemo(() => {
     const issues: string[] = [];
-    if (!exam) return issues;
+    if (!exam || !selectedClass || !selectedSection) return issues;
 
-    // Check if any student is missing marks for scheduled subjects
+    // If results are already published or approved, do not block or show pre-calculation validation errors
+    if (isPublished || isApproved) {
+      return [];
+    }
+
+    // Check if visibleResults already has complete subject marks roster (e.g. published by teacher)
+    if (visibleResults.length > 0) {
+      const hasAllSubjectMarksInResults = activeClassStudents.every(student => {
+        const studentRes = visibleResults.find(r => 
+          String(r.studentId) === String(student.id) || 
+          (r.admissionNo && r.admissionNo === student.admissionNo) ||
+          r.studentName?.toLowerCase().trim() === `${student.firstName} ${student.lastName}`.toLowerCase().trim()
+        );
+        if (!studentRes || !Array.isArray(studentRes.subjectMarks) || studentRes.subjectMarks.length === 0) return false;
+        return activeSubjects.every(sub => 
+          studentRes.subjectMarks.some((sm: any) => 
+            (sm.subject || sm.subjectName || '').toLowerCase().trim() === sub.toLowerCase().trim() &&
+            sm.obtainedMarks !== undefined && sm.obtainedMarks !== null && sm.obtainedMarks !== ''
+          )
+        );
+      });
+      if (hasAllSubjectMarksInResults) {
+        return [];
+      }
+    }
+
+    // Check if any student is missing marks for scheduled subjects in examMarks OR visibleResults
     activeClassStudents.forEach(student => {
       activeSubjects.forEach(sub => {
-        const hasMark = examMarks.some(
-          m => m.examId === exam.id && m.studentId === student.id && (m.subject || '').toLowerCase() === sub.toLowerCase()
+        const hasMarkInExamMarks = examMarks.some(
+          m => String(m.examId) === String(exam.id) && 
+               (String(m.studentId) === String(student.id) || (m.admissionNo && m.admissionNo === student.admissionNo)) && 
+               (m.subject || '').toLowerCase().trim() === sub.toLowerCase().trim()
         );
-        if (!hasMark) {
+        const hasMarkInVisibleResults = visibleResults.some(r => 
+          (String(r.studentId) === String(student.id) || (r.admissionNo && r.admissionNo === student.admissionNo) || r.studentName?.toLowerCase().trim() === `${student.firstName} ${student.lastName}`.toLowerCase().trim()) &&
+          (r.subjectMarks || []).some((sm: any) => 
+            (sm.subject || sm.subjectName || '').toLowerCase().trim() === sub.toLowerCase().trim() &&
+            sm.obtainedMarks !== undefined && sm.obtainedMarks !== null && sm.obtainedMarks !== ''
+          )
+        );
+
+        if (!hasMarkInExamMarks && !hasMarkInVisibleResults) {
           issues.push(`Marks missing for ${student.firstName} ${student.lastName} in ${sub}.`);
         }
       });
     });
 
-    // Check if marks are locked for all scheduled subjects
+    // Check if marks are entered for all scheduled subjects
     activeSubjects.forEach(sub => {
       const subMarks = examMarks.filter(
-        m => m.examId === exam.id && 
-             (m.className === selectedClass || activeClassStudents.some(s => s.id === m.studentId)) && 
-             (m.section === selectedSection || activeClassStudents.some(s => s.id === m.studentId)) && 
-             (m.subject || '').toLowerCase() === sub.toLowerCase()
+        m => String(m.examId) === String(exam.id) && 
+             (m.className === selectedClass || activeClassStudents.some(s => String(s.id) === String(m.studentId))) && 
+             (m.section === selectedSection || activeClassStudents.some(s => String(s.id) === String(m.studentId))) && 
+             (m.subject || '').toLowerCase().trim() === sub.toLowerCase().trim()
       );
-      if (subMarks.length === 0) {
+      const subInProcessed = visibleResults.some(r => 
+        (r.subjectMarks || []).some((sm: any) => 
+          (sm.subject || sm.subjectName || '').toLowerCase().trim() === sub.toLowerCase().trim() &&
+          sm.obtainedMarks !== undefined && sm.obtainedMarks !== null && sm.obtainedMarks !== ''
+        )
+      );
+
+      if (subMarks.length === 0 && !subInProcessed) {
         issues.push(`Marks not entered yet for subject: ${sub}.`);
-      } else {
+      } else if (subMarks.length > 0 && !subInProcessed) {
         const allLocked = subMarks.every(m => m.isLocked || (m as any).marksStatus === 'Locked');
         if (!allLocked) {
           issues.push(`Marks must be Locked for subject: ${sub} before calculation.`);
@@ -121,7 +168,7 @@ export const ResultsManagement: React.FC<ResultsManagementProps> = ({
     });
 
     return Array.from(new Set(issues));
-  }, [exam, activeClassStudents, activeSubjects, examMarks, selectedClass, selectedSection]);
+  }, [exam, activeClassStudents, activeSubjects, examMarks, visibleResults, isPublished, isApproved, selectedClass, selectedSection]);
 
   const handleCalculate = () => {
     if (!exam) return;
@@ -189,14 +236,19 @@ export const ResultsManagement: React.FC<ResultsManagementProps> = ({
 
   // Stats calculation
   const totalCount = visibleResults.length;
-  const passCount = visibleResults.filter(r => r.passStatus === 'Pass').length;
-  const failCount = visibleResults.filter(r => r.passStatus === 'Fail').length;
-  const publishedCount = visibleResults.filter(r => r.status === 'Published' || !!r.publishedAt).length;
-  const averagePercentage = totalCount > 0 ? visibleResults.reduce((a, b) => a + b.percentage, 0) / totalCount : 0;
+  const isPassResult = (r: any) => {
+    const val = String(r.passStatus || r.resultStatus || r.result || (r.isPass ? 'PASS' : '')).trim().toUpperCase();
+    return val === 'PASS' || val === 'PASSED' || r.isPass === true;
+  };
+  const isFailResult = (r: any) => {
+    const val = String(r.passStatus || r.resultStatus || r.result || (r.isPass === false ? 'FAIL' : '')).trim().toUpperCase();
+    return val === 'FAIL' || val === 'FAILED' || r.isPass === false;
+  };
 
-  const isPublished = visibleResults.length > 0 && visibleResults.some(r => r.status === 'Published' || !!r.publishedAt);
-  const isApproved = visibleResults.length > 0 && visibleResults.some(r => r.status === 'Approved' || r.status === 'Published' || !!r.approvedAt || !!r.publishedAt);
-  const isLocked = visibleResults.length > 0 && visibleResults.some(r => r.status === 'Locked' || !!r.lockedAt);
+  const passCount = visibleResults.filter(isPassResult).length;
+  const failCount = visibleResults.filter(isFailResult).length;
+  const publishedCount = visibleResults.filter(r => r.status === 'Published' || !!r.publishedAt).length;
+  const averagePercentage = totalCount > 0 ? visibleResults.reduce((a, b) => a + (Number(b.percentage) || 0), 0) / totalCount : 0;
 
   const displayStatusLabel = useMemo(() => {
     if (!visibleResults.length) return 'Draft';
@@ -413,12 +465,12 @@ export const ResultsManagement: React.FC<ResultsManagementProps> = ({
                             <td className="px-4 py-3 font-extrabold text-slate-900 dark:text-white">{r.studentName}</td>
                             <td className="px-4 py-3 font-mono font-bold text-slate-800 dark:text-slate-200">{r.percentage.toFixed(1)}%</td>
                             <td className="px-4 py-3 font-black text-indigo-600 dark:text-indigo-400">{r.finalGrade}</td>
-                            <td className="px-4 py-3 font-mono font-bold text-slate-700 dark:text-slate-300">{r.gpa}</td>
+                            <td className="px-4 py-3 font-mono font-bold text-slate-700 dark:text-slate-300">{r.gpa || '-'}</td>
                             <td className="px-4 py-3">
                               <span className={`px-2 py-0.5 rounded text-[10px] font-black uppercase ${
-                                r.passStatus === 'Pass' ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'
+                                isPassResult(r) ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300' : 'bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300'
                               }`}>
-                                {r.passStatus}
+                                {isPassResult(r) ? 'Pass' : 'Fail'}
                               </span>
                             </td>
                             <td className="px-4 py-3">
