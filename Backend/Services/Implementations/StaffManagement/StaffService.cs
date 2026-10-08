@@ -330,6 +330,11 @@ public class StaffService : IStaffService
         var staff = await _schoolRepository.GetStaffByIdAsync(id)
             ?? throw new NotFoundException($"Staff member with ID '{id}' not found.");
 
+        var oldEmail = staff.Email;
+        var oldPhone = staff.Phone;
+        var oldAlternateMobile = staff.AlternateMobile;
+        var oldFullName = $"{staff.FirstName} {staff.LastName}".Trim();
+
         if (!string.IsNullOrWhiteSpace(dto.EmployeeCategory)) staff.EmployeeCategory = dto.EmployeeCategory;
         staff.FirstName = dto.FirstName;
         staff.MiddleName = dto.MiddleName;
@@ -440,14 +445,18 @@ public class StaffService : IStaffService
             var mobileNo = !string.IsNullOrWhiteSpace(staff.Phone) ? staff.Phone.Trim() : (!string.IsNullOrWhiteSpace(staff.AlternateMobile) ? staff.AlternateMobile.Trim() : $"STF{staff.StaffId}");
 
             var existingUser = await _context.Users.FirstOrDefaultAsync(u => 
+                (!string.IsNullOrWhiteSpace(oldEmail) && u.Email != null && u.Email.ToLower() == oldEmail.ToLower()) ||
                 (!string.IsNullOrWhiteSpace(staff.Email) && u.Email != null && u.Email.ToLower() == staff.Email.ToLower()) ||
-                (!string.IsNullOrWhiteSpace(mobileNo) && u.MobileNumber == mobileNo));
+                (!string.IsNullOrWhiteSpace(oldPhone) && u.MobileNumber == oldPhone.Trim()) ||
+                (!string.IsNullOrWhiteSpace(mobileNo) && u.MobileNumber == mobileNo) ||
+                (!string.IsNullOrWhiteSpace(oldFullName) && u.FullName.ToLower() == oldFullName.ToLower()));
 
             if (existingUser != null)
             {
                 existingUser.FullName = fullName;
                 existingUser.Role = userRole;
                 if (!string.IsNullOrWhiteSpace(staff.Email)) existingUser.Email = staff.Email;
+                if (!string.IsNullOrWhiteSpace(mobileNo)) existingUser.MobileNumber = mobileNo;
                 await _context.SaveChangesAsync();
             }
         }
