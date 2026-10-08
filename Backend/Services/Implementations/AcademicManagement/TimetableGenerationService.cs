@@ -363,10 +363,10 @@ public class TimetableGenerationService : ITimetableGenerationService
                         }
                     }
 
-                    // 5. If teacher is not yet mapped in reqs, assign them to an unassigned subject
+                    // 5. If teacher is not yet mapped in reqs, assign them to an unassigned subject or the first subject
                     if (chosenCtReq == null)
                     {
-                        chosenCtReq = reqs.FirstOrDefault(r => r.TeacherId <= 0);
+                        chosenCtReq = reqs.FirstOrDefault(r => r.TeacherId <= 0) ?? reqs.FirstOrDefault();
                         if (chosenCtReq != null)
                         {
                             chosenCtReq.TeacherId = classTeacherObj.StaffId;
