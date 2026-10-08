@@ -232,6 +232,18 @@ public class TimetableGenerationService : ITimetableGenerationService
                 if (classTeacherObj != null)
                 {
                     sectionClassTeachers[header.HeaderId] = classTeacherObj.StaffId;
+
+                    // Ensure Class Teacher has at least numDays periods so they can take Period 1 on every working day
+                    int numWorkingDays = dto.WorkingDays.Count;
+                    var ctReqs = reqs.Where(r => r.TeacherId == classTeacherObj.StaffId).ToList();
+                    if (ctReqs.Any())
+                    {
+                        int totalCtPeriods = ctReqs.Sum(r => r.WeeklyPeriods);
+                        if (totalCtPeriods < numWorkingDays)
+                        {
+                            ctReqs.First().WeeklyPeriods += (numWorkingDays - totalCtPeriods);
+                        }
+                    }
                 }
                 var sectionObj = await _timetableRepository.GetSectionByIdAsync(header.SectionId);
                 var roomNo = sectionObj?.RoomNo?.Trim() ?? "";
@@ -451,6 +463,42 @@ public class TimetableGenerationService : ITimetableGenerationService
                     .ThenBy(r => r.SubjectId)
                     .ToList();
 
+                // STAGE 1 - PHASE 0: Guarantee Class Teacher has exactly 1 teaching slot on EVERY working day (for Period 1)
+                if (classTeacherStaffId > 0)
+                {
+                    var ctReqs = sortedReqs.Where(r => r.TeacherId == classTeacherStaffId).ToList();
+                    if (ctReqs.Any())
+                    {
+                        for (int d = 0; d < numDays; d++)
+                        {
+                            bool alreadyHasCT = dayBuckets[d].Any(it => it.TeacherId == classTeacherStaffId);
+                            if (!alreadyHasCT && dayBuckets[d].Count < numPeriods)
+                            {
+                                var chosenCtReq = ctReqs.FirstOrDefault(r => r.WeeklyPeriods > 0) ?? ctReqs.First();
+                                var ctItem = new SlotAssignmentItem
+                                {
+                                    SubjectId = chosenCtReq.SubjectId,
+                                    SubjectName = chosenCtReq.SubjectName,
+                                    SubjectCode = chosenCtReq.SubjectCode,
+                                    TeacherId = chosenCtReq.TeacherId,
+                                    TeacherName = chosenCtReq.TeacherName,
+                                    EmployeeId = chosenCtReq.EmployeeId,
+                                    RoomNo = chosenCtReq.RoomNo,
+                                    IsLab = chosenCtReq.IsLab
+                                };
+
+                                dayBuckets[d].Add(ctItem);
+                                daySubjectCounts[d].TryGetValue(chosenCtReq.SubjectId, out int cnt);
+                                daySubjectCounts[d][chosenCtReq.SubjectId] = cnt + 1;
+                                if (chosenCtReq.WeeklyPeriods > 0)
+                                {
+                                    chosenCtReq.WeeklyPeriods--;
+                                }
+                            }
+                        }
+                    }
+                }
+
                 foreach (var req in sortedReqs)
                 {
                     int remaining = req.WeeklyPeriods;
@@ -513,22 +561,8 @@ public class TimetableGenerationService : ITimetableGenerationService
                             (int)Math.Ceiling((double)req.WeeklyPeriods / numDays)
                         );
 
-                        // If this is the Class Teacher's subject, distribute 1 per day across all working days first
-                        if (classTeacherStaffId > 0 && req.TeacherId == classTeacherStaffId && remaining >= numDays)
-                        {
-                            for (int d = 0; d < numDays && remaining > 0; d++)
-                            {
-                                if (dayBuckets[d].Count < numPeriods)
-                                {
-                                    dayBuckets[d].Add(item);
-                                    daySubjectCounts[d].TryGetValue(req.SubjectId, out int cnt);
-                                    daySubjectCounts[d][req.SubjectId] = cnt + 1;
-                                    remaining--;
-                                }
-                            }
-                        }
                         // If remaining >= numDays, distribute 1 base per day across all days
-                        else if (remaining >= numDays)
+                        if (remaining >= numDays)
                         {
                             int basePerDay = remaining / numDays;
                             for (int round = 0; round < basePerDay; round++)
@@ -1073,47 +1107,54 @@ public class TimetableGenerationService : ITimetableGenerationService
                     int score = 1000;
 
                     // Class Teacher 1st Period priority:
-                    // If this item is taught by the Class Teacher, strongly boost Period 1 (p == 0)
+                    // If this item is taught by the Class Teacher, strongly boost Period 1 (p == 0) and discourage other periods
                     if (isClassTeacherItem)
                     {
                         if (p == 0)
                         {
-                            score += 50000;
+                            score += 1000000;
+                        }
+                        else
+                        {
+                            score -= 500000;
                         }
                     }
                     else if (dayHasClassTeacherItem && p == 0)
                     {
-                        // If class teacher is teaching today and hasn't been placed yet, keep Period 1 reserved
+                        // If class teacher is teaching today and hasn't been placed yet, keep Period 1 strictly reserved
                         bool ctAlreadyPlaced = slots.Any(s => s != null && s.TeacherId == classTeacherStaffId);
                         if (!ctAlreadyPlaced)
                         {
-                            score -= 50000;
+                            score -= 1000000;
                         }
                     }
 
-                    // 1. Period Position Diversity Bonus / Penalty
-                    int timesInPeriod = 0;
-                    if (subjectPeriodHistory.TryGetValue(currentItem.SubjectId, out var pHist))
+                    // 1. Period Position Diversity Bonus / Penalty (skip for Class Teacher in Period 1)
+                    if (!isClassTeacherItem || p != 0)
                     {
-                        pHist.TryGetValue(p, out timesInPeriod);
-                    }
-
-                    if (timesInPeriod == 0)
-                    {
-                        score += 60; // Rewarded: subject has never been in this period position this week!
-                    }
-                    else
-                    {
-                        score -= (timesInPeriod * 50); // Penalized: avoid placing same subject in same period
-                    }
-
-                    // 2. Avoid Yesterday's Same Period
-                    if (previousDaySignatures.Count > 0)
-                    {
-                        var yesterdaySig = previousDaySignatures.Last();
-                        if (p < yesterdaySig.Length && yesterdaySig[p] == currentItem.SubjectId)
+                        int timesInPeriod = 0;
+                        if (subjectPeriodHistory.TryGetValue(currentItem.SubjectId, out var pHist))
                         {
-                            score -= 80;
+                            pHist.TryGetValue(p, out timesInPeriod);
+                        }
+
+                        if (timesInPeriod == 0)
+                        {
+                            score += 60; // Rewarded: subject has never been in this period position this week!
+                        }
+                        else
+                        {
+                            score -= (timesInPeriod * 50); // Penalized: avoid placing same subject in same period
+                        }
+
+                        // 2. Avoid Yesterday's Same Period
+                        if (previousDaySignatures.Count > 0)
+                        {
+                            var yesterdaySig = previousDaySignatures.Last();
+                            if (p < yesterdaySig.Length && yesterdaySig[p] == currentItem.SubjectId)
+                            {
+                                score -= 80;
+                            }
                         }
                     }
 
