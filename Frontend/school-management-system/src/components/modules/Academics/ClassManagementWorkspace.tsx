@@ -1485,7 +1485,7 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
         teacher_id: teacherId,
         role: "Class Teacher"
       });
-      await updateAcademicClass(activeClass.id, { sectionTeachers: updatedTeachers } as any);
+      await fetchAcademicClasses();
 
       // Auto-assign subject if class teacher is assigned and has a teaching subject
       const autoAssignedSubjects: string[] = [];
@@ -1548,7 +1548,7 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
     }
   };
 
-  const handleAssignSubjectTeacher = (subjectName: string, teacherId: string) => {
+  const handleAssignSubjectTeacher = async (subjectName: string, teacherId: string) => {
     if (!activeClass || !activeWorkspaceSection) return;
     const t = teachersList.find(s => s.id === teacherId);
     if (!t) return;
@@ -1583,11 +1583,16 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
     }
     addToast('success', 'Subject Teacher Mapped', `Mapped ${teacherFullName} to ${subjectName} in Section ${activeWorkspaceSection}`);
 
-    assignTeacherApi(activeClass.id, activeWorkspaceSection, {
-      teacher_id: t.id || t.empId || teacherId,
-      role: "Subject Teacher",
-      subject_name: subjectName
-    }).catch(() => {});
+    try {
+      await assignTeacherApi(activeClass.id, activeWorkspaceSection, {
+        teacher_id: t.id || t.empId || teacherId,
+        role: "Subject Teacher",
+        subject_name: subjectName
+      });
+      await fetchAcademicClasses();
+    } catch (err: any) {
+      console.warn('Subject teacher API sync error:', err);
+    }
   };
 
   const handleRemoveSubjectTeacher = (subjectName: string) => {
@@ -1609,7 +1614,9 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
       const subId = (exist as any)?.subjectId || targetSub?.id;
       if (subId) {
         const numericSubId = typeof subId === 'string' && subId.startsWith('SUB-') ? subId.replace(/^SUB-/i, '') : subId;
-        unassignTeacherApi(activeClass.id, activeWorkspaceSection, numericSubId).catch(() => {});
+        unassignTeacherApi(activeClass.id, activeWorkspaceSection, numericSubId)
+          .then(() => fetchAcademicClasses())
+          .catch(() => {});
       }
     });
   };

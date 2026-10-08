@@ -106,18 +106,31 @@ namespace SMS.Api.Controllers.AcademicManagement
                 ClassName = c.ClassName ?? "",
                 Sections = c.Sections.Select(s =>
                 {
+                    var cleanSec = (s.SectionName ?? "").Replace("Section", "", StringComparison.OrdinalIgnoreCase).Trim();
+                    var prefixedSec = "Section " + cleanSec;
+
                     var classTeacherAssign = c.TeacherAssignments
-                        .FirstOrDefault(ta => ta.SectionLetter.Equals(s.SectionName, StringComparison.OrdinalIgnoreCase) && ta.Role == "Class Teacher")
+                        .Where(ta => ta.Status == "Active" &&
+                            (ta.SectionLetter.Equals(s.SectionName, StringComparison.OrdinalIgnoreCase) ||
+                             ta.SectionLetter.Equals(cleanSec, StringComparison.OrdinalIgnoreCase) ||
+                             ta.SectionLetter.Equals(prefixedSec, StringComparison.OrdinalIgnoreCase)))
+                        .OrderByDescending(ta => ta.Id)
+                        .FirstOrDefault(ta => ta.Role == "Class Teacher")
                         ?? c.TeacherAssignments
-                        .FirstOrDefault(ta => ta.SectionLetter.Equals(s.SectionName, StringComparison.OrdinalIgnoreCase) && ta.Teacher != null && ta.Teacher.IsClassTeacherEligible == true);
+                        .Where(ta => ta.Status == "Active" &&
+                            (ta.SectionLetter.Equals(s.SectionName, StringComparison.OrdinalIgnoreCase) ||
+                             ta.SectionLetter.Equals(cleanSec, StringComparison.OrdinalIgnoreCase) ||
+                             ta.SectionLetter.Equals(prefixedSec, StringComparison.OrdinalIgnoreCase)))
+                        .OrderByDescending(ta => ta.Id)
+                        .FirstOrDefault(ta => ta.Teacher != null && ta.Teacher.IsClassTeacherEligible == true);
 
                     return new SectionResponseDto
                     {
                         SectionId = s.SectionId,
                         SectionName = s.SectionName ?? "",
                         ClassTeacherEmpId = classTeacherAssign?.TeacherId,
-                        ClassTeacherName = classTeacherAssign != null
-                            ? $"{classTeacherAssign.Teacher.FirstName} {classTeacherAssign.Teacher.LastName}"
+                        ClassTeacherName = classTeacherAssign?.Teacher != null
+                            ? $"{classTeacherAssign.Teacher.FirstName} {classTeacherAssign.Teacher.LastName}".Trim()
                             : null,
                         EmployeeId = classTeacherAssign?.Teacher?.EmployeeId,
                         Capacity = s.Capacity,
@@ -163,18 +176,31 @@ namespace SMS.Api.Controllers.AcademicManagement
                 ClassName = classObj.ClassName ?? "",
                 Sections = classObj.Sections.Select(s =>
                 {
+                    var cleanSec = (s.SectionName ?? "").Replace("Section", "", StringComparison.OrdinalIgnoreCase).Trim();
+                    var prefixedSec = "Section " + cleanSec;
+
                     var classTeacherAssign = classObj.TeacherAssignments
-                        .FirstOrDefault(ta => ta.SectionLetter.Equals(s.SectionName, StringComparison.OrdinalIgnoreCase) && ta.Role == "Class Teacher")
+                        .Where(ta => ta.Status == "Active" &&
+                            (ta.SectionLetter.Equals(s.SectionName, StringComparison.OrdinalIgnoreCase) ||
+                             ta.SectionLetter.Equals(cleanSec, StringComparison.OrdinalIgnoreCase) ||
+                             ta.SectionLetter.Equals(prefixedSec, StringComparison.OrdinalIgnoreCase)))
+                        .OrderByDescending(ta => ta.Id)
+                        .FirstOrDefault(ta => ta.Role == "Class Teacher")
                         ?? classObj.TeacherAssignments
-                        .FirstOrDefault(ta => ta.SectionLetter.Equals(s.SectionName, StringComparison.OrdinalIgnoreCase) && ta.Teacher != null && ta.Teacher.IsClassTeacherEligible == true);
+                        .Where(ta => ta.Status == "Active" &&
+                            (ta.SectionLetter.Equals(s.SectionName, StringComparison.OrdinalIgnoreCase) ||
+                             ta.SectionLetter.Equals(cleanSec, StringComparison.OrdinalIgnoreCase) ||
+                             ta.SectionLetter.Equals(prefixedSec, StringComparison.OrdinalIgnoreCase)))
+                        .OrderByDescending(ta => ta.Id)
+                        .FirstOrDefault(ta => ta.Teacher != null && ta.Teacher.IsClassTeacherEligible == true);
 
                     return new SectionResponseDto
                     {
                         SectionId = s.SectionId,
                         SectionName = s.SectionName,
                         ClassTeacherEmpId = classTeacherAssign?.TeacherId,
-                        ClassTeacherName = classTeacherAssign != null
-                            ? $"{classTeacherAssign.Teacher.FirstName} {classTeacherAssign.Teacher.LastName}"
+                        ClassTeacherName = classTeacherAssign?.Teacher != null
+                            ? $"{classTeacherAssign.Teacher.FirstName} {classTeacherAssign.Teacher.LastName}".Trim()
                             : null,
                         EmployeeId = classTeacherAssign?.Teacher?.EmployeeId,
                         Capacity = s.Capacity,
@@ -648,6 +674,31 @@ namespace SMS.Api.Controllers.AcademicManagement
                 return NotFound(new { success = false, message = "Class not found." });
             }
 
+            var cleanSec = section_letter.Replace("Section", "", StringComparison.OrdinalIgnoreCase).Trim();
+            var prefixedSec = "Section " + cleanSec;
+
+            // Handle Unassign request
+            if (string.IsNullOrWhiteSpace(dto.TeacherId) || dto.TeacherId.Trim() == "0" || dto.TeacherId.Trim().Equals("unassigned", StringComparison.OrdinalIgnoreCase))
+            {
+                if (dto.Role == "Class Teacher")
+                {
+                    var existingCTs = await _context.TeacherAssignments
+                        .Where(a => a.ClassId == id &&
+                            (a.SectionLetter.ToLower() == section_letter.ToLower() ||
+                             a.SectionLetter.ToLower() == cleanSec.ToLower() ||
+                             a.SectionLetter.ToLower() == prefixedSec.ToLower()) &&
+                            a.Role == "Class Teacher")
+                        .ToListAsync();
+
+                    if (existingCTs.Any())
+                    {
+                        _context.TeacherAssignments.RemoveRange(existingCTs);
+                        await _context.SaveChangesAsync();
+                    }
+                    return Ok(new { success = true, message = "Class teacher unassigned successfully." });
+                }
+            }
+
             Staff? staff = null;
             var cleanTeacherId = (dto.TeacherId ?? "").Trim();
             var cleanNumeric = cleanTeacherId.Replace("STF-", "", StringComparison.OrdinalIgnoreCase).Trim();
@@ -670,9 +721,15 @@ namespace SMS.Api.Controllers.AcademicManagement
             }
             if (staff == null)
             {
+                var lowerTeacherId = cleanTeacherId.ToLower();
                 staff = await _context.Staff.FirstOrDefaultAsync(s =>
-                    (s.FirstName + " " + s.LastName).ToLower() == cleanTeacherId.ToLower() ||
-                    (s.DisplayName != null && s.DisplayName.ToLower() == cleanTeacherId.ToLower()));
+                    (s.FirstName + " " + s.LastName).ToLower() == lowerTeacherId ||
+                    (s.LastName + " " + s.FirstName).ToLower() == lowerTeacherId ||
+                    (s.DisplayName != null && s.DisplayName.ToLower() == lowerTeacherId) ||
+                    s.FirstName.ToLower() == lowerTeacherId ||
+                    s.LastName.ToLower() == lowerTeacherId ||
+                    (s.FirstName + " " + s.LastName).ToLower().Contains(lowerTeacherId) ||
+                    lowerTeacherId.Contains((s.FirstName + " " + s.LastName).ToLower()));
             }
 
             if (staff == null)
@@ -698,32 +755,57 @@ namespace SMS.Api.Controllers.AcademicManagement
                         var subById = await _context.Subjects.FindAsync(parsedSubId);
                         if (subById != null) subjectId = subById.SubjectId;
                     }
-                    if (subjectId == 0)
+                    if (subjectId == 0 && dto.Role != "Class Teacher")
                     {
                         return BadRequest(new { success = false, message = $"Subject '{dto.SubjectName}' not found in the system. Please map the subject to this class first." });
                     }
                 }
             }
 
+            if (subjectId == 0 && dto.Role == "Class Teacher")
+            {
+                // Smart Subject Resolution: match staff primary subject or department with class subjects
+                var classSubjectIds = await _context.ClassSubjectMappings
+                    .Where(sm => sm.ClassId == id)
+                    .Select(sm => sm.SubjectId)
+                    .ToListAsync();
+
+                if (!string.IsNullOrEmpty(staff.PrimarySubject))
+                {
+                    var staffPrimSub = staff.PrimarySubject.Trim().ToLower();
+                    var matchedClassSub = await _context.Subjects
+                        .Where(s => classSubjectIds.Contains(s.SubjectId) &&
+                                    (s.SubjectName.ToLower() == staffPrimSub ||
+                                     s.SubjectCode.ToLower() == staffPrimSub ||
+                                     s.SubjectName.ToLower().Contains(staffPrimSub) ||
+                                     staffPrimSub.Contains(s.SubjectName.ToLower())))
+                        .FirstOrDefaultAsync();
+
+                    if (matchedClassSub != null)
+                    {
+                        subjectId = matchedClassSub.SubjectId;
+                    }
+                }
+
+                if (subjectId == 0 && classSubjectIds.Any())
+                {
+                    subjectId = classSubjectIds.First();
+                }
+            }
+
             if (subjectId == 0 && dto.Role != "Class Teacher")
             {
-                // For Subject Teacher role, subjectId is required
                 return BadRequest(new { success = false, message = "Subject name is required when assigning a Subject Teacher." });
             }
 
-            if (subjectId == 0 && dto.Role == "Class Teacher")
-            {
-                // BUG-001 FIX: For Class Teacher, use first class subject or leave 0 (no subject FK corruption)
-                var firstMapping = await _context.ClassSubjectMappings
-                    .FirstOrDefaultAsync(sm => sm.ClassId == id);
-                subjectId = firstMapping?.SubjectId ?? 0;
-            }
-
-            var cleanSec = section_letter.Replace("Section", "", StringComparison.OrdinalIgnoreCase).Trim();
-            var prefixedSec = "Section " + cleanSec;
-
             if (dto.Role == "Class Teacher")
             {
+                // Ensure teacher is flagged as eligible for class teacher
+                if (staff.IsClassTeacherEligible != true)
+                {
+                    staff.IsClassTeacherEligible = true;
+                }
+
                 // Unassign any existing Class Teacher for this section
                 var existingClassTeachers = await _context.TeacherAssignments
                     .Where(a => a.ClassId == id &&

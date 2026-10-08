@@ -1715,39 +1715,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     return list;
   });
   const [rawClasses, setRawClasses] = useState<any[]>([]);
-  const [academicClasses, setAcademicClasses] = useState<AcademicClass[]>(
-    () => {
-      const stored = getStored("academic_classes", initialClasses);
-      const list = Array.isArray(stored) ? stored : initialClasses;
-      const ids = list.map((c: any) => c?.id).filter(Boolean);
-      const hasDuplicates = ids.some(
-        (id: any, index: number) => ids.indexOf(id) !== index,
-      );
-      if (hasDuplicates) {
-        const seenIds = new Set<string>();
-        const migrated = list.map((c: any) => {
-          let newId = c?.id;
-          if (!newId || seenIds.has(newId)) {
-            let counter = 1;
-            do {
-              newId = `CL-${Math.floor(100 + Math.random() * 900)}`;
-            } while (
-              list.some((x: any) => x?.id === newId) ||
-              seenIds.has(newId)
-            );
-          }
-          seenIds.add(newId);
-          return { ...c, id: newId };
-        });
-        localStorage.setItem(
-          "edu_db_academic_classes",
-          JSON.stringify(migrated),
-        );
-        return migrated;
-      }
-      return list;
-    },
-  );
+  const [academicClasses, setAcademicClasses] = useState<AcademicClass[]>([]);
   const [subjects, setSubjects] = useState<SubjectItem[]>(() =>
     getStored("subjects", initialSubjects),
   );
@@ -4429,30 +4397,15 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
               ? data.data
               : null;
           if (classList) {
-            const storedLocal = localStorage.getItem("edu_db_academic_classes");
-            const localClasses: AcademicClass[] = storedLocal
-              ? JSON.parse(storedLocal)
-              : [];
-
             const mapped: AcademicClass[] = classList.map((c: any) => {
               const classIdStr = c.classId?.toString() || c.id?.toString();
               const classNameStr = c.className || c.name || "";
-              const localCls = localClasses.find((lc) => {
-                if (!lc) return false;
-                const lcIdStr = String(lc.id || "").trim();
-                const normLcId = lcIdStr.replace(/^CL-/i, "").trim();
-                const normClassId = String(classIdStr || "").replace(/^CL-/i, "").trim();
-                const normLcName = String(lc.name || (lc as any).className || "").toLowerCase().replace(/class/gi, "").trim();
-                const normClassName = String(classNameStr).toLowerCase().replace(/class/gi, "").trim();
-                return lcIdStr === classIdStr || (normLcId && normLcId === normClassId) || (normLcName && normLcName === normClassName);
-              });
 
               const secDetails: Record<string, any> = {
-                ...(localCls?.sectionDetails || c.sectionDetails || {}),
+                ...(c.sectionDetails || {}),
               };
 
               const sectionTeachersMap: Record<string, string> = {
-                ...(localCls?.sectionTeachers || {}),
                 ...(c.sectionTeachers || {}),
               };
 
@@ -4462,16 +4415,14 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
                     s.sectionName || s.name || (typeof s === "string" ? s : "");
                   if (sName) {
                     secDetails[sName] = {
-                      capacity: s.capacity || secDetails[sName]?.capacity || 40,
-                      status: s.status || secDetails[sName]?.status || "Active",
-                      remarks: s.remarks || secDetails[sName]?.remarks || "",
+                      capacity: s.capacity || 40,
+                      status: s.status || "Active",
+                      remarks: s.remarks || "",
                       roomNo:
                         s.roomNo ||
                         s.RoomNo ||
                         s.room_number ||
-                        secDetails[sName]?.roomNo ||
                         "",
-                      ...(secDetails[sName] || {}),
                     };
                     if (s.roomNo || s.RoomNo || s.room_number) {
                       secDetails[sName].roomNo =
@@ -4479,6 +4430,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
                     }
                     if (s.classTeacherName) {
                       sectionTeachersMap[sName] = s.classTeacherName;
+                      const cleanSName = sName.replace(/^Section\s*/i, "").trim();
+                      sectionTeachersMap[cleanSName] = s.classTeacherName;
+                      sectionTeachersMap[`Section ${cleanSName}`] = s.classTeacherName;
                     }
                   }
                 });
@@ -4503,6 +4457,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
                 .forEach((ta) => {
                   if (ta.section) {
                     sectionTeachersMap[ta.section] = ta.teacherName;
+                    const cleanSec = ta.section.replace(/^Section\s*/i, "").trim();
+                    sectionTeachersMap[cleanSec] = ta.teacherName;
+                    sectionTeachersMap[`Section ${cleanSec}`] = ta.teacherName;
                   }
                 });
 
@@ -4524,9 +4481,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
                   ? c.curriculumSubjects
                       .map((cs: any) => cs.subjectName || cs.name || "")
                       .filter(Boolean)
-                  : localCls?.subjects && localCls.subjects.length > 0
-                    ? localCls.subjects
-                    : c.subjects || [];
+                  : c.subjects || [];
 
               return {
                 id: classIdStr,
@@ -4539,13 +4494,12 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
                   "Unassigned",
                 subjects: subs,
                 weeklyPeriods: {
-                  ...(localCls?.weeklyPeriods || {}),
                   ...(c.weeklyPeriods || {}),
                   ...backendWeeklyPeriods,
                 },
                 sectionDetails: secDetails,
-                campusLocation: c.campusLocation || c.CampusLocation || localCls?.campusLocation || localCls?.branch || "All",
-                branch: c.campusLocation || c.CampusLocation || c.branch || localCls?.branch || localCls?.campusLocation || "All",
+                campusLocation: c.campusLocation || c.CampusLocation || c.branch || "All",
+                branch: c.campusLocation || c.CampusLocation || c.branch || "All",
               };
             });
             mapped.sort((a, b) => compareClassesAscending(a.name, b.name));
@@ -9126,16 +9080,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   const [periodSettings, setPeriodSettings] = useState<PeriodSetting[]>(
     () => getStored("period_settings", defaultPeriodSettings),
   );
-  const [teacherAssignments, setTeacherAssignments] = useState<
-    TeacherAssignment[]
-  >(() => getStored("teacher_assignments", defaultTeacherAssignments));
-
-  useEffect(() => {
-    localStorage.setItem(
-      "edu_db_teacher_assignments",
-      JSON.stringify(teacherAssignments),
-    );
-  }, [teacherAssignments]);
+  const [teacherAssignments, setTeacherAssignments] = useState<TeacherAssignment[]>([]);
 
   useEffect(() => {
     localStorage.setItem("edu_db_timetable", JSON.stringify(timetable));
