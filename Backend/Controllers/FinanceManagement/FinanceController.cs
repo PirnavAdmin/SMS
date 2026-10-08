@@ -177,14 +177,40 @@ public class FinanceController : ControllerBase
     }
     
     [HttpPost("fee-structures")]
-    public async Task<IActionResult> CreateDynamicFeeStructure([FromBody] DynamicFeeStructureDto dto) => Ok(new { success = true, data = await _service.CreateDynamicFeeStructureAsync(dto) });
+    public async Task<IActionResult> CreateDynamicFeeStructure([FromBody] DynamicFeeStructureDto dto)
+    {
+        try
+        {
+            var data = await _service.CreateDynamicFeeStructureAsync(dto);
+            return Ok(new { success = true, data });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { success = false, message = ex.Message });
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new { success = false, message = ex.Message });
+        }
+    }
 
     [HttpPut("fee-structures/{id:int}")]
     public async Task<IActionResult> UpdateDynamicFeeStructure(int id, [FromBody] DynamicFeeStructureDto dto)
     {
-        var item = await _service.UpdateDynamicFeeStructureAsync(id, dto);
-        if (item == null) return NotFound(new { success = false, message = "Fee Structure not found." });
-        return Ok(new { success = true, data = item });
+        try
+        {
+            var item = await _service.UpdateDynamicFeeStructureAsync(id, dto);
+            if (item == null) return NotFound(new { success = false, message = "Fee Structure not found." });
+            return Ok(new { success = true, data = item });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { success = false, message = ex.Message });
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new { success = false, message = ex.Message });
+        }
     }
 
     [HttpDelete("fee-structures/{id:int}")]

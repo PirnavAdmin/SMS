@@ -233,7 +233,9 @@ export const FeeHeadsView: React.FC = () => {
       applicableBranches: h.applicableBranches && h.applicableBranches.length > 0 ? [...h.applicableBranches] : ['All Branches'],
       applicableSections: h.applicableSections && h.applicableSections.length > 0 ? [...h.applicableSections] : ['All Sections'],
       paymentEligibility: h.paymentEligibility || 'Both One-Time and Term-Wise',
-      applicableTerms: h.applicableTerms && h.applicableTerms.length > 0 ? [...h.applicableTerms] : [...availableAcademicTerms],
+      applicableTerms: Array.isArray(h.applicableTerms)
+        ? [...h.applicableTerms]
+        : (h.paymentEligibility === 'One-Time Only' ? [] : [...availableAcademicTerms]),
       transportRouteId: h.transportRouteId || '',
       transportRouteName: h.transportRouteName || '',
       transportVehicleId: h.transportVehicleId || '',
@@ -288,6 +290,10 @@ export const FeeHeadsView: React.FC = () => {
         formData.paymentEligibility === 'One-Time Only' ? 'One Time' :
         formData.paymentEligibility === 'Term-Wise Allowed' ? 'Quarterly' : 'Quarterly';
 
+      const resolvedTerms = formData.paymentEligibility === 'One-Time Only'
+        ? []
+        : (Array.isArray(formData.applicableTerms) ? formData.applicableTerms : [...availableAcademicTerms]);
+
       const payload = {
         ...formData,
         frequency: calculatedFrequency,
@@ -296,7 +302,7 @@ export const FeeHeadsView: React.FC = () => {
         mandatory: formData.mandatory === true,
         academicYear: selectedAcademicYear || 'All',
         paymentEligibility: formData.paymentEligibility || 'Both One-Time and Term-Wise',
-        applicableTerms: formData.paymentEligibility === 'One-Time Only' ? [] : (formData.applicableTerms || [...availableAcademicTerms])
+        applicableTerms: resolvedTerms
       };
 
       if (editingHead) {

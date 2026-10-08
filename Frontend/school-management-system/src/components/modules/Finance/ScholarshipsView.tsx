@@ -106,7 +106,7 @@ export const ScholarshipsView: React.FC = () => {
     discountType: "Percentage",
     percentage: 15,
     fixedAmount: 0,
-    applicableFeeHeadIds: ["FH-001"],
+    applicableFeeHeadIds: [],
     applicableClasses: ["Class 9", "Class 10", "Class 11", "Class 12"],
     startDate: "2026-04-01",
     endDate: "2027-03-31",

@@ -388,7 +388,31 @@ export const FeeStructuresView: React.FC<FeeStructuresViewProps> = ({ initialCat
     setModalAcademicYear(initialAy);
     setModalStatus("Active");
 
-    const activeCat = categoryFilter !== "All" ? categoryFilter : "Tuition Fee";
+    const hasTuition = activeFeeHeads.some(
+      (h) =>
+        h.category === "Tuition Fee" ||
+        h.category === "Tuition" ||
+        (!["Hostel", "Transport", "Uniform", "Others"].includes(h.category) &&
+          !h.category.toLowerCase().includes("hostel"))
+    );
+    const hasHostel = activeFeeHeads.some((h) => h.category === "Hostel" || (h.name || "").toLowerCase().includes("hostel"));
+    const hasTransport = activeFeeHeads.some((h) => h.category === "Transport" || (h.name || "").toLowerCase().includes("transport"));
+    const hasUniform = activeFeeHeads.some((h) => h.category === "Uniform" || (h.name || "").toLowerCase().includes("uniform"));
+    const hasOthers = activeFeeHeads.some((h) => h.category === "Others" || h.category === "Miscellaneous");
+
+    const preferredCat: FeeCategoryType = categoryFilter !== "All" ? categoryFilter : "Tuition Fee";
+    let activeCat = preferredCat;
+    if (preferredCat === "Tuition Fee" && !hasTuition) {
+      activeCat = hasHostel ? "Hostel" : hasTransport ? "Transport" : hasUniform ? "Uniform" : hasOthers ? "Others" : "Tuition Fee";
+    } else if (preferredCat === "Hostel" && !hasHostel) {
+      activeCat = hasTuition ? "Tuition Fee" : hasTransport ? "Transport" : hasUniform ? "Uniform" : hasOthers ? "Others" : "Hostel";
+    } else if (preferredCat === "Transport" && !hasTransport) {
+      activeCat = hasTuition ? "Tuition Fee" : hasHostel ? "Hostel" : hasUniform ? "Uniform" : hasOthers ? "Others" : "Transport";
+    } else if (preferredCat === "Uniform" && !hasUniform) {
+      activeCat = hasTuition ? "Tuition Fee" : hasHostel ? "Hostel" : hasTransport ? "Transport" : hasOthers ? "Others" : "Uniform";
+    } else if (preferredCat === "Others" && !hasOthers) {
+      activeCat = hasTuition ? "Tuition Fee" : hasHostel ? "Hostel" : hasTransport ? "Transport" : hasUniform ? "Uniform" : "Others";
+    }
     setModalCategory(activeCat);
 
     // Reset Tuition
@@ -398,7 +422,7 @@ export const FeeStructuresView: React.FC<FeeStructuresViewProps> = ({ initialCat
 
     // Reset Others
     const defaultOthersHead = activeFeeHeads.find((h) => h.category === "Others" || h.category === "Miscellaneous");
-    setOthersFeeHeadId(defaultOthersHead ? defaultOthersHead.id : activeFeeHeads[0]?.id || "");
+    setOthersFeeHeadId(defaultOthersHead ? defaultOthersHead.id : "");
     setOthersClass("All");
     setOthersFrequency("Annual");
     setOthersTerms([...availableAcademicTerms]);
@@ -406,7 +430,7 @@ export const FeeStructuresView: React.FC<FeeStructuresViewProps> = ({ initialCat
 
     // Reset Hostel
     const defaultHostelHead = activeFeeHeads.find((h) => h.category === "Hostel" || (h.name || "").toLowerCase().includes("hostel"));
-    setHostelFeeHeadId(defaultHostelHead ? defaultHostelHead.id : activeFeeHeads[0]?.id || "");
+    setHostelFeeHeadId(defaultHostelHead ? defaultHostelHead.id : "");
     setSelectedBlockId("");
     setSelectedRoomId("");
     setRoomsForSelectedHostel([]);
@@ -417,7 +441,7 @@ export const FeeStructuresView: React.FC<FeeStructuresViewProps> = ({ initialCat
 
     // Reset Transport
     const defaultTransportHead = activeFeeHeads.find((h) => h.category === "Transport" || (h.name || "").toLowerCase().includes("transport"));
-    setTransportFeeHeadId(defaultTransportHead ? defaultTransportHead.id : activeFeeHeads[0]?.id || "");
+    setTransportFeeHeadId(defaultTransportHead ? defaultTransportHead.id : "");
     setSelectedRouteId(routeMasters[0] ? String(routeMasters[0].id) : "");
     setSelectedStopId("");
     setSelectedVehicleId(vehicleMasters[0] ? String(vehicleMasters[0].id) : "");
@@ -428,7 +452,7 @@ export const FeeStructuresView: React.FC<FeeStructuresViewProps> = ({ initialCat
 
     // Reset Uniform
     const defaultUniformHead = activeFeeHeads.find((h) => h.category === "Uniform" || (h.name || "").toLowerCase().includes("uniform"));
-    setUniformFeeHeadId(defaultUniformHead ? defaultUniformHead.id : activeFeeHeads[0]?.id || "");
+    setUniformFeeHeadId(defaultUniformHead ? defaultUniformHead.id : "");
     setSelectedUniformItemId(uniforms[0] ? String(uniforms[0].id) : "");
     setSelectedUniformCategoryId(uniformCategories[0] ? String(uniformCategories[0].id) : "");
     setSelectedUniformSizeId(uniformSizes[0] ? String(uniformSizes[0].id) : "");
@@ -468,24 +492,24 @@ export const FeeStructuresView: React.FC<FeeStructuresViewProps> = ({ initialCat
     } else if (cat === "Others") {
       setOthersClass(s.className || "All");
       const firstItem = s.items?.[0];
-      setOthersFeeHeadId(firstItem?.feeHeadId || activeFeeHeads[0]?.id || "");
+      setOthersFeeHeadId(firstItem?.feeHeadId || activeFeeHeads.find((h) => h.category === "Others" || h.category === "Miscellaneous")?.id || "");
       setOthersFrequency(firstItem?.frequency || "Annual");
       setOthersTerms(firstItem?.applicableTerms || [...availableAcademicTerms]);
       setOthersAmount(firstItem?.amount ? String(firstItem.amount) : String(s.totalAmount || ""));
     } else if (cat === "Hostel") {
       const firstItem = s.items?.[0];
-      setHostelFeeHeadId(firstItem?.feeHeadId || activeFeeHeads.find((h) => h.category === "Hostel")?.id || "");
+      setHostelFeeHeadId(firstItem?.feeHeadId || activeFeeHeads.find((h) => h.category === "Hostel" || (h.name || "").toLowerCase().includes("hostel"))?.id || "");
       setHostelItemsList(s.items || []);
       if (firstItem?.hostelBlockId) {
         handleHostelFacilityChange(String(firstItem.hostelBlockId));
       }
     } else if (cat === "Transport") {
       const firstItem = s.items?.[0];
-      setTransportFeeHeadId(firstItem?.feeHeadId || activeFeeHeads.find((h) => h.category === "Transport")?.id || "");
+      setTransportFeeHeadId(firstItem?.feeHeadId || activeFeeHeads.find((h) => h.category === "Transport" || (h.name || "").toLowerCase().includes("transport"))?.id || "");
       setTransportItemsList(s.items || []);
     } else if (cat === "Uniform") {
       const firstItem = s.items?.[0];
-      setUniformFeeHeadId(firstItem?.feeHeadId || activeFeeHeads.find((h) => h.category === "Uniform")?.id || "");
+      setUniformFeeHeadId(firstItem?.feeHeadId || activeFeeHeads.find((h) => h.category === "Uniform" || (h.name || "").toLowerCase().includes("uniform"))?.id || "");
       setUniformItemsList(s.items || []);
     }
 
@@ -516,10 +540,24 @@ export const FeeStructuresView: React.FC<FeeStructuresViewProps> = ({ initialCat
         (b: any) => String(b.hostelId || b.id) === String(selectedBlockId)
       );
     const blkName = blk?.hostelName || blk?.name || `Hostel ${selectedBlockId}`;
-    const headObj = activeFeeHeads.find((h) => h.id === hostelFeeHeadId) || { name: "Hostel Fee" };
+    const headObj = activeFeeHeads.find((h) => h.id === hostelFeeHeadId) || selectedHostelHead;
+    if (!headObj || !hostelFeeHeadId) {
+      addToast("warning", "Validation Error", "Please configure and select an active Hostel Fee Head.");
+      return;
+    }
+
+    if (hostelTerm !== "Annual") {
+      if (headObj.applicableTerms && headObj.applicableTerms.length > 0 && !headObj.applicableTerms.includes(hostelTerm)) {
+        addToast("warning", "Validation Error", `Selected academic term '${hostelTerm}' is not configured for Fee Head '${headObj.name}'.`);
+        return;
+      }
+    } else if (headObj.paymentEligibility === "Term-Wise Allowed") {
+      addToast("warning", "Validation Error", `Annual / One-Time payment is not allowed for Fee Head '${headObj.name}'.`);
+      return;
+    }
 
     const newItem: FeeStructureItem = {
-      feeHeadId: hostelFeeHeadId,
+      feeHeadId: headObj.id,
       feeHeadName: headObj.name,
       category: "Hostel",
       className: hostelClass,
@@ -557,10 +595,24 @@ export const FeeStructuresView: React.FC<FeeStructuresViewProps> = ({ initialCat
     const routeObj = routeMasters.find((r: any) => String(r.id) === String(selectedRouteId));
     const stopObj = pickupPoints.find((p: any) => String(p.id) === String(selectedStopId));
     const vehObj = vehicleMasters.find((v: any) => String(v.id) === String(selectedVehicleId));
-    const headObj = activeFeeHeads.find((h) => h.id === transportFeeHeadId) || { name: "Transport Fee" };
+    const headObj = activeFeeHeads.find((h) => h.id === transportFeeHeadId) || selectedTransportHead;
+    if (!headObj || !transportFeeHeadId) {
+      addToast("warning", "Validation Error", "Please configure and select an active Transport Fee Head.");
+      return;
+    }
+
+    if (transportTerm !== "Annual") {
+      if (headObj.applicableTerms && headObj.applicableTerms.length > 0 && !headObj.applicableTerms.includes(transportTerm)) {
+        addToast("warning", "Validation Error", `Selected academic term '${transportTerm}' is not configured for Fee Head '${headObj.name}'.`);
+        return;
+      }
+    } else if (headObj.paymentEligibility === "Term-Wise Allowed") {
+      addToast("warning", "Validation Error", `Annual / One-Time payment is not allowed for Fee Head '${headObj.name}'.`);
+      return;
+    }
 
     const newItem: FeeStructureItem = {
-      feeHeadId: transportFeeHeadId,
+      feeHeadId: headObj.id,
       feeHeadName: headObj.name,
       category: "Transport",
       className: transportClass,
@@ -593,10 +645,14 @@ export const FeeStructuresView: React.FC<FeeStructuresViewProps> = ({ initialCat
     const itemObj = uniforms.find((u) => String(u.id) === String(selectedUniformItemId));
     const catObj = uniformCategories.find((c: any) => String(c.id) === String(selectedUniformCategoryId));
     const sizeObj = uniformSizes.find((s: any) => String(s.id) === String(selectedUniformSizeId));
-    const headObj = activeFeeHeads.find((h) => h.id === uniformFeeHeadId) || { name: "Uniform Fee" };
+    const headObj = activeFeeHeads.find((h) => h.id === uniformFeeHeadId) || selectedUniformHead;
+    if (!headObj || !uniformFeeHeadId) {
+      addToast("warning", "Validation Error", "Please configure and select an active Uniform Fee Head.");
+      return;
+    }
 
     const newItem: FeeStructureItem = {
-      feeHeadId: uniformFeeHeadId,
+      feeHeadId: headObj.id,
       feeHeadName: headObj.name,
       category: "Uniform",
       className: uniformClass,
@@ -617,6 +673,11 @@ export const FeeStructuresView: React.FC<FeeStructuresViewProps> = ({ initialCat
   // Submit Handler
   const handleSubmit = (e: React.SyntheticEvent) => {
     e.preventDefault();
+
+    if (!categoryHeadCounts[modalCategory]) {
+      addToast("warning", "Fee Head Required", `Cannot create a ${modalCategory} structure because no active Fee Head is configured for this category.`);
+      return;
+    }
 
     const defaultAy =
       modalAcademicYear ||
@@ -692,6 +753,15 @@ export const FeeStructuresView: React.FC<FeeStructuresViewProps> = ({ initialCat
         return;
       }
 
+      if (othersFrequency === "Term-Wise" && head.applicableTerms && head.applicableTerms.length > 0) {
+        for (const t of othersTerms) {
+          if (!head.applicableTerms.includes(t)) {
+            addToast("warning", "Validation Error", `Selected academic term '${t}' is not configured for this Fee Head.`);
+            return;
+          }
+        }
+      }
+
       const items: FeeStructureItem[] = [
         {
           feeHeadId: head.id,
@@ -721,6 +791,15 @@ export const FeeStructuresView: React.FC<FeeStructuresViewProps> = ({ initialCat
         addToast("warning", "Validation Error", "Please add at least one Room Configuration row.");
         return;
       }
+      for (const item of hostelItemsList) {
+        const hHead = activeFeeHeads.find(h => h.id === item.feeHeadId || (item.feeHeadName && h.name.toLowerCase() === item.feeHeadName.toLowerCase()));
+        if (hHead && item.term && item.term !== "Annual") {
+          if (hHead.applicableTerms && hHead.applicableTerms.length > 0 && !hHead.applicableTerms.includes(item.term)) {
+            addToast("warning", "Validation Error", `Selected academic term '${item.term}' is not configured for this Fee Head.`);
+            return;
+          }
+        }
+      }
       const totalAmt = hostelItemsList.reduce((sum, i) => sum + i.amount, 0);
       payload = {
         name: `Hostel Fee Structure (${defaultAy})`,
@@ -738,6 +817,15 @@ export const FeeStructuresView: React.FC<FeeStructuresViewProps> = ({ initialCat
       if (transportItemsList.length === 0) {
         addToast("warning", "Validation Error", "Please add at least one Route / Stop configuration row.");
         return;
+      }
+      for (const item of transportItemsList) {
+        const tHead = activeFeeHeads.find(h => h.id === item.feeHeadId || (item.feeHeadName && h.name.toLowerCase() === item.feeHeadName.toLowerCase()));
+        if (tHead && item.term && item.term !== "Annual") {
+          if (tHead.applicableTerms && tHead.applicableTerms.length > 0 && !tHead.applicableTerms.includes(item.term)) {
+            addToast("warning", "Validation Error", `Selected academic term '${item.term}' is not configured for this Fee Head.`);
+            return;
+          }
+        }
       }
       const totalAmt = transportItemsList.reduce((sum, i) => sum + i.amount, 0);
       payload = {
@@ -953,6 +1041,206 @@ export const FeeStructuresView: React.FC<FeeStructuresViewProps> = ({ initialCat
       }
     }
   }, [modalCategory, othersFeeHeads, othersFeeHeadId]);
+
+  // Hostel fee heads for selection
+  const hostelFeeHeads = useMemo(() => {
+    return activeFeeHeads.filter((h) => {
+      const isHostelCat = h.category === "Hostel" || (h.name || "").toLowerCase().includes("hostel");
+      if (!isHostelCat) return false;
+      if (!isFeeHeadMatchingAcademicYear(h, modalAcademicYear)) return false;
+      if (!isFeeHeadMatchingBranch(h, selectedBranch)) return false;
+      if (hostelClass && hostelClass !== "All") {
+        if (!isFeeHeadMatchingClass(h, hostelClass)) return false;
+      }
+      return true;
+    });
+  }, [
+    activeFeeHeads,
+    hostelClass,
+    modalAcademicYear,
+    selectedBranch,
+    isFeeHeadMatchingClass,
+    isFeeHeadMatchingAcademicYear,
+    isFeeHeadMatchingBranch,
+  ]);
+
+  useEffect(() => {
+    if (modalCategory === "Hostel" && hostelFeeHeads.length > 0) {
+      if (!hostelFeeHeads.some((h) => h.id === hostelFeeHeadId)) {
+        setHostelFeeHeadId(hostelFeeHeads[0].id);
+      }
+    }
+  }, [modalCategory, hostelFeeHeads, hostelFeeHeadId]);
+
+  // Transport fee heads for selection
+  const transportFeeHeads = useMemo(() => {
+    return activeFeeHeads.filter((h) => {
+      const isTransportCat = h.category === "Transport" || (h.name || "").toLowerCase().includes("transport");
+      if (!isTransportCat) return false;
+      if (!isFeeHeadMatchingAcademicYear(h, modalAcademicYear)) return false;
+      if (!isFeeHeadMatchingBranch(h, selectedBranch)) return false;
+      if (transportClass && transportClass !== "All") {
+        if (!isFeeHeadMatchingClass(h, transportClass)) return false;
+      }
+      return true;
+    });
+  }, [
+    activeFeeHeads,
+    transportClass,
+    modalAcademicYear,
+    selectedBranch,
+    isFeeHeadMatchingClass,
+    isFeeHeadMatchingAcademicYear,
+    isFeeHeadMatchingBranch,
+  ]);
+
+  useEffect(() => {
+    if (modalCategory === "Transport" && transportFeeHeads.length > 0) {
+      if (!transportFeeHeads.some((h) => h.id === transportFeeHeadId)) {
+        setTransportFeeHeadId(transportFeeHeads[0].id);
+      }
+    }
+  }, [modalCategory, transportFeeHeads, transportFeeHeadId]);
+
+  // Uniform fee heads for selection
+  const uniformFeeHeads = useMemo(() => {
+    return activeFeeHeads.filter((h) => {
+      const isUniformCat = h.category === "Uniform" || (h.name || "").toLowerCase().includes("uniform");
+      if (!isUniformCat) return false;
+      if (!isFeeHeadMatchingAcademicYear(h, modalAcademicYear)) return false;
+      if (!isFeeHeadMatchingBranch(h, selectedBranch)) return false;
+      if (uniformClass && uniformClass !== "All") {
+        if (!isFeeHeadMatchingClass(h, uniformClass)) return false;
+      }
+      return true;
+    });
+  }, [
+    activeFeeHeads,
+    uniformClass,
+    modalAcademicYear,
+    selectedBranch,
+    isFeeHeadMatchingClass,
+    isFeeHeadMatchingAcademicYear,
+    isFeeHeadMatchingBranch,
+  ]);
+
+  useEffect(() => {
+    if (modalCategory === "Uniform" && uniformFeeHeads.length > 0) {
+      if (!uniformFeeHeads.some((h) => h.id === uniformFeeHeadId)) {
+        setUniformFeeHeadId(uniformFeeHeads[0].id);
+      }
+    }
+  }, [modalCategory, uniformFeeHeads, uniformFeeHeadId]);
+
+  // Selected Fee Heads
+  const selectedHostelHead = useMemo(() => {
+    return hostelFeeHeads.find((h) => h.id === hostelFeeHeadId) || hostelFeeHeads[0] || null;
+  }, [hostelFeeHeads, hostelFeeHeadId]);
+
+  const selectedTransportHead = useMemo(() => {
+    return transportFeeHeads.find((h) => h.id === transportFeeHeadId) || transportFeeHeads[0] || null;
+  }, [transportFeeHeads, transportFeeHeadId]);
+
+  const selectedUniformHead = useMemo(() => {
+    return uniformFeeHeads.find((h) => h.id === uniformFeeHeadId) || uniformFeeHeads[0] || null;
+  }, [uniformFeeHeads, uniformFeeHeadId]);
+
+  const selectedOthersHead = useMemo(() => {
+    return othersFeeHeads.find((h) => h.id === othersFeeHeadId) || othersFeeHeads[0] || null;
+  }, [othersFeeHeads, othersFeeHeadId]);
+
+  // Availability of active Fee Heads per category (Fee Heads are the Source of Truth)
+  const categoryHeadCounts = useMemo(() => {
+    const hasTuition = activeFeeHeads.some(
+      (h) =>
+        h.category === "Tuition Fee" ||
+        h.category === "Tuition" ||
+        (!["Hostel", "Transport", "Uniform", "Others"].includes(h.category) &&
+          !h.category.toLowerCase().includes("hostel"))
+    );
+    return {
+      "Tuition Fee": hasTuition,
+      Others: othersFeeHeads.length > 0,
+      Hostel: hostelFeeHeads.length > 0,
+      Transport: transportFeeHeads.length > 0,
+      Uniform: uniformFeeHeads.length > 0,
+    };
+  }, [activeFeeHeads, othersFeeHeads, hostelFeeHeads, transportFeeHeads, uniformFeeHeads]);
+
+  // Derived available terms from the selected active Fee Head
+  const hostelAvailableTerms = useMemo(() => {
+    if (selectedHostelHead?.applicableTerms && selectedHostelHead.applicableTerms.length > 0) {
+      return selectedHostelHead.applicableTerms;
+    }
+    if (selectedHostelHead?.paymentEligibility === "One-Time Only") {
+      return [];
+    }
+    return availableAcademicTerms;
+  }, [selectedHostelHead, availableAcademicTerms]);
+
+  const transportAvailableTerms = useMemo(() => {
+    if (selectedTransportHead?.applicableTerms && selectedTransportHead.applicableTerms.length > 0) {
+      return selectedTransportHead.applicableTerms;
+    }
+    if (selectedTransportHead?.paymentEligibility === "One-Time Only") {
+      return [];
+    }
+    return availableAcademicTerms;
+  }, [selectedTransportHead, availableAcademicTerms]);
+
+  const othersAvailableTerms = useMemo(() => {
+    if (selectedOthersHead?.applicableTerms && selectedOthersHead.applicableTerms.length > 0) {
+      return selectedOthersHead.applicableTerms;
+    }
+    if (selectedOthersHead?.paymentEligibility === "One-Time Only") {
+      return [];
+    }
+    return availableAcademicTerms;
+  }, [selectedOthersHead, availableAcademicTerms]);
+
+  // Sync hostelTerm with hostelAvailableTerms
+  useEffect(() => {
+    if (selectedHostelHead?.paymentEligibility === "One-Time Only") {
+      setHostelTerm("Annual");
+    } else if (hostelAvailableTerms.length > 0) {
+      if (selectedHostelHead?.paymentEligibility === "Term-Wise Allowed" && (hostelTerm === "Annual" || !hostelAvailableTerms.includes(hostelTerm))) {
+        setHostelTerm(hostelAvailableTerms[0]);
+      } else if (hostelTerm !== "Annual" && !hostelAvailableTerms.includes(hostelTerm)) {
+        setHostelTerm(hostelAvailableTerms[0]);
+      }
+    } else {
+      setHostelTerm("Annual");
+    }
+  }, [hostelAvailableTerms, selectedHostelHead?.paymentEligibility]);
+
+  // Sync transportTerm with transportAvailableTerms
+  useEffect(() => {
+    if (selectedTransportHead?.paymentEligibility === "One-Time Only") {
+      setTransportTerm("Annual");
+    } else if (transportAvailableTerms.length > 0) {
+      if (selectedTransportHead?.paymentEligibility === "Term-Wise Allowed" && (transportTerm === "Annual" || !transportAvailableTerms.includes(transportTerm))) {
+        setTransportTerm(transportAvailableTerms[0]);
+      } else if (transportTerm !== "Annual" && !transportAvailableTerms.includes(transportTerm)) {
+        setTransportTerm(transportAvailableTerms[0]);
+      }
+    } else {
+      setTransportTerm("Annual");
+    }
+  }, [transportAvailableTerms, selectedTransportHead?.paymentEligibility]);
+
+  // Sync othersTerms with othersAvailableTerms
+  useEffect(() => {
+    if (othersFrequency === "Term-Wise") {
+      if (selectedOthersHead?.paymentEligibility === "One-Time Only") {
+        setOthersTerms([]);
+      } else {
+        setOthersTerms((prev) => {
+          const filtered = prev.filter((t) => othersAvailableTerms.includes(t));
+          return filtered.length > 0 ? filtered : [...othersAvailableTerms];
+        });
+      }
+    }
+  }, [othersAvailableTerms, othersFrequency, selectedOthersHead?.paymentEligibility]);
 
   return (
     <div className="space-y-6 animate-in fade-in">
@@ -1212,7 +1500,7 @@ export const FeeStructuresView: React.FC<FeeStructuresViewProps> = ({ initialCat
             </div>
 
             {/* Category Selector Tabs */}
-            <div className="flex p-1 bg-slate-100 dark:bg-slate-800 rounded-2xl overflow-x-auto">
+            <div className="flex p-1 bg-slate-100 dark:bg-slate-800 rounded-2xl overflow-x-auto gap-1">
               {(
                 [
                   { id: "Tuition Fee", label: "Tuition Fee", icon: Layers },
@@ -1224,26 +1512,48 @@ export const FeeStructuresView: React.FC<FeeStructuresViewProps> = ({ initialCat
               ).map((tab) => {
                 const TabIcon = tab.icon;
                 const isSelected = modalCategory === tab.id;
+                const isConfigured = categoryHeadCounts[tab.id];
                 return (
                   <button
                     key={tab.id}
                     type="button"
                     disabled={!!editingStruct}
                     onClick={() => setModalCategory(tab.id)}
-                    className={`flex-1 min-w-[100px] py-2 text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer whitespace-nowrap disabled:opacity-60 disabled:cursor-not-allowed ${
+                    className={`flex-1 min-w-[105px] py-2 px-2 text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer whitespace-nowrap disabled:opacity-60 disabled:cursor-not-allowed ${
                       isSelected
                         ? "bg-white dark:bg-slate-900 text-sky-600 dark:text-sky-400 shadow-md"
-                        : "text-slate-600 dark:text-slate-400 hover:text-slate-900"
+                        : isConfigured
+                        ? "text-slate-600 dark:text-slate-400 hover:text-slate-900"
+                        : "text-slate-400 dark:text-slate-500 opacity-60 hover:opacity-100"
                     }`}
                   >
                     <TabIcon className="w-3.5 h-3.5" />
-                    {tab.label}
+                    <span>{tab.label}</span>
+                    {!isConfigured && (
+                      <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-400 font-semibold">
+                        0 Heads
+                      </span>
+                    )}
                   </button>
                 );
               })}
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-4 text-xs overflow-y-auto pr-1 flex-1">
+              {/* Warning if no active Fee Head configured for this category */}
+              {!categoryHeadCounts[modalCategory] && (
+                <div className="p-3.5 rounded-2xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 text-xs text-amber-900 dark:text-amber-200 flex items-start gap-2.5">
+                  <AlertCircle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                  <div className="space-y-1">
+                    <p className="font-bold text-amber-800 dark:text-amber-300">
+                      No Active Fee Head Configured for {modalCategory}
+                    </p>
+                    <p className="text-[11px] leading-relaxed text-amber-700 dark:text-amber-300/80">
+                      Under ERP rules, <strong>Fee Heads are the Source of Truth</strong>. A Fee Structure cannot be created for <strong>{modalCategory}</strong> because no active Fee Head exists for this category in the database. Please configure an active Fee Head in <strong>Fee Setup → Fee Heads</strong> first.
+                    </p>
+                  </div>
+                </div>
+              )}
               {/* Common: Academic Year */}
               <div className="grid grid-cols-2 gap-3">
                 <div>
@@ -1482,7 +1792,7 @@ export const FeeStructuresView: React.FC<FeeStructuresViewProps> = ({ initialCat
                         Applicable Academic Terms
                       </label>
                       <div className="flex flex-wrap gap-2">
-                        {availableAcademicTerms.map((term) => (
+                        {othersAvailableTerms.map((term) => (
                           <label key={term} className="flex items-center gap-1.5 cursor-pointer text-xs">
                             <input
                               type="checkbox"
@@ -1511,6 +1821,25 @@ export const FeeStructuresView: React.FC<FeeStructuresViewProps> = ({ initialCat
                       Configure Hostel fee dynamically by selecting <strong>Hostel Facility</strong> → <strong>Room</strong> → <strong>Room Type & Capacity</strong> → <strong>Class Grade</strong> → <strong>Terms</strong> → <strong>Amount</strong>. Add one or more room configs below.
                     </span>
                   </div>
+
+                  {hostelFeeHeads.length > 1 && (
+                    <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/40 border">
+                      <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300 text-xs">
+                        Select Hostel Fee Head <span className="text-rose-500">*</span>
+                      </label>
+                      <select
+                        value={hostelFeeHeadId}
+                        onChange={(e) => setHostelFeeHeadId(e.target.value)}
+                        className="w-full px-2.5 py-1.5 rounded-lg bg-white dark:bg-slate-900 border text-xs outline-none"
+                      >
+                        {hostelFeeHeads.map((h) => (
+                          <option key={h.id} value={h.id}>
+                            {h.name} ({h.code})
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
 
                   {/* Dependent Dropdown Row */}
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 p-3 rounded-xl bg-slate-50 dark:bg-slate-800/40 border">
@@ -1641,8 +1970,10 @@ export const FeeStructuresView: React.FC<FeeStructuresViewProps> = ({ initialCat
                         onChange={(e) => setHostelTerm(e.target.value)}
                         className="w-full px-2.5 py-1.5 rounded-lg bg-white dark:bg-slate-900 border text-xs outline-none"
                       >
-                        <option value="Annual">Annual / One-Time</option>
-                        {availableAcademicTerms.map((t) => (
+                        {selectedHostelHead?.paymentEligibility !== "Term-Wise Allowed" && (
+                          <option value="Annual">Annual / One-Time</option>
+                        )}
+                        {hostelAvailableTerms.map((t) => (
                           <option key={t} value={t}>
                             {t}
                           </option>
@@ -1735,6 +2066,25 @@ export const FeeStructuresView: React.FC<FeeStructuresViewProps> = ({ initialCat
                       Configure Transport fees dynamically by selecting <strong>Route</strong> → <strong>Pickup Stop</strong> → <strong>Vehicle</strong> → <strong>Amount</strong>. Add one or more route configs below.
                     </span>
                   </div>
+
+                  {transportFeeHeads.length > 1 && (
+                    <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/40 border">
+                      <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300 text-xs">
+                        Select Transport Fee Head <span className="text-rose-500">*</span>
+                      </label>
+                      <select
+                        value={transportFeeHeadId}
+                        onChange={(e) => setTransportFeeHeadId(e.target.value)}
+                        className="w-full px-2.5 py-1.5 rounded-lg bg-white dark:bg-slate-900 border text-xs outline-none"
+                      >
+                        {transportFeeHeads.map((h) => (
+                          <option key={h.id} value={h.id}>
+                            {h.name} ({h.code})
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
 
                   {/* Dependent Dropdown Row */}
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 p-3 rounded-xl bg-slate-50 dark:bg-slate-800/40 border">
@@ -1836,8 +2186,10 @@ export const FeeStructuresView: React.FC<FeeStructuresViewProps> = ({ initialCat
                         onChange={(e) => setTransportTerm(e.target.value)}
                         className="w-full px-2.5 py-1.5 rounded-lg bg-white dark:bg-slate-900 border text-xs outline-none"
                       >
-                        <option value="Annual">Annual / One-Time</option>
-                        {availableAcademicTerms.map((t) => (
+                        {selectedTransportHead?.paymentEligibility !== "Term-Wise Allowed" && (
+                          <option value="Annual">Annual / One-Time</option>
+                        )}
+                        {transportAvailableTerms.map((t) => (
                           <option key={t} value={t}>
                             {t}
                           </option>
@@ -2113,7 +2465,8 @@ export const FeeStructuresView: React.FC<FeeStructuresViewProps> = ({ initialCat
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 font-bold bg-sky-600 hover:bg-sky-500 text-white rounded-xl text-xs shadow-lg shadow-sky-500/20 transition-all cursor-pointer"
+                  disabled={!categoryHeadCounts[modalCategory]}
+                  className="px-4 py-2 font-bold bg-sky-600 hover:bg-sky-500 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-xl text-xs shadow-lg shadow-sky-500/20 transition-all cursor-pointer"
                 >
                   {editingStruct ? "Update Fee Structure" : "Save Fee Structure"}
                 </button>

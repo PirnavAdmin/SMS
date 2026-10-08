@@ -448,6 +448,123 @@ public class FinanceService : IFinanceService
         };
     }
 
+    private async Task ValidateActiveFeeHeadsAsync(DynamicFeeStructureDto dto, string category)
+    {
+        var allHeads = (await GetFeeHeadsAsync())?.ToList() ?? new List<FeeHeadDto>();
+        if (allHeads.Count == 0) return;
+
+        var activeHeads = allHeads.Where(h => (h.Status ?? "").Equals("Active", StringComparison.OrdinalIgnoreCase)).ToList();
+
+        bool isTuition = category.Equals("Tuition", StringComparison.OrdinalIgnoreCase) || category.Equals("Tuition Fee", StringComparison.OrdinalIgnoreCase);
+        bool isHostel = category.Equals("Hostel", StringComparison.OrdinalIgnoreCase);
+        bool isTransport = category.Equals("Transport", StringComparison.OrdinalIgnoreCase);
+        bool isUniform = category.Equals("Uniform", StringComparison.OrdinalIgnoreCase);
+        bool isOthers = category.Equals("Others", StringComparison.OrdinalIgnoreCase) || category.Equals("Other", StringComparison.OrdinalIgnoreCase);
+
+        var categoryHeads = activeHeads.Where(h =>
+        {
+            var hCat = h.Category ?? "";
+            var hName = h.Name ?? "";
+            if (isTuition) return hCat.Equals("Tuition", StringComparison.OrdinalIgnoreCase) || hCat.Equals("Tuition Fee", StringComparison.OrdinalIgnoreCase) || hCat.Equals("General", StringComparison.OrdinalIgnoreCase);
+            if (isHostel) return hCat.Equals("Hostel", StringComparison.OrdinalIgnoreCase) || hName.Contains("Hostel", StringComparison.OrdinalIgnoreCase);
+            if (isTransport) return hCat.Equals("Transport", StringComparison.OrdinalIgnoreCase) || hName.Contains("Transport", StringComparison.OrdinalIgnoreCase);
+            if (isUniform) return hCat.Equals("Uniform", StringComparison.OrdinalIgnoreCase) || hName.Contains("Uniform", StringComparison.OrdinalIgnoreCase);
+            if (isOthers) return hCat.Equals("Others", StringComparison.OrdinalIgnoreCase) || hCat.Equals("Other", StringComparison.OrdinalIgnoreCase) || hCat.Equals("Miscellaneous", StringComparison.OrdinalIgnoreCase);
+            return hCat.Equals(category, StringComparison.OrdinalIgnoreCase);
+        }).ToList();
+
+        if (categoryHeads.Count == 0)
+        {
+            throw new InvalidOperationException($"No active Fee Head configured for category '{category}'.");
+        }
+
+        if (dto.Items != null && dto.Items.Count > 0)
+        {
+            foreach (var item in dto.Items)
+            {
+                FeeHeadDto? matchingHead = null;
+                if (!string.IsNullOrEmpty(item.FeeHeadId) && int.TryParse(item.FeeHeadId, out int parsedId))
+                {
+                    matchingHead = activeHeads.FirstOrDefault(h => h.Id == parsedId);
+                }
+                if (matchingHead == null && !string.IsNullOrEmpty(item.FeeHeadName))
+                {
+                    matchingHead = activeHeads.FirstOrDefault(h => h.Name.Trim().Equals(item.FeeHeadName.Trim(), StringComparison.OrdinalIgnoreCase));
+                }
+
+                if (matchingHead == null)
+                {
+                    var anyHead = allHeads.FirstOrDefault(h =>
+                        (!string.IsNullOrEmpty(item.FeeHeadId) && int.TryParse(item.FeeHeadId, out int pId) && h.Id == pId) ||
+                        (!string.IsNullOrEmpty(item.FeeHeadName) && h.Name.Trim().Equals(item.FeeHeadName.Trim(), StringComparison.OrdinalIgnoreCase)));
+
+                    if (anyHead != null)
+                    {
+                        throw new InvalidOperationException($"Fee Head '{anyHead.Name}' is not active.");
+                    }
+                    else
+                    {
+                        throw new InvalidOperationException($"Fee Head '{item.FeeHeadName ?? item.FeeHeadId ?? "Unnamed"}' does not exist or is not active.");
+                    }
+                }
+
+                if (matchingHead == null) continue;
+
+                var term = item.Term?.Trim();
+                if (!string.IsNullOrEmpty(term))
+                {
+                    bool isAnnualOrOneTime = term.Equals("Annual", StringComparison.OrdinalIgnoreCase) ||
+                                             term.Equals("One-Time", StringComparison.OrdinalIgnoreCase) ||
+                                             term.Equals("One-Time / Admission", StringComparison.OrdinalIgnoreCase) ||
+                                             term.Equals("Annual / One-Time", StringComparison.OrdinalIgnoreCase);
+
+                    if (isAnnualOrOneTime)
+                    {
+                        if (string.Equals(matchingHead.PaymentEligibility, "Term-Wise Allowed", StringComparison.OrdinalIgnoreCase) ||
+                            string.Equals(matchingHead.PaymentEligibility, "Term-Wise Only", StringComparison.OrdinalIgnoreCase))
+                        {
+                            throw new InvalidOperationException($"Annual / One-Time payment is not allowed for Fee Head '{matchingHead.Name}'.");
+                        }
+                    }
+                    else
+                    {
+                        if (string.Equals(matchingHead.PaymentEligibility, "One-Time Only", StringComparison.OrdinalIgnoreCase))
+                        {
+                            throw new InvalidOperationException($"Selected academic term '{term}' is not configured for this Fee Head.");
+                        }
+
+                        if (matchingHead.ApplicableTerms != null && matchingHead.ApplicableTerms.Count > 0)
+                        {
+                            if (!matchingHead.ApplicableTerms.Any(t => t.Trim().Equals(term, StringComparison.OrdinalIgnoreCase)))
+                            {
+                                throw new InvalidOperationException($"Selected academic term '{term}' is not configured for this Fee Head.");
+                            }
+                        }
+                    }
+                }
+
+                if (item.ApplicableTerms != null && item.ApplicableTerms.Count > 0)
+                {
+                    if (string.Equals(matchingHead.PaymentEligibility, "One-Time Only", StringComparison.OrdinalIgnoreCase))
+                    {
+                        throw new InvalidOperationException($"Selected academic term '{item.ApplicableTerms[0]}' is not configured for this Fee Head.");
+                    }
+
+                    if (matchingHead.ApplicableTerms != null && matchingHead.ApplicableTerms.Count > 0)
+                    {
+                        foreach (var t in item.ApplicableTerms)
+                        {
+                            if (!string.IsNullOrWhiteSpace(t) && !matchingHead.ApplicableTerms.Any(ht => ht.Trim().Equals(t.Trim(), StringComparison.OrdinalIgnoreCase)))
+                            {
+                                throw new InvalidOperationException($"Selected academic term '{t.Trim()}' is not configured for this Fee Head.");
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     public async Task<DynamicFeeStructureDto> CreateDynamicFeeStructureAsync(DynamicFeeStructureDto dto)
     {
         var academicYear = dto.AcademicYear ?? string.Empty;
@@ -456,6 +573,8 @@ public class FinanceService : IFinanceService
         var category = !string.IsNullOrWhiteSpace(dto.Category)
             ? dto.Category.Trim()
             : (!string.IsNullOrWhiteSpace(dto.FeeCategory) ? dto.FeeCategory.Trim() : (!string.IsNullOrWhiteSpace(dto.TargetAudience) ? dto.TargetAudience.Trim() : "Tuition"));
+
+        await ValidateActiveFeeHeadsAsync(dto, category);
 
         var isTuition = category.Equals("Tuition", StringComparison.OrdinalIgnoreCase) || category.Equals("Tuition Fee", StringComparison.OrdinalIgnoreCase);
 
@@ -503,6 +622,8 @@ public class FinanceService : IFinanceService
         var category = !string.IsNullOrWhiteSpace(dto.Category)
             ? dto.Category.Trim()
             : (!string.IsNullOrWhiteSpace(dto.FeeCategory) ? dto.FeeCategory.Trim() : (!string.IsNullOrWhiteSpace(dto.TargetAudience) ? dto.TargetAudience.Trim() : "Tuition"));
+
+        await ValidateActiveFeeHeadsAsync(dto, category);
 
         var model = new DynamicFeeStructure
         {
