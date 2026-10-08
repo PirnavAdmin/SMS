@@ -111,6 +111,7 @@ export const AutoTimetableGeneratorModal: React.FC<AutoTimetableGeneratorModalPr
     academicClasses,
     rawClasses,
     teacherAssignments,
+    staff,
     subjects,
     periodSettings,
     bulkAddPeriodSettings,
@@ -657,13 +658,26 @@ export const AutoTimetableGeneratorModal: React.FC<AutoTimetableGeneratorModalPr
         const className = lastDash !== -1 ? cs.substring(0, lastDash).trim() : cs.trim();
         const sectionName = lastDash !== -1 ? cs.substring(lastDash + 1).trim() : '';
 
-        // Match against rawClasses for database IDs
+        // Match against academicClasses and rawClasses for database IDs
+        const acCls = (academicClasses || []).find((c: any) =>
+          (c.name && c.name.trim().toLowerCase() === className.toLowerCase()) ||
+          (c.className && c.className.trim().toLowerCase() === className.toLowerCase())
+        );
         const rawCls = (rawClasses || []).find((c: any) =>
           (c.className && c.className.trim().toLowerCase() === className.toLowerCase()) ||
           (c.name && c.name.trim().toLowerCase() === className.toLowerCase())
         );
-        const classId = rawCls?.classId || rawCls?.id ? Number(rawCls.classId || rawCls.id) : 0;
 
+        // Dynamically resolve Class ID
+        let classId = 0;
+        if (rawCls?.classId || rawCls?.id) {
+          classId = Number(rawCls.classId || rawCls.id);
+        } else if (acCls?.id) {
+          const matchNum = String(acCls.id).match(/\d+/);
+          if (matchNum) classId = parseInt(matchNum[0], 10);
+        }
+
+        // Dynamically resolve Section ID
         let sectionId = 0;
         if (rawCls && Array.isArray(rawCls.sections)) {
           const rawSec = rawCls.sections.find((s: any) => {
@@ -674,6 +688,18 @@ export const AutoTimetableGeneratorModal: React.FC<AutoTimetableGeneratorModalPr
           });
           if (rawSec) {
             sectionId = Number(rawSec.sectionId || rawSec.id || 0);
+          }
+        }
+        if (!sectionId && acCls?.sectionDetails) {
+          const secEntry = Object.entries(acCls.sectionDetails).find(([k]) =>
+            k.trim().toLowerCase() === sectionName.toLowerCase() ||
+            k.trim().toLowerCase().replace(/^section\s+/i, '') === sectionName.toLowerCase().replace(/^section\s+/i, '')
+          );
+          if (secEntry && secEntry[1]) {
+            const secInfo = secEntry[1] as any;
+            if (secInfo.sectionId || secInfo.id) {
+              sectionId = Number(secInfo.sectionId || secInfo.id);
+            }
           }
         }
 
@@ -700,21 +726,26 @@ export const AutoTimetableGeneratorModal: React.FC<AutoTimetableGeneratorModalPr
         }
 
         // Fallback: check academicClasses.sectionTeachers or cls.teacher
-        if (!teacherName && academicClasses) {
-          const acCls = academicClasses.find(c => c.name?.trim().toLowerCase() === className.toLowerCase());
-          if (acCls) {
-            if (acCls.sectionTeachers && acCls.sectionTeachers[sectionName]) {
-              teacherName = acCls.sectionTeachers[sectionName];
-            } else if (acCls.teacher) {
-              teacherName = acCls.teacher;
+        if (!teacherName && acCls) {
+          if (acCls.sectionTeachers) {
+            const secKey = Object.keys(acCls.sectionTeachers).find(k =>
+              k.trim().toLowerCase() === sectionName.toLowerCase() ||
+              k.trim().toLowerCase().replace(/^section\s+/i, '') === sectionName.toLowerCase().replace(/^section\s+/i, '')
+            );
+            if (secKey && acCls.sectionTeachers[secKey]) {
+              teacherName = acCls.sectionTeachers[secKey];
             }
+          }
+          if (!teacherName && acCls.teacher) {
+            teacherName = acCls.teacher;
           }
         }
 
         // Fallback: any teacherAssignment for this class & section
         if (!teacherName && teacherAssignments) {
           const anyTa = teacherAssignments.find((ta: any) => {
-            const matchClass = ta.className?.trim().toLowerCase() === className.toLowerCase();
+            const matchClass = (ta.className && ta.className.trim().toLowerCase() === className.toLowerCase()) ||
+                               (ta.classId && String(ta.classId) === String(classId));
             const taSec = (ta.section || ta.sectionLetter || '').trim().toLowerCase().replace(/^section\s+/i, '');
             const cleanTarget = sectionName.toLowerCase().replace(/^section\s+/i, '');
             return matchClass && taSec === cleanTarget;
@@ -731,6 +762,27 @@ export const AutoTimetableGeneratorModal: React.FC<AutoTimetableGeneratorModalPr
         if (teacherIdStr) {
           const numMatch = teacherIdStr.match(/\d+/);
           if (numMatch) classTeacherStaffId = parseInt(numMatch[0], 10);
+        }
+
+        // Dynamically resolve staff ID from staff list when teacherName is known but ID is not
+        if (!classTeacherStaffId && teacherName && Array.isArray(staff)) {
+          const cleanT = teacherName.toLowerCase().replace(/\s+/g, '');
+          const matchedStaff = staff.find((s: any) => {
+            const fn = (s.firstName || '').toLowerCase().replace(/\s+/g, '');
+            const ln = (s.lastName || '').toLowerCase().replace(/\s+/g, '');
+            const dn = (s.displayName || s.name || '').toLowerCase().replace(/\s+/g, '');
+            const combined = `${fn}${ln}`;
+            return cleanT === combined ||
+                   cleanT === dn ||
+                   (cleanT.length > 2 && (cleanT === ln || cleanT === fn || dn.includes(cleanT) || cleanT.includes(dn)));
+          });
+          if (matchedStaff) {
+            const sId = (matchedStaff as any).staffId || matchedStaff.id;
+            if (sId) {
+              const numMatch = String(sId).match(/\d+/);
+              if (numMatch) classTeacherStaffId = parseInt(numMatch[0], 10);
+            }
+          }
         }
 
         return {

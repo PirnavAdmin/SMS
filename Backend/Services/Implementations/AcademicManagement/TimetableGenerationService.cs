@@ -232,14 +232,19 @@ public class TimetableGenerationService : ITimetableGenerationService
 
                 // 1. Check if client explicitly sent ClassTeacherAssignments in DTO
                 ClassTeacherAssignmentDto? ctaMatch = null;
+                string NormCls(string? s) => (s ?? "").ToLowerInvariant().Replace("class", "").Replace("grade", "").Replace("-", "").Trim();
+                string NormSec(string? s) => (s ?? "").ToLowerInvariant().Replace("section", "").Replace("-", "").Trim();
+
                 if (dto.ClassTeacherAssignments != null && dto.ClassTeacherAssignments.Any())
                 {
                     ctaMatch = dto.ClassTeacherAssignments.FirstOrDefault(cta =>
                         (cta.ClassId > 0 && cta.SectionId > 0 && cta.ClassId == header.ClassId && cta.SectionId == header.SectionId)
+                        || (cta.ClassId > 0 && cta.ClassId == header.ClassId && !string.IsNullOrWhiteSpace(cta.SectionName) &&
+                            header.ClassSection != null && NormSec(cta.SectionName) == NormSec(header.ClassSection.SectionName))
                         || (!string.IsNullOrWhiteSpace(cta.ClassName) && !string.IsNullOrWhiteSpace(cta.SectionName) &&
                             header.ClassGrade != null && header.ClassSection != null &&
-                            cta.ClassName.Trim().Equals(header.ClassGrade.ClassName?.Trim(), StringComparison.OrdinalIgnoreCase) &&
-                            cta.SectionName.Trim().Equals(header.ClassSection.SectionName?.Trim(), StringComparison.OrdinalIgnoreCase)));
+                            NormCls(cta.ClassName) == NormCls(header.ClassGrade.ClassName) &&
+                            NormSec(cta.SectionName) == NormSec(header.ClassSection.SectionName)));
                 }
 
                 Staff? classTeacherObj = null;
@@ -260,11 +265,18 @@ public class TimetableGenerationService : ITimetableGenerationService
                     }
                     else if (!string.IsNullOrWhiteSpace(ctaMatch.ClassTeacherName))
                     {
-                        var matchName = ctaMatch.ClassTeacherName.Trim();
+                        var matchName = ctaMatch.ClassTeacherName.Trim().ToLowerInvariant().Replace(" ", "");
                         classTeacherObj = allStaff.Values.FirstOrDefault(s =>
-                            (!string.IsNullOrEmpty(s.DisplayName) && s.DisplayName.Trim().Equals(matchName, StringComparison.OrdinalIgnoreCase)) ||
-                            $"{s.FirstName} {s.LastName}".Trim().Equals(matchName, StringComparison.OrdinalIgnoreCase) ||
-                            (!string.IsNullOrEmpty(s.FirstName) && matchName.Contains(s.FirstName, StringComparison.OrdinalIgnoreCase)));
+                        {
+                            var fn = (s.FirstName ?? "").Trim().ToLowerInvariant().Replace(" ", "");
+                            var ln = (s.LastName ?? "").Trim().ToLowerInvariant().Replace(" ", "");
+                            var dn = (s.DisplayName ?? "").Trim().ToLowerInvariant().Replace(" ", "");
+                            var full = $"{fn}{ln}";
+                            return (!string.IsNullOrEmpty(dn) && (dn == matchName || dn.Contains(matchName) || matchName.Contains(dn))) ||
+                                   (!string.IsNullOrEmpty(full) && (full == matchName || matchName.Contains(full))) ||
+                                   (!string.IsNullOrEmpty(ln) && (ln == matchName || matchName.Contains(ln))) ||
+                                   (!string.IsNullOrEmpty(fn) && (fn == matchName || matchName.Contains(fn)));
+                        });
                     }
                 }
 
@@ -1486,6 +1498,9 @@ public class TimetableGenerationService : ITimetableGenerationService
                 };
                 header = await _timetableRepository.CreateHeaderAsync(header);
             }
+
+            header.ClassGrade = classGrade;
+            header.ClassSection = section;
 
             targetHeaders.Add(header);
             targetHeaderIds.Add(header.HeaderId);
