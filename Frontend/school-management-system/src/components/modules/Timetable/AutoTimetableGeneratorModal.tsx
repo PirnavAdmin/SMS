@@ -722,7 +722,6 @@ export const AutoTimetableGeneratorModal: React.FC<AutoTimetableGeneratorModalPr
         if (ctAssignment) {
           teacherName = ctAssignment.teacherName || '';
           teacherIdStr = ctAssignment.teacherId ? String(ctAssignment.teacherId) : '';
-          if (ctAssignment.subjectId) preferredSubjectId = Number(ctAssignment.subjectId);
         }
 
         // Fallback: check academicClasses.sectionTeachers or cls.teacher
@@ -748,7 +747,38 @@ export const AutoTimetableGeneratorModal: React.FC<AutoTimetableGeneratorModalPr
           if (numMatch) classTeacherStaffId = parseInt(numMatch[0], 10);
         }
 
-        // Dynamically resolve staff and preferred teaching subject
+        // 1. Primary Priority: Check if this Class Teacher is mapped to a Subject in Teacher-Subject Allocation for this class & section
+        if (teacherName || teacherIdStr) {
+          const cleanT = (teacherName || '').toLowerCase().replace(/\s+/g, '');
+          const subjectTeacherTa = (teacherAssignments || []).find((ta: any) => {
+            const matchClass = (ta.className && ta.className.trim().toLowerCase() === className.toLowerCase()) ||
+                               (ta.classId && String(ta.classId) === String(classId));
+            const taSec = (ta.section || ta.sectionLetter || '').trim().toLowerCase().replace(/^section\s+/i, '');
+            const cleanTarget = sectionName.toLowerCase().replace(/^section\s+/i, '');
+            const matchSec = taSec === cleanTarget;
+            const taName = (ta.teacherName || '').toLowerCase().replace(/\s+/g, '');
+            const taId = String(ta.teacherId || '');
+            const isSameTeacher = (cleanT && (taName === cleanT || taName.includes(cleanT) || cleanT.includes(taName))) ||
+                                  (teacherIdStr && (taId === teacherIdStr || (classTeacherStaffId && taId === String(classTeacherStaffId))));
+            return matchClass && matchSec && isSameTeacher && ta.subject && ta.role !== 'Class Teacher';
+          });
+
+          if (subjectTeacherTa) {
+            if (subjectTeacherTa.subjectId) {
+              const subNum = String(subjectTeacherTa.subjectId).match(/\d+/);
+              if (subNum) preferredSubjectId = parseInt(subNum[0], 10);
+            }
+            if (!preferredSubjectId && subjectTeacherTa.subject) {
+              const targetSub = (subjects || []).find((s: any) => s.name?.toLowerCase().trim() === subjectTeacherTa.subject?.toLowerCase().trim());
+              if (targetSub?.id) {
+                const subNum = String(targetSub.id).match(/\d+/);
+                if (subNum) preferredSubjectId = parseInt(subNum[0], 10);
+              }
+            }
+          }
+        }
+
+        // 2. Secondary Priority: Match from staff profile (PrimarySubject / Department) against class subjects
         if (teacherName && Array.isArray(staff)) {
           const cleanT = teacherName.toLowerCase().replace(/\s+/g, '');
           const matchedStaff = staff.find((s: any) => {
@@ -756,10 +786,14 @@ export const AutoTimetableGeneratorModal: React.FC<AutoTimetableGeneratorModalPr
             const ln = (s.lastName || '').toLowerCase().replace(/\s+/g, '');
             const dn = (s.displayName || s.name || '').toLowerCase().replace(/\s+/g, '');
             const combined = `${fn}${ln}`;
-            return cleanT === combined ||
+            const sEmp = String(s.employeeId || s.empId || '').toLowerCase();
+            const sId = String(s.staffId || s.id || '');
+            return (teacherIdStr && (sId === teacherIdStr || sEmp === teacherIdStr.toLowerCase())) ||
+                   cleanT === combined ||
                    cleanT === dn ||
                    (cleanT.length > 2 && (cleanT === ln || cleanT === fn || dn.includes(cleanT) || cleanT.includes(dn)));
           });
+
           if (matchedStaff) {
             if (!classTeacherStaffId) {
               const sId = (matchedStaff as any).staffId || matchedStaff.id;

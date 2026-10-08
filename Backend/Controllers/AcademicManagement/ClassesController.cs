@@ -787,9 +787,41 @@ namespace SMS.Api.Controllers.AcademicManagement
                     }
                 }
 
-                if (subjectId == 0 && classSubjectIds.Any())
+                if (subjectId == 0 && !string.IsNullOrEmpty(staff.Department))
                 {
-                    subjectId = classSubjectIds.First();
+                    var staffDept = staff.Department.Trim().ToLower();
+                    var matchedDeptSub = await _context.Subjects
+                        .Where(s => classSubjectIds.Contains(s.SubjectId) &&
+                                    (s.SubjectName.ToLower() == staffDept ||
+                                     s.SubjectCode.ToLower() == staffDept ||
+                                     s.SubjectName.ToLower().Contains(staffDept) ||
+                                     staffDept.Contains(s.SubjectName.ToLower())))
+                        .FirstOrDefaultAsync();
+
+                    if (matchedDeptSub != null)
+                    {
+                        subjectId = matchedDeptSub.SubjectId;
+                    }
+                }
+
+                // If still not matched, check if teacher is already assigned to a subject in this section
+                if (subjectId == 0)
+                {
+                    var sectionRecord = await _context.ClassSections
+                        .FirstOrDefaultAsync(s => s.ClassId == id &&
+                            (s.SectionName.ToLower() == section_letter.ToLower() ||
+                             s.SectionName.ToLower() == cleanSec.ToLower() ||
+                             s.SectionName.ToLower() == prefixedSec.ToLower()));
+
+                    if (sectionRecord != null)
+                    {
+                        var tsaRecord = await _context.TeacherSubjectAssignments
+                            .FirstOrDefaultAsync(tsa => tsa.ClassId == id && tsa.SectionId == sectionRecord.SectionId && tsa.StaffId == staff.StaffId);
+                        if (tsaRecord != null)
+                        {
+                            subjectId = tsaRecord.SubjectId;
+                        }
+                    }
                 }
             }
 
@@ -852,9 +884,13 @@ namespace SMS.Api.Controllers.AcademicManagement
 
                 if (existingTsas.Any())
                 {
-                    foreach (var tsa in existingTsas)
+                    // Only update if it's explicitly a Subject Teacher assignment or if the existing TSA is unassigned or belongs to this teacher
+                    if (dto.Role == "Subject Teacher" || existingTsas.All(tsa => tsa.StaffId == staff.StaffId || tsa.StaffId <= 0))
                     {
-                        tsa.StaffId = staff.StaffId;
+                        foreach (var tsa in existingTsas)
+                        {
+                            tsa.StaffId = staff.StaffId;
+                        }
                     }
                 }
                 else
