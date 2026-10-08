@@ -244,6 +244,21 @@ public class TimetableGenerationService : ITimetableGenerationService
                             ctReqs.First().WeeklyPeriods += (numWorkingDays - totalCtPeriods);
                         }
                     }
+                    else
+                    {
+                        // If Class Teacher is not yet mapped to a specific subject in reqs, associate them to an unassigned or primary subject
+                        var unassignedReq = reqs.FirstOrDefault(r => r.TeacherId <= 0) ?? reqs.FirstOrDefault();
+                        if (unassignedReq != null)
+                        {
+                            unassignedReq.TeacherId = classTeacherObj.StaffId;
+                            unassignedReq.TeacherName = classTeacherObj.DisplayName ?? $"{classTeacherObj.FirstName} {classTeacherObj.LastName}".Trim();
+                            unassignedReq.EmployeeId = classTeacherObj.EmployeeId ?? "";
+                            if (unassignedReq.WeeklyPeriods < numWorkingDays)
+                            {
+                                unassignedReq.WeeklyPeriods = numWorkingDays;
+                            }
+                        }
+                    }
                 }
                 var sectionObj = await _timetableRepository.GetSectionByIdAsync(header.SectionId);
                 var roomNo = sectionObj?.RoomNo?.Trim() ?? "";

@@ -311,41 +311,45 @@ public class TimetableRepository : ITimetableRepository
 
         // Fallback: Check if section has a Subject Teacher or Class Teacher assigned
         var section = await _context.ClassSections
-            .FirstOrDefaultAsync(s => s.SectionId == sectionId);
+            .FirstOrDefaultAsync(s => s.SectionId == sectionId || (s.ClassId == classId && s.SectionId == sectionId));
 
-        if (section != null)
-        {
-            var secName = section.SectionName ?? "";
-            var cleanSec = secName.Replace("Section", "", StringComparison.OrdinalIgnoreCase).Trim();
-            var prefixedSec = "Section " + cleanSec;
+        int targetClassId = section?.ClassId ?? classId;
+        string secName = section?.SectionName ?? "";
+        string cleanSec = secName.Replace("Section", "", StringComparison.OrdinalIgnoreCase).Trim();
+        string prefixedSec = "Section " + cleanSec;
 
-            // 1. Check Subject Teacher in TeacherAssignments table
-            var subjectTeacherAssignment = await _context.TeacherAssignments
-                .Include(a => a.Teacher)
-                .FirstOrDefaultAsync(a =>
-                    a.ClassId == section.ClassId &&
-                    (a.SectionLetter.ToLower() == secName.ToLower() ||
-                     a.SectionLetter.ToLower() == cleanSec.ToLower() ||
-                     a.SectionLetter.ToLower() == prefixedSec.ToLower()) &&
-                    a.SubjectId == subjectId &&
-                    a.Role == "Subject Teacher");
+        var assignments = await _context.TeacherAssignments
+            .Include(a => a.Teacher)
+            .Where(a => a.ClassId == targetClassId)
+            .ToListAsync();
 
-            if (subjectTeacherAssignment?.Teacher != null)
-                return subjectTeacherAssignment.Teacher;
+        // 1. Check Subject Teacher in TeacherAssignments table
+        var subjectTeacherAssignment = assignments.FirstOrDefault(a =>
+            (string.IsNullOrEmpty(secName) ||
+             string.Equals(a.SectionLetter?.Trim(), secName.Trim(), StringComparison.OrdinalIgnoreCase) ||
+             string.Equals(a.SectionLetter?.Trim(), cleanSec, StringComparison.OrdinalIgnoreCase) ||
+             string.Equals(a.SectionLetter?.Trim(), prefixedSec, StringComparison.OrdinalIgnoreCase)) &&
+            a.SubjectId == subjectId &&
+            (a.Role?.Trim().Equals("Subject Teacher", StringComparison.OrdinalIgnoreCase) == true ||
+             string.IsNullOrEmpty(a.Role) ||
+             a.Role?.ToLowerInvariant().Contains("subject") == true) &&
+            (string.IsNullOrEmpty(a.Status) || a.Status.Equals("Active", StringComparison.OrdinalIgnoreCase)));
 
-            // 2. Check Class Teacher in TeacherAssignments table
-            var classTeacherAssignment = await _context.TeacherAssignments
-                .Include(a => a.Teacher)
-                .FirstOrDefaultAsync(a =>
-                    a.ClassId == section.ClassId &&
-                    (a.SectionLetter.ToLower() == secName.ToLower() ||
-                     a.SectionLetter.ToLower() == cleanSec.ToLower() ||
-                     a.SectionLetter.ToLower() == prefixedSec.ToLower()) &&
-                    a.Role == "Class Teacher");
+        if (subjectTeacherAssignment?.Teacher != null)
+            return subjectTeacherAssignment.Teacher;
 
-            if (classTeacherAssignment?.Teacher != null)
-                return classTeacherAssignment.Teacher;
-        }
+        // 2. Check Class Teacher in TeacherAssignments table
+        var classTeacherAssignment = assignments.FirstOrDefault(a =>
+            (string.IsNullOrEmpty(secName) ||
+             string.Equals(a.SectionLetter?.Trim(), secName.Trim(), StringComparison.OrdinalIgnoreCase) ||
+             string.Equals(a.SectionLetter?.Trim(), cleanSec, StringComparison.OrdinalIgnoreCase) ||
+             string.Equals(a.SectionLetter?.Trim(), prefixedSec, StringComparison.OrdinalIgnoreCase)) &&
+            (a.Role?.Trim().Equals("Class Teacher", StringComparison.OrdinalIgnoreCase) == true ||
+             a.Role?.ToLowerInvariant().Contains("class") == true) &&
+            (string.IsNullOrEmpty(a.Status) || a.Status.Equals("Active", StringComparison.OrdinalIgnoreCase)));
+
+        if (classTeacherAssignment?.Teacher != null)
+            return classTeacherAssignment.Teacher;
 
         return null;
     }
@@ -353,30 +357,33 @@ public class TimetableRepository : ITimetableRepository
     public async Task<Staff?> GetClassTeacherForSectionAsync(int classId, int sectionId)
     {
         var section = await _context.ClassSections
-            .FirstOrDefaultAsync(s => s.SectionId == sectionId);
+            .FirstOrDefaultAsync(s => s.SectionId == sectionId || (s.ClassId == classId && s.SectionId == sectionId));
 
-        if (section != null)
-        {
-            var secName = section.SectionName ?? "";
-            var cleanSec = secName.Replace("Section", "", StringComparison.OrdinalIgnoreCase).Trim();
-            var prefixedSec = "Section " + cleanSec;
+        int targetClassId = section?.ClassId ?? classId;
+        string secName = section?.SectionName ?? "";
+        string cleanSec = secName.Replace("Section", "", StringComparison.OrdinalIgnoreCase).Trim();
+        string prefixedSec = "Section " + cleanSec;
 
-            var classTeacherAssignment = await _context.TeacherAssignments
-                .Include(a => a.Teacher)
-                .FirstOrDefaultAsync(a =>
-                    a.ClassId == section.ClassId &&
-                    (a.SectionLetter.ToLower() == secName.ToLower() ||
-                     a.SectionLetter.ToLower() == cleanSec.ToLower() ||
-                     a.SectionLetter.ToLower() == prefixedSec.ToLower()) &&
-                    a.Role == "Class Teacher" &&
-                    a.Status == "Active");
+        var assignments = await _context.TeacherAssignments
+            .Include(a => a.Teacher)
+            .Where(a => a.ClassId == targetClassId)
+            .ToListAsync();
 
-            if (classTeacherAssignment?.Teacher != null)
-                return classTeacherAssignment.Teacher;
+        var classTeacherAssignment = assignments.FirstOrDefault(a =>
+            (string.IsNullOrEmpty(secName) ||
+             string.Equals(a.SectionLetter?.Trim(), secName.Trim(), StringComparison.OrdinalIgnoreCase) ||
+             string.Equals(a.SectionLetter?.Trim(), cleanSec, StringComparison.OrdinalIgnoreCase) ||
+             string.Equals(a.SectionLetter?.Trim(), prefixedSec, StringComparison.OrdinalIgnoreCase)) &&
+            (a.Role?.Trim().Equals("Class Teacher", StringComparison.OrdinalIgnoreCase) == true ||
+             a.Role?.ToLowerInvariant().Contains("class") == true ||
+             (a.Teacher != null && a.Teacher.IsClassTeacherEligible == true)) &&
+            (string.IsNullOrEmpty(a.Status) || a.Status.Equals("Active", StringComparison.OrdinalIgnoreCase)));
 
-            if (classTeacherAssignment != null && classTeacherAssignment.TeacherId > 0)
-                return await _context.Staff.FindAsync(classTeacherAssignment.TeacherId);
-        }
+        if (classTeacherAssignment?.Teacher != null)
+            return classTeacherAssignment.Teacher;
+
+        if (classTeacherAssignment != null && classTeacherAssignment.TeacherId > 0)
+            return await _context.Staff.FindAsync(classTeacherAssignment.TeacherId);
 
         return null;
     }
