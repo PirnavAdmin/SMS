@@ -412,31 +412,55 @@ namespace SMS.Api.Controllers.AcademicManagement
         {
             try
             {
-                var cleanClass = (className ?? "9").Replace("Class ", "").Trim();
-                var cleanSection = (section ?? "A").Replace("Section ", "").Trim();
+                var cleanClass = (className ?? "").Replace("Class", "", StringComparison.OrdinalIgnoreCase).Trim();
+                var cleanSection = (section ?? "").Replace("Section", "", StringComparison.OrdinalIgnoreCase).Trim();
+
+                var classGrade = await _context.Classes
+                    .FirstOrDefaultAsync(c => c.ClassName != null && (c.ClassName.Equals(className, StringComparison.OrdinalIgnoreCase) || c.ClassName.Contains(cleanClass)));
+
+                int classId = classGrade?.ClassId ?? 0;
+
+                var classSection = await _context.ClassSections
+                    .FirstOrDefaultAsync(s => s.ClassId == classId && (string.IsNullOrEmpty(cleanSection) || s.SectionName.Equals(section, StringComparison.OrdinalIgnoreCase) || s.SectionName.Equals(cleanSection, StringComparison.OrdinalIgnoreCase)));
+
+                int sectionId = classSection?.SectionId ?? 0;
 
                 var count = await _context.Students
-                    .Include(s => s.ClassGrade)
-                    .Include(s => s.ClassSection)
-                    .CountAsync(s => s.ClassGrade != null && s.ClassGrade.ClassName != null && s.ClassGrade.ClassName.Contains(cleanClass) && (string.IsNullOrEmpty(cleanSection) || (s.ClassSection != null && s.ClassSection.SectionName != null && s.ClassSection.SectionName.ToLower() == cleanSection.ToLower())));
+                    .CountAsync(s => (classId > 0 && s.ClassId == classId) && (sectionId <= 0 || s.SectionId == sectionId));
 
-                if (count == 0) count = 38;
+                var secName = classSection?.SectionName ?? cleanSection;
+                var assignments = classId > 0
+                    ? await _context.TeacherAssignments
+                        .Include(a => a.Teacher)
+                        .Where(a => a.ClassId == classId)
+                        .ToListAsync()
+                    : new List<Models.AcademicManagement.TeacherAssignment>();
 
-                var teacherAssignment = await _context.TeacherAssignments
-                    .Include(ta => ta.ClassGrade)
-                    .Include(ta => ta.Teacher)
-                    .FirstOrDefaultAsync(ta => ta.ClassGrade != null && ta.ClassGrade.ClassName != null && ta.ClassGrade.ClassName.Contains(cleanClass) && ta.Role == "Class Teacher");
+                var classTeacherAssignment = assignments.FirstOrDefault(a =>
+                    (string.IsNullOrEmpty(secName) ||
+                     string.Equals(a.SectionLetter?.Trim(), secName.Trim(), StringComparison.OrdinalIgnoreCase) ||
+                     string.Equals(a.SectionLetter?.Trim(), cleanSection, StringComparison.OrdinalIgnoreCase)) &&
+                    (a.Role?.Trim().Equals("Class Teacher", StringComparison.OrdinalIgnoreCase) == true ||
+                     a.Role?.ToLowerInvariant().Contains("class") == true) &&
+                    (string.IsNullOrEmpty(a.Status) || a.Status.Equals("Active", StringComparison.OrdinalIgnoreCase)));
 
-                string classTeacher = teacherAssignment?.Teacher != null ? $"{teacherAssignment.Teacher.FirstName} {teacherAssignment.Teacher.LastName}".Trim() : "Suteja K";
+                var classTeacherStaff = classTeacherAssignment?.Teacher;
+
+                string classTeacher = classTeacherStaff != null
+                    ? (classTeacherStaff.DisplayName ?? $"{classTeacherStaff.FirstName} {classTeacherStaff.LastName}".Trim())
+                    : "Not Assigned";
+
+                var primarySubject = classTeacherStaff?.Department ?? "General";
+                var room = classSection?.RoomNo ?? (!string.IsNullOrEmpty(cleanClass) ? $"Room {cleanClass}01" : "Room 101");
 
                 return Ok(new
                 {
                     success = true,
                     data = new
                     {
-                        className = $"Class {cleanClass}-{cleanSection}",
-                        subject = "Social Studies",
-                        room = "Room 202",
+                        className = classGrade != null ? $"{classGrade.ClassName} - {classSection?.SectionName ?? cleanSection}" : $"Class {cleanClass}-{cleanSection}",
+                        subject = primarySubject,
+                        room = room,
                         classTeacher = classTeacher,
                         studentStrength = count
                     }

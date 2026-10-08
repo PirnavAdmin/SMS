@@ -276,6 +276,29 @@ public class TimetableGenerationService : ITimetableGenerationService
                     }
                 }
 
+                // Balance excess demand if total requested exceeds weekly capacity
+                int totalDemand = reqs.Sum(r => r.WeeklyPeriods);
+                if (totalDemand > totalTeachingSlotsPerWeek)
+                {
+                    int excess = totalDemand - totalTeachingSlotsPerWeek;
+                    var nonCtReqs = reqs
+                        .Where(r => classTeacherObj == null || r.TeacherId != classTeacherObj.StaffId)
+                        .OrderByDescending(r => r.WeeklyPeriods)
+                        .ToList();
+
+                    int idx = 0;
+                    while (excess > 0 && nonCtReqs.Any(r => r.WeeklyPeriods > 1))
+                    {
+                        var candidate = nonCtReqs[idx % nonCtReqs.Count];
+                        if (candidate.WeeklyPeriods > 1)
+                        {
+                            candidate.WeeklyPeriods--;
+                            excess--;
+                        }
+                        idx++;
+                    }
+                }
+
                 // Check 1: Mandatory teacher assignment
                 foreach (var req in reqs)
                 {
@@ -1044,152 +1067,170 @@ public class TimetableGenerationService : ITimetableGenerationService
             bool isClassTeacherItem = classTeacherStaffId > 0 && currentItem.TeacherId == classTeacherStaffId;
             bool dayHasClassTeacherItem = classTeacherStaffId > 0 && items.Any(it => it.TeacherId == classTeacherStaffId);
 
-            for (int p = 0; p < numPeriods; p++)
+            if (isClassTeacherItem && slots[0] == null)
             {
-                if (slots[p] != null) continue;
+                var p0 = teachingPeriods[0];
+                var s0 = ParseTime(p0.StartTime);
+                var e0 = ParseTime(p0.EndTime);
+                var key0 = $"{s0:hh\\:mm}-{e0:hh\\:mm}";
 
-                var period = teachingPeriods[p];
-                var startSpan = ParseTime(period.StartTime);
-                var endSpan = ParseTime(period.EndTime);
-                var timeKey = $"{startSpan:hh\\:mm}-{endSpan:hh\\:mm}";
+                bool clash0 = sectionOccupancy.Contains($"{headerId}_{dayName}_{key0}") ||
+                              (currentItem.TeacherId > 0 && teacherOccupancy.Contains($"{currentItem.TeacherId}_{dayName}_{key0}")) ||
+                              (!string.IsNullOrWhiteSpace(currentItem.RoomNo) && roomOccupancy.Contains($"{currentItem.RoomNo.Trim().ToLowerInvariant()}_{dayName}_{key0}"));
 
-                // H1: Section clash check
-                if (sectionOccupancy.Contains($"{headerId}_{dayName}_{timeKey}"))
-                    continue;
-
-                // H2: Teacher clash check
-                if (currentItem.TeacherId > 0 && teacherOccupancy.Contains($"{currentItem.TeacherId}_{dayName}_{timeKey}"))
-                    continue;
-
-                // H3: Room clash check
-                if (!string.IsNullOrWhiteSpace(currentItem.RoomNo) &&
-                    roomOccupancy.Contains($"{currentItem.RoomNo.Trim().ToLowerInvariant()}_{dayName}_{timeKey}"))
-                    continue;
-
-                // H9: Anti-consecutive or Lab consecutive check
-                if (currentItem.IsLab && dto.AllowConsecutiveForLabs)
+                if (!clash0)
                 {
-                    int existingLabSlot = -1;
-                    for (int s = 0; s < numPeriods; s++)
-                    {
-                        if (slots[s] != null && slots[s]!.SubjectId == currentItem.SubjectId)
-                        {
-                            existingLabSlot = s;
-                            break;
-                        }
-                    }
-
-                    if (existingLabSlot >= 0 && Math.Abs(p - existingLabSlot) != 1)
-                    {
-                        continue;
-                    }
-
-                    int score = 1000 - p;
-                    if (existingLabSlot >= 0 && Math.Abs(p - existingLabSlot) == 1)
-                    {
-                        score += 5000;
-                    }
-                    candidateSlots.Add((p, score));
+                    candidateSlots.Add((0, 10000000));
                 }
-                else
+            }
+
+            if (!candidateSlots.Any())
+            {
+                for (int p = 0; p < numPeriods; p++)
                 {
-                    // Strict anti-consecutive rule
-                    if (p > 0 && slots[p - 1] != null && slots[p - 1]!.SubjectId == currentItem.SubjectId)
-                        continue;
+                    if (slots[p] != null) continue;
 
-                    if (p < numPeriods - 1 && slots[p + 1] != null && slots[p + 1]!.SubjectId == currentItem.SubjectId)
-                        continue;
-
-                    int minRequiredDistance = Math.Max(2, dto.MinPeriodGap + 1);
-                    bool tooClose = false;
-
-                    for (int s = 0; s < numPeriods; s++)
+                    // Strictly reserve Period 1 (p == 0) for the Class Teacher if they teach today and haven't been placed yet
+                    if (!isClassTeacherItem && dayHasClassTeacherItem && p == 0)
                     {
-                        if (slots[s] != null && slots[s]!.SubjectId == currentItem.SubjectId)
+                        bool ctAlreadyPlaced = slots.Any(s => s != null && s.TeacherId == classTeacherStaffId);
+                        if (!ctAlreadyPlaced)
+                            continue;
+                    }
+
+                    var period = teachingPeriods[p];
+                    var startSpan = ParseTime(period.StartTime);
+                    var endSpan = ParseTime(period.EndTime);
+                    var timeKey = $"{startSpan:hh\\:mm}-{endSpan:hh\\:mm}";
+
+                    // H1: Section clash check
+                    if (sectionOccupancy.Contains($"{headerId}_{dayName}_{timeKey}"))
+                        continue;
+
+                    // H2: Teacher clash check
+                    if (currentItem.TeacherId > 0 && teacherOccupancy.Contains($"{currentItem.TeacherId}_{dayName}_{timeKey}"))
+                        continue;
+
+                    // H3: Room clash check
+                    if (!string.IsNullOrWhiteSpace(currentItem.RoomNo) &&
+                        roomOccupancy.Contains($"{currentItem.RoomNo.Trim().ToLowerInvariant()}_{dayName}_{timeKey}"))
+                        continue;
+
+                    // H9: Anti-consecutive or Lab consecutive check
+                    if (currentItem.IsLab && dto.AllowConsecutiveForLabs)
+                    {
+                        int existingLabSlot = -1;
+                        for (int s = 0; s < numPeriods; s++)
                         {
-                            int dist = Math.Abs(s - p);
-                            if (dist < minRequiredDistance)
+                            if (slots[s] != null && slots[s]!.SubjectId == currentItem.SubjectId)
                             {
-                                tooClose = true;
+                                existingLabSlot = s;
                                 break;
                             }
                         }
+
+                        if (existingLabSlot >= 0 && Math.Abs(p - existingLabSlot) != 1)
+                        {
+                            continue;
+                        }
+
+                        int score = 1000 - p;
+                        if (existingLabSlot >= 0 && Math.Abs(p - existingLabSlot) == 1)
+                        {
+                            score += 5000;
+                        }
+                        candidateSlots.Add((p, score));
                     }
-
-                    if (tooClose) continue;
-
-                    // Soft Candidate Scoring for Variation & Diversity
-                    int score = 1000;
-
-                    // Class Teacher 1st Period priority:
-                    // If this item is taught by the Class Teacher, strongly boost Period 1 (p == 0) and discourage other periods
-                    if (isClassTeacherItem)
+                    else
                     {
-                        if (p == 0)
-                        {
-                            score += 1000000;
-                        }
-                        else
-                        {
-                            score -= 500000;
-                        }
-                    }
-                    else if (dayHasClassTeacherItem && p == 0)
-                    {
-                        // If class teacher is teaching today and hasn't been placed yet, keep Period 1 strictly reserved
-                        bool ctAlreadyPlaced = slots.Any(s => s != null && s.TeacherId == classTeacherStaffId);
-                        if (!ctAlreadyPlaced)
-                        {
-                            score -= 1000000;
-                        }
-                    }
+                        // Strict anti-consecutive rule
+                        if (p > 0 && slots[p - 1] != null && slots[p - 1]!.SubjectId == currentItem.SubjectId)
+                            continue;
 
-                    // 1. Period Position Diversity Bonus / Penalty (skip for Class Teacher in Period 1)
-                    if (!isClassTeacherItem || p != 0)
-                    {
-                        int timesInPeriod = 0;
-                        if (subjectPeriodHistory.TryGetValue(currentItem.SubjectId, out var pHist))
-                        {
-                            pHist.TryGetValue(p, out timesInPeriod);
-                        }
+                        if (p < numPeriods - 1 && slots[p + 1] != null && slots[p + 1]!.SubjectId == currentItem.SubjectId)
+                            continue;
 
-                        if (timesInPeriod == 0)
-                        {
-                            score += 60; // Rewarded: subject has never been in this period position this week!
-                        }
-                        else
-                        {
-                            score -= (timesInPeriod * 50); // Penalized: avoid placing same subject in same period
-                        }
+                        int minRequiredDistance = Math.Max(2, dto.MinPeriodGap + 1);
+                        bool tooClose = false;
 
-                        // 2. Avoid Yesterday's Same Period
-                        if (previousDaySignatures.Count > 0)
+                        for (int s = 0; s < numPeriods; s++)
                         {
-                            var yesterdaySig = previousDaySignatures.Last();
-                            if (p < yesterdaySig.Length && yesterdaySig[p] == currentItem.SubjectId)
+                            if (slots[s] != null && slots[s]!.SubjectId == currentItem.SubjectId)
                             {
-                                score -= 80;
+                                int dist = Math.Abs(s - p);
+                                if (dist < minRequiredDistance)
+                                {
+                                    tooClose = true;
+                                    break;
+                                }
                             }
                         }
-                    }
 
-                    // 3. Spacing bonus between multiple occurrences today
-                    for (int s = 0; s < numPeriods; s++)
-                    {
-                        if (slots[s] != null && slots[s]!.SubjectId == currentItem.SubjectId)
+                        if (tooClose) continue;
+
+                        // Soft Candidate Scoring for Variation & Diversity
+                        int score = 1000;
+
+                        // Class Teacher 1st Period priority:
+                        if (isClassTeacherItem)
                         {
-                            int dist = Math.Abs(s - p);
-                            score += Math.Min(dist * 15, 60);
+                            if (p == 0)
+                            {
+                                score += 10000000;
+                            }
+                            else
+                            {
+                                score -= 500000;
+                            }
                         }
+
+                        // 1. Period Position Diversity Bonus / Penalty (skip for Class Teacher in Period 1)
+                        if (!isClassTeacherItem || p != 0)
+                        {
+                            int timesInPeriod = 0;
+                            if (subjectPeriodHistory.TryGetValue(currentItem.SubjectId, out var pHist))
+                            {
+                                pHist.TryGetValue(p, out timesInPeriod);
+                            }
+
+                            if (timesInPeriod == 0)
+                            {
+                                score += 60; // Rewarded: subject has never been in this period position this week!
+                            }
+                            else
+                            {
+                                score -= (timesInPeriod * 50); // Penalized: avoid placing same subject in same period
+                            }
+
+                            // 2. Avoid Yesterday's Same Period
+                            if (previousDaySignatures.Count > 0)
+                            {
+                                var yesterdaySig = previousDaySignatures.Last();
+                                if (p < yesterdaySig.Length && yesterdaySig[p] == currentItem.SubjectId)
+                                {
+                                    score -= 80;
+                                }
+                            }
+                        }
+
+                        // 3. Spacing bonus between multiple occurrences today
+                        for (int s = 0; s < numPeriods; s++)
+                        {
+                            if (slots[s] != null && slots[s]!.SubjectId == currentItem.SubjectId)
+                            {
+                                int dist = Math.Abs(s - p);
+                                score += Math.Min(dist * 15, 60);
+                            }
+                        }
+
+                        // 4. Natural compact schedule
+                        score += (numPeriods - p) * 2;
+
+                        // 5. Seeded controlled tie-breaking noise
+                        score += prng.Next(0, 8);
+
+                        candidateSlots.Add((p, score));
                     }
-
-                    // 4. Natural compact schedule
-                    score += (numPeriods - p) * 2;
-
-                    // 5. Seeded controlled tie-breaking noise
-                    score += prng.Next(0, 8);
-
-                    candidateSlots.Add((p, score));
                 }
             }
 

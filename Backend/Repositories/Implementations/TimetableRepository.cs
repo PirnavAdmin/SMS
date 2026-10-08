@@ -309,7 +309,7 @@ public class TimetableRepository : ITimetableRepository
                 return await _context.Staff.FindAsync(assignment.StaffId);
         }
 
-        // Fallback: Check if section has a Subject Teacher or Class Teacher assigned
+        // Fallback: Check if section has a Subject Teacher or Class Teacher assigned in TeacherAssignments
         var section = await _context.ClassSections
             .FirstOrDefaultAsync(s => s.SectionId == sectionId || (s.ClassId == classId && s.SectionId == sectionId));
 
@@ -323,33 +323,37 @@ public class TimetableRepository : ITimetableRepository
             .Where(a => a.ClassId == targetClassId)
             .ToListAsync();
 
-        // 1. Check Subject Teacher in TeacherAssignments table
+        bool MatchesSection(TeacherAssignment a) =>
+            string.IsNullOrEmpty(secName) ||
+            string.Equals(a.SectionLetter?.Trim(), secName.Trim(), StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(a.SectionLetter?.Trim(), cleanSec, StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(a.SectionLetter?.Trim(), prefixedSec, StringComparison.OrdinalIgnoreCase);
+
+        // 1. Check for exact subject match in TeacherAssignments
         var subjectTeacherAssignment = assignments.FirstOrDefault(a =>
-            (string.IsNullOrEmpty(secName) ||
-             string.Equals(a.SectionLetter?.Trim(), secName.Trim(), StringComparison.OrdinalIgnoreCase) ||
-             string.Equals(a.SectionLetter?.Trim(), cleanSec, StringComparison.OrdinalIgnoreCase) ||
-             string.Equals(a.SectionLetter?.Trim(), prefixedSec, StringComparison.OrdinalIgnoreCase)) &&
+            MatchesSection(a) &&
             a.SubjectId == subjectId &&
-            (a.Role?.Trim().Equals("Subject Teacher", StringComparison.OrdinalIgnoreCase) == true ||
-             string.IsNullOrEmpty(a.Role) ||
-             a.Role?.ToLowerInvariant().Contains("subject") == true) &&
             (string.IsNullOrEmpty(a.Status) || a.Status.Equals("Active", StringComparison.OrdinalIgnoreCase)));
 
         if (subjectTeacherAssignment?.Teacher != null)
             return subjectTeacherAssignment.Teacher;
 
-        // 2. Check Class Teacher in TeacherAssignments table
+        if (subjectTeacherAssignment != null && subjectTeacherAssignment.TeacherId > 0)
+            return await _context.Staff.FindAsync(subjectTeacherAssignment.TeacherId);
+
+        // 2. Check general Class Teacher in TeacherAssignments table if unassigned to specific subject
         var classTeacherAssignment = assignments.FirstOrDefault(a =>
-            (string.IsNullOrEmpty(secName) ||
-             string.Equals(a.SectionLetter?.Trim(), secName.Trim(), StringComparison.OrdinalIgnoreCase) ||
-             string.Equals(a.SectionLetter?.Trim(), cleanSec, StringComparison.OrdinalIgnoreCase) ||
-             string.Equals(a.SectionLetter?.Trim(), prefixedSec, StringComparison.OrdinalIgnoreCase)) &&
+            MatchesSection(a) &&
+            (a.SubjectId == null || a.SubjectId == 0) &&
             (a.Role?.Trim().Equals("Class Teacher", StringComparison.OrdinalIgnoreCase) == true ||
              a.Role?.ToLowerInvariant().Contains("class") == true) &&
             (string.IsNullOrEmpty(a.Status) || a.Status.Equals("Active", StringComparison.OrdinalIgnoreCase)));
 
         if (classTeacherAssignment?.Teacher != null)
             return classTeacherAssignment.Teacher;
+
+        if (classTeacherAssignment != null && classTeacherAssignment.TeacherId > 0)
+            return await _context.Staff.FindAsync(classTeacherAssignment.TeacherId);
 
         return null;
     }
@@ -369,15 +373,27 @@ public class TimetableRepository : ITimetableRepository
             .Where(a => a.ClassId == targetClassId)
             .ToListAsync();
 
+        bool MatchesSection(TeacherAssignment a) =>
+            string.IsNullOrEmpty(secName) ||
+            string.Equals(a.SectionLetter?.Trim(), secName.Trim(), StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(a.SectionLetter?.Trim(), cleanSec, StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(a.SectionLetter?.Trim(), prefixedSec, StringComparison.OrdinalIgnoreCase);
+
+        // 1. Primary priority: Explicit "Class Teacher" role
         var classTeacherAssignment = assignments.FirstOrDefault(a =>
-            (string.IsNullOrEmpty(secName) ||
-             string.Equals(a.SectionLetter?.Trim(), secName.Trim(), StringComparison.OrdinalIgnoreCase) ||
-             string.Equals(a.SectionLetter?.Trim(), cleanSec, StringComparison.OrdinalIgnoreCase) ||
-             string.Equals(a.SectionLetter?.Trim(), prefixedSec, StringComparison.OrdinalIgnoreCase)) &&
+            MatchesSection(a) &&
             (a.Role?.Trim().Equals("Class Teacher", StringComparison.OrdinalIgnoreCase) == true ||
-             a.Role?.ToLowerInvariant().Contains("class") == true ||
-             (a.Teacher != null && a.Teacher.IsClassTeacherEligible == true)) &&
+             a.Role?.ToLowerInvariant().Contains("class") == true) &&
             (string.IsNullOrEmpty(a.Status) || a.Status.Equals("Active", StringComparison.OrdinalIgnoreCase)));
+
+        // 2. Secondary fallback: IsClassTeacherEligible flag
+        if (classTeacherAssignment == null)
+        {
+            classTeacherAssignment = assignments.FirstOrDefault(a =>
+                MatchesSection(a) &&
+                a.Teacher != null && a.Teacher.IsClassTeacherEligible == true &&
+                (string.IsNullOrEmpty(a.Status) || a.Status.Equals("Active", StringComparison.OrdinalIgnoreCase)));
+        }
 
         if (classTeacherAssignment?.Teacher != null)
             return classTeacherAssignment.Teacher;
