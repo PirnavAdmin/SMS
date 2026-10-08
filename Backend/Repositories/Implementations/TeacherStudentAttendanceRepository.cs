@@ -77,13 +77,23 @@ public class TeacherStudentAttendanceRepository
     {
         await EnsureActiveTeacherAsync(staffId);
 
+        var ctClassIds = await _context.TeacherAssignments.AsNoTracking()
+            .Where(ta => ta.TeacherId == staffId && ta.Role == "Class Teacher" && ta.Status == "Active")
+            .Select(ta => ta.ClassId)
+            .Distinct()
+            .ToListAsync();
+
+        // If teacher is not assigned as Class Teacher, return empty list (only class teachers can take attendance)
+        if (!ctClassIds.Any())
+        {
+            return new List<AttendanceDropdownDto>();
+        }
+
         return await (
-            from assignment in _context.TeacherSubjectAssignments.AsNoTracking()
+            from classGrade in _context.Classes.AsNoTracking()
             join student in _context.Students.AsNoTracking()
-                on assignment.ClassId equals student.ClassId
-            join classGrade in _context.Classes.AsNoTracking()
-                on assignment.ClassId equals classGrade.ClassId
-            where assignment.StaffId == staffId
+                on classGrade.ClassId equals student.ClassId
+            where ctClassIds.Contains(classGrade.ClassId)
                   && student.BranchId == branchId
                   && student.AcademicYearId == academicYearId
                   && !student.IsDeleted
@@ -103,21 +113,31 @@ public class TeacherStudentAttendanceRepository
     {
         await EnsureActiveTeacherAsync(staffId);
 
-        return await (
-            from assignment in _context.TeacherSubjectAssignments.AsNoTracking()
-            join section in _context.ClassSections.AsNoTracking()
-                on assignment.SectionId equals section.SectionId
-            where assignment.StaffId == staffId
-                  && assignment.ClassId == classId
-                  && section.ClassId == classId
-            select new AttendanceDropdownDto
+        var ctAssignments = await _context.TeacherAssignments.AsNoTracking()
+            .Where(ta => ta.TeacherId == staffId && ta.ClassId == classId && ta.Role == "Class Teacher" && ta.Status == "Active")
+            .ToListAsync();
+
+        var sections = await _context.ClassSections.AsNoTracking()
+            .Where(s => s.ClassId == classId)
+            .ToListAsync();
+
+        var matchedSections = sections.Where(s =>
+        {
+            var cleanSec = s.SectionName.Replace("Section", "", StringComparison.OrdinalIgnoreCase).Trim().ToLower();
+            return ctAssignments.Any(ta =>
+                ta.SectionLetter.Trim().ToLower() == s.SectionName.Trim().ToLower() ||
+                ta.SectionLetter.Replace("Section", "", StringComparison.OrdinalIgnoreCase).Trim().ToLower() == cleanSec);
+        }).ToList();
+
+        return matchedSections
+            .Select(s => new AttendanceDropdownDto
             {
-                Id = section.SectionId,
-                Name = section.SectionName
+                Id = s.SectionId,
+                Name = s.SectionName
             })
             .Distinct()
             .OrderBy(x => x.Name)
-            .ToListAsync();
+            .ToList();
     }
 
     public async Task<List<AttendanceDropdownDto>> GetSubjectsAsync(
@@ -302,6 +322,10 @@ public class TeacherStudentAttendanceRepository
         if (dto.Students.Select(x => x.StudentId).Distinct().Count() != dto.Students.Count)
             throw new ArgumentException("The request contains duplicate student IDs.");
 
+        bool isClassTeacher = await IsClassTeacherForSectionAsync(staffId, dto.ClassId, dto.SectionId);
+        if (!isClassTeacher)
+            throw new UnauthorizedAccessException("Only the assigned Class Teacher is authorized to take/save attendance for this class and section.");
+
         var query = new TeacherAttendanceSheetQueryDto
         {
             Date = dto.Date,
@@ -448,6 +472,25 @@ public class TeacherStudentAttendanceRepository
                 ? "Attendance sheet locked successfully."
                 : "Attendance sheet unlocked successfully."
         };
+    }
+
+    private async Task<bool> IsClassTeacherForSectionAsync(int staffId, int classId, int sectionId)
+    {
+        var section = await _context.ClassSections.AsNoTracking()
+            .FirstOrDefaultAsync(s => s.SectionId == sectionId && s.ClassId == classId);
+
+        string secName = section?.SectionName ?? "";
+        var cleanSec = secName.Replace("Section", "", StringComparison.OrdinalIgnoreCase).Trim().ToLower();
+
+        bool isCT = await _context.TeacherAssignments.AsNoTracking().AnyAsync(ta =>
+            ta.TeacherId == staffId &&
+            ta.ClassId == classId &&
+            ta.Role == "Class Teacher" &&
+            ta.Status == "Active" &&
+            (ta.SectionLetter.Trim().ToLower() == secName.ToLower() ||
+             ta.SectionLetter.Replace("Section", "", StringComparison.OrdinalIgnoreCase).Trim().ToLower() == cleanSec));
+
+        return isCT;
     }
 
     private async Task EnsureActiveTeacherAsync(int staffId)

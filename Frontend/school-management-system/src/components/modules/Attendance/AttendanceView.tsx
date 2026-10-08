@@ -168,8 +168,7 @@ export const AttendanceView = () => {
     if (!Array.isArray(raw)) raw = [raw];
 
     const mergedCT = [...ctAssignments, ...fromAcademic];
-    const mergedAll = mergedCT.length > 0 ? mergedCT : [...generalAssignments, ...raw];
-    const uniqueList = Array.from(new Set(mergedAll)).filter(Boolean);
+    const uniqueList = Array.from(new Set(mergedCT)).filter(Boolean);
 
     const result = uniqueList.map((c: any) => {
       const str = typeof c === 'string' ? c : (c.className ? `${c.className}-${c.section || 'A'}` : '');
@@ -179,19 +178,30 @@ export const AttendanceView = () => {
       return { className, section };
     }).filter((c: any) => Boolean(c.className) && !c.className.toLowerCase().includes('nursery') && !c.className.toLowerCase().includes('lkg') && !c.className.toLowerCase().includes('ukg'));
 
-    // Strictly limit teacher to ONLY her 1 primary Class Teacher assigned class
-    return result.length > 0 ? [result[0]] : [
-      { className: 'Class 10', section: 'A' }
-    ];
+    // Returns classes/sections where this teacher is assigned as Class Teacher
+    return result;
   }, [dbTeacher, teacherAssignments, academicClasses]);
 
   const teacherFullName = `${dbTeacher.firstName || 'Suteja'} ${dbTeacher.lastName || 'K'}`.trim();
 
+  // Check if current user has Class Teacher authority to take/modify student attendance for selected Class & Section
+  const isAuthorizedClassTeacher = useMemo(() => {
+    if (!isTeacher) return true; // Admins, principals, and super-staff have system-wide authority
+    if (!selectedClass || selectedClass === 'Select Class' || selectedClass === 'All Classes') return false;
+    return teacherClasses.some(tc =>
+      matchesClassName(tc.className, selectedClass) &&
+      (selectedSection === 'Select Section' || selectedSection === 'All Sections' || tc.section.toLowerCase() === selectedSection.toLowerCase())
+    );
+  }, [isTeacher, teacherClasses, selectedClass, selectedSection]);
+
   // Dynamic list of class names from Academic Management & Students
   const classOptions = useMemo(() => {
-    if (isTeacher && teacherClasses.length > 0) {
-      const teacherCls = Array.from(new Set(teacherClasses.map(c => formatDisplayClassName(c.className))));
-      return ['Select Class', ...teacherCls.sort(compareClassesAscending)];
+    if (isTeacher) {
+      if (teacherClasses.length > 0) {
+        const teacherCls = Array.from(new Set(teacherClasses.map(c => formatDisplayClassName(c.className))));
+        return ['Select Class', ...teacherCls.sort(compareClassesAscending)];
+      }
+      return ['Select Class'];
     }
     const fromAcademic = (academicClasses || []).map(ac => ac.name ? formatDisplayClassName(ac.name) : null).filter(Boolean) as string[];
     const fromStudents = (allStudents || []).map(s => s.className ? formatDisplayClassName(s.className) : null).filter(Boolean) as string[];
@@ -561,12 +571,12 @@ export const AttendanceView = () => {
   }, [fetchStudents, allStudents, fetchStudentAttendanceData]);
 
   useEffect(() => {
-    if (isAggregatedView) {
+    if (isAggregatedView || (isTeacher && !isAuthorizedClassTeacher)) {
       setIsEditable(false);
     } else {
       setIsEditable(true);
     }
-  }, [selectedClass, selectedSection]);
+  }, [selectedClass, selectedSection, isAggregatedView, isTeacher, isAuthorizedClassTeacher]);
  
   useEffect(() => {
     setCurrentPage(1);
@@ -1021,6 +1031,11 @@ export const AttendanceView = () => {
   };
 
   const handleSaveAttendance = () => {
+    if (isTeacher && !isAuthorizedClassTeacher) {
+      addToast('warning', 'Class Teacher Only', 'Only the assigned Class Teacher is authorized to save attendance for this class and section.');
+      return;
+    }
+
     const markedStudents = classStudents.filter(st => {
       const s = getAttendanceStatus(st);
       return s !== null && s !== undefined;
@@ -1448,7 +1463,14 @@ export const AttendanceView = () => {
                 </div>
               </div>
  
-              {isAggregatedView ? (
+              {isTeacher && !isAuthorizedClassTeacher ? (
+                <div className="p-3 rounded-2xl border text-[11px] font-semibold flex items-start sm:items-center gap-2.5 transition-all bg-rose-50/80 dark:bg-rose-955/20 border-rose-200 dark:border-rose-900/40 text-rose-800 dark:text-rose-300">
+                  <AlertCircle className="w-4 h-4 text-rose-500 shrink-0 mt-0.5 sm:mt-0" />
+                  <span>
+                    <strong className="font-extrabold text-rose-900 dark:text-rose-200">Class Teacher Permission Only:</strong> Only the assigned Class Teacher is authorized to take and save student attendance for this class and section.
+                  </span>
+                </div>
+              ) : isAggregatedView ? (
                 <div className="p-3 rounded-2xl border text-[11px] font-semibold flex items-start sm:items-center gap-2.5 transition-all bg-indigo-50/50 dark:bg-indigo-955/10 border-indigo-200/50 dark:border-indigo-900/30 text-indigo-800 dark:text-indigo-300">
                   <AlertCircle className="w-3.5 h-3.5 text-indigo-500 shrink-0 mt-0.5 sm:mt-0" />
                   <span>

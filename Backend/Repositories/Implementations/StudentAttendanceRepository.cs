@@ -214,6 +214,16 @@ public class StudentAttendanceRepository : IStudentAttendanceRepository
         var activeAcademicYear = await _context.AcademicYears.AsNoTracking().FirstOrDefaultAsync(y => y.IsActive && !y.IsDeleted);
         var defaultBranch = await _context.Branches.AsNoTracking().FirstOrDefaultAsync();
 
+        Staff? callerStaff = null;
+        if (staffId.HasValue)
+        {
+            callerStaff = await _context.Staff.AsNoTracking().FirstOrDefaultAsync(s => s.StaffId == staffId.Value);
+        }
+
+        bool isTeacherCaller = callerStaff != null &&
+            (string.Equals(callerStaff.SystemRole, "Teacher", StringComparison.OrdinalIgnoreCase) ||
+             string.Equals(callerStaff.EmployeeCategory, "Teaching Staff", StringComparison.OrdinalIgnoreCase));
+
         int defaultStaffId = staffId ?? 1;
         int defaultBranchId = defaultBranch?.BranchId ?? 1;
         int defaultYearId = activeAcademicYear?.AcademicYearId ?? 1;
@@ -251,6 +261,27 @@ public class StudentAttendanceRepository : IStudentAttendanceRepository
             if (student == null)
             {
                 continue;
+            }
+
+            // Strict Class Teacher Authorization for Teachers
+            if (isTeacherCaller && callerStaff != null)
+            {
+                var secName = student.ClassSection?.SectionName ?? "";
+                var cleanSec = secName.Replace("Section", "", StringComparison.OrdinalIgnoreCase).Trim().ToLower();
+
+                bool isCT = await _context.TeacherAssignments.AsNoTracking().AnyAsync(ta =>
+                    ta.TeacherId == callerStaff.StaffId &&
+                    ta.ClassId == student.ClassId &&
+                    ta.Role == "Class Teacher" &&
+                    ta.Status == "Active" &&
+                    (ta.SectionLetter.Trim().ToLower() == secName.ToLower() ||
+                     ta.SectionLetter.Replace("Section", "", StringComparison.OrdinalIgnoreCase).Trim().ToLower() == cleanSec));
+
+                if (!isCT)
+                {
+                    // Non-class teacher cannot save student attendance
+                    continue;
+                }
             }
 
             int branchId = student.BranchId > 0 ? student.BranchId : defaultBranchId;

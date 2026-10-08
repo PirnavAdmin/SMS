@@ -31,6 +31,7 @@ public interface ITimetableRepository
 
     // Auto-Resolve Teacher for Class+Subject
     Task<Staff?> GetAssignedTeacherForSubjectAsync(int classId, int sectionId, int subjectId);
+    Task<Staff?> GetClassTeacherForSectionAsync(int classId, int sectionId);
 
     // Timetables Views
     Task<List<TimetableSlot>> GetTeacherTimetableSlotsAsync(int teacherId, string academicYear);

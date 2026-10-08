@@ -219,6 +219,7 @@ public class TimetableGenerationService : ITimetableGenerationService
 
             // Pre-load class requirements & assigned teachers
             var sectionRequirements = new Dictionary<int, List<SubjectRequirement>>();
+            var sectionClassTeachers = new Dictionary<int, int>(); // headerId -> classTeacherStaffId
             var expectedQuotas = new Dictionary<(int classId, int sectionId, int subjectId), int>();
 
             // =========================================================================
@@ -227,6 +228,11 @@ public class TimetableGenerationService : ITimetableGenerationService
             foreach (var header in targetHeaders)
             {
                 var reqs = await FetchCandidateSubjectsAsync(header.ClassId, header.SectionId, allSubjects, allStaff, allMappings);
+                var classTeacherObj = await _timetableRepository.GetClassTeacherForSectionAsync(header.ClassId, header.SectionId);
+                if (classTeacherObj != null)
+                {
+                    sectionClassTeachers[header.HeaderId] = classTeacherObj.StaffId;
+                }
                 var sectionObj = await _timetableRepository.GetSectionByIdAsync(header.SectionId);
                 var roomNo = sectionObj?.RoomNo?.Trim() ?? "";
 
@@ -435,9 +441,12 @@ public class TimetableGenerationService : ITimetableGenerationService
                     }
                 }
 
-                // Sort subjects: labs first, then highest frequency, then subject ID
+                int classTeacherStaffId = sectionClassTeachers.TryGetValue(header.HeaderId, out int ctId) ? ctId : 0;
+
+                // Sort subjects: Class Teacher first (ensuring first period availability), then labs, then highest frequency, then subject ID
                 var sortedReqs = reqs
-                    .OrderByDescending(r => r.IsLab)
+                    .OrderByDescending(r => classTeacherStaffId > 0 && r.TeacherId == classTeacherStaffId)
+                    .ThenByDescending(r => r.IsLab)
                     .ThenByDescending(r => r.WeeklyPeriods)
                     .ThenBy(r => r.SubjectId)
                     .ToList();
@@ -504,8 +513,22 @@ public class TimetableGenerationService : ITimetableGenerationService
                             (int)Math.Ceiling((double)req.WeeklyPeriods / numDays)
                         );
 
+                        // If this is the Class Teacher's subject, distribute 1 per day across all working days first
+                        if (classTeacherStaffId > 0 && req.TeacherId == classTeacherStaffId && remaining >= numDays)
+                        {
+                            for (int d = 0; d < numDays && remaining > 0; d++)
+                            {
+                                if (dayBuckets[d].Count < numPeriods)
+                                {
+                                    dayBuckets[d].Add(item);
+                                    daySubjectCounts[d].TryGetValue(req.SubjectId, out int cnt);
+                                    daySubjectCounts[d][req.SubjectId] = cnt + 1;
+                                    remaining--;
+                                }
+                            }
+                        }
                         // If remaining >= numDays, distribute 1 base per day across all days
-                        if (remaining >= numDays)
+                        else if (remaining >= numDays)
                         {
                             int basePerDay = remaining / numDays;
                             for (int round = 0; round < basePerDay; round++)
@@ -632,7 +655,8 @@ public class TimetableGenerationService : ITimetableGenerationService
                         subjectPeriodHistory,
                         previousDaySignatures,
                         prng,
-                        allowSameSignatureFallback: false
+                        allowSameSignatureFallback: false,
+                        classTeacherStaffId: classTeacherStaffId
                     );
 
                     if (!solved)
@@ -652,7 +676,8 @@ public class TimetableGenerationService : ITimetableGenerationService
                             subjectPeriodHistory,
                             previousDaySignatures,
                             prng,
-                            allowSameSignatureFallback: true
+                            allowSameSignatureFallback: true,
+                            classTeacherStaffId: classTeacherStaffId
                         );
                     }
 
@@ -929,12 +954,14 @@ public class TimetableGenerationService : ITimetableGenerationService
         Dictionary<int, Dictionary<int, int>> subjectPeriodHistory,
         List<int[]> previousDaySignatures,
         Random prng,
-        bool allowSameSignatureFallback)
+        bool allowSameSignatureFallback,
+        int classTeacherStaffId = 0)
     {
         int numPeriods = slots.Length;
         var freq = items.GroupBy(it => it.SubjectId).ToDictionary(g => g.Key, g => g.Count());
         var sortedItems = items
-            .OrderByDescending(it => it.IsLab)
+            .OrderByDescending(it => classTeacherStaffId > 0 && it.TeacherId == classTeacherStaffId)
+            .ThenByDescending(it => it.IsLab)
             .ThenByDescending(it => freq[it.SubjectId])
             .ThenByDescending(it => (it.SubjectId * 41 + dayIndex * 17 + prng.Next(100)))
             .ToList();
@@ -964,6 +991,9 @@ public class TimetableGenerationService : ITimetableGenerationService
 
             var currentItem = sortedItems[itemIdx];
             var candidateSlots = new List<(int slot, int score)>();
+
+            bool isClassTeacherItem = classTeacherStaffId > 0 && currentItem.TeacherId == classTeacherStaffId;
+            bool dayHasClassTeacherItem = classTeacherStaffId > 0 && items.Any(it => it.TeacherId == classTeacherStaffId);
 
             for (int p = 0; p < numPeriods; p++)
             {
@@ -1041,6 +1071,25 @@ public class TimetableGenerationService : ITimetableGenerationService
 
                     // Soft Candidate Scoring for Variation & Diversity
                     int score = 1000;
+
+                    // Class Teacher 1st Period priority:
+                    // If this item is taught by the Class Teacher, strongly boost Period 1 (p == 0)
+                    if (isClassTeacherItem)
+                    {
+                        if (p == 0)
+                        {
+                            score += 50000;
+                        }
+                    }
+                    else if (dayHasClassTeacherItem && p == 0)
+                    {
+                        // If class teacher is teaching today and hasn't been placed yet, keep Period 1 reserved
+                        bool ctAlreadyPlaced = slots.Any(s => s != null && s.TeacherId == classTeacherStaffId);
+                        if (!ctAlreadyPlaced)
+                        {
+                            score -= 50000;
+                        }
+                    }
 
                     // 1. Period Position Diversity Bonus / Penalty
                     int timesInPeriod = 0;

@@ -753,37 +753,37 @@ namespace SMS.Api.Controllers.AcademicManagement
                 {
                     _context.TeacherAssignments.RemoveRange(existingAssignments);
                 }
+            }
 
-                // Also sync to teacher_subject_assignments (used by Timetable & Attendance modules)
-                var section = await _context.ClassSections
-                    .FirstOrDefaultAsync(s => s.ClassId == id &&
-                        (s.SectionName.ToLower() == section_letter.ToLower() ||
-                         s.SectionName.ToLower() == cleanSec.ToLower() ||
-                         s.SectionName.ToLower() == prefixedSec.ToLower()));
+            // Sync to teacher_subject_assignments (used by Timetable & Attendance modules)
+            var section = await _context.ClassSections
+                .FirstOrDefaultAsync(s => s.ClassId == id &&
+                    (s.SectionName.ToLower() == section_letter.ToLower() ||
+                     s.SectionName.ToLower() == cleanSec.ToLower() ||
+                     s.SectionName.ToLower() == prefixedSec.ToLower()));
 
-                if (section != null && subjectId > 0)
+            if (section != null && subjectId > 0)
+            {
+                var existingTsas = await _context.TeacherSubjectAssignments
+                    .Where(tsa => tsa.ClassId == id && tsa.SectionId == section.SectionId && tsa.SubjectId == subjectId)
+                    .ToListAsync();
+
+                if (existingTsas.Any())
                 {
-                    var existingTsas = await _context.TeacherSubjectAssignments
-                        .Where(tsa => tsa.ClassId == id && tsa.SectionId == section.SectionId && tsa.SubjectId == subjectId)
-                        .ToListAsync();
-
-                    if (existingTsas.Any())
+                    foreach (var tsa in existingTsas)
                     {
-                        foreach (var tsa in existingTsas)
-                        {
-                            tsa.StaffId = staff.StaffId;
-                        }
+                        tsa.StaffId = staff.StaffId;
                     }
-                    else
+                }
+                else
+                {
+                    await _context.TeacherSubjectAssignments.AddAsync(new TeacherSubjectAssignment
                     {
-                        await _context.TeacherSubjectAssignments.AddAsync(new TeacherSubjectAssignment
-                        {
-                            ClassId = id,
-                            SectionId = section.SectionId,
-                            SubjectId = subjectId,
-                            StaffId = staff.StaffId
-                        });
-                    }
+                        ClassId = id,
+                        SectionId = section.SectionId,
+                        SubjectId = subjectId,
+                        StaffId = staff.StaffId
+                    });
                 }
             }
 

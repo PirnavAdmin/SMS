@@ -350,6 +350,37 @@ public class TimetableRepository : ITimetableRepository
         return null;
     }
 
+    public async Task<Staff?> GetClassTeacherForSectionAsync(int classId, int sectionId)
+    {
+        var section = await _context.ClassSections
+            .FirstOrDefaultAsync(s => s.SectionId == sectionId);
+
+        if (section != null)
+        {
+            var secName = section.SectionName ?? "";
+            var cleanSec = secName.Replace("Section", "", StringComparison.OrdinalIgnoreCase).Trim();
+            var prefixedSec = "Section " + cleanSec;
+
+            var classTeacherAssignment = await _context.TeacherAssignments
+                .Include(a => a.Teacher)
+                .FirstOrDefaultAsync(a =>
+                    a.ClassId == section.ClassId &&
+                    (a.SectionLetter.ToLower() == secName.ToLower() ||
+                     a.SectionLetter.ToLower() == cleanSec.ToLower() ||
+                     a.SectionLetter.ToLower() == prefixedSec.ToLower()) &&
+                    a.Role == "Class Teacher" &&
+                    a.Status == "Active");
+
+            if (classTeacherAssignment?.Teacher != null)
+                return classTeacherAssignment.Teacher;
+
+            if (classTeacherAssignment != null && classTeacherAssignment.TeacherId > 0)
+                return await _context.Staff.FindAsync(classTeacherAssignment.TeacherId);
+        }
+
+        return null;
+    }
+
     // =========================================================
     // TIMETABLES VIEWS
     // =========================================================
