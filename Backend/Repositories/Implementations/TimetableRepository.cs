@@ -368,16 +368,31 @@ public class TimetableRepository : ITimetableRepository
         string cleanSec = secName.Replace("Section", "", StringComparison.OrdinalIgnoreCase).Trim();
         string prefixedSec = "Section " + cleanSec;
 
+        string NormalizeSec(string? s) =>
+            (s ?? "").ToLowerInvariant().Replace("section", "").Replace("class", "").Replace("-", "").Trim();
+
+        string normSec = NormalizeSec(secName);
+
         var assignments = await _context.TeacherAssignments
             .Include(a => a.Teacher)
             .Where(a => a.ClassId == targetClassId)
             .ToListAsync();
 
-        bool MatchesSection(TeacherAssignment a) =>
-            string.IsNullOrEmpty(secName) ||
-            string.Equals(a.SectionLetter?.Trim(), secName.Trim(), StringComparison.OrdinalIgnoreCase) ||
-            string.Equals(a.SectionLetter?.Trim(), cleanSec, StringComparison.OrdinalIgnoreCase) ||
-            string.Equals(a.SectionLetter?.Trim(), prefixedSec, StringComparison.OrdinalIgnoreCase);
+        bool MatchesSection(TeacherAssignment a)
+        {
+            if (string.IsNullOrEmpty(secName)) return true;
+            var aSec = a.SectionLetter?.Trim() ?? "";
+            if (string.Equals(aSec, secName, StringComparison.OrdinalIgnoreCase)) return true;
+            if (string.Equals(aSec, cleanSec, StringComparison.OrdinalIgnoreCase)) return true;
+            if (string.Equals(aSec, prefixedSec, StringComparison.OrdinalIgnoreCase)) return true;
+            var normA = NormalizeSec(aSec);
+            if (!string.IsNullOrEmpty(normSec) && !string.IsNullOrEmpty(normA) &&
+                (normA == normSec || normA.EndsWith(normSec) || normSec.EndsWith(normA)))
+            {
+                return true;
+            }
+            return false;
+        }
 
         // 1. Primary priority: Explicit "Class Teacher" role
         var classTeacherAssignment = assignments.FirstOrDefault(a =>
@@ -399,7 +414,10 @@ public class TimetableRepository : ITimetableRepository
             return classTeacherAssignment.Teacher;
 
         if (classTeacherAssignment != null && classTeacherAssignment.TeacherId > 0)
-            return await _context.Staff.FindAsync(classTeacherAssignment.TeacherId);
+        {
+            var st = await _context.Staff.FindAsync(classTeacherAssignment.TeacherId);
+            if (st != null) return st;
+        }
 
         return null;
     }

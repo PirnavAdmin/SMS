@@ -158,6 +158,38 @@ public class GenerateTimetableRequestDto
     public int TimeoutSeconds { get; set; } = 30;
     public int? Seed { get; set; } // Deterministic PRNG seed for reproducible variation
     public List<LockedSlotDto> LockedSlots { get; set; } = new(); // Pre-assigned slots that must be preserved
+    public List<ClassTeacherAssignmentDto> ClassTeacherAssignments { get; set; } = new(); // Dynamic class teacher allocations per section
+}
+
+public class ClassTeacherAssignmentDto
+{
+    public string ClassName { get; set; } = string.Empty;
+    public string SectionName { get; set; } = string.Empty;
+    public int? ClassId { get; set; }
+    public int? SectionId { get; set; }
+    public int TeacherId { get; set; }
+    public string? TeacherName { get; set; }
+    public int? SubjectId { get; set; }
+    public string? SubjectName { get; set; }
+
+    // Convenient aliases for dynamic JSON and service mapping
+    public int ClassTeacherStaffId
+    {
+        get => TeacherId;
+        set => TeacherId = value;
+    }
+
+    public string? ClassTeacherName
+    {
+        get => TeacherName;
+        set => TeacherName = value;
+    }
+
+    public int? PreferredSubjectId
+    {
+        get => SubjectId;
+        set => SubjectId = value;
+    }
 }
 
 public class LockedSlotDto

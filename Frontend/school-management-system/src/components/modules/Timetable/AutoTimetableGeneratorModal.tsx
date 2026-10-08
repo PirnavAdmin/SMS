@@ -651,6 +651,99 @@ export const AutoTimetableGeneratorModal: React.FC<AutoTimetableGeneratorModalPr
     setGenerationError(null);
 
     try {
+      // Dynamically resolve Class Teacher assignments for every selected class and section
+      const classTeacherAssignmentsList = selectedClassSections.map(cs => {
+        const lastDash = cs.lastIndexOf('-');
+        const className = lastDash !== -1 ? cs.substring(0, lastDash).trim() : cs.trim();
+        const sectionName = lastDash !== -1 ? cs.substring(lastDash + 1).trim() : '';
+
+        // Match against rawClasses for database IDs
+        const rawCls = (rawClasses || []).find((c: any) =>
+          (c.className && c.className.trim().toLowerCase() === className.toLowerCase()) ||
+          (c.name && c.name.trim().toLowerCase() === className.toLowerCase())
+        );
+        const classId = rawCls?.classId || rawCls?.id ? Number(rawCls.classId || rawCls.id) : 0;
+
+        let sectionId = 0;
+        if (rawCls && Array.isArray(rawCls.sections)) {
+          const rawSec = rawCls.sections.find((s: any) => {
+            const sName = (s.sectionName || s.name || s.sectionLetter || '').trim().toLowerCase();
+            const cleanS = sName.replace(/^section\s+/i, '');
+            const cleanTarget = sectionName.toLowerCase().replace(/^section\s+/i, '');
+            return sName === sectionName.toLowerCase() || cleanS === cleanTarget;
+          });
+          if (rawSec) {
+            sectionId = Number(rawSec.sectionId || rawSec.id || 0);
+          }
+        }
+
+        // Resolve Class Teacher from teacherAssignments or academicClasses
+        let teacherName = '';
+        let teacherIdStr = '';
+        let preferredSubjectId: number | undefined = undefined;
+
+        // Check teacherAssignments for explicit "Class Teacher"
+        const ctAssignment = (teacherAssignments || []).find((ta: any) => {
+          const matchClass = (ta.className && ta.className.trim().toLowerCase() === className.toLowerCase()) ||
+                             (ta.classId && String(ta.classId) === String(classId));
+          const taSec = (ta.section || ta.sectionLetter || '').trim().toLowerCase().replace(/^section\s+/i, '');
+          const cleanTarget = sectionName.toLowerCase().replace(/^section\s+/i, '');
+          const matchSec = taSec === cleanTarget;
+          const isCT = (ta.role || '').trim().toLowerCase().includes('class');
+          return matchClass && matchSec && isCT;
+        });
+
+        if (ctAssignment) {
+          teacherName = ctAssignment.teacherName || '';
+          teacherIdStr = ctAssignment.teacherId ? String(ctAssignment.teacherId) : '';
+          if (ctAssignment.subjectId) preferredSubjectId = Number(ctAssignment.subjectId);
+        }
+
+        // Fallback: check academicClasses.sectionTeachers or cls.teacher
+        if (!teacherName && academicClasses) {
+          const acCls = academicClasses.find(c => c.name?.trim().toLowerCase() === className.toLowerCase());
+          if (acCls) {
+            if (acCls.sectionTeachers && acCls.sectionTeachers[sectionName]) {
+              teacherName = acCls.sectionTeachers[sectionName];
+            } else if (acCls.teacher) {
+              teacherName = acCls.teacher;
+            }
+          }
+        }
+
+        // Fallback: any teacherAssignment for this class & section
+        if (!teacherName && teacherAssignments) {
+          const anyTa = teacherAssignments.find((ta: any) => {
+            const matchClass = ta.className?.trim().toLowerCase() === className.toLowerCase();
+            const taSec = (ta.section || ta.sectionLetter || '').trim().toLowerCase().replace(/^section\s+/i, '');
+            const cleanTarget = sectionName.toLowerCase().replace(/^section\s+/i, '');
+            return matchClass && taSec === cleanTarget;
+          });
+          if (anyTa) {
+            teacherName = anyTa.teacherName || '';
+            teacherIdStr = anyTa.teacherId ? String(anyTa.teacherId) : '';
+            if (anyTa.subjectId) preferredSubjectId = Number(anyTa.subjectId);
+          }
+        }
+
+        // Extract numeric staff ID if available
+        let classTeacherStaffId = 0;
+        if (teacherIdStr) {
+          const numMatch = teacherIdStr.match(/\d+/);
+          if (numMatch) classTeacherStaffId = parseInt(numMatch[0], 10);
+        }
+
+        return {
+          classId,
+          sectionId,
+          className,
+          sectionName,
+          classTeacherStaffId,
+          classTeacherName: teacherName,
+          preferredSubjectId
+        };
+      });
+
       const apiPayload = {
         academicYear,
         branchName: selectedBranch || (rawClasses && rawClasses[0]?.campusLocation) || '',
@@ -665,6 +758,7 @@ export const AutoTimetableGeneratorModal: React.FC<AutoTimetableGeneratorModalPr
           type: b.type
         })),
         selectedClassSections,
+        classTeacherAssignments: classTeacherAssignmentsList,
         autoAssignMappedSubjects,
         allowConsecutiveForLabs,
         maxDailyPeriodsPerSubject: Number(maxPeriodsPerDayPerSubject) || 2,

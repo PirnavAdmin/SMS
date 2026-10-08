@@ -220,6 +220,7 @@ public class TimetableGenerationService : ITimetableGenerationService
             // Pre-load class requirements & assigned teachers
             var sectionRequirements = new Dictionary<int, List<SubjectRequirement>>();
             var sectionClassTeachers = new Dictionary<int, int>(); // headerId -> classTeacherStaffId
+            var sectionClassTeacherSubjects = new Dictionary<int, int>(); // headerId -> preferred Period 1 subjectId
             var expectedQuotas = new Dictionary<(int classId, int sectionId, int subjectId), int>();
 
             // =========================================================================
@@ -228,36 +229,100 @@ public class TimetableGenerationService : ITimetableGenerationService
             foreach (var header in targetHeaders)
             {
                 var reqs = await FetchCandidateSubjectsAsync(header.ClassId, header.SectionId, allSubjects, allStaff, allMappings);
-                var classTeacherObj = await _timetableRepository.GetClassTeacherForSectionAsync(header.ClassId, header.SectionId);
+
+                // 1. Check if client explicitly sent ClassTeacherAssignments in DTO
+                ClassTeacherAssignmentDto? ctaMatch = null;
+                if (dto.ClassTeacherAssignments != null && dto.ClassTeacherAssignments.Any())
+                {
+                    ctaMatch = dto.ClassTeacherAssignments.FirstOrDefault(cta =>
+                        (cta.ClassId > 0 && cta.SectionId > 0 && cta.ClassId == header.ClassId && cta.SectionId == header.SectionId)
+                        || (!string.IsNullOrWhiteSpace(cta.ClassName) && !string.IsNullOrWhiteSpace(cta.SectionName) &&
+                            header.ClassGrade != null && header.ClassSection != null &&
+                            cta.ClassName.Trim().Equals(header.ClassGrade.ClassName?.Trim(), StringComparison.OrdinalIgnoreCase) &&
+                            cta.SectionName.Trim().Equals(header.ClassSection.SectionName?.Trim(), StringComparison.OrdinalIgnoreCase)));
+                }
+
+                Staff? classTeacherObj = null;
+                int preferredSubjectId = ctaMatch?.PreferredSubjectId ?? 0;
+
+                if (ctaMatch != null)
+                {
+                    if (ctaMatch.ClassTeacherStaffId > 0)
+                    {
+                        if (allStaff.TryGetValue(ctaMatch.ClassTeacherStaffId, out var directStaff))
+                        {
+                            classTeacherObj = directStaff;
+                        }
+                        else
+                        {
+                            classTeacherObj = await _timetableRepository.GetStaffByIdAsync(ctaMatch.ClassTeacherStaffId);
+                        }
+                    }
+                    else if (!string.IsNullOrWhiteSpace(ctaMatch.ClassTeacherName))
+                    {
+                        var matchName = ctaMatch.ClassTeacherName.Trim();
+                        classTeacherObj = allStaff.Values.FirstOrDefault(s =>
+                            (!string.IsNullOrEmpty(s.DisplayName) && s.DisplayName.Trim().Equals(matchName, StringComparison.OrdinalIgnoreCase)) ||
+                            $"{s.FirstName} {s.LastName}".Trim().Equals(matchName, StringComparison.OrdinalIgnoreCase) ||
+                            (!string.IsNullOrEmpty(s.FirstName) && matchName.Contains(s.FirstName, StringComparison.OrdinalIgnoreCase)));
+                    }
+                }
+
+                // 2. Repository fallback (teacher_assignments with Class Teacher role or eligibility)
+                if (classTeacherObj == null)
+                {
+                    classTeacherObj = await _timetableRepository.GetClassTeacherForSectionAsync(header.ClassId, header.SectionId);
+                }
+
                 if (classTeacherObj != null)
                 {
                     sectionClassTeachers[header.HeaderId] = classTeacherObj.StaffId;
 
-                    // Ensure Class Teacher has at least numDays periods so they can take Period 1 on every working day
                     int numWorkingDays = dto.WorkingDays.Count;
-                    var ctReqs = reqs.Where(r => r.TeacherId == classTeacherObj.StaffId).ToList();
-                    if (ctReqs.Any())
+                    SubjectRequirement? chosenCtReq = null;
+
+                    // If preferred subject specified and present in reqs
+                    if (preferredSubjectId > 0)
                     {
-                        int totalCtPeriods = ctReqs.Sum(r => r.WeeklyPeriods);
-                        if (totalCtPeriods < numWorkingDays)
+                        chosenCtReq = reqs.FirstOrDefault(r => r.SubjectId == preferredSubjectId);
+                        if (chosenCtReq != null)
                         {
-                            ctReqs.First().WeeklyPeriods += (numWorkingDays - totalCtPeriods);
+                            chosenCtReq.TeacherId = classTeacherObj.StaffId;
+                            chosenCtReq.TeacherName = classTeacherObj.DisplayName ?? $"{classTeacherObj.FirstName} {classTeacherObj.LastName}".Trim();
+                            chosenCtReq.EmployeeId = classTeacherObj.EmployeeId ?? "";
                         }
                     }
-                    else
+
+                    // Otherwise if the teacher is already mapped to subject(s) in reqs
+                    if (chosenCtReq == null)
                     {
-                        // If Class Teacher is not yet mapped to a specific subject in reqs, associate them to an unassigned or primary subject
-                        var unassignedReq = reqs.FirstOrDefault(r => r.TeacherId <= 0) ?? reqs.FirstOrDefault();
-                        if (unassignedReq != null)
+                        var ctReqs = reqs.Where(r => r.TeacherId == classTeacherObj.StaffId).ToList();
+                        if (ctReqs.Any())
                         {
-                            unassignedReq.TeacherId = classTeacherObj.StaffId;
-                            unassignedReq.TeacherName = classTeacherObj.DisplayName ?? $"{classTeacherObj.FirstName} {classTeacherObj.LastName}".Trim();
-                            unassignedReq.EmployeeId = classTeacherObj.EmployeeId ?? "";
-                            if (unassignedReq.WeeklyPeriods < numWorkingDays)
-                            {
-                                unassignedReq.WeeklyPeriods = numWorkingDays;
-                            }
+                            chosenCtReq = ctReqs.OrderByDescending(r => r.WeeklyPeriods).First();
                         }
+                    }
+
+                    // If teacher is not yet mapped in reqs, assign them to an unassigned or primary subject
+                    if (chosenCtReq == null)
+                    {
+                        chosenCtReq = reqs.FirstOrDefault(r => r.TeacherId <= 0) ?? reqs.FirstOrDefault();
+                        if (chosenCtReq != null)
+                        {
+                            chosenCtReq.TeacherId = classTeacherObj.StaffId;
+                            chosenCtReq.TeacherName = classTeacherObj.DisplayName ?? $"{classTeacherObj.FirstName} {classTeacherObj.LastName}".Trim();
+                            chosenCtReq.EmployeeId = classTeacherObj.EmployeeId ?? "";
+                        }
+                    }
+
+                    // Guarantee this subject has at least numWorkingDays periods for Period 1 placement
+                    if (chosenCtReq != null)
+                    {
+                        if (chosenCtReq.WeeklyPeriods < numWorkingDays)
+                        {
+                            chosenCtReq.WeeklyPeriods = numWorkingDays;
+                        }
+                        sectionClassTeacherSubjects[header.HeaderId] = chosenCtReq.SubjectId;
                     }
                 }
                 var sectionObj = await _timetableRepository.GetSectionByIdAsync(header.SectionId);
@@ -504,15 +569,19 @@ public class TimetableGenerationService : ITimetableGenerationService
                 // STAGE 1 - PHASE 0: Guarantee Class Teacher has exactly 1 teaching slot on EVERY working day (for Period 1)
                 if (classTeacherStaffId > 0)
                 {
+                    int targetCtSubId = sectionClassTeacherSubjects.TryGetValue(header.HeaderId, out int tSubId) ? tSubId : 0;
                     var ctReqs = sortedReqs.Where(r => r.TeacherId == classTeacherStaffId).ToList();
                     if (ctReqs.Any())
                     {
+                        var chosenCtReq = (targetCtSubId > 0 ? ctReqs.FirstOrDefault(r => r.SubjectId == targetCtSubId) : null)
+                                          ?? ctReqs.FirstOrDefault(r => r.WeeklyPeriods > 0)
+                                          ?? ctReqs.First();
+
                         for (int d = 0; d < numDays; d++)
                         {
-                            bool alreadyHasCT = dayBuckets[d].Any(it => it.TeacherId == classTeacherStaffId);
+                            bool alreadyHasCT = dayBuckets[d].Any(it => it.TeacherId == classTeacherStaffId && (targetCtSubId <= 0 || it.SubjectId == targetCtSubId));
                             if (!alreadyHasCT && dayBuckets[d].Count < numPeriods)
                             {
-                                var chosenCtReq = ctReqs.FirstOrDefault(r => r.WeeklyPeriods > 0) ?? ctReqs.First();
                                 var ctItem = new SlotAssignmentItem
                                 {
                                     SubjectId = chosenCtReq.SubjectId,
@@ -594,9 +663,10 @@ public class TimetableGenerationService : ITimetableGenerationService
                     // For non-lab subjects or remaining single lab periods:
                     if (remaining > 0)
                     {
+                        int configuredQuota = expectedQuotas.TryGetValue((header.ClassId, header.SectionId, req.SubjectId), out int q) ? q : req.WeeklyPeriods;
                         int maxAllowedPerDay = Math.Max(
                             dto.MaxDailyPeriodsPerSubject,
-                            (int)Math.Ceiling((double)req.WeeklyPeriods / numDays)
+                            (int)Math.Ceiling((double)configuredQuota / numDays)
                         );
 
                         // If remaining >= numDays, distribute 1 base per day across all days
@@ -712,6 +782,8 @@ public class TimetableGenerationService : ITimetableGenerationService
                         }
                     }
 
+                    int targetCtSubId = sectionClassTeacherSubjects.TryGetValue(header.HeaderId, out int tSubId) ? tSubId : 0;
+
                     // Try solving with daily pattern diversity enforced (no duplicate signature to earlier days)
                     bool solved = SolveDailyPlacement(
                         todayItems,
@@ -728,7 +800,8 @@ public class TimetableGenerationService : ITimetableGenerationService
                         previousDaySignatures,
                         prng,
                         allowSameSignatureFallback: false,
-                        classTeacherStaffId: classTeacherStaffId
+                        classTeacherStaffId: classTeacherStaffId,
+                        classTeacherSubjectId: targetCtSubId
                     );
 
                     if (!solved)
@@ -749,7 +822,8 @@ public class TimetableGenerationService : ITimetableGenerationService
                             previousDaySignatures,
                             prng,
                             allowSameSignatureFallback: true,
-                            classTeacherStaffId: classTeacherStaffId
+                            classTeacherStaffId: classTeacherStaffId,
+                            classTeacherSubjectId: targetCtSubId
                         );
                     }
 
@@ -1027,12 +1101,13 @@ public class TimetableGenerationService : ITimetableGenerationService
         List<int[]> previousDaySignatures,
         Random prng,
         bool allowSameSignatureFallback,
-        int classTeacherStaffId = 0)
+        int classTeacherStaffId = 0,
+        int classTeacherSubjectId = 0)
     {
         int numPeriods = slots.Length;
         var freq = items.GroupBy(it => it.SubjectId).ToDictionary(g => g.Key, g => g.Count());
         var sortedItems = items
-            .OrderByDescending(it => classTeacherStaffId > 0 && it.TeacherId == classTeacherStaffId)
+            .OrderByDescending(it => classTeacherStaffId > 0 && it.TeacherId == classTeacherStaffId && (classTeacherSubjectId <= 0 || it.SubjectId == classTeacherSubjectId))
             .ThenByDescending(it => it.IsLab)
             .ThenByDescending(it => freq[it.SubjectId])
             .ThenByDescending(it => (it.SubjectId * 41 + dayIndex * 17 + prng.Next(100)))
@@ -1064,8 +1139,11 @@ public class TimetableGenerationService : ITimetableGenerationService
             var currentItem = sortedItems[itemIdx];
             var candidateSlots = new List<(int slot, int score)>();
 
-            bool isClassTeacherItem = classTeacherStaffId > 0 && currentItem.TeacherId == classTeacherStaffId;
-            bool dayHasClassTeacherItem = classTeacherStaffId > 0 && items.Any(it => it.TeacherId == classTeacherStaffId);
+            bool isClassTeacherItem = classTeacherStaffId > 0 &&
+                                      currentItem.TeacherId == classTeacherStaffId &&
+                                      (classTeacherSubjectId <= 0 || currentItem.SubjectId == classTeacherSubjectId);
+            bool dayHasClassTeacherItem = classTeacherStaffId > 0 &&
+                                          items.Any(it => it.TeacherId == classTeacherStaffId && (classTeacherSubjectId <= 0 || it.SubjectId == classTeacherSubjectId));
 
             if (isClassTeacherItem && slots[0] == null)
             {
@@ -1093,7 +1171,7 @@ public class TimetableGenerationService : ITimetableGenerationService
                     // Strictly reserve Period 1 (p == 0) for the Class Teacher if they teach today and haven't been placed yet
                     if (!isClassTeacherItem && dayHasClassTeacherItem && p == 0)
                     {
-                        bool ctAlreadyPlaced = slots.Any(s => s != null && s.TeacherId == classTeacherStaffId);
+                        bool ctAlreadyPlaced = slots.Any(s => s != null && s.TeacherId == classTeacherStaffId && (classTeacherSubjectId <= 0 || s.SubjectId == classTeacherSubjectId));
                         if (!ctAlreadyPlaced)
                             continue;
                     }
