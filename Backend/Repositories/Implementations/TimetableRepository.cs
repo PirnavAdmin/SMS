@@ -394,20 +394,25 @@ public class TimetableRepository : ITimetableRepository
             return false;
         }
 
-        // 1. Primary priority: Explicit "Class Teacher" role
-        var classTeacherAssignment = assignments.FirstOrDefault(a =>
-            MatchesSection(a) &&
-            (a.Role?.Trim().Equals("Class Teacher", StringComparison.OrdinalIgnoreCase) == true ||
-             a.Role?.ToLowerInvariant().Contains("class") == true) &&
-            (string.IsNullOrEmpty(a.Status) || a.Status.Equals("Active", StringComparison.OrdinalIgnoreCase)));
+        // 1. Primary priority: Explicit "Class Teacher" role (latest active assignment)
+        var classTeacherAssignment = assignments
+            .Where(a => MatchesSection(a) &&
+                        (a.Role?.Trim().Equals("Class Teacher", StringComparison.OrdinalIgnoreCase) == true ||
+                         a.Role?.ToLowerInvariant().Contains("class teacher") == true) &&
+                        (string.IsNullOrEmpty(a.Status) || a.Status.Equals("Active", StringComparison.OrdinalIgnoreCase)))
+            .OrderByDescending(a => a.Id)
+            .FirstOrDefault();
 
-        // 2. Secondary fallback: IsClassTeacherEligible flag
+        // 2. Secondary fallback: only if not explicitly marked as a "Subject Teacher"
         if (classTeacherAssignment == null)
         {
-            classTeacherAssignment = assignments.FirstOrDefault(a =>
-                MatchesSection(a) &&
-                a.Teacher != null && a.Teacher.IsClassTeacherEligible == true &&
-                (string.IsNullOrEmpty(a.Status) || a.Status.Equals("Active", StringComparison.OrdinalIgnoreCase)));
+            classTeacherAssignment = assignments
+                .Where(a => MatchesSection(a) &&
+                            a.Role != "Subject Teacher" &&
+                            a.Teacher != null && a.Teacher.IsClassTeacherEligible == true &&
+                            (string.IsNullOrEmpty(a.Status) || a.Status.Equals("Active", StringComparison.OrdinalIgnoreCase)))
+                .OrderByDescending(a => a.Id)
+                .FirstOrDefault();
         }
 
         if (classTeacherAssignment?.Teacher != null)

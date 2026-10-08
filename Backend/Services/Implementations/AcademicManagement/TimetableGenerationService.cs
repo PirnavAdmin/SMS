@@ -293,7 +293,7 @@ public class TimetableGenerationService : ITimetableGenerationService
                     int numWorkingDays = dto.WorkingDays.Count;
                     SubjectRequirement? chosenCtReq = null;
 
-                    // If preferred subject specified and present in reqs
+                    // 1. If preferred subject specified and present in reqs
                     if (preferredSubjectId > 0)
                     {
                         chosenCtReq = reqs.FirstOrDefault(r => r.SubjectId == preferredSubjectId);
@@ -305,7 +305,7 @@ public class TimetableGenerationService : ITimetableGenerationService
                         }
                     }
 
-                    // Otherwise if the teacher is already mapped to subject(s) in reqs
+                    // 2. If the teacher is already mapped to subject(s) in reqs
                     if (chosenCtReq == null)
                     {
                         var ctReqs = reqs.Where(r => r.TeacherId == classTeacherObj.StaffId).ToList();
@@ -315,10 +315,40 @@ public class TimetableGenerationService : ITimetableGenerationService
                         }
                     }
 
-                    // If teacher is not yet mapped in reqs, assign them to an unassigned or primary subject
+                    // 3. Match teacher's PrimarySubject against class subjects
+                    if (chosenCtReq == null && !string.IsNullOrWhiteSpace(classTeacherObj.PrimarySubject))
+                    {
+                        var prim = classTeacherObj.PrimarySubject.Trim().ToLowerInvariant();
+                        chosenCtReq = reqs.FirstOrDefault(r => r.SubjectName.Trim().ToLowerInvariant() == prim ||
+                                                               r.SubjectName.Trim().ToLowerInvariant().Contains(prim) ||
+                                                               prim.Contains(r.SubjectName.Trim().ToLowerInvariant()));
+                        if (chosenCtReq != null)
+                        {
+                            chosenCtReq.TeacherId = classTeacherObj.StaffId;
+                            chosenCtReq.TeacherName = classTeacherObj.DisplayName ?? $"{classTeacherObj.FirstName} {classTeacherObj.LastName}".Trim();
+                            chosenCtReq.EmployeeId = classTeacherObj.EmployeeId ?? "";
+                        }
+                    }
+
+                    // 4. Match teacher's Department against class subjects
+                    if (chosenCtReq == null && !string.IsNullOrWhiteSpace(classTeacherObj.Department))
+                    {
+                        var dept = classTeacherObj.Department.Trim().ToLowerInvariant();
+                        chosenCtReq = reqs.FirstOrDefault(r => r.SubjectName.Trim().ToLowerInvariant() == dept ||
+                                                               r.SubjectName.Trim().ToLowerInvariant().Contains(dept) ||
+                                                               dept.Contains(r.SubjectName.Trim().ToLowerInvariant()));
+                        if (chosenCtReq != null)
+                        {
+                            chosenCtReq.TeacherId = classTeacherObj.StaffId;
+                            chosenCtReq.TeacherName = classTeacherObj.DisplayName ?? $"{classTeacherObj.FirstName} {classTeacherObj.LastName}".Trim();
+                            chosenCtReq.EmployeeId = classTeacherObj.EmployeeId ?? "";
+                        }
+                    }
+
+                    // 5. If teacher is not yet mapped in reqs, assign them to an unassigned subject
                     if (chosenCtReq == null)
                     {
-                        chosenCtReq = reqs.FirstOrDefault(r => r.TeacherId <= 0) ?? reqs.FirstOrDefault();
+                        chosenCtReq = reqs.FirstOrDefault(r => r.TeacherId <= 0);
                         if (chosenCtReq != null)
                         {
                             chosenCtReq.TeacherId = classTeacherObj.StaffId;
@@ -1531,8 +1561,9 @@ public class TimetableGenerationService : ITimetableGenerationService
             string empId = "";
             int tId = 0;
 
-            if (teacher != null && allStaff.TryGetValue(teacher.StaffId, out var staffObj))
+            if (teacher != null)
             {
+                var staffObj = allStaff.TryGetValue(teacher.StaffId, out var s) ? s : teacher;
                 tId = staffObj.StaffId;
                 tName = staffObj.DisplayName ?? $"{staffObj.FirstName ?? ""} {staffObj.LastName ?? ""}".Trim();
                 empId = staffObj.EmployeeId ?? "";

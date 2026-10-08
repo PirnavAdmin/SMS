@@ -736,24 +736,8 @@ export const AutoTimetableGeneratorModal: React.FC<AutoTimetableGeneratorModalPr
               teacherName = acCls.sectionTeachers[secKey];
             }
           }
-          if (!teacherName && acCls.teacher) {
+          if (!teacherName && acCls.teacher && acCls.teacher !== 'Unassigned') {
             teacherName = acCls.teacher;
-          }
-        }
-
-        // Fallback: any teacherAssignment for this class & section
-        if (!teacherName && teacherAssignments) {
-          const anyTa = teacherAssignments.find((ta: any) => {
-            const matchClass = (ta.className && ta.className.trim().toLowerCase() === className.toLowerCase()) ||
-                               (ta.classId && String(ta.classId) === String(classId));
-            const taSec = (ta.section || ta.sectionLetter || '').trim().toLowerCase().replace(/^section\s+/i, '');
-            const cleanTarget = sectionName.toLowerCase().replace(/^section\s+/i, '');
-            return matchClass && taSec === cleanTarget;
-          });
-          if (anyTa) {
-            teacherName = anyTa.teacherName || '';
-            teacherIdStr = anyTa.teacherId ? String(anyTa.teacherId) : '';
-            if (anyTa.subjectId) preferredSubjectId = Number(anyTa.subjectId);
           }
         }
 
@@ -764,8 +748,8 @@ export const AutoTimetableGeneratorModal: React.FC<AutoTimetableGeneratorModalPr
           if (numMatch) classTeacherStaffId = parseInt(numMatch[0], 10);
         }
 
-        // Dynamically resolve staff ID from staff list when teacherName is known but ID is not
-        if (!classTeacherStaffId && teacherName && Array.isArray(staff)) {
+        // Dynamically resolve staff and preferred teaching subject
+        if (teacherName && Array.isArray(staff)) {
           const cleanT = teacherName.toLowerCase().replace(/\s+/g, '');
           const matchedStaff = staff.find((s: any) => {
             const fn = (s.firstName || '').toLowerCase().replace(/\s+/g, '');
@@ -777,10 +761,24 @@ export const AutoTimetableGeneratorModal: React.FC<AutoTimetableGeneratorModalPr
                    (cleanT.length > 2 && (cleanT === ln || cleanT === fn || dn.includes(cleanT) || cleanT.includes(dn)));
           });
           if (matchedStaff) {
-            const sId = (matchedStaff as any).staffId || matchedStaff.id;
-            if (sId) {
-              const numMatch = String(sId).match(/\d+/);
-              if (numMatch) classTeacherStaffId = parseInt(numMatch[0], 10);
+            if (!classTeacherStaffId) {
+              const sId = (matchedStaff as any).staffId || matchedStaff.id;
+              if (sId) {
+                const numMatch = String(sId).match(/\d+/);
+                if (numMatch) classTeacherStaffId = parseInt(numMatch[0], 10);
+              }
+            }
+            if (!preferredSubjectId && (matchedStaff.primarySubject || matchedStaff.department)) {
+              const staffSubName = (matchedStaff.primarySubject || matchedStaff.department || '').toLowerCase().trim();
+              const matchedSub = (subjects || []).find((s: any) =>
+                s.name?.toLowerCase().trim() === staffSubName ||
+                s.name?.toLowerCase().includes(staffSubName) ||
+                staffSubName.includes(s.name?.toLowerCase())
+              );
+              if (matchedSub && matchedSub.id) {
+                const subNum = String(matchedSub.id).match(/\d+/);
+                if (subNum) preferredSubjectId = parseInt(subNum[0], 10);
+              }
             }
           }
         }
