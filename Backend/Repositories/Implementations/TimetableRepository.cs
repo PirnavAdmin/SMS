@@ -485,9 +485,15 @@ public class TimetableRepository : ITimetableRepository
     public async Task<ClassGrade?> GetClassByNameAsync(string className)
     {
         if (string.IsNullOrWhiteSpace(className)) return null;
-        var clean = className.Trim().ToLower();
-        return await _context.Classes
-            .FirstOrDefaultAsync(c => c.ClassName != null && c.ClassName.ToLower() == clean);
+        var raw = className.Trim().ToLower();
+        var clean = raw.Replace("class", "").Replace("grade", "").Replace("-", "").Trim();
+
+        var classes = await _context.Classes.ToListAsync();
+        return classes.FirstOrDefault(c =>
+            !string.IsNullOrWhiteSpace(c.ClassName) &&
+            (c.ClassName.Trim().ToLower() == raw ||
+             c.ClassName.Trim().ToLower().Replace("class", "").Replace("grade", "").Replace("-", "").Trim() == clean ||
+             c.ClassId.ToString() == className.Trim()));
     }
 
     public async Task<ClassGrade?> GetDefaultClassAsync()
