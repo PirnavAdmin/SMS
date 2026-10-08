@@ -37,26 +37,7 @@ export const TeacherProfileView: React.FC = () => {
     const isWarden = userRoleStr.includes('warden');
     const isAccountant = userRoleStr.includes('accountant') || userRoleStr === 'finance';
 
-    // 1. Check exact email match across all staff
-    if (userEmail) {
-      const byEmail = staff.find(s => s.email && s.email.toLowerCase().trim() === userEmail);
-      if (byEmail) {
-        const isGenericName = (byEmail.firstName || '').toLowerCase().includes('administrator') || (byEmail.firstName || '').toLowerCase().includes('admin');
-        const userFirst = userName ? userName.split(' ')[0] : '';
-        const userLast = userName ? userName.split(' ').slice(1).join(' ') : '';
-        return {
-          ...byEmail,
-          firstName: (isGenericName && userFirst) ? userFirst : (byEmail.firstName || userFirst || ''),
-          lastName: (isGenericName && userLast) ? userLast : (byEmail.lastName || userLast || ''),
-          designation: isAccountant ? 'Accountant' : isWarden ? 'Hostel Warden' : (byEmail.designation || 'Teacher'),
-          department: isAccountant ? 'Finance & Accounts' : isWarden ? 'Hostel Management' : (byEmail.department || 'Academics'),
-          role: isAccountant ? 'Accountant' : isWarden ? 'Hostel Warden' : (byEmail.role || 'Teacher'),
-          empId: byEmail.empId || byEmail.employeeId || (user as any)?.empId || byEmail.id || user?.id || ''
-        };
-      }
-    }
-
-    // 2. Check exact ID or Employee ID match
+    // 1. Check exact ID or Employee ID match
     if (userId) {
       const byId = staff.find(s =>
         (s.id && String(s.id).toLowerCase().trim() === userId) ||
@@ -73,7 +54,7 @@ export const TeacherProfileView: React.FC = () => {
       }
     }
 
-    // 3. Check name match
+    // 2. Check name match
     if (userName && !userName.includes('admin')) {
       const byName = staff.find(s => {
         const sFullName = `${s.firstName || ''} ${s.lastName || ''}`.toLowerCase().trim();
@@ -87,6 +68,25 @@ export const TeacherProfileView: React.FC = () => {
           designation: isAccountant ? 'Accountant' : isWarden ? 'Hostel Warden' : (byName.designation || 'Teacher'),
           department: isAccountant ? 'Finance & Accounts' : isWarden ? 'Hostel Management' : (byName.department || 'Academics'),
           role: isAccountant ? 'Accountant' : isWarden ? 'Hostel Warden' : (byName.role || 'Teacher')
+        };
+      }
+    }
+
+    // 3. Check exact email match across all staff
+    if (userEmail) {
+      const byEmail = staff.find(s => s.email && s.email.toLowerCase().trim() === userEmail);
+      if (byEmail) {
+        const isGenericName = (byEmail.firstName || '').toLowerCase().includes('administrator') || (byEmail.firstName || '').toLowerCase().includes('admin');
+        const userFirst = userName ? userName.split(' ')[0] : '';
+        const userLast = userName ? userName.split(' ').slice(1).join(' ') : '';
+        return {
+          ...byEmail,
+          firstName: (isGenericName && userFirst) ? userFirst : (byEmail.firstName || userFirst || ''),
+          lastName: (isGenericName && userLast) ? userLast : (byEmail.lastName || userLast || ''),
+          designation: isAccountant ? 'Accountant' : isWarden ? 'Hostel Warden' : (byEmail.designation || 'Teacher'),
+          department: isAccountant ? 'Finance & Accounts' : isWarden ? 'Hostel Management' : (byEmail.department || 'Academics'),
+          role: isAccountant ? 'Accountant' : isWarden ? 'Hostel Warden' : (byEmail.role || 'Teacher'),
+          empId: byEmail.empId || byEmail.employeeId || (user as any)?.empId || byEmail.id || user?.id || ''
         };
       }
     }
@@ -398,13 +398,13 @@ export const TeacherProfileView: React.FC = () => {
       staffId: dbTeacher?.empId || dbTeacher?.employeeId || (user as any)?.empId || user?.id || '',
       employeeId: dbTeacher?.empId || dbTeacher?.employeeId || (user as any)?.empId || user?.id || '',
       fullName: localEdit?.fullName || defaultFullName,
-      email: localEdit?.email || user?.email || dbTeacher?.email || '',
-      mobile: localEdit?.mobile || user?.phone || dbTeacher?.phone || (user as any)?.mobile || '',
+      email: localEdit?.email || dbTeacher?.email || user?.email || '',
+      mobile: localEdit?.mobile || dbTeacher?.phone || user?.phone || (user as any)?.mobile || '',
       gender: localEdit?.gender || dbTeacher?.gender || (user as any)?.gender || 'Not Specified',
       dateOfBirth: localEdit?.dateOfBirth || dbTeacher?.dob || dbTeacher?.dateOfBirth || (user as any)?.dob || '',
       bloodGroup: localEdit?.bloodGroup || dbTeacher?.bloodGroup || (user as any)?.bloodGroup || 'Not Specified',
-      address: localEdit?.address || dbTeacher?.address || (user as any)?.address || '',
-      emergencyContact: localEdit?.emergencyContact || (dbTeacher as any)?.emergencyContact || (user as any)?.emergencyContact || '',
+      address: localEdit?.address || dbTeacher?.address || (dbTeacher as any)?.presentAddress || (user as any)?.address || '',
+      emergencyContact: localEdit?.emergencyContact || (dbTeacher as any)?.emergencyContact || (dbTeacher as any)?.alternateMobile || (user as any)?.emergencyContact || '',
       branch: dbTeacher?.branch || user?.branch || 'Main Campus',
       department: fallbackDept,
       designation: fallbackDesignation,

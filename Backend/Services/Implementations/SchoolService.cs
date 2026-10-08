@@ -1915,26 +1915,22 @@ public class SchoolService : ISchoolService
 					}
 
 					var driver = await Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions.FirstOrDefaultAsync(
-						_context.TransportDrivers, d => !d.IsDeleted)
-						?? new TransportDriver { DriverName = "Main Driver", MobileNumber = "9876543210", Status = true };
+						_context.TransportDrivers, d => !d.IsDeleted);
 
-					if (driver.DriverId <= 0)
+					if (driver != null)
 					{
-						await _context.TransportDrivers.AddAsync(driver);
+						vehicleAssignment = new TransportVehicleAssignment
+						{
+							RouteId = route.RouteId,
+							VehicleId = vehicle.VehicleId,
+							DriverId = driver.DriverId,
+							Status = true,
+							IsDeleted = false,
+							EffectiveFrom = DateTime.UtcNow
+						};
+						await _context.TransportVehicleAssignments.AddAsync(vehicleAssignment);
 						await _context.SaveChangesAsync();
 					}
-
-					vehicleAssignment = new TransportVehicleAssignment
-					{
-						RouteId = route.RouteId,
-						VehicleId = vehicle.VehicleId,
-						DriverId = driver.DriverId,
-						Status = true,
-						IsDeleted = false,
-						EffectiveFrom = DateTime.UtcNow
-					};
-					await _context.TransportVehicleAssignments.AddAsync(vehicleAssignment);
-					await _context.SaveChangesAsync();
 				}
 
 				// Sync student assignment

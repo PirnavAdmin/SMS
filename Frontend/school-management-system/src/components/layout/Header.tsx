@@ -42,10 +42,23 @@ export const Header: React.FC<HeaderProps> = ({ collapsed, setCollapsed, onOpenS
     const userEmail = (user.email || '').toLowerCase().trim();
     const userPhone = (user.phone || '').replace(/\D/g, '');
     const userId = String(user.id || (user as any)?.empId || '').trim();
+    const userName = (user.name || '').toLowerCase().trim();
 
-    if (userEmail) {
-      const emailMatch = staff.find(s => s.email && s.email.toLowerCase().trim() === userEmail);
-      if (emailMatch) return emailMatch;
+    if (userId) {
+      const idMatch = staff.find(s => 
+        (s.id && String(s.id).trim().toLowerCase() === userId.toLowerCase()) || 
+        (s.empId && String(s.empId).trim().toLowerCase() === userId.toLowerCase()) ||
+        ((s as any).employeeId && String((s as any).employeeId).trim().toLowerCase() === userId.toLowerCase())
+      );
+      if (idMatch) return idMatch;
+    }
+
+    if (userName && !userName.includes('admin')) {
+      const nameMatch = staff.find(s => {
+        const sFullName = `${s.firstName || ''} ${s.lastName || ''}`.trim().toLowerCase();
+        return sFullName && (sFullName === userName || sFullName.includes(userName) || userName.includes(sFullName));
+      });
+      if (nameMatch) return nameMatch;
     }
 
     if (userPhone && userPhone.length >= 10) {
@@ -53,16 +66,9 @@ export const Header: React.FC<HeaderProps> = ({ collapsed, setCollapsed, onOpenS
       if (phoneMatch) return phoneMatch;
     }
 
-    if (userId) {
-      const idMatch = staff.find(s => {
-        const matchesId = (s.id && String(s.id).trim() === userId) || (s.empId && String(s.empId).trim() === userId);
-        if (!matchesId) return false;
-        if (s.email && userEmail && s.email.toLowerCase().trim() !== userEmail) {
-          return false;
-        }
-        return true;
-      });
-      if (idMatch) return idMatch;
+    if (userEmail) {
+      const emailMatch = staff.find(s => s.email && s.email.toLowerCase().trim() === userEmail);
+      if (emailMatch) return emailMatch;
     }
 
     // Match in driverMasters if Driver
@@ -346,20 +352,90 @@ export const Header: React.FC<HeaderProps> = ({ collapsed, setCollapsed, onOpenS
     }
   };
 
-  const [readNotifIds, setReadNotifIds] = useState<string[]>([]);
+  const userNotifStorageKey = useMemo(() => {
+    const userKey = (user?.id || user?.email || user?.name || role || 'user').toString().toLowerCase().trim();
+    return `sms_read_notif_ids_${userKey}`;
+  }, [user, role]);
+
+  const [readNotifIds, setReadNotifIds] = useState<string[]>(() => {
+    try {
+      const userKey = (user?.id || user?.email || user?.name || role || 'user').toString().toLowerCase().trim();
+      const saved = localStorage.getItem(`sms_read_notif_ids_${userKey}`);
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    return [];
+  });
+
+  // Reload read state when user switches logins
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(userNotifStorageKey);
+      setReadNotifIds(saved ? JSON.parse(saved) : []);
+    } catch {
+      setReadNotifIds([]);
+    }
+  }, [userNotifStorageKey]);
+
+  // Listen to broadcast updates across modules
+  useEffect(() => {
+    const handleNotifUpdate = () => {
+      if (fetchAnnouncements) {
+        fetchAnnouncements();
+      }
+    };
+    window.addEventListener('announcements_updated', handleNotifUpdate);
+    window.addEventListener('circulars_updated', handleNotifUpdate);
+    window.addEventListener('notifications_updated', handleNotifUpdate);
+    return () => {
+      window.removeEventListener('announcements_updated', handleNotifUpdate);
+      window.removeEventListener('circulars_updated', handleNotifUpdate);
+      window.removeEventListener('notifications_updated', handleNotifUpdate);
+    };
+  }, [fetchAnnouncements]);
 
   const userNotifications = useMemo(() => {
-    const userRole = (role || user?.role || '').toLowerCase();
+    const userRole = (role || user?.role || '').toLowerCase().trim();
     const isSuperOrAdmin = userRole.includes('admin') || userRole.includes('principal') || userRole.includes('super');
     
     const filtered = (announcements || []).filter(item => {
+      if (!item) return false;
       if (isSuperOrAdmin) return true;
-      const aud = (item.targetAudience || 'ALL').toUpperCase();
-      if (aud === 'ALL' || aud === 'ALL AUDIENCES') return true;
-      if (userRole.includes('student') && (aud.includes('STUDENT') || aud === 'STUDENTS ONLY')) return true;
-      if (userRole.includes('parent') && (aud.includes('PARENT') || aud === 'PARENTS ONLY')) return true;
-      if ((userRole.includes('teacher') || userRole.includes('staff') || userRole.includes('receptionist') || userRole.includes('librarian') || userRole.includes('warden') || userRole.includes('driver')) && (aud.includes('STAFF') || aud === 'STAFF ONLY' || aud.includes('TEACHER'))) return true;
-      return false;
+      const aud = (item.targetAudience || 'ALL').toUpperCase().trim();
+      
+      // Universal broadcast announcements
+      if (aud === 'ALL' || aud === 'ALL AUDIENCES' || aud === '' || aud === 'GENERAL' || aud === 'EVERYONE') {
+        return true;
+      }
+
+      // Teaching & Non-Teaching Staff / Faculty / Officers
+      const isStaffMember = userRole.includes('teacher') || 
+                            userRole.includes('staff') || 
+                            userRole.includes('faculty') || 
+                            userRole.includes('warden') || 
+                            userRole.includes('librarian') || 
+                            userRole.includes('accountant') || 
+                            userRole.includes('driver') || 
+                            userRole.includes('receptionist') ||
+                            userRole.includes('employee') ||
+                            userRole.includes('hr') ||
+                            userRole.includes('transport');
+
+      if (isStaffMember) {
+        // Staff see staff announcements, student announcements, and general announcements
+        return true;
+      }
+
+      // Student Logins
+      if (userRole.includes('student')) {
+        return aud.includes('STUDENT') || aud === 'STUDENTS ONLY' || aud.includes('ALL');
+      }
+
+      // Parent Logins
+      if (userRole.includes('parent')) {
+        return aud.includes('PARENT') || aud.includes('STUDENT') || aud === 'PARENTS ONLY' || aud === 'STUDENTS ONLY' || aud.includes('ALL');
+      }
+
+      return true;
     });
 
     const seen = new Set<string>();
@@ -378,7 +454,7 @@ export const Header: React.FC<HeaderProps> = ({ collapsed, setCollapsed, onOpenS
   }, [announcements, role, user]);
 
   const unreadNotifications = useMemo(() => {
-    return userNotifications.filter(a => !(readNotifIds || []).includes(a.id));
+    return userNotifications.filter(a => !(readNotifIds || []).includes(String(a.id)));
   }, [userNotifications, readNotifIds]);
 
   const unreadCount = unreadNotifications.length;
@@ -388,12 +464,20 @@ export const Header: React.FC<HeaderProps> = ({ collapsed, setCollapsed, onOpenS
   };
 
   const markAllAsRead = () => {
-    const allIds = userNotifications.map(a => a.id);
-    setReadNotifIds(Array.from(new Set([...(readNotifIds || []), ...allIds])));
+    const allIds = userNotifications.map(a => String(a.id));
+    const updated = Array.from(new Set([...(readNotifIds || []), ...allIds]));
+    setReadNotifIds(updated);
+    try {
+      localStorage.setItem(userNotifStorageKey, JSON.stringify(updated));
+    } catch {}
   };
 
   const markSingleAsRead = (id: string) => {
-    setReadNotifIds(prev => Array.from(new Set([...(prev || []), id])));
+    const updated = Array.from(new Set([...(readNotifIds || []), String(id)]));
+    setReadNotifIds(updated);
+    try {
+      localStorage.setItem(userNotifStorageKey, JSON.stringify(updated));
+    } catch {}
   };
 
   const displayRole = useMemo(() => {
@@ -720,7 +804,7 @@ export const Header: React.FC<HeaderProps> = ({ collapsed, setCollapsed, onOpenS
             <div className="absolute right-0 mt-2 w-52 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl z-50 p-1.5 animate-in fade-in zoom-in-95 space-y-1">
               <div className="p-2.5 bg-slate-50 dark:bg-slate-800/80 rounded-xl mb-1">
                 <p className="text-xs font-bold text-slate-900 dark:text-white">{displayName}</p>
-                <p className="text-[10px] text-slate-500 dark:text-slate-400">{displayRole} • {user?.email}</p>
+                <p className="text-[10px] text-slate-500 dark:text-slate-400">{displayRole} • {currentStaff?.email || user?.email}</p>
               </div>
 
               {['Admin', 'Super Admin', 'Teacher'].includes(role) && (

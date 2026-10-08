@@ -209,43 +209,52 @@ export const StaffFormModal: React.FC<StaffFormModalProps> = ({
       }
     }
 
+    const isEditingSelf = (s: any) => {
+      if (!staffToEdit) return false;
+      const editId = String(staffToEdit.id || '').trim();
+      const editEmpId = String(staffToEdit.empId || (staffToEdit as any).employeeId || '').toLowerCase().trim();
+      const sId = String(s.id || '').trim();
+      const sEmpId = String(s.empId || (s as any).employeeId || '').toLowerCase().trim();
+      return (editId && sId && editId === sId) || (editEmpId && sEmpId && editEmpId === sEmpId);
+    };
+
     // Duplicate Staff ID Check
-    if (
-      form.empId &&
-      staff.some(
-        (s) =>
-          s.empId.toLowerCase() === form.empId.toLowerCase() &&
-          s.id !== staffToEdit?.id,
-      )
-    ) {
-      nextErrors.empId = "Staff ID already exists.";
+    if (form.empId) {
+      const trimmedEmpId = form.empId.trim().toLowerCase();
+      const isDuplicateEmpId = staff.some((s) => {
+        if (isEditingSelf(s)) return false;
+        const sEmpId = String(s.empId || (s as any).employeeId || '').toLowerCase().trim();
+        return sEmpId === trimmedEmpId;
+      });
+      if (isDuplicateEmpId) {
+        nextErrors.empId = "Staff ID already exists.";
+      }
     }
 
     // Duplicate Email Check
-    if (
-      form.email.trim() &&
-      staff.some(
-        (s) =>
-          s.email &&
-          s.email.toLowerCase() === form.email.trim().toLowerCase() &&
-          s.id !== staffToEdit?.id,
-      )
-    ) {
-      nextErrors.email = "Email address is already registered.";
+    if (form.email.trim()) {
+      const trimmedEmail = form.email.trim().toLowerCase();
+      const isDuplicateEmail = staff.some((s) => {
+        if (isEditingSelf(s)) return false;
+        const sEmail = String(s.email || '').toLowerCase().trim();
+        return sEmail === trimmedEmail;
+      });
+      if (isDuplicateEmail) {
+        nextErrors.email = "Email address is already registered.";
+      }
     }
 
     // Duplicate Mobile Check
     const cleanMobile = form.mobileNumber.replace(/\D/g, "");
-    if (
-      cleanMobile &&
-      staff.some(
-        (s) =>
-          s.phone &&
-          s.phone.replace(/\D/g, "") === cleanMobile &&
-          s.id !== staffToEdit?.id,
-      )
-    ) {
-      nextErrors.mobileNumber = "Mobile number is already registered.";
+    if (cleanMobile) {
+      const isDuplicateMobile = staff.some((s) => {
+        if (isEditingSelf(s)) return false;
+        const sPhone = String(s.phone || (s as any).mobileNumber || '').replace(/\D/g, "");
+        return sPhone === cleanMobile;
+      });
+      if (isDuplicateMobile) {
+        nextErrors.mobileNumber = "Mobile number is already registered.";
+      }
     }
 
     // Validate department & designation against staff type & department
@@ -292,7 +301,7 @@ export const StaffFormModal: React.FC<StaffFormModalProps> = ({
     let duplicateConflict: any = null;
     if (isTeaching && form.designation && form.assignedSubjects && form.assignedSubjects.length > 0 && form.assignedClasses && form.assignedClasses.length > 0) {
       duplicateConflict = staff.find(s => {
-        if (staffToEdit && s.id === staffToEdit.id) return false;
+        if (staffToEdit && String(s.id).trim() === String(staffToEdit.id).trim()) return false;
         const category = s.employeeCategory || s.role || '';
         const isTeachingStaff = category === 'Teacher' || category === 'Teaching Staff';
         if (!isTeachingStaff) return false;

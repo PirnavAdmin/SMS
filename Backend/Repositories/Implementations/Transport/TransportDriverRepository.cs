@@ -137,10 +137,9 @@ namespace SMS.Api.Repositories.Implementations
             CreateTransportDriverDto dto,
             long? userId)
         {
-            var rand = Random.Shared.Next(1000, 9999);
-            var empId = !string.IsNullOrWhiteSpace(dto.EmployeeId) && !dto.EmployeeId.Equals("string", StringComparison.OrdinalIgnoreCase) ? dto.EmployeeId.Trim() : $"DRV-{rand}";
-            var licNum = !string.IsNullOrWhiteSpace(dto.LicenceNumber) && !dto.LicenceNumber.Equals("string", StringComparison.OrdinalIgnoreCase) ? dto.LicenceNumber.Trim() : $"LIC-{rand}";
-            var mobNum = !string.IsNullOrWhiteSpace(dto.MobileNumber) && !dto.MobileNumber.Equals("string", StringComparison.OrdinalIgnoreCase) ? dto.MobileNumber.Trim() : $"98765{rand}";
+            var empId = !string.IsNullOrWhiteSpace(dto.EmployeeId) && !dto.EmployeeId.Equals("string", StringComparison.OrdinalIgnoreCase) ? dto.EmployeeId.Trim() : $"DRV-{DateTime.UtcNow.Ticks % 100000}";
+            var licNum = !string.IsNullOrWhiteSpace(dto.LicenceNumber) && !dto.LicenceNumber.Equals("string", StringComparison.OrdinalIgnoreCase) ? dto.LicenceNumber.Trim() : string.Empty;
+            var mobNum = !string.IsNullOrWhiteSpace(dto.MobileNumber) && !dto.MobileNumber.Equals("string", StringComparison.OrdinalIgnoreCase) ? dto.MobileNumber.Trim() : string.Empty;
 
             var entity = new TransportDriver
             {
@@ -210,7 +209,27 @@ namespace SMS.Api.Repositories.Implementations
                     !x.IsDeleted);
 
             if (entity == null)
+            {
+                var fallback = await _context.TransportDrivers.FirstOrDefaultAsync(x => x.DriverId == driverId);
+                if (fallback != null)
+                {
+                    fallback.IsDeleted = true;
+                    fallback.Status = false;
+                    await _context.SaveChangesAsync();
+                    return true;
+                }
                 return false;
+            }
+
+            // Unassign vehicle assignments referencing this driver
+            var assignments = await _context.TransportVehicleAssignments
+                .Where(a => a.DriverId == driverId)
+                .ToListAsync();
+            foreach (var a in assignments)
+            {
+                a.IsDeleted = true;
+                a.Status = false;
+            }
 
             entity.IsDeleted = true;
             entity.Status = false;

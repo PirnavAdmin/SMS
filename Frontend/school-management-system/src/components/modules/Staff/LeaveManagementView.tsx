@@ -205,6 +205,23 @@ export const LeaveManagementView: React.FC = () => {
       }
     }
 
+    if (isLibrarian) {
+      const byLibrarian = staff.find(s =>
+        (s.designation || '').toLowerCase().includes('librarian') ||
+        (s.department || '').toLowerCase().includes('library')
+      );
+      if (byLibrarian) {
+        return {
+          ...byLibrarian,
+          firstName: (isGenericAdminName || !byLibrarian.firstName) ? (user?.name?.split(' ')[0] || user?.firstName || 'Librarian') : byLibrarian.firstName,
+          lastName: (isGenericAdminName || !byLibrarian.firstName) ? (user?.name?.split(' ').slice(1).join(' ') || '') : (byLibrarian.lastName || ''),
+          designation: 'Librarian',
+          department: 'Library Department',
+          empId: (byLibrarian.empId && String(byLibrarian.empId) !== '358' && String(byLibrarian.empId) !== '90') ? byLibrarian.empId : (user?.id ? `LIB-${user.id}` : 'LIB-101')
+        };
+      }
+    }
+
     if (isDriver) {
       const byDriver = staff.find(s =>
         (s.designation || '').toLowerCase().includes('driver') ||
@@ -214,11 +231,11 @@ export const LeaveManagementView: React.FC = () => {
     }
 
     // Fallback default profile
-    const defaultFirstName = isWarden ? (user?.name?.split(' ')[0] || user?.firstName || 'Hostel') : isAccountant ? 'Sardhar' : isDriver ? 'Nag' : (user?.name?.split(' ')[0] || 'Staff');
-    const defaultLastName = isWarden ? (user?.name?.split(' ').slice(1).join(' ') || 'Warden') : isAccountant ? 'Karthi' : isDriver ? 'Sahoo' : (user?.name?.split(' ').slice(1).join(' ') || '');
-    const defaultEmpId = isWarden ? (user?.id ? `WRD-${user.id}` : 'WRD-102') : isAccountant ? 'ACT-101' : isDriver ? 'DRV-001' : (user?.id || 'STF-2026-0001');
-    const defaultDept = isWarden ? 'Hostel Management' : isAccountant ? 'Finance & Accounts' : isDriver ? 'Transport & Logistics' : 'Academic Dept';
-    const defaultDesig = isWarden ? 'Hostel Warden' : isAccountant ? 'Accountant' : isDriver ? 'Bus Driver' : 'Teacher';
+    const defaultFirstName = isWarden ? (user?.name?.split(' ')[0] || user?.firstName || 'Hostel') : isAccountant ? 'Sardhar' : isDriver ? 'Nag' : isLibrarian ? (user?.name?.split(' ')[0] || 'Librarian') : (user?.name?.split(' ')[0] || 'Staff');
+    const defaultLastName = isWarden ? (user?.name?.split(' ').slice(1).join(' ') || 'Warden') : isAccountant ? 'Karthi' : isDriver ? 'Sahoo' : isLibrarian ? (user?.name?.split(' ').slice(1).join(' ') || '') : (user?.name?.split(' ').slice(1).join(' ') || '');
+    const defaultEmpId = isWarden ? (user?.id ? `WRD-${user.id}` : 'WRD-102') : isAccountant ? 'ACT-101' : isDriver ? 'DRV-001' : isLibrarian ? (user?.id ? `LIB-${user.id}` : 'LIB-101') : (user?.id || 'STF-2026-0001');
+    const defaultDept = isWarden ? 'Hostel Management' : isAccountant ? 'Finance & Accounts' : isDriver ? 'Transport & Logistics' : isLibrarian ? 'Library Department' : 'Academic Dept';
+    const defaultDesig = isWarden ? 'Hostel Warden' : isAccountant ? 'Accountant' : isDriver ? 'Bus Driver' : isLibrarian ? 'Librarian' : 'Teacher';
 
     const rawName = user?.name || '';
     const parts = (!isGenericAdminName && rawName.trim()) ? rawName.trim().split(' ') : [defaultFirstName, defaultLastName];
@@ -230,10 +247,10 @@ export const LeaveManagementView: React.FC = () => {
       lastName: parts.slice(1).join(' ') || defaultLastName,
       department: (user as any)?.department || defaultDept,
       designation: (user as any)?.designation || defaultDesig,
-      employeeCategory: (isWarden || isAccountant || isDriver) ? 'Non-Teaching Staff' : 'Teaching Staff',
+      employeeCategory: (isWarden || isAccountant || isDriver || isLibrarian) ? 'Non-Teaching Staff' : 'Teaching Staff',
       leaveBalance: { casual: 10, sick: 10, paid: 15 }
     } as Staff;
-  }, [staff, user, userRole, isWarden, isAccountant, isDriver]);
+  }, [staff, user, userRole, isWarden, isAccountant, isDriver, isLibrarian]);
 
   // Filter applications for current user if self service staff (teacher, warden, driver, accountant)
   const myApplications = useMemo(() => {
@@ -333,13 +350,10 @@ export const LeaveManagementView: React.FC = () => {
 
   const filteredStaffForBalance = useMemo(() => {
     if (isSelfServiceStaff) {
-      const selfMatches = (staff || []).filter(s =>
-        (loggedUserStaffMember && (s.id === loggedUserStaffMember.id || s.empId === loggedUserStaffMember.empId)) ||
-        (user?.email && s.email && s.email.toLowerCase().trim() === user.email.toLowerCase().trim()) ||
-        (user?.name && !user.name.toLowerCase().includes('admin') && `${s.firstName} ${s.lastName}`.toLowerCase().includes(user.name.toLowerCase().split(' ')[0])) ||
-        (user?.id && (String(s.id) === String(user.id) || String(s.empId) === String(user.id)))
-      );
-      return selfMatches.length > 0 ? selfMatches : [loggedUserStaffMember];
+      if (loggedUserStaffMember) {
+        return [loggedUserStaffMember];
+      }
+      return [];
     }
 
     const isTeaching = (s: Staff) => {
@@ -372,7 +386,7 @@ export const LeaveManagementView: React.FC = () => {
 
       return matchesQuery && matchesCategory && matchesBranch;
     });
-  }, [staff, isDriver, isTeacher, driverStaffMember, teacherStaffMember, user, query, balanceCategoryFilter, selectedBranch]);
+  }, [isSelfServiceStaff, loggedUserStaffMember, staff, query, balanceCategoryFilter, selectedBranch]);
 
   const totalBalancePages = Math.ceil(filteredStaffForBalance.length / balancePageSize) || 1;
 

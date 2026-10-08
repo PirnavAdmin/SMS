@@ -791,15 +791,17 @@ using (var scope = app.Services.CreateScope())
 
             @"CREATE TABLE IF NOT EXISTS `transport_drivers` (
                 `DriverId` bigint NOT NULL AUTO_INCREMENT,
-                `DriverName` varchar(100) NOT NULL,
-                `LicenceNumber` varchar(50) NOT NULL,
+                `DriverName` varchar(100) NULL,
+                `EmployeeId` varchar(50) NULL,
+                `LicenceNumber` varchar(50) NULL,
                 `LicenceExpiry` datetime(6) NULL,
-                `MobileNumber` varchar(20) NOT NULL,
-                `AlternateMobileNumber` varchar(20) NOT NULL DEFAULT '',
-                `Address` varchar(255) NOT NULL DEFAULT '',
-                `BloodGroup` varchar(10) NOT NULL DEFAULT '',
-                `EmergencyContactName` varchar(100) NOT NULL DEFAULT '',
-                `EmergencyContactNumber` varchar(20) NOT NULL DEFAULT '',
+                `MobileNumber` varchar(20) NULL,
+                `AlternateMobileNumber` varchar(20) NULL DEFAULT '',
+                `Email` varchar(150) NULL,
+                `Address` varchar(255) NULL DEFAULT '',
+                `BloodGroup` varchar(10) NULL DEFAULT '',
+                `EmergencyContactName` varchar(100) NULL DEFAULT '',
+                `EmergencyContactNumber` varchar(20) NULL DEFAULT '',
                 `Status` tinyint(1) NOT NULL DEFAULT 1,
                 `IsDeleted` tinyint(1) NOT NULL DEFAULT 0,
                 `CreatedBy` bigint NULL,
@@ -1524,6 +1526,15 @@ using (var scope = app.Services.CreateScope())
         EnsureColumnExists("payroll_configs", "OvertimeJson", "LONGTEXT NULL");
         EnsureColumnExists("uniform_types", "IncludedItemsJson", "LONGTEXT NULL");
         EnsureColumnExists("uniform_sizes", "ShoulderSpec", "VARCHAR(50) NULL");
+
+        EnsureColumnExists("transport_drivers", "EmployeeId", "varchar(50) NULL");
+        EnsureColumnExists("transport_drivers", "Email", "varchar(150) NULL");
+        EnsureColumnExists("transport_drivers", "AlternateMobileNumber", "varchar(20) NULL DEFAULT ''");
+        EnsureColumnExists("transport_drivers", "Address", "varchar(255) NULL DEFAULT ''");
+        EnsureColumnExists("transport_drivers", "BloodGroup", "varchar(10) NULL DEFAULT ''");
+        EnsureColumnExists("transport_drivers", "EmergencyContactName", "varchar(100) NULL DEFAULT ''");
+        EnsureColumnExists("transport_drivers", "EmergencyContactNumber", "varchar(20) NULL DEFAULT ''");
+        EnsureColumnExists("transport_drivers", "AssignedVehicleId", "bigint NULL");
 
         EnsureColumnExists("branches", "BranchName", "varchar(150) NOT NULL");
         EnsureColumnExists("branches", "BranchCode", "varchar(50) NOT NULL DEFAULT ''");
