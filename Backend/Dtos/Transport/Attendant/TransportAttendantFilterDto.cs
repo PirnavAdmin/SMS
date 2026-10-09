@@ -15,3 +15,4 @@ namespace SMS.Api.Dtos.Transport.Attendant
         public int PageSize { get; set; } = 10;
     }
 }
+

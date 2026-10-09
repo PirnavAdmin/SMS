@@ -22,7 +22,7 @@ namespace SMS.Api.Dtos.Transport.Attendant
         [JsonPropertyName("attendantName")]
         public string AttendantName
         {
-            get => !string.IsNullOrWhiteSpace(_attendantName) ? _attendantName : "Bus Attendant";
+            get => !string.IsNullOrWhiteSpace(_attendantName) ? _attendantName : string.Empty;
             set
             {
                 if (!string.IsNullOrWhiteSpace(value))

@@ -28,6 +28,7 @@ namespace SMS.Api.Repositories.Implementations
                 var search = filter.Search.Trim().ToLower();
                 query = query.Where(x =>
                     (x.AttendantName != null && x.AttendantName.ToLower().Contains(search)) ||
+                    (x.EmployeeId != null && x.EmployeeId.ToLower().Contains(search)) ||
                     (x.MobileNumber != null && x.MobileNumber.ToLower().Contains(search)) ||
                     (x.Address != null && x.Address.ToLower().Contains(search)));
             }
@@ -37,12 +38,8 @@ namespace SMS.Api.Repositories.Implementations
                 query = query.Where(x => x.Status == filter.Status.Value);
             }
 
-            var totalCount = await query.CountAsync();
-
-            var items = await query
+            var allItems = await query
                 .OrderByDescending(x => x.CreatedAt)
-                .Skip((filter.PageNumber - 1) * filter.PageSize)
-                .Take(filter.PageSize)
                 .Select(x => new TransportAttendantDto
                 {
                     AttendantId = x.AttendantId,
@@ -62,6 +59,34 @@ namespace SMS.Api.Repositories.Implementations
                     CreatedAt = x.CreatedAt
                 })
                 .ToListAsync();
+
+            // Deduplicate items by EmployeeId (if provided) or by AttendantName + MobileNumber
+            var seenKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            var distinctItems = new List<TransportAttendantDto>();
+
+            foreach (var item in allItems)
+            {
+                string key;
+                if (!string.IsNullOrWhiteSpace(item.EmployeeId))
+                {
+                    key = $"EMP:{item.EmployeeId.Trim()}";
+                }
+                else
+                {
+                    key = $"NAME:{item.AttendantName.Trim()}|PHONE:{item.MobileNumber.Trim()}";
+                }
+
+                if (seenKeys.Add(key))
+                {
+                    distinctItems.Add(item);
+                }
+            }
+
+            var totalCount = distinctItems.Count;
+            var items = distinctItems
+                .Skip((filter.PageNumber - 1) * filter.PageSize)
+                .Take(filter.PageSize)
+                .ToList();
 
             return new PagedResult<TransportAttendantDto>
             {
@@ -101,11 +126,42 @@ namespace SMS.Api.Repositories.Implementations
 
         public async Task<long> CreateAsync(CreateTransportAttendantDto dto, long? userId)
         {
+            var empId = dto.EmployeeId?.Trim();
+            var attName = dto.AttendantName?.Trim();
+            var phone = dto.MobileNumber?.Trim();
+
+            var existing = await _context.TransportAttendants
+                .FirstOrDefaultAsync(x => !x.IsDeleted && (
+                    (!string.IsNullOrEmpty(empId) && x.EmployeeId == empId) ||
+                    (!string.IsNullOrEmpty(attName) && !string.IsNullOrEmpty(phone) && x.AttendantName == attName && x.MobileNumber == phone)
+                ));
+
+            if (existing != null)
+            {
+                if (!string.IsNullOrWhiteSpace(empId)) existing.EmployeeId = empId;
+                if (!string.IsNullOrWhiteSpace(attName)) existing.AttendantName = attName;
+                if (!string.IsNullOrWhiteSpace(phone)) existing.MobileNumber = phone;
+                if (!string.IsNullOrWhiteSpace(dto.Gender)) existing.Gender = dto.Gender.Trim();
+                if (!string.IsNullOrWhiteSpace(dto.BranchCampus)) existing.BranchName = dto.BranchCampus.Trim();
+                if (dto.AlternateMobileNumber != null) existing.AlternateMobileNumber = dto.AlternateMobileNumber.Trim();
+                if (dto.Address != null) existing.Address = dto.Address.Trim();
+                if (dto.BloodGroup != null) existing.BloodGroup = dto.BloodGroup.Trim();
+                if (dto.EmergencyContactName != null) existing.EmergencyContactName = dto.EmergencyContactName.Trim();
+                if (dto.EmergencyContactNumber != null) existing.EmergencyContactNumber = dto.EmergencyContactNumber.Trim();
+                if (dto.AssignedVehicleId.HasValue) existing.AssignedVehicleId = dto.AssignedVehicleId > 0 ? dto.AssignedVehicleId : null;
+                existing.Status = dto.Status;
+                existing.UpdatedBy = userId;
+                existing.UpdatedAt = DateTime.UtcNow;
+
+                await _context.SaveChangesAsync();
+                return existing.AttendantId;
+            }
+
             var attendant = new TransportAttendant
             {
-                EmployeeId = dto.EmployeeId?.Trim(),
-                AttendantName = dto.AttendantName.Trim(),
-                MobileNumber = dto.MobileNumber.Trim(),
+                EmployeeId = empId,
+                AttendantName = attName ?? string.Empty,
+                MobileNumber = phone ?? string.Empty,
                 Gender = dto.Gender?.Trim(),
                 BranchName = dto.BranchCampus?.Trim(),
                 AlternateMobileNumber = dto.AlternateMobileNumber?.Trim(),

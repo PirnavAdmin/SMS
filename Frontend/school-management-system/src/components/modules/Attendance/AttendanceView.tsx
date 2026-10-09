@@ -184,16 +184,6 @@ export const AttendanceView = () => {
 
   const teacherFullName = `${dbTeacher.firstName || 'Suteja'} ${dbTeacher.lastName || 'K'}`.trim();
 
-  // Check if current user has Class Teacher authority to take/modify student attendance for selected Class & Section
-  const isAuthorizedClassTeacher = useMemo(() => {
-    if (!isTeacher) return true; // Admins, principals, and super-staff have system-wide authority
-    if (!selectedClass || selectedClass === 'Select Class' || selectedClass === 'All Classes') return false;
-    return teacherClasses.some(tc =>
-      matchesClassName(tc.className, selectedClass) &&
-      (selectedSection === 'Select Section' || selectedSection === 'All Sections' || tc.section.toLowerCase() === selectedSection.toLowerCase())
-    );
-  }, [isTeacher, teacherClasses, selectedClass, selectedSection]);
-
   // Dynamic list of class names from Academic Management & Students
   const classOptions = useMemo(() => {
     if (isTeacher) {
@@ -228,6 +218,16 @@ export const AttendanceView = () => {
   // Context Selection State
   const [selectedClass, setSelectedClass] = useState<string>('Select Class');
   const [selectedSection, setSelectedSection] = useState<string>('Select Section');
+
+  // Check if current user has Class Teacher authority to take/modify student attendance for selected Class & Section
+  const isAuthorizedClassTeacher = useMemo(() => {
+    if (!isTeacher) return true; // Admins, principals, and super-staff have system-wide authority
+    if (!selectedClass || selectedClass === 'Select Class' || selectedClass === 'All Classes') return false;
+    return teacherClasses.some(tc =>
+      matchesClassName(tc.className, selectedClass) &&
+      (selectedSection === 'Select Section' || selectedSection === 'All Sections' || tc.section.toLowerCase() === selectedSection.toLowerCase())
+    );
+  }, [isTeacher, teacherClasses, selectedClass, selectedSection]);
 
   // Dynamic list of section options for selected class
   const sectionOptions = useMemo(() => {

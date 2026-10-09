@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { UserCheck, Plus, Search, Edit, Trash2, Phone, ShieldCheck, Bus } from 'lucide-react';
 import { useData } from '../../../context/DataContext';
+import { useAuth } from '../../../context/AuthContext';
 import { useToast } from '../../../context/ToastContext';
 import { Badge } from '../../common/Badge';
 import { ExportButton } from '../../common/ExportButton';
@@ -13,7 +14,22 @@ export { initialBusAttendants };          // re-export value for backward compat
 
 export const BusAttendantMasterView: React.FC = () => {
   const { staff = [], vehicleAssignments, busAttendants: attendants, addBusAttendant, updateBusAttendant, deleteBusAttendant } = useData();
+  const { selectedBranch } = useAuth();
   const { addToast } = useToast();
+
+  // Deduplicate attendants to guarantee no duplicate entries are displayed
+  const uniqueAttendants = React.useMemo(() => {
+    const map = new Map<string, BusAttendantMaster>();
+    (attendants || []).forEach(a => {
+      const key = (a.employeeId && a.employeeId.trim() !== '')
+        ? `emp_${a.employeeId.trim().toLowerCase()}`
+        : (a.id ? `id_${a.id}` : `name_${(a.attendantName || '').trim().toLowerCase()}_${(a.mobileNumber || '').trim()}`);
+      if (!map.has(key)) {
+        map.set(key, a);
+      }
+    });
+    return Array.from(map.values());
+  }, [attendants]);
 
   const nonTeachingStaff = React.useMemo(() => {
     return (staff || []).filter(s => 
@@ -24,9 +40,9 @@ export const BusAttendantMasterView: React.FC = () => {
 
   const filteredNonTeachingStaff = React.useMemo(() => {
     return nonTeachingStaff.filter(
-      s => !attendants.some(a => a.employeeId === s.empId || a.employeeId === (s as any).employeeId)
+      s => !uniqueAttendants.some(a => a.employeeId === s.empId || a.employeeId === (s as any).employeeId)
     );
-  }, [nonTeachingStaff, attendants]);
+  }, [nonTeachingStaff, uniqueAttendants]);
 
   const [query, setQuery] = useState('');
   const [selectedAttendantFilter, setSelectedAttendantFilter] = useState(() => sessionStorage.getItem('tm_attendant_filter') || '');
@@ -44,11 +60,11 @@ export const BusAttendantMasterView: React.FC = () => {
     attendantName: '',
     mobileNumber: '',
     gender: '' as any,
-    branch: 'Main Campus',
+    branch: (selectedBranch && selectedBranch !== 'All Branches' && selectedBranch !== 'All') ? selectedBranch : '',
     status: 'Active'
   });
 
-  const filteredAttendants = attendants.filter(a => {
+  const filteredAttendants = uniqueAttendants.filter(a => {
     const matchesQuery = a.attendantName.toLowerCase().includes(query.toLowerCase()) ||
                          a.employeeId.toLowerCase().includes(query.toLowerCase()) ||
                          a.mobileNumber.toLowerCase().includes(query.toLowerCase());
@@ -67,7 +83,7 @@ export const BusAttendantMasterView: React.FC = () => {
       attendantName: '',
       mobileNumber: '',
       gender: '' as any,
-      branch: 'Main Campus',
+      branch: (selectedBranch && selectedBranch !== 'All Branches' && selectedBranch !== 'All') ? selectedBranch : '',
       status: 'Active'
     });
     setIsModalOpen(true);
@@ -148,7 +164,7 @@ export const BusAttendantMasterView: React.FC = () => {
           >
             <option value="">-- Select Bus Attendant --</option>
             <option value="ALL">All Bus Attendants</option>
-            {attendants.map(a => (
+            {uniqueAttendants.map(a => (
               <option key={a.id} value={a.id}>
                 {a.attendantName} ({a.employeeId})
               </option>
@@ -265,7 +281,7 @@ export const BusAttendantMasterView: React.FC = () => {
                           attendantName: `${selected.firstName} ${selected.lastName || ''}`.trim(),
                           mobileNumber: selected.phone || (selected as any).mobileNumber || '',
                           gender: (selected.gender as any) || prev.gender,
-                          branch: selected.branch || prev.branch || 'Main Campus'
+                          branch: selected.branch || (selected as any).branchName || prev.branch || selectedBranch || ''
                         }));
                       } else {
                         setForm(prev => ({
@@ -274,7 +290,7 @@ export const BusAttendantMasterView: React.FC = () => {
                           attendantName: '',
                           mobileNumber: '',
                           gender: '' as any,
-                          branch: 'Main Campus'
+                          branch: (selectedBranch && selectedBranch !== 'All Branches' && selectedBranch !== 'All') ? selectedBranch : ''
                         }));
                       }
                     }}

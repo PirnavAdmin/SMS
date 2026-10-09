@@ -2344,27 +2344,17 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   );
 
   // Transport ERP System States
-  const [routeMasters, setRouteMasters] = useState<RouteMaster[]>(() =>
-    getStored("edu_db_route_masters", initialRouteMasters),
-  );
-  const [pickupPoints, setPickupPoints] = useState<PickupPoint[]>(() =>
-    getStored("edu_db_pickup_points", initialPickupPoints),
-  );
-  const [vehicleMasters, setVehicleMasters] = useState<VehicleMaster[]>(() =>
-    getStored("edu_db_vehicle_masters", initialVehicleMasters),
-  );
-  const [driverMasters, setDriverMasters] = useState<DriverMaster[]>(() =>
-    getStored("edu_db_driver_masters", initialDriverMasters),
-  );
-  const [busAttendants, setBusAttendants] = useState<BusAttendantMaster[]>(() =>
-    getStored("edu_db_bus_attendants", []),
-  );
+  const [routeMasters, setRouteMasters] = useState<RouteMaster[]>([]);
+  const [pickupPoints, setPickupPoints] = useState<PickupPoint[]>([]);
+  const [vehicleMasters, setVehicleMasters] = useState<VehicleMaster[]>([]);
+  const [driverMasters, setDriverMasters] = useState<DriverMaster[]>([]);
+  const [busAttendants, setBusAttendants] = useState<BusAttendantMaster[]>([]);
   const [vehicleAssignments, setVehicleAssignments] = useState<
     VehicleAssignment[]
-  >(() => getStored("edu_db_vehicle_assignments", initialVehicleAssignments));
+  >([]);
   const [vehicleMaintenances, setVehicleMaintenances] = useState<
     VehicleMaintenance[]
-  >(() => getStored("edu_db_vehicle_maintenances", initialVehicleMaintenances));
+  >([]);
 
   // Hostel ERP System States
   const [roomTypeMasters, setRoomTypeMasters] = useState<RoomTypeMaster[]>(() =>
@@ -4091,11 +4081,21 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
               a.name ||
               "",
             mobileNumber: a.mobileNumber || a.phone || "",
-            gender: a.gender || "Female",
-            branch: a.branch || "",
+            gender: a.gender || "",
+            branch: a.branch || a.branchName || "",
             status: normalizeStatus(a.status),
           }));
-          setBusAttendants(mappedAttendants);
+
+          const uniqueAttendantsMap = new Map<string, BusAttendantMaster>();
+          mappedAttendants.forEach((att: BusAttendantMaster) => {
+            const key = (att.employeeId && att.employeeId.trim() !== "")
+              ? `emp_${att.employeeId.trim().toLowerCase()}`
+              : (att.id ? `id_${att.id}` : `name_${(att.attendantName || '').trim().toLowerCase()}_${(att.mobileNumber || '').trim()}`);
+            if (!uniqueAttendantsMap.has(key)) {
+              uniqueAttendantsMap.set(key, att);
+            }
+          });
+          setBusAttendants(Array.from(uniqueAttendantsMap.values()));
         }
         const studentTransportsData = extractData(results[7]);
         if (studentTransportsData) {
@@ -16200,6 +16200,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const addBusAttendant = async (a: Omit<BusAttendantMaster, "id">) => {
     try {
+      const branchCampus = (a as any).branch || (a as any).branchCampus || ((selectedBranch && selectedBranch !== "All Branches" && selectedBranch !== "All") ? selectedBranch : "");
       const payload = {
         employeeId: a.employeeId || "",
         empId: a.employeeId || "",
@@ -16209,7 +16210,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         name: a.attendantName || "",
         mobileNumber: a.mobileNumber || "",
         phone: a.mobileNumber || "",
-        gender: a.gender || "Female",
+        gender: a.gender || "",
+        branchCampus: branchCampus,
+        branch: branchCampus,
         status: a.status === "Active",
       };
       const response = await TransportAPI.createAttendantApi(payload as any);
@@ -16217,7 +16220,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       const id = (
         backendData.id ||
         backendData.attendantId ||
-        "ATT-" + Math.floor(100 + Math.random() * 900)
+        ""
       ).toString();
       const newAttendant: BusAttendantMaster = {
         ...a,
@@ -16230,22 +16233,42 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           a.status === "Active"
             ? "Active"
             : "Inactive",
-        branch: (a as any).branch || selectedBranch || "Main Campus",
+        branch: (a as any).branch || backendData.branchName || backendData.branch || branchCampus,
       } as any;
-      setBusAttendants((prev) => [...prev, newAttendant]);
+
+      setBusAttendants((prev) => {
+        const empKey = (newAttendant.employeeId || "").trim().toLowerCase();
+        const nameKey = (newAttendant.attendantName || "").trim().toLowerCase();
+        const phoneKey = (newAttendant.mobileNumber || "").trim();
+
+        const exists = prev.some(
+          (existing) =>
+            (empKey && (existing.employeeId || "").trim().toLowerCase() === empKey) ||
+            existing.id === newAttendant.id ||
+            ((existing.attendantName || "").trim().toLowerCase() === nameKey &&
+              (existing.mobileNumber || "").trim() === phoneKey)
+        );
+
+        if (exists) {
+          return prev.map((existing) =>
+            (empKey && (existing.employeeId || "").trim().toLowerCase() === empKey) ||
+            existing.id === newAttendant.id ||
+            ((existing.attendantName || "").trim().toLowerCase() === nameKey &&
+              (existing.mobileNumber || "").trim() === phoneKey)
+              ? { ...existing, ...newAttendant }
+              : existing
+          );
+        }
+
+        return [...prev, newAttendant];
+      });
+
       logActivity(
         "Registered Bus Attendant",
         `Added attendant ${newAttendant.attendantName}`,
       );
-    } catch (err) {
-      addToast("error", "API Sync Failed", "Operating in local fallback mode");
-      const id = "ATT-" + Math.floor(100 + Math.random() * 900);
-      const newAttendant: BusAttendantMaster = {
-        ...a,
-        id,
-        branch: (a as any).branch || selectedBranch || "Main Campus",
-      } as any;
-      setBusAttendants((prev) => [...prev, newAttendant]);
+    } catch (err: any) {
+      addToast("error", "Failed to Add Attendant", err?.message || "Operating in local mode");
     }
   };
 
