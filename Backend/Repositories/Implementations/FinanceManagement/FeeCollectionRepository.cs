@@ -153,8 +153,8 @@ public class FeeCollectionRepository : IFeeCollectionRepository
                     continue;
             }
 
-            string cName = st.ClassGrade?.ClassName ?? "Class 10";
-            string sName = st.ClassSection?.SectionName ?? "A";
+            string cName = st.ClassGrade?.ClassName ?? string.Empty;
+            string sName = st.ClassSection?.SectionName ?? string.Empty;
 
             decimal baseClassFee = 0m;
             var matchedStructure = feeStructures.FirstOrDefault(f => 
@@ -235,8 +235,8 @@ public class FeeCollectionRepository : IFeeCollectionRepository
 
         string admNo = student.AdmissionNumber ?? $"REG-{student.StudentId}";
         string studentIdStr = student.StudentId.ToString();
-        string cName = student.ClassGrade?.ClassName ?? "Class 10";
-        string sName = student.ClassSection?.SectionName ?? "A";
+        string cName = student.ClassGrade?.ClassName ?? string.Empty;
+        string sName = student.ClassSection?.SectionName ?? string.Empty;
 
         var matchedAdmissions = await _context.Admissions.AsNoTracking()
             .Where(a => (a.ApplicationNo != null && a.ApplicationNo == admNo) || (a.ApplicationNo != null && a.ApplicationNo == studentIdStr))
@@ -726,8 +726,8 @@ public class FeeCollectionRepository : IFeeCollectionRepository
 
         foreach (var st in students)
         {
-            string cName = st.ClassGrade?.ClassName ?? "Class 10";
-            string sName = st.ClassSection?.SectionName ?? "A";
+            string cName = st.ClassGrade?.ClassName ?? string.Empty;
+            string sName = st.ClassSection?.SectionName ?? string.Empty;
             string prevClass = GetPreviousClassName(cName);
             var prevYears = new List<string> { string.IsNullOrWhiteSpace(previousAcademicYear) || previousAcademicYear.Equals("ALL", StringComparison.OrdinalIgnoreCase) ? "2025-2026" : previousAcademicYear };
 
@@ -833,7 +833,7 @@ public class FeeCollectionRepository : IFeeCollectionRepository
         if (norm == "1") return "UKG";
         if (norm == "ukg") return "LKG";
         if (norm == "lkg") return "Nursery";
-        return "Class 9";
+        return string.Empty;
     }
 
     public async Task<FeeReceiptsRegisterResponseDto> GetReceiptsRegisterAsync(
@@ -883,8 +883,8 @@ public class FeeCollectionRepository : IFeeCollectionRepository
                 StudentId = st != null ? st.StudentId : 0,
                 AdmissionNo = st != null ? (st.AdmissionNumber ?? $"REG-{st.StudentId}") : p.StudentId,
                 StudentName = st != null ? (st.StudentName ?? $"Student #{st.StudentId}") : $"Student #{p.StudentId}",
-                ClassName = st?.ClassGrade?.ClassName ?? "Class 10",
-                Section = st?.ClassSection?.SectionName ?? "A",
+                ClassName = st?.ClassGrade?.ClassName ?? string.Empty,
+                Section = st?.ClassSection?.SectionName ?? string.Empty,
                 AcademicYear = st?.AcademicYear?.AcademicYearName ?? "2026-2027",
                 Branch = st?.Branch?.BranchName ?? "Main Campus",
                 AmountPaid = p.Amount,
@@ -930,8 +930,8 @@ public class FeeCollectionRepository : IFeeCollectionRepository
             StudentId = st != null ? st.StudentId : 0,
             AdmissionNo = st != null ? (st.AdmissionNumber ?? $"REG-{st.StudentId}") : payment.StudentId,
             StudentName = st != null ? (st.StudentName ?? $"Student #{st.StudentId}") : $"Student #{payment.StudentId}",
-            ClassName = st?.ClassGrade?.ClassName ?? "Class 10",
-            Section = st?.ClassSection?.SectionName ?? "A",
+            ClassName = st?.ClassGrade?.ClassName ?? string.Empty,
+            Section = st?.ClassSection?.SectionName ?? string.Empty,
             AcademicYear = st?.AcademicYear?.AcademicYearName ?? "2026-2027",
             Branch = st?.Branch?.BranchName ?? "Main Campus",
             AmountPaid = payment.Amount,

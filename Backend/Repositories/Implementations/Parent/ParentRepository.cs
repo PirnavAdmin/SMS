@@ -141,24 +141,31 @@ namespace SMS.Api.Repositories.Implementations.Parent
                 Email = student.Email,
                 MobileNumber = student.MobileNumber,
                 Address = student.Address,
-                ClassName = student.ClassGrade?.ClassName ?? "Class 6",
-                SectionName = student.ClassSection?.SectionName ?? "A",
-                BranchName = student.Branch?.BranchName ?? "Main Campus",
-                AcademicYear = student.AcademicYear?.AcademicYearName ?? "2026-27"
+                ClassName = student.ClassGrade?.ClassName ?? string.Empty,
+                SectionName = student.ClassSection?.SectionName ?? string.Empty,
+                BranchName = student.Branch?.BranchName ?? string.Empty,
+                AcademicYear = student.AcademicYear?.AcademicYearName ?? string.Empty
             };
 
-            var notices = new List<ParentNoticeDto>
-            {
-                new ParentNoticeDto { Date = DateTime.UtcNow.ToString("yyyy-MM-dd"), Title = "Annual Sports Day Registration", Description = "Registrations are open for Sports Day events.", Type = "notice" },
-                new ParentNoticeDto { Date = DateTime.UtcNow.AddDays(-2).ToString("yyyy-MM-dd"), Title = "Parent-Teacher Meeting", Description = "Scheduled for next Saturday at 10:00 AM.", Type = "notice" }
-            };
+            var notices = await _context.Circulars
+                .AsNoTracking()
+                .OrderByDescending(c => c.CreatedDate)
+                .Take(5)
+                .Select(c => new ParentNoticeDto
+                {
+                    Date = c.CreatedDate.ToString("yyyy-MM-dd"),
+                    Title = c.Title,
+                    Description = c.Content,
+                    Type = c.Category ?? "notice"
+                })
+                .ToListAsync();
 
             return new ParentDashboardSummaryDto
             {
                 StudentId = student.StudentId,
                 StudentName = student.StudentName,
-                ClassName = student.ClassGrade?.ClassName ?? "Class 6",
-                SectionName = student.ClassSection?.SectionName ?? "A",
+                ClassName = student.ClassGrade?.ClassName ?? string.Empty,
+                SectionName = student.ClassSection?.SectionName ?? string.Empty,
                 AttendancePercentage = attSummary.Percentage,
                 FeeDueAmount = feeSummary.TotalDue,
                 PendingHomeworkCount = pendingHomeworkCount,
@@ -307,14 +314,16 @@ namespace SMS.Api.Repositories.Implementations.Parent
             var student = await GetStudentByIdAsync(studentId);
             if (student == null) return new List<ParentHomeworkItemDto>();
 
-            var className = student.ClassGrade?.ClassName ?? "Class 6";
-            var sectionName = student.ClassSection?.SectionName ?? "A";
-            var fullClass = $"{className}-{sectionName}";
+            var className = student.ClassGrade?.ClassName ?? string.Empty;
+            var sectionName = student.ClassSection?.SectionName ?? string.Empty;
+            var fullClass = !string.IsNullOrEmpty(className) && !string.IsNullOrEmpty(sectionName)
+                ? $"{className}-{sectionName}"
+                : className;
 
             try
             {
                 var homeworks = await _context.Homeworks
-                    .Where(h => h.ClassName == className || h.ClassName == fullClass || h.ClassName.Contains(className))
+                    .Where(h => (!string.IsNullOrEmpty(className) && (h.ClassName == className || h.ClassName == fullClass || h.ClassName.Contains(className))))
                     .OrderByDescending(h => h.CreatedAt)
                     .ToListAsync();
 
@@ -323,12 +332,12 @@ namespace SMS.Api.Repositories.Implementations.Parent
                     return homeworks.Select(h => new ParentHomeworkItemDto
                     {
                         HomeworkId = h.HomeworkId,
-                        SubjectName = h.SubjectName ?? "General",
-                        Title = h.Title ?? "Homework Assignment",
+                        SubjectName = h.SubjectName ?? string.Empty,
+                        Title = h.Title ?? string.Empty,
                         Description = h.Description ?? string.Empty,
                         AssignedDate = h.CreatedAt.ToString("dd/MM/yyyy"),
                         DueDate = h.DueDate.ToString("dd/MM/yyyy"),
-                        TeacherName = h.TeacherName ?? "Class Teacher",
+                        TeacherName = h.TeacherName ?? string.Empty,
                         Status = "Pending"
                     }).ToList();
                 }

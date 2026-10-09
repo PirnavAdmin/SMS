@@ -233,5 +233,17 @@ public class ExamNewRepository : IExamNewRepository
 
         return true;
     }
+
+    public async Task<List<string>> GetAvailableClassesAsync()
+    {
+        try
+        {
+            return await _context.Classes.AsNoTracking().Where(c => !string.IsNullOrEmpty(c.ClassName)).Select(c => c.ClassName!).Distinct().ToListAsync();
+        }
+        catch
+        {
+            return new List<string>();
+        }
+    }
 }
 

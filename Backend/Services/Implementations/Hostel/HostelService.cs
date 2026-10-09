@@ -991,17 +991,17 @@ public class HostelService : IHostelService
             return new HostelReportItemDto
             {
                 AllocationId = a.AllocationId,
-                AdmissionNo = !string.IsNullOrWhiteSpace(a.RegistrationNo) ? a.RegistrationNo : (a.Student?.RegistrationNo ?? "ADM2024-002"),
-                StudentName = !string.IsNullOrWhiteSpace(a.StudentName) ? a.StudentName : (a.Student != null ? $"{a.Student.FirstName} {a.Student.LastName}" : "Sophia Montgomery"),
-                ClassSection = a.Student?.AppliedClass?.ClassName ?? "Class 10 - A",
-                HostelName = a.Hostel?.HostelName ?? "Girls Excellence Residence Block B",
-                BlockName = w?.BlockName ?? "Block A",
-                FloorLevel = a.Room?.FloorLevel ?? "1st Floor",
-                RoomNumber = a.Room?.RoomNumber ?? "201",
-                BedNumber = a.BedNumber ?? "BED-1",
-                AssignedSupervisor = w?.WardenName ?? "Robert Langdon",
-                WardenName = w?.WardenName ?? "Marcus Vance",
-                JoiningDate = a.JoiningDate?.ToString("yyyy-MM-dd") ?? a.CreatedAt?.ToString("yyyy-MM-dd") ?? "2026-06-01",
+                AdmissionNo = !string.IsNullOrWhiteSpace(a.RegistrationNo) ? a.RegistrationNo : (a.Student?.RegistrationNo ?? string.Empty),
+                StudentName = !string.IsNullOrWhiteSpace(a.StudentName) ? a.StudentName : (a.Student != null ? $"{a.Student.FirstName} {a.Student.LastName}".Trim() : string.Empty),
+                ClassSection = a.Student?.AppliedClass?.ClassName ?? string.Empty,
+                HostelName = a.Hostel?.HostelName ?? string.Empty,
+                BlockName = w?.BlockName ?? string.Empty,
+                FloorLevel = a.Room?.FloorLevel ?? string.Empty,
+                RoomNumber = a.Room?.RoomNumber ?? string.Empty,
+                BedNumber = a.BedNumber ?? string.Empty,
+                AssignedSupervisor = w?.WardenName ?? string.Empty,
+                WardenName = w?.WardenName ?? string.Empty,
+                JoiningDate = a.JoiningDate?.ToString("yyyy-MM-dd") ?? a.CreatedAt?.ToString("yyyy-MM-dd") ?? string.Empty,
                 Status = a.Status ?? "Active"
             };
         }).ToList();

@@ -29,19 +29,19 @@ namespace SMS.Api.Controllers
         [HttpGet("options")]
         public async Task<IActionResult> GetPromotionOptions()
         {
-            var years = new List<string> { "2026-2027 (Current)", "2025-2026 (Previous Year)", "2024-2025 (Previous Year)" };
-            var targetYears = new List<string> { "2027-2028 (Next Year)", "2026-2027", "2028-2029 (Upcoming)" };
-            var classes = new List<string> { "Class 10", "Class 9", "LKG", "Class 5", "Class 7", "Class 1", "Class 2", "Class 3", "Class 4", "Class 6", "Class 8", "Class 11", "Class 12 (Terminal Class)" };
+            var dbYears = await _context.AcademicYears.AsNoTracking().Where(y => !string.IsNullOrEmpty(y.AcademicYearName)).Select(y => y.AcademicYearName!).Distinct().ToListAsync();
+            var classes = await _context.Classes.AsNoTracking().Where(c => !string.IsNullOrEmpty(c.ClassName)).Select(c => c.ClassName!).Distinct().ToListAsync();
+            var sections = await _context.ClassSections.AsNoTracking().Where(s => !string.IsNullOrEmpty(s.SectionName)).Select(s => s.SectionName!).Distinct().ToListAsync();
 
             return Ok(new
             {
                 success = true,
                 data = new StudentPromotionOptionsDto
                 {
-                    CurrentAcademicYears = years,
-                    TargetAcademicYears = targetYears,
+                    CurrentAcademicYears = dbYears,
+                    TargetAcademicYears = dbYears,
                     Classes = classes,
-                    AvailableSections = new List<string> { "Section A", "Section B", "Section C" },
+                    AvailableSections = sections,
                     Policies = new List<string> { "Manual", "Merit Based", "Balanced" }
                 }
             });

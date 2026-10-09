@@ -92,7 +92,7 @@ public class LibraryTimetableController : ControllerBase
                 className = s.ClassName ?? "",
                 section = s.Section ?? "",
                 subject = s.Subject,
-                teacherName = s.AssignedLibrarian ?? "Bhanu Prakash",
+                teacherName = s.AssignedLibrarian ?? string.Empty,
                 roomNo = "Central Library",
                 isFreeSlot = s.IsFreeSlot
             })
@@ -100,10 +100,10 @@ public class LibraryTimetableController : ControllerBase
     }
 
     [HttpGet("options")]
-    public IActionResult GetTimetableOptions()
+    public async Task<IActionResult> GetTimetableOptions()
     {
-        var classes = new List<string> { "Class 1", "Class 2", "Class 3", "Class 4", "Class 5", "Class 6", "Class 7", "Class 8", "Class 9", "Class 10", "Class 11", "Class 12" };
-        var sections = new List<string> { "A", "B", "C", "D" };
+        var classes = await _context.Classes.AsNoTracking().Select(c => c.ClassName).Distinct().ToListAsync();
+        var sections = await _context.ClassSections.AsNoTracking().Select(s => s.SectionName).Distinct().ToListAsync();
 
         return Ok(new { success = true, data = new { classes, sections } });
     }

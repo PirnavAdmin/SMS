@@ -547,7 +547,7 @@ namespace SMS.Api.Services.Implementations
             StudentId = d.StudentId,
             AdmissionNo = d.AdmissionNo ?? "",
             StudentName = d.StudentName ?? "",
-            ClassName = d.ClassName ?? "Class 10-A",
+            ClassName = d.ClassName ?? "",
             TransactionType = d.TransactionType ?? "Baseline Distribution (Admission Kit)",
             UniformTypeId = d.UniformTypeId,
             ItemName = d.ItemName ?? d.UniformType?.ItemName ?? "",

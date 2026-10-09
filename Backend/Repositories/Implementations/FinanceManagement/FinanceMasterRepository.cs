@@ -42,7 +42,7 @@ public class FinanceMasterRepository : IFinanceMasterRepository
         {
             var st = students.FirstOrDefault(s => s.StudentId.ToString() == p.StudentId || s.AdmissionNumber == p.StudentId);
             string stName = st?.StudentName ?? (p.StudentId != null ? $"Student #{p.StudentId}" : "Student");
-            string cName = st?.ClassGrade?.ClassName ?? "Class 10";
+            string cName = st?.ClassGrade?.ClassName ?? string.Empty;
 
             result.Add(new FinanceTransactionDto
             {
@@ -709,7 +709,7 @@ public class FinanceMasterRepository : IFinanceMasterRepository
             .FirstOrDefaultAsync(s => s.StudentId == request.StudentId || (s.AdmissionNumber != null && s.AdmissionNumber == request.AdmissionNo));
 
         string stName = !string.IsNullOrWhiteSpace(request.StudentName) ? request.StudentName : (st?.StudentName ?? $"Student #{request.StudentId}");
-        string clsName = !string.IsNullOrWhiteSpace(request.ClassName) ? request.ClassName : (st?.ClassGrade?.ClassName ?? "Class 10");
+        string clsName = !string.IsNullOrWhiteSpace(request.ClassName) ? request.ClassName : (st?.ClassGrade?.ClassName ?? string.Empty);
 
         var refundEntry = new LedgerEntry
         {
@@ -1081,7 +1081,7 @@ public class FinanceMasterRepository : IFinanceMasterRepository
                 ReceiptNo = !string.IsNullOrEmpty(p.ReceiptNo) ? p.ReceiptNo : $"REC-2026-{p.Id:D4}",
                 StudentName = st?.StudentName ?? $"Student #{p.StudentId}",
                 AdmissionNo = st?.AdmissionNumber ?? p.StudentId,
-                ClassName = st?.ClassGrade?.ClassName ?? "Class 10",
+                ClassName = st?.ClassGrade?.ClassName ?? string.Empty,
                 PaymentMode = p.PaymentMethod ?? "Cash",
                 Amount = p.Amount,
                 CollectedBy = "Accounts Counter 1",
@@ -1271,8 +1271,8 @@ public class FinanceMasterRepository : IFinanceMasterRepository
 
         var sch = await _context.Scholarships.FirstOrDefaultAsync(x => x.Id == request.ScholarshipId);
 
-        string clsName = student?.ClassGrade?.ClassName ?? "Class 1";
-        string secName = student?.ClassSection?.SectionName ?? "A";
+        string clsName = student?.ClassGrade?.ClassName ?? string.Empty;
+        string secName = student?.ClassSection?.SectionName ?? string.Empty;
         string stName = student?.StudentName ?? "Student";
         string admNo = student?.AdmissionNumber ?? $"ADM-{request.StudentId}";
 
@@ -1488,8 +1488,8 @@ public class FinanceMasterRepository : IFinanceMasterRepository
 
         var disc = await _context.Discounts.FirstOrDefaultAsync(x => x.Id == request.DiscountId);
 
-        string clsName = student?.ClassGrade?.ClassName ?? "Class 1";
-        string secName = student?.ClassSection?.SectionName ?? "A";
+        string clsName = student?.ClassGrade?.ClassName ?? string.Empty;
+        string secName = student?.ClassSection?.SectionName ?? string.Empty;
         string stName = student?.StudentName ?? "Student";
         string admNo = student?.AdmissionNumber ?? $"ADM-{request.StudentId}";
 

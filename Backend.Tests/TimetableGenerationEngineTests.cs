@@ -703,7 +703,7 @@ public class TimetableGenerationEngineTests
     public async Task Test15_ClassTeacherAssignedViaDto_Period1EveryWorkingDayIsAssignedToClassTeacher()
     {
         SetupStandardEnvironment();
-        int expectedCtStaffId = 203; // Shakespeare (teaches Subject 103 English)
+        int expectedCtStaffId = 203;
         int expectedSubjectId = 103;
 
         var request = new GenerateTimetableRequestDto
@@ -751,10 +751,10 @@ public class TimetableGenerationEngineTests
     public async Task Test16_ClassTeacherResolvedViaRepositoryFallback_Period1EveryWorkingDayIsAssignedToClassTeacher()
     {
         SetupStandardEnvironment();
-        int expectedCtStaffId = 201; // Alan Turing (teaches Subject 101 Mathematics)
+        int expectedCtStaffId = 201;
         int expectedSubjectId = 101;
 
-        var ctStaff = new Staff { StaffId = expectedCtStaffId, FirstName = "Alan", LastName = "Turing", EmployeeId = "EMP-001", IsClassTeacherEligible = true };
+        var ctStaff = new Staff { StaffId = expectedCtStaffId, FirstName = "Faculty", LastName = "Lead", EmployeeId = "EMP-001", IsClassTeacherEligible = true };
         _mockRepo.Setup(r => r.GetClassTeacherForSectionAsync(1, 1)).ReturnsAsync(ctStaff);
 
         var request = new GenerateTimetableRequestDto
@@ -789,47 +789,52 @@ public class TimetableGenerationEngineTests
     [Fact]
     public async Task Test17_Repository_ResolvesClassTeacher_FromEligibilityFallbackAndExplicitRole()
     {
-        var options = new Microsoft.EntityFrameworkCore.DbContextOptionsBuilder<SMS.Api.Data.AppDbContext>()
+        var options = new DbContextOptionsBuilder<SMS.Api.Data.AppDbContext>()
             .UseInMemoryDatabase(databaseName: Guid.NewGuid().ToString())
             .Options;
 
         using var dbContext = new SMS.Api.Data.AppDbContext(options);
 
-        // 1. Setup exact scenario: 5 teachers all assigned as "Subject Teacher", but teacher 55 is eligible
-        var classObj = new ClassGrade { ClassId = 25, ClassName = "Class 6" };
-        var secObj = new ClassSection { SectionId = 29, ClassId = 25, SectionName = "A" };
+        int testClassId = 101;
+        int testSectionId = 201;
+        var classObj = new ClassGrade { ClassId = testClassId, ClassName = "Grade-X" };
+        var secObj = new ClassSection { SectionId = testSectionId, ClassId = testClassId, SectionName = "A" };
         dbContext.Classes.Add(classObj);
         dbContext.ClassSections.Add(secObj);
 
-        var staffChari = new Staff { StaffId = 39, FirstName = "Chari", LastName = "Pandit", IsClassTeacherEligible = false };
-        var staffVenkat = new Staff { StaffId = 55, FirstName = "venkat", LastName = "ramana", IsClassTeacherEligible = true };
-        var staffLahari = new Staff { StaffId = 51, FirstName = "L", LastName = "lahari", IsClassTeacherEligible = false };
-        dbContext.Staff.AddRange(staffChari, staffVenkat, staffLahari);
+        int teacherOneId = 301;
+        int teacherEligibleId = 302;
+        int teacherTwoId = 303;
 
-        // Subject teacher assignments (Telugu to Chari, English to Venkat, Social to Lahari)
+        var teacherOne = new Staff { StaffId = teacherOneId, FirstName = "Faculty", LastName = "One", IsClassTeacherEligible = false };
+        var teacherEligible = new Staff { StaffId = teacherEligibleId, FirstName = "Faculty", LastName = "Eligible", IsClassTeacherEligible = true };
+        var teacherTwo = new Staff { StaffId = teacherTwoId, FirstName = "Faculty", LastName = "Two", IsClassTeacherEligible = false };
+        dbContext.Staff.AddRange(teacherOne, teacherEligible, teacherTwo);
+
+        // Subject teacher assignments (all start with "Subject Teacher" role)
         dbContext.TeacherAssignments.AddRange(
-            new TeacherAssignment { Id = 1, ClassId = 25, SectionLetter = "A", TeacherId = 39, Role = "Subject Teacher", SubjectId = 11 },
-            new TeacherAssignment { Id = 2, ClassId = 25, SectionLetter = "A", TeacherId = 55, Role = "Subject Teacher", SubjectId = 19 },
-            new TeacherAssignment { Id = 3, ClassId = 25, SectionLetter = "A", TeacherId = 51, Role = "Subject Teacher", SubjectId = 13 }
+            new TeacherAssignment { Id = 1, ClassId = testClassId, SectionLetter = "A", TeacherId = teacherOneId, Role = "Subject Teacher", SubjectId = 11 },
+            new TeacherAssignment { Id = 2, ClassId = testClassId, SectionLetter = "A", TeacherId = teacherEligibleId, Role = "Subject Teacher", SubjectId = 19 },
+            new TeacherAssignment { Id = 3, ClassId = testClassId, SectionLetter = "A", TeacherId = teacherTwoId, Role = "Subject Teacher", SubjectId = 13 }
         );
         await dbContext.SaveChangesAsync();
 
         var repo = new SMS.Api.Repositories.Implementations.TimetableRepository(dbContext);
 
-        // A. Verify that when all are "Subject Teacher", the eligible teacher (Venkat Ramana, StaffId 55) is dynamically chosen!
-        var resolvedFallback = await repo.GetClassTeacherForSectionAsync(25, 29);
+        // A. Dynamic fallback selects eligible teacher when no explicit role is set
+        var resolvedFallback = await repo.GetClassTeacherForSectionAsync(testClassId, testSectionId);
         Assert.NotNull(resolvedFallback);
-        Assert.Equal(55, resolvedFallback.StaffId);
+        Assert.Equal(teacherEligibleId, resolvedFallback.StaffId);
 
-        // B. Now verify that when a teacher is explicitly assigned with "Class Teacher" role, that explicit teacher takes primary priority!
-        staffLahari.IsClassTeacherEligible = true;
+        // B. When explicit "Class Teacher" role is assigned, it dynamically takes top priority
+        teacherTwo.IsClassTeacherEligible = true;
         dbContext.TeacherAssignments.Add(
-            new TeacherAssignment { Id = 4, ClassId = 25, SectionLetter = "A", TeacherId = 51, Role = "Class Teacher", SubjectId = 13 }
+            new TeacherAssignment { Id = 4, ClassId = testClassId, SectionLetter = "A", TeacherId = teacherTwoId, Role = "Class Teacher", SubjectId = 13 }
         );
         await dbContext.SaveChangesAsync();
 
-        var resolvedExplicit = await repo.GetClassTeacherForSectionAsync(25, 29);
+        var resolvedExplicit = await repo.GetClassTeacherForSectionAsync(testClassId, testSectionId);
         Assert.NotNull(resolvedExplicit);
-        Assert.Equal(51, resolvedExplicit.StaffId); // L Lahari is now chosen because of explicit "Class Teacher" role
+        Assert.Equal(teacherTwoId, resolvedExplicit.StaffId);
     }
 }
