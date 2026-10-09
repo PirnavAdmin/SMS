@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { UserCheck, Plus, Search, Edit, Trash2, Phone, ShieldCheck, Bus } from 'lucide-react';
+import { UserCheck, Plus, Search, Edit, Trash2, Phone, ShieldCheck, Bus, ChevronDown } from 'lucide-react';
 import { useData } from '../../../context/DataContext';
 import { useAuth } from '../../../context/AuthContext';
 import { useToast } from '../../../context/ToastContext';
@@ -13,7 +13,7 @@ export { initialBusAttendants };          // re-export value for backward compat
 // BusAttendantMaster type and initialBusAttendants are now in transportData.ts
 
 export const BusAttendantMasterView: React.FC = () => {
-  const { staff = [], vehicleAssignments, busAttendants: attendants, addBusAttendant, updateBusAttendant, deleteBusAttendant } = useData();
+  const { staff = [], vehicleAssignments = [], busAttendants: attendants = [], addBusAttendant, updateBusAttendant, deleteBusAttendant } = useData();
   const { selectedBranch } = useAuth();
   const { addToast } = useToast();
 
@@ -39,18 +39,43 @@ export const BusAttendantMasterView: React.FC = () => {
     return result;
   }, [attendants]);
 
-  const nonTeachingStaff = React.useMemo(() => {
-    return (staff || []).filter(s => 
-      s.role !== 'Teacher' &&
-      s.employeeCategory !== 'Teacher'
-    );
+  // Filter ONLY attendants from Non-Teaching Staff
+  const nonTeachingAttendants = React.useMemo(() => {
+    return (staff || []).filter(s => {
+      if (s.role === 'Teacher' || s.employeeCategory === 'Teacher') return false;
+      const desig = (s.designation || '').toLowerCase();
+      const dept = (s.department || '').toLowerCase();
+      const role = (s.role || (s as any).employeeCategory || '').toLowerCase();
+      return (
+        desig.includes('attendant') ||
+        dept.includes('attendant') ||
+        role.includes('attendant') ||
+        desig.includes('conductor') ||
+        desig.includes('helper')
+      );
+    });
   }, [staff]);
 
   const filteredNonTeachingStaff = React.useMemo(() => {
-    return nonTeachingStaff.filter(
+    return nonTeachingAttendants.filter(
       s => !uniqueAttendants.some(a => a.employeeId === s.empId || a.employeeId === (s as any).employeeId)
     );
-  }, [nonTeachingStaff, uniqueAttendants]);
+  }, [nonTeachingAttendants, uniqueAttendants]);
+
+  const [staffSearchQuery, setStaffSearchQuery] = useState('');
+  const [isStaffDropdownOpen, setIsStaffDropdownOpen] = useState(false);
+
+  const searchedStaff = React.useMemo(() => {
+    if (!staffSearchQuery.trim()) {
+      return filteredNonTeachingStaff.slice(0, 5);
+    }
+    const q = staffSearchQuery.toLowerCase().trim();
+    return filteredNonTeachingStaff.filter(s =>
+      `${s.firstName || ''} ${s.lastName || ''}`.toLowerCase().includes(q) ||
+      (s.empId || '').toLowerCase().includes(q) ||
+      (s.phone || (s as any).mobileNumber || '').includes(q)
+    );
+  }, [filteredNonTeachingStaff, staffSearchQuery]);
 
   const [query, setQuery] = useState('');
   const [selectedAttendantFilter, setSelectedAttendantFilter] = useState(() => sessionStorage.getItem('tm_attendant_filter') || '');
@@ -274,43 +299,127 @@ export const BusAttendantMasterView: React.FC = () => {
 
             <form onSubmit={handleSubmit} className="space-y-3 text-xs">
               {!editingAttendant && (
-                <div>
-                  <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">
-                    Select Non-Teaching Staff Member
+                <div className="relative">
+                  <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300 flex items-center justify-between">
+                    <span>Select Attendant from Non-Teaching Staff</span>
+                    <span className="text-[10px] text-slate-400 font-normal">
+                      {filteredNonTeachingStaff.length} attendant(s) available
+                    </span>
                   </label>
-                  <select
-                    value={filteredNonTeachingStaff.find(s => (s.empId || (s as any).employeeId) === form.employeeId)?.id || ""}
-                    onChange={e => {
-                      const selected = filteredNonTeachingStaff.find(s => String(s.id) === String(e.target.value));
-                      if (selected) {
-                        setForm(prev => ({
-                          ...prev,
-                          employeeId: selected.empId || (selected as any).employeeId || '',
-                          attendantName: `${selected.firstName} ${selected.lastName || ''}`.trim(),
-                          mobileNumber: selected.phone || (selected as any).mobileNumber || '',
-                          gender: (selected.gender as any) || prev.gender,
-                          branch: selected.branch || (selected as any).branchName || prev.branch || selectedBranch || ''
-                        }));
-                      } else {
-                        setForm(prev => ({
-                          ...prev,
-                          employeeId: '',
-                          attendantName: '',
-                          mobileNumber: '',
-                          gender: '' as any,
-                          branch: (selectedBranch && selectedBranch !== 'All Branches' && selectedBranch !== 'All') ? selectedBranch : ''
-                        }));
-                      }
-                    }}
-                    className="w-full px-3 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 border text-xs font-semibold text-slate-700 dark:text-slate-300"
+
+                  {/* Dropdown Trigger Box */}
+                  <div
+                    onClick={() => setIsStaffDropdownOpen(prev => !prev)}
+                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-700 dark:text-slate-300 flex items-center justify-between cursor-pointer hover:border-emerald-500 transition-colors"
                   >
-                    <option value="">-- Choose Non-Teaching Staff Member --</option>
-                    {filteredNonTeachingStaff.map(s => (
-                      <option key={s.id} value={s.id}>
-                        {s.firstName} {s.lastName || ''} (Emp ID: {s.empId || (s as any).employeeId || s.id} • {s.designation || 'Staff'} • {s.department || 'Operations'})
-                      </option>
-                    ))}
-                  </select>
+                    {form.employeeId ? (
+                      <div className="flex items-center justify-between w-full pr-2">
+                        <span className="font-bold text-slate-900 dark:text-white">
+                          {form.attendantName} ({form.employeeId})
+                        </span>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setForm(prev => ({
+                              ...prev,
+                              employeeId: '',
+                              attendantName: '',
+                              mobileNumber: '',
+                              gender: '' as any,
+                              branch: (selectedBranch && selectedBranch !== 'All Branches' && selectedBranch !== 'All') ? selectedBranch : ''
+                            }));
+                            setStaffSearchQuery('');
+                          }}
+                          className="text-slate-400 hover:text-rose-500 p-0.5 rounded text-xs"
+                          title="Clear selection"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    ) : (
+                      <span className="text-slate-400 font-normal">
+                        -- Choose Attendant from Non-Teaching Staff --
+                      </span>
+                    )}
+                    <ChevronDown className={`w-4 h-4 text-slate-400 shrink-0 transition-transform ${isStaffDropdownOpen ? 'rotate-180' : ''}`} />
+                  </div>
+
+                  {/* Dropdown Menu Popover */}
+                  {isStaffDropdownOpen && (
+                    <div className="absolute z-20 top-full left-0 right-0 mt-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl shadow-2xl p-2 space-y-2 animate-in fade-in">
+                      {/* Search Bar inside Dropdown */}
+                      <div className="relative">
+                        <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-2.5" />
+                        <input
+                          type="text"
+                          autoFocus
+                          placeholder="Search by attendant name, Emp ID, or phone..."
+                          value={staffSearchQuery}
+                          onChange={e => setStaffSearchQuery(e.target.value)}
+                          className="w-full pl-8 pr-3 py-1.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs outline-none focus:border-emerald-500"
+                        />
+                      </div>
+
+                      {/* Filtered Attendant List */}
+                      <div className="max-h-48 overflow-y-auto space-y-1">
+                        {searchedStaff.length === 0 ? (
+                          <div className="p-3 text-center text-slate-400 text-xs">
+                            {filteredNonTeachingStaff.length === 0
+                              ? "No unassigned attendants found in Non-Teaching Staff."
+                              : "No attendants match your search."}
+                          </div>
+                        ) : (
+                          searchedStaff.map(s => {
+                            const isSelected = form.employeeId === (s.empId || (s as any).employeeId);
+                            return (
+                              <div
+                                key={s.id}
+                                onClick={() => {
+                                  setForm(prev => ({
+                                    ...prev,
+                                    employeeId: s.empId || (s as any).employeeId || '',
+                                    attendantName: `${s.firstName} ${s.lastName || ''}`.trim(),
+                                    mobileNumber: s.phone || (s as any).mobileNumber || '',
+                                    gender: (s.gender as any) || prev.gender,
+                                    branch: s.branch || (s as any).branchName || prev.branch || selectedBranch || ''
+                                  }));
+                                  setIsStaffDropdownOpen(false);
+                                  setStaffSearchQuery('');
+                                }}
+                                className={`p-2 rounded-xl text-xs cursor-pointer flex items-center justify-between transition-colors ${
+                                  isSelected
+                                    ? 'bg-emerald-50 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 font-bold'
+                                    : 'hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300'
+                                }`}
+                              >
+                                <div>
+                                  <div className="font-bold text-slate-900 dark:text-white">
+                                    {s.firstName} {s.lastName || ''}
+                                  </div>
+                                  <div className="text-[10px] text-slate-400 font-mono">
+                                    {s.empId || (s as any).employeeId} • {s.designation || 'Attendant'} • {s.phone || (s as any).mobileNumber || 'No phone'}
+                                  </div>
+                                </div>
+                                {isSelected && (
+                                  <span className="text-[10px] bg-emerald-600 text-white font-bold px-1.5 py-0.5 rounded">
+                                    Selected
+                                  </span>
+                                )}
+                              </div>
+                            );
+                          })
+                        )}
+                      </div>
+
+                      {/* Footer Info showing initial 5 / total count */}
+                      {!staffSearchQuery && filteredNonTeachingStaff.length > 5 && (
+                        <div className="text-[10px] text-slate-400 text-center pt-1 border-t border-slate-100 dark:border-slate-800">
+                          Showing top 5 of {filteredNonTeachingStaff.length} attendants. Use search to find others.
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               )}
 

@@ -960,6 +960,12 @@ namespace SMS.Api.Data
                         .HasForeignKey(x => x.DriverId)
                         .OnDelete(DeleteBehavior.Restrict);
 
+                    entity.HasOne(x => x.Attendant)
+                        .WithMany()
+                        .HasForeignKey(x => x.AttendantId)
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired(false);
+
                     entity.HasIndex(x => new
                     {
                         x.RouteId,

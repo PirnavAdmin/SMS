@@ -116,6 +116,8 @@ export const DriverTransportPortalView: React.FC<DriverTransportPortalViewProps>
     const driverEmpId = (matchedDriver.employeeId || '').trim().toLowerCase();
 
     const matched = vehicleAssignments.find(va => {
+      const isActive = va.status === 'Active' || (va.status as any) === true || String(va.status).toLowerCase() === 'true';
+      if (!isActive) return false;
       const vaDriverId = String(va.driverId || '').trim();
       const vaDriverName = (va.driverName || '').trim().toLowerCase();
       const vaDriverEmpId = (va.driverEmployeeId || '').trim().toLowerCase();
@@ -127,25 +129,24 @@ export const DriverTransportPortalView: React.FC<DriverTransportPortalViewProps>
       );
     });
 
-    if (matched) return matched;
-    return vehicleAssignments.find(va => va.status === 'Active') || vehicleAssignments[0] || null;
+    return matched || null;
   }, [matchedDriver, vehicleAssignments]);
 
   const assignedVehicle = useMemo(() => {
-    if (!currentAssignment) return vehicleMasters[0] || null;
+    if (!currentAssignment) return null;
     return vehicleMasters.find(v =>
       (currentAssignment.vehicleId && String(v.id).trim() === String(currentAssignment.vehicleId).trim()) ||
       (currentAssignment.vehicleNumber && v.vehicleNumber && v.vehicleNumber.trim().toUpperCase() === currentAssignment.vehicleNumber.trim().toUpperCase())
-    ) || vehicleMasters[0] || null;
+    ) || null;
   }, [currentAssignment, vehicleMasters]);
 
   const assignedRoute = useMemo(() => {
-    if (!currentAssignment) return routeMasters[0] || null;
+    if (!currentAssignment) return null;
     return routeMasters.find(r =>
       (currentAssignment.routeId && String(r.id).trim() === String(currentAssignment.routeId).trim()) ||
       (currentAssignment.routeName && r.routeName && r.routeName.trim().toLowerCase() === currentAssignment.routeName.trim().toLowerCase()) ||
       (currentAssignment.routeName && r.routeCode && r.routeCode.trim().toLowerCase() === currentAssignment.routeName.trim().toLowerCase())
-    ) || routeMasters[0] || null;
+    ) || null;
   }, [currentAssignment, routeMasters]);
 
   const targetRouteId = assignedRoute?.id ? String(assignedRoute.id).trim() : (currentAssignment?.routeId ? String(currentAssignment.routeId).trim() : '');
@@ -187,6 +188,7 @@ export const DriverTransportPortalView: React.FC<DriverTransportPortalViewProps>
   }, [currentAssignment, busAttendants, staff]);
 
   const routeStops = useMemo(() => {
+    if (!targetRouteId && !targetRouteName) return [];
     return pickupPoints
       .filter(p =>
         (p.routeId && targetRouteId && String(p.routeId).trim() === targetRouteId) ||

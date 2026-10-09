@@ -3988,6 +3988,20 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
             let attendantMobile = a.attendantMobile || "";
             let attendantEmployeeId = a.attendantEmployeeId || "";
             let driverEmployeeId = a.driverEmployeeId || "";
+            if (!attendantName && attendantId && attendants) {
+              const matchedAttendant = attendants.find(
+                (at: any) =>
+                  at.id?.toString() === attendantId ||
+                  at.attendantId?.toString() === attendantId,
+              );
+              if (matchedAttendant) {
+                attendantName = matchedAttendant.attendantName || "";
+                attendantMobile =
+                  attendantMobile || matchedAttendant.mobileNumber || "";
+                attendantEmployeeId =
+                  attendantEmployeeId || matchedAttendant.employeeId || "";
+              }
+            }
 
             return {
               id: (a.id || a.assignmentId || "").toString(),
@@ -4012,44 +4026,10 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
             };
           });
 
-          const localStoredAssignments: VehicleAssignment[] = JSON.parse(
-            localStorage.getItem("edu_db_vehicle_assignments") || "[]",
-          );
-          const uniqueAssignmentsMap = new Map<string, any>();
-          localStoredAssignments.forEach((a: any) => {
-            if (a && (a.vehicleNumber || a.routeName)) {
-              const key = a.id
-                ? a.id.toString()
-                : `${a.vehicleNumber}-${a.routeName}`;
-              uniqueAssignmentsMap.set(key, a);
-            }
-          });
-          mappedAssignments.forEach((item: any) => {
-            if (item && (item.vehicleNumber || item.routeName)) {
-              const key = item.id
-                ? item.id.toString()
-                : `${item.vehicleNumber}-${item.routeName}`;
-              const existing = uniqueAssignmentsMap.get(key) || {};
-              uniqueAssignmentsMap.set(key, {
-                ...existing,
-                ...item,
-                driverEmployeeId:
-                  item.driverEmployeeId || existing.driverEmployeeId || "",
-                attendantId: item.attendantId || existing.attendantId || "",
-                attendantName:
-                  item.attendantName || existing.attendantName || "",
-                attendantMobile:
-                  item.attendantMobile || existing.attendantMobile || "",
-                attendantEmployeeId:
-                  item.attendantEmployeeId || existing.attendantEmployeeId || "",
-              });
-            }
-          });
-          const finalAssignments = Array.from(uniqueAssignmentsMap.values());
-          setVehicleAssignments(finalAssignments);
+          setVehicleAssignments(mappedAssignments);
           localStorage.setItem(
             "edu_db_vehicle_assignments",
-            JSON.stringify(finalAssignments),
+            JSON.stringify(mappedAssignments),
           );
         }
         if (maintenance) {
@@ -11670,23 +11650,26 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       const pickupObj =
         pickupPoints.find(
           (p) => p.pickupName === st.pickupPoint && p.routeId === st.routeId,
-        ) || pickupPoints[0];
+        ) ||
+        pickupPoints.find((p) => p.routeId === st.routeId) ||
+        null;
       const pickupPointIdInt = pickupObj
-        ? parseInt(pickupObj.id.replace(/\D/g, ""), 10) || 1
-        : 1;
+        ? parseInt(String(pickupObj.id).replace(/\D/g, ""), 10) || null
+        : null;
 
       const vaObj =
+        vehicleAssignments.find((va) => va.routeId === st.routeId && (va.status === "Active" || (va as any).status === true)) ||
         vehicleAssignments.find((va) => va.routeId === st.routeId) ||
-        vehicleAssignments[0];
+        null;
       const vaIdInt = vaObj
-        ? parseInt(vaObj.id.replace(/\D/g, ""), 10) || 1
-        : 1;
+        ? parseInt(String(vaObj.id).replace(/\D/g, ""), 10) || null
+        : null;
 
       const payload = {
-        studentId: studentIdInt || 1,
-        routeId: routeIdInt || 1,
-        pickupPointId: pickupPointIdInt || 1,
-        vehicleAssignmentId: vaIdInt || 1,
+        studentId: studentIdInt,
+        routeId: routeIdInt,
+        pickupPointId: pickupPointIdInt,
+        vehicleAssignmentId: vaIdInt,
         effectiveFrom: st.effectiveFrom,
         effectiveTo: st.effectiveTo || null,
         transportType: "Both",
@@ -16441,7 +16424,12 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         routeId: Number(va.routeId) || 0,
         vehicleId: Number(va.vehicleId) || 0,
         driverId: Number(va.driverId) || 0,
-        attendantId: va.attendantId ? Number(va.attendantId) : null,
+        attendantId:
+          va.attendantId &&
+          !isNaN(Number(va.attendantId)) &&
+          Number(va.attendantId) > 0
+            ? Number(va.attendantId)
+            : null,
         selectRoute: va.routeName || "",
         selectActiveVehicle: va.vehicleNumber || "",
         selectLicensedDriver: va.driverName || "",
@@ -16535,9 +16523,12 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       payload.driverId = Number(updates.driverId) || 0;
     }
     if (updates.attendantId !== undefined) {
-      payload.attendantId = updates.attendantId
-        ? Number(updates.attendantId)
-        : null;
+      payload.attendantId =
+        updates.attendantId &&
+        !isNaN(Number(updates.attendantId)) &&
+        Number(updates.attendantId) > 0
+          ? Number(updates.attendantId)
+          : null;
     }
     if (updates.routeName !== undefined) {
       payload.selectRoute = updates.routeName;

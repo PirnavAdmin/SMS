@@ -123,25 +123,25 @@ export const DriverProfileView: React.FC = () => {
       );
     });
 
-    if (matched) return matched;
-    return vehicleAssignments.find(va => va.status === 'Active') || vehicleAssignments[0] || null;
+    return matched || null;
   }, [matchedDriver, vehicleAssignments]);
 
   // 3. Resolve Vehicle & Route
   const assignedVehicle = useMemo(() => {
-    if (!currentAssignment) return vehicleMasters[0] || null;
+    if (!currentAssignment) return null;
     return vehicleMasters.find(v =>
       (currentAssignment.vehicleId && String(v.id).trim() === String(currentAssignment.vehicleId).trim()) ||
       (currentAssignment.vehicleNumber && v.vehicleNumber && v.vehicleNumber.trim().toUpperCase() === currentAssignment.vehicleNumber.trim().toUpperCase())
-    ) || vehicleMasters[0] || null;
+    ) || null;
   }, [currentAssignment, vehicleMasters]);
 
   const assignedRoute = useMemo(() => {
-    if (!currentAssignment) return routeMasters[0] || null;
+    if (!currentAssignment) return null;
     return routeMasters.find(r =>
       (currentAssignment.routeId && String(r.id).trim() === String(currentAssignment.routeId).trim()) ||
-      (currentAssignment.routeName && r.routeName && r.routeName.trim().toLowerCase() === currentAssignment.routeName.trim().toLowerCase())
-    ) || routeMasters[0] || null;
+      (currentAssignment.routeName && r.routeName && r.routeName.trim().toLowerCase() === currentAssignment.routeName.trim().toLowerCase()) ||
+      (currentAssignment.routeName && r.routeCode && r.routeCode.trim().toLowerCase() === currentAssignment.routeName.trim().toLowerCase())
+    ) || null;
   }, [currentAssignment, routeMasters]);
 
   const routeStopsCount = useMemo(() => {

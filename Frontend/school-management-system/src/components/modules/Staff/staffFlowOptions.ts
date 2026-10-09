@@ -616,6 +616,24 @@ export const nonTeachingDesignationNames = new Set([
 const lowerTeachingDesignations = new Set(Array.from(teachingDesignationNames).map(n => n.toLowerCase()));
 const lowerNonTeachingDesignations = new Set(Array.from(nonTeachingDesignationNames).map(n => n.toLowerCase()));
 
+const departmentKeywords: Record<string, string[]> = {
+  transport: ['driver', 'bus', 'transport', 'conductor', 'attendant', 'mechanic', 'fleet', 'cleaner', 'helper'],
+  accounts: ['account', 'finance', 'cashier', 'billing', 'bursar', 'audit', 'tax'],
+  library: ['librarian', 'library'],
+  hostel: ['warden', 'hostel', 'caretaker', 'mess'],
+  security: ['security', 'guard', 'gate', 'night guard'],
+  housekeeping: ['housekeep', 'sweeper', 'sanitation', 'cleaner', 'cleaning'],
+  maintenance: ['electrician', 'plumber', 'gardener', 'maintenance', 'carpenter', 'painter', 'estate', 'facility'],
+  administration: ['admin', 'office', 'manager', 'executive', 'assistant', 'store', 'compliance', 'record'],
+  hr: ['hr', 'human resource', 'payroll', 'recruiter', 'talent'],
+  admissions: ['admission', 'counselor'],
+  laboratory: ['lab', 'technician'],
+  reception: ['reception', 'front desk', 'helpdesk', 'telecaller', 'desk'],
+  it: ['it', 'network', 'system', 'hardware', 'software', 'edp'],
+  medical: ['doctor', 'nurse', 'medical', 'health'],
+  stores: ['store', 'inventory', 'purchase', 'stock'],
+};
+
 export function getDesignationOptions(
   staffTypeCategory?: string,
   selectedDepartment?: string,
@@ -627,6 +645,24 @@ export function getDesignationOptions(
   if (!Array.isArray(settingsDesignations) || settingsDesignations.length === 0) {
     return [];
   }
+
+  const cleanSelectedDept = (selectedDepartment || "").toLowerCase().trim();
+
+  // Find matching key from departmentDesignationMap
+  const matchedDeptKey = Object.keys(departmentDesignationMap).find(k => {
+    const lk = k.toLowerCase();
+    return cleanSelectedDept === lk || cleanSelectedDept.includes(lk) || lk.includes(cleanSelectedDept);
+  });
+
+  const allowedStaticDesignations = matchedDeptKey
+    ? departmentDesignationMap[matchedDeptKey].map(d => d.toLowerCase())
+    : [];
+
+  // Find department-specific keywords
+  const matchedKeywordEntry = Object.entries(departmentKeywords).find(([k]) =>
+    cleanSelectedDept.includes(k) || k.includes(cleanSelectedDept)
+  );
+  const deptKeywords = matchedKeywordEntry ? matchedKeywordEntry[1] : [];
 
   const customDesignations: string[] = [];
   settingsDesignations.forEach((d) => {
@@ -643,34 +679,36 @@ export function getDesignationOptions(
       if (isTeachingStaff) return;
     } else if (cleanCat.includes("teach")) {
       if (!isTeachingStaff) return;
-    } else {
-      const cleanName = name.toLowerCase().trim();
-      const nonTeachingKeywords = [
-        'driver', 'attendant', 'conductor', 'guard', 'sweeper', 'cleaner', 
-        'accountant', 'clerk', 'cashier', 'librarian', 'warden', 'electrician', 
-        'plumber', 'gardener', 'mechanic', 'receptionist', 'attender', 'caretaker', 
-        'helper', 'security', 'housekeep', 'peon', 'cook', 'kitchen', 'bus'
-      ];
-      const isNonTeachingName = nonTeachingKeywords.some(kw => cleanName.includes(kw));
-      if (isTeachingStaff && isNonTeachingName) return;
-      if (!isTeachingStaff && !isNonTeachingName) {
-        const teachingKeywords = [
-          'teacher', 'pgt', 'tgt', 'prt', 'principal', 'vice principal', 'hod', 'faculty', 'lecturer'
-        ];
-        const isTeachingName = teachingKeywords.some(kw => cleanName.includes(kw));
-        if (isTeachingName) return;
-      }
     }
 
+    const cleanName = name.toLowerCase().trim();
     const targetDept = typeof d === "object" ? d.department || d.departmentName : null;
-    if (
-      selectedDepartment &&
-      targetDept &&
-      targetDept !== "All" &&
-      targetDept !== "Both" &&
-      targetDept.toLowerCase() !== selectedDepartment.toLowerCase()
-    ) {
-      return;
+    const cleanTargetDept = String(targetDept || "").toLowerCase().trim();
+
+    if (cleanSelectedDept) {
+      if (targetDept && cleanTargetDept !== "all" && cleanTargetDept !== "both") {
+        if (cleanTargetDept !== cleanSelectedDept && !cleanSelectedDept.includes(cleanTargetDept) && !cleanTargetDept.includes(cleanSelectedDept)) {
+          return;
+        }
+      } else {
+        // If targetDept is not explicitly defined on designation, filter by department matching
+        if (isTeachingStaff) {
+          const teachingKeywords = [
+            'teacher', 'pgt', 'tgt', 'prt', 'principal', 'vice principal', 'hod', 'faculty', 'lecturer', 'instructor', 'educator'
+          ];
+          const isTeaching = teachingKeywords.some(kw => cleanName.includes(kw));
+          if (!isTeaching) return;
+        } else {
+          const isDirectMatch = allowedStaticDesignations.some(ad =>
+            ad === cleanName || ad.includes(cleanName) || cleanName.includes(ad)
+          );
+          const isKeywordMatch = deptKeywords.length > 0 && deptKeywords.some(kw => cleanName.includes(kw));
+
+          if (!isDirectMatch && !isKeywordMatch) {
+            return;
+          }
+        }
+      }
     }
 
     customDesignations.push(name);

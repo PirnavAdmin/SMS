@@ -89,7 +89,7 @@ export const StudentTransportAssignmentView: React.FC = () => {
   const activeAssignedRoute = routeMasters.find(r => r.id === routeId);
   const availablePickupPoints = pickupPoints.filter(p => p.routeId?.toString() === routeId?.toString());
   
-  const selectedVehicleObj = vehicleMasters.find(v => v.id === selectedVehicleId) || vehicleMasters[0];
+  const selectedVehicleObj = selectedVehicleId ? vehicleMasters.find(v => v.id === selectedVehicleId) || null : null;
   const assignedVehicleRel = vehicleAssignments.find(va => va.vehicleId === selectedVehicleObj?.id && va.status === 'Active') ||
                              vehicleAssignments.find(va => va.routeId?.toString() === routeId?.toString() && va.status === 'Active');
   
@@ -569,8 +569,8 @@ export const StudentTransportAssignmentView: React.FC = () => {
         const pickupObj = pickupPoints.find(p => p.pickupName === inspectingAssignment.pickupPoint || p.routeId === inspectingAssignment.routeId);
         const vehicleAssignedRel = vehicleAssignments.find(va => va.routeId === routeObj?.id && va.status === 'Active') ||
                                    vehicleAssignments.find(va => va.vehicleId === inspectingAssignment.vehicleId);
-        const vehicleObj = vehicleMasters.find(v => v.id === inspectingAssignment.vehicleId || v.vehicleNumber === inspectingAssignment.vehicleNumber) || vehicleMasters[0];
-        const driverObj = driverMasters.find(d => d.id === vehicleAssignedRel?.driverId || d.driverName === vehicleAssignedRel?.driverName) || driverMasters[0];
+        const vehicleObj = vehicleMasters.find(v => v.id === inspectingAssignment.vehicleId || v.vehicleNumber === inspectingAssignment.vehicleNumber) || null;
+        const driverObj = driverMasters.find(d => d.id === vehicleAssignedRel?.driverId || d.driverName === vehicleAssignedRel?.driverName) || null;
         const attendantObj = busAttendants.find(a => 
           (vehicleAssignedRel?.attendantId && (String(a.id) === String(vehicleAssignedRel.attendantId) || a.employeeId === vehicleAssignedRel.attendantId)) ||
           (vehicleAssignedRel?.attendantEmployeeId && a.employeeId === vehicleAssignedRel.attendantEmployeeId) ||
