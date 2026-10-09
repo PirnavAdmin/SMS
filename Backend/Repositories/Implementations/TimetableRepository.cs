@@ -403,12 +403,11 @@ public class TimetableRepository : ITimetableRepository
             .OrderByDescending(a => a.Id)
             .FirstOrDefault();
 
-        // 2. Secondary fallback: only if not explicitly marked as a "Subject Teacher"
+        // 2. Secondary fallback: Any teacher assigned to this section who is eligible to be a Class Teacher (aligned with ClassesController.GetClasses)
         if (classTeacherAssignment == null)
         {
             classTeacherAssignment = assignments
                 .Where(a => MatchesSection(a) &&
-                            a.Role != "Subject Teacher" &&
                             a.Teacher != null && a.Teacher.IsClassTeacherEligible == true &&
                             (string.IsNullOrEmpty(a.Status) || a.Status.Equals("Active", StringComparison.OrdinalIgnoreCase)))
                 .OrderByDescending(a => a.Id)

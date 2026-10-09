@@ -112,6 +112,7 @@ export const AutoTimetableGeneratorModal: React.FC<AutoTimetableGeneratorModalPr
     rawClasses,
     teacherAssignments,
     staff,
+    fetchStaff,
     subjects,
     periodSettings,
     bulkAddPeriodSettings,
@@ -124,6 +125,14 @@ export const AutoTimetableGeneratorModal: React.FC<AutoTimetableGeneratorModalPr
   } = useData();
   const { selectedBranch, selectedAcademicYear } = useAuth();
   const { addToast } = useToast();
+
+  useEffect(() => {
+    if (!staff || staff.length === 0) {
+      if (typeof fetchStaff === 'function') {
+        fetchStaff();
+      }
+    }
+  }, [staff, fetchStaff]);
 
   // Wizard active tab
   const [activeStep, setActiveStep] = useState<'timings' | 'classes' | 'generate'>('timings');
@@ -724,7 +733,23 @@ export const AutoTimetableGeneratorModal: React.FC<AutoTimetableGeneratorModalPr
           teacherIdStr = ctAssignment.teacherId ? String(ctAssignment.teacherId) : '';
         }
 
-        // Fallback: check academicClasses.sectionTeachers or cls.teacher
+        // Fallback 1: check rawClasses section (which carries classTeacherEmpId and classTeacherName from backend GetClasses)
+        if (!teacherName && rawCls && Array.isArray(rawCls.sections)) {
+          const rawSec = rawCls.sections.find((s: any) => {
+            const sName = (s.sectionName || s.name || s.sectionLetter || '').trim().toLowerCase();
+            const cleanS = sName.replace(/^section\s+/i, '');
+            const cleanTarget = sectionName.toLowerCase().replace(/^section\s+/i, '');
+            return sName === sectionName.toLowerCase() || cleanS === cleanTarget;
+          });
+          if (rawSec?.classTeacherName) {
+            teacherName = rawSec.classTeacherName;
+            if (rawSec.classTeacherEmpId || rawSec.classTeacherId) {
+              teacherIdStr = String(rawSec.classTeacherEmpId || rawSec.classTeacherId);
+            }
+          }
+        }
+
+        // Fallback 2: check academicClasses.sectionTeachers or cls.teacher
         if (!teacherName && acCls) {
           if (acCls.sectionTeachers) {
             const secKey = Object.keys(acCls.sectionTeachers).find(k =>
@@ -748,7 +773,7 @@ export const AutoTimetableGeneratorModal: React.FC<AutoTimetableGeneratorModalPr
         }
 
         // 1. Primary Priority: Check if this Class Teacher is mapped to a Subject in Teacher-Subject Allocation for this class & section
-        if (teacherName || teacherIdStr) {
+        if (teacherName || teacherIdStr || classTeacherStaffId > 0) {
           const cleanT = (teacherName || '').toLowerCase().replace(/\s+/g, '');
           const subjectTeacherTa = (teacherAssignments || []).find((ta: any) => {
             const matchClass = (ta.className && ta.className.trim().toLowerCase() === className.toLowerCase()) ||
@@ -764,6 +789,10 @@ export const AutoTimetableGeneratorModal: React.FC<AutoTimetableGeneratorModalPr
           });
 
           if (subjectTeacherTa) {
+            if (!classTeacherStaffId && subjectTeacherTa.teacherId) {
+              const numMatch = String(subjectTeacherTa.teacherId).match(/\d+/);
+              if (numMatch) classTeacherStaffId = parseInt(numMatch[0], 10);
+            }
             if (subjectTeacherTa.subjectId) {
               const subNum = String(subjectTeacherTa.subjectId).match(/\d+/);
               if (subNum) preferredSubjectId = parseInt(subNum[0], 10);
@@ -775,6 +804,19 @@ export const AutoTimetableGeneratorModal: React.FC<AutoTimetableGeneratorModalPr
                 if (subNum) preferredSubjectId = parseInt(subNum[0], 10);
               }
             }
+          }
+        }
+
+        // Also check teacherAssignments if classTeacherStaffId is still 0
+        if (!classTeacherStaffId && teacherName) {
+          const cleanT = teacherName.toLowerCase().replace(/\s+/g, '');
+          const matchedTa = (teacherAssignments || []).find((ta: any) => {
+            const tName = (ta.teacherName || '').toLowerCase().replace(/\s+/g, '');
+            return tName && (tName === cleanT || tName.includes(cleanT) || cleanT.includes(tName));
+          });
+          if (matchedTa?.teacherId) {
+            const numMatch = String(matchedTa.teacherId).match(/\d+/);
+            if (numMatch) classTeacherStaffId = parseInt(numMatch[0], 10);
           }
         }
 
