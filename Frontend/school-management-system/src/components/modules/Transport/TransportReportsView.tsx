@@ -136,11 +136,11 @@ export const TransportReportsView: React.FC<TransportReportsViewProps> = ({ init
           list.push({
             id: String(d.id),
             driverName: d.driverName,
-            employeeId: d.employeeId || `DRV-${d.id}`,
+            employeeId: d.employeeId || (d.id ? String(d.id) : ''),
             mobileNumber: d.mobileNumber || '',
             licenseNumber: d.licenseNumber || '-',
             licenseExpiryDate: d.licenseExpiryDate || '-',
-            experienceYears: d.experienceYears || 5,
+            experienceYears: d.experienceYears || 0,
             status: d.status || 'Active'
           });
         }
@@ -234,8 +234,8 @@ export const TransportReportsView: React.FC<TransportReportsViewProps> = ({ init
             id: `st-${st.id}`,
             admissionNo: st.admissionNo || '-',
             studentName: `${st.firstName} ${st.lastName || ''}`.trim(),
-            routeName: st.busRoute || 'Main Route',
-            pickupPoint: st.pickupPoint || 'Campus Gate',
+            routeName: st.busRoute || '-',
+            pickupPoint: st.pickupPoint || '-',
             vehicleNumber: 'Unassigned',
             feePlan: 'Monthly',
             feeAmount: 0,
@@ -327,7 +327,7 @@ export const TransportReportsView: React.FC<TransportReportsViewProps> = ({ init
 
           return {
             'Driver Name': driver.driverName,
-            'Employee ID': driver.employeeId || `DRV-${driver.id}`,
+            'Employee ID': driver.employeeId || (driver.id ? String(driver.id) : '-'),
             'Mobile Number': driver.mobileNumber || '-',
             'License Number': driver.licenseNumber || '-',
             'License Expiry': driver.licenseExpiryDate || '-',
@@ -335,7 +335,7 @@ export const TransportReportsView: React.FC<TransportReportsViewProps> = ({ init
             'Current Route': activeAssignment?.routeName || 'Unassigned',
             'Bus Attendant': activeAssignment?.attendantName || 'Unassigned',
             'Assignment Status': activeAssignment?.status || 'Unassigned',
-            'Experience (Years)': driver.experienceYears || 5,
+            'Experience (Years)': driver.experienceYears || 0,
             'Status': driver.status
           };
         });

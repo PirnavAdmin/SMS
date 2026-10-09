@@ -43,7 +43,7 @@ export const TransportDashboardView: React.FC<TransportDashboardViewProps> = ({ 
           list.push({
             id: String(d.id),
             driverName: d.driverName,
-            employeeId: d.employeeId || `DRV-${d.id}`,
+            employeeId: d.employeeId || (d.id ? String(d.id) : ''),
             mobileNumber: d.mobileNumber || '',
             licenseNumber: d.licenseNumber,
             licenseExpiryDate: d.licenseExpiryDate,

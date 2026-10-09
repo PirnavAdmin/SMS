@@ -108,16 +108,16 @@ namespace SMS.Api.Repositories.Implementations
                     AdmissionNo = x.AdmissionNo ?? string.Empty,
 
                     RouteId = x.RouteId,
-                    RouteName = x.Route != null ? x.Route.RouteName : "Main Route",
+                    RouteName = x.Route != null ? x.Route.RouteName : string.Empty,
 
                     PickupPointId = x.PickupPointId,
-                    PickupPointName = x.PickupPoint != null ? x.PickupPoint.PickupPointName : "Main Stop",
+                    PickupPointName = x.PickupPoint != null ? x.PickupPoint.PickupPointName : string.Empty,
 
                     VehicleAssignmentId = x.VehicleAssignmentId,
 
-                    VehicleNumber = x.VehicleAssignment != null && x.VehicleAssignment.Vehicle != null ? x.VehicleAssignment.Vehicle.VehicleNumber : "BUS-101",
+                    VehicleNumber = x.VehicleAssignment != null && x.VehicleAssignment.Vehicle != null ? x.VehicleAssignment.Vehicle.VehicleNumber : string.Empty,
 
-                    DriverName = x.VehicleAssignment != null && x.VehicleAssignment.Driver != null ? x.VehicleAssignment.Driver.DriverName : "Main Driver",
+                    DriverName = x.VehicleAssignment != null && x.VehicleAssignment.Driver != null ? x.VehicleAssignment.Driver.DriverName : string.Empty,
 
                     EffectiveFrom = x.EffectiveFrom,
                     EffectiveTo = x.EffectiveTo,
@@ -161,16 +161,16 @@ namespace SMS.Api.Repositories.Implementations
                     AdmissionNo = x.AdmissionNo ?? string.Empty,
 
                     RouteId = x.RouteId,
-                    RouteName = x.Route != null ? x.Route.RouteName : "Main Route",
+                    RouteName = x.Route != null ? x.Route.RouteName : string.Empty,
 
                     PickupPointId = x.PickupPointId,
-                    PickupPointName = x.PickupPoint != null ? x.PickupPoint.PickupPointName : "Main Stop",
+                    PickupPointName = x.PickupPoint != null ? x.PickupPoint.PickupPointName : string.Empty,
 
                     VehicleAssignmentId = x.VehicleAssignmentId,
 
-                    VehicleNumber = x.VehicleAssignment != null && x.VehicleAssignment.Vehicle != null ? x.VehicleAssignment.Vehicle.VehicleNumber : "BUS-101",
+                    VehicleNumber = x.VehicleAssignment != null && x.VehicleAssignment.Vehicle != null ? x.VehicleAssignment.Vehicle.VehicleNumber : string.Empty,
 
-                    DriverName = x.VehicleAssignment != null && x.VehicleAssignment.Driver != null ? x.VehicleAssignment.Driver.DriverName : "Main Driver",
+                    DriverName = x.VehicleAssignment != null && x.VehicleAssignment.Driver != null ? x.VehicleAssignment.Driver.DriverName : string.Empty,
 
                     EffectiveFrom = x.EffectiveFrom,
                     EffectiveTo = x.EffectiveTo,
@@ -307,18 +307,18 @@ namespace SMS.Api.Repositories.Implementations
                             AdmissionNo = sta.AdmissionNo ?? string.Empty,
 
                             RouteId = sta.RouteId,
-                            RouteName = sta.Route != null ? sta.Route.RouteName : "Main Route",
+                            RouteName = sta.Route != null ? sta.Route.RouteName : string.Empty,
 
                             PickupPointId = sta.PickupPointId,
-                            PickupPointName = sta.PickupPoint != null ? sta.PickupPoint.PickupPointName : "Main Stop",
+                            PickupPointName = sta.PickupPoint != null ? sta.PickupPoint.PickupPointName : string.Empty,
 
                             VehicleAssignmentId = sta.VehicleAssignmentId,
 
-                            VehicleNumber = sta.VehicleAssignment != null && sta.VehicleAssignment.Vehicle != null ? sta.VehicleAssignment.Vehicle.VehicleNumber : "BUS-101",
+                            VehicleNumber = sta.VehicleAssignment != null && sta.VehicleAssignment.Vehicle != null ? sta.VehicleAssignment.Vehicle.VehicleNumber : string.Empty,
 
-                            DriverName = sta.VehicleAssignment != null && sta.VehicleAssignment.Driver != null ? sta.VehicleAssignment.Driver.DriverName : "Main Driver",
+                            DriverName = sta.VehicleAssignment != null && sta.VehicleAssignment.Driver != null ? sta.VehicleAssignment.Driver.DriverName : string.Empty,
 
-                            DisplayName = sta.AdmissionNo + " - " + (sta.Route != null ? sta.Route.RouteName : "Main Route") + " - " + (sta.PickupPoint != null ? sta.PickupPoint.PickupPointName : "Main Stop")
+                            DisplayName = sta.AdmissionNo + (sta.Route != null && !string.IsNullOrEmpty(sta.Route.RouteName) ? " - " + sta.Route.RouteName : "") + (sta.PickupPoint != null && !string.IsNullOrEmpty(sta.PickupPoint.PickupPointName) ? " - " + sta.PickupPoint.PickupPointName : "")
                         };
 
             return await query.ToListAsync();

@@ -251,7 +251,7 @@ export const VehicleAssignmentView: React.FC = () => {
           list.push({
             id: String(d.id),
             driverName: d.driverName,
-            employeeId: d.employeeId || `DRV-${d.id}`,
+            employeeId: d.employeeId || (d.id ? String(d.id) : ''),
             mobileNumber: d.mobileNumber || '',
             status: d.status || 'Active'
           });
@@ -685,7 +685,7 @@ export const VehicleAssignmentView: React.FC = () => {
     const attendantName = attendant?.attendantName || (form.attendantId ? form.attendantId : 'Unassigned');
     const attendantMobile = attendant?.mobileNumber || '';
     const attendantEmployeeId = attendant?.employeeId || (attendant?.id && String(attendant.id).startsWith('STF') ? String(attendant.id) : '') || '';
-    const driverEmployeeId = driver?.employeeId || (driver?.id ? `DRV-${driver.id}` : '');
+    const driverEmployeeId = driver?.employeeId || (driver?.id ? String(driver.id) : '');
     const assignedStudents = studentTransports.filter(st => st.routeId === route.id || st.routeName === route.routeName).length;
     const gpsStatus: 'Online' | 'Offline' = vehicle.gpsDeviceId ? 'Online' : 'Offline';
 
@@ -992,7 +992,7 @@ export const VehicleAssignmentView: React.FC = () => {
                         </td>
                         <td className="py-3 px-4 text-left">
                           <div className="font-bold text-slate-800 dark:text-slate-200">{driver?.driverName || assignment.driverName || 'Unassigned'}</div>
-                          <div className="text-[10px] font-mono text-slate-400">{driver?.employeeId || assignment.driverEmployeeId || (driver?.id ? `DRV-${driver.id}` : '-')}</div>
+                          <div className="text-[10px] font-mono text-slate-400">{driver?.employeeId || assignment.driverEmployeeId || (driver?.id ? String(driver.id) : '-')}</div>
                         </td>
                         <td className="py-3 px-4 text-left">
                           <div className="font-bold text-emerald-600 dark:text-emerald-400">{attendant.name || 'Unassigned'}</div>
@@ -1205,7 +1205,7 @@ export const VehicleAssignmentView: React.FC = () => {
                     setForm(prev => ({
                       ...prev,
                       driverId: e.target.value,
-                      driverEmployeeId: drv?.employeeId || `DRV-${drv?.id || '01'}`
+                      driverEmployeeId: drv?.employeeId || (drv?.id ? String(drv.id) : '')
                     }));
                   }}
                   className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold text-slate-900 dark:text-white"
@@ -1227,7 +1227,7 @@ export const VehicleAssignmentView: React.FC = () => {
                     const activeOther = activeDriverAssigned || activeAttendantAssigned;
                     const roleLabel = activeDriverAssigned ? `Driver on ${activeDriverAssigned.vehicleNumber}` : activeAttendantAssigned ? `Attendant on ${activeAttendantAssigned.vehicleNumber}` : '';
                     const isCurrent = form.driverId === driver.id || (editingAssignment && (String(editingAssignment.driverId) === String(driver.id) || editingAssignment.driverName?.toLowerCase() === driver.driverName?.toLowerCase()));
-                    const empIdText = driver.employeeId ? `Emp ID: ${driver.employeeId}` : `DRV-${driver.id}`;
+                    const empIdText = driver.employeeId ? `Emp ID: ${driver.employeeId}` : (driver.id ? `ID: ${driver.id}` : '');
                     const isDisabled = !!activeOther && !isCurrent;
                     return (
                       <option key={driver.id} value={driver.id} disabled={isDisabled}>

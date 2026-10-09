@@ -168,6 +168,7 @@ namespace SMS.Api.Repositories.Implementations
                 .Include(x => x.Vehicle)
                 .Include(x => x.Route)
                 .Include(x => x.Driver)
+                .Include(x => x.Attendant)
                 .Where(x => !x.IsDeleted && x.Status && x.EffectiveFrom <= today && (!x.EffectiveTo.HasValue || x.EffectiveTo.Value >= today))
                 .ToListAsync();
 
@@ -175,15 +176,15 @@ namespace SMS.Api.Repositories.Implementations
             {
                 AssignmentId = x.AssignmentId,
                 VehicleId = x.VehicleId,
-                VehicleNumber = x.Vehicle?.VehicleNumber ?? $"V-10{index + 1}",
-                RegistrationNumber = x.Vehicle?.RegistrationNumber ?? x.Vehicle?.VehicleNumber ?? "",
+                VehicleNumber = x.Vehicle?.VehicleNumber ?? string.Empty,
+                RegistrationNumber = x.Vehicle?.RegistrationNumber ?? x.Vehicle?.VehicleNumber ?? string.Empty,
                 RouteId = x.RouteId,
-                RouteName = x.Route?.RouteName ?? $"Route {index + 1}",
-                RouteCode = x.Route?.RouteCode ?? $"R-0{index + 1}",
+                RouteName = x.Route?.RouteName ?? string.Empty,
+                RouteCode = x.Route?.RouteCode ?? string.Empty,
                 DriverId = x.DriverId,
-                DriverName = x.Driver?.DriverName ?? "Assigned Driver",
+                DriverName = x.Driver?.DriverName ?? string.Empty,
                 AttendantId = x.AttendantId,
-                AttendantName = "Unassigned",
+                AttendantName = x.Attendant?.AttendantName ?? "-",
                 Status = index % 3 == 0 ? "Morning Running" : (index % 3 == 1 ? "Morning Completed" : "Evening Pending"),
                 Shift = x.Shift ?? "Morning"
             }).ToList();
@@ -371,6 +372,7 @@ namespace SMS.Api.Repositories.Implementations
                 .Include(x => x.Vehicle)
                 .Include(x => x.Route)
                 .Include(x => x.Driver)
+                .Include(x => x.Attendant)
                 .FirstOrDefaultAsync(x => x.AssignmentId == assignmentId && !x.IsDeleted);
 
             if (assignment == null)
@@ -380,6 +382,7 @@ namespace SMS.Api.Repositories.Implementations
                     .Include(x => x.Vehicle)
                     .Include(x => x.Route)
                     .Include(x => x.Driver)
+                    .Include(x => x.Attendant)
                     .FirstOrDefaultAsync(x => !x.IsDeleted);
 
                 if (assignment == null) return null;
@@ -389,6 +392,7 @@ namespace SMS.Api.Repositories.Implementations
             var vehicle = assignment.Vehicle;
             var route = assignment.Route;
             var driver = assignment.Driver;
+            var attendant = assignment.Attendant;
 
             var pickupPoints = await _context.PickupPoints
                 .AsNoTracking()
@@ -415,7 +419,7 @@ namespace SMS.Api.Repositories.Implementations
             var totalStudents = studentAssignments.Count;
             var boysCount = studentAssignments.Count(s => !string.IsNullOrEmpty(s.AdmissionNo) && studentDict.TryGetValue(s.AdmissionNo, out var st) && (st.Gender == "Male" || st.Gender == "Boy"));
             var girlsCount = totalStudents - boysCount;
-            var capacity = vehicle != null && vehicle.Capacity > 0 ? vehicle.Capacity : 50;
+            var capacity = vehicle != null && vehicle.Capacity > 0 ? vehicle.Capacity : 0;
             var availableSeats = Math.Max(capacity - totalStudents, 0);
 
             var morningSequence = new List<TripSequenceStopDto>
@@ -439,7 +443,7 @@ namespace SMS.Api.Repositories.Implementations
                     StepNo = stepIdx++,
                     StopName = p.PickupPointName ?? string.Empty,
                     DistanceKm = (double)p.DistanceFromStart,
-                    ScheduledTime = p.PickupTime != default ? DateTime.Today.Add(p.PickupTime).ToString("hh:mm tt") : "07:15 AM",
+                    ScheduledTime = p.PickupTime != default ? DateTime.Today.Add(p.PickupTime).ToString("hh:mm tt") : (assignment.MorningTripTime ?? "07:15 AM"),
                     BoardingAlightingInfo = boardingCount > 0 ? $"{boardingCount} Student(s) Boarding" : "No Students Assigned",
                     Type = "Stop",
                     IsActive = false
@@ -498,15 +502,15 @@ namespace SMS.Api.Repositories.Implementations
                 return new OperationStudentDto
                 {
                     StudentId = st?.StudentId ?? 0,
-                    AdmissionNo = s.AdmissionNo ?? $"ADM2026-{s.StudentTransportAssignmentId}",
-                    StudentName = !string.IsNullOrEmpty(st?.StudentName) ? st.StudentName : "Student Name",
-                    ClassSec = st != null ? $"Class {st.ClassId}" : "Class 10-A",
-                    Gender = st?.Gender ?? "Boy",
-                    PickupPointName = s.PickupPoint?.PickupPointName ?? "Central Park",
-                    MorningPickupTime = assignment.MorningTripTime ?? "07:00 AM",
-                    EveningDropTime = assignment.EveningTripTime ?? "03:45 PM",
-                    ParentName = st?.FatherName ?? st?.MotherName ?? "Parent Name",
-                    ParentMobile = st?.FatherMobile ?? st?.MotherMobile ?? st?.MobileNumber ?? "+1 555-019-283"
+                    AdmissionNo = s.AdmissionNo ?? string.Empty,
+                    StudentName = !string.IsNullOrEmpty(st?.StudentName) ? st.StudentName : "-",
+                    ClassSec = st != null ? $"Class {st.ClassId}" : "-",
+                    Gender = st?.Gender ?? "-",
+                    PickupPointName = s.PickupPoint?.PickupPointName ?? "-",
+                    MorningPickupTime = assignment.MorningTripTime ?? "-",
+                    EveningDropTime = assignment.EveningTripTime ?? "-",
+                    ParentName = st?.FatherName ?? st?.MotherName ?? "-",
+                    ParentMobile = st?.FatherMobile ?? st?.MotherMobile ?? st?.MobileNumber ?? "-"
                 };
             }).ToList();
 
@@ -515,40 +519,14 @@ namespace SMS.Api.Repositories.Implementations
                 new OperationTripHistoryDto
                 {
                     Date = today.ToString("dd/MM/yyyy"),
-                    VehicleNumber = vehicle?.VehicleNumber ?? "TS Z 0678",
-                    RouteName = route?.RouteName ?? "Madhapur to School",
-                    DriverName = driver?.DriverName ?? "Main Driver",
-                    AttendantName = "Unassigned",
-                    MorningStart = assignment.MorningTripTime ?? "07:00 AM",
-                    MorningEnd = "07:30 AM",
-                    EveningStart = assignment.EveningTripTime ?? "03:45 PM",
-                    EveningEnd = assignment.EveningTripTime ?? "03:45 PM",
-                    Status = "Completed"
-                },
-                new OperationTripHistoryDto
-                {
-                    Date = today.AddDays(-1).ToString("dd/MM/yyyy"),
-                    VehicleNumber = vehicle?.VehicleNumber ?? "TS Z 0678",
-                    RouteName = route?.RouteName ?? "Madhapur to School",
-                    DriverName = driver?.DriverName ?? "Main Driver",
-                    AttendantName = "Unassigned",
-                    MorningStart = assignment.MorningTripTime ?? "07:00 AM",
-                    MorningEnd = "07:30 AM",
-                    EveningStart = assignment.EveningTripTime ?? "03:45 PM",
-                    EveningEnd = assignment.EveningTripTime ?? "03:45 PM",
-                    Status = "Completed"
-                },
-                new OperationTripHistoryDto
-                {
-                    Date = today.AddDays(-2).ToString("dd/MM/yyyy"),
-                    VehicleNumber = vehicle?.VehicleNumber ?? "TS Z 0678",
-                    RouteName = route?.RouteName ?? "Madhapur to School",
-                    DriverName = driver?.DriverName ?? "Main Driver",
-                    AttendantName = "Unassigned",
-                    MorningStart = assignment.MorningTripTime ?? "07:00 AM",
-                    MorningEnd = "07:30 AM",
-                    EveningStart = assignment.EveningTripTime ?? "03:45 PM",
-                    EveningEnd = assignment.EveningTripTime ?? "03:45 PM",
+                    VehicleNumber = vehicle?.VehicleNumber ?? string.Empty,
+                    RouteName = route?.RouteName ?? string.Empty,
+                    DriverName = driver?.DriverName ?? string.Empty,
+                    AttendantName = attendant?.AttendantName ?? "-",
+                    MorningStart = assignment.MorningTripTime ?? "-",
+                    MorningEnd = "-",
+                    EveningStart = assignment.EveningTripTime ?? "-",
+                    EveningEnd = "-",
                     Status = "Completed"
                 }
             };
@@ -557,29 +535,29 @@ namespace SMS.Api.Repositories.Implementations
             {
                 AssignmentId = assignment.AssignmentId,
                 VehicleId = assignment.VehicleId,
-                VehicleNumber = vehicle?.VehicleNumber ?? "TS Z 0678",
-                RegistrationNumber = vehicle?.RegistrationNumber ?? "REG - 780099",
+                VehicleNumber = vehicle?.VehicleNumber ?? string.Empty,
+                RegistrationNumber = vehicle?.RegistrationNumber ?? vehicle?.VehicleNumber ?? string.Empty,
                 RouteId = assignment.RouteId,
-                RouteName = route?.RouteName ?? "Madhapur to School",
+                RouteName = route?.RouteName ?? string.Empty,
                 Status = "Completed",
                 EffectiveFrom = assignment.EffectiveFrom,
                 DriverId = assignment.DriverId,
-                DriverName = driver?.DriverName ?? "Main Driver",
-                DriverMobile = driver?.MobileNumber ?? "9876543210",
+                DriverName = driver?.DriverName ?? string.Empty,
+                DriverMobile = driver?.MobileNumber ?? string.Empty,
                 AttendantId = assignment.AttendantId,
-                AttendantName = "Unassigned",
-                AttendantMobile = "N/A",
-                MorningTripTime = assignment.MorningTripTime ?? "07:00 AM",
-                EveningTripTime = assignment.EveningTripTime ?? "03:45 PM",
+                AttendantName = attendant?.AttendantName ?? "-",
+                AttendantMobile = attendant?.MobileNumber ?? "-",
+                MorningTripTime = assignment.MorningTripTime ?? "-",
+                EveningTripTime = assignment.EveningTripTime ?? "-",
                 Capacity = capacity,
                 AssignedStudentsCount = totalStudents,
                 TotalStudents = totalStudents,
                 BoysCount = boysCount,
                 GirlsCount = girlsCount,
-                PickupPointsCount = pickupPoints.Count > 0 ? pickupPoints.Count : 4,
+                PickupPointsCount = pickupPoints.Count,
                 AvailableSeats = availableSeats,
-                TotalRouteDistanceKm = route != null ? (double)route.DistanceKm : 18,
-                EstimatedTripDurationMins = 120,
+                TotalRouteDistanceKm = route != null ? (double)route.DistanceKm : 0,
+                EstimatedTripDurationMins = route != null ? route.EstimatedDurationMinutes : 0,
                 MorningTripSequence = morningSequence,
                 EveningTripSequence = eveningSequence,
                 StudentList = studentList,

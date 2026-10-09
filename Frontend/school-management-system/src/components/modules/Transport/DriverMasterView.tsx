@@ -19,29 +19,46 @@ export interface DriverDocumentItem {
   attachmentName?: string;
 }
 
-const initialDriverDocs: DriverDocumentItem[] = [
-  { id: 'dd-1', driverId: 'dm-01', docType: 'Driving License', docNumber: 'DL-NY-2022-77112', issueDate: '2022-10-31', expiryDate: '2029-10-31', badgeNumber: 'BDG-9901', attachmentName: 'Commercial_Driving_License.pdf' },
-  { id: 'dd-2', driverId: 'dm-01', docType: 'Medical Certificate', docNumber: 'MED-2025-004', issueDate: '2025-05-01', expiryDate: '2026-08-30', attachmentName: 'Medical_Fitness_Report.pdf' },
-  { id: 'dd-3', driverId: 'dm-01', docType: 'Police Verification', docNumber: 'POL-VER-8821', issueDate: '2025-01-10', expiryDate: '2027-01-10', attachmentName: 'Police_Clearance_Certificate.pdf' }
-];
+const initialDriverDocs: DriverDocumentItem[] = [];
 
 export const DriverMasterView: React.FC = () => {
   const { staff, driverMasters, vehicleAssignments, addDriverMaster, updateDriverMaster, deleteDriverMaster } = useData();
   const { addToast } = useToast();
 
+  // Deduplicate drivers to guarantee no duplicate entries are displayed
+  const uniqueDrivers = React.useMemo(() => {
+    const seen = new Set<string>();
+    const result: DriverMaster[] = [];
+    (driverMasters || []).forEach(d => {
+      const empKey = d.employeeId?.trim().toLowerCase();
+      const nameKey = d.driverName?.trim().toLowerCase();
+      const phoneKey = d.mobileNumber?.trim();
+      const primaryKey = empKey
+        ? `emp_${empKey}`
+        : (nameKey && phoneKey
+            ? `np_${nameKey}_${phoneKey}`
+            : (nameKey ? `n_${nameKey}` : (d.id ? `id_${d.id}` : '')));
+      if (!primaryKey) return;
+      if (!seen.has(primaryKey)) {
+        seen.add(primaryKey);
+        result.push(d);
+      }
+    });
+    return result;
+  }, [driverMasters]);
+
   const nonTeachingStaff = React.useMemo(() => {
     return (staff || []).filter(s => 
-      s.designation?.toLowerCase().includes('driver') ||
-      s.department?.toLowerCase().includes('driver') ||
-      (s as any).role?.toLowerCase().includes('driver')
+      s.role !== 'Teacher' &&
+      s.employeeCategory !== 'Teacher'
     );
   }, [staff]);
 
   const filteredNonTeachingStaff = React.useMemo(() => {
     return nonTeachingStaff.filter(
-      s => !driverMasters.some(d => d.employeeId === s.empId)
+      s => !uniqueDrivers.some(d => d.employeeId === s.empId || d.employeeId === (s as any).employeeId)
     );
-  }, [nonTeachingStaff, driverMasters]);
+  }, [nonTeachingStaff, uniqueDrivers]);
 
   const [query, setQuery] = useState('');
   const [selectedDriverFilter, setSelectedDriverFilter] = useState(() => sessionStorage.getItem('tm_driver_filter') || '');
@@ -55,13 +72,13 @@ export const DriverMasterView: React.FC = () => {
   };
 
   // Driver Documents Modal State
-  const [driverDocs, setDriverDocs] = useState<DriverDocumentItem[]>(initialDriverDocs);
+  const [driverDocs, setDriverDocs] = useState<DriverDocumentItem[]>([]);
   const [docModalDriver, setDocModalDriver] = useState<DriverMaster | null>(null);
   const [docForm, setDocForm] = useState<Partial<DriverDocumentItem>>({
     docType: 'Medical Certificate',
     docNumber: '',
-    issueDate: '2026-01-01',
-    expiryDate: '2027-01-01',
+    issueDate: '',
+    expiryDate: '',
     badgeNumber: '',
     attachmentName: ''
   });
@@ -77,7 +94,7 @@ export const DriverMasterView: React.FC = () => {
     status: 'Active'
   });
 
-  const filteredDrivers = driverMasters.filter(d => {
+  const filteredDrivers = uniqueDrivers.filter(d => {
     const matchesQuery = d.driverName.toLowerCase().includes(query.toLowerCase()) ||
                          d.mobileNumber.toLowerCase().includes(query.toLowerCase()) ||
                          d.licenseNumber.toLowerCase().includes(query.toLowerCase()) ||
@@ -279,9 +296,9 @@ export const DriverMasterView: React.FC = () => {
           >
             <option value="">-- Select Driver --</option>
             <option value="ALL">All Drivers</option>
-            {driverMasters.map(d => (
+            {uniqueDrivers.map(d => (
               <option key={d.id} value={d.id}>
-                {d.driverName} ({d.employeeId || `DRV-${d.id}`})
+                {d.driverName} ({d.employeeId || d.id})
               </option>
             ))}
           </select>
@@ -336,7 +353,7 @@ export const DriverMasterView: React.FC = () => {
                 </div>
 
                 <div className="space-y-1.5 text-xs text-slate-600 dark:text-slate-300">
-                  <div className="flex justify-between"><span className="text-slate-400">Employee ID:</span><span className="font-mono font-bold text-sky-600 dark:text-sky-400">{d.employeeId || `DRV-${d.id}`}</span></div>
+                  <div className="flex justify-between"><span className="text-slate-400">Employee ID:</span><span className="font-mono font-bold text-sky-600 dark:text-sky-400">{d.employeeId || d.id}</span></div>
                   <div className="flex justify-between"><span className="text-slate-400">Mobile Number:</span><span className="font-bold text-slate-900 dark:text-white flex items-center gap-1"><Phone className="w-3 h-3 text-sky-500" /> {d.mobileNumber}</span></div>
                   <div className="flex justify-between">
                     <span className="text-slate-400">Email:</span>

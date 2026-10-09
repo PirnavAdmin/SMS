@@ -3895,11 +3895,21 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
             status: normalizeStatus(d.status),
           }));
 
-          setDriverMasters(mappedDrivers);
-          localStorage.setItem(
-            "edu_db_driver_masters",
-            JSON.stringify(mappedDrivers),
-          );
+          const uniqueDriversMap = new Map<string, DriverMaster>();
+          mappedDrivers.forEach((drv: DriverMaster) => {
+            const empKey = drv.employeeId?.trim().toLowerCase();
+            const nameKey = drv.driverName?.trim().toLowerCase();
+            const phoneKey = drv.mobileNumber?.trim();
+            const key = empKey
+              ? `emp_${empKey}`
+              : (nameKey && phoneKey
+                  ? `np_${nameKey}_${phoneKey}`
+                  : (nameKey ? `n_${nameKey}` : (drv.id ? `id_${drv.id}` : '')));
+            if (key && !uniqueDriversMap.has(key)) {
+              uniqueDriversMap.set(key, drv);
+            }
+          });
+          setDriverMasters(Array.from(uniqueDriversMap.values()));
         }
         if (assignments) {
           const mappedAssignments = assignments.map((a: any) => {
@@ -4088,10 +4098,15 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
 
           const uniqueAttendantsMap = new Map<string, BusAttendantMaster>();
           mappedAttendants.forEach((att: BusAttendantMaster) => {
-            const key = (att.employeeId && att.employeeId.trim() !== "")
-              ? `emp_${att.employeeId.trim().toLowerCase()}`
-              : (att.id ? `id_${att.id}` : `name_${(att.attendantName || '').trim().toLowerCase()}_${(att.mobileNumber || '').trim()}`);
-            if (!uniqueAttendantsMap.has(key)) {
+            const empKey = att.employeeId?.trim().toLowerCase();
+            const nameKey = att.attendantName?.trim().toLowerCase();
+            const phoneKey = att.mobileNumber?.trim();
+            const key = empKey
+              ? `emp_${empKey}`
+              : (nameKey && phoneKey
+                  ? `np_${nameKey}_${phoneKey}`
+                  : (nameKey ? `n_${nameKey}` : (att.id ? `id_${att.id}` : '')));
+            if (key && !uniqueAttendantsMap.has(key)) {
               uniqueAttendantsMap.set(key, att);
             }
           });
@@ -16054,7 +16069,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       const id = (
         backendData.id ||
         backendData.driverId ||
-        "DRV-" + Math.floor(100 + Math.random() * 900)
+        ""
       ).toString();
       const newDriver: DriverMaster = {
         ...d,
@@ -16069,22 +16084,42 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
             : d.status === "On Leave"
               ? "On Leave"
               : "Inactive",
-        branch: (d as any).branch || selectedBranch || "Main Campus",
+        branch: (d as any).branch || backendData.branch || ((selectedBranch && selectedBranch !== "All Branches" && selectedBranch !== "All") ? selectedBranch : ""),
       } as any;
-      setDriverMasters((prev) => [...prev, newDriver]);
+
+      setDriverMasters((prev) => {
+        const empKey = (newDriver.employeeId || "").trim().toLowerCase();
+        const nameKey = (newDriver.driverName || "").trim().toLowerCase();
+        const phoneKey = (newDriver.mobileNumber || "").trim();
+
+        const exists = prev.some(
+          (existing) =>
+            (empKey && (existing.employeeId || "").trim().toLowerCase() === empKey) ||
+            existing.id === newDriver.id ||
+            ((existing.driverName || "").trim().toLowerCase() === nameKey &&
+              (existing.mobileNumber || "").trim() === phoneKey)
+        );
+
+        if (exists) {
+          return prev.map((existing) =>
+            (empKey && (existing.employeeId || "").trim().toLowerCase() === empKey) ||
+            existing.id === newDriver.id ||
+            ((existing.driverName || "").trim().toLowerCase() === nameKey &&
+              (existing.mobileNumber || "").trim() === phoneKey)
+              ? { ...existing, ...newDriver }
+              : existing
+          );
+        }
+
+        return [...prev, newDriver];
+      });
+
       logActivity(
         "Added Transport Driver",
         `Registered driver ${newDriver.driverName}`,
       );
-    } catch (err) {
-      addToast("error", "API Sync Failed", "Operating in local fallback mode");
-      const id = "DRV-" + Math.floor(100 + Math.random() * 900);
-      const newDriver: DriverMaster = {
-        ...d,
-        id,
-        branch: (d as any).branch || selectedBranch || "Main Campus",
-      } as any;
-      setDriverMasters((prev) => [...prev, newDriver]);
+    } catch (err: any) {
+      addToast("error", "Failed to Add Driver", err?.message || "Error registering driver");
     }
   };
 

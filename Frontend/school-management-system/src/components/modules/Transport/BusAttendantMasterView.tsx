@@ -19,16 +19,24 @@ export const BusAttendantMasterView: React.FC = () => {
 
   // Deduplicate attendants to guarantee no duplicate entries are displayed
   const uniqueAttendants = React.useMemo(() => {
-    const map = new Map<string, BusAttendantMaster>();
+    const seen = new Set<string>();
+    const result: BusAttendantMaster[] = [];
     (attendants || []).forEach(a => {
-      const key = (a.employeeId && a.employeeId.trim() !== '')
-        ? `emp_${a.employeeId.trim().toLowerCase()}`
-        : (a.id ? `id_${a.id}` : `name_${(a.attendantName || '').trim().toLowerCase()}_${(a.mobileNumber || '').trim()}`);
-      if (!map.has(key)) {
-        map.set(key, a);
+      const empKey = a.employeeId?.trim().toLowerCase();
+      const nameKey = a.attendantName?.trim().toLowerCase();
+      const phoneKey = a.mobileNumber?.trim();
+      const primaryKey = empKey
+        ? `emp_${empKey}`
+        : (nameKey && phoneKey
+            ? `np_${nameKey}_${phoneKey}`
+            : (nameKey ? `n_${nameKey}` : (a.id ? `id_${a.id}` : '')));
+      if (!primaryKey) return;
+      if (!seen.has(primaryKey)) {
+        seen.add(primaryKey);
+        result.push(a);
       }
     });
-    return Array.from(map.values());
+    return result;
   }, [attendants]);
 
   const nonTeachingStaff = React.useMemo(() => {
