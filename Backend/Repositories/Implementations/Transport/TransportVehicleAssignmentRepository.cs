@@ -377,14 +377,26 @@ namespace SMS.Api.Repositories.Implementations
                 .Include(x => x.Route)
                 .Include(x => x.Vehicle)
                 .Include(x => x.Driver)
+                .Include(x => x.Attendant)
                 .Where(x => !x.IsDeleted && x.Status)
                 .OrderBy(x => x.Route.RouteName)
                 .Select(x => new TransportVehicleAssignmentLookupDto
                 {
                     AssignmentId = x.AssignmentId,
+                    RouteId = x.RouteId,
                     RouteName = x.Route != null && x.Route.RouteName != null ? x.Route.RouteName : string.Empty,
+                    VehicleId = x.VehicleId,
                     VehicleNumber = x.Vehicle != null && x.Vehicle.VehicleNumber != null ? x.Vehicle.VehicleNumber : string.Empty,
-                    DriverName = x.Driver != null && x.Driver.DriverName != null ? x.Driver.DriverName : string.Empty
+                    DriverId = x.DriverId,
+                    DriverName = x.Driver != null && x.Driver.DriverName != null ? x.Driver.DriverName : string.Empty,
+                    DriverEmployeeId = x.Driver != null && x.Driver.EmployeeId != null ? x.Driver.EmployeeId : string.Empty,
+                    AttendantId = x.AttendantId,
+                    AttendantName = x.Attendant != null ? x.Attendant.AttendantName : null,
+                    MorningTripTime = x.MorningTripTime,
+                    EveningTripTime = x.EveningTripTime,
+                    BranchName = x.BranchName,
+                    AcademicYear = x.AcademicYear,
+                    Status = x.Status
                 })
                 .ToListAsync();
         }
