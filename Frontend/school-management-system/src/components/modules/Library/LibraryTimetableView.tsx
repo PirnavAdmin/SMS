@@ -54,8 +54,6 @@ export const LibraryTimetableView: React.FC = () => {
         subj.includes('library') ||
         subj.includes('reading') ||
         subj.includes('reference') ||
-        tName.includes('bhanu') ||
-        tName.includes('rachel') ||
         tName.includes('librarian') ||
         room.includes('library')
       );
@@ -85,10 +83,9 @@ export const LibraryTimetableView: React.FC = () => {
     return librarySlots.filter(s => s.className === selectedClass && (!selectedSection || selectedSection === 'All' || s.section === selectedSection));
   }, [librarySlots, selectedClass, selectedSection]);
 
-  // All Classes list from academicClasses, students, timetable & standard school classes
+  // All Classes list from academicClasses, students, and timetable
   const availableClasses = useMemo(() => {
     const set = new Set<string>();
-    ['Class 1', 'Class 2', 'Class 3', 'Class 4', 'Class 5', 'Class 6', 'Class 7', 'Class 8', 'Class 9', 'Class 10', 'Class 11', 'Class 12'].forEach(c => set.add(c));
 
     (academicClasses || []).forEach(c => {
       if (c.className) set.add(c.className);
@@ -110,9 +107,9 @@ export const LibraryTimetableView: React.FC = () => {
     });
   }, [academicClasses, students, timetable]);
 
-  // All Sections list (A, B, C, D)
+  // All Sections list dynamically from academicClasses, students, and timetable
   const availableSections = useMemo(() => {
-    const set = new Set<string>(['A', 'B', 'C', 'D']);
+    const set = new Set<string>();
     (academicClasses || []).forEach(c => {
       if (Array.isArray(c.sections)) {
         c.sections.forEach(sec => set.add(sec));
@@ -142,7 +139,7 @@ export const LibraryTimetableView: React.FC = () => {
                 className: slot.className,
                 section: slot.section,
                 subject: slot.subject || 'Library Period',
-                teacherName: slot.teacherName || slot.assignedLibrarian || 'Bhanu Prakash',
+                teacherName: slot.teacherName || slot.assignedLibrarian || '',
                 roomNo: slot.roomNo || 'Central Library',
                 startTime: slot.startTime || '08:30',
                 endTime: slot.endTime || '09:15'
@@ -183,7 +180,7 @@ export const LibraryTimetableView: React.FC = () => {
               className: slot.className,
               section: slot.section,
               subject: slot.subject || 'Library Period',
-              teacherName: slot.assignedLibrarian || 'Bhanu Prakash',
+              teacherName: slot.assignedLibrarian || '',
               roomNo: 'Central Library',
               startTime: slot.startTime,
               endTime: slot.endTime
@@ -201,74 +198,27 @@ export const LibraryTimetableView: React.FC = () => {
             }
           }
         });
+        addToast('success', 'Library Schedule Synced', 'Library timetable synchronized successfully.');
+      } else {
+        addToast('info', 'Library Schedule', 'Timetable synced.');
       }
-    } catch (e) {}
-
-    const defaultLibraryPeriods: Omit<TimetableSlot, 'id'>[] = [
-      { day: "Monday", timeSlot: "08:30 AM - 09:15 AM", periodNumber: 1, className: "Class 5", section: "A", subject: "Library & Reading", teacherName: "Bhanu Prakash", roomNo: "Children Library", startTime: "08:30", endTime: "09:15" },
-      { day: "Monday", timeSlot: "09:15 AM - 10:00 AM", periodNumber: 2, className: "Class 3", section: "B", subject: "Library Period", teacherName: "Rachel Green", roomNo: "Children Library", startTime: "09:15", endTime: "10:00" },
-      { day: "Monday", timeSlot: "10:15 AM - 11:00 AM", periodNumber: 3, className: "Class 9", section: "A", subject: "Library & Research", teacherName: "Bhanu Prakash", roomNo: "Central Library Hall", startTime: "10:15", endTime: "11:00" },
-      { day: "Monday", timeSlot: "11:00 AM - 11:45 AM", periodNumber: 4, className: "Class 10", section: "A", subject: "Library Period", teacherName: "Bhanu Prakash", roomNo: "Central Library Hall", startTime: "11:00", endTime: "11:45" },
-      { day: "Monday", timeSlot: "11:45 AM - 12:30 PM", periodNumber: 5, className: "Class 6", section: "B", subject: "Library & Storytelling", teacherName: "Rachel Green", roomNo: "Reading Deck", startTime: "11:45", endTime: "12:30" },
-      { day: "Monday", timeSlot: "01:15 PM - 02:00 PM", periodNumber: 6, className: "Class 8", section: "A", subject: "Library & Research", teacherName: "Bhanu Prakash", roomNo: "Digital Library Deck", startTime: "13:15", endTime: "14:00" },
-      { day: "Monday", timeSlot: "02:00 PM - 02:45 PM", periodNumber: 7, className: "Class 11", section: "B", subject: "Library & Reference", teacherName: "Rachel Green", roomNo: "Periodicals Section", startTime: "14:00", endTime: "14:45" },
-      { day: "Monday", timeSlot: "02:45 PM - 03:30 PM", periodNumber: 8, className: "Class 7", section: "A", subject: "Library Period", teacherName: "Bhanu Prakash", roomNo: "Central Library Hall", startTime: "14:45", endTime: "15:30" },
-
-      { day: "Tuesday", timeSlot: "08:30 AM - 09:15 AM", periodNumber: 1, className: "Class 4", section: "A", subject: "Library Period", teacherName: "Rachel Green", roomNo: "Children Library", startTime: "08:30", endTime: "09:15" },
-      { day: "Tuesday", timeSlot: "09:15 AM - 10:00 AM", periodNumber: 2, className: "Class 6", section: "A", subject: "Library & Reading", teacherName: "Bhanu Prakash", roomNo: "Reading Deck", startTime: "09:15", endTime: "10:00" },
-      { day: "Tuesday", timeSlot: "10:15 AM - 11:00 AM", periodNumber: 3, className: "Class 11", section: "A", subject: "Library & Reference", teacherName: "Bhanu Prakash", roomNo: "Central Library Hall", startTime: "10:15", endTime: "11:00" },
-      { day: "Tuesday", timeSlot: "11:00 AM - 11:45 AM", periodNumber: 4, className: "Class 9", section: "A", subject: "Library & Reading", teacherName: "Bhanu Prakash", roomNo: "Central Library Hall", startTime: "11:00", endTime: "11:45" },
-      { day: "Tuesday", timeSlot: "11:45 AM - 12:30 PM", periodNumber: 5, className: "Class 10", section: "B", subject: "Library Period", teacherName: "Rachel Green", roomNo: "Periodicals Section", startTime: "11:45", endTime: "12:30" },
-      { day: "Tuesday", timeSlot: "01:15 PM - 02:00 PM", periodNumber: 6, className: "Class 5", section: "B", subject: "Library & Storytelling", teacherName: "Bhanu Prakash", roomNo: "Children Library", startTime: "13:15", endTime: "14:00" },
-      { day: "Tuesday", timeSlot: "02:00 PM - 02:45 PM", periodNumber: 7, className: "Class 12", section: "A", subject: "Library & Journal Study", teacherName: "Rachel Green", roomNo: "Digital Library Deck", startTime: "14:00", endTime: "14:45" },
-      { day: "Tuesday", timeSlot: "02:45 PM - 03:30 PM", periodNumber: 8, className: "Class 8", section: "B", subject: "Library Period", teacherName: "Bhanu Prakash", roomNo: "Central Library Hall", startTime: "14:45", endTime: "15:30" },
-
-      { day: "Wednesday", timeSlot: "08:30 AM - 09:15 AM", periodNumber: 1, className: "Class 7", section: "B", subject: "Library Period", teacherName: "Bhanu Prakash", roomNo: "Central Library Hall", startTime: "08:30", endTime: "09:15" },
-      { day: "Wednesday", timeSlot: "09:15 AM - 10:00 AM", periodNumber: 2, className: "Class 10", section: "A", subject: "Library & Reading", teacherName: "Rachel Green", roomNo: "Central Library Hall", startTime: "09:15", endTime: "10:00" },
-      { day: "Wednesday", timeSlot: "10:15 AM - 11:00 AM", periodNumber: 3, className: "Class 5", section: "A", subject: "Library & Storytelling", teacherName: "Bhanu Prakash", roomNo: "Children Library", startTime: "10:15", endTime: "11:00" },
-      { day: "Wednesday", timeSlot: "11:00 AM - 11:45 AM", periodNumber: 4, className: "Class 3", section: "A", subject: "Library Period", teacherName: "Rachel Green", roomNo: "Children Library", startTime: "11:00", endTime: "11:45" },
-      { day: "Wednesday", timeSlot: "11:45 AM - 12:30 PM", periodNumber: 5, className: "Class 8", section: "A", subject: "Library & Research", teacherName: "Bhanu Prakash", roomNo: "Digital Library Deck", startTime: "11:45", endTime: "12:30" },
-      { day: "Wednesday", timeSlot: "01:15 PM - 02:00 PM", periodNumber: 6, className: "Class 12", section: "B", subject: "Library & Reference", teacherName: "Rachel Green", roomNo: "Periodicals Section", startTime: "13:15", endTime: "14:00" },
-      { day: "Wednesday", timeSlot: "02:00 PM - 02:45 PM", periodNumber: 7, className: "Class 9", section: "B", subject: "Library Period", teacherName: "Bhanu Prakash", roomNo: "Central Library Hall", startTime: "14:00", endTime: "14:45" },
-      { day: "Wednesday", timeSlot: "02:45 PM - 03:30 PM", periodNumber: 8, className: "Class 6", section: "A", subject: "Library & Reading", teacherName: "Rachel Green", roomNo: "Reading Deck", startTime: "14:45", endTime: "15:30" },
-
-      { day: "Thursday", timeSlot: "08:30 AM - 09:15 AM", periodNumber: 1, className: "Class 11", section: "B", subject: "Library & Reference", teacherName: "Rachel Green", roomNo: "Periodicals Section", startTime: "08:30", endTime: "09:15" },
-      { day: "Thursday", timeSlot: "09:15 AM - 10:00 AM", periodNumber: 2, className: "Class 8", section: "B", subject: "Library Period", teacherName: "Bhanu Prakash", roomNo: "Central Library Hall", startTime: "09:15", endTime: "10:00" },
-      { day: "Thursday", timeSlot: "10:15 AM - 11:00 AM", periodNumber: 3, className: "Class 6", section: "B", subject: "Library & Reading", teacherName: "Rachel Green", roomNo: "Reading Deck", startTime: "10:15", endTime: "11:00" },
-      { day: "Thursday", timeSlot: "11:00 AM - 11:45 AM", periodNumber: 4, className: "Class 4", section: "B", subject: "Library & Storytelling", teacherName: "Bhanu Prakash", roomNo: "Children Library", startTime: "11:00", endTime: "11:45" },
-      { day: "Thursday", timeSlot: "11:45 AM - 12:30 PM", periodNumber: 5, className: "Class 7", section: "A", subject: "Library Period", teacherName: "Bhanu Prakash", roomNo: "Central Library Hall", startTime: "11:45", endTime: "12:30" },
-      { day: "Thursday", timeSlot: "01:15 PM - 02:00 PM", periodNumber: 6, className: "Class 10", section: "A", subject: "Library & Research", teacherName: "Rachel Green", roomNo: "Digital Library Deck", startTime: "13:15", endTime: "14:00" },
-      { day: "Thursday", timeSlot: "02:00 PM - 02:45 PM", periodNumber: 7, className: "Class 11", section: "A", subject: "Library & Reference", teacherName: "Bhanu Prakash", roomNo: "Central Library Hall", startTime: "14:00", endTime: "14:45" },
-      { day: "Thursday", timeSlot: "02:45 PM - 03:30 PM", periodNumber: 8, className: "Class 9", section: "A", subject: "Library Period", teacherName: "Rachel Green", roomNo: "Central Library Hall", startTime: "14:45", endTime: "15:30" },
-
-      { day: "Friday", timeSlot: "08:30 AM - 09:15 AM", periodNumber: 1, className: "Class 9", section: "B", subject: "Library Period", teacherName: "Bhanu Prakash", roomNo: "Central Library Hall", startTime: "08:30", endTime: "09:15" },
-      { day: "Friday", timeSlot: "09:15 AM - 10:00 AM", periodNumber: 2, className: "Class 5", section: "B", subject: "Library & Reading", teacherName: "Rachel Green", roomNo: "Children Library", startTime: "09:15", endTime: "10:00" },
-      { day: "Friday", timeSlot: "10:15 AM - 11:00 AM", periodNumber: 3, className: "Class 12", section: "A", subject: "Library Period", teacherName: "Rachel Green", roomNo: "Periodicals Section", startTime: "10:15", endTime: "11:00" },
-      { day: "Friday", timeSlot: "11:00 AM - 11:45 AM", periodNumber: 4, className: "Class 10", section: "B", subject: "Library & Research", teacherName: "Bhanu Prakash", roomNo: "Digital Library Deck", startTime: "11:00", endTime: "11:45" },
-      { day: "Friday", timeSlot: "11:45 AM - 12:30 PM", periodNumber: 5, className: "Class 3", section: "A", subject: "Library & Storytelling", teacherName: "Bhanu Prakash", roomNo: "Children Library", startTime: "11:45", endTime: "12:30" },
-      { day: "Friday", timeSlot: "01:15 PM - 02:00 PM", periodNumber: 6, className: "Class 7", section: "B", subject: "Library Period", teacherName: "Rachel Green", roomNo: "Reading Deck", startTime: "13:15", endTime: "14:00" },
-      { day: "Friday", timeSlot: "02:00 PM - 02:45 PM", periodNumber: 7, className: "Class 8", section: "A", subject: "Library & Reference", teacherName: "Bhanu Prakash", roomNo: "Central Library Hall", startTime: "14:00", endTime: "14:45" },
-      { day: "Friday", timeSlot: "02:45 PM - 03:30 PM", periodNumber: 8, className: "Class 6", section: "B", subject: "Library Period", teacherName: "Rachel Green", roomNo: "Reading Deck", startTime: "14:45", endTime: "15:30" },
-
-      { day: "Saturday", timeSlot: "08:30 AM - 09:15 AM", periodNumber: 1, className: "Class 6", section: "A", subject: "Library & Reading", teacherName: "Bhanu Prakash", roomNo: "Reading Deck", startTime: "08:30", endTime: "09:15" },
-      { day: "Saturday", timeSlot: "09:15 AM - 10:00 AM", periodNumber: 2, className: "Class 7", section: "B", subject: "Library Period", teacherName: "Rachel Green", roomNo: "Central Library Hall", startTime: "09:15", endTime: "10:00" },
-      { day: "Saturday", timeSlot: "10:15 AM - 11:00 AM", periodNumber: 3, className: "Class 8", section: "B", subject: "Library & Storytelling", teacherName: "Bhanu Prakash", roomNo: "Children Library", startTime: "10:15", endTime: "11:00" },
-      { day: "Saturday", timeSlot: "11:00 AM - 11:45 AM", periodNumber: 4, className: "Class 9", section: "A", subject: "Library Period", teacherName: "Rachel Green", roomNo: "Central Library Hall", startTime: "11:00", endTime: "11:45" },
-      { day: "Saturday", timeSlot: "11:45 AM - 12:30 PM", periodNumber: 5, className: "Class 10", section: "A", subject: "Library & Reference", teacherName: "Bhanu Prakash", roomNo: "Digital Library Deck", startTime: "11:45", endTime: "12:30" }
-    ];
-
-    defaultLibraryPeriods.forEach(slot => {
-      const exists = timetable.some(t => t.className === slot.className && t.section === slot.section && t.day === slot.day && (t.periodNumber === slot.periodNumber || t.timeSlot === slot.timeSlot));
-      if (!exists) {
-        addTimetableSlot(slot);
-      }
-    });
-
-    addToast('success', 'Library Schedule Synced', 'Populated Monday-Saturday Period 1 to 8 Library schedules from Admin Master Timetable.');
+    } catch (e) {
+      addToast('error', 'Sync Failed', 'Failed to synchronize library timetable.');
+    }
   };
 
   const totalClassesScheduled = new Set(librarySlots.map(s => `${s.className}-${s.section}`)).size;
   const todayActiveSlotsCount = librarySlots.filter(s => s.day === todayDayName).length;
+
+  const assignedLibrarians = useMemo(() => {
+    const names = new Set<string>();
+    librarySlots.forEach(s => {
+      if (s.teacherName && !s.teacherName.toLowerCase().includes('free') && !s.teacherName.toLowerCase().includes('maintenance')) {
+        names.add(s.teacherName);
+      }
+    });
+    return Array.from(names);
+  }, [librarySlots]);
 
   // Dedicated Print Popup Generator
   const handlePrintSchedule = () => {
@@ -304,7 +254,7 @@ export const LibraryTimetableView: React.FC = () => {
                   ${slot ? `${slot.className} - Section ${slot.section}` : '-- Free / Maintenance --'}
                 </td>
                 <td style="padding:8px; border:1px solid #cbd5e1;">${slot ? slot.subject : 'N/A'}</td>
-                <td style="padding:8px; border:1px solid #cbd5e1; font-weight:bold; color:#059669;">${slot ? (slot.teacherName || 'Bhanu Prakash') : 'N/A'}</td>
+                <td style="padding:8px; border:1px solid #cbd5e1; font-weight:bold; color:#059669;">${slot ? (slot.teacherName || 'Not Assigned') : 'N/A'}</td>
                 <td style="padding:8px; border:1px solid #cbd5e1;">${slot ? (slot.roomNo || 'Central Library Hall') : 'N/A'}</td>
               </tr>
             `).join('')}
@@ -362,7 +312,7 @@ export const LibraryTimetableView: React.FC = () => {
                   <td style="padding:8px; border:1px solid #cbd5e1;">Period ${s.periodNumber || '4'}</td>
                   <td style="padding:8px; border:1px solid #cbd5e1; font-family:monospace; color:#d97706; font-weight:bold;">${s.timeSlot || `${s.startTime} - ${s.endTime}`}</td>
                   <td style="padding:8px; border:1px solid #cbd5e1;">${s.subject}</td>
-                  <td style="padding:8px; border:1px solid #cbd5e1; font-weight:bold; color:#059669;">${s.teacherName || 'Bhanu Prakash'}</td>
+                  <td style="padding:8px; border:1px solid #cbd5e1; font-weight:bold; color:#059669;">${s.teacherName || 'Not Assigned'}</td>
                   <td style="padding:8px; border:1px solid #cbd5e1;">${s.roomNo || 'Central Library Hall'}</td>
                 </tr>
               `).join('')}
@@ -491,8 +441,8 @@ export const LibraryTimetableView: React.FC = () => {
 
         <div className="glass-card p-4.5 rounded-2xl bg-white dark:bg-slate-900 border space-y-1.5 shadow-sm">
           <span className="text-[10px] font-extrabold uppercase text-indigo-600 tracking-wider">Librarian Staff</span>
-          <p className="text-2xl font-black text-indigo-600 font-mono">2 Staff</p>
-          <span className="text-[10px] text-indigo-500 font-semibold">Bhanu Prakash & Rachel Green</span>
+          <p className="text-2xl font-black text-indigo-600 font-mono">{assignedLibrarians.length > 0 ? `${assignedLibrarians.length} Staff` : 'Library Staff'}</p>
+          <span className="text-[10px] text-indigo-500 font-semibold truncate block">{assignedLibrarians.length > 0 ? assignedLibrarians.join(' & ') : 'Active Librarians'}</span>
         </div>
       </div>
 
@@ -616,7 +566,7 @@ export const LibraryTimetableView: React.FC = () => {
                         <BookOpen className="w-3.5 h-3.5 text-sky-500 shrink-0" /> <span className="font-bold text-slate-800 dark:text-slate-200 truncate">{slot.subject}</span>
                       </p>
                       <p className="flex items-center gap-2 truncate">
-                        <User className="w-3.5 h-3.5 text-emerald-500 shrink-0" /> <span className="text-slate-500 shrink-0">In-Charge:</span> <span className="font-bold text-emerald-700 dark:text-emerald-300 truncate">{slot.teacherName || 'Bhanu Prakash'}</span>
+                        <User className="w-3.5 h-3.5 text-emerald-500 shrink-0" /> <span className="text-slate-500 shrink-0">In-Charge:</span> <span className="font-bold text-emerald-700 dark:text-emerald-300 truncate">{slot.teacherName || 'Not Assigned'}</span>
                       </p>
                       <p className="flex items-center gap-2 truncate">
                         <School className="w-3.5 h-3.5 text-purple-500 shrink-0" /> <span className="text-slate-700 dark:text-slate-300 font-semibold truncate">{slot.roomNo || 'Central Library Hall'}</span>
@@ -679,7 +629,7 @@ export const LibraryTimetableView: React.FC = () => {
                                   {slot.subject}
                                 </span>
                                 <span className="block text-[9px] font-bold text-emerald-600 dark:text-emerald-400">
-                                  {slot.teacherName || 'Bhanu Prakash'}
+                                  {slot.teacherName || 'Not Assigned'}
                                 </span>
                               </div>
                             ) : (
@@ -739,7 +689,7 @@ export const LibraryTimetableView: React.FC = () => {
                   <h4 className="text-sm sm:text-base font-black text-slate-900 dark:text-white truncate" title={`${slot.className} - Section ${slot.section}`}>{slot.className} - Section {slot.section}</h4>
                   <div className="space-y-1.5 text-xs font-semibold text-slate-600 dark:text-slate-400 pt-0.5">
                     <p className="truncate"><span className="text-slate-400 shrink-0">Subject:</span> <span className="font-bold text-slate-800 dark:text-slate-200">{slot.subject}</span></p>
-                    <p className="truncate"><span className="text-slate-400 shrink-0">Librarian:</span> <span className="text-emerald-600 font-bold">{slot.teacherName || 'Bhanu Prakash'}</span></p>
+                    <p className="truncate"><span className="text-slate-400 shrink-0">Librarian:</span> <span className="text-emerald-600 font-bold">{slot.teacherName || 'Not Assigned'}</span></p>
                     <p className="truncate"><span className="text-slate-400 shrink-0">Location:</span> <span className="text-slate-700 dark:text-slate-300 font-semibold">{slot.roomNo || 'Central Library Hall'}</span></p>
                   </div>
                 </div>

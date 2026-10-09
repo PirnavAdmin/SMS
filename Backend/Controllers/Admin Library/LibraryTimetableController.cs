@@ -25,19 +25,44 @@ public class LibraryTimetableController : ControllerBase
         _context = context;
     }
 
+    private static bool _tableEnsured = false;
+
     private async Task EnsureSeededTimetableAsync()
     {
-        // Mock seeder removed - library timetable slots come from authentic database entries
-        await Task.CompletedTask;
+        if (_tableEnsured) return;
+        try
+        {
+            var createSql = @"
+CREATE TABLE IF NOT EXISTS `library_timetable_slots` (
+  `SlotId` INT NOT NULL AUTO_INCREMENT,
+  `DayOfWeek` VARCHAR(50) NOT NULL,
+  `PeriodNumber` INT NOT NULL DEFAULT 1,
+  `PeriodName` VARCHAR(100) NOT NULL DEFAULT '',
+  `StartTime` VARCHAR(50) NOT NULL DEFAULT '',
+  `EndTime` VARCHAR(50) NOT NULL DEFAULT '',
+  `ClassName` VARCHAR(100) NULL,
+  `Section` VARCHAR(50) NULL,
+  `Subject` VARCHAR(150) NOT NULL DEFAULT '',
+  `AssignedLibrarian` VARCHAR(255) NOT NULL DEFAULT '',
+  `IsFreeSlot` TINYINT(1) NOT NULL DEFAULT 0,
+  PRIMARY KEY (`SlotId`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;";
+            await _context.Database.ExecuteSqlRawAsync(createSql);
+            _tableEnsured = true;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[LibraryTimetable] Table ensure notice: {ex.Message}");
+        }
     }
 
     [HttpGet]
     public async Task<IActionResult> GetLibraryTimetable(
-        [FromQuery] string? day = "Wednesday",
+        [FromQuery] string? day = null,
         [FromQuery] string? view = "daily")
     {
         await EnsureSeededTimetableAsync();
-        string currentDay = string.IsNullOrWhiteSpace(day) ? "Wednesday" : day.Trim();
+        string currentDay = string.IsNullOrWhiteSpace(day) ? DateTime.Today.DayOfWeek.ToString() : day.Trim();
 
         var dbSlots = await _context.LibraryTimetableSlots.AsNoTracking().ToListAsync();
 
@@ -57,7 +82,7 @@ public class LibraryTimetableController : ControllerBase
             className = s.ClassName ?? "",
             section = s.Section ?? "",
             subject = s.Subject,
-            assignedLibrarian = s.AssignedLibrarian ?? "Bhanu Prakash",
+            assignedLibrarian = s.AssignedLibrarian ?? "",
             displayStatus = s.IsFreeSlot ? "No class scheduled" : $"{s.ClassName}-{s.Section}",
             isFreeSlot = s.IsFreeSlot
         }).ToList();
@@ -65,6 +90,16 @@ public class LibraryTimetableController : ControllerBase
         var totalWeeklyPeriods = dbSlots.Count(s => !s.IsFreeSlot);
         var classesCovered = dbSlots.Where(s => !s.IsFreeSlot && !string.IsNullOrEmpty(s.ClassName)).Select(s => s.ClassName).Distinct().Count();
         var todaysSessions = daySlots.Count(s => !s.IsFreeSlot);
+
+        var librarians = dbSlots
+            .Where(s => !s.IsFreeSlot && !string.IsNullOrWhiteSpace(s.AssignedLibrarian))
+            .Select(s => s.AssignedLibrarian!)
+            .Distinct()
+            .ToList();
+
+        string librarianStaffText = librarians.Any()
+            ? $"{librarians.Count} Staff ({string.Join(" & ", librarians)})"
+            : "Library Staff";
 
         return Ok(new
         {
@@ -74,7 +109,7 @@ public class LibraryTimetableController : ControllerBase
                 totalWeeklyPeriods = $"{totalWeeklyPeriods} Slots",
                 classesCovered = $"{classesCovered} Batches",
                 todaysSessions = $"{todaysSessions} Periods",
-                librarianStaff = "2 Staff (Bhanu Prakash & Rachel Green)"
+                librarianStaff = librarianStaffText
             },
             selectedDay = currentDay,
             timeRangeSummary = "8 Periods (08:30 AM - 03:30 PM)",
@@ -175,7 +210,7 @@ public class LibraryTimetableController : ControllerBase
                 className = s.ClassName,
                 section = s.Section,
                 subject = s.Subject,
-                teacherName = s.AssignedLibrarian ?? "Bhanu Prakash",
+                teacherName = s.AssignedLibrarian ?? string.Empty,
                 roomNo = "Central Library"
             })
             .ToListAsync();
@@ -201,15 +236,15 @@ public class LibraryTimetableController : ControllerBase
     {
         var slot = new LibraryTimetableSlot
         {
-            DayOfWeek = !string.IsNullOrWhiteSpace(dto.DayOfWeek) ? dto.DayOfWeek.Trim() : "Wednesday",
+            DayOfWeek = !string.IsNullOrWhiteSpace(dto.DayOfWeek) ? dto.DayOfWeek.Trim() : DateTime.Today.DayOfWeek.ToString(),
             PeriodNumber = dto.PeriodNumber > 0 ? dto.PeriodNumber : 1,
             PeriodName = !string.IsNullOrWhiteSpace(dto.PeriodName) ? dto.PeriodName.Trim() : $"PERIOD {dto.PeriodNumber}",
-            StartTime = !string.IsNullOrWhiteSpace(dto.StartTime) ? dto.StartTime.Trim() : "08:30 AM",
-            EndTime = !string.IsNullOrWhiteSpace(dto.EndTime) ? dto.EndTime.Trim() : "09:15 AM",
+            StartTime = !string.IsNullOrWhiteSpace(dto.StartTime) ? dto.StartTime.Trim() : string.Empty,
+            EndTime = !string.IsNullOrWhiteSpace(dto.EndTime) ? dto.EndTime.Trim() : string.Empty,
             ClassName = dto.ClassName?.Trim(),
             Section = dto.Section?.Trim(),
             Subject = !string.IsNullOrWhiteSpace(dto.Subject) ? dto.Subject.Trim() : "Library Period",
-            AssignedLibrarian = !string.IsNullOrWhiteSpace(dto.AssignedLibrarian) ? dto.AssignedLibrarian.Trim() : "Bhanu Prakash",
+            AssignedLibrarian = !string.IsNullOrWhiteSpace(dto.AssignedLibrarian) ? dto.AssignedLibrarian.Trim() : string.Empty,
             IsFreeSlot = dto.IsFreeSlot
         };
 
@@ -227,9 +262,13 @@ public class LibraryTimetableController : ControllerBase
 
         if (!string.IsNullOrWhiteSpace(dto.DayOfWeek)) slot.DayOfWeek = dto.DayOfWeek.Trim();
         if (dto.PeriodNumber > 0) slot.PeriodNumber = dto.PeriodNumber;
+        if (!string.IsNullOrWhiteSpace(dto.PeriodName)) slot.PeriodName = dto.PeriodName.Trim();
+        if (!string.IsNullOrWhiteSpace(dto.StartTime)) slot.StartTime = dto.StartTime.Trim();
+        if (!string.IsNullOrWhiteSpace(dto.EndTime)) slot.EndTime = dto.EndTime.Trim();
         if (!string.IsNullOrWhiteSpace(dto.ClassName)) slot.ClassName = dto.ClassName.Trim();
         if (!string.IsNullOrWhiteSpace(dto.Section)) slot.Section = dto.Section.Trim();
         if (!string.IsNullOrWhiteSpace(dto.Subject)) slot.Subject = dto.Subject.Trim();
+        if (dto.AssignedLibrarian != null) slot.AssignedLibrarian = dto.AssignedLibrarian.Trim();
         slot.IsFreeSlot = dto.IsFreeSlot;
 
         await _context.SaveChangesAsync();

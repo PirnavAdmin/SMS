@@ -22,10 +22,15 @@ public class LibraryService : ILibraryService
     public async Task<LibraryDropdownOptionsDto> GetLibraryDropdownOptionsAsync()
     {
         var inventory = await GetBookInventoryAsync(null, null);
+        var academicYears = await _context.AcademicYears
+            .AsNoTracking()
+            .OrderByDescending(a => a.AcademicYearName)
+            .Select(a => a.AcademicYearName)
+            .ToListAsync();
 
         return new LibraryDropdownOptionsDto
         {
-            AcademicYears = new List<string> { "2027-28", "2026-27", "2025-26" },
+            AcademicYears = academicYears,
             AvailableBooks = inventory.Select(b => new LibraryBookDropdownOptionDto
             {
                 BookId = b.BookId,
@@ -49,20 +54,7 @@ public class LibraryService : ILibraryService
 
         if (!books.Any())
         {
-            // Fallback sample book matching screenshots
-            return new List<LibraryBookDto>
-            {
-                new LibraryBookDto
-                {
-                    BookId = 1,
-                    Title = "Fundamentals of Physics",
-                    Author = "Halliday & Resnick",
-                    Category = "Science",
-                    RackLocation = "Rack S-04",
-                    TotalCopies = 15,
-                    AvailableCopies = 11
-                }
-            };
+            return new List<LibraryBookDto>();
         }
 
         var query = books.AsQueryable();
@@ -104,24 +96,7 @@ public class LibraryService : ILibraryService
 
         if (!records.Any())
         {
-            // Fallback sample record matching screenshot
-            return new List<IssuedBookRecordDto>
-            {
-                new IssuedBookRecordDto
-                {
-                    IssueId = 1,
-                    BookId = 1,
-                    BookTitle = "Fundamentals of Physics",
-                    Borrower = "Alexander Wright (Student)",
-                    BorrowerName = "Alexander Wright",
-                    BorrowerRole = "Student",
-                    IssueDate = "2026-07-05",
-                    DueDate = "2026-07-19",
-                    Fine = "₹2",
-                    FineAmount = 2,
-                    Status = "Overdue"
-                }
-            };
+            return new List<IssuedBookRecordDto>();
         }
 
         var query = records.AsQueryable();
@@ -158,10 +133,10 @@ public class LibraryService : ILibraryService
         {
             Title = dto.Title,
             Author = dto.Author,
-            Category = string.IsNullOrWhiteSpace(dto.Category) ? "Science" : dto.Category,
-            RackLocation = string.IsNullOrWhiteSpace(dto.RackLocation) ? "Rack S-05" : dto.RackLocation,
-            TotalCopies = dto.TotalCopies > 0 ? dto.TotalCopies : 10,
-            AvailableCopies = dto.TotalCopies > 0 ? dto.TotalCopies : 10,
+            Category = dto.Category ?? string.Empty,
+            RackLocation = dto.RackLocation ?? string.Empty,
+            TotalCopies = dto.TotalCopies > 0 ? dto.TotalCopies : 1,
+            AvailableCopies = dto.TotalCopies > 0 ? dto.TotalCopies : 1,
             CreatedAt = DateTime.UtcNow
         };
 
@@ -182,9 +157,9 @@ public class LibraryService : ILibraryService
 
     public async Task<IssuedBookRecordDto> IssueBookAsync(IssueBookRequestDto dto)
     {
-        int bId = dto.BookId ?? 1;
-        var book = await _context.LibraryBooks.FindAsync(bId);
-        string bookTitle = book?.Title ?? "Fundamentals of Physics";
+        int bId = dto.BookId ?? 0;
+        var book = bId > 0 ? await _context.LibraryBooks.FindAsync(bId) : null;
+        string bookTitle = book?.Title ?? string.Empty;
 
         if (book != null && book.AvailableCopies > 0)
         {
@@ -198,8 +173,8 @@ public class LibraryService : ILibraryService
         {
             BookId = bId,
             BookTitle = bookTitle,
-            BorrowerName = dto.BorrowerName,
-            BorrowerRole = dto.BorrowerRole ?? "Student",
+            BorrowerName = dto.BorrowerName ?? string.Empty,
+            BorrowerRole = dto.BorrowerRole ?? string.Empty,
             IssueDate = issueDate,
             DueDate = dueDate,
             FineAmount = 0,

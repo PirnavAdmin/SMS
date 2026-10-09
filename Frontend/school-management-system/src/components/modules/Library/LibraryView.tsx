@@ -126,10 +126,10 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ initialPhase = 'phase1
   const [bookForm, setBookForm] = useState({
     title: '',
     author: '',
-    category: 'Science & Physics',
+    category: '',
     isbn: '',
-    totalCopies: 10,
-    rackNo: 'Rack A-01 (Shelf 1)'
+    totalCopies: 1,
+    rackNo: ''
   });
 
   const filteredMemberSuggestions = useMemo(() => {
@@ -144,7 +144,7 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ initialPhase = 'phase1
       memberId: c.admissionNo,
       name: c.name,
       role: c.role,
-      phone: c.phone || '9876543210',
+      phone: c.phone || '',
       maxLimit: c.role === 'Staff' ? 6 : 3
     });
     setShowMemberSuggestions(false);
@@ -247,13 +247,13 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ initialPhase = 'phase1
         memberId: memId,
         name,
         role: (s.employeeCategory === 'Teacher' || (s.designation || '').toLowerCase().includes('teacher')) ? 'Teacher' : 'Staff',
-        email: s.email || `${(s.firstName || 'staff').toLowerCase()}@school.edu`,
-        phone: s.phone || '9876543210',
+        email: s.email || '',
+        phone: s.phone || '',
         className: s.department || s.designation || 'Staff',
         maxLimit: 6,
         issuedCount: (bookIssues || []).filter(bi => bi.borrowerId === memId && (bi.status === 'Issued' || bi.status === 'Overdue')).length,
         fineBalance: 0,
-        joinedDate: s.joiningDate || '2026-06-01',
+        joinedDate: s.joiningDate || new Date().toISOString().split('T')[0],
         status: 'Active'
       });
     });
@@ -267,13 +267,13 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ initialPhase = 'phase1
         memberId: memId,
         name,
         role: 'Student',
-        email: st.email || `${(st.firstName || 'student').toLowerCase()}@school.edu`,
-        phone: st.phone || st.fatherPhone || '9876543210',
-        className: `${st.className || 'Class 10'}-${st.section || 'A'}`,
+        email: st.email || '',
+        phone: st.phone || st.fatherPhone || '',
+        className: st.className ? `${st.className}${st.section ? `-${st.section}` : ''}` : '',
         maxLimit: 3,
         issuedCount: (bookIssues || []).filter(bi => bi.borrowerId === memId && (bi.status === 'Issued' || bi.status === 'Overdue')).length,
         fineBalance: 0,
-        joinedDate: st.joiningDate || '2026-06-01',
+        joinedDate: st.joiningDate || st.admissionDate || new Date().toISOString().split('T')[0],
         status: 'Active'
       });
     });
@@ -490,9 +490,9 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ initialPhase = 'phase1
             id: String(b.bookId || b.id),
             title: b.title || b.bookTitle || '',
             author: b.author || '',
-            isbn: b.isbn || `978-${b.bookId || Math.floor(Math.random() * 1000000)}`,
-            category: b.category || 'Science',
-            rackNo: b.rackLocation || b.rack || 'Rack A-01',
+            isbn: b.isbn || '',
+            category: b.category || '',
+            rackNo: b.rackLocation || b.rack || '',
             totalCopies: Number(b.totalCopies) || 0,
             availableCopies: Number(b.availableCopies) || 0,
             status: Number(b.availableCopies) > 0 ? 'Available' : 'Issued'
@@ -535,17 +535,17 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ initialPhase = 'phase1
         const fetchedMembers = extractArray(membersRes.value);
         if (fetchedMembers.length > 0) {
           const formatted = fetchedMembers.map((m: any) => ({
-            id: String(m.id || m.memberId || `MEM-${Math.random()}`),
+            id: String(m.id || m.memberId || `MEM-${Date.now()}`),
             memberId: String(m.memberId || m.id || ''),
             name: m.name || m.memberName || '',
             role: (m.role || 'Student') as any,
-            email: m.email || `${(m.name || 'member').toLowerCase().replace(/\s+/g, '')}@school.edu`,
-            phone: m.phone || '9876543210',
-            className: m.classOrDept || m.className || (m.role === 'Student' ? 'Class Student' : 'Staff'),
+            email: m.email || '',
+            phone: m.phone || '',
+            className: m.classOrDept || m.className || '',
             maxLimit: m.role === 'Staff' || m.role === 'Teacher' ? 6 : 3,
             issuedCount: Number(m.issued) || 0,
             fineBalance: Number(m.fineDue) || 0,
-            joinedDate: m.joinedDate || '2026-06-01',
+            joinedDate: m.joinedDate || new Date().toISOString().split('T')[0],
             status: m.status || 'Active'
           }));
           setMembers(formatted);
@@ -637,10 +637,10 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ initialPhase = 'phase1
       setBookForm({
         title: bookToEdit.title || '',
         author: bookToEdit.author || '',
-        category: bookToEdit.category || (categories[0]?.name || 'Science & Physics'),
+        category: bookToEdit.category || categories[0]?.name || '',
         isbn: bookToEdit.isbn || '',
         totalCopies: bookToEdit.totalCopies || 1,
-        rackNo: bookToEdit.rackNo || (racks[0] ? `${racks[0].rackNo} (${racks[0].shelfNo})` : 'Rack A-01 (Shelf 1)')
+        rackNo: bookToEdit.rackNo || (racks[0] ? `${racks[0].rackNo} (${racks[0].shelfNo})` : '')
       });
       setModalType('editBook');
     } else {
@@ -649,10 +649,10 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ initialPhase = 'phase1
       setBookForm({
         title: '',
         author: '',
-        category: categories[0]?.name || 'Science & Physics',
-        isbn: '978-0134' + Math.floor(100000 + Math.random() * 900000),
-        totalCopies: 10,
-        rackNo: bestAvailable ? `${bestAvailable.rackNo} (${bestAvailable.shelfNo})` : 'Rack A-01 (Shelf 1)'
+        category: categories[0]?.name || '',
+        isbn: '',
+        totalCopies: 1,
+        rackNo: bestAvailable ? `${bestAvailable.rackNo} (${bestAvailable.shelfNo})` : (racks[0] ? `${racks[0].rackNo} (${racks[0].shelfNo})` : '')
       });
       setModalType('addBook');
     }
@@ -941,7 +941,7 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ initialPhase = 'phase1
                         </span>
                       </td>
                       <td className="py-3.5 px-4 font-bold text-slate-600 dark:text-slate-400 font-mono text-[11px] whitespace-nowrap">
-                        {b.rackNo || 'Rack A-01 (Shelf 1)'}
+                        {b.rackNo || '--'}
                       </td>
                       <td className="py-3.5 px-4 text-center font-mono font-extrabold text-slate-900 dark:text-white whitespace-nowrap">{b.totalCopies}</td>
                       <td className="py-3.5 px-4 text-center whitespace-nowrap">
@@ -1574,7 +1574,7 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ initialPhase = 'phase1
                         setShowBookDropdown(true);
                       }}
                       onFocus={() => setShowBookDropdown(true)}
-                      placeholder="Type book title or author e.g. 'Physics', 'Halliday', 'ISBN'..."
+                      placeholder="Type book title, author, or ISBN to search..."
                       className="w-full px-3.5 py-2.5 pl-9 pr-8 rounded-xl bg-white dark:bg-slate-900 border font-bold text-xs shadow-xs focus:ring-2 focus:ring-sky-500 focus:outline-hidden"
                     />
                     <BookOpen className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
@@ -1666,11 +1666,11 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ initialPhase = 'phase1
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   <div>
                     <label className="block font-bold mb-1">Member ID / Admission No <span className="text-rose-500 font-bold ml-0.5">*</span></label>
-                    <input type="text" name="manualMemberId" placeholder="e.g. ADM2024-001" required className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold" />
+                    <input type="text" name="manualMemberId" placeholder="Enter Member ID" required className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold" />
                   </div>
                   <div>
                     <label className="block font-bold mb-1">Member Full Name <span className="text-rose-500 font-bold ml-0.5">*</span></label>
-                    <input type="text" name="manualMemberName" placeholder="e.g. Alexander Wright" required className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold" />
+                    <input type="text" name="manualMemberName" placeholder="Enter Member Name" required className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold" />
                   </div>
                   <div>
                     <label className="block font-bold mb-1">Borrower Role <span className="text-rose-500 font-bold ml-0.5">*</span></label>
@@ -1685,11 +1685,11 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ initialPhase = 'phase1
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
                     <label className="block font-bold mb-1">Book Title / Accession Code <span className="text-rose-500 font-bold ml-0.5">*</span></label>
-                    <input type="text" name="manualBookTitle" placeholder="e.g. Fundamentals of Physics" required className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold" />
+                    <input type="text" name="manualBookTitle" placeholder="Enter Book Title" required className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold" />
                   </div>
                   <div>
                     <label className="block font-bold mb-1">Author / ISBN (Optional)</label>
-                    <input type="text" name="manualBookAuthor" placeholder="e.g. Halliday & Resnick" className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border font-medium" />
+                    <input type="text" name="manualBookAuthor" placeholder="Enter Author Name" className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border font-medium" />
                   </div>
                 </div>
               </>
@@ -2781,9 +2781,9 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ initialPhase = 'phase1
             }} className="space-y-3 text-xs">
               <div><label className="block font-bold mb-1">Rack Number <span className="text-rose-500 font-bold ml-0.5">*</span></label><input type="text" name="rackNo" required placeholder="e.g. Rack E-05" className="w-full px-3 py-2 rounded-xl bg-slate-50 border font-bold" /></div>
               <div><label className="block font-bold mb-1">Shelf Number <span className="text-rose-500 font-bold ml-0.5">*</span></label><input type="text" name="shelfNo" required placeholder="e.g. Shelf 1" className="w-full px-3 py-2 rounded-xl bg-slate-50 border font-bold" /></div>
-              <div><label className="block font-bold mb-1">Floor / Building</label><input type="text" name="floor" defaultValue="1st Floor" className="w-full px-3 py-2 rounded-xl bg-slate-50 border" /></div>
+              <div><label className="block font-bold mb-1">Floor / Building</label><input type="text" name="floor" placeholder="e.g. Ground Floor" className="w-full px-3 py-2 rounded-xl bg-slate-50 border" /></div>
               <div><label className="block font-bold mb-1">Section</label><input type="text" name="section" placeholder="e.g. Reference Section" className="w-full px-3 py-2 rounded-xl bg-slate-50 border" /></div>
-              <div><label className="block font-bold mb-1">Capacity</label><input type="number" name="capacity" defaultValue={50} className="w-full px-3 py-2 rounded-xl bg-slate-50 border font-mono" /></div>
+              <div><label className="block font-bold mb-1">Capacity</label><input type="number" name="capacity" placeholder="e.g. 50" min="1" className="w-full px-3 py-2 rounded-xl bg-slate-50 border font-mono" /></div>
               <div className="flex justify-end gap-2 pt-2"><button type="button" onClick={() => setModalType(null)} className="px-4 py-2 rounded-xl border font-bold">Cancel</button><button type="submit" className="px-4 py-2 rounded-xl bg-sky-600 text-white font-extrabold">Save Location</button></div>
             </form>
           </div>
@@ -2849,8 +2849,8 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ initialPhase = 'phase1
                 memberId: memberFormState.memberId.trim(),
                 name: memberFormState.name.trim(),
                 role: memberFormState.role,
-                email: `${memberFormState.memberId.toLowerCase()}@school.edu`,
-                phone: memberFormState.phone || '9876543210',
+                email: memberFormState.memberId ? `${memberFormState.memberId.toLowerCase()}@school.edu` : '',
+                phone: memberFormState.phone || '',
                 maxLimit: Number(memberFormState.maxLimit) || 3,
                 issuedCount: 0,
                 fineBalance: 0,
@@ -2880,7 +2880,7 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ initialPhase = 'phase1
                         memberId: found.admissionNo,
                         name: found.name,
                         role: found.role,
-                        phone: found.phone || '9876543210',
+                        phone: found.phone || '',
                         maxLimit: found.role === 'Staff' ? 6 : 3
                       });
                     }
@@ -2908,7 +2908,7 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ initialPhase = 'phase1
                         memberId: found.admissionNo,
                         name: found.name,
                         role: found.role,
-                        phone: found.phone || '9876543210',
+                        phone: found.phone || '',
                         maxLimit: found.role === 'Staff' ? 6 : 3
                       });
                     }
@@ -2954,7 +2954,7 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ initialPhase = 'phase1
                 <label className="block font-bold mb-1">Phone Number</label>
                 <input
                   type="text"
-                  placeholder="9876543210"
+                  placeholder="Enter contact number"
                   value={memberFormState.phone}
                   onChange={e => setMemberFormState(prev => ({ ...prev, phone: e.target.value }))}
                   className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border"
@@ -3348,12 +3348,12 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ initialPhase = 'phase1
 
               <div>
                 <label className="block font-bold mb-1 text-slate-700 dark:text-slate-300">Replacement Cost (₹)</label>
-                <input type="number" name="replacementCost" defaultValue={350} className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border font-mono text-xs text-slate-900 dark:text-white" />
+                <input type="number" name="replacementCost" placeholder="0" min="0" className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border font-mono text-xs text-slate-900 dark:text-white" />
               </div>
 
               <div>
                 <label className="block font-bold mb-1 text-slate-700 dark:text-slate-300">Fine Penalty Amount (₹)</label>
-                <input type="number" name="fineAmount" defaultValue={50} className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border font-mono text-xs text-slate-900 dark:text-white" />
+                <input type="number" name="fineAmount" placeholder="0" min="0" className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border font-mono text-xs text-slate-900 dark:text-white" />
               </div>
 
               <div className="flex justify-end gap-2 pt-2">
@@ -3438,7 +3438,7 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ initialPhase = 'phase1
                   required
                   value={bookForm.title}
                   onChange={e => setBookForm(prev => ({ ...prev, title: e.target.value }))}
-                  placeholder="e.g. Fundamentals of Physics"
+                  placeholder="Enter book title"
                   className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white font-bold outline-none"
                 />
               </div>
@@ -3450,7 +3450,7 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ initialPhase = 'phase1
                   required
                   value={bookForm.author}
                   onChange={e => setBookForm(prev => ({ ...prev, author: e.target.value }))}
-                  placeholder="e.g. Halliday & Resnick"
+                  placeholder="Enter author name"
                   className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white font-bold outline-none"
                 />
               </div>

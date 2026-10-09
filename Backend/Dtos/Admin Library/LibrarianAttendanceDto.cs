@@ -30,7 +30,7 @@ namespace SMS.Api.Dtos
         public string Role { get; set; } = "Librarian";
 
         [JsonPropertyName("shift")]
-        public string Shift { get; set; } = "Morning Shift (08:30 - 17:00)";
+        public string Shift { get; set; } = string.Empty;
 
         [JsonPropertyName("shiftDetails")]
         public string ShiftDetails
@@ -90,7 +90,7 @@ namespace SMS.Api.Dtos
         public string? Role { get; set; }
 
         [JsonPropertyName("shift")]
-        public string Shift { get; set; } = "Morning Shift (08:30 - 17:00)";
+        public string Shift { get; set; } = string.Empty;
 
         [JsonPropertyName("shiftDetails")]
         public string ShiftDetails
@@ -109,7 +109,7 @@ namespace SMS.Api.Dtos
         public string? WorkingHours { get; set; }
 
         [JsonPropertyName("totalHours")]
-        public double TotalHours { get; set; } = 8.5;
+        public double TotalHours { get; set; } = 0;
 
         [JsonPropertyName("status")]
         public string Status { get; set; } = "Present";

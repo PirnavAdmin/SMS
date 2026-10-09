@@ -113,15 +113,17 @@ public class LibraryController : ControllerBase
     public async Task<IActionResult> GetLibraryOptions()
     {
         var roles = new List<string> { "Student", "Staff", "Teacher" };
-        var categories = new List<string> { "All", "Science", "Mathematics", "Computer Science", "Literature & Fiction", "History & Civics", "General Knowledge" };
+        var dbCategories = await _context.LibraryBooks.AsNoTracking()
+            .Where(b => !string.IsNullOrWhiteSpace(b.Category))
+            .Select(b => b.Category!)
+            .Distinct()
+            .ToListAsync();
+        var categories = new List<string> { "All" };
+        categories.AddRange(dbCategories.Distinct());
+
         var statuses = new List<string> { "All", "Issued", "Overdue", "Returned" };
 
         var books = await _context.LibraryBooks.AsNoTracking().Where(b => b.AvailableCopies > 0).ToListAsync();
-        if (!books.Any())
-        {
-            await SeedDefaultLibraryDataAsync();
-            books = await _context.LibraryBooks.AsNoTracking().Where(b => b.AvailableCopies > 0).ToListAsync();
-        }
 
         var booksDropdown = books.Select(b => new
         {
@@ -172,12 +174,6 @@ public class LibraryController : ControllerBase
 
         var list = await query.OrderByDescending(b => b.CreatedAt).ToListAsync();
 
-        if (!list.Any() && string.IsNullOrWhiteSpace(search) && (string.IsNullOrWhiteSpace(category) || category.Equals("All", StringComparison.OrdinalIgnoreCase) || category.Equals("All Categories", StringComparison.OrdinalIgnoreCase)))
-        {
-            await SeedDefaultLibraryDataAsync();
-            list = await _context.LibraryBooks.AsNoTracking().OrderByDescending(b => b.CreatedAt).ToListAsync();
-        }
-
         var dtos = list.Select(MapBookToDto).ToList();
 
         int totalCount = dtos.Count;
@@ -219,14 +215,14 @@ public class LibraryController : ControllerBase
             return BadRequest(new { success = false, message = "Book Title and Author are required." });
         }
 
-        int copies = dto.TotalCopies > 0 ? dto.TotalCopies : 10;
+        int copies = dto.TotalCopies > 0 ? dto.TotalCopies : 1;
 
         var entity = new LibraryBook
         {
             Title = dto.Title.Trim(),
             Author = dto.Author.Trim(),
-            Category = !string.IsNullOrWhiteSpace(dto.Category) ? dto.Category.Trim() : "Science",
-            RackLocation = !string.IsNullOrWhiteSpace(dto.RackLocation) ? dto.RackLocation.Trim() : "Rack S-05",
+            Category = !string.IsNullOrWhiteSpace(dto.Category) ? dto.Category.Trim() : string.Empty,
+            RackLocation = !string.IsNullOrWhiteSpace(dto.RackLocation) ? dto.RackLocation.Trim() : string.Empty,
             TotalCopies = copies,
             AvailableCopies = copies,
             CreatedAt = DateTime.UtcNow
@@ -295,18 +291,22 @@ public class LibraryController : ControllerBase
     // =========================================================
 
     [HttpGet("categories")]
-    public IActionResult GetCategoriesMaster()
+    public async Task<IActionResult> GetCategoriesMaster()
     {
-        var categories = new List<object>
-        {
-            new { id = "SCI", code = "SCI", name = "Science & Physics", count = 45, description = "Physics, Chemistry & Biology textbooks" },
-            new { id = "MATH", code = "MATH", name = "Mathematics", count = 30, description = "Algebra, Geometry & Calculus reference books" },
-            new { id = "CS", code = "CS", name = "Computer Science", count = 25, description = "Programming, Data Structures & AI guides" },
-            new { id = "LIT", code = "LIT", name = "Literature & Fiction", count = 40, description = "Classic & Modern English Literature" },
-            new { id = "HIS", code = "HIS", name = "History & Civics", count = 20, description = "World History & Indian Constitution" }
-        };
+        var dbCategories = await _context.LibraryBooks.AsNoTracking()
+            .Where(b => !string.IsNullOrWhiteSpace(b.Category))
+            .GroupBy(b => b.Category!)
+            .Select(g => new
+            {
+                id = g.Key.ToUpper().Replace(" ", "_"),
+                code = g.Key.Length > 4 ? g.Key.Substring(0, 4).ToUpper() : g.Key.ToUpper(),
+                name = g.Key,
+                count = g.Sum(b => b.TotalCopies),
+                description = $"{g.Key} Books"
+            })
+            .ToListAsync();
 
-        var merged = categories.Concat(_customCategories).ToList();
+        var merged = dbCategories.Cast<object>().Concat(_customCategories).ToList();
         return Ok(new { success = true, data = merged });
     }
 
@@ -327,17 +327,22 @@ public class LibraryController : ControllerBase
     }
 
     [HttpGet("authors")]
-    public IActionResult GetAuthorsDirectory()
+    public async Task<IActionResult> GetAuthorsDirectory()
     {
-        var authors = new List<object>
-        {
-            new { id = 1, name = "Halliday & Resnick", publisher = "Wiley India", biography = "Renowned physicists and educators", titlesPublished = 15 },
-            new { id = 2, name = "R.D. Sharma", publisher = "Dhanpat Rai Publications", biography = "Prominent Mathematics author", titlesPublished = 20 },
-            new { id = 3, name = "E. Balagurusamy", publisher = "McGraw Hill", biography = "Computer Science & Programming pioneer", titlesPublished = 12 },
-            new { id = 4, name = "William Shakespeare", publisher = "Penguin Classics", biography = "English playwright and poet", titlesPublished = 18 }
-        };
+        var dbAuthors = await _context.LibraryBooks.AsNoTracking()
+            .Where(b => !string.IsNullOrWhiteSpace(b.Author))
+            .GroupBy(b => b.Author!)
+            .Select(g => new
+            {
+                id = Math.Abs(g.Key.GetHashCode()),
+                name = g.Key,
+                publisher = "Publisher",
+                biography = "",
+                titlesPublished = g.Count()
+            })
+            .ToListAsync();
 
-        var merged = authors.Concat(_customAuthors).ToList();
+        var merged = dbAuthors.Cast<object>().Concat(_customAuthors).ToList();
         return Ok(new { success = true, data = merged });
     }
 
@@ -358,20 +363,22 @@ public class LibraryController : ControllerBase
     }
 
     [HttpGet("racks")]
-    public IActionResult GetRacksLocations()
+    public async Task<IActionResult> GetRacksLocations()
     {
-        var racks = new List<object>
-        {
-            new { rack = "Rack A-01", shelf = "Shelf 1", location = "Science Wing, 1st Floor", capacity = 50, occupied = 32 },
-            new { rack = "Rack A-01", shelf = "Shelf 2", location = "Science Wing, 1st Floor", capacity = 50, occupied = 18 },
-            new { rack = "Rack A-01", shelf = "Shelf 3", location = "Science Wing, 1st Floor", capacity = 50, occupied = 10 },
-            new { rack = "Rack B-02", shelf = "Shelf 1", location = "Maths Wing, 1st Floor", capacity = 40, occupied = 25 },
-            new { rack = "Rack B-02", shelf = "Shelf 2", location = "Maths Wing, 1st Floor", capacity = 40, occupied = 15 },
-            new { rack = "Rack C-03", shelf = "Shelf 1", location = "CS & Tech Lab, 2nd Floor", capacity = 45, occupied = 20 },
-            new { rack = "Rack C-03", shelf = "Shelf 2", location = "CS & Tech Lab, 2nd Floor", capacity = 45, occupied = 8 }
-        };
+        var dbRacks = await _context.LibraryBooks.AsNoTracking()
+            .Where(b => !string.IsNullOrWhiteSpace(b.RackLocation))
+            .GroupBy(b => b.RackLocation!)
+            .Select(g => new
+            {
+                rack = g.Key,
+                shelf = "Shelf 1",
+                location = "Library Wing",
+                capacity = g.Sum(b => b.TotalCopies),
+                occupied = g.Sum(b => b.TotalCopies - b.AvailableCopies)
+            })
+            .ToListAsync();
 
-        var merged = racks.Concat(_customRacks).ToList();
+        var merged = dbRacks.Cast<object>().Concat(_customRacks).ToList();
         return Ok(new { success = true, data = merged });
     }
 
@@ -381,9 +388,9 @@ public class LibraryController : ControllerBase
         var readOnlyCheck = CheckAdminReadOnly();
         if (readOnlyCheck != null) return readOnlyCheck;
 
-        string rack = payload?["rackNo"]?.ToString() ?? payload?["rack"]?.ToString() ?? "Rack E-05";
+        string rack = payload?["rackNo"]?.ToString() ?? payload?["rack"]?.ToString() ?? "Rack";
         string shelf = payload?["shelfNo"]?.ToString() ?? payload?["shelf"]?.ToString() ?? "Shelf 1";
-        string location = payload?["floor"]?.ToString() ?? payload?["location"]?.ToString() ?? "1st Floor";
+        string location = payload?["floor"]?.ToString() ?? payload?["location"]?.ToString() ?? "Library";
         int capacity = int.TryParse(payload?["capacity"]?.ToString(), out var cap) ? cap : 50;
 
         var item = new { rack = rack, shelf = shelf, location = location, capacity = capacity, occupied = 0 };
@@ -426,17 +433,23 @@ public class LibraryController : ControllerBase
         var studentMembers = new List<object>();
         try
         {
-            var studentList = await _context.Students.AsNoTracking().Take(50).ToListAsync();
+            var studentList = await _context.Students.AsNoTracking()
+                .Include(s => s.ClassGrade)
+                .Include(s => s.ClassSection)
+                .Take(50)
+                .ToListAsync();
             studentMembers = studentList.Select(s => {
                 string memId = !string.IsNullOrWhiteSpace(s.AdmissionNumber) ? s.AdmissionNumber : $"REG-{s.StudentId}";
                 int issuedCount = activeIssueCounts.ContainsKey(memId) ? activeIssueCounts[memId] : 0;
+                string classSec = $"{s.ClassGrade?.ClassName} - {s.ClassSection?.SectionName}".Trim(' ', '-');
+                if (string.IsNullOrWhiteSpace(classSec)) classSec = "Student";
                 return (object)new
                 {
                     memberId = memId,
                     memberName = s.StudentName,
                     name = s.StudentName,
                     role = "Student",
-                    classOrDept = "Class Student",
+                    classOrDept = classSec,
                     maxLimit = "3 Books",
                     issued = issuedCount,
                     fineDue = 0,
@@ -583,8 +596,9 @@ public class LibraryController : ControllerBase
         var readOnlyCheck = CheckAdminReadOnly();
         if (readOnlyCheck != null) return readOnlyCheck;
 
-        string bTitle = !string.IsNullOrWhiteSpace(dto.BookTitle) ? dto.BookTitle.Trim() : "Fundamentals of Physics";
-        int bId = dto.BookId.HasValue && dto.BookId.Value > 0 ? dto.BookId.Value : 1;
+        int bId = dto.BookId.HasValue && dto.BookId.Value > 0 ? dto.BookId.Value : 0;
+        var book = bId > 0 ? await _context.LibraryBooks.FindAsync(bId) : null;
+        string bTitle = !string.IsNullOrWhiteSpace(dto.BookTitle) ? dto.BookTitle.Trim() : (book?.Title ?? string.Empty);
 
         DateTime iDate = DateTime.UtcNow;
         DateTime dDate = DateTime.UtcNow.AddDays(14);
@@ -597,9 +611,9 @@ public class LibraryController : ControllerBase
         {
             BookId = bId,
             BookTitle = bTitle,
-            BorrowerRole = !string.IsNullOrWhiteSpace(dto.BorrowerRole) ? dto.BorrowerRole.Trim() : "Student",
-            BorrowerIdCode = !string.IsNullOrWhiteSpace(dto.BorrowerIdCode) ? dto.BorrowerIdCode.Trim() : "STU-001",
-            BorrowerName = !string.IsNullOrWhiteSpace(dto.BorrowerName) ? dto.BorrowerName.Trim() : "Alexander Wright",
+            BorrowerRole = !string.IsNullOrWhiteSpace(dto.BorrowerRole) ? dto.BorrowerRole.Trim() : string.Empty,
+            BorrowerIdCode = !string.IsNullOrWhiteSpace(dto.BorrowerIdCode) ? dto.BorrowerIdCode.Trim() : string.Empty,
+            BorrowerName = !string.IsNullOrWhiteSpace(dto.BorrowerName) ? dto.BorrowerName.Trim() : string.Empty,
             IssueDate = iDate,
             DueDate = dDate,
             FineAmount = 0,
@@ -609,7 +623,6 @@ public class LibraryController : ControllerBase
 
         await _context.LibraryIssueRecords.AddAsync(entity);
 
-        var book = await _context.LibraryBooks.FindAsync(bId);
         if (book != null && book.AvailableCopies > 0)
         {
             book.AvailableCopies -= 1;
@@ -679,30 +692,13 @@ public class LibraryController : ControllerBase
             })
             .ToListAsync();
 
-        if (!activeLoans.Any())
-        {
-            var fallback = new List<object>
-            {
-                new { issueId = 502, bookTitle = "Advanced Mathematics Vol 1", borrower = "Sarah Jenkins (Teacher)", currentDueDate = "2026-09-09", renewals = "0 / 2" },
-                new { issueId = 504, bookTitle = "Complete Works of Shakespeare", borrower = "Rachel Green (Staff)", currentDueDate = "2026-09-11", renewals = "0 / 2" }
-            };
-            return Ok(new { success = true, totalCount = fallback.Count, data = fallback });
-        }
-
         return Ok(new { success = true, totalCount = activeLoans.Count, data = activeLoans });
     }
 
     [HttpGet("reservations")]
     public IActionResult GetReservations()
     {
-        var queue = new List<object>
-        {
-            new { resCode = "RES-101", bookTitle = "Fundamentals of Physics", requestedBy = "Alexander Wright (Student)", date = "2026-08-14", queueStatus = "Pending" },
-            new { resCode = "RES-102", bookTitle = "Computer Science Principles & AI", requestedBy = "Sarah Jenkins (Teacher)", date = "2026-08-18", queueStatus = "Pending" }
-        };
-
-        var merged = queue.Concat(_customReservations).ToList();
-        return Ok(new { success = true, totalCount = merged.Count, data = merged });
+        return Ok(new { success = true, totalCount = _customReservations.Count, data = _customReservations });
     }
 
     [HttpPost("reservations")]
@@ -735,19 +731,40 @@ public class LibraryController : ControllerBase
     // =========================================================
 
     [HttpGet("fines")]
-    public IActionResult GetFinesManagement()
+    public async Task<IActionResult> GetFinesManagement()
     {
-        var fines = new List<object>
+        var fineRecords = await _context.LibraryIssueRecords.AsNoTracking()
+            .Where(r => r.FineAmount > 0 || r.Status == "Overdue")
+            .ToListAsync();
+
+        var fines = fineRecords.Select(r =>
         {
-            new { fineId = 101, fineCode = "FIN-101", memberName = "Alexander Wright (Student)", member = "Alexander Wright (Student)", bookTitle = "Fundamentals of Physics", daysLate = "5 Days", daysOverdue = 5, fineAmount = 25, amount = 25, paymentStatus = "Paid", status = "Paid" },
-            new { fineId = 102, fineCode = "FIN-102", memberName = "Emily Davis (Student)", member = "Emily Davis (Student)", bookTitle = "Computer Science Principles & AI", daysLate = "10 Days", daysOverdue = 10, fineAmount = 50, amount = 50, paymentStatus = "Unpaid", status = "Unpaid" }
-        };
+            int daysOverdue = Math.Max(0, (int)(DateTime.UtcNow.Date - r.DueDate.Date).TotalDays);
+            string payStatus = r.Status == "Returned" ? "Paid" : "Unpaid";
+            return new
+            {
+                fineId = r.IssueId,
+                fineCode = $"FIN-{r.IssueId}",
+                memberName = $"{r.BorrowerName} ({r.BorrowerRole})",
+                member = $"{r.BorrowerName} ({r.BorrowerRole})",
+                bookTitle = r.BookTitle,
+                daysLate = $"{daysOverdue} Days",
+                daysOverdue = daysOverdue,
+                fineAmount = r.FineAmount,
+                amount = r.FineAmount,
+                paymentStatus = payStatus,
+                status = payStatus
+            };
+        }).ToList();
+
+        var totalCollected = fineRecords.Where(r => r.Status == "Returned").Sum(r => r.FineAmount);
+        var totalPending = fineRecords.Where(r => r.Status != "Returned").Sum(r => r.FineAmount);
 
         return Ok(new
         {
             success = true,
-            totalCollected = 25,
-            totalPending = 50,
+            totalCollected,
+            totalPending,
             data = fines
         });
     }
@@ -765,13 +782,7 @@ public class LibraryController : ControllerBase
     [HttpGet("damaged-books")]
     public IActionResult GetLostDamagedBooks()
     {
-        var registry = new List<object>
-        {
-            new { reportId = "LD-101", bookTitle = "Fundamentals of Physics", memberName = "James Brown (Student)", member = "James Brown (Student)", type = "Damaged", replacementCost = 450, status = "Pending" }
-        };
-
-        var merged = registry.Concat(_customLostDamaged).ToList();
-        return Ok(new { success = true, totalCount = merged.Count, data = merged });
+        return Ok(new { success = true, totalCount = _customLostDamaged.Count, data = _customLostDamaged });
     }
 
     [HttpPost("lost-damaged")]
@@ -842,7 +853,7 @@ public class LibraryController : ControllerBase
     {
         if (type?.ToLower() == "issue_return" || type?.ToLower() == "issue-return") return await GetIssueReturnReport();
         if (type?.ToLower() == "overdue") return await GetOverdueReport();
-        if (type?.ToLower() == "fine" || type?.ToLower() == "fines") return GetFineReport();
+        if (type?.ToLower() == "fine" || type?.ToLower() == "fines") return await GetFineReport();
 
         var books = await _context.LibraryBooks.AsNoTracking().ToListAsync();
         var report = books.Select(b => new
@@ -850,24 +861,9 @@ public class LibraryController : ControllerBase
             recordId = $"978-{b.BookId:D10}",
             primaryEntity = b.Title,
             details = $"Author: {b.Author} • {b.Category}",
-            date = b.RackLocation ?? "Rack A-01 (Shelf 1)",
+            date = b.RackLocation ?? "Library Rack",
             amountStatus = $"{b.AvailableCopies} / {b.TotalCopies} Available"
         }).ToList();
-
-        if (!report.Any())
-        {
-            var fallback = new List<object>
-            {
-                new { recordId = "978-0134685991", primaryEntity = "Fundamentals of Physics", details = "Author: Halliday & Resnick • Science & Physics", date = "Rack A-01 (Shelf 1)", amountStatus = "11 / 15 Available" },
-                new { recordId = "978-8121903425", primaryEntity = "Advanced Mathematics Vol 1", details = "Author: R.D. Sharma • Mathematics", date = "Rack B-02 (Shelf 1)", amountStatus = "25 / 30 Available" },
-                new { recordId = "978-0070141698", primaryEntity = "Computer Science Principles & AI", details = "Author: E. Balagurusamy • Computer Science", date = "Rack C-03 (Shelf 1)", amountStatus = "20 / 25 Available" },
-                new { recordId = "978-0141395852", primaryEntity = "Complete Works of Shakespeare", details = "Author: William Shakespeare • Literature & Fiction", date = "Rack D-04 (Shelf 1)", amountStatus = "35 / 40 Available" },
-                new { recordId = "978-8177091976", primaryEntity = "Concepts of Physics Part 1", details = "Author: H.C. Verma • Science & Physics", date = "Rack A-01 (Shelf 2)", amountStatus = "18 / 20 Available" },
-                new { recordId = "978-8121906273", primaryEntity = "Quantitative Aptitude & Logic", details = "Author: R.S. Aggarwal • Mathematics", date = "Rack B-02 (Shelf 2)", amountStatus = "30 / 35 Available" },
-                new { recordId = "978-0262033848", primaryEntity = "Introduction to Algorithms", details = "Author: Cormen & Leiserson • Computer Science", date = "Rack C-03 (Shelf 2)", amountStatus = "12 / 15 Available" }
-            };
-            return Ok(new { success = true, title = "BOOK INVENTORY AUDIT REPORT", totalCount = fallback.Count, data = fallback });
-        }
 
         return Ok(new { success = true, title = "BOOK INVENTORY AUDIT REPORT", totalCount = report.Count, data = report });
     }
@@ -885,18 +881,6 @@ public class LibraryController : ControllerBase
             amountStatus = r.Status
         }).ToList();
 
-        if (!report.Any())
-        {
-            var fallback = new List<object>
-            {
-                new { recordId = "ISS-501", primaryEntity = "Fundamentals of Physics", details = "Borrower: Alexander Wright (Student)", date = "2026-08-01", amountStatus = "Overdue" },
-                new { recordId = "ISS-502", primaryEntity = "Advanced Mathematics Vol 1", details = "Borrower: Sarah Jenkins (Teacher)", date = "2026-08-10", amountStatus = "Issued" },
-                new { recordId = "ISS-503", primaryEntity = "Computer Science Principles & AI", details = "Borrower: Emily Davis (Student)", date = "2026-08-05", amountStatus = "Overdue" },
-                new { recordId = "ISS-504", primaryEntity = "Complete Works of Shakespeare", details = "Borrower: Rachel Green (Staff)", date = "2026-08-12", amountStatus = "Issued" }
-            };
-            return Ok(new { success = true, title = "TRANSACTION ISSUE / RETURN LOG REPORT", totalCount = fallback.Count, data = fallback });
-        }
-
         return Ok(new { success = true, title = "TRANSACTION ISSUE / RETURN LOG REPORT", totalCount = report.Count, data = report });
     }
 
@@ -913,27 +897,24 @@ public class LibraryController : ControllerBase
             amountStatus = "Overdue Fine Pending"
         }).ToList();
 
-        if (!report.Any())
-        {
-            var fallback = new List<object>
-            {
-                new { recordId = "ISS-501", primaryEntity = "Fundamentals of Physics", details = "Late Borrower: Alexander Wright", date = "Due: 2026-08-15", amountStatus = "Overdue Fine Pending" },
-                new { recordId = "ISS-503", primaryEntity = "Computer Science Principles & AI", details = "Late Borrower: Emily Davis", date = "Due: 2026-08-19", amountStatus = "Overdue Fine Pending" }
-            };
-            return Ok(new { success = true, title = "OVERDUE BORROWERS REPORT", totalCount = fallback.Count, data = fallback });
-        }
-
         return Ok(new { success = true, title = "OVERDUE BORROWERS REPORT", totalCount = report.Count, data = report });
     }
 
     [HttpGet("reports/fines")]
-    public IActionResult GetFineReport()
+    public async Task<IActionResult> GetFineReport()
     {
-        var report = new List<object>
+        var records = await _context.LibraryIssueRecords.AsNoTracking()
+            .Where(r => r.FineAmount > 0 || r.Status == "Overdue")
+            .ToListAsync();
+
+        var report = records.Select(r => new
         {
-            new { recordId = "FIN-101", primaryEntity = "Alexander Wright", details = "Fundamentals of Physics (5 Days Overdue)", date = "2026-08-10", amountStatus = "₹25 (Paid)" },
-            new { recordId = "FIN-102", primaryEntity = "Emily Davis", details = "Computer Science Principles & AI (10 Days Overdue)", date = "2026-08-16", amountStatus = "₹50 (Unpaid)" }
-        };
+            recordId = $"FIN-{r.IssueId}",
+            primaryEntity = r.BorrowerName,
+            details = $"{r.BookTitle} ({(r.Status == "Returned" ? "Paid" : "Overdue")})",
+            date = r.DueDate.ToString("yyyy-MM-dd"),
+            amountStatus = $"₹{r.FineAmount:N0} ({(r.Status == "Returned" ? "Paid" : "Unpaid")})"
+        }).ToList();
 
         return Ok(new { success = true, title = "FINE COLLECTION & FINANCE SYNC REPORT", totalCount = report.Count, data = report });
     }
@@ -953,8 +934,8 @@ public class LibraryController : ControllerBase
         BookId = b.BookId,
         Title = b.Title ?? "",
         Author = b.Author ?? "",
-        Category = b.Category ?? "Science",
-        RackLocation = b.RackLocation ?? "Rack S-04",
+        Category = b.Category ?? "",
+        RackLocation = b.RackLocation ?? "",
         TotalCopies = b.TotalCopies,
         AvailableCopies = b.AvailableCopies,
         CreatedAt = b.CreatedAt
@@ -965,8 +946,8 @@ public class LibraryController : ControllerBase
         IssueId = r.IssueId,
         BookId = r.BookId,
         BookTitle = r.BookTitle ?? "",
-        BorrowerRole = r.BorrowerRole ?? "Student",
-        BorrowerIdCode = r.BorrowerIdCode ?? "STU-001",
+        BorrowerRole = r.BorrowerRole ?? "",
+        BorrowerIdCode = r.BorrowerIdCode ?? "",
         BorrowerName = r.BorrowerName ?? "",
         IssueDate = r.IssueDate.ToString("yyyy-MM-dd"),
         DueDate = r.DueDate.ToString("yyyy-MM-dd"),
