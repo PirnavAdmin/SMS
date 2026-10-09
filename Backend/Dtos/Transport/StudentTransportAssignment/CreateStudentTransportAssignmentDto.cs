@@ -7,6 +7,10 @@ namespace SMS.Api.Dtos.Transport.StudentTransportAssignment
 {
     public class CreateStudentTransportAssignmentDto
     {
+        [JsonPropertyName("studentId")]
+        [JsonConverter(typeof(FlexibleNullableLongConverter))]
+        public long? StudentId { get; set; }
+
         [JsonPropertyName("admissionNo")]
         public string AdmissionNo { get; set; } = string.Empty;
 

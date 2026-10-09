@@ -36,4 +36,40 @@ namespace SMS.Api.Common
             writer.WriteNumberValue(value);
         }
     }
+
+    public class FlexibleNullableLongConverter : JsonConverter<long?>
+    {
+        public override long? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+        {
+            if (reader.TokenType == JsonTokenType.Null)
+                return null;
+
+            if (reader.TokenType == JsonTokenType.Number)
+                return reader.GetInt64();
+
+            if (reader.TokenType == JsonTokenType.String)
+            {
+                string? str = reader.GetString();
+                if (string.IsNullOrWhiteSpace(str))
+                    return null;
+
+                if (long.TryParse(str, out long parsed))
+                    return parsed;
+
+                var digits = new string(str.Where(char.IsDigit).ToArray());
+                if (!string.IsNullOrEmpty(digits) && long.TryParse(digits, out long extracted))
+                    return extracted;
+            }
+
+            return null;
+        }
+
+        public override void Write(Utf8JsonWriter writer, long? value, JsonSerializerOptions options)
+        {
+            if (value.HasValue)
+                writer.WriteNumberValue(value.Value);
+            else
+                writer.WriteNullValue();
+        }
+    }
 }

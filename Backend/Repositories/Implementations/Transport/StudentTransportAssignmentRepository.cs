@@ -104,7 +104,7 @@ namespace SMS.Api.Repositories.Implementations
                 .Select(x => new StudentTransportAssignmentDto
                 {
                     StudentTransportAssignmentId = x.StudentTransportAssignmentId,
-
+                    StudentId = x.StudentId,
                     AdmissionNo = x.AdmissionNo ?? string.Empty,
 
                     RouteId = x.RouteId,
@@ -157,7 +157,7 @@ namespace SMS.Api.Repositories.Implementations
                 .Select(x => new StudentTransportAssignmentDto
                 {
                     StudentTransportAssignmentId = x.StudentTransportAssignmentId,
-
+                    StudentId = x.StudentId,
                     AdmissionNo = x.AdmissionNo ?? string.Empty,
 
                     RouteId = x.RouteId,
@@ -196,6 +196,7 @@ namespace SMS.Api.Repositories.Implementations
         {
             var entity = new StudentTransportAssignment
             {
+                StudentId = dto.StudentId,
                 AdmissionNo = dto.AdmissionNo ?? string.Empty,
                 RouteId = dto.RouteId,
                 PickupPointId = dto.PickupPointId,
@@ -237,6 +238,9 @@ namespace SMS.Api.Repositories.Implementations
 
             if (entity == null)
                 return false;
+
+            if (dto.StudentId.HasValue && dto.StudentId.Value > 0)
+                entity.StudentId = dto.StudentId;
 
             entity.AdmissionNo = dto.AdmissionNo ?? string.Empty;
             entity.RouteId = dto.RouteId;
