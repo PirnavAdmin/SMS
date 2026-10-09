@@ -167,9 +167,15 @@ namespace SMS.Api.Repositories.Implementations
                 }
             }
 
-            if (!resolvedAttendantId.HasValue && !string.IsNullOrWhiteSpace(dto.SelectBusAttendant) && !dto.SelectBusAttendant.Equals("Unassigned", StringComparison.OrdinalIgnoreCase) && !dto.SelectBusAttendant.Equals("string", StringComparison.OrdinalIgnoreCase))
+            var candidateAttName = dto.SelectBusAttendant ?? dto.AttendantName ?? dto.BusAttendant;
+            if (!string.IsNullOrWhiteSpace(candidateAttName))
             {
-                var attName = dto.SelectBusAttendant.Trim();
+                candidateAttName = System.Text.RegularExpressions.Regex.Replace(candidateAttName, @"\s*\(.*?\)", "").Trim();
+            }
+
+            if (!resolvedAttendantId.HasValue && !string.IsNullOrWhiteSpace(candidateAttName) && !candidateAttName.Equals("Unassigned", StringComparison.OrdinalIgnoreCase) && !candidateAttName.Equals("string", StringComparison.OrdinalIgnoreCase))
+            {
+                var attName = candidateAttName;
                 var matched = await _context.TransportAttendants.FirstOrDefaultAsync(a => !a.IsDeleted && a.AttendantName != null && a.AttendantName.ToLower() == attName.ToLower());
                 if (matched != null)
                 {
@@ -251,15 +257,21 @@ namespace SMS.Api.Repositories.Implementations
                 }
             }
 
-            if (!string.IsNullOrWhiteSpace(dto.SelectBusAttendant))
+            var candidateAttName = dto.SelectBusAttendant ?? dto.AttendantName ?? dto.BusAttendant;
+            if (!string.IsNullOrWhiteSpace(candidateAttName))
             {
-                if (dto.SelectBusAttendant.Equals("Unassigned", StringComparison.OrdinalIgnoreCase))
+                candidateAttName = System.Text.RegularExpressions.Regex.Replace(candidateAttName, @"\s*\(.*?\)", "").Trim();
+            }
+
+            if (!string.IsNullOrWhiteSpace(candidateAttName))
+            {
+                if (candidateAttName.Equals("Unassigned", StringComparison.OrdinalIgnoreCase))
                 {
                     resolvedAttendantId = null;
                 }
-                else if (!dto.SelectBusAttendant.Equals("string", StringComparison.OrdinalIgnoreCase))
+                else if (!candidateAttName.Equals("string", StringComparison.OrdinalIgnoreCase))
                 {
-                    var attName = dto.SelectBusAttendant.Trim();
+                    var attName = candidateAttName;
                     var matched = await _context.TransportAttendants.FirstOrDefaultAsync(a => !a.IsDeleted && a.AttendantName != null && a.AttendantName.ToLower() == attName.ToLower());
                     if (matched != null)
                     {
