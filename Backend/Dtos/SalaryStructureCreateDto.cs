@@ -6,7 +6,7 @@ public class SalaryStructureCreateDto
 {
     public string StructureName { get; set; } = string.Empty;
     public string EmployeeCategory { get; set; } = "Teacher"; // Maps StaffCategory
-    public string Branch { get; set; } = "Main Campus";
+    public string Branch { get; set; } = string.Empty;
     public string Department { get; set; } = "General";
     public string Designation { get; set; } = "Teacher";
     public string EmploymentType { get; set; } = "Full-time";

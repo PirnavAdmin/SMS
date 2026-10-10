@@ -78,7 +78,7 @@ namespace SMS.Api.Repositories.Implementations
                     AttendantId = x.AttendantId,
                     AttendantName = x.Attendant != null ? x.Attendant.AttendantName : null,
 
-                    BranchName = x.BranchName ?? "Main Campus",
+                    BranchName = x.BranchName ?? string.Empty,
                     AcademicYear = x.AcademicYear ?? "2026-2027",
                     MorningTripTime = x.MorningTripTime ?? "07:00 AM",
                     EveningTripTime = x.EveningTripTime ?? "03:45 PM",
@@ -118,7 +118,7 @@ namespace SMS.Api.Repositories.Implementations
                     AssignmentId = x.AssignmentId,
 
                     RouteId = x.RouteId,
-                    RouteName = x.Route != null && !string.IsNullOrWhiteSpace(x.Route.RouteName) ? x.Route.RouteName : "Main Campus Route",
+                    RouteName = x.Route != null && !string.IsNullOrWhiteSpace(x.Route.RouteName) ? x.Route.RouteName : "Designated Route",
 
                     VehicleId = x.VehicleId,
                     VehicleNumber = x.Vehicle != null && !string.IsNullOrWhiteSpace(x.Vehicle.VehicleNumber) ? x.Vehicle.VehicleNumber : "KA-01-F-1234",
@@ -132,7 +132,7 @@ namespace SMS.Api.Repositories.Implementations
                     AttendantId = x.AttendantId,
                     AttendantName = x.Attendant != null && !string.IsNullOrWhiteSpace(x.Attendant.AttendantName) ? x.Attendant.AttendantName : null,
 
-                    BranchName = !string.IsNullOrWhiteSpace(x.BranchName) ? x.BranchName : "Main Campus",
+                    BranchName = !string.IsNullOrWhiteSpace(x.BranchName) ? x.BranchName : string.Empty,
                     AcademicYear = !string.IsNullOrWhiteSpace(x.AcademicYear) ? x.AcademicYear : "2026-2027",
                     MorningTripTime = !string.IsNullOrWhiteSpace(x.MorningTripTime) ? x.MorningTripTime : "07:00 AM",
                     EveningTripTime = !string.IsNullOrWhiteSpace(x.EveningTripTime) ? x.EveningTripTime : "03:45 PM",
@@ -164,7 +164,7 @@ namespace SMS.Api.Repositories.Implementations
                 var newRoute = new TransportRoute
                 {
                     RouteCode = "R-01",
-                    RouteName = "Main Campus Route",
+                    RouteName = "Designated Route",
                     StartLocation = "City Center",
                     EndLocation = "School Campus",
                     DistanceKm = 10,
@@ -232,7 +232,7 @@ namespace SMS.Api.Repositories.Implementations
                 VehicleId = finalVehicleId,
                 DriverId = finalDriverId,
                 AttendantId = finalAttendantId,
-                BranchName = !string.IsNullOrWhiteSpace(dto.BranchName) && !dto.BranchName.Equals("string", StringComparison.OrdinalIgnoreCase) ? dto.BranchName.Trim() : "Main Campus",
+                BranchName = !string.IsNullOrWhiteSpace(dto.BranchName) && !dto.BranchName.Equals("string", StringComparison.OrdinalIgnoreCase) ? dto.BranchName.Trim() : string.Empty,
                 AcademicYear = !string.IsNullOrWhiteSpace(dto.AcademicYear) && !dto.AcademicYear.Equals("string", StringComparison.OrdinalIgnoreCase) ? dto.AcademicYear.Trim() : "2026-2027",
                 MorningTripTime = !string.IsNullOrWhiteSpace(dto.MorningTripTime) && !dto.MorningTripTime.Equals("string", StringComparison.OrdinalIgnoreCase) ? dto.MorningTripTime.Trim() : "07:00 AM",
                 EveningTripTime = !string.IsNullOrWhiteSpace(dto.EveningTripTime) && !dto.EveningTripTime.Equals("string", StringComparison.OrdinalIgnoreCase) ? dto.EveningTripTime.Trim() : "03:45 PM",

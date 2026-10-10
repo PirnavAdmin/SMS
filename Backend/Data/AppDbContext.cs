@@ -594,8 +594,7 @@ namespace SMS.Api.Data
 
                 entity.Property(x => x.CampusLocation)
                     .HasColumnName("CampusLocation")
-                    .HasMaxLength(100)
-                    .HasDefaultValue("Main Campus");
+                    .HasMaxLength(100);
 
                 entity.Property(x => x.AcademicYear)
                     .HasColumnName("AcademicYear")

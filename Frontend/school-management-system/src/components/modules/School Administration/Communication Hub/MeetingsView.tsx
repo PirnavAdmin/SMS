@@ -628,7 +628,7 @@ export const MeetingsView: React.FC = () => {
       title: title.trim(),
       description: formData.description,
       academicYear: schoolProfile.academicYear || '2025-2026',
-      branch: user?.branch || 'Main Campus',
+      branch: user?.branch || '',
       meetingAudience,
       participantType: meetingAudience === 'Individual' ? participantType : selectedGroupParticipantTypes[0] || 'Teaching Staff',
       participants: participantsList,

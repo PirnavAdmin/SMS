@@ -45,10 +45,12 @@ export const AcademicHistoryImportModal: React.FC<AcademicHistoryImportModalProp
     importHistoricalAttendanceData,
     importHistoricalExamData,
     importHistoricalFeeData,
-    logActivity
+    logActivity,
+    branches
   } = useData();
 
   const { addToast } = useToast();
+  const defaultBranchName = branches[0]?.name || '';
 
   const [activeDomain, setActiveDomain] = useState<ImportDomain>('academic-history');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -85,7 +87,7 @@ export const AcademicHistoryImportModal: React.FC<AcademicHistoryImportModalProp
           'Section': 'A',
           'Roll No': '1001',
           'Class Teacher': 'Rajesh Sharma',
-          'Branch': 'Main Campus',
+          'Branch': defaultBranchName,
           'Status': 'Promoted',
           'Remarks': 'Promoted to Next Class'
         },
@@ -96,7 +98,7 @@ export const AcademicHistoryImportModal: React.FC<AcademicHistoryImportModalProp
           'Section': 'B',
           'Roll No': '1002',
           'Class Teacher': 'Anita Verma',
-          'Branch': 'Main Campus',
+          'Branch': defaultBranchName,
           'Status': 'Retained',
           'Remarks': 'Retained in Class 5'
         }
@@ -428,7 +430,7 @@ export const AcademicHistoryImportModal: React.FC<AcademicHistoryImportModalProp
             className: v.className,
             section: v.section,
             rollNo: v.rollNo,
-            branch: v.branch || targetStudent.branch || 'Main Campus',
+            branch: v.branch || targetStudent.branch || defaultBranchName || '',
             status: v.status as AcademicYearStatus,
             promotionStatus: v.status,
             remarks: v.remarks || 'Imported via Excel Import',

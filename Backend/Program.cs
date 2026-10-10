@@ -695,7 +695,7 @@ using (var scope = app.Services.CreateScope())
             @"CREATE TABLE IF NOT EXISTS `classes` (
                 `id` int NOT NULL AUTO_INCREMENT,
                 `ClassName` varchar(100) NULL,
-                `CampusLocation` varchar(100) NOT NULL DEFAULT 'Main Campus',
+                `CampusLocation` varchar(100) NULL,
                 `AcademicYear` varchar(20) NOT NULL DEFAULT '2026-2027',
                 `DisplayOrder` int NULL,
                 `status` varchar(20) NOT NULL DEFAULT 'Active',
@@ -1058,7 +1058,7 @@ using (var scope = app.Services.CreateScope())
                 `Date` datetime(6) NOT NULL,
                 `Status` varchar(50) NOT NULL DEFAULT 'Present',
                 `AcademicYear` varchar(50) NULL DEFAULT '2026-2027',
-                `Branch` varchar(100) NULL DEFAULT 'Main Campus',
+                `Branch` varchar(100) NULL,
                 `Department` varchar(100) NULL,
                 `Designation` varchar(100) NULL,
                 `Remarks` varchar(500) NULL,
@@ -1106,7 +1106,7 @@ using (var scope = app.Services.CreateScope())
             @"CREATE TABLE IF NOT EXISTS `timetable_headers` (
                 `HeaderId` int NOT NULL AUTO_INCREMENT,
                 `AcademicYear` varchar(50) NOT NULL DEFAULT '2026-2027',
-                `BranchName` varchar(100) NOT NULL DEFAULT 'Main Campus',
+                `BranchName` varchar(100) NULL,
                 `ClassId` int NOT NULL,
                 `SectionId` int NOT NULL,
                 `Status` varchar(30) NOT NULL DEFAULT 'Draft',
@@ -1242,7 +1242,7 @@ using (var scope = app.Services.CreateScope())
                 `StructureId` int NOT NULL AUTO_INCREMENT,
                 `StructureCode` varchar(50) NOT NULL,
                 `StructureName` varchar(150) NOT NULL,
-                `Branch` varchar(150) NOT NULL DEFAULT 'Main Campus',
+                `Branch` varchar(150) NULL,
                 `Department` varchar(150) NOT NULL DEFAULT 'General',
                 `Designation` varchar(150) NOT NULL DEFAULT 'Teacher',
                 `StaffCategory` varchar(150) NOT NULL DEFAULT 'Teacher',
@@ -1621,7 +1621,7 @@ using (var scope = app.Services.CreateScope())
 
         EnsureColumnExists("classes", "id", "int NOT NULL AUTO_INCREMENT");
         EnsureColumnExists("classes", "ClassName", "varchar(100) NULL");
-        EnsureColumnExists("classes", "CampusLocation", "varchar(100) NOT NULL DEFAULT 'Main Campus'");
+        EnsureColumnExists("classes", "CampusLocation", "varchar(100) NULL");
         EnsureColumnExists("classes", "AcademicYear", "varchar(20) NOT NULL DEFAULT '2026-2027'");
         EnsureColumnExists("classes", "DisplayOrder", "int NULL");
         EnsureColumnExists("classes", "status", "varchar(20) NOT NULL DEFAULT 'Active'");

@@ -30,7 +30,7 @@ public class AdmissionApplication
     public int? AppliedClassId { get; set; }
     public ClassGrade? AppliedClass { get; set; }
 
-    public string? BranchName { get; set; } = "Main Campus";
+    public string? BranchName { get; set; }
 
     public string? BloodGroup { get; set; }
     public string? Religion { get; set; }

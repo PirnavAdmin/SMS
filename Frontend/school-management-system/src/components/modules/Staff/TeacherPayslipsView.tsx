@@ -166,7 +166,7 @@ export const TeacherPayslipsView: React.FC = () => {
       department: isWarden ? 'Hostel Management' : isAccountant ? 'Finance & Accounts' : ((user as any)?.department || 'Academics'),
       designation: isWarden ? 'Hostel Warden' : isAccountant ? 'Accountant' : ((user as any)?.designation || 'Teacher'),
       role: isWarden ? 'Hostel Warden' : isAccountant ? 'Accountant' : 'Teacher',
-      branch: user?.branch || 'Main Campus',
+      branch: user?.branch || '',
       bankDetails: { accountNumber: 'XXXX-XXXX-4829' }
     };
   }, [staff, user, isWarden, isAccountant]);
@@ -211,7 +211,7 @@ export const TeacherPayslipsView: React.FC = () => {
         employeeId: teacherStaffMember?.id || empIdCode,
         employeeName: staffName,
         empId: empIdCode,
-        branch: (teacherStaffMember as any)?.branch || user?.branch || 'Main Campus',
+        branch: (teacherStaffMember as any)?.branch || user?.branch || '',
         department: dept,
         designation: desig,
         employeeCategory: isAccountant ? 'Accountant' : isWarden ? 'Hostel Warden' : 'Teacher',
@@ -383,7 +383,7 @@ export const TeacherPayslipsView: React.FC = () => {
               <div class="emp-cell"><span class="emp-label">Employee ID:</span><span class="emp-val">${p.empId}</span></div>
               <div class="emp-cell"><span class="emp-label">Department:</span><span class="emp-val">${p.department || 'Academics'}</span></div>
               <div class="emp-cell"><span class="emp-label">Designation:</span><span class="emp-val">${p.designation || 'Teacher'}</span></div>
-              <div class="emp-cell"><span class="emp-label">Branch/Campus:</span><span class="emp-val">${p.branch || 'Main Campus'}</span></div>
+              <div class="emp-cell"><span class="emp-label">Branch/Campus:</span><span class="emp-val">${p.branch || '—'}</span></div>
               <div class="emp-cell"><span class="emp-label">Disbursed Date:</span><span class="emp-val">${p.disbursedDate}</span></div>
               <div class="emp-cell"><span class="emp-label">Bank Account:</span><span class="emp-val">${p.bankAccount}</span></div>
               <div class="emp-cell"><span class="emp-label">Payment Status:</span><span class="emp-val" style="color: #16a34a;">CONFIRMED (PAID)</span></div>
@@ -743,7 +743,7 @@ export const TeacherPayslipsView: React.FC = () => {
               </div>
               <div>
                 <span className="text-[10px] uppercase font-bold text-slate-400">Branch</span>
-                <p className="font-bold text-slate-900 dark:text-white mt-0.5">{viewingPayslip.branch || 'Main Campus'}</p>
+                <p className="font-bold text-slate-900 dark:text-white mt-0.5">{viewingPayslip.branch || '—'}</p>
               </div>
               <div>
                 <span className="text-[10px] uppercase font-bold text-slate-400">Payment Status</span>

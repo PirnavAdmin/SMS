@@ -67,7 +67,7 @@ namespace SMS.Api.Services.Implementations
                 var rolesList = new List<string> { "Admin" };
                 var token = GenerateJwtTokenForAdmin(admin, rolesList);
 
-                return new AuthResponseDto(admin.AdminId, admin.FullName, token, rolesList, admin.Email, admin.MobileNumber, admin.Avatar, "Main Campus");
+                return new AuthResponseDto(admin.AdminId, admin.FullName, token, rolesList, admin.Email, admin.MobileNumber, admin.Avatar, string.Empty);
             }
             else
             {
@@ -87,7 +87,7 @@ namespace SMS.Api.Services.Implementations
                 var rolesList = GetUserRolesList(user);
                 var token = GenerateJwtToken(user, rolesList);
 
-                return new AuthResponseDto(user.UserId, user.FullName, token, rolesList, user.Email, user.MobileNumber, user.Avatar, "Main Campus");
+                return new AuthResponseDto(user.UserId, user.FullName, token, rolesList, user.Email, user.MobileNumber, user.Avatar, string.Empty);
             }
         }
 
@@ -137,7 +137,7 @@ namespace SMS.Api.Services.Implementations
                             admin.Email,
                             admin.MobileNumber,
                             admin.Avatar,
-                            "Main Campus");
+                            string.Empty);
                     }
                     else if (string.Equals(portal, "Admin", StringComparison.OrdinalIgnoreCase))
                     {
@@ -197,7 +197,7 @@ namespace SMS.Api.Services.Implementations
                             linkedUser.Email ?? student.Email,
                             linkedUser.MobileNumber ?? student.MobileNumber ?? student.FatherMobile,
                             linkedUser.Avatar,
-                            student.Branch?.BranchName ?? "Main Campus");
+                            student.Branch?.BranchName ?? string.Empty);
                     }
                 }
                 return null;
@@ -254,7 +254,7 @@ namespace SMS.Api.Services.Implementations
                             linkedUser.Email ?? driver.Email,
                             linkedUser.MobileNumber ?? driver.MobileNumber,
                             linkedUser.Avatar,
-                            "Main Campus");
+                            string.Empty);
                     }
                 }
                 return null;
@@ -339,7 +339,7 @@ namespace SMS.Api.Services.Implementations
                             linkedUser.Email ?? staffMember.Email,
                             linkedUser.MobileNumber ?? staffMember.Phone,
                             staffMember.ProfilePhoto ?? linkedUser.Avatar,
-                            "Main Campus");
+                            staffMember.BranchName ?? string.Empty);
                     }
                 }
                 return null;
@@ -380,7 +380,7 @@ namespace SMS.Api.Services.Implementations
                             linkedUser.Email ?? warden.EmailAddress,
                             linkedUser.MobileNumber ?? warden.MobileNumber,
                             linkedUser.Avatar,
-                            "Main Campus");
+                            string.Empty);
                     }
                 }
                 return null;
@@ -411,7 +411,7 @@ namespace SMS.Api.Services.Implementations
                             parentUser.Email,
                             parentUser.MobileNumber,
                             parentUser.Avatar,
-                            "Main Campus"
+                            string.Empty
                         );
                     }
                 }
@@ -456,7 +456,7 @@ namespace SMS.Api.Services.Implementations
                             linkedUser.Email ?? studentWithParent.Email,
                             linkedUser.MobileNumber ?? studentWithParent.FatherMobile ?? studentWithParent.MotherMobile,
                             linkedUser.Avatar,
-                            studentWithParent.Branch?.BranchName ?? "Main Campus"
+                            studentWithParent.Branch?.BranchName ?? string.Empty
                         );
                     }
                 }
@@ -538,7 +538,7 @@ namespace SMS.Api.Services.Implementations
                             user.Email,
                             user.MobileNumber,
                             user.Avatar,
-                            "Main Campus");
+                            string.Empty);
                     }
                 }
                 return null;

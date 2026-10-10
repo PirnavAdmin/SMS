@@ -101,7 +101,7 @@ namespace SMS.Api.Dtos
         public string Avatar { get; set; } = string.Empty;
 
         [JsonPropertyName("branch")]
-        public string Branch { get; set; } = "Main Campus";
+        public string Branch { get; set; } = string.Empty;
 
         [JsonPropertyName("role")]
         public string Role { get; set; } = "Admin";

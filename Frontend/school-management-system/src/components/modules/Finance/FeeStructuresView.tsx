@@ -277,6 +277,81 @@ export const FeeStructuresView: React.FC<FeeStructuresViewProps> = ({ initialCat
     };
   }, [selectedRoomId, roomsForSelectedHostel, hostelRooms, roomTypesList, roomTypeMasters]);
 
+  // --- Academic Year string normalizer (handles "2026 -2027" vs "2026-2027") ---
+  const normalizeAY = useCallback((ay?: string) => (ay || "").replace(/\s+/g, "").trim(), []);
+
+  // --- Track configured items in existing Fee Structures for active Academic Year ---
+  const {
+    configuredHostelBlockIds,
+    configuredHostelRoomIds,
+    configuredTuitionClasses,
+  } = useMemo(() => {
+    const currentAY = normalizeAY(modalAcademicYear || selectedAcademicYear);
+    const blockIds = new Set<string>();
+    const roomIds = new Set<string>();
+    const tuitionClasses = new Set<string>();
+
+    dynamicFeeStructures.forEach((s) => {
+      // In edit mode, don't treat the structure currently being edited as already configured
+      if (editingStruct && String(s.id) === String(editingStruct.id)) return;
+
+      const structAY = normalizeAY(s.academicYear);
+      if (currentAY && structAY && structAY !== currentAY) return;
+
+      const cat = normalizeCategory(s);
+      if (cat === "Hostel") {
+        if (s.hostelId) blockIds.add(String(s.hostelId));
+        (s.items || []).forEach((item) => {
+          if (item.hostelBlockId) blockIds.add(String(item.hostelBlockId));
+          if (item.roomId) roomIds.add(String(item.roomId));
+          if (item.roomNo) roomIds.add(String(item.roomNo).trim());
+        });
+      } else if (cat === "Tuition Fee") {
+        if (s.className) tuitionClasses.add(s.className.trim().toLowerCase());
+      }
+    });
+
+    return {
+      configuredHostelBlockIds: blockIds,
+      configuredHostelRoomIds: roomIds,
+      configuredTuitionClasses: tuitionClasses,
+    };
+  }, [dynamicFeeStructures, modalAcademicYear, selectedAcademicYear, editingStruct, normalizeAY]);
+
+  // --- Available Hostel Facilities for Modal ---
+  const availableHostelFacilities = useMemo(() => {
+    if (editingStruct) {
+      // When editing an existing structure, keep all facilities available
+      return hostelFacilities;
+    }
+    // In create mode, filter out facilities that already have a fee structure configured
+    return hostelFacilities.filter((b) => {
+      const bId = String(b.hostelId || (b as any).id);
+      return !configuredHostelBlockIds.has(bId);
+    });
+  }, [hostelFacilities, configuredHostelBlockIds, editingStruct]);
+
+  // --- Track Room IDs already added to the current modal's table ---
+  const currentModalRoomIds = useMemo(() => {
+    const ids = new Set<string>();
+    hostelItemsList.forEach((item) => {
+      if (item.roomId) ids.add(String(item.roomId));
+      if (item.roomNo) ids.add(String(item.roomNo).trim());
+    });
+    return ids;
+  }, [hostelItemsList]);
+
+  // --- Available Rooms for Selected Hostel in Modal ---
+  const availableRoomsForHostel = useMemo(() => {
+    return roomsForSelectedHostel.filter((r) => {
+      const rId = String(r.roomId || (r as any).id);
+      const rNum = String(r.roomNumber || (r as any).roomNo || "").trim();
+      const isAlreadySaved = configuredHostelRoomIds.has(rId) || (rNum && configuredHostelRoomIds.has(rNum));
+      const isAlreadyInModal = currentModalRoomIds.has(rId) || (rNum && currentModalRoomIds.has(rNum));
+      return !isAlreadySaved && !isAlreadyInModal;
+    });
+  }, [roomsForSelectedHostel, configuredHostelRoomIds, currentModalRoomIds]);
+
   // Pickup points filtered by selected route
   const availableStopsForRoute = useMemo(() => {
     if (!selectedRouteId) return [];
@@ -573,6 +648,7 @@ export const FeeStructuresView: React.FC<FeeStructuresViewProps> = ({ initialCat
     };
 
     setHostelItemsList((prev) => [...prev, newItem]);
+    setSelectedRoomId("");
     setHostelAmount("");
   };
 
@@ -791,6 +867,10 @@ export const FeeStructuresView: React.FC<FeeStructuresViewProps> = ({ initialCat
         addToast("warning", "Validation Error", "Please add at least one Room Configuration row.");
         return;
       }
+      if (!editingStruct && availableHostelFacilities.length === 0 && hostelFacilities.length > 0) {
+        addToast("warning", "Hostel Already Configured", "All active hostel facilities already have fee structures configured for this academic year. Please edit the existing Fee Structure to add or update rooms.");
+        return;
+      }
       for (const item of hostelItemsList) {
         const hHead = activeFeeHeads.find(h => h.id === item.feeHeadId || (item.feeHeadName && h.name.toLowerCase() === item.feeHeadName.toLowerCase()));
         if (hHead && item.term && item.term !== "Annual") {
@@ -801,11 +881,20 @@ export const FeeStructuresView: React.FC<FeeStructuresViewProps> = ({ initialCat
         }
       }
       const totalAmt = hostelItemsList.reduce((sum, i) => sum + i.amount, 0);
+      const firstBlk =
+        hostelFacilities.find((b: any) => String(b.hostelId || b.id) === String(hostelItemsList[0]?.hostelBlockId)) ||
+        (hostelBlocks || []).find((b: any) => String(b.hostelId || b.id) === String(hostelItemsList[0]?.hostelBlockId));
+      const blkName =
+        hostelItemsList[0]?.hostelBlockName ||
+        (firstBlk as any)?.hostelName ||
+        (firstBlk as any)?.name ||
+        "Hostel";
+      const structName = editingStruct?.name || (blkName && blkName !== "Hostel" ? `${blkName} Fee Structure (${defaultAy})` : `Hostel Fee Structure (${defaultAy})`);
       payload = {
-        name: `Hostel Fee Structure (${defaultAy})`,
+        name: structName,
         academicYear: defaultAy,
         branch: defaultBranch,
-        className: "Hostel",
+        className: blkName !== "Hostel" ? blkName : "Hostel",
         studentCategory: "Resident",
         category: "Hostel",
         feeCategory: "Hostel",
@@ -1607,11 +1696,14 @@ export const FeeStructuresView: React.FC<FeeStructuresViewProps> = ({ initialCat
                       className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-xs font-bold outline-none cursor-pointer"
                     >
                       <option value="">Select Class Grade</option>
-                      {sortedClasses.map((c) => (
-                        <option key={c.id} value={c.name}>
-                          {c.name}
-                        </option>
-                      ))}
+                      {sortedClasses.map((c) => {
+                        const isConfigured = !editingStruct && configuredTuitionClasses.has(c.name.trim().toLowerCase());
+                        return (
+                          <option key={c.id} value={c.name} disabled={isConfigured}>
+                            {c.name} {isConfigured ? "(Already Configured)" : ""}
+                          </option>
+                        );
+                      })}
                     </select>
                   </div>
 
@@ -1850,7 +1942,7 @@ export const FeeStructuresView: React.FC<FeeStructuresViewProps> = ({ initialCat
                       <select
                         value={selectedBlockId}
                         onChange={(e) => handleHostelFacilityChange(e.target.value)}
-                        disabled={hostelFacilitiesLoading}
+                        disabled={hostelFacilitiesLoading || (!editingStruct && availableHostelFacilities.length === 0)}
                         className="w-full px-2.5 py-1.5 rounded-lg bg-white dark:bg-slate-900 border text-xs outline-none disabled:opacity-50"
                       >
                         {hostelFacilitiesLoading ? (
@@ -1859,10 +1951,12 @@ export const FeeStructuresView: React.FC<FeeStructuresViewProps> = ({ initialCat
                           <option value="">Error loading hostel facilities</option>
                         ) : hostelFacilities.length === 0 ? (
                           <option value="">No active hostel facilities available</option>
+                        ) : !editingStruct && availableHostelFacilities.length === 0 ? (
+                          <option value="">All active hostel facilities are already configured</option>
                         ) : (
                           <>
                             <option value="">Select Hostel...</option>
-                            {hostelFacilities.map((b) => (
+                            {availableHostelFacilities.map((b) => (
                               <option key={b.hostelId} value={String(b.hostelId)}>
                                 {b.hostelName} {b.hostelCode ? `(${b.hostelCode})` : ""}
                               </option>
@@ -1870,6 +1964,11 @@ export const FeeStructuresView: React.FC<FeeStructuresViewProps> = ({ initialCat
                           </>
                         )}
                       </select>
+                      {!hostelFacilitiesLoading && !editingStruct && availableHostelFacilities.length === 0 && hostelFacilities.length > 0 && (
+                        <p className="mt-1 text-[11px] text-sky-600 dark:text-sky-400 font-medium">
+                          All active hostel facilities have already been configured for {modalAcademicYear || "this academic year"}. To configure additional rooms or update rates, please edit the existing Fee Structure.
+                        </p>
+                      )}
                       {!hostelFacilitiesLoading && hostelFacilities.length === 0 && (
                         <p className="mt-1 text-[11px] text-amber-600 dark:text-amber-400">
                           No active hostel facilities available. Create an active hostel facility in Hostel Management first.
@@ -1889,7 +1988,7 @@ export const FeeStructuresView: React.FC<FeeStructuresViewProps> = ({ initialCat
                       <select
                         value={selectedRoomId}
                         onChange={(e) => setSelectedRoomId(e.target.value)}
-                        disabled={!selectedBlockId || roomsLoading}
+                        disabled={!selectedBlockId || roomsLoading || availableRoomsForHostel.length === 0}
                         className="w-full px-2.5 py-1.5 rounded-lg bg-white dark:bg-slate-900 border text-xs outline-none disabled:opacity-50"
                       >
                         {!selectedBlockId ? (
@@ -1898,10 +1997,12 @@ export const FeeStructuresView: React.FC<FeeStructuresViewProps> = ({ initialCat
                           <option value="">Loading rooms...</option>
                         ) : roomsForSelectedHostel.length === 0 ? (
                           <option value="">No active rooms available</option>
+                        ) : availableRoomsForHostel.length === 0 ? (
+                          <option value="">All rooms for this facility are already configured</option>
                         ) : (
                           <>
                             <option value="">Select Room...</option>
-                            {roomsForSelectedHostel.map((r) => (
+                            {availableRoomsForHostel.map((r) => (
                               <option key={r.roomId} value={String(r.roomId)}>
                                 Room {r.roomNumber} ({r.roomTypeSpecification || `${r.bedCapacity || 1}-Bed`} • Floor: {r.floorLevel || "Ground Floor"})
                               </option>
@@ -1909,6 +2010,11 @@ export const FeeStructuresView: React.FC<FeeStructuresViewProps> = ({ initialCat
                           </>
                         )}
                       </select>
+                      {selectedBlockId && !roomsLoading && roomsForSelectedHostel.length > 0 && availableRoomsForHostel.length === 0 && (
+                        <p className="mt-1 text-[11px] text-sky-600 dark:text-sky-400 font-medium">
+                          All rooms in this facility are already configured for this academic year.
+                        </p>
+                      )}
                       {selectedBlockId && !roomsLoading && roomsForSelectedHostel.length === 0 && (
                         <p className="mt-1 text-[11px] text-amber-600 dark:text-amber-400">
                           No active rooms found for this facility. Add rooms in Hostel Management → Room Master first.
@@ -1998,7 +2104,8 @@ export const FeeStructuresView: React.FC<FeeStructuresViewProps> = ({ initialCat
                       <button
                         type="button"
                         onClick={handleAddHostelItem}
-                        className="w-full px-3 py-1.5 bg-amber-600 hover:bg-amber-500 text-white font-bold rounded-lg text-xs flex items-center justify-center gap-1 cursor-pointer transition-all"
+                        disabled={!selectedBlockId || !selectedRoomId || !hostelAmount}
+                        className="w-full px-3 py-1.5 bg-amber-600 hover:bg-amber-500 text-white font-bold rounded-lg text-xs flex items-center justify-center gap-1 cursor-pointer transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         <Plus className="w-3.5 h-3.5" /> Add Room Row
                       </button>

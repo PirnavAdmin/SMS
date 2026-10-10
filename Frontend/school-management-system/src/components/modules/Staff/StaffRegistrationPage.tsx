@@ -35,7 +35,7 @@ const getInitialCategory = (): string => {
 };
 
 export const StaffRegistrationPage: React.FC<StaffRegistrationPageProps> = ({ onNavigate }) => {
-  const { staff, addStaff, departments, designations } = useData();
+  const { staff, addStaff, departments, designations, branches } = useData();
   const { selectedBranch } = useAuth();
   const { addToast } = useToast();
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -43,13 +43,15 @@ export const StaffRegistrationPage: React.FC<StaffRegistrationPageProps> = ({ on
 
   const [form, setForm] = useState<BasicStaffFormState>(() => {
     const initCat = getInitialCategory();
-    let initBranch = 'Main Campus';
+    let initBranch = '';
     try {
       const storedB = sessionStorage.getItem('staff-registration-branch');
       if (storedB) initBranch = storedB;
     } catch {}
     if (selectedBranch && selectedBranch !== 'All' && selectedBranch !== 'All Branches' && selectedBranch !== 'All Campuses') {
       initBranch = selectedBranch;
+    } else if (!initBranch) {
+      initBranch = branches[0]?.name || '';
     }
     return {
       ...defaultBasicStaffFormState(initCat),

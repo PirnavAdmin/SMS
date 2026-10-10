@@ -14,7 +14,7 @@ public class SchoolEvent
     [Required]
     public string Category { get; set; } = "Sports Day"; // "Sports Day", "Science Exhibition", "Parent Teacher Meeting", "Cultural Fest"
 
-    public string Venue { get; set; } = "Main Campus Stadium Ground";
+    public string Venue { get; set; } = "School Stadium Ground";
 
     [Required]
     public DateTime StartDate { get; set; }
@@ -29,5 +29,5 @@ public class SchoolEvent
 
     public string Status { get; set; } = "Published"; // "Published", "Draft"
 
-    public string ApplicableBranch { get; set; } = "Main Campus";
+    public string ApplicableBranch { get; set; } = string.Empty;
 }

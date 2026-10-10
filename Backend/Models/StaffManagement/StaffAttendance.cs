@@ -24,7 +24,7 @@ public class StaffAttendance
 
     public string? AcademicYear { get; set; } = "2026-2027";
 
-    public string? Branch { get; set; } = "Main Campus";
+    public string? Branch { get; set; }
 
     public string? Department { get; set; }
 

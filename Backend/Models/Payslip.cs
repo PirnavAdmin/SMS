@@ -39,7 +39,7 @@ public class Payslip
 
     public string? EmpId { get; set; }
     public string? EmployeeCategory { get; set; } = "Teaching Staff";
-    public string? Branch { get; set; } = "Main Campus";
+    public string? Branch { get; set; }
 
     public decimal LeaveDeduction { get; set; } = 0;
     public decimal LopDeduction { get; set; } = 0;

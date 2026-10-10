@@ -13,7 +13,7 @@ import { Payslip } from '../../../types';
 import { Pagination } from '../../common/Pagination';
 
 export const DriverPayslipsView: React.FC = () => {
-  const { user } = useAuth();
+  const { user, selectedBranch } = useAuth();
   const { staff = [], driverMasters = [], payslips = [], schoolProfile } = useData();
 
   const [searchQuery, setSearchQuery] = useState('');
@@ -100,7 +100,7 @@ export const DriverPayslipsView: React.FC = () => {
         employeeId: matchedDriver.employeeId || matchedDriver.id || '',
         employeeName: matchedDriver.driverName || 'Driver',
         empId: matchedDriver.employeeId || matchedDriver.id || '',
-        branch: 'Main Campus',
+        branch: matchedDriver.branch || selectedBranch || '',
         department: 'Transport & Logistics',
         designation: 'Senior Bus Driver',
         employeeCategory: 'Non-Teaching Staff',
@@ -205,7 +205,7 @@ export const DriverPayslipsView: React.FC = () => {
         <body>
           <div class="header">
             <h1>${schoolProfile?.name || 'School Management System'}</h1>
-            <p>${schoolProfile?.address || 'Main Campus, Sector 4, City Center'}</p>
+            <p>${schoolProfile?.address || ''}</p>
           </div>
           <div class="title">Official Salary Payslip - ${p.month}</div>
           <div class="grid-2">

@@ -24,7 +24,6 @@ import { TransferStudentModal } from './TransferStudentModal';
 import { AcademicHistoryImportModal } from './AcademicHistoryImportModal';
 import { fetchAdmissionsApi } from '../../../api/admission';
 import { getAllocations, getHostelBlocks, BedAllocation } from '../../../api/hostel';
-import { BRANCHES } from '../../../utils/validation';
 import { Pagination } from '../../common/Pagination';
 import { hasModuleAccess } from '../../../utils/rbac';
 
@@ -533,7 +532,7 @@ export const StudentList: React.FC<{ onNavigate?: (module: string) => void }> = 
         'Father Mobile': '9876543210',
         'Mother Name': 'Sunita Sharma',
         'Email': 'aarav.sharma@gmail.com',
-        'Branch': 'Main Campus',
+        'Branch': '',
         'Student Type': 'Day Scholar',
         'Status': 'Active'
       },
@@ -550,7 +549,7 @@ export const StudentList: React.FC<{ onNavigate?: (module: string) => void }> = 
         'Father Mobile': '9876543211',
         'Mother Name': 'Meena Patel',
         'Email': 'ananya.patel@gmail.com',
-        'Branch': 'Main Campus',
+        'Branch': '',
         'Student Type': 'Residential',
         'Status': 'Active'
       }

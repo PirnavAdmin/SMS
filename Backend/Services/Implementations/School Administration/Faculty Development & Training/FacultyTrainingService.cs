@@ -565,13 +565,14 @@ namespace SMS.Api.Services.Implementations
 
         public async Task<List<string>> GetBranchesAsync()
         {
-            return await Task.FromResult(new List<string>
-            {
-                "Main Campus",
-                "North Branch",
-                "West Campus",
-                "All Branches"
-            });
+            var staff = await _repository.GetAllStaffForDropdownAsync();
+            var branches = staff
+                .Where(s => !string.IsNullOrWhiteSpace(s.BranchName))
+                .Select(s => s.BranchName!.Trim())
+                .Distinct()
+                .OrderBy(b => b)
+                .ToList();
+            return branches;
         }
 
         public async Task<List<string>> GetDepartmentsAsync()

@@ -291,7 +291,7 @@ public class SchoolReportsController : ControllerBase
         var schoolDetails = new
         {
             schoolName = "PIRNAV SCHOOLS",
-            branch = "Main Campus",
+            branch = string.Empty,
             academicYear = "2026-27",
             tagline = "Empowering Excellence in Education",
             address = "Knowledge City Expressway, Education Zone",

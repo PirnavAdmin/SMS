@@ -71,10 +71,10 @@ namespace SMS.Api.Dtos.Transport.VehicleAssignment
         public int StudentCount => AssignedStudents;
 
         [JsonPropertyName("branchName")]
-        public string? BranchName { get; set; } = "Main Campus";
+        public string? BranchName { get; set; } = string.Empty;
 
         [JsonPropertyName("branch")]
-        public string Branch => BranchName ?? "Main Campus";
+        public string Branch => BranchName ?? string.Empty;
 
         [JsonPropertyName("academicYear")]
         public string? AcademicYear { get; set; } = "2026-2027";

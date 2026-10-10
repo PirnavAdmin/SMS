@@ -27,7 +27,7 @@ public class FinanceTransactionDto
     public string ReferenceNumber { get; set; } = string.Empty;
     public string CreatedBy { get; set; } = "Admin";
     public string ApprovedBy { get; set; } = "Chief Accountant";
-    public string Branch { get; set; } = "Main Campus";
+    public string Branch { get; set; } = string.Empty;
     public string AcademicYear { get; set; } = "2025-2026";
     public string Notes { get; set; } = string.Empty;
     public string AttachmentName { get; set; } = string.Empty;
@@ -43,7 +43,7 @@ public class CreateTransactionRequestDto
     public string PaymentMode { get; set; } = "Bank Transfer";
     public string Account { get; set; } = "Main Bank Account";
     public string TransactionDate { get; set; } = string.Empty;
-    public string Branch { get; set; } = "Main Campus";
+    public string Branch { get; set; } = string.Empty;
     public string AcademicYear { get; set; } = "2025-2026";
     public string Notes { get; set; } = string.Empty;
     public string AttachmentName { get; set; } = string.Empty;
@@ -102,7 +102,7 @@ public class FinancialBudgetDto
     public string CategoryName { get; set; } = string.Empty;
     public string Department { get; set; } = string.Empty;
     public string AcademicYear { get; set; } = "2026-27";
-    public string Branch { get; set; } = "Madhapur Branch";
+    public string Branch { get; set; } = string.Empty;
     public int? BranchId { get; set; }
     public decimal AllocatedAmount { get; set; }
     public decimal ConsumedAmount { get; set; }
@@ -443,7 +443,7 @@ public class FinanceUniformConfigDto
 {
     public int Id { get; set; }
     public string AcademicYear { get; set; } = "2026-2027";
-    public string Branch { get; set; } = "Main Campus";
+    public string Branch { get; set; } = string.Empty;
     public string ClassName { get; set; } = "Class 10";
     public string Gender { get; set; } = "Unisex"; // "Male", "Female", "Unisex"
     public string UniformPackage { get; set; } = "Full Kit";
@@ -457,7 +457,7 @@ public class FinanceUniformConfigDto
 public class CreateFinanceUniformConfigDto
 {
     public string? AcademicYear { get; set; } = "2026-2027";
-    public string? Branch { get; set; } = "Main Campus";
+    public string? Branch { get; set; } = string.Empty;
     public string ClassName { get; set; } = "Class 10";
     public string Gender { get; set; } = "Unisex";
     public string UniformPackage { get; set; } = "Full Kit";

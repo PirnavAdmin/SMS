@@ -69,7 +69,7 @@ public class HolidayCalendarDto
     public string Type { get; set; } = "State";
     public string FromDate { get; set; } = string.Empty;
     public string ToDate { get; set; } = string.Empty;
-    public string ApplicableBranch { get; set; } = "Main Campus";
+    public string ApplicableBranch { get; set; } = string.Empty;
     public string? Description { get; set; }
 }
 

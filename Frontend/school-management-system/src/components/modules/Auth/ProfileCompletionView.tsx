@@ -263,7 +263,7 @@ function buildProfileForm(staff: Staff | undefined | null, category: EmployeeCat
       motherName: staff?.motherName || 'Sunita Kumar'
     },
     address: {
-      currentAddress: staff?.currentAddress || staff?.address || 'School Main Campus, Administrative Block, Heights',
+      currentAddress: staff?.currentAddress || staff?.address || '',
       permanentAddress: staff?.permanentAddress || '123 Academic Enclave, Central City',
       city: staff?.city || 'Bengaluru',
       district: staff?.district || 'Bengaluru Urban',

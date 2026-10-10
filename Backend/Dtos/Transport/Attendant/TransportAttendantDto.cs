@@ -41,7 +41,7 @@ namespace SMS.Api.Dtos.Transport.Attendant
         public string? BranchName { get; set; }
 
         [JsonPropertyName("branchCampus")]
-        public string? BranchCampus => BranchName ?? "Main Campus";
+        public string? BranchCampus => BranchName ?? string.Empty;
 
         [JsonPropertyName("branch")]
         public string? Branch => BranchCampus;

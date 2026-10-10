@@ -26,7 +26,6 @@ import {
   autoAllocateApi 
 } from '../../../api/academic';
 
-const CAMPUSES = ['Main Campus', 'Winga Campus', 'South Campus', 'North Campus', 'East Campus'];
 const CLASS_NAMES = [
   'Nursery', 'LKG', 'UKG', 
   'Class 1', 'Class 2', 'Class 3', 'Class 4', 'Class 5', 
@@ -304,7 +303,8 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
     students, updateStudent, staff, timetable, addTimetableSlot, updateTimetableSlot, deleteTimetableSlot,
     teacherAssignments, addTeacherAssignment, updateTeacherAssignment, deleteTeacherAssignment,
     subjects, addSubject, updateSubject, deleteSubject,
-    fetchAcademicClasses, fetchSubjects
+    fetchAcademicClasses, fetchSubjects,
+    branches
   } = useData();
 
   const { addToast } = useToast();
@@ -381,7 +381,7 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
 
   // Form inputs state
   const [classForm, setClassForm] = useState({
-    campus: 'Main Campus',
+    campus: selectedBranch || (branches && branches.length > 0 ? branches[0].name : ''),
     academicYear: '',
     name: '',
     displayName: '',
@@ -640,7 +640,7 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
   // Class setup KPI cards calculations
   const classKPIs = useMemo(() => {
     const filteredForKPIs = academicClasses.filter(c => {
-      const campus = (c as any).campus || (c as any).branch || 'Main Campus';
+      const campus = (c as any).campus || (c as any).branch || '';
       const year = (c as any).academicYear || '2026-2027';
       const matchesCampus = isBranchMatch(campus, selectedBranch);
       const matchesYear = isYearMatch(year, selectedAcademicYear);
@@ -741,7 +741,7 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
     setEditingClass(null);
     const activeAY = academicYears.find(ay => ay.status === 'Active');
     setClassForm({
-      campus: selectedBranch && selectedBranch !== 'All Branches' && selectedBranch !== 'All Campuses' ? selectedBranch : 'Main Campus',
+      campus: selectedBranch && selectedBranch !== 'All Branches' && selectedBranch !== 'All Campuses' ? selectedBranch : (branches && branches.length > 0 ? branches[0].name : ''),
       academicYear: selectedAcademicYear || (activeAY ? activeAY.academicYear : ''),
       name: '',
       displayName: '',
@@ -777,7 +777,7 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
     setEditingClass(c);
     const isPredefined = CLASS_NAMES.includes(c.name);
     setClassForm({
-      campus: (c as any).campus || (c as any).branch || 'Main Campus',
+      campus: (c as any).campus || (c as any).branch || '',
       academicYear: (c as any).academicYear || selectedAcademicYear || '2026-2027',
       name: isPredefined ? c.name : 'Other',
       displayName: (c as any).displayName || c.name,
@@ -797,16 +797,16 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
 
     const { name, campus, academicYear, displayName, status, remarks, displayOrder } = classForm;
     const finalName = name === 'Other' ? customClassName : name;
-    if (!finalName || !campus || !academicYear || !status) {
-      addToast('warning', 'Validation Error', 'Campus, Academic Year, Class Name, and Status are required.');
+    if (!finalName || (branches && branches.length > 0 && !campus) || !academicYear || !status) {
+      addToast('warning', 'Validation Error', 'Academic Year, Class Name, and Status are required.');
       return;
     }
 
     const isDuplicate = academicClasses.some(c => {
-      const cCampus = (c as any).campus || (c as any).branch || 'Main Campus';
+      const cCampus = (c as any).campus || (c as any).branch || '';
       const cYear = (c as any).academicYear || '2026-2027';
       return isNameEquivalent(c.name, finalName) && 
-             cCampus.toLowerCase() === campus.toLowerCase() &&
+             (!campus || !cCampus || cCampus.toLowerCase() === campus.toLowerCase()) &&
              cYear === academicYear;
     });
 
@@ -817,9 +817,9 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
     }
 
     const campusConflict = academicClasses.some(c => {
-      const cCampus = (c as any).campus || (c as any).branch || 'Main Campus';
+      const cCampus = (c as any).campus || (c as any).branch || '';
       return isNameEquivalent(c.name, finalName) && 
-             cCampus.toLowerCase() === campus.toLowerCase();
+             Boolean(campus && cCampus && cCampus.toLowerCase() === campus.toLowerCase());
     });
 
     if (campusConflict) {
@@ -867,7 +867,7 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
 
         // Form reset on successful creation
         setClassForm({
-          campus: selectedBranch && selectedBranch !== 'All Branches' && selectedBranch !== 'All Campuses' ? selectedBranch : 'Main Campus',
+          campus: selectedBranch && selectedBranch !== 'All Branches' && selectedBranch !== 'All Campuses' ? selectedBranch : (branches && branches.length > 0 ? branches[0].name : ''),
           academicYear: ayObj ? ayObj.academicYear : '',
           name: '',
           displayName: '',
@@ -1281,7 +1281,7 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
   // Sort classes logically by displayOrder or ref index
   const filteredClasses = useMemo(() => {
     const rawFiltered = academicClasses.filter(c => {
-      const campus = (c as any).campus || (c as any).branch || 'Main Campus';
+      const campus = (c as any).campus || (c as any).branch || '';
       const year = (c as any).academicYear || '2026-2027';
       const status = (c as any).status || 'Active';
       const name = c.name.toLowerCase();
@@ -1524,7 +1524,7 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
           } else {
             addTeacherAssignment({
               academicYear: (activeClass as any).academicYear || selectedAcademicYear || '2026-2027',
-              branch: (activeClass as any).branch || selectedBranch || 'Main Campus',
+              branch: (activeClass as any).branch || (activeClass as any).campus || selectedBranch || '',
               className: activeClass.name,
               section: activeWorkspaceSection,
               subject: targetSubject,
@@ -1572,7 +1572,7 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
     } else {
       addTeacherAssignment({
         academicYear: (activeClass as any).academicYear || selectedAcademicYear || '2026-2027',
-        branch: (activeClass as any).branch || selectedBranch || 'Main Campus',
+        branch: (activeClass as any).branch || (activeClass as any).campus || selectedBranch || '',
         className: activeClass.name,
         section: activeWorkspaceSection,
         subject: subjectName,
@@ -3142,7 +3142,7 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
                 {filteredClasses.map(cl => {
                   const count = students.filter(s => s.className === cl.name).length;
                   const status = (cl as any).status || 'Active';
-                  const campus = (cl as any).campus || (cl as any).branch || 'Main Campus';
+                  const campus = (cl as any).campus || (cl as any).branch || '';
                   const ay = (cl as any).academicYear || '2026-2027';
 
                   const details = (cl as any).sectionDetails || {};
@@ -3377,7 +3377,7 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
                 </>
               ) : (
                 <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-808 space-y-1.5">
-                  <p><span className="text-slate-455">Campus:</span> {classForm.campus}</p>
+                  <p><span className="text-slate-455">Campus:</span> {classForm.campus || '-'}</p>
                   <p><span className="text-slate-455">Session Year:</span> {classForm.academicYear}</p>
                   <p><span className="text-slate-455">Class Name:</span> {classForm.name === 'Other' ? customClassName : classForm.name}</p>
                 </div>

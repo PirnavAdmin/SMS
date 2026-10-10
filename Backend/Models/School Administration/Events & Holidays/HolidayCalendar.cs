@@ -19,7 +19,7 @@ public class HolidayCalendar
     [Required]
     public DateTime ToDate { get; set; }
 
-    public string ApplicableBranch { get; set; } = "Main Campus";
+    public string ApplicableBranch { get; set; } = string.Empty;
 
     public string? Description { get; set; }
 }

@@ -8,7 +8,7 @@ public class SalaryStructureDto
     public string Id { get; set; } = string.Empty;
     public string StructureName { get; set; } = string.Empty;
     public string EmployeeCategory { get; set; } = "Teacher"; // Maps StaffCategory
-    public string Branch { get; set; } = "Main Campus";
+    public string Branch { get; set; } = string.Empty;
     public string Department { get; set; } = "General";
     public string Designation { get; set; } = "Teacher";
     public string EmploymentType { get; set; } = "Full-time";
@@ -48,7 +48,7 @@ public class EmployeeSalaryAssignmentDto
     public string EmployeeName { get; set; } = string.Empty;
     public string EmpId { get; set; } = string.Empty;
     public string EmployeeCategory { get; set; } = "Teacher";
-    public string Branch { get; set; } = "Main Campus";
+    public string Branch { get; set; } = string.Empty;
     public string Department { get; set; } = "General";
     public string SalaryStructureId { get; set; } = string.Empty; // Maps StructureId.ToString()
     public string SalaryStructureName { get; set; } = string.Empty;

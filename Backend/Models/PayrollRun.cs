@@ -15,7 +15,7 @@ public class PayrollRun
 
     public string EmpId { get; set; } = string.Empty;
 
-    public string Branch { get; set; } = "Main Campus";
+    public string Branch { get; set; } = string.Empty;
 
     public string Department { get; set; } = "General";
 

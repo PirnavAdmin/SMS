@@ -93,7 +93,7 @@ public class TeacherAttendanceService : ITeacherAttendanceService
             existingAttendance.Status = "Present";
             if (string.IsNullOrWhiteSpace(existingAttendance.Department)) existingAttendance.Department = teacher.Department;
             if (string.IsNullOrWhiteSpace(existingAttendance.Designation)) existingAttendance.Designation = teacher.Designation;
-            if (string.IsNullOrWhiteSpace(existingAttendance.Branch)) existingAttendance.Branch = "Main Campus";
+            if (string.IsNullOrWhiteSpace(existingAttendance.Branch) && !string.IsNullOrWhiteSpace(teacher.BranchName)) existingAttendance.Branch = teacher.BranchName;
             if (string.IsNullOrWhiteSpace(existingAttendance.AcademicYear)) existingAttendance.AcademicYear = "2026-2027";
 
             if (!string.IsNullOrWhiteSpace(dto.Remarks))
@@ -116,7 +116,7 @@ public class TeacherAttendanceService : ITeacherAttendanceService
             InTime = now.ToString("hh:mm tt"),
             OutTime = null,
             AcademicYear = "2026-2027",
-            Branch = "Main Campus",
+            Branch = teacher.BranchName ?? string.Empty,
             Department = teacher.Department ?? "Teaching Staff",
             Designation = teacher.Designation ?? "Teacher",
             Remarks = string.IsNullOrWhiteSpace(dto.Remarks)
@@ -154,7 +154,7 @@ public class TeacherAttendanceService : ITeacherAttendanceService
                 InTime = "08:30 AM",
                 OutTime = DateTime.Now.ToString("hh:mm tt"),
                 AcademicYear = "2026-2027",
-                Branch = "Main Campus",
+                Branch = teacher.BranchName ?? string.Empty,
                 Department = teacher.Department ?? "Teaching Staff",
                 Designation = teacher.Designation ?? "Teacher",
                 Remarks = string.IsNullOrWhiteSpace(dto.Remarks) ? null : dto.Remarks.Trim()

@@ -150,7 +150,7 @@ export const PayrollDrawer: React.FC<PayrollDrawerProps> = ({ staff, isOpen, onC
         department: existing.department || staff.department || 'General',
         designation: existing.designation || staff.designation || 'Staff',
         bankAccount: existing.bankAccount || staff.bankDetails?.accountNumber || 'N/A',
-        branch: existing.branch || staff.branch || 'Main Campus',
+        branch: existing.branch || staff.branch || '',
         disbursedDate: existing.disbursedDate || existing.paymentDate || new Date().toISOString().split('T')[0],
         grossSalary: existing.grossSalary || grossSalary,
         netSalary: existing.netSalary || netSalary,
@@ -178,7 +178,7 @@ export const PayrollDrawer: React.FC<PayrollDrawerProps> = ({ staff, isOpen, onC
       bankAccount: staff.bankDetails?.accountNumber || 'N/A',
       department: staff.department || 'General',
       designation: staff.designation || 'Staff',
-      branch: staff.branch || 'Main Campus',
+      branch: staff.branch || '',
       earnings: resolvedEarnings,
       deductions: resolvedDeductions
     };
@@ -418,7 +418,7 @@ export const PayrollDrawer: React.FC<PayrollDrawerProps> = ({ staff, isOpen, onC
                 </DrawerCard>
                 <DrawerCard title="Employment Info" subtitle="Core profile and payroll mapping.">
                   <div className="space-y-3 text-sm">
-                    <div className="flex items-center justify-between"><span className="text-slate-500">Branch</span><span className="font-bold text-slate-900 dark:text-white">{staff.branch || 'Main Campus'}</span></div>
+                    <div className="flex items-center justify-between"><span className="text-slate-500">Branch</span><span className="font-bold text-slate-900 dark:text-white">{staff.branch || ''}</span></div>
                     <div className="flex items-center justify-between"><span className="text-slate-500">Joining Date</span><span className="font-bold text-slate-900 dark:text-white">{formatShortDate(staff.joiningDate)}</span></div>
                     <div className="flex items-center justify-between"><span className="text-slate-500">Current Assignment</span><span className="font-bold text-slate-900 dark:text-white">{assignment?.salaryStructureName || 'Unassigned'}</span></div>
                     <div className="flex items-center justify-between"><span className="text-slate-500">Bank</span><span className="font-bold text-slate-900 dark:text-white">{staff.bankDetails?.bankName || 'N/A'}</span></div>
@@ -568,7 +568,7 @@ export const PayrollDrawer: React.FC<PayrollDrawerProps> = ({ staff, isOpen, onC
                     department: item.department || staff.department || 'General',
                     designation: item.designation || staff.designation || 'Staff',
                     bankAccount: item.bankAccount || staff.bankDetails?.accountNumber || 'N/A',
-                    branch: item.branch || staff.branch || 'Main Campus',
+                    branch: item.branch || staff.branch || '',
                     disbursedDate: item.disbursedDate || item.paymentDate || new Date().toISOString().split('T')[0],
                     grossSalary: item.grossSalary || grossSalary,
                     netSalary: item.netSalary || netSalary,
@@ -687,7 +687,7 @@ export const PayrollDrawer: React.FC<PayrollDrawerProps> = ({ staff, isOpen, onC
                 </div>
                 <div>
                   <span className="text-[10px] uppercase font-bold text-slate-400">Branch</span>
-                  <p className="font-bold text-slate-900 dark:text-white mt-0.5">{viewingPayslip.branch || staff.branch || 'Main Campus'}</p>
+                  <p className="font-bold text-slate-900 dark:text-white mt-0.5">{viewingPayslip.branch || staff.branch || ''}</p>
                 </div>
                 <div>
                   <span className="text-[10px] uppercase font-bold text-slate-400">Payment Status</span>

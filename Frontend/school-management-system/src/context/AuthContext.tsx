@@ -184,21 +184,28 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   useEffect(() => {
     const handleSync = async () => {
-      const storedBranch = localStorage.getItem('selected_branch');
-      if (storedBranch) {
-        setSelectedBranchState(storedBranch);
-      } else {
-        try {
-          const res: any = await fetchBranchesApi();
-          if (res?.success && Array.isArray(res.data) && res.data.length > 0) {
-            const firstActive = res.data.find((b: any) => b.status !== 'Inactive') || res.data[0];
-            const name = firstActive?.name || firstActive?.branchName;
-            if (name) {
-              setSelectedBranchState(name);
-              localStorage.setItem('selected_branch', name);
-            }
-          }
-        } catch {}
+      try {
+        const res: any = await fetchBranchesApi();
+        const branchList = (res?.success && Array.isArray(res.data)) ? res.data : (Array.isArray(res) ? res : []);
+        const validBranchNames = branchList
+          .filter((b: any) => b && b.status !== 'Inactive')
+          .map((b: any) => typeof b === 'string' ? b : (b.name || b.branchName))
+          .filter(Boolean);
+
+        const storedBranch = localStorage.getItem('selected_branch');
+        if (storedBranch && (storedBranch === 'All' || storedBranch === 'All Branches' || validBranchNames.includes(storedBranch))) {
+          setSelectedBranchState(storedBranch);
+        } else if (validBranchNames.length > 0) {
+          const first = validBranchNames[0];
+          setSelectedBranchState(first);
+          localStorage.setItem('selected_branch', first);
+        } else {
+          setSelectedBranchState('');
+          localStorage.removeItem('selected_branch');
+        }
+      } catch {
+        setSelectedBranchState('');
+        localStorage.removeItem('selected_branch');
       }
 
       const storedAY = localStorage.getItem('selected_academic_year');
@@ -406,7 +413,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         name: userName,
         email: loginEmail || (emailOrPhone.includes('@') ? emailOrPhone : ''),
         phone: userPhone,
-        branch: response?.branch || savedProfile?.branch || selectedBranch || 'Main Campus',
+        branch: response?.branch || savedProfile?.branch || (selectedBranch && selectedBranch !== 'All' && selectedBranch !== 'All Branches' ? selectedBranch : '') || '',
         role: mappedRole,
         avatar: userAvatar,
         lastLogin: new Date().toLocaleString(),

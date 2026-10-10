@@ -30,7 +30,7 @@ export const TransferStudentModal: React.FC<TransferStudentModalProps> = ({
   const activeAY = selectedAcademicYear || '2025-2026';
 
   const schoolName = schoolProfile?.name || "Pirnav Educational Institutions";
-  const schoolAddress = schoolProfile?.address || "Knowledge City, Main Campus, New York 10001";
+  const schoolAddress = schoolProfile?.address || "";
   const schoolLogo = schoolProfile?.logoUrl;
 
   // Load Certificate Template Configuration from Settings or existing TcRecord snapshot
@@ -161,7 +161,7 @@ export const TransferStudentModal: React.FC<TransferStudentModalProps> = ({
       section: student.section,
       rollNo: student.rollNo,
       academicYear: activeAY,
-      branch: student.branch || 'Main Campus',
+      branch: student.branch || '',
       leavingDate,
       reason,
       destinationSchool: '',
@@ -473,7 +473,7 @@ export const TransferStudentModal: React.FC<TransferStudentModalProps> = ({
                   </div>
                   <div>
                     <span className="block text-slate-400 font-semibold">Branch:</span>
-                    <span className="font-bold text-slate-900 dark:text-white">{student.branch || 'Main Campus'}</span>
+                    <span className="font-bold text-slate-900 dark:text-white">{student.branch || '—'}</span>
                   </div>
                 </div>
               </div>

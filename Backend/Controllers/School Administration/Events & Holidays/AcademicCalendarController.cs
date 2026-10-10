@@ -121,7 +121,7 @@ public class AcademicCalendarController : ControllerBase
             Organizer = !string.IsNullOrWhiteSpace(dto.Organizer) ? dto.Organizer.Trim() : "School Administration",
             Description = dto.Description?.Trim(),
             Status = !string.IsNullOrWhiteSpace(dto.Status) ? dto.Status.Trim() : "Published",
-            ApplicableBranch = !string.IsNullOrWhiteSpace(dto.ApplicableBranch) ? dto.ApplicableBranch.Trim() : "Main Campus"
+            ApplicableBranch = !string.IsNullOrWhiteSpace(dto.ApplicableBranch) ? dto.ApplicableBranch.Trim() : string.Empty
         };
 
         await _context.SchoolEvents.AddAsync(entity);

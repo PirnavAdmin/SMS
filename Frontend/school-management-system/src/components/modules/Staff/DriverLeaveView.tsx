@@ -11,7 +11,7 @@ import { Badge } from '../../common/Badge';
 import { LeaveApplication, LeaveType } from '../../../types';
 
 export const DriverLeaveView: React.FC = () => {
-  const { user } = useAuth();
+  const { user, selectedBranch } = useAuth();
   const {
     staff = [],
     driverMasters = [],
@@ -186,7 +186,7 @@ export const DriverLeaveView: React.FC = () => {
         reason: reason.trim(),
         appliedDate: todayStr,
         status: 'Pending',
-        branch: 'Main Campus',
+        branch: staffMember?.branch || matchedDriver?.branch || selectedBranch || '',
         isPaid: (selectedType as any).isPaid !== false,
         requiresDocument: false
       };

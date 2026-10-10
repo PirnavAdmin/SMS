@@ -516,7 +516,7 @@ namespace SMS.Api.Repositories.Implementations
                 {
                     Date = today.ToString("dd/MM/yyyy"),
                     VehicleNumber = vehicle?.VehicleNumber ?? "TS Z 0678",
-                    RouteName = route?.RouteName ?? "Madhapur to School",
+                    RouteName = route?.RouteName ?? "",
                     DriverName = driver?.DriverName ?? "Main Driver",
                     AttendantName = "Unassigned",
                     MorningStart = assignment.MorningTripTime ?? "07:00 AM",
@@ -529,7 +529,7 @@ namespace SMS.Api.Repositories.Implementations
                 {
                     Date = today.AddDays(-1).ToString("dd/MM/yyyy"),
                     VehicleNumber = vehicle?.VehicleNumber ?? "TS Z 0678",
-                    RouteName = route?.RouteName ?? "Madhapur to School",
+                    RouteName = route?.RouteName ?? "",
                     DriverName = driver?.DriverName ?? "Main Driver",
                     AttendantName = "Unassigned",
                     MorningStart = assignment.MorningTripTime ?? "07:00 AM",
@@ -542,7 +542,7 @@ namespace SMS.Api.Repositories.Implementations
                 {
                     Date = today.AddDays(-2).ToString("dd/MM/yyyy"),
                     VehicleNumber = vehicle?.VehicleNumber ?? "TS Z 0678",
-                    RouteName = route?.RouteName ?? "Madhapur to School",
+                    RouteName = route?.RouteName ?? "",
                     DriverName = driver?.DriverName ?? "Main Driver",
                     AttendantName = "Unassigned",
                     MorningStart = assignment.MorningTripTime ?? "07:00 AM",
@@ -560,7 +560,7 @@ namespace SMS.Api.Repositories.Implementations
                 VehicleNumber = vehicle?.VehicleNumber ?? "TS Z 0678",
                 RegistrationNumber = vehicle?.RegistrationNumber ?? "REG - 780099",
                 RouteId = assignment.RouteId,
-                RouteName = route?.RouteName ?? "Madhapur to School",
+                RouteName = route?.RouteName ?? "",
                 Status = "Completed",
                 EffectiveFrom = assignment.EffectiveFrom,
                 DriverId = assignment.DriverId,

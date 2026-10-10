@@ -15,7 +15,7 @@ public class SalaryStructure
     [Required]
     public string StructureName { get; set; } = string.Empty;
 
-    public string Branch { get; set; } = "Main Campus";
+    public string Branch { get; set; } = string.Empty;
 
     public string Department { get; set; } = "General";
 

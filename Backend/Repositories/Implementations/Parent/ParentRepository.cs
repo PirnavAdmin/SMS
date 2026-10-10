@@ -143,7 +143,7 @@ namespace SMS.Api.Repositories.Implementations.Parent
                 Address = student.Address,
                 ClassName = student.ClassGrade?.ClassName ?? "Class 6",
                 SectionName = student.ClassSection?.SectionName ?? "A",
-                BranchName = student.Branch?.BranchName ?? "Main Campus",
+                BranchName = student.Branch?.BranchName ?? string.Empty,
                 AcademicYear = student.AcademicYear?.AcademicYearName ?? "2026-27"
             };
 

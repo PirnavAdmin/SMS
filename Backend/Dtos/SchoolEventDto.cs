@@ -51,7 +51,7 @@ namespace SMS.Api.Dtos
         public string Status { get; set; } = "Published";
 
         [JsonPropertyName("applicableBranch")]
-        public string ApplicableBranch { get; set; } = "Main Campus";
+        public string ApplicableBranch { get; set; } = string.Empty;
     }
 
     public class CreateSchoolEventDto
@@ -71,7 +71,7 @@ namespace SMS.Api.Dtos
         public string Category { get; set; } = "Sports Day";
 
         [JsonPropertyName("venue")]
-        public string Venue { get; set; } = "Main Campus Stadium Ground";
+        public string Venue { get; set; } = "School Stadium Ground";
 
         [JsonPropertyName("startDate")]
         public string StartDate { get; set; } = "2026-08-15";

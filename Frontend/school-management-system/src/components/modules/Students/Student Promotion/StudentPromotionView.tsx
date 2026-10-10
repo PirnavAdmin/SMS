@@ -70,7 +70,7 @@ export const StudentPromotionView: React.FC<StudentPromotionViewProps> = ({ onNa
   // Filter States
   const [currentYear, setCurrentYear] = useState<string>('2026-2027');
   const [targetYear, setTargetYear] = useState<string>('2027-2028');
-  const [branch, setBranch] = useState<string>('Main Campus');
+  const [branch, setBranch] = useState<string>('');
   const [fromClass, setFromClass] = useState<string>('');
   
   // Workflow States

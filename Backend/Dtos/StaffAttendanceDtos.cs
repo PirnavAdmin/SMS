@@ -16,7 +16,7 @@ public class BulkAttendanceDto
 {
     public string Date { get; set; } = string.Empty; // YYYY-MM-DD
     public string? AcademicYear { get; set; } = "2026-2027";
-    public string? Branch { get; set; } = "Main Campus";
+    public string? Branch { get; set; } = string.Empty;
     public string? Department { get; set; }
     public List<StaffAttendanceRecordDto> Records { get; set; } = new();
 }

@@ -59,7 +59,7 @@ public class FinanceMasterRepository : IFinanceMasterRepository
                 Status = p.Status == "Cancelled" ? "Cancelled" : "Completed",
                 ReferenceNumber = p.TransactionId ?? "",
                 CreatedBy = "Accounts Counter",
-                Branch = "Main Campus",
+                Branch = string.Empty,
                 AcademicYear = "2026-2027"
             });
         }
@@ -83,7 +83,7 @@ public class FinanceMasterRepository : IFinanceMasterRepository
                 Status = "Completed",
                 ReferenceNumber = l.ReferenceNo ?? "",
                 CreatedBy = "Admin",
-                Branch = "Main Campus",
+                Branch = string.Empty,
                 AcademicYear = "2026-2027",
                 Notes = l.Particulars ?? ""
             });
@@ -108,7 +108,7 @@ public class FinanceMasterRepository : IFinanceMasterRepository
                 Status = e.Status ?? "Completed",
                 ReferenceNumber = e.ReferenceNo ?? "",
                 CreatedBy = "Admin",
-                Branch = "Main Campus",
+                Branch = string.Empty,
                 AcademicYear = "2026-2027",
                 Notes = e.Vendor ?? ""
             });
@@ -245,7 +245,7 @@ public class FinanceMasterRepository : IFinanceMasterRepository
             Status = "Completed",
             ReferenceNumber = ledgerEntry.ReferenceNo,
             CreatedBy = "Admin",
-            Branch = request.Branch ?? "Main Campus",
+            Branch = request.Branch ?? string.Empty,
             AcademicYear = request.AcademicYear ?? "2026-2027",
             Notes = request.Notes ?? "",
             AttachmentName = request.AttachmentName ?? ""
@@ -306,7 +306,7 @@ public class FinanceMasterRepository : IFinanceMasterRepository
                 AccountType = a.Type ?? "Bank",
                 AccountNumber = a.AccountNumberMasked ?? "",
                 BankName = a.BankName ?? "",
-                BranchName = "Main Campus",
+                BranchName = string.Empty,
                 CurrentBalance = a.CurrentBalance,
                 Status = a.Status ?? "Active"
             }).ToList();
@@ -604,7 +604,7 @@ public class FinanceMasterRepository : IFinanceMasterRepository
             CategoryName = string.IsNullOrWhiteSpace(budget.CategoryName) ? (budget.Department ?? "General") : budget.CategoryName,
             Department = string.IsNullOrWhiteSpace(budget.Department) ? (budget.CategoryName ?? "General") : budget.Department,
             AcademicYear = string.IsNullOrWhiteSpace(budget.AcademicYear) ? "2026-27" : budget.AcademicYear,
-            Branch = string.IsNullOrWhiteSpace(budget.Branch) ? "Madhapur Branch" : budget.Branch,
+            Branch = budget.Branch ?? string.Empty,
             BranchId = budget.BranchId,
             AllocatedAmount = budget.AllocatedAmount,
             Status = string.IsNullOrWhiteSpace(budget.Status) ? "Active" : budget.Status,
@@ -1674,7 +1674,7 @@ public class FinanceMasterRepository : IFinanceMasterRepository
             {
                 Id = fh.Id,
                 HostelId = "HOS-01",
-                HostelName = fh.Name ?? "Main Campus Hostel",
+                HostelName = fh.Name ?? string.Empty,
                 RoomTypeId = "RT-01",
                 RoomTypeName = "Double Occupancy Non-AC",
                 RoomId = "RM-101",
@@ -1781,7 +1781,7 @@ public class FinanceMasterRepository : IFinanceMasterRepository
             {
                 Id = fh.Id,
                 AcademicYear = "2026-2027",
-                Branch = "Main Campus",
+                Branch = string.Empty,
                 ClassName = "All Classes",
                 Gender = "Unisex",
                 UniformPackage = fh.Name ?? "Full Uniform Set",
@@ -1820,7 +1820,7 @@ public class FinanceMasterRepository : IFinanceMasterRepository
         {
             Id = feeHead.Id,
             AcademicYear = dto.AcademicYear ?? "2026-2027",
-            Branch = dto.Branch ?? "Main Campus",
+            Branch = dto.Branch ?? string.Empty,
             ClassName = dto.ClassName,
             Gender = dto.Gender,
             UniformPackage = dto.UniformPackage ?? "",
@@ -1847,7 +1847,7 @@ public class FinanceMasterRepository : IFinanceMasterRepository
         {
             Id = id,
             AcademicYear = dto.AcademicYear ?? "2026-2027",
-            Branch = dto.Branch ?? "Main Campus",
+            Branch = dto.Branch ?? string.Empty,
             ClassName = dto.ClassName,
             Gender = dto.Gender,
             UniformPackage = dto.UniformPackage ?? "",

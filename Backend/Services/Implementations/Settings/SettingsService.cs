@@ -659,7 +659,7 @@ namespace SMS.Api.Services.Implementations.Settings
                         Email = !string.IsNullOrWhiteSpace(admin.Email) ? admin.Email : "pirnavsms@gmail.com",
                         Phone = !string.IsNullOrWhiteSpace(admin.MobileNumber) ? admin.MobileNumber : "+91 9581768555",
                         Avatar = !string.IsNullOrWhiteSpace(admin.Avatar) ? admin.Avatar : "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=150&auto=format&fit=crop&q=80",
-                        Branch = "Main Campus",
+                        Branch = string.Empty,
                         Role = !string.IsNullOrWhiteSpace(admin.Role) ? admin.Role : "Admin",
                         Status = "Active Account"
                     };
@@ -696,7 +696,7 @@ namespace SMS.Api.Services.Implementations.Settings
                 Email = "pirnavsms@gmail.com",
                 Phone = "+91 9581768555",
                 Avatar = "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=150&auto=format&fit=crop&q=80",
-                Branch = "Main Campus",
+                Branch = string.Empty,
                 Role = "Admin",
                 Status = "Active Account"
             };

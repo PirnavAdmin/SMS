@@ -289,7 +289,7 @@ public class EventsController : ControllerBase
             Organizer = !string.IsNullOrWhiteSpace(dto.Organizer) ? dto.Organizer.Trim() : "School Administration",
             Description = dto.Description?.Trim() ?? "",
             Status = !string.IsNullOrWhiteSpace(dto.Status) ? dto.Status.Trim() : "Published",
-            ApplicableBranch = "Main Campus"
+            ApplicableBranch = string.Empty
         };
 
         await _context.SchoolEvents.AddAsync(entity);
@@ -458,7 +458,7 @@ public class EventsController : ControllerBase
             FromDate = sDate,
             ToDate = eDate,
             Description = dto.Description?.Trim() ?? "",
-            ApplicableBranch = "Main Campus"
+            ApplicableBranch = string.Empty
         };
 
         await _context.HolidayCalendars.AddAsync(entity);
@@ -563,13 +563,13 @@ public class EventsController : ControllerBase
         EventId = e.EventId,
         Title = e.Title ?? "",
         Category = (e.Category ?? "SPORTS DAY").ToUpper(),
-        Venue = e.Venue ?? "Main Campus Stadium Ground",
+        Venue = e.Venue ?? "School Stadium Ground",
         StartDate = e.StartDate.ToString("yyyy-MM-dd"),
         EndDate = e.EndDate.ToString("yyyy-MM-dd"),
         Time = e.Time ?? "08:30 AM",
         Organizer = e.Organizer ?? "Physical Education Dept",
         Description = e.Description ?? "",
         Status = e.Status ?? "Published",
-        ApplicableBranch = e.ApplicableBranch ?? "Main Campus"
+        ApplicableBranch = e.ApplicableBranch ?? string.Empty
     };
 }

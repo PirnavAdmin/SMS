@@ -164,27 +164,16 @@ export const Header: React.FC<HeaderProps> = ({ collapsed, setCollapsed, onOpenS
 
   const branchOptions = useMemo(() => {
     const fromApi = (branches || [])
-      .filter((b: any) => b.status !== 'Inactive')
-      .map((b: any) => b.name || b.branchName)
+      .filter((b: any) => b && b.status !== 'Inactive')
+      .map((b: any) => typeof b === 'string' ? b : (b.name || b.branchName))
       .filter(Boolean);
 
     if (fromApi.length > 0) {
       return Array.from(new Set(fromApi)).sort();
     }
 
-    const sourceBranches = [
-      ...(managedBranches || []),
-      ...(students || []).map(s => s.branch).filter(Boolean),
-      ...(admissions || []).map(a => a.branch).filter(Boolean),
-      ...(academicClasses || []).map(c => (c as any).branch).filter(Boolean),
-      ...(dynamicFeeStructures || []).map(f => f.branch).filter(Boolean),
-      ...(routeMasters || []).map(r => (r as any).branch).filter(Boolean),
-      ...(hostelMasters || []).map(h => (h as any).branch).filter(Boolean)
-    ];
-    return Array.from(new Set(sourceBranches))
-      .filter(branch => branch && !(inactiveBranches || []).includes(branch))
-      .sort();
-  }, [branches, managedBranches, students, admissions, academicClasses, dynamicFeeStructures, routeMasters, hostelMasters, inactiveBranches]);
+    return [];
+  }, [branches]);
 
   const authorizedBranches = useMemo(() => {
     return branchOptions;
@@ -197,6 +186,8 @@ export const Header: React.FC<HeaderProps> = ({ collapsed, setCollapsed, onOpenS
   useEffect(() => {
     if (authorizedBranches.length > 0 && (!selectedBranch || !authorizedBranches.includes(selectedBranch))) {
       setSelectedBranch(authorizedBranches[0]);
+    } else if (authorizedBranches.length === 0 && selectedBranch && selectedBranch !== 'All' && selectedBranch !== 'All Branches') {
+      setSelectedBranch('');
     }
   }, [selectedBranch, authorizedBranches, setSelectedBranch]);
 
@@ -598,6 +589,11 @@ export const Header: React.FC<HeaderProps> = ({ collapsed, setCollapsed, onOpenS
                       </div>
                     );
                   })}
+                  {branchOptions.length === 0 && (
+                    <div className="py-2 text-center text-[11px] text-slate-400">
+                      No campuses configured
+                    </div>
+                  )}
                 </div>
               </div>
             )}

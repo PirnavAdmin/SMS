@@ -6,7 +6,7 @@ public class PayrollRunDto
     public string EmployeeId { get; set; } = string.Empty;
     public string EmployeeName { get; set; } = string.Empty;
     public string EmpId { get; set; } = string.Empty;
-    public string Branch { get; set; } = "Main Campus";
+    public string Branch { get; set; } = string.Empty;
     public string Department { get; set; } = "General";
     public string EmployeeCategory { get; set; } = "Teacher";
     public string PayrollMonth { get; set; } = string.Empty;

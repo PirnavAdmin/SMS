@@ -20,7 +20,7 @@ public class FeeCollectionStudentSummaryDto
     public int SectionId { get; set; }
     public string Section { get; set; } = string.Empty;
     public string StudentType { get; set; } = "Day Scholar";
-    public string Branch { get; set; } = "Main Campus";
+    public string Branch { get; set; } = string.Empty;
     public string AcademicYear { get; set; } = "2026-2027";
     public string FatherName { get; set; } = string.Empty;
     public string FatherMobile { get; set; } = string.Empty;
@@ -123,7 +123,7 @@ public class StudentFeeProfileResponseDto
     public string ClassName { get; set; } = string.Empty;
     public string Section { get; set; } = string.Empty;
     public string StudentType { get; set; } = "Day Scholar";
-    public string Branch { get; set; } = "Main Campus";
+    public string Branch { get; set; } = string.Empty;
     public string AcademicYear { get; set; } = "2026-2027";
     public string FatherName { get; set; } = string.Empty;
     public string FatherMobile { get; set; } = string.Empty;
@@ -308,7 +308,7 @@ public class FeeReceiptDetailDto
     public string ClassName { get; set; } = string.Empty;
     public string Section { get; set; } = string.Empty;
     public string AcademicYear { get; set; } = "2026-2027";
-    public string Branch { get; set; } = "Main Campus";
+    public string Branch { get; set; } = string.Empty;
     public decimal AmountPaid { get; set; }
     public decimal DiscountAmount { get; set; }
     public decimal FineAmount { get; set; }

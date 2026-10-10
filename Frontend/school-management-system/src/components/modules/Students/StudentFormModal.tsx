@@ -6,7 +6,7 @@ import { useData } from '../../../context/DataContext';
 import { useAuth } from '../../../context/AuthContext';
 import { useToast } from '../../../context/ToastContext';
 import { validateDOB, formatToDDMMYYYY, formatToISO } from '../../../utils/dateValidation';
-import { validate10DigitPhone, BLOOD_GROUPS, CASTE_CATEGORIES, BRANCHES, RELIGIONS } from '../../../utils/validation';
+import { validate10DigitPhone, BLOOD_GROUPS, CASTE_CATEGORIES, RELIGIONS } from '../../../utils/validation';
 
 import { DateInput } from '../../common/DateInput';
 import { generateNextAdmissionNo, generateNextStudentId } from '../../../utils/idGenerator';
@@ -28,15 +28,11 @@ export const StudentFormModal: React.FC<StudentFormModalProps> = ({
 
   const dynamicCampuses = useMemo(() => {
     const fromApi = (branches || [])
+      .filter((b: any) => b && (typeof b === 'string' || b.status !== 'Inactive'))
       .map((b: any) => typeof b === 'string' ? b : (b.name || b.branchName || b.campusName || ''))
       .filter(Boolean);
-    const combined = [
-      ...(selectedBranch && selectedBranch !== 'All' && selectedBranch !== 'All Branches' ? [selectedBranch] : []),
-      ...fromApi,
-    ];
-    const unique = Array.from(new Set(combined)).filter(Boolean);
-    return unique.length > 0 ? unique : ['Madhapur Branch', 'Main Campus'];
-  }, [branches, selectedBranch]);
+    return Array.from(new Set(fromApi)).filter(Boolean);
+  }, [branches]);
 
   const [formData, setFormData] = useState<Partial<Student>>({
     firstName: '',
@@ -54,7 +50,7 @@ export const StudentFormModal: React.FC<StudentFormModalProps> = ({
     joiningDate: new Date().toISOString().split('T')[0],
     isLateAdmission: false,
     feeCalculationMethod: 'Term-wise',
-    branch: 'Main Campus',
+    branch: studentToEdit?.branch || (selectedBranch && selectedBranch !== 'All' && selectedBranch !== 'All Branches' && dynamicCampuses.includes(selectedBranch) ? selectedBranch : (dynamicCampuses[0] || '')),
     studentType: 'Day Scholar',
     busRoute: '',
     transportType: 'AC',
@@ -360,7 +356,7 @@ export const StudentFormModal: React.FC<StudentFormModalProps> = ({
     const fullAddr = [
       houseNo ? `H.No ${houseNo}` : '',
       street, area, city, district, stateName, pinCode ? `PIN: ${pinCode}` : ''
-    ].filter(Boolean).join(', ') || formData.address || 'Main Campus Area';
+    ].filter(Boolean).join(', ') || formData.address || '';
 
     if (hasSiblings) {
       if (!siblingsCount || siblingsCount < 1) {
@@ -549,6 +545,7 @@ export const StudentFormModal: React.FC<StudentFormModalProps> = ({
                   onChange={e => setFormData({ ...formData, branch: e.target.value })}
                   className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none"
                 >
+                  <option value="">Select Campus</option>
                   {dynamicCampuses.map(b => <option key={b} value={b}>{b}</option>)}
                 </select>
               </div>

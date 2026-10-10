@@ -505,7 +505,7 @@ export const createVehicleAssignmentApi = async (data: Partial<VehicleAssignment
     attendantName: data.attendantName || 'Unassigned',
     attendantEmployeeId: data.attendantEmployeeId || '',
     attendantMobile: data.attendantMobile || '',
-    branch: data.branch || 'Main Campus',
+    branch: data.branch || '',
     academicYear: data.academicYear || '',
     morningTripTime: data.morningTripTime || '',
     eveningTripTime: data.eveningTripTime || '',

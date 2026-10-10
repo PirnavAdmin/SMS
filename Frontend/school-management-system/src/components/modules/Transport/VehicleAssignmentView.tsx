@@ -103,6 +103,7 @@ export const VehicleAssignmentView: React.FC = () => {
   } = useData();
   const { selectedBranch, selectedAcademicYear } = useAuth();
   const { addToast } = useToast();
+  const defaultBranch = (selectedBranch && selectedBranch !== 'All Branches' && selectedBranch !== 'All Campuses') ? selectedBranch : (branches[0]?.name || '');
 
   const [query, setQuery] = useState('');
   const [routeFilter, setRouteFilter] = useState('All');
@@ -119,7 +120,7 @@ export const VehicleAssignmentView: React.FC = () => {
   const [assignmentLogs, setAssignmentLogs] = useState<VehicleAssignmentLogItem[]>(initialAssignmentLogs);
   const [activeTab, setActiveTab] = useState<'current' | 'history'>('current');
   const [form, setForm] = useState<AssignmentFormState>({
-    branch: (selectedBranch && selectedBranch !== 'All Branches' && selectedBranch !== 'All Campuses') ? selectedBranch : 'Main Campus',
+    branch: defaultBranch,
     academicYear: selectedAcademicYear || getCurrentAcademicYear(),
     vehicleId: '',
     routeId: '',
@@ -164,7 +165,7 @@ export const VehicleAssignmentView: React.FC = () => {
           driverName: va.driverName || 'Unassigned',
           attendantName: attendant.name || 'Unassigned',
           routeName: resolvedRouteName,
-          branch: va.branch || selectedBranch || 'Main Campus',
+          branch: va.branch || selectedBranch || defaultBranch,
           academicYear: va.academicYear || selectedAcademicYear || getCurrentAcademicYear(),
           effectiveFrom: (va.effectiveFrom || '').split('T')[0] || new Date().toISOString().split('T')[0],
           effectiveTo: va.effectiveTo ? (va.effectiveTo || '').split('T')[0] : undefined,
@@ -401,7 +402,7 @@ export const VehicleAssignmentView: React.FC = () => {
     setEditingAssignment(null);
     setReassignSource(null);
     setForm({
-      branch: selectedBranch || 'Main Campus',
+      branch: defaultBranch,
       academicYear: getCurrentAcademicYear(),
       vehicleId: '',
       routeId: '',
@@ -448,7 +449,7 @@ export const VehicleAssignmentView: React.FC = () => {
     );
 
     setForm({
-      branch: assignment.branch || selectedBranch || 'Main Campus',
+      branch: assignment.branch || selectedBranch || defaultBranch,
       academicYear: assignment.academicYear || getCurrentAcademicYear(),
       vehicleId: matchedVehicle ? String(matchedVehicle.id) : (assignment.vehicleId ? String(assignment.vehicleId) : ''),
       routeId: matchedRoute ? String(matchedRoute.id) : (assignment.routeId ? String(assignment.routeId) : ''),
@@ -495,7 +496,7 @@ export const VehicleAssignmentView: React.FC = () => {
     );
 
     setForm({
-      branch: assignment.branch || selectedBranch || 'Main Campus',
+      branch: assignment.branch || selectedBranch || defaultBranch,
       academicYear: assignment.academicYear || getCurrentAcademicYear(),
       vehicleId: matchedVehicle ? String(matchedVehicle.id) : (assignment.vehicleId ? String(assignment.vehicleId) : ''),
       routeId: matchedRoute ? String(matchedRoute.id) : (assignment.routeId ? String(assignment.routeId) : ''),
@@ -689,7 +690,7 @@ export const VehicleAssignmentView: React.FC = () => {
     const assignedStudents = studentTransports.filter(st => st.routeId === route.id || st.routeName === route.routeName).length;
     const gpsStatus: 'Online' | 'Offline' = vehicle.gpsDeviceId ? 'Online' : 'Offline';
 
-    const activeBranch = (selectedBranch && selectedBranch !== 'All Branches' && selectedBranch !== 'All Campuses') ? selectedBranch : 'Main Campus';
+    const activeBranch = defaultBranch;
     const activeAY = selectedAcademicYear || getCurrentAcademicYear();
 
     const payload: Omit<VehicleAssignment, 'id'> = {

@@ -12,7 +12,7 @@ namespace SMS.Api.Dtos
         public string FirstName { get; set; } = string.Empty;
         public string LastName { get; set; } = string.Empty;
         public string Avatar { get; set; } = string.Empty;
-        public string Branch { get; set; } = "Main Campus";
+        public string Branch { get; set; } = string.Empty;
         public string CurrentClass { get; set; } = string.Empty;
         public string CurrentSection { get; set; } = "A";
         public decimal OverallPct { get; set; } = 84.0m;
@@ -30,7 +30,7 @@ namespace SMS.Api.Dtos
         public string CurrentAcademicYear { get; set; } = "2026-2027";
         public string TargetAcademicYear { get; set; } = "2027-2028";
         public string CurrentClass { get; set; } = string.Empty;
-        public string Branch { get; set; } = "Main Campus";
+        public string Branch { get; set; } = string.Empty;
         public string Policy { get; set; } = "Manual";
         public List<StudentPromotionItemDto> Promotions { get; set; } = new();
     }

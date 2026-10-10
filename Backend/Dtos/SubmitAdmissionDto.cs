@@ -68,7 +68,21 @@ public class SubmitAdmissionDto
     public int? AcademicYearId { get; set; }
 
     [JsonPropertyName("branch")]
-    public string BranchName { get; set; } = "Main Campus";
+    public string BranchName { get; set; } = string.Empty;
+
+    [JsonPropertyName("branchName")]
+    public string? BranchNameAlias
+    {
+        get => BranchName;
+        set { if (!string.IsNullOrWhiteSpace(value)) BranchName = value; }
+    }
+
+    [JsonPropertyName("campus")]
+    public string? Campus
+    {
+        get => BranchName;
+        set { if (!string.IsNullOrWhiteSpace(value)) BranchName = value; }
+    }
 
     [JsonPropertyName("studentType")]
     public string StudentType { get; set; } = "Non-Residential";

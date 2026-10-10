@@ -9,9 +9,9 @@ public class PayrollConfig
     public int PayrollConfigId { get; set; }
 
     [Required]
-    public string PayrollName { get; set; } = "Main Campus Payroll";
+    public string PayrollName { get; set; } = "Payroll Configuration";
 
-    public string Branch { get; set; } = "Main Campus";
+    public string Branch { get; set; } = string.Empty;
 
     public string FinancialYear { get; set; } = "2026-2027";
 

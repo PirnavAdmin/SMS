@@ -7,7 +7,7 @@ public class PayslipResponseDto
     public string EmployeeId { get; set; } = string.Empty;
     public string EmpId { get; set; } = string.Empty;
     public string EmployeeName { get; set; } = string.Empty;
-    public string? Branch { get; set; } = "Main Campus";
+    public string? Branch { get; set; } = string.Empty;
     public string? Department { get; set; } = string.Empty;
     public string? Designation { get; set; } = string.Empty;
     public string? EmployeeCategory { get; set; } = "Teaching Staff";

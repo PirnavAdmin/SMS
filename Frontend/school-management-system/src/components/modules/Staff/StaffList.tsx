@@ -109,6 +109,7 @@ export const StaffList: React.FC<{
     subjects = [],
     departments = [],
     designations = [],
+    branches = [],
   } = useData();
   const { addToast } = useToast();
 
@@ -239,7 +240,7 @@ export const StaffList: React.FC<{
       effectiveBranch === "All" ||
       effectiveBranch === "All Branches" ||
       effectiveBranch === "All Campuses" ||
-      (s.branch || "Main Campus").trim().toLowerCase() === effectiveBranch.trim().toLowerCase();
+      (s.branch || "").trim().toLowerCase() === effectiveBranch.trim().toLowerCase();
 
     const statusMatch =
       filterStatus === "All" || s.status === filterStatus;
@@ -507,7 +508,7 @@ export const StaffList: React.FC<{
         "city": "Hyderabad",
         "state": "Telangana",
         "pinCode": "500001",
-        "branch": "Main Campus",
+        "branch": selectedBranch || (branches && branches[0]?.name) || "",
         "department": activeCategory === "Teaching Staff" ? "Mathematics" : "Administration",
         "designation": activeCategory === "Teaching Staff" ? "PGT Teacher" : "Administrator",
         "employmentType": "Full Time",
@@ -581,7 +582,7 @@ export const StaffList: React.FC<{
                 city: row.city || "",
                 state: row.state || "",
                 pinCode: row.pinCode || "",
-                branch: row.branch || "Main Campus",
+                branch: row.branch || selectedBranch || (branches && branches[0]?.name) || "",
                 department: row.department || "General",
                 designation: row.designation || (activeCategory === "Teaching Staff" ? "Subject Teacher" : "Administrator"),
                 employmentType: row.employmentType || "Full Time",
@@ -682,7 +683,7 @@ export const StaffList: React.FC<{
             (s) => {
               if (getStaffCategory(s) !== tab.key) return false;
               if (!selectedBranch || selectedBranch === "All" || selectedBranch === "All Branches" || selectedBranch === "All Campuses") return true;
-              return (s.branch || "Main Campus").trim().toLowerCase() === selectedBranch.trim().toLowerCase();
+              return (s.branch || "").trim().toLowerCase() === selectedBranch.trim().toLowerCase();
             }
           ).length;
           const isActive = activeCategory === tab.key;

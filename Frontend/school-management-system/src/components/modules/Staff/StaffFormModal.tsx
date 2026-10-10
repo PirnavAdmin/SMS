@@ -31,15 +31,15 @@ export const StaffFormModal: React.FC<StaffFormModalProps> = ({
   staffToEdit,
   defaultCategory = "Teaching Staff",
 }) => {
-  const { staff, addStaff, updateStaff, departments, designations } = useData();
+  const { staff, addStaff, updateStaff, departments, designations, branches } = useData();
   const { selectedBranch } = useAuth();
   const { addToast } = useToast();
+  const defaultBranch = (selectedBranch && selectedBranch !== 'All' && selectedBranch !== 'All Branches' && selectedBranch !== 'All Campuses') ? selectedBranch : (branches[0]?.name || '');
 
   const [form, setForm] = useState<BasicStaffFormState>(() => {
-    const initBranch = (selectedBranch && selectedBranch !== 'All' && selectedBranch !== 'All Branches' && selectedBranch !== 'All Campuses') ? selectedBranch : 'Main Campus';
     return {
       ...defaultBasicStaffFormState(defaultCategory),
-      branch: initBranch,
+      branch: defaultBranch,
     };
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -121,10 +121,9 @@ export const StaffFormModal: React.FC<StaffFormModalProps> = ({
         })),
       });
     } else {
-      const initBranch = (selectedBranch && selectedBranch !== 'All' && selectedBranch !== 'All Branches' && selectedBranch !== 'All Campuses') ? selectedBranch : 'Main Campus';
       setForm({
         ...defaultBasicStaffFormState(defaultCategory),
-        branch: initBranch,
+        branch: defaultBranch,
         empId: getNextEmployeeId(staff, defaultCategory),
       });
     }

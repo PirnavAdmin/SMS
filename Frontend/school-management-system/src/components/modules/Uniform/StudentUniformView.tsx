@@ -47,10 +47,12 @@ export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialS
     dynamicFeeStructures = [],
     feeStructures = [],
     studentFeeAssignments = [],
-    addFeePayment
+    addFeePayment,
+    branches = []
   } = useData() as any;
 
   const { addToast } = useToast();
+  const defaultBranch = selectedBranch || branches[0]?.name || '';
   const feeStructuresToUse = feeStructures?.length > 0 ? feeStructures : dynamicFeeStructures;
 
   const getPackageFeeForStudent = (className: string, priceOverride?: number, gender?: string) => {
@@ -517,7 +519,7 @@ export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialS
           address: adm.address || '',
           status: 'Active',
           academicYear: adm.academicYear || '2026-2027',
-          branch: adm.branch || 'Main Campus',
+          branch: adm.branch || defaultBranch,
           selectedOptionalFees: adm.selectedOptionalFees || []
         } as unknown as Student);
       });
@@ -1206,7 +1208,7 @@ export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialS
         className: 'Class 1',
         section: 'A',
         gender: 'Male',
-        branch: selectedBranch || 'Main Campus'
+        branch: defaultBranch
       } as unknown as Student;
     }
 
@@ -1334,7 +1336,7 @@ export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialS
         paymentMode: payMode,
         account: 'Main Bank Account',
         status: 'Completed',
-        branch: studentObj.branch || 'Main Campus',
+        branch: studentObj.branch || defaultBranch,
         academicYear: selectedAcademicYear || financeSettings.academicYear || '2026-2027',
         createdBy: 'Uniform Counter'
       });
@@ -1606,7 +1608,7 @@ export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialS
         paymentMode: 'Credit Note' as any,
         account: 'Main Bank Account',
         status: 'Completed',
-        branch: issue.branch || (schoolProfile as any)?.schoolName || 'Main Campus',
+        branch: issue.branch || defaultBranch,
         academicYear: selectedAcademicYear || financeSettings.academicYear || '2026-2027',
         createdBy: 'Uniform Counter'
       });
@@ -1917,7 +1919,7 @@ export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialS
               paymentMode: 'Cash',
               account: 'Main Bank Account',
               status: 'Pending',
-              branch: studentObj.branch || 'Main Campus',
+              branch: studentObj.branch || defaultBranch,
               academicYear: selectedAcademicYear || financeSettings.academicYear || '2026-2027',
               createdBy: 'Uniform Distribution'
             });

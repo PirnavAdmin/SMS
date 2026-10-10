@@ -130,7 +130,7 @@ export const TransactionsMasterLedgerView: React.FC<TransactionsMasterLedgerView
     setBudgetForm({
       categoryName: '',
       allocatedAmount: '',
-      branch: selectedBranch || 'Madhapur Branch',
+      branch: selectedBranch && selectedBranch !== 'All' && selectedBranch !== 'All Branches' ? selectedBranch : '',
       academicYear: selectedAcademicYear || '2026-27',
     });
     setIsBudgetModalOpen(true);
@@ -162,7 +162,7 @@ export const TransactionsMasterLedgerView: React.FC<TransactionsMasterLedgerView
     if (editingBudget) {
       await updateFinancialBudget(editingBudget.id, amount, {
         categoryName: budgetForm.categoryName.trim(),
-        branch: budgetForm.branch || selectedBranch || 'Madhapur Branch',
+        branch: budgetForm.branch || (selectedBranch && selectedBranch !== 'All' && selectedBranch !== 'All Branches' ? selectedBranch : '') || '',
         academicYear: budgetForm.academicYear || selectedAcademicYear || '2026-27',
       });
       addToast('success', 'Budget Updated', 'Budget allocation updated successfully.');
@@ -170,7 +170,7 @@ export const TransactionsMasterLedgerView: React.FC<TransactionsMasterLedgerView
       await addFinancialBudget({
         categoryName: budgetForm.categoryName.trim(),
         allocatedAmount: amount,
-        branch: budgetForm.branch || selectedBranch || 'Madhapur Branch',
+        branch: budgetForm.branch || (selectedBranch && selectedBranch !== 'All' && selectedBranch !== 'All Branches' ? selectedBranch : '') || '',
         academicYear: budgetForm.academicYear || selectedAcademicYear || '2026-27',
         status: 'Active',
       });
@@ -238,7 +238,7 @@ export const TransactionsMasterLedgerView: React.FC<TransactionsMasterLedgerView
     paymentMode: 'Bank Transfer' as any,
     account: 'Main Bank Account' as any,
     date: new Date().toISOString().split('T')[0],
-    branch: selectedBranch || 'Main Campus',
+    branch: selectedBranch || '',
     academicYear: selectedAcademicYear || '2026-2027',
     notes: '',
     attachmentName: ''
@@ -388,7 +388,7 @@ export const TransactionsMasterLedgerView: React.FC<TransactionsMasterLedgerView
       amount: amt,
       paymentMode: manualForm.paymentMode,
       account: manualForm.account,
-      branch: manualForm.branch || selectedBranch || 'Main Campus',
+      branch: manualForm.branch || selectedBranch || '',
       academicYear: selectedAcademicYear || manualForm.academicYear || '2026-2027',
       status: 'Completed',
       createdBy: 'Finance Admin',
@@ -407,7 +407,7 @@ export const TransactionsMasterLedgerView: React.FC<TransactionsMasterLedgerView
       paymentMode: 'Bank Transfer',
       account: 'Main Bank Account',
       date: new Date().toISOString().split('T')[0],
-      branch: selectedBranch || 'Main Campus',
+      branch: selectedBranch || '',
       academicYear: selectedAcademicYear || '2026-2027',
       notes: '',
       attachmentName: ''

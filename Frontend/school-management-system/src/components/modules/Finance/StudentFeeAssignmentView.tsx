@@ -480,7 +480,7 @@ export const StudentFeeAssignmentView: React.FC = () => {
       studentId: configStudent.id,
       studentName: `${configStudent.firstName} ${configStudent.lastName}`,
       admissionNo: configStudent.admissionNo,
-      branch: configStudent.branch || 'Main Campus',
+      branch: configStudent.branch || '',
       academicYear: activeAY,
       className: configStudent.className,
       section: configStudent.section,

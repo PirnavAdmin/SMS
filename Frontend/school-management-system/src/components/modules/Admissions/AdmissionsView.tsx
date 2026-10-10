@@ -56,7 +56,6 @@ import {
   validateEmail,
   BLOOD_GROUPS,
   CASTE_CATEGORIES,
-  BRANCHES,
   RELIGIONS,
 } from "../../../utils/validation";
 import {
@@ -281,6 +280,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
     vehicleMasters,
     getStudentFeeLedger,
     dynamicFeeStructures,
+    allDynamicFeeStructures,
     financeTransportConfigs,
     financeUniformConfigs,
     hostelMasters,
@@ -298,6 +298,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
     schoolProfile,
     branches = [],
     fetchBranches,
+    fetchFinanceData,
   } = useData();
   const { addToast } = useToast();
   const { selectedBranch, selectedAcademicYear } = useAuth();
@@ -306,19 +307,18 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
     if (typeof fetchAdmissions === "function") {
       fetchAdmissions();
     }
+    if (typeof fetchFinanceData === "function") {
+      fetchFinanceData().catch(() => {});
+    }
   }, [selectedBranch, selectedAcademicYear]);
 
   const dynamicCampuses = useMemo(() => {
     const fromApi = (branches || [])
+      .filter((b: any) => b && (typeof b === "string" || b.status !== "Inactive"))
       .map((b: any) => typeof b === "string" ? b : (b.name || b.branchName || b.campusName || ""))
       .filter(Boolean);
-    const combined = [
-      ...(selectedBranch && selectedBranch !== "All" && selectedBranch !== "All Branches" ? [selectedBranch] : []),
-      ...fromApi,
-    ];
-    const unique = Array.from(new Set(combined)).filter(Boolean);
-    return unique.length > 0 ? unique : ["Madhapur Branch", "Main Campus"];
-  }, [branches, selectedBranch]);
+    return Array.from(new Set(fromApi)).filter(Boolean);
+  }, [branches]);
 
   const [query, setQuery] = useState("");
   const [filterClass, setFilterClass] = useState("All");
@@ -383,7 +383,9 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
       floor: "",
       hostelRoom: "",
       hostelBed: "",
-      branch: selectedBranch || "Main Campus",
+      branch: (selectedBranch && selectedBranch !== "All" && selectedBranch !== "All Branches" && dynamicCampuses.includes(selectedBranch))
+        ? selectedBranch
+        : (dynamicCampuses[0] || ""),
       scholarshipId: "",
       discountId: "",
       selectedOptionalFees: [],
@@ -486,7 +488,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
       "Wright",
       "Class 1",
       "Male",
-      selectedBranch && selectedBranch !== "All" && selectedBranch !== "All Branches" ? selectedBranch : "Madhapur Branch",
+      selectedBranch && selectedBranch !== "All" && selectedBranch !== "All Branches" && dynamicCampuses.includes(selectedBranch) ? selectedBranch : (dynamicCampuses[0] || ""),
       "15-08-2018",
       "O+",
       "Christianity",
@@ -624,9 +626,9 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
 
               const rowStatus = String(row.Status || row.status || "Enrolled").trim();
               const rowClass = String(row.AppliedClass || row.appliedClass || row.Class || row.className || row["Applied Class"] || "Class 1").trim();
-              const defaultActiveBranch = selectedBranch && selectedBranch !== "All Branches" && selectedBranch !== "All" ? selectedBranch : "Madhapur Branch";
+              const defaultActiveBranch = selectedBranch && selectedBranch !== "All Branches" && selectedBranch !== "All" && dynamicCampuses.includes(selectedBranch) ? selectedBranch : (dynamicCampuses[0] || "");
               let rowBranch = String(row.Campus || row.branch || row.Branch || row.CampusLocation || "").trim();
-              if (!rowBranch || rowBranch.toLowerCase() === "main campus") {
+              if (!rowBranch) {
                 rowBranch = defaultActiveBranch;
               }
               const rowAcademicYear = String(row.AcademicYear || row.academicYear || row["Academic Year"] || selectedAcademicYear || "").trim();
@@ -776,7 +778,9 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
     floor: "",
     hostelRoom: "",
     hostelBed: "",
-    branch: selectedBranch,
+    branch: (selectedBranch && selectedBranch !== "All" && selectedBranch !== "All Branches" && dynamicCampuses.includes(selectedBranch))
+      ? selectedBranch
+      : (dynamicCampuses[0] || ""),
     joiningDate: new Date().toISOString().split("T")[0],
     admissionDate: new Date().toISOString().split("T")[0],
     isLateAdmission: false,
@@ -1938,7 +1942,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
           floor: formData.floor,
           hostelRoom: formData.hostelRoom,
           hostelBed: formData.hostelBed,
-          branch: formData.branch || selectedBranch || "Main Campus",
+          branch: formData.branch || (selectedBranch && selectedBranch !== "All" && selectedBranch !== "All Branches" && dynamicCampuses.includes(selectedBranch) ? selectedBranch : "") || (dynamicCampuses[0] || ""),
           scholarshipId: formData.scholarshipId,
           discountId: formData.discountId,
           selectedOptionalFees: formData.selectedOptionalFees || [],
@@ -2153,23 +2157,58 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
       return s1 === s2;
     };
 
+    const structuresToSearch = (allDynamicFeeStructures && allDynamicFeeStructures.length > 0)
+      ? allDynamicFeeStructures
+      : (dynamicFeeStructures || []);
+
+    const studentBranch = (formData.branch || selectedBranch || "").trim().toLowerCase();
+
     const dfs =
-      dynamicFeeStructures.find(
-        (d) => matchesClass(d.className, clsName) && (d.status === "Active" || !d.status),
+      structuresToSearch.find(
+        (d) =>
+          matchesClass(d.className, clsName) &&
+          (d.status === "Active" || !d.status) &&
+          (!studentBranch || studentBranch === "all" || studentBranch === "all branches" ||
+           !d.branch || d.branch.toLowerCase().trim() === "all" || d.branch.toLowerCase().trim() === "all branches" ||
+           d.branch.toLowerCase().trim() === studentBranch ||
+           studentBranch.includes(d.branch.toLowerCase().trim()) ||
+           d.branch.toLowerCase().trim().includes(studentBranch))
       ) ||
-      dynamicFeeStructures.find((d) => matchesClass(d.className, clsName));
+      structuresToSearch.find(
+        (d) => matchesClass(d.className, clsName) && (d.status === "Active" || !d.status)
+      ) ||
+      structuresToSearch.find((d) => matchesClass(d.className, clsName)) ||
+      (dynamicFeeStructures || []).find(
+        (d) => matchesClass(d.className, clsName) && (d.status === "Active" || !d.status)
+      ) ||
+      (dynamicFeeStructures || []).find((d) => matchesClass(d.className, clsName));
+
     const rawBaseItems = dfs ? (dfs.items || []) : [];
 
-    const baseItems = rawBaseItems.filter(
+    const baseItemsFiltered = rawBaseItems.filter(
       (item) =>
         item.feeHeadName !== "Fee Head" &&
         (feeHeads.length === 0 ||
           feeHeads.some(
             (h) =>
               h.id === item.feeHeadId ||
-              String(h.name || "").toLowerCase() === String(item.feeHeadName || "").toLowerCase(),
+              String(h.name || "").toLowerCase().trim() === String(item.feeHeadName || "").toLowerCase().trim(),
           )),
     );
+
+    let baseItems = baseItemsFiltered.length > 0 ? baseItemsFiltered : rawBaseItems;
+
+    if (baseItems.length === 0 && dfs && Number(dfs.totalAmount || 0) > 0) {
+      baseItems = [
+        {
+          feeHeadId: String(dfs.id || "1"),
+          feeHeadName: dfs.name || "Tuition Fee",
+          category: dfs.category || "Tuition Fee",
+          amount: Number(dfs.totalAmount),
+          frequency: "Quarterly",
+        } as any,
+      ];
+    }
 
     let items: {
       name: string;
@@ -4169,14 +4208,35 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                     const s2 = String(targetCls).replace(/^Class\s*/i, '').replace(/^Grade\s*/i, '').trim().toLowerCase();
                     return s1 === s2;
                   };
+                  const structuresToSearch = (allDynamicFeeStructures && allDynamicFeeStructures.length > 0)
+                    ? allDynamicFeeStructures
+                    : (dynamicFeeStructures || []);
+
+                  const studentBranch = (formData.branch || selectedBranch || "").trim().toLowerCase();
+
                   const dfs =
-                    dynamicFeeStructures.find(
-                      (d) => matchesClass(d.className, clsName) && (d.status === "Active" || !d.status),
+                    structuresToSearch.find(
+                      (d) =>
+                        matchesClass(d.className, clsName) &&
+                        (d.status === "Active" || !d.status) &&
+                        (!studentBranch || studentBranch === "all" || studentBranch === "all branches" ||
+                         !d.branch || d.branch.toLowerCase().trim() === "all" || d.branch.toLowerCase().trim() === "all branches" ||
+                         d.branch.toLowerCase().trim() === studentBranch ||
+                         studentBranch.includes(d.branch.toLowerCase().trim()) ||
+                         d.branch.toLowerCase().trim().includes(studentBranch))
                     ) ||
-                    dynamicFeeStructures.find((d) => matchesClass(d.className, clsName));
+                    structuresToSearch.find(
+                      (d) => matchesClass(d.className, clsName) && (d.status === "Active" || !d.status)
+                    ) ||
+                    structuresToSearch.find((d) => matchesClass(d.className, clsName)) ||
+                    (dynamicFeeStructures || []).find(
+                      (d) => matchesClass(d.className, clsName) && (d.status === "Active" || !d.status)
+                    ) ||
+                    (dynamicFeeStructures || []).find((d) => matchesClass(d.className, clsName));
+
                   const rawBaseItems = dfs ? (dfs.items || []) : [];
 
-                  const baseItems = rawBaseItems.filter(
+                  const baseItemsFiltered = rawBaseItems.filter(
                     (item) =>
                       item.feeHeadName !== "Fee Head" &&
                       item.feeHeadName !== "Fee Head:" &&
@@ -4188,6 +4248,8 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                               String(item.feeHeadName || "").toLowerCase().trim(),
                         )),
                   );
+
+                  const baseItems = baseItemsFiltered.length > 0 ? baseItemsFiltered : rawBaseItems;
 
                   const optionalItems = baseItems.filter(
                     (item) => !isItemMandatory(item),
@@ -4933,7 +4995,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                         Campus
                       </p>
                       <p className="text-xs font-bold text-slate-800 dark:text-slate-200">
-                        {selectedAppForView.branch || "Main Campus"}
+                        {selectedAppForView.branch || "-"}
                       </p>
                     </div>
                   </div>

@@ -69,7 +69,7 @@ export const StudentTransportAssignmentView: React.FC = () => {
           studentName: st.studentName || student?.name || 'Unknown Student',
           admissionNo: st.admissionNo || student?.admissionNo || '-',
           academicYear: (st as any).academicYear || '2026-2027',
-          branch: (st as any).branch || 'Main Campus',
+          branch: (st as any).branch || student?.branch || '',
           routeName: st.routeName || '-',
           pickupPoint: st.pickupPoint || '-',
           vehicleNumber: st.vehicleNumber || '-',
@@ -226,7 +226,7 @@ export const StudentTransportAssignmentView: React.FC = () => {
       studentName: `${st.firstName} ${st.lastName}`,
       admissionNo: st.admissionNo,
       academicYear: selectedAcademicYear,
-      branch: st.branch || 'Main Campus',
+      branch: st.branch || '',
       routeName: rt.routeName,
       pickupPoint: pk.pickupName,
       vehicleNumber: autoVehicleNumber,
@@ -628,7 +628,7 @@ export const StudentTransportAssignmentView: React.FC = () => {
                       Adm No: <strong>{inspectingAssignment.admissionNo}</strong> • Roll No: {studentObj?.rollNo || '1001'}
                     </p>
                     <p className="text-[11px] text-sky-700 dark:text-sky-300 font-bold mt-0.5">
-                      {studentObj?.studentType || 'Day Scholar (Non-Residential)'} • {studentObj?.branch || 'Main Campus'}
+                      {studentObj?.studentType || 'Day Scholar (Non-Residential)'} {studentObj?.branch ? `• ${studentObj.branch}` : ''}
                     </p>
                   </div>
                 </div>

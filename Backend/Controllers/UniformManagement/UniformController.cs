@@ -433,7 +433,7 @@ namespace SMS.Api.Controllers
             sb.AppendLine(".returned { background-color: #f1f5f9; color: #475569; }");
             sb.AppendLine(".ftr { margin-top: 40px; border-top: 1px solid #e2e8f0; padding-top: 15px; font-size: 11px; color: #94a3b8; display: flex; justify-content: space-between; }");
             sb.AppendLine("</style></head><body>");
-            sb.AppendLine("<div class='hdr'><div><div class='brand'>🎓 PIRNAV SCHOOLS</div><div class='sub'>Student Uniform Kit Allocation & Dispatch</div></div><div style='text-align:right; font-size:11px; color:#64748b;'><div>Academic Year: 2026-27</div><div>Campus: Main Campus</div></div></div>");
+            sb.AppendLine("<div class='hdr'><div><div class='brand'>🎓 PIRNAV SCHOOLS</div><div class='sub'>Student Uniform Kit Allocation & Dispatch</div></div><div style='text-align:right; font-size:11px; color:#64748b;'><div>Academic Year: 2026-27</div></div></div>");
             sb.AppendLine("<h2>Uniform Kit Allocation & Distribution Registry</h2>");
             sb.AppendLine($"<div class='meta'>Generated on {DateTime.Now:yyyy-MM-dd HH:mm:ss} | Total Records: {distributions.Count}</div>");
             sb.AppendLine("<table><thead><tr><th>Student Name</th><th>Admission No</th><th>Class</th><th>Clothing Item</th><th>Size</th><th>Qty</th><th>Total Amount</th><th>Issue Date</th><th>Status</th></tr></thead><tbody>");
@@ -513,7 +513,7 @@ namespace SMS.Api.Controllers
             sb.AppendLine("tr:nth-child(even) { background-color: #f8fafc; }");
             sb.AppendLine(".ftr { margin-top: 40px; border-top: 1px solid #e2e8f0; padding-top: 15px; font-size: 11px; color: #94a3b8; display: flex; justify-content: space-between; }");
             sb.AppendLine("</style></head><body>");
-            sb.AppendLine("<div class='hdr'><div><div class='brand'>🎓 PIRNAV SCHOOLS</div><div class='sub'>Uniform Reports & Real-Time Analytics</div></div><div style='text-align:right; font-size:11px; color:#64748b;'><div>Academic Year: 2026-27</div><div>Campus: Main Campus</div></div></div>");
+            sb.AppendLine("<div class='hdr'><div><div class='brand'>🎓 PIRNAV SCHOOLS</div><div class='sub'>Uniform Reports & Real-Time Analytics</div></div><div style='text-align:right; font-size:11px; color:#64748b;'><div>Academic Year: 2026-27</div></div></div>");
             sb.AppendLine($"<h2>{title}</h2>");
             sb.AppendLine($"<div class='meta'>Generated on {DateTime.Now:yyyy-MM-dd HH:mm:ss} | Total Filtered Records: {reports.Count}</div>");
             sb.AppendLine("<table><thead><tr><th>Item Name</th><th>Category</th><th>Gender</th><th>Size</th><th>Unit Price</th><th>Available Stock</th><th>Issued Units</th><th>Status</th></tr></thead><tbody>");

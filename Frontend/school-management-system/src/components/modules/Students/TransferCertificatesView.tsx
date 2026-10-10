@@ -87,7 +87,7 @@ export const TransferCertificatesView: React.FC<TransferCertificatesViewProps> =
       }
 
       // Branch Filter (from global header)
-      if (selectedBranch && selectedBranch !== 'All' && selectedBranch !== 'All Branches' && (s.branch || 'Main Campus').toLowerCase() !== selectedBranch.toLowerCase()) {
+      if (selectedBranch && selectedBranch !== 'All' && selectedBranch !== 'All Branches' && s.branch && s.branch.toLowerCase() !== selectedBranch.toLowerCase()) {
         return false;
       }
 
@@ -113,7 +113,7 @@ export const TransferCertificatesView: React.FC<TransferCertificatesViewProps> =
       if (selectedSection && selectedSection !== 'All' && tc.section.toLowerCase() !== selectedSection.toLowerCase()) {
         return false;
       }
-      if (selectedBranch && selectedBranch !== 'All' && selectedBranch !== 'All Branches' && (tc.branch || 'Main Campus').toLowerCase() !== selectedBranch.toLowerCase()) {
+      if (selectedBranch && selectedBranch !== 'All' && selectedBranch !== 'All Branches' && tc.branch && tc.branch.toLowerCase() !== selectedBranch.toLowerCase()) {
         return false;
       }
       if (searchQuery.trim()) {
@@ -157,7 +157,7 @@ export const TransferCertificatesView: React.FC<TransferCertificatesViewProps> =
     // Branch breakdown
     const branchMap: Record<string, number> = {};
     tcRegister.forEach(r => {
-      const b = r.branch || 'Main Campus';
+      const b = r.branch || 'All Branches';
       branchMap[b] = (branchMap[b] || 0) + 1;
     });
 
@@ -521,7 +521,7 @@ export const TransferCertificatesView: React.FC<TransferCertificatesViewProps> =
 
             <div className="glass-card p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs space-y-1">
               <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Active Branch Distribution</span>
-              <p className="text-lg font-black text-slate-900 dark:text-white">Main Campus</p>
+              <p className="text-lg font-black text-slate-900 dark:text-white">{selectedBranch && selectedBranch !== 'All' ? selectedBranch : 'All Branches'}</p>
               <span className="text-[10px] font-bold text-slate-400">Primary Center</span>
             </div>
           </div>

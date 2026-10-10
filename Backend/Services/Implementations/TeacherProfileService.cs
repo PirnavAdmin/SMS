@@ -47,7 +47,7 @@ public class TeacherProfileService : ITeacherProfileService
             Address = !string.IsNullOrWhiteSpace(staff.PresentAddress) ? staff.PresentAddress : staff.ResidentialAddress,
             PermanentAddress = staff.PermanentAddress,
             EmergencyContact = staff.AlternateMobile,
-            Branch = staff.BranchName ?? "Main Campus",
+            Branch = staff.BranchName ?? string.Empty,
             Department = staff.Department,
             Designation = staff.Designation,
             JoiningDate = staff.JoiningDate,

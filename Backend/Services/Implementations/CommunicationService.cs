@@ -57,7 +57,7 @@ public class CommunicationService : ICommunicationService
                 Id = 3,
                 CategoryTag = "ASSEMBLY • ALL",
                 Title = "All-School Morning Assembly & Leadership Talk",
-                Body = "A special morning assembly will be held tomorrow at 08:30 AM in the Main Campus Auditorium. Attendance is mandatory for all students and faculty members. Dr. Eleanor Vance will present the new student council members.",
+                Body = "A special morning assembly will be held tomorrow at 08:30 AM in the Main Auditorium. Attendance is mandatory for all students and faculty members. Dr. Eleanor Vance will present the new student council members.",
                 Date = "2026-07-30",
                 Audience = "ALL"
             }

@@ -264,7 +264,7 @@ export const VehicleTripDetailsModal: React.FC<VehicleTripDetailsModalProps> = (
           className: st.className || 'Class 6',
           section: st.section || 'A',
           rollNo: st.rollNo || '1',
-          pickupPoint: st.pickupPoint || (displayStops.length > 0 ? displayStops[0].label : 'Main Campus Stop'),
+          pickupPoint: st.pickupPoint || (displayStops.length > 0 ? displayStops[0].label : 'Campus Stop'),
           parentName: (st.fatherName || st.parentName || 'Parent / Guardian').trim(),
           parentMobile: (st.fatherPhone || st.phone || 'N/A').trim(),
           morningTime: morningTripTime,

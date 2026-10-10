@@ -606,7 +606,7 @@ public class StaffService : IStaffService
                     Date = parsedDate,
                     Status = rec.Status,
                     AcademicYear = dto.AcademicYear ?? "2026-2027",
-                    Branch = dto.Branch ?? "Main Campus",
+                    Branch = dto.Branch ?? staff.BranchName ?? string.Empty,
                     Department = staff.Department,
                     Designation = staff.Designation,
                     Remarks = rec.Remarks,

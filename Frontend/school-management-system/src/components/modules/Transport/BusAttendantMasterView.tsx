@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { UserCheck, Plus, Search, Edit, Trash2, Phone, ShieldCheck, Bus } from 'lucide-react';
 import { useData } from '../../../context/DataContext';
+import { useAuth } from '../../../context/AuthContext';
 import { useToast } from '../../../context/ToastContext';
 import { Badge } from '../../common/Badge';
 import { ExportButton } from '../../common/ExportButton';
@@ -12,8 +13,10 @@ export { initialBusAttendants };          // re-export value for backward compat
 // BusAttendantMaster type and initialBusAttendants are now in transportData.ts
 
 export const BusAttendantMasterView: React.FC = () => {
-  const { staff = [], vehicleAssignments, busAttendants: attendants, addBusAttendant, updateBusAttendant, deleteBusAttendant } = useData();
+  const { staff = [], vehicleAssignments, busAttendants: attendants, addBusAttendant, updateBusAttendant, deleteBusAttendant, branches = [] } = useData();
+  const { selectedBranch } = useAuth();
   const { addToast } = useToast();
+  const defaultBranch = selectedBranch || branches[0]?.name || '';
 
   const nonTeachingStaff = React.useMemo(() => {
     return (staff || []).filter(s => 
@@ -44,7 +47,7 @@ export const BusAttendantMasterView: React.FC = () => {
     attendantName: '',
     mobileNumber: '',
     gender: '' as any,
-    branch: 'Main Campus',
+    branch: defaultBranch,
     status: 'Active'
   });
 
@@ -67,7 +70,7 @@ export const BusAttendantMasterView: React.FC = () => {
       attendantName: '',
       mobileNumber: '',
       gender: '' as any,
-      branch: 'Main Campus',
+      branch: defaultBranch,
       status: 'Active'
     });
     setIsModalOpen(true);
@@ -265,7 +268,7 @@ export const BusAttendantMasterView: React.FC = () => {
                           attendantName: `${selected.firstName} ${selected.lastName || ''}`.trim(),
                           mobileNumber: selected.phone || (selected as any).mobileNumber || '',
                           gender: (selected.gender as any) || prev.gender,
-                          branch: selected.branch || prev.branch || 'Main Campus'
+                          branch: selected.branch || prev.branch || defaultBranch
                         }));
                       } else {
                         setForm(prev => ({
@@ -274,7 +277,7 @@ export const BusAttendantMasterView: React.FC = () => {
                           attendantName: '',
                           mobileNumber: '',
                           gender: '' as any,
-                          branch: 'Main Campus'
+                          branch: defaultBranch
                         }));
                       }
                     }}

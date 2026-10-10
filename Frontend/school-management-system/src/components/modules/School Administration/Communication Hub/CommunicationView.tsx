@@ -297,7 +297,7 @@ export const CommunicationView: React.FC = () => {
       case 'ASSEMBLY':
         setTitle('All-School Morning Assembly & Leadership Talk');
         setTarget('ALL');
-        setContent('A special morning assembly will be held tomorrow at 08:30 AM in the Main Campus Auditorium. Attendance is mandatory for all students and faculty members.');
+        setContent('A special morning assembly will be held tomorrow at 08:30 AM in the Main Auditorium. Attendance is mandatory for all students and faculty members.');
         break;
       case 'URGENT':
         setTitle('🚨 EMERGENCY ALERT: Heavy Rainfall & Weather Advisory - Unexpected Holiday');
