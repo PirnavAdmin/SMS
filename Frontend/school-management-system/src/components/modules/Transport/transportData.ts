@@ -150,14 +150,17 @@ export const resolveAssignedStudentsForTrip = (
     const matchesRoute = (cleanTargetRouteId !== '' && stRouteId !== '' && stRouteId === cleanTargetRouteId) ||
                          (cleanTargetRouteName !== '' && stRouteName !== '' && (
                            stRouteName === cleanTargetRouteName ||
-                           stRouteName.includes(cleanTargetRouteName) ||
-                           cleanTargetRouteName.includes(stRouteName)
-                         )) ||
-                         (cleanTargetRouteCode !== '' && stRouteName !== '' && stRouteName === cleanTargetRouteCode);
+                           stRouteName === cleanTargetRouteCode
+                         ));
 
     const matchesVehicle = (assignmentId !== '' && stVehicleAssignId !== '' && stVehicleAssignId === assignmentId) ||
                            (targetVehicleId !== '' && stVehicleAssignId !== '' && stVehicleAssignId === targetVehicleId) ||
                            (targetVehicleNum !== '' && stVehicleNum !== '' && stVehicleNum === targetVehicleNum);
+
+    // If both this trip and the student record have route information, the route MUST match
+    if ((stRouteId !== '' || stRouteName !== '') && (cleanTargetRouteId !== '' || cleanTargetRouteName !== '')) {
+      return matchesRoute;
+    }
 
     return matchesRoute || matchesVehicle;
   });
@@ -251,9 +254,7 @@ export const resolveAssignedStudentsForTrip = (
       st.isTransportOpted === true ||
       st.transport === true ||
       Boolean(st.busRoute) ||
-      Boolean(st.transportType) ||
-      Boolean(st.routeId) ||
-      Boolean(st.pickupPoint && configuredStops.some((cs: any) => (cs.pickupName || '').toLowerCase() === (st.pickupPoint || '').trim().toLowerCase()));
+      Boolean(st.routeId);
 
     if (!isTransportEnrolled) return;
 
@@ -263,11 +264,8 @@ export const resolveAssignedStudentsForTrip = (
       (cleanTargetRouteId !== '' && stRouteIdStr !== '' && stRouteIdStr === cleanTargetRouteId) ||
       (cleanTargetRouteName !== '' && stBusRoute !== '' && (
         stBusRoute === cleanTargetRouteName ||
-        stBusRoute.includes(cleanTargetRouteName) ||
-        cleanTargetRouteName.includes(stBusRoute)
-      )) ||
-      (cleanTargetRouteCode !== '' && stBusRoute !== '' && stBusRoute === cleanTargetRouteCode) ||
-      (st.pickupPoint && configuredStops.some((cs: any) => (cs.pickupName || '').trim().toLowerCase() === (st.pickupPoint || '').trim().toLowerCase()));
+        stBusRoute === cleanTargetRouteCode
+      ));
 
     if (!matchesRoute) return;
 
@@ -316,7 +314,7 @@ export const resolveAssignedStudentsForTrip = (
       adm.isTransportOpted === true ||
       Boolean(adm.busRoute) ||
       Boolean(adm.routeId) ||
-      Boolean(adm.pickupPoint && configuredStops.some((cs: any) => (cs.pickupName || '').toLowerCase() === (adm.pickupPoint || '').trim().toLowerCase()));
+      Boolean(adm.routeName);
 
     if (!isTransportEnrolled) return;
 
@@ -326,11 +324,8 @@ export const resolveAssignedStudentsForTrip = (
       (cleanTargetRouteId !== '' && admRouteIdStr !== '' && admRouteIdStr === cleanTargetRouteId) ||
       (cleanTargetRouteName !== '' && admBusRoute !== '' && (
         admBusRoute === cleanTargetRouteName ||
-        admBusRoute.includes(cleanTargetRouteName) ||
-        cleanTargetRouteName.includes(admBusRoute)
-      )) ||
-      (cleanTargetRouteCode !== '' && admBusRoute !== '' && admBusRoute === cleanTargetRouteCode) ||
-      (adm.pickupPoint && configuredStops.some((cs: any) => (cs.pickupName || '').trim().toLowerCase() === (adm.pickupPoint || '').trim().toLowerCase()));
+        admBusRoute === cleanTargetRouteCode
+      ));
 
     if (!matchesRoute) return;
 
