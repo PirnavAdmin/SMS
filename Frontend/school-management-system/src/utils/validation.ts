@@ -72,8 +72,8 @@ export function validateEmail(email: string, required: boolean = false): { isVal
 
   const trimmed = email.trim();
 
-  // 1. Basic RFC 5322 structure regex (user@domain.tld), TLD 2 to 6 characters
-  const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,6}$/;
+  // 1. Basic RFC 5322 structure regex (user@domain.tld), TLD 2 to 24 characters
+  const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,24}$/;
   if (!emailRegex.test(trimmed)) {
     return { isValid: false, error: 'Enter a valid email address.' };
   }
@@ -87,13 +87,29 @@ export function validateEmail(email: string, required: boolean = false): { isVal
   const [localPart, domain] = parts;
 
   // Local part formatting checks
-  if (localPart.startsWith('.') || localPart.endsWith('.') || localPart.includes('..')) {
+  if (!localPart || localPart.startsWith('.') || localPart.endsWith('.') || localPart.includes('..')) {
     return { isValid: false, error: 'Enter a valid email address.' };
   }
 
-  // 3. Domain formatting checks: consecutive dots or leading/trailing dots
-  if (domain.includes('..') || domain.startsWith('.') || domain.endsWith('.')) {
+  if (!/^[a-zA-Z0-9._%+-]+$/.test(localPart)) {
     return { isValid: false, error: 'Enter a valid email address.' };
+  }
+
+  // 3. Domain formatting checks: consecutive dots or leading/trailing dots or hyphens
+  if (!domain || domain.includes('..') || domain.startsWith('.') || domain.endsWith('.')) {
+    return { isValid: false, error: 'Enter a valid email address.' };
+  }
+
+  const domainParts = domain.split('.');
+  if (domainParts.length < 2) {
+    return { isValid: false, error: 'Enter a valid email address.' };
+  }
+
+  // Each domain segment must be valid hostname label
+  for (const seg of domainParts) {
+    if (!seg || seg.startsWith('-') || seg.endsWith('-') || !/^[a-zA-Z0-9-]+$/.test(seg)) {
+      return { isValid: false, error: 'Enter a valid email address.' };
+    }
   }
 
   // 4. Well-known email provider strict domain validation
@@ -133,28 +149,80 @@ export function validateEmail(email: string, required: boolean = false): { isVal
   const typoDomains: Record<string, string> = {
     'gmai.com': 'Enter a valid email address.',
     'gmal.com': 'Enter a valid email address.',
-    'yaho.com': 'Enter a valid email address.'
+    'gamil.com': 'Enter a valid email address.',
+    'gmial.com': 'Enter a valid email address.',
+    'yaho.com': 'Enter a valid email address.',
+    'yahooo.com': 'Enter a valid email address.',
+    'hotmial.com': 'Enter a valid email address.',
+    'hotmaill.com': 'Enter a valid email address.',
+    'outlok.com': 'Enter a valid email address.',
+    'outllok.com': 'Enter a valid email address.'
   };
 
   if (typoDomains[domain]) {
     return { isValid: false, error: typoDomains[domain] };
   }
 
-  // 5. General TLD validation (must be 2-6 alphabetic chars)
-  const domainParts = domain.split('.');
+  // 5. TLD validation
   const tld = domainParts[domainParts.length - 1];
-  if (tld.length < 2 || tld.length > 6 || !/^[a-zA-Z]+$/.test(tld)) {
+  if (!tld || tld.length < 2 || !/^[a-zA-Z]+$/.test(tld)) {
     return { isValid: false, error: 'Enter a valid email address.' };
   }
 
-  // Disallow common TLD typos (e.g. "comm", "coom", "edus")
-  const typoTLDs = new Set(['comm', 'coom', 'con', 'cmo', 'cm', 'edus', 'eduu', 'orgg', 'nett', 'gmai']);
-  if (typoTLDs.has(tld)) {
+  // Disallow any character repeated 3 or more times anywhere in TLD (e.g. "commmm", "orggg", "innn")
+  if (/(.)\1{2,}/.test(tld)) {
     return { isValid: false, error: 'Enter a valid email address.' };
   }
 
   // Disallow repetitive dummy TLDs like "innnnnn", "aaaaaa"
   if (/^(.)\1+$/.test(tld)) {
+    return { isValid: false, error: 'Enter a valid email address.' };
+  }
+
+  // Disallow typos/variations of standard TLDs:
+  if (/^co+m+$/.test(tld) && tld !== 'com') {
+    return { isValid: false, error: 'Enter a valid email address.' };
+  }
+  if (/^or+g+$/.test(tld) && tld !== 'org') {
+    return { isValid: false, error: 'Enter a valid email address.' };
+  }
+  if (/^ne+t+$/.test(tld) && tld !== 'net') {
+    return { isValid: false, error: 'Enter a valid email address.' };
+  }
+  if (/^ed+u+$/.test(tld) && tld !== 'edu') {
+    return { isValid: false, error: 'Enter a valid email address.' };
+  }
+  if (/^go+v+$/.test(tld) && tld !== 'gov') {
+    return { isValid: false, error: 'Enter a valid email address.' };
+  }
+
+  const typoTLDs = new Set([
+    'comm', 'commm', 'commmm', 'commmmm', 'coom', 'coomm', 'con', 'cmo', 'cm', 'xom',
+    'edus', 'eduu', 'eduuu', 'orgg', 'orggg', 'nett', 'nettt', 'gmai', 'innd'
+  ]);
+  if (typoTLDs.has(tld)) {
+    return { isValid: false, error: 'Enter a valid email address.' };
+  }
+
+  // List of recognized valid standard ICANN gTLDs and ccTLDs
+  const VALID_TLDS = new Set([
+    // Generic & Business
+    'com', 'org', 'net', 'edu', 'gov', 'mil', 'int', 'info', 'biz', 'pro', 'name', 'coop', 'aero', 'museum',
+    // Education & Academy
+    'school', 'academy', 'college', 'university', 'institute', 'education', 'training', 'learn',
+    // Modern / Tech / Business
+    'io', 'ai', 'app', 'dev', 'tech', 'cloud', 'digital', 'online', 'site', 'website', 'store', 'shop',
+    'blog', 'live', 'news', 'space', 'club', 'global', 'world', 'network', 'systems', 'solutions',
+    'services', 'center', 'hub', 'xyz', 'me', 'tv', 'cc', 'fm', 'to', 'link', 'agency', 'today', 'group',
+    'foundation', 'community', 'international', 'management', 'consulting',
+    // Country codes (ccTLDs)
+    'in', 'co', 'uk', 'us', 'ca', 'au', 'nz', 'de', 'fr', 'es', 'it', 'nl', 'be', 'ch', 'at', 'se',
+    'no', 'fi', 'dk', 'ie', 'pl', 'cz', 'ru', 'ua', 'za', 'br', 'mx', 'ar', 'cl', 'jp', 'cn', 'kr',
+    'sg', 'my', 'id', 'th', 'vn', 'ph', 'pk', 'bd', 'lk', 'np', 'ae', 'sa', 'qa', 'kw', 'om', 'bh',
+    'eg', 'ng', 'ke', 'gh', 'eu', 'ac', 'pt', 'gr', 'ro', 'hu', 'il', 'hk', 'tw', 'tr', 'asia'
+  ]);
+
+  if (!VALID_TLDS.has(tld)) {
     return { isValid: false, error: 'Enter a valid email address.' };
   }
 
@@ -241,20 +309,14 @@ export function validateFullName(name: string, required: boolean = true): { isVa
       return { isValid: false, error: 'Enter a valid name without random character sequences.' };
     }
 
-    // Rejection: Low vowel ratio in words length >= 6 (e.g., < 20% vowels)
-    if (cleanWord.length >= 6) {
-      const vowelsCount = (cleanWord.match(/[aeiouy]/gi) || []).length;
-      if (vowelsCount / cleanWord.length < 0.20) {
-        return { isValid: false, error: 'Enter a valid name without random character sequences.' };
-      }
-
-      // Rejection: Dominant single character making up > 45% of the word
+    // Rejection: Dominant single character making up > 60% of the word (length >= 5)
+    if (cleanWord.length >= 5) {
       const charCounts: Record<string, number> = {};
       for (const char of lower) {
         charCounts[char] = (charCounts[char] || 0) + 1;
       }
       const maxCharCount = Math.max(...Object.values(charCounts));
-      if (maxCharCount / cleanWord.length > 0.45) {
+      if (maxCharCount / cleanWord.length > 0.60) {
         return { isValid: false, error: 'Enter a valid name without repetitive characters.' };
       }
     }
@@ -339,20 +401,14 @@ export function validateCampusName(name: string, required: boolean = true): { is
       return { isValid: false, error: 'Enter a valid campus name without random character sequences.' };
     }
 
-    // Rejection: Low vowel ratio in words length >= 6 (< 20% vowels)
-    if (cleanWord.length >= 6) {
-      const vowelsCount = (cleanWord.match(/[aeiouy]/gi) || []).length;
-      if (vowelsCount / cleanWord.length < 0.20) {
-        return { isValid: false, error: 'Enter a valid campus name without random character sequences.' };
-      }
-
-      // Rejection: Dominant single character making up > 45% of the word
+    // Rejection: Dominant single character making up > 60% of the word (length >= 5)
+    if (cleanWord.length >= 5) {
       const charCounts: Record<string, number> = {};
       for (const char of lower) {
         charCounts[char] = (charCounts[char] || 0) + 1;
       }
       const maxCharCount = Math.max(...Object.values(charCounts));
-      if (maxCharCount / cleanWord.length > 0.45) {
+      if (maxCharCount / cleanWord.length > 0.60) {
         return { isValid: false, error: 'Enter a valid campus name without repetitive characters.' };
       }
     }
@@ -447,21 +503,139 @@ export function validateRoleTitle(title: string, required: boolean = true): { is
       return { isValid: false, error: 'Enter a valid role title with recognizable words.' };
     }
 
-    if (cleanWord.length >= 6) {
-      const vowelsCount = (cleanWord.match(/[aeiouy]/gi) || []).length;
-      if (vowelsCount / cleanWord.length < 0.20) {
-        return { isValid: false, error: 'Enter a valid role title (random character sequences not allowed).' };
-      }
-
+    if (cleanWord.length >= 5) {
       const charCounts: Record<string, number> = {};
       for (const char of lower) {
         charCounts[char] = (charCounts[char] || 0) + 1;
       }
       const maxCharCount = Math.max(...Object.values(charCounts));
-      if (maxCharCount / cleanWord.length > 0.45) {
+      if (maxCharCount / cleanWord.length > 0.60) {
         return { isValid: false, error: 'Enter a valid role title without repetitive characters.' };
       }
     }
+  }
+
+  return { isValid: true };
+}
+
+/**
+ * Automatically formats string into Title Case (capitalizing the first letter of each word),
+ * while preserving acronyms and handling hyphens and slashes.
+ */
+export function formatTitleCase(str: string): string {
+  if (!str) return '';
+  return str.replace(/(?:^|[\s\-\/\.])([a-z])/g, (_, letter) => letter.toUpperCase());
+}
+
+/**
+ * Validates a Certificate Type Name, rejecting empty input, gibberish/keyboard-mashing,
+ * repeating character sequences, and invalid special characters.
+ */
+export function validateCertificateTypeName(name: string, required: boolean = true): { isValid: boolean; error?: string } {
+  if (!name || typeof name !== 'string' || !name.trim()) {
+    if (required) {
+      return { isValid: false, error: 'Certificate name is required.' };
+    }
+    return { isValid: true };
+  }
+
+  const trimmed = name.trim();
+
+  if (trimmed.length < 3) {
+    return { isValid: false, error: 'Certificate name must be at least 3 characters.' };
+  }
+
+  if (trimmed.length > 60) {
+    return { isValid: false, error: 'Certificate name cannot exceed 60 characters.' };
+  }
+
+  if (!/^[a-zA-Z0-9\s\-\.\,\&\(\)\/\']+$/.test(trimmed)) {
+    return { isValid: false, error: 'Certificate name contains invalid special characters.' };
+  }
+
+  if (!/[a-zA-Z]/.test(trimmed)) {
+    return { isValid: false, error: 'Certificate name must contain letters.' };
+  }
+
+  // Reject 4 or more identical consecutive characters
+  if (/(.)\1{3,}/i.test(trimmed)) {
+    return { isValid: false, error: 'Enter a valid certificate name without repetitive characters.' };
+  }
+
+  // Reject repeating patterns
+  if (/(..)\1{3,}/i.test(trimmed) || /(...)\1{3,}/i.test(trimmed)) {
+    return { isValid: false, error: 'Enter a valid certificate name without repeating patterns.' };
+  }
+
+  // Reject keyboard row mashing
+  if (/(qwerty|wertyu|ertyui|rtyuio|tyuiop|asdfgh|sdfghj|dfghjk|fghjkl|zxcvbn|xcvbnm)/i.test(trimmed)) {
+    return { isValid: false, error: 'Enter a valid certificate name without keyboard-mash patterns.' };
+  }
+
+  // Word inspections
+  const words = trimmed.split(/\s+/);
+  for (const word of words) {
+    const cleanWord = word.replace(/[^a-zA-Z]/g, '');
+    if (!cleanWord) continue;
+
+    const lower = cleanWord.toLowerCase();
+
+    // Single word > 25 chars without space is almost certainly gibberish
+    if (cleanWord.length > 25) {
+      return { isValid: false, error: 'Enter a valid certificate name with recognizable words.' };
+    }
+
+    if (cleanWord.length > 2) {
+      const hasVowel = /[aeiouy]/i.test(cleanWord);
+      if (!hasVowel) {
+        return { isValid: false, error: 'Enter a valid certificate name with recognizable words.' };
+      }
+    }
+
+    // 6 or more consecutive consonants
+    if (/[bcdfghjklmnpqrstvwxz]{6,}/i.test(cleanWord)) {
+      return { isValid: false, error: 'Enter a valid certificate name without random character sequences.' };
+    }
+
+    // Dominant single character > 60%
+    if (cleanWord.length >= 5) {
+      const charCounts: Record<string, number> = {};
+      for (const char of lower) {
+        charCounts[char] = (charCounts[char] || 0) + 1;
+      }
+      const maxCharCount = Math.max(...Object.values(charCounts));
+      if (maxCharCount / cleanWord.length > 0.60) {
+        return { isValid: false, error: 'Enter a valid certificate name without repetitive characters.' };
+      }
+    }
+  }
+
+  return { isValid: true };
+}
+
+/**
+ * Validates a Certificate Short Code (2 to 10 characters, alphanumeric & hyphens).
+ */
+export function validateCertificateTypeCode(code: string, required: boolean = true): { isValid: boolean; error?: string } {
+  if (!code || typeof code !== 'string' || !code.trim()) {
+    if (required) {
+      return { isValid: false, error: 'Short code is required.' };
+    }
+    return { isValid: true };
+  }
+
+  const trimmed = code.trim().toUpperCase();
+
+  if (trimmed.length < 2) {
+    return { isValid: false, error: 'Short code must be at least 2 characters.' };
+  }
+
+  if (trimmed.length > 10) {
+    return { isValid: false, error: 'Short code cannot exceed 10 characters.' };
+  }
+
+  if (!/^[A-Z0-9\-]+$/.test(trimmed)) {
+    return { isValid: false, error: 'Short code can only contain uppercase letters, numbers, and hyphens.' };
   }
 
   return { isValid: true };

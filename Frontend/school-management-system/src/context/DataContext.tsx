@@ -2774,6 +2774,18 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     setAcademicYears((prev) => {
       const target = prev.find((a) => a.id === id);
       if (!target) return prev;
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const end = target.endDate ? new Date(target.endDate) : null;
+      const isCompleted = target.status === "Closed" || (end && !isNaN(end.getTime()) && end < today);
+      if (isCompleted) {
+        addToast(
+          "error",
+          "Action Not Allowed",
+          "Completed academic year cannot be set as active session."
+        );
+        return prev;
+      }
       setSelectedAcademicYear(target.academicYear);
       const next: AcademicYearMaster[] = prev.map((a) => ({
         ...a,

@@ -901,7 +901,15 @@ export function calculateExperienceYearsMonths(
   if (!fromDate || !toDate) return "0 Years 0 Months";
   const start = new Date(fromDate);
   const end = new Date(toDate);
-  if (isNaN(start.getTime()) || isNaN(end.getTime()) || end < start)
+  const today = new Date();
+  today.setHours(23, 59, 59, 999);
+  if (
+    isNaN(start.getTime()) ||
+    isNaN(end.getTime()) ||
+    end < start ||
+    start > today ||
+    end > today
+  )
     return "0 Years 0 Months";
 
   let years = end.getFullYear() - start.getFullYear();

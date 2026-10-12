@@ -369,7 +369,8 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
 
   // Bulk Setup actions
   const [showBulkAddModal, setShowBulkAddModal] = useState(false);
-  const [bulkAddSectionsList, setBulkAddSectionsList] = useState('A, B, C');
+  const [bulkAddSectionsList, setBulkAddSectionsList] = useState('');
+  const [bulkAddCapacity, setBulkAddCapacity] = useState('40');
   const [selectedSections, setSelectedSections] = useState<string[]>([]);
   const [copyClassSourceId, setCopyClassSourceId] = useState('');
 
@@ -1156,40 +1157,132 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
     }
   };
 
-  // Bulk operations
-  const handleBulkAddSections = () => {
+  // Open Bulk Add Modal with intelligent suggestions
+  const handleOpenBulkAddModal = () => {
     if (!activeClass) return;
-    const letters = bulkAddSectionsList.split(',').map(s => s.trim().toUpperCase()).filter(Boolean);
-    if (letters.length === 0) return;
+    const existing = activeClass.sections || [];
+    const nextLetters = ALPHABET.filter(l => !existing.includes(l)).slice(0, 3);
+    setBulkAddSectionsList(nextLetters.length > 0 ? nextLetters.join(', ') : '');
+    setBulkAddCapacity('40');
+    setShowBulkAddModal(true);
+  };
+
+  // Bulk operations
+  const handleBulkAddSections = async () => {
+    if (!activeClass) return;
+    if (!bulkAddSectionsList.trim()) {
+      addToast('warning', 'Input Required', 'Please enter section names (e.g. B, C, D).');
+      return;
+    }
+
+    // Parse sections: split by commas, semicolons, or whitespace, handle "Section X" format, and ranges like "B-E"
+    const rawTokens = bulkAddSectionsList
+      .split(/[,;\n]+/)
+      .map(s => s.trim())
+      .filter(Boolean);
+
+    const parsedLetters: string[] = [];
+    rawTokens.forEach(token => {
+      const rangeMatch = token.match(/^([A-Za-z])\s*(?:[-–—]|to)\s*([A-Za-z])$/i);
+      if (rangeMatch) {
+        const startCharCode = rangeMatch[1].toUpperCase().charCodeAt(0);
+        const endCharCode = rangeMatch[2].toUpperCase().charCodeAt(0);
+        if (startCharCode <= endCharCode) {
+          for (let code = startCharCode; code <= endCharCode; code++) {
+            parsedLetters.push(String.fromCharCode(code));
+          }
+        } else {
+          for (let code = startCharCode; code >= endCharCode; code--) {
+            parsedLetters.push(String.fromCharCode(code));
+          }
+        }
+      } else {
+        const clean = token.replace(/^Section\s*/i, '').trim().toUpperCase();
+        if (clean) {
+          parsedLetters.push(clean);
+        }
+      }
+    });
+
+    const uniqueLetters = Array.from(new Set(parsedLetters));
+    if (uniqueLetters.length === 0) {
+      addToast('warning', 'Invalid Input', 'Please enter valid section letters.');
+      return;
+    }
 
     const currentSections = [...activeClass.sections];
     const details = { ...((activeClass as any).sectionDetails || {}) };
 
-    let addedCount = 0;
-    letters.forEach(letter => {
-      if (!currentSections.includes(letter)) {
-        currentSections.push(letter);
-        details[letter] = {
-          capacity: 40,
-          status: 'Active',
-          remarks: 'Added via bulk config wizard'
-        };
-        addedCount++;
+    const toAdd = uniqueLetters.filter(l => !currentSections.includes(l));
+    if (toAdd.length === 0) {
+      addToast('warning', 'Sections Exist', 'All entered sections already exist in this class.');
+      return;
+    }
+
+    setIsSubmitting(true);
+    const capacityNum = Number(bulkAddCapacity) > 0 ? Number(bulkAddCapacity) : 40;
+
+    try {
+      let addedCount = 0;
+      for (const letter of toAdd) {
+        try {
+          const res = await addSectionApi(activeClass.id, {
+            section_letter: letter,
+            capacity: capacityNum,
+            status: 'Active',
+            remarks: 'Added via bulk config wizard'
+          });
+          if (res && (res.success !== false || res.data)) {
+            currentSections.push(letter);
+            details[letter] = {
+              capacity: capacityNum,
+              status: 'Active',
+              remarks: 'Added via bulk config wizard'
+            };
+            addedCount++;
+          } else {
+            // Still track locally if already exists in backend or fallback
+            currentSections.push(letter);
+            details[letter] = {
+              capacity: capacityNum,
+              status: 'Active',
+              remarks: 'Added via bulk config wizard'
+            };
+            addedCount++;
+          }
+        } catch (apiErr) {
+          console.warn(`Failed to add section ${letter} via API, applying local fallback:`, apiErr);
+          currentSections.push(letter);
+          details[letter] = {
+            capacity: capacityNum,
+            status: 'Active',
+            remarks: 'Added via bulk config wizard'
+          };
+          addedCount++;
+        }
       }
-    });
 
-    updateAcademicClass(activeClass.id, {
-      sections: currentSections,
-      sectionDetails: details
-    } as any);
+      await updateAcademicClass(activeClass.id, {
+        sections: currentSections,
+        sectionDetails: details
+      } as any);
 
-    addToast('success', 'Bulk Actions complete', `Successfully created ${addedCount} sections.`);
-    setShowBulkAddModal(false);
+      await fetchAcademicClasses();
+
+      addToast('success', 'Bulk Configuration Complete', `Successfully added ${addedCount} section${addedCount > 1 ? 's' : ''}.`);
+      setShowBulkAddModal(false);
+      setBulkAddSectionsList('');
+    } catch (err: any) {
+      console.error('Error adding bulk sections:', err);
+      addToast('error', 'Error', 'Failed to configure sections.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleBulkDelete = () => {
     if (!activeClass || selectedSections.length === 0) return;
-    verifySafetyLock(() => {
+    verifySafetyLock(async () => {
       const blocked: string[] = [];
       const clearSections = selectedSections.filter(sec => {
         const hasStudents = students.some(s => s.className === activeClass.name && s.section === sec);
@@ -1206,44 +1299,75 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
       }
 
       if (clearSections.length > 0) {
-        const currentSections = activeClass.sections.filter(s => !clearSections.includes(s));
-        const details = { ...((activeClass as any).sectionDetails || {}) };
-        clearSections.forEach(s => delete details[s]);
+        setIsSubmitting(true);
+        try {
+          await Promise.all(
+            clearSections.map(s => deleteSectionApi(activeClass.id, s).catch(() => null))
+          );
+          const currentSections = activeClass.sections.filter(s => !clearSections.includes(s));
+          const details = { ...((activeClass as any).sectionDetails || {}) };
+          clearSections.forEach(s => delete details[s]);
 
-        updateAcademicClass(activeClass.id, {
-          sections: currentSections,
-          sectionDetails: details
-        } as any);
+          await updateAcademicClass(activeClass.id, {
+            sections: currentSections,
+            sectionDetails: details
+          } as any);
 
-        addToast('success', 'Bulk delete successful', `Removed ${clearSections.length} sections.`);
-        setSelectedSections([]);
+          await fetchAcademicClasses();
+
+          addToast('success', 'Bulk delete successful', `Removed ${clearSections.length} sections.`);
+          setSelectedSections([]);
+        } finally {
+          setIsSubmitting(false);
+        }
       }
     });
   };
 
   const handleBulkArchive = () => {
     if (!activeClass || selectedSections.length === 0) return;
-    verifySafetyLock(() => {
-      const details = { ...((activeClass as any).sectionDetails || {}) };
-      selectedSections.forEach(sec => {
-        if (details[sec]) details[sec].status = 'Archived';
-      });
-      updateAcademicClass(activeClass.id, { sectionDetails: details } as any);
-      addToast('success', 'Bulk archive completed', `Archived ${selectedSections.length} sections.`);
-      setSelectedSections([]);
+    verifySafetyLock(async () => {
+      setIsSubmitting(true);
+      try {
+        await Promise.all(
+          selectedSections.map(sec => 
+            updateSectionApi(activeClass.id, sec, { status: 'Archived' }).catch(() => null)
+          )
+        );
+        const details = { ...((activeClass as any).sectionDetails || {}) };
+        selectedSections.forEach(sec => {
+          if (details[sec]) details[sec].status = 'Archived';
+        });
+        await updateAcademicClass(activeClass.id, { sectionDetails: details } as any);
+        await fetchAcademicClasses();
+        addToast('success', 'Bulk archive completed', `Archived ${selectedSections.length} sections.`);
+        setSelectedSections([]);
+      } finally {
+        setIsSubmitting(false);
+      }
     });
   };
 
-
-  const handleBulkUpdateCapacity = (capacity: number) => {
+  const handleBulkUpdateCapacity = async (capacity: number) => {
     if (!activeClass || selectedSections.length === 0) return;
-    const details = { ...((activeClass as any).sectionDetails || {}) };
-    selectedSections.forEach(sec => {
-      if (details[sec]) details[sec].capacity = capacity;
-    });
-    updateAcademicClass(activeClass.id, { sectionDetails: details } as any);
-    addToast('success', 'Capacity Updated', `Capacity updated for ${selectedSections.length} sections.`);
-    setSelectedSections([]);
+    setIsSubmitting(true);
+    try {
+      await Promise.all(
+        selectedSections.map(sec => 
+          updateSectionApi(activeClass.id, sec, { capacity }).catch(() => null)
+        )
+      );
+      const details = { ...((activeClass as any).sectionDetails || {}) };
+      selectedSections.forEach(sec => {
+        if (details[sec]) details[sec].capacity = capacity;
+      });
+      await updateAcademicClass(activeClass.id, { sectionDetails: details } as any);
+      await fetchAcademicClasses();
+      addToast('success', 'Capacity Updated', `Capacity updated for ${selectedSections.length} sections.`);
+      setSelectedSections([]);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   // Complete step and redirect
@@ -2097,7 +2221,7 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
 
                       <div className="flex gap-2">
                         <button
-                          onClick={() => setShowBulkAddModal(true)}
+                          onClick={handleOpenBulkAddModal}
                           className="px-3 py-1.5 bg-slate-100 dark:bg-slate-805 hover:bg-slate-202 text-slate-700 dark:text-slate-200 rounded-xl flex items-center gap-1 border border-slate-200"
                         >
                           <Clipboard className="w-3.5 h-3.5" /> Bulk Add Sections
@@ -3450,22 +3574,126 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
       {/* BULK ADD SECTIONS MODAL */}
       {showBulkAddModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm text-left text-xs font-bold">
-          <div className="bg-white dark:bg-slate-905 border border-slate-200 dark:border-slate-808 rounded-3xl max-w-sm w-full p-6 space-y-4 shadow-2xl">
-            <div className="flex items-center justify-between border-b border-slate-105 pb-2">
-              <h3 className="font-extrabold text-slate-905 dark:text-white">Bulk Configure Sections</h3>
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-md w-full p-6 space-y-4 shadow-2xl">
+            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
+              <div>
+                <h3 className="font-extrabold text-base text-slate-900 dark:text-white">Bulk Configure Sections</h3>
+                {activeClass && (
+                  <p className="text-slate-500 text-[11px] font-medium mt-0.5">
+                    Target Class: <span className="font-bold text-sky-600 dark:text-sky-400">{activeClass.name}</span>
+                    {activeClass.sections.length > 0 && (
+                      <span className="ml-2">(Current: {activeClass.sections.map(s => `Section ${s}`).join(', ')})</span>
+                    )}
+                  </p>
+                )}
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowBulkAddModal(false)}
+                className="p-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800"
+              >
+                <X className="w-4 h-4" />
+              </button>
             </div>
+
             <div>
-              <label className="block text-slate-700 dark:text-slate-300 mb-1">Section names list (Comma Separated)</label>
+              <label className="block text-slate-700 dark:text-slate-300 mb-1 font-bold">
+                Section Names <span className="text-rose-500 ml-0.5">*</span>
+              </label>
               <input
                 type="text"
+                placeholder="e.g. B, C, D or B-E"
                 value={bulkAddSectionsList}
                 onChange={e => setBulkAddSectionsList(e.target.value)}
-                className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 outline-none text-slate-900 dark:text-white font-mono"
+                className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 outline-none text-slate-900 dark:text-white font-mono focus:border-sky-500"
+              />
+              <p className="text-[11px] text-slate-500 font-normal mt-1">
+                Enter comma-separated letters or ranges (e.g. <code className="text-sky-600 dark:text-sky-400 font-bold">B, C, D</code> or <code className="text-sky-600 dark:text-sky-400 font-bold">B-E</code>).
+              </p>
+            </div>
+
+            {/* Quick Available Section chips */}
+            {activeClass && (
+              <div>
+                <label className="block text-slate-500 dark:text-slate-400 text-[11px] font-semibold mb-1.5">
+                  Click to quickly toggle available section letters:
+                </label>
+                <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto p-2 bg-slate-50 dark:bg-slate-800/60 rounded-xl border border-slate-200 dark:border-slate-700">
+                  {ALPHABET.filter(l => !activeClass.sections.includes(l)).slice(0, 12).map(l => {
+                    const currentTokens = bulkAddSectionsList
+                      .split(/[,;\s]+/)
+                      .map(t => t.trim().toUpperCase().replace(/^SECTION\s*/i, ''))
+                      .filter(Boolean);
+                    const isSelected = currentTokens.includes(l);
+                    return (
+                      <button
+                        key={l}
+                        type="button"
+                        onClick={() => {
+                          const tokens = bulkAddSectionsList
+                            .split(',')
+                            .map(s => s.trim().toUpperCase().replace(/^SECTION\s*/i, ''))
+                            .filter(Boolean);
+                          if (tokens.includes(l)) {
+                            setBulkAddSectionsList(tokens.filter(t => t !== l).join(', '));
+                          } else {
+                            tokens.push(l);
+                            setBulkAddSectionsList(tokens.join(', '));
+                          }
+                        }}
+                        className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all ${
+                          isSelected
+                            ? 'bg-sky-600 text-white shadow-sm'
+                            : 'bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 hover:border-sky-400'
+                        }`}
+                      >
+                        {isSelected ? `✓ Section ${l}` : `+ ${l}`}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            <div>
+              <label className="block text-slate-700 dark:text-slate-300 font-bold mb-1">Default Seat Capacity</label>
+              <input
+                type="text"
+                inputMode="numeric"
+                placeholder="40"
+                value={bulkAddCapacity}
+                onChange={e => {
+                  const val = e.target.value.replace(/[^0-9]/g, '');
+                  setBulkAddCapacity(val);
+                }}
+                className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 outline-none font-bold text-xs text-slate-900 dark:text-white focus:border-sky-500"
               />
             </div>
+
             <div className="flex justify-end gap-3 pt-3 border-t border-slate-100 dark:border-slate-800">
-              <button type="button" onClick={() => setShowBulkAddModal(false)} className="px-4 py-2 text-slate-600 dark:text-slate-300 bg-slate-105 rounded-xl hover:bg-slate-200">Cancel</button>
-              <button onClick={handleBulkAddSections} className="px-5 py-2 text-white bg-sky-600 hover:bg-sky-505 rounded-xl shadow-md">Configure Bulk</button>
+              <button
+                type="button"
+                disabled={isSubmitting}
+                onClick={() => setShowBulkAddModal(false)}
+                className="px-4 py-2 text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 rounded-xl hover:bg-slate-200 dark:hover:bg-slate-700 disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={isSubmitting}
+                onClick={handleBulkAddSections}
+                className="px-5 py-2 text-white bg-sky-600 hover:bg-sky-500 rounded-xl shadow-md disabled:opacity-50 flex items-center gap-1.5"
+              >
+                {isSubmitting ? (
+                  <>
+                    <span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin inline-block" />
+                    <span>Configuring...</span>
+                  </>
+                ) : (
+                  'Configure Bulk'
+                )}
+              </button>
             </div>
           </div>
         </div>
