@@ -361,6 +361,7 @@ import { getHostelBlocks, getRooms } from "../api/hostel";
 import {
   BusAttendantMaster,
   initialBusAttendants,
+  resolveAssignedStudentsForTrip,
 } from "../components/modules/Transport/transportData";
 import { useToast } from "./ToastContext";
 import { useAuth } from "./AuthContext";
@@ -4041,10 +4042,28 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
             };
           });
 
-          setVehicleAssignments(mappedAssignments);
+          const activeSeen = new Set<string>();
+          const sortedAssignments = [...mappedAssignments].sort((a, b) => {
+            const aHasAttendant = a.attendantName && a.attendantName.toLowerCase() !== 'unassigned' ? 1 : 0;
+            const bHasAttendant = b.attendantName && b.attendantName.toLowerCase() !== 'unassigned' ? 1 : 0;
+            if (aHasAttendant !== bHasAttendant) return bHasAttendant - aHasAttendant;
+            return (Number(b.id) || 0) - (Number(a.id) || 0);
+          });
+
+          const deduplicatedAssignments = sortedAssignments.map(a => {
+            if (a.status !== 'Active') return a;
+            const key = (a.vehicleNumber ? a.vehicleNumber.trim().toUpperCase() : '') || a.vehicleId;
+            if (key && activeSeen.has(key)) {
+              return { ...a, status: 'Inactive' as const };
+            }
+            if (key) activeSeen.add(key);
+            return a;
+          });
+
+          setVehicleAssignments(deduplicatedAssignments);
           localStorage.setItem(
             "edu_db_vehicle_assignments",
-            JSON.stringify(mappedAssignments),
+            JSON.stringify(deduplicatedAssignments),
           );
         }
         if (maintenance) {
@@ -16861,14 +16880,33 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     );
     const totalCapacity = vehicle ? vehicle.capacity : 50;
 
-    const matchedTransports = studentTransports.filter(
-      (st) =>
-        (st.vehicleId === vehicleId ||
-          st.vehicleNumber === vehicle?.vehicleNumber) &&
-        st.status === "Active",
+    const activeAssignment = vehicleAssignments.find(
+      (va) =>
+        (va.vehicleId === vehicleId ||
+          (vehicle?.vehicleNumber && va.vehicleNumber === vehicle.vehicleNumber)) &&
+        va.status === "Active",
     );
 
-    const assignedCount = matchedTransports.length;
+    let assignedCount = 0;
+    if (activeAssignment) {
+      assignedCount = resolveAssignedStudentsForTrip(activeAssignment, {
+        studentTransports,
+        students,
+        admissions,
+        routeMasters,
+        pickupPoints,
+        vehicleMasters,
+      }).length;
+    } else {
+      const matchedTransports = studentTransports.filter(
+        (st) =>
+          (st.vehicleId === vehicleId ||
+            (vehicle?.vehicleNumber && st.vehicleNumber === vehicle.vehicleNumber)) &&
+          st.status === "Active",
+      );
+      assignedCount = matchedTransports.length;
+    }
+
     const availableSeats = Math.max(0, totalCapacity - assignedCount);
 
     return {
