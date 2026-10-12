@@ -38,9 +38,10 @@ namespace SMS.Api.Services.Implementations
                 ? 1
                 : filter.PageNumber;
 
-            filter.PageSize = filter.PageSize < 1
-                ? 10
-                : Math.Min(filter.PageSize, 100);
+            if (filter.PageSize > 0 && filter.PageSize > 1000)
+            {
+                filter.PageSize = 1000;
+            }
 
             return await _repository.GetAllAsync(filter);
         }

@@ -428,7 +428,7 @@ namespace SMS.Api.Repositories.Implementations
                 {
                     StepNo = 0,
                     StopName = "School Departure / Depot Origin",
-                    ScheduledTime = assignment.MorningTripTime ?? "07:00 AM",
+                    ScheduledTime = assignment.MorningTripTime ?? "-",
                     Type = "Start",
                     IsActive = true
                 }
@@ -443,7 +443,7 @@ namespace SMS.Api.Repositories.Implementations
                     StepNo = stepIdx++,
                     StopName = p.PickupPointName ?? string.Empty,
                     DistanceKm = (double)p.DistanceFromStart,
-                    ScheduledTime = p.PickupTime != default ? DateTime.Today.Add(p.PickupTime).ToString("hh:mm tt") : (assignment.MorningTripTime ?? "07:15 AM"),
+                    ScheduledTime = p.PickupTime != default ? DateTime.Today.Add(p.PickupTime).ToString("hh:mm tt") : (assignment.MorningTripTime ?? "-"),
                     BoardingAlightingInfo = boardingCount > 0 ? $"{boardingCount} Student(s) Boarding" : "No Students Assigned",
                     Type = "Stop",
                     IsActive = false
@@ -454,7 +454,7 @@ namespace SMS.Api.Repositories.Implementations
             {
                 StepNo = stepIdx,
                 StopName = "School Campus Arrival",
-                ScheduledTime = "07:30 AM",
+                ScheduledTime = assignment.MorningTripTime ?? "-",
                 Type = "End",
                 IsActive = false
             });
@@ -465,7 +465,7 @@ namespace SMS.Api.Repositories.Implementations
                 {
                     StepNo = 0,
                     StopName = "School Campus Departure",
-                    ScheduledTime = assignment.EveningTripTime ?? "03:45 PM",
+                    ScheduledTime = assignment.EveningTripTime ?? "-",
                     Type = "Start",
                     IsActive = true
                 }
@@ -480,7 +480,7 @@ namespace SMS.Api.Repositories.Implementations
                     StepNo = stepIdx++,
                     StopName = p.PickupPointName ?? string.Empty,
                     DistanceKm = (double)p.DistanceFromStart,
-                    ScheduledTime = assignment.EveningTripTime ?? "03:45 PM",
+                    ScheduledTime = p.DropTime != default ? DateTime.Today.Add(p.DropTime).ToString("hh:mm tt") : (assignment.EveningTripTime ?? "-"),
                     BoardingAlightingInfo = alightingCount > 0 ? $"{alightingCount} Student(s) Alighting" : "No Students Assigned",
                     Type = "Stop",
                     IsActive = false
@@ -491,7 +491,7 @@ namespace SMS.Api.Repositories.Implementations
             {
                 StepNo = stepIdx,
                 StopName = "Trip Completed / Depot Arrival",
-                ScheduledTime = assignment.EveningTripTime ?? "03:45 PM",
+                ScheduledTime = assignment.EveningTripTime ?? "-",
                 Type = "End",
                 IsActive = false
             });

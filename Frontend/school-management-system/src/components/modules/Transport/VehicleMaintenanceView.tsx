@@ -9,14 +9,14 @@ import { ExportButton } from '../../common/ExportButton';
 import { ConfirmModal } from '../../common/ConfirmModal';
 
 export const VehicleMaintenanceView: React.FC = () => {
-  const { vehicleMaintenances, vehicleMasters, addVehicleMaintenance, deleteVehicleMaintenance } = useData();
+  const { vehicleMaintenances = [], vehicleMasters = [], addVehicleMaintenance, deleteVehicleMaintenance } = useData() || {};
   const { addToast } = useToast();
 
   const [query, setQuery] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [deletingMaint, setDeletingMaint] = useState<VehicleMaintenance | null>(null);
 
-  const [vehicleId, setVehicleId] = useState(vehicleMasters[0]?.id || '');
+  const [vehicleId, setVehicleId] = useState(vehicleMasters?.[0]?.id || '');
   const [serviceDate, setServiceDate] = useState(new Date().toISOString().split('T')[0]);
   const [serviceType, setServiceType] = useState('Full Engine Service & Brake Pad Replacement');
   const [vendor, setVendor] = useState('Metro Auto Care Center');

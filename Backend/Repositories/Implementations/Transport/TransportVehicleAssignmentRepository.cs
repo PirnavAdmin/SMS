@@ -57,10 +57,13 @@ namespace SMS.Api.Repositories.Implementations
 
             var totalCount = await query.CountAsync();
 
-            var items = await query
-                .OrderByDescending(x => x.EffectiveFrom)
-                .Skip((filter.PageNumber - 1) * filter.PageSize)
-                .Take(filter.PageSize)
+            var orderedQuery = query.OrderByDescending(x => x.EffectiveFrom);
+
+            var pagedQuery = filter.PageSize.HasValue && filter.PageSize.Value > 0
+                ? orderedQuery.Skip((filter.PageNumber - 1) * filter.PageSize.Value).Take(filter.PageSize.Value)
+                : orderedQuery;
+
+            var items = await pagedQuery
                 .Select(x => new TransportVehicleAssignmentDto
                 {
                     AssignmentId = x.AssignmentId,
@@ -71,7 +74,7 @@ namespace SMS.Api.Repositories.Implementations
                     VehicleId = x.VehicleId,
                     VehicleNumber = x.Vehicle != null && x.Vehicle.VehicleNumber != null ? x.Vehicle.VehicleNumber : string.Empty,
                     VehicleName = x.Vehicle != null && x.Vehicle.VehicleName != null ? x.Vehicle.VehicleName : string.Empty,
-                    VehicleCapacity = x.Vehicle != null && x.Vehicle.Capacity > 0 ? x.Vehicle.Capacity : 50,
+                    VehicleCapacity = x.Vehicle != null && x.Vehicle.Capacity > 0 ? x.Vehicle.Capacity : 0,
 
                     DriverId = x.DriverId,
                     DriverName = x.Driver != null && x.Driver.DriverName != null ? x.Driver.DriverName : string.Empty,
@@ -104,7 +107,7 @@ namespace SMS.Api.Repositories.Implementations
                 Items = items,
                 TotalCount = totalCount,
                 PageNumber = filter.PageNumber,
-                PageSize = filter.PageSize
+                PageSize = filter.PageSize.HasValue && filter.PageSize.Value > 0 ? filter.PageSize.Value : totalCount
             };
         }
         public async Task<TransportVehicleAssignmentDto?> GetByIdAsync(long assignmentId)

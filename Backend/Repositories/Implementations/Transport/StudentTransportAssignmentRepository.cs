@@ -93,14 +93,16 @@ namespace SMS.Api.Repositories.Implementations
             var totalCount = await query.CountAsync();
 
             // Sorting
-            query = ApplySorting(
+            var sortedQuery = ApplySorting(
                 query,
                 filter.SortBy,
                 filter.SortOrder);
 
-            var items = await query
-                .Skip((filter.PageNumber - 1) * filter.PageSize)
-                .Take(filter.PageSize)
+            var pagedQuery = filter.PageSize.HasValue && filter.PageSize.Value > 0
+                ? sortedQuery.Skip((filter.PageNumber - 1) * filter.PageSize.Value).Take(filter.PageSize.Value)
+                : sortedQuery;
+
+            var items = await pagedQuery
                 .Select(x => new StudentTransportAssignmentDto
                 {
                     StudentTransportAssignmentId = x.StudentTransportAssignmentId,
@@ -138,7 +140,7 @@ namespace SMS.Api.Repositories.Implementations
                 Items = items,
                 TotalCount = totalCount,
                 PageNumber = filter.PageNumber,
-                PageSize = filter.PageSize
+                PageSize = filter.PageSize.HasValue && filter.PageSize.Value > 0 ? filter.PageSize.Value : totalCount
             };
         }
 

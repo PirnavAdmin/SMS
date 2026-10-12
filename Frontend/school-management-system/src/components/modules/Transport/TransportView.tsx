@@ -14,13 +14,13 @@ export const TransportView: React.FC = () => {
   const [deletingBus, setDeletingBus] = useState<Bus | null>(null);
 
   const [formData, setFormData] = useState<Partial<Bus>>({
-    busNumber: 'BUS-103',
-    registrationNumber: 'NY-99-AB-1003',
-    routeName: 'Route C - West Suburbs',
-    driverName: 'Dwight Schrute',
-    driverPhone: '+1 555-333-333',
-    capacity: 40,
-    type: 'AC',
+    busNumber: '',
+    registrationNumber: '',
+    routeName: '',
+    driverName: '',
+    driverPhone: '',
+    capacity: 0,
+    type: 'Non-AC',
     status: 'Active'
   });
 

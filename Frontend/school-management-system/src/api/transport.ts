@@ -457,6 +457,33 @@ export const deleteDriverApi = async (id: string): Promise<{ success: boolean }>
 
 export const fetchVehicleAssignmentsApi = async (): Promise<VehicleAssignment[]> => {
   try {
+    const listRes = await apiClient('/api/transport/vehicle-assignments', { method: 'GET' });
+    const items = Array.isArray(listRes) ? listRes : (listRes?.items || listRes?.Items || listRes?.data?.items || listRes?.data?.Items || listRes?.data || []);
+    if (items.length > 0) {
+      const mapped = items.map((a: any) => ({
+        id: (a.assignmentId || a.id || "").toString(),
+        routeId: (a.routeId || "").toString(),
+        routeName: a.routeName || a.selectRoute || "",
+        vehicleId: (a.vehicleId || "").toString(),
+        vehicleNumber: a.vehicleNumber || a.selectActiveVehicle || "",
+        driverId: (a.driverId || "").toString(),
+        driverName: a.driverName || a.selectLicensedDriver || "",
+        driverEmployeeId: a.driverEmployeeId || a.employeeId || "",
+        attendantId: a.attendantId ? a.attendantId.toString() : "",
+        attendantName: a.attendantName || a.selectBusAttendant || a.busAttendant || "",
+        attendantEmployeeId: a.attendantEmployeeId || "",
+        attendantMobile: a.attendantMobile || "",
+        morningTripTime: a.morningTripTime || a.morningTrip || "",
+        eveningTripTime: a.eveningTripTime || a.eveningTrip || "",
+        status: (a.status === true || String(a.status).toLowerCase() === 'true' || a.status === 'Active') ? "Active" : "Inactive",
+        branch: a.branchName || a.branch || "",
+        academicYear: a.academicYear || "",
+        effectiveFrom: a.effectiveFrom || a.assignmentDate || new Date().toISOString().split('T')[0],
+        effectiveTo: a.effectiveTo || ""
+      }));
+      return mapped as unknown as VehicleAssignment[];
+    }
+
     const lookups = await apiClient('/api/transport/lookups/vehicle-assignments', { method: 'GET' });
     const lookupList = Array.isArray(lookups) ? lookups : (lookups?.items || lookups?.data || []);
     if (lookupList.length > 0) {
@@ -469,19 +496,21 @@ export const fetchVehicleAssignmentsApi = async (): Promise<VehicleAssignment[]>
         driverId: (a.driverId || "").toString(),
         driverName: a.driverName || "",
         driverEmployeeId: a.driverEmployeeId || a.employeeId || "",
-        attendantId: (a.attendantId || "").toString(),
-        attendantName: a.attendantName || "Unassigned",
+        attendantId: a.attendantId ? a.attendantId.toString() : "",
+        attendantName: a.attendantName || "",
         attendantEmployeeId: a.attendantEmployeeId || "",
         attendantMobile: a.attendantMobile || "",
         morningTripTime: a.morningTripTime || "",
         eveningTripTime: a.eveningTripTime || "",
-        status: a.status ? "Active" : (a.status === false ? "Inactive" : "Active"),
+        status: (a.status === true || String(a.status).toLowerCase() === 'true' || a.status === 'Active') ? "Active" : "Inactive",
+        branch: a.branchName || a.branch || "",
+        academicYear: a.academicYear || "",
         effectiveFrom: a.effectiveFrom || new Date().toISOString().split('T')[0]
       }));
       return mapped as unknown as VehicleAssignment[];
     }
   } catch (err) {
-    console.error("Failed to fetch vehicle assignments lookup", err);
+    console.error("Failed to fetch vehicle assignments", err);
   }
   return safeTransportApiCall<VehicleAssignment[]>('/api/transport/vehicle-assignments', { method: 'GET' }, localVehicleAssignments);
 };
@@ -550,9 +579,36 @@ export const deleteVehicleAssignmentApi = async (id: string): Promise<{ success:
   );
 };
 
-// --- Student Transport Assignments ---
-
 export const fetchStudentAssignmentsApi = async (): Promise<StudentTransport[]> => {
+  try {
+    const res: any = await apiClient('/api/transport/student-assignments', { method: 'GET' });
+    const items = Array.isArray(res) ? res : (res?.items || res?.data?.items || res?.data || []);
+    if (items.length > 0) {
+      const mapped = items.map((t: any) => ({
+        id: String(t.studentTransportAssignmentId || t.id || ''),
+        studentId: t.studentId ? String(t.studentId) : '',
+        studentName: t.studentName || t.fullName || '',
+        admissionNo: t.admissionNo || '',
+        routeId: t.routeId ? String(t.routeId) : '',
+        routeName: t.routeName || '',
+        pickupPointId: t.pickupPointId ? String(t.pickupPointId) : '',
+        pickupPoint: t.pickupPointName || t.pickupPoint || '',
+        vehicleAssignmentId: t.vehicleAssignmentId ? String(t.vehicleAssignmentId) : '',
+        vehicleId: t.vehicleAssignmentId ? String(t.vehicleAssignmentId) : (t.vehicleId ? String(t.vehicleId) : ''),
+        vehicleNumber: t.vehicleNumber || '',
+        driverName: t.driverName || '',
+        transportType: t.transportType || 'Both',
+        effectiveFrom: t.effectiveFrom ? String(t.effectiveFrom).split('T')[0] : '',
+        effectiveTo: t.effectiveTo ? String(t.effectiveTo).split('T')[0] : '',
+        feePlan: t.feePlan || 'Monthly',
+        feeAmount: Number(t.feeAmount || 0),
+        status: (t.status === true || String(t.status).toLowerCase() === 'true' || t.status === 'Active') ? 'Active' : 'Inactive'
+      }));
+      return mapped as unknown as StudentTransport[];
+    }
+  } catch (err) {
+    console.error('Failed to fetch student transport assignments from API', err);
+  }
   return safeTransportApiCall<StudentTransport[]>('/api/transport/student-assignments', { method: 'GET' }, localStudentAssignments);
 };
 

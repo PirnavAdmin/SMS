@@ -8,7 +8,7 @@ import { VehicleAssignment, Student, PickupPoint } from '../../../types';
 import { useData } from '../../../context/DataContext';
 import { Badge } from '../../common/Badge';
 import { ExportButton } from '../../common/ExportButton';
-import { initialBusAttendants } from './BusAttendantMasterView';
+import { initialBusAttendants, resolveAssignedStudentsForTrip } from './transportData';
 
 interface VehicleTripDetailsModalProps {
   assignment: VehicleAssignment | null;
@@ -40,6 +40,15 @@ const formatTripTime = (value?: string) => {
   const suffix = hour >= 12 ? 'PM' : 'AM';
   const displayHour = hour % 12 || 12;
   return `${String(displayHour).padStart(2, '0')}:${String(minute).padStart(2, '0')} ${suffix}`;
+};
+
+const formatAdmissionNo = (rawNo?: string, studentId?: string | number) => {
+  if (!rawNo && !studentId) return '-';
+  const clean = (rawNo || '').trim();
+  if (!clean || clean.toUpperCase() === 'N/A' || clean === '-') {
+    return studentId ? String(studentId) : '-';
+  }
+  return clean;
 };
 
 export const VehicleTripDetailsModal: React.FC<VehicleTripDetailsModalProps> = ({
@@ -128,9 +137,9 @@ export const VehicleTripDetailsModal: React.FC<VehicleTripDetailsModalProps> = (
 
   const attendantName = assignment.attendantName || attendant?.attendantName || 'Unassigned';
   const attendantMobile = assignment.attendantMobile || attendant?.mobileNumber || '';
-  const seatingCapacity = vehicle ? vehicle.capacity : assignment.vehicleCapacity || 50;
-  const morningTripTime = formatTripTime(assignment.morningTripTime || '07:00');
-  const eveningTripTime = formatTripTime(assignment.eveningTripTime || '15:45');
+  const seatingCapacity = vehicle ? vehicle.capacity : (assignment.vehicleCapacity || 0);
+  const morningTripTime = assignment.morningTripTime ? formatTripTime(assignment.morningTripTime) : '-';
+  const eveningTripTime = assignment.eveningTripTime ? formatTripTime(assignment.eveningTripTime) : '-';
 
   const configuredStops = pickupPoints
     .filter((point: PickupPoint) => 
@@ -148,9 +157,9 @@ export const VehicleTripDetailsModal: React.FC<VehicleTripDetailsModalProps> = (
         id: p.id,
         label: p.pickupName,
         order: seq++,
-        morningTime: formatTripTime(p.morningPickupTime || p.arrivalTime || morningTripTime),
-        eveningTime: formatTripTime(p.eveningDropTime || p.dropTime || eveningTripTime),
-        distanceKm: p.distanceFromSchoolKm || 5,
+        morningTime: p.morningPickupTime || p.arrivalTime ? formatTripTime(p.morningPickupTime || p.arrivalTime) : morningTripTime,
+        eveningTime: p.eveningDropTime || p.dropTime ? formatTripTime(p.eveningDropTime || p.dropTime) : eveningTripTime,
+        distanceKm: p.distanceFromSchoolKm ?? p.distanceFromStart ?? 0,
         status: p.status || 'Active'
       });
     });
@@ -158,123 +167,26 @@ export const VehicleTripDetailsModal: React.FC<VehicleTripDetailsModalProps> = (
     displayStops = [];
   }
 
-  // Find enrolled students strictly assigned to this route from studentTransports
-  const matchingTransports = studentTransports.filter(st => {
-    const isStatusActive = st.status === 'Active' || (st.status as any) === true || String(st.status).toLowerCase() === 'true';
-    if (!isStatusActive) return false;
+  const formatClassSection = (className?: string, section?: string) => {
+    const cleanClass = (className || '').trim();
+    const cleanSec = (section || '').trim();
+    if (!cleanClass || cleanClass === '-') return (cleanSec && cleanSec !== '-') ? cleanSec : '-';
+    if (!cleanSec || cleanSec === '-' || cleanSec.toLowerCase() === 'n/a') return cleanClass;
+    return `${cleanClass}-${cleanSec}`;
+  };
 
-    const stRouteId = String(st.routeId || '').trim();
-    const stRouteName = (st.routeName || '').trim().toLowerCase();
-    const stVehicleAssignId = String(st.vehicleId || '').trim();
+  const cleanTargetRouteName = (targetRouteName && targetRouteName !== 'unassigned route' && targetRouteName !== 'n/a') ? targetRouteName : '';
+  const cleanTargetRouteCode = (targetRouteCode && targetRouteCode !== 'rt' && targetRouteCode !== 'n/a') ? targetRouteCode : '';
+  const cleanTargetRouteId = (targetRouteId && targetRouteId !== '0' && targetRouteId !== '') ? targetRouteId : '';
 
-    const matchesRoute = (targetRouteId !== '' && stRouteId !== '' && stRouteId === targetRouteId) ||
-                         (targetRouteName !== '' && stRouteName !== '' && stRouteName === targetRouteName) ||
-                         (targetRouteCode !== '' && stRouteName !== '' && stRouteName === targetRouteCode);
-    const matchesVehicleAssignment = Boolean(assignment?.id && stVehicleAssignId && stVehicleAssignId === String(assignment.id));
-
-    return matchesRoute || matchesVehicleAssignment;
+  const displayStudentsList = resolveAssignedStudentsForTrip(assignment, {
+    studentTransports,
+    students,
+    admissions,
+    routeMasters,
+    pickupPoints,
+    vehicleMasters
   });
-
-  const assignedStudentsList = matchingTransports.map(st => {
-    const matchedStudent = students.find(s =>
-      (st.studentId && s.id && String(s.id).trim() === String(st.studentId).trim()) ||
-      (st.admissionNo && s.admissionNo && s.admissionNo.trim().toLowerCase() === st.admissionNo.trim().toLowerCase())
-    );
-
-    const matchedAdm = admissions.find(a =>
-      (st.admissionNo && a.registrationNo && a.registrationNo.trim().toLowerCase() === st.admissionNo.trim().toLowerCase()) ||
-      (st.admissionNo && a.applicationNo && a.applicationNo.trim().toLowerCase() === st.admissionNo.trim().toLowerCase()) ||
-      (st.studentId && a.id && String(a.id).trim() === String(st.studentId).trim())
-    );
-
-    const fullName = (
-      (matchedStudent?.firstName ? `${matchedStudent.firstName} ${matchedStudent.lastName || ''}`.trim() : '') ||
-      matchedStudent?.name ||
-      st.studentName ||
-      matchedAdm?.applicantName ||
-      'Enrolled Student'
-    );
-    const pName = (
-      matchedStudent?.fatherName ||
-      matchedStudent?.parentName ||
-      (matchedStudent as any)?.fatherFullName ||
-      matchedAdm?.parentName ||
-      (matchedStudent as any)?.guardianName ||
-      'Parent / Guardian'
-    ).trim();
-    const pMobile = (
-      matchedStudent?.fatherPhone ||
-      matchedStudent?.parentPhone ||
-      (matchedStudent as any)?.fatherMobile ||
-      matchedStudent?.phone ||
-      matchedAdm?.phone ||
-      'N/A'
-    ).trim();
-
-    const pPoint = (st.pickupPoint && st.pickupPoint.trim() !== '' && st.pickupPoint.trim().toUpperCase() !== 'N/A')
-      ? st.pickupPoint.trim()
-      : (displayStops.length > 0 ? displayStops[0].label : 'Main Pickup Stop');
-
-    return {
-      id: st.id || matchedStudent?.id || st.studentId,
-      admissionNo: st.admissionNo || matchedStudent?.admissionNo || matchedAdm?.registrationNo || '-',
-      studentName: fullName,
-      gender: matchedStudent?.gender || matchedAdm?.gender || 'Male',
-      className: matchedStudent?.className || matchedAdm?.appliedClass || 'Class 6',
-      section: matchedStudent?.section || 'A',
-      rollNo: matchedStudent?.rollNo || '1',
-      pickupPoint: pPoint,
-      parentName: pName,
-      parentMobile: pMobile,
-      morningTime: morningTripTime,
-      eveningTime: eveningTripTime
-    };
-  });
-
-  // Also include students who opted for this route in their student profile if not already included
-  const existingStudentKeys = new Set(assignedStudentsList.map(s => (s.id || s.admissionNo || '').trim().toLowerCase()));
-  const extraOptedStudents: typeof assignedStudentsList = [];
-
-  (students || []).forEach(st => {
-    const isTransportEnrolled =
-      st.transportRequired === true ||
-      Boolean(st.busRoute) ||
-      Boolean(st.transportType) ||
-      Boolean(st.routeId) ||
-      (st as any).isTransportOpted === true ||
-      (st as any).transport === true ||
-      Boolean(st.pickupPoint);
-
-    if (!isTransportEnrolled) return;
-
-    const matchesRoute =
-      (targetRouteId !== '' && st.routeId && String(st.routeId).trim() === targetRouteId) ||
-      (targetRouteName !== '' && st.busRoute && st.busRoute.trim().toLowerCase() === targetRouteName) ||
-      (targetRouteCode !== '' && st.busRoute && st.busRoute.trim().toLowerCase() === targetRouteCode);
-
-    if (matchesRoute) {
-      const key = (st.id || st.admissionNo || '').trim().toLowerCase();
-      if (key && !existingStudentKeys.has(key)) {
-        existingStudentKeys.add(key);
-        extraOptedStudents.push({
-          id: st.id,
-          admissionNo: st.admissionNo || '-',
-          studentName: `${st.firstName} ${st.lastName || ''}`.trim(),
-          gender: st.gender || 'Male',
-          className: st.className || 'Class 6',
-          section: st.section || 'A',
-          rollNo: st.rollNo || '1',
-          pickupPoint: st.pickupPoint || (displayStops.length > 0 ? displayStops[0].label : 'Main Campus Stop'),
-          parentName: (st.fatherName || st.parentName || 'Parent / Guardian').trim(),
-          parentMobile: (st.fatherPhone || st.phone || 'N/A').trim(),
-          morningTime: morningTripTime,
-          eveningTime: eveningTripTime
-        });
-      }
-    }
-  });
-
-  const displayStudentsList = [...assignedStudentsList, ...extraOptedStudents];
 
   // Dynamic Route-Specific Pickup Points (FOR THIS ROUTE ONLY)
   const pointsSet = new Set<string>();
@@ -283,8 +195,8 @@ export const VehicleTripDetailsModal: React.FC<VehicleTripDetailsModalProps> = (
       pointsSet.add(stop.label);
     }
   });
-  assignedStudentsList.forEach(s => {
-    if (s.pickupPoint && s.pickupPoint !== 'N/A' && s.pickupPoint !== 'Default Stop') {
+  displayStudentsList.forEach(s => {
+    if (s.pickupPoint && s.pickupPoint !== 'N/A' && s.pickupPoint !== 'Default Stop' && s.pickupPoint !== '-') {
       pointsSet.add(s.pickupPoint);
     }
   });
@@ -292,8 +204,8 @@ export const VehicleTripDetailsModal: React.FC<VehicleTripDetailsModalProps> = (
 
   // Dynamic Classes (from students assigned to this route)
   const classSet = new Set<string>();
-  assignedStudentsList.forEach(s => {
-    if (s.className && s.className !== 'N/A') {
+  displayStudentsList.forEach(s => {
+    if (s.className && s.className !== 'N/A' && s.className !== '-') {
       classSet.add(s.className);
     }
   });
@@ -310,17 +222,17 @@ export const VehicleTripDetailsModal: React.FC<VehicleTripDetailsModalProps> = (
     route: log.routeName,
     driver: log.driverName,
     att: log.attendantName || 'Unassigned',
-    mStart: formatTripTime(log.morningTripTime || '07:00'),
-    mEnd: formatTripTime(log.morningTripTime || '07:00'),
-    eStart: formatTripTime(log.eveningTripTime || '15:45'),
-    eEnd: formatTripTime(log.eveningTripTime || '15:45'),
+    mStart: log.morningTripTime ? formatTripTime(log.morningTripTime) : '-',
+    mEnd: log.morningTripTime ? formatTripTime(log.morningTripTime) : '-',
+    eStart: log.eveningTripTime ? formatTripTime(log.eveningTripTime) : '-',
+    eEnd: log.eveningTripTime ? formatTripTime(log.eveningTripTime) : '-',
     status: 'Inactive' as const
   }));
 
   const totalAssignedStudents = displayStudentsList.length;
   const availableSeats = Math.max(0, seatingCapacity - totalAssignedStudents);
-  const boysCount = displayStudentsList.filter(s => s.gender === 'Male').length;
-  const girlsCount = displayStudentsList.filter(s => s.gender === 'Female').length;
+  const boysCount = displayStudentsList.filter(s => s.gender?.toLowerCase() === 'male' || s.gender?.toLowerCase() === 'm' || s.gender?.toLowerCase() === 'boy').length;
+  const girlsCount = displayStudentsList.filter(s => s.gender?.toLowerCase() === 'female' || s.gender?.toLowerCase() === 'f' || s.gender?.toLowerCase() === 'girl').length;
 
   const filteredStudents = displayStudentsList.filter(student => {
     const matchesQuery =
@@ -333,8 +245,8 @@ export const VehicleTripDetailsModal: React.FC<VehicleTripDetailsModalProps> = (
   });
 
   const tripStatus = assignment.status === 'Active' ? 'Running' : 'Completed';
-  const routeDistance = route?.totalDistanceKm || 18.5;
-  const routeDuration = route?.estimatedTimeMinutes || 45;
+  const routeDistance = route?.totalDistanceKm ?? 0;
+  const routeDuration = route?.estimatedTimeMinutes ?? 0;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-slate-950/65 backdrop-blur-md animate-in fade-in">
@@ -364,7 +276,7 @@ export const VehicleTripDetailsModal: React.FC<VehicleTripDetailsModalProps> = (
               <div>
                 <span className="text-white/70 block text-[10px] uppercase font-bold">Driver</span>
                 <span className="font-extrabold text-white truncate block">{driver?.driverName || assignment.driverName}</span>
-                <span className="text-[10px] text-white/80 font-mono">{driver?.mobileNumber || '+1 555-333-333'}</span>
+                <span className="text-[10px] text-white/80 font-mono">{driver?.mobileNumber || assignment.driverMobile || '-'}</span>
               </div>
               <div>
                 <span className="text-white/70 block text-[10px] uppercase font-bold">Bus Attendant</span>
@@ -457,7 +369,7 @@ export const VehicleTripDetailsModal: React.FC<VehicleTripDetailsModalProps> = (
                     </div>
                     <div className="flex justify-between p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800">
                       <span className="text-slate-500">Registration Number:</span>
-                      <span className="font-mono font-bold text-slate-900 dark:text-white">{vehicle?.registrationNumber || 'NY-99-AB-1001'}</span>
+                      <span className="font-mono font-bold text-slate-900 dark:text-white">{vehicle?.registrationNumber || vehicle?.vehicleNumber || assignment.vehicleNumber || '-'}</span>
                     </div>
                     <div className="flex justify-between p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800">
                       <span className="text-slate-500">Assigned Route:</span>
@@ -567,7 +479,7 @@ export const VehicleTripDetailsModal: React.FC<VehicleTripDetailsModalProps> = (
                                   <div key={student.id} className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border text-xs flex items-center justify-between">
                                     <div>
                                       <p className="font-bold text-slate-900 dark:text-white">{student.studentName}</p>
-                                      <p className="text-[10px] text-slate-400">{student.className}-{student.section} • Roll #{student.rollNo}</p>
+                                      <p className="text-[10px] text-slate-400">{formatClassSection(student.className, student.section)} • Roll #{student.rollNo}</p>
                                     </div>
                                     <span className="font-mono text-[10px] text-slate-400">{student.admissionNo}</span>
                                   </div>
@@ -651,7 +563,7 @@ export const VehicleTripDetailsModal: React.FC<VehicleTripDetailsModalProps> = (
                                   <div key={student.id} className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border text-xs flex items-center justify-between">
                                     <div>
                                       <p className="font-bold text-slate-900 dark:text-white">{student.studentName}</p>
-                                      <p className="text-[10px] text-slate-400">{student.className}-{student.section} • Roll #{student.rollNo}</p>
+                                      <p className="text-[10px] text-slate-400">{formatClassSection(student.className, student.section)} • Roll #{student.rollNo}</p>
                                     </div>
                                     <span className="font-mono text-[10px] text-slate-400">{student.admissionNo}</span>
                                   </div>
@@ -747,7 +659,7 @@ export const VehicleTripDetailsModal: React.FC<VehicleTripDetailsModalProps> = (
                           <tr key={student.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40">
                             <td className="py-3 px-4 font-mono font-bold text-slate-500">{student.admissionNo}</td>
                             <td className="py-3 px-4 font-bold text-slate-900 dark:text-white">{student.studentName}</td>
-                            <td className="py-3 px-4 font-semibold text-slate-700 dark:text-slate-300">{student.className}-{student.section}</td>
+                            <td className="py-3 px-4 font-semibold text-slate-700 dark:text-slate-300">{formatClassSection(student.className, student.section)}</td>
                             <td className="py-3 px-4 font-bold text-sky-600 dark:text-sky-400">{student.pickupPoint}</td>
                             <td className="py-3 px-4 font-mono text-emerald-600 font-bold">{student.morningTime}</td>
                             <td className="py-3 px-4 font-mono text-amber-600 font-bold">{student.eveningTime}</td>

@@ -88,6 +88,14 @@ namespace SMS.Api.Controllers.Transport
                         (x.Attendant != null && x.Attendant.AttendantName != null && x.Attendant.AttendantName.ToLower().Contains(q))).ToList();
                 }
 
+                var routeIds = assignments.Select(x => x.RouteId).Distinct().ToList();
+                var studentCounts = await _context.StudentTransportAssignments
+                    .AsNoTracking()
+                    .Where(s => !s.IsDeleted && s.Status && routeIds.Contains(s.RouteId))
+                    .GroupBy(s => s.RouteId)
+                    .Select(g => new { RouteId = g.Key, Count = g.Count() })
+                    .ToDictionaryAsync(x => x.RouteId, x => x.Count);
+
                 var tripCards = assignments.Select(a => new VehicleTripCardDto
                 {
                     TripId = a.AssignmentId,
@@ -98,27 +106,32 @@ namespace SMS.Api.Controllers.Transport
                     RouteName = a.Route?.RouteName ?? $"Route-{a.RouteId}",
                     DriverId = a.DriverId,
                     DriverName = a.Driver?.DriverName ?? "Driver",
-                    DriverMobile = a.Driver?.MobileNumber ?? "+1 555-333-444",
+                    DriverMobile = a.Driver?.MobileNumber ?? "-",
                     AttendantId = a.AttendantId,
                     AttendantName = a.Attendant?.AttendantName ?? "Unassigned",
-                    AttendantMobile = a.Attendant?.MobileNumber ?? "N/A",
-                    StudentsCount = 5,
-                    Capacity = a.Vehicle != null && a.Vehicle.Capacity > 0 ? a.Vehicle.Capacity : 50,
-                    MorningTripTime = a.MorningTripTime ?? "07:00 AM",
-                    EveningTripTime = a.EveningTripTime ?? "03:45 PM",
-                    Status = a.Status ? "Completed" : "Inactive",
+                    AttendantMobile = a.Attendant?.MobileNumber ?? "-",
+                    StudentsCount = studentCounts.TryGetValue(a.RouteId, out var count) ? count : 0,
+                    Capacity = a.Vehicle != null && a.Vehicle.Capacity > 0 ? a.Vehicle.Capacity : 0,
+                    MorningTripTime = a.MorningTripTime ?? "-",
+                    EveningTripTime = a.EveningTripTime ?? "-",
+                    Status = a.Status ? "Running" : "Inactive",
                     GpsStatus = "GPS Offline"
                 }).ToList();
 
+                var totalStudentsOnBoard = studentCounts.Values.Sum();
+                var vehiclesRunning = tripCards.Count(x => x.Status == "Running");
+                var activeMorning = tripCards.Count(x => !string.IsNullOrEmpty(x.MorningTripTime) && x.MorningTripTime != "-");
+                var activeEvening = tripCards.Count(x => !string.IsNullOrEmpty(x.EveningTripTime) && x.EveningTripTime != "-");
+
                 var metrics = new VehicleTripMetricsDto
                 {
-                    VehiclesRunning = 0,
-                    TripsCompleted = tripCards.Count > 0 ? tripCards.Count : 7,
+                    VehiclesRunning = vehiclesRunning,
+                    TripsCompleted = 0,
                     DelayedTrips = 0,
-                    OfflineGpsDevices = tripCards.Count > 0 ? tripCards.Count : 7,
-                    ActiveMorningTrips = 0,
-                    StudentsOnBoard = 0,
-                    ActiveEveningTrips = 0
+                    OfflineGpsDevices = tripCards.Count,
+                    ActiveMorningTrips = activeMorning,
+                    StudentsOnBoard = totalStudentsOnBoard,
+                    ActiveEveningTrips = activeEvening
                 };
 
                 return Ok(new
@@ -193,15 +206,8 @@ namespace SMS.Api.Controllers.Transport
                             StopId = p.PickupPointId,
                             StopName = p.PickupPointName ?? string.Empty,
                             DistanceKm = p.DistanceFromStart,
-                            ScheduledTime = p.PickupTime != default ? DateTime.Today.Add(p.PickupTime).ToString("hh:mm tt") : "07:30 AM"
+                            ScheduledTime = p.PickupTime != default ? DateTime.Today.Add(p.PickupTime).ToString("hh:mm tt") : "-"
                         }).ToList();
-                    }
-
-                    if (!stops.Any())
-                    {
-                        stops.Add(new RouteStopDto { StopId = 1, StopName = "Main Bus Depot", DistanceKm = 0, ScheduledTime = "07:00 AM" });
-                        stops.Add(new RouteStopDto { StopId = 2, StopName = "Central Waypoint", DistanceKm = 4, ScheduledTime = "07:25 AM" });
-                        stops.Add(new RouteStopDto { StopId = 3, StopName = "School Campus", DistanceKm = 10, ScheduledTime = "07:45 AM" });
                     }
 
                     list.Add(new GpsVehicleTrackingDto

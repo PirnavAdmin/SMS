@@ -3984,7 +3984,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
             }
 
             let attendantId = (a.attendantId || "").toString();
-            let attendantName = a.attendantName || "";
+            let attendantName = a.attendantName || a.selectBusAttendant || a.busAttendant || "";
             let attendantMobile = a.attendantMobile || "";
             let attendantEmployeeId = a.attendantEmployeeId || "";
             let driverEmployeeId = a.driverEmployeeId || "";
@@ -3992,14 +3992,29 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
               const matchedAttendant = attendants.find(
                 (at: any) =>
                   at.id?.toString() === attendantId ||
-                  at.attendantId?.toString() === attendantId,
+                  at.attendantId?.toString() === attendantId ||
+                  at.employeeId === attendantId,
               );
               if (matchedAttendant) {
-                attendantName = matchedAttendant.attendantName || "";
+                attendantName = matchedAttendant.attendantName || matchedAttendant.name || "";
                 attendantMobile =
-                  attendantMobile || matchedAttendant.mobileNumber || "";
+                  attendantMobile || matchedAttendant.mobileNumber || matchedAttendant.phone || "";
                 attendantEmployeeId =
                   attendantEmployeeId || matchedAttendant.employeeId || "";
+              }
+            }
+            if (!attendantName && attendantId && staff) {
+              const matchedStaff = (staff as any[]).find(
+                (s: any) =>
+                  s.id?.toString() === attendantId ||
+                  `staff-${s.id}` === attendantId ||
+                  s.employeeId === attendantId ||
+                  s.empId === attendantId,
+              );
+              if (matchedStaff) {
+                attendantName = `${matchedStaff.firstName || ""} ${matchedStaff.lastName || ""}`.trim() || matchedStaff.name || "";
+                attendantMobile = attendantMobile || matchedStaff.phone || matchedStaff.mobileNumber || "";
+                attendantEmployeeId = attendantEmployeeId || matchedStaff.empId || matchedStaff.employeeId || "";
               }
             }
 
@@ -4107,6 +4122,31 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
                   "";
               }
             }
+            if (!admNo && admissions) {
+              const matchedAdm = admissions.find(
+                (a: any) =>
+                  a.id?.toString() === t.studentId?.toString() ||
+                  a.registrationNo === t.admissionNo ||
+                  a.applicationNo === t.admissionNo,
+              );
+              if (matchedAdm) {
+                admNo =
+                  matchedAdm.registrationNo ||
+                  matchedAdm.applicationNo ||
+                  "";
+              }
+            }
+
+            let sName = t.studentName || t.fullName || "";
+            if (!sName && students) {
+              const matchedStudent = students.find(
+                (s: any) => s.id?.toString() === t.studentId?.toString() || (admNo && s.admissionNo === admNo),
+              );
+              if (matchedStudent) {
+                sName = `${matchedStudent.firstName || ""} ${matchedStudent.lastName || ""}`.trim() || matchedStudent.name || "";
+              }
+            }
+
             return {
               id: (
                 t.id ||
@@ -4115,7 +4155,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
                 ""
               ).toString(),
               studentId: (t.studentId || "").toString(),
-              studentName: t.studentName || t.fullName || "",
+              studentName: sName,
               admissionNo: admNo,
               routeName: t.routeName || "",
               routeId: (t.routeId || "").toString(),
@@ -4128,6 +4168,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
                 t.vehicleAssignmentId ||
                 ""
               ).toString(),
+              branch: t.branch || t.branchName || "",
+              academicYear: t.academicYear || "",
               feePlan: t.feePlan || "Monthly",
               feeAmount: Number(t.feeAmount || 0),
               effectiveFrom: t.effectiveFrom
@@ -4136,7 +4178,31 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
               status: normalizeStatus(t.status),
             };
           });
-          setStudentTransports(mappedTransports);
+
+          const localStoredTransports: StudentTransport[] = JSON.parse(
+            localStorage.getItem("edu_db_student_transports") || "[]",
+          );
+          const mergedTransportsMap = new Map<string, any>();
+          localStoredTransports.forEach((st: any) => {
+            if (st && st.id) {
+              mergedTransportsMap.set(String(st.id).toLowerCase(), st);
+            }
+          });
+          mappedTransports.forEach((st: any) => {
+            if (st && st.id) {
+              const key = String(st.id).toLowerCase();
+              mergedTransportsMap.set(key, {
+                ...mergedTransportsMap.get(key),
+                ...st,
+              });
+            }
+          });
+          const finalTransports = Array.from(mergedTransportsMap.values());
+          setStudentTransports(finalTransports);
+          localStorage.setItem(
+            "edu_db_student_transports",
+            JSON.stringify(finalTransports),
+          );
         }
 
         if (results.some((r) => r.status === "rejected")) {
@@ -11666,7 +11732,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         : null;
 
       const payload = {
-        studentId: studentIdInt,
+        admissionNo: st.admissionNo || "",
+        studentId: studentIdInt > 0 ? studentIdInt : null,
         routeId: routeIdInt,
         pickupPointId: pickupPointIdInt,
         vehicleAssignmentId: vaIdInt,
@@ -16431,9 +16498,14 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
             ? Number(va.attendantId)
             : null,
         selectRoute: va.routeName || "",
+        routeName: va.routeName || "",
         selectActiveVehicle: va.vehicleNumber || "",
+        vehicleNumber: va.vehicleNumber || "",
         selectLicensedDriver: va.driverName || "",
+        driverName: va.driverName || "",
         selectBusAttendant: va.attendantName || "",
+        attendantName: va.attendantName || "",
+        busAttendant: va.attendantName || "",
         branchName: effectiveBranch,
         branch: effectiveBranch,
         academicYear: effectiveAcademicYear,
@@ -16465,6 +16537,10 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       const newAssign: VehicleAssignment = {
         ...backendData,
         ...normalizedAssignment,
+        attendantId: backendData.attendantId || normalizedAssignment.attendantId,
+        attendantName: backendData.attendantName || normalizedAssignment.attendantName,
+        attendantEmployeeId: backendData.attendantEmployeeId || normalizedAssignment.attendantEmployeeId,
+        attendantMobile: backendData.attendantMobile || normalizedAssignment.attendantMobile,
         id,
         branch: effectiveBranch,
         academicYear: effectiveAcademicYear,
@@ -16532,15 +16608,20 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     }
     if (updates.routeName !== undefined) {
       payload.selectRoute = updates.routeName;
+      payload.routeName = updates.routeName;
     }
     if (updates.vehicleNumber !== undefined) {
       payload.selectActiveVehicle = updates.vehicleNumber;
+      payload.vehicleNumber = updates.vehicleNumber;
     }
     if (updates.driverName !== undefined) {
       payload.selectLicensedDriver = updates.driverName;
+      payload.driverName = updates.driverName;
     }
     if (updates.attendantName !== undefined) {
       payload.selectBusAttendant = updates.attendantName;
+      payload.attendantName = updates.attendantName;
+      payload.busAttendant = updates.attendantName;
     }
     if (updates.branch !== undefined) {
       payload.branchName = updates.branch;
