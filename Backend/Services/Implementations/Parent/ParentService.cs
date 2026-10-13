@@ -35,9 +35,9 @@ namespace SMS.Api.Services.Implementations.Parent
                     FirstName = firstName,
                     LastName = lastName,
                     ClassId = s.ClassId,
-                    ClassName = s.ClassGrade?.ClassName ?? "Class 6",
+                    ClassName = s.ClassGrade?.ClassName ?? string.Empty,
                     SectionId = s.SectionId,
-                    SectionName = s.ClassSection?.SectionName ?? "A",
+                    SectionName = s.ClassSection?.SectionName ?? string.Empty,
                     Gender = s.Gender,
                     DateOfBirth = s.DateOfBirth,
                     ProfilePhoto = null

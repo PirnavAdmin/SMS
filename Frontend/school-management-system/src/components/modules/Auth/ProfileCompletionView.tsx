@@ -459,6 +459,21 @@ export const ProfileCompletionView: React.FC<ProfileCompletionViewProps> = ({ on
       require('education.percentage', !!first?.percentage.trim(), 'Percentage is required.');
     }
 
+    if (step === 3) {
+      const today = new Date().toISOString().split('T')[0];
+      form.experience.forEach((exp, idx) => {
+        if (exp.joiningDate && exp.joiningDate > today) {
+          nextErrors[`experience.${idx}.joiningDate`] = 'Joining date cannot be in the future.';
+        }
+        if (exp.relievingDate && exp.relievingDate > today) {
+          nextErrors[`experience.${idx}.relievingDate`] = 'Relieving date cannot be in the future.';
+        }
+        if (exp.joiningDate && exp.relievingDate && exp.joiningDate > exp.relievingDate) {
+          nextErrors[`experience.${idx}.relievingDate`] = 'Relieving date cannot be earlier than joining date.';
+        }
+      });
+    }
+
     if (step === 4) {
       require('bank.accountHolderName', !!form.bank.accountHolderName.trim(), 'Account holder name is required.');
       require('bank.bankName', !!form.bank.bankName.trim(), 'Bank name is required.');
@@ -968,11 +983,40 @@ export const ProfileCompletionView: React.FC<ProfileCompletionViewProps> = ({ on
                     </div>
                     <div>
                       <FieldLabel label="Joining Date" />
-                      <input type="date" value={row.joiningDate} onChange={e => updateExperience(row.id, { joiningDate: e.target.value })} className="mt-2 w-full rounded-2xl border border-slate-200 dark:border-slate-800 bg-transparent px-4 py-3 text-sm" />
+                      <input
+                        type="date"
+                        max={row.relievingDate || new Date().toISOString().split('T')[0]}
+                        value={row.joiningDate}
+                        onChange={e => {
+                          const val = e.target.value;
+                          const today = new Date().toISOString().split('T')[0];
+                          if (val && val > today) {
+                            addToast('warning', 'Invalid Date', 'Joining date cannot be in the future.');
+                            return;
+                          }
+                          updateExperience(row.id, { joiningDate: val });
+                        }}
+                        className="mt-2 w-full rounded-2xl border border-slate-200 dark:border-slate-800 bg-transparent px-4 py-3 text-sm"
+                      />
                     </div>
                     <div>
                       <FieldLabel label="Relieving Date" />
-                      <input type="date" value={row.relievingDate} onChange={e => updateExperience(row.id, { relievingDate: e.target.value })} className="mt-2 w-full rounded-2xl border border-slate-200 dark:border-slate-800 bg-transparent px-4 py-3 text-sm" />
+                      <input
+                        type="date"
+                        min={row.joiningDate || undefined}
+                        max={new Date().toISOString().split('T')[0]}
+                        value={row.relievingDate}
+                        onChange={e => {
+                          const val = e.target.value;
+                          const today = new Date().toISOString().split('T')[0];
+                          if (val && val > today) {
+                            addToast('warning', 'Invalid Date', 'Relieving date cannot be in the future.');
+                            return;
+                          }
+                          updateExperience(row.id, { relievingDate: val });
+                        }}
+                        className="mt-2 w-full rounded-2xl border border-slate-200 dark:border-slate-800 bg-transparent px-4 py-3 text-sm"
+                      />
                     </div>
                     <div className="md:col-span-2">
                       <FieldLabel label="Experience Certificate Upload" />

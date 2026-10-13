@@ -69,22 +69,16 @@ public class SchoolReportsController : ControllerBase
     [HttpGet("filter-options")]
     public async Task<IActionResult> GetFilterOptions()
     {
-        int activeStudents = 45;
-        int staffCount = 10;
-        int feeCount = 4;
+        int activeStudents = 0;
+        int staffCount = 0;
+        int feeCount = 0;
         int examSheets = 0;
 
         try
         {
-            int sCount = await _context.Students.AsNoTracking().CountAsync(s => s.Status == "Active");
-            if (sCount > 0) activeStudents = sCount;
-
-            int stCount = await _context.Staff.AsNoTracking().CountAsync();
-            if (stCount > 0) staffCount = stCount;
-
-            int fCount = await _context.FeePayments.AsNoTracking().CountAsync();
-            if (fCount > 0) feeCount = fCount;
-
+            activeStudents = await _context.Students.AsNoTracking().CountAsync(s => s.Status == "Active");
+            staffCount = await _context.Staff.AsNoTracking().CountAsync();
+            feeCount = await _context.FeePayments.AsNoTracking().CountAsync();
             examSheets = await _context.NewStudentMarksEntries.AsNoTracking().CountAsync();
         }
         catch { }
@@ -98,18 +92,24 @@ public class SchoolReportsController : ControllerBase
             new { key = "custom", label = "Custom / Manual Report Entry" }
         };
 
-        var academicClasses = new List<string>
-        {
-            "All Academic Classes", "Class 10", "Class 9", "LKG", "Class 5",
-            "Class 7", "Class 1", "Class 2", "Class 3", "Class 4",
-            "Class 6", "Class 8", "Class 11", "Class 12"
-        };
+        var dbClasses = await _context.Classes.AsNoTracking().Where(c => !string.IsNullOrEmpty(c.ClassName)).Select(c => c.ClassName!).Distinct().ToListAsync();
+        var academicClasses = new List<string> { "All Academic Classes" };
+        academicClasses.AddRange(dbClasses);
 
-        var departments = new List<string>
+        var dbDepts = await _context.Staff.AsNoTracking()
+            .Where(s => !string.IsNullOrEmpty(s.Department))
+            .Select(s => s.Department!)
+            .Distinct()
+            .ToListAsync();
+        var departments = new List<string> { "All Departments" };
+        if (dbDepts.Any())
         {
-            "All Departments", "Academics", "Administration",
-            "Sports & Physical Ed.", "Accounts & Finance", "Transport Cell"
-        };
+            departments.AddRange(dbDepts);
+        }
+        else
+        {
+            departments.AddRange(new[] { "Academics", "Administration" });
+        }
 
         return Ok(new
         {

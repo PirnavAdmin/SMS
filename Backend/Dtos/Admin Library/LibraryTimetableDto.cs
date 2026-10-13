@@ -15,7 +15,7 @@ public class LibraryTimetableSlotDto
     public string ClassName { get; set; } = string.Empty;
     public string Section { get; set; } = string.Empty;
     public string Subject { get; set; } = "Library Free / Maintenance";
-    public string AssignedLibrarian { get; set; } = "Bhanu Prakash & Rachel Green";
+    public string AssignedLibrarian { get; set; } = string.Empty;
     public bool IsFreeSlot { get; set; } = true;
     public string DisplayStatus { get; set; } = "No class scheduled";
 }
@@ -30,6 +30,6 @@ public class CreateLibraryTimetableSlotDto
     public string? ClassName { get; set; }
     public string? Section { get; set; }
     public string Subject { get; set; } = "Library Free / Maintenance";
-    public string AssignedLibrarian { get; set; } = "Bhanu Prakash";
+    public string AssignedLibrarian { get; set; } = string.Empty;
     public bool IsFreeSlot { get; set; } = true;
 }

@@ -361,6 +361,7 @@ import { getHostelBlocks, getRooms } from "../api/hostel";
 import {
   BusAttendantMaster,
   initialBusAttendants,
+  resolveAssignedStudentsForTrip,
 } from "../components/modules/Transport/transportData";
 import { useToast } from "./ToastContext";
 import { useAuth } from "./AuthContext";
@@ -1502,39 +1503,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     return list;
   });
   const [rawClasses, setRawClasses] = useState<any[]>([]);
-  const [academicClasses, setAcademicClasses] = useState<AcademicClass[]>(
-    () => {
-      const stored = getStored("academic_classes", initialClasses);
-      const list = Array.isArray(stored) ? stored : initialClasses;
-      const ids = list.map((c: any) => c?.id).filter(Boolean);
-      const hasDuplicates = ids.some(
-        (id: any, index: number) => ids.indexOf(id) !== index,
-      );
-      if (hasDuplicates) {
-        const seenIds = new Set<string>();
-        const migrated = list.map((c: any) => {
-          let newId = c?.id;
-          if (!newId || seenIds.has(newId)) {
-            let counter = 1;
-            do {
-              newId = `CL-${Math.floor(100 + Math.random() * 900)}`;
-            } while (
-              list.some((x: any) => x?.id === newId) ||
-              seenIds.has(newId)
-            );
-          }
-          seenIds.add(newId);
-          return { ...c, id: newId };
-        });
-        localStorage.setItem(
-          "edu_db_academic_classes",
-          JSON.stringify(migrated),
-        );
-        return migrated;
-      }
-      return list;
-    },
-  );
+  const [academicClasses, setAcademicClasses] = useState<AcademicClass[]>([]);
   const [subjects, setSubjects] = useState<SubjectItem[]>(() =>
     getStored("subjects", initialSubjects),
   );
@@ -2163,27 +2132,17 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   );
 
   // Transport ERP System States
-  const [routeMasters, setRouteMasters] = useState<RouteMaster[]>(() =>
-    getStored("edu_db_route_masters", initialRouteMasters),
-  );
-  const [pickupPoints, setPickupPoints] = useState<PickupPoint[]>(() =>
-    getStored("edu_db_pickup_points", initialPickupPoints),
-  );
-  const [vehicleMasters, setVehicleMasters] = useState<VehicleMaster[]>(() =>
-    getStored("edu_db_vehicle_masters", initialVehicleMasters),
-  );
-  const [driverMasters, setDriverMasters] = useState<DriverMaster[]>(() =>
-    getStored("edu_db_driver_masters", initialDriverMasters),
-  );
-  const [busAttendants, setBusAttendants] = useState<BusAttendantMaster[]>(() =>
-    getStored("edu_db_bus_attendants", []),
-  );
+  const [routeMasters, setRouteMasters] = useState<RouteMaster[]>([]);
+  const [pickupPoints, setPickupPoints] = useState<PickupPoint[]>([]);
+  const [vehicleMasters, setVehicleMasters] = useState<VehicleMaster[]>([]);
+  const [driverMasters, setDriverMasters] = useState<DriverMaster[]>([]);
+  const [busAttendants, setBusAttendants] = useState<BusAttendantMaster[]>([]);
   const [vehicleAssignments, setVehicleAssignments] = useState<
     VehicleAssignment[]
-  >(() => getStored("edu_db_vehicle_assignments", initialVehicleAssignments));
+  >([]);
   const [vehicleMaintenances, setVehicleMaintenances] = useState<
     VehicleMaintenance[]
-  >(() => getStored("edu_db_vehicle_maintenances", initialVehicleMaintenances));
+  >([]);
 
   // Hostel ERP System States
   const [roomTypeMasters, setRoomTypeMasters] = useState<RoomTypeMaster[]>(() =>
@@ -2602,6 +2561,18 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     setAcademicYears((prev) => {
       const target = prev.find((a) => a.id === id);
       if (!target) return prev;
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const end = target.endDate ? new Date(target.endDate) : null;
+      const isCompleted = target.status === "Closed" || (end && !isNaN(end.getTime()) && end < today);
+      if (isCompleted) {
+        addToast(
+          "error",
+          "Action Not Allowed",
+          "Completed academic year cannot be set as active session."
+        );
+        return prev;
+      }
       setSelectedAcademicYear(target.academicYear);
       const next: AcademicYearMaster[] = prev.map((a) => ({
         ...a,
@@ -3724,11 +3695,21 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
             status: normalizeStatus(d.status),
           }));
 
-          setDriverMasters(mappedDrivers);
-          localStorage.setItem(
-            "edu_db_driver_masters",
-            JSON.stringify(mappedDrivers),
-          );
+          const uniqueDriversMap = new Map<string, DriverMaster>();
+          mappedDrivers.forEach((drv: DriverMaster) => {
+            const empKey = drv.employeeId?.trim().toLowerCase();
+            const nameKey = drv.driverName?.trim().toLowerCase();
+            const phoneKey = drv.mobileNumber?.trim();
+            const key = empKey
+              ? `emp_${empKey}`
+              : (nameKey && phoneKey
+                  ? `np_${nameKey}_${phoneKey}`
+                  : (nameKey ? `n_${nameKey}` : (drv.id ? `id_${drv.id}` : '')));
+            if (key && !uniqueDriversMap.has(key)) {
+              uniqueDriversMap.set(key, drv);
+            }
+          });
+          setDriverMasters(Array.from(uniqueDriversMap.values()));
         }
         if (assignments) {
           const mappedAssignments = assignments.map((a: any) => {
@@ -3803,10 +3784,39 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
             }
 
             let attendantId = (a.attendantId || "").toString();
-            let attendantName = a.attendantName || "";
+            let attendantName = a.attendantName || a.selectBusAttendant || a.busAttendant || "";
             let attendantMobile = a.attendantMobile || "";
             let attendantEmployeeId = a.attendantEmployeeId || "";
             let driverEmployeeId = a.driverEmployeeId || "";
+            if (!attendantName && attendantId && attendants) {
+              const matchedAttendant = attendants.find(
+                (at: any) =>
+                  at.id?.toString() === attendantId ||
+                  at.attendantId?.toString() === attendantId ||
+                  at.employeeId === attendantId,
+              );
+              if (matchedAttendant) {
+                attendantName = matchedAttendant.attendantName || matchedAttendant.name || "";
+                attendantMobile =
+                  attendantMobile || matchedAttendant.mobileNumber || matchedAttendant.phone || "";
+                attendantEmployeeId =
+                  attendantEmployeeId || matchedAttendant.employeeId || "";
+              }
+            }
+            if (!attendantName && attendantId && staff) {
+              const matchedStaff = (staff as any[]).find(
+                (s: any) =>
+                  s.id?.toString() === attendantId ||
+                  `staff-${s.id}` === attendantId ||
+                  s.employeeId === attendantId ||
+                  s.empId === attendantId,
+              );
+              if (matchedStaff) {
+                attendantName = `${matchedStaff.firstName || ""} ${matchedStaff.lastName || ""}`.trim() || matchedStaff.name || "";
+                attendantMobile = attendantMobile || matchedStaff.phone || matchedStaff.mobileNumber || "";
+                attendantEmployeeId = attendantEmployeeId || matchedStaff.empId || matchedStaff.employeeId || "";
+              }
+            }
 
             return {
               id: (a.id || a.assignmentId || "").toString(),
@@ -3831,44 +3841,28 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
             };
           });
 
-          const localStoredAssignments: VehicleAssignment[] = JSON.parse(
-            localStorage.getItem("edu_db_vehicle_assignments") || "[]",
-          );
-          const uniqueAssignmentsMap = new Map<string, any>();
-          localStoredAssignments.forEach((a: any) => {
-            if (a && (a.vehicleNumber || a.routeName)) {
-              const key = a.id
-                ? a.id.toString()
-                : `${a.vehicleNumber}-${a.routeName}`;
-              uniqueAssignmentsMap.set(key, a);
-            }
+          const activeSeen = new Set<string>();
+          const sortedAssignments = [...mappedAssignments].sort((a, b) => {
+            const aHasAttendant = a.attendantName && a.attendantName.toLowerCase() !== 'unassigned' ? 1 : 0;
+            const bHasAttendant = b.attendantName && b.attendantName.toLowerCase() !== 'unassigned' ? 1 : 0;
+            if (aHasAttendant !== bHasAttendant) return bHasAttendant - aHasAttendant;
+            return (Number(b.id) || 0) - (Number(a.id) || 0);
           });
-          mappedAssignments.forEach((item: any) => {
-            if (item && (item.vehicleNumber || item.routeName)) {
-              const key = item.id
-                ? item.id.toString()
-                : `${item.vehicleNumber}-${item.routeName}`;
-              const existing = uniqueAssignmentsMap.get(key) || {};
-              uniqueAssignmentsMap.set(key, {
-                ...existing,
-                ...item,
-                driverEmployeeId:
-                  item.driverEmployeeId || existing.driverEmployeeId || "",
-                attendantId: item.attendantId || existing.attendantId || "",
-                attendantName:
-                  item.attendantName || existing.attendantName || "",
-                attendantMobile:
-                  item.attendantMobile || existing.attendantMobile || "",
-                attendantEmployeeId:
-                  item.attendantEmployeeId || existing.attendantEmployeeId || "",
-              });
+
+          const deduplicatedAssignments = sortedAssignments.map(a => {
+            if (a.status !== 'Active') return a;
+            const key = (a.vehicleNumber ? a.vehicleNumber.trim().toUpperCase() : '') || a.vehicleId;
+            if (key && activeSeen.has(key)) {
+              return { ...a, status: 'Inactive' as const };
             }
+            if (key) activeSeen.add(key);
+            return a;
           });
-          const finalAssignments = Array.from(uniqueAssignmentsMap.values());
-          setVehicleAssignments(finalAssignments);
+
+          setVehicleAssignments(deduplicatedAssignments);
           localStorage.setItem(
             "edu_db_vehicle_assignments",
-            JSON.stringify(finalAssignments),
+            JSON.stringify(deduplicatedAssignments),
           );
         }
         if (maintenance) {
@@ -3910,11 +3904,26 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
               a.name ||
               "",
             mobileNumber: a.mobileNumber || a.phone || "",
-            gender: a.gender || "Female",
-            branch: a.branch || "",
+            gender: a.gender || "",
+            branch: a.branch || a.branchName || "",
             status: normalizeStatus(a.status),
           }));
-          setBusAttendants(mappedAttendants);
+
+          const uniqueAttendantsMap = new Map<string, BusAttendantMaster>();
+          mappedAttendants.forEach((att: BusAttendantMaster) => {
+            const empKey = att.employeeId?.trim().toLowerCase();
+            const nameKey = att.attendantName?.trim().toLowerCase();
+            const phoneKey = att.mobileNumber?.trim();
+            const key = empKey
+              ? `emp_${empKey}`
+              : (nameKey && phoneKey
+                  ? `np_${nameKey}_${phoneKey}`
+                  : (nameKey ? `n_${nameKey}` : (att.id ? `id_${att.id}` : '')));
+            if (key && !uniqueAttendantsMap.has(key)) {
+              uniqueAttendantsMap.set(key, att);
+            }
+          });
+          setBusAttendants(Array.from(uniqueAttendantsMap.values()));
         }
         const studentTransportsData = extractData(results[7]);
         if (studentTransportsData) {
@@ -3931,6 +3940,31 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
                   "";
               }
             }
+            if (!admNo && admissions) {
+              const matchedAdm = admissions.find(
+                (a: any) =>
+                  a.id?.toString() === t.studentId?.toString() ||
+                  a.registrationNo === t.admissionNo ||
+                  a.applicationNo === t.admissionNo,
+              );
+              if (matchedAdm) {
+                admNo =
+                  matchedAdm.registrationNo ||
+                  matchedAdm.applicationNo ||
+                  "";
+              }
+            }
+
+            let sName = t.studentName || t.fullName || "";
+            if (!sName && students) {
+              const matchedStudent = students.find(
+                (s: any) => s.id?.toString() === t.studentId?.toString() || (admNo && s.admissionNo === admNo),
+              );
+              if (matchedStudent) {
+                sName = `${matchedStudent.firstName || ""} ${matchedStudent.lastName || ""}`.trim() || matchedStudent.name || "";
+              }
+            }
+
             return {
               id: (
                 t.id ||
@@ -3939,7 +3973,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
                 ""
               ).toString(),
               studentId: (t.studentId || "").toString(),
-              studentName: t.studentName || t.fullName || "",
+              studentName: sName,
               admissionNo: admNo,
               routeName: t.routeName || "",
               routeId: (t.routeId || "").toString(),
@@ -3952,6 +3986,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
                 t.vehicleAssignmentId ||
                 ""
               ).toString(),
+              branch: t.branch || t.branchName || "",
+              academicYear: t.academicYear || "",
               feePlan: t.feePlan || "Monthly",
               feeAmount: Number(t.feeAmount || 0),
               effectiveFrom: t.effectiveFrom
@@ -3960,7 +3996,31 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
               status: normalizeStatus(t.status),
             };
           });
-          setStudentTransports(mappedTransports);
+
+          const localStoredTransports: StudentTransport[] = JSON.parse(
+            localStorage.getItem("edu_db_student_transports") || "[]",
+          );
+          const mergedTransportsMap = new Map<string, any>();
+          localStoredTransports.forEach((st: any) => {
+            if (st && st.id) {
+              mergedTransportsMap.set(String(st.id).toLowerCase(), st);
+            }
+          });
+          mappedTransports.forEach((st: any) => {
+            if (st && st.id) {
+              const key = String(st.id).toLowerCase();
+              mergedTransportsMap.set(key, {
+                ...mergedTransportsMap.get(key),
+                ...st,
+              });
+            }
+          });
+          const finalTransports = Array.from(mergedTransportsMap.values());
+          setStudentTransports(finalTransports);
+          localStorage.setItem(
+            "edu_db_student_transports",
+            JSON.stringify(finalTransports),
+          );
         }
 
         if (results.some((r) => r.status === "rejected")) {
@@ -4216,56 +4276,53 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
               ? data.data
               : null;
           if (classList) {
-            const storedLocal = localStorage.getItem("edu_db_academic_classes");
-            const localClasses: AcademicClass[] = storedLocal
-              ? JSON.parse(storedLocal)
-              : [];
-
             const mapped: AcademicClass[] = classList.map((c: any) => {
               const classIdStr = c.classId?.toString() || c.id?.toString();
               const classNameStr = c.className || c.name || "";
-              const localCls = localClasses.find((lc) => {
-                if (!lc) return false;
-                const lcIdStr = String(lc.id || "").trim();
-                const normLcId = lcIdStr.replace(/^CL-/i, "").trim();
-                const normClassId = String(classIdStr || "").replace(/^CL-/i, "").trim();
-                const normLcName = String(lc.name || (lc as any).className || "").toLowerCase().replace(/class/gi, "").trim();
-                const normClassName = String(classNameStr).toLowerCase().replace(/class/gi, "").trim();
-                return lcIdStr === classIdStr || (normLcId && normLcId === normClassId) || (normLcName && normLcName === normClassName);
-              });
 
               const secDetails: Record<string, any> = {
-                ...(localCls?.sectionDetails || c.sectionDetails || {}),
+                ...(c.sectionDetails || {}),
               };
 
               const sectionTeachersMap: Record<string, string> = {
-                ...(localCls?.sectionTeachers || {}),
                 ...(c.sectionTeachers || {}),
               };
 
               if (Array.isArray(c.sections)) {
                 c.sections.forEach((s: any) => {
-                  const sName =
-                    s.sectionName || s.name || (typeof s === "string" ? s : "");
+                  const isObj = typeof s === "object" && s !== null;
+                  const sName = isObj
+                    ? s.sectionName || s.name || ""
+                    : typeof s === "string"
+                      ? s
+                      : "";
                   if (sName) {
+                    const existingSec = secDetails[sName] || {};
                     secDetails[sName] = {
-                      capacity: s.capacity || secDetails[sName]?.capacity || 40,
-                      status: s.status || secDetails[sName]?.status || "Active",
-                      remarks: s.remarks || secDetails[sName]?.remarks || "",
-                      roomNo:
-                        s.roomNo ||
-                        s.RoomNo ||
-                        s.room_number ||
-                        secDetails[sName]?.roomNo ||
+                      capacity:
+                        (isObj ? s.capacity : undefined) ??
+                        existingSec.capacity ??
+                        40,
+                      status:
+                        (isObj ? s.status : undefined) ||
+                        existingSec.status ||
+                        "Active",
+                      remarks:
+                        (isObj ? s.remarks : undefined) ??
+                        existingSec.remarks ??
                         "",
-                      ...(secDetails[sName] || {}),
+                      roomNo:
+                        (isObj
+                          ? s.roomNo || s.RoomNo || s.room_number
+                          : undefined) ||
+                        existingSec.roomNo ||
+                        "",
                     };
-                    if (s.roomNo || s.RoomNo || s.room_number) {
-                      secDetails[sName].roomNo =
-                        s.roomNo || s.RoomNo || s.room_number;
-                    }
-                    if (s.classTeacherName) {
+                    if (isObj && s.classTeacherName) {
                       sectionTeachersMap[sName] = s.classTeacherName;
+                      const cleanSName = sName.replace(/^Section\s*/i, "").trim();
+                      sectionTeachersMap[cleanSName] = s.classTeacherName;
+                      sectionTeachersMap[`Section ${cleanSName}`] = s.classTeacherName;
                     }
                   }
                 });
@@ -4290,6 +4347,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
                 .forEach((ta) => {
                   if (ta.section) {
                     sectionTeachersMap[ta.section] = ta.teacherName;
+                    const cleanSec = ta.section.replace(/^Section\s*/i, "").trim();
+                    sectionTeachersMap[cleanSec] = ta.teacherName;
+                    sectionTeachersMap[`Section ${cleanSec}`] = ta.teacherName;
                   }
                 });
 
@@ -4311,13 +4371,31 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
                   ? c.curriculumSubjects
                       .map((cs: any) => cs.subjectName || cs.name || "")
                       .filter(Boolean)
-                  : localCls?.subjects && localCls.subjects.length > 0
-                    ? localCls.subjects
-                    : c.subjects || [];
+                  : c.subjects || [];
+
+              const resolvedCampus =
+                c.campusLocation || c.CampusLocation || c.branch || "";
+
+              const resolvedYear =
+                c.academicYear || c.AcademicYear || c.academic_year || "";
+
+              const resolvedStatus =
+                c.status || c.Status || "Active";
+
+              const resolvedRemarks =
+                c.remarks ?? c.Remarks ?? "";
+
+              const resolvedDisplayOrder =
+                c.displayOrder ?? c.DisplayOrder ?? c.display_order ?? undefined;
 
               return {
                 id: classIdStr,
                 name: classNameStr,
+                displayName: c.displayName || classNameStr,
+                status: resolvedStatus,
+                remarks: resolvedRemarks,
+                displayOrder: resolvedDisplayOrder,
+                academicYear: resolvedYear,
                 sections: c.sections?.map((s: any) => s.sectionName || s) || [],
                 sectionTeachers: sectionTeachersMap,
                 teacher:
@@ -4326,14 +4404,14 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
                   "Unassigned",
                 subjects: subs,
                 weeklyPeriods: {
-                  ...(localCls?.weeklyPeriods || {}),
                   ...(c.weeklyPeriods || {}),
                   ...backendWeeklyPeriods,
                 },
                 sectionDetails: secDetails,
-                campusLocation: c.campusLocation || c.CampusLocation || localCls?.campusLocation || localCls?.branch || "All",
-                branch: c.campusLocation || c.CampusLocation || c.branch || localCls?.branch || localCls?.campusLocation || "All",
-              };
+                campus: resolvedCampus,
+                campusLocation: resolvedCampus,
+                branch: resolvedCampus,
+              } as any;
             });
             mapped.sort((a, b) => compareClassesAscending(a.name, b.name));
             setAcademicClasses(mapped);
@@ -8756,14 +8834,39 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const addAcademicClass = async (clsData: Omit<AcademicClass, "id">) => {
     try {
+      const dynamicBranch =
+        (selectedBranch &&
+        selectedBranch !== "All" &&
+        selectedBranch !== "All Branches" &&
+        selectedBranch !== "All Campuses"
+          ? selectedBranch
+          : "") ||
+        (branches || []).find((b: any) => b.status === "Active" || !b.status)?.branchName ||
+        (branches || []).find((b: any) => b.status === "Active" || !b.status)?.name ||
+        (branches || [])[0]?.branchName ||
+        (branches || [])[0]?.name ||
+        "";
+
+      const dynamicYear =
+        (selectedAcademicYear &&
+        selectedAcademicYear !== "All" &&
+        selectedAcademicYear !== "All Years"
+          ? selectedAcademicYear
+          : "") ||
+        (academicYears || []).find((ay: any) => ay.isCurrent || ay.status === "Active")?.academicYear ||
+        (academicYears || [])[0]?.academicYear ||
+        "";
+
       const payload = {
         name: clsData.name,
         class_name: clsData.name,
         campus_location:
           (clsData as any).campus ||
+          (clsData as any).branch ||
+          dynamicBranch,
           (clsData as any).branch || (selectedBranch && selectedBranch !== "All" && selectedBranch !== "All Branches" ? selectedBranch : "") || "",
         academic_year:
-          (clsData as any).academicYear || selectedAcademicYear || "2026-2027",
+          (clsData as any).academicYear || dynamicYear,
         display_order: (clsData as any).displayOrder,
         status: clsData.status || "Active",
         remarks: (clsData as any).remarks || "",
@@ -8790,30 +8893,68 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     id: string,
     updates: Partial<AcademicClass>,
   ) => {
-    // Update local state immediately to avoid race conditions and provide instant UI updates
-    setAcademicClasses((prev) => {
-      const next = prev.map((c) => (c.id === id ? { ...c, ...updates } : c));
-      localStorage.setItem("edu_db_academic_classes", JSON.stringify(next));
-      return next;
-    });
+    const normId = (val: any) => String(val ?? "").replace(/^CL-/i, "");
+    const targetNormId = normId(id);
+
+    // Update React state optimistically
+    setAcademicClasses((prev) =>
+      prev.map((c) =>
+        normId(c.id) === targetNormId ? { ...c, ...updates } : c
+      )
+    );
 
     try {
       const numericId = id.startsWith("CL-") ? id.replace("CL-", "") : id;
 
       // Find the existing class in state to get the current name and other fields
-      const existingClass = academicClasses.find((c) => c.id === id);
+      const existingClass = academicClasses.find(
+        (c) => normId(c.id) === targetNormId
+      );
       const currentName =
         (existingClass as any)?.className || existingClass?.name || "";
       const finalName =
         (updates as any)?.className || updates.name || currentName;
 
+      const dynamicBranch =
+        (selectedBranch &&
+        selectedBranch !== "All" &&
+        selectedBranch !== "All Branches" &&
+        selectedBranch !== "All Campuses"
+          ? selectedBranch
+          : "") ||
+        (branches || []).find((b: any) => b.status === "Active" || !b.status)?.branchName ||
+        (branches || []).find((b: any) => b.status === "Active" || !b.status)?.name ||
+        (branches || [])[0]?.branchName ||
+        (branches || [])[0]?.name ||
+        "";
+
+      const dynamicYear =
+        (selectedAcademicYear &&
+        selectedAcademicYear !== "All" &&
+        selectedAcademicYear !== "All Years"
+          ? selectedAcademicYear
+          : "") ||
+        (academicYears || []).find((ay: any) => ay.isCurrent || ay.status === "Active")?.academicYear ||
+        (academicYears || [])[0]?.academicYear ||
+        "";
+
       const payload = {
         name: finalName,
         class_name: finalName,
+        campus_location:
+          (updates as any).campus ||
+          (updates as any).branch ||
+          (existingClass as any)?.campus ||
+          (existingClass as any)?.branch ||
+          dynamicBranch,
+        academic_year:
+          (updates as any).academicYear ||
+          (existingClass as any)?.academicYear ||
+          dynamicYear,
         display_order:
-          (updates as any).displayOrder !== undefined
-            ? (updates as any).displayOrder
-            : (existingClass as any)?.displayOrder || 0,
+          "displayOrder" in updates
+            ? (updates as any).displayOrder ?? null
+            : (existingClass as any)?.displayOrder ?? null,
         status: updates.status || existingClass?.status || "Active",
         remarks:
           (updates as any).remarks !== undefined
@@ -8933,16 +9074,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   const [periodSettings, setPeriodSettings] = useState<PeriodSetting[]>(
     () => getStored("period_settings", defaultPeriodSettings),
   );
-  const [teacherAssignments, setTeacherAssignments] = useState<
-    TeacherAssignment[]
-  >(() => getStored("teacher_assignments", defaultTeacherAssignments));
-
-  useEffect(() => {
-    localStorage.setItem(
-      "edu_db_teacher_assignments",
-      JSON.stringify(teacherAssignments),
-    );
-  }, [teacherAssignments]);
+  const [teacherAssignments, setTeacherAssignments] = useState<TeacherAssignment[]>([]);
 
   useEffect(() => {
     localStorage.setItem("edu_db_timetable", JSON.stringify(timetable));
@@ -11535,23 +11667,27 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       const pickupObj =
         pickupPoints.find(
           (p) => p.pickupName === st.pickupPoint && p.routeId === st.routeId,
-        ) || pickupPoints[0];
+        ) ||
+        pickupPoints.find((p) => p.routeId === st.routeId) ||
+        null;
       const pickupPointIdInt = pickupObj
-        ? parseInt(pickupObj.id.replace(/\D/g, ""), 10) || 1
-        : 1;
+        ? parseInt(String(pickupObj.id).replace(/\D/g, ""), 10) || null
+        : null;
 
       const vaObj =
+        vehicleAssignments.find((va) => va.routeId === st.routeId && (va.status === "Active" || (va as any).status === true)) ||
         vehicleAssignments.find((va) => va.routeId === st.routeId) ||
-        vehicleAssignments[0];
+        null;
       const vaIdInt = vaObj
-        ? parseInt(vaObj.id.replace(/\D/g, ""), 10) || 1
-        : 1;
+        ? parseInt(String(vaObj.id).replace(/\D/g, ""), 10) || null
+        : null;
 
       const payload = {
-        studentId: studentIdInt || 1,
-        routeId: routeIdInt || 1,
-        pickupPointId: pickupPointIdInt || 1,
-        vehicleAssignmentId: vaIdInt || 1,
+        admissionNo: st.admissionNo || "",
+        studentId: studentIdInt > 0 ? studentIdInt : null,
+        routeId: routeIdInt,
+        pickupPointId: pickupPointIdInt,
+        vehicleAssignmentId: vaIdInt,
         effectiveFrom: st.effectiveFrom,
         effectiveTo: st.effectiveTo || null,
         transportType: "Both",
@@ -15934,7 +16070,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       const id = (
         backendData.id ||
         backendData.driverId ||
-        "DRV-" + Math.floor(100 + Math.random() * 900)
+        ""
       ).toString();
       const newDriver: DriverMaster = {
         ...d,
@@ -15949,9 +16085,36 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
             : d.status === "On Leave"
               ? "On Leave"
               : "Inactive",
-        branch: (d as any).branch || (selectedBranch && selectedBranch !== "All" && selectedBranch !== "All Branches" ? selectedBranch : "") || "",
+        branch: (d as any).branch || selectedBranch || "Main Campus",
       } as any;
-      setDriverMasters((prev) => [...prev, newDriver]);
+
+      setDriverMasters((prev) => {
+        const empKey = (newDriver.employeeId || "").trim().toLowerCase();
+        const nameKey = (newDriver.driverName || "").trim().toLowerCase();
+        const phoneKey = (newDriver.mobileNumber || "").trim();
+
+        const exists = prev.some(
+          (existing) =>
+            (empKey && (existing.employeeId || "").trim().toLowerCase() === empKey) ||
+            existing.id === newDriver.id ||
+            ((existing.driverName || "").trim().toLowerCase() === nameKey &&
+              (existing.mobileNumber || "").trim() === phoneKey)
+        );
+
+        if (exists) {
+          return prev.map((existing) =>
+            (empKey && (existing.employeeId || "").trim().toLowerCase() === empKey) ||
+            existing.id === newDriver.id ||
+            ((existing.driverName || "").trim().toLowerCase() === nameKey &&
+              (existing.mobileNumber || "").trim() === phoneKey)
+              ? { ...existing, ...newDriver }
+              : existing
+          );
+        }
+
+        return [...prev, newDriver];
+      });
+
       logActivity(
         "Added Transport Driver",
         `Registered driver ${newDriver.driverName}`,
@@ -15962,7 +16125,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       const newDriver: DriverMaster = {
         ...d,
         id,
-        branch: (d as any).branch || (selectedBranch && selectedBranch !== "All" && selectedBranch !== "All Branches" ? selectedBranch : "") || "",
+        branch: (d as any).branch || selectedBranch || "Main Campus",
       } as any;
       setDriverMasters((prev) => [...prev, newDriver]);
     }
@@ -16080,6 +16243,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const addBusAttendant = async (a: Omit<BusAttendantMaster, "id">) => {
     try {
+      const branchCampus = (a as any).branch || (a as any).branchCampus || ((selectedBranch && selectedBranch !== "All Branches" && selectedBranch !== "All") ? selectedBranch : "");
       const payload = {
         employeeId: a.employeeId || "",
         empId: a.employeeId || "",
@@ -16089,7 +16253,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         name: a.attendantName || "",
         mobileNumber: a.mobileNumber || "",
         phone: a.mobileNumber || "",
-        gender: a.gender || "Female",
+        gender: a.gender || "",
+        branchCampus: branchCampus,
+        branch: branchCampus,
         status: a.status === "Active",
       };
       const response = await TransportAPI.createAttendantApi(payload as any);
@@ -16097,7 +16263,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       const id = (
         backendData.id ||
         backendData.attendantId ||
-        "ATT-" + Math.floor(100 + Math.random() * 900)
+        ""
       ).toString();
       const newAttendant: BusAttendantMaster = {
         ...a,
@@ -16110,9 +16276,36 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           a.status === "Active"
             ? "Active"
             : "Inactive",
-        branch: (a as any).branch || (selectedBranch && selectedBranch !== "All" && selectedBranch !== "All Branches" ? selectedBranch : "") || "",
+        branch: (a as any).branch || selectedBranch || "Main Campus",
       } as any;
-      setBusAttendants((prev) => [...prev, newAttendant]);
+
+      setBusAttendants((prev) => {
+        const empKey = (newAttendant.employeeId || "").trim().toLowerCase();
+        const nameKey = (newAttendant.attendantName || "").trim().toLowerCase();
+        const phoneKey = (newAttendant.mobileNumber || "").trim();
+
+        const exists = prev.some(
+          (existing) =>
+            (empKey && (existing.employeeId || "").trim().toLowerCase() === empKey) ||
+            existing.id === newAttendant.id ||
+            ((existing.attendantName || "").trim().toLowerCase() === nameKey &&
+              (existing.mobileNumber || "").trim() === phoneKey)
+        );
+
+        if (exists) {
+          return prev.map((existing) =>
+            (empKey && (existing.employeeId || "").trim().toLowerCase() === empKey) ||
+            existing.id === newAttendant.id ||
+            ((existing.attendantName || "").trim().toLowerCase() === nameKey &&
+              (existing.mobileNumber || "").trim() === phoneKey)
+              ? { ...existing, ...newAttendant }
+              : existing
+          );
+        }
+
+        return [...prev, newAttendant];
+      });
+
       logActivity(
         "Registered Bus Attendant",
         `Added attendant ${newAttendant.attendantName}`,
@@ -16123,7 +16316,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       const newAttendant: BusAttendantMaster = {
         ...a,
         id,
-        branch: (a as any).branch || (selectedBranch && selectedBranch !== "All" && selectedBranch !== "All Branches" ? selectedBranch : "") || "",
+        branch: (a as any).branch || selectedBranch || "Main Campus",
       } as any;
       setBusAttendants((prev) => [...prev, newAttendant]);
     }
@@ -16263,11 +16456,21 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         routeId: Number(va.routeId) || 0,
         vehicleId: Number(va.vehicleId) || 0,
         driverId: Number(va.driverId) || 0,
-        attendantId: va.attendantId ? Number(va.attendantId) : null,
+        attendantId:
+          va.attendantId &&
+          !isNaN(Number(va.attendantId)) &&
+          Number(va.attendantId) > 0
+            ? Number(va.attendantId)
+            : null,
         selectRoute: va.routeName || "",
+        routeName: va.routeName || "",
         selectActiveVehicle: va.vehicleNumber || "",
+        vehicleNumber: va.vehicleNumber || "",
         selectLicensedDriver: va.driverName || "",
+        driverName: va.driverName || "",
         selectBusAttendant: va.attendantName || "",
+        attendantName: va.attendantName || "",
+        busAttendant: va.attendantName || "",
         branchName: effectiveBranch,
         branch: effectiveBranch,
         academicYear: effectiveAcademicYear,
@@ -16299,6 +16502,10 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       const newAssign: VehicleAssignment = {
         ...backendData,
         ...normalizedAssignment,
+        attendantId: backendData.attendantId || normalizedAssignment.attendantId,
+        attendantName: backendData.attendantName || normalizedAssignment.attendantName,
+        attendantEmployeeId: backendData.attendantEmployeeId || normalizedAssignment.attendantEmployeeId,
+        attendantMobile: backendData.attendantMobile || normalizedAssignment.attendantMobile,
         id,
         branch: effectiveBranch,
         academicYear: effectiveAcademicYear,
@@ -16357,21 +16564,29 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       payload.driverId = Number(updates.driverId) || 0;
     }
     if (updates.attendantId !== undefined) {
-      payload.attendantId = updates.attendantId
-        ? Number(updates.attendantId)
-        : null;
+      payload.attendantId =
+        updates.attendantId &&
+        !isNaN(Number(updates.attendantId)) &&
+        Number(updates.attendantId) > 0
+          ? Number(updates.attendantId)
+          : null;
     }
     if (updates.routeName !== undefined) {
       payload.selectRoute = updates.routeName;
+      payload.routeName = updates.routeName;
     }
     if (updates.vehicleNumber !== undefined) {
       payload.selectActiveVehicle = updates.vehicleNumber;
+      payload.vehicleNumber = updates.vehicleNumber;
     }
     if (updates.driverName !== undefined) {
       payload.selectLicensedDriver = updates.driverName;
+      payload.driverName = updates.driverName;
     }
     if (updates.attendantName !== undefined) {
       payload.selectBusAttendant = updates.attendantName;
+      payload.attendantName = updates.attendantName;
+      payload.busAttendant = updates.attendantName;
     }
     if (updates.branch !== undefined) {
       payload.branchName = updates.branch;
@@ -16611,14 +16826,33 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     );
     const totalCapacity = vehicle ? vehicle.capacity : 50;
 
-    const matchedTransports = studentTransports.filter(
-      (st) =>
-        (st.vehicleId === vehicleId ||
-          st.vehicleNumber === vehicle?.vehicleNumber) &&
-        st.status === "Active",
+    const activeAssignment = vehicleAssignments.find(
+      (va) =>
+        (va.vehicleId === vehicleId ||
+          (vehicle?.vehicleNumber && va.vehicleNumber === vehicle.vehicleNumber)) &&
+        va.status === "Active",
     );
 
-    const assignedCount = matchedTransports.length;
+    let assignedCount = 0;
+    if (activeAssignment) {
+      assignedCount = resolveAssignedStudentsForTrip(activeAssignment, {
+        studentTransports,
+        students,
+        admissions,
+        routeMasters,
+        pickupPoints,
+        vehicleMasters,
+      }).length;
+    } else {
+      const matchedTransports = studentTransports.filter(
+        (st) =>
+          (st.vehicleId === vehicleId ||
+            (vehicle?.vehicleNumber && st.vehicleNumber === vehicle.vehicleNumber)) &&
+          st.status === "Active",
+      );
+      assignedCount = matchedTransports.length;
+    }
+
     const availableSeats = Math.max(0, totalCapacity - assignedCount);
 
     return {

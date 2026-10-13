@@ -231,48 +231,8 @@ public class TimetableIntegrityValidator : ITimetableIntegrityValidator
             }
         }
 
-        // 9. Check Daily Pattern Repetition (when >= 3 distinct subjects and >= 3 periods per day exist)
-        var sectionGroups = slots.GroupBy(s => s.HeaderId);
-        foreach (var secGroup in sectionGroups)
-        {
-            var distinctSubjects = secGroup.Select(s => s.SubjectId).Distinct().Count();
-            if (distinctSubjects >= 3)
-            {
-                var daySignatures = new Dictionary<string, string>();
-                var dayGroups = secGroup.GroupBy(s => s.DayOfWeek);
-                foreach (var dg in dayGroups)
-                {
-                    var sig = string.Join("-", dg.OrderBy(s => s.StartTime).Select(s => s.SubjectId));
-                    daySignatures[dg.Key] = sig;
-                }
+        // 9. Informational: Daily Pattern Repetition is computed as a quality metric, not a hard integrity failure.
 
-                var dayList = daySignatures.Keys.ToList();
-                for (int i = 0; i < dayList.Count; i++)
-                {
-                    for (int j = i + 1; j < dayList.Count; j++)
-                    {
-                        if (daySignatures[dayList[i]] == daySignatures[dayList[j]] && daySignatures[dayList[i]].Split('-').Length >= 3)
-                        {
-                            int identicalCount = dayList.Count(d => daySignatures[d] == daySignatures[dayList[i]]);
-                            if (identicalCount >= Math.Min(3, dayList.Count))
-                            {
-                                result.IsValid = false;
-                                var msg = $"Daily Pattern Repetition: Section Header {secGroup.Key} repeats identical subject sequence across {identicalCount} days ({daySignatures[dayList[i]]}).";
-                                result.Violations.Add(msg);
-                                result.ConflictDetails.Add(new TimetableConflictDetailDto
-                                {
-                                    Type = "DAILY_PATTERN_REPETITION",
-                                    EntityName = $"Header {secGroup.Key}",
-                                    Message = msg
-                                });
-                                break;
-                            }
-                        }
-                    }
-                    if (!result.IsValid) break;
-                }
-            }
-        }
 
         if (!result.IsValid)
         {

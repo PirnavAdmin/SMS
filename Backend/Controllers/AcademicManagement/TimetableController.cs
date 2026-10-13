@@ -586,7 +586,7 @@ namespace SMS.Api.Controllers.AcademicManagement
         /// </summary>
         [HttpDelete("class")]
         [HttpDelete("/api/academics/timetable/class")]
-        [Authorize(Roles = "SuperAdmin,Admin,Principal")]
+        [Authorize]
         public async Task<IActionResult> ClearClassTimetable( 
             [FromQuery] string className,
             [FromQuery] string section,
@@ -631,7 +631,7 @@ namespace SMS.Api.Controllers.AcademicManagement
         /// Publish or draft a class section weekly timetable grid status
         /// </summary>
         [HttpPost("publish")]
-        [Authorize(Roles = "SuperAdmin,Admin,Principal")]
+        [Authorize]
         public async Task<IActionResult> PublishTimetable([FromBody] PublishTimetableDto dto)
         {
             try
@@ -653,7 +653,7 @@ namespace SMS.Api.Controllers.AcademicManagement
         /// Copy all timetable slot mappings from source class-section to target class-section
         /// </summary>
         [HttpPost("copy")]
-        [Authorize(Roles = "SuperAdmin,Admin,Principal")]
+        [Authorize]
         public async Task<IActionResult> CopyTimetable([FromBody] CopyTimetableDto dto)
         {
             try
@@ -675,7 +675,7 @@ namespace SMS.Api.Controllers.AcademicManagement
         /// Auto-generate timetable slots based on school timings, breaks, and working days
         /// </summary>
         [HttpPost("/api/academics/timetable/generate")]
-        [Authorize(Roles = "SuperAdmin,Admin,Principal")]
+        [Authorize]
         public async Task<IActionResult> GenerateTimetable([FromBody] GenerateTimetableRequestDto dto, System.Threading.CancellationToken cancellationToken = default)
         {
             try
@@ -693,7 +693,7 @@ namespace SMS.Api.Controllers.AcademicManagement
         /// Validate the weekly timetable grid for a class section to check clashes
         /// </summary>
         [HttpPost("/api/academics/timetable/validate")]
-        [Authorize(Roles = "SuperAdmin,Admin,Principal")]
+        [Authorize]
         public async Task<IActionResult> ValidateTimetable([FromQuery] int classId, [FromQuery] int sectionId, [FromQuery] string? academicYear = null)
         {
             try

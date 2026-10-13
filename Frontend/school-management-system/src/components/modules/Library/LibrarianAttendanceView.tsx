@@ -138,8 +138,8 @@ export const LibrarianAttendanceView: React.FC = () => {
     (s.designation || '').toLowerCase().includes('librarian')
   );
 
-  const currentStaffName = user?.name || (matchedStaff ? `${matchedStaff.firstName || ''} ${matchedStaff.lastName || ''}`.trim() : 'Jammi Naidu');
-  const currentStaffId = user?.empId || matchedStaff?.empId || matchedStaff?.id || 'NTS-2026-805';
+  const currentStaffName = user?.name || (matchedStaff ? `${matchedStaff.firstName || ''} ${matchedStaff.lastName || ''}`.trim() : (role || 'Librarian'));
+  const currentStaffId = user?.empId || matchedStaff?.empId || matchedStaff?.id || '';
 
   useEffect(() => {
     const loadAttendanceData = async () => {
@@ -227,11 +227,11 @@ export const LibrarianAttendanceView: React.FC = () => {
     };
   }, [attendanceViewMode, selectedAttendanceDate, selectedAttendanceMonth, currentStaffId, currentStaffName, todayStr]);
 
-  // Available library staff members for Mark Attendance dropdown (strictly Library Department / Librarians)
+  // Available library staff members for Mark Attendance dropdown
   const availableLibrarianMembers = useMemo(() => {
     const list: { id: string; name: string; designation: string }[] = [];
 
-    // Filter staff members strictly belonging to Library Department or Librarian designation
+    // Filter staff members belonging to Library Department or Librarian designation
     const libraryStaff = (staff || []).filter(s => {
       const dept = String(s.department || '').toLowerCase();
       const des = String(s.designation || '').toLowerCase();
@@ -239,38 +239,37 @@ export const LibrarianAttendanceView: React.FC = () => {
       return dept.includes('library') || des.includes('librar') || roleStr.includes('librar');
     });
 
-    libraryStaff.forEach(s => {
+    const targetStaff = libraryStaff.length > 0 ? libraryStaff : (staff || []);
+
+    targetStaff.forEach(s => {
       const sId = String(s.empId || s.id);
       const sName = `${s.firstName || ''} ${s.lastName || ''}`.trim();
-      const sDes = s.designation || 'Librarian';
+      const sDes = s.designation || 'Staff';
       if (sName && !list.some(item => item.id === sId || item.name.toLowerCase() === sName.toLowerCase())) {
         list.push({ id: sId, name: sName, designation: sDes });
       }
     });
 
-    // Ensure core library staff members (Jammi Naidu, Bhanu Prakash, Rachel Green, Sarah Jenkins) are included if not present in staff list
-    const defaultLibStaff = [
-      { id: currentStaffId || 'NTS-2026-805', name: currentStaffName || 'Jammi Naidu', designation: 'Librarian' },
-      { id: 'EMP-LIB-01', name: 'Bhanu Prakash', designation: 'Librarian' },
-      { id: 'EMP-LIB-02', name: 'Rachel Green', designation: 'Assistant Librarian' },
-      { id: 'EMP-LIB-03', name: 'Sarah Jenkins', designation: 'Library Attendant' }
-    ];
-
-    defaultLibStaff.forEach(item => {
-      if (item.name && !list.some(m => m.name.toLowerCase() === item.name.toLowerCase() || m.id === item.id)) {
-        list.push(item);
+    if (matchedStaff) {
+      const mId = String(matchedStaff.empId || matchedStaff.id);
+      const mName = `${matchedStaff.firstName || ''} ${matchedStaff.lastName || ''}`.trim();
+      if (mName && !list.some(item => item.id === mId || item.name.toLowerCase() === mName.toLowerCase())) {
+        list.unshift({ id: mId, name: mName, designation: matchedStaff.designation || 'Librarian' });
       }
-    });
+    } else if (user?.name) {
+      if (!list.some(item => item.name.toLowerCase() === user.name.toLowerCase())) {
+        list.unshift({ id: user.empId || 'EMP', name: user.name, designation: role || 'Librarian' });
+      }
+    }
 
     return list;
-  }, [staff, currentStaffId, currentStaffName]);
+  }, [staff, matchedStaff, user, role]);
 
   // Leave applications submitted by / for Librarian
   const myLeaveApplications = useMemo(() => {
     return (leaveApplications || []).filter(app => {
       const isLibRole = (app.role || '').toLowerCase().includes('librarian') || (app.department || '').toLowerCase().includes('library');
-      const isIdMatch = (app.employeeId && (String(app.employeeId) === String(currentStaffId) || String(app.employeeId) === 'EMP-LIB-01')) ||
-                        ((app as any).empId && (String((app as any).empId) === String(currentStaffId) || String((app as any).empId) === 'EMP-LIB-01'));
+      const isIdMatch = app.employeeId && String(app.employeeId) === String(currentStaffId);
       const isNameMatch = app.employeeName && (user?.name ? app.employeeName.toLowerCase().includes(user.name.toLowerCase().split(' ')[0]) : true);
       return isLibRole || isIdMatch || isNameMatch;
     }).sort((a, b) => new Date(b.startDate || b.appliedOn || 0).getTime() - new Date(a.startDate || a.appliedOn || 0).getTime());
@@ -874,8 +873,8 @@ export const LibrarianAttendanceView: React.FC = () => {
               e.preventDefault();
               const newRec: LibrarianAttendanceRecord = {
                 id: `ATT-LIB-${Date.now()}`,
-                staffId: modalData?.staffId || 'EMP-LIB-01',
-                staffName: modalData?.staffName || 'Bhanu Prakash',
+                staffId: modalData?.staffId || currentStaffId,
+                staffName: modalData?.staffName || currentStaffName,
                 role: 'Librarian',
                 date: modalData?.date || new Date().toISOString().split('T')[0],
                 checkInTime: modalData?.checkInTime || '',
@@ -901,7 +900,7 @@ export const LibrarianAttendanceView: React.FC = () => {
                       setModalData({
                         ...modalData,
                         staffId: selectedId,
-                        staffName: member ? member.name : 'Bhanu Prakash'
+                        staffName: member ? member.name : currentStaffName
                       });
                     }}
                     className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold"
@@ -1001,10 +1000,10 @@ export const LibrarianAttendanceView: React.FC = () => {
               // 1. Submit leave application to global DataContext state for Admin review & approval
               const leaveApp: any = {
                 id: `LV-LIB-${Date.now()}`,
-                employeeId: modalData?.staffId || currentStaffId || 'EMP-LIB-01',
-                empId: modalData?.staffId || currentStaffId || 'EMP-LIB-01',
-                employeeName: modalData?.staffName || currentStaffName || 'Jammi Naidu',
-                applicantName: modalData?.staffName || currentStaffName || 'Jammi Naidu',
+                employeeId: modalData?.staffId || currentStaffId,
+                empId: modalData?.staffId || currentStaffId,
+                employeeName: modalData?.staffName || currentStaffName,
+                applicantName: modalData?.staffName || currentStaffName,
                 role: 'Librarian',
                 department: 'Library',
                 leaveType: leaveType,
@@ -1026,8 +1025,8 @@ export const LibrarianAttendanceView: React.FC = () => {
               // 2. Log locally in API/storage
               const newRec: LibrarianAttendanceRecord = {
                 id: `ATT-LIB-LV-${Date.now()}`,
-                staffId: modalData?.staffId || currentStaffId || 'EMP-LIB-01',
-                staffName: modalData?.staffName || currentStaffName || 'Jammi Naidu',
+                staffId: modalData?.staffId || currentStaffId,
+                staffName: modalData?.staffName || currentStaffName,
                 role: 'Librarian',
                 date: leaveDate,
                 checkInTime: '--',
@@ -1049,18 +1048,20 @@ export const LibrarianAttendanceView: React.FC = () => {
                     value={modalData?.staffId}
                     onChange={e => {
                       const selected = e.target.value;
-                      const sObj = staff.find(st => st.id === selected || st.empId === selected);
+                      const sObj = availableLibrarianMembers.find(st => String(st.id) === String(selected));
                       setModalData({
                         ...modalData,
                         staffId: selected,
-                        staffName: sObj ? `${sObj.firstName} ${sObj.lastName}` : (user?.name || 'Jammi Naidu')
+                        staffName: sObj ? sObj.name : currentStaffName
                       });
                     }}
                     className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold"
                   >
-                    <option value="EMP-LIB-01">Jammi Naidu / Bhanu Prakash (Librarian)</option>
-                    <option value="EMP-LIB-02">Rachel Green (Assistant Librarian)</option>
-                    <option value="EMP-LIB-03">Sarah Jenkins (Library Attendant)</option>
+                    {availableLibrarianMembers.map(m => (
+                      <option key={m.id} value={m.id}>
+                        {m.name} ({m.designation})
+                      </option>
+                    ))}
                   </select>
                 </div>
                 <div>

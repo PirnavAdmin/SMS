@@ -38,9 +38,10 @@ namespace SMS.Api.Services.Implementations
                 ? 1
                 : filter.PageNumber;
 
-            filter.PageSize = filter.PageSize < 1
-                ? 10
-                : Math.Min(filter.PageSize, 100);
+            if (filter.PageSize > 0 && filter.PageSize > 1000)
+            {
+                filter.PageSize = 1000;
+            }
 
             return await _repository.GetAllAsync(filter);
         }
@@ -94,8 +95,30 @@ namespace SMS.Api.Services.Implementations
             // Auto-resolve AdmissionNo if empty
             if (string.IsNullOrWhiteSpace(dto.AdmissionNo))
             {
-                var latestApp = await _context.AdmissionApplications.AsNoTracking().OrderByDescending(a => a.Id).FirstOrDefaultAsync();
-                dto.AdmissionNo = latestApp?.RegistrationNo ?? "REG-1001";
+                if (dto.StudentId.HasValue && dto.StudentId.Value > 0)
+                {
+                    var student = await _context.Students.AsNoTracking().FirstOrDefaultAsync(s => s.StudentId == dto.StudentId.Value);
+                    if (student != null && !string.IsNullOrWhiteSpace(student.AdmissionNumber))
+                    {
+                        dto.AdmissionNo = student.AdmissionNumber;
+                    }
+                    else
+                    {
+                        var app = await _context.AdmissionApplications.AsNoTracking().FirstOrDefaultAsync(a => a.Id == dto.StudentId.Value);
+                        if (app != null && !string.IsNullOrWhiteSpace(app.RegistrationNo))
+                        {
+                            dto.AdmissionNo = app.RegistrationNo;
+                        }
+                        else
+                        {
+                            dto.AdmissionNo = dto.StudentId.Value.ToString();
+                        }
+                    }
+                }
+                else
+                {
+                    throw new InvalidOperationException("Student ID or Admission Number is required to assign transport.");
+                }
             }
 
             await ValidateAssignmentAsync(
@@ -210,7 +233,10 @@ namespace SMS.Api.Services.Implementations
             DateTime? effectiveTo,
             string transportType)
         {
-            if (string.IsNullOrWhiteSpace(admissionNo)) admissionNo = "REG-1001";
+            if (string.IsNullOrWhiteSpace(admissionNo))
+            {
+                throw new InvalidOperationException("Student admission number is required.");
+            }
 
             // Route validation
             if (routeId <= 0) routeId = 1;

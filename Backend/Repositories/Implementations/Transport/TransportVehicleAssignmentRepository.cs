@@ -23,6 +23,7 @@ namespace SMS.Api.Repositories.Implementations
                 .Include(x => x.Route)
                 .Include(x => x.Vehicle)
                 .Include(x => x.Driver)
+                .Include(x => x.Attendant)
                 .Where(x => !x.IsDeleted);
 
             if (filter.RouteId.HasValue)
@@ -50,15 +51,19 @@ namespace SMS.Api.Repositories.Implementations
                 query = query.Where(x =>
                     (x.Route != null && x.Route.RouteName != null && x.Route.RouteName.ToLower().Contains(search)) ||
                     (x.Vehicle != null && x.Vehicle.VehicleNumber != null && x.Vehicle.VehicleNumber.ToLower().Contains(search)) ||
-                    (x.Driver != null && x.Driver.DriverName != null && x.Driver.DriverName.ToLower().Contains(search)));
+                    (x.Driver != null && x.Driver.DriverName != null && x.Driver.DriverName.ToLower().Contains(search)) ||
+                    (x.Attendant != null && x.Attendant.AttendantName != null && x.Attendant.AttendantName.ToLower().Contains(search)));
             }
 
             var totalCount = await query.CountAsync();
 
-            var items = await query
-                .OrderByDescending(x => x.EffectiveFrom)
-                .Skip((filter.PageNumber - 1) * filter.PageSize)
-                .Take(filter.PageSize)
+            var orderedQuery = query.OrderByDescending(x => x.EffectiveFrom);
+
+            var pagedQuery = filter.PageSize.HasValue && filter.PageSize.Value > 0
+                ? orderedQuery.Skip((filter.PageNumber - 1) * filter.PageSize.Value).Take(filter.PageSize.Value)
+                : orderedQuery;
+
+            var items = await pagedQuery
                 .Select(x => new TransportVehicleAssignmentDto
                 {
                     AssignmentId = x.AssignmentId,
@@ -69,7 +74,7 @@ namespace SMS.Api.Repositories.Implementations
                     VehicleId = x.VehicleId,
                     VehicleNumber = x.Vehicle != null && x.Vehicle.VehicleNumber != null ? x.Vehicle.VehicleNumber : string.Empty,
                     VehicleName = x.Vehicle != null && x.Vehicle.VehicleName != null ? x.Vehicle.VehicleName : string.Empty,
-                    VehicleCapacity = x.Vehicle != null && x.Vehicle.Capacity > 0 ? x.Vehicle.Capacity : 50,
+                    VehicleCapacity = x.Vehicle != null && x.Vehicle.Capacity > 0 ? x.Vehicle.Capacity : 0,
 
                     DriverId = x.DriverId,
                     DriverName = x.Driver != null && x.Driver.DriverName != null ? x.Driver.DriverName : string.Empty,
@@ -78,6 +83,10 @@ namespace SMS.Api.Repositories.Implementations
                     AttendantId = x.AttendantId,
                     AttendantName = x.Attendant != null ? x.Attendant.AttendantName : null,
 
+                    BranchName = x.BranchName ?? string.Empty,
+                    AcademicYear = x.AcademicYear ?? string.Empty,
+                    MorningTripTime = x.MorningTripTime ?? string.Empty,
+                    EveningTripTime = x.EveningTripTime ?? string.Empty,
                     BranchName = x.BranchName ?? string.Empty,
                     AcademicYear = x.AcademicYear ?? "2026-2027",
                     MorningTripTime = x.MorningTripTime ?? "07:00 AM",
@@ -102,7 +111,7 @@ namespace SMS.Api.Repositories.Implementations
                 Items = items,
                 TotalCount = totalCount,
                 PageNumber = filter.PageNumber,
-                PageSize = filter.PageSize
+                PageSize = filter.PageSize.HasValue && filter.PageSize.Value > 0 ? filter.PageSize.Value : totalCount
             };
         }
         public async Task<TransportVehicleAssignmentDto?> GetByIdAsync(long assignmentId)
@@ -118,21 +127,21 @@ namespace SMS.Api.Repositories.Implementations
                     AssignmentId = x.AssignmentId,
 
                     RouteId = x.RouteId,
-                    RouteName = x.Route != null && !string.IsNullOrWhiteSpace(x.Route.RouteName) ? x.Route.RouteName : "Designated Route",
+                    RouteName = x.Route != null && !string.IsNullOrWhiteSpace(x.Route.RouteName) ? x.Route.RouteName : "Main Campus Route",
 
                     VehicleId = x.VehicleId,
-                    VehicleNumber = x.Vehicle != null && !string.IsNullOrWhiteSpace(x.Vehicle.VehicleNumber) ? x.Vehicle.VehicleNumber : "KA-01-F-1234",
-                    VehicleName = x.Vehicle != null && !string.IsNullOrWhiteSpace(x.Vehicle.VehicleName) ? x.Vehicle.VehicleName : "Bus 101",
-                    VehicleCapacity = x.Vehicle != null && x.Vehicle.Capacity > 0 ? x.Vehicle.Capacity : 40,
+                    VehicleNumber = x.Vehicle != null && !string.IsNullOrWhiteSpace(x.Vehicle.VehicleNumber) ? x.Vehicle.VehicleNumber : string.Empty,
+                    VehicleName = x.Vehicle != null && !string.IsNullOrWhiteSpace(x.Vehicle.VehicleName) ? x.Vehicle.VehicleName : string.Empty,
+                    VehicleCapacity = x.Vehicle != null && x.Vehicle.Capacity > 0 ? x.Vehicle.Capacity : 0,
 
                     DriverId = x.DriverId,
-                    DriverName = x.Driver != null && !string.IsNullOrWhiteSpace(x.Driver.DriverName) ? x.Driver.DriverName : "Main Driver",
-                    DriverMobile = x.Driver != null && !string.IsNullOrWhiteSpace(x.Driver.MobileNumber) ? x.Driver.MobileNumber : "9876543210",
+                    DriverName = x.Driver != null && !string.IsNullOrWhiteSpace(x.Driver.DriverName) ? x.Driver.DriverName : string.Empty,
+                    DriverMobile = x.Driver != null && !string.IsNullOrWhiteSpace(x.Driver.MobileNumber) ? x.Driver.MobileNumber : string.Empty,
 
                     AttendantId = x.AttendantId,
                     AttendantName = x.Attendant != null && !string.IsNullOrWhiteSpace(x.Attendant.AttendantName) ? x.Attendant.AttendantName : null,
 
-                    BranchName = !string.IsNullOrWhiteSpace(x.BranchName) ? x.BranchName : string.Empty,
+                    BranchName = !string.IsNullOrWhiteSpace(x.BranchName) ? x.BranchName : "Main Campus",
                     AcademicYear = !string.IsNullOrWhiteSpace(x.AcademicYear) ? x.AcademicYear : "2026-2027",
                     MorningTripTime = !string.IsNullOrWhiteSpace(x.MorningTripTime) ? x.MorningTripTime : "07:00 AM",
                     EveningTripTime = !string.IsNullOrWhiteSpace(x.EveningTripTime) ? x.EveningTripTime : "03:45 PM",
@@ -155,16 +164,14 @@ namespace SMS.Api.Repositories.Implementations
             CreateTransportVehicleAssignmentDto dto,
             long? userId)
         {
-            var validRoute = await _context.TransportRoutes.FirstOrDefaultAsync(r => r.RouteId == dto.RouteId && !r.IsDeleted) 
-                ?? await _context.TransportRoutes.FirstOrDefaultAsync(r => !r.IsDeleted);
-
-            long finalRouteId = validRoute?.RouteId ?? 1;
-            if (validRoute == null)
+            long? resolvedAttendantId = null;
+            if (dto.AttendantId.HasValue && dto.AttendantId.Value > 0)
             {
-                var newRoute = new TransportRoute
+                var exists = await _context.TransportAttendants.AnyAsync(a => a.AttendantId == dto.AttendantId.Value && !a.IsDeleted);
+                if (exists)
                 {
                     RouteCode = "R-01",
-                    RouteName = "Designated Route",
+                    RouteName = "Main Campus Route",
                     StartLocation = "City Center",
                     EndLocation = "School Campus",
                     DistanceKm = 10,
@@ -177,52 +184,33 @@ namespace SMS.Api.Repositories.Implementations
                 finalRouteId = newRoute.RouteId;
             }
 
-            var validVehicle = await _context.TransportVehicles.FirstOrDefaultAsync(v => v.VehicleId == dto.VehicleId && !v.IsDeleted)
-                ?? await _context.TransportVehicles.FirstOrDefaultAsync(v => !v.IsDeleted);
-
-            long finalVehicleId = validVehicle?.VehicleId ?? 1;
-            if (validVehicle == null)
+            var candidateAttName = dto.SelectBusAttendant ?? dto.AttendantName ?? dto.BusAttendant;
+            if (!string.IsNullOrWhiteSpace(candidateAttName))
             {
-                var newVehicle = new TransportVehicle
-                {
-                    VehicleNumber = "KA-01-F-1234",
-                    VehicleName = "Bus 101",
-                    Capacity = 40,
-                    Status = true,
-                    CreatedAt = DateTime.UtcNow
-                };
-                _context.TransportVehicles.Add(newVehicle);
-                await _context.SaveChangesAsync();
-                finalVehicleId = newVehicle.VehicleId;
+                candidateAttName = System.Text.RegularExpressions.Regex.Replace(candidateAttName, @"\s*\(.*?\)", "").Trim();
             }
 
-            var validDriver = await _context.TransportDrivers.FirstOrDefaultAsync(d => d.DriverId == dto.DriverId && !d.IsDeleted)
-                ?? await _context.TransportDrivers.FirstOrDefaultAsync(d => !d.IsDeleted);
-
-            long finalDriverId = validDriver?.DriverId ?? 1;
-            if (validDriver == null)
+            if (!resolvedAttendantId.HasValue && !string.IsNullOrWhiteSpace(candidateAttName) && !candidateAttName.Equals("Unassigned", StringComparison.OrdinalIgnoreCase) && !candidateAttName.Equals("string", StringComparison.OrdinalIgnoreCase))
             {
-                var newDriver = new TransportDriver
+                var attName = candidateAttName;
+                var matched = await _context.TransportAttendants.FirstOrDefaultAsync(a => !a.IsDeleted && a.AttendantName != null && a.AttendantName.ToLower() == attName.ToLower());
+                if (matched != null)
                 {
-                    DriverName = "Main Driver",
-                    MobileNumber = "9876543210",
-                    EmployeeId = "DRV-101",
-                    LicenceNumber = "LIC-101",
-                    Status = true,
-                    CreatedAt = DateTime.UtcNow
-                };
-                _context.TransportDrivers.Add(newDriver);
-                await _context.SaveChangesAsync();
-                finalDriverId = newDriver.DriverId;
-            }
-
-            long? finalAttendantId = null;
-            if (dto.AttendantId.HasValue && dto.AttendantId.Value > 0)
-            {
-                var validAttendant = await _context.TransportAttendants.FirstOrDefaultAsync(a => a.AttendantId == dto.AttendantId.Value && !a.IsDeleted);
-                if (validAttendant != null)
+                    resolvedAttendantId = matched.AttendantId;
+                }
+                else
                 {
-                    finalAttendantId = validAttendant.AttendantId;
+                    var newAtt = new TransportAttendant
+                    {
+                        AttendantName = attName,
+                        MobileNumber = "",
+                        Status = true,
+                        IsDeleted = false,
+                        CreatedAt = DateTime.UtcNow
+                    };
+                    _context.TransportAttendants.Add(newAtt);
+                    await _context.SaveChangesAsync();
+                    resolvedAttendantId = newAtt.AttendantId;
                 }
             }
 
@@ -232,7 +220,7 @@ namespace SMS.Api.Repositories.Implementations
                 VehicleId = finalVehicleId,
                 DriverId = finalDriverId,
                 AttendantId = finalAttendantId,
-                BranchName = !string.IsNullOrWhiteSpace(dto.BranchName) && !dto.BranchName.Equals("string", StringComparison.OrdinalIgnoreCase) ? dto.BranchName.Trim() : string.Empty,
+                BranchName = !string.IsNullOrWhiteSpace(dto.BranchName) && !dto.BranchName.Equals("string", StringComparison.OrdinalIgnoreCase) ? dto.BranchName.Trim() : "Main Campus",
                 AcademicYear = !string.IsNullOrWhiteSpace(dto.AcademicYear) && !dto.AcademicYear.Equals("string", StringComparison.OrdinalIgnoreCase) ? dto.AcademicYear.Trim() : "2026-2027",
                 MorningTripTime = !string.IsNullOrWhiteSpace(dto.MorningTripTime) && !dto.MorningTripTime.Equals("string", StringComparison.OrdinalIgnoreCase) ? dto.MorningTripTime.Trim() : "07:00 AM",
                 EveningTripTime = !string.IsNullOrWhiteSpace(dto.EveningTripTime) && !dto.EveningTripTime.Equals("string", StringComparison.OrdinalIgnoreCase) ? dto.EveningTripTime.Trim() : "03:45 PM",
@@ -240,7 +228,7 @@ namespace SMS.Api.Repositories.Implementations
                 EffectiveFrom = dto.EffectiveFrom != default ? dto.EffectiveFrom : DateTime.UtcNow,
                 EffectiveTo = dto.EffectiveTo,
                 Shift = !string.IsNullOrWhiteSpace(dto.Shift) && !dto.Shift.Equals("string", StringComparison.OrdinalIgnoreCase) ? dto.Shift.Trim() : "Morning",
-                Remarks = dto.Remarks != null && !dto.Remarks.Equals("string", StringComparison.OrdinalIgnoreCase) ? dto.Remarks : "",
+                Remarks = dto.Remarks != null && !dto.Remarks.Equals("string", StringComparison.OrdinalIgnoreCase) ? dto.Remarks : string.Empty,
                 Status = dto.Status,
                 IsDeleted = false,
                 CreatedBy = userId,
@@ -268,7 +256,62 @@ namespace SMS.Api.Repositories.Implementations
             if (dto.RouteId > 0) entity.RouteId = dto.RouteId;
             if (dto.VehicleId > 0) entity.VehicleId = dto.VehicleId;
             if (dto.DriverId > 0) entity.DriverId = dto.DriverId;
-            if (dto.AttendantId.HasValue) entity.AttendantId = dto.AttendantId > 0 ? dto.AttendantId : null;
+
+            long? resolvedAttendantId = entity.AttendantId;
+            if (dto.AttendantId.HasValue)
+            {
+                if (dto.AttendantId.Value > 0)
+                {
+                    var exists = await _context.TransportAttendants.AnyAsync(a => a.AttendantId == dto.AttendantId.Value && !a.IsDeleted);
+                    if (exists)
+                    {
+                        resolvedAttendantId = dto.AttendantId.Value;
+                    }
+                }
+                else
+                {
+                    resolvedAttendantId = null;
+                }
+            }
+
+            var candidateAttName = dto.SelectBusAttendant ?? dto.AttendantName ?? dto.BusAttendant;
+            if (!string.IsNullOrWhiteSpace(candidateAttName))
+            {
+                candidateAttName = System.Text.RegularExpressions.Regex.Replace(candidateAttName, @"\s*\(.*?\)", "").Trim();
+            }
+
+            if (!string.IsNullOrWhiteSpace(candidateAttName))
+            {
+                if (candidateAttName.Equals("Unassigned", StringComparison.OrdinalIgnoreCase))
+                {
+                    resolvedAttendantId = null;
+                }
+                else if (!candidateAttName.Equals("string", StringComparison.OrdinalIgnoreCase))
+                {
+                    var attName = candidateAttName;
+                    var matched = await _context.TransportAttendants.FirstOrDefaultAsync(a => !a.IsDeleted && a.AttendantName != null && a.AttendantName.ToLower() == attName.ToLower());
+                    if (matched != null)
+                    {
+                        resolvedAttendantId = matched.AttendantId;
+                    }
+                    else if (!resolvedAttendantId.HasValue)
+                    {
+                        var newAtt = new TransportAttendant
+                        {
+                            AttendantName = attName,
+                            MobileNumber = "",
+                            Status = true,
+                            IsDeleted = false,
+                            CreatedAt = DateTime.UtcNow
+                        };
+                        _context.TransportAttendants.Add(newAtt);
+                        await _context.SaveChangesAsync();
+                        resolvedAttendantId = newAtt.AttendantId;
+                    }
+                }
+            }
+
+            entity.AttendantId = resolvedAttendantId;
             if (dto.BranchName != null) entity.BranchName = dto.BranchName.Trim();
             if (dto.AcademicYear != null) entity.AcademicYear = dto.AcademicYear.Trim();
             if (dto.MorningTripTime != null) entity.MorningTripTime = dto.MorningTripTime.Trim();
@@ -279,8 +322,6 @@ namespace SMS.Api.Repositories.Implementations
             entity.Shift = dto.Shift;
             entity.Remarks = dto.Remarks;
             entity.Status = dto.Status;
-            entity.UpdatedBy = userId;
-            entity.UpdatedAt = DateTime.UtcNow;
             entity.UpdatedBy = userId;
             entity.UpdatedAt = DateTime.UtcNow;
 
@@ -353,14 +394,26 @@ namespace SMS.Api.Repositories.Implementations
                 .Include(x => x.Route)
                 .Include(x => x.Vehicle)
                 .Include(x => x.Driver)
+                .Include(x => x.Attendant)
                 .Where(x => !x.IsDeleted && x.Status)
                 .OrderBy(x => x.Route.RouteName)
                 .Select(x => new TransportVehicleAssignmentLookupDto
                 {
                     AssignmentId = x.AssignmentId,
+                    RouteId = x.RouteId,
                     RouteName = x.Route != null && x.Route.RouteName != null ? x.Route.RouteName : string.Empty,
+                    VehicleId = x.VehicleId,
                     VehicleNumber = x.Vehicle != null && x.Vehicle.VehicleNumber != null ? x.Vehicle.VehicleNumber : string.Empty,
-                    DriverName = x.Driver != null && x.Driver.DriverName != null ? x.Driver.DriverName : string.Empty
+                    DriverId = x.DriverId,
+                    DriverName = x.Driver != null && x.Driver.DriverName != null ? x.Driver.DriverName : string.Empty,
+                    DriverEmployeeId = x.Driver != null && x.Driver.EmployeeId != null ? x.Driver.EmployeeId : string.Empty,
+                    AttendantId = x.AttendantId,
+                    AttendantName = x.Attendant != null ? x.Attendant.AttendantName : null,
+                    MorningTripTime = x.MorningTripTime,
+                    EveningTripTime = x.EveningTripTime,
+                    BranchName = x.BranchName,
+                    AcademicYear = x.AcademicYear,
+                    Status = x.Status
                 })
                 .ToListAsync();
         }

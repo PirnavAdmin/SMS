@@ -19,6 +19,8 @@ import { useToast } from '../../../context/ToastContext';
 import { formatCurrency } from '../../../utils/currency';
 import { ExportButton } from '../../common/ExportButton';
 import { PrintDropdownMenu } from '../../common/PrintDropdownMenu';
+import { resolveAllActiveTransportStudents, resolveAssignedStudentsForTrip } from './transportData';
+import { VehicleAssignment } from '../../../types';
 
 type TransportReportTabId =
   | 'transport-dashboard-report'
@@ -89,6 +91,7 @@ export const TransportReportsView: React.FC<TransportReportsViewProps> = ({ init
     pickupPoints = [],
     vehicleAssignments = [],
     vehicleMaintenances = [],
+    admissions = [],
     checkVehicleCapacity
   } = useData();
 
@@ -136,11 +139,11 @@ export const TransportReportsView: React.FC<TransportReportsViewProps> = ({ init
           list.push({
             id: String(d.id),
             driverName: d.driverName,
-            employeeId: d.employeeId || `DRV-${d.id}`,
+            employeeId: d.employeeId || (d.id ? String(d.id) : ''),
             mobileNumber: d.mobileNumber || '',
             licenseNumber: d.licenseNumber || '-',
             licenseExpiryDate: d.licenseExpiryDate || '-',
-            experienceYears: d.experienceYears || 5,
+            experienceYears: d.experienceYears || 0,
             status: d.status || 'Active'
           });
         }
@@ -178,76 +181,29 @@ export const TransportReportsView: React.FC<TransportReportsViewProps> = ({ init
     return list;
   }, [driverMasters, staff]);
 
-  // Dynamic Students Using Transport (Merged from studentTransports and Students opted for transport)
+  // Dynamic Students Using Transport (Unified resolver across all transport views)
   const dynamicTransportStudents = useMemo(() => {
-    const seen = new Set<string>();
-    const list: Array<{
-      id: string;
-      admissionNo: string;
-      studentName: string;
-      routeName: string;
-      pickupPoint: string;
-      vehicleNumber: string;
-      feePlan: string;
-      feeAmount: number;
-      effectiveFrom: string;
-      status: string;
-    }> = [];
-
-    (studentTransports || []).forEach(st => {
-      const isStatusActive = st.status === 'Active' || (st.status as any) === true || String(st.status).toLowerCase() === 'true';
-      const key = (st.studentId || st.admissionNo || st.studentName || st.id).trim().toLowerCase();
-      if (!seen.has(key)) {
-        seen.add(key);
-        list.push({
-          id: String(st.id),
-          admissionNo: st.admissionNo || '-',
-          studentName: st.studentName || 'Student',
-          routeName: st.routeName || 'Unassigned',
-          pickupPoint: st.pickupPoint || '-',
-          vehicleNumber: st.vehicleNumber || 'Unassigned',
-          feePlan: st.feePlan || 'Monthly',
-          feeAmount: st.feeAmount || 0,
-          effectiveFrom: (st.effectiveFrom || '').split('T')[0] || new Date().toISOString().split('T')[0],
-          status: isStatusActive ? 'Active' : 'Inactive'
-        });
-      }
-    });
-
-    (students || []).forEach(st => {
-      const isTransportEnrolled =
-        st.transportRequired === true ||
-        Boolean(st.busRoute) ||
-        Boolean(st.transportType) ||
-        Boolean(st.routeId) ||
-        (st as any).isTransportOpted === true ||
-        (st as any).transport === true ||
-        Boolean(st.pickupPoint);
-
-      if (isTransportEnrolled) {
-        const key = (st.id || st.admissionNo || `${st.firstName} ${st.lastName}`).trim().toLowerCase();
-        const admKey = (st.admissionNo || '').trim().toLowerCase();
-        if (!seen.has(key) && (!admKey || !seen.has(admKey))) {
-          if (key) seen.add(key);
-          if (admKey) seen.add(admKey);
-          list.push({
-            id: `st-${st.id}`,
-            admissionNo: st.admissionNo || '-',
-            studentName: `${st.firstName} ${st.lastName || ''}`.trim(),
-            routeName: st.busRoute || 'Main Route',
-            pickupPoint: st.pickupPoint || 'Campus Gate',
-            vehicleNumber: 'Unassigned',
-            feePlan: 'Monthly',
-            feeAmount: 0,
-            effectiveFrom: new Date().toISOString().split('T')[0],
-            status: st.status === 'Active' ? 'Active' : 'Inactive'
-          });
-        }
-      }
-    });
-
-    return list;
-  }, [studentTransports, students]);
+    return resolveAllActiveTransportStudents({
+      vehicleAssignments,
+      studentTransports,
+      students,
+      admissions,
+      routeMasters,
+      pickupPoints,
+      vehicleMasters
+    }).map(s => ({
+      id: s.id,
+      admissionNo: s.admissionNo || '-',
+      studentName: s.studentName || 'Student',
+      routeName: s.routeName || 'Unassigned',
+      pickupPoint: s.pickupPoint || '-',
+      vehicleNumber: s.vehicleNumber || 'Unassigned',
+      feePlan: s.feePlan || 'Monthly',
+      feeAmount: s.feeAmount || 0,
+      effectiveFrom: s.effectiveFrom || new Date().toISOString().split('T')[0],
+      status: s.status || 'Active'
+    }));
+  }, [vehicleAssignments, studentTransports, students, admissions, routeMasters, pickupPoints, vehicleMasters]);
 
   const dashboardSummary = useMemo(() => {
     const totalVehicles = vehicleMasters.length;
@@ -278,10 +234,36 @@ export const TransportReportsView: React.FC<TransportReportsViewProps> = ({ init
       case 'transport-dashboard-report':
         return dashboardSummary;
 
-      case 'trip-reports':
-        return vehicleAssignments.map((assignment, index) => {
-          const routeStudents = dynamicTransportStudents.filter(st => st.routeName === assignment.routeName).length;
-          const vehicle = vehicleMasters.find(v => v.id === assignment.vehicleId);
+      case 'trip-reports': {
+        const activeTripAssignments = (vehicleAssignments || []).filter(
+          va => va.status === 'Active' || (va.status as any) === true || String(va.status).toLowerCase() === 'true'
+        );
+        const uniqueTripsMap = new Map<string, VehicleAssignment>();
+        activeTripAssignments.forEach(va => {
+          const key = (va.vehicleNumber ? va.vehicleNumber.trim().toUpperCase() : '') || String(va.vehicleId || va.id);
+          if (!uniqueTripsMap.has(key)) {
+            uniqueTripsMap.set(key, va);
+          } else {
+            const existing = uniqueTripsMap.get(key)!;
+            const existingHasAttendant = existing.attendantName && existing.attendantName.toLowerCase() !== 'unassigned';
+            const currentHasAttendant = va.attendantName && va.attendantName.toLowerCase() !== 'unassigned';
+            if (!existingHasAttendant && currentHasAttendant) {
+              uniqueTripsMap.set(key, va);
+            }
+          }
+        });
+
+        return Array.from(uniqueTripsMap.values()).map((assignment, index) => {
+          const tripStudents = resolveAssignedStudentsForTrip(assignment, {
+            studentTransports,
+            students,
+            admissions,
+            routeMasters,
+            pickupPoints,
+            vehicleMasters
+          });
+          const routeStudents = tripStudents.length;
+          const vehicle = vehicleMasters.find(v => v.id === assignment.vehicleId || v.vehicleNumber === assignment.vehicleNumber);
           const capacity = vehicle ? checkVehicleCapacity(vehicle.id) : null;
 
           return {
@@ -291,11 +273,12 @@ export const TransportReportsView: React.FC<TransportReportsViewProps> = ({ init
             'Driver Name': assignment.driverName,
             'Bus Attendant': assignment.attendantName || 'Unassigned',
             'Students On Route': routeStudents,
-            'Capacity Used': capacity ? `${capacity.assignedCount}/${capacity.totalCapacity}` : 'N/A',
+            'Capacity Used': capacity ? `${routeStudents}/${capacity.totalCapacity}` : 'N/A',
             'Effective From': assignment.effectiveFrom,
             'Status': 'Scheduled'
           };
         });
+      }
 
       case 'vehicle-reports':
         return vehicleMasters.map(vehicle => {
@@ -327,7 +310,7 @@ export const TransportReportsView: React.FC<TransportReportsViewProps> = ({ init
 
           return {
             'Driver Name': driver.driverName,
-            'Employee ID': driver.employeeId || `DRV-${driver.id}`,
+            'Employee ID': driver.employeeId || (driver.id ? String(driver.id) : '-'),
             'Mobile Number': driver.mobileNumber || '-',
             'License Number': driver.licenseNumber || '-',
             'License Expiry': driver.licenseExpiryDate || '-',
@@ -335,7 +318,7 @@ export const TransportReportsView: React.FC<TransportReportsViewProps> = ({ init
             'Current Route': activeAssignment?.routeName || 'Unassigned',
             'Bus Attendant': activeAssignment?.attendantName || 'Unassigned',
             'Assignment Status': activeAssignment?.status || 'Unassigned',
-            'Experience (Years)': driver.experienceYears || 5,
+            'Experience (Years)': driver.experienceYears || 0,
             'Status': driver.status
           };
         });
@@ -388,6 +371,7 @@ export const TransportReportsView: React.FC<TransportReportsViewProps> = ({ init
         return dashboardSummary;
     }
   }, [
+    admissions,
     checkVehicleCapacity,
     dashboardSummary,
     driverMasters,
@@ -395,6 +379,7 @@ export const TransportReportsView: React.FC<TransportReportsViewProps> = ({ init
     routeMasters,
     selectedReport,
     studentTransports,
+    students,
     vehicleAssignments,
     vehicleMaintenances,
     vehicleMasters

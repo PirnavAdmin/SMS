@@ -22,19 +22,19 @@ namespace SMS.Api.Dtos
         public string Author { get; set; } = string.Empty;
 
         [JsonPropertyName("category")]
-        public string Category { get; set; } = "Science";
+        public string Category { get; set; } = string.Empty;
 
         [JsonPropertyName("rackLocation")]
-        public string RackLocation { get; set; } = "Rack S-04";
+        public string RackLocation { get; set; } = string.Empty;
 
         [JsonPropertyName("rack")]
         public string Rack => RackLocation;
 
         [JsonPropertyName("totalCopies")]
-        public int TotalCopies { get; set; } = 15;
+        public int TotalCopies { get; set; } = 0;
 
         [JsonPropertyName("availableCopies")]
-        public int AvailableCopies { get; set; } = 11;
+        public int AvailableCopies { get; set; } = 0;
 
         [JsonPropertyName("availabilityText")]
         public string AvailabilityText => $"{AvailableCopies} / {TotalCopies} Copies";
@@ -64,10 +64,10 @@ namespace SMS.Api.Dtos
         public string Author { get; set; } = string.Empty;
 
         [JsonPropertyName("category")]
-        public string Category { get; set; } = "Science";
+        public string Category { get; set; } = string.Empty;
 
         [JsonPropertyName("rackLocation")]
-        public string RackLocation { get; set; } = "Rack S-04";
+        public string RackLocation { get; set; } = string.Empty;
 
         [JsonPropertyName("rack")]
         public string? RackAlias
@@ -78,7 +78,7 @@ namespace SMS.Api.Dtos
 
         [JsonPropertyName("totalCopies")]
         [JsonConverter(typeof(FlexibleIntConverter))]
-        public int TotalCopies { get; set; } = 10;
+        public int TotalCopies { get; set; } = 1;
     }
 
     public class AddLibraryBookDto : CreateLibraryBookDto
@@ -100,13 +100,13 @@ namespace SMS.Api.Dtos
         public string BookTitle { get; set; } = string.Empty;
 
         [JsonPropertyName("borrowerRole")]
-        public string BorrowerRole { get; set; } = "Student";
+        public string BorrowerRole { get; set; } = string.Empty;
 
         [JsonPropertyName("role")]
         public string Role => BorrowerRole;
 
         [JsonPropertyName("borrowerIdCode")]
-        public string BorrowerIdCode { get; set; } = "STU-001";
+        public string BorrowerIdCode { get; set; } = string.Empty;
 
         [JsonPropertyName("borrowerId")]
         public string BorrowerId => BorrowerIdCode;
@@ -169,13 +169,13 @@ namespace SMS.Api.Dtos
         [JsonPropertyName("bookId")]
         public int? BookId { get; set; }
 
-        public int BookIdValue => BookId ?? 1;
+        public int BookIdValue => BookId ?? 0;
 
         [JsonPropertyName("bookTitle")]
         public string? BookTitle { get; set; }
 
         [JsonPropertyName("borrowerRole")]
-        public string BorrowerRole { get; set; } = "Student";
+        public string BorrowerRole { get; set; } = string.Empty;
 
         [JsonPropertyName("role")]
         public string? RoleAlias
@@ -192,7 +192,7 @@ namespace SMS.Api.Dtos
         }
 
         [JsonPropertyName("borrowerIdCode")]
-        public string BorrowerIdCode { get; set; } = "STU-001";
+        public string BorrowerIdCode { get; set; } = string.Empty;
 
         [JsonPropertyName("borrowerId")]
         public string? BorrowerIdAlias
@@ -233,7 +233,7 @@ namespace SMS.Api.Dtos
         }
 
         [JsonPropertyName("dueDate")]
-        public string DueDate { get; set; } = "2026-08-15";
+        public string DueDate { get; set; } = string.Empty;
 
         [JsonPropertyName("dueReturnDate")]
         public string? DueReturnDate

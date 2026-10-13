@@ -58,24 +58,12 @@ namespace SMS.Api.Repositories.Implementations
 
             query = ApplySorting(query, filter.SortBy, filter.SortOrder);
 
-            var totalCount = await query.CountAsync();
-
-            var pageNumber = filter.PageNumber < 1
-                ? 1
-                : filter.PageNumber;
-
-            var pageSize = filter.PageSize < 1
-                ? 10
-                : filter.PageSize;
-
-            var items = await query
-                .Skip((pageNumber - 1) * pageSize)
-                .Take(pageSize)
+            var allItems = await query
                 .Select(x => new TransportDriverDto
                 {
                     DriverId = x.DriverId,
                     DriverName = x.DriverName ?? string.Empty,
-                    EmployeeId = !string.IsNullOrWhiteSpace(x.EmployeeId) ? x.EmployeeId : $"DRV-{x.DriverId}",
+                    EmployeeId = !string.IsNullOrWhiteSpace(x.EmployeeId) ? x.EmployeeId : string.Empty,
                     MobileNumber = x.MobileNumber ?? string.Empty,
                     AlternateMobileNumber = x.AlternateMobileNumber,
                     Email = x.Email,
@@ -92,6 +80,38 @@ namespace SMS.Api.Repositories.Implementations
                     CreatedAt = x.CreatedAt
                 })
                 .ToListAsync();
+
+            var seenKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            var distinctItems = new List<TransportDriverDto>();
+
+            foreach (var item in allItems)
+            {
+                if (string.IsNullOrWhiteSpace(item.DriverName)) continue;
+
+                string key = !string.IsNullOrWhiteSpace(item.EmployeeId)
+                    ? $"EMP:{item.EmployeeId.Trim()}"
+                    : $"NAME:{item.DriverName.Trim()}|PHONE:{item.MobileNumber.Trim()}";
+
+                if (seenKeys.Add(key))
+                {
+                    distinctItems.Add(item);
+                }
+            }
+
+            var totalCount = distinctItems.Count;
+
+            var pageNumber = filter.PageNumber < 1
+                ? 1
+                : filter.PageNumber;
+
+            var pageSize = filter.PageSize < 1
+                ? 10
+                : filter.PageSize;
+
+            var items = distinctItems
+                .Skip((pageNumber - 1) * pageSize)
+                .Take(pageSize)
+                .ToList();
 
             return new PagedResult<TransportDriverDto>
             {
@@ -113,7 +133,7 @@ namespace SMS.Api.Repositories.Implementations
                 {
                     DriverId = x.DriverId,
                     DriverName = x.DriverName ?? string.Empty,
-                    EmployeeId = !string.IsNullOrWhiteSpace(x.EmployeeId) ? x.EmployeeId : $"DRV-{x.DriverId}",
+                    EmployeeId = !string.IsNullOrWhiteSpace(x.EmployeeId) ? x.EmployeeId : string.Empty,
                     MobileNumber = x.MobileNumber ?? string.Empty,
                     AlternateMobileNumber = x.AlternateMobileNumber,
                     Email = x.Email,
@@ -137,13 +157,41 @@ namespace SMS.Api.Repositories.Implementations
             CreateTransportDriverDto dto,
             long? userId)
         {
-            var empId = !string.IsNullOrWhiteSpace(dto.EmployeeId) && !dto.EmployeeId.Equals("string", StringComparison.OrdinalIgnoreCase) ? dto.EmployeeId.Trim() : $"DRV-{DateTime.UtcNow.Ticks % 100000}";
+            var empId = !string.IsNullOrWhiteSpace(dto.EmployeeId) && !dto.EmployeeId.Equals("string", StringComparison.OrdinalIgnoreCase) ? dto.EmployeeId.Trim() : string.Empty;
             var licNum = !string.IsNullOrWhiteSpace(dto.LicenceNumber) && !dto.LicenceNumber.Equals("string", StringComparison.OrdinalIgnoreCase) ? dto.LicenceNumber.Trim() : string.Empty;
             var mobNum = !string.IsNullOrWhiteSpace(dto.MobileNumber) && !dto.MobileNumber.Equals("string", StringComparison.OrdinalIgnoreCase) ? dto.MobileNumber.Trim() : string.Empty;
+            var drvName = !string.IsNullOrWhiteSpace(dto.DriverName) && !dto.DriverName.Equals("string", StringComparison.OrdinalIgnoreCase) ? dto.DriverName.Trim() : string.Empty;
+
+            var existing = await _context.TransportDrivers
+                .FirstOrDefaultAsync(x => !x.IsDeleted && (
+                    (!string.IsNullOrEmpty(empId) && x.EmployeeId == empId) ||
+                    (!string.IsNullOrEmpty(drvName) && !string.IsNullOrEmpty(mobNum) && x.DriverName == drvName && x.MobileNumber == mobNum)
+                ));
+
+            if (existing != null)
+            {
+                if (!string.IsNullOrWhiteSpace(drvName)) existing.DriverName = drvName;
+                if (!string.IsNullOrWhiteSpace(empId)) existing.EmployeeId = empId;
+                if (!string.IsNullOrWhiteSpace(mobNum)) existing.MobileNumber = mobNum;
+                if (dto.AlternateMobileNumber != null) existing.AlternateMobileNumber = dto.AlternateMobileNumber.Trim();
+                if (dto.Email != null) existing.Email = dto.Email.Trim();
+                if (!string.IsNullOrWhiteSpace(licNum)) existing.LicenceNumber = licNum;
+                existing.LicenceExpiry = dto.LicenceExpiry;
+                if (dto.Address != null) existing.Address = dto.Address.Trim();
+                if (dto.BloodGroup != null) existing.BloodGroup = dto.BloodGroup.Trim();
+                if (dto.EmergencyContactName != null) existing.EmergencyContactName = dto.EmergencyContactName.Trim();
+                if (dto.EmergencyContactNumber != null) existing.EmergencyContactNumber = dto.EmergencyContactNumber.Trim();
+                existing.Status = dto.Status;
+                existing.UpdatedBy = userId;
+                existing.UpdatedAt = DateTime.UtcNow;
+
+                await _context.SaveChangesAsync();
+                return existing.DriverId;
+            }
 
             var entity = new TransportDriver
             {
-                DriverName = !string.IsNullOrWhiteSpace(dto.DriverName) && !dto.DriverName.Equals("string", StringComparison.OrdinalIgnoreCase) ? dto.DriverName.Trim() : "Driver",
+                DriverName = drvName,
                 EmployeeId = empId,
                 MobileNumber = mobNum,
                 AlternateMobileNumber = dto.AlternateMobileNumber?.Trim() ?? string.Empty,

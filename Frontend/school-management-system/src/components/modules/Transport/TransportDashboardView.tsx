@@ -7,6 +7,7 @@ import {
 import { useData } from '../../../context/DataContext';
 import { VehicleTripDetailsModal } from './VehicleTripDetailsModal';
 import { VehicleAssignment } from '../../../types';
+import { resolveAllActiveTransportStudents } from './transportData';
 
 interface TransportDashboardViewProps {
   onNavigateToSection?: (section: 'setup' | 'operations' | 'reports') => void;
@@ -16,6 +17,7 @@ export const TransportDashboardView: React.FC<TransportDashboardViewProps> = ({ 
   const {
     staff = [],
     students = [],
+    admissions = [],
     vehicleMasters,
     routeMasters,
     driverMasters,
@@ -43,7 +45,7 @@ export const TransportDashboardView: React.FC<TransportDashboardViewProps> = ({ 
           list.push({
             id: String(d.id),
             driverName: d.driverName,
-            employeeId: d.employeeId || `DRV-${d.id}`,
+            employeeId: d.employeeId || (d.id ? String(d.id) : ''),
             mobileNumber: d.mobileNumber || '',
             licenseNumber: d.licenseNumber,
             licenseExpiryDate: d.licenseExpiryDate,
@@ -151,58 +153,18 @@ export const TransportDashboardView: React.FC<TransportDashboardViewProps> = ({ 
     return list;
   }, [busAttendants, staff]);
 
-  // Dynamic Students Using Transport (Merged from studentTransports and Students opted for transport)
+  // Dynamic Students Using Transport (Unified resolver across all transport views)
   const dynamicTransportStudents = React.useMemo(() => {
-    const seen = new Set<string>();
-    const list: Array<{ id: string; studentId?: string; admissionNo?: string; studentName?: string; routeId?: string; routeName?: string }> = [];
-
-    (studentTransports || []).forEach(st => {
-      if (st.status === 'Active' || (st.status as any) === true || String(st.status).toLowerCase() === 'true') {
-        const key = (st.studentId || st.admissionNo || st.studentName || st.id).trim().toLowerCase();
-        if (!seen.has(key)) {
-          seen.add(key);
-          list.push({
-            id: String(st.id),
-            studentId: st.studentId,
-            admissionNo: st.admissionNo,
-            studentName: st.studentName,
-            routeId: st.routeId,
-            routeName: st.routeName
-          });
-        }
-      }
+    return resolveAllActiveTransportStudents({
+      vehicleAssignments,
+      studentTransports,
+      students,
+      admissions,
+      routeMasters,
+      pickupPoints,
+      vehicleMasters
     });
-
-    (students || []).forEach(st => {
-      const isTransportEnrolled =
-        st.transportRequired === true ||
-        Boolean(st.busRoute) ||
-        Boolean(st.transportType) ||
-        Boolean(st.routeId) ||
-        (st as any).isTransportOpted === true ||
-        (st as any).transport === true ||
-        Boolean(st.pickupPoint);
-
-      if (isTransportEnrolled && (st.status === 'Active' || (st.status as any) === true)) {
-        const key = (st.id || st.admissionNo || `${st.firstName} ${st.lastName}`).trim().toLowerCase();
-        const admKey = (st.admissionNo || '').trim().toLowerCase();
-        if (!seen.has(key) && (!admKey || !seen.has(admKey))) {
-          if (key) seen.add(key);
-          if (admKey) seen.add(admKey);
-          list.push({
-            id: `st-${st.id}`,
-            studentId: st.id,
-            admissionNo: st.admissionNo,
-            studentName: `${st.firstName} ${st.lastName || ''}`.trim(),
-            routeId: st.routeId,
-            routeName: st.busRoute
-          });
-        }
-      }
-    });
-
-    return list;
-  }, [studentTransports, students]);
+  }, [vehicleAssignments, studentTransports, students, admissions, routeMasters, pickupPoints, vehicleMasters]);
 
   const totalVehicles = vehicleMasters.length;
   const activeVehicles = vehicleMasters.filter(v => v.status === 'Active').length;
@@ -213,17 +175,43 @@ export const TransportDashboardView: React.FC<TransportDashboardViewProps> = ({ 
   const totalBusAttendants = dynamicAttendants.length;
   const totalTransportStudents = dynamicTransportStudents.length;
 
-  // Today's Trips Metrics - Dynamically calculated from vehicle assignments and live operations status
-  const morningTripsRunning = vehicleAssignments.filter(va => 
+  // Unique Active Vehicle Assignments for Today's Operations
+  const activeAssignments = React.useMemo(() => {
+    const active = (vehicleAssignments || []).filter(va =>
+      va.status === 'Active' || (va.status as any) === true || String(va.status).toLowerCase() === 'true'
+    );
+
+    const vehicleMap = new Map<string, VehicleAssignment>();
+    active.forEach(va => {
+      const key = (va.vehicleNumber ? va.vehicleNumber.trim().toUpperCase() : '') || String(va.vehicleId || va.id);
+      if (!vehicleMap.has(key)) {
+        vehicleMap.set(key, va);
+      } else {
+        const existing = vehicleMap.get(key)!;
+        const existingHasAttendant = existing.attendantName && existing.attendantName.toLowerCase() !== 'unassigned';
+        const currentHasAttendant = va.attendantName && va.attendantName.toLowerCase() !== 'unassigned';
+        if (!existingHasAttendant && currentHasAttendant) {
+          vehicleMap.set(key, va);
+        } else if (Number(va.id) > Number(existing.id)) {
+          vehicleMap.set(key, va);
+        }
+      }
+    });
+
+    return Array.from(vehicleMap.values());
+  }, [vehicleAssignments]);
+
+  // Today's Trips Metrics - Dynamically calculated from active vehicle assignments and live operations status
+  const morningTripsRunning = activeAssignments.filter(va => 
     va.morningTripStatus === 'Running' || va.tripStatus === 'Running'
   ).length;
-  const morningTripsCompleted = vehicleAssignments.filter(va => 
+  const morningTripsCompleted = activeAssignments.filter(va => 
     va.morningTripStatus === 'Completed' || va.tripStatus === 'Completed'
   ).length;
-  const eveningTripsPending = vehicleAssignments.filter(va => 
-    va.eveningTripStatus === 'Pending' || (va.status === 'Active' && va.eveningTripStatus !== 'Completed' && va.eveningTripStatus !== 'Running')
+  const eveningTripsPending = activeAssignments.filter(va => 
+    va.eveningTripStatus === 'Pending' || (va.eveningTripStatus !== 'Completed' && va.eveningTripStatus !== 'Running')
   ).length;
-  const delayedTrips = vehicleAssignments.filter(va => 
+  const delayedTrips = activeAssignments.filter(va => 
     va.tripStatus === 'Delayed' || va.morningTripStatus === 'Delayed' || va.eveningTripStatus === 'Delayed' || (va as any).isDelayed
   ).length;
 
@@ -397,7 +385,7 @@ export const TransportDashboardView: React.FC<TransportDashboardViewProps> = ({ 
 
         {/* Interactive Today's Trips List */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          {vehicleAssignments.map(a => (
+          {activeAssignments.map(a => (
             <div
               key={a.id}
               onClick={() => handleOpenTripDetails(a)}

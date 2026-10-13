@@ -6,6 +6,7 @@ using System.Globalization;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using SMS.Api.Dtos;
@@ -696,5 +697,144 @@ public class TimetableGenerationEngineTests
         Assert.Equal(0, response.SectionConflicts);
         Assert.Equal(0, response.QuotaViolations);
         Assert.True(response.QualityScore >= 90.0);
+    }
+
+    [Fact]
+    public async Task Test15_ClassTeacherAssignedViaDto_Period1EveryWorkingDayIsAssignedToClassTeacher()
+    {
+        SetupStandardEnvironment();
+        int expectedCtStaffId = 203;
+        int expectedSubjectId = 103;
+
+        var request = new GenerateTimetableRequestDto
+        {
+            AcademicYear = "2026-2027",
+            SchoolStartTime = "08:30 AM",
+            SchoolEndTime = "02:15 PM",
+            PeriodDurationMinutes = 45,
+            WorkingDays = new List<string> { "Monday", "Tuesday", "Wednesday", "Thursday", "Friday" },
+            SelectedClassSections = new List<string> { "Class 9-A" },
+            ClassTeacherAssignments = new List<ClassTeacherAssignmentDto>
+            {
+                new ClassTeacherAssignmentDto
+                {
+                    ClassId = 1,
+                    SectionId = 1,
+                    ClassName = "Class 9",
+                    SectionName = "A",
+                    ClassTeacherStaffId = expectedCtStaffId,
+                    PreferredSubjectId = expectedSubjectId
+                }
+            }
+        };
+
+        var response = await _service.GenerateTimetableAsync(request);
+
+        Assert.True(response.Success);
+        var slots = response.Timetable.ToList();
+
+        // Verify that for every working day, the first period is dynamically assigned to the class teacher
+        foreach (var day in request.WorkingDays)
+        {
+            var daySlots = slots
+                .Where(s => s.DayOfWeek.Equals(day, StringComparison.OrdinalIgnoreCase))
+                .OrderBy(s => DateTime.ParseExact(s.StartTime, new[] { "hh:mm tt", "h:mm tt" }, CultureInfo.InvariantCulture, DateTimeStyles.None))
+                .ToList();
+            Assert.NotEmpty(daySlots);
+            var firstPeriodSlot = daySlots.First();
+            Assert.Equal(expectedCtStaffId, firstPeriodSlot.TeacherId);
+            Assert.Equal(expectedSubjectId, firstPeriodSlot.SubjectId);
+        }
+    }
+
+    [Fact]
+    public async Task Test16_ClassTeacherResolvedViaRepositoryFallback_Period1EveryWorkingDayIsAssignedToClassTeacher()
+    {
+        SetupStandardEnvironment();
+        int expectedCtStaffId = 201;
+        int expectedSubjectId = 101;
+
+        var ctStaff = new Staff { StaffId = expectedCtStaffId, FirstName = "Faculty", LastName = "Lead", EmployeeId = "EMP-001", IsClassTeacherEligible = true };
+        _mockRepo.Setup(r => r.GetClassTeacherForSectionAsync(1, 1)).ReturnsAsync(ctStaff);
+
+        var request = new GenerateTimetableRequestDto
+        {
+            AcademicYear = "2026-2027",
+            SchoolStartTime = "08:30 AM",
+            SchoolEndTime = "02:15 PM",
+            PeriodDurationMinutes = 45,
+            WorkingDays = new List<string> { "Monday", "Tuesday", "Wednesday", "Thursday", "Friday" },
+            SelectedClassSections = new List<string> { "Class 9-A" }
+            // Note: ClassTeacherAssignments is omitted, verifying dynamic repository fallback
+        };
+
+        var response = await _service.GenerateTimetableAsync(request);
+
+        Assert.True(response.Success);
+        var slots = response.Timetable.ToList();
+
+        foreach (var day in request.WorkingDays)
+        {
+            var daySlots = slots
+                .Where(s => s.DayOfWeek.Equals(day, StringComparison.OrdinalIgnoreCase))
+                .OrderBy(s => DateTime.ParseExact(s.StartTime, new[] { "hh:mm tt", "h:mm tt" }, CultureInfo.InvariantCulture, DateTimeStyles.None))
+                .ToList();
+            Assert.NotEmpty(daySlots);
+            var firstPeriodSlot = daySlots.First();
+            Assert.Equal(expectedCtStaffId, firstPeriodSlot.TeacherId);
+            Assert.Equal(expectedSubjectId, firstPeriodSlot.SubjectId);
+        }
+    }
+
+    [Fact]
+    public async Task Test17_Repository_ResolvesClassTeacher_FromEligibilityFallbackAndExplicitRole()
+    {
+        var options = new DbContextOptionsBuilder<SMS.Api.Data.AppDbContext>()
+            .UseInMemoryDatabase(databaseName: Guid.NewGuid().ToString())
+            .Options;
+
+        using var dbContext = new SMS.Api.Data.AppDbContext(options);
+
+        int testClassId = 101;
+        int testSectionId = 201;
+        var classObj = new ClassGrade { ClassId = testClassId, ClassName = "Grade-X" };
+        var secObj = new ClassSection { SectionId = testSectionId, ClassId = testClassId, SectionName = "A" };
+        dbContext.Classes.Add(classObj);
+        dbContext.ClassSections.Add(secObj);
+
+        int teacherOneId = 301;
+        int teacherEligibleId = 302;
+        int teacherTwoId = 303;
+
+        var teacherOne = new Staff { StaffId = teacherOneId, FirstName = "Faculty", LastName = "One", IsClassTeacherEligible = false };
+        var teacherEligible = new Staff { StaffId = teacherEligibleId, FirstName = "Faculty", LastName = "Eligible", IsClassTeacherEligible = true };
+        var teacherTwo = new Staff { StaffId = teacherTwoId, FirstName = "Faculty", LastName = "Two", IsClassTeacherEligible = false };
+        dbContext.Staff.AddRange(teacherOne, teacherEligible, teacherTwo);
+
+        // Subject teacher assignments (all start with "Subject Teacher" role)
+        dbContext.TeacherAssignments.AddRange(
+            new TeacherAssignment { Id = 1, ClassId = testClassId, SectionLetter = "A", TeacherId = teacherOneId, Role = "Subject Teacher", SubjectId = 11 },
+            new TeacherAssignment { Id = 2, ClassId = testClassId, SectionLetter = "A", TeacherId = teacherEligibleId, Role = "Subject Teacher", SubjectId = 19 },
+            new TeacherAssignment { Id = 3, ClassId = testClassId, SectionLetter = "A", TeacherId = teacherTwoId, Role = "Subject Teacher", SubjectId = 13 }
+        );
+        await dbContext.SaveChangesAsync();
+
+        var repo = new SMS.Api.Repositories.Implementations.TimetableRepository(dbContext);
+
+        // A. Dynamic fallback selects eligible teacher when no explicit role is set
+        var resolvedFallback = await repo.GetClassTeacherForSectionAsync(testClassId, testSectionId);
+        Assert.NotNull(resolvedFallback);
+        Assert.Equal(teacherEligibleId, resolvedFallback.StaffId);
+
+        // B. When explicit "Class Teacher" role is assigned, it dynamically takes top priority
+        teacherTwo.IsClassTeacherEligible = true;
+        dbContext.TeacherAssignments.Add(
+            new TeacherAssignment { Id = 4, ClassId = testClassId, SectionLetter = "A", TeacherId = teacherTwoId, Role = "Class Teacher", SubjectId = 13 }
+        );
+        await dbContext.SaveChangesAsync();
+
+        var resolvedExplicit = await repo.GetClassTeacherForSectionAsync(testClassId, testSectionId);
+        Assert.NotNull(resolvedExplicit);
+        Assert.Equal(teacherTwoId, resolvedExplicit.StaffId);
     }
 }

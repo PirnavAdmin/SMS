@@ -17,16 +17,6 @@ export interface RouteStop {
   distanceKm?: number;
 }
 
-const initialRouteStops: RouteStop[] = [
-  { id: 'stop-1', routeId: 'rm-01', stopName: 'School Main Gate', stopOrder: 1, pickupTime: '07:00 AM', dropTime: '04:45 PM', distanceKm: 0 },
-  { id: 'stop-2', routeId: 'rm-01', stopName: 'Central Bus Stand', stopOrder: 2, pickupTime: '07:15 AM', dropTime: '04:30 PM', distanceKm: 3.5 },
-  { id: 'stop-3', routeId: 'rm-01', stopName: 'Temple Square', stopOrder: 3, pickupTime: '07:30 AM', dropTime: '04:15 PM', distanceKm: 7.2 },
-  { id: 'stop-4', routeId: 'rm-01', stopName: 'Lakshmi Nagar Circle', stopOrder: 4, pickupTime: '07:45 AM', dropTime: '04:00 PM', distanceKm: 12.0 },
-  { id: 'stop-5', routeId: 'rm-02', stopName: 'School Campus', stopOrder: 1, pickupTime: '07:00 AM', dropTime: '04:30 PM', distanceKm: 0 },
-  { id: 'stop-6', routeId: 'rm-02', stopName: 'Tech Park Gate 3', stopOrder: 2, pickupTime: '07:20 AM', dropTime: '04:10 PM', distanceKm: 5.0 },
-  { id: 'stop-7', routeId: 'rm-02', stopName: 'Greenwood Apartments', stopOrder: 3, pickupTime: '07:40 AM', dropTime: '03:50 PM', distanceKm: 9.8 }
-];
-
 type RouteSequenceItem = {
   id: string;
   sequenceNumber: number;
@@ -34,7 +24,7 @@ type RouteSequenceItem = {
 };
 
 export const RouteMasterView: React.FC = () => {
-  const { routeMasters, pickupPoints, vehicleAssignments, addRouteMaster, updateRouteMaster, deleteRouteMaster } = useData();
+  const { routeMasters = [], pickupPoints = [], vehicleAssignments = [], addRouteMaster, updateRouteMaster, deleteRouteMaster } = useData();
   const { addToast } = useToast();
 
   const [query, setQuery] = useState('');
@@ -64,9 +54,10 @@ export const RouteMasterView: React.FC = () => {
     status: 'Active'
   });
 
-  const filteredRoutes = routeMasters.filter(r => {
-    const matchesQuery = r.routeName.toLowerCase().includes(query.toLowerCase()) ||
-                         r.routeCode.toLowerCase().includes(query.toLowerCase());
+  const filteredRoutes = (routeMasters || []).filter(r => {
+    if (!r) return false;
+    const matchesQuery = (r.routeName || '').toLowerCase().includes(query.toLowerCase()) ||
+                         (r.routeCode || '').toLowerCase().includes(query.toLowerCase());
     const matchesRoute = selectedRouteFilter === 'ALL' || r.id === selectedRouteFilter;
     return matchesQuery && matchesRoute;
   });
@@ -108,7 +99,7 @@ export const RouteMasterView: React.FC = () => {
     e.preventDefault();
     if (!form.routeCode || !form.routeName) return;
 
-    const isDuplicate = routeMasters.some(r => r.routeCode.toLowerCase() === form.routeCode?.toLowerCase() && r.id !== editingRoute?.id);
+    const isDuplicate = (routeMasters || []).some(r => r && r.routeCode?.toLowerCase() === form.routeCode?.toLowerCase() && r.id !== editingRoute?.id);
     if (isDuplicate) {
       addToast('warning', 'Duplicate Code', 'Route Code must be unique.');
       return;

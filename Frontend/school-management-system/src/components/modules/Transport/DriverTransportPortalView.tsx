@@ -116,6 +116,8 @@ export const DriverTransportPortalView: React.FC<DriverTransportPortalViewProps>
     const driverEmpId = (matchedDriver.employeeId || '').trim().toLowerCase();
 
     const matched = vehicleAssignments.find(va => {
+      const isActive = va.status === 'Active' || (va.status as any) === true || String(va.status).toLowerCase() === 'true';
+      if (!isActive) return false;
       const vaDriverId = String(va.driverId || '').trim();
       const vaDriverName = (va.driverName || '').trim().toLowerCase();
       const vaDriverEmpId = (va.driverEmployeeId || '').trim().toLowerCase();
@@ -127,25 +129,24 @@ export const DriverTransportPortalView: React.FC<DriverTransportPortalViewProps>
       );
     });
 
-    if (matched) return matched;
-    return vehicleAssignments.find(va => va.status === 'Active') || vehicleAssignments[0] || null;
+    return matched || null;
   }, [matchedDriver, vehicleAssignments]);
 
   const assignedVehicle = useMemo(() => {
-    if (!currentAssignment) return vehicleMasters[0] || null;
+    if (!currentAssignment) return null;
     return vehicleMasters.find(v =>
       (currentAssignment.vehicleId && String(v.id).trim() === String(currentAssignment.vehicleId).trim()) ||
       (currentAssignment.vehicleNumber && v.vehicleNumber && v.vehicleNumber.trim().toUpperCase() === currentAssignment.vehicleNumber.trim().toUpperCase())
-    ) || vehicleMasters[0] || null;
+    ) || null;
   }, [currentAssignment, vehicleMasters]);
 
   const assignedRoute = useMemo(() => {
-    if (!currentAssignment) return routeMasters[0] || null;
+    if (!currentAssignment) return null;
     return routeMasters.find(r =>
       (currentAssignment.routeId && String(r.id).trim() === String(currentAssignment.routeId).trim()) ||
       (currentAssignment.routeName && r.routeName && r.routeName.trim().toLowerCase() === currentAssignment.routeName.trim().toLowerCase()) ||
       (currentAssignment.routeName && r.routeCode && r.routeCode.trim().toLowerCase() === currentAssignment.routeName.trim().toLowerCase())
-    ) || routeMasters[0] || null;
+    ) || null;
   }, [currentAssignment, routeMasters]);
 
   const targetRouteId = assignedRoute?.id ? String(assignedRoute.id).trim() : (currentAssignment?.routeId ? String(currentAssignment.routeId).trim() : '');
@@ -187,6 +188,7 @@ export const DriverTransportPortalView: React.FC<DriverTransportPortalViewProps>
   }, [currentAssignment, busAttendants, staff]);
 
   const routeStops = useMemo(() => {
+    if (!targetRouteId && !targetRouteName) return [];
     return pickupPoints
       .filter(p =>
         (p.routeId && targetRouteId && String(p.routeId).trim() === targetRouteId) ||
@@ -245,16 +247,16 @@ export const DriverTransportPortalView: React.FC<DriverTransportPortalViewProps>
       const rawPoint = st.pickupPoint || student?.pickupPoint || matchedAdm?.pickupPoint;
       const pPoint = (rawPoint && rawPoint.trim() !== '' && rawPoint.trim().toUpperCase() !== 'N/A' && rawPoint !== 'Default Stop')
         ? rawPoint.trim()
-        : (routeStops.length > 0 ? routeStops[0].pickupName : 'Main Gate Stop');
+        : (routeStops.length > 0 ? routeStops[0].pickupName : '-');
 
       studentMap.set(key, {
         id: student?.id || st.studentId || key,
-        admissionNo: student?.admissionNo || st.admissionNo || matchedAdm?.registrationNo || matchedAdm?.applicationNo || 'ADM-001',
+        admissionNo: student?.admissionNo || st.admissionNo || matchedAdm?.registrationNo || matchedAdm?.applicationNo || '-',
         studentName: fullName,
-        gender: student?.gender || matchedAdm?.gender || 'Male',
-        className: student?.className || matchedAdm?.appliedClass || 'Class 8',
-        section: student?.section || 'A',
-        rollNo: student?.rollNo || '1',
+        gender: student?.gender || matchedAdm?.gender || (student as any)?.sex || '-',
+        className: student?.className || student?.grade || matchedAdm?.appliedClass || (student as any)?.class || '-',
+        section: student?.section || matchedAdm?.section || '-',
+        rollNo: student?.rollNo || (student as any)?.rollNumber || (student as any)?.roll || '-',
         pickupPoint: pPoint,
         parentName: pName,
         parentMobile: pMobile
@@ -296,8 +298,8 @@ export const DriverTransportPortalView: React.FC<DriverTransportPortalViewProps>
       );
 
       if (matchProfileRt) {
-        const fullName = (student.name || `${student.firstName || ''} ${student.lastName || ''}`.trim() || matchedAdm?.applicantName || 'Student Passenger').trim();
-        const pName = (student.fatherName || (student as any)?.fatherFullName || student.parentName || matchedAdm?.parentName || (student as any)?.guardianName || student.motherName || matchedAdm?.motherName || 'Parent / Guardian').trim();
+        const fullName = (student.name || `${student.firstName || ''} ${student.lastName || ''}`.trim() || matchedAdm?.applicantName || student.studentName || '-').trim();
+        const pName = (student.fatherName || (student as any)?.fatherFullName || student.parentName || matchedAdm?.parentName || (student as any)?.guardianName || student.motherName || matchedAdm?.motherName || '-').trim();
         const pMobile = (
           student.fatherPhone ||
           (student as any)?.fatherMobile ||
@@ -308,22 +310,22 @@ export const DriverTransportPortalView: React.FC<DriverTransportPortalViewProps>
           student.phone ||
           (student as any)?.mobileNumber ||
           matchedAdm?.phone ||
-          '+91-9878645500'
+          '-'
         ).trim();
 
         const rawPoint = student.pickupPoint || matchedAdm?.pickupPoint;
         const pPoint = (rawPoint && rawPoint.trim() !== '' && rawPoint.trim().toUpperCase() !== 'N/A' && rawPoint !== 'Default Stop')
           ? rawPoint.trim()
-          : (routeStops.length > 0 ? routeStops[0].pickupName : 'Main Gate Stop');
+          : (routeStops.length > 0 ? routeStops[0].pickupName : '-');
 
         studentMap.set(key, {
           id: student.id,
           admissionNo: student.admissionNo || matchedAdm?.registrationNo || '-',
           studentName: fullName,
-          gender: student.gender || matchedAdm?.gender || 'Male',
-          className: student.className || matchedAdm?.appliedClass || 'Class 8',
-          section: student.section || 'A',
-          rollNo: student.rollNo || '1',
+          gender: student.gender || matchedAdm?.gender || (student as any)?.sex || '-',
+          className: student.className || student.grade || matchedAdm?.appliedClass || (student as any)?.class || '-',
+          section: student.section || matchedAdm?.section || '-',
+          rollNo: student.rollNo || (student as any)?.rollNumber || (student as any)?.roll || '-',
           pickupPoint: pPoint,
           parentName: pName,
           parentMobile: pMobile
@@ -355,9 +357,9 @@ export const DriverTransportPortalView: React.FC<DriverTransportPortalViewProps>
     }));
   };
 
-  const seatingCapacity = assignedVehicle?.capacity || currentAssignment?.vehicleCapacity || 50;
-  const morningTime = formatTripTime(currentAssignment?.morningTripTime || '07:00');
-  const eveningTime = formatTripTime(currentAssignment?.eveningTripTime || '15:45');
+  const seatingCapacity = assignedVehicle?.capacity || currentAssignment?.vehicleCapacity || 0;
+  const morningTime = currentAssignment?.morningTripTime ? formatTripTime(currentAssignment.morningTripTime) : '-';
+  const eveningTime = currentAssignment?.eveningTripTime ? formatTripTime(currentAssignment.eveningTripTime) : '-';
 
   const DRIVER_TABS = useMemo(() => [
     { id: 'my-bus', label: 'Vehicle & Trip Overview', icon: Bus },

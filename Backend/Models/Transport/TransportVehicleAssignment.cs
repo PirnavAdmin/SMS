@@ -14,19 +14,18 @@ namespace SMS.Api.Models
 
         public long DriverId { get; set; }
 
-        [NotMapped]
         public long? AttendantId { get; set; }
 
-        [NotMapped]
+        [MaxLength(150)]
         public string? BranchName { get; set; }
 
-        [NotMapped]
+        [MaxLength(50)]
         public string? AcademicYear { get; set; }
 
-        [NotMapped]
+        [MaxLength(50)]
         public string? MorningTripTime { get; set; }
 
-        [NotMapped]
+        [MaxLength(50)]
         public string? EveningTripTime { get; set; }
 
         [System.ComponentModel.DataAnnotations.Schema.NotMapped]
@@ -72,7 +71,6 @@ namespace SMS.Api.Models
 
         public TransportDriver Driver { get; set; } = null!;
 
-        [NotMapped]
         public TransportAttendant? Attendant { get; set; }
     }
 }

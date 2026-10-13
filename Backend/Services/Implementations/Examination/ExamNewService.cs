@@ -21,6 +21,7 @@ public class ExamNewService : IExamNewService
     public async Task<ExamConfigOptionsDto> GetExamOptionsAsync()
     {
         var options = new ExamConfigOptionsDto();
+        options.AvailableClasses = await _repository.GetAvailableClassesAsync();
         var allExams = await _repository.GetAllExamsAsync();
 
         options.ExistingExams = allExams.Select(e => new ExamDropdownItemDto

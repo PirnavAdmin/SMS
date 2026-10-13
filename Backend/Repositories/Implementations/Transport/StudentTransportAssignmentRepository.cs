@@ -93,31 +93,33 @@ namespace SMS.Api.Repositories.Implementations
             var totalCount = await query.CountAsync();
 
             // Sorting
-            query = ApplySorting(
+            var sortedQuery = ApplySorting(
                 query,
                 filter.SortBy,
                 filter.SortOrder);
 
-            var items = await query
-                .Skip((filter.PageNumber - 1) * filter.PageSize)
-                .Take(filter.PageSize)
+            var pagedQuery = filter.PageSize.HasValue && filter.PageSize.Value > 0
+                ? sortedQuery.Skip((filter.PageNumber - 1) * filter.PageSize.Value).Take(filter.PageSize.Value)
+                : sortedQuery;
+
+            var items = await pagedQuery
                 .Select(x => new StudentTransportAssignmentDto
                 {
                     StudentTransportAssignmentId = x.StudentTransportAssignmentId,
-
+                    StudentId = x.StudentId,
                     AdmissionNo = x.AdmissionNo ?? string.Empty,
 
                     RouteId = x.RouteId,
-                    RouteName = x.Route != null ? x.Route.RouteName : "Main Route",
+                    RouteName = x.Route != null ? x.Route.RouteName : string.Empty,
 
                     PickupPointId = x.PickupPointId,
-                    PickupPointName = x.PickupPoint != null ? x.PickupPoint.PickupPointName : "Main Stop",
+                    PickupPointName = x.PickupPoint != null ? x.PickupPoint.PickupPointName : string.Empty,
 
                     VehicleAssignmentId = x.VehicleAssignmentId,
 
-                    VehicleNumber = x.VehicleAssignment != null && x.VehicleAssignment.Vehicle != null ? x.VehicleAssignment.Vehicle.VehicleNumber : "BUS-101",
+                    VehicleNumber = x.VehicleAssignment != null && x.VehicleAssignment.Vehicle != null ? x.VehicleAssignment.Vehicle.VehicleNumber : string.Empty,
 
-                    DriverName = x.VehicleAssignment != null && x.VehicleAssignment.Driver != null ? x.VehicleAssignment.Driver.DriverName : "Main Driver",
+                    DriverName = x.VehicleAssignment != null && x.VehicleAssignment.Driver != null ? x.VehicleAssignment.Driver.DriverName : string.Empty,
 
                     EffectiveFrom = x.EffectiveFrom,
                     EffectiveTo = x.EffectiveTo,
@@ -138,7 +140,7 @@ namespace SMS.Api.Repositories.Implementations
                 Items = items,
                 TotalCount = totalCount,
                 PageNumber = filter.PageNumber,
-                PageSize = filter.PageSize
+                PageSize = filter.PageSize.HasValue && filter.PageSize.Value > 0 ? filter.PageSize.Value : totalCount
             };
         }
 
@@ -157,20 +159,20 @@ namespace SMS.Api.Repositories.Implementations
                 .Select(x => new StudentTransportAssignmentDto
                 {
                     StudentTransportAssignmentId = x.StudentTransportAssignmentId,
-
+                    StudentId = x.StudentId,
                     AdmissionNo = x.AdmissionNo ?? string.Empty,
 
                     RouteId = x.RouteId,
-                    RouteName = x.Route != null ? x.Route.RouteName : "Main Route",
+                    RouteName = x.Route != null ? x.Route.RouteName : string.Empty,
 
                     PickupPointId = x.PickupPointId,
-                    PickupPointName = x.PickupPoint != null ? x.PickupPoint.PickupPointName : "Main Stop",
+                    PickupPointName = x.PickupPoint != null ? x.PickupPoint.PickupPointName : string.Empty,
 
                     VehicleAssignmentId = x.VehicleAssignmentId,
 
-                    VehicleNumber = x.VehicleAssignment != null && x.VehicleAssignment.Vehicle != null ? x.VehicleAssignment.Vehicle.VehicleNumber : "BUS-101",
+                    VehicleNumber = x.VehicleAssignment != null && x.VehicleAssignment.Vehicle != null ? x.VehicleAssignment.Vehicle.VehicleNumber : string.Empty,
 
-                    DriverName = x.VehicleAssignment != null && x.VehicleAssignment.Driver != null ? x.VehicleAssignment.Driver.DriverName : "Main Driver",
+                    DriverName = x.VehicleAssignment != null && x.VehicleAssignment.Driver != null ? x.VehicleAssignment.Driver.DriverName : string.Empty,
 
                     EffectiveFrom = x.EffectiveFrom,
                     EffectiveTo = x.EffectiveTo,
@@ -196,6 +198,7 @@ namespace SMS.Api.Repositories.Implementations
         {
             var entity = new StudentTransportAssignment
             {
+                StudentId = dto.StudentId,
                 AdmissionNo = dto.AdmissionNo ?? string.Empty,
                 RouteId = dto.RouteId,
                 PickupPointId = dto.PickupPointId,
@@ -237,6 +240,9 @@ namespace SMS.Api.Repositories.Implementations
 
             if (entity == null)
                 return false;
+
+            if (dto.StudentId.HasValue && dto.StudentId.Value > 0)
+                entity.StudentId = dto.StudentId;
 
             entity.AdmissionNo = dto.AdmissionNo ?? string.Empty;
             entity.RouteId = dto.RouteId;
@@ -307,18 +313,18 @@ namespace SMS.Api.Repositories.Implementations
                             AdmissionNo = sta.AdmissionNo ?? string.Empty,
 
                             RouteId = sta.RouteId,
-                            RouteName = sta.Route != null ? sta.Route.RouteName : "Main Route",
+                            RouteName = sta.Route != null ? sta.Route.RouteName : string.Empty,
 
                             PickupPointId = sta.PickupPointId,
-                            PickupPointName = sta.PickupPoint != null ? sta.PickupPoint.PickupPointName : "Main Stop",
+                            PickupPointName = sta.PickupPoint != null ? sta.PickupPoint.PickupPointName : string.Empty,
 
                             VehicleAssignmentId = sta.VehicleAssignmentId,
 
-                            VehicleNumber = sta.VehicleAssignment != null && sta.VehicleAssignment.Vehicle != null ? sta.VehicleAssignment.Vehicle.VehicleNumber : "BUS-101",
+                            VehicleNumber = sta.VehicleAssignment != null && sta.VehicleAssignment.Vehicle != null ? sta.VehicleAssignment.Vehicle.VehicleNumber : string.Empty,
 
-                            DriverName = sta.VehicleAssignment != null && sta.VehicleAssignment.Driver != null ? sta.VehicleAssignment.Driver.DriverName : "Main Driver",
+                            DriverName = sta.VehicleAssignment != null && sta.VehicleAssignment.Driver != null ? sta.VehicleAssignment.Driver.DriverName : string.Empty,
 
-                            DisplayName = sta.AdmissionNo + " - " + (sta.Route != null ? sta.Route.RouteName : "Main Route") + " - " + (sta.PickupPoint != null ? sta.PickupPoint.PickupPointName : "Main Stop")
+                            DisplayName = sta.AdmissionNo + (sta.Route != null && !string.IsNullOrEmpty(sta.Route.RouteName) ? " - " + sta.Route.RouteName : "") + (sta.PickupPoint != null && !string.IsNullOrEmpty(sta.PickupPoint.PickupPointName) ? " - " + sta.PickupPoint.PickupPointName : "")
                         };
 
             return await query.ToListAsync();

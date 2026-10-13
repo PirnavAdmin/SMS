@@ -69,7 +69,7 @@ export const StudentTransportAssignmentView: React.FC = () => {
           studentName: st.studentName || student?.name || 'Unknown Student',
           admissionNo: st.admissionNo || student?.admissionNo || '-',
           academicYear: (st as any).academicYear || '2026-2027',
-          branch: (st as any).branch || student?.branch || '',
+          branch: (st as any).branch || 'Main Campus',
           routeName: st.routeName || '-',
           pickupPoint: st.pickupPoint || '-',
           vehicleNumber: st.vehicleNumber || '-',
@@ -89,7 +89,7 @@ export const StudentTransportAssignmentView: React.FC = () => {
   const activeAssignedRoute = routeMasters.find(r => r.id === routeId);
   const availablePickupPoints = pickupPoints.filter(p => p.routeId?.toString() === routeId?.toString());
   
-  const selectedVehicleObj = vehicleMasters.find(v => v.id === selectedVehicleId) || vehicleMasters[0];
+  const selectedVehicleObj = selectedVehicleId ? vehicleMasters.find(v => v.id === selectedVehicleId) || null : null;
   const assignedVehicleRel = vehicleAssignments.find(va => va.vehicleId === selectedVehicleObj?.id && va.status === 'Active') ||
                              vehicleAssignments.find(va => va.routeId?.toString() === routeId?.toString() && va.status === 'Active');
   
@@ -226,7 +226,7 @@ export const StudentTransportAssignmentView: React.FC = () => {
       studentName: `${st.firstName} ${st.lastName}`,
       admissionNo: st.admissionNo,
       academicYear: selectedAcademicYear,
-      branch: st.branch || '',
+      branch: st.branch || 'Main Campus',
       routeName: rt.routeName,
       pickupPoint: pk.pickupName,
       vehicleNumber: autoVehicleNumber,
@@ -372,7 +372,7 @@ export const StudentTransportAssignmentView: React.FC = () => {
                         <div className="font-semibold text-slate-700 dark:text-slate-200">{st.pickupPoint}</div>
                         <div className="text-[10px] text-slate-400">{pObj ? `${pObj.distanceFromSchoolKm || 10} KM from school` : ''}</div>
                       </td>
-                      <td className="py-3 px-4 font-mono text-emerald-600 font-bold">{st.vehicleNumber || 'BUS-101'}</td>
+                      <td className="py-3 px-4 font-mono text-emerald-600 font-bold">{st.vehicleNumber || '-'}</td>
                       <td className="py-3 px-4 font-semibold text-slate-700 dark:text-slate-300">{st.feePlan}</td>
                       <td className="py-3 px-4 font-extrabold text-emerald-600 dark:text-emerald-400">{formatCurrency(st.feeAmount)}</td>
                       <td className="py-3 px-4"><Badge variant={st.status === 'Active' ? 'success' : 'neutral'}>{st.status}</Badge></td>
@@ -569,8 +569,8 @@ export const StudentTransportAssignmentView: React.FC = () => {
         const pickupObj = pickupPoints.find(p => p.pickupName === inspectingAssignment.pickupPoint || p.routeId === inspectingAssignment.routeId);
         const vehicleAssignedRel = vehicleAssignments.find(va => va.routeId === routeObj?.id && va.status === 'Active') ||
                                    vehicleAssignments.find(va => va.vehicleId === inspectingAssignment.vehicleId);
-        const vehicleObj = vehicleMasters.find(v => v.id === inspectingAssignment.vehicleId || v.vehicleNumber === inspectingAssignment.vehicleNumber) || vehicleMasters[0];
-        const driverObj = driverMasters.find(d => d.id === vehicleAssignedRel?.driverId || d.driverName === vehicleAssignedRel?.driverName) || driverMasters[0];
+        const vehicleObj = vehicleMasters.find(v => v.id === inspectingAssignment.vehicleId || v.vehicleNumber === inspectingAssignment.vehicleNumber) || null;
+        const driverObj = driverMasters.find(d => d.id === vehicleAssignedRel?.driverId || d.driverName === vehicleAssignedRel?.driverName) || null;
         const attendantObj = busAttendants.find(a => 
           (vehicleAssignedRel?.attendantId && (String(a.id) === String(vehicleAssignedRel.attendantId) || a.employeeId === vehicleAssignedRel.attendantId)) ||
           (vehicleAssignedRel?.attendantEmployeeId && a.employeeId === vehicleAssignedRel.attendantEmployeeId) ||
@@ -583,7 +583,7 @@ export const StudentTransportAssignmentView: React.FC = () => {
           `${s.firstName || ''} ${s.lastName || ''}`.trim().toLowerCase() === vehicleAssignedRel?.attendantName?.trim().toLowerCase()
         );
 
-        const driverEmpId = driverObj?.employeeId || vehicleAssignedRel?.driverEmployeeId || (driverObj?.id ? `DRV-${driverObj.id}` : '-');
+        const driverEmpId = driverObj?.employeeId || vehicleAssignedRel?.driverEmployeeId || driverObj?.id || '-';
         const attendantEmpId = vehicleAssignedRel?.attendantEmployeeId || attendantObj?.employeeId || (attendantObj as any)?.empId || (attendantObj as any)?.employeeId || '-';
 
         return (
@@ -620,25 +620,24 @@ export const StudentTransportAssignmentView: React.FC = () => {
                   <div>
                     <div className="flex items-center gap-2">
                       <h4 className="font-extrabold text-base text-slate-900 dark:text-white">{inspectingAssignment.studentName}</h4>
-                      <span className="px-2 py-0.5 rounded-md bg-sky-600 text-white font-extrabold text-[10px]">
-                        {studentObj ? `${studentObj.className}-${studentObj.section}` : 'Class 10-A'}
-                      </span>
+                      {studentObj?.className && (
+                        <span className="px-2 py-0.5 rounded-md bg-sky-600 text-white font-extrabold text-[10px]">
+                          {studentObj.className}{studentObj.section ? `-${studentObj.section}` : ''}
+                        </span>
+                      )}
                     </div>
                     <p className="text-xs text-slate-500 font-mono">
-                      Adm No: <strong>{inspectingAssignment.admissionNo}</strong> • Roll No: {studentObj?.rollNo || '1001'}
+                      Adm No: <strong>{inspectingAssignment.admissionNo}</strong>{studentObj?.rollNo ? ` • Roll No: ${studentObj.rollNo}` : ''}
                     </p>
                     <p className="text-[11px] text-sky-700 dark:text-sky-300 font-bold mt-0.5">
-                      {studentObj?.studentType || 'Day Scholar (Non-Residential)'} {studentObj?.branch ? `• ${studentObj.branch}` : ''}
+                      {studentObj?.studentType || 'Day Scholar'}{studentObj?.branch ? ` • ${studentObj.branch}` : ''}
                     </p>
                   </div>
                 </div>
 
                 <div className="text-right shrink-0">
                   <span className="px-3 py-1 rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 font-extrabold text-xs flex items-center gap-1 justify-end">
-                    <CheckCircle className="w-3.5 h-3.5" /> RFID Enrolled
-                  </span>
-                  <span className="text-[11px] text-slate-500 block mt-1 font-mono">
-                    Session: 2026-2027
+                    <CheckCircle className="w-3.5 h-3.5" /> Enrolled
                   </span>
                 </div>
               </div>
@@ -653,20 +652,24 @@ export const StudentTransportAssignmentView: React.FC = () => {
                   <div className="space-y-1.5 text-slate-700 dark:text-slate-300">
                     <div className="flex justify-between">
                       <span className="text-slate-400">Route Name:</span>
-                      <span className="font-bold text-slate-900 dark:text-white">{inspectingAssignment.routeName}</span>
+                      <span className="font-bold text-slate-900 dark:text-white">{inspectingAssignment.routeName || '-'}</span>
                     </div>
-                    <div className="flex justify-between">
-                      <span className="text-slate-400">Route Code:</span>
-                      <span className="font-mono font-bold text-sky-600">{routeObj?.routeCode || 'R-NORTH-101'}</span>
-                    </div>
+                    {routeObj?.routeCode && (
+                      <div className="flex justify-between">
+                        <span className="text-slate-400">Route Code:</span>
+                        <span className="font-mono font-bold text-sky-600">{routeObj.routeCode}</span>
+                      </div>
+                    )}
                     <div className="flex justify-between">
                       <span className="text-slate-400">Designated Stop:</span>
-                      <span className="font-bold text-slate-900 dark:text-white">{inspectingAssignment.pickupPoint}</span>
+                      <span className="font-bold text-slate-900 dark:text-white">{inspectingAssignment.pickupPoint || '-'}</span>
                     </div>
-                    <div className="flex justify-between">
-                      <span className="text-slate-400">Stop Distance:</span>
-                      <span className="font-mono font-bold">{pickupObj?.distanceFromSchoolKm || 10} KM from campus</span>
-                    </div>
+                    {pickupObj?.distanceFromSchoolKm !== undefined && (
+                      <div className="flex justify-between">
+                        <span className="text-slate-400">Stop Distance:</span>
+                        <span className="font-mono font-bold">{pickupObj.distanceFromSchoolKm} KM from campus</span>
+                      </div>
+                    )}
                     <div className="flex justify-between p-2 rounded-xl bg-white dark:bg-slate-900 border">
                       <span className="text-slate-500 flex items-center gap-1"><Clock className="w-3.5 h-3.5 text-emerald-500" /> Morning Pickup:</span>
                       <span className="font-mono font-black text-emerald-600">{pickupObj?.morningPickupTime || pickupObj?.arrivalTime || '-'}</span>
@@ -687,9 +690,9 @@ export const StudentTransportAssignmentView: React.FC = () => {
                     <div className="p-2.5 rounded-xl bg-white dark:bg-slate-900 border flex justify-between items-center">
                       <div>
                         <span className="text-[10px] text-slate-400 block font-bold">Assigned Bus</span>
-                        <span className="font-mono font-black text-slate-900 dark:text-white text-sm">{inspectingAssignment.vehicleNumber || 'BUS-101'}</span>
+                        <span className="font-mono font-black text-slate-900 dark:text-white text-sm">{inspectingAssignment.vehicleNumber || '-'}</span>
                       </div>
-                      <span className="text-[11px] font-mono text-slate-500">{vehicleObj?.registrationNumber || 'NY-99-AB-1001'}</span>
+                      <span className="text-[11px] font-mono text-slate-500">{vehicleObj?.registrationNumber || '-'}</span>
                     </div>
 
                     {/* Driver Card */}
@@ -703,10 +706,12 @@ export const StudentTransportAssignmentView: React.FC = () => {
                         </span>
                       </div>
                       <div className="flex justify-between items-center">
-                        <span className="font-bold text-slate-900 dark:text-white">{driverObj?.driverName || 'Dwight Schrute'}</span>
-                        <a href={`tel:${driverObj?.mobileNumber || '+1 555-333-333'}`} className="text-sky-600 font-bold flex items-center gap-1 hover:underline">
-                          <Phone className="w-3 h-3" /> {driverObj?.mobileNumber || '+1 555-333-333'}
-                        </a>
+                        <span className="font-bold text-slate-900 dark:text-white">{driverObj?.driverName || '-'}</span>
+                        {driverObj?.mobileNumber && (
+                          <a href={`tel:${driverObj.mobileNumber}`} className="text-sky-600 font-bold flex items-center gap-1 hover:underline">
+                            <Phone className="w-3 h-3" /> {driverObj.mobileNumber}
+                          </a>
+                        )}
                       </div>
                     </div>
 
@@ -721,10 +726,12 @@ export const StudentTransportAssignmentView: React.FC = () => {
                         </span>
                       </div>
                       <div className="flex justify-between items-center">
-                        <span className="font-bold text-slate-900 dark:text-white">{attendantObj?.attendantName || 'Mary Smith'}</span>
-                        <a href={`tel:${attendantObj?.mobileNumber || '+1 555-019-8274'}`} className="text-emerald-600 font-bold flex items-center gap-1 hover:underline">
-                          <Phone className="w-3 h-3" /> {attendantObj?.mobileNumber || '+1 555-019-8274'}
-                        </a>
+                        <span className="font-bold text-slate-900 dark:text-white">{attendantObj?.attendantName || '-'}</span>
+                        {attendantObj?.mobileNumber && (
+                          <a href={`tel:${attendantObj.mobileNumber}`} className="text-emerald-600 font-bold flex items-center gap-1 hover:underline">
+                            <Phone className="w-3 h-3" /> {attendantObj.mobileNumber}
+                          </a>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -736,11 +743,15 @@ export const StudentTransportAssignmentView: React.FC = () => {
                 {/* Parent Contact */}
                 <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 space-y-1.5">
                   <p className="text-[10px] font-extrabold uppercase text-slate-400">Parent / Guardian Contact</p>
-                  <p className="font-bold text-slate-900 dark:text-white">{studentObj?.fatherName || studentObj?.parentName || 'Robert Wright'}</p>
-                  <p className="text-slate-600 dark:text-slate-300 flex items-center gap-1">
-                    <Phone className="w-3.5 h-3.5 text-slate-400" /> Phone: {studentObj?.fatherPhone || studentObj?.phone || '+1 (555) 019-2834'}
-                  </p>
-                  <p className="text-slate-500 truncate">{studentObj?.address || 'H.No 42, Willow Brook Way, Knowledge City'}</p>
+                  <p className="font-bold text-slate-900 dark:text-white">{studentObj?.fatherName || studentObj?.parentName || '-'}</p>
+                  {(studentObj?.fatherPhone || studentObj?.phone) && (
+                    <p className="text-slate-600 dark:text-slate-300 flex items-center gap-1">
+                      <Phone className="w-3.5 h-3.5 text-slate-400" /> Phone: {studentObj.fatherPhone || studentObj.phone}
+                    </p>
+                  )}
+                  {studentObj?.address && (
+                    <p className="text-slate-500 truncate">{studentObj.address}</p>
+                  )}
                 </div>
 
                 {/* Transit Fee Plan */}
@@ -748,7 +759,9 @@ export const StudentTransportAssignmentView: React.FC = () => {
                   <div>
                     <span className="text-[10px] uppercase font-bold text-emerald-700 dark:text-emerald-300 block">Fee Payment Plan</span>
                     <span className="font-black text-slate-900 dark:text-white text-sm">{inspectingAssignment.feePlan} Plan</span>
-                    <span className="text-[11px] text-slate-500 block">Effective: {inspectingAssignment.effectiveFrom || '2026-04-01'}</span>
+                    {inspectingAssignment.effectiveFrom && (
+                      <span className="text-[11px] text-slate-500 block">Effective: {inspectingAssignment.effectiveFrom}</span>
+                    )}
                   </div>
                   <div className="text-right">
                     <span className="text-[10px] uppercase font-bold text-emerald-700 dark:text-emerald-300 block">Transit Amount</span>

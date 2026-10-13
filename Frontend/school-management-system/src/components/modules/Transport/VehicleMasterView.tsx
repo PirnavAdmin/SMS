@@ -17,17 +17,10 @@ export interface VehicleDocumentItem {
   attachmentName?: string;
 }
 
-const initialVehicleDocs: VehicleDocumentItem[] = [
-  { id: 'vd-1', vehicleId: 'vm-01', docType: 'RC', docNumber: 'RC-NY-99104', issueDate: '2022-01-15', expiryDate: '2037-01-15', attachmentName: 'RC_Official_Bus101.pdf' },
-  { id: 'vd-2', vehicleId: 'vm-01', docType: 'Insurance', docNumber: 'INS-8810-AB', issueDate: '2025-12-01', expiryDate: '2026-12-01', attachmentName: 'Insurance_Policy_2026.pdf' },
-  { id: 'vd-3', vehicleId: 'vm-01', docType: 'Fitness', docNumber: 'FIT-2025-001', issueDate: '2025-03-01', expiryDate: '2026-08-15', attachmentName: 'Fitness_Certificate_Passed.pdf' },
-  { id: 'vd-4', vehicleId: 'vm-01', docType: 'Pollution (PUC)', docNumber: 'PUC-99218', issueDate: '2026-02-01', expiryDate: '2026-08-01', attachmentName: 'PUC_Receipt.pdf' },
-  { id: 'vd-5', vehicleId: 'vm-01', docType: 'Permit', docNumber: 'PERM-SCH-101', issueDate: '2024-04-01', expiryDate: '2029-04-01', attachmentName: 'State_Bus_Permit.pdf' },
-  { id: 'vd-6', vehicleId: 'vm-01', docType: 'Tax Certificate', docNumber: 'TAX-2026-99', issueDate: '2026-04-01', expiryDate: '2027-04-01', attachmentName: 'Road_Tax_Receipt.pdf' }
-];
+const initialVehicleDocs: VehicleDocumentItem[] = [];
 
 export const VehicleMasterView: React.FC = () => {
-  const { vehicleMasters, vehicleAssignments, addVehicleMaster, updateVehicleMaster, deleteVehicleMaster, checkVehicleCapacity } = useData();
+  const { vehicleMasters = [], vehicleAssignments = [], addVehicleMaster, updateVehicleMaster, deleteVehicleMaster, checkVehicleCapacity } = useData();
   const { addToast } = useToast();
 
   const [query, setQuery] = useState('');
@@ -67,9 +60,10 @@ export const VehicleMasterView: React.FC = () => {
     status: 'Active'
   });
 
-  const filteredVehicles = vehicleMasters.filter(v => {
-    const matchesQuery = v.vehicleNumber.toLowerCase().includes(query.toLowerCase()) ||
-                         v.registrationNumber.toLowerCase().includes(query.toLowerCase());
+  const filteredVehicles = (vehicleMasters || []).filter(v => {
+    if (!v) return false;
+    const matchesQuery = (v.vehicleNumber || '').toLowerCase().includes(query.toLowerCase()) ||
+                         (v.registrationNumber || '').toLowerCase().includes(query.toLowerCase());
     const matchesVehicle = selectedVehicleFilter === 'ALL' || v.id === selectedVehicleFilter;
     return matchesQuery && matchesVehicle;
   });

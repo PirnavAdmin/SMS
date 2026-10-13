@@ -42,7 +42,7 @@ const convertTo12Hour = (timeStr: string): string => {
 };
 
 export const PickupPointsView: React.FC = () => {
-  const { pickupPoints, routeMasters, vehicleMasters, vehicleAssignments, addPickupPoint, updatePickupPoint, deletePickupPoint } = useData();
+  const { pickupPoints = [], routeMasters = [], vehicleMasters = [], vehicleAssignments = [], addPickupPoint, updatePickupPoint, deletePickupPoint } = useData();
   const { addToast } = useToast();
 
   const [query, setQuery] = useState('');
@@ -69,16 +69,16 @@ export const PickupPointsView: React.FC = () => {
   };
 
   const calculateFeeForDistance = (routeId?: string | number, distanceKm: number = 0) => {
-    const r = routeMasters.find(rt => rt.id == routeId);
+    const r = (routeMasters || []).find(rt => rt.id == routeId);
     const minKm = r?.minDistanceKm ?? 5;
     
     // Find the assigned vehicle via vehicleAssignments
-    const activeAssignment = vehicleAssignments.find(va => va.routeId == routeId && (va.status === 'Active' || (va as any).status === true))
-      || vehicleAssignments.find(va => va.routeId == routeId);
+    const activeAssignment = (vehicleAssignments || []).find(va => va.routeId == routeId && (va.status === 'Active' || (va as any).status === true))
+      || (vehicleAssignments || []).find(va => va.routeId == routeId);
     const assignedBus = activeAssignment?.vehicleNumber;
     
     // Check if the assigned vehicle is AC
-    const vehicle = vehicleMasters.find(v => v.vehicleNumber === assignedBus);
+    const vehicle = (vehicleMasters || []).find(v => v.vehicleNumber === assignedBus);
     const isACVehicle = vehicle?.isAC === true;
     
     const baseFare = isACVehicle 
@@ -127,11 +127,12 @@ export const PickupPointsView: React.FC = () => {
     return false;
   };
 
-  const filteredPoints = pickupPoints.filter(p => {
+  const filteredPoints = (pickupPoints || []).filter(p => {
+    if (!p) return false;
     const matchesQuery = (p.pickupName || '').toLowerCase().includes(query.toLowerCase()) || (p.routeName || '').toLowerCase().includes(query.toLowerCase());
     const matchesRoute = selectedRouteFilter === 'All' || 
       p.routeId == selectedRouteFilter || 
-      (selectedRouteFilter && routeMasters.some(r => r.id == selectedRouteFilter && isPointForRoute(p, r)));
+      (selectedRouteFilter && (routeMasters || []).some(r => r && r.id == selectedRouteFilter && isPointForRoute(p, r)));
     return matchesQuery && matchesRoute;
   }).sort((a, b) => {
     const routeCompare = (a.routeName || '').localeCompare(b.routeName || '');
@@ -142,7 +143,7 @@ export const PickupPointsView: React.FC = () => {
     setEditingPoint(null);
     setNewPickupPoints([{ name: '', distance: '', morningTime: '', eveningTime: '' }]);
     const defaultRoute = (selectedRouteFilter && selectedRouteFilter !== 'All')
-      ? routeMasters.find(r => r.id == selectedRouteFilter)
+      ? (routeMasters || []).find(r => r && r.id == selectedRouteFilter)
       : null;
     setForm({
       routeId: defaultRoute?.id || '',

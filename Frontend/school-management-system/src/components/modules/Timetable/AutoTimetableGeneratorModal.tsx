@@ -111,6 +111,8 @@ export const AutoTimetableGeneratorModal: React.FC<AutoTimetableGeneratorModalPr
     academicClasses,
     rawClasses,
     teacherAssignments,
+    staff,
+    fetchStaff,
     subjects,
     periodSettings,
     bulkAddPeriodSettings,
@@ -123,6 +125,14 @@ export const AutoTimetableGeneratorModal: React.FC<AutoTimetableGeneratorModalPr
   } = useData();
   const { selectedBranch, selectedAcademicYear } = useAuth();
   const { addToast } = useToast();
+
+  useEffect(() => {
+    if (!staff || staff.length === 0) {
+      if (typeof fetchStaff === 'function') {
+        fetchStaff();
+      }
+    }
+  }, [staff, fetchStaff]);
 
   // Wizard active tab
   const [activeStep, setActiveStep] = useState<'timings' | 'classes' | 'generate'>('timings');
@@ -651,6 +661,215 @@ export const AutoTimetableGeneratorModal: React.FC<AutoTimetableGeneratorModalPr
     setGenerationError(null);
 
     try {
+      // Dynamically resolve Class Teacher assignments for every selected class and section
+      const classTeacherAssignmentsList = selectedClassSections.map(cs => {
+        const lastDash = cs.lastIndexOf('-');
+        const className = lastDash !== -1 ? cs.substring(0, lastDash).trim() : cs.trim();
+        const sectionName = lastDash !== -1 ? cs.substring(lastDash + 1).trim() : '';
+
+        // Match against academicClasses and rawClasses for database IDs
+        const acCls = (academicClasses || []).find((c: any) =>
+          (c.name && c.name.trim().toLowerCase() === className.toLowerCase()) ||
+          (c.className && c.className.trim().toLowerCase() === className.toLowerCase())
+        );
+        const rawCls = (rawClasses || []).find((c: any) =>
+          (c.className && c.className.trim().toLowerCase() === className.toLowerCase()) ||
+          (c.name && c.name.trim().toLowerCase() === className.toLowerCase())
+        );
+
+        // Dynamically resolve Class ID
+        let classId = 0;
+        if (rawCls?.classId || rawCls?.id) {
+          classId = Number(rawCls.classId || rawCls.id);
+        } else if (acCls?.id) {
+          const matchNum = String(acCls.id).match(/\d+/);
+          if (matchNum) classId = parseInt(matchNum[0], 10);
+        }
+
+        // Dynamically resolve Section ID
+        let sectionId = 0;
+        if (rawCls && Array.isArray(rawCls.sections)) {
+          const rawSec = rawCls.sections.find((s: any) => {
+            const sName = (s.sectionName || s.name || s.sectionLetter || '').trim().toLowerCase();
+            const cleanS = sName.replace(/^section\s+/i, '');
+            const cleanTarget = sectionName.toLowerCase().replace(/^section\s+/i, '');
+            return sName === sectionName.toLowerCase() || cleanS === cleanTarget;
+          });
+          if (rawSec) {
+            sectionId = Number(rawSec.sectionId || rawSec.id || 0);
+          }
+        }
+        if (!sectionId && acCls?.sectionDetails) {
+          const secEntry = Object.entries(acCls.sectionDetails).find(([k]) =>
+            k.trim().toLowerCase() === sectionName.toLowerCase() ||
+            k.trim().toLowerCase().replace(/^section\s+/i, '') === sectionName.toLowerCase().replace(/^section\s+/i, '')
+          );
+          if (secEntry && secEntry[1]) {
+            const secInfo = secEntry[1] as any;
+            if (secInfo.sectionId || secInfo.id) {
+              sectionId = Number(secInfo.sectionId || secInfo.id);
+            }
+          }
+        }
+
+        // Resolve Class Teacher from teacherAssignments or academicClasses
+        let teacherName = '';
+        let teacherIdStr = '';
+        let preferredSubjectId: number | undefined = undefined;
+
+        // Check teacherAssignments for explicit "Class Teacher"
+        const ctAssignment = (teacherAssignments || []).find((ta: any) => {
+          const matchClass = (ta.className && ta.className.trim().toLowerCase() === className.toLowerCase()) ||
+                             (ta.classId && String(ta.classId) === String(classId));
+          const taSec = (ta.section || ta.sectionLetter || '').trim().toLowerCase().replace(/^section\s+/i, '');
+          const cleanTarget = sectionName.toLowerCase().replace(/^section\s+/i, '');
+          const matchSec = taSec === cleanTarget;
+          const isCT = (ta.role || '').trim().toLowerCase().includes('class');
+          return matchClass && matchSec && isCT;
+        });
+
+        if (ctAssignment) {
+          teacherName = ctAssignment.teacherName || '';
+          teacherIdStr = ctAssignment.teacherId ? String(ctAssignment.teacherId) : '';
+        }
+
+        // Fallback 1: check rawClasses section (which carries classTeacherEmpId and classTeacherName from backend GetClasses)
+        if (!teacherName && rawCls && Array.isArray(rawCls.sections)) {
+          const rawSec = rawCls.sections.find((s: any) => {
+            const sName = (s.sectionName || s.name || s.sectionLetter || '').trim().toLowerCase();
+            const cleanS = sName.replace(/^section\s+/i, '');
+            const cleanTarget = sectionName.toLowerCase().replace(/^section\s+/i, '');
+            return sName === sectionName.toLowerCase() || cleanS === cleanTarget;
+          });
+          if (rawSec?.classTeacherName) {
+            teacherName = rawSec.classTeacherName;
+            if (rawSec.classTeacherEmpId || rawSec.classTeacherId) {
+              teacherIdStr = String(rawSec.classTeacherEmpId || rawSec.classTeacherId);
+            }
+          }
+        }
+
+        // Fallback 2: check academicClasses.sectionTeachers or cls.teacher
+        if (!teacherName && acCls) {
+          if (acCls.sectionTeachers) {
+            const secKey = Object.keys(acCls.sectionTeachers).find(k =>
+              k.trim().toLowerCase() === sectionName.toLowerCase() ||
+              k.trim().toLowerCase().replace(/^section\s+/i, '') === sectionName.toLowerCase().replace(/^section\s+/i, '')
+            );
+            if (secKey && acCls.sectionTeachers[secKey]) {
+              teacherName = acCls.sectionTeachers[secKey];
+            }
+          }
+          if (!teacherName && acCls.teacher && acCls.teacher !== 'Unassigned') {
+            teacherName = acCls.teacher;
+          }
+        }
+
+        // Extract numeric staff ID if available
+        let classTeacherStaffId = 0;
+        if (teacherIdStr) {
+          const numMatch = teacherIdStr.match(/\d+/);
+          if (numMatch) classTeacherStaffId = parseInt(numMatch[0], 10);
+        }
+
+        // 1. Primary Priority: Check if this Class Teacher is mapped to a Subject in Teacher-Subject Allocation for this class & section
+        if (teacherName || teacherIdStr || classTeacherStaffId > 0) {
+          const cleanT = (teacherName || '').toLowerCase().replace(/\s+/g, '');
+          const subjectTeacherTa = (teacherAssignments || []).find((ta: any) => {
+            const matchClass = (ta.className && ta.className.trim().toLowerCase() === className.toLowerCase()) ||
+                               (ta.classId && String(ta.classId) === String(classId));
+            const taSec = (ta.section || ta.sectionLetter || '').trim().toLowerCase().replace(/^section\s+/i, '');
+            const cleanTarget = sectionName.toLowerCase().replace(/^section\s+/i, '');
+            const matchSec = taSec === cleanTarget;
+            const taName = (ta.teacherName || '').toLowerCase().replace(/\s+/g, '');
+            const taId = String(ta.teacherId || '');
+            const isSameTeacher = (cleanT && (taName === cleanT || taName.includes(cleanT) || cleanT.includes(taName))) ||
+                                  (teacherIdStr && (taId === teacherIdStr || (classTeacherStaffId && taId === String(classTeacherStaffId))));
+            return matchClass && matchSec && isSameTeacher && ta.subject && ta.role !== 'Class Teacher';
+          });
+
+          if (subjectTeacherTa) {
+            if (!classTeacherStaffId && subjectTeacherTa.teacherId) {
+              const numMatch = String(subjectTeacherTa.teacherId).match(/\d+/);
+              if (numMatch) classTeacherStaffId = parseInt(numMatch[0], 10);
+            }
+            if (subjectTeacherTa.subjectId) {
+              const subNum = String(subjectTeacherTa.subjectId).match(/\d+/);
+              if (subNum) preferredSubjectId = parseInt(subNum[0], 10);
+            }
+            if (!preferredSubjectId && subjectTeacherTa.subject) {
+              const targetSub = (subjects || []).find((s: any) => s.name?.toLowerCase().trim() === subjectTeacherTa.subject?.toLowerCase().trim());
+              if (targetSub?.id) {
+                const subNum = String(targetSub.id).match(/\d+/);
+                if (subNum) preferredSubjectId = parseInt(subNum[0], 10);
+              }
+            }
+          }
+        }
+
+        // Also check teacherAssignments if classTeacherStaffId is still 0
+        if (!classTeacherStaffId && teacherName) {
+          const cleanT = teacherName.toLowerCase().replace(/\s+/g, '');
+          const matchedTa = (teacherAssignments || []).find((ta: any) => {
+            const tName = (ta.teacherName || '').toLowerCase().replace(/\s+/g, '');
+            return tName && (tName === cleanT || tName.includes(cleanT) || cleanT.includes(tName));
+          });
+          if (matchedTa?.teacherId) {
+            const numMatch = String(matchedTa.teacherId).match(/\d+/);
+            if (numMatch) classTeacherStaffId = parseInt(numMatch[0], 10);
+          }
+        }
+
+        // 2. Secondary Priority: Match from staff profile (PrimarySubject / Department) against class subjects
+        if (teacherName && Array.isArray(staff)) {
+          const cleanT = teacherName.toLowerCase().replace(/\s+/g, '');
+          const matchedStaff = staff.find((s: any) => {
+            const fn = (s.firstName || '').toLowerCase().replace(/\s+/g, '');
+            const ln = (s.lastName || '').toLowerCase().replace(/\s+/g, '');
+            const dn = (s.displayName || s.name || '').toLowerCase().replace(/\s+/g, '');
+            const combined = `${fn}${ln}`;
+            const sEmp = String(s.employeeId || s.empId || '').toLowerCase();
+            const sId = String(s.staffId || s.id || '');
+            return (teacherIdStr && (sId === teacherIdStr || sEmp === teacherIdStr.toLowerCase())) ||
+                   cleanT === combined ||
+                   cleanT === dn ||
+                   (cleanT.length > 2 && (cleanT === ln || cleanT === fn || dn.includes(cleanT) || cleanT.includes(dn)));
+          });
+
+          if (matchedStaff) {
+            if (!classTeacherStaffId) {
+              const sId = (matchedStaff as any).staffId || matchedStaff.id;
+              if (sId) {
+                const numMatch = String(sId).match(/\d+/);
+                if (numMatch) classTeacherStaffId = parseInt(numMatch[0], 10);
+              }
+            }
+            if (!preferredSubjectId && (matchedStaff.primarySubject || matchedStaff.department)) {
+              const staffSubName = (matchedStaff.primarySubject || matchedStaff.department || '').toLowerCase().trim();
+              const matchedSub = (subjects || []).find((s: any) =>
+                s.name?.toLowerCase().trim() === staffSubName ||
+                s.name?.toLowerCase().includes(staffSubName) ||
+                staffSubName.includes(s.name?.toLowerCase())
+              );
+              if (matchedSub && matchedSub.id) {
+                const subNum = String(matchedSub.id).match(/\d+/);
+                if (subNum) preferredSubjectId = parseInt(subNum[0], 10);
+              }
+            }
+          }
+        }
+
+        return {
+          classId,
+          sectionId,
+          className,
+          sectionName,
+          classTeacherStaffId,
+          classTeacherName: teacherName,
+          preferredSubjectId
+        };
+      });
+
       const apiPayload = {
         academicYear,
         branchName: selectedBranch || (rawClasses && rawClasses[0]?.campusLocation) || '',
@@ -665,6 +884,7 @@ export const AutoTimetableGeneratorModal: React.FC<AutoTimetableGeneratorModalPr
           type: b.type
         })),
         selectedClassSections,
+        classTeacherAssignments: classTeacherAssignmentsList,
         autoAssignMappedSubjects,
         allowConsecutiveForLabs,
         maxDailyPeriodsPerSubject: Number(maxPeriodsPerDayPerSubject) || 2,

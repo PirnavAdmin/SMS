@@ -34,7 +34,7 @@ namespace SMS.Api.Controllers
                     Items = new List<TransportVehicleAssignmentDto>(),
                     TotalCount = 0,
                     PageNumber = filter.PageNumber,
-                    PageSize = filter.PageSize
+                    PageSize = filter.PageSize ?? 0
                 });
             }
         }

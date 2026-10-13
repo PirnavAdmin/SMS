@@ -21,7 +21,8 @@ import {
   ChevronDown,
   Check,
   Upload,
-  Image as ImageIcon
+  Image as ImageIcon,
+  AlertCircle
 } from 'lucide-react';
 import { Staff } from '../../../../types';
 import { StaffLetterPayload, StaffLetterType, GeneratedStaffLetterRecord } from '../../../../types/staffLetter';
@@ -34,6 +35,7 @@ import {
   saveStaffLetterRecord,
   DEFAULT_OFFER_TERMS
 } from '../../../../utils/staffLetterTemplates';
+import { validateSearchQuery } from '../../../../utils/validation';
 
 interface StaffLetterModalProps {
   staff: Staff;
@@ -67,6 +69,7 @@ export const StaffLetterModal: React.FC<StaffLetterModalProps> = ({
   });
   const [staffCategoryFilter, setStaffCategoryFilter] = useState<'all' | 'teaching' | 'non-teaching'>('all');
   const [staffSearchQuery, setStaffSearchQuery] = useState<string>('');
+  const [staffSearchError, setStaffSearchError] = useState<string | undefined>(undefined);
   const [isStaffDropdownOpen, setIsStaffDropdownOpen] = useState(false);
   const staffDropdownRef = useRef<HTMLDivElement>(null);
 
@@ -131,6 +134,7 @@ export const StaffLetterModal: React.FC<StaffLetterModalProps> = ({
   };
 
   const filteredStaffList = useMemo(() => {
+    if (staffSearchError) return [];
     return effectiveStaffList.filter((s) => {
       if (staffCategoryFilter === 'teaching' && !isTeaching(s)) return false;
       if (staffCategoryFilter === 'non-teaching' && isTeaching(s)) return false;
@@ -144,7 +148,7 @@ export const StaffLetterModal: React.FC<StaffLetterModalProps> = ({
 
       return true;
     });
-  }, [effectiveStaffList, staffCategoryFilter, staffSearchQuery]);
+  }, [effectiveStaffList, staffCategoryFilter, staffSearchQuery, staffSearchError]);
 
   const getGlobalSignature = () => {
     try {
@@ -397,24 +401,49 @@ export const StaffLetterModal: React.FC<StaffLetterModalProps> = ({
                         </div>
 
                         {/* Search input inside dropdown */}
-                        <div className="relative">
-                          <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
-                          <input
-                            type="text"
-                            placeholder="Search name or ID..."
-                            value={staffSearchQuery}
-                            onChange={(e) => setStaffSearchQuery(e.target.value)}
-                            autoFocus
-                            className="w-full pl-8 pr-7 py-1.5 text-xs font-semibold rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none focus:ring-1 focus:ring-sky-500 placeholder:text-slate-400"
-                          />
-                          {staffSearchQuery && (
-                            <button
-                              type="button"
-                              onClick={() => setStaffSearchQuery('')}
-                              className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer"
-                            >
-                              <X className="w-3.5 h-3.5" />
-                            </button>
+                        <div>
+                          <div className="relative">
+                            <Search className={`w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none ${staffSearchError ? 'text-rose-500' : 'text-slate-400'}`} />
+                            <input
+                              type="text"
+                              maxLength={50}
+                              placeholder="Search name or ID..."
+                              value={staffSearchQuery}
+                              onChange={(e) => {
+                                const val = e.target.value;
+                                setStaffSearchQuery(val);
+                                if (!val) {
+                                  setStaffSearchError(undefined);
+                                } else {
+                                  const validation = validateSearchQuery(val);
+                                  setStaffSearchError(validation.isValid ? undefined : validation.error);
+                                }
+                              }}
+                              autoFocus
+                              className={`w-full pl-8 pr-7 py-1.5 text-xs font-semibold rounded-lg bg-slate-50 dark:bg-slate-800 border text-slate-900 dark:text-white outline-none transition placeholder:text-slate-400 ${
+                                staffSearchError
+                                  ? 'border-rose-500 dark:border-rose-500 focus:ring-1 focus:ring-rose-500 bg-rose-50/30 dark:bg-rose-950/20'
+                                  : 'border-slate-200 dark:border-slate-700 focus:ring-1 focus:ring-sky-500'
+                              }`}
+                            />
+                            {staffSearchQuery && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setStaffSearchQuery('');
+                                  setStaffSearchError(undefined);
+                                }}
+                                className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer"
+                              >
+                                <X className="w-3.5 h-3.5" />
+                              </button>
+                            )}
+                          </div>
+                          {staffSearchError && (
+                            <p className="mt-1 text-[10.5px] font-bold text-rose-500 flex items-center gap-1">
+                              <AlertCircle className="w-3 h-3 shrink-0" />
+                              <span>{staffSearchError}</span>
+                            </p>
                           )}
                         </div>
 
@@ -422,7 +451,7 @@ export const StaffLetterModal: React.FC<StaffLetterModalProps> = ({
                         <div className="max-h-56 overflow-y-auto no-scrollbar space-y-0.5">
                           {filteredStaffList.length === 0 ? (
                             <div className="p-3 text-center text-xs text-slate-400 font-medium">
-                              No matching staff found
+                              {staffSearchError ? 'Please enter a valid search term' : 'No matching staff found'}
                             </div>
                           ) : (
                             filteredStaffList.map((s) => {

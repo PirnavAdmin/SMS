@@ -85,19 +85,19 @@ export const TransportGPSTrackingView: React.FC<TransportGPSTrackingViewProps> =
   allowedRouteId
 }) => {
   const {
-    vehicleMasters,
-    vehicleAssignments,
-    driverMasters,
-    routeMasters,
-    pickupPoints,
-    studentTransports,
-    students,
-    busAttendants,
+    vehicleMasters = [],
+    vehicleAssignments = [],
+    driverMasters = [],
+    routeMasters = [],
+    pickupPoints = [],
+    studentTransports = [],
+    students = [],
+    busAttendants = [],
     staff = []
-  } = useData();
+  } = useData() || {};
 
   const [selectedVehicleId, setSelectedVehicleId] = useState<string>(
-    allowedVehicleId || initialVehicleId || vehicleMasters[0]?.id || ''
+    allowedVehicleId || initialVehicleId || vehicleMasters?.[0]?.id || ''
   );
   const [lastSyncedAt, setLastSyncedAt] = useState('Just now');
   const [liveOffset, setLiveOffset] = useState(0);
@@ -154,58 +154,25 @@ export const TransportGPSTrackingView: React.FC<TransportGPSTrackingViewProps> =
     if (route) {
       const originName = route.routeStart?.trim() || 'Route Start';
       const destinationName = route.routeEnd?.trim() || 'School Campus';
-      const morningStart = assignment?.morningTripTime || '07:00 AM';
+      const morningStart = assignment?.morningTripTime ? formatTripTime(assignment.morningTripTime) : '-';
 
       if (configuredStops.length > 0) {
-        const hasOrigin = configuredStops.some(p => p.pickupName.toLowerCase() === originName.toLowerCase());
-        const hasDest = configuredStops.some(p => p.pickupName.toLowerCase() === destinationName.toLowerCase());
-
         let seq = 1;
-        if (!hasOrigin) {
-          stops.push({
-            id: `origin-${route.id}`,
-            label: originName,
-            order: seq++,
-            time: morningStart,
-            distanceKm: 0,
-            status: 'Active'
-          });
-        }
-
         configuredStops.forEach(p => {
           stops.push({
             id: p.id,
             label: p.pickupName,
             order: seq++,
-            time: p.morningPickupTime || p.arrivalTime || '',
-            distanceKm: p.distanceFromSchoolKm || 5,
+            time: p.morningPickupTime || p.arrivalTime ? formatTripTime(p.morningPickupTime || p.arrivalTime) : morningStart,
+            distanceKm: p.distanceFromSchoolKm ?? (p as any).distanceFromStart ?? 0,
             status: p.status || 'Active'
           });
         });
-
-        if (!hasDest) {
-          stops.push({
-            id: `dest-${route.id}`,
-            label: destinationName,
-            order: seq++,
-            time: '08:15 AM',
-            distanceKm: route.totalDistanceKm || 15,
-            status: 'Active'
-          });
-        }
       } else {
-        stops = [
-          { id: `origin-${route.id}`, label: originName, order: 1, time: morningStart, distanceKm: 0, status: 'Active' },
-          { id: `mid-${route.id}`, label: `${route.routeName} Stop`, order: 2, time: '07:40 AM', distanceKm: Math.round((route.totalDistanceKm || 10) / 2), status: 'Active' },
-          { id: `dest-${route.id}`, label: destinationName, order: 3, time: '08:15 AM', distanceKm: route.totalDistanceKm || 15, status: 'Active' }
-        ];
+        stops = [];
       }
     } else {
-      stops = [
-        { id: `${vehicle.id}-st-1`, label: 'Main Bus Depot', order: 1, time: '07:00 AM', distanceKm: 0, status: 'Active' },
-        { id: `${vehicle.id}-st-2`, label: 'Central Waypoint', order: 2, time: '07:25 AM', distanceKm: 4, status: 'Active' },
-        { id: `${vehicle.id}-st-3`, label: 'School Campus', order: 3, time: '07:55 AM', status: 'Active', distanceKm: 10 }
-      ];
+      stops = [];
     }
 
     const gpsOnline = assignment?.gpsStatus ? assignment.gpsStatus === 'Online' : !!vehicle.gpsDeviceId || vehicle.status === 'Active';

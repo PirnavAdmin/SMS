@@ -14,13 +14,13 @@ public class LibraryBook
     [Required]
     public string Author { get; set; } = string.Empty;
 
-    public string Category { get; set; } = "Science";
+    public string Category { get; set; } = string.Empty;
 
-    public string RackLocation { get; set; } = "Rack S-04";
+    public string RackLocation { get; set; } = string.Empty;
 
-    public int TotalCopies { get; set; } = 15;
+    public int TotalCopies { get; set; } = 1;
 
-    public int AvailableCopies { get; set; } = 11;
+    public int AvailableCopies { get; set; } = 1;
 
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 }
@@ -38,7 +38,7 @@ public class LibraryIssueRecord
 
     public string BorrowerRole { get; set; } = "Student"; // "Student" or "Staff"
 
-    public string BorrowerIdCode { get; set; } = "STU-001";
+    public string BorrowerIdCode { get; set; } = string.Empty;
 
     public int? StudentId { get; set; }
 

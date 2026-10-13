@@ -4,7 +4,7 @@ import { Bus, Users, UserCheck, Phone, Eye, Search, Navigation, Signal } from 'l
 import { useData } from '../../../context/DataContext';
 import { Badge } from '../../common/Badge';
 import { ExportButton } from '../../common/ExportButton';
-import { initialBusAttendants } from './BusAttendantMasterView';
+import { initialBusAttendants, resolveAssignedStudentsForTrip } from './transportData';
 import { VehicleTripDetailsModal } from './VehicleTripDetailsModal';
 import { VehicleAssignment } from '../../../types';
 
@@ -35,6 +35,7 @@ export const VehicleTripsView: React.FC<VehicleTripsViewProps> = ({ onOpenGps })
     vehicleMasters = [],
     driverMasters = [],
     routeMasters = [],
+    pickupPoints = [],
     studentTransports = [],
     busAttendants = [],
     admissions = []
@@ -364,31 +365,21 @@ export const VehicleTripsView: React.FC<VehicleTripsViewProps> = ({ onOpenGps })
           const targetRouteCode = (route?.routeCode || '').trim().toLowerCase();
 
           const attendant = resolveAttendant(assignment);
-          const capacity = assignment.vehicleCapacity || vehicle?.capacity || 50;
+          const capacity = assignment.vehicleCapacity || vehicle?.capacity || 0;
 
-          const assignedStudentsList = studentTransports.filter(st => {
-            const isStatusActive = st.status === 'Active' || (st.status as any) === true || String(st.status).toLowerCase() === 'true';
-            if (!isStatusActive) return false;
-
-            const stRouteId = String(st.routeId || '').trim();
-            const stRouteName = (st.routeName || '').trim().toLowerCase();
-            const stVehicleAssignId = String(st.vehicleId || '').trim();
-
-            const matchesRoute = (targetRouteId !== '' && stRouteId !== '' && stRouteId === targetRouteId) ||
-                                 (targetRouteName !== '' && stRouteName !== '' && stRouteName === targetRouteName) ||
-                                 (targetRouteCode !== '' && stRouteName !== '' && stRouteName === targetRouteCode);
-            const matchesVehicleAssignment = Boolean(assignment?.id && stVehicleAssignId && stVehicleAssignId === String(assignment.id));
-
-            return matchesRoute || matchesVehicleAssignment;
+          const assignedStudents = resolveAssignedStudentsForTrip(assignment, {
+            studentTransports,
+            students,
+            admissions,
+            routeMasters,
+            pickupPoints,
+            vehicleMasters
           });
-
-          const routeStudentsCount = assignedStudentsList.length;
-
-          const assignedCount = routeStudentsCount;
+          const assignedCount = assignedStudents.length;
           const statusText = assignment.status === 'Active' ? 'Running' : 'Completed';
           const gpsOnline = assignment.gpsStatus ? assignment.gpsStatus === 'Online' : !!vehicle?.gpsDeviceId;
-          const morningTripTime = formatTripTime(assignment.morningTripTime || '07:00');
-          const eveningTripTime = formatTripTime(assignment.eveningTripTime || '15:45');
+          const morningTripTime = assignment.morningTripTime ? formatTripTime(assignment.morningTripTime) : '-';
+          const eveningTripTime = assignment.eveningTripTime ? formatTripTime(assignment.eveningTripTime) : '-';
           const displayRouteName = route?.routeName || (assignment.routeName && assignment.routeName.toUpperCase() !== 'N/A' ? assignment.routeName : '') || 'Unassigned Route';
 
           return (

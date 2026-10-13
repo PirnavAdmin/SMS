@@ -50,13 +50,16 @@ namespace SMS.Api.Controllers
             if (dto == null || string.IsNullOrWhiteSpace(dto.Name))
                 return BadRequest("Campus name is required.");
 
+            if (string.IsNullOrWhiteSpace(dto.Address))
+                return BadRequest("Campus address is required.");
+
             var b = new Branch
             {
                 BranchName = dto.Name.Trim(),
                 BranchCode = !string.IsNullOrWhiteSpace(dto.Code) ? dto.Code.Trim().ToUpper() : dto.Name.Trim().Substring(0, Math.Min(5, dto.Name.Trim().Length)).ToUpper(),
-                Address = dto.Address ?? "",
-                Phone = dto.Phone ?? "",
-                Email = dto.Email ?? "",
+                Address = dto.Address.Trim(),
+                Phone = dto.Phone?.Trim() ?? "",
+                Email = dto.Email?.Trim() ?? "",
                 Status = string.IsNullOrWhiteSpace(dto.Status) ? "Active" : dto.Status
             };
 
@@ -84,6 +87,9 @@ namespace SMS.Api.Controllers
         {
             if (dto == null) return BadRequest("Invalid branch payload.");
 
+            if (string.IsNullOrWhiteSpace(dto.Address))
+                return BadRequest("Campus address is required.");
+
             int numId = 0;
             if (int.TryParse(id, out var parsed)) numId = parsed;
             else if (id.StartsWith("CMP-") && int.TryParse(id.Replace("CMP-", ""), out var parsedCmp)) numId = parsedCmp;
@@ -94,9 +100,9 @@ namespace SMS.Api.Controllers
 
             if (!string.IsNullOrWhiteSpace(dto.Name)) b.BranchName = dto.Name.Trim();
             if (!string.IsNullOrWhiteSpace(dto.Code)) b.BranchCode = dto.Code.Trim().ToUpper();
-            if (dto.Address != null) b.Address = dto.Address;
-            if (dto.Phone != null) b.Phone = dto.Phone;
-            if (dto.Email != null) b.Email = dto.Email;
+            b.Address = dto.Address.Trim();
+            if (dto.Phone != null) b.Phone = dto.Phone.Trim();
+            if (dto.Email != null) b.Email = dto.Email.Trim();
             if (!string.IsNullOrWhiteSpace(dto.Status)) b.Status = dto.Status;
 
             await _context.SaveChangesAsync();

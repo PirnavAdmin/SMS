@@ -88,9 +88,9 @@ export const LibrarianDashboardView: React.FC<LibrarianDashboardViewProps> = ({ 
 
   // Compute Today's Shift & Attendance Status dynamically
   const todayAttendance = useMemo(() => {
-    const loggedName = (user?.name || 'Jammi Naidu').trim();
-    const loggedFirstName = loggedName.split(' ')[0].toLowerCase();
-    const loggedEmpId = (user as any)?.empId || 'NTS-2026-805';
+    const loggedName = (user?.name || '').trim();
+    const loggedFirstName = loggedName ? loggedName.split(' ')[0].toLowerCase() : '';
+    const loggedEmpId = (user as any)?.empId || '';
 
     const map = new Map<string, any>();
 
@@ -187,7 +187,7 @@ export const LibrarianDashboardView: React.FC<LibrarianDashboardViewProps> = ({ 
     }
 
     const matched = Array.from(map.values()).find(r => 
-      String(r.staffName || '').toLowerCase().includes(loggedFirstName)
+      loggedFirstName ? String(r.staffName || '').toLowerCase().includes(loggedFirstName) : true
     );
 
     return matched || Array.from(map.values())[0] || null;
@@ -238,17 +238,13 @@ export const LibrarianDashboardView: React.FC<LibrarianDashboardViewProps> = ({ 
     });
 
     if (periods.length === 0) {
-      return [
-        { period: 'Period 2', time: '09:15 AM - 10:00 AM', className: 'Class 8 - Sec A', teacher: 'Srinivas Rao', topic: 'Science Research & Journal Reading' },
-        { period: 'Period 4', time: '11:00 AM - 11:45 AM', className: 'Class 10 - Sec B', teacher: 'Robert Teacher', topic: 'Literature Classics Review' },
-        { period: 'Period 6', time: '01:15 PM - 02:00 PM', className: 'Class 6 - Sec C', teacher: 'Anitha Sharma', topic: 'Library Reading Club Session' }
-      ];
+      return [];
     }
 
     return periods.slice(0, 3).map((p: any, idx: number) => ({
       period: p.period ? `Period ${p.period}` : `Slot ${idx + 1}`,
       time: p.time || p.periodTime || (idx === 0 ? '09:15 AM - 10:00 AM' : idx === 1 ? '11:00 AM - 11:45 AM' : '01:15 PM - 02:00 PM'),
-      className: p.className || p.class || 'Class 8',
+      className: p.className || p.class || '',
       teacher: p.teacherName || p.teacher || 'Subject Teacher',
       topic: p.subject || 'Library Reading Session'
     }));
@@ -408,11 +404,11 @@ export const LibrarianDashboardView: React.FC<LibrarianDashboardViewProps> = ({ 
             <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800 space-y-3 text-xs">
               <div className="flex justify-between items-center pb-1 border-b border-slate-200/50 dark:border-slate-700/50">
                 <span className="text-slate-500 font-medium">Logged-in Account:</span>
-                <span className="font-bold text-slate-900 dark:text-white">{user?.name || 'Jammi Naidu'}</span>
+                <span className="font-bold text-slate-900 dark:text-white">{user?.name || 'Staff'}</span>
               </div>
               <div className="flex justify-between items-center pb-1 border-b border-slate-200/50 dark:border-slate-700/50">
                 <span className="text-slate-500 font-medium">Shift Timmings:</span>
-                <span className="font-mono font-bold text-slate-900 dark:text-white">08:30 AM - 05:00 PM</span>
+                <span className="font-mono font-bold text-slate-900 dark:text-white">{todayAttendance?.shift || '08:30 AM - 05:00 PM'}</span>
               </div>
               <div className="flex justify-between items-center pb-1 border-b border-slate-200/50 dark:border-slate-700/50">
                 <span className="text-slate-500 font-medium">Check-in:</span>

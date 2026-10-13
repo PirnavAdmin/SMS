@@ -15,6 +15,12 @@
   --color-brand-800: #075985;
   --color-brand-900: #0c4a6e;
   --color-brand-950: #082f49;
+  --color-slate-150: #eaeff5;
+  --color-slate-350: #b0bfd0;
+  --color-slate-450: #7c8ea3;
+  --color-slate-650: #3d4d63;
+  --color-slate-850: #162032;
+  --color-slate-905: #0d1424;
 }
 
 @layer base {

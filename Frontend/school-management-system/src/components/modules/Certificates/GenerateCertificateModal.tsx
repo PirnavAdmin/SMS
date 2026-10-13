@@ -62,10 +62,18 @@ export const GenerateCertificateModal: React.FC<GenerateCertificateModalProps> =
   onSuccess,
   existingRecord
 }) => {
-  const { students, schoolProfile, academicClasses } = useData();
+  const { students, schoolProfile, academicClasses, academicYears = [] } = useData();
   const { selectedAcademicYear, selectedBranch } = useAuth();
   const { addToast } = useToast();
-  const activeAY = selectedAcademicYear || '2026–2027';
+  
+  const activeAY = useMemo(() => {
+    if (selectedAcademicYear && selectedAcademicYear !== 'All') return selectedAcademicYear;
+    const activeMaster = academicYears.find(ay => ay.status === 'Active' || ay.isCurrentAcademicYear);
+    if (activeMaster?.academicYear) return activeMaster.academicYear;
+    if (schoolProfile?.academicYear) return schoolProfile.academicYear;
+    const nextYear = new Date().getFullYear() + 1;
+    return `${new Date().getFullYear()}–${nextYear}`;
+  }, [selectedAcademicYear, academicYears, schoolProfile]);
 
   // Mode state: 'single' vs 'bulk'
   const [generationMode, setGenerationMode] = useState<'single' | 'bulk'>('single');
@@ -348,19 +356,20 @@ export const GenerateCertificateModal: React.FC<GenerateCertificateModalProps> =
       signatories: [
         { id: '1', title: 'Class Teacher', show: true },
         { id: '2', title: 'Accounts Officer', show: true },
-        { id: '3', title: 'Principal', name: 'Dr. Robert Miller', show: true }
+        { id: '3', title: 'Principal', name: schoolProfile?.principalName || 'Principal', show: true }
       ],
       showSeal: true,
       dateFormat: 'DD/MM/YYYY'
     };
-  }, [certificateTemplates, selectedTypeConfig, existingRecord]);
+  }, [certificateTemplates, selectedTypeConfig, existingRecord, schoolProfile]);
 
   // Calculate unique Certificate Number
   const generatedCertNo = useMemo(() => {
     if (existingRecord?.certificateNumber) return existingRecord.certificateNumber;
     const prefix = selectedTypeConfig?.numberingPrefix || 'CERT';
     const length = selectedTypeConfig?.numberingLength || 4;
-    const yearPart = selectedTypeConfig?.includeAcademicYearInNo ? `-${activeAY.split('–')[0] || '2026'}-` : '-';
+    const extractedYear = activeAY.match(/\d{4}/)?.[0] || new Date().getFullYear().toString();
+    const yearPart = selectedTypeConfig?.includeAcademicYearInNo ? `-${extractedYear}-` : '-';
     
     try {
       const saved = localStorage.getItem('edu_db_generated_certificates');
@@ -488,7 +497,8 @@ export const GenerateCertificateModal: React.FC<GenerateCertificateModalProps> =
 
     const prefix = selectedTypeConfig?.numberingPrefix || 'CERT';
     const length = selectedTypeConfig?.numberingLength || 4;
-    const yearPart = selectedTypeConfig?.includeAcademicYearInNo ? `-${activeAY.split('–')[0] || '2026'}-` : '-';
+    const extractedYear = activeAY.match(/\d{4}/)?.[0] || new Date().getFullYear().toString();
+    const yearPart = selectedTypeConfig?.includeAcademicYearInNo ? `-${extractedYear}-` : '-';
 
     let existingCount = 0;
     let savedCertRecords: GeneratedCertificateRecord[] = [];

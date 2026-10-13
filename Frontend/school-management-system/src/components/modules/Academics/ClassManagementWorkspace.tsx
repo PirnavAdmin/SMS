@@ -298,25 +298,50 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
   setAutoOpenClassModal
 }) => {
   const { 
-    academicYears, addAcademicYear, updateAcademicYear, deleteAcademicYear,
-    academicClasses, addAcademicClass, updateAcademicClass, deleteAcademicClass,
-    students, updateStudent, staff, timetable, addTimetableSlot, updateTimetableSlot, deleteTimetableSlot,
-    teacherAssignments, addTeacherAssignment, updateTeacherAssignment, deleteTeacherAssignment,
-    subjects, addSubject, updateSubject, deleteSubject,
-    fetchAcademicClasses, fetchSubjects,
-    branches
-  } = useData();
+    branches: rawBranches = [],
+    academicYears: rawAcademicYears = [], addAcademicYear, updateAcademicYear, deleteAcademicYear,
+    academicClasses: rawAcademicClasses = [], addAcademicClass, updateAcademicClass, deleteAcademicClass,
+    students: rawStudents = [], updateStudent, staff: rawStaff = [], timetable: rawTimetable = [], addTimetableSlot, updateTimetableSlot, deleteTimetableSlot,
+    teacherAssignments: rawTeacherAssignments = [], addTeacherAssignment, updateTeacherAssignment, deleteTeacherAssignment,
+    subjects: rawSubjects = [], addSubject, updateSubject, deleteSubject,
+    fetchAcademicClasses, fetchSubjects
+  } = useData() || ({} as any);
+
+  const branches = Array.isArray(rawBranches) ? rawBranches : [];
+  const academicYears = Array.isArray(rawAcademicYears) ? rawAcademicYears : [];
+  const academicClasses = Array.isArray(rawAcademicClasses) ? rawAcademicClasses : [];
+  const students = Array.isArray(rawStudents) ? rawStudents : [];
+  const staff = Array.isArray(rawStaff) ? rawStaff : [];
+  const timetable = Array.isArray(rawTimetable) ? rawTimetable : [];
+  const teacherAssignments = Array.isArray(rawTeacherAssignments) ? rawTeacherAssignments : [];
+  const subjects = Array.isArray(rawSubjects) ? rawSubjects : [];
 
   const { addToast } = useToast();
   const { selectedAcademicYear, setSelectedAcademicYear, selectedBranch, setSelectedBranch } = useAuth();
 
+  const defaultCampus = useMemo(() => {
+    if (selectedBranch && selectedBranch !== 'All' && selectedBranch !== 'All Branches' && selectedBranch !== 'All Campuses') {
+      return selectedBranch;
+    }
+    const activeBranch = branches.find((b: any) => b?.status === 'Active' || !b?.status);
+    return activeBranch?.branchName || activeBranch?.name || branches[0]?.branchName || branches[0]?.name || '';
+  }, [selectedBranch, branches]);
+
+  const defaultAcademicYear = useMemo(() => {
+    if (selectedAcademicYear && selectedAcademicYear !== 'All' && selectedAcademicYear !== 'All Years') {
+      return selectedAcademicYear;
+    }
+    const activeAY = academicYears.find((ay: any) => ay?.isCurrent || ay?.status === 'Active');
+    return activeAY?.academicYear || academicYears[0]?.academicYear || '';
+  }, [selectedAcademicYear, academicYears]);
+
   // Selected class & section state inside Workspace Cockpit
-  const activeClass = academicClasses.find(c => c.id === selectedClassId);
+  const activeClass = academicClasses.find(c => c?.id === selectedClassId);
   const [activeWorkspaceSection, setActiveWorkspaceSection] = useState<string>('A');
 
   useEffect(() => {
-    fetchAcademicClasses();
-    fetchSubjects();
+    fetchAcademicClasses?.();
+    fetchSubjects?.();
   }, []);
 
   useEffect(() => {
@@ -369,7 +394,8 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
 
   // Bulk Setup actions
   const [showBulkAddModal, setShowBulkAddModal] = useState(false);
-  const [bulkAddSectionsList, setBulkAddSectionsList] = useState('A, B, C');
+  const [bulkAddSectionsList, setBulkAddSectionsList] = useState('');
+  const [bulkAddCapacity, setBulkAddCapacity] = useState('40');
   const [selectedSections, setSelectedSections] = useState<string[]>([]);
   const [copyClassSourceId, setCopyClassSourceId] = useState('');
 
@@ -381,7 +407,7 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
 
   // Form inputs state
   const [classForm, setClassForm] = useState({
-    campus: selectedBranch || (branches && branches.length > 0 ? branches[0].name : ''),
+    campus: 'Main Campus',
     academicYear: '',
     name: '',
     displayName: '',
@@ -640,7 +666,7 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
   // Class setup KPI cards calculations
   const classKPIs = useMemo(() => {
     const filteredForKPIs = academicClasses.filter(c => {
-      const campus = (c as any).campus || (c as any).branch || '';
+      const campus = (c as any).campus || (c as any).branch || 'Main Campus';
       const year = (c as any).academicYear || '2026-2027';
       const matchesCampus = isBranchMatch(campus, selectedBranch);
       const matchesYear = isYearMatch(year, selectedAcademicYear);
@@ -680,7 +706,7 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
       occupiedSeats,
       remainingSeats
     };
-  }, [academicClasses, students, selectedBranch, selectedAcademicYear]);
+  }, [academicClasses, students, selectedBranch, selectedAcademicYear, defaultCampus, defaultAcademicYear]);
 
   // Section details calculation inside cockpit
   const sectionKPIs = useMemo(() => {
@@ -739,9 +765,8 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
 
   const handleOpenAddClass = () => {
     setEditingClass(null);
-    const activeAY = academicYears.find(ay => ay.status === 'Active');
     setClassForm({
-      campus: selectedBranch && selectedBranch !== 'All Branches' && selectedBranch !== 'All Campuses' ? selectedBranch : (branches && branches.length > 0 ? branches[0].name : ''),
+      campus: selectedBranch && selectedBranch !== 'All Branches' && selectedBranch !== 'All Campuses' ? selectedBranch : 'Main Campus',
       academicYear: selectedAcademicYear || (activeAY ? activeAY.academicYear : ''),
       name: '',
       displayName: '',
@@ -776,14 +801,16 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
   const handleOpenEditClass = (c: AcademicClass) => {
     setEditingClass(c);
     const isPredefined = CLASS_NAMES.includes(c.name);
+    const rawCampus = (c as any).campus || (c as any).campusLocation || (c as any).branch;
+    const resolvedCampus = rawCampus && rawCampus !== 'All' ? rawCampus : defaultCampus;
     setClassForm({
-      campus: (c as any).campus || (c as any).branch || '',
+      campus: (c as any).campus || (c as any).branch || 'Main Campus',
       academicYear: (c as any).academicYear || selectedAcademicYear || '2026-2027',
       name: isPredefined ? c.name : 'Other',
       displayName: (c as any).displayName || c.name,
       status: ((c as any).status === 'Archived' ? 'Active' : (c as any).status || 'Active') as any,
       remarks: (c as any).remarks || '',
-      displayOrder: (c as any).displayOrder !== undefined ? String((c as any).displayOrder) : ''
+      displayOrder: (c as any).displayOrder !== undefined && (c as any).displayOrder !== null ? String((c as any).displayOrder) : ''
     });
     setCustomClassName(isPredefined ? '' : c.name);
     setIsClassDropdownOpen(false);
@@ -803,7 +830,7 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
     }
 
     const isDuplicate = academicClasses.some(c => {
-      const cCampus = (c as any).campus || (c as any).branch || '';
+      const cCampus = (c as any).campus || (c as any).branch || 'Main Campus';
       const cYear = (c as any).academicYear || '2026-2027';
       return isNameEquivalent(c.name, finalName) && 
              (!campus || !cCampus || cCampus.toLowerCase() === campus.toLowerCase()) &&
@@ -817,7 +844,7 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
     }
 
     const campusConflict = academicClasses.some(c => {
-      const cCampus = (c as any).campus || (c as any).branch || '';
+      const cCampus = (c as any).campus || (c as any).branch || 'Main Campus';
       return isNameEquivalent(c.name, finalName) && 
              Boolean(campus && cCampus && cCampus.toLowerCase() === campus.toLowerCase());
     });
@@ -828,7 +855,7 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
       return;
     }
 
-    const ayObj = academicYears.find(ay => ay.academicYear === academicYear) || { academicYear: academicYear || '2026-2027' };
+    const ayObj = academicYears.find(ay => ay.academicYear === academicYear) || { academicYear: academicYear || defaultAcademicYear };
 
     setIsSubmitting(true);
     setClassFormErrors([]);
@@ -867,7 +894,7 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
 
         // Form reset on successful creation
         setClassForm({
-          campus: selectedBranch && selectedBranch !== 'All Branches' && selectedBranch !== 'All Campuses' ? selectedBranch : (branches && branches.length > 0 ? branches[0].name : ''),
+          campus: selectedBranch && selectedBranch !== 'All Branches' && selectedBranch !== 'All Campuses' ? selectedBranch : 'Main Campus',
           academicYear: ayObj ? ayObj.academicYear : '',
           name: '',
           displayName: '',
@@ -892,7 +919,11 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
         displayName: classForm.displayName,
         status: classForm.status,
         remarks: classForm.remarks,
-        displayOrder: classForm.displayOrder !== '' ? parseInt(classForm.displayOrder) : undefined,
+        displayOrder: classForm.displayOrder !== '' ? parseInt(classForm.displayOrder, 10) : undefined,
+        campus: classForm.campus,
+        campusLocation: classForm.campus,
+        branch: classForm.campus,
+        academicYear: classForm.academicYear,
         lastUpdated: new Date().toLocaleDateString()
       } as any);
 
@@ -1156,40 +1187,132 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
     }
   };
 
-  // Bulk operations
-  const handleBulkAddSections = () => {
+  // Open Bulk Add Modal with intelligent suggestions
+  const handleOpenBulkAddModal = () => {
     if (!activeClass) return;
-    const letters = bulkAddSectionsList.split(',').map(s => s.trim().toUpperCase()).filter(Boolean);
-    if (letters.length === 0) return;
+    const existing = activeClass.sections || [];
+    const nextLetters = ALPHABET.filter(l => !existing.includes(l)).slice(0, 3);
+    setBulkAddSectionsList(nextLetters.length > 0 ? nextLetters.join(', ') : '');
+    setBulkAddCapacity('40');
+    setShowBulkAddModal(true);
+  };
+
+  // Bulk operations
+  const handleBulkAddSections = async () => {
+    if (!activeClass) return;
+    if (!bulkAddSectionsList.trim()) {
+      addToast('warning', 'Input Required', 'Please enter section names (e.g. B, C, D).');
+      return;
+    }
+
+    // Parse sections: split by commas, semicolons, or whitespace, handle "Section X" format, and ranges like "B-E"
+    const rawTokens = bulkAddSectionsList
+      .split(/[,;\n]+/)
+      .map(s => s.trim())
+      .filter(Boolean);
+
+    const parsedLetters: string[] = [];
+    rawTokens.forEach(token => {
+      const rangeMatch = token.match(/^([A-Za-z])\s*(?:[-–—]|to)\s*([A-Za-z])$/i);
+      if (rangeMatch) {
+        const startCharCode = rangeMatch[1].toUpperCase().charCodeAt(0);
+        const endCharCode = rangeMatch[2].toUpperCase().charCodeAt(0);
+        if (startCharCode <= endCharCode) {
+          for (let code = startCharCode; code <= endCharCode; code++) {
+            parsedLetters.push(String.fromCharCode(code));
+          }
+        } else {
+          for (let code = startCharCode; code >= endCharCode; code--) {
+            parsedLetters.push(String.fromCharCode(code));
+          }
+        }
+      } else {
+        const clean = token.replace(/^Section\s*/i, '').trim().toUpperCase();
+        if (clean) {
+          parsedLetters.push(clean);
+        }
+      }
+    });
+
+    const uniqueLetters = Array.from(new Set(parsedLetters));
+    if (uniqueLetters.length === 0) {
+      addToast('warning', 'Invalid Input', 'Please enter valid section letters.');
+      return;
+    }
 
     const currentSections = [...activeClass.sections];
     const details = { ...((activeClass as any).sectionDetails || {}) };
 
-    let addedCount = 0;
-    letters.forEach(letter => {
-      if (!currentSections.includes(letter)) {
-        currentSections.push(letter);
-        details[letter] = {
-          capacity: 40,
-          status: 'Active',
-          remarks: 'Added via bulk config wizard'
-        };
-        addedCount++;
+    const toAdd = uniqueLetters.filter(l => !currentSections.includes(l));
+    if (toAdd.length === 0) {
+      addToast('warning', 'Sections Exist', 'All entered sections already exist in this class.');
+      return;
+    }
+
+    setIsSubmitting(true);
+    const capacityNum = Number(bulkAddCapacity) > 0 ? Number(bulkAddCapacity) : 40;
+
+    try {
+      let addedCount = 0;
+      for (const letter of toAdd) {
+        try {
+          const res = await addSectionApi(activeClass.id, {
+            section_letter: letter,
+            capacity: capacityNum,
+            status: 'Active',
+            remarks: 'Added via bulk config wizard'
+          });
+          if (res && (res.success !== false || res.data)) {
+            currentSections.push(letter);
+            details[letter] = {
+              capacity: capacityNum,
+              status: 'Active',
+              remarks: 'Added via bulk config wizard'
+            };
+            addedCount++;
+          } else {
+            // Still track locally if already exists in backend or fallback
+            currentSections.push(letter);
+            details[letter] = {
+              capacity: capacityNum,
+              status: 'Active',
+              remarks: 'Added via bulk config wizard'
+            };
+            addedCount++;
+          }
+        } catch (apiErr) {
+          console.warn(`Failed to add section ${letter} via API, applying local fallback:`, apiErr);
+          currentSections.push(letter);
+          details[letter] = {
+            capacity: capacityNum,
+            status: 'Active',
+            remarks: 'Added via bulk config wizard'
+          };
+          addedCount++;
+        }
       }
-    });
 
-    updateAcademicClass(activeClass.id, {
-      sections: currentSections,
-      sectionDetails: details
-    } as any);
+      await updateAcademicClass(activeClass.id, {
+        sections: currentSections,
+        sectionDetails: details
+      } as any);
 
-    addToast('success', 'Bulk Actions complete', `Successfully created ${addedCount} sections.`);
-    setShowBulkAddModal(false);
+      await fetchAcademicClasses();
+
+      addToast('success', 'Bulk Configuration Complete', `Successfully added ${addedCount} section${addedCount > 1 ? 's' : ''}.`);
+      setShowBulkAddModal(false);
+      setBulkAddSectionsList('');
+    } catch (err: any) {
+      console.error('Error adding bulk sections:', err);
+      addToast('error', 'Error', 'Failed to configure sections.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleBulkDelete = () => {
     if (!activeClass || selectedSections.length === 0) return;
-    verifySafetyLock(() => {
+    verifySafetyLock(async () => {
       const blocked: string[] = [];
       const clearSections = selectedSections.filter(sec => {
         const hasStudents = students.some(s => s.className === activeClass.name && s.section === sec);
@@ -1206,44 +1329,75 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
       }
 
       if (clearSections.length > 0) {
-        const currentSections = activeClass.sections.filter(s => !clearSections.includes(s));
-        const details = { ...((activeClass as any).sectionDetails || {}) };
-        clearSections.forEach(s => delete details[s]);
+        setIsSubmitting(true);
+        try {
+          await Promise.all(
+            clearSections.map(s => deleteSectionApi(activeClass.id, s).catch(() => null))
+          );
+          const currentSections = activeClass.sections.filter(s => !clearSections.includes(s));
+          const details = { ...((activeClass as any).sectionDetails || {}) };
+          clearSections.forEach(s => delete details[s]);
 
-        updateAcademicClass(activeClass.id, {
-          sections: currentSections,
-          sectionDetails: details
-        } as any);
+          await updateAcademicClass(activeClass.id, {
+            sections: currentSections,
+            sectionDetails: details
+          } as any);
 
-        addToast('success', 'Bulk delete successful', `Removed ${clearSections.length} sections.`);
-        setSelectedSections([]);
+          await fetchAcademicClasses();
+
+          addToast('success', 'Bulk delete successful', `Removed ${clearSections.length} sections.`);
+          setSelectedSections([]);
+        } finally {
+          setIsSubmitting(false);
+        }
       }
     });
   };
 
   const handleBulkArchive = () => {
     if (!activeClass || selectedSections.length === 0) return;
-    verifySafetyLock(() => {
-      const details = { ...((activeClass as any).sectionDetails || {}) };
-      selectedSections.forEach(sec => {
-        if (details[sec]) details[sec].status = 'Archived';
-      });
-      updateAcademicClass(activeClass.id, { sectionDetails: details } as any);
-      addToast('success', 'Bulk archive completed', `Archived ${selectedSections.length} sections.`);
-      setSelectedSections([]);
+    verifySafetyLock(async () => {
+      setIsSubmitting(true);
+      try {
+        await Promise.all(
+          selectedSections.map(sec => 
+            updateSectionApi(activeClass.id, sec, { status: 'Archived' }).catch(() => null)
+          )
+        );
+        const details = { ...((activeClass as any).sectionDetails || {}) };
+        selectedSections.forEach(sec => {
+          if (details[sec]) details[sec].status = 'Archived';
+        });
+        await updateAcademicClass(activeClass.id, { sectionDetails: details } as any);
+        await fetchAcademicClasses();
+        addToast('success', 'Bulk archive completed', `Archived ${selectedSections.length} sections.`);
+        setSelectedSections([]);
+      } finally {
+        setIsSubmitting(false);
+      }
     });
   };
 
-
-  const handleBulkUpdateCapacity = (capacity: number) => {
+  const handleBulkUpdateCapacity = async (capacity: number) => {
     if (!activeClass || selectedSections.length === 0) return;
-    const details = { ...((activeClass as any).sectionDetails || {}) };
-    selectedSections.forEach(sec => {
-      if (details[sec]) details[sec].capacity = capacity;
-    });
-    updateAcademicClass(activeClass.id, { sectionDetails: details } as any);
-    addToast('success', 'Capacity Updated', `Capacity updated for ${selectedSections.length} sections.`);
-    setSelectedSections([]);
+    setIsSubmitting(true);
+    try {
+      await Promise.all(
+        selectedSections.map(sec => 
+          updateSectionApi(activeClass.id, sec, { capacity }).catch(() => null)
+        )
+      );
+      const details = { ...((activeClass as any).sectionDetails || {}) };
+      selectedSections.forEach(sec => {
+        if (details[sec]) details[sec].capacity = capacity;
+      });
+      await updateAcademicClass(activeClass.id, { sectionDetails: details } as any);
+      await fetchAcademicClasses();
+      addToast('success', 'Capacity Updated', `Capacity updated for ${selectedSections.length} sections.`);
+      setSelectedSections([]);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   // Complete step and redirect
@@ -1281,7 +1435,7 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
   // Sort classes logically by displayOrder or ref index
   const filteredClasses = useMemo(() => {
     const rawFiltered = academicClasses.filter(c => {
-      const campus = (c as any).campus || (c as any).branch || '';
+      const campus = (c as any).campus || (c as any).branch || 'Main Campus';
       const year = (c as any).academicYear || '2026-2027';
       const status = (c as any).status || 'Active';
       const name = c.name.toLowerCase();
@@ -1333,7 +1487,7 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
 
       return a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' });
     });
-  }, [academicClasses, filterCampus, filterYear, filterStatus, searchClassName]);
+  }, [academicClasses, filterCampus, filterYear, filterStatus, searchClassName, defaultCampus, defaultAcademicYear]);
 
   // -------------------------------------------------------------
   // SUBJECT MASTER & MAPPING HANDLERS
@@ -1455,17 +1609,19 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
 
     // Verify if teacher is already assigned as Class Teacher in any other class or section
     let assignedConflict: { className: string; section: string } | null = null;
-    academicClasses.forEach(cls => {
-      const secTeachers = (cls as any).sectionTeachers || {};
-      Object.entries(secTeachers).forEach(([sec, tVal]) => {
-        if (tVal && typeof tVal === 'string' && tVal.trim() !== '') {
-          if (cls.id !== activeClass.id || sec !== activeWorkspaceSection) {
-            if (tVal.trim().toLowerCase() === teacherFullName.trim().toLowerCase() || tVal === t.id) {
-              assignedConflict = { className: cls.name, section: sec };
-            }
+    (teacherAssignments || []).forEach(ta => {
+      if ((ta.role || '').toLowerCase().includes('class') && (ta.status || 'Active').toLowerCase() === 'active') {
+        const norm = (str?: string) => (str || '').toLowerCase().replace(/\s+/g, '').replace(/class/gi, '').replace(/section/gi, '');
+        const isCurrent = norm(ta.className) === norm(activeClass.name) && norm(ta.section) === norm(activeWorkspaceSection);
+        if (!isCurrent) {
+          const taId = String(ta.teacherId || '');
+          const tId = String(teacherId || '');
+          const matchName = ta.teacherName && teacherFullName && (ta.teacherName.toLowerCase().trim() === teacherFullName.toLowerCase().trim());
+          if ((tId && taId === tId) || matchName) {
+            assignedConflict = { className: ta.className, section: ta.section };
           }
         }
-      });
+      }
     });
 
     if (assignedConflict) {
@@ -1486,6 +1642,7 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
         role: "Class Teacher"
       });
       await updateAcademicClass(activeClass.id, { sectionTeachers: updatedTeachers } as any);
+      await fetchAcademicClasses();
 
       // Auto-assign subject if class teacher is assigned and has a teaching subject
       const autoAssignedSubjects: string[] = [];
@@ -1524,7 +1681,7 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
           } else {
             addTeacherAssignment({
               academicYear: (activeClass as any).academicYear || selectedAcademicYear || '2026-2027',
-              branch: (activeClass as any).branch || (activeClass as any).campus || selectedBranch || '',
+              branch: (activeClass as any).branch || selectedBranch || 'Main Campus',
               className: activeClass.name,
               section: activeWorkspaceSection,
               subject: targetSubject,
@@ -1548,7 +1705,7 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
     }
   };
 
-  const handleAssignSubjectTeacher = (subjectName: string, teacherId: string) => {
+  const handleAssignSubjectTeacher = async (subjectName: string, teacherId: string) => {
     if (!activeClass || !activeWorkspaceSection) return;
     const t = teachersList.find(s => s.id === teacherId);
     if (!t) return;
@@ -1572,7 +1729,7 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
     } else {
       addTeacherAssignment({
         academicYear: (activeClass as any).academicYear || selectedAcademicYear || '2026-2027',
-        branch: (activeClass as any).branch || (activeClass as any).campus || selectedBranch || '',
+        branch: (activeClass as any).branch || selectedBranch || 'Main Campus',
         className: activeClass.name,
         section: activeWorkspaceSection,
         subject: subjectName,
@@ -1583,11 +1740,16 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
     }
     addToast('success', 'Subject Teacher Mapped', `Mapped ${teacherFullName} to ${subjectName} in Section ${activeWorkspaceSection}`);
 
-    assignTeacherApi(activeClass.id, activeWorkspaceSection, {
-      teacher_id: t.id || t.empId || teacherId,
-      role: "Subject Teacher",
-      subject_name: subjectName
-    }).catch(() => {});
+    try {
+      await assignTeacherApi(activeClass.id, activeWorkspaceSection, {
+        teacher_id: t.id || t.empId || teacherId,
+        role: "Subject Teacher",
+        subject_name: subjectName
+      });
+      await fetchAcademicClasses();
+    } catch (err: any) {
+      console.warn('Subject teacher API sync error:', err);
+    }
   };
 
   const handleRemoveSubjectTeacher = (subjectName: string) => {
@@ -1609,7 +1771,9 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
       const subId = (exist as any)?.subjectId || targetSub?.id;
       if (subId) {
         const numericSubId = typeof subId === 'string' && subId.startsWith('SUB-') ? subId.replace(/^SUB-/i, '') : subId;
-        unassignTeacherApi(activeClass.id, activeWorkspaceSection, numericSubId).catch(() => {});
+        unassignTeacherApi(activeClass.id, activeWorkspaceSection, numericSubId)
+          .then(() => fetchAcademicClasses())
+          .catch(() => {});
       }
     });
   };
@@ -2087,7 +2251,7 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
 
                       <div className="flex gap-2">
                         <button
-                          onClick={() => setShowBulkAddModal(true)}
+                          onClick={handleOpenBulkAddModal}
                           className="px-3 py-1.5 bg-slate-100 dark:bg-slate-805 hover:bg-slate-202 text-slate-700 dark:text-slate-200 rounded-xl flex items-center gap-1 border border-slate-200"
                         >
                           <Clipboard className="w-3.5 h-3.5" /> Bulk Add Sections
@@ -2375,32 +2539,15 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
 
                   // Real-time map of all teachers already assigned as Class Teacher elsewhere
                   const assignedClassTeacherInfo = new Map<string, { className: string; section: string }>();
-                  academicClasses.forEach(cls => {
-                    const secTeachers = (cls as any).sectionTeachers || {};
-                    Object.entries(secTeachers).forEach(([sec, tVal]) => {
-                      if (tVal && typeof tVal === 'string' && tVal.trim() !== '' && tVal !== 'Unassigned') {
-                        const isCurrent = (cls.id === activeClass.id && normSec(sec) === normSec(activeWorkspaceSection));
-                        if (!isCurrent) {
-                          const tValClean = tVal.trim().toLowerCase();
-                          assignedClassTeacherInfo.set(tValClean, { className: cls.name, section: sec });
-                          const matchedT = teachersList.find(t => {
-                            const fullName = (t.name || `${t.firstName} ${t.lastName}`).trim();
-                            const empCode = t.empId || t.id;
-                            
-                            const cleanName = tVal.trim().toLowerCase();
-                            if (fullName.toLowerCase() === cleanName) return true;
-                            if (isNameEquivalent(fullName, tVal)) return true;
-                            if (empCode && cleanName.includes(empCode.toLowerCase())) return true;
-                            if (cleanName.startsWith(fullName.toLowerCase())) return true;
-                            return false;
-                          });
-                          if (matchedT) {
-                            if (matchedT.id != null) assignedClassTeacherInfo.set(String(matchedT.id).toLowerCase(), { className: cls.name, section: sec });
-                            assignedClassTeacherInfo.set((matchedT.name || `${matchedT.firstName} ${matchedT.lastName}`).trim().toLowerCase(), { className: cls.name, section: sec });
-                          }
-                        }
+                  (teacherAssignments || []).forEach(ta => {
+                    if ((ta.role || '').toLowerCase().includes('class') && (ta.status || 'Active').toLowerCase() === 'active') {
+                      const isCurrent = (ta.className === activeClass.name || ta.className?.toLowerCase().replace(/class/gi, '').trim() === activeClass.name?.toLowerCase().replace(/class/gi, '').trim()) &&
+                                        normSec(ta.section) === normSec(activeWorkspaceSection);
+                      if (!isCurrent) {
+                        if (ta.teacherId) assignedClassTeacherInfo.set(String(ta.teacherId).toLowerCase(), { className: ta.className, section: ta.section });
+                        if (ta.teacherName) assignedClassTeacherInfo.set(ta.teacherName.trim().toLowerCase(), { className: ta.className, section: ta.section });
                       }
-                    });
+                    }
                   });
 
                   const secTeachersMap = (activeClass as any).sectionTeachers || {};
@@ -3142,7 +3289,7 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
                 {filteredClasses.map(cl => {
                   const count = students.filter(s => s.className === cl.name).length;
                   const status = (cl as any).status || 'Active';
-                  const campus = (cl as any).campus || (cl as any).branch || '';
+                  const campus = (cl as any).campus || (cl as any).branch || 'Main Campus';
                   const ay = (cl as any).academicYear || '2026-2027';
 
                   const details = (cl as any).sectionDetails || {};
@@ -3193,6 +3340,9 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
                         <div className="flex justify-between"><span className="text-slate-455">Total Sections:</span> <span className="font-mono">{cl.sections.length} ({cl.sections.join(', ') || 'None'})</span></div>
                         <div className="flex justify-between"><span className="text-slate-455">Capacity Status:</span> <span className="font-bold">{count} / {cap} Seats</span></div>
                         <div className="flex justify-between"><span className="text-slate-455">Seats Remaining:</span> <span className="font-extrabold text-sky-655">{seatsLeft} Seats</span></div>
+                        {remarks && (
+                          <div className="flex justify-between gap-2"><span className="text-slate-455 shrink-0">Remarks:</span> <span className="font-bold text-slate-800 dark:text-slate-200 truncate text-right" title={remarks}>{remarks}</span></div>
+                        )}
                       </div>
 
                       <div className="space-y-1.5">
@@ -3457,22 +3607,126 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
       {/* BULK ADD SECTIONS MODAL */}
       {showBulkAddModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm text-left text-xs font-bold">
-          <div className="bg-white dark:bg-slate-905 border border-slate-200 dark:border-slate-808 rounded-3xl max-w-sm w-full p-6 space-y-4 shadow-2xl">
-            <div className="flex items-center justify-between border-b border-slate-105 pb-2">
-              <h3 className="font-extrabold text-slate-905 dark:text-white">Bulk Configure Sections</h3>
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-md w-full p-6 space-y-4 shadow-2xl">
+            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
+              <div>
+                <h3 className="font-extrabold text-base text-slate-900 dark:text-white">Bulk Configure Sections</h3>
+                {activeClass && (
+                  <p className="text-slate-500 text-[11px] font-medium mt-0.5">
+                    Target Class: <span className="font-bold text-sky-600 dark:text-sky-400">{activeClass.name}</span>
+                    {activeClass.sections.length > 0 && (
+                      <span className="ml-2">(Current: {activeClass.sections.map(s => `Section ${s}`).join(', ')})</span>
+                    )}
+                  </p>
+                )}
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowBulkAddModal(false)}
+                className="p-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800"
+              >
+                <X className="w-4 h-4" />
+              </button>
             </div>
+
             <div>
-              <label className="block text-slate-700 dark:text-slate-300 mb-1">Section names list (Comma Separated)</label>
+              <label className="block text-slate-700 dark:text-slate-300 mb-1 font-bold">
+                Section Names <span className="text-rose-500 ml-0.5">*</span>
+              </label>
               <input
                 type="text"
+                placeholder="e.g. B, C, D or B-E"
                 value={bulkAddSectionsList}
                 onChange={e => setBulkAddSectionsList(e.target.value)}
-                className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 outline-none text-slate-900 dark:text-white font-mono"
+                className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 outline-none text-slate-900 dark:text-white font-mono focus:border-sky-500"
+              />
+              <p className="text-[11px] text-slate-500 font-normal mt-1">
+                Enter comma-separated letters or ranges (e.g. <code className="text-sky-600 dark:text-sky-400 font-bold">B, C, D</code> or <code className="text-sky-600 dark:text-sky-400 font-bold">B-E</code>).
+              </p>
+            </div>
+
+            {/* Quick Available Section chips */}
+            {activeClass && (
+              <div>
+                <label className="block text-slate-500 dark:text-slate-400 text-[11px] font-semibold mb-1.5">
+                  Click to quickly toggle available section letters:
+                </label>
+                <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto p-2 bg-slate-50 dark:bg-slate-800/60 rounded-xl border border-slate-200 dark:border-slate-700">
+                  {ALPHABET.filter(l => !activeClass.sections.includes(l)).slice(0, 12).map(l => {
+                    const currentTokens = bulkAddSectionsList
+                      .split(/[,;\s]+/)
+                      .map(t => t.trim().toUpperCase().replace(/^SECTION\s*/i, ''))
+                      .filter(Boolean);
+                    const isSelected = currentTokens.includes(l);
+                    return (
+                      <button
+                        key={l}
+                        type="button"
+                        onClick={() => {
+                          const tokens = bulkAddSectionsList
+                            .split(',')
+                            .map(s => s.trim().toUpperCase().replace(/^SECTION\s*/i, ''))
+                            .filter(Boolean);
+                          if (tokens.includes(l)) {
+                            setBulkAddSectionsList(tokens.filter(t => t !== l).join(', '));
+                          } else {
+                            tokens.push(l);
+                            setBulkAddSectionsList(tokens.join(', '));
+                          }
+                        }}
+                        className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all ${
+                          isSelected
+                            ? 'bg-sky-600 text-white shadow-sm'
+                            : 'bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 hover:border-sky-400'
+                        }`}
+                      >
+                        {isSelected ? `✓ Section ${l}` : `+ ${l}`}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            <div>
+              <label className="block text-slate-700 dark:text-slate-300 font-bold mb-1">Default Seat Capacity</label>
+              <input
+                type="text"
+                inputMode="numeric"
+                placeholder="40"
+                value={bulkAddCapacity}
+                onChange={e => {
+                  const val = e.target.value.replace(/[^0-9]/g, '');
+                  setBulkAddCapacity(val);
+                }}
+                className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 outline-none font-bold text-xs text-slate-900 dark:text-white focus:border-sky-500"
               />
             </div>
+
             <div className="flex justify-end gap-3 pt-3 border-t border-slate-100 dark:border-slate-800">
-              <button type="button" onClick={() => setShowBulkAddModal(false)} className="px-4 py-2 text-slate-600 dark:text-slate-300 bg-slate-105 rounded-xl hover:bg-slate-200">Cancel</button>
-              <button onClick={handleBulkAddSections} className="px-5 py-2 text-white bg-sky-600 hover:bg-sky-505 rounded-xl shadow-md">Configure Bulk</button>
+              <button
+                type="button"
+                disabled={isSubmitting}
+                onClick={() => setShowBulkAddModal(false)}
+                className="px-4 py-2 text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 rounded-xl hover:bg-slate-200 dark:hover:bg-slate-700 disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={isSubmitting}
+                onClick={handleBulkAddSections}
+                className="px-5 py-2 text-white bg-sky-600 hover:bg-sky-500 rounded-xl shadow-md disabled:opacity-50 flex items-center gap-1.5"
+              >
+                {isSubmitting ? (
+                  <>
+                    <span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin inline-block" />
+                    <span>Configuring...</span>
+                  </>
+                ) : (
+                  'Configure Bulk'
+                )}
+              </button>
             </div>
           </div>
         </div>

@@ -11,23 +11,23 @@ public class LibraryTimetableSlot
     public int SlotId { get; set; }
 
     [Required]
-    public string DayOfWeek { get; set; } = "Tuesday";
+    public string DayOfWeek { get; set; } = string.Empty;
 
     public int PeriodNumber { get; set; } = 1;
 
-    public string PeriodName { get; set; } = "PERIOD 1";
+    public string PeriodName { get; set; } = string.Empty;
 
-    public string StartTime { get; set; } = "08:30 AM";
+    public string StartTime { get; set; } = string.Empty;
 
-    public string EndTime { get; set; } = "09:15 AM";
+    public string EndTime { get; set; } = string.Empty;
 
     public string? ClassName { get; set; }
 
     public string? Section { get; set; }
 
-    public string Subject { get; set; } = "Library Free / Maintenance";
+    public string Subject { get; set; } = string.Empty;
 
-    public string AssignedLibrarian { get; set; } = "Bhanu Prakash";
+    public string AssignedLibrarian { get; set; } = string.Empty;
 
     public bool IsFreeSlot { get; set; } = true;
 }
