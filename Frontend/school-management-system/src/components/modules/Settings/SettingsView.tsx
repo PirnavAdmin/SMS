@@ -48,7 +48,7 @@ import {
 import { PrintableCertificateContainer } from "../Certificates/PrintableCertificateContainer";
 import { formatDateDDMMYYYY } from "../../../utils/dateValidation";
 import { resolveMediaUrl, DEFAULT_USER_AVATAR, createOptimizedAvatarDataUrl } from "../../../utils/mediaUtils";
-import { validateFullName, validateEmail, validate10DigitPhone, validatePhoneNumber, sanitizePhoneInput, sanitizeEmailInput, validateCampusName, validateCampusCode, formatTitleCase } from "../../../utils/validation";
+import { validateFullName, validateEmail, validate10DigitPhone, validatePhoneNumber, sanitizePhoneInput, sanitizeEmailInput, validateCampusName, validateCampusCode, validateCampusAddress, formatTitleCase } from "../../../utils/validation";
 import { SchoolLogoUploader } from "./SchoolLogoUploader";
 import { CertificateSettingsTab } from "./CertificateSettingsTab";
 import {
@@ -707,7 +707,7 @@ export const SettingsView: React.FC = () => {
   const [isCampusModalOpen, setIsCampusModalOpen] = useState(false);
   const [editingCampus, setEditingCampus] = useState<CampusItem | null>(null);
   const [deletingCampus, setDeletingCampus] = useState<CampusItem | null>(null);
-  const [campusErrors, setCampusErrors] = useState<{ name?: string; code?: string; phone?: string; email?: string; status?: string }>({});
+  const [campusErrors, setCampusErrors] = useState<{ name?: string; code?: string; address?: string; phone?: string; email?: string; status?: string }>({});
   const [schoolProfileErrors, setSchoolProfileErrors] = useState<{ name?: string; email?: string; principalName?: string }>({});
   const [isCodeManuallyEdited, setIsCodeManuallyEdited] = useState(false);
 
@@ -955,10 +955,10 @@ export const SettingsView: React.FC = () => {
 
   const handleSaveCampus = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!campusForm.name.trim() || !campusForm.code.trim()) return;
 
     const formattedName = formatTitleCase(campusForm.name.trim());
     const formattedCode = campusForm.code.trim().toUpperCase();
+    const formattedAddress = campusForm.address.trim();
 
     const campusNameRes = validateCampusName(formattedName, true);
     if (!campusNameRes.isValid) {
@@ -972,15 +972,15 @@ export const SettingsView: React.FC = () => {
       (c) => c.name.trim().toLowerCase() === formattedName.toLowerCase() && c.id !== editingCampus?.id
     );
     if (isDuplicateName) {
-      setCampusErrors((prev) => ({ ...prev, name: "A campus with this name already exists." }));
-      addToast("error", "Duplicate Campus Name", "A campus with this name already exists.");
+      setCampusErrors((prev) => ({ ...prev, name: "Campus name already exists." }));
+      addToast("error", "Duplicate Name", "Campus name already exists.");
       return;
     }
 
     const campusCodeRes = validateCampusCode(formattedCode, true);
     if (!campusCodeRes.isValid) {
       setCampusErrors((prev) => ({ ...prev, code: campusCodeRes.error }));
-      addToast("error", "Invalid Campus Code", campusCodeRes.error || "Campus code must be 2 to 10 characters.");
+      addToast("error", "Invalid Code", campusCodeRes.error || "Enter a valid campus code.");
       return;
     }
 
@@ -989,20 +989,28 @@ export const SettingsView: React.FC = () => {
       (c) => c.code.trim().toUpperCase() === formattedCode && c.id !== editingCampus?.id
     );
     if (isDuplicateCode) {
-      setCampusErrors((prev) => ({ ...prev, code: "A campus with this code already exists." }));
-      addToast("error", "Duplicate Campus Code", "A campus with this code already exists.");
+      setCampusErrors((prev) => ({ ...prev, code: "Campus code already exists." }));
+      addToast("error", "Duplicate Code", "Campus code already exists.");
+      return;
+    }
+
+    const campusAddressRes = validateCampusAddress(formattedAddress, true);
+    if (!campusAddressRes.isValid) {
+      setCampusErrors((prev) => ({ ...prev, address: campusAddressRes.error }));
+      addToast("error", "Invalid Address", campusAddressRes.error || "Address is required.");
       return;
     }
 
     if (!campusForm.status) {
-      setCampusErrors((prev) => ({ ...prev, status: "Please select a status." }));
-      addToast("error", "Status Required", "Please select a status (Active or Inactive).");
+      setCampusErrors((prev) => ({ ...prev, status: "Status is required." }));
+      addToast("error", "Status Required", "Select a status.");
       return;
     }
 
     if (campusForm.phone) {
       const phoneRes = validatePhoneNumber(campusForm.phone, false);
       if (!phoneRes.isValid) {
+        setCampusErrors((prev) => ({ ...prev, phone: phoneRes.error }));
         addToast("error", "Invalid Phone Number", phoneRes.error || "Phone number must be exactly 10 digits.");
         return;
       }
@@ -1022,6 +1030,7 @@ export const SettingsView: React.FC = () => {
       ...campusForm,
       name: formattedName,
       code: formattedCode,
+      address: formattedAddress,
       status: validStatus,
     };
 
@@ -2077,15 +2086,21 @@ export const SettingsView: React.FC = () => {
                 <div className="space-y-1.5 text-xs text-slate-500">
                   <div className="flex items-start gap-1.5">
                     <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0 mt-0.5" />
-                    <span>{campus.address}</span>
+                    <span className={campus.address?.trim() ? "" : "italic text-slate-400"}>
+                      {campus.address?.trim() || "Address not specified"}
+                    </span>
                   </div>
                   <div className="flex items-center gap-1.5">
                     <Phone className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                    <span>{campus.phone}</span>
+                    <span className={campus.phone?.trim() ? "" : "italic text-slate-400"}>
+                      {campus.phone?.trim() || "Not provided"}
+                    </span>
                   </div>
                   <div className="flex items-center gap-1.5">
                     <Mail className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                    <span>{campus.email}</span>
+                    <span className={campus.email?.trim() ? "" : "italic text-slate-400"}>
+                      {campus.email?.trim() || "Not provided"}
+                    </span>
                   </div>
                 </div>
 
@@ -2888,7 +2903,7 @@ export const SettingsView: React.FC = () => {
                       );
                       setCampusErrors((prev) => ({
                         ...prev,
-                        name: isDup ? "A campus with this name already exists." : res.error,
+                        name: isDup ? "Campus name already exists." : res.error,
                       }));
                     } else if (campusErrors.name) {
                       setCampusErrors((prev) => ({ ...prev, name: undefined }));
@@ -2906,7 +2921,7 @@ export const SettingsView: React.FC = () => {
                       );
                       setCampusErrors((prev) => ({
                         ...prev,
-                        name: isDup ? "A campus with this name already exists." : res.error,
+                        name: isDup ? "Campus name already exists." : res.error,
                       }));
                     }
                   }}
@@ -2947,7 +2962,7 @@ export const SettingsView: React.FC = () => {
                     );
                     setCampusErrors((prev) => ({
                       ...prev,
-                      code: isDup ? "A campus with this code already exists." : (val ? res.error : undefined),
+                      code: isDup ? "Campus code already exists." : (val ? res.error : undefined),
                     }));
                   }}
                   className={`w-full px-3 py-2 rounded-xl border font-mono font-bold transition ${
@@ -2965,18 +2980,42 @@ export const SettingsView: React.FC = () => {
 
               <div>
                 <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
-                  Address
+                  Address{" "}
+                  <span className="text-rose-500 font-bold ml-0.5">*</span>
                 </label>
                 <input
                   type="text"
+                  required
                   maxLength={150}
                   placeholder="Full street address..."
                   value={campusForm.address}
-                  onChange={(e) =>
-                    setCampusForm({ ...campusForm, address: e.target.value })
-                  }
-                  className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border"
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setCampusForm((prev) => ({ ...prev, address: val }));
+                    if (val.trim()) {
+                      const res = validateCampusAddress(val, true);
+                      setCampusErrors((prev) => ({ ...prev, address: res.error }));
+                    } else {
+                      setCampusErrors((prev) => ({ ...prev, address: "Address is required." }));
+                    }
+                  }}
+                  onBlur={() => {
+                    const trimmed = campusForm.address.trim();
+                    setCampusForm((prev) => ({ ...prev, address: trimmed }));
+                    const res = validateCampusAddress(trimmed, true);
+                    setCampusErrors((prev) => ({ ...prev, address: res.error }));
+                  }}
+                  className={`w-full px-3 py-2 rounded-xl border transition ${
+                    campusErrors.address
+                      ? "border-rose-500 focus:border-rose-500 focus:ring-rose-500/20 bg-rose-50/20"
+                      : "bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700"
+                  }`}
                 />
+                {campusErrors.address && (
+                  <p className="mt-1 text-xs font-bold text-rose-500 flex items-center gap-1">
+                    <span>⚠️</span> {campusErrors.address}
+                  </p>
+                )}
               </div>
 
               <div className="grid grid-cols-2 gap-3">

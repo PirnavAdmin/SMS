@@ -27,7 +27,8 @@ import {
   Sparkles,
   FileCheck,
   Upload,
-  Image as ImageIcon
+  Image as ImageIcon,
+  X
 } from 'lucide-react';
 import { useData } from '../../../../context/DataContext';
 import { useToast } from '../../../../context/ToastContext';
@@ -42,6 +43,7 @@ import {
   syncStaffLettersWithStaffList,
   generateSeedStaffLetters
 } from '../../../../utils/staffLetterTemplates';
+import { validateSearchQuery } from '../../../../utils/validation';
 import {
   fetchStaffLettersApi,
   deleteStaffLetterApi,
@@ -85,6 +87,7 @@ export const StaffLettersManagementView: React.FC<StaffLettersManagementViewProp
     return getStoredStaffLetters(staff, schoolProfile);
   });
   const [searchQuery, setSearchQuery] = useState('');
+  const [searchError, setSearchError] = useState<string | undefined>(undefined);
   const [typeFilter, setTypeFilter] = useState<string>('all');
   const [branchFilter, setBranchFilter] = useState<string>('all');
   const [currentPage, setCurrentPage] = useState(1);
@@ -296,6 +299,7 @@ export const StaffLettersManagementView: React.FC<StaffLettersManagementViewProp
   };
 
   const filteredLetters = useMemo(() => {
+    if (searchError) return [];
     return letters.filter((l) => {
       const q = searchQuery.toLowerCase().trim();
       const matchQuery =
@@ -310,7 +314,7 @@ export const StaffLettersManagementView: React.FC<StaffLettersManagementViewProp
 
       return matchQuery && matchType && matchBranch;
     });
-  }, [letters, searchQuery, typeFilter, branchFilter]);
+  }, [letters, searchQuery, searchError, typeFilter, branchFilter]);
 
   // Reset to page 1 whenever filter or query changes
   useEffect(() => {
@@ -449,16 +453,51 @@ export const StaffLettersManagementView: React.FC<StaffLettersManagementViewProp
       {activeTab === 'registry' && (
         <div className="space-y-3">
           {/* Filter and Search Toolbar */}
-          <div className="bg-white dark:bg-slate-900 rounded-2xl px-3.5 py-2 shadow-xs border border-sky-300 dark:border-sky-800 flex flex-col sm:flex-row items-center justify-between gap-2.5">
-            <div className="relative w-full sm:w-80">
-              <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-              <input
-                type="text"
-                placeholder="Search by staff name, ID, ref no..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-9 pr-4 py-1.5 text-xs rounded-xl bg-slate-50 dark:bg-slate-800 border border-sky-200 dark:border-sky-800 text-slate-900 dark:text-white outline-none focus:ring-1 focus:ring-sky-500"
-              />
+          <div className="bg-white dark:bg-slate-900 rounded-2xl px-3.5 py-2 shadow-xs border border-sky-300 dark:border-sky-800 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5">
+            <div className="w-full sm:w-80">
+              <div className="relative w-full">
+                <Search className={`w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 ${searchError ? 'text-rose-500' : 'text-slate-400'}`} />
+                <input
+                  type="text"
+                  maxLength={50}
+                  placeholder="Search by staff name, ID, ref no..."
+                  value={searchQuery}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setSearchQuery(val);
+                    if (!val) {
+                      setSearchError(undefined);
+                    } else {
+                      const validation = validateSearchQuery(val);
+                      setSearchError(validation.isValid ? undefined : validation.error);
+                    }
+                  }}
+                  className={`w-full pl-9 pr-8 py-1.5 text-xs rounded-xl bg-slate-50 dark:bg-slate-800 border text-slate-900 dark:text-white outline-none transition ${
+                    searchError
+                      ? 'border-rose-500 dark:border-rose-500 focus:ring-1 focus:ring-rose-500 bg-rose-50/30 dark:bg-rose-950/20'
+                      : 'border-sky-200 dark:border-sky-800 focus:ring-1 focus:ring-sky-500'
+                  }`}
+                />
+                {searchQuery && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSearchQuery('');
+                      setSearchError(undefined);
+                    }}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer"
+                    title="Clear search"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </div>
+              {searchError && (
+                <p className="mt-1 text-[11px] font-bold text-rose-500 flex items-center gap-1">
+                  <AlertCircle className="w-3 h-3 shrink-0" />
+                  <span>{searchError}</span>
+                </p>
+              )}
             </div>
 
             <div className="flex flex-wrap items-center gap-2.5 w-full sm:w-auto">
@@ -491,24 +530,74 @@ export const StaffLettersManagementView: React.FC<StaffLettersManagementViewProp
           {/* Letters Table */}
           <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-sm border border-sky-300 dark:border-sky-800 overflow-hidden">
             {filteredLetters.length === 0 ? (
-              <div className="p-12 text-center space-y-3">
-                <div className="w-16 h-16 rounded-full bg-sky-50 dark:bg-sky-950/60 text-sky-600 mx-auto flex items-center justify-center">
-                  <FileText className="w-8 h-8" />
+              searchError ? (
+                <div className="p-12 text-center space-y-2.5">
+                  <div className="w-14 h-14 rounded-full bg-rose-50 dark:bg-rose-950/60 text-rose-500 mx-auto flex items-center justify-center">
+                    <AlertCircle className="w-7 h-7" />
+                  </div>
+                  <h3 className="text-sm font-black text-slate-800 dark:text-white">Invalid Search</h3>
+                  <p className="text-xs text-rose-500 font-semibold">
+                    {searchError}
+                  </p>
+                  <div className="pt-1">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSearchQuery('');
+                        setSearchError(undefined);
+                      }}
+                      className="px-4 py-1.5 bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold rounded-xl inline-flex items-center gap-1.5 cursor-pointer shadow-sm"
+                    >
+                      <RefreshCw className="w-3.5 h-3.5" />
+                      Clear
+                    </button>
+                  </div>
                 </div>
-                <h3 className="text-base font-black text-slate-800 dark:text-white">No Institutional Letters Issued Yet</h3>
-                <p className="text-xs text-slate-500 max-w-md mx-auto">
-                  Click below to generate an official appointment Offer Letter or Relieving Certificate, or auto-populate offer letters for all registered school staff.
-                </p>
-                <div className="flex flex-wrap items-center justify-center gap-2.5 pt-2">
-                  <button
-                    onClick={() => handleOpenGenerator('offer')}
-                    className="px-4 py-2 bg-sky-600 hover:bg-sky-500 text-white text-xs font-bold rounded-xl inline-flex items-center gap-2 cursor-pointer shadow-md"
-                  >
-                    <Plus className="w-4 h-4" />
-                    Generate Custom Letter
-                  </button>
+              ) : letters.length > 0 || searchQuery.trim() || typeFilter !== 'all' || branchFilter !== 'all' ? (
+                <div className="p-12 text-center space-y-2.5">
+                  <div className="w-14 h-14 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 mx-auto flex items-center justify-center">
+                    <Search className="w-7 h-7" />
+                  </div>
+                  <h3 className="text-sm font-black text-slate-800 dark:text-white">No Matching Letters</h3>
+                  <p className="text-xs text-slate-500">
+                    No records found.
+                  </p>
+                  <div className="pt-1">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSearchQuery('');
+                        setSearchError(undefined);
+                        setTypeFilter('all');
+                        setBranchFilter('all');
+                      }}
+                      className="px-4 py-1.5 bg-sky-600 hover:bg-sky-500 text-white text-xs font-bold rounded-xl inline-flex items-center gap-1.5 cursor-pointer shadow-sm"
+                    >
+                      <RefreshCw className="w-3.5 h-3.5" />
+                      Reset Filters
+                    </button>
+                  </div>
                 </div>
-              </div>
+              ) : (
+                <div className="p-12 text-center space-y-3">
+                  <div className="w-16 h-16 rounded-full bg-sky-50 dark:bg-sky-950/60 text-sky-600 mx-auto flex items-center justify-center">
+                    <FileText className="w-8 h-8" />
+                  </div>
+                  <h3 className="text-base font-black text-slate-800 dark:text-white">No Institutional Letters Issued Yet</h3>
+                  <p className="text-xs text-slate-500 max-w-md mx-auto">
+                    Click below to generate an official appointment Offer Letter or Relieving Certificate, or auto-populate offer letters for all registered school staff.
+                  </p>
+                  <div className="flex flex-wrap items-center justify-center gap-2.5 pt-2">
+                    <button
+                      onClick={() => handleOpenGenerator('offer')}
+                      className="px-4 py-2 bg-sky-600 hover:bg-sky-500 text-white text-xs font-bold rounded-xl inline-flex items-center gap-2 cursor-pointer shadow-md"
+                    >
+                      <Plus className="w-4 h-4" />
+                      Generate Custom Letter
+                    </button>
+                  </div>
+                </div>
+              )
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full text-xs">

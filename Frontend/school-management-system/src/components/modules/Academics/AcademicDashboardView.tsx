@@ -107,7 +107,7 @@ export const AcademicDashboardView: React.FC<AcademicDashboardViewProps> = ({
   };
 
   return (
-    <div className="space-y-6 animate-in fade-in pb-12 text-slate-900 dark:text-slate-101 text-left">
+    <div className="space-y-6 animate-in fade-in pb-12 text-slate-900 dark:text-slate-100 text-left">
       
       {/* Header Cockpit Card - Vertically Compact */}
       <div className="glass-card py-3 px-5 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs">
@@ -202,7 +202,7 @@ export const AcademicDashboardView: React.FC<AcademicDashboardViewProps> = ({
                   <th className="py-3 px-4 text-right">Action</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-semibold text-slate-700 dark:text-slate-350">
+              <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-semibold text-slate-700 dark:text-slate-300">
                 {classSummaryList.map(item => (
                   <tr key={item.class.id} className="hover:bg-slate-50/40 dark:hover:bg-slate-800/20 transition-colors">
                     <td className="py-3 px-4 font-extrabold text-slate-900 dark:text-white">{item.class.name}</td>
@@ -216,9 +216,9 @@ export const AcademicDashboardView: React.FC<AcademicDashboardViewProps> = ({
                     <td className="py-3 px-4 text-right">
                       <button 
                         onClick={() => handleOpenClass(item.class.id, 'overview')}
-                        className="px-3 py-1 bg-slate-50 hover:bg-brand-600 hover:text-white dark:bg-slate-850 dark:hover:bg-brand-600 text-slate-700 dark:text-slate-300 dark:hover:text-white font-extrabold text-[10px] rounded-lg transition-all inline-flex items-center gap-1 shadow-2xs border border-slate-200 dark:border-slate-700"
+                        className="px-3 py-1.5 bg-slate-100 hover:bg-brand-600 text-slate-800 hover:text-white dark:bg-slate-800 dark:hover:bg-brand-600 dark:text-white dark:hover:text-white font-extrabold text-xs rounded-lg transition-all inline-flex items-center gap-1.5 shadow-2xs border border-slate-300 dark:border-slate-700 cursor-pointer"
                       >
-                        {item.status === 'Draft' ? 'Continue' : 'Open'} <ArrowRight className="w-3.5 h-3.5" />
+                        {item.status === 'Draft' ? 'Continue' : 'Open'} <ArrowRight className="w-3.5 h-3.5 stroke-[2.5]" />
                       </button>
                     </td>
                   </tr>
