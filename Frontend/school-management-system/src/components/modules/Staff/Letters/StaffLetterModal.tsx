@@ -70,8 +70,8 @@ export const StaffLetterModal: React.FC<StaffLetterModalProps> = ({
   const [staffCategoryFilter, setStaffCategoryFilter] = useState<'all' | 'teaching' | 'non-teaching'>('all');
   const [staffSearchQuery, setStaffSearchQuery] = useState<string>('');
   const [staffSearchError, setStaffSearchError] = useState<string | undefined>(undefined);
-  const [isStaffDropdownOpen, setIsStaffDropdownOpen] = useState(false);
-  const staffDropdownRef = useRef<HTMLDivElement>(null);
+  const [isEmployeeDropdownOpen, setIsEmployeeDropdownOpen] = useState(false);
+  const employeeDropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (staff) {
@@ -83,8 +83,8 @@ export const StaffLetterModal: React.FC<StaffLetterModalProps> = ({
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (staffDropdownRef.current && !staffDropdownRef.current.contains(event.target as Node)) {
-        setIsStaffDropdownOpen(false);
+      if (employeeDropdownRef.current && !employeeDropdownRef.current.contains(event.target as Node)) {
+        setIsEmployeeDropdownOpen(false);
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
@@ -204,6 +204,15 @@ export const StaffLetterModal: React.FC<StaffLetterModalProps> = ({
     );
     if (found) {
       setCurrentStaff(found);
+
+      // Keep category filter aligned with selected staff member
+      const isFoundTeaching = isTeaching(found);
+      if (staffCategoryFilter === 'teaching' && !isFoundTeaching) {
+        setStaffCategoryFilter('non-teaching');
+      } else if (staffCategoryFilter === 'non-teaching' && isFoundTeaching) {
+        setStaffCategoryFilter('teaching');
+      }
+
       const globalSig = getGlobalSignature();
       const pl = getDefaultLetterPayload(activeType, found, schoolProfile);
       if (payload.signatureImageUrl) {
@@ -212,6 +221,28 @@ export const StaffLetterModal: React.FC<StaffLetterModalProps> = ({
         pl.signatureImageUrl = globalSig;
       }
       setPayload(pl);
+    }
+  };
+
+  const handleCategoryFilterChange = (newCat: 'all' | 'teaching' | 'non-teaching') => {
+    setStaffCategoryFilter(newCat);
+    if (currentStaff) {
+      const isCurrentTeaching = isTeaching(currentStaff);
+      const matchesCategory =
+        newCat === 'all' ||
+        (newCat === 'teaching' && isCurrentTeaching) ||
+        (newCat === 'non-teaching' && !isCurrentTeaching);
+
+      if (!matchesCategory) {
+        const firstInCat = effectiveStaffList.find((s) => {
+          if (newCat === 'teaching') return isTeaching(s);
+          if (newCat === 'non-teaching') return !isTeaching(s);
+          return true;
+        });
+        if (firstInCat) {
+          handleStaffSelect(firstInCat.id || firstInCat.empId || '');
+        }
+      }
     }
   };
 
@@ -337,150 +368,13 @@ export const StaffLetterModal: React.FC<StaffLetterModalProps> = ({
                 </span>
               </h2>
 
-              {isViewMode ? (
+              {isViewMode && (
                 <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400 font-semibold">
                   <span className="hidden sm:inline">•</span>
                   <span className="text-slate-800 dark:text-slate-200 font-bold">{payload.candidateName}</span>
                   <span className="hidden sm:inline">•</span>
                   <span className="font-mono text-slate-700 dark:text-slate-300 font-bold">{payload.refNo}</span>
                 </div>
-              ) : (
-                /* Searchable Staff Dropdown Trigger */
-                effectiveStaffList.length > 0 && (
-                  <div className="relative" ref={staffDropdownRef}>
-                    <button
-                      type="button"
-                      onClick={() => setIsStaffDropdownOpen(!isStaffDropdownOpen)}
-                      className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200/80 dark:bg-slate-800 dark:hover:bg-slate-750 border border-slate-300 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white transition-all cursor-pointer shadow-2xs"
-                    >
-                      <User className="w-3.5 h-3.5 text-sky-600 dark:text-sky-400 shrink-0" />
-                      <span className="max-w-[180px] sm:max-w-[220px] truncate">
-                        {currentStaff?.firstName ? `${currentStaff.firstName} ${currentStaff.lastName || ''} (${currentStaff.empId || currentStaff.id})` : 'Select Staff Member'}
-                      </span>
-                      <ChevronDown className={`w-3.5 h-3.5 text-slate-400 transition-transform shrink-0 ${isStaffDropdownOpen ? 'rotate-180' : ''}`} />
-                    </button>
-
-                    {/* Dropdown Menu Popover with Category Filter + Search inside */}
-                    {isStaffDropdownOpen && (
-                      <div className="absolute left-0 top-full mt-1.5 w-72 sm:w-80 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-2xl z-50 p-2.5 space-y-2 animate-in fade-in zoom-in-95 duration-150">
-                        {/* Category Filter Pills */}
-                        <div className="flex items-center bg-slate-100 dark:bg-slate-800 p-0.5 rounded-lg border border-slate-200 dark:border-slate-700 text-[10.5px] font-bold">
-                          <button
-                            type="button"
-                            onClick={() => setStaffCategoryFilter('all')}
-                            className={`flex-1 py-1 rounded-md transition-all text-center cursor-pointer ${
-                              staffCategoryFilter === 'all'
-                                ? 'bg-white dark:bg-slate-900 text-sky-600 dark:text-sky-400 font-black shadow-2xs'
-                                : 'text-slate-500 hover:text-slate-900 dark:hover:text-slate-200'
-                            }`}
-                          >
-                            All ({effectiveStaffList.length})
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setStaffCategoryFilter('teaching')}
-                            className={`flex-1 py-1 rounded-md transition-all text-center cursor-pointer ${
-                              staffCategoryFilter === 'teaching'
-                                ? 'bg-white dark:bg-slate-900 text-sky-600 dark:text-sky-400 font-black shadow-2xs'
-                                : 'text-slate-500 hover:text-slate-900 dark:hover:text-slate-200'
-                            }`}
-                          >
-                            Teaching
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setStaffCategoryFilter('non-teaching')}
-                            className={`flex-1 py-1 rounded-md transition-all text-center cursor-pointer ${
-                              staffCategoryFilter === 'non-teaching'
-                                ? 'bg-white dark:bg-slate-900 text-sky-600 dark:text-sky-400 font-black shadow-2xs'
-                                : 'text-slate-500 hover:text-slate-900 dark:hover:text-slate-200'
-                            }`}
-                          >
-                            Non-Teaching
-                          </button>
-                        </div>
-
-                        {/* Search input inside dropdown */}
-                        <div>
-                          <div className="relative">
-                            <Search className={`w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none ${staffSearchError ? 'text-rose-500' : 'text-slate-400'}`} />
-                            <input
-                              type="text"
-                              maxLength={50}
-                              placeholder="Search name or ID..."
-                              value={staffSearchQuery}
-                              onChange={(e) => {
-                                const val = e.target.value;
-                                setStaffSearchQuery(val);
-                                if (!val) {
-                                  setStaffSearchError(undefined);
-                                } else {
-                                  const validation = validateSearchQuery(val);
-                                  setStaffSearchError(validation.isValid ? undefined : validation.error);
-                                }
-                              }}
-                              autoFocus
-                              className={`w-full pl-8 pr-7 py-1.5 text-xs font-semibold rounded-lg bg-slate-50 dark:bg-slate-800 border text-slate-900 dark:text-white outline-none transition placeholder:text-slate-400 ${
-                                staffSearchError
-                                  ? 'border-rose-500 dark:border-rose-500 focus:ring-1 focus:ring-rose-500 bg-rose-50/30 dark:bg-rose-950/20'
-                                  : 'border-slate-200 dark:border-slate-700 focus:ring-1 focus:ring-sky-500'
-                              }`}
-                            />
-                            {staffSearchQuery && (
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setStaffSearchQuery('');
-                                  setStaffSearchError(undefined);
-                                }}
-                                className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer"
-                              >
-                                <X className="w-3.5 h-3.5" />
-                              </button>
-                            )}
-                          </div>
-                          {staffSearchError && (
-                            <p className="mt-1 text-[10.5px] font-bold text-rose-500 flex items-center gap-1">
-                              <AlertCircle className="w-3 h-3 shrink-0" />
-                              <span>{staffSearchError}</span>
-                            </p>
-                          )}
-                        </div>
-
-                        {/* Staff List */}
-                        <div className="max-h-56 overflow-y-auto no-scrollbar space-y-0.5">
-                          {filteredStaffList.length === 0 ? (
-                            <div className="p-3 text-center text-xs text-slate-400 font-medium">
-                              {staffSearchError ? 'Please enter a valid search term' : 'No matching staff found'}
-                            </div>
-                          ) : (
-                            filteredStaffList.map((s) => {
-                              const isSelected = String(currentStaff?.id) === String(s.id) || String(currentStaff?.empId) === String(s.empId);
-                              return (
-                                <button
-                                  key={s.id || s.empId}
-                                  type="button"
-                                  onClick={() => {
-                                    handleStaffSelect(s.id || s.empId || '');
-                                    setIsStaffDropdownOpen(false);
-                                  }}
-                                  className={`w-full text-left px-3 py-2 rounded-xl text-xs font-bold transition-all flex items-center justify-between cursor-pointer ${
-                                    isSelected
-                                      ? 'bg-sky-50 dark:bg-sky-950/60 text-sky-700 dark:text-sky-300 font-black'
-                                      : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
-                                  }`}
-                                >
-                                  <span>{s.firstName} {s.lastName} ({s.empId || s.id})</span>
-                                  {isSelected && <Check className="w-3.5 h-3.5 text-sky-600 shrink-0" />}
-                                </button>
-                              );
-                            })
-                          )}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                )
               )}
             </div>
           </div>
@@ -589,79 +483,185 @@ export const StaffLetterModal: React.FC<StaffLetterModalProps> = ({
               {/* Target Employee Switcher */}
               {!readOnly && !existingRecord && effectiveStaffList.length > 0 && (
                 <div className="bg-white dark:bg-slate-850 p-4 rounded-2xl border border-sky-200/80 dark:border-slate-800 shadow-xs space-y-3">
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-center justify-between flex-wrap gap-2">
                     <h3 className="text-xs font-black text-slate-900 dark:text-white flex items-center gap-2">
                       <User className="w-4 h-4 text-sky-600" /> Target Employee Selection
                     </h3>
                     <span className="text-[10px] text-slate-400 font-bold">Auto-fills employee records & salary</span>
                   </div>
 
-                  <div className="flex flex-wrap items-center gap-2">
-                    {/* Category Filter Pills */}
-                    <div className="flex items-center bg-slate-100 dark:bg-slate-800 p-0.5 rounded-lg border border-slate-200 dark:border-slate-700 text-xs font-bold">
-                      <button
-                        type="button"
-                        onClick={() => setStaffCategoryFilter('all')}
-                        className={`px-2.5 py-1 rounded-md transition-all cursor-pointer ${
-                          staffCategoryFilter === 'all'
-                            ? 'bg-white dark:bg-slate-900 text-sky-600 dark:text-sky-400 font-black shadow-2xs'
-                            : 'text-slate-500 hover:text-slate-900 dark:hover:text-slate-200'
-                        }`}
-                      >
-                        All Staff ({effectiveStaffList.length})
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setStaffCategoryFilter('teaching')}
-                        className={`px-2.5 py-1 rounded-md transition-all cursor-pointer ${
-                          staffCategoryFilter === 'teaching'
-                            ? 'bg-white dark:bg-slate-900 text-sky-600 dark:text-sky-400 font-black shadow-2xs'
-                            : 'text-slate-500 hover:text-slate-900 dark:hover:text-slate-200'
-                        }`}
-                      >
-                        Teaching Staff
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setStaffCategoryFilter('non-teaching')}
-                        className={`px-2.5 py-1 rounded-md transition-all cursor-pointer ${
-                          staffCategoryFilter === 'non-teaching'
-                            ? 'bg-white dark:bg-slate-900 text-sky-600 dark:text-sky-400 font-black shadow-2xs'
-                            : 'text-slate-500 hover:text-slate-900 dark:hover:text-slate-200'
-                        }`}
-                      >
-                        Non-Teaching Staff
-                      </button>
-                    </div>
-
-                    {/* Search Input */}
-                    <div className="relative flex-1 min-w-[200px]">
-                      <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
-                      <input
-                        type="text"
-                        placeholder="Search by name or employee ID..."
-                        value={staffSearchQuery}
-                        onChange={(e) => setStaffSearchQuery(e.target.value)}
-                        className="w-full pl-8 pr-3 py-1.5 text-xs font-medium rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none focus:ring-1 focus:ring-sky-500 placeholder:text-slate-400"
-                      />
-                    </div>
-                  </div>
-
-                  <div>
-                    <select
-                      value={currentStaff?.id || currentStaff?.empId || ''}
-                      onChange={(e) => handleStaffSelect(e.target.value)}
-                      className="w-full px-3 py-2 text-xs font-bold rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none focus:ring-1 focus:ring-sky-500 cursor-pointer"
+                  {/* Single Searchable Dropdown */}
+                  <div className="relative w-full" ref={employeeDropdownRef}>
+                    <button
+                      type="button"
+                      onClick={() => setIsEmployeeDropdownOpen(!isEmployeeDropdownOpen)}
+                      className={`w-full flex items-center justify-between px-4 py-2.5 rounded-xl bg-white dark:bg-slate-900 border text-xs font-bold transition-all cursor-pointer shadow-2xs ${
+                        isEmployeeDropdownOpen
+                          ? 'border-sky-500 ring-2 ring-sky-500/20'
+                          : 'border-slate-300 dark:border-slate-700 hover:border-slate-400 dark:hover:border-slate-600'
+                      }`}
                     >
-                      {filteredStaffList.map((s) => (
-                        <option key={s.id || s.empId} value={s.id || s.empId}>
-                          {s.firstName} {s.lastName} ({s.empId || s.id})
-                        </option>
-                      ))}
-                      {filteredStaffList.length === 0 && (
-                        <option value="" disabled>No staff matches the filter criteria</option>
-                      )}
-                    </select>
+                      <div className="flex items-center gap-2.5 truncate min-w-0">
+                        <div className="w-7 h-7 rounded-lg bg-sky-50 dark:bg-sky-950/60 border border-sky-200 dark:border-sky-800/60 flex items-center justify-center text-sky-600 dark:text-sky-400 font-black text-xs shrink-0">
+                          {currentStaff?.firstName ? currentStaff.firstName.charAt(0).toUpperCase() : 'U'}
+                        </div>
+                        <div className="flex items-center gap-2 truncate">
+                          <span className="text-slate-900 dark:text-white font-black truncate">
+                            {currentStaff?.firstName ? `${currentStaff.firstName} ${currentStaff.lastName || ''}`.trim() : 'Select Staff Member'}
+                          </span>
+                          <span className="font-mono text-[11px] font-bold text-sky-600 dark:text-sky-400 bg-sky-50 dark:bg-sky-950/60 px-1.5 py-0.5 rounded border border-sky-200/60 dark:border-sky-800/60 shrink-0">
+                            {currentStaff?.empId || currentStaff?.id || 'ID'}
+                          </span>
+                          <span className="text-[11px] text-slate-400 font-normal truncate hidden sm:inline">
+                            • {currentStaff?.designation || currentStaff?.role || (isTeaching(currentStaff) ? 'Teaching Staff' : 'Non-Teaching Staff')}
+                          </span>
+                        </div>
+                      </div>
+                      <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform shrink-0 ml-2 ${isEmployeeDropdownOpen ? 'rotate-180 text-sky-600' : ''}`} />
+                    </button>
+
+                    {/* Searchable Dropdown Popover */}
+                    {isEmployeeDropdownOpen && (
+                      <div className="absolute left-0 top-full mt-2 w-full bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-2xl z-50 p-3 space-y-2.5 animate-in fade-in zoom-in-95 duration-150">
+                        {/* Category Filter Pills */}
+                        <div className="flex items-center bg-slate-100 dark:bg-slate-800 p-0.5 rounded-lg border border-slate-200 dark:border-slate-700 text-xs font-bold">
+                          <button
+                            type="button"
+                            onClick={() => handleCategoryFilterChange('all')}
+                            className={`flex-1 py-1.5 rounded-md transition-all text-center cursor-pointer ${
+                              staffCategoryFilter === 'all'
+                                ? 'bg-white dark:bg-slate-900 text-sky-600 dark:text-sky-400 font-black shadow-2xs'
+                                : 'text-slate-500 hover:text-slate-900 dark:hover:text-slate-200'
+                            }`}
+                          >
+                            All Staff ({effectiveStaffList.length})
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleCategoryFilterChange('teaching')}
+                            className={`flex-1 py-1.5 rounded-md transition-all text-center cursor-pointer ${
+                              staffCategoryFilter === 'teaching'
+                                ? 'bg-white dark:bg-slate-900 text-sky-600 dark:text-sky-400 font-black shadow-2xs'
+                                : 'text-slate-500 hover:text-slate-900 dark:hover:text-slate-200'
+                            }`}
+                          >
+                            Teaching Staff
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleCategoryFilterChange('non-teaching')}
+                            className={`flex-1 py-1.5 rounded-md transition-all text-center cursor-pointer ${
+                              staffCategoryFilter === 'non-teaching'
+                                ? 'bg-white dark:bg-slate-900 text-sky-600 dark:text-sky-400 font-black shadow-2xs'
+                                : 'text-slate-500 hover:text-slate-900 dark:hover:text-slate-200'
+                            }`}
+                          >
+                            Non-Teaching Staff
+                          </button>
+                        </div>
+
+                        {/* Search Input inside Dropdown */}
+                        <div>
+                          <div className="relative flex items-center">
+                            <Search className={`w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none transition-colors ${
+                              staffSearchError ? 'text-rose-500' : 'text-slate-400 dark:text-slate-500'
+                            }`} />
+                            <input
+                              type="text"
+                              maxLength={50}
+                              autoFocus
+                              placeholder="Search by name, employee ID, role..."
+                              value={staffSearchQuery}
+                              onChange={(e) => {
+                                const val = e.target.value;
+                                setStaffSearchQuery(val);
+                                if (!val) {
+                                  setStaffSearchError(undefined);
+                                } else {
+                                  const validation = validateSearchQuery(val);
+                                  setStaffSearchError(validation.isValid ? undefined : validation.error);
+                                }
+                              }}
+                              className={`w-full pl-9 pr-8 py-2 text-xs font-semibold rounded-xl bg-slate-50 dark:bg-slate-800 border transition-all text-slate-900 dark:text-white outline-none placeholder:text-slate-400 ${
+                                staffSearchError
+                                  ? 'border-rose-500 focus:ring-2 focus:ring-rose-500/20 bg-rose-50/20 dark:bg-rose-950/20'
+                                  : 'border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600 focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20'
+                              }`}
+                            />
+                            {staffSearchQuery && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setStaffSearchQuery('');
+                                  setStaffSearchError(undefined);
+                                }}
+                                className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded-md hover:bg-slate-200/60 dark:hover:bg-slate-700/60 transition-colors cursor-pointer"
+                                title="Clear search"
+                              >
+                                <X className="w-3.5 h-3.5" />
+                              </button>
+                            )}
+                          </div>
+                          {staffSearchError && (
+                            <p className="mt-1.5 text-[11px] font-bold text-rose-500 flex items-center gap-1 animate-in fade-in">
+                              <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                              <span>{staffSearchError}</span>
+                            </p>
+                          )}
+                        </div>
+
+                        {/* Staff List */}
+                        <div className="max-h-60 overflow-y-auto no-scrollbar space-y-1">
+                          {filteredStaffList.length === 0 ? (
+                            <div className="p-4 text-center text-xs text-slate-400 font-medium">
+                              {staffSearchError
+                                ? 'Please enter a valid search term'
+                                : staffSearchQuery
+                                ? `No staff found matching "${staffSearchQuery}"`
+                                : 'No staff available in selected category'}
+                            </div>
+                          ) : (
+                            filteredStaffList.map((s) => {
+                              const isSelected = String(currentStaff?.id) === String(s.id) || String(currentStaff?.empId) === String(s.empId);
+                              return (
+                                <button
+                                  key={s.id || s.empId}
+                                  type="button"
+                                  onClick={() => {
+                                    handleStaffSelect(s.id || s.empId || '');
+                                    setIsEmployeeDropdownOpen(false);
+                                  }}
+                                  className={`w-full text-left px-3 py-2 rounded-xl text-xs font-bold transition-all flex items-center justify-between cursor-pointer ${
+                                    isSelected
+                                      ? 'bg-sky-50 dark:bg-sky-950/60 text-sky-700 dark:text-sky-300 font-black border border-sky-200/60 dark:border-sky-800/60'
+                                      : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
+                                  }`}
+                                >
+                                  <div className="flex items-center gap-2.5 truncate min-w-0">
+                                    <div className={`w-6 h-6 rounded-md flex items-center justify-center text-[11px] font-black shrink-0 ${
+                                      isSelected
+                                        ? 'bg-sky-600 text-white'
+                                        : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400'
+                                    }`}>
+                                      {s.firstName ? s.firstName.charAt(0).toUpperCase() : 'U'}
+                                    </div>
+                                    <div className="truncate">
+                                      <div className="truncate font-extrabold text-slate-900 dark:text-white">
+                                        {s.firstName} {s.lastName || ''}
+                                      </div>
+                                      <div className="text-[10px] text-slate-400 font-mono font-normal">
+                                        {s.empId || s.id} {s.designation || s.role ? `• ${s.designation || s.role}` : ''}
+                                      </div>
+                                    </div>
+                                  </div>
+                                  {isSelected && <Check className="w-4 h-4 text-sky-600 dark:text-sky-400 shrink-0 ml-2" />}
+                                </button>
+                              );
+                            })
+                          )}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
               )}

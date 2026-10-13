@@ -611,7 +611,14 @@ function setGlobalInputError(input: HTMLInputElement | HTMLTextAreaElement, erro
   const container = input.parentElement;
   if (!container) return;
 
-  let errEl = container.querySelector('[data-global-validation-error="true"]') as HTMLElement | null;
+  const isIconWrapper = container.classList.contains('relative') || 
+                        (container.tagName.toLowerCase() === 'div' && Boolean(container.querySelector('svg.absolute, .pointer-events-none')));
+  const targetParent = (isIconWrapper && container.parentElement && container.parentElement !== document.body)
+    ? container.parentElement
+    : container;
+
+  let errEl = (container.parentElement?.querySelector(':scope > [data-global-validation-error="true"]') ||
+               container.querySelector(':scope > [data-global-validation-error="true"]')) as HTMLElement | null;
 
   if (!error) {
     input.removeAttribute('data-global-invalid');
@@ -626,7 +633,7 @@ function setGlobalInputError(input: HTMLInputElement | HTMLTextAreaElement, erro
   input.style.borderColor = '#f43f5e';
 
   // Avoid duplicate error message only if component already rendered its own error paragraph outside <label>
-  const existingComponentError = Array.from(container.querySelectorAll('p, span')).find(el => {
+  const existingComponentError = Array.from(targetParent.querySelectorAll('p, span')).find(el => {
     if (el === errEl || el.closest('label')) return false;
     const txt = (el.textContent || '').trim();
     return txt.length > 1 && el.className.includes('text-rose-');
@@ -643,7 +650,11 @@ function setGlobalInputError(input: HTMLInputElement | HTMLTextAreaElement, erro
     errEl.style.fontSize = '11px';
     errEl.style.fontWeight = '700';
     errEl.style.marginTop = '4px';
-    input.insertAdjacentElement('afterend', errEl);
+    if (isIconWrapper) {
+      container.insertAdjacentElement('afterend', errEl);
+    } else {
+      input.insertAdjacentElement('afterend', errEl);
+    }
   }
   errEl.textContent = error;
 }
