@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
+import { installGlobalInputValidation } from "./utils/validation";
 import { ThemeProvider } from "./context/ThemeContext";
 import { ToastProvider } from "./context/ToastContext";
 import { AuthProvider, useAuth } from "./context/AuthContext";
@@ -667,6 +668,10 @@ const MainLayout: React.FC = () => {
 };
 
 export function App() {
+  useEffect(() => {
+    return installGlobalInputValidation();
+  }, []);
+
   return (
     <ErrorBoundary>
       <ThemeProvider>

@@ -1,6 +1,7 @@
 // @ts-nocheck
 import React, { useState, useEffect, useMemo } from "react";
 import { createAllocation } from "../../../api/hostel";
+import { downloadFeeSummaryPdf } from "../../../utils/feeSummaryPdf";
 import {
   GraduationCap,
   Plus,
@@ -3210,7 +3211,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                     )}
                   </div>
 
-                  <div>
+                  <div className="relative group">
                     <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">
                       Email Address <span className="text-rose-500 font-bold ml-0.5">*</span>
                     </label>
@@ -3226,6 +3227,11 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                           : "border-slate-200 dark:border-slate-700 focus:border-brand-500"
                       }`}
                     />
+                    {formData.email && (
+                      <div className="pointer-events-none invisible opacity-0 group-hover:visible group-hover:opacity-100 transition-opacity duration-150 absolute right-0 -top-1 -translate-y-full z-30 px-3 py-1.5 rounded-lg bg-slate-900 dark:bg-slate-800 text-white text-xs font-semibold shadow-lg whitespace-nowrap border border-slate-700">
+                        {formData.email}
+                      </div>
+                    )}
                     {emailError && (
                       <p className="text-[10px] text-rose-500 mt-0.5 font-bold">
                         {emailError}
@@ -4890,7 +4896,9 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                     )}
 
                     {selectedAppForView.email && (
-                      <div className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-700/50 flex items-center gap-2">
+                      <div
+                        className="relative group p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-700/50 flex items-center gap-2"
+                      >
                         <Mail className="w-3.5 h-3.5 text-blue-500 shrink-0" />
                         <div className="min-w-0">
                           <p className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">
@@ -4899,6 +4907,9 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                           <p className="text-xs font-semibold text-blue-600 dark:text-blue-400 truncate">
                             {selectedAppForView.email}
                           </p>
+                        </div>
+                        <div className="pointer-events-none invisible opacity-0 group-hover:visible group-hover:opacity-100 transition-opacity duration-150 absolute left-0 -top-1.5 -translate-y-full z-30 px-3 py-1.5 rounded-lg bg-slate-900 dark:bg-slate-800 text-white text-xs font-semibold shadow-lg whitespace-nowrap border border-slate-700">
+                          {selectedAppForView.email}
                         </div>
                       </div>
                     )}
@@ -5533,46 +5544,26 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                   </button>
                   <button
                     onClick={() => {
-                      const applicableItems = feeItems.filter(
-                        (i: any) => i && i.isApplicable,
+                      downloadFeeSummaryPdf(
+                        {
+                          schoolName: schoolProfile?.name,
+                          schoolTagline: schoolProfile?.tagline,
+                          schoolAddress: schoolProfile?.address,
+                          schoolPhone: schoolProfile?.phone,
+                          studentName: ledger.studentName || "Student",
+                          admissionNo: ledger.admissionNo || "—",
+                          className: ledger.className || "Class 1",
+                          section: ledger.section || "A",
+                          academicYear: ledger.academicYear || selectedAcademicYear || "",
+                          studentType: ledger.studentType || "Day Scholar",
+                          appliedFeeItems,
+                          notApplicableItems,
+                          totalScholarship: ledger.totalScholarship || 0,
+                          totalDiscount: ledger.totalDiscount || 0,
+                          totalPayable: ledger.totalPayable || 0,
+                        },
+                        `FeeSummary_${ledger.admissionNo || "Student"}_${ledger.academicYear || "2026"}.pdf`,
                       );
-                      let text = `====================================================\n`;
-                      text += `   ${schoolProfile?.name || "PIRNAV EDUCATIONAL INSTITUTIONS"}\n`;
-                      text += `        STUDENT ANNUAL FEE SUMMARY STATEMENT\n`;
-                      text += `====================================================\n\n`;
-                      text += `Student Name   : ${ledger.studentName || "Student"}\n`;
-                      text += `Admission No   : ${ledger.admissionNo || "—"}\n`;
-                      text += `Class & Section: ${ledger.className || "Class 1"} - ${ledger.section || "A"}\n`;
-                      text += `Academic Year  : ${ledger.academicYear || "2026-2027"}\n`;
-                      text += `Student Type   : ${ledger.studentType || "Day Scholar"}\n`;
-                      text += `Date           : ${new Date().toLocaleDateString()}\n\n`;
-                      text += `----------------------------------------------------\n`;
-                      text += `APPLICABLE FEE HEAD BREAKDOWN\n`;
-                      text += `----------------------------------------------------\n`;
-                      applicableItems.forEach((i: any) => {
-                        text += `${(i.headName || "Fee Item").padEnd(32)}: ₹${(i.originalAmount || 0).toLocaleString("en-IN")}\n`;
-                      });
-                      if ((ledger.totalScholarship || 0) > 0) {
-                        text += `Scholarship Deduction           : -₹${(ledger.totalScholarship || 0).toLocaleString("en-IN")}\n`;
-                      }
-                      if ((ledger.totalDiscount || 0) > 0) {
-                        text += `Discount / Concession           : -₹${(ledger.totalDiscount || 0).toLocaleString("en-IN")}\n`;
-                      }
-                      text += `----------------------------------------------------\n`;
-                      text += `TOTAL NET ANNUAL PAYABLE        : ₹${(ledger.totalPayable || 0).toLocaleString("en-IN")}\n`;
-                      text += `====================================================\n`;
-
-                      const blob = new Blob([text], {
-                        type: "text/plain;charset=utf-8",
-                      });
-                      const url = URL.createObjectURL(blob);
-                      const a = document.createElement("a");
-                      a.href = url;
-                      a.download = `FeeSummary_${ledger.admissionNo || "Student"}_${ledger.academicYear || "2026"}.txt`;
-                      document.body.appendChild(a);
-                      a.click();
-                      document.body.removeChild(a);
-                      URL.revokeObjectURL(url);
                     }}
                     className="py-2.5 px-3 rounded-xl bg-sky-100 dark:bg-sky-950 hover:bg-sky-200 font-bold text-xs text-sky-800 dark:text-sky-300 text-center cursor-pointer transition-colors"
                   >

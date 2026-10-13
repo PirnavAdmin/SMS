@@ -4436,6 +4436,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     return [];
   };
 
+  const classUpdatesRef = useRef<Record<string, Partial<AcademicClass>>>({});
+
   const fetchAcademicClasses = useCallback(async () => {
     if (activeRequests.current["classes"]) {
       return activeRequests.current["classes"];
@@ -4489,17 +4491,26 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
               ? data.data
               : null;
           if (classList) {
-            const mapped: AcademicClass[] = classList.map((c: any) => {
-              const classIdStr = c.classId?.toString() || c.id?.toString();
-              const classNameStr = c.className || c.name || "";
+            setAcademicClasses((prev) => {
+              const normId = (val: any) => String(val ?? "").replace(/^CL-/i, "");
+              const mapped: AcademicClass[] = classList.map((c: any) => {
+                const classIdStr = c.classId?.toString() || c.id?.toString();
+                const normKey = normId(classIdStr);
+                const existing = (prev || []).find(
+                  (p) => normId(p.id) === normKey,
+                );
+                const memUpdate = classUpdatesRef.current[normKey];
+                const classNameStr = c.className || c.name || existing?.name || "";
 
-              const secDetails: Record<string, any> = {
-                ...(c.sectionDetails || {}),
-              };
+                const secDetails: Record<string, any> = {
+                  ...((existing as any)?.sectionDetails || {}),
+                  ...(c.sectionDetails || {}),
+                };
 
-              const sectionTeachersMap: Record<string, string> = {
-                ...(c.sectionTeachers || {}),
-              };
+                const sectionTeachersMap: Record<string, string> = {
+                  ...(existing?.sectionTeachers || {}),
+                  ...(c.sectionTeachers || {}),
+                };
 
               if (Array.isArray(c.sections)) {
                 c.sections.forEach((s: any) => {
@@ -4578,68 +4589,99 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
                   }
                 });
 
-              const backendWeeklyPeriods: Record<string, number> = {};
-              if (Array.isArray(c.curriculumSubjects)) {
-                c.curriculumSubjects.forEach((cs: any) => {
-                  const sName = cs.subjectName || cs.name;
-                  const wPeriods =
-                    cs.weeklyPeriods ?? cs.weekly_periods ?? cs.periodsPerWeek;
-                  if (sName && typeof wPeriods === "number") {
-                    backendWeeklyPeriods[sName] = wPeriods;
-                  }
-                });
-              }
+                const backendWeeklyPeriods: Record<string, number> = {};
+                if (Array.isArray(c.curriculumSubjects)) {
+                  c.curriculumSubjects.forEach((cs: any) => {
+                    const sName = cs.subjectName || cs.name;
+                    const wPeriods =
+                      cs.weeklyPeriods ?? cs.weekly_periods ?? cs.periodsPerWeek;
+                    if (sName && typeof wPeriods === "number") {
+                      backendWeeklyPeriods[sName] = wPeriods;
+                    }
+                  });
+                }
 
-              const subs =
-                Array.isArray(c.curriculumSubjects) &&
-                c.curriculumSubjects.length > 0
-                  ? c.curriculumSubjects
-                      .map((cs: any) => cs.subjectName || cs.name || "")
-                      .filter(Boolean)
-                  : c.subjects || [];
+                const subs =
+                  Array.isArray(c.curriculumSubjects) &&
+                  c.curriculumSubjects.length > 0
+                    ? c.curriculumSubjects
+                        .map((cs: any) => cs.subjectName || cs.name || "")
+                        .filter(Boolean)
+                    : c.subjects || existing?.subjects || [];
 
-              const resolvedCampus =
-                c.campusLocation || c.CampusLocation || c.branch || "";
+                const resolvedCampus =
+                  (memUpdate as any)?.campus ||
+                  c.campusLocation ||
+                  c.CampusLocation ||
+                  c.branch ||
+                  (existing as any)?.campus ||
+                  "";
 
-              const resolvedYear =
-                c.academicYear || c.AcademicYear || c.academic_year || "";
+                const resolvedYear =
+                  (memUpdate as any)?.academicYear ||
+                  c.academicYear ||
+                  c.AcademicYear ||
+                  c.academic_year ||
+                  (existing as any)?.academicYear ||
+                  "";
 
-              const resolvedStatus =
-                c.status || c.Status || "Active";
+                const resolvedStatus =
+                  memUpdate?.status ||
+                  c.status ||
+                  c.Status ||
+                  existing?.status ||
+                  "Active";
 
-              const resolvedRemarks =
-                c.remarks ?? c.Remarks ?? "";
+                const resolvedRemarks =
+                  (memUpdate as any)?.remarks !== undefined
+                    ? (memUpdate as any).remarks
+                    : (c.remarks ?? c.Remarks ?? (existing as any)?.remarks ?? "");
 
-              const resolvedDisplayOrder =
-                c.displayOrder ?? c.DisplayOrder ?? c.display_order ?? undefined;
+                const resolvedDisplayOrder =
+                  memUpdate && "displayOrder" in memUpdate
+                    ? (memUpdate as any).displayOrder
+                    : (c.displayOrder ??
+                      c.DisplayOrder ??
+                      c.display_order ??
+                      (existing as any)?.displayOrder ??
+                      undefined);
 
-              return {
-                id: classIdStr,
-                name: classNameStr,
-                displayName: c.displayName || classNameStr,
-                status: resolvedStatus,
-                remarks: resolvedRemarks,
-                displayOrder: resolvedDisplayOrder,
-                academicYear: resolvedYear,
-                sections: c.sections?.map((s: any) => s.sectionName || s) || [],
-                sectionTeachers: sectionTeachersMap,
-                teacher:
-                  c.teacher ||
-                  Object.values(sectionTeachersMap)[0] ||
-                  "Unassigned",
-                subjects: subs,
-                weeklyPeriods: {
-                  ...(c.weeklyPeriods || {}),
-                  ...backendWeeklyPeriods,
-                },
-                sectionDetails: secDetails,
-                campus: resolvedCampus,
-                campusLocation: resolvedCampus,
-                branch: resolvedCampus,
-              } as any;
+                return {
+                  id: classIdStr,
+                  name: classNameStr,
+                  displayName:
+                    (memUpdate as any)?.displayName ||
+                    c.displayName ||
+                    (existing as any)?.displayName ||
+                    classNameStr,
+                  status: resolvedStatus,
+                  remarks: resolvedRemarks,
+                  displayOrder: resolvedDisplayOrder,
+                  academicYear: resolvedYear,
+                  sections:
+                    c.sections?.map((s: any) => s.sectionName || s) ||
+                    existing?.sections ||
+                    [],
+                  sectionTeachers: sectionTeachersMap,
+                  teacher:
+                    c.teacher ||
+                    Object.values(sectionTeachersMap)[0] ||
+                    "Unassigned",
+                  subjects: subs,
+                  weeklyPeriods: {
+                    ...(existing?.weeklyPeriods || {}),
+                    ...(c.weeklyPeriods || {}),
+                    ...backendWeeklyPeriods,
+                  },
+                  sectionDetails: secDetails,
+                  campus: resolvedCampus,
+                  campusLocation: resolvedCampus,
+                  branch: resolvedCampus,
+                } as any;
+              });
+              mapped.sort((a, b) => compareClassesAscending(a.name, b.name));
+              return mapped;
             });
-            mapped.sort((a, b) => compareClassesAscending(a.name, b.name));
-            setAcademicClasses(mapped);
           }
         }
       } catch (err: any) {
@@ -9101,6 +9143,11 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   ) => {
     const normId = (val: any) => String(val ?? "").replace(/^CL-/i, "");
     const targetNormId = normId(id);
+
+    classUpdatesRef.current[targetNormId] = {
+      ...(classUpdatesRef.current[targetNormId] || {}),
+      ...updates,
+    };
 
     // Update React state optimistically
     setAcademicClasses((prev) =>

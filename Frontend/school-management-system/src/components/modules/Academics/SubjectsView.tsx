@@ -14,6 +14,7 @@ import {
 } from '../../../api/academic';
 import { teachingDesignationNames } from '../Staff/staffFlowOptions';
 import { Pagination } from '../../common/Pagination';
+import { validateDesignationName, validateDepartmentName, validateSubjectName } from '../../../utils/validation';
 
 export const SubjectsView: React.FC = () => {
   const { 
@@ -252,8 +253,9 @@ export const SubjectsView: React.FC = () => {
     e.preventDefault();
     const finalSubjectId = formData.subjectId || `SUB-${Math.floor(100 + subjects.length + 1)}`;
 
-    if (!formData.name.trim()) {
-      addToast('warning', 'Required Field Missing', 'Subject Name is mandatory.');
+    const subNameCheck = validateSubjectName(formData.name, true);
+    if (!subNameCheck.isValid) {
+      addToast('warning', 'Validation Error', subNameCheck.error || 'Enter a valid subject name.');
       return;
     }
 
@@ -371,8 +373,9 @@ export const SubjectsView: React.FC = () => {
   const handleDesigSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const name = desigFormData.designationName.trim();
-    if (!name) {
-      addToast('warning', 'Validation Warning', 'Designation Name is required.');
+    const desigCheck = validateDesignationName(name, true);
+    if (!desigCheck.isValid) {
+      addToast('warning', 'Validation Error', desigCheck.error || 'Enter a valid designation name.');
       return;
     }
     if (editingDesignation && !editingDesignation.id.toString().startsWith('static-')) {
@@ -477,8 +480,9 @@ export const SubjectsView: React.FC = () => {
     e.preventDefault();
 
     const name = deptFormData.departmentName.trim();
-    if (!name) {
-      addToast('warning', 'Validation Warning', 'Department Name is required.');
+    const deptCheck = validateDepartmentName(name, true);
+    if (!deptCheck.isValid) {
+      addToast('warning', 'Validation Error', deptCheck.error || 'Enter a valid department name.');
       return;
     }
 
@@ -1038,8 +1042,17 @@ export const SubjectsView: React.FC = () => {
                   placeholder="e.g. Advanced Mathematics"
                   value={formData.name}
                   onChange={e => setFormData({ ...formData, name: e.target.value })}
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-[#1e293b] border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white font-bold"
+                  className={`w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-[#1e293b] border ${
+                    formData.name && !validateSubjectName(formData.name, false).isValid
+                      ? 'border-rose-500 dark:border-rose-500'
+                      : 'border-slate-200 dark:border-slate-800'
+                  } text-slate-900 dark:text-white font-bold`}
                 />
+                {formData.name && !validateSubjectName(formData.name, false).isValid && (
+                  <p className="mt-1 text-[11px] font-bold text-rose-500">
+                    {validateSubjectName(formData.name, false).error}
+                  </p>
+                )}
               </div>
 
               <div>
@@ -1111,8 +1124,17 @@ export const SubjectsView: React.FC = () => {
                   placeholder="e.g. Mathematics / Performing Arts"
                   value={deptFormData.departmentName}
                   onChange={e => setDeptFormData({ ...deptFormData, departmentName: e.target.value })}
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-[#1e293b] border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white font-bold"
+                  className={`w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-[#1e293b] border ${
+                    deptFormData.departmentName && !validateDepartmentName(deptFormData.departmentName, false).isValid
+                      ? 'border-rose-500 dark:border-rose-500'
+                      : 'border-slate-200 dark:border-slate-800'
+                  } text-slate-900 dark:text-white font-bold`}
                 />
+                {deptFormData.departmentName && !validateDepartmentName(deptFormData.departmentName, false).isValid && (
+                  <p className="mt-1 text-[11px] font-bold text-rose-500">
+                    {validateDepartmentName(deptFormData.departmentName, false).error}
+                  </p>
+                )}
               </div>
 
               <div>
@@ -1192,7 +1214,23 @@ export const SubjectsView: React.FC = () => {
             <form onSubmit={handleDesigSubmit} className="space-y-4 text-xs font-semibold">
               <div>
                 <label className="block font-bold mb-1 text-slate-700 dark:text-slate-200">Designation Name <span className="text-rose-500 font-bold ml-0.5">*</span></label>
-                <input type="text" required placeholder="e.g. Senior Teacher" value={desigFormData.designationName} onChange={e => setDesigFormData({ ...desigFormData, designationName: e.target.value })} className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-[#1e293b] border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white font-bold" />
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Senior Teacher"
+                  value={desigFormData.designationName}
+                  onChange={e => setDesigFormData({ ...desigFormData, designationName: e.target.value })}
+                  className={`w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-[#1e293b] border ${
+                    desigFormData.designationName && !validateDesignationName(desigFormData.designationName, false).isValid
+                      ? 'border-rose-500 dark:border-rose-500'
+                      : 'border-slate-200 dark:border-slate-800'
+                  } text-slate-900 dark:text-white font-bold`}
+                />
+                {desigFormData.designationName && !validateDesignationName(desigFormData.designationName, false).isValid && (
+                  <p className="mt-1 text-[11px] font-bold text-rose-500">
+                    {validateDesignationName(desigFormData.designationName, false).error}
+                  </p>
+                )}
               </div>
               <div>
                 <label className="block font-bold mb-1 text-slate-700 dark:text-slate-200">Category <span className="text-rose-500 font-bold ml-0.5">*</span></label>

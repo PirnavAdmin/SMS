@@ -83,7 +83,7 @@ export interface CampusItem {
   address: string;
   phone: string;
   email: string;
-  status: "Active" | "Inactive";
+  status: "Active" | "Inactive" | "Closed";
 }
 
 const defaultCampuses: CampusItem[] = [];
@@ -729,7 +729,7 @@ export const SettingsView: React.FC = () => {
     address: string;
     phone: string;
     email: string;
-    status: "Active" | "Inactive" | "";
+    status: "Active" | "Inactive" | "Closed" | "";
   }>({
     name: "",
     code: "",
@@ -1025,7 +1025,7 @@ export const SettingsView: React.FC = () => {
       }
     }
 
-    const validStatus = campusForm.status as "Active" | "Inactive";
+    const validStatus = campusForm.status as "Active" | "Inactive" | "Closed";
     const campusData = {
       ...campusForm,
       name: formattedName,
@@ -2072,7 +2072,11 @@ export const SettingsView: React.FC = () => {
                     className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
                       campus.status === "Active"
                         ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300"
-                        : "bg-slate-200 text-slate-600 dark:bg-slate-800 dark:text-slate-400"
+                        : campus.status === "Inactive"
+                          ? "bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300"
+                          : campus.status === "Closed"
+                            ? "bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300"
+                            : "bg-slate-200 text-slate-600 dark:bg-slate-800 dark:text-slate-400"
                     }`}
                   >
                     {campus.status}
@@ -2156,7 +2160,11 @@ export const SettingsView: React.FC = () => {
                     className={`px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase ${
                       ay.status === "Active"
                         ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300"
-                        : "bg-slate-200 text-slate-600 dark:bg-slate-800 dark:text-slate-400"
+                        : ay.status === "Closed"
+                          ? "bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300"
+                          : (ay.status as string) === "Inactive"
+                            ? "bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300"
+                            : "bg-slate-200 text-slate-600 dark:bg-slate-800 dark:text-slate-400"
                     }`}
                   >
                     {ay.status}
@@ -3083,7 +3091,7 @@ export const SettingsView: React.FC = () => {
                   required
                   value={campusForm.status}
                   onChange={(e) => {
-                    const val = e.target.value as "Active" | "Inactive" | "";
+                    const val = e.target.value as "Active" | "Inactive" | "Closed" | "";
                     setCampusForm({
                       ...campusForm,
                       status: val,
@@ -3101,6 +3109,7 @@ export const SettingsView: React.FC = () => {
                   <option value="" disabled>Select Status</option>
                   <option value="Active">Active</option>
                   <option value="Inactive">Inactive</option>
+                  <option value="Closed">Closed</option>
                 </select>
                 {campusErrors.status && (
                   <p className="mt-1 text-xs font-bold text-rose-500 flex items-center gap-1">
