@@ -475,7 +475,15 @@ export function validateCampusAddress(address: string, required: boolean = true)
 
 export function formatTitleCase(str: string): string {
   if (!str) return '';
-  return str.replace(/(?:^|[\s\-\/\.])([a-z])/g, (_, letter) => letter.toUpperCase());
+  return str
+    .split(/(\s+|[\-\/\.])/)
+    .map((part) => {
+      if (/^[a-zA-Z]+$/.test(part)) {
+        return part.charAt(0).toUpperCase() + part.slice(1).toLowerCase();
+      }
+      return part;
+    })
+    .join('');
 }
 
 export function validateCertificateTypeCode(code: string, required: boolean = true): { isValid: boolean; error?: string } {
@@ -833,18 +841,36 @@ export function installGlobalInputValidation(): () => void {
     const btn = target.closest('button');
     if (!btn || btn.disabled) return;
 
+    // Never intercept or block Close, Cancel, Discard, or Dismiss buttons
     const btnText = (btn.textContent || '').trim().toLowerCase();
-    const isActionBtn =
-      btn.type === 'submit' ||
-      /^(create|save|update|submit|add|register|confirm)\b/.test(btnText);
+    const ariaLabel = (btn.getAttribute('aria-label') || '').toLowerCase();
+    const title = (btn.getAttribute('title') || '').toLowerCase();
 
-    if (!isActionBtn) return;
+    if (
+      btnText === 'cancel' ||
+      btnText === 'close' ||
+      btnText === 'discard' ||
+      btnText.includes('cancel') ||
+      ariaLabel.includes('close') ||
+      ariaLabel.includes('cancel') ||
+      title.includes('close') ||
+      title.includes('cancel') ||
+      btn.dataset.dismiss ||
+      btn.querySelector('svg.lucide-x') ||
+      btn.querySelector('svg.lucide-x-circle')
+    ) {
+      return;
+    }
 
-    const container =
-      btn.closest('form') ||
-      btn.closest('[role="dialog"]') ||
-      btn.closest('.fixed.inset-0');
+    const form = btn.closest('form');
+    const isExplicitActionText = /^(create|save|update|submit|add|register|confirm|apply)\b/i.test(btnText);
+    const isFormSubmit = form && btn.type === 'submit' && !/^(cancel|close|back|reset)\b/i.test(btnText);
 
+    if (!isExplicitActionText && !isFormSubmit) {
+      return;
+    }
+
+    const container = form || btn.closest('[role="dialog"]') || btn.closest('.fixed.inset-0');
     if (!container) return;
 
     const firstInvalid = validateContainerInputs(container);

@@ -59,6 +59,7 @@ import {
   CASTE_CATEGORIES,
   BRANCHES,
   RELIGIONS,
+  formatTitleCase,
 } from "../../../utils/validation";
 import {
   validateDOB,
@@ -1478,8 +1479,8 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
   const handleOpenEdit = (app: AdmissionApplication) => {
     setEditingApp(app);
     const parts = app.applicantName.split(" ");
-    setFirstName(parts[0] || "");
-    setLastName(parts.slice(1).join(" ") || "");
+    setFirstName(formatTitleCase(parts[0] || ""));
+    setLastName(formatTitleCase(parts.slice(1).join(" ") || ""));
     setAvatar(app.avatar || "");
 
     let formattedDob = app.dob || "";
@@ -1855,7 +1856,11 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
       ? (siblingDetails.map((d) => d.studentId).filter(Boolean) as string[])
       : [];
 
-    const fullApplicantName = `${firstName.trim()} ${lastName.trim()}`;
+    const finalFirst = formatTitleCase(firstName.trim());
+    const finalLast = formatTitleCase(lastName.trim());
+    const fullApplicantName = `${finalFirst} ${finalLast}`.trim();
+    const formattedParentName = formatTitleCase((formData.parentName || "").trim());
+    const formattedMotherName = formData.motherName ? formatTitleCase(formData.motherName.trim()) : "N/A";
 
     // Duplicate submission protection
     const isDuplicate = (admissions || []).some(
@@ -1882,6 +1887,8 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
       if (editingApp) {
         await updateAdmission(editingApp.id, {
           ...formData,
+          parentName: formattedParentName,
+          motherName: formattedMotherName,
           email: formData.email || "",
           parentEmail: formData.email || "",
           motherPhone: formData.motherPhone || "",
@@ -1910,8 +1917,8 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
           bloodGroup: formData.bloodGroup,
           religion: formData.religion || "General",
           casteCategory: formData.casteCategory || "General",
-          parentName: formData.parentName,
-          motherName: formData.motherName || "N/A",
+          parentName: formattedParentName,
+          motherName: formattedMotherName,
           email: formData.email || "",
           parentEmail: formData.email || "",
           phone: formData.phone || "9876543210",
@@ -2623,7 +2630,10 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                           required
                           placeholder="Enter First Name"
                           value={firstName}
-                          onChange={(e) => setFirstName(e.target.value.replace(/[^a-zA-Z\s]/g, ""))}
+                          onChange={(e) =>
+                            setFirstName(formatTitleCase(e.target.value.replace(/[^a-zA-Z\s]/g, "")))
+                          }
+                          onBlur={() => setFirstName((prev) => formatTitleCase(prev.trim()))}
                           className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none"
                         />
                       </div>
@@ -2636,7 +2646,10 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                           required
                           placeholder="Enter Last Name"
                           value={lastName}
-                          onChange={(e) => setLastName(e.target.value.replace(/[^a-zA-Z\s]/g, ""))}
+                          onChange={(e) =>
+                            setLastName(formatTitleCase(e.target.value.replace(/[^a-zA-Z\s]/g, "")))
+                          }
+                          onBlur={() => setLastName((prev) => formatTitleCase(prev.trim()))}
                           className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none"
                         />
                       </div>
@@ -3120,7 +3133,10 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                       required
                       value={formData.parentName}
                       onChange={(e) =>
-                        setFormData({ ...formData, parentName: e.target.value.replace(/[^a-zA-Z\s]/g, "") })
+                        setFormData({ ...formData, parentName: formatTitleCase(e.target.value.replace(/[^a-zA-Z\s]/g, "")) })
+                      }
+                      onBlur={() =>
+                        setFormData((prev) => ({ ...prev, parentName: formatTitleCase((prev.parentName || "").trim()) }))
                       }
                       className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none"
                     />
@@ -3133,7 +3149,10 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                       type="text"
                       value={formData.motherName}
                       onChange={(e) =>
-                        setFormData({ ...formData, motherName: e.target.value.replace(/[^a-zA-Z\s]/g, "") })
+                        setFormData({ ...formData, motherName: formatTitleCase(e.target.value.replace(/[^a-zA-Z\s]/g, "")) })
+                      }
+                      onBlur={() =>
+                        setFormData((prev) => ({ ...prev, motherName: formatTitleCase((prev.motherName || "").trim()) }))
                       }
                       className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none"
                     />

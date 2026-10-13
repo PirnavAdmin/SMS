@@ -1028,7 +1028,7 @@ export const SubjectsView: React.FC = () => {
               <h3 className="text-lg font-black text-slate-900 dark:text-white">
                 {editingSubject ? 'Edit Academic Subject' : 'Add New Academic Subject'}
               </h3>
-              <button onClick={() => setIsFormOpen(false)} className="p-1 text-slate-400 hover:text-slate-700 dark:hover:text-white">
+              <button type="button" aria-label="Close" onClick={() => setIsFormOpen(false)} className="p-1 text-slate-400 hover:text-slate-700 dark:hover:text-white cursor-pointer">
                 <X className="w-5 h-5" />
               </button>
             </div>
@@ -1110,7 +1110,7 @@ export const SubjectsView: React.FC = () => {
                 <Building2 className="w-5 h-5 text-sky-600" />
                 {editingDepartment ? 'Modify Department' : 'Create New Department'}
               </h3>
-              <button onClick={() => setIsDeptModalOpen(false)} className="p-1 text-slate-400 hover:text-slate-700 dark:hover:text-white">
+              <button type="button" aria-label="Close" onClick={() => setIsDeptModalOpen(false)} className="p-1 text-slate-400 hover:text-slate-700 dark:hover:text-white cursor-pointer">
                 <X className="w-5 h-5" />
               </button>
             </div>
@@ -1207,7 +1207,7 @@ export const SubjectsView: React.FC = () => {
                 <Briefcase className="w-5 h-5 text-sky-600" />
                 {editingDesignation ? 'Modify Designation' : 'Create New Designation'}
               </h3>
-              <button onClick={() => setIsDesigModalOpen(false)} className="p-1 text-slate-400 hover:text-slate-700 dark:hover:text-white">
+              <button type="button" aria-label="Close" onClick={() => setIsDesigModalOpen(false)} className="p-1 text-slate-400 hover:text-slate-700 dark:hover:text-white cursor-pointer">
                 <X className="w-5 h-5" />
               </button>
             </div>
