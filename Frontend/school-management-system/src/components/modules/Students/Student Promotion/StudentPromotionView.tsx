@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { 
   TrendingUp, Search, CheckSquare, Square, ArrowRight, Building2, 
   CheckCircle2, GraduationCap, Award, RefreshCw, Filter, Sparkles, 
@@ -6,10 +6,13 @@ import {
   ChevronLeft, ChevronRight
 } from 'lucide-react';
 import { useData } from '../../../../context/DataContext';
+import { useAuth } from '../../../../context/AuthContext';
 import { useToast } from '../../../../context/ToastContext';
 import { ExportButton } from '../../../common/ExportButton';
-import { SectionAssignmentMethod, PromotionHistoryItem } from '../../../../types';
-import { executePromotionApi } from '../../../../api/studentPromotion';
+import { SectionAssignmentMethod, PromotionHistoryItem, ExamSetup } from '../../../../types';
+import { executePromotionApi, loadPromotionResultsApi, loadFinalResultsApi } from '../../../../api/studentPromotion';
+import { fetchReportCardsApi, fetchExamOptionsApi } from '../../../../api/examination';
+import { matchesClassName } from '../../../../utils/classSorter';
 
 interface StudentPromotionViewProps {
   onNavigate?: (module: string) => void;
@@ -36,7 +39,22 @@ interface PromotionStudentRow {
 }
 
 export const StudentPromotionView: React.FC<StudentPromotionViewProps> = ({ onNavigate }) => {
-  const { students, academicClasses, academicYears, feeStructures, updateStudent, addAcademicHistoryRecord, getHighestClass, logActivity } = useData();
+  const { 
+    students, 
+    academicClasses, 
+    academicYears, 
+    feeStructures, 
+    updateStudent, 
+    addAcademicHistoryRecord, 
+    getHighestClass, 
+    logActivity,
+    processedResults = [],
+    examMarks = [],
+    exams = [],
+    examSchedules = [],
+    refreshExamData
+  } = useData() as any;
+  const { selectedBranch } = useAuth();
   const { addToast } = useToast();
 
   const highestClass = getHighestClass();
@@ -70,8 +88,195 @@ export const StudentPromotionView: React.FC<StudentPromotionViewProps> = ({ onNa
   // Filter States
   const [currentYear, setCurrentYear] = useState<string>('2026-2027');
   const [targetYear, setTargetYear] = useState<string>('2027-2028');
-  const [branch, setBranch] = useState<string>('Main Campus');
+  const [branch, setBranch] = useState<string>(selectedBranch || 'Main Campus');
   const [fromClass, setFromClass] = useState<string>('');
+  const [selectedExamId, setSelectedExamId] = useState<string>('');
+
+  const effectiveBranch = selectedBranch || branch || 'Main Campus';
+
+  // Synchronize branch from global AuthContext
+  useEffect(() => {
+    if (selectedBranch && selectedBranch !== branch) {
+      setBranch(selectedBranch);
+      setSelectedExamId('');
+      setPromotionRows([]);
+      setIsResultsLoaded(false);
+      setSelectedStudentIds([]);
+    }
+  }, [selectedBranch]);
+
+  // Dynamic Examinations State fetched from Examination Module API
+  const [dynamicExams, setDynamicExams] = useState<ExamSetup[]>([]);
+  const [isLoadingExams, setIsLoadingExams] = useState<boolean>(false);
+
+  // Load all examinations dynamically from Examination module API
+  const loadDynamicExaminations = useCallback(async () => {
+    setIsLoadingExams(true);
+    try {
+      if (refreshExamData) {
+        refreshExamData().catch(() => {});
+      }
+      const response: any = await fetchExamOptionsApi();
+      const existingList = response?.data?.existingExams || response?.data || response || [];
+      if (Array.isArray(existingList)) {
+        const mapped: ExamSetup[] = existingList.map((e: any) => ({
+          id: String(e.examId || e.id || ''),
+          name: e.examName || e.name || '',
+          examName: e.examName || e.name || '',
+          term: e.academicTerm || e.term || 'Term 1',
+          academicTerm: e.academicTerm || e.term || 'Term 1',
+          startDate: e.startDate || '',
+          endDate: e.endDate || '',
+          classes: Array.isArray(e.applicableClasses) ? e.applicableClasses : (Array.isArray(e.classes) ? e.classes : []),
+          applicableClasses: Array.isArray(e.applicableClasses) ? e.applicableClasses : (Array.isArray(e.classes) ? e.classes : []),
+          status: e.status || 'Scheduled',
+          academicYear: e.academicYear || currentYear || '2026-2027',
+          assessmentType: e.assessmentType || e.examType || 'Main Exam',
+          examType: e.assessmentType || e.examType || 'Main Exam',
+          displayText: e.displayText || ''
+        }));
+        setDynamicExams(mapped);
+      }
+    } catch (err) {
+      console.warn('Failed to dynamically fetch examination options:', err);
+    } finally {
+      setIsLoadingExams(false);
+    }
+  }, [currentYear, refreshExamData]);
+
+  useEffect(() => {
+    loadDynamicExaminations();
+  }, [loadDynamicExaminations]);
+
+  // Combine all sources: dynamic API exams, DataContext exams, examSchedules, processedResults
+  const allExaminations = useMemo(() => {
+    const map = new Map<string, ExamSetup>();
+
+    // 1. Dynamic exams fetched directly from Examination module API
+    (dynamicExams || []).forEach(e => {
+      if (e && e.id) {
+        map.set(String(e.id), e);
+      }
+    });
+
+    // 2. DataContext & ExaminationContext exams
+    (exams || []).forEach(e => {
+      if (e && e.id) {
+        const idKey = String(e.id);
+        const existing = map.get(idKey);
+        if (!existing) {
+          map.set(idKey, {
+            ...e,
+            applicableClasses: e.applicableClasses || (e as any).classes || (e.className ? [e.className] : [])
+          });
+        } else {
+          map.set(idKey, {
+            ...existing,
+            ...e,
+            name: existing.name || e.name,
+            applicableClasses: (existing.applicableClasses && existing.applicableClasses.length > 0)
+              ? existing.applicableClasses
+              : (e.applicableClasses || (e as any).classes || [])
+          });
+        }
+      }
+    });
+
+    // 3. Examinations from examSchedules
+    (examSchedules || []).forEach((s: any) => {
+      const sExamId = String(s.examId || '');
+      if (sExamId && !map.has(sExamId)) {
+        map.set(sExamId, {
+          id: sExamId,
+          name: s.examName || `Examination ${sExamId}`,
+          academicYear: s.academicYear || currentYear,
+          status: 'Scheduled',
+          applicableClasses: s.className ? [s.className] : [],
+          classes: s.className ? [s.className] : []
+        } as ExamSetup);
+      }
+    });
+
+    // 4. Examinations referenced in processedResults
+    (processedResults || []).forEach((pr: any) => {
+      const prExamId = String(pr.examId || '');
+      if (prExamId && !map.has(prExamId)) {
+        map.set(prExamId, {
+          id: prExamId,
+          name: pr.examName || `Examination ${prExamId}`,
+          academicYear: currentYear,
+          status: 'Published',
+          applicableClasses: pr.className ? [pr.className] : [],
+          classes: pr.className ? [pr.className] : []
+        } as ExamSetup);
+      }
+    });
+
+    return Array.from(map.values());
+  }, [dynamicExams, exams, examSchedules, processedResults, currentYear]);
+
+  // Dynamically compute eligible examinations based on Current Academic Year, Branch, and Current Class
+  const availableExaminations = useMemo(() => {
+    if (!fromClass || !currentYear) return [];
+
+    return allExaminations.filter((exam) => {
+      // 1. Academic Year Validation: Match if explicitly specified
+      const examYear = (exam.academicYear || '').trim();
+      if (examYear) {
+        const normExamYear = examYear.replace(/(\d{4})-(\d{2,4})/, (m, p1, p2) => p2.length === 2 ? `${p1}-20${p2}` : m);
+        const normCurrYear = currentYear.replace(/(\d{4})-(\d{2,4})/, (m, p1, p2) => p2.length === 2 ? `${p1}-20${p2}` : m);
+        if (normExamYear !== normCurrYear && !examYear.includes(currentYear.slice(0, 4))) {
+          return false;
+        }
+      }
+
+      // 2. Branch Validation: Must match active branch (unless global / 'All')
+      if (effectiveBranch && effectiveBranch !== 'All' && effectiveBranch !== 'All Branches') {
+        if (exam.branch && exam.branch !== 'All' && exam.branch !== 'All Branches' && exam.branch !== effectiveBranch) {
+          return false;
+        }
+      }
+
+      // 3. Class Validation: Must match Current Class or be configured for all classes
+      const appClasses = (exam.applicableClasses || (exam as any).classes || []).map((c: any) => String(c).trim());
+      const hasSpecificClass =
+        matchesClassName(exam.className, fromClass) ||
+        appClasses.some((c: string) => matchesClassName(c, fromClass));
+
+      const examClassLower = (exam.className || '').trim().toLowerCase();
+      const isGlobalExam =
+        appClasses.length === 0 ||
+        appClasses.some((c: string) => c.toLowerCase() === 'all' || c.toLowerCase() === 'all classes') ||
+        examClassLower === 'all' ||
+        examClassLower === '';
+
+      // Also check if any schedules or marks exist for this exam and class
+      const hasScheduleForClass = (examSchedules || []).some(
+        (s: any) => String(s.examId) === String(exam.id) && matchesClassName(s.className, fromClass)
+      );
+      const hasMarksForClass = (examMarks || []).some(
+        (m: any) => String(m.examId) === String(exam.id) && matchesClassName(m.className, fromClass)
+      );
+      const hasProcessedForClass = (processedResults || []).some(
+        (pr: any) => String(pr.examId) === String(exam.id) && matchesClassName(pr.className, fromClass)
+      );
+
+      if (!hasSpecificClass && !isGlobalExam && !hasScheduleForClass && !hasMarksForClass && !hasProcessedForClass) {
+        return false;
+      }
+
+      // 4. Status Validation: Created and scheduled examinations (Draft, Scheduled, Published, etc.) are all eligible
+      if (exam.promotionEligible === false || (exam as any).isPromotionEligible === false) {
+        return false;
+      }
+
+      return true;
+    });
+  }, [allExaminations, fromClass, currentYear, effectiveBranch, examSchedules, examMarks, processedResults]);
+
+  const selectedExam = useMemo(() => {
+    return allExaminations.find((e) => String(e.id) === String(selectedExamId));
+  }, [allExaminations, selectedExamId]);
   
   // Workflow States
   const [isResultsLoaded, setIsResultsLoaded] = useState<boolean>(false);
@@ -92,15 +297,16 @@ export const StudentPromotionView: React.FC<StudentPromotionViewProps> = ({ onNa
       "Target Academic Year": targetYear,
       "Current Class": r.currentClass,
       "Current Section": r.currentSection,
+      "Evaluation Examination": selectedExam?.name || "Selected Examination",
       "Academic Score (%)": `${r.overallPct}%`,
       "Grade": r.grade,
-      "Final Exam Result": r.finalResult,
+      "Exam Result": r.finalResult,
       "Promotion Decision": r.promotionStatus,
       "Target Class": r.newClass,
       "Target Section": r.newSection || "Unassigned",
       "Remarks / Status Notes": r.remarks
     }));
-  }, [promotionRows, currentYear, targetYear]);
+  }, [promotionRows, currentYear, targetYear, selectedExam]);
 
   // Bulk Controls State
   const [bulkTargetSection, setBulkTargetSection] = useState<string>('');
@@ -112,20 +318,83 @@ export const StudentPromotionView: React.FC<StudentPromotionViewProps> = ({ onNa
   // Available sections for target class
   const availableTargetSections = ['Section A', 'Section B', 'Section C'];
 
-  // Handle Load Final Results Action
-  const handleLoadFinalResults = () => {
+  const [isLoadingResults, setIsLoadingResults] = useState<boolean>(false);
+
+  // Handle Load Examination Results Action
+  const handleLoadResults = async () => {
+    if (!currentYear) {
+      addToast('warning', 'Select Academic Year', 'Please select a Current Academic Year.');
+      return;
+    }
+    if (!targetYear) {
+      addToast('warning', 'Select Target Year', 'Please select a Target Academic Year.');
+      return;
+    }
     if (!fromClass) {
       addToast('warning', 'Select Class', 'Please select a Current Class to load examination results.');
       return;
     }
+    if (!selectedExamId) {
+      addToast('warning', 'Select Examination', 'Please select an examination to load results.');
+      return;
+    }
+
+    const currentExam = availableExaminations.find((e) => e.id === selectedExamId);
+    if (!currentExam) {
+      addToast('warning', 'Invalid Examination', 'The selected examination is not valid or available.');
+      return;
+    }
+
+    setIsLoadingResults(true);
+
+    // 1. Fetch backend promotion API and dynamic Report Cards in parallel
+    const apiResultsMap = new Map<string, any>();
+    const reportCardsList: any[] = [];
+
+    try {
+      const [apiRes, reportCardsRes] = await Promise.allSettled([
+        loadPromotionResultsApi({
+          currentYear,
+          targetYear,
+          currentClass: fromClass,
+          branch: effectiveBranch,
+          policy: assignmentMethod,
+          examinationId: selectedExamId,
+        }),
+        fetchReportCardsApi(fromClass)
+      ]);
+
+      if (apiRes.status === 'fulfilled' && apiRes.value) {
+        const val = apiRes.value;
+        const list = val?.data || val?.students || (Array.isArray(val) ? val : []);
+        if (Array.isArray(list)) {
+          list.forEach((item: any) => {
+            const key = String(item.studentId || item.id || '');
+            if (key) apiResultsMap.set(key, item);
+          });
+        }
+      }
+
+      if (reportCardsRes.status === 'fulfilled' && reportCardsRes.value) {
+        const rcVal = reportCardsRes.value;
+        const rcCards = rcVal?.data || (Array.isArray(rcVal) ? rcVal : []);
+        if (Array.isArray(rcCards)) {
+          rcCards.forEach((c: any) => reportCardsList.push(c));
+        }
+      }
+    } catch (err) {
+      // Fallback gracefully to client data
+    } finally {
+      setIsLoadingResults(false);
+    }
 
     const calculatedNextClass = isHighestClass ? fromClass : getNextClassName(fromClass);
 
-    // Filter active students for selected class and current academic year
+    // Filter active students for selected class and current academic year using robust class matching
     const matchedStudents = students.filter(s => {
       if (s.status !== 'Active' && s.status !== 'Promoted') return false;
 
-      const matchClass = s.className.toLowerCase() === fromClass.toLowerCase();
+      const matchClass = matchesClassName(s.className, fromClass);
       if (!matchClass) return false;
 
       // Academic Year Validation
@@ -133,35 +402,217 @@ export const StudentPromotionView: React.FC<StudentPromotionViewProps> = ({ onNa
       if (currentYear === '2026-2027') {
         return studentYear === '2026-2027' || !(s as any).academicYear || studentYear === '2025-2026';
       } else {
-        const matchesHistory = s.promotionHistory?.some(h => h.academicYear === currentYear && h.fromClass.toLowerCase() === fromClass.toLowerCase());
+        const matchesHistory = s.promotionHistory?.some(h => h.academicYear === currentYear && matchesClassName(h.fromClass, fromClass));
         const matchesCurrent = studentYear === currentYear;
         return Boolean(matchesHistory || matchesCurrent);
       }
     });
 
-    if (matchedStudents.length === 0) {
-      addToast('warning', 'No Students Found', `No student records found for ${fromClass} in Academic Year ${currentYear}.`);
+    // Check report cards relevant to this class and examination
+    const relevantReportCards = reportCardsList.filter((rc: any) => {
+      const matchClass = matchesClassName(rc.className, fromClass);
+      if (!matchClass) return false;
+      if (rc.examId) {
+        const matchesId = String(rc.examId) === String(selectedExamId);
+        const matchesName = rc.examName && currentExam?.name && rc.examName.trim().toLowerCase() === currentExam.name.trim().toLowerCase();
+        if (!matchesId && !matchesName) return false;
+      }
+      return true;
+    });
+
+    // Synthesize/merge candidate students from Report Cards if missing from in-memory students list
+    const candidateStudents: Array<{
+      id: string;
+      admissionNo: string;
+      rollNo: string;
+      firstName: string;
+      lastName: string;
+      avatar: string;
+      branch: string;
+      className: string;
+      section: string;
+      promotionHistory?: any[];
+      reportCard?: any;
+    }> = matchedStudents.map(s => ({
+      id: String(s.id),
+      admissionNo: s.admissionNo,
+      rollNo: s.rollNo,
+      firstName: s.firstName,
+      lastName: s.lastName,
+      avatar: s.avatar || '',
+      branch: s.branch || effectiveBranch,
+      className: s.className,
+      section: s.section || 'A',
+      promotionHistory: s.promotionHistory
+    }));
+
+    // If report cards have students not yet in candidateStudents, add them
+    relevantReportCards.forEach((rc: any, idx: number) => {
+      const rcStudentId = String(rc.studentId || rc.id || '');
+      const rcAdm = (rc.admissionNo || rc.admissionNumber || '').trim().toLowerCase();
+      const rcName = (rc.studentName || `${rc.firstName || ''} ${rc.lastName || ''}`).trim().toLowerCase();
+
+      const exists = candidateStudents.some(cs => {
+        if (rcStudentId && cs.id === rcStudentId) return true;
+        if (rcAdm && cs.admissionNo.toLowerCase() === rcAdm) return true;
+        if (rcName && `${cs.firstName} ${cs.lastName}`.trim().toLowerCase() === rcName) return true;
+        return false;
+      });
+
+      if (!exists) {
+        const fullName = rc.studentName || `${rc.firstName || ''} ${rc.lastName || ''}`.trim() || `Student ${idx + 1}`;
+        const nameParts = fullName.split(' ');
+        const firstName = nameParts[0] || 'Student';
+        const lastName = nameParts.slice(1).join(' ') || '';
+
+        candidateStudents.push({
+          id: rcStudentId || `RC-${idx + 1}`,
+          admissionNo: rc.admissionNo || rc.admissionNumber || `ADM-${1000 + idx}`,
+          rollNo: rc.rollNo || rc.rollNumber || `R-${101 + idx}`,
+          firstName,
+          lastName,
+          avatar: '',
+          branch: effectiveBranch,
+          className: rc.className || fromClass,
+          section: rc.sectionName || rc.section || 'A',
+          promotionHistory: [],
+          reportCard: rc
+        });
+      }
+    });
+
+    // Also check if any report card has matching data for existing candidate students
+    candidateStudents.forEach(cs => {
+      if (!cs.reportCard) {
+        const foundRc = relevantReportCards.find((rc: any) => {
+          if (String(rc.studentId || '') === cs.id) return true;
+          if (rc.admissionNo && rc.admissionNo.toLowerCase() === cs.admissionNo.toLowerCase()) return true;
+          const rcName = (rc.studentName || `${rc.firstName || ''} ${rc.lastName || ''}`).trim().toLowerCase();
+          if (rcName && `${cs.firstName} ${cs.lastName}`.trim().toLowerCase() === rcName) return true;
+          return false;
+        });
+        if (foundRc) cs.reportCard = foundRc;
+      }
+    });
+
+    if (candidateStudents.length === 0) {
+      addToast('warning', 'No Students Found', `No eligible students found for ${fromClass} in Academic Year ${currentYear}.`);
       setPromotionRows([]);
       setIsResultsLoaded(true);
       return;
     }
 
-    // Build row objects with published exam results calculation
-    const rows: PromotionStudentRow[] = matchedStudents.map((s, idx) => {
-      // Calculate realistic percentage & grade based on GPA or admission index
-      const basePct = s.gpa ? Math.min(100, Math.max(30, Math.round(s.gpa * 20))) : (70 + ((s.id.charCodeAt(s.id.length - 1) * 7) % 28));
-      const isPass = basePct >= 35;
-      const finalResult: 'PASS' | 'FAIL' = isPass ? 'PASS' : 'FAIL';
-      const defaultStatus: 'Promote' | 'Retain' = isPass ? 'Promote' : 'Retain';
+    // Verify if this specific examination has published results
+    const hasExamInProcessed = (processedResults || []).some(
+      pr => (String(pr.examId) === String(selectedExamId) || (pr.examName && currentExam?.name && pr.examName.trim().toLowerCase() === currentExam.name.trim().toLowerCase())) && matchesClassName(pr.className, fromClass)
+    );
+    const hasExamInMarks = (examMarks || []).some(
+      m => (String(m.examId) === String(selectedExamId) || (m.examName && currentExam?.name && m.examName.trim().toLowerCase() === currentExam.name.trim().toLowerCase())) && (!m.className || matchesClassName(m.className, fromClass))
+    );
+    const hasReportCards = relevantReportCards.length > 0;
 
+    if (apiResultsMap.size === 0 && !hasExamInProcessed && !hasExamInMarks && !hasReportCards) {
+      addToast('info', 'No Evaluation Records Found', `No published report cards or marks found yet for ${currentExam.name} in ${fromClass}. Please enter marks or publish results in the Examination module.`);
+      setPromotionRows([]);
+      setIsResultsLoaded(true);
+      return;
+    }
+
+    // Build row objects with published exam results for the selected examination ONLY
+    const rows: PromotionStudentRow[] = candidateStudents.map((s, idx) => {
+      const studentIdStr = String(s.id);
+      const apiItem = apiResultsMap.get(studentIdStr);
+      const rcItem = s.reportCard;
+
+      let basePct = 0;
+      let finalResult: 'PASS' | 'FAIL' = 'PASS';
       let grade = 'C';
-      if (basePct >= 90) grade = 'A1';
-      else if (basePct >= 80) grade = 'A2';
-      else if (basePct >= 70) grade = 'B1';
-      else if (basePct >= 60) grade = 'B2';
-      else if (basePct >= 50) grade = 'C1';
-      else if (basePct >= 35) grade = 'C2';
-      else grade = 'F';
+      let hasFoundResult = false;
+
+      // 1. Check API returned item for this examination
+      if (apiItem) {
+        hasFoundResult = true;
+        basePct = Number(apiItem.overallPct || apiItem.percentage || apiItem.totalPct || 0);
+        if (apiItem.finalResult) {
+          finalResult = String(apiItem.finalResult).toUpperCase().includes('FAIL') ? 'FAIL' : 'PASS';
+        } else if (apiItem.passStatus) {
+          finalResult = String(apiItem.passStatus).toUpperCase().includes('FAIL') ? 'FAIL' : 'PASS';
+        } else {
+          finalResult = basePct >= 35 ? 'PASS' : 'FAIL';
+        }
+        if (apiItem.grade || apiItem.finalGrade) {
+          grade = apiItem.grade || apiItem.finalGrade;
+        }
+      }
+
+      // 2. Check dynamic Report Cards for this student
+      if (!hasFoundResult && rcItem) {
+        hasFoundResult = true;
+        const maxMarks = Number(rcItem.totalMaxMarks ?? rcItem.maxMarks ?? 0);
+        const obtMarks = Number(rcItem.totalMarksObtained ?? rcItem.totalObtainedMarks ?? rcItem.obtainedMarks ?? 0);
+        basePct = Number(rcItem.percentage ?? (maxMarks > 0 ? (obtMarks / maxMarks) * 100 : 0));
+        basePct = Math.round(basePct);
+
+        const statusStr = String(rcItem.resultStatus || rcItem.passStatus || '').toLowerCase();
+        if (statusStr.includes('fail') || basePct < 35) {
+          finalResult = 'FAIL';
+        } else {
+          finalResult = 'PASS';
+        }
+
+        grade = rcItem.grade || rcItem.finalGrade || rcItem.overallGrade || grade;
+      }
+
+      // 3. Check DataContext processedResults for THIS SELECTED EXAMINATION ONLY
+      if (!hasFoundResult) {
+        const stProcessed = (processedResults || []).filter(pr =>
+          (String(pr.examId) === String(selectedExamId) || (pr.examName && currentExam?.name && pr.examName.trim().toLowerCase() === currentExam.name.trim().toLowerCase())) &&
+          String(pr.studentId) === studentIdStr &&
+          (!pr.className || matchesClassName(pr.className, fromClass))
+        );
+        if (stProcessed.length > 0) {
+          hasFoundResult = true;
+          const latestPr = stProcessed[stProcessed.length - 1];
+          basePct = Math.round(latestPr.percentage ?? (latestPr.totalMaxMarks > 0 ? (latestPr.totalObtainedMarks / latestPr.totalMaxMarks) * 100 : 0));
+          finalResult = (latestPr.passStatus === 'Fail' || basePct < 35) ? 'FAIL' : 'PASS';
+          grade = latestPr.finalGrade || latestPr.overallGrade || grade;
+        }
+      }
+
+      // 4. Check DataContext examMarks for THIS SELECTED EXAMINATION ONLY
+      if (!hasFoundResult) {
+        const stMarks = (examMarks || []).filter(m =>
+          (String(m.examId) === String(selectedExamId) || (m.examName && currentExam?.name && m.examName.trim().toLowerCase() === currentExam.name.trim().toLowerCase())) &&
+          String(m.studentId) === studentIdStr &&
+          (!m.className || matchesClassName(m.className, fromClass))
+        );
+        if (stMarks.length > 0) {
+          hasFoundResult = true;
+          const totalObtained = stMarks.reduce((sum, m) => sum + (Number(m.marksObtained) || 0), 0);
+          const totalMax = stMarks.reduce((sum, m) => sum + (Number(m.totalMarks || m.maxMarks) || 100), 0);
+          basePct = totalMax > 0 ? Math.round((totalObtained / totalMax) * 100) : 0;
+          const hasFailedSub = stMarks.some(m => m.isAbsent || (m.marksObtained || 0) < (m.passMarks || 35));
+          finalResult = (hasFailedSub || basePct < 35) ? 'FAIL' : 'PASS';
+        }
+      }
+
+      // 5. If no exam records exist for this student under the selected examination, mark as unrecorded/fail
+      if (!hasFoundResult) {
+        basePct = 0;
+        finalResult = 'FAIL';
+        grade = 'F';
+      } else if (!grade || grade === 'C') {
+        if (basePct >= 90) grade = 'A1';
+        else if (basePct >= 80) grade = 'A2';
+        else if (basePct >= 70) grade = 'B1';
+        else if (basePct >= 60) grade = 'B2';
+        else if (basePct >= 50) grade = 'C1';
+        else if (basePct >= 35) grade = 'C2';
+        else grade = 'F';
+      }
+
+      const isPass = finalResult === 'PASS';
+      const defaultStatus: 'Promote' | 'Retain' = isPass ? 'Promote' : 'Retain';
 
       // Check if already promoted to target year
       const alreadyPromoted = s.promotionHistory?.some(h => h.academicYear === targetYear);
@@ -173,7 +624,7 @@ export const StudentPromotionView: React.FC<StudentPromotionViewProps> = ({ onNa
         firstName: s.firstName,
         lastName: s.lastName,
         avatar: s.avatar || '',
-        branch: s.branch || branch,
+        branch: s.branch || effectiveBranch,
         currentClass: s.className,
         currentSection: s.section || 'A',
         overallPct: basePct,
@@ -182,7 +633,9 @@ export const StudentPromotionView: React.FC<StudentPromotionViewProps> = ({ onNa
         promotionStatus: defaultStatus,
         newClass: defaultStatus === 'Promote' ? calculatedNextClass : s.className,
         newSection: 'Section A', // Default placeholder, will be processed by policy
-        remarks: isPass ? 'Cleared Final Examinations' : 'Retained - Minimum Passing Criteria Not Met',
+        remarks: hasFoundResult
+          ? (isPass ? `Cleared ${currentExam.name}` : `Retained - ${currentExam.name} Criteria Not Met`)
+          : `No published marks for ${currentExam.name}`,
         isAlreadyPromoted: alreadyPromoted
       };
     });
@@ -192,7 +645,7 @@ export const StudentPromotionView: React.FC<StudentPromotionViewProps> = ({ onNa
     setPromotionRows(processedRows);
     setSelectedStudentIds([]);
     setIsResultsLoaded(true);
-    addToast('success', 'Final Results Loaded', `Loaded published final examination results for ${processedRows.length} student(s).`);
+    addToast('success', 'Results Loaded', `Loaded published results for ${currentExam.name} (${processedRows.length} student(s)).`);
   };
 
   // Section Policy Processor
@@ -288,7 +741,7 @@ export const StudentPromotionView: React.FC<StudentPromotionViewProps> = ({ onNa
 
   const handleReapplyPolicy = () => {
     if (promotionRows.length === 0) {
-      addToast('warning', 'No Records Loaded', 'Please select a Class and click "Load Final Results" first.');
+      addToast('warning', 'No Records Loaded', 'Please select an Examination and click "Load Results" first.');
       return;
     }
 
@@ -411,7 +864,12 @@ export const StudentPromotionView: React.FC<StudentPromotionViewProps> = ({ onNa
     return promotionRows.filter(r => 
       `${r.firstName} ${r.lastName}`.toLowerCase().includes(q) ||
       r.admissionNo.toLowerCase().includes(q) ||
-      r.rollNo.toLowerCase().includes(q)
+      r.rollNo.toLowerCase().includes(q) ||
+      (r.currentSection && r.currentSection.toLowerCase().includes(q)) ||
+      (r.newSection && r.newSection.toLowerCase().includes(q)) ||
+      (r.finalResult && r.finalResult.toLowerCase().includes(q)) ||
+      (r.promotionStatus && r.promotionStatus.toLowerCase().includes(q)) ||
+      (r.grade && r.grade.toLowerCase().includes(q))
     );
   }, [promotionRows, searchQuery]);
 
@@ -450,9 +908,12 @@ export const StudentPromotionView: React.FC<StudentPromotionViewProps> = ({ onNa
   const handleApplyBulkSection = (selectedSec?: string) => {
     const targetSec = selectedSec || bulkTargetSection;
     if (!targetSec) return;
+    
+    // Retain and display the selected section in the dropdown
+    setBulkTargetSection(targetSec);
+
     if (selectedStudentIds.length === 0) {
-      addToast('warning', 'No Selection', 'Please select at least one student from the list first.');
-      setBulkTargetSection('');
+      addToast('info', 'Section Selected', `Selected ${targetSec}. Select students from the list to assign.`);
       return;
     }
     setPromotionRows(prev => prev.map(r => {
@@ -462,15 +923,17 @@ export const StudentPromotionView: React.FC<StudentPromotionViewProps> = ({ onNa
       return r;
     }));
     addToast('success', 'Bulk Section Applied', `Assigned ${selectedStudentIds.length} student(s) to ${targetSec}.`);
-    setBulkTargetSection('');
   };
 
-  const handleApplyBulkStatus = (selectedStat?: 'Promote' | 'Retain') => {
-    const targetStatus = selectedStat || (bulkStatus as 'Promote' | 'Retain');
+  const handleApplyBulkStatus = (selectedStat?: 'Promote' | 'Retain' | '') => {
+    const targetStatus = (selectedStat || bulkStatus) as 'Promote' | 'Retain';
     if (!targetStatus) return;
+
+    // Retain and display the selected status in the dropdown
+    setBulkStatus(targetStatus);
+
     if (selectedStudentIds.length === 0) {
-      addToast('warning', 'No Selection', 'Please select at least one student from the list first.');
-      setBulkStatus('');
+      addToast('info', 'Status Selected', `Selected ${targetStatus}. Select students from the list to assign.`);
       return;
     }
     const calculatedNextClass = isHighestClass ? fromClass : getNextClassName(fromClass);
@@ -486,7 +949,6 @@ export const StudentPromotionView: React.FC<StudentPromotionViewProps> = ({ onNa
       return r;
     }));
     addToast('success', 'Bulk Status Applied', `Marked ${selectedStudentIds.length} student(s) as ${targetStatus}.`);
-    setBulkStatus('');
   };
 
   // Real-time Summary Counters
@@ -658,6 +1120,8 @@ export const StudentPromotionView: React.FC<StudentPromotionViewProps> = ({ onNa
     }
 
     setSelectedStudentIds([]);
+    setBulkTargetSection('');
+    setBulkStatus('');
   };
 
   return (
@@ -692,14 +1156,14 @@ export const StudentPromotionView: React.FC<StudentPromotionViewProps> = ({ onNa
           <ExportButton
             data={exportablePromotionData}
             filename={`student_promotion_${fromClass || 'list'}`}
-            emptyMessage="No student promotion records available to export. Please select a Current Class and click 'Load Final Results' first."
+            emptyMessage="No student promotion records available to export. Please select a Current Class and Examination, then click 'Load Results' first."
           />
         </div>
       </div>
 
       {/* Step 1 Filter Bar */}
       <div className="glass-card p-4 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-4">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3.5">
           {/* Current Academic Year */}
           <div>
             <label className="block text-[10px] font-black uppercase tracking-wider text-slate-400 mb-1">Current Academic Year</label>
@@ -709,7 +1173,12 @@ export const StudentPromotionView: React.FC<StudentPromotionViewProps> = ({ onNa
                 const newYear = e.target.value;
                 setCurrentYear(newYear);
                 setTargetYear(getTargetYearFromCurrent(newYear));
+                setSelectedExamId('');
+                setPromotionRows([]);
                 setIsResultsLoaded(false);
+                setSelectedStudentIds([]);
+                setBulkTargetSection('');
+                setBulkStatus('');
               }}
               className="w-full px-3.5 py-2.5 rounded-2xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-brand-500/20 cursor-pointer"
             >
@@ -724,7 +1193,12 @@ export const StudentPromotionView: React.FC<StudentPromotionViewProps> = ({ onNa
             <label className="block text-[10px] font-black uppercase tracking-wider text-slate-400 mb-1">Target Academic Year</label>
             <select
               value={targetYear}
-              onChange={e => { setTargetYear(e.target.value); setIsResultsLoaded(false); }}
+              onChange={e => {
+                setTargetYear(e.target.value);
+                setIsResultsLoaded(false);
+                setBulkTargetSection('');
+                setBulkStatus('');
+              }}
               className="w-full px-3.5 py-2.5 rounded-2xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-brand-500/20 cursor-pointer"
             >
               <option value="2027-2028">2027-2028 (Next Year)</option>
@@ -738,8 +1212,16 @@ export const StudentPromotionView: React.FC<StudentPromotionViewProps> = ({ onNa
             <label className="block text-[10px] font-black uppercase tracking-wider text-slate-400 mb-1">Current Class <span className="text-rose-500 font-bold ml-0.5">*</span></label>
             <select
               value={fromClass}
-              onChange={e => { setFromClass(e.target.value); setIsResultsLoaded(false); }}
-              className="w-full px-3.5 py-2.5 rounded-2xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-brand-500/20"
+              onChange={e => {
+                setFromClass(e.target.value);
+                setSelectedExamId('');
+                setPromotionRows([]);
+                setIsResultsLoaded(false);
+                setSelectedStudentIds([]);
+                setBulkTargetSection('');
+                setBulkStatus('');
+              }}
+              className="w-full px-3.5 py-2.5 rounded-2xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-brand-500/20 cursor-pointer"
             >
               <option value="">Select Class</option>
               {academicClasses.map(c => (
@@ -750,13 +1232,68 @@ export const StudentPromotionView: React.FC<StudentPromotionViewProps> = ({ onNa
             </select>
           </div>
 
+          {/* Examination / Result Type */}
+          <div>
+            <div className="flex items-center justify-between mb-1">
+              <label className="block text-[10px] font-black uppercase tracking-wider text-slate-400">
+                Examination <span className="text-rose-500 font-bold ml-0.5">*</span>
+              </label>
+              <button
+                type="button"
+                onClick={() => loadDynamicExaminations()}
+                title="Refresh examinations from Examination module"
+                className="text-[10px] text-sky-600 dark:text-sky-400 hover:text-sky-700 dark:hover:text-sky-300 flex items-center gap-1 font-bold cursor-pointer transition-colors"
+              >
+                <RefreshCw className={`w-2.5 h-2.5 ${isLoadingExams ? 'animate-spin' : ''}`} />
+                <span>Sync</span>
+              </button>
+            </div>
+            <select
+              value={selectedExamId}
+              disabled={!fromClass || (availableExaminations.length === 0 && !isLoadingExams)}
+              onChange={e => {
+                setSelectedExamId(e.target.value);
+                setPromotionRows([]);
+                setIsResultsLoaded(false);
+                setSelectedStudentIds([]);
+                setBulkTargetSection('');
+                setBulkStatus('');
+              }}
+              className="w-full px-3.5 py-2.5 rounded-2xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-brand-500/20 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <option value="">
+                {isLoadingExams
+                  ? 'Loading examinations...'
+                  : !fromClass
+                  ? 'Select Class first'
+                  : availableExaminations.length === 0
+                  ? 'No examinations available'
+                  : 'Select Examination'}
+              </option>
+              {availableExaminations.map(exam => (
+                <option key={exam.id} value={exam.id}>
+                  {exam.name || (exam as any).examName}
+                </option>
+              ))}
+            </select>
+          </div>
+
           {/* Action Button */}
           <div className="flex items-end">
             <button
-              onClick={handleLoadFinalResults}
-              className="w-full py-2.5 px-4 rounded-2xl bg-sky-600 hover:bg-sky-500 text-white text-xs font-extrabold shadow-md flex items-center justify-center gap-2 transition-all active:scale-95 cursor-pointer"
+              onClick={handleLoadResults}
+              disabled={isLoadingResults || !fromClass || !selectedExamId}
+              className="w-full py-2.5 px-4 rounded-2xl bg-sky-600 hover:bg-sky-500 text-white text-xs font-extrabold shadow-md flex items-center justify-center gap-2 transition-all active:scale-95 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              <FileCheck2 className="w-4 h-4" /> Load Final Results
+              {isLoadingResults ? (
+                <>
+                  <RefreshCw className="w-4 h-4 animate-spin" /> Loading Results...
+                </>
+              ) : (
+                <>
+                  <FileCheck2 className="w-4 h-4" /> Load Results
+                </>
+              )}
             </button>
           </div>
         </div>
@@ -777,14 +1314,35 @@ export const StudentPromotionView: React.FC<StudentPromotionViewProps> = ({ onNa
             <FileCheck2 className="w-7 h-7" />
           </div>
           <div className="max-w-md mx-auto space-y-1.5">
-            <h3 className="text-base font-black text-slate-900 dark:text-white">Load Published Final Examination Results</h3>
+            <h3 className="text-base font-black text-slate-900 dark:text-white">Load Published Examination Results</h3>
             <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
-              Please select Current Academic Year, Target Academic Year, Branch, and Current Class, then click <strong className="text-slate-800 dark:text-slate-200">"Load Final Results"</strong> to fetch students eligible for promotion.
+              Select Current Academic Year, Current Class, and the Examination to evaluate, then click <strong className="text-slate-800 dark:text-slate-200">"Load Results"</strong> to fetch students eligible for promotion.
             </p>
           </div>
         </div>
       ) : (
         <>
+          {/* DYNAMIC RESULT EVALUATION BANNER */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-2xl bg-sky-50 dark:bg-sky-950/40 border border-sky-200 dark:border-sky-800 text-xs shadow-xs">
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-xl bg-sky-600 text-white flex items-center justify-center shadow-xs">
+                <Award className="w-4 h-4" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] uppercase font-black tracking-wider text-sky-700 dark:text-sky-300">Published Result:</span>
+                  <span className="font-extrabold text-slate-900 dark:text-white text-sm">{selectedExam?.name || 'Selected Examination'}</span>
+                </div>
+                <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+                  Academic Year: <strong className="text-slate-700 dark:text-slate-300">{currentYear}</strong> &bull; Class: <strong className="text-slate-700 dark:text-slate-300">{fromClass}</strong>
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 bg-white dark:bg-slate-900 px-3.5 py-1.5 rounded-xl border border-sky-200 dark:border-sky-800 self-start sm:self-auto font-mono text-xs font-bold text-sky-800 dark:text-sky-200">
+              <span>Students Found:</span>
+              <span className="font-extrabold text-sm text-sky-600 dark:text-sky-400">{promotionRows.length}</span>
+            </div>
+          </div>
           {/* DYNAMIC PROMOTION SUMMARY CARDS */}
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-9 gap-3">
             <div className="glass-card p-3 rounded-2xl border-l-4 border-l-slate-500 bg-white dark:bg-slate-900">
@@ -880,20 +1438,36 @@ export const StudentPromotionView: React.FC<StudentPromotionViewProps> = ({ onNa
               
               {/* POLICY 1: MANUAL ASSIGNMENT CONTROLS */}
               {assignmentMethod === 'Manual' && (
-                <select
-                  value={bulkTargetSection}
-                  onChange={e => {
-                    const sec = e.target.value;
-                    setBulkTargetSection(sec);
-                    if (sec) handleApplyBulkSection(sec);
-                  }}
-                  className="px-3 py-1.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none cursor-pointer shadow-xs"
-                >
-                  <option value="">Select Section</option>
-                  <option value="Section A">Section A</option>
-                  <option value="Section B">Section B</option>
-                  <option value="Section C">Section C</option>
-                </select>
+                <div className="flex items-center gap-1.5">
+                  <select
+                    value={bulkTargetSection}
+                    onChange={e => {
+                      const sec = e.target.value;
+                      setBulkTargetSection(sec);
+                      if (sec) handleApplyBulkSection(sec);
+                    }}
+                    className={`px-3 py-1.5 rounded-xl border text-xs font-bold outline-none cursor-pointer shadow-xs transition-colors ${
+                      bulkTargetSection
+                        ? 'bg-brand-50/70 dark:bg-brand-950/40 border-brand-300 dark:border-brand-700 text-brand-700 dark:text-brand-300 font-extrabold'
+                        : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white'
+                    }`}
+                  >
+                    <option value="">Select Section</option>
+                    {availableTargetSections.map(sec => (
+                      <option key={sec} value={sec}>{sec}</option>
+                    ))}
+                  </select>
+                  {bulkTargetSection && selectedStudentIds.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => handleApplyBulkSection(bulkTargetSection)}
+                      className="px-2.5 py-1.5 rounded-xl bg-brand-600 hover:bg-brand-500 text-white text-xs font-bold shadow-xs transition-all active:scale-95 cursor-pointer shrink-0"
+                      title={`Apply ${bulkTargetSection} to ${selectedStudentIds.length} selected student(s)`}
+                    >
+                      Apply
+                    </button>
+                  )}
+                </div>
               )}
 
               {/* POLICY 2: MERIT BASED CONTROLS */}
@@ -933,19 +1507,35 @@ export const StudentPromotionView: React.FC<StudentPromotionViewProps> = ({ onNa
               )}
 
               {/* Common Bulk Status Control */}
-              <select
-                value={bulkStatus}
-                onChange={e => {
-                  const stat = e.target.value as 'Promote' | 'Retain';
-                  setBulkStatus(stat);
-                  if (stat) handleApplyBulkStatus(stat);
-                }}
-                className="px-3 py-1.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none cursor-pointer shadow-xs"
-              >
-                <option value="">Select Status</option>
-                <option value="Promote">Promote</option>
-                <option value="Retain">Retain</option>
-              </select>
+              <div className="flex items-center gap-1.5">
+                <select
+                  value={bulkStatus}
+                  onChange={e => {
+                    const stat = e.target.value as 'Promote' | 'Retain' | '';
+                    setBulkStatus(stat);
+                    if (stat) handleApplyBulkStatus(stat);
+                  }}
+                  className={`px-3 py-1.5 rounded-xl border text-xs font-bold outline-none cursor-pointer shadow-xs transition-colors ${
+                    bulkStatus
+                      ? 'bg-brand-50/70 dark:bg-brand-950/40 border-brand-300 dark:border-brand-700 text-brand-700 dark:text-brand-300 font-extrabold'
+                      : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white'
+                  }`}
+                >
+                  <option value="">Select Status</option>
+                  <option value="Promote">Promote</option>
+                  <option value="Retain">Retain</option>
+                </select>
+                {bulkStatus && selectedStudentIds.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => handleApplyBulkStatus(bulkStatus as 'Promote' | 'Retain')}
+                    className="px-2.5 py-1.5 rounded-xl bg-brand-600 hover:bg-brand-500 text-white text-xs font-bold shadow-xs transition-all active:scale-95 cursor-pointer shrink-0"
+                    title={`Apply ${bulkStatus} to ${selectedStudentIds.length} selected student(s)`}
+                  >
+                    Apply
+                  </button>
+                )}
+              </div>
 
               {/* Main Execute Promote CTA Button placed on the far right side */}
               <button

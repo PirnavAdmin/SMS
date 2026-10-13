@@ -31,7 +31,7 @@ interface ExaminationViewProps {
 }
 
 export const ExaminationView: React.FC<ExaminationViewProps> = ({ initialTab = 'setup' }) => {
-  const { academicClasses, subjects, staff, students, gradeConfigurations } = useData();
+  const { academicClasses, subjects, staff, students, gradeConfigurations, refreshExamData } = useData() as any;
   const { selectedAcademicYear, selectedBranch } = useAuth();
   const { addToast } = useToast();
   
@@ -241,6 +241,9 @@ export const ExaminationView: React.FC<ExaminationViewProps> = ({ initialTab = '
 
     // Trigger backend delete API (if server supports it)
     deleteExamApi(examIdToDelete).catch(() => {});
+    if (refreshExamData) {
+      refreshExamData().catch(() => {});
+    }
 
     // Update local state and DataContext
     setExams(prev => prev.filter(e => e.id !== examIdToDelete));
@@ -269,6 +272,9 @@ export const ExaminationView: React.FC<ExaminationViewProps> = ({ initialTab = '
           addToast('success', 'Details Saved', response.message || 'Exam configuration saved successfully.');
         }
         await loadOptions(false);
+        if (refreshExamData) {
+          refreshExamData().catch(() => {});
+        }
         if (response.data?.examId) {
           const newId = response.data.examId.toString();
           setSelectedExamId(newId);

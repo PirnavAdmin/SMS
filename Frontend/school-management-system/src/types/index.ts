@@ -674,6 +674,8 @@ export interface ExamSetup {
   publishResult?: boolean;
   publishStatus?: 'Draft' | 'Scheduled' | 'Published' | 'Completed' | 'Archived';
   gradeSchemeName?: string;
+  promotionEligible?: boolean;
+  isPromotionEligible?: boolean;
   schedules?: ExamSchedule[];
   marksConfig?: {
     maxMarks: number;

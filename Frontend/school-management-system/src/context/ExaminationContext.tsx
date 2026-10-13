@@ -154,6 +154,9 @@ export const ExaminationProvider: React.FC<{
                         term:
                             e.academicTerm || 'Term 1',
 
+                        academicTerm:
+                            e.academicTerm || 'Term 1',
+
                         startDate:
                             e.startDate || '',
 
@@ -163,10 +166,19 @@ export const ExaminationProvider: React.FC<{
                         classes:
                             e.applicableClasses || [],
 
+                        applicableClasses:
+                            e.applicableClasses || [],
+
                         status:
                             e.status || 'Draft',
 
+                        academicYear:
+                            e.academicYear || '',
+
                         assessmentType:
+                            e.assessmentType || 'Main Exam',
+
+                        examType:
                             e.assessmentType || 'Main Exam'
 
                     }));
