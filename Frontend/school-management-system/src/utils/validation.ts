@@ -563,13 +563,36 @@ function shouldSkipGlobalValidation(input: HTMLInputElement | HTMLTextAreaElemen
   if (input instanceof HTMLInputElement && SKIP_INPUT_TYPES.has((input.type || 'text').toLowerCase())) {
     return true;
   }
-  const meta = `${input.name || ''} ${input.id || ''} ${input.placeholder || ''}`.toLowerCase();
+  const meta = `${input.name || ''} ${input.id || ''} ${input.placeholder || ''} ${input.autocomplete || ''}`.toLowerCase();
   if (
     meta.includes('password') ||
+    meta.includes('pass') ||
+    meta.includes('email') ||
+    meta.includes('phone') ||
+    meta.includes('mobile') ||
+    meta.includes('identifier') ||
+    meta.includes('login') ||
+    meta.includes('username') ||
+    meta.includes('otp') ||
+    meta.includes('pin') ||
     meta.includes('http') ||
     meta.includes('url') ||
     meta.includes('.pdf') ||
     meta.includes('.jpg')
+  ) {
+    return true;
+  }
+  const label = inferInputFieldLabel(input);
+  if (
+    label.includes('email') ||
+    label.includes('phone') ||
+    label.includes('mobile') ||
+    label.includes('password') ||
+    label.includes('username') ||
+    label.includes('login') ||
+    label.includes('identifier') ||
+    label.includes('otp') ||
+    label.includes('pin')
   ) {
     return true;
   }
@@ -644,7 +667,7 @@ export function validateInputElement(
     return { isValid: true };
   }
 
-  if (label.includes('address')) {
+  if (label.includes('address') && !label.includes('email') && !label.includes('ip') && !label.includes('web')) {
     return validateCampusAddress(val, enforceRequired && input.required);
   }
 
@@ -742,6 +765,14 @@ export function installGlobalInputValidation(): () => void {
 
   if (typeof (window as any).__globalValidationCleanup === 'function') {
     (window as any).__globalValidationCleanup();
+  }
+
+  if (typeof document !== 'undefined') {
+    document.querySelectorAll('[data-global-validation-error="true"]').forEach(el => el.remove());
+    document.querySelectorAll('[data-global-invalid]').forEach(el => {
+      (el as HTMLElement).removeAttribute('data-global-invalid');
+      (el as HTMLElement).style.borderColor = '';
+    });
   }
 
   const applyValidation = (target: HTMLInputElement | HTMLTextAreaElement, enforceReq = false) => {

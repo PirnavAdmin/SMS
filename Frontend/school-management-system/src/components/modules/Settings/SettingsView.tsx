@@ -2162,7 +2162,7 @@ export const SettingsView: React.FC = () => {
                         ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300"
                         : ay.status === "Closed"
                           ? "bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300"
-                          : (ay.status as string) === "Inactive"
+                          : ay.status === "Upcoming" || (ay.status as string) === "Inactive"
                             ? "bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300"
                             : "bg-slate-200 text-slate-600 dark:bg-slate-800 dark:text-slate-400"
                     }`}
