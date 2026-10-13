@@ -30,6 +30,14 @@ export interface AssignedStudentDetail {
   parentMobile: string;
   morningTime: string;
   eveningTime: string;
+  routeId?: string;
+  routeName?: string;
+  vehicleId?: string;
+  vehicleNumber?: string;
+  feePlan?: string;
+  feeAmount?: number;
+  effectiveFrom?: string;
+  status?: string;
 }
 
 export const formatTripTime = (value?: string) => {
@@ -150,14 +158,17 @@ export const resolveAssignedStudentsForTrip = (
     const matchesRoute = (cleanTargetRouteId !== '' && stRouteId !== '' && stRouteId === cleanTargetRouteId) ||
                          (cleanTargetRouteName !== '' && stRouteName !== '' && (
                            stRouteName === cleanTargetRouteName ||
-                           stRouteName.includes(cleanTargetRouteName) ||
-                           cleanTargetRouteName.includes(stRouteName)
-                         )) ||
-                         (cleanTargetRouteCode !== '' && stRouteName !== '' && stRouteName === cleanTargetRouteCode);
+                           stRouteName === cleanTargetRouteCode
+                         ));
 
     const matchesVehicle = (assignmentId !== '' && stVehicleAssignId !== '' && stVehicleAssignId === assignmentId) ||
                            (targetVehicleId !== '' && stVehicleAssignId !== '' && stVehicleAssignId === targetVehicleId) ||
                            (targetVehicleNum !== '' && stVehicleNum !== '' && stVehicleNum === targetVehicleNum);
+
+    // If both this trip and the student record have route information, the route MUST match
+    if ((stRouteId !== '' || stRouteName !== '') && (cleanTargetRouteId !== '' || cleanTargetRouteName !== '')) {
+      return matchesRoute;
+    }
 
     return matchesRoute || matchesVehicle;
   });
@@ -238,7 +249,15 @@ export const resolveAssignedStudentsForTrip = (
       parentName: pName,
       parentMobile: pMobile,
       morningTime,
-      eveningTime
+      eveningTime,
+      routeId: targetRouteId || st.routeId,
+      routeName: route?.routeName || assignment.routeName || st.routeName || '',
+      vehicleId: targetVehicleId,
+      vehicleNumber: assignment.vehicleNumber || vehicle?.vehicleNumber || '',
+      feePlan: st.feePlan || 'Monthly',
+      feeAmount: st.feeAmount || 0,
+      effectiveFrom: (st.effectiveFrom || assignment.effectiveFrom || '').split('T')[0] || new Date().toISOString().split('T')[0],
+      status: 'Active'
     });
   });
 
@@ -251,9 +270,7 @@ export const resolveAssignedStudentsForTrip = (
       st.isTransportOpted === true ||
       st.transport === true ||
       Boolean(st.busRoute) ||
-      Boolean(st.transportType) ||
-      Boolean(st.routeId) ||
-      Boolean(st.pickupPoint && configuredStops.some((cs: any) => (cs.pickupName || '').toLowerCase() === (st.pickupPoint || '').trim().toLowerCase()));
+      Boolean(st.routeId);
 
     if (!isTransportEnrolled) return;
 
@@ -263,11 +280,8 @@ export const resolveAssignedStudentsForTrip = (
       (cleanTargetRouteId !== '' && stRouteIdStr !== '' && stRouteIdStr === cleanTargetRouteId) ||
       (cleanTargetRouteName !== '' && stBusRoute !== '' && (
         stBusRoute === cleanTargetRouteName ||
-        stBusRoute.includes(cleanTargetRouteName) ||
-        cleanTargetRouteName.includes(stBusRoute)
-      )) ||
-      (cleanTargetRouteCode !== '' && stBusRoute !== '' && stBusRoute === cleanTargetRouteCode) ||
-      (st.pickupPoint && configuredStops.some((cs: any) => (cs.pickupName || '').trim().toLowerCase() === (st.pickupPoint || '').trim().toLowerCase()));
+        stBusRoute === cleanTargetRouteCode
+      ));
 
     if (!matchesRoute) return;
 
@@ -303,7 +317,15 @@ export const resolveAssignedStudentsForTrip = (
       parentName: (st.fatherName || st.parentName || st.motherName || st.guardianName || '-').trim(),
       parentMobile: (st.fatherPhone || st.fatherMobile || st.phone || st.mobileNumber || '-').trim(),
       morningTime,
-      eveningTime
+      eveningTime,
+      routeId: targetRouteId || st.routeId,
+      routeName: route?.routeName || assignment.routeName || st.busRoute || '',
+      vehicleId: targetVehicleId,
+      vehicleNumber: assignment.vehicleNumber || vehicle?.vehicleNumber || '',
+      feePlan: 'Monthly',
+      feeAmount: 0,
+      effectiveFrom: (assignment.effectiveFrom || '').split('T')[0] || new Date().toISOString().split('T')[0],
+      status: 'Active'
     });
   });
 
@@ -316,7 +338,7 @@ export const resolveAssignedStudentsForTrip = (
       adm.isTransportOpted === true ||
       Boolean(adm.busRoute) ||
       Boolean(adm.routeId) ||
-      Boolean(adm.pickupPoint && configuredStops.some((cs: any) => (cs.pickupName || '').toLowerCase() === (adm.pickupPoint || '').trim().toLowerCase()));
+      Boolean(adm.routeName);
 
     if (!isTransportEnrolled) return;
 
@@ -326,11 +348,8 @@ export const resolveAssignedStudentsForTrip = (
       (cleanTargetRouteId !== '' && admRouteIdStr !== '' && admRouteIdStr === cleanTargetRouteId) ||
       (cleanTargetRouteName !== '' && admBusRoute !== '' && (
         admBusRoute === cleanTargetRouteName ||
-        admBusRoute.includes(cleanTargetRouteName) ||
-        cleanTargetRouteName.includes(admBusRoute)
-      )) ||
-      (cleanTargetRouteCode !== '' && admBusRoute !== '' && admBusRoute === cleanTargetRouteCode) ||
-      (adm.pickupPoint && configuredStops.some((cs: any) => (cs.pickupName || '').trim().toLowerCase() === (adm.pickupPoint || '').trim().toLowerCase()));
+        admBusRoute === cleanTargetRouteCode
+      ));
 
     if (!matchesRoute) return;
 
@@ -366,7 +385,208 @@ export const resolveAssignedStudentsForTrip = (
       parentName: (adm.parentName || adm.fatherName || '-').trim(),
       parentMobile: (adm.phone || adm.parentPhone || adm.mobileNumber || '-').trim(),
       morningTime,
-      eveningTime
+      eveningTime,
+      routeId: targetRouteId || adm.routeId,
+      routeName: route?.routeName || assignment.routeName || adm.busRoute || adm.routeName || '',
+      vehicleId: targetVehicleId,
+      vehicleNumber: assignment.vehicleNumber || vehicle?.vehicleNumber || '',
+      feePlan: 'Monthly',
+      feeAmount: 0,
+      effectiveFrom: (assignment.effectiveFrom || '').split('T')[0] || new Date().toISOString().split('T')[0],
+      status: 'Active'
+    });
+  });
+
+  return result;
+};
+
+export interface ResolveAllTransportStudentsOptions extends ResolveTripStudentsOptions {
+  vehicleAssignments?: any[];
+}
+
+export const resolveAllActiveTransportStudents = (
+  options: ResolveAllTransportStudentsOptions
+): AssignedStudentDetail[] => {
+  const {
+    vehicleAssignments = [],
+    studentTransports = [],
+    students = [],
+    admissions = [],
+    routeMasters = [],
+    pickupPoints = [],
+    vehicleMasters = []
+  } = options;
+
+  const seenKeys = new Set<string>();
+  const result: AssignedStudentDetail[] = [];
+
+  const addStudent = (item: AssignedStudentDetail) => {
+    const k1 = item.admissionNo ? item.admissionNo.trim().toLowerCase() : '';
+    const k2 = String(item.id).trim().toLowerCase();
+    const k3 = item.studentName ? item.studentName.trim().toLowerCase() : '';
+
+    if (seenKeys.has(k1) || seenKeys.has(k2) || (k3 && k3 !== 'student' && seenKeys.has(k3))) {
+      return;
+    }
+    if (k1 && k1 !== '-') seenKeys.add(k1);
+    if (k2) seenKeys.add(k2);
+    if (k3 && k3 !== 'student') seenKeys.add(k3);
+
+    result.push(item);
+  };
+
+  // 1. Process all active vehicle assignments first
+  const activeAssignments = (vehicleAssignments || []).filter(
+    (va: any) => va.status === 'Active' || !va.status
+  );
+  activeAssignments.forEach((assignment: any) => {
+    const tripStudents = resolveAssignedStudentsForTrip(assignment, {
+      studentTransports,
+      students,
+      admissions,
+      routeMasters,
+      pickupPoints,
+      vehicleMasters
+    });
+    tripStudents.forEach(addStudent);
+  });
+
+  // 2. Process any remaining active studentTransports not matched in active assignments
+  (studentTransports || []).forEach((st: any) => {
+    const isStatusActive = st.status === 'Active' || st.status === true || String(st.status).toLowerCase() === 'true';
+    if (!isStatusActive) return;
+
+    const matchedStudent = (students || []).find((s: any) =>
+      (st.studentId && s.id && String(s.id).trim().toLowerCase() === String(st.studentId).trim().toLowerCase()) ||
+      (st.admissionNo && s.admissionNo && s.admissionNo.trim().toLowerCase() === st.admissionNo.trim().toLowerCase()) ||
+      (st.studentName && (`${s.firstName || ''} ${s.lastName || ''}`.trim().toLowerCase() === st.studentName.trim().toLowerCase() || s.name?.trim().toLowerCase() === st.studentName.trim().toLowerCase()))
+    );
+
+    const matchedAdm = !matchedStudent ? (admissions || []).find((a: any) =>
+      (st.admissionNo && a.registrationNo && a.registrationNo.trim().toLowerCase() === st.admissionNo.trim().toLowerCase()) ||
+      (st.admissionNo && a.applicationNo && a.applicationNo.trim().toLowerCase() === st.admissionNo.trim().toLowerCase()) ||
+      (st.studentId && a.id && String(a.id).trim().toLowerCase() === String(st.studentId).trim().toLowerCase()) ||
+      (st.studentName && a.applicantName && a.applicantName.trim().toLowerCase() === st.studentName.trim().toLowerCase())
+    ) : null;
+
+    const resolvedName = (
+      (matchedStudent?.firstName ? `${matchedStudent.firstName} ${matchedStudent.lastName || ''}`.trim() : '') ||
+      matchedStudent?.studentName ||
+      matchedStudent?.name ||
+      st.studentName ||
+      matchedAdm?.applicantName ||
+      'Student'
+    ).trim();
+
+    const rawAdm = matchedStudent?.admissionNo || st.admissionNo || matchedAdm?.registrationNo || matchedAdm?.applicationNo;
+    const finalAdmissionNo = formatAdmissionNo(rawAdm, matchedStudent?.id || st.studentId || st.id);
+
+    const route = (routeMasters || []).find((r: any) =>
+      (st.routeId && String(r.id).trim() === String(st.routeId).trim()) ||
+      (st.routeName && r.routeName && r.routeName.trim().toLowerCase() === st.routeName.trim().toLowerCase())
+    );
+
+    addStudent({
+      id: String(st.id || matchedStudent?.id || st.studentId || `stud-${result.length + 1}`),
+      admissionNo: finalAdmissionNo,
+      studentName: resolvedName,
+      gender: matchedStudent?.gender || matchedAdm?.gender || matchedStudent?.sex || '-',
+      className: matchedStudent?.className || matchedStudent?.grade || matchedAdm?.appliedClass || matchedStudent?.class || '-',
+      section: matchedStudent?.section || matchedAdm?.section || '-',
+      rollNo: matchedStudent?.rollNo || matchedStudent?.rollNumber || matchedStudent?.roll || '-',
+      pickupPoint: st.pickupPoint || '-',
+      parentName: (matchedStudent?.fatherName || matchedStudent?.parentName || matchedAdm?.parentName || '-').trim(),
+      parentMobile: (matchedStudent?.fatherPhone || matchedStudent?.phone || matchedAdm?.phone || '-').trim(),
+      morningTime: '-',
+      eveningTime: '-',
+      routeId: st.routeId || route?.id,
+      routeName: route?.routeName || st.routeName || 'Unassigned',
+      vehicleId: st.vehicleId,
+      vehicleNumber: st.vehicleNumber || 'Unassigned',
+      feePlan: st.feePlan || 'Monthly',
+      feeAmount: st.feeAmount || 0,
+      effectiveFrom: (st.effectiveFrom || '').split('T')[0] || new Date().toISOString().split('T')[0],
+      status: 'Active'
+    });
+  });
+
+  // 3. Process remaining students who opted for transport in profile
+  (students || []).forEach((st: any) => {
+    if (st.status === 'Inactive' || st.status === 'Discontinued') return;
+
+    const isTransportEnrolled =
+      st.transportRequired === true ||
+      st.isTransportOpted === true ||
+      st.transport === true ||
+      Boolean(st.busRoute) ||
+      Boolean(st.routeId);
+
+    if (!isTransportEnrolled) return;
+
+    const studentFullName = `${st.firstName || ''} ${st.lastName || ''}`.trim() || st.name || '';
+    const finalAdmNo = formatAdmissionNo(st.admissionNo || st.admissionNumber, st.id);
+
+    addStudent({
+      id: String(st.id),
+      admissionNo: finalAdmNo,
+      studentName: studentFullName || 'Student',
+      gender: st.gender || st.sex || '-',
+      className: st.className || st.grade || st.appliedClass || st.class || '-',
+      section: st.section || '-',
+      rollNo: st.rollNo || st.rollNumber || st.roll || '-',
+      pickupPoint: st.pickupPoint || '-',
+      parentName: (st.fatherName || st.parentName || '-').trim(),
+      parentMobile: (st.fatherPhone || st.phone || '-').trim(),
+      morningTime: '-',
+      eveningTime: '-',
+      routeId: st.routeId,
+      routeName: st.busRoute || '-',
+      vehicleId: '',
+      vehicleNumber: 'Unassigned',
+      feePlan: 'Monthly',
+      feeAmount: 0,
+      effectiveFrom: new Date().toISOString().split('T')[0],
+      status: 'Active'
+    });
+  });
+
+  // 4. Process remaining admitted students who opted for transport
+  (admissions || []).forEach((adm: any) => {
+    if (adm.status === 'Cancelled' || adm.status === 'Rejected') return;
+
+    const isTransportEnrolled =
+      adm.transportRequired === true ||
+      adm.isTransportOpted === true ||
+      Boolean(adm.busRoute) ||
+      Boolean(adm.routeId) ||
+      Boolean(adm.routeName);
+
+    if (!isTransportEnrolled) return;
+
+    const applicantName = (adm.applicantName || adm.studentName || '').trim();
+    const admNo = formatAdmissionNo(adm.registrationNo || adm.applicationNo, adm.id);
+
+    addStudent({
+      id: String(adm.id || `adm-${result.length + 1}`),
+      admissionNo: admNo,
+      studentName: applicantName || 'Student',
+      gender: adm.gender || '-',
+      className: adm.appliedClass || adm.className || adm.grade || '-',
+      section: adm.section || '-',
+      rollNo: adm.rollNo || '-',
+      pickupPoint: adm.pickupPoint || '-',
+      parentName: (adm.parentName || adm.fatherName || '-').trim(),
+      parentMobile: (adm.phone || adm.parentPhone || '-').trim(),
+      morningTime: '-',
+      eveningTime: '-',
+      routeId: adm.routeId,
+      routeName: adm.busRoute || adm.routeName || '-',
+      vehicleId: '',
+      vehicleNumber: 'Unassigned',
+      feePlan: 'Monthly',
+      feeAmount: 0,
+      effectiveFrom: new Date().toISOString().split('T')[0],
+      status: 'Active'
     });
   });
 

@@ -14,6 +14,7 @@ interface Toast {
 interface ToastContextType {
   addToast: (typeOrTitle: any, titleOrMessage?: any, message?: string) => void;
   removeToast: (id: string) => void;
+  clearToasts?: () => void;
 }
 
 const ToastContext = createContext<ToastContextType | undefined>(undefined);
@@ -23,6 +24,10 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const removeToast = useCallback((id: string) => {
     setToasts(prev => prev.filter(t => t.id !== id));
+  }, []);
+
+  const clearToasts = useCallback(() => {
+    setToasts([]);
   }, []);
 
   const addToast = useCallback((arg1: any, arg2?: any, arg3?: string) => {
@@ -45,14 +50,22 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       message = arg2 ? String(arg2) : undefined;
     }
 
-    setToasts(prev => [...prev, { id, type, title, message }]);
+    if (message && message.trim().toLowerCase() === title.trim().toLowerCase()) {
+      message = undefined;
+    }
+
+    setToasts(prev => {
+      // Remove any existing success toasts so multiple success banners never display simultaneously
+      const filtered = type === 'success' ? prev.filter(t => t.type !== 'success') : prev;
+      return [...filtered, { id, type, title, message }];
+    });
 
     setTimeout(() => {
       removeToast(id);
-    }, 4500);
+    }, 4000);
   }, [removeToast]);
 
-  const value = useMemo(() => ({ addToast, removeToast }), [addToast, removeToast]);
+  const value = useMemo(() => ({ addToast, removeToast, clearToasts }), [addToast, removeToast, clearToasts]);
 
   return (
     <ToastContext.Provider value={value}>
@@ -102,7 +115,8 @@ const defaultToastContext: ToastContextType = {
   addToast: (typeOrTitle: any, titleOrMessage?: any, message?: string) => {
     console.debug('[Toast Notice]', typeOrTitle, titleOrMessage, message);
   },
-  removeToast: () => {}
+  removeToast: () => {},
+  clearToasts: () => {}
 };
 
 export const useToast = () => {

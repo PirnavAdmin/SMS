@@ -327,6 +327,37 @@ export const BasicStaffFormFields: React.FC<BasicStaffFormFieldsProps> = ({
         }
       }
       return true;
+    } else if (step === 4) {
+      const today = new Date().toISOString().split("T")[0];
+      if (isAddingExp) {
+        const hasAnyInput = Boolean(
+          expForm.previousOrganization.trim() ||
+          expForm.designation.trim() ||
+          expForm.fromDate.trim() ||
+          expForm.toDate.trim() ||
+          expForm.reasonForLeaving.trim()
+        );
+        if (!hasAnyInput) {
+          setIsAddingExp(false);
+        } else {
+          return handleSaveExperience();
+        }
+      }
+      for (const e of value.experiences) {
+        if (e.fromDate && e.fromDate > today) {
+          addToast("error", "Invalid Date", `Experience at ${e.previousOrganization} has a future From Date.`);
+          return false;
+        }
+        if (e.toDate && e.toDate > today) {
+          addToast("error", "Invalid Date", `Experience at ${e.previousOrganization} has a future To Date.`);
+          return false;
+        }
+        if (e.fromDate && e.toDate && e.fromDate > e.toDate) {
+          addToast("error", "Invalid Date Range", `Experience at ${e.previousOrganization} has To Date earlier than From Date.`);
+          return false;
+        }
+      }
+      return true;
     }
 
     console.log("Validation Errors for Step " + step + ":", stepErrors);
@@ -574,8 +605,37 @@ export const BasicStaffFormFields: React.FC<BasicStaffFormFieldsProps> = ({
   };
 
   // Experience Handlers
-  const handleSaveExperience = () => {
-    if (!expForm.previousOrganization.trim()) return;
+  const handleSaveExperience = (): boolean => {
+    if (!expForm.previousOrganization.trim()) {
+      addToast('warning', 'Validation Error', 'Please enter the previous organization.');
+      return false;
+    }
+    if (!expForm.designation.trim()) {
+      addToast('warning', 'Validation Error', 'Please enter the designation held.');
+      return false;
+    }
+    if (!expForm.fromDate) {
+      addToast('warning', 'Validation Error', 'Please select From Date.');
+      return false;
+    }
+    if (!expForm.toDate) {
+      addToast('warning', 'Validation Error', 'Please select To Date.');
+      return false;
+    }
+    const today = new Date().toISOString().split('T')[0];
+    if (expForm.fromDate > today) {
+      addToast('error', 'Invalid Date', 'From Date cannot be a future date.');
+      return false;
+    }
+    if (expForm.toDate > today) {
+      addToast('error', 'Invalid Date', 'To Date cannot be a future date.');
+      return false;
+    }
+    if (expForm.fromDate > expForm.toDate) {
+      addToast('error', 'Invalid Date Range', 'To Date cannot be earlier than From Date.');
+      return false;
+    }
+
     const computedExp = calculateExperienceYearsMonths(expForm.fromDate, expForm.toDate);
     const newExp: StaffExperienceItem = {
       ...expForm,
@@ -602,6 +662,7 @@ export const BasicStaffFormFields: React.FC<BasicStaffFormFieldsProps> = ({
       totalExperience: '0 Years 0 Months',
       reasonForLeaving: ''
     });
+    return true;
   };
 
   const handleDeleteExperience = (id: string) => {
@@ -2006,8 +2067,14 @@ export const BasicStaffFormFields: React.FC<BasicStaffFormFieldsProps> = ({
                     <input
                       type="date"
                       value={expForm.fromDate}
+                      max={expForm.toDate || new Date().toISOString().split('T')[0]}
                       onChange={e => {
                         const from = e.target.value;
+                        const today = new Date().toISOString().split('T')[0];
+                        if (from && from > today) {
+                          addToast('warning', 'Invalid Date', 'From Date cannot be in the future.');
+                          return;
+                        }
                         const computed = calculateExperienceYearsMonths(from, expForm.toDate);
                         setExpForm(prev => ({ ...prev, fromDate: from, totalExperience: computed }));
                       }}
@@ -2019,8 +2086,15 @@ export const BasicStaffFormFields: React.FC<BasicStaffFormFieldsProps> = ({
                     <input
                       type="date"
                       value={expForm.toDate}
+                      min={expForm.fromDate || undefined}
+                      max={new Date().toISOString().split('T')[0]}
                       onChange={e => {
                         const to = e.target.value;
+                        const today = new Date().toISOString().split('T')[0];
+                        if (to && to > today) {
+                          addToast('warning', 'Invalid Date', 'To Date cannot be in the future.');
+                          return;
+                        }
                         const computed = calculateExperienceYearsMonths(expForm.fromDate, to);
                         setExpForm(prev => ({ ...prev, toDate: to, totalExperience: computed }));
                       }}

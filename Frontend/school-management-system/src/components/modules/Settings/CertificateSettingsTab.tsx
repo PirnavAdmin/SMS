@@ -8,11 +8,13 @@ import {
   CertificateTypeConfig, CertificateTemplateConfig, CertificateSignatory, SchoolProfile 
 } from '../../../types';
 import { useData } from '../../../context/DataContext';
+import { useAuth } from '../../../context/AuthContext';
 import { useToast } from '../../../context/ToastContext';
 import { PrintableCertificateContainer } from '../Certificates/PrintableCertificateContainer';
 import { ConfirmModal } from '../../common/ConfirmModal';
 
 import { DEFAULT_CERTIFICATE_FIELDS_MAP } from '../../../utils/certificateFields';
+import { validateCertificateTypeName, validateCertificateTypeCode, formatTitleCase } from '../../../utils/validation';
 
 export const INITIAL_CERTIFICATE_TYPES: CertificateTypeConfig[] = [
   {
@@ -288,8 +290,27 @@ export const INITIAL_CERTIFICATE_TEMPLATES: CertificateTemplateConfig[] = [
 ];
 
 export const CertificateSettingsTab: React.FC = () => {
-  const { schoolProfile } = useData();
+  const { schoolProfile, academicYears = [] } = useData();
+  const { selectedAcademicYear } = useAuth();
   const { addToast } = useToast();
+
+  const currentYearStr = useMemo(() => {
+    return new Date().getFullYear().toString();
+  }, []);
+
+  const activeAY = useMemo(() => {
+    if (selectedAcademicYear && selectedAcademicYear !== 'All') return selectedAcademicYear;
+    const activeMaster = academicYears.find(ay => ay.status === 'Active' || ay.isCurrentAcademicYear);
+    if (activeMaster?.academicYear) return activeMaster.academicYear;
+    if (schoolProfile?.academicYear) return schoolProfile.academicYear;
+    const nextYear = new Date().getFullYear() + 1;
+    return `${new Date().getFullYear()}–${nextYear}`;
+  }, [selectedAcademicYear, academicYears, schoolProfile]);
+
+  const activeYearPrefix = useMemo(() => {
+    const rawMatch = activeAY.match(/\d{4}/);
+    return rawMatch ? rawMatch[0] : currentYearStr;
+  }, [activeAY, currentYearStr]);
 
   const [activeSubSection, setActiveSubSection] = useState<
     'types' | 'templates' | 'numbering' | 'fields' | 'signatures'
@@ -357,6 +378,16 @@ export const CertificateSettingsTab: React.FC = () => {
     includeAcademicYearInNo: true,
     requiredFields: ['studentName', 'admissionNumber', 'class']
   });
+  const [typeErrors, setTypeErrors] = useState<{ name?: string; code?: string }>({});
+  const [isTypeCodeManuallyEdited, setIsTypeCodeManuallyEdited] = useState(false);
+
+  const generateCertificateCode = (name: string): string => {
+    const clean = name.trim().replace(/[^a-zA-Z0-9\s]/g, "");
+    const words = clean.split(/\s+/).filter(Boolean);
+    if (words.length === 0) return "";
+    if (words.length === 1) return words[0].slice(0, 4).toUpperCase();
+    return words.map(w => w[0]).join("").slice(0, 6).toUpperCase();
+  };
 
   // Placeholder Modal State
   const [isPlaceholderModalOpen, setIsPlaceholderModalOpen] = useState(false);
@@ -409,7 +440,7 @@ export const CertificateSettingsTab: React.FC = () => {
       signatories: [
         { id: 'sig-1', title: 'Class Teacher', show: true },
         { id: 'sig-2', title: 'Accounts Officer', show: true },
-        { id: 'sig-3', title: 'Principal', name: 'Dr. Robert Miller', show: true }
+        { id: 'sig-3', title: 'Principal', name: schoolProfile?.principalName || 'Principal', show: true }
       ],
       showSeal: true,
       dateFormat: 'DD/MM/YYYY'
@@ -424,6 +455,8 @@ export const CertificateSettingsTab: React.FC = () => {
 
   const handleOpenAddType = () => {
     setEditingType(null);
+    setIsTypeCodeManuallyEdited(false);
+    setTypeErrors({});
     setTypeForm({
       name: '',
       code: '',
@@ -441,38 +474,81 @@ export const CertificateSettingsTab: React.FC = () => {
 
   const handleOpenEditType = (t: CertificateTypeConfig) => {
     setEditingType(t);
+    setIsTypeCodeManuallyEdited(true);
+    setTypeErrors({});
     setTypeForm({ ...t });
     setIsTypeModalOpen(true);
   };
 
   const handleSaveType = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!typeForm.name || !typeForm.code) {
-      addToast('warning', 'Validation Error', 'Certificate Name and Code are required.');
+
+    const formattedName = formatTitleCase((typeForm.name || '').trim());
+    const formattedCode = (typeForm.code || '').trim().toUpperCase();
+
+    const nameRes = validateCertificateTypeName(formattedName, true);
+    if (!nameRes.isValid) {
+      setTypeErrors(prev => ({ ...prev, name: nameRes.error }));
+      addToast('error', 'Invalid Certificate Name', nameRes.error || 'Enter a valid certificate name.');
       return;
     }
 
+    // Case-insensitive duplicate check for name
+    const isDupName = types.some(
+      t => t.name.trim().toLowerCase() === formattedName.toLowerCase() && t.id !== editingType?.id
+    );
+    if (isDupName) {
+      setTypeErrors(prev => ({ ...prev, name: 'A certificate type with this name already exists.' }));
+      addToast('error', 'Duplicate Certificate Name', 'A certificate type with this name already exists.');
+      return;
+    }
+
+    const codeRes = validateCertificateTypeCode(formattedCode, true);
+    if (!codeRes.isValid) {
+      setTypeErrors(prev => ({ ...prev, code: codeRes.error }));
+      addToast('error', 'Invalid Short Code', codeRes.error || 'Short code must be 2 to 10 characters.');
+      return;
+    }
+
+    // Case-insensitive duplicate check for code
+    const isDupCode = types.some(
+      t => t.code.trim().toUpperCase() === formattedCode && t.id !== editingType?.id
+    );
+    if (isDupCode) {
+      setTypeErrors(prev => ({ ...prev, code: 'A certificate type with this short code already exists.' }));
+      addToast('error', 'Duplicate Short Code', 'A certificate type with this short code already exists.');
+      return;
+    }
+
+    const cleanDescription = (typeForm.description || '').trim();
+
     if (editingType) {
-      setTypes(prev => prev.map(item => item.id === editingType.id ? { ...item, ...typeForm } as CertificateTypeConfig : item));
-      addToast('success', 'Type Updated', `Updated certificate type '${typeForm.name}'`);
+      setTypes(prev => prev.map(item => item.id === editingType.id ? {
+        ...item,
+        ...typeForm,
+        name: formattedName,
+        code: formattedCode,
+        description: cleanDescription,
+      } as CertificateTypeConfig : item));
+      addToast('success', 'Certificate type updated successfully');
     } else {
       const newId = `CT-${Date.now().toString().slice(-6)}`;
       const newType: CertificateTypeConfig = {
         id: newId,
-        name: typeForm.name || 'New Certificate',
-        code: typeForm.code || 'CERT',
-        description: typeForm.description || '',
+        name: formattedName,
+        code: formattedCode,
+        description: cleanDescription,
         status: typeForm.status || 'Active',
         displayOrder: Number(typeForm.displayOrder) || types.length + 1,
         requiredFields: typeForm.requiredFields || ['studentName', 'admissionNumber'],
-        numberingPrefix: typeForm.numberingPrefix || typeForm.code || 'CERT',
+        numberingPrefix: typeForm.numberingPrefix || formattedCode || 'CERT',
         numberingStart: Number(typeForm.numberingStart) || 1,
         numberingLength: Number(typeForm.numberingLength) || 4,
         includeAcademicYearInNo: !!typeForm.includeAcademicYearInNo,
         isSystem: false
       };
       setTypes(prev => [...prev, newType]);
-      addToast('success', 'Type Created', `Added new certificate type '${newType.name}'`);
+      addToast('success', 'Certificate type added successfully');
     }
     setIsTypeModalOpen(false);
   };
@@ -656,33 +732,30 @@ export const CertificateSettingsTab: React.FC = () => {
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {types.map(t => (
-              <div key={t.id} className="glass-card p-4 rounded-2xl space-y-3 border border-slate-200/80 dark:border-slate-800">
-                <div className="flex items-start justify-between">
-                  <div className="flex items-center gap-2.5">
-                    <div className="w-9 h-9 rounded-xl bg-sky-100 dark:bg-sky-950/60 text-sky-600 dark:text-sky-400 font-extrabold text-xs flex items-center justify-center">
-                      {t.code}
-                    </div>
-                    <div>
-                      <h4 className="font-bold text-sm text-slate-900 dark:text-white">{t.name}</h4>
-                      <span className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider ${
-                        t.status === 'Active' ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300' : 'bg-slate-100 text-slate-600'
-                      }`}>
-                        {t.status} {t.isSystem ? '• System' : ''}
-                      </span>
-                    </div>
+              <div key={t.id} className="glass-card p-4 rounded-2xl space-y-3 border border-slate-200/80 dark:border-slate-800 overflow-hidden">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0 flex-1">
+                    <h4 className="font-bold text-sm text-slate-900 dark:text-white break-words break-all line-clamp-2 leading-tight" title={t.name}>
+                      {t.name}
+                    </h4>
+                    <span className={`inline-block mt-1 px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider ${
+                      t.status === 'Active' ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300' : 'bg-slate-100 text-slate-600'
+                    }`}>
+                      {t.status} {t.isSystem ? '• System' : ''}
+                    </span>
                   </div>
 
-                  <div className="flex items-center gap-1">
+                  <div className="flex items-center gap-1 shrink-0 ml-2">
                     <button onClick={() => handleOpenEditType(t)} className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-sky-600 cursor-pointer" title="Edit Type"><Edit className="w-3.5 h-3.5" /></button>
                     <button onClick={() => setDeletingType(t)} className="p-1.5 rounded-lg hover:bg-rose-50 text-rose-600 cursor-pointer text-rose-500 hover:text-rose-700" title="Delete Type"><Trash2 className="w-3.5 h-3.5" /></button>
                   </div>
                 </div>
 
-                <p className="text-xs text-slate-500 dark:text-slate-400 line-clamp-2">{t.description}</p>
+                <p className="text-xs text-slate-500 dark:text-slate-400 line-clamp-2 break-words">{t.description}</p>
 
                 <div className="pt-2 border-t border-slate-100 dark:border-slate-800 flex justify-between text-[11px] font-mono text-slate-600 dark:text-slate-300">
-                  <span>Number Format: <strong>{t.numberingPrefix}-{t.includeAcademicYearInNo ? '2026-' : ''}0001</strong></span>
-                  <span>Fields: <strong>{t.requiredFields?.length || 0}</strong></span>
+                  <span className="truncate mr-2">Number Format: <strong>{t.numberingPrefix}-{t.includeAcademicYearInNo ? `${activeYearPrefix}-` : ''}0001</strong></span>
+                  <span className="shrink-0">Fields: <strong>{t.requiredFields?.length || 0}</strong></span>
                 </div>
               </div>
             ))}
@@ -833,25 +906,25 @@ export const CertificateSettingsTab: React.FC = () => {
               <PrintableCertificateContainer
                 template={templateEditorState}
                 schoolProfile={schoolProfile}
-                academicYear="2026–2027"
+                academicYear={activeAY}
                 studentName="Rahul Kumar"
-                admissionNo="ADM-2024-089"
-                admissionDate="2024-06-15"
+                admissionNo={`ADM-${new Date().getFullYear() - 2}-089`}
+                admissionDate={`${new Date().getFullYear() - 2}-06-15`}
                 fatherName="Vikram Kumar"
                 motherName="Sunita Kumar"
-                dob="2012-08-15"
+                dob={`${new Date().getFullYear() - 14}-08-15`}
                 gender="Male"
                 className="Class 10"
                 section="A"
                 rollNo="12"
-                leavingDate="2026-08-14"
-                reason="Parent Relocation to California"
+                leavingDate={new Date().toISOString().split('T')[0]}
+                reason="Parent Relocation"
                 conduct="Good & Exemplary"
                 remarks="Promoted to Higher Grade"
                 result="PASSED"
                 feeClearanceStatus="FULL DUES CLEARED"
-                tcNo={`${currentTypeForTemplate?.numberingPrefix || 'CERT'}-2026-0001`}
-                issueDate="2026-08-14"
+                tcNo={`${currentTypeForTemplate?.numberingPrefix || 'CERT'}-${activeYearPrefix}-0001`}
+                issueDate={new Date().toISOString().split('T')[0]}
                 isDraftPreview={true}
               />
             </div>
@@ -922,7 +995,7 @@ export const CertificateSettingsTab: React.FC = () => {
                   </label>
 
                   <div className="mt-3 px-3 py-1 bg-slate-100 dark:bg-slate-800 rounded-lg text-xs font-mono font-bold text-sky-600 dark:text-sky-400 border">
-                    {t.numberingPrefix}-{t.includeAcademicYearInNo ? '2026-' : ''}{String(t.numberingStart).padStart(t.numberingLength, '0')}
+                    {t.numberingPrefix}-{t.includeAcademicYearInNo ? `${activeYearPrefix}-` : ''}{String(t.numberingStart).padStart(t.numberingLength, '0')}
                   </div>
                 </div>
               </div>
@@ -1261,11 +1334,53 @@ export const CertificateSettingsTab: React.FC = () => {
                 <input
                   type="text"
                   required
+                  maxLength={60}
                   value={typeForm.name || ''}
-                  onChange={e => setTypeForm(prev => ({ ...prev, name: e.target.value }))}
-                  className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-xs font-bold text-slate-900 dark:text-white outline-none"
+                  onChange={e => {
+                    const raw = e.target.value;
+                    const autoCode = !isTypeCodeManuallyEdited && !editingType ? generateCertificateCode(raw) : (typeForm.code || '');
+                    setTypeForm(prev => ({ ...prev, name: raw, code: autoCode }));
+                    if (raw.trim()) {
+                      const res = validateCertificateTypeName(raw, true);
+                      const isDup = types.some(
+                        t => t.name.trim().toLowerCase() === raw.trim().toLowerCase() && t.id !== editingType?.id
+                      );
+                      setTypeErrors(prev => ({
+                        ...prev,
+                        name: isDup ? 'A certificate type with this name already exists.' : res.error
+                      }));
+                    } else if (typeErrors.name) {
+                      setTypeErrors(prev => ({ ...prev, name: undefined }));
+                    }
+                  }}
+                  onBlur={() => {
+                    const trimmed = (typeForm.name || '').trim();
+                    const val = formatTitleCase(trimmed);
+                    if (val) {
+                      const autoCode = !isTypeCodeManuallyEdited && !editingType ? generateCertificateCode(val) : (typeForm.code || '');
+                      setTypeForm(prev => ({ ...prev, name: val, code: autoCode }));
+                      const res = validateCertificateTypeName(val, true);
+                      const isDup = types.some(
+                        t => t.name.trim().toLowerCase() === val.toLowerCase() && t.id !== editingType?.id
+                      );
+                      setTypeErrors(prev => ({
+                        ...prev,
+                        name: isDup ? 'A certificate type with this name already exists.' : res.error
+                      }));
+                    }
+                  }}
+                  className={`w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-xs font-bold text-slate-900 dark:text-white outline-none transition ${
+                    typeErrors.name
+                      ? 'border-rose-500 focus:ring-rose-500/20 bg-rose-50/20'
+                      : 'border-slate-200 dark:border-slate-700'
+                  }`}
                   placeholder="e.g. Sports Participation Certificate"
                 />
+                {typeErrors.name && (
+                  <p className="mt-1 text-xs font-bold text-rose-500 flex items-center gap-1">
+                    <span>⚠️</span> {typeErrors.name}
+                  </p>
+                )}
               </div>
 
               <div className="grid grid-cols-2 gap-3">
@@ -1274,11 +1389,33 @@ export const CertificateSettingsTab: React.FC = () => {
                   <input
                     type="text"
                     required
+                    maxLength={10}
                     value={typeForm.code || ''}
-                    onChange={e => setTypeForm(prev => ({ ...prev, code: e.target.value.toUpperCase() }))}
-                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-xs font-mono font-bold text-slate-900 dark:text-white outline-none"
+                    onChange={e => {
+                      setIsTypeCodeManuallyEdited(true);
+                      const val = e.target.value.toUpperCase();
+                      setTypeForm(prev => ({ ...prev, code: val }));
+                      const res = validateCertificateTypeCode(val, true);
+                      const isDup = types.some(
+                        t => t.code.trim().toUpperCase() === val.trim().toUpperCase() && t.id !== editingType?.id
+                      );
+                      setTypeErrors(prev => ({
+                        ...prev,
+                        code: isDup ? 'A certificate type with this short code already exists.' : (val ? res.error : undefined)
+                      }));
+                    }}
+                    className={`w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-xs font-mono font-bold text-slate-900 dark:text-white outline-none transition ${
+                      typeErrors.code
+                        ? 'border-rose-500 focus:ring-rose-500/20 bg-rose-50/20'
+                        : 'border-slate-200 dark:border-slate-700'
+                    }`}
                     placeholder="e.g. SPC"
                   />
+                  {typeErrors.code && (
+                    <p className="mt-1 text-xs font-bold text-rose-500 flex items-center gap-1">
+                      <span>⚠️</span> {typeErrors.code}
+                    </p>
+                  )}
                 </div>
                 <div>
                   <label className="block font-bold mb-1 text-slate-700 dark:text-slate-300">Status</label>

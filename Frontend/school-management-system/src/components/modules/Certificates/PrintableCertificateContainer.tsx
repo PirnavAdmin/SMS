@@ -121,12 +121,13 @@ export const PrintableCertificateContainer: React.FC<
           {
             id: "3",
             title: (template as any).signatory3 || "Principal",
-            name: "Dr. Robert Miller",
+            name: schoolProfile?.principalName || "Principal",
             show: true,
           },
         ];
 
-  const displayCertNo = certificateNumber || tcNo || "TC-2026-001";
+  const currentYear = new Date().getFullYear();
+  const displayCertNo = certificateNumber || tcNo || `TC-${currentYear}-001`;
   const isTransferCertificateType =
     !template.certificateType ||
     template.certificateType.toLowerCase().includes("transfer") ||
@@ -564,7 +565,7 @@ export const PrintableBatchCertificatesContainer: React.FC<PrintableBatchCertifi
           signatories: [
             { id: '1', title: 'Class Teacher', show: true },
             { id: '2', title: 'Accounts Officer', show: true },
-            { id: '3', title: 'Principal', name: 'Dr. Robert Miller', show: true }
+            { id: '3', title: 'Principal', name: schoolProfile?.principalName || 'Principal', show: true }
           ],
           showSeal: true,
           dateFormat: 'DD/MM/YYYY'

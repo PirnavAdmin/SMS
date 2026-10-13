@@ -48,7 +48,7 @@ import {
 import { PrintableCertificateContainer } from "../Certificates/PrintableCertificateContainer";
 import { formatDateDDMMYYYY } from "../../../utils/dateValidation";
 import { resolveMediaUrl, DEFAULT_USER_AVATAR, createOptimizedAvatarDataUrl } from "../../../utils/mediaUtils";
-import { validateFullName, validateEmail, validate10DigitPhone, validatePhoneNumber, sanitizePhoneInput, sanitizeEmailInput, validateCampusName, validateCampusCode } from "../../../utils/validation";
+import { validateFullName, validateEmail, validate10DigitPhone, validatePhoneNumber, sanitizePhoneInput, sanitizeEmailInput, validateCampusName, validateCampusCode, formatTitleCase } from "../../../utils/validation";
 import { SchoolLogoUploader } from "./SchoolLogoUploader";
 import { CertificateSettingsTab } from "./CertificateSettingsTab";
 import {
@@ -417,6 +417,7 @@ export const SettingsView: React.FC = () => {
   }, [user, role]);
 
   const avatarFileInputRef = useRef<HTMLInputElement>(null);
+  const pendingAvatarFileRef = useRef<File | null>(null);
 
   const handleAvatarFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -432,52 +433,13 @@ export const SettingsView: React.FC = () => {
     }
 
     try {
-      // 1. Optimize & resize avatar to standard 256x256 square (~20KB)
-      // This is instant, never exceeds localStorage quota, and never 404s or reverts!
+      // 1. Optimize & resize avatar to standard 256x256 square (~20KB) for form preview only
       const optimizedDataUrl = await createOptimizedAvatarDataUrl(file, 256);
+      pendingAvatarFileRef.current = file;
 
+      // Only update local form state so the image preview reflects inside the form card.
+      // Do not update the global user, navbar, or storage until the user clicks "Save".
       setMyProfileForm((prev) => ({ ...prev, avatar: optimizedDataUrl }));
-
-      const cleanEmail = getCleanUserEmail(myProfileForm.email);
-      const updatedUser: User = {
-        ...user!,
-        id: user?.id || "USR-001",
-        name: myProfileForm.name.trim() || user?.name || "Administrator",
-        email: cleanEmail,
-        phone: myProfileForm.phone.trim() || user?.phone || "+91 9581768555",
-        avatar: optimizedDataUrl,
-        branch: myProfileForm.branch || user?.branch || "",
-        role: (user?.role || role) as Role,
-        status: user?.status || "Active",
-      };
-
-      if (setUser) {
-        setUser(updatedUser);
-      }
-
-      // Persist to user-scoped storage so it never disappears
-      saveLocalUserProfile(
-        {
-          name: updatedUser.name,
-          email: updatedUser.email,
-          phone: updatedUser.phone,
-          avatar: optimizedDataUrl,
-          branch: updatedUser.branch,
-          role: updatedUser.role,
-        },
-        updatedUser.email
-      );
-
-      addToast(
-        "success",
-        "Photo Updated",
-        "Profile photo updated successfully. Click 'Save Basic Details' to apply all changes.",
-      );
-
-      // In background, also attempt server upload if backend endpoint is available
-      uploadUserProfileImageApi(file).catch((err) => {
-        console.warn("Background upload note:", err);
-      });
     } catch (err: any) {
       console.error("Failed to process profile image:", err);
       addToast("error", "Upload Failed", "Could not process selected image.");
@@ -547,6 +509,13 @@ export const SettingsView: React.FC = () => {
         cleanEmail
       );
 
+      if (pendingAvatarFileRef.current) {
+        uploadUserProfileImageApi(pendingAvatarFileRef.current).catch((err) => {
+          console.warn("Background upload note:", err);
+        });
+        pendingAvatarFileRef.current = null;
+      }
+
       setMyProfileForm((prev) => ({
         ...prev,
         email: cleanEmail,
@@ -555,8 +524,7 @@ export const SettingsView: React.FC = () => {
 
       addToast(
         "success",
-        "Profile Saved",
-        "Your basic details and profile photo have been saved successfully.",
+        "Profile saved successfully",
       );
       setIsEditingProfile(false);
     } catch (err: any) {
@@ -564,6 +532,27 @@ export const SettingsView: React.FC = () => {
       addToast("error", "Save Failed", err?.message || "Failed to save profile details.");
     } finally {
       setIsSavingProfile(false);
+    }
+  };
+
+  const handleToggleEditProfile = () => {
+    if (isEditingProfile) {
+      pendingAvatarFileRef.current = null;
+      if (avatarFileInputRef.current) {
+        avatarFileInputRef.current.value = "";
+      }
+      setProfileErrors({});
+      setMyProfileForm({
+        name: user?.name || "",
+        email: user?.email || "",
+        phone: user?.phone || "",
+        avatar: user?.avatar || DEFAULT_USER_AVATAR,
+        branch: user?.branch || "",
+        role: user?.role || role || "Admin",
+      });
+      setIsEditingProfile(false);
+    } else {
+      setIsEditingProfile(true);
     }
   };
 
@@ -688,7 +677,13 @@ export const SettingsView: React.FC = () => {
   const [isAYModalOpen, setIsAYModalOpen] = useState(false);
   const [editingAY, setEditingAY] = useState<AcademicYearMaster | null>(null);
   const [deletingAY, setDeletingAY] = useState<AcademicYearMaster | null>(null);
-  const [ayErrors, setAyErrors] = useState<{ academicYear?: string; status?: string }>({});
+  const [ayErrors, setAyErrors] = useState<{
+    academicYear?: string;
+    status?: string;
+    startDate?: string;
+    endDate?: string;
+    dateRange?: string;
+  }>({});
   const [ayForm, setAyForm] = useState<{
     academicYear: string;
     startDate: string;
@@ -714,6 +709,19 @@ export const SettingsView: React.FC = () => {
   const [deletingCampus, setDeletingCampus] = useState<CampusItem | null>(null);
   const [campusErrors, setCampusErrors] = useState<{ name?: string; code?: string; phone?: string; email?: string; status?: string }>({});
   const [schoolProfileErrors, setSchoolProfileErrors] = useState<{ name?: string; email?: string; principalName?: string }>({});
+  const [isCodeManuallyEdited, setIsCodeManuallyEdited] = useState(false);
+
+  const generateCampusCode = (name: string): string => {
+    const clean = name.trim().replace(/[^a-zA-Z0-9\s]/g, "");
+    const words = clean.split(/\s+/).filter(Boolean);
+    if (words.length === 0) return "";
+    if (words.length === 1) return words[0].slice(0, 8).toUpperCase();
+    const first = words[0].toUpperCase();
+    if (["BRANCH", "CAMPUS"].includes(words[1]?.toUpperCase())) {
+      return first.slice(0, 8);
+    }
+    return words.map(w => w[0]).join("").slice(0, 8).toUpperCase();
+  };
 
   const [campusForm, setCampusForm] = useState<{
     name: string;
@@ -882,6 +890,7 @@ export const SettingsView: React.FC = () => {
 
   const handleOpenAddCampus = () => {
     setEditingCampus(null);
+    setIsCodeManuallyEdited(false);
     setCampusErrors({});
     setCampusForm({
       name: "",
@@ -896,6 +905,7 @@ export const SettingsView: React.FC = () => {
 
   const handleOpenEditCampus = (campus: CampusItem) => {
     setEditingCampus(campus);
+    setIsCodeManuallyEdited(true);
     setCampusErrors({});
     setCampusForm({
       name: campus.name,
@@ -947,17 +957,40 @@ export const SettingsView: React.FC = () => {
     e.preventDefault();
     if (!campusForm.name.trim() || !campusForm.code.trim()) return;
 
-    const campusNameRes = validateCampusName(campusForm.name, true);
+    const formattedName = formatTitleCase(campusForm.name.trim());
+    const formattedCode = campusForm.code.trim().toUpperCase();
+
+    const campusNameRes = validateCampusName(formattedName, true);
     if (!campusNameRes.isValid) {
       setCampusErrors((prev) => ({ ...prev, name: campusNameRes.error }));
       addToast("error", "Invalid Campus Name", campusNameRes.error || "Enter a valid campus name.");
       return;
     }
 
-    const campusCodeRes = validateCampusCode(campusForm.code, true);
+    // Case-insensitive duplicate check for campus name
+    const isDuplicateName = campuses.some(
+      (c) => c.name.trim().toLowerCase() === formattedName.toLowerCase() && c.id !== editingCampus?.id
+    );
+    if (isDuplicateName) {
+      setCampusErrors((prev) => ({ ...prev, name: "A campus with this name already exists." }));
+      addToast("error", "Duplicate Campus Name", "A campus with this name already exists.");
+      return;
+    }
+
+    const campusCodeRes = validateCampusCode(formattedCode, true);
     if (!campusCodeRes.isValid) {
       setCampusErrors((prev) => ({ ...prev, code: campusCodeRes.error }));
       addToast("error", "Invalid Campus Code", campusCodeRes.error || "Campus code must be 2 to 10 characters.");
+      return;
+    }
+
+    // Case-insensitive duplicate check for campus code
+    const isDuplicateCode = campuses.some(
+      (c) => c.code.trim().toUpperCase() === formattedCode && c.id !== editingCampus?.id
+    );
+    if (isDuplicateCode) {
+      setCampusErrors((prev) => ({ ...prev, code: "A campus with this code already exists." }));
+      addToast("error", "Duplicate Campus Code", "A campus with this code already exists.");
       return;
     }
 
@@ -987,6 +1020,8 @@ export const SettingsView: React.FC = () => {
     const validStatus = campusForm.status as "Active" | "Inactive";
     const campusData = {
       ...campusForm,
+      name: formattedName,
+      code: formattedCode,
       status: validStatus,
     };
 
@@ -997,8 +1032,7 @@ export const SettingsView: React.FC = () => {
       );
       addToast(
         "success",
-        "Campus Updated",
-        `Updated settings for ${campusForm.name}`,
+        "Campus updated successfully",
       );
       try {
         await updateBranchApi(editingCampus.id, campusData);
@@ -1014,8 +1048,7 @@ export const SettingsView: React.FC = () => {
       updated = [...campuses, newCampus];
       addToast(
         "success",
-        "Campus Added",
-        `Added new campus ${campusForm.name}`,
+        "Campus added successfully",
       );
       try {
         const res: any = await createBranchApi(campusData);
@@ -1081,11 +1114,74 @@ export const SettingsView: React.FC = () => {
     setIsAYModalOpen(true);
   };
 
+  const validateAYDateRange = (startDateStr: string, endDateStr: string): string | undefined => {
+    if (!startDateStr || !endDateStr) return undefined;
+    if (startDateStr >= endDateStr) {
+      return "Start Date must be earlier than End Date.";
+    }
+    const start = new Date(startDateStr);
+    const end = new Date(endDateStr);
+    const diffDays = Math.round((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
+    if (diffDays < 180) {
+      return "Academic Year must span at least 6 months (minimum 180 days) to represent a complete academic session.";
+    }
+    if (diffDays > 550) {
+      return "Academic Year duration cannot exceed 18 months.";
+    }
+    return undefined;
+  };
+
   const handleSaveAY = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!ayForm.academicYear.trim()) {
+    const trimmedAY = ayForm.academicYear.trim();
+    if (!trimmedAY) {
       setAyErrors((prev) => ({ ...prev, academicYear: "Academic Session Name is required." }));
       addToast("error", "Academic Session Required", "Please enter academic session name.");
+      return;
+    }
+
+    if (trimmedAY.length < 4 || trimmedAY.length > 30) {
+      const msg = "Academic Session Name must be between 4 and 30 characters (e.g. 2026–27).";
+      setAyErrors((prev) => ({ ...prev, academicYear: msg }));
+      addToast("error", "Invalid Session Name", msg);
+      return;
+    }
+
+    // Must contain numeric year representation or session/term identifier
+    if (!/\d{2,4}/.test(trimmedAY) && !/(spring|summer|fall|winter|session|term|semester|batch)/i.test(trimmedAY)) {
+      const msg = "Please enter a valid academic session name (e.g. 2026–27 or 2026-2027).";
+      setAyErrors((prev) => ({ ...prev, academicYear: msg }));
+      addToast("error", "Invalid Session Name", msg);
+      return;
+    }
+
+    // Case-insensitive duplicate session check
+    const isDuplicate = academicYears.some(
+      (ay) => ay.academicYear.trim().toLowerCase() === trimmedAY.toLowerCase() && ay.id !== editingAY?.id
+    );
+    if (isDuplicate) {
+      const msg = `Academic session "${trimmedAY}" already exists.`;
+      setAyErrors((prev) => ({ ...prev, academicYear: msg }));
+      addToast("error", "Duplicate Academic Session", msg);
+      return;
+    }
+
+    if (!ayForm.startDate) {
+      setAyErrors((prev) => ({ ...prev, startDate: "Start Date is required." }));
+      addToast("error", "Start Date Required", "Please select a start date.");
+      return;
+    }
+
+    if (!ayForm.endDate) {
+      setAyErrors((prev) => ({ ...prev, endDate: "End Date is required." }));
+      addToast("error", "End Date Required", "Please select an end date.");
+      return;
+    }
+
+    const dateRangeError = validateAYDateRange(ayForm.startDate, ayForm.endDate);
+    if (dateRangeError) {
+      setAyErrors((prev) => ({ ...prev, dateRange: dateRangeError }));
+      addToast("error", "Invalid Academic Year Duration", dateRangeError);
       return;
     }
 
@@ -1095,8 +1191,29 @@ export const SettingsView: React.FC = () => {
       return;
     }
 
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const end = new Date(ayForm.endDate);
+    const isPastEnd = !isNaN(end.getTime()) && end < today;
+
+    if (ayForm.status === "Active") {
+      if (editingAY?.status === "Closed") {
+        const msg = "Completed academic year cannot be set as active session.";
+        setAyErrors((prev) => ({ ...prev, status: msg }));
+        addToast("error", "Action Not Allowed", msg);
+        return;
+      }
+      if (isPastEnd) {
+        const msg = "Completed academic year cannot be set as active session because its end date has already passed.";
+        setAyErrors((prev) => ({ ...prev, status: msg }));
+        addToast("error", "Action Not Allowed", msg);
+        return;
+      }
+    }
+
     const payload = {
       ...ayForm,
+      academicYear: trimmedAY,
       status: ayForm.status as "Active" | "Closed" | "Upcoming",
     };
 
@@ -1128,6 +1245,29 @@ export const SettingsView: React.FC = () => {
       `Academic year ${deletingAY.academicYear} deleted.`,
     );
     setDeletingAY(null);
+  };
+
+  const handleSetActiveSession = (ay: AcademicYearMaster) => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const end = ay.endDate ? new Date(ay.endDate) : null;
+    const isCompleted = ay.status === "Closed" || (end && !isNaN(end.getTime()) && end < today);
+
+    if (isCompleted) {
+      addToast(
+        "error",
+        "Action Not Allowed",
+        "Completed academic year cannot be set as active session."
+      );
+      return;
+    }
+
+    setCurrentAcademicYear(ay.id);
+    addToast(
+      "success",
+      "Current Session Updated",
+      `Set ${ay.academicYear} as active academic session.`,
+    );
   };
 
   const filteredAcademicYears = useMemo(() => {
@@ -1247,7 +1387,7 @@ export const SettingsView: React.FC = () => {
               </div>
               <button
                 type="button"
-                onClick={() => setIsEditingProfile((prev) => !prev)}
+                onClick={handleToggleEditProfile}
                 className={`px-3 py-1.5 rounded-xl border flex items-center gap-1.5 text-xs font-extrabold transition cursor-pointer active:scale-95 ${
                   isEditingProfile
                     ? "bg-rose-50 text-rose-600 dark:bg-rose-950/40 dark:text-rose-400 border-rose-200 dark:border-rose-800 shadow-xs hover:bg-rose-100 dark:hover:bg-rose-900/50"
@@ -1422,12 +1562,16 @@ export const SettingsView: React.FC = () => {
                         <button
                           type="button"
                           disabled={!isEditingProfile}
-                          onClick={() =>
+                          onClick={() => {
+                            pendingAvatarFileRef.current = null;
+                            if (avatarFileInputRef.current) {
+                              avatarFileInputRef.current.value = "";
+                            }
                             setMyProfileForm((prev) => ({
                               ...prev,
                               avatar: "",
-                            }))
-                          }
+                            }));
+                          }}
                           className="absolute -top-1.5 -right-1.5 p-1 rounded-full bg-rose-50 dark:bg-rose-950 text-rose-600 dark:text-rose-400 hover:bg-rose-100 dark:hover:bg-rose-900 border border-rose-200 dark:border-rose-800 transition cursor-pointer shadow-xs disabled:opacity-40 disabled:cursor-not-allowed disabled:pointer-events-none"
                           title="Delete Photo"
                         >
@@ -2020,25 +2164,25 @@ export const SettingsView: React.FC = () => {
                 </div>
 
                 <div className="pt-2 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between">
-                  {ay.status !== "Active" ? (
-                    <button
-                      onClick={() => {
-                        setCurrentAcademicYear(ay.id);
-                        addToast(
-                          "success",
-                          "Current Session Updated",
-                          `Set ${ay.academicYear} as active academic session.`,
-                        );
-                      }}
-                      className="text-xs font-bold text-emerald-600 hover:text-emerald-500 cursor-pointer"
-                    >
-                      Set as Active Session
-                    </button>
-                  ) : (
+                  {ay.status === "Active" ? (
                     <span className="text-[11px] font-black text-emerald-600 flex items-center gap-1">
                       <CheckCircle2 className="w-3.5 h-3.5" /> Current Active
                       Session
                     </span>
+                  ) : ay.status === "Closed" || (ay.endDate && new Date(ay.endDate) < new Date(new Date().setHours(0, 0, 0, 0))) ? (
+                    <span
+                      className="text-xs font-bold text-slate-400 dark:text-slate-500 flex items-center gap-1"
+                      title="Completed academic year cannot be set as active session"
+                    >
+                      <Lock className="w-3.5 h-3.5 text-slate-400" /> Completed Session
+                    </span>
+                  ) : (
+                    <button
+                      onClick={() => handleSetActiveSession(ay)}
+                      className="text-xs font-bold text-emerald-600 hover:text-emerald-500 cursor-pointer"
+                    >
+                      Set as Active Session
+                    </button>
                   )}
 
                   <div className="flex items-center gap-1">
@@ -2734,10 +2878,37 @@ export const SettingsView: React.FC = () => {
                   placeholder="e.g. North Branch"
                   value={campusForm.name}
                   onChange={(e) => {
-                    const val = e.target.value;
-                    setCampusForm({ ...campusForm, name: val });
-                    const res = validateCampusName(val, true);
-                    setCampusErrors((prev) => ({ ...prev, name: val ? res.error : undefined }));
+                    const raw = e.target.value;
+                    const autoCode = !isCodeManuallyEdited && !editingCampus ? generateCampusCode(raw) : campusForm.code;
+                    setCampusForm((prev) => ({ ...prev, name: raw, code: autoCode }));
+                    if (raw.trim()) {
+                      const res = validateCampusName(raw, true);
+                      const isDup = campuses.some(
+                        (c) => c.name.trim().toLowerCase() === raw.trim().toLowerCase() && c.id !== editingCampus?.id
+                      );
+                      setCampusErrors((prev) => ({
+                        ...prev,
+                        name: isDup ? "A campus with this name already exists." : res.error,
+                      }));
+                    } else if (campusErrors.name) {
+                      setCampusErrors((prev) => ({ ...prev, name: undefined }));
+                    }
+                  }}
+                  onBlur={() => {
+                    const trimmed = campusForm.name.trim();
+                    const val = formatTitleCase(trimmed);
+                    if (val) {
+                      const autoCode = !isCodeManuallyEdited && !editingCampus ? generateCampusCode(val) : campusForm.code;
+                      setCampusForm((prev) => ({ ...prev, name: val, code: autoCode }));
+                      const res = validateCampusName(val, true);
+                      const isDup = campuses.some(
+                        (c) => c.name.trim().toLowerCase() === val.toLowerCase() && c.id !== editingCampus?.id
+                      );
+                      setCampusErrors((prev) => ({
+                        ...prev,
+                        name: isDup ? "A campus with this name already exists." : res.error,
+                      }));
+                    }
                   }}
                   className={`w-full px-3 py-2 rounded-xl border transition ${
                     campusErrors.name
@@ -2764,13 +2935,20 @@ export const SettingsView: React.FC = () => {
                   placeholder="e.g. NORTH"
                   value={campusForm.code}
                   onChange={(e) => {
+                    setIsCodeManuallyEdited(true);
                     const val = e.target.value.toUpperCase();
-                    setCampusForm({
-                      ...campusForm,
+                    setCampusForm((prev) => ({
+                      ...prev,
                       code: val,
-                    });
+                    }));
                     const res = validateCampusCode(val, true);
-                    setCampusErrors((prev) => ({ ...prev, code: val ? res.error : undefined }));
+                    const isDup = campuses.some(
+                      (c) => c.code.trim().toUpperCase() === val.trim().toUpperCase() && c.id !== editingCampus?.id
+                    );
+                    setCampusErrors((prev) => ({
+                      ...prev,
+                      code: isDup ? "A campus with this code already exists." : (val ? res.error : undefined),
+                    }));
                   }}
                   className={`w-full px-3 py-2 rounded-xl border font-mono font-bold transition ${
                     campusErrors.code
@@ -2839,6 +3017,12 @@ export const SettingsView: React.FC = () => {
                       setCampusForm({ ...campusForm, email: sanitized });
                       const res = validateEmail(sanitized, false);
                       setCampusErrors((prev) => ({ ...prev, email: res.error }));
+                    }}
+                    onBlur={() => {
+                      if (campusForm.email) {
+                        const res = validateEmail(campusForm.email, false);
+                        setCampusErrors((prev) => ({ ...prev, email: res.error }));
+                      }
                     }}
                     className={`w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border ${
                       campusErrors.email ? "border-rose-500 focus:ring-rose-500" : ""
@@ -2958,10 +3142,18 @@ export const SettingsView: React.FC = () => {
                     type="date"
                     required
                     value={ayForm.startDate}
-                    onChange={(e) =>
-                      setAyForm({ ...ayForm, startDate: e.target.value })
-                    }
-                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border cursor-pointer"
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setAyForm({ ...ayForm, startDate: val });
+                      setAyErrors((prev) => ({
+                        ...prev,
+                        startDate: undefined,
+                        dateRange: validateAYDateRange(val, ayForm.endDate)
+                      }));
+                    }}
+                    className={`w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border cursor-pointer ${
+                      ayErrors.dateRange || ayErrors.startDate ? "border-rose-500 focus:ring-rose-500" : ""
+                    }`}
                   />
                 </div>
                 <div>
@@ -2973,12 +3165,30 @@ export const SettingsView: React.FC = () => {
                     type="date"
                     required
                     value={ayForm.endDate}
-                    onChange={(e) =>
-                      setAyForm({ ...ayForm, endDate: e.target.value })
-                    }
-                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border cursor-pointer"
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setAyForm({ ...ayForm, endDate: val });
+                      setAyErrors((prev) => ({
+                        ...prev,
+                        endDate: undefined,
+                        dateRange: validateAYDateRange(ayForm.startDate, val)
+                      }));
+                    }}
+                    className={`w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border cursor-pointer ${
+                      ayErrors.dateRange || ayErrors.endDate ? "border-rose-500 focus:ring-rose-500" : ""
+                    }`}
                   />
                 </div>
+                {ayErrors.dateRange && (
+                  <p className="text-xs text-rose-500 font-semibold flex items-center gap-1 col-span-2">
+                    <span>⚠️</span> {ayErrors.dateRange}
+                  </p>
+                )}
+                {!ayErrors.dateRange && (ayErrors.startDate || ayErrors.endDate) && (
+                  <p className="text-xs text-rose-500 font-semibold flex items-center gap-1 col-span-2">
+                    <span>⚠️</span> {ayErrors.startDate || ayErrors.endDate}
+                  </p>
+                )}
               </div>
 
               <div>
@@ -2991,7 +3201,14 @@ export const SettingsView: React.FC = () => {
                   onChange={(e) => {
                     const val = e.target.value as "Active" | "Closed" | "Upcoming" | "";
                     setAyForm({ ...ayForm, status: val });
-                    if (ayErrors.status) setAyErrors((prev) => ({ ...prev, status: undefined }));
+                    const today = new Date();
+                    today.setHours(0, 0, 0, 0);
+                    const isPast = ayForm.endDate && new Date(ayForm.endDate) < today;
+                    if (val === "Active" && (editingAY?.status === "Closed" || isPast)) {
+                      setAyErrors((prev) => ({ ...prev, status: "Completed academic year cannot be set as active session." }));
+                    } else if (ayErrors.status) {
+                      setAyErrors((prev) => ({ ...prev, status: undefined }));
+                    }
                   }}
                   className={`w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold cursor-pointer ${
                     ayErrors.status ? "border-rose-500 focus:ring-rose-500" : ""
@@ -3000,7 +3217,12 @@ export const SettingsView: React.FC = () => {
                   <option value="" disabled hidden>
                     Select Session Status
                   </option>
-                  <option value="Active">Active Session</option>
+                  <option
+                    value="Active"
+                    disabled={Boolean(editingAY?.status === "Closed" || (ayForm.endDate && new Date(ayForm.endDate) < new Date(new Date().setHours(0, 0, 0, 0))))}
+                  >
+                    Active Session {Boolean(editingAY?.status === "Closed" || (ayForm.endDate && new Date(ayForm.endDate) < new Date(new Date().setHours(0, 0, 0, 0)))) ? "(Cannot set completed session as active)" : ""}
+                  </option>
                   <option value="Upcoming">Upcoming Session</option>
                   <option value="Closed">Closed Session</option>
                 </select>
