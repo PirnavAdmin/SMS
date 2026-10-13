@@ -16,11 +16,42 @@ public class ClassGradeResponseDto
 	[JsonPropertyName("name")]
 	public string Name => ClassName;
 
+	[JsonPropertyName("campusLocation")]
+	public string CampusLocation { get; set; } = string.Empty;
+
+	[JsonPropertyName("academicYear")]
+	public string AcademicYear { get; set; } = string.Empty;
+
+	[JsonPropertyName("displayOrder")]
+	public int? DisplayOrder { get; set; }
+
+	[JsonPropertyName("status")]
+	public string Status { get; set; } = "Active";
+
+	[JsonPropertyName("remarks")]
+	public string? Remarks { get; set; }
+
 	[JsonIgnore]
 	public List<SectionResponseDto> Sections { get; set; } = new();
 
 	[JsonPropertyName("sections")]
 	public List<string> SectionNames => Sections.Select(s => s.SectionName).ToList();
+
+	[JsonPropertyName("sectionDetails")]
+	public Dictionary<string, object> SectionDetails => Sections
+		.Where(s => !string.IsNullOrEmpty(s.SectionName))
+		.GroupBy(s => s.SectionName)
+		.ToDictionary(
+			g => g.Key,
+			g => (object)new
+			{
+				capacity = g.First().Capacity,
+				status = g.First().Status ?? "Active",
+				remarks = g.First().Remarks ?? "",
+				roomNo = g.First().RoomNo ?? ""
+			}
+		);
+
 	[JsonPropertyName("sectionTeachers")]
 	public Dictionary<string, string> SectionTeachers => Sections
 		.Where(s => !string.IsNullOrEmpty(s.ClassTeacherName))

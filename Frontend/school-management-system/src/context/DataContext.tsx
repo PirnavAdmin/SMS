@@ -4503,24 +4503,35 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
 
               if (Array.isArray(c.sections)) {
                 c.sections.forEach((s: any) => {
-                  const sName =
-                    s.sectionName || s.name || (typeof s === "string" ? s : "");
+                  const isObj = typeof s === "object" && s !== null;
+                  const sName = isObj
+                    ? s.sectionName || s.name || ""
+                    : typeof s === "string"
+                      ? s
+                      : "";
                   if (sName) {
+                    const existingSec = secDetails[sName] || {};
                     secDetails[sName] = {
-                      capacity: s.capacity || 40,
-                      status: s.status || "Active",
-                      remarks: s.remarks || "",
+                      capacity:
+                        (isObj ? s.capacity : undefined) ??
+                        existingSec.capacity ??
+                        40,
+                      status:
+                        (isObj ? s.status : undefined) ||
+                        existingSec.status ||
+                        "Active",
+                      remarks:
+                        (isObj ? s.remarks : undefined) ??
+                        existingSec.remarks ??
+                        "",
                       roomNo:
-                        s.roomNo ||
-                        s.RoomNo ||
-                        s.room_number ||
+                        (isObj
+                          ? s.roomNo || s.RoomNo || s.room_number
+                          : undefined) ||
+                        existingSec.roomNo ||
                         "",
                     };
-                    if (s.roomNo || s.RoomNo || s.room_number) {
-                      secDetails[sName].roomNo =
-                        s.roomNo || s.RoomNo || s.room_number;
-                    }
-                    if (s.classTeacherName) {
+                    if (isObj && s.classTeacherName) {
                       sectionTeachersMap[sName] = s.classTeacherName;
                       const cleanSName = sName.replace(/^Section\s*/i, "").trim();
                       sectionTeachersMap[cleanSName] = s.classTeacherName;
@@ -4575,9 +4586,29 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
                       .filter(Boolean)
                   : c.subjects || [];
 
+              const resolvedCampus =
+                c.campusLocation || c.CampusLocation || c.branch || "";
+
+              const resolvedYear =
+                c.academicYear || c.AcademicYear || c.academic_year || "";
+
+              const resolvedStatus =
+                c.status || c.Status || "Active";
+
+              const resolvedRemarks =
+                c.remarks ?? c.Remarks ?? "";
+
+              const resolvedDisplayOrder =
+                c.displayOrder ?? c.DisplayOrder ?? c.display_order ?? undefined;
+
               return {
                 id: classIdStr,
                 name: classNameStr,
+                displayName: c.displayName || classNameStr,
+                status: resolvedStatus,
+                remarks: resolvedRemarks,
+                displayOrder: resolvedDisplayOrder,
+                academicYear: resolvedYear,
                 sections: c.sections?.map((s: any) => s.sectionName || s) || [],
                 sectionTeachers: sectionTeachersMap,
                 teacher:
@@ -4590,9 +4621,10 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
                   ...backendWeeklyPeriods,
                 },
                 sectionDetails: secDetails,
-                campusLocation: c.campusLocation || c.CampusLocation || c.branch || "All",
-                branch: c.campusLocation || c.CampusLocation || c.branch || "All",
-              };
+                campus: resolvedCampus,
+                campusLocation: resolvedCampus,
+                branch: resolvedCampus,
+              } as any;
             });
             mapped.sort((a, b) => compareClassesAscending(a.name, b.name));
             setAcademicClasses(mapped);
@@ -8993,16 +9025,38 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const addAcademicClass = async (clsData: Omit<AcademicClass, "id">) => {
     try {
+      const dynamicBranch =
+        (selectedBranch &&
+        selectedBranch !== "All" &&
+        selectedBranch !== "All Branches" &&
+        selectedBranch !== "All Campuses"
+          ? selectedBranch
+          : "") ||
+        (branches || []).find((b: any) => b.status === "Active" || !b.status)?.branchName ||
+        (branches || []).find((b: any) => b.status === "Active" || !b.status)?.name ||
+        (branches || [])[0]?.branchName ||
+        (branches || [])[0]?.name ||
+        "";
+
+      const dynamicYear =
+        (selectedAcademicYear &&
+        selectedAcademicYear !== "All" &&
+        selectedAcademicYear !== "All Years"
+          ? selectedAcademicYear
+          : "") ||
+        (academicYears || []).find((ay: any) => ay.isCurrent || ay.status === "Active")?.academicYear ||
+        (academicYears || [])[0]?.academicYear ||
+        "";
+
       const payload = {
         name: clsData.name,
         class_name: clsData.name,
         campus_location:
           (clsData as any).campus ||
           (clsData as any).branch ||
-          selectedBranch ||
-          "Main Campus",
+          dynamicBranch,
         academic_year:
-          (clsData as any).academicYear || selectedAcademicYear || "2026-2027",
+          (clsData as any).academicYear || dynamicYear,
         display_order: (clsData as any).displayOrder,
         status: clsData.status || "Active",
         remarks: (clsData as any).remarks || "",
@@ -9029,30 +9083,68 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     id: string,
     updates: Partial<AcademicClass>,
   ) => {
-    // Update local state immediately to avoid race conditions and provide instant UI updates
-    setAcademicClasses((prev) => {
-      const next = prev.map((c) => (c.id === id ? { ...c, ...updates } : c));
-      localStorage.setItem("edu_db_academic_classes", JSON.stringify(next));
-      return next;
-    });
+    const normId = (val: any) => String(val ?? "").replace(/^CL-/i, "");
+    const targetNormId = normId(id);
+
+    // Update React state optimistically
+    setAcademicClasses((prev) =>
+      prev.map((c) =>
+        normId(c.id) === targetNormId ? { ...c, ...updates } : c
+      )
+    );
 
     try {
       const numericId = id.startsWith("CL-") ? id.replace("CL-", "") : id;
 
       // Find the existing class in state to get the current name and other fields
-      const existingClass = academicClasses.find((c) => c.id === id);
+      const existingClass = academicClasses.find(
+        (c) => normId(c.id) === targetNormId
+      );
       const currentName =
         (existingClass as any)?.className || existingClass?.name || "";
       const finalName =
         (updates as any)?.className || updates.name || currentName;
 
+      const dynamicBranch =
+        (selectedBranch &&
+        selectedBranch !== "All" &&
+        selectedBranch !== "All Branches" &&
+        selectedBranch !== "All Campuses"
+          ? selectedBranch
+          : "") ||
+        (branches || []).find((b: any) => b.status === "Active" || !b.status)?.branchName ||
+        (branches || []).find((b: any) => b.status === "Active" || !b.status)?.name ||
+        (branches || [])[0]?.branchName ||
+        (branches || [])[0]?.name ||
+        "";
+
+      const dynamicYear =
+        (selectedAcademicYear &&
+        selectedAcademicYear !== "All" &&
+        selectedAcademicYear !== "All Years"
+          ? selectedAcademicYear
+          : "") ||
+        (academicYears || []).find((ay: any) => ay.isCurrent || ay.status === "Active")?.academicYear ||
+        (academicYears || [])[0]?.academicYear ||
+        "";
+
       const payload = {
         name: finalName,
         class_name: finalName,
+        campus_location:
+          (updates as any).campus ||
+          (updates as any).branch ||
+          (existingClass as any)?.campus ||
+          (existingClass as any)?.branch ||
+          dynamicBranch,
+        academic_year:
+          (updates as any).academicYear ||
+          (existingClass as any)?.academicYear ||
+          dynamicYear,
         display_order:
-          (updates as any).displayOrder !== undefined
-            ? (updates as any).displayOrder
-            : (existingClass as any)?.displayOrder || 0,
+          "displayOrder" in updates
+            ? (updates as any).displayOrder ?? null
+            : (existingClass as any)?.displayOrder ?? null,
         status: updates.status || existingClass?.status || "Active",
         remarks:
           (updates as any).remarks !== undefined

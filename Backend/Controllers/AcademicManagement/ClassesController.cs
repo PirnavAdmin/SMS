@@ -104,6 +104,11 @@ namespace SMS.Api.Controllers.AcademicManagement
             {
                 ClassId = c.ClassId,
                 ClassName = c.ClassName ?? "",
+                CampusLocation = c.CampusLocation ?? "",
+                AcademicYear = c.AcademicYear ?? "",
+                DisplayOrder = c.DisplayOrder,
+                Status = string.IsNullOrEmpty(c.Status) ? "Active" : c.Status,
+                Remarks = c.Remarks,
                 Sections = c.Sections.Select(s =>
                 {
                     var cleanSec = (s.SectionName ?? "").Replace("Section", "", StringComparison.OrdinalIgnoreCase).Trim();
@@ -174,6 +179,11 @@ namespace SMS.Api.Controllers.AcademicManagement
             {
                 ClassId = classObj.ClassId,
                 ClassName = classObj.ClassName ?? "",
+                CampusLocation = classObj.CampusLocation ?? "",
+                AcademicYear = classObj.AcademicYear ?? "",
+                DisplayOrder = classObj.DisplayOrder,
+                Status = string.IsNullOrEmpty(classObj.Status) ? "Active" : classObj.Status,
+                Remarks = classObj.Remarks,
                 Sections = classObj.Sections.Select(s =>
                 {
                     var cleanSec = (s.SectionName ?? "").Replace("Section", "", StringComparison.OrdinalIgnoreCase).Trim();
@@ -225,7 +235,9 @@ namespace SMS.Api.Controllers.AcademicManagement
         [Authorize(Roles = "SuperAdmin,Admin,Principal")]
         public async Task<IActionResult> CreateClassGrade([FromBody] CreateClassGradeDto dto)
         {
-            var campus = Request.Headers["X-Branch-Id"].ToString();
+            var campus = !string.IsNullOrWhiteSpace(dto.CampusLocation)
+                ? dto.CampusLocation.Trim()
+                : Request.Headers["X-Branch-Id"].ToString();
             if (string.IsNullOrEmpty(campus))
             {
                 campus = await _context.Branches
@@ -235,7 +247,9 @@ namespace SMS.Api.Controllers.AcademicManagement
                     .FirstOrDefaultAsync() ?? string.Empty;
             }
 
-            var academicYear = Request.Headers["X-Academic-Year-Id"].ToString();
+            var academicYear = !string.IsNullOrWhiteSpace(dto.AcademicYear)
+                ? dto.AcademicYear.Trim()
+                : Request.Headers["X-Academic-Year-Id"].ToString();
             if (string.IsNullOrEmpty(academicYear))
             {
                 academicYear = await _context.AcademicYears
@@ -269,7 +283,9 @@ namespace SMS.Api.Controllers.AcademicManagement
                     ClassName = dto.Name ?? dto.ClassName,
                     CampusLocation = campus,
                     AcademicYear = academicYear,
-                    Status = "Active",
+                    DisplayOrder = dto.DisplayOrder,
+                    Status = !string.IsNullOrWhiteSpace(dto.Status) ? dto.Status.Trim() : "Active",
+                    Remarks = dto.Remarks,
                     CreatedAt = DateTime.UtcNow
                 };
 
@@ -398,8 +414,12 @@ namespace SMS.Api.Controllers.AcademicManagement
                 return NotFound(new { success = false, message = "Class not found." });
             }
 
-            var campus = classObj.CampusLocation ?? string.Empty;
-            var academicYear = classObj.AcademicYear ?? string.Empty;
+            var campus = !string.IsNullOrWhiteSpace(dto.CampusLocation)
+                ? dto.CampusLocation.Trim()
+                : (classObj.CampusLocation ?? string.Empty);
+            var academicYear = !string.IsNullOrWhiteSpace(dto.AcademicYear)
+                ? dto.AcademicYear.Trim()
+                : (classObj.AcademicYear ?? string.Empty);
 
             var newClassName = dto.Name ?? dto.ClassName;
             if (!string.IsNullOrEmpty(newClassName) && newClassName != classObj.ClassName)
@@ -417,6 +437,28 @@ namespace SMS.Api.Controllers.AcademicManagement
                 }
 
                 classObj.ClassName = newClassName;
+            }
+
+            if (!string.IsNullOrWhiteSpace(dto.Status))
+            {
+                classObj.Status = dto.Status.Trim();
+            }
+
+            classObj.DisplayOrder = dto.DisplayOrder;
+
+            if (dto.Remarks != null)
+            {
+                classObj.Remarks = dto.Remarks;
+            }
+
+            if (!string.IsNullOrWhiteSpace(dto.CampusLocation))
+            {
+                classObj.CampusLocation = dto.CampusLocation.Trim();
+            }
+
+            if (!string.IsNullOrWhiteSpace(dto.AcademicYear))
+            {
+                classObj.AcademicYear = dto.AcademicYear.Trim();
             }
 
             classObj.UpdatedAt = DateTime.UtcNow;

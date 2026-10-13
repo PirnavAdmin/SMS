@@ -678,13 +678,22 @@ public class SchoolService : ISchoolService
 	{
 		ClassId = c.ClassId,
 		ClassName = c.ClassName ?? "",
+		CampusLocation = c.CampusLocation ?? "",
+		AcademicYear = c.AcademicYear ?? "",
+		DisplayOrder = c.DisplayOrder,
+		Status = string.IsNullOrEmpty(c.Status) ? "Active" : c.Status,
+		Remarks = c.Remarks,
 		Sections = c.Sections.Select(s => new SectionResponseDto
 		{
 			SectionId = s.SectionId,
 			SectionName = s.SectionName,
 			ClassTeacherEmpId = null,
 			ClassTeacherName = null,
-			EmployeeId = null
+			EmployeeId = null,
+			Capacity = s.Capacity,
+			Status = s.Status,
+			Remarks = s.Remarks,
+			RoomNo = s.RoomNo
 		}).ToList(),
 		CurriculumSubjects = c.SubjectMappings.Select(cs => new SubjectDto
 		{
