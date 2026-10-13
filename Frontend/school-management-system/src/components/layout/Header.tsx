@@ -783,7 +783,8 @@ export const Header: React.FC<HeaderProps> = ({ collapsed, setCollapsed, onOpenS
             className="flex items-center gap-2.5 p-1 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
           >
             <img
-              src={resolveMediaUrl(user?.avatar) || getInitialsAvatar(displayName, user?.email)}
+              key={user?.avatar || currentStaff?.avatar || 'avatar'}
+              src={resolveMediaUrl(user?.avatar || currentStaff?.avatar) || getInitialsAvatar(displayName, user?.email)}
               alt=""
               onError={(e) => {
                 const target = e.target as HTMLImageElement;

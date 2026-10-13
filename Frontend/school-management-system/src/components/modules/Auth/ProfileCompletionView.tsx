@@ -1,8 +1,8 @@
-// @ts-nocheck
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import {
   ArrowLeft,
   Briefcase,
+  Check,
   CheckCircle2,
   ChevronRight,
   FileText,
@@ -27,7 +27,15 @@ import {
 } from '../Staff/staffFlowOptions';
 import { Staff, StaffDocument, StaffEducationRecord, StaffExperienceRecord } from '../../../types';
 import { lookupPostalCode, getOfflinePostalInfo } from '../../../utils/postalLookup';
-import { RELIGIONS } from '../../../utils/validation';
+import { RELIGIONS, MARITAL_STATUSES } from '../../../utils/validation';
+
+const normalizeMaritalStatus = (status?: string): string => {
+  if (!status) return '';
+  const clean = status.trim().toLowerCase().replace(/[^a-z]/g, '');
+  if (clean === 'married') return 'Married';
+  if (clean === 'unmarried' || clean === 'single') return 'Unmarried';
+  return status;
+};
 
 interface UploadedFile {
   fileName: string;
@@ -108,13 +116,13 @@ type StepId = 'personal' | 'address' | 'education' | 'experience' | 'bank' | 'do
 const defaultAvatar = 'https://images.unsplash.com/photo-1560250097-0b93528c311a?w=400&auto=format&fit=crop&q=80';
 
 const stepMeta: { id: StepId; title: string; short: string; icon: React.ComponentType<{ className?: string }> }[] = [
-  { id: 'personal', title: 'Personal', short: 'Personal', icon: User },
-  { id: 'address', title: 'Address', short: 'Address', icon: MapPin },
+  { id: 'personal', title: 'Personal Information', short: 'Personal', icon: User },
+  { id: 'address', title: 'Address Details', short: 'Address', icon: MapPin },
   { id: 'education', title: 'Education', short: 'Education', icon: GraduationCap },
   { id: 'experience', title: 'Experience', short: 'Experience', icon: Briefcase },
-  { id: 'bank', title: 'Bank', short: 'Bank', icon: WalletCards },
-  { id: 'documents', title: 'Documents', short: 'Docs', icon: FileText },
-  { id: 'review', title: 'Review', short: 'Review', icon: CheckCircle2 }
+  { id: 'bank', title: 'Bank Details', short: 'Bank', icon: WalletCards },
+  { id: 'documents', title: 'Documents', short: 'Documents', icon: FileText },
+  { id: 'review', title: 'Review & Submit', short: 'Review', icon: CheckCircle2 }
 ];
 
 function normalize(value: string) {
@@ -132,6 +140,9 @@ function fileSnapshot(file: File): UploadedFile {
 function matchesRequiredDocument(document: StaffDocument, requirement: string) {
   const docLabel = normalize(`${document.title || ''} ${document.type || ''}`);
   const req = normalize(requirement);
+  if (req.includes('profile picture') || req.includes('passport photo')) {
+    return docLabel.includes('profile picture') || docLabel.includes('passport photo') || docLabel.includes('photo') || docLabel.includes('avatar');
+  }
   return docLabel.includes(req) || req.includes(docLabel);
 }
 
@@ -162,24 +173,34 @@ function emptyExperienceRow(staff?: Staff | null): ExperienceDraft {
   };
 }
 
-function buildDocumentDrafts(category: EmployeeCategory, staff?: Staff | null): DocumentDraft[] {
+function buildDocumentDrafts(category: EmployeeCategory, staff?: Staff | null, user?: User | null): DocumentDraft[] {
   const requirements = getDocumentRequirements(category);
   const existingDocs = staff?.documents || [];
 
   return requirements.map(req => {
     const existing = existingDocs.find(doc => matchesRequiredDocument(doc, req.label));
+    let file = existing
+      ? {
+          fileName: existing.title,
+          fileUrl: existing.fileUrl,
+          uploadedDate: existing.uploadedDate
+        }
+      : null;
+
+    if (!file && (req.label.toLowerCase().includes('profile picture') || req.label.toLowerCase().includes('photo')) && (staff?.avatar || user?.avatar)) {
+      file = {
+        fileName: 'profile_photo.jpg',
+        fileUrl: (staff?.avatar || user?.avatar)!,
+        uploadedDate: new Date().toISOString().split('T')[0]
+      };
+    }
+
     return {
       id: `DOC-${normalize(req.label).replace(/\s+/g, '-').toUpperCase()}`,
       label: req.label,
       required: req.required,
       type: req.type,
-      file: existing
-        ? {
-            fileName: existing.title,
-            fileUrl: existing.fileUrl,
-            uploadedDate: existing.uploadedDate
-          }
-        : null
+      file
     };
   });
 }
@@ -282,25 +303,32 @@ function buildProfileForm(staff: Staff | undefined | null, category: EmployeeCat
       ifscCode: staff?.bankDetails?.ifscCode || 'HDFC0001234',
       upiId: staff?.bankDetails?.upiId || 'admin@hdfc'
     },
-    documents: buildDocumentDrafts(category, staff)
+    documents: buildDocumentDrafts(category, staff, user)
   };
 }
 
 const SectionCard: React.FC<{ title: string; subtitle: string; children: React.ReactNode }> = ({ title, subtitle, children }) => (
-  <section className="rounded-[24px] border border-brand-200/80 dark:border-brand-800/60 bg-white dark:bg-slate-950 shadow-xs overflow-hidden">
-    <div className="border-b border-brand-100 dark:border-brand-900/40 px-5 py-4 bg-brand-50/20 dark:bg-brand-950/20">
-      <h3 className="text-sm font-black text-slate-900 dark:text-white">{title}</h3>
-      <p className="mt-1 text-[11px] text-slate-500">{subtitle}</p>
+  <section className="rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-2xs overflow-hidden">
+    <div className="border-b border-slate-200/80 dark:border-slate-800 px-4 py-3 bg-slate-50/60 dark:bg-slate-800/40">
+      <h3 className="text-xs sm:text-sm font-black text-slate-900 dark:text-white">{title}</h3>
+      <p className="mt-0.5 text-[11px] text-slate-500">{subtitle}</p>
     </div>
-    <div className="p-5">{children}</div>
+    <div className="p-4 sm:p-5">{children}</div>
   </section>
 );
 
 const FieldLabel: React.FC<{ label: string; required?: boolean }> = ({ label, required }) => (
-  <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">
+  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
     {label} {required ? <span className="text-rose-500">*</span> : null}
   </label>
 );
+
+const fieldInputClass = (hasError?: boolean) =>
+  `w-full rounded-xl border ${
+    hasError
+      ? 'border-rose-500 bg-rose-50/20 dark:bg-rose-950/20 focus:border-rose-500 focus:ring-rose-500/20'
+      : 'border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 focus:border-sky-500 focus:ring-sky-500/20'
+  } px-3.5 py-2 text-xs font-medium text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 transition-all`;
 
 interface ProfileCompletionViewProps {
   onComplete?: () => void;
@@ -342,14 +370,36 @@ export const ProfileCompletionView: React.FC<ProfileCompletionViewProps> = ({ on
 
   const updatePersonal = (field: keyof ProfileFormState['personal'], value: string) => {
     setForm(prev => ({ ...prev, personal: { ...prev.personal, [field]: value } }));
+    if (errors[field]) {
+      setErrors(prev => {
+        const next = { ...prev };
+        delete next[field];
+        return next;
+      });
+    }
   };
 
   const updateAddress = (field: keyof ProfileFormState['address'], value: string) => {
     setForm(prev => ({ ...prev, address: { ...prev.address, [field]: value } }));
+    if (errors[field]) {
+      setErrors(prev => {
+        const next = { ...prev };
+        delete next[field];
+        return next;
+      });
+    }
   };
 
   const updateBank = (field: keyof ProfileFormState['bank'], value: string) => {
     setForm(prev => ({ ...prev, bank: { ...prev.bank, [field]: value } }));
+    const errorKey = `bank.${field}`;
+    if (errors[errorKey]) {
+      setErrors(prev => {
+        const next = { ...prev };
+        delete next[errorKey];
+        return next;
+      });
+    }
   };
 
   const updateEducation = (id: string, updates: Partial<EducationDraft>) => {
@@ -385,10 +435,74 @@ export const ProfileCompletionView: React.FC<ProfileCompletionViewProps> = ({ on
     setForm(prev => ({
       ...prev,
       documents: prev.documents.map(doc =>
-        doc.label === 'Passport Photo' ? { ...doc, file } : doc
+        (doc.label === 'Profile Picture' || doc.label === 'Passport Photo') ? { ...doc, file } : doc
       )
     }));
   };
+
+  const handleProfilePhotoUploaded = (file: File, snapshot: UploadedFile, docId?: string) => {
+    setForm(prev => ({
+      ...prev,
+      photo: snapshot,
+      documents: prev.documents.map(d =>
+        (d.id === docId ||
+         d.label.toLowerCase().includes('profile picture') ||
+         d.label.toLowerCase().includes('passport photo') ||
+         d.label.toLowerCase().includes('photo'))
+          ? { ...d, file: snapshot }
+          : d
+      )
+    }));
+
+    if (user) {
+      setUser({ ...user, avatar: snapshot.fileUrl });
+    }
+    if (linkedStaff) {
+      updateStaff(linkedStaff.id, { avatar: snapshot.fileUrl });
+    }
+
+    if (file.type.startsWith('image/') || /\.(png|jpe?g|webp|gif|svg|bmp)$/i.test(file.name)) {
+      const reader = new FileReader();
+      reader.onload = () => {
+        if (typeof reader.result === 'string') {
+          const dataUrl = reader.result;
+          const persistentSnapshot: UploadedFile = { ...snapshot, fileUrl: dataUrl };
+          setForm(prev => ({
+            ...prev,
+            photo: persistentSnapshot,
+            documents: prev.documents.map(d =>
+              (d.id === docId ||
+               d.label.toLowerCase().includes('profile picture') ||
+               d.label.toLowerCase().includes('passport photo') ||
+               d.label.toLowerCase().includes('photo'))
+                ? { ...d, file: persistentSnapshot }
+                : d
+            )
+          }));
+          if (user) {
+            setUser({ ...user, avatar: dataUrl });
+          }
+          if (linkedStaff) {
+            updateStaff(linkedStaff.id, { avatar: dataUrl });
+          }
+        }
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  useEffect(() => {
+    const photoDoc = form.documents.find(
+      doc => doc.file && (doc.label.toLowerCase().includes('profile picture') || doc.label.toLowerCase().includes('photo'))
+    );
+    const photoUrl = photoDoc?.file?.fileUrl || form.photo?.fileUrl;
+    if (photoUrl && user && user.avatar !== photoUrl) {
+      setUser({ ...user, avatar: photoUrl });
+      if (linkedStaff && linkedStaff.avatar !== photoUrl) {
+        updateStaff(linkedStaff.id, { avatar: photoUrl });
+      }
+    }
+  }, [form.documents, form.photo, user, linkedStaff]);
 
   const addEducationRow = () => {
     setForm(prev => ({ ...prev, education: [...prev.education, emptyEducationRow(linkedStaff)] }));
@@ -418,8 +532,7 @@ export const ProfileCompletionView: React.FC<ProfileCompletionViewProps> = ({ on
     const snapshot = fileSnapshot(file);
 
     if (field === 'photo') {
-      setForm(prev => ({ ...prev, photo: snapshot }));
-      syncPhotoDocument(snapshot);
+      handleProfilePhotoUploaded(file, snapshot);
       return;
     }
 
@@ -435,7 +548,6 @@ export const ProfileCompletionView: React.FC<ProfileCompletionViewProps> = ({ on
     };
 
     if (step === 0) {
-      require('photo', !!form.photo || !!user?.avatar || !!linkedStaff?.avatar, 'Please upload your photo.');
       require('firstName', !!form.personal.firstName.trim(), 'First name is required.');
       require('lastName', !!form.personal.lastName.trim(), 'Last name is required.');
       require('gender', !!form.personal.gender, 'Gender is required.');
@@ -554,6 +666,8 @@ export const ProfileCompletionView: React.FC<ProfileCompletionViewProps> = ({ on
       certificateUploadedAt: row.certificate?.uploadedDate
     })).filter(row => row.totalExperience || row.previousSchool || row.organization || row.designation);
 
+    const photoDocItem = form.documents.find(doc => doc.label.toLowerCase().includes('profile picture') || doc.label.toLowerCase().includes('photo'))?.file || form.photo;
+
     const uploadedDocs = form.documents
       .filter(doc => doc.file)
       .map((doc, index) => ({
@@ -567,13 +681,13 @@ export const ProfileCompletionView: React.FC<ProfileCompletionViewProps> = ({ on
         isRequired: doc.required
       }));
 
-    const photoDoc = form.photo
+    const photoDoc = photoDocItem
       ? [{
           id: `DOC-PHOTO-${Date.now()}`,
-          title: 'Passport Photo',
+          title: 'Profile Picture',
           type: 'Other' as const,
-          fileUrl: form.photo.fileUrl,
-          uploadedDate: form.photo.uploadedDate,
+          fileUrl: photoDocItem.fileUrl,
+          uploadedDate: photoDocItem.uploadedDate,
           uploadedBy: user?.name || 'Employee',
           verificationStatus: 'Pending Verification' as const,
           isRequired: true
@@ -627,7 +741,7 @@ export const ProfileCompletionView: React.FC<ProfileCompletionViewProps> = ({ on
         upiId: form.bank.upiId.trim()
       },
       documents: mergedDocs,
-      avatar: form.photo?.fileUrl || linkedStaff?.avatar || defaultAvatar,
+      avatar: photoDocItem?.fileUrl || form.photo?.fileUrl || linkedStaff?.avatar || defaultAvatar,
       firstName: form.personal.firstName.trim(),
       lastName: form.personal.lastName.trim(),
       name: fullName,
@@ -647,7 +761,7 @@ export const ProfileCompletionView: React.FC<ProfileCompletionViewProps> = ({ on
         ...user,
         name: fullName || user.name,
         phone: form.personal.mobile.trim() || user.phone,
-        avatar: form.photo?.fileUrl || user.avatar || defaultAvatar,
+        avatar: photoDocItem?.fileUrl || form.photo?.fileUrl || user.avatar || defaultAvatar,
         isFirstLogin: false
       };
       setUser(updatedUser);
@@ -664,16 +778,16 @@ export const ProfileCompletionView: React.FC<ProfileCompletionViewProps> = ({ on
   };
 
   const renderEducationSummary = () => {
-    if (form.education.length === 0) return <p className="text-sm text-slate-500 italic">No qualification records added yet.</p>;
+    if (form.education.length === 0) return <p className="text-xs text-slate-500 italic">No qualification records added yet.</p>;
     return (
-      <div className="space-y-3">
+      <div className="space-y-2">
         {form.education.map(row => (
-          <div key={row.id} className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/60 p-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
-              <div><span className="font-black text-slate-500">Qualification:</span> {row.highestQualification || 'Not provided'}</div>
-              <div><span className="font-black text-slate-500">University:</span> {row.university || 'Not provided'}</div>
-              <div><span className="font-black text-slate-500">Year:</span> {row.year || 'Not provided'}</div>
-              <div><span className="font-black text-slate-500">Percentage:</span> {row.percentage || 'Not provided'}</div>
+          <div key={row.id} className="rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 p-3">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
+              <div><span className="font-bold text-slate-400">Qualification:</span> <span className="font-semibold text-slate-800 dark:text-slate-200 ml-1">{row.highestQualification || 'N/A'}</span></div>
+              <div><span className="font-bold text-slate-400">University:</span> <span className="font-semibold text-slate-800 dark:text-slate-200 ml-1">{row.university || 'N/A'}</span></div>
+              <div><span className="font-bold text-slate-400">Year:</span> <span className="font-semibold text-slate-800 dark:text-slate-200 ml-1">{row.year || 'N/A'}</span></div>
+              <div><span className="font-bold text-slate-400">Percentage:</span> <span className="font-semibold text-slate-800 dark:text-slate-200 ml-1">{row.percentage || 'N/A'}</span></div>
             </div>
           </div>
         ))}
@@ -682,16 +796,16 @@ export const ProfileCompletionView: React.FC<ProfileCompletionViewProps> = ({ on
   };
 
   const renderExperienceSummary = () => {
-    if (form.experience.length === 0) return <p className="text-sm text-slate-500 italic">No experience records added yet.</p>;
+    if (form.experience.length === 0) return <p className="text-xs text-slate-500 italic">No experience records added yet.</p>;
     return (
-      <div className="space-y-3">
+      <div className="space-y-2">
         {form.experience.map(row => (
-          <div key={row.id} className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/60 p-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
-              <div><span className="font-black text-slate-500">Experience:</span> {row.totalExperience || 'Not provided'}</div>
-              <div><span className="font-black text-slate-500">Organization:</span> {row.organization || 'Not provided'}</div>
-              <div><span className="font-black text-slate-500">Designation:</span> {row.designation || 'Not provided'}</div>
-              <div><span className="font-black text-slate-500">Previous School:</span> {row.previousSchool || 'Not provided'}</div>
+          <div key={row.id} className="rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 p-3">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
+              <div><span className="font-bold text-slate-400">Experience:</span> <span className="font-semibold text-slate-800 dark:text-slate-200 ml-1">{row.totalExperience || 'N/A'}</span></div>
+              <div><span className="font-bold text-slate-400">Organization:</span> <span className="font-semibold text-slate-800 dark:text-slate-200 ml-1">{row.organization || 'N/A'}</span></div>
+              <div><span className="font-bold text-slate-400">Designation:</span> <span className="font-semibold text-slate-800 dark:text-slate-200 ml-1">{row.designation || 'N/A'}</span></div>
+              <div><span className="font-bold text-slate-400">Previous School:</span> <span className="font-semibold text-slate-800 dark:text-slate-200 ml-1">{row.previousSchool || 'N/A'}</span></div>
             </div>
           </div>
         ))}
@@ -704,182 +818,261 @@ export const ProfileCompletionView: React.FC<ProfileCompletionViewProps> = ({ on
       case 0:
         return (
           <SectionCard title="Personal Information" subtitle="Fill in your identity and family details.">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-              <div className="lg:col-span-2">
-                <FieldLabel label="Profile Photo" required />
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={e => setFileFromInput('photo', null, e.target.files)}
-                  className="mt-2 block w-full rounded-2xl border border-dashed border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 px-4 py-3 text-sm"
-                />
-                <p className="mt-2 text-xs text-slate-500">
-                  {form.photo ? `Selected: ${form.photo.fileName}` : 'Upload a passport-style photo.'}
-                </p>
-                {errors.photo && <p className="mt-1 text-xs font-semibold text-rose-500">{errors.photo}</p>}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                <div>
+                  <FieldLabel label="First Name" required />
+                  <input
+                    value={form.personal.firstName}
+                    onChange={e => updatePersonal('firstName', e.target.value)}
+                    className={fieldInputClass(Boolean(errors.firstName))}
+                  />
+                  {errors.firstName && <p className="mt-1 text-[11px] font-semibold text-rose-500">{errors.firstName}</p>}
+                </div>
+                <div>
+                  <FieldLabel label="Middle Name" />
+                  <input
+                    value={form.personal.middleName}
+                    onChange={e => updatePersonal('middleName', e.target.value)}
+                    className={fieldInputClass()}
+                  />
+                </div>
+                <div>
+                  <FieldLabel label="Last Name" required />
+                  <input
+                    value={form.personal.lastName}
+                    onChange={e => updatePersonal('lastName', e.target.value)}
+                    className={fieldInputClass(Boolean(errors.lastName))}
+                  />
+                  {errors.lastName && <p className="mt-1 text-[11px] font-semibold text-rose-500">{errors.lastName}</p>}
+                </div>
+                <div>
+                  <FieldLabel label="Gender" required />
+                  <select
+                    value={form.personal.gender}
+                    onChange={e => updatePersonal('gender', e.target.value as ProfileFormState['personal']['gender'])}
+                    className={fieldInputClass(Boolean(errors.gender))}
+                  >
+                    <option value="">Select Gender</option>
+                    <option value="Male">Male</option>
+                    <option value="Female">Female</option>
+                    <option value="Other">Other</option>
+                  </select>
+                  {errors.gender && <p className="mt-1 text-[11px] font-semibold text-rose-500">{errors.gender}</p>}
+                </div>
+                <div>
+                  <FieldLabel label="Date of Birth" required />
+                  <input
+                    type="date"
+                    value={form.personal.dob}
+                    onChange={e => updatePersonal('dob', e.target.value)}
+                    className={fieldInputClass(Boolean(errors.dob))}
+                  />
+                  {errors.dob && <p className="mt-1 text-[11px] font-semibold text-rose-500">{errors.dob}</p>}
+                </div>
+                <div>
+                  <FieldLabel label="Blood Group" />
+                  <input
+                    value={form.personal.bloodGroup}
+                    onChange={e => updatePersonal('bloodGroup', e.target.value)}
+                    className={fieldInputClass()}
+                    placeholder="A+, O+, AB- ..."
+                  />
+                </div>
+                <div>
+                  <FieldLabel label="Mobile Number" required />
+                  <input
+                    type="tel"
+                    value={form.personal.mobile}
+                    onChange={e => updatePersonal('mobile', e.target.value)}
+                    className={fieldInputClass(Boolean(errors.mobile))}
+                    placeholder="10-digit mobile number"
+                  />
+                  {errors.mobile && <p className="mt-1 text-[11px] font-semibold text-rose-500">{errors.mobile}</p>}
+                </div>
+                <div>
+                  <FieldLabel label="Alternate Mobile" />
+                  <input
+                    type="tel"
+                    value={form.personal.alternateMobile}
+                    onChange={e => updatePersonal('alternateMobile', e.target.value)}
+                    className={fieldInputClass()}
+                    placeholder="Optional"
+                  />
+                </div>
+                <div>
+                  <FieldLabel label="Nationality" />
+                  <input
+                    value={form.personal.nationality}
+                    onChange={e => updatePersonal('nationality', e.target.value)}
+                    className={fieldInputClass()}
+                  />
+                </div>
+                <div>
+                  <FieldLabel label="Religion" />
+                  <select
+                    value={form.personal.religion}
+                    onChange={e => updatePersonal('religion', e.target.value)}
+                    className={fieldInputClass()}
+                  >
+                    <option value="">Select</option>
+                    {RELIGIONS.map(rel => <option key={rel} value={rel}>{rel}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <FieldLabel label="Marital Status" />
+                  <select
+                    value={normalizeMaritalStatus(form.personal.maritalStatus)}
+                    onChange={e => updatePersonal('maritalStatus', e.target.value)}
+                    className={fieldInputClass()}
+                  >
+                    <option value="">Select</option>
+                    {MARITAL_STATUSES.map(status => (
+                      <option key={status} value={status}>
+                        {status}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <FieldLabel label="Father Name" />
+                  <input
+                    value={form.personal.fatherName}
+                    onChange={e => updatePersonal('fatherName', e.target.value)}
+                    className={fieldInputClass()}
+                  />
+                </div>
+                <div className="sm:col-span-2 lg:col-span-1">
+                  <FieldLabel label="Mother Name" />
+                  <input
+                    value={form.personal.motherName}
+                    onChange={e => updatePersonal('motherName', e.target.value)}
+                    className={fieldInputClass()}
+                  />
+                </div>
               </div>
-              <div>
-                <FieldLabel label="First Name" required />
-                <input value={form.personal.firstName} onChange={e => updatePersonal('firstName', e.target.value)} className="mt-2 w-full rounded-2xl border border-slate-200 dark:border-slate-800 bg-transparent px-4 py-3 text-sm" />
-                {errors.firstName && <p className="mt-1 text-xs font-semibold text-rose-500">{errors.firstName}</p>}
-              </div>
-              <div>
-                <FieldLabel label="Middle Name" />
-                <input value={form.personal.middleName} onChange={e => updatePersonal('middleName', e.target.value)} className="mt-2 w-full rounded-2xl border border-slate-200 dark:border-slate-800 bg-transparent px-4 py-3 text-sm" />
-              </div>
-              <div>
-                <FieldLabel label="Last Name" required />
-                <input value={form.personal.lastName} onChange={e => updatePersonal('lastName', e.target.value)} className="mt-2 w-full rounded-2xl border border-slate-200 dark:border-slate-800 bg-transparent px-4 py-3 text-sm" />
-                {errors.lastName && <p className="mt-1 text-xs font-semibold text-rose-500">{errors.lastName}</p>}
-              </div>
-              <div>
-                <FieldLabel label="Gender" required />
-                <select value={form.personal.gender} onChange={e => updatePersonal('gender', e.target.value as ProfileFormState['personal']['gender'])} className="mt-2 w-full rounded-2xl border border-slate-200 dark:border-slate-800 bg-transparent px-4 py-3 text-sm">
-                  <option value="">Select Gender</option>
-                  <option value="Male">Male</option>
-                  <option value="Female">Female</option>
-                  <option value="Other">Other</option>
-                </select>
-                {errors.gender && <p className="mt-1 text-xs font-semibold text-rose-500">{errors.gender}</p>}
-              </div>
-              <div>
-                <FieldLabel label="Date of Birth" required />
-                <input type="date" value={form.personal.dob} onChange={e => updatePersonal('dob', e.target.value)} className="mt-2 w-full rounded-2xl border border-slate-200 dark:border-slate-800 bg-transparent px-4 py-3 text-sm" />
-                {errors.dob && <p className="mt-1 text-xs font-semibold text-rose-500">{errors.dob}</p>}
-              </div>
-              <div>
-                <FieldLabel label="Blood Group" />
-                <input value={form.personal.bloodGroup} onChange={e => updatePersonal('bloodGroup', e.target.value)} className="mt-2 w-full rounded-2xl border border-slate-200 dark:border-slate-800 bg-transparent px-4 py-3 text-sm" placeholder="A+, O+, AB- ..." />
-              </div>
-              <div>
-                <FieldLabel label="Mobile Number" required />
-                <input type="tel" value={form.personal.mobile} onChange={e => updatePersonal('mobile', e.target.value)} className="mt-2 w-full rounded-2xl border border-slate-200 dark:border-slate-800 bg-transparent px-4 py-3 text-sm" placeholder="10-digit mobile number" />
-                {errors.mobile && <p className="mt-1 text-xs font-semibold text-rose-500">{errors.mobile}</p>}
-              </div>
-              <div>
-                <FieldLabel label="Alternate Mobile" />
-                <input type="tel" value={form.personal.alternateMobile} onChange={e => updatePersonal('alternateMobile', e.target.value)} className="mt-2 w-full rounded-2xl border border-slate-200 dark:border-slate-800 bg-transparent px-4 py-3 text-sm" placeholder="Optional" />
-              </div>
-              <div>
-                <FieldLabel label="Nationality" />
-                <input value={form.personal.nationality} onChange={e => updatePersonal('nationality', e.target.value)} className="mt-2 w-full rounded-2xl border border-slate-200 dark:border-slate-800 bg-transparent px-4 py-3 text-sm" />
-              </div>
-              <div>
-                <FieldLabel label="Religion" />
-                <select
-                  value={form.personal.religion}
-                  onChange={e => updatePersonal('religion', e.target.value)}
-                  className="mt-2 w-full rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800 px-4 py-3 text-sm outline-none text-slate-900 dark:text-white"
-                >
-                  <option value="">Select</option>
-                  {RELIGIONS.map(rel => <option key={rel} value={rel}>{rel}</option>)}
-                </select>
-              </div>
-              <div>
-                <FieldLabel label="Marital Status" />
-                <input value={form.personal.maritalStatus} onChange={e => updatePersonal('maritalStatus', e.target.value)} className="mt-2 w-full rounded-2xl border border-slate-200 dark:border-slate-800 bg-transparent px-4 py-3 text-sm" />
-              </div>
-              <div>
-                <FieldLabel label="Father Name" />
-                <input value={form.personal.fatherName} onChange={e => updatePersonal('fatherName', e.target.value)} className="mt-2 w-full rounded-2xl border border-slate-200 dark:border-slate-800 bg-transparent px-4 py-3 text-sm" />
-              </div>
-              <div>
-                <FieldLabel label="Mother Name" />
-                <input value={form.personal.motherName} onChange={e => updatePersonal('motherName', e.target.value)} className="mt-2 w-full rounded-2xl border border-slate-200 dark:border-slate-800 bg-transparent px-4 py-3 text-sm" />
-              </div>
-            </div>
           </SectionCard>
         );
       case 1:
         return (
-          <SectionCard title="Address" subtitle="Add your current and permanent address details.">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-              <div className="lg:col-span-2">
-                <FieldLabel label="Current Address" required />
-                <textarea rows={3} value={form.address.currentAddress} onChange={e => updateAddress('currentAddress', e.target.value)} className="mt-2 w-full rounded-2xl border border-slate-200 dark:border-slate-800 bg-transparent px-4 py-3 text-sm" />
-                {errors.currentAddress && <p className="mt-1 text-xs font-semibold text-rose-500">{errors.currentAddress}</p>}
+          <SectionCard title="Address Details" subtitle="Add your current and permanent address details.">
+            <div className="space-y-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <FieldLabel label="Current Address" required />
+                  <textarea
+                    rows={2}
+                    value={form.address.currentAddress}
+                    onChange={e => updateAddress('currentAddress', e.target.value)}
+                    className={fieldInputClass(Boolean(errors.currentAddress))}
+                  />
+                  {errors.currentAddress && <p className="mt-1 text-[11px] font-semibold text-rose-500">{errors.currentAddress}</p>}
+                </div>
+                <div>
+                  <FieldLabel label="Permanent Address" />
+                  <textarea
+                    rows={2}
+                    value={form.address.permanentAddress}
+                    onChange={e => updateAddress('permanentAddress', e.target.value)}
+                    className={fieldInputClass()}
+                  />
+                </div>
               </div>
-              <div className="lg:col-span-2">
-                <FieldLabel label="Permanent Address" />
-                <textarea rows={3} value={form.address.permanentAddress} onChange={e => updateAddress('permanentAddress', e.target.value)} className="mt-2 w-full rounded-2xl border border-slate-200 dark:border-slate-800 bg-transparent px-4 py-3 text-sm" />
-              </div>
-              <div>
-                <FieldLabel label="City" required />
-                <input value={form.address.city} onChange={e => updateAddress('city', e.target.value)} className="mt-2 w-full rounded-2xl border border-slate-200 dark:border-slate-800 bg-transparent px-4 py-3 text-sm" />
-                {errors.city && <p className="mt-1 text-xs font-semibold text-rose-500">{errors.city}</p>}
-              </div>
-              <div>
-                <FieldLabel label="District" />
-                <input value={form.address.district} onChange={e => updateAddress('district', e.target.value)} className="mt-2 w-full rounded-2xl border border-slate-200 dark:border-slate-800 bg-transparent px-4 py-3 text-sm" />
-              </div>
-              <div>
-                <FieldLabel label="State" required />
-                <input value={form.address.state} onChange={e => updateAddress('state', e.target.value)} className="mt-2 w-full rounded-2xl border border-slate-200 dark:border-slate-800 bg-transparent px-4 py-3 text-sm" />
-                {errors.state && <p className="mt-1 text-xs font-semibold text-rose-500">{errors.state}</p>}
-              </div>
-              <div>
-                <FieldLabel label="Country" required />
-                <input value={form.address.country} onChange={e => updateAddress('country', e.target.value)} className="mt-2 w-full rounded-2xl border border-slate-200 dark:border-slate-800 bg-transparent px-4 py-3 text-sm" />
-                {errors.country && <p className="mt-1 text-xs font-semibold text-rose-500">{errors.country}</p>}
-              </div>
-              <div>
-                <FieldLabel label="PIN Code" required />
-                <input
-                  type="text"
-                  inputMode="numeric"
-                  pattern="[0-9]*"
-                  maxLength={6}
-                  value={form.address.pinCode}
-                  placeholder="e.g. 560001"
-                  onChange={e => {
-                    const pin = e.target.value.replace(/[^0-9]/g, '').slice(0, 6);
-                    updateAddress('pinCode', pin);
-                    if (!pin.trim()) {
-                      setForm(prev => ({
-                        ...prev,
-                        address: {
-                          ...prev.address,
-                          city: '',
-                          district: '',
-                          state: '',
-                          country: 'India'
-                        }
-                      }));
-                      return;
-                    }
-                    const offline = getOfflinePostalInfo(pin);
-                    if (offline) {
-                      setForm(prev => ({
-                        ...prev,
-                        address: {
-                          ...prev.address,
-                          city: offline.city,
-                          district: offline.district,
-                          state: offline.state,
-                          country: offline.country
-                        }
-                      }));
-                    }
-                    if (pin.replace(/\D/g, '').length >= 4) {
-                      lookupPostalCode(pin).then(info => {
-                        if (info) {
-                          setForm(prev => ({
-                            ...prev,
-                            address: {
-                              ...prev.address,
-                              city: info.city || prev.address.city,
-                              district: info.district || prev.address.district,
-                              state: info.state || prev.address.state,
-                              country: info.country || prev.address.country
-                            }
-                          }));
-                        }
-                      });
-                    }
-                  }}
-                  className="mt-2 w-full rounded-2xl border border-slate-200 dark:border-slate-800 bg-transparent px-4 py-3 text-sm font-mono"
-                />
-                {errors.pinCode && <p className="mt-1 text-xs font-semibold text-rose-500">{errors.pinCode}</p>}
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                <div>
+                  <FieldLabel label="City" required />
+                  <input
+                    value={form.address.city}
+                    onChange={e => updateAddress('city', e.target.value)}
+                    className={fieldInputClass(Boolean(errors.city))}
+                  />
+                  {errors.city && <p className="mt-1 text-[11px] font-semibold text-rose-500">{errors.city}</p>}
+                </div>
+                <div>
+                  <FieldLabel label="District" />
+                  <input
+                    value={form.address.district}
+                    onChange={e => updateAddress('district', e.target.value)}
+                    className={fieldInputClass()}
+                  />
+                </div>
+                <div>
+                  <FieldLabel label="State" required />
+                  <input
+                    value={form.address.state}
+                    onChange={e => updateAddress('state', e.target.value)}
+                    className={fieldInputClass(Boolean(errors.state))}
+                  />
+                  {errors.state && <p className="mt-1 text-[11px] font-semibold text-rose-500">{errors.state}</p>}
+                </div>
+                <div>
+                  <FieldLabel label="Country" required />
+                  <input
+                    value={form.address.country}
+                    onChange={e => updateAddress('country', e.target.value)}
+                    className={fieldInputClass(Boolean(errors.country))}
+                  />
+                  {errors.country && <p className="mt-1 text-[11px] font-semibold text-rose-500">{errors.country}</p>}
+                </div>
+                <div>
+                  <FieldLabel label="PIN Code" required />
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
+                    maxLength={6}
+                    value={form.address.pinCode}
+                    placeholder="e.g. 560001"
+                    onChange={e => {
+                      const pin = e.target.value.replace(/[^0-9]/g, '').slice(0, 6);
+                      updateAddress('pinCode', pin);
+                      if (!pin.trim()) {
+                        setForm(prev => ({
+                          ...prev,
+                          address: {
+                            ...prev.address,
+                            city: '',
+                            district: '',
+                            state: '',
+                            country: 'India'
+                          }
+                        }));
+                        return;
+                      }
+                      const offline = getOfflinePostalInfo(pin);
+                      if (offline) {
+                        setForm(prev => ({
+                          ...prev,
+                          address: {
+                            ...prev.address,
+                            city: offline.city,
+                            district: offline.district,
+                            state: offline.state,
+                            country: offline.country
+                          }
+                        }));
+                      }
+                      if (pin.replace(/\D/g, '').length >= 4) {
+                        lookupPostalCode(pin).then(info => {
+                          if (info) {
+                            setForm(prev => ({
+                              ...prev,
+                              address: {
+                                ...prev.address,
+                                city: info.city || prev.address.city,
+                                district: info.district || prev.address.district,
+                                state: info.state || prev.address.state,
+                                country: info.country || prev.address.country
+                              }
+                            }));
+                          }
+                        });
+                      }
+                    }}
+                    className={`${fieldInputClass(Boolean(errors.pinCode))} font-mono`}
+                  />
+                  {errors.pinCode && <p className="mt-1 text-[11px] font-semibold text-rose-500">{errors.pinCode}</p>}
+                </div>
               </div>
             </div>
           </SectionCard>
@@ -887,65 +1080,105 @@ export const ProfileCompletionView: React.FC<ProfileCompletionViewProps> = ({ on
       case 2:
         return (
           <SectionCard title="Education" subtitle={`Add one or more qualification records for ${staffCategory === 'Teacher' ? 'teaching staff' : 'non-teaching staff'}.`}>
-            <div className="space-y-4">
+            <div className="space-y-3">
               {form.education.map((row, index) => (
-                <div key={row.id} className="rounded-3xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/60 p-4 space-y-4">
+                <div key={row.id} className="rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 p-3.5 space-y-3">
                   <div className="flex items-center justify-between gap-3">
-                    <p className="text-sm font-black text-slate-900 dark:text-white">Qualification {index + 1}</p>
+                    <p className="text-xs font-black text-slate-900 dark:text-white">Qualification {index + 1}</p>
                     <div className="flex items-center gap-2">
                       {form.education.length > 1 && (
-                        <button type="button" onClick={() => removeEducationRow(row.id)} className="inline-flex items-center gap-1.5 rounded-xl bg-rose-50 px-3 py-2 text-xs font-bold text-rose-600">
-                          <Trash2 className="h-4 w-4" /> Remove
+                        <button
+                          type="button"
+                          onClick={() => removeEducationRow(row.id)}
+                          className="inline-flex items-center gap-1.5 rounded-lg bg-rose-50 dark:bg-rose-950/60 border border-rose-200/60 dark:border-rose-800/60 px-2.5 py-1 text-xs font-bold text-rose-600 dark:text-rose-400 hover:bg-rose-100 transition-colors cursor-pointer"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" /> Remove
                         </button>
                       )}
                     </div>
                   </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
                     <div>
                       <FieldLabel label="Highest Qualification" required />
-                      <input value={row.highestQualification} onChange={e => updateEducation(row.id, { highestQualification: e.target.value })} className="mt-2 w-full rounded-2xl border border-slate-200 dark:border-slate-800 bg-transparent px-4 py-3 text-sm" />
-                      {index === 0 && errors['education.highestQualification'] && <p className="mt-1 text-xs font-semibold text-rose-500">{errors['education.highestQualification']}</p>}
+                      <input
+                        value={row.highestQualification}
+                        onChange={e => updateEducation(row.id, { highestQualification: e.target.value })}
+                        className={fieldInputClass(index === 0 && Boolean(errors['education.highestQualification']))}
+                      />
+                      {index === 0 && errors['education.highestQualification'] && <p className="mt-1 text-[11px] font-semibold text-rose-500">{errors['education.highestQualification']}</p>}
                     </div>
                     <div>
                       <FieldLabel label="University / Board" required />
-                      <input value={row.university} onChange={e => updateEducation(row.id, { university: e.target.value })} className="mt-2 w-full rounded-2xl border border-slate-200 dark:border-slate-800 bg-transparent px-4 py-3 text-sm" />
-                      {index === 0 && errors['education.university'] && <p className="mt-1 text-xs font-semibold text-rose-500">{errors['education.university']}</p>}
+                      <input
+                        value={row.university}
+                        onChange={e => updateEducation(row.id, { university: e.target.value })}
+                        className={fieldInputClass(index === 0 && Boolean(errors['education.university']))}
+                      />
+                      {index === 0 && errors['education.university'] && <p className="mt-1 text-[11px] font-semibold text-rose-500">{errors['education.university']}</p>}
                     </div>
                     <div>
                       <FieldLabel label="Year" required />
-                      <input value={row.year} onChange={e => updateEducation(row.id, { year: e.target.value })} className="mt-2 w-full rounded-2xl border border-slate-200 dark:border-slate-800 bg-transparent px-4 py-3 text-sm" />
-                      {index === 0 && errors['education.year'] && <p className="mt-1 text-xs font-semibold text-rose-500">{errors['education.year']}</p>}
+                      <input
+                        value={row.year}
+                        onChange={e => updateEducation(row.id, { year: e.target.value })}
+                        className={fieldInputClass(index === 0 && Boolean(errors['education.year']))}
+                      />
+                      {index === 0 && errors['education.year'] && <p className="mt-1 text-[11px] font-semibold text-rose-500">{errors['education.year']}</p>}
                     </div>
                     <div>
                       <FieldLabel label="Percentage" required />
-                      <input value={row.percentage} onChange={e => updateEducation(row.id, { percentage: e.target.value })} className="mt-2 w-full rounded-2xl border border-slate-200 dark:border-slate-800 bg-transparent px-4 py-3 text-sm" />
-                      {index === 0 && errors['education.percentage'] && <p className="mt-1 text-xs font-semibold text-rose-500">{errors['education.percentage']}</p>}
+                      <input
+                        value={row.percentage}
+                        onChange={e => updateEducation(row.id, { percentage: e.target.value })}
+                        className={fieldInputClass(index === 0 && Boolean(errors['education.percentage']))}
+                      />
+                      {index === 0 && errors['education.percentage'] && <p className="mt-1 text-[11px] font-semibold text-rose-500">{errors['education.percentage']}</p>}
                     </div>
                     {staffCategory === 'Teacher' && (
                       <>
                         <div>
                           <FieldLabel label="B.Ed" />
-                          <input value={row.bed} onChange={e => updateEducation(row.id, { bed: e.target.value })} className="mt-2 w-full rounded-2xl border border-slate-200 dark:border-slate-800 bg-transparent px-4 py-3 text-sm" />
+                          <input
+                            value={row.bed}
+                            onChange={e => updateEducation(row.id, { bed: e.target.value })}
+                            className={fieldInputClass()}
+                          />
                         </div>
                         <div>
                           <FieldLabel label="M.Ed" />
-                          <input value={row.med} onChange={e => updateEducation(row.id, { med: e.target.value })} className="mt-2 w-full rounded-2xl border border-slate-200 dark:border-slate-800 bg-transparent px-4 py-3 text-sm" />
+                          <input
+                            value={row.med}
+                            onChange={e => updateEducation(row.id, { med: e.target.value })}
+                            className={fieldInputClass()}
+                          />
                         </div>
                         <div>
                           <FieldLabel label="Ph.D" />
-                          <input value={row.phd} onChange={e => updateEducation(row.id, { phd: e.target.value })} className="mt-2 w-full rounded-2xl border border-slate-200 dark:border-slate-800 bg-transparent px-4 py-3 text-sm" />
+                          <input
+                            value={row.phd}
+                            onChange={e => updateEducation(row.id, { phd: e.target.value })}
+                            className={fieldInputClass()}
+                          />
                         </div>
                         <div>
                           <FieldLabel label="Specialization" />
-                          <input value={row.specialization} onChange={e => updateEducation(row.id, { specialization: e.target.value })} className="mt-2 w-full rounded-2xl border border-slate-200 dark:border-slate-800 bg-transparent px-4 py-3 text-sm" />
+                          <input
+                            value={row.specialization}
+                            onChange={e => updateEducation(row.id, { specialization: e.target.value })}
+                            className={fieldInputClass()}
+                          />
                         </div>
                       </>
                     )}
                   </div>
                 </div>
               ))}
-              <button type="button" onClick={addEducationRow} className="inline-flex items-center gap-2 rounded-2xl bg-brand-50 px-4 py-2.5 text-sm font-bold text-brand-700">
-                <Plus className="h-4 w-4" /> Add Qualification
+              <button
+                type="button"
+                onClick={addEducationRow}
+                className="inline-flex items-center gap-1.5 rounded-xl bg-sky-50 dark:bg-sky-950/60 border border-sky-200/80 dark:border-sky-800/80 px-3 py-1.5 text-xs font-bold text-sky-700 dark:text-sky-300 hover:bg-sky-100 transition-colors cursor-pointer"
+              >
+                <Plus className="h-3.5 w-3.5" /> Add Qualification
               </button>
             </div>
           </SectionCard>
@@ -953,33 +1186,54 @@ export const ProfileCompletionView: React.FC<ProfileCompletionViewProps> = ({ on
       case 3:
         return (
           <SectionCard title="Experience" subtitle="Add previous organization or school details if applicable.">
-            <div className="space-y-4">
+            <div className="space-y-3">
               {form.experience.map((row, index) => (
-                <div key={row.id} className="rounded-3xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/60 p-4 space-y-4">
+                <div key={row.id} className="rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 p-3.5 space-y-3">
                   <div className="flex items-center justify-between gap-3">
-                    <p className="text-sm font-black text-slate-900 dark:text-white">Experience Record {index + 1}</p>
+                    <p className="text-xs font-black text-slate-900 dark:text-white">Experience Record {index + 1}</p>
                     {form.experience.length > 1 && (
-                      <button type="button" onClick={() => removeExperienceRow(row.id)} className="inline-flex items-center gap-1.5 rounded-xl bg-rose-50 px-3 py-2 text-xs font-bold text-rose-600">
-                        <Trash2 className="h-4 w-4" /> Remove
+                      <button
+                        type="button"
+                        onClick={() => removeExperienceRow(row.id)}
+                        className="inline-flex items-center gap-1.5 rounded-lg bg-rose-50 dark:bg-rose-950/60 border border-rose-200/60 dark:border-rose-800/60 px-2.5 py-1 text-xs font-bold text-rose-600 dark:text-rose-400 hover:bg-rose-100 transition-colors cursor-pointer"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" /> Remove
                       </button>
                     )}
                   </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
                     <div>
                       <FieldLabel label="Total Experience" />
-                      <input value={row.totalExperience} onChange={e => updateExperience(row.id, { totalExperience: e.target.value })} className="mt-2 w-full rounded-2xl border border-slate-200 dark:border-slate-800 bg-transparent px-4 py-3 text-sm" placeholder="e.g. 5 years" />
+                      <input
+                        value={row.totalExperience}
+                        onChange={e => updateExperience(row.id, { totalExperience: e.target.value })}
+                        className={fieldInputClass()}
+                        placeholder="e.g. 5 years"
+                      />
                     </div>
                     <div>
                       <FieldLabel label="Previous School" />
-                      <input value={row.previousSchool} onChange={e => updateExperience(row.id, { previousSchool: e.target.value })} className="mt-2 w-full rounded-2xl border border-slate-200 dark:border-slate-800 bg-transparent px-4 py-3 text-sm" />
+                      <input
+                        value={row.previousSchool}
+                        onChange={e => updateExperience(row.id, { previousSchool: e.target.value })}
+                        className={fieldInputClass()}
+                      />
                     </div>
                     <div>
                       <FieldLabel label="Organization" />
-                      <input value={row.organization} onChange={e => updateExperience(row.id, { organization: e.target.value })} className="mt-2 w-full rounded-2xl border border-slate-200 dark:border-slate-800 bg-transparent px-4 py-3 text-sm" />
+                      <input
+                        value={row.organization}
+                        onChange={e => updateExperience(row.id, { organization: e.target.value })}
+                        className={fieldInputClass()}
+                      />
                     </div>
                     <div>
                       <FieldLabel label="Designation" />
-                      <input value={row.designation} onChange={e => updateExperience(row.id, { designation: e.target.value })} className="mt-2 w-full rounded-2xl border border-slate-200 dark:border-slate-800 bg-transparent px-4 py-3 text-sm" />
+                      <input
+                        value={row.designation}
+                        onChange={e => updateExperience(row.id, { designation: e.target.value })}
+                        className={fieldInputClass()}
+                      />
                     </div>
                     <div>
                       <FieldLabel label="Joining Date" />
@@ -996,7 +1250,7 @@ export const ProfileCompletionView: React.FC<ProfileCompletionViewProps> = ({ on
                           }
                           updateExperience(row.id, { joiningDate: val });
                         }}
-                        className="mt-2 w-full rounded-2xl border border-slate-200 dark:border-slate-800 bg-transparent px-4 py-3 text-sm"
+                        className={fieldInputClass()}
                       />
                     </div>
                     <div>
@@ -1015,26 +1269,35 @@ export const ProfileCompletionView: React.FC<ProfileCompletionViewProps> = ({ on
                           }
                           updateExperience(row.id, { relievingDate: val });
                         }}
-                        className="mt-2 w-full rounded-2xl border border-slate-200 dark:border-slate-800 bg-transparent px-4 py-3 text-sm"
+                        className={fieldInputClass()}
                       />
                     </div>
-                    <div className="md:col-span-2">
+                    <div className="sm:col-span-2 md:col-span-3">
                       <FieldLabel label="Experience Certificate Upload" />
-                      <input
-                        type="file"
-                        accept=".pdf,image/*"
-                        onChange={e => setFileFromInput('experience', row.id, e.target.files)}
-                        className="mt-2 block w-full rounded-2xl border border-dashed border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 px-4 py-3 text-sm"
-                      />
-                      <p className="mt-2 text-xs text-slate-500">
-                        {row.certificate ? `Selected: ${row.certificate.fileName}` : 'Upload a previous employment certificate if available.'}
-                      </p>
+                      <label className="mt-1 block cursor-pointer">
+                        <div className="flex items-center gap-2 rounded-xl border border-dashed border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-3.5 py-2 text-xs hover:border-sky-500 transition-colors">
+                          <Upload className="w-4 h-4 text-slate-400 shrink-0" />
+                          <span className="font-semibold text-slate-600 dark:text-slate-300 truncate">
+                            {row.certificate ? row.certificate.fileName : 'Upload previous employment certificate (PDF or Image)'}
+                          </span>
+                        </div>
+                        <input
+                          type="file"
+                          accept=".pdf,image/*"
+                          onChange={e => setFileFromInput('experience', row.id, e.target.files)}
+                          className="hidden"
+                        />
+                      </label>
                     </div>
                   </div>
                 </div>
               ))}
-              <button type="button" onClick={addExperienceRow} className="inline-flex items-center gap-2 rounded-2xl bg-brand-50 px-4 py-2.5 text-sm font-bold text-brand-700">
-                <Plus className="h-4 w-4" /> Add Experience
+              <button
+                type="button"
+                onClick={addExperienceRow}
+                className="inline-flex items-center gap-1.5 rounded-xl bg-sky-50 dark:bg-sky-950/60 border border-sky-200/80 dark:border-sky-800/80 px-3 py-1.5 text-xs font-bold text-sky-700 dark:text-sky-300 hover:bg-sky-100 transition-colors cursor-pointer"
+              >
+                <Plus className="h-3.5 w-3.5" /> Add Experience
               </button>
             </div>
           </SectionCard>
@@ -1042,40 +1305,69 @@ export const ProfileCompletionView: React.FC<ProfileCompletionViewProps> = ({ on
       case 4:
         return (
           <SectionCard title="Bank Details" subtitle="Enter the account where your salary will be credited.">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
               <div>
                 <FieldLabel label="Account Holder Name" required />
-                <input value={form.bank.accountHolderName} onChange={e => updateBank('accountHolderName', e.target.value)} className="mt-2 w-full rounded-2xl border border-slate-200 dark:border-slate-800 bg-transparent px-4 py-3 text-sm" />
-                {errors['bank.accountHolderName'] && <p className="mt-1 text-xs font-semibold text-rose-500">{errors['bank.accountHolderName']}</p>}
+                <input
+                  value={form.bank.accountHolderName}
+                  onChange={e => updateBank('accountHolderName', e.target.value)}
+                  className={fieldInputClass(Boolean(errors['bank.accountHolderName']))}
+                />
+                {errors['bank.accountHolderName'] && <p className="mt-1 text-[11px] font-semibold text-rose-500">{errors['bank.accountHolderName']}</p>}
               </div>
               <div>
                 <FieldLabel label="Bank Name" required />
-                <input value={form.bank.bankName} onChange={e => updateBank('bankName', e.target.value)} className="mt-2 w-full rounded-2xl border border-slate-200 dark:border-slate-800 bg-transparent px-4 py-3 text-sm" />
-                {errors['bank.bankName'] && <p className="mt-1 text-xs font-semibold text-rose-500">{errors['bank.bankName']}</p>}
+                <input
+                  value={form.bank.bankName}
+                  onChange={e => updateBank('bankName', e.target.value)}
+                  className={fieldInputClass(Boolean(errors['bank.bankName']))}
+                />
+                {errors['bank.bankName'] && <p className="mt-1 text-[11px] font-semibold text-rose-500">{errors['bank.bankName']}</p>}
               </div>
               <div>
                 <FieldLabel label="Branch" required />
-                <input value={form.bank.branch} onChange={e => updateBank('branch', e.target.value)} className="mt-2 w-full rounded-2xl border border-slate-200 dark:border-slate-800 bg-transparent px-4 py-3 text-sm" />
-                {errors['bank.branch'] && <p className="mt-1 text-xs font-semibold text-rose-500">{errors['bank.branch']}</p>}
+                <input
+                  value={form.bank.branch}
+                  onChange={e => updateBank('branch', e.target.value)}
+                  className={fieldInputClass(Boolean(errors['bank.branch']))}
+                />
+                {errors['bank.branch'] && <p className="mt-1 text-[11px] font-semibold text-rose-500">{errors['bank.branch']}</p>}
               </div>
               <div>
                 <FieldLabel label="Account Number" required />
-                <input value={form.bank.accountNumber} onChange={e => updateBank('accountNumber', e.target.value)} className="mt-2 w-full rounded-2xl border border-slate-200 dark:border-slate-800 bg-transparent px-4 py-3 text-sm font-mono" />
-                {errors['bank.accountNumber'] && <p className="mt-1 text-xs font-semibold text-rose-500">{errors['bank.accountNumber']}</p>}
+                <input
+                  value={form.bank.accountNumber}
+                  onChange={e => updateBank('accountNumber', e.target.value)}
+                  className={`${fieldInputClass(Boolean(errors['bank.accountNumber']))} font-mono`}
+                />
+                {errors['bank.accountNumber'] && <p className="mt-1 text-[11px] font-semibold text-rose-500">{errors['bank.accountNumber']}</p>}
               </div>
               <div>
                 <FieldLabel label="Confirm Account Number" required />
-                <input value={form.bank.confirmAccountNumber} onChange={e => updateBank('confirmAccountNumber', e.target.value)} className="mt-2 w-full rounded-2xl border border-slate-200 dark:border-slate-800 bg-transparent px-4 py-3 text-sm font-mono" />
-                {errors['bank.confirmAccountNumber'] && <p className="mt-1 text-xs font-semibold text-rose-500">{errors['bank.confirmAccountNumber']}</p>}
+                <input
+                  value={form.bank.confirmAccountNumber}
+                  onChange={e => updateBank('confirmAccountNumber', e.target.value)}
+                  className={`${fieldInputClass(Boolean(errors['bank.confirmAccountNumber']))} font-mono`}
+                />
+                {errors['bank.confirmAccountNumber'] && <p className="mt-1 text-[11px] font-semibold text-rose-500">{errors['bank.confirmAccountNumber']}</p>}
               </div>
               <div>
                 <FieldLabel label="IFSC Code" required />
-                <input value={form.bank.ifscCode} onChange={e => updateBank('ifscCode', e.target.value.toUpperCase())} className="mt-2 w-full rounded-2xl border border-slate-200 dark:border-slate-800 bg-transparent px-4 py-3 text-sm font-mono uppercase" />
-                {errors['bank.ifscCode'] && <p className="mt-1 text-xs font-semibold text-rose-500">{errors['bank.ifscCode']}</p>}
+                <input
+                  value={form.bank.ifscCode}
+                  onChange={e => updateBank('ifscCode', e.target.value.toUpperCase())}
+                  className={`${fieldInputClass(Boolean(errors['bank.ifscCode']))} font-mono uppercase`}
+                />
+                {errors['bank.ifscCode'] && <p className="mt-1 text-[11px] font-semibold text-rose-500">{errors['bank.ifscCode']}</p>}
               </div>
-              <div>
+              <div className="sm:col-span-2 lg:col-span-1">
                 <FieldLabel label="UPI ID" />
-                <input value={form.bank.upiId} onChange={e => updateBank('upiId', e.target.value)} className="mt-2 w-full rounded-2xl border border-slate-200 dark:border-slate-800 bg-transparent px-4 py-3 text-sm" />
+                <input
+                  value={form.bank.upiId}
+                  onChange={e => updateBank('upiId', e.target.value)}
+                  className={fieldInputClass()}
+                  placeholder="e.g. name@okhdfcbank"
+                />
               </div>
             </div>
           </SectionCard>
@@ -1083,29 +1375,32 @@ export const ProfileCompletionView: React.FC<ProfileCompletionViewProps> = ({ on
       case 5:
         return (
           <SectionCard title="Documents" subtitle="Upload only the documents required for your staff category.">
-            <div className="space-y-3">
+            <div className="space-y-2.5">
               {form.documents.map(doc => (
-                <div key={doc.id} className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/60 p-4">
-                  <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                <div key={doc.id} className="rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 p-3">
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                     <div className="min-w-0">
-                      <p className="text-sm font-black text-slate-900 dark:text-white">{doc.label}</p>
+                      <p className="text-xs font-black text-slate-900 dark:text-white truncate">{doc.label}</p>
                       <p className="text-[11px] text-slate-500">{doc.required ? 'Required document' : 'Optional document'}</p>
                     </div>
-                    <div className="flex items-center gap-3">
-                      <label className="inline-flex cursor-pointer items-center gap-2 rounded-xl bg-white dark:bg-slate-950 px-3 py-2 text-xs font-bold text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-800">
-                        <Upload className="h-4 w-4" />
-                        {doc.file ? 'Replace File' : 'Upload File'}
+                    <div className="flex items-center gap-2 shrink-0">
+                      <label className="inline-flex cursor-pointer items-center gap-1.5 rounded-lg bg-white dark:bg-slate-950 px-3 py-1.5 text-xs font-bold text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-800 hover:border-slate-300 transition-colors shadow-2xs">
+                        <Upload className="h-3.5 w-3.5" />
+                        {doc.file ? 'Replace' : 'Upload'}
                         <input
                           type="file"
-                          accept=".pdf,image/*"
+                          accept={doc.label.toLowerCase().includes('photo') || doc.label.toLowerCase().includes('profile picture') ? 'image/*' : '.pdf,image/*'}
                           className="hidden"
                           onChange={e => {
                             const selected = e.target.files?.[0];
                             if (!selected) return;
                             const snapshot = fileSnapshot(selected);
                             updateDocument(doc.id, snapshot);
-                            if (doc.label.toLowerCase().includes('passport photo')) {
-                              setForm(prev => ({ ...prev, photo: snapshot }));
+                            const isPhoto = doc.label.toLowerCase().includes('profile picture') ||
+                              doc.label.toLowerCase().includes('passport photo') ||
+                              doc.label.toLowerCase().includes('photo');
+                            if (isPhoto) {
+                              handleProfilePhotoUploaded(selected, snapshot, doc.id);
                             }
                             if (doc.label.toLowerCase().includes('experience certificate') && form.experience[0]) {
                               updateExperience(form.experience[0].id, { certificate: snapshot });
@@ -1119,9 +1414,9 @@ export const ProfileCompletionView: React.FC<ProfileCompletionViewProps> = ({ on
                     </div>
                   </div>
                   {doc.file && (
-                    <div className="mt-3 flex items-center justify-between rounded-xl bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 px-3 py-2 text-xs">
-                      <span className="truncate font-semibold text-slate-700 dark:text-slate-200">{doc.file.fileName}</span>
-                      <span className="text-slate-400">{doc.file.uploadedDate}</span>
+                    <div className="mt-2 flex items-center justify-between rounded-lg bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 px-2.5 py-1.5 text-xs">
+                      <span className="truncate font-semibold text-slate-700 dark:text-slate-200 text-[11px]">{doc.file.fileName}</span>
+                      <span className="text-[10px] text-slate-400 shrink-0 ml-2">{doc.file.uploadedDate}</span>
                     </div>
                   )}
                 </div>
@@ -1133,61 +1428,61 @@ export const ProfileCompletionView: React.FC<ProfileCompletionViewProps> = ({ on
       case 6:
       default:
         return (
-          <SectionCard title="Review & Submit" subtitle="Verify the details before completing your profile.">
-            <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
-              <div className="rounded-3xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/60 p-4">
-                <p className="text-[10px] font-black uppercase tracking-[0.35em] text-slate-400">Personal</p>
-                <div className="mt-3 space-y-1 text-sm">
-                  <p className="font-bold text-slate-900 dark:text-white">{fullName || 'Name not provided'}</p>
-                  <p className="text-slate-500">{form.personal.gender || 'Gender not provided'} | {form.personal.dob || 'DOB not provided'}</p>
-                  <p className="text-slate-500">{form.personal.fatherName || 'Father name not provided'}</p>
+          <SectionCard title="Review & Submit" subtitle="Verify all details before completing your profile.">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+              <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 p-3">
+                <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Personal Details</p>
+                <div className="mt-1.5 space-y-0.5 text-xs">
+                  <p className="font-extrabold text-slate-900 dark:text-white truncate">{fullName || 'Name not provided'}</p>
+                  <p className="text-slate-500">{form.personal.gender || 'Gender N/A'} • {form.personal.dob || 'DOB N/A'}</p>
+                  <p className="text-slate-500">{form.personal.mobile || 'Phone N/A'}</p>
                 </div>
               </div>
-              <div className="rounded-3xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/60 p-4">
-                <p className="text-[10px] font-black uppercase tracking-[0.35em] text-slate-400">Address</p>
-                <div className="mt-3 space-y-1 text-sm text-slate-600 dark:text-slate-300">
-                  <p>{form.address.currentAddress || 'Current address not provided'}</p>
-                  <p>{[form.address.city, form.address.state, form.address.country, form.address.pinCode].filter(Boolean).join(', ') || 'Location not provided'}</p>
+              <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 p-3">
+                <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Address Details</p>
+                <div className="mt-1.5 space-y-0.5 text-xs text-slate-600 dark:text-slate-300">
+                  <p className="truncate font-semibold">{form.address.currentAddress || 'Address not provided'}</p>
+                  <p className="text-slate-500">{[form.address.city, form.address.state, form.address.pinCode].filter(Boolean).join(', ') || 'Location N/A'}</p>
                 </div>
               </div>
-              <div className="rounded-3xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/60 p-4">
-                <p className="text-[10px] font-black uppercase tracking-[0.35em] text-slate-400">Education</p>
-                <p className="mt-3 text-sm font-semibold text-slate-900 dark:text-white">{totalQualificationRows} qualification record(s)</p>
-                <p className="text-xs text-slate-500">Latest qualification: {form.education[0]?.highestQualification || 'Not provided'}</p>
+              <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 p-3">
+                <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Qualifications</p>
+                <p className="mt-1.5 text-xs font-extrabold text-slate-900 dark:text-white">{totalQualificationRows} record(s)</p>
+                <p className="text-[11px] text-slate-500 truncate">{form.education[0]?.highestQualification || 'None provided'}</p>
               </div>
-              <div className="rounded-3xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/60 p-4">
-                <p className="text-[10px] font-black uppercase tracking-[0.35em] text-slate-400">Experience</p>
-                <p className="mt-3 text-sm font-semibold text-slate-900 dark:text-white">{totalExperienceYears || 0} years</p>
-                <p className="text-xs text-slate-500">Previous records: {form.experience.length}</p>
+              <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 p-3">
+                <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Experience</p>
+                <p className="mt-1.5 text-xs font-extrabold text-slate-900 dark:text-white">{totalExperienceYears || 0} years</p>
+                <p className="text-[11px] text-slate-500">{form.experience.length} previous record(s)</p>
               </div>
-              <div className="rounded-3xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/60 p-4">
-                <p className="text-[10px] font-black uppercase tracking-[0.35em] text-slate-400">Bank</p>
-                <p className="mt-3 text-sm font-semibold text-slate-900 dark:text-white">{form.bank.bankName || 'Bank not provided'}</p>
-                <p className="text-xs text-slate-500">{form.bank.accountHolderName || 'Account holder not provided'}</p>
+              <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 p-3">
+                <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Bank Details</p>
+                <p className="mt-1.5 text-xs font-extrabold text-slate-900 dark:text-white truncate">{form.bank.bankName || 'Bank not provided'}</p>
+                <p className="text-[11px] text-slate-500 truncate">{form.bank.accountHolderName ? `A/C: ${form.bank.accountHolderName}` : 'A/C N/A'}</p>
               </div>
-              <div className="rounded-3xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/60 p-4">
-                <p className="text-[10px] font-black uppercase tracking-[0.35em] text-slate-400">Documents</p>
-                <p className="mt-3 text-sm font-semibold text-slate-900 dark:text-white">{uploadedRequiredCount} / {requiredDocuments.length} uploaded</p>
-                <p className="text-xs text-slate-500">Required documents are tracked below.</p>
+              <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 p-3">
+                <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Documents</p>
+                <p className="mt-1.5 text-xs font-extrabold text-slate-900 dark:text-white">{uploadedRequiredCount} / {requiredDocuments.length} uploaded</p>
+                <p className="text-[11px] text-slate-500">Required docs status</p>
               </div>
             </div>
-            <div className="mt-5 space-y-3">
+            <div className="mt-4 space-y-3">
               <div>
-                <p className="text-xs font-black uppercase tracking-[0.35em] text-slate-400">Qualifications</p>
-                <div className="mt-2">{renderEducationSummary()}</div>
+                <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Detailed Qualifications</p>
+                <div className="mt-1.5">{renderEducationSummary()}</div>
               </div>
               <div>
-                <p className="text-xs font-black uppercase tracking-[0.35em] text-slate-400">Experience</p>
-                <div className="mt-2">{renderExperienceSummary()}</div>
+                <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Detailed Experience</p>
+                <div className="mt-1.5">{renderExperienceSummary()}</div>
               </div>
               <div>
-                <p className="text-xs font-black uppercase tracking-[0.35em] text-slate-400">Documents</p>
-                <div className="mt-2 space-y-2">
+                <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Document Uploads Status</p>
+                <div className="mt-1.5 space-y-1.5">
                   {form.documents.map(doc => (
-                    <div key={doc.id} className="flex items-center justify-between rounded-2xl border border-slate-200 dark:border-slate-800 px-4 py-3">
+                    <div key={doc.id} className="flex items-center justify-between rounded-xl border border-slate-200 dark:border-slate-800 px-3 py-2 text-xs">
                       <div>
-                        <p className="text-sm font-bold text-slate-900 dark:text-white">{doc.label}</p>
-                        <p className="text-[11px] text-slate-500">{doc.file ? doc.file.fileName : 'Not uploaded'}</p>
+                        <p className="font-bold text-slate-900 dark:text-white">{doc.label}</p>
+                        <p className="text-[10px] text-slate-400">{doc.file ? doc.file.fileName : 'Not uploaded'}</p>
                       </div>
                       <Badge variant={doc.file ? 'success' : 'warning'} size="sm">
                         {doc.file ? 'Uploaded' : 'Pending'}
@@ -1207,41 +1502,48 @@ export const ProfileCompletionView: React.FC<ProfileCompletionViewProps> = ({ on
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 px-4 py-6 sm:px-6 lg:px-8">
-      <div className="mx-auto w-full max-w-6xl space-y-4 animate-in fade-in">
+    <div className="min-h-screen bg-slate-50/50 dark:bg-slate-950 px-3 py-4 sm:px-6">
+      <div className="mx-auto w-full max-w-5xl space-y-3 animate-in fade-in">
         {/* Navigation Arrow to Dashboard */}
         <div className="flex items-center">
           <button
             type="button"
             onClick={() => onComplete?.()}
-            className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-white dark:bg-slate-900 border border-brand-200 dark:border-brand-800/60 text-brand-700 dark:text-brand-300 text-xs font-bold hover:bg-brand-50 dark:hover:bg-brand-950/60 transition-colors shadow-xs cursor-pointer group"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 text-xs font-semibold hover:bg-slate-50 dark:hover:bg-slate-800/60 transition-colors shadow-2xs cursor-pointer group"
           >
-            <ArrowLeft className="w-4 h-4 text-brand-600 dark:text-brand-400 group-hover:-translate-x-0.5 transition-transform" />
+            <ArrowLeft className="w-3.5 h-3.5 text-slate-500 dark:text-slate-400 group-hover:-translate-x-0.5 transition-transform" />
             <span>Go to Dashboard</span>
           </button>
         </div>
 
-        <div className="rounded-[28px] border border-brand-200 dark:border-brand-800/70 bg-white/95 dark:bg-slate-950/95 backdrop-blur-xl shadow-lg overflow-hidden">
-          <div className="border-b border-brand-100 dark:border-brand-900/50 px-5 py-5 sm:px-6 bg-brand-50/20 dark:bg-brand-950/20">
-            <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-              <div className="min-w-0">
-                <div className="flex flex-wrap items-center gap-2">
-                  <Badge variant="info" size="sm">Employee Profile</Badge>
-                  <Badge variant={staffCategory === 'Teacher' ? 'success' : 'neutral'} size="sm">
-                    {staffCategory === 'Teacher' ? 'Teaching Staff' : 'Non-Teaching Staff'}
-                  </Badge>
-                </div>
-                <h1 className="mt-2 text-2xl font-black text-slate-900 dark:text-white">Complete Your Profile</h1>
-                <p className="mt-1 max-w-3xl text-sm text-slate-500">
-                  Fill in your personal, academic, banking, and document details. Your employee record will be marked complete when you submit this wizard.
+        <div className="rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-white/95 dark:bg-slate-950/95 shadow-sm overflow-hidden">
+          {/* Header & Steps */}
+          <div className="border-b border-slate-200/80 dark:border-slate-800 px-4 py-3.5 sm:px-5 bg-gradient-to-b from-slate-50/80 to-transparent dark:from-slate-900/40">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <h1 className="text-lg sm:text-xl font-black text-slate-900 dark:text-white">Complete Your Profile</h1>
+                <p className="mt-0.5 text-xs text-slate-500">
+                  Fill in your personal, academic, banking, and document details.
                 </p>
+              </div>
+
+              {/* Progress Summary Pill */}
+              <div className="flex items-center gap-2.5 self-start sm:self-auto bg-white dark:bg-slate-900 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 shadow-2xs">
+                <div className="text-right">
+                  <div className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Progress</div>
+                  <div className="text-xs font-black text-sky-600 dark:text-sky-400">{Math.round(progress)}% Complete</div>
+                </div>
+                <div className="h-6 w-px bg-slate-200 dark:bg-slate-700" />
+                <Badge variant={staffCategory === 'Teacher' ? 'success' : 'neutral'} size="sm">
+                  {uploadedRequiredCount} / {requiredDocuments.length} docs
+                </Badge>
               </div>
             </div>
 
-            <div className="mt-5 overflow-x-auto">
-              <div className="grid min-w-[940px] grid-cols-7 gap-3">
+            {/* Stepper Buttons Bar */}
+            <div className="mt-3 overflow-x-auto no-scrollbar">
+              <div className="grid min-w-[680px] grid-cols-7 gap-1.5 sm:gap-2">
                 {stepMeta.map((step, index) => {
-                  const Icon = step.icon;
                   const isActive = currentStep === index;
                   const isComplete = currentStep > index;
                   return (
@@ -1249,69 +1551,74 @@ export const ProfileCompletionView: React.FC<ProfileCompletionViewProps> = ({ on
                       key={step.id}
                       type="button"
                       onClick={() => setCurrentStep(index)}
-                      className={`flex h-full min-h-[86px] flex-col items-center justify-center gap-2 rounded-2xl border px-3 py-3 text-center transition-all ${
+                      className={`flex items-center justify-center gap-1.5 rounded-xl border px-2 py-2 text-center transition-all cursor-pointer ${
                         isActive
-                          ? 'border-brand-600 bg-brand-50 text-brand-700 dark:border-brand-500 dark:bg-brand-950/40 dark:text-brand-300'
+                          ? 'border-sky-500 bg-sky-50/80 text-sky-700 dark:border-sky-500 dark:bg-sky-950/60 dark:text-sky-300 font-bold shadow-2xs ring-1 ring-sky-500/20'
                           : isComplete
-                            ? 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-300'
-                            : 'border-slate-200 bg-slate-50 text-slate-500 dark:border-slate-800 dark:bg-slate-900/60 dark:text-slate-400'
+                            ? 'border-emerald-200 bg-emerald-50/50 text-emerald-700 hover:border-emerald-300 dark:border-emerald-900/50 dark:bg-emerald-950/30 dark:text-emerald-400 font-semibold'
+                            : 'border-slate-200 bg-white/70 text-slate-500 hover:border-slate-300 hover:text-slate-700 dark:border-slate-800 dark:bg-slate-900/40 dark:text-slate-400 font-medium'
                       }`}
                     >
-                      <div className="flex h-9 w-9 items-center justify-center rounded-full bg-white dark:bg-slate-950 shadow-sm">
-                        {isComplete ? <CheckCircle2 className="h-4 w-4" /> : <Icon className="h-4 w-4" />}
+                      <div className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-black shrink-0 transition-colors ${
+                        isActive
+                          ? 'bg-sky-600 text-white shadow-2xs'
+                          : isComplete
+                            ? 'bg-emerald-600 text-white'
+                            : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400'
+                      }`}>
+                        {isComplete ? <Check className="w-3 h-3 stroke-[2.5]" /> : index + 1}
                       </div>
-                      <span className="w-full truncate text-xs font-black uppercase tracking-[0.25em]">{step.short}</span>
+                      <span className="text-xs truncate">{step.short}</span>
                     </button>
                   );
                 })}
               </div>
             </div>
 
-            <div className="mt-5">
-              <div className="flex items-center justify-between gap-4">
-                <div>
-                  <p className="text-[10px] font-black uppercase tracking-[0.35em] text-slate-400">Current Step</p>
-                  <p className="mt-1 text-sm font-black text-slate-900 dark:text-white">{stepMeta[currentStep].title}</p>
-                </div>
-                <Badge variant={staffCategory === 'Teacher' ? 'success' : 'neutral'} size="sm">
-                  {uploadedRequiredCount} / {requiredDocuments.length} docs
-                </Badge>
-              </div>
-              <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
-                <div className="h-full rounded-full bg-gradient-to-r from-brand-600 to-sky-500 transition-all" style={{ width: `${progress}%` }} />
-              </div>
+            {/* Slim gradient progress line */}
+            <div className="mt-2.5 h-1.5 w-full overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
+              <div
+                className="h-full rounded-full bg-gradient-to-r from-sky-600 to-indigo-600 transition-all duration-300"
+                style={{ width: `${progress}%` }}
+              />
             </div>
           </div>
 
-          <div className="grid grid-cols-1 gap-6 px-5 py-6 lg:grid-cols-[minmax(0,1fr)] sm:px-6">
+          {/* Step Form Body */}
+          <div className="p-4 sm:p-5 space-y-4">
             {renderStepContent()}
 
-            <div className="flex flex-col gap-3 border-t border-slate-200 dark:border-slate-800 pt-5 sm:flex-row sm:items-center sm:justify-between">
+            {/* Bottom Actions */}
+            <div className="flex items-center justify-between border-t border-slate-200/80 dark:border-slate-800 pt-3.5">
               <button
                 type="button"
                 onClick={movePrevious}
                 disabled={currentStep === 0 || loading}
-                className="inline-flex items-center justify-center gap-2 rounded-2xl bg-slate-100 px-5 py-3 text-sm font-bold text-slate-700 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-slate-800 dark:text-slate-200"
+                className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-4 py-2 text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-40 transition-colors cursor-pointer"
               >
-                Back
+                <ArrowLeft className="w-3.5 h-3.5" />
+                <span>Back</span>
               </button>
-              <div className="flex items-center gap-3">
+
+              <div className="flex items-center gap-2">
                 {currentStep < totalSteps - 1 ? (
                   <button
                     type="button"
                     onClick={moveNext}
-                    className="inline-flex items-center justify-center gap-2 rounded-2xl bg-brand-600 px-5 py-3 text-sm font-black text-white shadow-lg shadow-brand-600/20"
+                    className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-sky-600 hover:bg-sky-700 px-4 py-2 text-xs font-bold text-white shadow-xs transition-colors cursor-pointer"
                   >
-                    Next Step <ChevronRight className="h-4 w-4" />
+                    <span>Next Step</span>
+                    <ChevronRight className="w-3.5 h-3.5" />
                   </button>
                 ) : (
                   <button
                     type="button"
                     onClick={handleSubmit}
                     disabled={loading}
-                    className="inline-flex items-center justify-center gap-2 rounded-2xl bg-brand-600 px-5 py-3 text-sm font-black text-white shadow-lg shadow-brand-600/20 disabled:opacity-70"
+                    className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 px-5 py-2 text-xs font-black text-white shadow-xs transition-colors disabled:opacity-60 cursor-pointer"
                   >
-                    {loading ? 'Submitting...' : 'Submit Profile'}
+                    <CheckCircle2 className="w-3.5 h-3.5" />
+                    <span>{loading ? 'Submitting...' : 'Submit Profile'}</span>
                   </button>
                 )}
               </div>

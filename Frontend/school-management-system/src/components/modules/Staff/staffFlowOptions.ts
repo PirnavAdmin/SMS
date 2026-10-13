@@ -724,7 +724,7 @@ export interface DocumentRequirementSlot {
 }
 
 export const teachingDocumentRequirements: DocumentRequirementSlot[] = [
-  { label: "Passport Photo", required: true, type: "Other" },
+  { label: "Profile Picture", required: true, type: "Other" },
   { label: "Aadhaar Card", required: true, type: "Aadhaar Card" },
   { label: "PAN Card", required: true, type: "PAN Card" },
   { label: "Degree Certificate", required: true, type: "Degree Certificate" },
@@ -739,7 +739,7 @@ export const teachingDocumentRequirements: DocumentRequirementSlot[] = [
 ];
 
 export const nonTeachingDocumentRequirements: DocumentRequirementSlot[] = [
-  { label: "Passport Photo", required: true, type: "Other" },
+  { label: "Profile Picture", required: true, type: "Other" },
   { label: "Aadhaar Card", required: true, type: "Aadhaar Card" },
   { label: "PAN Card", required: true, type: "PAN Card" },
   {

@@ -2,6 +2,7 @@ export const BLOOD_GROUPS = ['A+', 'A-', 'B+', 'B-', 'O+', 'O-', 'AB+', 'AB-'] a
 export const CASTE_CATEGORIES = ['General', 'OBC', 'SC', 'ST', 'EWS', 'Others'] as const;
 export const BRANCHES = ['Main Campus', 'North Branch', 'West Campus', 'Hyderabad'] as const;
 export const RELIGIONS = ['Hinduism', 'Islam', 'Christianity', 'Sikhism', 'Buddhism', 'Jainism', 'Zoroastrianism', 'Judaism', 'Other'] as const;
+export const MARITAL_STATUSES = ['Married', 'Unmarried'] as const;
 
 function checkMobileNumberRules(cleaned: string): { isValid: boolean; error?: string } {
   if (cleaned.length !== 10) {
@@ -263,7 +264,7 @@ const VALID_SHORT_TOKENS = new Set([
 export function isGibberishSegment(seg: string): boolean {
   if (!seg) return false;
   const clean = seg.replace(/[^a-zA-Z]/g, '');
-  if (!clean) return false;
+  if (!clean || clean.length <= 1) return false;
 
   const lower = clean.toLowerCase();
   if (VALID_SHORT_TOKENS.has(lower)) return false;
@@ -298,20 +299,15 @@ export function isGibberishSegment(seg: string): boolean {
     if (vowelCount / clean.length < 0.22) return true;
   }
 
-  // 9. Dominant 1 or 2 characters in a word (catches "dfdfdfdfgdfsgdfgdf", "abababab")
-  if (clean.length >= 5) {
+  // 9. Words composed of only 1 or 2 distinct letters or heavily dominated by 1 letter (catches "dfdfdfdf", "abababab")
+  if (clean.length >= 6) {
     const charCounts: Record<string, number> = {};
     for (const ch of lower) {
       charCounts[ch] = (charCounts[ch] || 0) + 1;
     }
     const sorted = Object.values(charCounts).sort((a, b) => b - a);
-    if (sorted[0] / clean.length > 0.55) return true;
-    if (clean.length >= 7 && sorted.length >= 2 && (sorted[0] + sorted[1]) / clean.length >= 0.7) {
-      return true;
-    }
-    if (clean.length >= 10 && sorted.length >= 3 && (sorted[0] + sorted[1] + sorted[2]) / clean.length >= 0.75) {
-      return true;
-    }
+    if (sorted.length <= 2) return true;
+    if (clean.length >= 8 && sorted[0] / clean.length > 0.65) return true;
   }
 
   return false;
@@ -336,7 +332,7 @@ export function validateTextName(
   const {
     label = 'name',
     required = true,
-    minLength = 2,
+    minLength = 1,
     maxLength = 70,
     allowNumbers = true,
     allowedRegex,
@@ -398,7 +394,7 @@ export function validateTextName(
     return { isValid: false, error: invalidMsg };
   }
 
-  const words = trimmed.split(/[\s\-\/\.\,\&\(\)\_]+/).filter(Boolean);
+  const words = trimmed.split(/[\s\-\/\.\,\&\(\)\_\']+/).filter(Boolean);
   for (const word of words) {
     if (isGibberishSegment(word)) {
       return { isValid: false, error: invalidMsg };
@@ -735,23 +731,33 @@ export function validateInputElement(
     label.includes('certificate');
 
   if (isStrictNameField) {
+    const isPersonalName =
+      label === 'name' ||
+      label === 'full name' ||
+      label.includes('first name') ||
+      label.includes('last name') ||
+      label.includes('middle name') ||
+      label.includes('student name') ||
+      label.includes('father name') ||
+      label.includes('mother name') ||
+      label.includes('guardian name') ||
+      label.includes('staff name') ||
+      label.includes('teacher name') ||
+      label.includes('driver name') ||
+      label.includes('holder name') ||
+      label.includes('contact person');
+
     const disallowNumbers =
       label.includes('designation') ||
       label.includes('department') ||
       label.includes('role') ||
-      label === 'name' ||
-      label === 'full name' ||
-      label === 'student name' ||
-      label === 'father name' ||
-      label === 'mother name' ||
-      label === 'guardian name' ||
-      label === 'staff name' ||
-      label === 'teacher name' ||
-      label === 'driver name';
+      isPersonalName;
+
     return validateTextName(val, {
       label,
       required: enforceRequired && input.required,
       allowNumbers: !disallowNumbers,
+      minLength: 1,
     });
   }
 
@@ -765,7 +771,7 @@ export function validateInputElement(
     return { isValid: false, error: `Enter a valid ${label}.` };
   }
 
-  const words = trimmed.split(/[\s\-\–\—\/\.\,\&\(\)\_]+/).filter(Boolean);
+  const words = trimmed.split(/[\s\-\–\—\/\.\,\&\(\)\_\']+/).filter(Boolean);
   for (const word of words) {
     if (/^[a-zA-Z]+$/.test(word) && isGibberishSegment(word)) {
       return { isValid: false, error: `Enter a valid ${label}.` };

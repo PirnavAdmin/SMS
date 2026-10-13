@@ -13,6 +13,7 @@ import { getSortOrderForClass } from '../../../utils/classSorter';
 import { StaffLetterModal } from './Letters/StaffLetterModal';
 import { getLettersForStaff } from '../../../utils/staffLetterTemplates';
 import { StaffLetterType, GeneratedStaffLetterRecord } from '../../../types/staffLetter';
+import { resolveMediaUrl } from '../../../utils/mediaUtils';
 
 export const TeacherProfileView: React.FC = () => {
   const { user } = useAuth();
@@ -417,7 +418,8 @@ export const TeacherProfileView: React.FC = () => {
       assignedSubjects: isAccountant ? (dbTeacher?.assignedSubjects || ['Finance & Accounts']) : isWarden ? (dbTeacher?.assignedSubjects || ['Hostel Administration']) : dynamicAssignedSubjects,
       employmentStatus: dbTeacher?.status || 'Active',
       profileStatus: 'Completed',
-      profilePhoto: localEdit?.profilePhoto || dbTeacher?.avatar || user?.avatar || ''
+      profilePhoto: localEdit?.profilePhoto || dbTeacher?.avatar || user?.avatar || '',
+      avatar: localEdit?.profilePhoto || dbTeacher?.avatar || user?.avatar || ''
     };
   }, [dbTeacher, user, dynamicAssignedClasses, dynamicAssignedSections, dynamicAssignedSubjects, localEdit]);
 
@@ -609,7 +611,25 @@ export const TeacherProfileView: React.FC = () => {
       <div className="bg-white dark:bg-slate-900 rounded-2xl p-3.5 sm:p-4 shadow-sm border border-sky-200 dark:border-slate-700/80">
         <div className="flex flex-col sm:flex-row items-center sm:items-center gap-3.5 sm:gap-4">
           <div className="relative shrink-0">
-            <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-xl bg-gradient-to-br from-sky-500 to-blue-600 text-white font-black text-base sm:text-lg flex items-center justify-center shadow-sm">
+            {profile.profilePhoto || profile.avatar ? (
+              <img
+                key={profile.profilePhoto || profile.avatar}
+                src={resolveMediaUrl(profile.profilePhoto || profile.avatar)}
+                alt={profile.fullName || 'Teacher'}
+                className="w-12 h-12 sm:w-14 sm:h-14 rounded-xl object-cover shadow-sm ring-2 ring-sky-500/20"
+                onError={(e) => {
+                  const target = e.target as HTMLElement;
+                  target.style.display = 'none';
+                  const fb = target.nextElementSibling as HTMLElement | null;
+                  if (fb) fb.classList.remove('hidden');
+                }}
+              />
+            ) : null}
+            <div
+              className={`w-12 h-12 sm:w-14 sm:h-14 rounded-xl bg-gradient-to-br from-sky-500 to-blue-600 text-white font-black text-base sm:text-lg items-center justify-center shadow-sm ${
+                profile.profilePhoto || profile.avatar ? 'hidden' : 'flex'
+              }`}
+            >
               {(() => {
                 const nameParts = (profile.fullName || user?.name || 'Teacher').trim().split(/\s+/);
                 if (nameParts.length >= 2) return (nameParts[0][0] + nameParts[1][0]).toUpperCase();
