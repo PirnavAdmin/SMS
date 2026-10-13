@@ -82,6 +82,14 @@ interface ClassManagementWorkspaceProps {
   setAutoOpenClassModal?: (open: boolean) => void;
 }
 
+const formatTeacherDisplayName = (name?: string): string => {
+  if (!name || typeof name !== 'string') return '';
+  return name
+    .replace(/\s*\([^)]*(?:tch|emp|stf|id|\d)[^)]*\)/gi, '')
+    .replace(/\s*\([^)]*\)$/, '')
+    .trim();
+};
+
 interface TeacherSearchDropdownProps {
   value?: string;
   onChange: (teacherId: string) => void;
@@ -152,7 +160,6 @@ const TeacherSearchDropdown: React.FC<TeacherSearchDropdownProps> = ({
   const selectedFullName = selectedTeacher 
     ? (selectedTeacher.name || `${selectedTeacher.firstName} ${selectedTeacher.lastName}`) 
     : (value && isNaN(Number(value)) ? value : '');
-  const selectedEmpCode = selectedTeacher ? (selectedTeacher.empId || selectedTeacher.id) : '';
 
   return (
     <div className={`relative ${className}`} ref={dropdownRef}>
@@ -171,16 +178,9 @@ const TeacherSearchDropdown: React.FC<TeacherSearchDropdownProps> = ({
       >
         <div className="flex items-center gap-1.5 min-w-0 flex-1">
           {selectedTeacher || (value && isNaN(Number(value))) ? (
-            <>
-              <span className="text-xs font-black text-slate-900 dark:text-white truncate">
-                {selectedFullName || value}
-              </span>
-              {selectedEmpCode && (
-                <span className="px-1.5 py-0.5 rounded text-[10px] font-mono font-bold bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 border border-slate-200/80 dark:border-slate-600 shrink-0">
-                  {selectedEmpCode}
-                </span>
-              )}
-            </>
+            <span className="text-xs font-black text-slate-900 dark:text-white truncate">
+              {formatTeacherDisplayName(selectedFullName || value)}
+            </span>
           ) : (
             <span className="text-xs font-bold text-slate-400 dark:text-slate-500">
               {placeholder}
@@ -1605,7 +1605,7 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
 
     const t = teachersList.find(s => s.id === teacherId);
     if (!t) return;
-    const teacherFullName = t.name || `${t.firstName} ${t.lastName}`;
+    const teacherFullName = formatTeacherDisplayName(t.name || `${t.firstName || ''} ${t.lastName || ''}`);
 
     // Verify if teacher is already assigned as Class Teacher in any other class or section
     let assignedConflict: { className: string; section: string } | null = null;
@@ -2104,11 +2104,13 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
                           <h4 className="font-black text-slate-900 dark:text-white text-xs uppercase tracking-wider mb-3">Class Teacher</h4>
                           <div className="space-y-2">
                             {activeClass.sections.map(sec => {
-                              const classTeacher = ((activeClass as any).sectionTeachers || {})[sec] || 'Not Assigned';
+                              const rawClassTeacher = ((activeClass as any).sectionTeachers || {})[sec] || 'Not Assigned';
+                              const isAssigned = Boolean(rawClassTeacher && rawClassTeacher !== 'Not Assigned' && rawClassTeacher !== 'Unassigned');
+                              const classTeacher = isAssigned ? formatTeacherDisplayName(rawClassTeacher) : 'Not Assigned';
                               return (
-                                <div key={sec} className="flex justify-between items-center text-xs p-2.5 bg-slate-50/90 dark:bg-slate-950 rounded-xl border border-slate-200/60 dark:border-slate-800">
-                                  <span className="font-bold text-slate-900 dark:text-white">Section {sec}:</span>
-                                  <span className={classTeacher === 'Not Assigned' ? 'text-rose-500 font-semibold' : 'text-slate-500 dark:text-slate-400 font-medium'}>{classTeacher}</span>
+                                <div key={sec} className="flex justify-between items-center text-xs p-2.5 bg-slate-50/90 dark:bg-slate-950 rounded-xl border border-slate-200/60 dark:border-slate-800 gap-2">
+                                  <span className="font-bold text-slate-900 dark:text-white shrink-0 whitespace-nowrap">Section {sec}:</span>
+                                  <span className={!isAssigned ? 'text-rose-500 font-semibold truncate text-right' : 'text-slate-500 dark:text-slate-400 font-medium truncate text-right'} title={isAssigned ? classTeacher : undefined}>{classTeacher}</span>
                                 </div>
                               );
                             })}
@@ -2301,7 +2303,9 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
 
                         const isSelected = selectedSections.includes(sec);
                         const status = detail.status || 'Active';
-                        const classTeacher = ((activeClass as any).sectionTeachers || {})[sec] || 'Unassigned';
+                        const rawClassTeacher = ((activeClass as any).sectionTeachers || {})[sec] || 'Unassigned';
+                        const isCtAssigned = Boolean(rawClassTeacher && rawClassTeacher !== 'Unassigned' && rawClassTeacher !== 'Not Assigned');
+                        const classTeacher = isCtAssigned ? formatTeacherDisplayName(rawClassTeacher) : 'Unassigned';
                         const roomNo = detail.roomNo || 'Unassigned';
 
                         return (
@@ -2338,7 +2342,7 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
                               <div className="flex justify-between"><span className="text-slate-450">Current Enrolled:</span> <span>{assigned} Students</span></div>
                               <div className="flex justify-between"><span className="text-slate-450">Seats Remaining:</span> <span className="text-sky-600">{free} / {cap} Seats</span></div>
                               <div className="flex justify-between"><span className="text-slate-450">Room Number:</span> <span className="text-slate-800 dark:text-white">{roomNo}</span></div>
-                              <div className="flex justify-between"><span className="text-slate-450">Class Teacher:</span> <span className="text-slate-800 dark:text-white">{classTeacher}</span></div>
+                              <div className="flex justify-between items-center gap-2"><span className="text-slate-450 shrink-0">Class Teacher:</span> <span className="text-slate-800 dark:text-white truncate text-right" title={isCtAssigned ? classTeacher : undefined}>{classTeacher}</span></div>
                             </div>
 
                             {/* Progress occupancy bar */}
@@ -2859,7 +2863,7 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
                                     <td className="py-3.5 px-4 whitespace-nowrap align-middle">
                                       {isCTAssigned ? (
                                         <span className="font-extrabold text-slate-900 dark:text-white text-xs">
-                                          {classTeacherName}
+                                          {formatTeacherDisplayName(classTeacherName)}
                                         </span>
                                       ) : (
                                         <span className="px-2.5 py-0.5 rounded-md text-[10px] font-bold bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 border border-amber-200/60 dark:border-amber-800/60 inline-block">

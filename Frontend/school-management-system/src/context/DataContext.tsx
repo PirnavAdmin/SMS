@@ -4532,10 +4532,16 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
                         "",
                     };
                     if (isObj && s.classTeacherName) {
-                      sectionTeachersMap[sName] = s.classTeacherName;
+                      const cleanCTName = typeof s.classTeacherName === "string"
+                        ? s.classTeacherName
+                            .replace(/\s*\([^)]*(?:tch|emp|stf|id|\d)[^)]*\)/gi, "")
+                            .replace(/\s*\([^)]*\)$/, "")
+                            .trim()
+                        : s.classTeacherName;
+                      sectionTeachersMap[sName] = cleanCTName;
                       const cleanSName = sName.replace(/^Section\s*/i, "").trim();
-                      sectionTeachersMap[cleanSName] = s.classTeacherName;
-                      sectionTeachersMap[`Section ${cleanSName}`] = s.classTeacherName;
+                      sectionTeachersMap[cleanSName] = cleanCTName;
+                      sectionTeachersMap[`Section ${cleanSName}`] = cleanCTName;
                     }
                   }
                 });
@@ -4559,10 +4565,16 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
                 )
                 .forEach((ta) => {
                   if (ta.section) {
-                    sectionTeachersMap[ta.section] = ta.teacherName;
+                    const cleanCTName = typeof ta.teacherName === "string"
+                      ? ta.teacherName
+                          .replace(/\s*\([^)]*(?:tch|emp|stf|id|\d)[^)]*\)/gi, "")
+                          .replace(/\s*\([^)]*\)$/, "")
+                          .trim()
+                      : ta.teacherName;
+                    sectionTeachersMap[ta.section] = cleanCTName;
                     const cleanSec = ta.section.replace(/^Section\s*/i, "").trim();
-                    sectionTeachersMap[cleanSec] = ta.teacherName;
-                    sectionTeachersMap[`Section ${cleanSec}`] = ta.teacherName;
+                    sectionTeachersMap[cleanSec] = cleanCTName;
+                    sectionTeachersMap[`Section ${cleanSec}`] = cleanCTName;
                   }
                 });
 
@@ -7188,8 +7200,12 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       if (teacher.primarySubject) subjects = [teacher.primarySubject];
       else if (teacher.specialization) subjects = [teacher.specialization];
     }
-    const teacherFullName =
-      teacher.name || `${teacher.firstName} ${teacher.lastName}`;
+    const teacherFullName = (
+      teacher.name || `${teacher.firstName} ${teacher.lastName}`
+    )
+      .replace(/\s*\([^)]*(?:tch|emp|stf|id|\d)[^)]*\)/gi, "")
+      .replace(/\s*\([^)]*\)$/, "")
+      .trim();
 
     const norm = (n: string) =>
       n.toLowerCase().replace(/\s+/g, "").replace(/class/gi, "");

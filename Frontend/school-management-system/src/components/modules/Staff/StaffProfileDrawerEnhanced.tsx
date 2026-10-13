@@ -932,7 +932,18 @@ export const StaffProfileDrawer: React.FC<StaffProfileDrawerProps> = ({ staff: s
                   </div>
                 )}
                 <div className="absolute -bottom-1 -right-1">
-                  <Badge variant={staff.status === 'Active' ? 'success' : 'neutral'} size="sm">
+                  <Badge
+                    variant={
+                      (staff.status || '').toLowerCase() === 'active'
+                        ? 'success'
+                        : (staff.status || '').toLowerCase() === 'inactive'
+                          ? 'warning'
+                          : (staff.status || '').toLowerCase() === 'resigned'
+                            ? 'danger'
+                            : 'neutral'
+                    }
+                    size="sm"
+                  >
                     {staff.status}
                   </Badge>
                 </div>

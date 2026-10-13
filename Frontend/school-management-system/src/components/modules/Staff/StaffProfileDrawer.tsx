@@ -152,7 +152,20 @@ export const StaffProfileDrawer: React.FC<StaffProfileDrawerProps> = ({ staff: s
             <div>
               <div className="flex items-center gap-2">
                 <h2 className="text-xl font-bold">{staff.firstName} {staff.lastName}</h2>
-                <Badge variant="success" size="sm">{staff.status}</Badge>
+                <Badge
+                  variant={
+                    (staff.status || "").toLowerCase() === "active"
+                      ? "success"
+                      : (staff.status || "").toLowerCase() === "inactive"
+                        ? "warning"
+                        : (staff.status || "").toLowerCase() === "resigned"
+                          ? "danger"
+                          : "neutral"
+                  }
+                  size="sm"
+                >
+                  {staff.status}
+                </Badge>
               </div>
               <p className="text-xs text-brand-100">{staff.designation} • {staff.department} • Emp ID: {staff.empId}</p>
             </div>

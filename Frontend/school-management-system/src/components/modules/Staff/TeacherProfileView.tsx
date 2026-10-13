@@ -616,15 +616,35 @@ export const TeacherProfileView: React.FC = () => {
                 return (nameParts[0] || 'T').substring(0, 2).toUpperCase();
               })()}
             </div>
-            <span className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 bg-emerald-500 border-2 border-white dark:border-slate-900 rounded-full shadow-sm" />
+            <span
+              className={`absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 border-2 border-white dark:border-slate-900 rounded-full shadow-sm ${
+                (profile.employmentStatus || 'ACTIVE').toUpperCase() === 'INACTIVE'
+                  ? 'bg-amber-500'
+                  : (profile.employmentStatus || 'ACTIVE').toUpperCase() === 'RESIGNED'
+                    ? 'bg-rose-500'
+                    : 'bg-emerald-500'
+              }`}
+            />
           </div>
 
           <div className="flex-1 text-center sm:text-left space-y-1">
             <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2">
               <h1 className="text-lg sm:text-xl font-black text-sky-600 dark:text-sky-400 tracking-tight">{profile.fullName}</h1>
-              <span className="px-2 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 text-[10px] font-black uppercase border border-emerald-200 dark:border-emerald-800/50">
-                {profile.employmentStatus || 'ACTIVE'}
-              </span>
+              {(() => {
+                const empStatus = (profile.employmentStatus || 'ACTIVE').toUpperCase();
+                const isInactive = empStatus === 'INACTIVE';
+                const isResigned = empStatus === 'RESIGNED';
+                const colorCls = isInactive
+                  ? 'bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-400 border-amber-200 dark:border-amber-800/50'
+                  : isResigned
+                    ? 'bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-400 border-rose-200 dark:border-rose-800/50'
+                    : 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800/50';
+                return (
+                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-black uppercase border ${colorCls}`}>
+                    {empStatus}
+                  </span>
+                );
+              })()}
               {classTeacherInfo.isClassTeacher && (
                 <span className="px-2.5 py-0.5 rounded-full bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-400 text-[10px] font-black uppercase border border-amber-200 dark:border-amber-800/50 flex items-center gap-1">
                   🏷️ Class Teacher ({classTeacherInfo.className})

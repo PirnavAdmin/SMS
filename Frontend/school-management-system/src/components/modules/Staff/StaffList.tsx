@@ -785,6 +785,74 @@ export const StaffList: React.FC<{
             )}
           </div>
 
+          {/* Designation */}
+          <div
+            ref={designationDropdownRef}
+            className="relative flex-1 min-w-[140px] w-full"
+          >
+            <div
+              className="flex items-center gap-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 cursor-pointer h-full"
+              onClick={() =>
+                setDesignationDropdownOpen(!designationDropdownOpen)
+              }
+            >
+              <span className="text-xs text-slate-900 dark:text-white font-semibold flex-1 truncate">
+                {filterDesignation === "All"
+                  ? "All Designations"
+                  : filterDesignation}
+              </span>
+              <ChevronDown className="w-3.5 h-3.5 text-slate-600 dark:text-slate-400 shrink-0" />
+            </div>
+
+            {designationDropdownOpen && (
+              <div className="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-lg z-50 overflow-hidden">
+                <div className="p-2 border-b border-slate-100 dark:border-slate-700">
+                  <input
+                    type="text"
+                    placeholder="Search designations..."
+                    value={designationSearch}
+                    onChange={(e) => setDesignationSearch(e.target.value)}
+                    className="w-full px-3 py-2 text-xs bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg outline-none text-slate-900 dark:text-white"
+                    onClick={(e) => e.stopPropagation()}
+                  />
+                </div>
+                <div className="max-h-[160px] overflow-y-auto py-1">
+                  <div
+                    className={`px-3 py-2.5 text-xs cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors ${filterDesignation === "All" ? "text-brand-600 font-bold bg-brand-50/50 dark:bg-brand-900/20" : "text-slate-700 dark:text-slate-300"}`}
+                    onClick={() => {
+                      setFilterDesignation("All");
+                      setCurrentPage(1);
+                      setDesignationDropdownOpen(false);
+                      setDesignationSearch("");
+                    }}
+                  >
+                    All Designations
+                  </div>
+                  {uniqueDesignations
+                    .filter((d) =>
+                      d
+                        .toLowerCase()
+                        .includes(designationSearch.toLowerCase()),
+                    )
+                    .map((desig) => (
+                      <div
+                        key={desig}
+                        className={`px-3 py-2.5 text-xs cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors ${filterDesignation === desig ? "text-brand-600 font-bold bg-brand-50/50 dark:bg-brand-900/20" : "text-slate-700 dark:text-slate-300"}`}
+                        onClick={() => {
+                          setFilterDesignation(desig);
+                          setCurrentPage(1);
+                          setDesignationDropdownOpen(false);
+                          setDesignationSearch("");
+                        }}
+                      >
+                        {desig}
+                      </div>
+                    ))}
+                </div>
+              </div>
+            )}
+          </div>
+
           {/* Status */}
           <div className="flex-1 min-w-[140px] w-full">
             <div className="relative h-full">
@@ -824,78 +892,6 @@ export const StaffList: React.FC<{
               <ChevronDown className="w-3.5 h-3.5 text-slate-650 dark:text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
             </div>
           </div>
-
-
-
-          {activeCategory === "Non-Teaching Staff" && uniqueDesignations.length > 0 && (
-            <div
-              ref={designationDropdownRef}
-              className="relative flex-1 min-w-[140px] w-full"
-            >
-              <div
-                className="flex items-center gap-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 cursor-pointer h-full"
-                onClick={() =>
-                  setDesignationDropdownOpen(!designationDropdownOpen)
-                }
-              >
-                <span className="text-xs text-slate-900 dark:text-white font-semibold flex-1 truncate">
-                  {filterDesignation === "All"
-                    ? "All Designations"
-                    : filterDesignation}
-                </span>
-                <ChevronDown className="w-3.5 h-3.5 text-slate-600 dark:text-slate-400 shrink-0" />
-              </div>
-
-              {designationDropdownOpen && (
-                <div className="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-lg z-50 overflow-hidden">
-                  <div className="p-2 border-b border-slate-100 dark:border-slate-700">
-                    <input
-                      type="text"
-                      placeholder="Search designations..."
-                      value={designationSearch}
-                      onChange={(e) => setDesignationSearch(e.target.value)}
-                      className="w-full px-3 py-2 text-xs bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg outline-none text-slate-900 dark:text-white"
-                      onClick={(e) => e.stopPropagation()}
-                    />
-                  </div>
-                  <div className="max-h-[160px] overflow-y-auto py-1">
-                    <div
-                      className={`px-3 py-2.5 text-xs cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors ${filterDesignation === "All" ? "text-brand-600 font-bold bg-brand-50/50 dark:bg-brand-900/20" : "text-slate-700 dark:text-slate-300"}`}
-                      onClick={() => {
-                        setFilterDesignation("All");
-                        setCurrentPage(1);
-                        setDesignationDropdownOpen(false);
-                        setDesignationSearch("");
-                      }}
-                    >
-                      All Designations
-                    </div>
-                    {uniqueDesignations
-                      .filter((d) =>
-                        d
-                          .toLowerCase()
-                          .includes(designationSearch.toLowerCase()),
-                      )
-                      .slice(0, 5)
-                      .map((desig) => (
-                        <div
-                          key={desig}
-                          className={`px-3 py-2.5 text-xs cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors ${filterDesignation === desig ? "text-brand-600 font-bold bg-brand-50/50 dark:bg-brand-900/20" : "text-slate-700 dark:text-slate-300"}`}
-                          onClick={() => {
-                            setFilterDesignation(desig);
-                            setCurrentPage(1);
-                            setDesignationDropdownOpen(false);
-                            setDesignationSearch("");
-                          }}
-                        >
-                          {desig}
-                        </div>
-                      ))}
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
         </div>
       </div>
 
@@ -910,7 +906,7 @@ export const StaffList: React.FC<{
             <thead>
               <tr className="bg-slate-100/70 dark:bg-slate-800/60 text-slate-500 font-bold uppercase border-b border-slate-200 dark:border-slate-800">
                 <th
-                  className="sticky left-0 bg-slate-100 dark:bg-slate-800 z-20 py-3.5 px-4 font-mono text-center whitespace-nowrap"
+                  className="sticky left-0 bg-slate-100 dark:bg-slate-800 z-20 py-3.5 px-4 text-center whitespace-nowrap"
                   style={{ width: 120, minWidth: 120, maxWidth: 120 }}
                 >
                   Employee ID
@@ -949,7 +945,7 @@ export const StaffList: React.FC<{
                       className="group hover:bg-slate-50/80 dark:hover:bg-slate-800/40"
                     >
                       <td
-                        className="sticky left-0 bg-white dark:bg-slate-900 group-hover:bg-slate-50/80 dark:group-hover:bg-slate-800/40 z-10 transition-colors py-3 px-4 font-mono font-bold text-brand-600 dark:text-brand-400 text-center"
+                        className="sticky left-0 bg-white dark:bg-slate-900 group-hover:bg-slate-50/80 dark:group-hover:bg-slate-800/40 z-10 transition-colors py-3 px-4 font-bold text-brand-600 dark:text-brand-400 text-center"
                         style={{ width: 120, minWidth: 120, maxWidth: 120 }}
                       >
                         {st.empId}
@@ -983,11 +979,13 @@ export const StaffList: React.FC<{
                         <div className="inline-flex justify-center w-full">
                           <Badge
                             variant={
-                              st.status === "Active"
+                              (st.status || "").toLowerCase() === "active"
                                 ? "success"
-                                : st.status === "Resigned"
-                                  ? "danger"
-                                  : "neutral"
+                                : (st.status || "").toLowerCase() === "inactive"
+                                  ? "warning"
+                                  : (st.status || "").toLowerCase() === "resigned"
+                                    ? "danger"
+                                    : "neutral"
                             }
                             size="sm"
                           >
