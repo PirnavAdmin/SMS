@@ -249,13 +249,35 @@ export function sanitizeEmailInput(input: string): string {
 }
 
 const KEYBOARD_MASH_REGEX =
-  /(qwerty|wertyu|ertyui|rtyuio|tyuiop|asdfgh|sdfghj|dfghjk|fghjkl|zxcvbn|xcvbnm|poiuyt|lkjhgf|mnbvcx)/i;
+  /(qwerty|wertyu|ertyui|rtyuio|tyuiop|asdfgh|sdfghj|dfghjk|fghjkl|zxcvbn|xcvbnm|poiuyt|lkjhgf|mnbvcx|asdf|fdsa|zxcv|vcxz)/i;
 
 const VALID_SHORT_TOKENS = new Set([
+  // Personal titles & honorifics
   'mr', 'mrs', 'ms', 'dr', 'prof', 'sr', 'jr', 'st', 'fr', 'pr',
+  // Teacher designations & school roles
   'pgt', 'tgt', 'prt', 'hod', 'pet', 'ntt', 'hr', 'it', 'ai', 'gk', 'evs',
+  // Roman numerals
   'ii', 'iii', 'iv', 'vi', 'vii', 'viii', 'ix', 'xi', 'xii',
-  'bsc', 'msc', 'bed', 'med', 'phd', 'ba', 'ma', 'bcom', 'mcom', 'bba', 'mba', 'bca', 'mca'
+  // Academic degrees & qualifications
+  'bsc', 'msc', 'bed', 'med', 'phd', 'ba', 'ma', 'bcom', 'mcom', 'bba', 'mba', 'bca', 'mca',
+  'btech', 'mtech', 'be', 'me', 'llb', 'llm', 'mbbs', 'bds', 'md', 'ms', 'ca', 'cs', 'cma',
+  // Educational boards, councils & institutions
+  'cbse', 'icse', 'cisce', 'ib', 'igcse', 'nios', 'state',
+  'ugc', 'aicte', 'naac', 'ncte', 'ncert', 'scert', 'kvs', 'nvs', 'dps', 'dav',
+  'iit', 'nit', 'iiit', 'iim', 'aiims', 'nift', 'nid', 'bits', 'vit', 'srm', 'mit',
+  'du', 'jnu', 'bhu', 'amu', 'ignou', 'vtu', 'jntu',
+  // Corporates, universities, enterprises & organizations
+  'klm', 'tcs', 'pwc', 'hcl', 'ibm', 'wipro', 'cts', 'infy', 'accenture', 'capgemini',
+  'hdfc', 'icici', 'hsbc', 'kpmg', 'ey', 'deloitte', 'cbre', 'jll',
+  'sbi', 'rbi', 'pnb', 'bob', 'canara', 'lic', 'gic', 'uti',
+  'bsnl', 'mtnl', 'ntpc', 'bhel', 'bel', 'hal', 'ongc', 'iocl', 'bpcl', 'hpcl', 'gail', 'sail',
+  'isro', 'drdo', 'barc', 'csir', 'icmr', 'icar',
+  'ndtv', 'bbc', 'cnn', 'cctv', 'bmw', 'kfc', 'mrf', 'tvs', 'dhl', 'ups', 'fedex', 'dlf',
+  'ksrtc', 'tsrtc', 'apsrtc', 'msrtc', 'upsrtc', 'dtc', 'bmtc', 'best',
+  // Tech & common short tokens
+  'html', 'css', 'sql', 'xml', 'php', 'sdk', 'api', 'url', 'pdf', 'aws', 'gcp',
+  'lkg', 'ukg', 'std', 'ssc', 'hsc', 'dept', 'org', 'corp', 'ltd', 'pvt', 'inc', 'llc', 'llp',
+  'univ', 'inst', 'acad', 'col', 'sch', 'govt', 'gov', 'co'
 ]);
 
 /**
@@ -288,9 +310,24 @@ export function isGibberishSegment(seg: string): boolean {
   if (/[bcdfghjklmnpqrstvwxz]{5,}/i.test(clean)) return true;
   if (/[bcdfghjklmnpqrstvwxz]{4,}[a-z]*[bcdfghjklmnpqrstvwxz]{4,}/i.test(clean)) return true;
 
-  // 7. Words > 2 chars must contain at least one vowel (unless valid short token/acronym <= 3 uppercase chars)
-  if (clean.length > 3 || (clean.length === 3 && clean !== clean.toUpperCase())) {
-    if (!/[aeiouy]/i.test(clean)) return true;
+  // 7. Words without vowels:
+  // - 1-3 character tokens (e.g., "klm", "tcs", "pwc", "sbi", "rbi", "dr", "st") are allowed as valid abbreviations/acronyms regardless of letter case.
+  // - 4-character words without vowels (e.g., "hdfc", "kpmg", "hsbc", "bsnl") are allowed if all characters are distinct and not keyboard row runs.
+  // - Words > 4 chars without any vowel (a, e, i, o, u, y) are treated as gibberish (unless recognized in VALID_SHORT_TOKENS above).
+  if (!/[aeiouy]/i.test(clean)) {
+    if (clean.length > 4) {
+      return true;
+    }
+    if (clean.length === 4) {
+      const is4LetterKeyboardMash =
+        /(asdf|sdfg|dfgh|fghj|ghjk|hjkl|zxcv|xcvb|cvbn|vbnm|fdsa|gfds|hgfd|jhgf|kjhg|lkjh|vcxz|bvcx|nbvc|mnbv)/i.test(
+          clean
+        );
+      const uniqueChars = new Set(lower).size;
+      if (is4LetterKeyboardMash || uniqueChars < 4) {
+        return true;
+      }
+    }
   }
 
   // 8. Low vowel ratio in longer alphabetic segments
@@ -432,6 +469,10 @@ export function validateSubjectName(name: string, required: boolean = true): { i
   return validateTextName(name, { label: 'subject name', required, maxLength: 60 });
 }
 
+export function validateOrganizationName(name: string, required: boolean = true): { isValid: boolean; error?: string } {
+  return validateTextName(name, { label: 'organization name', required, maxLength: 100, allowNumbers: true });
+}
+
 export function validateCampusCode(code: string, required: boolean = true): { isValid: boolean; error?: string } {
   if (!code || typeof code !== 'string' || !code.trim()) {
     return required ? { isValid: false, error: 'Campus code is required.' } : { isValid: true };
@@ -555,6 +596,9 @@ function inferInputFieldLabel(input: HTMLInputElement | HTMLTextAreaElement): st
   if (ph.includes('subject')) return 'subject name';
   if (ph.includes('campus') || ph.includes('branch')) return 'campus name';
   if (ph.includes('role')) return 'role title';
+  if (ph.includes('organization') || ph.includes('organisation')) return 'organization name';
+  if (ph.includes('institution') || ph.includes('institute') || ph.includes('university') || ph.includes('college') || ph.includes('school')) return 'institution name';
+  if (ph.includes('company') || ph.includes('employer')) return 'company name';
   if (ph.includes('search')) return 'search term';
   if (ph.includes('address')) return 'address';
   if (ph.includes('name')) return 'name';
@@ -731,7 +775,16 @@ export function validateInputElement(
     label.includes('branch') ||
     label.includes('role') ||
     label.includes('category') ||
-    label.includes('certificate');
+    label.includes('certificate') ||
+    label.includes('organization') ||
+    label.includes('organisation') ||
+    label.includes('institution') ||
+    label.includes('institute') ||
+    label.includes('school') ||
+    label.includes('college') ||
+    label.includes('university') ||
+    label.includes('company') ||
+    label.includes('employer');
 
   if (isStrictNameField) {
     const isPersonalName =
@@ -756,11 +809,23 @@ export function validateInputElement(
       label.includes('role') ||
       isPersonalName;
 
+    const isOrgField =
+      label.includes('organization') ||
+      label.includes('organisation') ||
+      label.includes('institution') ||
+      label.includes('institute') ||
+      label.includes('school') ||
+      label.includes('college') ||
+      label.includes('university') ||
+      label.includes('company') ||
+      label.includes('employer');
+
     return validateTextName(val, {
       label,
       required: enforceRequired && input.required,
       allowNumbers: !disallowNumbers,
       minLength: 1,
+      maxLength: isOrgField ? 100 : 70,
     });
   }
 
