@@ -1000,7 +1000,11 @@ export function buildBasicStaffCreatePayload(
     role: isTeaching ? "Teacher" : "Staff",
     email: form.email.trim(),
     phone: form.mobileNumber.trim(),
-    alternateMobile: form.alternateMobileNumber ? form.alternateMobileNumber.trim() : "",
+    alternateMobile: (() => {
+      const alt = form.alternateMobileNumber ? form.alternateMobileNumber.trim() : "";
+      const digits = alt.replace(/\D/g, "");
+      return digits.length >= 5 ? alt : "";
+    })(),
     gender: form.gender || "Male",
     dob: form.dob || "",
     bloodGroup: form.bloodGroup,
@@ -1023,6 +1027,7 @@ export function buildBasicStaffCreatePayload(
     pinCode: form.pinCode || "",
     country: form.country ? form.country.trim() : "",
     aadhaarNumber: form.aadhaarNumber ? form.aadhaarNumber.trim() : "",
+    panNumber: form.panNumber ? form.panNumber.trim().toUpperCase() : "",
     assignedClasses: isTeaching ? form.assignedClasses || [] : [],
     assignedSubjects: isTeaching ? form.assignedSubjects || [] : [],
     primarySubject: isTeaching ? (form.assignedSubjects?.[0] || '') : '',
@@ -1099,7 +1104,11 @@ export function buildBasicStaffUpdatePayload(
     role: isTeaching ? "Teacher" : "Staff",
     email: form.email.trim(),
     phone: form.mobileNumber.trim(),
-    alternateMobile: form.alternateMobileNumber ? form.alternateMobileNumber.trim() : "",
+    alternateMobile: (() => {
+      const alt = form.alternateMobileNumber ? form.alternateMobileNumber.trim() : "";
+      const digits = alt.replace(/\D/g, "");
+      return digits.length >= 5 ? alt : "";
+    })(),
     gender: form.gender,
     dob: form.dob,
     bloodGroup: form.bloodGroup,
@@ -1133,7 +1142,7 @@ export function buildBasicStaffUpdatePayload(
     pinCode: form.pinCode,
     country: form.country ? form.country.trim() : "",
     aadhaarNumber: form.aadhaarNumber ? form.aadhaarNumber.trim() : "",
-    panNumber: form.panNumber ? form.panNumber.trim() : "",
+    panNumber: form.panNumber ? form.panNumber.trim().toUpperCase() : "",
     assignedClasses: isTeaching ? form.assignedClasses || [] : [],
     assignedSubjects: isTeaching ? form.assignedSubjects || [] : [],
     primarySubject: isTeaching ? (form.assignedSubjects?.[0] || '') : '',

@@ -384,7 +384,11 @@ export const BasicStaffFormFields: React.FC<BasicStaffFormFieldsProps> = ({
   const handleMobileChange = (field: 'mobileNumber' | 'alternateMobileNumber', val: string) => {
     const numericVal = val.replace(/[^0-9]/g, '').slice(0, 10);
     const cc = field === 'mobileNumber' ? primaryCc : altCc;
-    onChange(field, `${cc}-${numericVal}`);
+    if (field === 'alternateMobileNumber') {
+      onChange(field, numericVal ? `${cc}-${numericVal}` : '');
+    } else {
+      onChange(field, `${cc}-${numericVal}`);
+    }
   };
 
   const handlePinCodeChange = async (val: string) => {
@@ -1000,7 +1004,7 @@ export const BasicStaffFormFields: React.FC<BasicStaffFormFieldsProps> = ({
                   <div className="relative shrink-0 w-28">
                     <select
                       value={altCc}
-                      onChange={e => onChange('alternateMobileNumber', `${e.target.value}-${altLocal}`)}
+                      onChange={e => onChange('alternateMobileNumber', altLocal ? `${e.target.value}-${altLocal}` : '')}
                       className="w-full rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 pl-3 pr-7 py-2 text-xs outline-none transition focus:border-brand-500 text-slate-900 dark:text-white font-medium appearance-none cursor-pointer"
                     >
                       {COUNTRY_DIAL_CODES.map(item => (

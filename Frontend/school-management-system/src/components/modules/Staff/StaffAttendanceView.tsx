@@ -2773,63 +2773,33 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
       </div>
 
       {/* Main Module Tabs (Teaching, Non-Teaching) */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-200 dark:border-slate-800 pb-3">
-        <div className="flex flex-wrap items-center gap-2">
-          <button
-            onClick={() => setActiveTab("teaching")}
-            className={`px-4 py-2 rounded-xl font-extrabold text-xs flex items-center gap-2 transition-all ${
-              activeTab === "teaching"
-                ? "bg-brand-600 text-white shadow-md shadow-brand-600/20"
-                : "bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700/50"
-            }`}
-          >
-            <Users className="w-4 h-4" /> Teaching Staff
-          </button>
+      <div className="flex flex-wrap items-center gap-2 border-b border-slate-200 dark:border-slate-800 pb-3">
+        <button
+          onClick={() => setActiveTab("teaching")}
+          className={`px-4 py-2 rounded-xl font-extrabold text-xs flex items-center gap-2 transition-all ${
+            activeTab === "teaching"
+              ? "bg-brand-600 text-white shadow-md shadow-brand-600/20"
+              : "bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700/50"
+          }`}
+        >
+          <Users className="w-4 h-4" /> Teaching Staff
+        </button>
 
-          <button
-            onClick={() => setActiveTab("non-teaching")}
-            className={`px-4 py-2 rounded-xl font-extrabold text-xs flex items-center gap-2 transition-all ${
-              activeTab === "non-teaching"
-                ? "bg-brand-600 text-white shadow-md shadow-brand-600/20"
-                : "bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700/50"
-            }`}
-          >
-            <Building2 className="w-4 h-4" /> Non-Teaching Staff
-          </button>
-        </div>
-
-        {/* Search Staff Bar (Top Right corner of main module tabs line) */}
-        <div className="w-full md:w-72 shrink-0">
-          <div className="relative">
-            <Search className={`w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 transition-colors ${hasStaffSearchError ? "text-red-500" : "text-slate-400"}`} />
-            <input
-              type="text"
-              placeholder="Search by name or ID..."
-              value={currentSearchQuery}
-              onChange={(e) =>
-                activeTab === "teaching"
-                  ? setTeachingQuery(e.target.value)
-                  : setNonTeachingQuery(e.target.value)
-              }
-              className={`w-full pl-9 pr-4 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border text-xs font-semibold outline-none transition-colors ${
-                hasStaffSearchError
-                  ? "border-red-500 text-red-700 dark:text-red-300 focus:border-red-500 focus:ring-1 focus:ring-red-500"
-                  : "border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:border-brand-500"
-              }`}
-            />
-          </div>
-          {hasStaffSearchError && (
-            <p className="text-[11px] font-semibold text-red-500 mt-1 flex items-center gap-1 animate-in fade-in">
-              <AlertCircle className="w-3.5 h-3.5 shrink-0" />
-              <span>Invalid input, please enter a valid staff name/ID</span>
-            </p>
-          )}
-        </div>
+        <button
+          onClick={() => setActiveTab("non-teaching")}
+          className={`px-4 py-2 rounded-xl font-extrabold text-xs flex items-center gap-2 transition-all ${
+            activeTab === "non-teaching"
+              ? "bg-brand-600 text-white shadow-md shadow-brand-600/20"
+              : "bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700/50"
+          }`}
+        >
+          <Building2 className="w-4 h-4" /> Non-Teaching Staff
+        </button>
       </div>
 
       {/* Control Filters Row */}
       <div className="glass-card p-4 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 space-y-4">
-        <div className={`grid grid-cols-1 sm:grid-cols-2 ${dateMode === 'Custom Range' ? 'lg:grid-cols-5' : 'lg:grid-cols-4'} gap-3 items-end`}>
+        <div className={`grid grid-cols-1 sm:grid-cols-2 ${dateMode === 'Custom Range' ? 'lg:grid-cols-3 xl:grid-cols-6' : 'lg:grid-cols-5'} gap-3 items-start`}>
           {/* Date Mode */}
           <div>
             <label className="block text-[10px] font-black uppercase text-slate-400 mb-1">
@@ -2847,7 +2817,7 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
           </div>
 
           {/* Date Selection */}
-          <div className={dateMode === "Custom Range" ? "sm:col-span-2 lg:col-span-2" : ""}>
+          <div className={dateMode === "Custom Range" ? "sm:col-span-2 lg:col-span-2 xl:col-span-2" : ""}>
             <label className="block text-[10px] font-black uppercase text-slate-400 mb-1">
               Date Selection
             </label>
@@ -2930,6 +2900,37 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
                 </option>
               ))}
             </select>
+          </div>
+
+          {/* Search Staff */}
+          <div>
+            <label className="block text-[10px] font-black uppercase text-slate-400 mb-1">
+              Search Staff
+            </label>
+            <div className="relative">
+              <Search className={`w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 transition-colors ${hasStaffSearchError ? "text-red-500" : "text-slate-400"}`} />
+              <input
+                type="text"
+                placeholder="Search by name or ID..."
+                value={currentSearchQuery}
+                onChange={(e) =>
+                  activeTab === "teaching"
+                    ? setTeachingQuery(e.target.value)
+                    : setNonTeachingQuery(e.target.value)
+                }
+                className={`w-full pl-9 pr-3 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border text-xs font-semibold outline-none transition-colors ${
+                  hasStaffSearchError
+                    ? "border-red-500 text-red-700 dark:text-red-300 focus:border-red-500 focus:ring-1 focus:ring-red-500"
+                    : "border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:border-brand-500"
+                }`}
+              />
+            </div>
+            {hasStaffSearchError && (
+              <p className="text-[11px] font-semibold text-red-500 mt-1 flex items-center gap-1 animate-in fade-in">
+                <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                <span>Invalid input, please enter a valid staff name/ID</span>
+              </p>
+            )}
           </div>
         </div>
       </div>

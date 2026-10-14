@@ -5200,13 +5200,17 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
                 middleName: item.middleName || "",
                 lastName: item.lastName,
                 email: item.email || "",
-                phone: item.phone || "",
-                alternateMobile: item.alternateMobile || "",
+                phone: item.phone || item.mobileNumber || "",
+                alternateMobile: (() => {
+                  const raw = item.alternateMobile || item.alternateMobileNumber || item.alternatePhone || existing?.alternateMobile || "";
+                  const digits = String(raw).replace(/\D/g, "");
+                  return digits.length >= 5 ? String(raw).trim() : "";
+                })(),
                 gender: item.gender || "Male",
                 dob: item.dateOfBirth ? item.dateOfBirth.split("T")[0] : "",
                 bloodGroup: item.bloodGroup || "",
-                aadhaarNumber: item.aadhaarNumber || "",
-                panNumber: item.panNumber || "",
+                aadhaarNumber: item.aadhaarNumber || existing?.aadhaarNumber || "",
+                panNumber: item.panNumber || item.pan || item.panNo || existing?.panNumber || "",
                 joiningDate: item.joiningDate
                   ? item.joiningDate.split("T")[0]
                   : "",
@@ -7471,7 +7475,11 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       lastName: staffData.lastName,
       email: staffData.email?.trim() || null,
       phone: staffData.phone,
-      alternateMobile: staffData.alternateMobile || null,
+      alternateMobile: (() => {
+        const alt = staffData.alternateMobile || (staffData as any).alternateMobileNumber || (staffData as any).alternatePhone || "";
+        const digits = String(alt).replace(/\D/g, "");
+        return digits.length >= 5 ? String(alt).trim() : null;
+      })(),
       gender: staffData.gender || "Male",
       designation: staffData.designation,
       department: staffData.department,
@@ -7482,8 +7490,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       monthlySalary: staffData.salary || 0,
       dateOfBirth: staffData.dob,
       bloodGroup: staffData.bloodGroup,
-      aadhaarNumber: staffData.aadhaarNumber,
-      panNumber: staffData.panNumber,
+      aadhaarNumber: staffData.aadhaarNumber || null,
+      panNumber: staffData.panNumber || (staffData as any).panNo || (staffData as any).pan || null,
       presentAddress: staffData.presentAddress || null,
       permanentAddress: staffData.permanentAddress || null,
       city: staffData.city || null,
@@ -7606,7 +7614,11 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           lastName: fullStaff.lastName,
           email: fullStaff.email?.trim() || null,
           phone: fullStaff.phone,
-          alternateMobile: fullStaff.alternateMobile || null,
+          alternateMobile: (() => {
+            const alt = fullStaff.alternateMobile || (fullStaff as any).alternateMobileNumber || (fullStaff as any).alternatePhone || "";
+            const digits = String(alt).replace(/\D/g, "");
+            return digits.length >= 5 ? String(alt).trim() : null;
+          })(),
           gender: fullStaff.gender || "Male",
           designation: fullStaff.designation,
           department: fullStaff.department,
@@ -7617,8 +7629,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           monthlySalary: fullStaff.salary || 0,
           dateOfBirth: fullStaff.dob,
           bloodGroup: fullStaff.bloodGroup,
-          aadhaarNumber: fullStaff.aadhaarNumber,
-          panNumber: fullStaff.panNumber,
+          aadhaarNumber: fullStaff.aadhaarNumber || null,
+          panNumber: fullStaff.panNumber || (fullStaff as any).panNo || (fullStaff as any).pan || null,
           presentAddress: fullStaff.presentAddress || null,
           permanentAddress: fullStaff.permanentAddress || null,
           city: fullStaff.city || null,

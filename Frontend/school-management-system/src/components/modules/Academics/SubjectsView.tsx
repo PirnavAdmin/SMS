@@ -680,12 +680,12 @@ export const SubjectsView: React.FC = () => {
               <div className="overflow-x-auto">
                 <table className="w-full text-left border-collapse text-[13px]">
                   <thead>
-                    <tr className="text-slate-400 dark:text-slate-500 font-extrabold uppercase tracking-wider text-[10px] border-b border-slate-100 dark:border-slate-800/50">
-                      <th className="py-3 px-2">S.No</th>
-                      <th className="py-3 px-2">Subject Name</th>
-                      <th className="py-3 px-2">Course Code</th>
-                      <th className="py-3 px-2">Department</th>
-                      <th className="py-3 px-2 text-right">Actions</th>
+                    <tr className="bg-slate-50/80 dark:bg-slate-800/60 text-slate-700 dark:text-slate-200 font-extrabold uppercase tracking-wider text-xs border-b border-slate-200 dark:border-slate-800">
+                      <th className="py-3 px-3">S.No</th>
+                      <th className="py-3 px-3">Subject Name</th>
+                      <th className="py-3 px-3">Course Code</th>
+                      <th className="py-3 px-3">Department</th>
+                      <th className="py-3 px-3 text-right">Actions</th>
                     </tr>
                   </thead>
                   <tbody className="font-medium">
@@ -777,14 +777,14 @@ export const SubjectsView: React.FC = () => {
               <div className="overflow-x-auto">
                 <table className="w-full text-left border-collapse text-[13px]">
                   <thead>
-                    <tr className="text-slate-400 dark:text-slate-500 font-extrabold uppercase tracking-wider text-[10px] border-b border-slate-100 dark:border-slate-800/50">
-                      <th className="py-3 px-2">S.No</th>
-                      <th className="py-3 px-2">Department Name</th>
-                      <th className="py-3 px-2">Department Code</th>
-                      <th className="py-3 px-2">Department Type</th>
-                      <th className="py-3 px-2">Assigned Staff</th>
-                      <th className="py-3 px-2">Status</th>
-                      <th className="py-3 px-2 text-right">Actions</th>
+                    <tr className="bg-slate-50/80 dark:bg-slate-800/60 text-slate-700 dark:text-slate-200 font-extrabold uppercase tracking-wider text-xs border-b border-slate-200 dark:border-slate-800">
+                      <th className="py-3 px-3">S.No</th>
+                      <th className="py-3 px-3">Department Name</th>
+                      <th className="py-3 px-3">Department Code</th>
+                      <th className="py-3 px-3">Department Type</th>
+                      <th className="py-3 px-3">Assigned Staff</th>
+                      <th className="py-3 px-3">Status</th>
+                      <th className="py-3 px-3 text-right">Actions</th>
                     </tr>
                   </thead>
                   <tbody className="font-medium">
@@ -933,13 +933,13 @@ export const SubjectsView: React.FC = () => {
               <div className="overflow-x-auto">
                 <table className="w-full text-left border-collapse text-[13px]">
                   <thead>
-                    <tr className="text-slate-400 dark:text-slate-500 font-extrabold uppercase tracking-wider text-[10px] border-b border-slate-100 dark:border-slate-800/50">
-                      <th className="py-3 px-2">S.No</th>
-                      <th className="py-3 px-2">Designation Name</th>
-                      <th className="py-3 px-2">Category</th>
-                      <th className="py-3 px-2">Assigned Staff</th>
-                      <th className="py-3 px-2">Status</th>
-                      <th className="py-3 px-2 text-right">Actions</th>
+                    <tr className="bg-slate-50/80 dark:bg-slate-800/60 text-slate-700 dark:text-slate-200 font-extrabold uppercase tracking-wider text-xs border-b border-slate-200 dark:border-slate-800">
+                      <th className="py-3 px-3">S.No</th>
+                      <th className="py-3 px-3">Designation Name</th>
+                      <th className="py-3 px-3">Category</th>
+                      <th className="py-3 px-3">Assigned Staff</th>
+                      <th className="py-3 px-3">Status</th>
+                      <th className="py-3 px-3 text-right">Actions</th>
                     </tr>
                   </thead>
                   <tbody className="font-medium">
@@ -1426,7 +1426,7 @@ export const SubjectsView: React.FC = () => {
                 return (
                   <table className="w-full text-left border-collapse text-xs">
                     <thead>
-                      <tr className="text-slate-400 font-extrabold uppercase text-[10px] border-b border-slate-100 dark:border-slate-800">
+                      <tr className="bg-slate-50/80 dark:bg-slate-800/60 text-slate-700 dark:text-slate-200 font-extrabold uppercase text-[11px] border-b border-slate-200 dark:border-slate-800">
                         <th className="py-2.5 px-3">S.No</th>
                         <th className="py-2.5 px-3">Subject Name</th>
                         <th className="py-2.5 px-3">Course Code</th>
@@ -1567,7 +1567,7 @@ export const SubjectsView: React.FC = () => {
                 return (
                   <table className="w-full text-left border-collapse text-xs">
                     <thead>
-                      <tr className="text-slate-400 font-extrabold uppercase text-[10px] border-b border-slate-100 dark:border-slate-800">
+                      <tr className="bg-slate-50/80 dark:bg-slate-800/60 text-slate-700 dark:text-slate-200 font-extrabold uppercase text-[11px] border-b border-slate-200 dark:border-slate-800">
                         <th className="py-2.5 px-3">S.No</th>
                         <th className="py-2.5 px-3">Employee Code</th>
                         <th className="py-2.5 px-3">Employee Name</th>

@@ -313,21 +313,40 @@ export const StaffList: React.FC<{
         const workbook = XLSX.utils.book_new();
 
         // 1. Personal Details Sheet
-        const personalData = filtered.map((st) => ({
+        const personalData = filtered.map((st: any) => ({
           "Employee ID": st.empId || "",
           "Category": st.employeeCategory || "",
           "First Name": st.firstName || "",
           "Middle Name": st.middleName || "",
           "Last Name": st.lastName || "",
           "Email": st.email || "",
-          "Phone": st.phone || "",
-          "Alternate Mobile": st.alternateMobile || "",
+          "Phone": st.phone || st.mobileNumber || st.mobile || "",
+          "Alternate Mobile": (() => {
+            const raw = st.alternateMobile || st.alternateMobileNumber || st.alternatePhone || st.altMobile || "";
+            if (!raw) return "";
+            const str = String(raw).trim();
+            const digits = str.replace(/\D/g, "");
+            if (digits.length < 5) return "";
+            return str;
+          })(),
           "Gender": st.gender || "",
-          "Date of Birth": st.dob || "",
+          "Date of Birth": st.dob || st.dateOfBirth || "",
           "Blood Group": st.bloodGroup || "",
           "Aadhaar Number": st.aadhaarNumber || "",
-          "PAN Number": st.panNumber || "",
-          "Present Address": st.presentAddress || "",
+          "PAN Number": (() => {
+            let pan = st.panNumber || st.pan || st.panNo || st.panCard || "";
+            if (!pan && st.documents && Array.isArray(st.documents)) {
+              const panDoc = st.documents.find((d: any) => {
+                const t = (d.type || d.documentType || d.title || d.name || "").toLowerCase();
+                return t.includes("pan");
+              });
+              if (panDoc) {
+                pan = panDoc.documentNumber || panDoc.docNumber || "";
+              }
+            }
+            return pan ? String(pan).toUpperCase().trim() : "";
+          })(),
+          "Present Address": st.presentAddress || st.residentialAddress || st.address || "",
           "Permanent Address": st.permanentAddress || "",
           "City": st.city || "",
           "State": st.state || "",
@@ -570,12 +589,17 @@ export const StaffList: React.FC<{
                 employeeCategory: row.employeeCategory || activeCategory,
                 gender: row.gender || "Male",
                 dob: row.dob || "",
-                bloodGroup: row.bloodGroup || "",
+                phone: row.mobileNumber || row.phone || row.mobile || "",
                 mobileNumber: row.mobileNumber || row.phone || row.mobile || "",
+                alternateMobile: (() => {
+                  const alt = row.alternateMobile || row.alternateMobileNumber || row.alternatePhone || "";
+                  const digits = String(alt).replace(/\D/g, "");
+                  return digits.length >= 5 ? String(alt).trim() : "";
+                })(),
                 alternateMobileNumber: row.alternateMobileNumber || "",
                 email: row.email || `${fName.toLowerCase()}@pirnav.com`,
                 aadhaarNumber: row.aadhaarNumber || "",
-                panNumber: row.panNumber || "",
+                panNumber: row.panNumber || row.pan || row.panNo || "",
                 presentAddress: row.presentAddress || "",
                 permanentAddress: row.permanentAddress || "",
                 city: row.city || "",

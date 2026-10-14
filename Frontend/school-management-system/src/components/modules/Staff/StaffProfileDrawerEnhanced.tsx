@@ -273,8 +273,14 @@ export const StaffProfileDrawer: React.FC<StaffProfileDrawerProps> = ({ staff: s
         <InfoLine label="Date of Birth" value={staff.dob} />
         <InfoLine label="Blood Group" value={(staff as any).bloodGroup} />
         <InfoLine label="Mobile Number" value={staff.phone} />
-        <InfoLine label="Email" value={staff.email} />
-        <InfoLine label="Alternate Mobile" value={(staff as any).alternateMobile} />
+        <InfoLine label="Alternate Mobile" value={(() => {
+          const raw = (staff as any).alternateMobile || (staff as any).alternateMobileNumber || (staff as any).alternatePhone;
+          if (!raw) return undefined;
+          const str = String(raw).trim();
+          return str.replace(/\D/g, "").length >= 5 ? str : undefined;
+        })()} />
+        <InfoLine label="Aadhaar Number" value={(staff as any).aadhaarNumber} />
+        <InfoLine label="PAN Number" value={(staff as any).panNumber || (staff as any).panNo || (staff as any).pan} />
         <InfoLine label="Father's Name" value={(staff as any).fatherName} />
         <InfoLine label="Mother's Name" value={(staff as any).motherName} />
         <InfoLine label="Marital Status" value={(staff as any).maritalStatus} />
