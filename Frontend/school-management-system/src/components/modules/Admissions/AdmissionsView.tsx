@@ -4501,32 +4501,25 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
         </div>
 
         <div className="flex flex-wrap items-center gap-3 w-full lg:w-auto justify-end">
-          <div className="flex items-center gap-1.5">
-            <span className="text-[11px] font-bold text-slate-400">Class:</span>
-            <select
-              value={filterClass}
-              onChange={(e) => setFilterClass(e.target.value)}
-              className="px-3 py-1.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none cursor-pointer"
-            >
-              <option value="All">All Classes</option>
-              {dynamicClassOptions.map((c) => (
-                <option key={c} value={c}>
-                  {c}
-                </option>
-              ))}
-            </select>
-          </div>
+          <select
+            value={filterClass}
+            onChange={(e) => setFilterClass(e.target.value)}
+            className="px-3 py-1.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none cursor-pointer"
+          >
+            <option value="All">All Classes</option>
+            {dynamicClassOptions.map((c) => (
+              <option key={c} value={c}>
+                {c}
+              </option>
+            ))}
+          </select>
 
-          <div className="flex items-center gap-1.5">
-            <span className="text-[11px] font-bold text-slate-400">
-              Status:
-            </span>
-            <select
-              value={filterStatus}
-              onChange={(e) => setFilterStatus(e.target.value)}
-              className="px-3 py-1.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none cursor-pointer"
-            >
-              <option value="All">All Status</option>
+          <select
+            value={filterStatus}
+            onChange={(e) => setFilterStatus(e.target.value)}
+            className="px-3 py-1.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none cursor-pointer"
+          >
+            <option value="All">All Status</option>
               <option value="Un-Enrolled">Un-Enrolled</option>
               <option value="Enrolled">Enrolled</option>
               {Array.from(
@@ -4550,7 +4543,6 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
             </select>
           </div>
         </div>
-      </div>
 
       {/* Applications Table Format View */}
       <div id="printable-content" className="glass-card rounded-2xl overflow-hidden border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 print:p-0 print:border-none">
