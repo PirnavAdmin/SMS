@@ -7,6 +7,7 @@ import { useAuth } from '../../../context/AuthContext';
 import { useToast } from '../../../context/ToastContext';
 import { validateDOB, formatToDDMMYYYY, formatToISO } from '../../../utils/dateValidation';
 import { validate10DigitPhone, BLOOD_GROUPS, CASTE_CATEGORIES, BRANCHES, RELIGIONS } from '../../../utils/validation';
+import { normalizeStudentType } from '../../../utils/studentTypeUtils';
 
 import { DateInput } from '../../common/DateInput';
 import { generateNextAdmissionNo, generateNextStudentId } from '../../../utils/idGenerator';
@@ -55,7 +56,7 @@ export const StudentFormModal: React.FC<StudentFormModalProps> = ({
     isLateAdmission: false,
     feeCalculationMethod: 'Term-wise',
     branch: 'Main Campus',
-    studentType: 'Day Scholar',
+    studentType: 'Non-Residential',
     busRoute: '',
     transportType: 'AC',
     pickupPoint: '',
@@ -244,6 +245,7 @@ export const StudentFormModal: React.FC<StudentFormModalProps> = ({
       const docsSub = (studentToEdit as any).documentsSubmitted || (studentToEdit as any).documents || [];
       setFormData({
         ...studentToEdit,
+        studentType: normalizeStudentType(studentToEdit.studentType),
         isLateAdmission: !!studentToEdit.isLateAdmission,
         feeCalculationMethod: studentToEdit.feeCalculationMethod || 'Term-wise',
         joiningDate: (studentToEdit as any).joiningDate || studentToEdit.admissionDate || new Date().toISOString().split('T')[0],
