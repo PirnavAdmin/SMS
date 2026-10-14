@@ -850,7 +850,7 @@ public class SchoolService : ISchoolService
 				MotherMobileNumber = s.MotherMobile ?? "",
 				ParentEmail = s.Email,
 				AreaLocality = s.Address ?? "",
-				StudentType = adm?.AdmissionType ?? "",
+				StudentType = NormalizeStudentType(adm?.AdmissionType),
 				Status = !string.IsNullOrWhiteSpace(s.Status) ? s.Status : (adm?.Status ?? "Enrolled"),
 				CreatedAt = s.CreatedAt
 			});
@@ -928,7 +928,7 @@ public class SchoolService : ISchoolService
 				MotherMobileNumber = s.MotherMobile ?? "",
 				ParentEmail = s.Email,
 				AreaLocality = s.Address ?? "",
-				StudentType = adm?.AdmissionType ?? "",
+				StudentType = NormalizeStudentType(adm?.AdmissionType),
 				Status = !string.IsNullOrWhiteSpace(s.Status) ? s.Status : (adm?.Status ?? "Enrolled"),
 				CreatedAt = s.CreatedAt
 			};
@@ -1238,7 +1238,7 @@ public class SchoolService : ISchoolService
 			PinCode = dto.PinCode,
 			NumberOfSiblings = dto.NumberOfSiblings,
 			ExistingSiblingLookup = dto.ExistingSiblingLookup,
-			StudentType = string.IsNullOrWhiteSpace(dto.StudentType) ? "Non-Residential" : dto.StudentType,
+			StudentType = NormalizeStudentType(dto.StudentType),
 			TransportRequired = dto.TransportRequired,
 			TransportType = dto.TransportType,
 			BusRoute = dto.BusRoute,
@@ -1308,7 +1308,7 @@ public class SchoolService : ISchoolService
 				? "Madhapur Branch" 
 				: dto.BranchName;
 		}
-		if (!string.IsNullOrWhiteSpace(dto.StudentType)) app.StudentType = dto.StudentType;
+		if (!string.IsNullOrWhiteSpace(dto.StudentType)) app.StudentType = NormalizeStudentType(dto.StudentType);
 		app.BloodGroup = dto.BloodGroup;
 		app.Religion = dto.Religion;
 		app.Caste = dto.Caste;
@@ -1724,6 +1724,21 @@ public class SchoolService : ISchoolService
 		return null;
 	}
 
+	private static string NormalizeStudentType(string? studentType)
+	{
+		if (string.IsNullOrWhiteSpace(studentType)) return "Non-Residential";
+		var lower = studentType.Trim().ToLowerInvariant();
+		if (lower.Contains("non-res") || lower.Contains("non res") || lower.Contains("day scholar") || lower.Contains("dayscholar") || lower == "non-resident" || lower == "non resident" || lower == "non-residential" || lower == "regular")
+		{
+			return "Non-Residential";
+		}
+		if (lower.Contains("res") || lower.Contains("hostel") || lower == "resident" || lower == "residential" || lower == "hosteller")
+		{
+			return "Residential";
+		}
+		return "Non-Residential";
+	}
+
 	private static AdmissionApplicationResponseDto MapToAdmissionResponseDto(AdmissionApplication a) => new()
 	{
 		Id = a.Id,
@@ -1754,7 +1769,7 @@ public class SchoolService : ISchoolService
 		PinCode = a.PinCode,
 		NumberOfSiblings = a.NumberOfSiblings ?? 0,
 		ExistingSiblingLookup = a.ExistingSiblingLookup,
-		StudentType = a.StudentType ?? "",
+		StudentType = NormalizeStudentType(a.StudentType),
 		TransportRequired = a.TransportRequired ?? false,
 		TransportType = a.TransportType,
 		BusRoute = a.BusRoute,

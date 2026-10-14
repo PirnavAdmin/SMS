@@ -68,6 +68,7 @@ import {
 } from "../../../utils/dateValidation";
 import { getUniformFeeForClass } from "../../../utils/uniformUtils";
 import { formatCurrency } from "../../../utils/currency";
+import { formatStudentType, normalizeStudentType } from "../../../utils/studentTypeUtils";
 import {
   calculateLateAdmissionFees,
   FeeItemInput,
@@ -375,7 +376,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
       addressDistrict: "",
       addressState: "",
       addressPinCode: "",
-      studentType: "Day Scholar",
+      studentType: "Non-Residential",
       transportRequired: false,
       transportType: "",
       busRoute: "",
@@ -507,7 +508,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
       "Central",
       "State",
       "600001",
-      "Day Scholar",
+      "Non-Residential",
       "No",
       "",
       ""
@@ -658,7 +659,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                 branch: rowBranch,
                 academicYear: rowAcademicYear,
                 status: rowStatus,
-                studentType: String(row.StudentType || row.studentType || "Day Scholar").trim(),
+                studentType: normalizeStudentType(row.StudentType || row.studentType),
                 transportRequired: Boolean(row.TransportRequired === "Yes" || row.transportRequired === true || String(row.TransportRequired).toLowerCase() === "true"),
                 busRoute: String(row.BusRoute || row.busRoute || "").trim(),
                 pickupPoint: String(row.PickupPoint || row.pickupPoint || "").trim(),
@@ -1520,7 +1521,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
 
     const docsSub = app.documentsSubmitted || (app as any).documents || [];
     const isTrp = Boolean(app.transportRequired || app.busRoute || app.pickupPoint);
-    const sType = app.studentType === ("Hosteller" as any) ? "Residential" : app.studentType || "Day Scholar";
+    const sType = normalizeStudentType(app.studentType);
 
     const isLateAdm =
       app.isLateAdmission !== undefined
@@ -2151,7 +2152,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
       return { items: [], totalPayable: 0, isClassSelected: false };
     }
 
-    const stType = formData.studentType || "Day Scholar";
+    const stType = normalizeStudentType(formData.studentType);
     const clsName = formData.appliedClass;
 
     const matchesClass = (structCls?: string, targetCls?: string): boolean => {
@@ -4340,7 +4341,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                   {liveFee.isClassSelected && (
                     <span className="px-2.5 py-0.5 rounded-full bg-sky-50 dark:bg-sky-950 text-sky-700 dark:text-sky-300 font-extrabold text-[10px] border border-sky-200 dark:border-sky-800">
                       {formData.appliedClass} •{" "}
-                      {formData.studentType || "Day Scholar"}
+                      {formatStudentType(formData.studentType)}
                     </span>
                   )}
                 </div>
@@ -4623,7 +4624,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                     </td>
                     <td className="py-3 px-4">
                       <span className="font-bold text-slate-700 dark:text-slate-300 block">
-                        {app.studentType}
+                        {formatStudentType(app.studentType)}
                       </span>
                     </td>
                     <td className="py-3 px-4">
@@ -4930,8 +4931,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                 {/* 3. Transport & Accommodation */}
                 <div className="bg-white dark:bg-slate-850 p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-3">
                   <div className="flex items-center gap-2 pb-2 border-b border-slate-100 dark:border-slate-700/60">
-                    {selectedAppForView.studentType === "Hosteller" ||
-                    selectedAppForView.studentType === "Residential" ? (
+                    {formatStudentType(selectedAppForView.studentType) === "Residential" ? (
                       <Home className="w-4 h-4 text-brand-500" />
                     ) : (
                       <Bus className="w-4 h-4 text-brand-500" />
@@ -4947,7 +4947,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                         Student Type
                       </p>
                       <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-brand-50 dark:bg-brand-900/30 text-brand-700 dark:text-brand-300 text-xs font-bold">
-                        {selectedAppForView.studentType || "Day Scholar"}
+                        {formatStudentType(selectedAppForView.studentType)}
                       </span>
                     </div>
                     <div className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-700/50">
@@ -4960,9 +4960,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                     </div>
                   </div>
 
-                  {(selectedAppForView.studentType === "Day Scholar" ||
-                    selectedAppForView.studentType === "Non-Residential" ||
-                    !selectedAppForView.studentType) && (
+                  {formatStudentType(selectedAppForView.studentType) === "Non-Residential" && (
                     <div className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-700/50">
                       <p className="text-[10px] uppercase font-bold text-slate-400 tracking-wider mb-1">
                         Transport Service
@@ -4989,8 +4987,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                     </div>
                   )}
 
-                  {(selectedAppForView.studentType === "Hosteller" ||
-                    selectedAppForView.studentType === "Residential") && (
+                  {formatStudentType(selectedAppForView.studentType) === "Residential" && (
                     <div className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-700/50">
                       <p className="text-[10px] uppercase font-bold text-slate-400 tracking-wider mb-1">
                         Hostel Allocation
@@ -5220,11 +5217,12 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
             ledger?.className ||
             "Nursery";
           const stSection = st?.section || adm?.section || (ledger?.section || "A");
-          const stType =
+          const stType = formatStudentType(
             st?.studentType ||
             adm?.studentType ||
             adm?.residentialStatus ||
-            (ledger?.studentType || "Day Scholar");
+            ledger?.studentType
+          );
 
           if (!ledger) {
             ledger = {
@@ -5311,7 +5309,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                       Student Type:
                     </span>
                     <span className="px-2 py-0.5 rounded-full bg-sky-100 text-sky-800 dark:bg-sky-950 dark:text-sky-300 font-extrabold text-[10px]">
-                      {ledger.studentType || "Day Scholar"}
+                      {formatStudentType(ledger.studentType)}
                     </span>
                   </div>
                 </div>
@@ -5472,7 +5470,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                             <div class="info-row"><span class="label">Admission No: </span><span class="value">${ledger.admissionNo || "—"}</span></div>
                             <div class="info-row"><span class="label">Class & Section: </span><span class="value">${ledger.className || "Class 1"} - ${ledger.section || "A"}</span></div>
                             <div class="info-row"><span class="label">Academic Session: </span><span class="value">${ledger.academicYear || "2026-2027"}</span></div>
-                            <div class="info-row"><span class="label">Student Category: </span><span class="value">${ledger.studentType || "Day Scholar"}</span></div>
+                            <div class="info-row"><span class="label">Student Category: </span><span class="value">${formatStudentType(ledger.studentType)}</span></div>
                             <div class="info-row"><span class="label">Date of Statement: </span><span class="value">${new Date().toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })}</span></div>
                           </div>
 
@@ -5566,7 +5564,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                           className: ledger.className || "Class 1",
                           section: ledger.section || "A",
                           academicYear: ledger.academicYear || selectedAcademicYear || "",
-                          studentType: ledger.studentType || "Day Scholar",
+                          studentType: formatStudentType(ledger.studentType),
                           appliedFeeItems,
                           notApplicableItems,
                           totalScholarship: ledger.totalScholarship || 0,

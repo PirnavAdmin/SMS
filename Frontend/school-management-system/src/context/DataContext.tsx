@@ -35,6 +35,7 @@ import {
 } from "../utils/uniformUtils";
 import { matchesClassName, normalizeClassName, compareClassesAscending } from "../utils/classSorter";
 import { buildTermMonthMap } from "../utils/lateAdmission";
+import { normalizeStudentType, formatStudentType } from "../utils/studentTypeUtils";
 import {
   createStaffLetterRecord,
   saveStaffLetterRecord,
@@ -4993,7 +4994,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
                 siblingDetails:
                   item.siblingDetails || existing?.siblingDetails || [],
                 studentType:
-                  item.studentType || existing?.studentType || "",
+                  normalizeStudentType(item.studentType || existing?.studentType),
                 transportRequired:
                   item.transportRequired ??
                   existing?.transportRequired ??
@@ -8230,16 +8231,16 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         pinCode: appData.addressPinCode || "",
         numberOfSiblings: appData.siblingsCount || 0,
         siblingStudentId: "N/A",
-        studentType: appData.studentType || "Day Scholar",
+        studentType: normalizeStudentType(appData.studentType),
         transportRequired: !!appData.transportRequired,
         transportType: appData.transportRequired ? (appData.transportType || "AC") : "",
         busRoute: appData.transportRequired ? (appData.busRoute || "") : "",
         pickupPoint: appData.transportRequired ? (appData.pickupPoint || "") : "",
         dropPoint: appData.transportRequired ? (appData.dropPoint || "") : "",
-        hostelBlock: appData.studentType === "Hosteller" || appData.studentType === "Residential" ? (appData.hostelBlock || "") : "",
-        hostelRoom: appData.studentType === "Hosteller" || appData.studentType === "Residential" ? (appData.hostelRoom || "") : "",
+        hostelBlock: normalizeStudentType(appData.studentType) === "Residential" ? (appData.hostelBlock || "") : "",
+        hostelRoom: normalizeStudentType(appData.studentType) === "Residential" ? (appData.hostelRoom || "") : "",
         floorLevel: "N/A",
-        allocatedBedId: appData.studentType === "Hosteller" || appData.studentType === "Residential" ? (appData.hostelBed || "") : "",
+        allocatedBedId: normalizeStudentType(appData.studentType) === "Residential" ? (appData.hostelBed || "") : "",
         branch: appData.branch || selectedBranch || "Main Campus",
         status: appData.status || "Enrolled",
         section: (appData as any).section || "A",
@@ -8290,7 +8291,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         siblingDetails: appData.siblingDetails || [],
         siblingStudentId: appData.siblingStudentId || "",
         siblingStudentIds: appData.siblingStudentIds || [],
-        studentType: appData.studentType || "Day Scholar",
+        studentType: normalizeStudentType(appData.studentType),
         transportRequired: appData.transportRequired,
         transportType: appData.transportType,
         busRoute: appData.busRoute,
@@ -8431,16 +8432,16 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         pinCode: appData.addressPinCode || "",
         numberOfSiblings: appData.siblingsCount || 0,
         siblingStudentId: "N/A",
-        studentType: appData.studentType || "Day Scholar",
+        studentType: normalizeStudentType(appData.studentType),
         transportRequired: !!appData.transportRequired,
         transportType: appData.transportRequired ? (appData.transportType || "AC") : "",
         busRoute: appData.transportRequired ? (appData.busRoute || "") : "",
         pickupPoint: appData.transportRequired ? (appData.pickupPoint || "") : "",
         dropPoint: appData.transportRequired ? (appData.dropPoint || "") : "",
-        hostelBlock: appData.studentType === "Hosteller" || appData.studentType === "Residential" ? (appData.hostelBlock || "") : "",
-        hostelRoom: appData.studentType === "Hosteller" || appData.studentType === "Residential" ? (appData.hostelRoom || "") : "",
+        hostelBlock: normalizeStudentType(appData.studentType) === "Residential" ? (appData.hostelBlock || "") : "",
+        hostelRoom: normalizeStudentType(appData.studentType) === "Residential" ? (appData.hostelRoom || "") : "",
         floorLevel: "N/A",
-        availableBed: appData.studentType === "Hosteller" || appData.studentType === "Residential" ? (appData.hostelBed || "") : "",
+        availableBed: normalizeStudentType(appData.studentType) === "Residential" ? (appData.hostelBed || "") : "",
         scholarship:
           (appData as any).scholarship || appData.scholarshipId || "None",
         discount: (appData as any).discount || appData.discountId || "None",
@@ -8491,14 +8492,14 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
               motherName: appData.motherName || s.motherName,
               phone: appData.phone || s.phone,
               email: appData.email || (appData as any).parentEmail || s.email,
-              studentType: appData.studentType || s.studentType,
+              studentType: normalizeStudentType(appData.studentType || s.studentType),
               transportRequired: !!appData.transportRequired,
               busRoute: appData.transportRequired ? (appData.busRoute || "") : "",
               pickupPoint: appData.transportRequired ? (appData.pickupPoint || "") : "",
               dropPoint: appData.transportRequired ? (appData.dropPoint || "") : "",
-              hostelBlock: appData.studentType === "Hosteller" || appData.studentType === "Residential" ? (appData.hostelBlock || "") : "",
-              hostelRoom: appData.studentType === "Hosteller" || appData.studentType === "Residential" ? (appData.hostelRoom || "") : "",
-              hostelBed: appData.studentType === "Hosteller" || appData.studentType === "Residential" ? (appData.hostelBed || "") : "",
+              hostelBlock: normalizeStudentType(appData.studentType || s.studentType) === "Residential" ? (appData.hostelBlock || "") : "",
+              hostelRoom: normalizeStudentType(appData.studentType || s.studentType) === "Residential" ? (appData.hostelRoom || "") : "",
+              hostelBed: normalizeStudentType(appData.studentType || s.studentType) === "Residential" ? (appData.hostelBed || "") : "",
             };
           }
           return s;
@@ -8553,7 +8554,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
             parentName: matchedSt.parentName || matchedSt.fatherName || "",
             dob: matchedSt.dob || "",
             bloodGroup: matchedSt.bloodGroup || "",
-            studentType: matchedSt.studentType || "Day Scholar",
+            studentType: normalizeStudentType(matchedSt.studentType),
             branch: matchedSt.branch || "",
             religion: matchedSt.religion || "General",
             casteCategory: matchedSt.casteCategory || (matchedSt as any).category || "General",
@@ -8718,9 +8719,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           );
 
           let additionalFees = 0;
+          const appNormType = normalizeStudentType(app.studentType);
           if (
-            (app.studentType === "Day Scholar" ||
-              app.studentType === "Non-Residential") &&
+            appNormType === "Non-Residential" &&
             app.transportRequired
           ) {
             const rObj = routeMasters.find(
@@ -8748,8 +8749,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
                   : 0;
             additionalFees += pFee;
           } else if (
-            (app.studentType === "Hosteller" ||
-              app.studentType === "Residential") &&
+            appNormType === "Residential" &&
             app.hostelBed
           ) {
             const hObj =
@@ -8870,7 +8870,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
               isLateAdmission: !!app.isLateAdmission,
               feeCalculationMethod: app.feeCalculationMethod || "Term-wise",
               branch: app.branch || selectedBranch || "",
-              studentType: app.studentType || "",
+              studentType: normalizeStudentType(app.studentType),
               transportRequired: !!app.transportRequired,
               routeId: app.transportRequired ? (app.routeId || "") : "",
               busRoute: app.transportRequired ? (app.busRoute || "") : "",
@@ -8878,9 +8878,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
               pickupPointId: app.transportRequired ? (app.pickupPointId || "") : "",
               pickupPoint: app.transportRequired ? (app.pickupPoint || "") : "",
               dropPoint: app.transportRequired ? (app.dropPoint || "") : "",
-              hostelBlock: app.studentType === "Hosteller" || app.studentType === "Residential" ? (app.hostelBlock || "") : "",
-              hostelRoom: app.studentType === "Hosteller" || app.studentType === "Residential" ? (app.hostelRoom || "") : "",
-              hostelBed: app.studentType === "Hosteller" || app.studentType === "Residential" ? (app.hostelBed || "") : "",
+              hostelBlock: normalizeStudentType(app.studentType) === "Residential" ? (app.hostelBlock || "") : "",
+              hostelRoom: normalizeStudentType(app.studentType) === "Residential" ? (app.hostelRoom || "") : "",
+              hostelBed: normalizeStudentType(app.studentType) === "Residential" ? (app.hostelBed || "") : "",
               boardType: (schoolProfile?.boardType as any) || "CBSE",
               fatherName: app.parentName || (app as any).fatherName || "",
               fatherPhone: app.phone || (app as any).fatherMobile || "",
@@ -8926,10 +8926,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
             assignment,
           ]);
 
-          // Auto-assign transport facility if Day Scholar opted for transport
+          // Auto-assign transport facility if Non-Residential opted for transport
           if (
-            (app.studentType === "Day Scholar" ||
-              app.studentType === "Non-Residential") &&
+            normalizeStudentType(app.studentType) === "Non-Residential" &&
             app.transportRequired
           ) {
             const rObj = routeMasters.find(
@@ -8970,10 +8969,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
             });
           }
 
-          // Auto-assign hostel facility if Hosteller or Residential
+          // Auto-assign hostel facility if Residential
           if (
-            (app.studentType === "Hosteller" ||
-              app.studentType === "Residential") &&
+            normalizeStudentType(app.studentType) === "Residential" &&
             app.hostelBed
           ) {
             const hObj =
