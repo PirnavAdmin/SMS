@@ -5171,7 +5171,10 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         const response = await fetchStaffApi();
         if (response && response.success && response.data) {
           setStaff((prevStaff) => {
-            const mappedStaff: Staff[] = response.data.map((item: any) => {
+            const seenEmpIds = new Set<string>();
+            const mappedStaff: Staff[] = [];
+
+            for (const item of response.data) {
               const cat = (item.employeeCategory || "").toLowerCase();
               const isTeaching =
                 (cat.includes("teaching") && !cat.includes("non-teaching")) ||
@@ -5186,14 +5189,23 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
                     ? item.id
                     : ""
               ).toString();
-              const itemEmpId = item.employeeId || item.empId || "";
+              let itemEmpId = (item.employeeId || item.empId || "").trim();
 
               // Look up in current staff state to preserve local workload data
               const existing = prevStaff.find(
-                (s) => s.id === itemId || s.empId === itemEmpId,
+                (s) => s.id === itemId || (itemEmpId && s.empId === itemEmpId),
               );
 
-              return {
+              // Auto-heal duplicate or missing employee IDs from legacy database records
+              if (!itemEmpId || seenEmpIds.has(itemEmpId.toUpperCase())) {
+                itemEmpId = generateNextEmployeeId(
+                  [...prevStaff, ...mappedStaff],
+                  isTeaching ? "Teaching Staff" : "Non-Teaching Staff"
+                );
+              }
+              seenEmpIds.add(itemEmpId.toUpperCase());
+
+              mappedStaff.push({
                 id: itemId,
                 empId: itemEmpId,
                 employeeCategory: isTeaching ? "Teacher" : "Staff",
@@ -5265,8 +5277,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
                   item.experienceRecords || existing?.experienceRecords || [],
                 documents: item.documents || existing?.documents || [],
                 branch: item.branchName || item.branch || existing?.branch || "Main Campus",
-              };
-            });
+              });
+            }
             return mappedStaff;
           });
         }
@@ -7451,9 +7463,16 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   };
 
   const addStaff = (staffData: Omit<Staff, "id">): Staff => {
-    const assignedEmpId =
-      staffData.empId ||
-      generateNextEmployeeId(staff, staffData.employeeCategory);
+    let assignedEmpId = (staffData.empId || "").trim();
+    const isTaken =
+      assignedEmpId &&
+      staff.some((s) => {
+        const existingId = (s.empId || (s as any).employeeId || "").trim().toLowerCase();
+        return existingId === assignedEmpId.toLowerCase();
+      });
+    if (!assignedEmpId || isTaken) {
+      assignedEmpId = generateNextEmployeeId(staff, staffData.employeeCategory);
+    }
     const id = assignedEmpId;
     const newStaff: Staff = {
       ...staffData,
@@ -7599,6 +7618,19 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   };
 
   const updateStaff = (id: string, updates: Partial<Staff>) => {
+    if (updates.empId) {
+      const trimmedTarget = updates.empId.trim().toLowerCase();
+      const conflict = staff.find(
+        (s) =>
+          String(s.id) !== String(id) &&
+          (s.empId || (s as any).employeeId || "").trim().toLowerCase() === trimmedTarget
+      );
+      if (conflict) {
+        console.warn("Cannot update staff: Employee ID already exists:", updates.empId);
+        const { empId, ...safeUpdates } = updates;
+        updates = safeUpdates;
+      }
+    }
     const numericId = parseInt(id, 10);
     if (!isNaN(numericId)) {
       const existing = staff.find((s) => s.id === id);

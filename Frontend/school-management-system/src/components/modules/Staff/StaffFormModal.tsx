@@ -212,14 +212,13 @@ export const StaffFormModal: React.FC<StaffFormModalProps> = ({
     const isEditingSelf = (s: any) => {
       if (!staffToEdit) return false;
       const editId = String(staffToEdit.id || '').trim();
-      const editEmpId = String(staffToEdit.empId || (staffToEdit as any).employeeId || '').toLowerCase().trim();
       const sId = String(s.id || '').trim();
-      const sEmpId = String(s.empId || (s as any).employeeId || '').toLowerCase().trim();
-      return (editId && sId && editId === sId) || (editEmpId && sEmpId && editEmpId === sEmpId);
+      return !!(editId && sId && editId === sId);
     };
 
-    // Duplicate Staff ID Check
-    if (form.empId) {
+    // Duplicate Employee ID Check
+    require("empId", !!form.empId?.trim(), "Employee ID is required.");
+    if (form.empId?.trim()) {
       const trimmedEmpId = form.empId.trim().toLowerCase();
       const isDuplicateEmpId = staff.some((s) => {
         if (isEditingSelf(s)) return false;
@@ -227,7 +226,7 @@ export const StaffFormModal: React.FC<StaffFormModalProps> = ({
         return sEmpId === trimmedEmpId;
       });
       if (isDuplicateEmpId) {
-        nextErrors.empId = "Staff ID already exists.";
+        nextErrors.empId = "Employee ID already exists. Please use a unique Employee ID.";
       }
     }
 
@@ -388,7 +387,7 @@ export const StaffFormModal: React.FC<StaffFormModalProps> = ({
             errors={errors}
             onChange={handleChange}
             onCategoryChange={handleCategoryChange}
-            employeeIdReadOnly
+            employeeIdReadOnly={false}
             compact
             isSubmitting={submitting}
             onCancel={onClose}

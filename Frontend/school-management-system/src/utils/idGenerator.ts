@@ -261,37 +261,50 @@ export function generateNextEmployeeId(staff: Staff[] = [], category?: string): 
   const config = getIdSequenceSettings();
   const isTeaching = !category || category === "Teaching Staff" || category === "Teacher";
   
-  if (isTeaching) {
-    const existingEmpIds = staff
-      .filter(s => !s.employeeCategory || (s.employeeCategory as string) === "Teaching Staff" || s.employeeCategory === "Teacher")
-      .map(s => s.empId || s.id || '')
-      .filter(Boolean);
+  const allExisting = new Set(
+    staff.map(s => String(s.empId || (s as any).employeeId || s.id || '').toUpperCase().trim()).filter(Boolean)
+  );
 
-    return buildFormattedId(
-      config.teachingIdPrefix,
-      config.teachingIdStartNo,
-      config.teachingIdPadding,
-      config.teachingIdIncludeYear,
-      config.teachingIdSeparator,
-      config.teachingIdPosition,
-      existingEmpIds
-    );
-  } else {
-    const existingEmpIds = staff
-      .filter(s => (s.employeeCategory as string) === "Non-Teaching Staff" || s.employeeCategory === "Staff")
-      .map(s => s.empId || s.id || '')
-      .filter(Boolean);
+  const prefix = isTeaching ? config.teachingIdPrefix : config.nonTeachingIdPrefix;
+  const startNo = isTeaching ? config.teachingIdStartNo : config.nonTeachingIdStartNo;
+  const padding = isTeaching ? config.teachingIdPadding : config.nonTeachingIdPadding;
+  const includeYear = isTeaching ? config.teachingIdIncludeYear : config.nonTeachingIdIncludeYear;
+  const separator = isTeaching ? config.teachingIdSeparator : config.nonTeachingIdSeparator;
+  const position = isTeaching ? config.teachingIdPosition : config.nonTeachingIdPosition;
 
-    return buildFormattedId(
-      config.nonTeachingIdPrefix,
-      config.nonTeachingIdStartNo,
-      config.nonTeachingIdPadding,
-      config.nonTeachingIdIncludeYear,
-      config.nonTeachingIdSeparator,
-      config.nonTeachingIdPosition,
-      existingEmpIds
+  const relevantEmpIds = staff
+    .filter(s => isTeaching 
+      ? (!s.employeeCategory || (s.employeeCategory as string) === "Teaching Staff" || s.employeeCategory === "Teacher")
+      : ((s.employeeCategory as string) === "Non-Teaching Staff" || s.employeeCategory === "Staff"))
+    .map(s => String(s.empId || (s as any).employeeId || s.id || '').trim())
+    .filter(Boolean);
+
+  let candidate = buildFormattedId(
+    prefix,
+    startNo,
+    padding,
+    includeYear,
+    separator,
+    position,
+    relevantEmpIds
+  );
+
+  // If candidate is already taken by any staff member in the system, increment sequence until unique
+  let currentStart = startNo;
+  while (allExisting.has(candidate.toUpperCase().trim())) {
+    currentStart++;
+    candidate = buildFormattedId(
+      prefix,
+      currentStart,
+      padding,
+      includeYear,
+      separator,
+      position,
+      [...relevantEmpIds, candidate]
     );
   }
+
+  return candidate;
 }
 
 /**

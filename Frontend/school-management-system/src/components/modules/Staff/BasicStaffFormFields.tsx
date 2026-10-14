@@ -902,17 +902,20 @@ export const BasicStaffFormFields: React.FC<BasicStaffFormFieldsProps> = ({
                 />
               </div>
 
-              {/* Staff ID */}
+              {/* Employee ID */}
               <div>
                 <label className="text-xs font-bold text-slate-700 dark:text-slate-300">
-                  Staff ID <span className="text-slate-400 text-[10px]">(Auto Generated)</span>
+                  Employee ID <span className="text-rose-500">*</span>
                 </label>
                 <input
                   type="text"
-                  value={value.empId}
+                  value={value.empId || ''}
                   readOnly={employeeIdReadOnly}
-                  className={`${fieldClass} bg-slate-100 dark:bg-slate-900 text-slate-500 font-mono font-bold cursor-not-allowed`}
+                  onChange={e => onChange('empId', e.target.value)}
+                  placeholder="e.g. TCH-2026-0501"
+                  className={`${fieldClass} ${employeeIdReadOnly ? 'bg-slate-100 dark:bg-slate-900 text-slate-500 font-mono font-bold cursor-not-allowed' : 'font-mono'} ${errors.empId ? 'border-rose-500 text-rose-700 focus:border-rose-500 focus:ring-1 focus:ring-rose-500' : ''}`}
                 />
+                {errors.empId && <p className="mt-1 text-[11px] font-semibold text-rose-500">{errors.empId}</p>}
               </div>
 
               {/* Gender */}

@@ -49,6 +49,7 @@ import {
 
 import { useAuth } from "../../../context/AuthContext";
 import { TeacherProfileView } from "./TeacherProfileView";
+import { generateNextEmployeeId } from "../../../utils/idGenerator";
 
 const StaffListRowAvatar: React.FC<{ st: Staff }> = ({ st }) => {
   const [imgErr, setImgErr] = useState(false);
@@ -569,6 +570,7 @@ export const StaffList: React.FC<{
           const data = XLSX.utils.sheet_to_json(sheet) as any[];
 
           let count = 0;
+          const currentBatchStaff = [...staff];
           data.forEach((row) => {
             if (row.firstName || row.lastName || row.applicantName) {
               const fName =
@@ -581,12 +583,28 @@ export const StaffList: React.FC<{
                 (row.applicantName
                   ? row.applicantName.split(" ").slice(1).join(" ")
                   : "Unknown");
+
+              const rowCategory = row.employeeCategory || activeCategory;
+              let rowEmpId = (row.empId || "").trim();
+              const isDuplicate =
+                rowEmpId &&
+                currentBatchStaff.some(
+                  (s) =>
+                    (s.empId || (s as any).employeeId || "")
+                      .trim()
+                      .toLowerCase() === rowEmpId.toLowerCase(),
+                );
+
+              if (!rowEmpId || isDuplicate) {
+                rowEmpId = generateNextEmployeeId(currentBatchStaff, rowCategory);
+              }
+
               const newStaff: Omit<Staff, "id"> = {
-                empId: row.empId || `EMP${Math.floor(1000 + Math.random() * 9000)}`,
+                empId: rowEmpId,
                 firstName: fName,
                 middleName: row.middleName || "",
                 lastName: lName,
-                employeeCategory: row.employeeCategory || activeCategory,
+                employeeCategory: rowCategory,
                 gender: row.gender || "Male",
                 dob: row.dob || "",
                 phone: row.mobileNumber || row.phone || row.mobile || "",
@@ -597,7 +615,7 @@ export const StaffList: React.FC<{
                   return digits.length >= 5 ? String(alt).trim() : "";
                 })(),
                 alternateMobileNumber: row.alternateMobileNumber || "",
-                email: row.email || `${fName.toLowerCase()}@pirnav.com`,
+                email: row.email || "",
                 aadhaarNumber: row.aadhaarNumber || "",
                 panNumber: row.panNumber || row.pan || row.panNo || "",
                 presentAddress: row.presentAddress || "",
@@ -607,15 +625,16 @@ export const StaffList: React.FC<{
                 pinCode: row.pinCode || "",
                 branch: row.branch || "Main Campus",
                 department: row.department || "General",
-                designation: row.designation || (activeCategory === "Teaching Staff" ? "Subject Teacher" : "Administrator"),
+                designation: row.designation || (rowCategory === "Teaching Staff" ? "Subject Teacher" : "Administrator"),
                 employmentType: row.employmentType || "Full Time",
                 joiningDate: row.joiningDate || "",
-                role: activeCategory === "Teaching Staff" ? "Teacher" : "Staff",
+                role: (rowCategory === "Teaching Staff" || rowCategory === "Teacher") ? "Teacher" : "Staff",
                 status: "Active",
                 assignedClasses: [],
                 assignedSubjects: [],
               } as unknown as Omit<Staff, "id">;
-              addStaff(newStaff);
+              const added = addStaff(newStaff);
+              currentBatchStaff.push(added);
               count++;
             }
           });
