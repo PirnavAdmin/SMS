@@ -43,7 +43,7 @@ import {
   Edit,
   RotateCcw,
 } from "lucide-react";
-import { formatToDDMMYYYY, formatToISO, checkSundayOrHoliday } from "../../../utils/dateValidation";
+import { formatToDDMMYYYY, formatToISO, checkSundayOrHoliday, parseAcademicYearRange, getTargetMonthInAY } from "../../../utils/dateValidation";
 import { exportToExcel } from "../../../utils/excelExport";
 import { DailyAttendance, Staff } from "../../../types";
 import { useData } from "../../../context/DataContext";
@@ -74,10 +74,11 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
     fetchMonthlyAttendance,
     lastAttendancePayload,
     lastAttendanceResponse,
-    driverMasters = []
+    driverMasters = [],
+    academicYears = [],
   } = useData();
   const { addToast } = useToast();
-  const { user, role, selectedBranch } = useAuth();
+  const { user, role, selectedBranch, selectedAcademicYear } = useAuth();
 
   const userRole = role?.toLowerCase() || "";
   const canMarkAttendance = [
@@ -582,19 +583,21 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
       }
     });
 
-    const today = new Date();
-    const currM = today.getMonth().toString();
-    const currLabel = `${today.toLocaleDateString("en-US", { month: "long" })} ${today.getFullYear()}`;
+    const ayRange = parseAcademicYearRange(selectedAcademicYear, academicYears);
+    const target = getTargetMonthInAY(new Date().getMonth(), ayRange);
+    const currM = target.month.toString();
+    const targetDate = new Date(target.year, target.month, 1);
+    const currLabel = `${targetDate.toLocaleDateString("en-US", { month: "long" })} ${target.year}`;
     if (!map.has(currM)) {
       map.set(currM, {
         value: currM,
         label: currLabel,
-        yearMonthKey: `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}`,
+        yearMonthKey: target.monthStr,
       });
     }
 
     return Array.from(map.values()).sort((a, b) => b.yearMonthKey.localeCompare(a.yearMonthKey));
-  }, [persCheckInTime, todayStr, attendance, teacher, dbTeacher]);
+  }, [persCheckInTime, todayStr, attendance, teacher, dbTeacher, selectedAcademicYear, academicYears]);
 
   const fullHistory = useMemo(() => {
     const todayRecord = persCheckInTime
@@ -1471,7 +1474,45 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
   // Active Main Module Tab
   const [activeTab, setActiveTab] = useState<AttendanceTab>("teaching");
 
-  const [attendanceDate, setAttendanceDate] = useState(todayStr);
+  const activeAYInfo = useMemo(() => {
+    return parseAcademicYearRange(selectedAcademicYear, academicYears);
+  }, [selectedAcademicYear, academicYears]);
+
+  const [monthInputVal, setMonthInputVal] = useState<string>(() => {
+    const range = parseAcademicYearRange(selectedAcademicYear, academicYears);
+    const d = new Date();
+    const target = getTargetMonthInAY(d.getMonth(), range);
+    return target.monthStr;
+  });
+
+  const [regYear, setRegYear] = useState<number>(() => {
+    const range = parseAcademicYearRange(selectedAcademicYear, academicYears);
+    const d = new Date();
+    const target = getTargetMonthInAY(d.getMonth(), range);
+    return target.year;
+  });
+
+  const [regMonth, setRegMonth] = useState<number>(() => {
+    const range = parseAcademicYearRange(selectedAcademicYear, academicYears);
+    const d = new Date();
+    const target = getTargetMonthInAY(d.getMonth(), range);
+    return target.month;
+  });
+
+  const [attendanceDate, setAttendanceDate] = useState<string>(() => {
+    const range = parseAcademicYearRange(selectedAcademicYear, academicYears);
+    const today = new Date().toLocaleDateString('en-CA');
+    if (today >= range.startDate && today <= range.endDate) {
+      return today;
+    }
+    const target = getTargetMonthInAY(new Date().getMonth(), range);
+    const cand = `${target.year}-${String(target.month + 1).padStart(2, '0')}-${String(new Date().getDate()).padStart(2, '0')}`;
+    if (cand >= range.startDate && cand <= range.endDate) {
+      return cand;
+    }
+    return range.startDate;
+  });
+
   const [viewMode, setViewMode] = useState<"daily" | "monthly">("daily");
   const [showSaveConfirm, setShowSaveConfirm] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -1490,16 +1531,35 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
 
   // Register Filters (Tab 3 logic now in viewMode='monthly')
   const [regEmpId, setRegEmpId] = useState("All");
-  const [regMonth, setRegMonth] = useState<number>(new Date().getMonth());
-  const [regYear, setRegYear] = useState<number>(new Date().getFullYear());
   const [regFromDate, setRegFromDate] = useState("");
   const [regToDate, setRegToDate] = useState("");
 
   const [dateMode, setDateMode] = useState<'Daily' | 'Monthly' | 'Custom Range'>('Daily');
-  const [monthInputVal, setMonthInputVal] = useState<string>(() => {
-    const d = new Date();
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-  });
+
+  const prevAYRef = useRef(selectedAcademicYear);
+  useEffect(() => {
+    if (prevAYRef.current !== selectedAcademicYear) {
+      prevAYRef.current = selectedAcademicYear;
+      const range = parseAcademicYearRange(selectedAcademicYear, academicYears);
+      const target = getTargetMonthInAY(regMonth, range);
+      setMonthInputVal(target.monthStr);
+      setRegYear(target.year);
+      setRegMonth(target.month);
+      setRegFromDate("");
+      setRegToDate("");
+
+      // Also synchronize daily attendanceDate
+      const parsedD = attendanceDate ? new Date(attendanceDate) : new Date();
+      const mNum = !isNaN(parsedD.getTime()) ? parsedD.getMonth() : target.month;
+      const dNum = !isNaN(parsedD.getTime()) ? String(parsedD.getDate()).padStart(2, "0") : "01";
+      const cand = `${target.year}-${String(target.month + 1).padStart(2, "0")}-${dNum}`;
+      if (cand >= range.startDate && cand <= range.endDate) {
+        setAttendanceDate(cand);
+      } else {
+        setAttendanceDate(range.startDate);
+      }
+    }
+  }, [selectedAcademicYear, academicYears, regMonth, attendanceDate]);
 
   const handleMonthInputChange = (val: string) => {
     setMonthInputVal(val);
@@ -1521,15 +1581,14 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
         setRegFromDate("");
         setRegToDate("");
       } else if (dateMode === 'Custom Range') {
-        const d = new Date();
-        const y = d.getFullYear();
-        const m = String(d.getMonth() + 1).padStart(2, '0');
-        const today = String(d.getDate()).padStart(2, '0');
+        const y = regYear;
+        const m = String(regMonth + 1).padStart(2, '0');
+        const daysInM = new Date(y, regMonth + 1, 0).getDate();
         setRegFromDate(`${y}-${m}-01`);
-        setRegToDate(`${y}-${m}-${today}`);
+        setRegToDate(`${y}-${m}-${String(daysInM).padStart(2, '0')}`);
       }
     }
-  }, [dateMode]);
+  }, [dateMode, regYear, regMonth]);
 
   const handleFromDateChange = (isoDate: string) => {
     setRegFromDate(isoDate);
@@ -1753,9 +1812,8 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
     if ((viewMode === "monthly" || isPersonalView) && fetchMonthlyAttendance) {
       const activeDept =
         activeTab === "teaching" ? teachingDept : nonTeachingDept;
-      const now = new Date();
-      const m = viewMode === "monthly" ? regMonth + 1 : now.getMonth() + 1;
-      const y = viewMode === "monthly" ? regYear : now.getFullYear();
+      const m = regMonth + 1;
+      const y = regYear;
       fetchMonthlyAttendance(m, y, activeDept);
     }
   }, [
@@ -2824,7 +2882,18 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
             {dateMode === "Daily" && (
               <DateInput
                 value={attendanceDate}
-                onChange={(e) => setAttendanceDate(e.target.value)}
+                min={activeAYInfo?.startDate}
+                max={activeAYInfo?.endDate}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  if (activeAYInfo && val) {
+                    if (val < activeAYInfo.startDate || val > activeAYInfo.endDate) {
+                      addToast("warning", "Date Out of Academic Year", `Please select a date between ${activeAYInfo.startDate} and ${activeAYInfo.endDate} for academic year ${selectedAcademicYear}.`);
+                      return;
+                    }
+                  }
+                  setAttendanceDate(val);
+                }}
                 className="w-full px-2.5 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white"
               />
             )}
@@ -2832,7 +2901,18 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
               <input
                 type="month"
                 value={monthInputVal}
-                onChange={(e) => handleMonthInputChange(e.target.value)}
+                min={activeAYInfo?.minMonth}
+                max={activeAYInfo?.maxMonth}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  if (activeAYInfo && val) {
+                    if (val < activeAYInfo.minMonth || val > activeAYInfo.maxMonth) {
+                      addToast("warning", "Month Out of Academic Year", `Please select a month between ${activeAYInfo.minMonth} and ${activeAYInfo.maxMonth} for academic year ${selectedAcademicYear}.`);
+                      return;
+                    }
+                  }
+                  handleMonthInputChange(val);
+                }}
                 onClick={(e) => e.currentTarget.showPicker?.()}
                 className="w-full px-2.5 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none focus:border-brand-500 transition-colors cursor-pointer"
               />
@@ -2841,6 +2921,8 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
               <div className="flex items-center gap-2">
                 <DateInput
                   value={regFromDate}
+                  min={activeAYInfo?.startDate}
+                  max={activeAYInfo?.endDate}
                   onChange={(e) => handleFromDateChange(e.target.value)}
                   placeholder="From"
                   className="w-full px-2.5 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white"
@@ -2848,6 +2930,8 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
                 <span className="text-slate-400 font-bold">-</span>
                 <DateInput
                   value={regToDate}
+                  min={activeAYInfo?.startDate}
+                  max={activeAYInfo?.endDate}
                   onChange={(e) => setRegToDate(e.target.value)}
                   placeholder="To"
                   className="w-full px-2.5 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white"

@@ -41,6 +41,7 @@ import {
   saveStaffLetterRecord,
   syncStaffLettersWithStaffList,
 } from "../utils/staffLetterTemplates";
+import { parseAcademicYearRange } from "../utils/dateValidation";
 import {
   Student,
   AcademicHistoryRecord,
@@ -22075,16 +22076,39 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   const filteredPayrollRuns = useMemo(() => filterByBranch(payrollRuns), [payrollRuns, selectedBranch, selectedAcademicYear]);
   const filteredAlumniRecords = useMemo(() => filterByBranch(alumniRecords), [alumniRecords, selectedBranch, selectedAcademicYear]);
 
-  const filteredAttendance = useMemo(() => attendance.filter((a) => {
-    if (!selectedBranch) return true;
-    if (a.entityType === "Student") {
-      const stud = students.find((s) => s.id === a.entityId);
-      return stud ? stud.branch === selectedBranch : true;
-    } else {
-      const st = staff.find((s) => s.id === a.entityId);
-      return st && st.branch ? st.branch === selectedBranch : true;
-    }
-  }), [attendance, students, staff, selectedBranch]);
+  const filteredAttendance = useMemo(() => {
+    const ayRange = selectedAcademicYear
+      ? parseAcademicYearRange(selectedAcademicYear, academicYears)
+      : null;
+
+    return attendance.filter((a) => {
+      // 1. Filter by Academic Year date range
+      if (ayRange && a.date) {
+        const rDate = String(a.date).split("T")[0].split(" ")[0];
+        if (rDate && (rDate < ayRange.startDate || rDate > ayRange.endDate)) {
+          return false;
+        }
+      }
+
+      // 2. Filter by Campus Branch
+      if (
+        selectedBranch &&
+        selectedBranch !== "All" &&
+        selectedBranch !== "All Branches" &&
+        selectedBranch !== "All Campuses"
+      ) {
+        if (a.entityType === "Student") {
+          const stud = students.find((s) => s.id === a.entityId);
+          return stud ? (stud.branch || "Main Campus") === selectedBranch : true;
+        } else {
+          const st = staff.find((s) => s.id === a.entityId);
+          return st && st.branch ? (st.branch || "Main Campus") === selectedBranch : true;
+        }
+      }
+
+      return true;
+    });
+  }, [attendance, students, staff, selectedBranch, selectedAcademicYear, academicYears]);
 
   const filteredBookIssues = useMemo(() => bookIssues.filter((bi) => {
     if (!selectedBranch) return true;

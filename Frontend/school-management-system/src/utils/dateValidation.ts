@@ -245,3 +245,113 @@ export function checkSundayOrHoliday(dateStr?: string | null, holidays: any[] = 
   return { isHoliday: false, type: null, name: '' };
 }
 
+export interface AcademicYearRangeInfo {
+  startDate: string; // YYYY-MM-DD
+  endDate: string;   // YYYY-MM-DD
+  minMonth: string;  // YYYY-MM
+  maxMonth: string;  // YYYY-MM
+  startYear: number;
+  startMonth: number; // 0-indexed
+  endYear: number;
+  endMonth: number;   // 0-indexed
+}
+
+export function parseAcademicYearRange(
+  selectedAcademicYear?: string,
+  academicYears: any[] = []
+): AcademicYearRangeInfo {
+  const cleanSel = String(selectedAcademicYear || '')
+    .replace(/\s+/g, '')
+    .replace('–', '-')
+    .toLowerCase();
+
+  // 1. Search in academicYears master
+  const matched = (academicYears || []).find((ay) => {
+    if (!ay) return false;
+    const val = String(ay.academicYear || ay.year || ay.academicYearName || '')
+      .replace(/\s+/g, '')
+      .replace('–', '-')
+      .toLowerCase();
+    if (cleanSel && val === cleanSel) return true;
+    const p1 = cleanSel.split('-');
+    const p2 = val.split('-');
+    if (p1.length === 2 && p2.length === 2) {
+      const s1 = p1[0];
+      const s2 = p2[0];
+      const e1 = p1[1].length === 2 ? `20${p1[1]}` : p1[1];
+      const e2 = p2[1].length === 2 ? `20${p2[1]}` : p2[1];
+      if (s1 === s2 && e1 === e2) return true;
+    }
+    return false;
+  });
+
+  let sDate = matched?.startDate ? String(matched.startDate).split('T')[0].trim() : '';
+  let eDate = matched?.endDate ? String(matched.endDate).split('T')[0].trim() : '';
+
+  // 2. Parse from selectedAcademicYear string if not found or dates missing
+  if ((!sDate || !eDate) && cleanSel) {
+    const parts = cleanSel.split('-');
+    if (parts.length === 2) {
+      const sy = parseInt(parts[0], 10);
+      const ey = parts[1].length === 2 ? parseInt(`20${parts[1]}`, 10) : parseInt(parts[1], 10);
+      if (!isNaN(sy) && !isNaN(ey)) {
+        sDate = `${sy}-06-01`;
+        eDate = `${ey}-05-31`;
+      }
+    }
+  }
+
+  // Fallback to active year or current year
+  if (!sDate || !eDate) {
+    const activeAY = (academicYears || []).find(
+      (ay) => ay && (ay.isCurrentAcademicYear || ay.status === 'Active')
+    );
+    if (activeAY?.startDate && activeAY?.endDate) {
+      sDate = String(activeAY.startDate).split('T')[0].trim();
+      eDate = String(activeAY.endDate).split('T')[0].trim();
+    } else {
+      const curYear = new Date().getFullYear();
+      sDate = `${curYear}-06-01`;
+      eDate = `${curYear + 1}-05-31`;
+    }
+  }
+
+  const startYear = parseInt(sDate.slice(0, 4), 10) || new Date().getFullYear();
+  const startMonth = Math.max(0, (parseInt(sDate.slice(5, 7), 10) || 6) - 1);
+  const endYear = parseInt(eDate.slice(0, 4), 10) || startYear + 1;
+  const endMonth = Math.max(0, (parseInt(eDate.slice(5, 7), 10) || 5) - 1);
+
+  return {
+    startDate: sDate,
+    endDate: eDate,
+    minMonth: sDate.slice(0, 7),
+    maxMonth: eDate.slice(0, 7),
+    startYear,
+    startMonth,
+    endYear,
+    endMonth,
+  };
+}
+
+export function getTargetMonthInAY(
+  desiredMonth0to11: number,
+  ayInfo: AcademicYearRangeInfo
+): { year: number; month: number; monthStr: string } {
+  const mStr = String(desiredMonth0to11 + 1).padStart(2, '0');
+
+  // Try start year
+  const candStart = `${ayInfo.startYear}-${mStr}`;
+  if (candStart >= ayInfo.minMonth && candStart <= ayInfo.maxMonth) {
+    return { year: ayInfo.startYear, month: desiredMonth0to11, monthStr: candStart };
+  }
+
+  // Try end year
+  const candEnd = `${ayInfo.endYear}-${mStr}`;
+  if (candEnd >= ayInfo.minMonth && candEnd <= ayInfo.maxMonth) {
+    return { year: ayInfo.endYear, month: desiredMonth0to11, monthStr: candEnd };
+  }
+
+  // Fallback to minMonth
+  return { year: ayInfo.startYear, month: ayInfo.startMonth, monthStr: ayInfo.minMonth };
+}
+
