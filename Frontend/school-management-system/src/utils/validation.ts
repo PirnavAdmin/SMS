@@ -613,8 +613,11 @@ function setGlobalInputError(input: HTMLInputElement | HTMLTextAreaElement, erro
     ? container.parentElement
     : container;
 
-  let errEl = (container.parentElement?.querySelector(':scope > [data-global-validation-error="true"]') ||
-               container.querySelector(':scope > [data-global-validation-error="true"]')) as HTMLElement | null;
+  const directSibling = (isIconWrapper ? container.nextElementSibling : input.nextElementSibling) as HTMLElement | null;
+  let errEl = (directSibling && directSibling.getAttribute('data-global-validation-error') === 'true')
+    ? directSibling
+    : (container.parentElement?.querySelector(':scope > [data-global-validation-error="true"]') ||
+       container.querySelector(':scope > [data-global-validation-error="true"]')) as HTMLElement | null;
 
   if (!error) {
     input.removeAttribute('data-global-invalid');
