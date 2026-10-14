@@ -199,7 +199,7 @@ export const AcademicDashboardView: React.FC<AcademicDashboardViewProps> = ({
                   <th className="py-3 px-3 text-center">Sections</th>
                   <th className="py-3 px-3 text-center">Students</th>
                   <th className="py-3 px-3 text-center">Status</th>
-                  <th className="py-3 px-4 text-right">Action</th>
+                  <th className="py-3 px-4 text-center">Action</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-semibold text-slate-700 dark:text-slate-300">
@@ -213,13 +213,15 @@ export const AcademicDashboardView: React.FC<AcademicDashboardViewProps> = ({
                         {item.status}
                       </Badge>
                     </td>
-                    <td className="py-3 px-4 text-right">
-                      <button 
-                        onClick={() => handleOpenClass(item.class.id, 'overview')}
-                        className="px-3 py-1.5 bg-slate-100 hover:bg-brand-600 text-slate-800 hover:text-white dark:bg-slate-800 dark:hover:bg-brand-600 dark:text-white dark:hover:text-white font-extrabold text-xs rounded-lg transition-all inline-flex items-center gap-1.5 shadow-2xs border border-slate-300 dark:border-slate-700 cursor-pointer"
-                      >
-                        {item.status === 'Draft' ? 'Continue' : 'Open'} <ArrowRight className="w-3.5 h-3.5 stroke-[2.5]" />
-                      </button>
+                    <td className="py-3 px-4 text-center">
+                      <div className="flex items-center justify-center">
+                        <button 
+                          onClick={() => handleOpenClass(item.class.id, 'overview')}
+                          className="px-3 py-1.5 bg-slate-100 hover:bg-brand-600 text-slate-800 hover:text-white dark:bg-slate-800 dark:hover:bg-brand-600 dark:text-white dark:hover:text-white font-extrabold text-xs rounded-lg transition-all inline-flex items-center justify-center gap-1.5 shadow-2xs border border-slate-300 dark:border-slate-700 cursor-pointer"
+                        >
+                          {item.status === 'Draft' ? 'Continue' : 'Open'} <ArrowRight className="w-3.5 h-3.5 stroke-[2.5]" />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
