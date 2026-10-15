@@ -108,7 +108,7 @@ export const HRProvider: React.FC<{ children: React.ReactNode }> = ({ children }
           empId: item.empId || item.employeeId,
           department: item.department || "Administration",
           designation: item.designation || "Staff",
-          branch: item.branch || "Main Campus",
+          branch: item.branch || "",
           employeeCategory: item.employeeCategory === "Teacher" ? "Teacher" : "Staff",
           leaveTypeId: item.leaveTypeId ? item.leaveTypeId.toString() : "1",
           leaveTypeName: item.leaveTypeName || "Leave",

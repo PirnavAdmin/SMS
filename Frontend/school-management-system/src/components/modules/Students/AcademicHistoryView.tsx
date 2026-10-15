@@ -16,7 +16,7 @@ export const AcademicHistoryView: React.FC = () => {
   const { addToast } = useToast();
 
   // Filters State
-  const [filterYear, setFilterYear] = useState<string>(selectedAcademicYear || '2025-2026');
+  const [filterYear, setFilterYear] = useState<string>(selectedAcademicYear || '');
   const [filterClass, setFilterClass] = useState<string>('All');
   const [filterSection, setFilterSection] = useState<string>('All');
   const [filterStatus, setFilterStatus] = useState<string>('All');
@@ -80,7 +80,7 @@ export const AcademicHistoryView: React.FC = () => {
 
       // Branch Filter
       if (filterBranch !== 'All') {
-        const recordBranch = history.branch || student.branch || 'Main Campus';
+        const recordBranch = history.branch || student.branch || selectedBranch || '';
         if (recordBranch.toLowerCase() !== filterBranch.toLowerCase()) return false;
       }
 

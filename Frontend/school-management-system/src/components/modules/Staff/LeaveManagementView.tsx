@@ -556,7 +556,7 @@ export const LeaveManagementView: React.FC = () => {
     }
 
     const availableBal = getAvailableBalance(employee, lType.name);
-    const empBranch = (employee as any).branch || (employee as any).branchId || selectedBranch || 'Main Campus';
+    const empBranch = (employee as any).branch || (employee as any).branchId || selectedBranch || '';
 
     const appData: Omit<LeaveApplication, 'id'> = {
       employeeId: employee.id,
@@ -781,7 +781,7 @@ export const LeaveManagementView: React.FC = () => {
       const address = schoolProfile?.address || 'Jain Sadguru Images Capital Park502B, Capital Pk Rd, VIP Hills, Madhapur, HITEC City, Hyderabad, Telangana 500081';
       const phone = schoolProfile?.phone || '+91 9123456789';
       const email = schoolProfile?.email || 'contact@pirnavschools.edu';
-      const academicYearStr = schoolProfile?.academicYear || '2026-2027';
+      const academicYearStr = schoolProfile?.academicYear || '';
 
       printWindow.document.write(`
         <html>
@@ -1405,7 +1405,7 @@ export const LeaveManagementView: React.FC = () => {
                   const remPaid = Math.max(0, (baseBal.paid || 0) - used.earned);
                   return (
                     <div className="p-2 bg-slate-50 dark:bg-slate-800/40 rounded-xl border border-slate-200 dark:border-slate-700 grid grid-cols-2 gap-x-3 gap-y-0.5 text-[10px]">
-                      <div><span className="text-slate-400">Branch:</span> <span className="font-bold">{(selectedStaffMember as any).branch || 'Main Campus'}</span></div>
+                      <div><span className="text-slate-400">Branch:</span> <span className="font-bold">{(selectedStaffMember as any).branch || '—'}</span></div>
                       <div><span className="text-slate-400">Department:</span> <span className="font-bold">{selectedStaffMember.department}</span></div>
                       <div><span className="text-slate-400">Designation:</span> <span className="font-bold">{selectedStaffMember.designation}</span></div>
                       <div className="col-span-2 pt-1 mt-0.5 border-t border-slate-200 dark:border-slate-700 text-brand-700 dark:text-brand-400 font-bold flex gap-3">
@@ -1921,7 +1921,7 @@ export const LeaveManagementView: React.FC = () => {
                 </div>
                 <div>
                   <label className="block font-semibold mb-1">Applicable Branch</label>
-                  <input type="text" name="branch" placeholder="e.g. Main Campus" defaultValue={editingHoliday?.branch || ''} className="w-full px-3 py-2 rounded-xl bg-slate-50 border outline-none" />
+                  <input type="text" name="branch" placeholder="e.g. Branch Name" defaultValue={editingHoliday?.branch || ''} className="w-full px-3 py-2 rounded-xl bg-slate-50 border outline-none" />
                 </div>
               </div>
 

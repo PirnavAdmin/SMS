@@ -937,8 +937,8 @@ export const AutoTimetableGeneratorModal: React.FC<AutoTimetableGeneratorModalPr
       if (backendSlots.length > 0 && bulkAddTimetableSlots) {
         const mappedSlots = backendSlots.map((s, idx) => ({
           id: s.id ? `TT-${s.id}` : `TT-GEN-${Date.now()}-${idx}`,
-          academicYear: academicYear || selectedAcademicYear || s.academicYear || '2026-2027',
-          branch: selectedBranch || (rawClasses && rawClasses[0]?.campusLocation) || 'Main Campus',
+          academicYear: academicYear || selectedAcademicYear || s.academicYear || '',
+          branch: selectedBranch || (rawClasses && rawClasses[0]?.campusLocation) || '',
           className: s.className || '',
           section: s.sectionName || s.section || 'A',
           day: (s.dayOfWeek || s.day || 'Monday') as any,
@@ -960,7 +960,7 @@ export const AutoTimetableGeneratorModal: React.FC<AutoTimetableGeneratorModalPr
         await Promise.all(
           formattedSelectedClasses.flatMap(c =>
             c.sections.map(sec =>
-              loadTimetableForClassSection(c.className, sec, academicYear || selectedAcademicYear || '2026-2027').catch(() => {})
+              loadTimetableForClassSection(c.className, sec, academicYear || selectedAcademicYear || '').catch(() => {})
             )
           )
         );

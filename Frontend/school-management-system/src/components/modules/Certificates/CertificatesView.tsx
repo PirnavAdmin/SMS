@@ -62,7 +62,7 @@ export const CertificatesView: React.FC<CertificatesViewProps> = ({ onNavigateTo
             className: tc.className || '',
             section: tc.section || '',
             academicYear: tc.academicYear || activeAY,
-            branch: tc.branch || 'Main Campus',
+            branch: tc.branch || '',
             issueDate: tc.issueDate || new Date().toISOString().split('T')[0],
             status: 'Issued',
             generatedBy: tc.generatedBy || 'Administrator',

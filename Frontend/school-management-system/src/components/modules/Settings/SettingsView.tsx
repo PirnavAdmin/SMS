@@ -936,14 +936,6 @@ export const SettingsView: React.FC = () => {
           ayRes?.success &&
           Array.isArray(ayRes.data)
         ) {
-          localStorage.setItem(
-            "edu_db_academic_years",
-            JSON.stringify(ayRes.data),
-          );
-          localStorage.setItem(
-            "academic_years",
-            JSON.stringify(ayRes.data),
-          );
           window.dispatchEvent(new Event("academic_years_updated"));
         }
       } catch (err) {
@@ -1158,7 +1150,7 @@ export const SettingsView: React.FC = () => {
 
     // Must contain numeric year representation or session/term identifier
     if (!/\d{2,4}/.test(trimmedAY) && !/(spring|summer|fall|winter|session|term|semester|batch)/i.test(trimmedAY)) {
-      const msg = "Please enter a valid academic session name (e.g. 2026–27 or 2026-2027).";
+      const msg = "Please enter a valid academic session name (e.g. YYYY–YY or YYYY-YYYY).";
       setAyErrors((prev) => ({ ...prev, academicYear: msg }));
       addToast("error", "Invalid Session Name", msg);
       return;
@@ -3196,7 +3188,7 @@ export const SettingsView: React.FC = () => {
                 <input
                   type="text"
                   required
-                  placeholder="e.g. 2026–27 or 2026-2027"
+                  placeholder="e.g. YYYY–YY or YYYY-YYYY"
                   value={ayForm.academicYear}
                   onChange={(e) => {
                     setAyForm({ ...ayForm, academicYear: e.target.value });
@@ -3320,7 +3312,7 @@ export const SettingsView: React.FC = () => {
                 </label>
                 <input
                   type="text"
-                  placeholder="e.g. Regular Academic Year 2026-2027"
+                  placeholder="e.g. Regular Academic Year"
                   value={ayForm.description}
                   onChange={(e) =>
                     setAyForm({ ...ayForm, description: e.target.value })

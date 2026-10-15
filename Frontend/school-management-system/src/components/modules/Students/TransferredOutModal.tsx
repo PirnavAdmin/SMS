@@ -3,6 +3,7 @@ import { X, ArrowUpRight, AlertCircle } from 'lucide-react';
 import { Student, TransferDetails } from '../../../types';
 import { useData } from '../../../context/DataContext';
 import { useToast } from '../../../context/ToastContext';
+import { useAuth } from '../../../context/AuthContext';
 
 interface TransferredOutModalProps {
   student: Student;
@@ -19,9 +20,10 @@ export const TransferredOutModal: React.FC<TransferredOutModalProps> = ({
 }) => {
   const { transferOutStudent } = useData();
   const { addToast } = useToast();
+  const { selectedAcademicYear } = useAuth();
 
   const [date, setDate] = useState<string>(new Date().toISOString().split('T')[0]);
-  const [lastAY, setLastAY] = useState<string>('2025-2026');
+  const [lastAY, setLastAY] = useState<string>(selectedAcademicYear || '');
   const [reason, setReason] = useState<string>('Moved to another city / institution');
   const [destinationSchool, setDestinationSchool] = useState<string>('Pirnav Educational Institutions');
   const [tcRequired, setTcRequired] = useState<boolean>(true);

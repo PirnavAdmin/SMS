@@ -54,7 +54,7 @@ export const StudentPromotionView: React.FC<StudentPromotionViewProps> = ({ onNa
     examSchedules = [],
     refreshExamData
   } = useData() as any;
-  const { selectedBranch } = useAuth();
+  const { selectedBranch, selectedAcademicYear } = useAuth();
   const { addToast } = useToast();
 
   const highestClass = getHighestClass();
@@ -65,7 +65,7 @@ export const StudentPromotionView: React.FC<StudentPromotionViewProps> = ({ onNa
     if (match) {
       const nextNum = parseInt(match[0], 10) + 1;
       const calculatedNext = currClass.replace(/\d+/, String(nextNum));
-      const found = academicClasses.find(c => c.name.toLowerCase() === calculatedNext.toLowerCase());
+      const found = (academicClasses || []).find((c: any) => c.name.toLowerCase() === calculatedNext.toLowerCase());
       return found ? found.name : calculatedNext;
     }
     if (currClass.toLowerCase() === 'nursery') return 'LKG';
@@ -82,17 +82,18 @@ export const StudentPromotionView: React.FC<StudentPromotionViewProps> = ({ onNa
       const end = parseInt(match[2], 10) + 1;
       return `${start}-${end}`;
     }
-    return '2027-2028';
+    const curr = new Date().getFullYear();
+    return `${curr + 1}-${curr + 2}`;
   };
 
   // Filter States
-  const [currentYear, setCurrentYear] = useState<string>('2026-2027');
-  const [targetYear, setTargetYear] = useState<string>('2027-2028');
-  const [branch, setBranch] = useState<string>(selectedBranch || 'Main Campus');
+  const [currentYear, setCurrentYear] = useState<string>(selectedAcademicYear || (academicYears[0]?.year || ''));
+  const [targetYear, setTargetYear] = useState<string>(() => getTargetYearFromCurrent(selectedAcademicYear || (academicYears[0]?.year || '')));
+  const [branch, setBranch] = useState<string>(selectedBranch && selectedBranch !== 'All' ? selectedBranch : '');
   const [fromClass, setFromClass] = useState<string>('');
   const [selectedExamId, setSelectedExamId] = useState<string>('');
 
-  const effectiveBranch = selectedBranch || branch || 'Main Campus';
+  const effectiveBranch = selectedBranch || branch || '';
 
   // Synchronize branch from global AuthContext
   useEffect(() => {
@@ -123,6 +124,7 @@ export const StudentPromotionView: React.FC<StudentPromotionViewProps> = ({ onNa
           id: String(e.examId || e.id || ''),
           name: e.examName || e.name || '',
           examName: e.examName || e.name || '',
+          className: e.className || (Array.isArray(e.applicableClasses) ? e.applicableClasses[0] : '') || '',
           term: e.academicTerm || e.term || 'Term 1',
           academicTerm: e.academicTerm || e.term || 'Term 1',
           startDate: e.startDate || '',
@@ -130,11 +132,11 @@ export const StudentPromotionView: React.FC<StudentPromotionViewProps> = ({ onNa
           classes: Array.isArray(e.applicableClasses) ? e.applicableClasses : (Array.isArray(e.classes) ? e.classes : []),
           applicableClasses: Array.isArray(e.applicableClasses) ? e.applicableClasses : (Array.isArray(e.classes) ? e.classes : []),
           status: e.status || 'Scheduled',
-          academicYear: e.academicYear || currentYear || '2026-2027',
+          academicYear: e.academicYear || currentYear || selectedAcademicYear || '',
           assessmentType: e.assessmentType || e.examType || 'Main Exam',
           examType: e.assessmentType || e.examType || 'Main Exam',
           displayText: e.displayText || ''
-        }));
+        } as unknown as ExamSetup));
         setDynamicExams(mapped);
       }
     } catch (err) {
@@ -153,14 +155,14 @@ export const StudentPromotionView: React.FC<StudentPromotionViewProps> = ({ onNa
     const map = new Map<string, ExamSetup>();
 
     // 1. Dynamic exams fetched directly from Examination module API
-    (dynamicExams || []).forEach(e => {
+    (dynamicExams || []).forEach((e: any) => {
       if (e && e.id) {
         map.set(String(e.id), e);
       }
     });
 
     // 2. DataContext & ExaminationContext exams
-    (exams || []).forEach(e => {
+    (exams || []).forEach((e: any) => {
       if (e && e.id) {
         const idKey = String(e.id);
         const existing = map.get(idKey);
@@ -193,7 +195,7 @@ export const StudentPromotionView: React.FC<StudentPromotionViewProps> = ({ onNa
           status: 'Scheduled',
           applicableClasses: s.className ? [s.className] : [],
           classes: s.className ? [s.className] : []
-        } as ExamSetup);
+        } as unknown as ExamSetup);
       }
     });
 
@@ -208,7 +210,7 @@ export const StudentPromotionView: React.FC<StudentPromotionViewProps> = ({ onNa
           status: 'Published',
           applicableClasses: pr.className ? [pr.className] : [],
           classes: pr.className ? [pr.className] : []
-        } as ExamSetup);
+        } as unknown as ExamSetup);
       }
     });
 
@@ -391,18 +393,17 @@ export const StudentPromotionView: React.FC<StudentPromotionViewProps> = ({ onNa
     const calculatedNextClass = isHighestClass ? fromClass : getNextClassName(fromClass);
 
     // Filter active students for selected class and current academic year using robust class matching
-    const matchedStudents = students.filter(s => {
+    const matchedStudents = (students || []).filter((s: any) => {
       if (s.status !== 'Active' && s.status !== 'Promoted') return false;
 
       const matchClass = matchesClassName(s.className, fromClass);
       if (!matchClass) return false;
 
       // Academic Year Validation
-      const studentYear = (s as any).academicYear || '2026-2027';
-      if (currentYear === '2026-2027') {
-        return studentYear === '2026-2027' || !(s as any).academicYear || studentYear === '2025-2026';
-      } else {
-        const matchesHistory = s.promotionHistory?.some(h => h.academicYear === currentYear && matchesClassName(h.fromClass, fromClass));
+      const studentYear = (s as any).academicYear || selectedAcademicYear || '';
+      if (!currentYear) return true;
+      {
+        const matchesHistory = s.promotionHistory?.some((h: any) => h.academicYear === currentYear && matchesClassName(h.fromClass, fromClass));
         const matchesCurrent = studentYear === currentYear;
         return Boolean(matchesHistory || matchesCurrent);
       }
@@ -433,7 +434,7 @@ export const StudentPromotionView: React.FC<StudentPromotionViewProps> = ({ onNa
       section: string;
       promotionHistory?: any[];
       reportCard?: any;
-    }> = matchedStudents.map(s => ({
+    }> = matchedStudents.map((s: any) => ({
       id: String(s.id),
       admissionNo: s.admissionNo,
       rollNo: s.rollNo,
@@ -504,10 +505,10 @@ export const StudentPromotionView: React.FC<StudentPromotionViewProps> = ({ onNa
 
     // Verify if this specific examination has published results
     const hasExamInProcessed = (processedResults || []).some(
-      pr => (String(pr.examId) === String(selectedExamId) || (pr.examName && currentExam?.name && pr.examName.trim().toLowerCase() === currentExam.name.trim().toLowerCase())) && matchesClassName(pr.className, fromClass)
+      (pr: any) => (String(pr.examId) === String(selectedExamId) || (pr.examName && currentExam?.name && pr.examName.trim().toLowerCase() === currentExam.name.trim().toLowerCase())) && matchesClassName(pr.className, fromClass)
     );
     const hasExamInMarks = (examMarks || []).some(
-      m => (String(m.examId) === String(selectedExamId) || (m.examName && currentExam?.name && m.examName.trim().toLowerCase() === currentExam.name.trim().toLowerCase())) && (!m.className || matchesClassName(m.className, fromClass))
+      (m: any) => (String(m.examId) === String(selectedExamId) || (m.examName && currentExam?.name && m.examName.trim().toLowerCase() === currentExam.name.trim().toLowerCase())) && (!m.className || matchesClassName(m.className, fromClass))
     );
     const hasReportCards = relevantReportCards.length > 0;
 
@@ -565,7 +566,7 @@ export const StudentPromotionView: React.FC<StudentPromotionViewProps> = ({ onNa
 
       // 3. Check DataContext processedResults for THIS SELECTED EXAMINATION ONLY
       if (!hasFoundResult) {
-        const stProcessed = (processedResults || []).filter(pr =>
+        const stProcessed = (processedResults || []).filter((pr: any) =>
           (String(pr.examId) === String(selectedExamId) || (pr.examName && currentExam?.name && pr.examName.trim().toLowerCase() === currentExam.name.trim().toLowerCase())) &&
           String(pr.studentId) === studentIdStr &&
           (!pr.className || matchesClassName(pr.className, fromClass))
@@ -581,17 +582,17 @@ export const StudentPromotionView: React.FC<StudentPromotionViewProps> = ({ onNa
 
       // 4. Check DataContext examMarks for THIS SELECTED EXAMINATION ONLY
       if (!hasFoundResult) {
-        const stMarks = (examMarks || []).filter(m =>
+        const stMarks = (examMarks || []).filter((m: any) =>
           (String(m.examId) === String(selectedExamId) || (m.examName && currentExam?.name && m.examName.trim().toLowerCase() === currentExam.name.trim().toLowerCase())) &&
           String(m.studentId) === studentIdStr &&
           (!m.className || matchesClassName(m.className, fromClass))
         );
         if (stMarks.length > 0) {
           hasFoundResult = true;
-          const totalObtained = stMarks.reduce((sum, m) => sum + (Number(m.marksObtained) || 0), 0);
-          const totalMax = stMarks.reduce((sum, m) => sum + (Number(m.totalMarks || m.maxMarks) || 100), 0);
+          const totalObtained = stMarks.reduce((sum: number, m: any) => sum + (Number(m.marksObtained) || 0), 0);
+          const totalMax = stMarks.reduce((sum: number, m: any) => sum + (Number(m.totalMarks || m.maxMarks) || 100), 0);
           basePct = totalMax > 0 ? Math.round((totalObtained / totalMax) * 100) : 0;
-          const hasFailedSub = stMarks.some(m => m.isAbsent || (m.marksObtained || 0) < (m.passMarks || 35));
+          const hasFailedSub = stMarks.some((m: any) => m.isAbsent || (m.marksObtained || 0) < (m.passMarks || 35));
           finalResult = (hasFailedSub || basePct < 35) ? 'FAIL' : 'PASS';
         }
       }
@@ -977,7 +978,7 @@ export const StudentPromotionView: React.FC<StudentPromotionViewProps> = ({ onNa
     const sampleTargetClass = promotionRows[0]?.newClass;
     if (!sampleTargetClass) return null;
     
-    const hasFeeStructure = feeStructures?.some(f => 
+    const hasFeeStructure = feeStructures?.some((f: any) => 
       f.className.toLowerCase() === sampleTargetClass.toLowerCase() && 
       (f.academicYear === targetYear || !f.academicYear)
     );
@@ -1034,7 +1035,7 @@ export const StudentPromotionView: React.FC<StudentPromotionViewProps> = ({ onNa
         remarks: row.remarks
       };
 
-      const existingStudent = students.find(s => s.id === row.id);
+      const existingStudent = (students || []).find((s: any) => s.id === row.id);
       const updatedHistory = [...(existingStudent?.promotionHistory || []), historyItem];
 
       // 1. History record for completed year (currentYear)
@@ -1182,9 +1183,10 @@ export const StudentPromotionView: React.FC<StudentPromotionViewProps> = ({ onNa
               }}
               className="w-full px-3.5 py-2.5 rounded-2xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-brand-500/20 cursor-pointer"
             >
-              <option value="2026-2027">2026-2027 (Current)</option>
-              <option value="2025-2026">2025-2026 (Previous Year)</option>
-              <option value="2024-2025">2024-2025 (Previous Year)</option>
+              {academicYears.map((ay: any) => {
+                const yr = typeof ay === "string" ? ay : ay.year || ay.academicYear || "";
+                return <option key={yr} value={yr}>{yr}{yr === selectedAcademicYear ? " (Current)" : ""}</option>;
+              })}
             </select>
           </div>
 
@@ -1202,8 +1204,10 @@ export const StudentPromotionView: React.FC<StudentPromotionViewProps> = ({ onNa
               className="w-full px-3.5 py-2.5 rounded-2xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-brand-500/20 cursor-pointer"
             >
               <option value="2027-2028">2027-2028 (Next Year)</option>
-              <option value="2026-2027">2026-2027</option>
-              <option value="2028-2029">2028-2029 (Upcoming)</option>
+              {academicYears.map((ay: any) => {
+                const yr = typeof ay === "string" ? ay : ay.year || ay.academicYear || "";
+                return <option key={yr} value={yr}>{yr}</option>;
+              })}
             </select>
           </div>
 
@@ -1224,7 +1228,7 @@ export const StudentPromotionView: React.FC<StudentPromotionViewProps> = ({ onNa
               className="w-full px-3.5 py-2.5 rounded-2xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-brand-500/20 cursor-pointer"
             >
               <option value="">Select Class</option>
-              {academicClasses.map(c => (
+              {(academicClasses || []).map((c: any) => (
                 <option key={c.id} value={c.name}>
                   {c.name} {c.name === highestClass ? '(Terminal Class)' : ''}
                 </option>

@@ -61,7 +61,7 @@ export const FeeScheduleView: React.FC = () => {
   const [activeAY, setActiveAY] = useState<string>('');
 
   useEffect(() => {
-    setActiveAY(selectedAcademicYear || financeSettings?.academicYear || '2026-2027');
+    setActiveAY(selectedAcademicYear || financeSettings?.academicYear || '');
   }, [selectedAcademicYear, financeSettings]);
 
   // Find source-of-truth Academic Year configuration

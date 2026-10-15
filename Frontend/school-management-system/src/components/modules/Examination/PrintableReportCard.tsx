@@ -338,7 +338,7 @@ export const PrintableReportCard: React.FC<PrintableReportCardProps> = ({
             {schoolProfile.name || 'Pirnav Educational Institutions'}
           </h1>
           <p className="text-[11px] text-slate-600 dark:text-slate-300 font-bold max-w-xl mx-auto leading-tight">
-            {schoolProfile.address || 'Jain Sadguru Images Capital Park502B, Capital Pk Rd, VIP Hills, Madhapur, HITEC City, Hyderabad, Telangana 500081'}
+            {schoolProfile.address || ''}
           </p>
           <p className="text-[10px] text-slate-500 font-bold">
             Ph: {schoolProfile.phone || '+91 9123456789'} • Email: {schoolProfile.email || 'contact@pirnavschools.edu'}

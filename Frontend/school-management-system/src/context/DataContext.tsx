@@ -234,9 +234,9 @@ export function normalizeToISODate(dateStr?: string | null): string {
 }
 
 export function normalizeAcademicYear(dateOrAy?: string | null): string {
-  if (!dateOrAy || typeof dateOrAy !== "string") return "2026-2027";
+  if (!dateOrAy || typeof dateOrAy !== "string") return "";
   const trimmed = dateOrAy.trim();
-  if (!trimmed) return "2026-2027";
+  if (!trimmed) return "";
   const match = trimmed.match(/^(\d{4})[-/](\d{2,4})$/);
   if (match) {
     const startYear = parseInt(match[1], 10);
@@ -1399,227 +1399,15 @@ const initialFinancialAccounts: FinancialAccount[] = [];
 const initialFinancialCategories: FinancialCategory[] = [];
 
 const initialFinancialBudgets: FinancialBudget[] = [];
-const initialAlumniRecords: AlumniRecord[] = [
-  {
-    id: "ALM-101",
-    studentId: "STD-1001",
-    admissionNo: "ADM-2022-089",
-    studentName: "Rohan Deshmukh",
-    avatar:
-      "https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=150&auto=format&fit=crop&q=80",
-    batch: "Class of 2025",
-    completionAcademicYear: "2024-2025",
-    finalClass: "Class 12",
-    finalSection: "A",
-    completionDate: "2025-05-20",
-    currentStatus: "Higher Studies",
-    higherEducationDetail: "IIT Madras (B.Tech Computer Science)",
-    contactPhone: "9876543210",
-    contactEmail: "rohan.deshmukh@gmail.com",
-    parentName: "Sanjay Deshmukh",
-    branch: "Main Campus",
-    createdDate: "2025-05-20",
-  },
-  {
-    id: "ALM-102",
-    studentId: "STD-1002",
-    admissionNo: "ADM-2022-094",
-    studentName: "Ananya Verma",
-    avatar:
-      "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80",
-    batch: "Class of 2025",
-    completionAcademicYear: "2024-2025",
-    finalClass: "Class 12",
-    finalSection: "B",
-    completionDate: "2025-05-20",
-    currentStatus: "Working",
-    organizationCompany: "Software Engineer @ Microsoft India",
-    contactPhone: "9876543211",
-    contactEmail: "ananya.verma@gmail.com",
-    parentName: "Vikram Verma",
-    branch: "Main Campus",
-    createdDate: "2025-05-20",
-  },
-  {
-    id: "ALM-103",
-    studentId: "STD-1003",
-    admissionNo: "ADM-2021-045",
-    studentName: "Karthik Raja",
-    avatar:
-      "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80",
-    batch: "Class of 2024",
-    completionAcademicYear: "2023-2024",
-    finalClass: "Class 12",
-    finalSection: "A",
-    completionDate: "2024-05-18",
-    currentStatus: "Competitive Exams",
-    higherEducationDetail: "UPSC Civil Services Aspirant",
-    contactPhone: "9876543212",
-    contactEmail: "karthik.raja@gmail.com",
-    parentName: "Ramanathan Raja",
-    branch: "Main Campus",
-    createdDate: "2024-05-18",
-  },
-];
+const initialAlumniRecords: AlumniRecord[] = [];
 
 const initialSchoolEvents: SchoolEvent[] = [];
 
-const initialWorkshops: WorkshopTraining[] = [
-  {
-    id: "WKS-101",
-    workshopName: "AI & Machine Learning Tools in Modern Education",
-    category: "AI Training",
-    type: "Internal",
-    trainerName: "Dr. Vikramaditya Sharma",
-    organization: "EdTech Innovations Institute",
-    branch: "Main Campus",
-    department: "Academics",
-    applicableDesignation: "All Teaching Staff",
-    venue: "Smart Audio-Visual Lab 1",
-    startDate: "2026-08-10",
-    endDate: "2026-08-11",
-    startTime: "09:30 AM",
-    endTime: "03:30 PM",
-    capacity: 40,
-    description:
-      "Hands-on workshop on leveraging Generative AI, lesson planning tools, automated assessment creators, and interactive student engagement platforms.",
-    attachments: [
-      { id: "ATT-W1", name: "AI_Tools_Handbook.pdf", url: "#", type: "PDF" },
-    ],
-    status: "Scheduled",
-    attendancePct: 95,
-    participants: [
-      {
-        employeeId: "STF-101",
-        employeeName: "Rajesh Sharma",
-        employeeRole: "Teaching Staff",
-        department: "Mathematics",
-        designation: "Senior PGT Teacher",
-        branch: "Main Campus",
-        attendanceStatus: "Present",
-        certificateIssued: true,
-        certificateNo: "CERT-2026-101",
-      },
-      {
-        employeeId: "STF-102",
-        employeeName: "Ananya Roy",
-        employeeRole: "Teaching Staff",
-        department: "Science",
-        designation: "TGT Teacher",
-        branch: "Main Campus",
-        attendanceStatus: "Present",
-        certificateIssued: true,
-        certificateNo: "CERT-2026-102",
-      },
-    ],
-  },
-  {
-    id: "WKS-102",
-    workshopName: "POCSO & Child Safety Awareness Training",
-    category: "POCSO Awareness",
-    type: "External",
-    trainerName: "Adv. Meenakshi Sundaram",
-    organization: "National Child Rights & Protection Forum",
-    branch: "Main Campus",
-    department: "Administration",
-    applicableDesignation: "All Staff",
-    venue: "Main Auditorium",
-    startDate: "2026-08-25",
-    endDate: "2026-08-25",
-    startTime: "10:00 AM",
-    endTime: "01:00 PM",
-    capacity: 100,
-    description:
-      "Mandatory workshop on POCSO Act guidelines, identifying behavioral indicators, emergency protocols, and institutional reporting procedures.",
-    attachments: [],
-    status: "Scheduled",
-    attendancePct: 100,
-    participants: [],
-  },
-];
+const initialWorkshops: WorkshopTraining[] = [];
 
-const initialEmployeeAssessments: EmployeeAssessment[] = [
-  {
-    id: "ASM-201",
-    assessmentName: "Digital Pedagogy & Smart Classroom Skills Assessment",
-    assessmentType: "Digital Skills Test",
-    department: "Academics",
-    applicableDesignation: "Teaching Staff",
-    branch: "Main Campus",
-    date: "2026-08-18",
-    durationMinutes: 60,
-    totalMarks: 100,
-    passingMarks: 70,
-    instructions:
-      "Comprehensive test covering interactive whiteboard usage, digital lesson design, online quiz creation, and LMS management.",
-    evaluatorName: "Academic Director (Prof. V. K. Mehta)",
-    status: "Evaluated",
-    results: [
-      {
-        employeeId: "STF-101",
-        employeeName: "Rajesh Sharma",
-        department: "Mathematics",
-        designation: "Senior PGT Teacher",
-        branch: "Main Campus",
-        marksObtained: 92,
-        totalMarks: 100,
-        percentage: 92,
-        grade: "A+",
-        result: "Pass",
-        evaluatorRemarks:
-          "Exceptional digital skills and interactive quiz integration.",
-        certificateIssued: true,
-        certificateNo: "CERT-2026-201",
-      },
-      {
-        employeeId: "STF-102",
-        employeeName: "Ananya Roy",
-        department: "Science",
-        designation: "TGT Teacher",
-        branch: "Main Campus",
-        marksObtained: 85,
-        totalMarks: 100,
-        percentage: 85,
-        grade: "A",
-        result: "Pass",
-        evaluatorRemarks: "Great proficiency in smart board animations.",
-        certificateIssued: true,
-        certificateNo: "CERT-2026-202",
-      },
-    ],
-  },
-];
+const initialEmployeeAssessments: EmployeeAssessment[] = [];
 
-const initialIssuedCertificates: IssuedCertificate[] = [
-  {
-    id: "CRT-301",
-    certificateNumber: "CERT-2026-101",
-    programType: "Workshop",
-    programName: "AI & Machine Learning Tools in Modern Education",
-    employeeId: "STF-101",
-    employeeName: "Rajesh Sharma",
-    department: "Mathematics",
-    designation: "Senior PGT Teacher",
-    branch: "Main Campus",
-    completionDate: "2026-08-11",
-    issuedBy: "Pirnav Schools Professional Development Cell",
-    status: "Issued",
-  },
-  {
-    id: "CRT-302",
-    certificateNumber: "CERT-2026-201",
-    programType: "Assessment",
-    programName: "Digital Pedagogy & Smart Classroom Skills Assessment",
-    employeeId: "STF-101",
-    employeeName: "Rajesh Sharma",
-    department: "Mathematics",
-    designation: "Senior PGT Teacher",
-    branch: "Main Campus",
-    completionDate: "2026-08-18",
-    issuedBy: "Pirnav Schools Academic Council",
-    status: "Issued",
-  },
-];
+const initialIssuedCertificates: IssuedCertificate[] = [];
 
 const DataContext = createContext<DataContextType | undefined>(undefined);
 
@@ -1663,9 +1451,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     }
     return profile;
   });
-  const [academicYears, setAcademicYears] = useState<AcademicYearMaster[]>(() =>
-    getStored("academic_years", []),
-  );
+  const [academicYears, setAcademicYears] = useState<AcademicYearMaster[]>([]);
   const [branches, setBranches] = useState<any[]>([]);
   const [certificateTemplates, setCertificateTemplates] = useState<
     CertificateTemplateConfig[]
@@ -1757,7 +1543,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     if (!localStorage.getItem(versionKey)) {
       const cleaned = (stored || []).filter((p) => {
         if (!p) return false;
-        if (p.studentId === "1204" || p.receiptNo === "REC-2026-3912" || p.id === "3912") return false;
+        if (p.studentId === "1204" || p.id === "3912") return false;
         if (!p.studentName || p.studentName.startsWith("Student #")) return false;
         const notesLower = (p.notes || "").toLowerCase();
         const recLower = (p.receiptNo || "").toLowerCase();
@@ -2246,9 +2032,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
             a.studentName ||
             "",
           admissionNo: student?.admissionNo || a.admissionNo || a.studentId || "",
-          branch: student?.branch || a.branch || "Main Campus",
+          branch: student?.branch || a.branch || selectedBranch || "",
           academicYear:
-            (student as any)?.academicYear || a.academicYear || "2026-2027",
+            (student as any)?.academicYear || a.academicYear || selectedAcademicYear || "",
           className: student?.className || a.className || "",
           section: student?.section || a.section || "",
           feeStructureId:
@@ -2441,165 +2227,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     };
   }
 
-  // Academic Year Fee Schedules State
   const [academicYearFeeSchedules, setAcademicYearFeeSchedules] = useState<
     AcademicYearFeeSchedule[]
-  >(() => {
-    const stored = getStored<AcademicYearFeeSchedule[]>(
-      "academic_year_fee_schedules",
-      [],
-    );
-    const version = localStorage.getItem("edu_db_schedules_v64");
-    if (!version || stored.length < 3 || !stored[0]?.monthlyConfig) {
-      localStorage.setItem("edu_db_schedules_v64", "true");
-      const seeded: AcademicYearFeeSchedule[] = [
-        {
-          id: "SCH-2026-2027",
-          academicYear: "2026-2027",
-          numberOfTerms: 4,
-          status: "Active",
-          monthlyConfig: buildDefaultMonthlyConfig("2026-2027", 10),
-          annualDueDate: "2026-04-15",
-          oneTimeDueDate: "2026-04-15",
-          terms: [
-            {
-              id: "T1-2026-2027",
-              termName: "Term 1",
-              startDate: "2026-04-01",
-              endDate: "2026-06-30",
-              dueDate: "2026-04-15",
-              sequence: 1,
-              status: "Active",
-            },
-            {
-              id: "T2-2026-2027",
-              termName: "Term 2",
-              startDate: "2026-07-01",
-              endDate: "2026-09-30",
-              dueDate: "2026-07-15",
-              sequence: 2,
-              status: "Active",
-            },
-            {
-              id: "T3-2026-2027",
-              termName: "Term 3",
-              startDate: "2026-10-01",
-              endDate: "2026-12-31",
-              dueDate: "2026-10-15",
-              sequence: 3,
-              status: "Active",
-            },
-            {
-              id: "T4-2026-2027",
-              termName: "Term 4",
-              startDate: "2027-01-01",
-              endDate: "2027-03-31",
-              dueDate: "2027-01-15",
-              sequence: 4,
-              status: "Active",
-            },
-          ],
-        },
-        {
-          id: "SCH-2025-2026",
-          academicYear: "2025-2026",
-          numberOfTerms: 4,
-          status: "Active",
-          monthlyConfig: buildDefaultMonthlyConfig("2025-2026", 10),
-          annualDueDate: "2025-04-15",
-          oneTimeDueDate: "2025-04-15",
-          terms: [
-            {
-              id: "T1-2025-2026",
-              termName: "Term 1",
-              startDate: "2025-04-01",
-              endDate: "2025-06-30",
-              dueDate: "2025-04-15",
-              sequence: 1,
-              status: "Active",
-            },
-            {
-              id: "T2-2025-2026",
-              termName: "Term 2",
-              startDate: "2025-07-01",
-              endDate: "2025-09-30",
-              dueDate: "2025-07-15",
-              sequence: 2,
-              status: "Active",
-            },
-            {
-              id: "T3-2025-2026",
-              termName: "Term 3",
-              startDate: "2025-10-01",
-              endDate: "2025-12-31",
-              dueDate: "2025-10-15",
-              sequence: 3,
-              status: "Active",
-            },
-            {
-              id: "T4-2025-2026",
-              termName: "Term 4",
-              startDate: "2026-01-01",
-              endDate: "2026-03-31",
-              dueDate: "2026-01-15",
-              sequence: 4,
-              status: "Active",
-            },
-          ],
-        },
-        {
-          id: "SCH-2024-2025",
-          academicYear: "2024-2025",
-          numberOfTerms: 4,
-          status: "Active",
-          terms: [
-            {
-              id: "T1-2024-2025",
-              termName: "Term 1",
-              startDate: "2024-04-01",
-              endDate: "2024-06-30",
-              dueDate: "2024-06-15",
-              sequence: 1,
-              status: "Active",
-            },
-            {
-              id: "T2-2024-2025",
-              termName: "Term 2",
-              startDate: "2024-07-01",
-              endDate: "2024-09-30",
-              dueDate: "2024-09-15",
-              sequence: 2,
-              status: "Active",
-            },
-            {
-              id: "T3-2024-2025",
-              termName: "Term 3",
-              startDate: "2024-10-01",
-              endDate: "2024-12-31",
-              dueDate: "2024-12-15",
-              sequence: 3,
-              status: "Active",
-            },
-            {
-              id: "T4-2024-2025",
-              termName: "Term 4",
-              startDate: "2025-01-01",
-              endDate: "2025-03-31",
-              dueDate: "2025-03-15",
-              sequence: 4,
-              status: "Active",
-            },
-          ],
-        },
-      ];
-      localStorage.setItem(
-        "academic_year_fee_schedules",
-        JSON.stringify(seeded),
-      );
-      return seeded;
-    }
-    return stored;
-  });
+  >([]);
 
   // Student Fee Installments State
   const [studentFeeInstallments, setStudentFeeInstallments] = useState<
@@ -2705,10 +2335,6 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         setSelectedAcademicYear(newAY.academicYear);
       }
       const next = [...updated, newAY];
-      try {
-        localStorage.setItem("edu_db_academic_years", JSON.stringify(next));
-        localStorage.setItem("academic_years", JSON.stringify(next));
-      } catch (e) {}
       window.dispatchEvent(new Event("academic_years_updated"));
       return next;
     });
@@ -2739,10 +2365,6 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         );
         if (target) setSelectedAcademicYear(target.academicYear);
       }
-      try {
-        localStorage.setItem("edu_db_academic_years", JSON.stringify(updated));
-        localStorage.setItem("academic_years", JSON.stringify(updated));
-      } catch (e) {}
       window.dispatchEvent(new Event("academic_years_updated"));
       return updated;
     });
@@ -2757,10 +2379,6 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   const deleteAcademicYear = async (id: string) => {
     setAcademicYears((prev) => {
       const next = prev.filter((a) => a.id !== id);
-      try {
-        localStorage.setItem("edu_db_academic_years", JSON.stringify(next));
-        localStorage.setItem("academic_years", JSON.stringify(next));
-      } catch (e) {}
       window.dispatchEvent(new Event("academic_years_updated"));
       return next;
     });
@@ -2794,10 +2412,6 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         isCurrentAcademicYear: a.id === id,
         status: (a.id === id ? "Active" : a.status === "Active" ? "Closed" : a.status) as ("Upcoming" | "Active" | "Closed"),
       }));
-      try {
-        localStorage.setItem("edu_db_academic_years", JSON.stringify(next));
-        localStorage.setItem("academic_years", JSON.stringify(next));
-      } catch (e) {}
       window.dispatchEvent(new Event("academic_years_updated"));
       return next;
     });
@@ -2806,42 +2420,25 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   useEffect(() => {
     localStorage.setItem("edu_db_profile", JSON.stringify(schoolProfile));
   }, [schoolProfile]);
-  useEffect(() => {
-    localStorage.setItem(
-      "edu_db_academic_years",
-      JSON.stringify(academicYears),
-    );
-  }, [academicYears]);
+
   useEffect(() => {
     const syncAcademicYearsFromApi = async () => {
       try {
         const res: any = await fetchAcademicYearsApi();
         if (res?.success && Array.isArray(res.data)) {
           setAcademicYears(res.data);
-          localStorage.setItem("edu_db_academic_years", JSON.stringify(res.data));
-          localStorage.setItem("academic_years", JSON.stringify(res.data));
         }
       } catch {}
     };
     syncAcademicYearsFromApi();
 
     const handleAYUpdate = () => {
-      try {
-        const stored = localStorage.getItem("edu_db_academic_years") || localStorage.getItem("academic_years");
-        if (stored) {
-          const parsed = JSON.parse(stored);
-          if (Array.isArray(parsed)) {
-            setAcademicYears(parsed);
-          }
-        }
-      } catch {}
+      syncAcademicYearsFromApi();
     };
     window.addEventListener("academic_years_updated", handleAYUpdate);
-    window.addEventListener("storage", handleAYUpdate);
 
     return () => {
       window.removeEventListener("academic_years_updated", handleAYUpdate);
-      window.removeEventListener("storage", handleAYUpdate);
     };
   }, []);
   useEffect(() => {
@@ -3450,7 +3047,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
                 : item.stock <= 10
                   ? "Low Stock"
                   : "In Stock",
-            branch: selectedBranch || "Main Campus",
+            branch: selectedBranch || "",
           } as any);
         }
       });
@@ -4406,8 +4003,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           id: ta.id
             ? String(ta.id)
             : `TA-${Math.floor(100 + Math.random() * 900)}`,
-          academicYear: ta.academicYear || "2026-2027",
-          branch: ta.branch || "Main Campus",
+          academicYear: ta.academicYear || selectedAcademicYear || "",
+          branch: ta.branch || selectedBranch || "",
           className: ta.className || "",
           section: ta.section || "A",
           subject: ta.subject || "",
@@ -4460,8 +4057,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
             id: ta.id
               ? String(ta.id)
               : `TA-${Math.floor(100 + Math.random() * 900)}`,
-            academicYear: ta.academicYear || "2026-2027",
-            branch: ta.branch || "Main Campus",
+            academicYear: ta.academicYear || selectedAcademicYear || "",
+            branch: ta.branch || selectedBranch || "",
             className: ta.className || "",
             section: ta.section || "A",
             subject: ta.subject || "",
@@ -4813,7 +4410,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
             roomNo: item.roomNo || "",
             academicYear: item.academicYear || selectedAcademicYear || "",
             status: item.status || "Draft",
-            branch: item.branch || selectedBranch || "Main Campus",
+            branch: item.branch || selectedBranch || "",
           };
         });
 
@@ -5276,9 +4873,10 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
                   item.qualifications || existing?.qualifications || [],
                 experienceRecords:
                   item.experienceRecords || existing?.experienceRecords || [],
-                documents: item.documents || existing?.documents || [],
-                branch: item.branchName || item.branch || existing?.branch || "Main Campus",
-              });
+                avatar: item.avatar || existing?.avatar || "",
+                leaveBalance: existing?.leaveBalance || [],
+                branch: item.branchName || item.branch || existing?.branch || "",
+              } as unknown as Staff);
             }
             return mappedStaff;
           });
@@ -5617,7 +5215,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
             categoryName: c.categoryName || c.name || '',
             description: c.description || '',
             createdAt: c.createdAt || new Date().toISOString(),
-            branch: c.branch || selectedBranch || "Main Campus"
+            branch: c.branch || selectedBranch || ""
           }));
           setUniformCategories((prev) => {
             const apiIds = new Set(normalizedCats.map((c) => c.id));
@@ -5636,7 +5234,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
             ageGroup: s.ageBracket || s.ageGroup || '',
             gender: s.gender || 'Unisex',
             createdAt: s.createdAt || new Date().toISOString(),
-            branch: s.branch || selectedBranch || "Main Campus"
+            branch: s.branch || selectedBranch || ""
           }));
           setUniformSizes((prev) => {
             const apiIds = new Set(normalizedSizes.map((s) => s.id));
@@ -5657,7 +5255,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
             address: s.address || s.warehouseAddress || '',
             status: s.status || 'Active',
             createdAt: s.createdAt || new Date().toISOString(),
-            branch: s.branch || selectedBranch || "Main Campus"
+            branch: s.branch || selectedBranch || ""
           }));
           setUniformSuppliers((prev) => {
             const apiIds = new Set(normalizedSuppliers.map((s) => s.id));
@@ -5708,8 +5306,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
               ? new Date(d.distributionDate).toISOString().split("T")[0]
               : d.issueDate || new Date().toISOString().split("T")[0],
             status: d.status || "Issued",
-            academicYear: d.academicYear || "2026-2027",
-            branch: d.branch || selectedBranch || "Main Campus",
+            academicYear: d.academicYear || selectedAcademicYear || "",
+            branch: d.branch || selectedBranch || "",
             notes: d.notes || d.actionRemarks || "",
             type:
               (d.type === "Base Package" ||
@@ -5913,7 +5511,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           FinanceAPI.fetchFinancialAccountsApi(),
           FinanceAPI.fetchFinancialCategoriesApi(),
           FinanceAPI.fetchFinancialBudgetsApi(selectedBranch, selectedAcademicYear),
-          FinanceAPI.fetchFeeScheduleConfigApi("2026-2027"),
+          FinanceAPI.fetchFeeScheduleConfigApi(selectedAcademicYear || ""),
           FinanceAPI.fetchScholarshipsApi(),
           FinanceAPI.fetchStudentScholarshipsApi(),
           FinanceAPI.fetchDiscountsApi(),
@@ -5981,14 +5579,14 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
             ? feeScheduleRes.value?.data || feeScheduleRes.value
             : null;
         if (apiFeeSchedule && apiFeeSchedule.terms && apiFeeSchedule.terms.length > 0) {
-          const ay = apiFeeSchedule.academicYear || "2026-2027";
+          const ay = apiFeeSchedule.academicYear || selectedAcademicYear || "";
           const loadedSchedule: AcademicYearFeeSchedule = {
             id: apiFeeSchedule.id || `SCH-${ay}`,
             academicYear: ay,
             numberOfTerms: apiFeeSchedule.numberOfTerms || 4,
             status: apiFeeSchedule.status || "Active",
-            annualDueDate: apiFeeSchedule.annualDueDate || "2026-04-15",
-            oneTimeDueDate: apiFeeSchedule.oneTimeDueDate || "2026-04-15",
+            annualDueDate: apiFeeSchedule.annualDueDate || "",
+            oneTimeDueDate: apiFeeSchedule.oneTimeDueDate || "",
             terms: apiFeeSchedule.terms,
             monthlyConfig: apiFeeSchedule.monthlyConfig,
           };
@@ -6010,8 +5608,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
             fixedAmount: Number(s.fixedAmount || 0),
             applicableFeeHeadIds: Array.isArray(s.applicableFeeHeadIds) ? s.applicableFeeHeadIds : [],
             applicableClasses: Array.isArray(s.applicableClasses) ? s.applicableClasses : [],
-            startDate: s.startDate || "2026-04-01",
-            endDate: s.endDate || "2027-03-31",
+            startDate: s.startDate || "",
+            endDate: s.endDate || "",
             eligibility: s.eligibility || "",
             description: s.description || "",
             status: s.status || "Active",
@@ -6086,7 +5684,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           frequency: (h.frequency as any) || "Quarterly",
           mandatory: h.mandatory === true,
           applicableClasses: Array.isArray(h.applicableClasses) ? h.applicableClasses : [],
-          applicableBranches: Array.isArray(h.applicableBranches) && h.applicableBranches.length > 0 ? (h.applicableBranches.includes("Main Campus") && h.applicableBranches.length === 1 ? ["All Branches"] : h.applicableBranches) : ["All Branches"],
+          applicableBranches: Array.isArray(h.applicableBranches) && h.applicableBranches.length > 0 ? h.applicableBranches : ["All Branches"],
           amount: Number(h.amount || h.defaultAmount || 0),
           defaultAmount: Number(h.defaultAmount || h.amount || 0),
           taxPercentage: Number(h.taxPercentage || 0),
@@ -6153,7 +5751,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
                   const parsed = JSON.parse(p.paidItemsJson);
                   if (Array.isArray(parsed) && parsed.length > 0) {
                     allocs = parsed.map((item: any) => ({
-                      academicYear: item.academicYear || p.academicYear || "2026-2027",
+                      academicYear: item.academicYear || p.academicYear || selectedAcademicYear || "",
                       amount: Number(item.amount ?? item.Amount ?? item.finalAmount ?? 0),
                       installmentId: item.installmentId || item.id || item.TermId || item.feeHeadId || item.FeeHeadId,
                       feeHeadName: item.feeHeadName || item.HeadName || p.feeHeadName || "",
@@ -6253,8 +5851,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           setFinanceUniformConfigs((prev) => {
             const apiMapped = uniformFees.map((apiItem: any) => ({
               id: String(apiItem.id || `FUC-${Date.now()}`),
-              academicYear: apiItem.academicYear || "2026-2027",
-              branch: apiItem.branch || "Main Campus",
+              academicYear: apiItem.academicYear || selectedAcademicYear || "",
+              branch: apiItem.branch || selectedBranch || "",
               className: apiItem.className || "",
               gender: apiItem.gender || "Unisex",
               uniformPackage: apiItem.uniformPackage || "",
@@ -6295,11 +5893,11 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
               apiItem.id || apiItem.refundRequestId || Date.now(),
             );
             const rNo =
-              apiItem.refundNo || apiItem.refundRequestId || `RF-2026-${rId}`;
+              apiItem.refundNo || apiItem.refundRequestId || `RF-${new Date().getFullYear()}-${rId}`;
             return {
               id: rId,
               refundNo: rNo,
-              receiptNo: apiItem.receiptNo || "REC-2026-0001",
+              receiptNo: apiItem.receiptNo || `REC-${new Date().getFullYear()}-0001`,
               studentId: String(apiItem.studentId || ""),
               studentName: apiItem.studentName || "",
               admissionNo: apiItem.admissionNo || "",
@@ -6345,8 +5943,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
               amount: Number(item.amount || 0),
               paymentMode: item.paymentMode || "Bank Transfer",
               account: item.account || "Main Bank Account",
-              branch: item.branch || "Main Campus",
-              academicYear: item.academicYear || "2025-2026",
+              branch: item.branch || selectedBranch || "",
+              academicYear: item.academicYear || selectedAcademicYear || "",
               status: item.status || "Completed",
               createdBy: item.createdBy || "Finance Admin",
               approvedBy: item.approvedBy || "Chief Accountant",
@@ -6396,8 +5994,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
             return {
               id: String(item.id || "BDG-" + Date.now()),
               categoryName: bName,
-              academicYear: item.academicYear || selectedAcademicYear || "2026-27",
-              branch: item.branch || selectedBranch || "Madhapur Branch",
+              academicYear: item.academicYear || selectedAcademicYear || "",
+              branch: item.branch || selectedBranch || "",
               allocatedAmount: alloc,
               consumedAmount: cons,
               remainingAmount: Math.max(0, alloc - cons),
@@ -6435,7 +6033,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
             type: w.type || "Internal",
             trainerName: w.trainerName || "Trainer",
             organization: w.organization || "EdTech Innovations Institute",
-            branch: w.branch || "Main Campus",
+            branch: w.branch || selectedBranch || "",
             department: w.department || "Academics",
             applicableDesignation: w.applicableDesignation || "All Staff",
             venue: w.venue || "Main Auditorium",
@@ -6489,7 +6087,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
               evaluatorName:
                 a.mainEvaluator || a.evaluatorName || "Academic Director",
               status: a.status || "Scheduled",
-              branch: a.branchFilter || a.branch || "Main Campus",
+              branch: a.branchFilter || a.branch || selectedBranch || "",
               createdAt: a.createdAt
                 ? a.createdAt.split("T")[0]
                 : new Date().toISOString().split("T")[0],
@@ -6830,7 +6428,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       admissionNo,
       section: stData.section || "",
       rollNo: stData.rollNo || "",
-      branch: stData.branch || selectedBranch || "Main Campus",
+      branch: stData.branch || selectedBranch || "",
       studentType: stData.studentType || "Day Scholar",
       promotionHistory: stData.promotionHistory || [],
     };
@@ -6905,7 +6503,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       generateStudentFeeLedger(
         id,
         newStudent,
-        selectedAcademicYear || financeSettings.academicYear || "2026-2027",
+        selectedAcademicYear || financeSettings.academicYear || "",
       );
     }, 100);
     return newStudent;
@@ -7022,8 +6620,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     id: string,
     targetClass: string,
     targetSection = "A",
-    targetYear = "2026-2027",
-    targetBranch = "Main Campus",
+    targetYear = "",
+    targetBranch = "",
   ) => {
     const numericId = parseInt(id, 10);
     const targetStudent = students.find((s) => s.id === id);
@@ -7080,7 +6678,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
             toClass: targetClass,
             fromSection: s.section,
             toSection: targetSection,
-            fromBranch: s.branch || "Main Campus",
+            fromBranch: s.branch || "",
             toBranch: targetBranch,
             academicYear: targetYear,
             date: new Date().toISOString().split("T")[0],
@@ -7178,9 +6776,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     if (!targetStudent) return;
 
     const finalYear =
-      completionAcademicYear || schoolProfile.academicYear || "2025-2026";
+      completionAcademicYear || selectedAcademicYear || schoolProfile.academicYear || "";
     const batchYear =
-      finalYear.split("-")[1] || finalYear.split("-")[0] || "2026";
+      finalYear.split("-")[1] || finalYear.split("-")[0] || String(new Date().getFullYear());
     const batchLabel = `Class of ${batchYear}`;
 
     setStudents((prev) =>
@@ -7221,7 +6819,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           targetStudent.fatherEmail ||
           targetStudent.guardianEmail,
         parentName: targetStudent.fatherName || targetStudent.parentName,
-        branch: targetStudent.branch || selectedBranch || "Main Campus",
+        branch: targetStudent.branch || selectedBranch || "",
         createdDate: new Date().toISOString().split("T")[0],
       };
       setAlumniRecords((prev) => [newAlumni, ...prev]);
@@ -7310,8 +6908,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           } else {
             next.push({
               id: "TA-" + Math.floor(100 + Math.random() * 900),
-              academicYear: "2026-2027",
-              branch: teacher.branch || "Main Campus",
+              academicYear: selectedAcademicYear || "",
+              branch: teacher.branch || selectedBranch || "",
               className,
               section,
               subject: "",
@@ -7342,8 +6940,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
             const taId = "TA-" + Math.floor(100 + Math.random() * 900);
             next.push({
               id: taId,
-              academicYear: "2026-2027",
-              branch: teacher.branch || "Main Campus",
+              academicYear: selectedAcademicYear || "",
+              branch: teacher.branch || selectedBranch || "",
               className,
               section,
               subject,
@@ -7480,7 +7078,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       id,
       empId: assignedEmpId,
       status: staffData.status || "Active",
-      branch: staffData.branch || selectedBranch || "Main Campus",
+      branch: staffData.branch || selectedBranch || "",
       profileStatus: staffData.profileStatus || "Incomplete",
     };
 
@@ -7522,7 +7120,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       accountHolderName: staffData.bankDetails?.accountHolderName || "",
       accountNumber: staffData.bankDetails?.accountNumber || "",
       bankName: staffData.bankDetails?.bankName || "",
-      branchName: staffData.branch || selectedBranch || staffData.bankDetails?.branch || "Main Campus",
+      branchName: staffData.branch || selectedBranch || staffData.bankDetails?.branch || "",
       ifscCode: staffData.bankDetails?.ifscCode || "",
       upiId: staffData.bankDetails?.upiId || "",
       assignedClasses: staffData.assignedClasses || [],
@@ -7674,7 +7272,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           accountHolderName: fullStaff.bankDetails?.accountHolderName || "",
           accountNumber: fullStaff.bankDetails?.accountNumber || "",
           bankName: fullStaff.bankDetails?.bankName || "",
-          branchName: fullStaff.branch || fullStaff.bankDetails?.branch || "Main Campus",
+          branchName: fullStaff.branch || fullStaff.bankDetails?.branch || "",
           ifscCode: fullStaff.bankDetails?.ifscCode || "",
           upiId: fullStaff.bankDetails?.upiId || "",
           isActive: fullStaff.status === "Active",
@@ -8274,7 +7872,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         hostelRoom: normalizeStudentType(appData.studentType) === "Residential" ? (appData.hostelRoom || "") : "",
         floorLevel: "N/A",
         allocatedBedId: normalizeStudentType(appData.studentType) === "Residential" ? (appData.hostelBed || "") : "",
-        branch: appData.branch || selectedBranch || "Main Campus",
+        branch: appData.branch || selectedBranch || "",
         status: appData.status || "Enrolled",
         section: (appData as any).section || "A",
         academicYear: (appData as any).academicYear || selectedAcademicYear || "",
@@ -8334,7 +7932,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         floor: appData.floor,
         hostelRoom: appData.hostelRoom,
         hostelBed: appData.hostelBed,
-        branch: appData.branch || selectedBranch || "Main Campus",
+        branch: appData.branch || selectedBranch || "",
         scholarshipId: appData.scholarshipId,
         discountId: appData.discountId,
         selectedOptionalFees: appData.selectedOptionalFees || [],
@@ -8943,8 +8541,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
             studentId: newStudent.id,
             studentName: `${newStudent.firstName} ${newStudent.lastName}`,
             admissionNo: newStudent.admissionNo,
-            branch: newStudent.branch || selectedBranch || "Main Campus",
-            academicYear: dfs?.academicYear || "2025-2026",
+            branch: newStudent.branch || selectedBranch || "",
+            academicYear: dfs?.academicYear || selectedAcademicYear || "",
             className: newStudent.className,
             section: newStudent.section,
             feeStructureId: dfs?.id || "DFS-FALLBACK",
@@ -9286,7 +8884,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       ...subjectData,
       id,
       code: subjectData.code || subjectData.subjectId,
-      branch: (subjectData as any).branch || selectedBranch || "Main Campus",
+      branch: (subjectData as any).branch || selectedBranch || "",
     } as any;
     setSubjects((prev) => [...prev, newSub]);
     logActivity(
@@ -9313,7 +8911,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     const newBus: Bus = {
       ...busData,
       id,
-      branch: (busData as any).branch || selectedBranch || "Main Campus",
+      branch: (busData as any).branch || selectedBranch || "",
     } as any;
     setBuses((prev) => [...prev, newBus]);
     logActivity(
@@ -9803,7 +9401,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           : stockVal <= 10
             ? "Low Stock"
             : "In Stock",
-      branch: (itemData as any).branch || selectedBranch || "Main Campus",
+      branch: (itemData as any).branch || selectedBranch || "",
     } as any;
     setUniformInventory((prev) => [...prev, newInvItem]);
 
@@ -9954,7 +9552,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     const newStruct: FeeStructure = {
       ...feeStruct,
       id,
-      branch: (feeStruct as any).branch || selectedBranch || "Main Campus",
+      branch: (feeStruct as any).branch || selectedBranch || "",
     } as any;
     setFeeStructures((prev) => [...prev, newStruct]);
     logActivity(
@@ -9982,7 +9580,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       financeSettings.receiptPrefix + Math.floor(1000 + Math.random() * 9000);
     const id = "PAY-" + Math.floor(100 + Math.random() * 900);
     const activeAY =
-      selectedAcademicYear || financeSettings?.academicYear || "2026-2027";
+      selectedAcademicYear || financeSettings?.academicYear || "";
 
     FinanceAPI.createFeePaymentApi({ ...paymentData, receiptNo } as any)
       .then(() => {
@@ -10276,7 +9874,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       receiptNo,
       academicYear: paymentData.academicYear || activeAY,
       paymentAllocation: allocations.length > 0 ? allocations : (paymentData.paymentAllocation || []),
-      branch: (paymentData as any).branch || selectedBranch || "Main Campus",
+      branch: (paymentData as any).branch || selectedBranch || "",
     } as any;
 
     setFeePayments((prev) => {
@@ -10396,7 +9994,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       amount: newPayment.amountPaid,
       paymentMode: (newPayment.paymentMode as any) || "Cash",
       account: newPayment.paymentMode === "Cash" ? "Cash" : "Main Bank Account",
-      branch: (newPayment as any).branch || selectedBranch || "Main Campus",
+      branch: (newPayment as any).branch || selectedBranch || "",
       academicYear: activeAY,
       status: "Completed",
       createdBy: "System Auto-Ledger",
@@ -10435,12 +10033,12 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   ): FinanceTransaction => {
     const id = "TXN-" + Date.now();
     const transactionId =
-      "TXN-2026-" + Math.floor(100000 + Math.random() * 900000);
+      "TXN-" + new Date().getFullYear() + "-" + Math.floor(100000 + Math.random() * 900000);
     const newTxn: FinanceTransaction = {
       ...txnData,
       id,
       transactionId,
-      branch: txnData.branch || selectedBranch || "Main Campus",
+      branch: txnData.branch || selectedBranch || "",
       auditTrail: [
         {
           id: "AUD-" + Date.now(),
@@ -10747,8 +10345,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     const payload = {
       categoryName: budgetData.categoryName,
       department: (budgetData as any).department || budgetData.categoryName,
-      academicYear: budgetData.academicYear || selectedAcademicYear || "2026-27",
-      branch: budgetData.branch || selectedBranch || "Madhapur Branch",
+      academicYear: budgetData.academicYear || selectedAcademicYear || "",
+      branch: budgetData.branch || selectedBranch || "",
       allocatedAmount: Number(budgetData.allocatedAmount) || 0,
       status: budgetData.status || "Active",
     };
@@ -10792,8 +10390,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   const updateFinancialBudget = async (id: string, allocatedAmount: number, extra?: Partial<FinancialBudget>) => {
     const target = financialBudgets.find((b) => b.id === id);
     const categoryName = extra?.categoryName || target?.categoryName || "General";
-    const academicYear = extra?.academicYear || target?.academicYear || selectedAcademicYear || "2026-27";
-    const branch = extra?.branch || target?.branch || selectedBranch || "Madhapur Branch";
+    const academicYear = extra?.academicYear || target?.academicYear || selectedAcademicYear || "";
+    const branch = extra?.branch || target?.branch || selectedBranch || "";
     const consumed = target ? target.consumedAmount : 0;
     const remaining = Math.max(0, allocatedAmount - consumed);
     const status = consumed > allocatedAmount ? "Exceeded" : (extra?.status || target?.status || "Active");
@@ -11176,7 +10774,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           studentId: st.id,
           studentName: `${st.firstName} ${st.lastName}`,
           admissionNo: st.admissionNo,
-          branch: st.branch || selectedBranch || "Main Campus",
+          branch: st.branch || selectedBranch || "",
           academicYear: dfs.academicYear,
           className: st.className,
           section: st.section,
@@ -11233,7 +10831,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     const newDfs: DynamicFeeStructure = {
       ...dfs,
       id,
-      branch: dfs.branch || selectedBranch || "Main Campus",
+      branch: dfs.branch || selectedBranch || "",
     };
     setDynamicFeeStructures((prev) => {
       const isHostel = newDfs.category === "Hostel";
@@ -11380,7 +10978,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       studentId: st.id,
       studentName: `${st.firstName} ${st.lastName}`,
       admissionNo: st.admissionNo,
-      branch: st.branch || selectedBranch || "Main Campus",
+      branch: st.branch || selectedBranch || "",
       academicYear: dfs.academicYear,
       className: st.className,
       section: st.section,
@@ -11562,7 +11160,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       studentId: st.id,
       studentName: `${st.firstName} ${st.lastName}`,
       admissionNo: st.admissionNo,
-      branch: st.branch || selectedBranch || "Main Campus",
+      branch: st.branch || selectedBranch || "",
       academicYear: dfs.academicYear,
       className: st.className,
       section: st.section,
@@ -11662,8 +11260,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         fixedAmount: sch.fixedAmount || 0,
         applicableFeeHeadIds: sch.applicableFeeHeadIds || [],
         applicableClasses: sch.applicableClasses || [],
-        startDate: sch.startDate || "2026-04-01",
-        endDate: sch.endDate || "2027-03-31",
+        startDate: sch.startDate || "",
+        endDate: sch.endDate || "",
         eligibility: sch.eligibility || "",
         description: sch.description || "",
         status: sch.status || "Active",
@@ -11918,7 +11516,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     const newRoute: ERPTransportRoute = {
       ...route,
       id,
-      branch: (route as any).branch || selectedBranch || "Main Campus",
+      branch: (route as any).branch || selectedBranch || "",
     } as any;
     setERPTransportRoutes((prev) => [...prev, newRoute]);
   };
@@ -11987,7 +11585,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         ...st,
         ...backendData,
         id,
-        branch: (st as any).branch || selectedBranch || "Main Campus",
+        branch: (st as any).branch || selectedBranch || "",
       } as any;
       setStudentTransports((prev) => [
         ...prev.filter((t) => t.studentId !== st.studentId),
@@ -12008,7 +11606,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       const newAssignment: StudentTransport = {
         ...st,
         id,
-        branch: (st as any).branch || selectedBranch || "Main Campus",
+        branch: (st as any).branch || selectedBranch || "",
       } as any;
       setStudentTransports((prev) => [
         ...prev.filter((t) => t.studentId !== st.studentId),
@@ -12048,7 +11646,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     const newHostel: HostelMaster = {
       ...h,
       id,
-      branch: (h as any).branch || selectedBranch || "Main Campus",
+      branch: (h as any).branch || selectedBranch || "",
     } as any;
     setHostelMasters((prev) => [...prev, newHostel]);
     logActivity(
@@ -12097,7 +11695,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     const newRm: RoomMaster = {
       ...rmData,
       id,
-      branch: (rmData as any).branch || selectedBranch || "Main Campus",
+      branch: (rmData as any).branch || selectedBranch || "",
     } as any;
     setRoomMasters((prev) => [newRm, ...prev]);
     logActivity(
@@ -12259,7 +11857,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     const newAssignment: StudentHostel = {
       ...sh,
       id,
-      branch: (sh as any).branch || selectedBranch || "Main Campus",
+      branch: (sh as any).branch || selectedBranch || "",
     } as any;
     setStudentHostels((prev) => [
       ...prev.filter((h) => h.studentId !== sh.studentId),
@@ -12284,12 +11882,12 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   // 11. Refunds CRUD
   const addRefund = (r: Omit<Refund, "id" | "refundNo">) => {
     const id = "RFD-" + Math.floor(100 + Math.random() * 900);
-    const refundNo = "RF-2026-" + Math.floor(1000 + Math.random() * 9000);
+    const refundNo = "RF-" + new Date().getFullYear() + "-" + Math.floor(1000 + Math.random() * 9000);
     const newRefund: Refund = {
       ...r,
       id,
       refundNo,
-      branch: (r as any).branch || selectedBranch || "Main Campus",
+      branch: (r as any).branch || selectedBranch || "",
     } as any;
     setRefunds((prev) => [newRefund, ...prev]);
     logActivity(
@@ -12401,7 +11999,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     const newConfig: FinanceTransportConfig = {
       ...c,
       id,
-      branch: (c as any).branch || selectedBranch || "Main Campus",
+      branch: (c as any).branch || selectedBranch || "",
     } as any;
     setFinanceTransportConfigs((prev) => [...prev, newConfig]);
     logActivity(
@@ -13342,7 +12940,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       targetAcademicYear ||
       selectedAcademicYear ||
       financeSettings?.academicYear ||
-      "2026-2027";
+      "";
     const ledger = getStudentFeeLedger(studentId, activeAY);
     const schedule =
       academicYearFeeSchedules.find((s) => s.academicYear === activeAY) ||
@@ -13422,7 +13020,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       targetAcademicYear ||
       selectedAcademicYear ||
       financeSettings?.academicYear ||
-      "2026-2027";
+      "";
     const todayStr = new Date().toISOString().split("T")[0];
 
     const result: PromotedStudentWithDues[] = [];
@@ -13669,7 +13267,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       targetAcademicYear ||
       selectedAcademicYear ||
       financeSettings.academicYear ||
-      "2026-2027";
+      "";
 
     if (typeof optStudentOrYear === "string") {
       targetYear = optStudentOrYear;
@@ -14071,7 +13669,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
               feePlan: "Monthly",
               feeAmount: configuredTransportFee,
               effectiveFrom:
-                student?.joiningDate || admApp?.admissionDate || "2026-04-01",
+                student?.joiningDate || admApp?.admissionDate || new Date().toISOString().split("T")[0],
               status: "Active",
             };
           }
@@ -14728,7 +14326,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     let targetYear: string =
       selectedAcademicYear ||
       financeSettings.academicYear ||
-      "2026-2027";
+      "";
 
     if (typeof optStudentOrYear === "string") {
       targetYear = optStudentOrYear;
@@ -15145,7 +14743,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   ): StudentFeeOutstandingSummary => {
     const student = students.find((s) => s.id === studentId || (s.admissionNo && s.admissionNo === studentId));
     const activeAcademicYear =
-      selectedAcademicYear || financeSettings?.academicYear || "2026-2027";
+      selectedAcademicYear || financeSettings?.academicYear || "";
 
     const isPaymentForThisStudent = (p: FeePayment) => {
       if (!p || !studentId) return false;
@@ -15603,7 +15201,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         ratePerKm: r.ratePerKm ?? 100,
         acMinBaseFare: (r as any).acMinBaseFare ?? 1200,
         acRatePerKm: (r as any).acRatePerKm ?? 150,
-        branch: (r as any).branch || selectedBranch || "Main Campus",
+        branch: (r as any).branch || selectedBranch || "",
       } as any;
       setRouteMasters((prev) => [...prev, newRoute]);
       logActivity(
@@ -15633,7 +15231,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         ratePerKm: r.ratePerKm ?? 100,
         acMinBaseFare: (r as any).acMinBaseFare ?? 1200,
         acRatePerKm: (r as any).acRatePerKm ?? 150,
-        branch: (r as any).branch || selectedBranch || "Main Campus",
+        branch: (r as any).branch || selectedBranch || "",
       } as any;
       setRouteMasters((prev) => [...prev, newRoute]);
       logActivity(
@@ -15997,7 +15595,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           p.status === "Active"
             ? "Active"
             : "Inactive",
-        branch: (p as any).branch || selectedBranch || "Main Campus",
+        branch: (p as any).branch || selectedBranch || "",
       } as any;
       setPickupPoints((prev) => {
         const next = [...prev.filter((pt) => pt.id !== newPt.id), newPt];
@@ -16019,7 +15617,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       const newPt: PickupPoint = {
         ...p,
         id,
-        branch: (p as any).branch || selectedBranch || "Main Campus",
+        branch: (p as any).branch || selectedBranch || "",
       } as any;
       setPickupPoints((prev) => {
         const next = [...prev.filter((pt) => pt.id !== newPt.id), newPt];
@@ -16191,7 +15789,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           v.status === "Active"
             ? "Active"
             : "Inactive",
-        branch: (v as any).branch || selectedBranch || "Main Campus",
+        branch: (v as any).branch || selectedBranch || "",
       } as any;
       setVehicleMasters((prev) => [...prev, newVehicle]);
       logActivity(
@@ -16204,7 +15802,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       const newVehicle: VehicleMaster = {
         ...v,
         id,
-        branch: (v as any).branch || selectedBranch || "Main Campus",
+        branch: (v as any).branch || selectedBranch || "",
       } as any;
       setVehicleMasters((prev) => [...prev, newVehicle]);
     }
@@ -16669,9 +16267,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   const assignVehicleRouteDriver = async (
     va: Omit<VehicleAssignment, "id">,
   ) => {
-    const effectiveBranch = va.branch || selectedBranch || "Main Campus";
+    const effectiveBranch = va.branch || selectedBranch || "";
     const effectiveAcademicYear =
-      va.academicYear || schoolProfile.academicYear || "2026-2027";
+      va.academicYear || schoolProfile.academicYear || selectedAcademicYear || "";
     const normalizedAssignment: Omit<VehicleAssignment, "id"> = {
       ...va,
       branch: effectiveBranch,
@@ -16807,12 +16405,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       ...(updates as VehicleAssignment),
       id,
       branch:
-        updates.branch || current?.branch || selectedBranch || "Main Campus",
+        updates.branch || current?.branch || selectedBranch || "",
       academicYear:
-        updates.academicYear ||
-        current?.academicYear ||
-        schoolProfile.academicYear ||
-        "2026-2027",
+        updates.academicYear || current?.academicYear || selectedAcademicYear || schoolProfile.academicYear || "",
       status: (updates.status || current?.status || "Active") as
         | "Active"
         | "Inactive",
@@ -16996,7 +16591,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         ...vm,
         ...backendData,
         id,
-        branch: (vm as any).branch || selectedBranch || "Main Campus",
+        branch: (vm as any).branch || selectedBranch || "",
       } as any;
       setVehicleMaintenances((prev) => [newMaint, ...prev]);
       logActivity(
@@ -17009,7 +16604,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       const newMaint: VehicleMaintenance = {
         ...vm,
         id,
-        branch: (vm as any).branch || selectedBranch || "Main Campus",
+        branch: (vm as any).branch || selectedBranch || "",
       } as any;
       setVehicleMaintenances((prev) => [newMaint, ...prev]);
     }
@@ -17193,8 +16788,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           email: adm.email || "",
           address: adm.address || "",
           status: "Active",
-          academicYear: adm.academicYear || "2026-2027",
-          branch: adm.branch || "Main Campus",
+          academicYear: adm.academicYear || selectedAcademicYear || "",
+          branch: adm.branch || selectedBranch || "",
         } as unknown as Student;
       })();
     if (!student) return null;
@@ -17378,8 +16973,6 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         activeFineRule.dueDate < todayStr
       ) {
         earliestOverdueDateStr = activeFineRule.dueDate;
-      } else if (todayStr > "2026-04-15") {
-        earliestOverdueDateStr = "2026-04-15";
       }
     }
 
@@ -17455,7 +17048,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     const disc = discountDeduction;
     const totalPayable = Math.max(0, gross + fineAmount - sch - disc);
     const activeYr =
-      selectedAcademicYear || financeSettings.academicYear || "2026-2027";
+      selectedAcademicYear || financeSettings.academicYear || "";
     const isPaymentForThisStudent = (p: FeePayment) => {
       if (!p || !studentId) return false;
       const pSid = String(p.studentId || "").trim().toLowerCase();
@@ -18199,13 +17792,12 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           async ([dept, deptRecords]) => {
             const payload = {
               date: date,
-              academicYear: selectedAcademicYear || "2026-2027",
+              academicYear: selectedAcademicYear || "",
               branch:
                 !selectedBranch ||
                 selectedBranch === "All" ||
                 selectedBranch === "All Branches"
-                  ? "Main Campus"
-                  : selectedBranch,
+                  ? "" : selectedBranch,
               department: dept,
               records: deptRecords.map((r) => {
                 const sIdStr = String((r as any).staffId || r.entityId || "");
@@ -18272,7 +17864,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     const newExam: ExamSetup = {
       ...examData,
       id,
-      branch: (examData as any).branch || selectedBranch || "Main Campus",
+      branch: (examData as any).branch || selectedBranch || "",
     } as any;
     setExams((prev) => [...prev, newExam]);
     logActivity("Created Examination", `Scheduled ${newExam.name}`);
@@ -18320,8 +17912,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           m.branch ||
           exam?.branch ||
           student?.branch ||
-          selectedBranch ||
-          "Main Campus",
+          selectedBranch || "",
         className: m.className || student?.className,
         section: m.section || student?.section,
         id: "MRK-" + Math.floor(1000 + Math.random() * 9000),
@@ -18406,8 +17997,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         branch:
           scheduleData.branch ||
           exam?.branch ||
-          selectedBranch ||
-          "Main Campus",
+          selectedBranch || "",
       },
     ]);
     logActivity(
@@ -18436,7 +18026,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       ...paperData,
       id,
       academicYear: paperData.academicYear || schoolProfile.academicYear,
-      branch: paperData.branch || selectedBranch || "Main Campus",
+      branch: paperData.branch || selectedBranch || "",
     };
     setQuestionPapers((prev) => [newPaper, ...prev]);
     logActivity(
@@ -18466,7 +18056,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       ...meetingData,
       id,
       academicYear: meetingData.academicYear || schoolProfile.academicYear,
-      branch: meetingData.branch || selectedBranch || "Main Campus",
+      branch: meetingData.branch || selectedBranch || "",
       createdAt: new Date().toISOString().split("T")[0],
     };
     setMeetings((prev) => [newMeeting, ...prev]);
@@ -19140,7 +18730,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         className: slotData.className,
         sectionName: slotData.section,
         academicYear:
-          slotData.academicYear || selectedAcademicYear || "2026-2027",
+          slotData.academicYear || selectedAcademicYear || "",
         dayOfWeek: slotData.day,
         startTime,
         endTime,
@@ -19190,7 +18780,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         className: merged.className,
         sectionName: merged.section,
         academicYear:
-          merged.academicYear || selectedAcademicYear || "2026-2027",
+          merged.academicYear || selectedAcademicYear || "",
         dayOfWeek: merged.day,
         startTime,
         endTime,
@@ -19295,7 +18885,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       ...hwData,
       id,
       section: cleanSec,
-      branch: (hwData as any).branch || selectedBranch || "Main Campus",
+      branch: (hwData as any).branch || selectedBranch || "",
     } as any;
     setHomework((prev) => [newHw, ...prev]);
     logActivity(
@@ -19502,7 +19092,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       createdAt,
       name: catName,
       categoryName: catName,
-      branch: (cData as any).branch || selectedBranch || "Main Campus",
+      branch: (cData as any).branch || selectedBranch || "",
     };
     setUniformCategories((prev) => [newCat as any, ...prev]);
 
@@ -19627,7 +19217,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       createdAt,
       sizeName: sName,
       sizeCodeName: sName,
-      branch: (sData as any).branch || selectedBranch || "Main Campus",
+      branch: (sData as any).branch || selectedBranch || "",
     };
     setUniformSizes((prev) => [newSize as any, ...prev]);
 
@@ -19707,7 +19297,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       createdAt,
       supplierName: sName,
       companyName: sName,
-      branch: (sData as any).branch || selectedBranch || "Main Campus",
+      branch: (sData as any).branch || selectedBranch || "",
     };
     setUniformSuppliers((prev) => [newSupplier as any, ...prev]);
 
@@ -19785,7 +19375,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         ...iData,
         id,
         createdAt,
-        branch: (iData as any).branch || selectedBranch || "Main Campus",
+        branch: (iData as any).branch || selectedBranch || "",
       } as any,
       ...prev,
     ]);
@@ -20071,7 +19661,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       id: "UIS-" + Date.now() + "-" + Math.floor(Math.random() * 1000000),
       branch: (selectedBranch && selectedBranch !== "All Branches" && selectedBranch !== "All")
         ? selectedBranch
-        : (issueData.branch || "Main Campus"),
+        : (issueData.branch || ""),
     };
 
     setStudentUniformIssues((prev) => {
@@ -20513,11 +20103,11 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       } else {
         const newDfs: DynamicFeeStructure = {
           id: `DFS-UNI-${Date.now()}`,
-          academicYear: config.academicYear || "2026-2027",
+          academicYear: config.academicYear || selectedAcademicYear || "",
           className: config.className.trim(),
           studentCategory: "All",
           totalAmount: Number(config.feeAmount),
-          branch: config.branch || "Main Campus",
+          branch: config.branch || selectedBranch || "",
           items: [
             {
               id: `FI-UNI-${Date.now()}`,
@@ -20543,8 +20133,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     let assignedId = `FUC-${Date.now()}-${Math.floor(Math.random() * 1000000)}`;
     try {
       const apiRes: any = await FinanceAPI.createUniformFeeConfigApi({
-        academicYear: cData.academicYear || selectedAcademicYear || "2026-2027",
-        branch: cData.branch || selectedBranch || "Main Campus",
+        academicYear: cData.academicYear || selectedAcademicYear || "",
+        branch: cData.branch || selectedBranch || "",
         className: cData.className,
         gender: cData.gender,
         uniformPackage: cData.uniformPackage,
@@ -20567,8 +20157,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     const newConfig: FinanceUniformConfig = {
       ...cData,
       id: assignedId,
-      branch: cData.branch || selectedBranch || "Main Campus",
-      academicYear: cData.academicYear || selectedAcademicYear || "2026-2027",
+      branch: cData.branch || selectedBranch || "",
+      academicYear: cData.academicYear || selectedAcademicYear || "",
       status: "Active",
     };
 
@@ -20726,7 +20316,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
               (selectedBranch as any)?.id ||
               (typeof selectedBranch === "string" ? selectedBranch : "") ||
               "BR-001",
-            branch: item.branch || item.branchName || "Main Campus",
+            branch: item.branch || item.branchName || "",
             employeeCategory:
               item.employeeCategory === "Teacher" ? "Teacher" : "Staff",
             leaveTypeId: item.leaveTypeId ? item.leaveTypeId.toString() : "1",
@@ -20952,7 +20542,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         (selectedBranch as any)?.id ||
         (typeof selectedBranch === "string" ? selectedBranch : "") ||
         "BR-001",
-      branch: (appData as any).branch || (staffMatch as any)?.branchName || staffMatch?.branch || "Main Campus",
+      branch: (appData as any).branch || (staffMatch as any)?.branchName || staffMatch?.branch || "",
       status: appData.status || "Pending",
       appliedDate:
         appData.appliedDate || new Date().toISOString().split("T")[0],
@@ -20997,7 +20587,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     const newHoliday: Holiday = {
       ...hData,
       id,
-      branch: hData.branch || selectedBranch || "Main Campus",
+      branch: hData.branch || selectedBranch || "",
     };
     setHolidays((prev) => {
       const updated = [newHoliday, ...prev];
@@ -21087,7 +20677,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     const newEvent: SchoolEvent = {
       ...eventData,
       id,
-      branch: eventData.branch || selectedBranch || "Main Campus",
+      branch: eventData.branch || selectedBranch || "",
       status: eventData.status || "Published",
       updatedAt: new Date().toISOString().split("T")[0],
     };
@@ -21200,7 +20790,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     const newWorkshop: WorkshopTraining = {
       ...wData,
       id,
-      branch: wData.branch || selectedBranch || "Main Campus",
+      branch: wData.branch || selectedBranch || "",
       status: wData.status || "Scheduled",
       createdAt: new Date().toISOString().split("T")[0],
     };
@@ -21218,7 +20808,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       startTime: newWorkshop.startTime,
       endTime: newWorkshop.endTime,
       branch: newWorkshop.branch,
-      academicYear: "2025-2026",
+      academicYear: selectedAcademicYear || "",
       participants: `${newWorkshop.participants.length} Employees Assigned`,
       status: "Published",
     });
@@ -21298,7 +20888,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     const newAssessment: EmployeeAssessment = {
       ...aData,
       id,
-      branch: aData.branch || selectedBranch || "Main Campus",
+      branch: aData.branch || selectedBranch || "",
       status: aData.status || "Scheduled",
       createdAt: new Date().toISOString().split("T")[0],
     };
@@ -21316,7 +20906,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       startTime: "10:00 AM",
       endTime: "11:30 AM",
       branch: newAssessment.branch,
-      academicYear: "2025-2026",
+      academicYear: selectedAcademicYear || "",
       participants: `${newAssessment.results.length} Candidates Scheduled`,
       status: "Published",
     });
@@ -21368,7 +20958,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
             employeeName: res.employeeName,
             department: res.department,
             designation: res.designation,
-            branch: res.branch || selectedBranch || "Main Campus",
+            branch: res.branch || selectedBranch || "",
             completionDate: new Date().toISOString().split("T")[0],
             issuedBy:
               targetAssessment.evaluatorName || "Academic Competency Board",
@@ -21654,7 +21244,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     try {
       const response = await createSalaryStructureApi({
         ...structureData,
-        branch: structureData.branch || selectedBranch || "Main Campus",
+        branch: structureData.branch || selectedBranch || "",
       });
       if (response && response.success) {
         addToast(
@@ -21932,8 +21522,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
             itemB === "all" ||
             itemB === selB ||
             selB.includes(itemB) ||
-            itemB.includes(selB) ||
-            (itemB === "main campus" && (selB === "madhapur branch" || (branches || []).length <= 1));
+            itemB.includes(selB);
         }
       }
 
@@ -22038,7 +21627,6 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       name.includes("kiriti") ||
       name.includes("kiran") ||
       (name.includes("vishnu") && name.includes("n")) ||
-      adm === "ADM-2026-001" ||
       adm === "REG-1022" ||
       adm === "REG-1021";
     return !isDummy;
@@ -22055,7 +21643,6 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         b === "all" ||
         b === "all branches" ||
         b === "global" ||
-        b === "main campus" ||
         ["national", "festival", "gazetted", "vacation"].includes(typeStr);
       if (isGlobal) return true;
       if (
@@ -22075,6 +21662,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   const filteredEmployeeSalaryAssignments = useMemo(() => filterByBranch(employeeSalaryAssignments), [employeeSalaryAssignments, selectedBranch, selectedAcademicYear]);
   const filteredPayrollRuns = useMemo(() => filterByBranch(payrollRuns), [payrollRuns, selectedBranch, selectedAcademicYear]);
   const filteredAlumniRecords = useMemo(() => filterByBranch(alumniRecords), [alumniRecords, selectedBranch, selectedAcademicYear]);
+  const filteredAnnouncements = useMemo(() => filterByBranch(announcements), [announcements, selectedBranch, selectedAcademicYear]);
+  const filteredMeetings = useMemo(() => filterByBranch(meetings), [meetings, selectedBranch, selectedAcademicYear]);
 
   const filteredAttendance = useMemo(() => {
     const ayRange = selectedAcademicYear
@@ -22099,10 +21688,10 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       ) {
         if (a.entityType === "Student") {
           const stud = students.find((s) => s.id === a.entityId);
-          return stud ? (stud.branch || "Main Campus") === selectedBranch : true;
+          return stud ? stud.branch === selectedBranch : true;
         } else {
           const st = staff.find((s) => s.id === a.entityId);
-          return st && st.branch ? (st.branch || "Main Campus") === selectedBranch : true;
+          return st && st.branch ? st.branch === selectedBranch : true;
         }
       }
 
@@ -22431,7 +22020,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         className: clsName.startsWith("Class") ? clsName : `Class ${clsName}`,
         section: sec,
         rollNo: roll,
-        branch: targetStudent.branch || "Main Campus",
+        branch: targetStudent.branch || selectedBranch || "",
         status: status,
         promotionStatus: statusRaw,
         remarks: row.remarks || row.Remarks || "Imported historical data",
@@ -22879,7 +22468,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         addQuestionPaper,
         updateQuestionPaper,
         deleteQuestionPaper,
-        meetings,
+        meetings: filteredMeetings,
         addMeeting,
         updateMeeting,
         cancelMeeting,
@@ -22937,7 +22526,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         hostelRooms,
         inventory,
         addInventoryItem,
-        announcements,
+        announcements: filteredAnnouncements,
         addAnnouncement,
         saveAnnouncements: setAnnouncements,
         fetchAnnouncements: fetchAnnouncementsData,

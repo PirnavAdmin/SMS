@@ -79,7 +79,7 @@ export const LandingView: React.FC<LandingViewProps> = ({ onLoginClick }) => {
     return {
       name: localStorage.getItem('school_name') || 'Pirnav School',
       logoUrl: localStorage.getItem('school_logo') || localStorage.getItem('logoUrl') || '',
-      address: localStorage.getItem('school_address') || 'Main Campus, Education City, Hyderabad',
+      address: localStorage.getItem('school_address') || '',
       email: localStorage.getItem('school_email') || 'contact@pirnavschool.edu.in',
       phone: localStorage.getItem('school_phone') || '+91 98765 43210',
       website: localStorage.getItem('school_website') || 'www.pirnavschool.edu.in',
@@ -94,7 +94,7 @@ export const LandingView: React.FC<LandingViewProps> = ({ onLoginClick }) => {
       id: 1,
       date: 'SEP 10, 2026',
       badge: 'Admissions',
-      title: 'Admissions Open for Academic Year 2026-2027',
+      title: 'Admissions Open',
       desc: 'Applications are now open for Pre-Primary to Senior Secondary classes. Schedule a campus visit today.',
     },
     {
@@ -142,7 +142,7 @@ export const LandingView: React.FC<LandingViewProps> = ({ onLoginClick }) => {
             const updated: DynamicSchoolInfo = {
               name: data.schoolName || data.name || savedName || 'Pirnav School',
               logoUrl: effectiveLogo,
-              address: data.address || data.schoolAddress || savedAddr || 'Main Campus, Education City, Hyderabad',
+              address: data.address || data.schoolAddress || savedAddr || '',
               email: data.email || data.contactEmail || 'contact@pirnavschool.edu.in',
               phone: data.phone || data.contactPhone || '+91 98765 43210',
               website: data.website || 'www.pirnavschool.edu.in',
@@ -1238,7 +1238,7 @@ export const LandingView: React.FC<LandingViewProps> = ({ onLoginClick }) => {
             <div className="pt-1 text-xs text-slate-300 space-y-1.5">
               <div className="flex items-center gap-2" title="School Location / Address">
                 <MapPin className="w-3.5 h-3.5 text-sky-400 shrink-0" aria-label="School Location Icon" />
-                <span className="text-slate-300">{schoolInfo.address || 'Main Campus, Education City, Hyderabad'}</span>
+                <span className="text-slate-300">{schoolInfo.address || ''}</span>
               </div>
               <div className="flex items-center gap-2" title="School Contact Phone">
                 <Phone className="w-3.5 h-3.5 text-sky-400 shrink-0" aria-label="School Phone Icon" />

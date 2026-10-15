@@ -16,9 +16,9 @@ export const PromoteStudentModal: React.FC<PromoteStudentModalProps> = ({
   isOpen,
   onClose
 }) => {
-  const { promoteStudent, completeStudent, getHighestClass, academicClasses, branches = [] } = useData();
+  const { promoteStudent, completeStudent, getHighestClass, academicClasses, branches = [], academicYears = [] } = useData();
   const { addToast } = useToast();
-  const { selectedBranch } = useAuth();
+  const { selectedBranch, selectedAcademicYear } = useAuth();
 
   const dynamicCampuses = useMemo(() => {
     const fromApi = (branches || [])
@@ -29,14 +29,14 @@ export const PromoteStudentModal: React.FC<PromoteStudentModalProps> = ({
       ...fromApi,
     ];
     const unique = Array.from(new Set(combined)).filter(Boolean);
-    return unique.length > 0 ? unique : ['Madhapur Branch', 'Main Campus'];
+    return unique;
   }, [branches, selectedBranch]);
 
-  const [targetYear, setTargetYear] = useState('2026-2027');
+  const [targetYear, setTargetYear] = useState(selectedAcademicYear || ((academicYears[0] as any)?.academicYear || (academicYears[0] as any)?.year || ''));
   const [targetClass, setTargetClass] = useState(academicClasses[0]?.name || 'Class 11');
   const [targetSection, setTargetSection] = useState('A');
   const [enableBranchTransfer, setEnableBranchTransfer] = useState(false);
-  const [targetBranch, setTargetBranch] = useState<string>(student?.branch || 'Main Campus');
+  const [targetBranch, setTargetBranch] = useState<string>(student?.branch || (selectedBranch && selectedBranch !== 'All' ? selectedBranch : (dynamicCampuses[0] || '')));
 
   if (!isOpen || !student) return null;
 
@@ -112,9 +112,10 @@ export const PromoteStudentModal: React.FC<PromoteStudentModalProps> = ({
               onChange={e => setTargetYear(e.target.value)}
               className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-xs font-bold text-slate-900 dark:text-white"
             >
-              <option value="2026-2027">2026-2027 (Current Term)</option>
-              <option value="2025-2026">2025-2026</option>
-              <option value="2027-2028">2027-2028</option>
+              {academicYears.map((ay: any) => {
+                const yr = typeof ay === "string" ? ay : ay.year || ay.academicYear || "";
+                return <option key={yr} value={yr}>{yr}{yr === selectedAcademicYear ? " (Current Term)" : ""}</option>;
+              })}
             </select>
           </div>
 

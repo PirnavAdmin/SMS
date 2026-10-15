@@ -180,7 +180,7 @@ export const ExamGeneralForm: React.FC<ExamGeneralFormProps> = ({
             value={term || ''}
             onChange={e => onChange({ term: e.target.value })}
             className={inputClass}
-            placeholder="e.g. Term 1, Mid-Term, Annual, 2026-27"
+            placeholder="e.g. Term 1, Mid-Term, Annual"
           />
         </div>
 

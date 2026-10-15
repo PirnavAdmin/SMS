@@ -320,7 +320,7 @@ export const TeacherSubstitutionWorkspace: React.FC<{
       <div className="hidden print:block">
         <SchoolPrintHeader
           title="Daily Teacher Substitution & Leisure Replacement Register"
-          subtitle={`Date: ${selectedDate} (${dayOfWeek}) • Academic Year: ${selectedAcademicYear || '2026-2027'}`}
+          subtitle={`Date: ${selectedDate} (${dayOfWeek})${selectedAcademicYear ? ` • Academic Year: ${selectedAcademicYear}` : ''}`}
         />
       </div>
 

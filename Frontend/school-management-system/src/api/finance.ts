@@ -297,7 +297,7 @@ export const fetchFeePaymentsApi = async () => {
       chequeDate: item.chequeDate || "",
       bankName: item.bankName || "",
       paymentDate: item.paymentDate || "",
-      academicYear: item.academicYear || "2026-2027",
+      academicYear: item.academicYear || "",
       status: item.status || "Paid",
       remarks: item.remarks || "",
       termName: item.termName || "",
@@ -330,7 +330,7 @@ export const createFeePaymentApi = async (data: Omit<FeePayment, 'id' | 'receipt
     paymentMethod: data.paymentMode || (data as any).paymentMethod || "Cash",
     paymentMode: data.paymentMode || "Cash",
     status: data.status || "Paid",
-    academicYear: data.academicYear || "2026-2027",
+    academicYear: data.academicYear || "",
     remarks: data.remarks || "",
     termName: (data as any).termName || "",
     feeHeadName: (data as any).feeHeadName || "",
@@ -370,7 +370,7 @@ export const fetchFeeCollectionStudentsApi = async (params?: {
   return apiClient(`/api/finance/fee-collection/students${qs ? `?${qs}` : ''}`, { method: 'GET' });
 };
 
-export const fetchStudentFeeProfileApi = async (studentId: number | string, academicYear = "2026-2027") => {
+export const fetchStudentFeeProfileApi = async (studentId: number | string, academicYear = "") => {
   return apiClient(`/api/finance/fee-collection/student/${studentId}?academicYear=${encodeURIComponent(academicYear)}`, { method: 'GET' });
 };
 
@@ -692,7 +692,7 @@ export const processFeeRefundRequestApi = async (id: number | string, payload: {
   });
 };
 
-export const fetchFeeScheduleConfigApi = async (academicYear = '2026-2027') => {
+export const fetchFeeScheduleConfigApi = async (academicYear = '') => {
   return apiClient(`/api/finance/fee-schedules?academicYear=${encodeURIComponent(academicYear)}`, { method: 'GET' });
 };
 

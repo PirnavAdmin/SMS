@@ -63,7 +63,7 @@ export const TrainingContainerView: React.FC = () => {
     type: 'Internal' as 'Internal' | 'External',
     trainerName: '',
     organization: 'Pirnav Schools Professional Cell',
-    branch: 'Main Campus',
+    branch: selectedBranch || '',
     department: 'Academics',
     applicableDesignation: 'All Staff',
     venue: 'Main Auditorium',
@@ -102,7 +102,7 @@ export const TrainingContainerView: React.FC = () => {
   const [wizardStep2, setWizardStep2] = useState({
     targetEmployeeType: 'Teaching Staff' as 'Teaching Staff' | 'Non-Teaching Staff' | 'Both',
     academicYear: '2025-2026',
-    branch: 'Main Campus',
+    branch: selectedBranch || '',
     department: 'All',
     designation: 'All',
     subject: 'All',
@@ -138,7 +138,7 @@ export const TrainingContainerView: React.FC = () => {
     setWizardStep2({
       targetEmployeeType: 'Teaching Staff',
       academicYear: '2025-2026',
-      branch: 'Main Campus',
+      branch: selectedBranch || '',
       department: 'All',
       designation: 'All',
       subject: 'All',
@@ -190,7 +190,7 @@ export const TrainingContainerView: React.FC = () => {
       const matchesRole = (wizardStep2.targetEmployeeType as string) === 'Both' || (wizardStep2.targetEmployeeType as string) === 'All Staff' ||
         (wizardStep2.targetEmployeeType === 'Teaching Staff' ? isTeacherRole : !isTeacherRole);
 
-      const matchesBranch = wizardStep2.branch === 'All' || wizardStep2.branch === 'Main Campus' || !s.branch || s.branch === 'All Branches' ||
+      const matchesBranch = wizardStep2.branch === 'All' || !s.branch || s.branch === 'All Branches' ||
         s.branch.toLowerCase() === wizardStep2.branch.toLowerCase();
 
       const matchesDept = wizardStep2.department === 'All' || wizardStep2.department === 'All Departments' || !wizardStep2.department ||
@@ -285,7 +285,7 @@ export const TrainingContainerView: React.FC = () => {
       const matchesRole = (workshopForm.targetRoleType as string) === 'All Staff' || (workshopForm.targetRoleType as string) === 'Both' ||
         (workshopForm.targetRoleType === 'Teaching Staff' ? isTeacherRole : !isTeacherRole);
 
-      const matchesBranch = participantFilters.branch === 'All' || participantFilters.branch === 'Main Campus' || !s.branch || s.branch === 'All Branches' ||
+      const matchesBranch = participantFilters.branch === 'All' || !s.branch || s.branch === 'All Branches' ||
         s.branch.toLowerCase() === participantFilters.branch.toLowerCase();
 
       const matchesDept = participantFilters.department === 'All' || participantFilters.department === 'All Departments' ||
@@ -331,7 +331,7 @@ export const TrainingContainerView: React.FC = () => {
         employeeRole: s?.role === 'Teacher' ? 'Teaching Staff' : 'Non-Teaching Staff',
         department: s?.department || 'General',
         designation: s?.designation || 'Staff',
-        branch: s?.branch || 'Main Campus',
+        branch: s?.branch || selectedBranch || '',
         attendanceStatus: 'Pending'
       };
     });
@@ -414,7 +414,7 @@ export const TrainingContainerView: React.FC = () => {
         employeeName: s ? `${s.firstName} ${s.lastName}` : 'Staff Member',
         department: s?.department || 'Academics',
         designation: s?.designation || 'Staff',
-        branch: s?.branch || wizardStep2.branch || 'Main Campus',
+        branch: s?.branch || wizardStep2.branch || selectedBranch || '',
         marksObtained: 0,
         totalMarks: Number(wizardStep1.totalMarks),
         percentage: 0,
@@ -1450,7 +1450,7 @@ export const TrainingContainerView: React.FC = () => {
                           onChange={e => setWizardStep2({ ...wizardStep2, branch: e.target.value })}
                           className="w-full px-2.5 py-1.5 rounded-lg bg-white dark:bg-slate-900 border font-bold text-xs cursor-pointer"
                         >
-                          <option value="Main Campus">Main Campus</option>
+                          
                           <option value="North Branch">North Branch</option>
                           <option value="West Campus">West Campus</option>
                           <option value="All">All Branches</option>
@@ -1577,7 +1577,7 @@ export const TrainingContainerView: React.FC = () => {
                               </div>
                               <div className="text-right">
                                 <span className="px-2 py-0.5 rounded-md bg-sky-50 dark:bg-sky-950 text-sky-700 dark:text-sky-300 font-bold text-[10px]">{emp.designation || emp.role}</span>
-                                <span className="text-[10px] text-slate-400 block font-medium">{emp.department || 'Main'} • {emp.branch || 'Main Campus'}</span>
+                                <span className="text-[10px] text-slate-400 block font-medium">{emp.department || 'Main'} • {emp.branch || '—'}</span>
                               </div>
                             </label>
                           ))

@@ -36,7 +36,7 @@ export const StudentFormModal: React.FC<StudentFormModalProps> = ({
       ...fromApi,
     ];
     const unique = Array.from(new Set(combined)).filter(Boolean);
-    return unique.length > 0 ? unique : ['Madhapur Branch', 'Main Campus'];
+    return unique;
   }, [branches, selectedBranch]);
 
   const [formData, setFormData] = useState<Partial<Student>>({
@@ -55,7 +55,7 @@ export const StudentFormModal: React.FC<StudentFormModalProps> = ({
     joiningDate: new Date().toISOString().split('T')[0],
     isLateAdmission: false,
     feeCalculationMethod: 'Term-wise',
-    branch: 'Main Campus',
+    branch: selectedBranch && selectedBranch !== 'All' && selectedBranch !== 'All Branches' ? selectedBranch : (dynamicCampuses[0] || ''),
     studentType: 'Non-Residential',
     busRoute: '',
     transportType: 'AC',
@@ -362,7 +362,7 @@ export const StudentFormModal: React.FC<StudentFormModalProps> = ({
     const fullAddr = [
       houseNo ? `H.No ${houseNo}` : '',
       street, area, city, district, stateName, pinCode ? `PIN: ${pinCode}` : ''
-    ].filter(Boolean).join(', ') || formData.address || 'Main Campus Area';
+    ].filter(Boolean).join(', ') || formData.address || '';
 
     if (hasSiblings) {
       if (!siblingsCount || siblingsCount < 1) {

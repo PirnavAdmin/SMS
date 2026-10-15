@@ -23,11 +23,11 @@ export const SchoolPrintHeader: React.FC<SchoolPrintHeaderProps> = ({
   const logoUrl = resolveMediaUrl(schoolProfile?.logoUrl);
   const schoolName = schoolProfile?.name || 'Pirnav Educational Institutions';
   const tagline = schoolProfile?.tagline || 'Empowering Minds, Shaping Tomorrow';
-  const address = schoolProfile?.address || 'Jain Sadguru Images Capital Park 502B, Madhapur, Hyderabad';
+  const address = schoolProfile?.address || '';
   const phone = schoolProfile?.phone || '+91 9123456789';
   const email = schoolProfile?.email || 'contact@pirnavschools.edu';
   const website = schoolProfile?.website || 'https://pirnavschools.edu';
-  const academicYear = schoolProfile?.academicYear || '2026-2027';
+  const academicYear = schoolProfile?.academicYear || '';
 
   return (
     <div className={`w-full ${compact ? 'pb-2.5 mb-3.5' : 'pb-3 mb-4'} border-b-2 border-slate-900 ${showAlways ? 'block' : 'hidden print:block'} ${className}`}>

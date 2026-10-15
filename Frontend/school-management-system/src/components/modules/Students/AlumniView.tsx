@@ -50,8 +50,8 @@ export const AlumniView: React.FC<AlumniViewProps> = ({ onNavigate }) => {
       if (st.status === 'Completed' || st.status === 'Alumni') {
         const exists = list.some(a => a.studentId === st.id || a.admissionNo === st.admissionNo);
         if (!exists) {
-          const finalYear = st.completionAcademicYear || schoolProfile?.academicYear || '2025-2026';
-          const batchYear = finalYear.split('-')[1] || finalYear.split('-')[0] || '2026';
+          const finalYear = st.completionAcademicYear || schoolProfile?.academicYear || '';
+          const batchYear = finalYear.split('-')[1] || finalYear.split('-')[0] || String(new Date().getFullYear());
           list.push({
             id: 'ALM-' + st.id,
             studentId: st.id,
@@ -67,7 +67,7 @@ export const AlumniView: React.FC<AlumniViewProps> = ({ onNavigate }) => {
             contactPhone: st.phone || st.fatherPhone || st.guardianPhone,
             contactEmail: st.email || st.fatherEmail || st.guardianEmail,
             parentName: st.fatherName || st.parentName,
-            branch: st.branch || 'Main Campus',
+            branch: st.branch || '',
             createdDate: st.completionDate || new Date().toISOString().split('T')[0]
           });
         }
@@ -648,7 +648,7 @@ export const AlumniView: React.FC<AlumniViewProps> = ({ onNavigate }) => {
                     </div>
                     <div>
                       <p className="text-[10px] font-black uppercase text-slate-400">Branch / Campus</p>
-                      <p className="font-bold text-slate-900 dark:text-white mt-0.5">{selectedAlumniProfile.branch || 'Main Campus'}</p>
+                      <p className="font-bold text-slate-900 dark:text-white mt-0.5">{selectedAlumniProfile.branch || '—'}</p>
                     </div>
                   </div>
 
@@ -769,7 +769,7 @@ export const AlumniView: React.FC<AlumniViewProps> = ({ onNavigate }) => {
               <div className="pt-8 flex items-center justify-between text-xs font-sans text-slate-600 dark:text-slate-400 border-t border-slate-200 dark:border-slate-700">
                 <div>
                   <p>Date of Issue: <strong>{certificateModal.record.completionDate}</strong></p>
-                  <p>Campus: <strong>{certificateModal.record.branch || 'Main Campus'}</strong></p>
+                  <p>Campus: <strong>{certificateModal.record.branch || '—'}</strong></p>
                 </div>
                 <div className="text-center">
                   <div className="w-32 border-b border-slate-400 mb-1" />

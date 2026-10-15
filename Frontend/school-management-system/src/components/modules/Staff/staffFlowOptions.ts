@@ -879,7 +879,7 @@ export const defaultBasicStaffFormState = (
   reportingManager: "",
   status: "Active",
 
-  academicYear: "2026-2027",
+  academicYear: "",
   assignedClasses: [],
   assignedSections: [],
   assignedSubjects: [],

@@ -127,7 +127,7 @@ export const TeacherProfileView: React.FC = () => {
       designation: isAccountant ? 'Accountant' : isWarden ? 'Hostel Warden' : ((user as any)?.designation || 'Teacher'),
       qualification: (user as any)?.qualification || '',
       experience: (user as any)?.experience || '',
-      branch: user?.branch || 'Main Campus',
+      branch: user?.branch || '',
       avatar: user?.avatar || ''
     };
   }, [user, staff]);
@@ -406,7 +406,7 @@ export const TeacherProfileView: React.FC = () => {
       bloodGroup: localEdit?.bloodGroup || dbTeacher?.bloodGroup || (user as any)?.bloodGroup || 'Not Specified',
       address: localEdit?.address || dbTeacher?.address || (dbTeacher as any)?.presentAddress || (user as any)?.address || '',
       emergencyContact: localEdit?.emergencyContact || (dbTeacher as any)?.emergencyContact || (dbTeacher as any)?.alternateMobile || (user as any)?.emergencyContact || '',
-      branch: dbTeacher?.branch || user?.branch || 'Main Campus',
+      branch: dbTeacher?.branch || user?.branch || '',
       department: fallbackDept,
       designation: fallbackDesignation,
       role: fallbackRole,
@@ -544,7 +544,7 @@ export const TeacherProfileView: React.FC = () => {
       designation: profile.designation,
       department: profile.department,
       role: profile.role || profile.designation,
-      branch: dbTeacher?.branch || user?.branch || 'Main Campus',
+      branch: dbTeacher?.branch || user?.branch || '',
       joiningDate: profile.joiningDate,
       dateOfJoining: profile.joiningDate,
       qualification: profile.qualification,

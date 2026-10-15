@@ -43,7 +43,7 @@ export const StaffRegistrationPage: React.FC<StaffRegistrationPageProps> = ({ on
 
   const [form, setForm] = useState<BasicStaffFormState>(() => {
     const initCat = getInitialCategory();
-    let initBranch = 'Main Campus';
+    let initBranch = '';
     try {
       const storedB = sessionStorage.getItem('staff-registration-branch');
       if (storedB) initBranch = storedB;

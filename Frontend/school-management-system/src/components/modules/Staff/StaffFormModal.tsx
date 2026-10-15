@@ -36,7 +36,7 @@ export const StaffFormModal: React.FC<StaffFormModalProps> = ({
   const { addToast } = useToast();
 
   const [form, setForm] = useState<BasicStaffFormState>(() => {
-    const initBranch = (selectedBranch && selectedBranch !== 'All' && selectedBranch !== 'All Branches' && selectedBranch !== 'All Campuses') ? selectedBranch : 'Main Campus';
+    const initBranch = (selectedBranch && selectedBranch !== 'All' && selectedBranch !== 'All Branches' && selectedBranch !== 'All Campuses') ? selectedBranch : '';
     return {
       ...defaultBasicStaffFormState(defaultCategory),
       branch: initBranch,
@@ -89,7 +89,7 @@ export const StaffFormModal: React.FC<StaffFormModalProps> = ({
         employmentType: staffToEdit.employmentType || "",
         reportingManager: "",
         status: staffToEdit.status || "Active",
-        academicYear: "2026-2027",
+        academicYear: "",
         assignedClasses: staffToEdit.assignedClasses || [],
         assignedSections: [],
         assignedSubjects: staffToEdit.assignedSubjects || [],
@@ -121,7 +121,7 @@ export const StaffFormModal: React.FC<StaffFormModalProps> = ({
         })),
       });
     } else {
-      const initBranch = (selectedBranch && selectedBranch !== 'All' && selectedBranch !== 'All Branches' && selectedBranch !== 'All Campuses') ? selectedBranch : 'Main Campus';
+      const initBranch = (selectedBranch && selectedBranch !== 'All' && selectedBranch !== 'All Branches' && selectedBranch !== 'All Campuses') ? selectedBranch : '';
       setForm({
         ...defaultBasicStaffFormState(defaultCategory),
         branch: initBranch,

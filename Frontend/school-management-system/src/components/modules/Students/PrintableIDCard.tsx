@@ -102,7 +102,7 @@ export const PrintableIDCard: React.FC<PrintableIDCardProps> = ({
               </div>
               <div>
                 <span className="text-slate-400 block print:text-slate-500">Branch:</span>
-                <span className="font-bold text-amber-300 print:text-amber-800">{student.branch || 'Main Campus'}</span>
+                <span className="font-bold text-amber-300 print:text-amber-800">{student.branch || '—'}</span>
               </div>
             </div>
 

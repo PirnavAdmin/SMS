@@ -495,7 +495,7 @@ export const WardenCommunicationHubView: React.FC = () => {
       alertType: altType,
       title: altTitle,
       description: altDesc,
-      hostel: "Main Campus Hostel",
+      hostel: "Campus Hostel",
       block: altBlock,
       room: altRoom || "General Area",
       studentName: altStudentName,

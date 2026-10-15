@@ -21,12 +21,12 @@ const monthName = () => new Date().toLocaleString('en-US', { month: 'long', year
 
 const defaultConfig = (branch: string, leaveTypes: ReturnType<typeof useData>['leaveTypes']): Omit<PayrollConfiguration, 'id'> => ({
   branch,
-  financialYear: '2026-2027',
+  financialYear: '',
   payrollName: `${branch} Payroll`,
   status: 'Draft',
   currency: 'INR',
   effectiveFrom: today(),
-  effectiveTo: '2027-03-31',
+  effectiveTo: `${new Date().getFullYear() + 1}-03-31`,
   leaveRules: leaveTypes.map(t => ({
     leaveTypeId: t.id,
     leaveTypeName: t.name,
@@ -425,7 +425,7 @@ export const StaffPayrollView: React.FC<StaffPayrollViewProps> = ({ initialTab, 
         id: item.id ? String(item.id) : ('SAL-STR-' + Math.floor(100 + Math.random() * 900)),
         structureName: item.structureName || item.name || 'Unnamed Structure',
         employeeCategory: item.employeeCategory || 'Teacher',
-        branch: item.branch || (item.branchId === 1 || item.branchId === '1' ? 'Main Campus' : selectedBranch),
+        branch: item.branch || selectedBranch || '',
         earnings: item.earnings || [
           { name: 'Basic Salary', amount: item.basicSalary || 10000, type: 'Fixed', value: item.basicSalary || 10000 },
           { name: 'House Rent Allowance (HRA)', amount: Math.round((item.basicSalary || 10000) * 0.2), type: 'Percentage', value: 20 },
@@ -1058,7 +1058,7 @@ export const StaffPayrollView: React.FC<StaffPayrollViewProps> = ({ initialTab, 
                 <Input
                   value={editingConfigModal.payrollName}
                   onChange={e => setEditingConfigModal({ ...editingConfigModal, payrollName: e.target.value })}
-                  placeholder="e.g. Main Campus Payroll"
+                  placeholder="e.g. Monthly Payroll"
                 />
               </Field>
               <div className="grid grid-cols-2 gap-3">
@@ -1074,10 +1074,10 @@ export const StaffPayrollView: React.FC<StaffPayrollViewProps> = ({ initialTab, 
                     value={editingConfigModal.financialYear}
                     onChange={e => setEditingConfigModal({ ...editingConfigModal, financialYear: e.target.value })}
                   >
-                    <option value="2024-2025">2024-2025</option>
-                    <option value="2025-2026">2025-2026</option>
-                    <option value="2026-2027">2026-2027</option>
-                    <option value="2027-2028">2027-2028</option>
+                    {(data.academicYears || []).map((ay: any) => {
+                      const yr = typeof ay === 'string' ? ay : ay.year || ay.academicYear || '';
+                      return <option key={yr} value={yr}>{yr}</option>;
+                    })}
                   </Select>
                 </Field>
               </div>
@@ -2826,7 +2826,7 @@ const AssignmentPanel = ({
           employeeName: `${employee.firstName} ${employee.lastName}`,
           empId: employee.empId,
           employeeCategory: employee.employeeCategory || 'Staff',
-          branch: employee.branch || 'Main Campus',
+          branch: employee.branch || '',
           department: employee.department || 'General',
           salaryStructureId: structure.id,
           salaryStructureName: structure.structureName,

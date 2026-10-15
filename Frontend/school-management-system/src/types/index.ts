@@ -255,7 +255,7 @@ export interface Student {
   joiningDate: string;
 
   // Global Multi-branch & Facility Allocation
-  branch?: string; // e.g. "Main Campus", "North Branch", "West Campus", "Hyderabad"
+  branch?: string;
   studentType?: StudentType; // Day Scholar vs Hosteller
 
   completionDate?: string;

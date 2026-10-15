@@ -35,8 +35,8 @@ export const FinanceUniformConfigView: React.FC = () => {
   const [deletingConfig, setDeletingConfig] = useState<FinanceUniformConfig | null>(null);
 
   const [form, setForm] = useState<Partial<FinanceUniformConfig>>({
-    academicYear: selectedAcademicYear || financeSettings.academicYear || '2026-2027',
-    branch: selectedBranch || 'Main Campus',
+    academicYear: selectedAcademicYear || financeSettings.academicYear || '',
+    branch: selectedBranch || '',
     className: '',
     gender: '',
     uniformPackage: '',
@@ -194,8 +194,8 @@ export const FinanceUniformConfigView: React.FC = () => {
   const handleOpenAdd = () => {
     setEditingConfig(null);
     setForm({
-      academicYear: selectedAcademicYear || financeSettings.academicYear || '2026-2027',
-      branch: selectedBranch || 'Main Campus',
+      academicYear: selectedAcademicYear || financeSettings.academicYear || '',
+      branch: selectedBranch || '',
       className: '',
       gender: '',
       uniformPackage: '',
@@ -222,7 +222,7 @@ export const FinanceUniformConfigView: React.FC = () => {
 
     const payload = {
       ...form,
-      academicYear: selectedAcademicYear || form.academicYear || financeSettings.academicYear || '2026-2027',
+      academicYear: selectedAcademicYear || form.academicYear || financeSettings.academicYear || '',
     } as Omit<FinanceUniformConfig, 'id'>;
 
     if (editingConfig) {

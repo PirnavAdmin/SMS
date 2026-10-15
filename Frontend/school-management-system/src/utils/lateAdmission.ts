@@ -125,7 +125,7 @@ export function calculateLateAdmissionFees(params: {
     isLateAdmission,
     feeCalculationMethod = 'Term-wise',
     schedule,
-    academicYear = '2026-2027'
+    academicYear = ''
   } = params;
 
   const ayStartYear = parseInt(academicYear.split('-')[0], 10) || 2026;

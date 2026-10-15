@@ -244,7 +244,7 @@ export const StaffProfileDrawer: React.FC<StaffProfileDrawerProps> = ({ staff: s
       <SectionBlock title="Quick Facts" subtitle="Core information commonly needed by HR and admin teams.">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <InfoLine label="Employee Category" value={getCategoryLabel(staff.employeeCategory || staff.role)} />
-          <InfoLine label="Branch" value={staff.branch || 'Main Campus'} />
+          <InfoLine label="Branch" value={staff.branch || '—'} />
           <InfoLine label="Joining Date" value={staff.joiningDate} />
           <InfoLine label="Experience" value={`${staff.experienceYears || 0} years`} />
           <InfoLine label="Profile Status" value={profileStatus} />
@@ -301,7 +301,7 @@ export const StaffProfileDrawer: React.FC<StaffProfileDrawerProps> = ({ staff: s
     <SectionBlock title="Employment Information" subtitle="Department, designation, and HR setup.">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <InfoLine label="Employee Category" value={getCategoryLabel(staff.employeeCategory || staff.role)} />
-        <InfoLine label="Branch" value={staff.branch || 'Main Campus'} />
+        <InfoLine label="Branch" value={staff.branch || '—'} />
         <InfoLine label="Department" value={department} />
         <InfoLine label="Designation" value={designation} />
         <InfoLine label="Employment Type" value={(staff as any).employeeType || 'Permanent'} />
@@ -961,7 +961,7 @@ export const StaffProfileDrawer: React.FC<StaffProfileDrawerProps> = ({ staff: s
                   <Badge variant="info" size="sm">{staff.empId}</Badge>
                 </div>
                 <p className="text-xs text-slate-500 font-bold mt-0.5">{designation} | {department}</p>
-                <p className="text-[10px] text-slate-400 font-medium">Branch: {staff.branch || 'Main Campus'} | Role: {staff.role === 'Teacher' ? 'Teacher' : (staff.role === 'Staff' ? 'Non-Teaching Staff' : staff.role || 'Non-Teaching Staff')}</p>
+                <p className="text-[10px] text-slate-400 font-medium">Branch: {staff.branch || '—'} | Role: {staff.role === 'Teacher' ? 'Teacher' : (staff.role === 'Staff' ? 'Non-Teaching Staff' : staff.role || 'Non-Teaching Staff')}</p>
               </div>
             </div>
 

@@ -61,7 +61,7 @@ export const saveLocalUserProfile = (profileData: Partial<UserProfileData>, user
       email: '',
       phone: '',
       avatar: '',
-      branch: 'Main Campus',
+      branch: '',
       role: 'Admin',
       status: 'Active Account',
     };

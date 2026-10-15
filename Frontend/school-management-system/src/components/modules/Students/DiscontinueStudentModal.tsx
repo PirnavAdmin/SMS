@@ -3,6 +3,7 @@ import { X, UserX, AlertCircle, Calendar, Shield, FileText } from 'lucide-react'
 import { Student, DiscontinuationDetails } from '../../../types';
 import { useData } from '../../../context/DataContext';
 import { useToast } from '../../../context/ToastContext';
+import { useAuth } from '../../../context/AuthContext';
 
 interface DiscontinueStudentModalProps {
   student: Student;
@@ -19,10 +20,11 @@ export const DiscontinueStudentModal: React.FC<DiscontinueStudentModalProps> = (
 }) => {
   const { discontinueStudent } = useData();
   const { addToast } = useToast();
+  const { selectedAcademicYear } = useAuth();
 
   const [date, setDate] = useState<string>(new Date().toISOString().split('T')[0]);
-  const [discontinuationAY, setDiscontinuationAY] = useState<string>('2026-2027');
-  const [lastAY, setLastAY] = useState<string>('2025-2026');
+  const [discontinuationAY, setDiscontinuationAY] = useState<string>(selectedAcademicYear || '');
+  const [lastAY, setLastAY] = useState<string>(selectedAcademicYear || '');
   const [reason, setReason] = useState<string>('Personal / Relocation');
   const [customReason, setCustomReason] = useState<string>('');
   const [tcRequired, setTcRequired] = useState<boolean>(true);
@@ -119,7 +121,7 @@ export const DiscontinueStudentModal: React.FC<DiscontinueStudentModalProps> = (
                 value={discontinuationAY}
                 onChange={(e) => setDiscontinuationAY(e.target.value)}
                 className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 font-medium"
-                placeholder="2026-2027"
+                placeholder="e.g. YYYY-YYYY"
                 required
               />
             </div>

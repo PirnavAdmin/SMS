@@ -185,7 +185,7 @@ export function downloadFeeSummaryPdf(data: FeeSummaryPdfData, filename: string)
   y += 24;
   ctx.font = `500 16px ${fontSans}`;
   ctx.fillText(
-    `${data.schoolAddress || 'Main Campus'} • ${data.schoolPhone || '+1 (555) 019-2834'}`,
+    `${data.schoolAddress || ''}${data.schoolPhone ? ` • ${data.schoolPhone}` : ''}`,
     width / 2,
     y
   );

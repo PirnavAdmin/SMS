@@ -189,7 +189,7 @@ const baseStructures = [
     structureName: 'Principal Premium',
     department: 'Academics',
     employeeCategory: 'Staff',
-    branch: 'Main Campus',
+    branch: '',
     designation: 'Principal',
     employmentType: 'Permanent',
     basicSalary: 45000,
@@ -210,7 +210,7 @@ const baseStructures = [
     structureName: 'Senior Teacher Scale',
     department: 'Mathematics',
     employeeCategory: 'Teacher',
-    branch: 'Main Campus',
+    branch: '',
     designation: 'Senior Teacher',
     employmentType: 'Permanent',
     basicSalary: 32000,
@@ -231,7 +231,7 @@ const baseStructures = [
     structureName: 'Standard Teacher Scale',
     department: 'Science',
     employeeCategory: 'Teacher',
-    branch: 'Main Campus',
+    branch: '',
     designation: 'Subject Teacher',
     employmentType: 'Permanent',
     basicSalary: 25000,
@@ -252,7 +252,7 @@ const baseStructures = [
     structureName: 'Office & Admin Scale',
     department: 'Administration',
     employeeCategory: 'Staff',
-    branch: 'Main Campus',
+    branch: '',
     designation: 'Office Assistant',
     employmentType: 'Permanent',
     basicSalary: 22000,
@@ -273,7 +273,7 @@ const baseStructures = [
     structureName: 'Support Staff Scale',
     department: 'Maintenance',
     employeeCategory: 'Staff',
-    branch: 'Main Campus',
+    branch: '',
     designation: 'Support Staff',
     employmentType: 'Contract',
     basicSalary: 18000,
@@ -460,12 +460,12 @@ const createHistoryEntries = (employees: Staff[]): SalaryHistoryEntry[] => {
 
 const reportsCatalog: ReportRow[] = [
   { id: 'R-01', reportName: 'Salary Register', scope: 'All Branches', format: 'Excel / PDF', records: 185, amount: 2845000, lastGenerated: '2026-07-30', owner: 'HR Department', category: 'Compliance' },
-  { id: 'R-02', reportName: 'Bank Transfer Statement', scope: 'Main Campus', format: 'Excel / PDF', records: 170, amount: 2490000, lastGenerated: '2026-07-30', owner: 'Accounts', category: 'Disbursement' },
+  { id: 'R-02', reportName: 'Bank Transfer Statement', scope: 'All Branches', format: 'Excel / PDF', records: 170, amount: 2490000, lastGenerated: '2026-07-30', owner: 'Accounts', category: 'Disbursement' },
   { id: 'R-03', reportName: 'PF Report', scope: 'All Employees', format: 'Excel', records: 185, amount: 182500, lastGenerated: '2026-07-29', owner: 'HR / Accounts', category: 'Compliance' },
   { id: 'R-04', reportName: 'ESI Report', scope: 'Eligible Staff', format: 'Excel', records: 142, amount: 19875, lastGenerated: '2026-07-29', owner: 'Accounts', category: 'Compliance' },
   { id: 'R-05', reportName: 'Professional Tax', scope: 'Monthly', format: 'PDF', records: 185, amount: 37000, lastGenerated: '2026-07-29', owner: 'Accounts', category: 'Compliance' },
   { id: 'R-06', reportName: 'Department Salary', scope: 'Department Wise', format: 'Excel / Print', records: 8, amount: 2845000, lastGenerated: '2026-07-30', owner: 'Management', category: 'Analytics' },
-  { id: 'R-07', reportName: 'Annual Payroll', scope: 'FY 2026-27', format: 'PDF', records: 185, amount: 32680000, lastGenerated: '2026-07-30', owner: 'Management', category: 'Analytics' },
+  { id: 'R-07', reportName: 'Annual Payroll', scope: 'Annual Payroll', format: 'PDF', records: 185, amount: 32680000, lastGenerated: '2026-07-30', owner: 'Management', category: 'Analytics' },
   { id: 'R-08', reportName: 'Monthly Payroll', scope: 'July 2026', format: 'Excel / PDF', records: 185, amount: 2845000, lastGenerated: '2026-07-30', owner: 'HR', category: 'Analytics' },
   { id: 'R-09', reportName: 'Employee Salary Report', scope: 'Employee Level', format: 'PDF', records: 185, amount: 2845000, lastGenerated: '2026-07-30', owner: 'HR', category: 'Employee' },
   { id: 'R-10', reportName: 'Payroll Summary', scope: 'Management', format: 'Excel / Print', records: 1, amount: 2845000, lastGenerated: '2026-07-30', owner: 'Finance Head', category: 'Summary' }
@@ -506,7 +506,7 @@ const salaryBreakdown = [
 ];
 
 const recentActivity = [
-  { title: 'Payroll Generated', time: '08:30 AM', detail: 'July 2026 batch generated for Main Campus.' },
+  { title: 'Payroll Generated', time: '08:30 AM', detail: 'Payroll batch generated successfully.' },
   { title: 'Payslip Published', time: '09:10 AM', detail: '170 payslips published to employee portals.' },
   { title: 'Salary Structure Updated', time: '10:05 AM', detail: 'Senior Teacher Scale revised for two faculty members.' },
   { title: 'Employee Assigned', time: '11:15 AM', detail: 'Three new staff members linked to payroll structures.' },
@@ -880,7 +880,7 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
     structureName: '',
     department: 'Administration',
     employeeCategory: 'Teacher',
-    branch: selectedBranch || 'Main Campus',
+    branch: selectedBranch || '',
     designation: '',
     employmentType: 'Permanent',
     basicSalary: 30000,
@@ -1012,7 +1012,7 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
   const filteredPayslips = useMemo(() => {
     return payslipRows.filter(row => {
       const matchesMonth = payrollMonth === 'All Months' || row.month === payrollMonth;
-      const matchesBranch = row.branch === 'Main Campus' || row.branch === selectedBranch || !row.branch;
+      const matchesBranch = !selectedBranch || selectedBranch === 'All' || selectedBranch === 'All Branches' || row.branch === selectedBranch;
       return matchesMonth && matchesBranch;
     });
   }, [payrollMonth, payslipRows, selectedBranch]);
@@ -1146,7 +1146,7 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
         structureName: '',
         department: 'Administration',
         employeeCategory: 'Teacher',
-        branch: selectedBranch || 'Main Campus',
+        branch: selectedBranch || '',
         designation: '',
         employmentType: 'Permanent',
         basicSalary: 30000,

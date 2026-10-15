@@ -13,7 +13,7 @@ export function generateReportCardHtml(
   const schoolAddress = schoolProfile?.address || 'Institutional Campus, Main Road';
   const schoolContact = `${schoolProfile?.phone ? `Ph: ${schoolProfile.phone} ` : ''}${schoolProfile?.email ? `• Email: ${schoolProfile.email}` : ''}`;
   const examName = exam?.name || 'Term Assessment Examination';
-  const academicYear = exam?.academicYear || '2026-2027';
+  const academicYear = exam?.academicYear || '';
 
   const rawSubjects = (data.subjectMarks || []) as any[];
   const subMap = new Map<string, any>();

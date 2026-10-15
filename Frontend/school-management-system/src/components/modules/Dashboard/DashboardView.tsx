@@ -306,7 +306,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
   if (['accountant', 'accounts', 'finance'].includes(userRole)) return <FinanceDashboardView />;
 
   const formatAcademicYearDisplay = (ay?: string) => {
-    if (!ay) return '2026-27';
+    if (!ay) return '';
     const parts = ay.split(/[-–]/);
     if (parts.length === 2) {
       const start = parts[0].trim();
@@ -1130,7 +1130,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
                       <div className="text-left min-w-0 flex-1">
                         <p className="font-bold text-slate-850 dark:text-slate-100 text-xs truncate leading-snug">{e.title}</p>
                         <p className="text-[9.5px] text-slate-500 truncate mt-0.5">
-                          {e.type === 'Holiday' ? 'School Closed' : '10:00 AM • Main Campus'}
+                          {e.type === 'Holiday' ? 'School Closed' : '10:00 AM'}
                         </p>
                       </div>
                     </div>

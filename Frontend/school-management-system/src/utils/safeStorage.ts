@@ -11,8 +11,6 @@ export function initSafeStorage() {
     "sms_auth_token",
     "token",
     "sidebar_collapsed",
-    "academic_year",
-    "selected_academic_year",
     "theme",
     "color_theme"
   ]);
@@ -28,7 +26,14 @@ export function initSafeStorage() {
     "uniform_inventory",
     "uniform_categories",
     "finance_uniform_configs",
-    "student_uniform_issues"
+    "student_uniform_issues",
+    "edu_db_academic_years",
+    "academic_years",
+    "edu_db_branches",
+    "branches",
+    "selected_branch",
+    "selected_academic_year",
+    "academic_year"
   ];
 
   const cleanupRedundant = () => {

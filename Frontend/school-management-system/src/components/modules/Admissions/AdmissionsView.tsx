@@ -320,7 +320,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
       ...fromApi,
     ];
     const unique = Array.from(new Set(combined)).filter(Boolean);
-    return unique.length > 0 ? unique : ["Madhapur Branch", "Main Campus"];
+    return unique;
   }, [branches, selectedBranch]);
 
   const [query, setQuery] = useState("");
@@ -386,7 +386,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
       floor: "",
       hostelRoom: "",
       hostelBed: "",
-      branch: selectedBranch || "Main Campus",
+      branch: selectedBranch && selectedBranch !== "All" && selectedBranch !== "All Branches" ? selectedBranch : (availableBranches[0] || ""),
       scholarshipId: "",
       discountId: "",
       selectedOptionalFees: [],
@@ -489,7 +489,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
       "Wright",
       "Class 1",
       "Male",
-      selectedBranch && selectedBranch !== "All" && selectedBranch !== "All Branches" ? selectedBranch : "Madhapur Branch",
+      selectedBranch && selectedBranch !== "All" && selectedBranch !== "All Branches" ? selectedBranch : (availableBranches[0] || ""),
       "15-08-2018",
       "O+",
       "Christianity",
@@ -627,9 +627,9 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
 
               const rowStatus = String(row.Status || row.status || "Enrolled").trim();
               const rowClass = String(row.AppliedClass || row.appliedClass || row.Class || row.className || row["Applied Class"] || "Class 1").trim();
-              const defaultActiveBranch = selectedBranch && selectedBranch !== "All Branches" && selectedBranch !== "All" ? selectedBranch : "Madhapur Branch";
+              const defaultActiveBranch = selectedBranch && selectedBranch !== "All Branches" && selectedBranch !== "All" ? selectedBranch : (availableBranches[0] || "");
               let rowBranch = String(row.Campus || row.branch || row.Branch || row.CampusLocation || "").trim();
-              if (!rowBranch || rowBranch.toLowerCase() === "main campus") {
+              if (!rowBranch) {
                 rowBranch = defaultActiveBranch;
               }
               const rowAcademicYear = String(row.AcademicYear || row.academicYear || row["Academic Year"] || selectedAcademicYear || "").trim();
@@ -1947,7 +1947,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
           floor: formData.floor,
           hostelRoom: formData.hostelRoom,
           hostelBed: formData.hostelBed,
-          branch: formData.branch || selectedBranch || "Main Campus",
+          branch: formData.branch || (selectedBranch && selectedBranch !== "All" && selectedBranch !== "All Branches" ? selectedBranch : (availableBranches[0] || "")),
           scholarshipId: formData.scholarshipId,
           discountId: formData.discountId,
           selectedOptionalFees: formData.selectedOptionalFees || [],
@@ -2195,7 +2195,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
     const calculationMethod = formData.feeCalculationMethod || "Term-wise";
 
     const currentSchedule = (academicYearFeeSchedules || []).find(
-      (s) => s.academicYear === (selectedAcademicYear || "2026-2027"),
+      (s) => s.academicYear === (selectedAcademicYear || ""),
     );
 
     const gnd = formData.gender || "Unisex";
@@ -2258,7 +2258,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
       isLateAdmission,
       feeCalculationMethod: calculationMethod,
       schedule: currentSchedule,
-      academicYear: selectedAcademicYear || "2026-2027",
+      academicYear: selectedAcademicYear || "",
     });
 
     baseItems.forEach((i, idx) => {
@@ -4955,7 +4955,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                         Campus
                       </p>
                       <p className="text-xs font-bold text-slate-800 dark:text-slate-200">
-                        {selectedAppForView.branch || "Main Campus"}
+                        {selectedAppForView.branch || "—"}
                       </p>
                     </div>
                   </div>
@@ -5231,7 +5231,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
               className: stClass,
               section: stSection,
               studentType: stType,
-              academicYear: selectedAcademicYear || "2026-2027",
+              academicYear: selectedAcademicYear || "",
               feeItems: [],
               totalScholarship: 0,
               totalDiscount: 0,
@@ -5469,7 +5469,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                             <div class="info-row"><span class="label">Student Name: </span><span class="value">${ledger.studentName || "Student"}</span></div>
                             <div class="info-row"><span class="label">Admission No: </span><span class="value">${ledger.admissionNo || "—"}</span></div>
                             <div class="info-row"><span class="label">Class & Section: </span><span class="value">${ledger.className || "Class 1"} - ${ledger.section || "A"}</span></div>
-                            <div class="info-row"><span class="label">Academic Session: </span><span class="value">${ledger.academicYear || "2026-2027"}</span></div>
+                            <div class="info-row"><span class="label">Academic Session: </span><span class="value">${ledger.academicYear || selectedAcademicYear || "—"}</span></div>
                             <div class="info-row"><span class="label">Student Category: </span><span class="value">${formatStudentType(ledger.studentType)}</span></div>
                             <div class="info-row"><span class="label">Date of Statement: </span><span class="value">${new Date().toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })}</span></div>
                           </div>

@@ -328,7 +328,7 @@ export const LibraryTimetableView: React.FC = () => {
     const address = schoolProfile?.address || 'Jain Sadguru Images Capital Park502B, Capital Pk Rd, VIP Hills, Madhapur, HITEC City, Hyderabad, Telangana 500081';
     const phone = schoolProfile?.phone || '+91 9123456789';
     const email = schoolProfile?.email || 'contact@pirnavschools.edu';
-    const academicYearStr = schoolProfile?.academicYear || '2026-2027';
+    const academicYearStr = schoolProfile?.academicYear || '';
 
     const fullHtml = `
       <!DOCTYPE html>

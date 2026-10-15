@@ -5,6 +5,7 @@ import { PrintDropdownMenu } from '../../common/PrintDropdownMenu';
 import { Pagination } from '../../common/Pagination';
 import { FileSpreadsheet, Download, Printer, Search, Calendar, Filter, RefreshCw, BarChart2, CheckCircle2 } from 'lucide-react';
 import { useData } from '../../../context/DataContext';
+import { useAuth } from '../../../context/AuthContext';
 import { useToast } from '../../../context/ToastContext';
 import { getItemPriceFromConfig, getUniformFeeForClass } from '../../../utils/uniformUtils';
 import { fetchUniformReportsApi } from '../../../api/uniform';
@@ -24,6 +25,7 @@ export const UniformReportsView: React.FC<UniformReportsViewProps> = ({ initialR
   } = useData();
 
   const { addToast } = useToast();
+  const { selectedAcademicYear } = useAuth();
 
   const [reportType, setReportType] = useState<string>(initialReportType || 'Current Stock');
   const [filterClass, setFilterClass] = useState<string>('All');
@@ -431,7 +433,7 @@ export const UniformReportsView: React.FC<UniformReportsViewProps> = ({ initialR
           <div>
             <h1 className="text-xl font-black uppercase tracking-tight">Uniform Report & Inventory Audit</h1>
             <p className="text-xs font-bold text-slate-700 mt-0.5">
-              Report Category: <span className="underline font-black">{reportType}</span> | Academic Session: 2026-2027
+              Report Category: <span className="underline font-black">{reportType}</span> | Academic Session: {selectedAcademicYear || "—"}
             </p>
           </div>
           <div className="text-right text-xs font-medium text-slate-700">

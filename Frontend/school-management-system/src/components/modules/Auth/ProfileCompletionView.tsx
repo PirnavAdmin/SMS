@@ -13,7 +13,7 @@ import {
   Plus,
   Trash2,
   Upload,
-  User,
+  User as UserIcon,
   WalletCards
 } from 'lucide-react';
 import { useAuth } from '../../../context/AuthContext';
@@ -25,7 +25,7 @@ import {
   EmployeeCategory,
   getDocumentRequirements
 } from '../Staff/staffFlowOptions';
-import { Staff, StaffDocument, StaffEducationRecord, StaffExperienceRecord } from '../../../types';
+import { Staff, StaffDocument, StaffEducationRecord, StaffExperienceRecord, User } from '../../../types';
 import { lookupPostalCode, getOfflinePostalInfo } from '../../../utils/postalLookup';
 import { RELIGIONS, MARITAL_STATUSES } from '../../../utils/validation';
 
@@ -116,7 +116,7 @@ type StepId = 'personal' | 'address' | 'education' | 'experience' | 'bank' | 'do
 const defaultAvatar = 'https://images.unsplash.com/photo-1560250097-0b93528c311a?w=400&auto=format&fit=crop&q=80';
 
 const stepMeta: { id: StepId; title: string; short: string; icon: React.ComponentType<{ className?: string }> }[] = [
-  { id: 'personal', title: 'Personal Information', short: 'Personal', icon: User },
+  { id: 'personal', title: 'Personal Information', short: 'Personal', icon: UserIcon },
   { id: 'address', title: 'Address Details', short: 'Address', icon: MapPin },
   { id: 'education', title: 'Education', short: 'Education', icon: GraduationCap },
   { id: 'experience', title: 'Experience', short: 'Experience', icon: Briefcase },
@@ -275,7 +275,7 @@ function buildProfileForm(staff: Staff | undefined | null, category: EmployeeCat
       gender: (staff?.gender as any) || 'Male',
       dob: staff?.dob || '1990-01-15',
       bloodGroup: staff?.bloodGroup ? String(staff.bloodGroup) : 'O+',
-      mobile: staff?.phone || staff?.mobile || user?.phone || '9876543210',
+      mobile: staff?.phone || (staff as any)?.mobile || user?.phone || '9876543210',
       alternateMobile: staff?.alternateMobile || '9876543211',
       nationality: staff?.nationality || 'Indian',
       religion: staff?.religion || 'Hindu',
@@ -284,7 +284,7 @@ function buildProfileForm(staff: Staff | undefined | null, category: EmployeeCat
       motherName: staff?.motherName || 'Sunita Kumar'
     },
     address: {
-      currentAddress: staff?.currentAddress || staff?.address || 'School Main Campus, Administrative Block, Heights',
+      currentAddress: staff?.currentAddress || staff?.address || '',
       permanentAddress: staff?.permanentAddress || '123 Academic Enclave, Central City',
       city: staff?.city || 'Bengaluru',
       district: staff?.district || 'Bengaluru Urban',
@@ -748,7 +748,6 @@ export const ProfileCompletionView: React.FC<ProfileCompletionViewProps> = ({ on
       gender: form.personal.gender || linkedStaff?.gender || 'Male',
       dob: form.personal.dob || linkedStaff?.dob || '',
       phone: form.personal.mobile.trim() || linkedStaff?.phone || '',
-      mobile: form.personal.mobile.trim() || linkedStaff?.mobile || '',
       email: linkedStaff?.email || user?.email || ''
     };
 

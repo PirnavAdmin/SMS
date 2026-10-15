@@ -1,5 +1,5 @@
 // @ts-nocheck
-import React, { useState, useEffect, useMemo, useCallback } from "react";
+import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
 
 import {
   Calendar,
@@ -1951,7 +1951,7 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
     return (staff || []).filter((s) => {
       if (!isTeachingStaff(s) || s.status === "Inactive") return false;
       if (selectedBranch && selectedBranch !== "All" && selectedBranch !== "All Branches" && selectedBranch !== "All Campuses") {
-        const staffBranch = (s.branch || "Main Campus").trim().toLowerCase();
+        const staffBranch = (s.branch || "").trim().toLowerCase();
         if (staffBranch !== selectedBranch.trim().toLowerCase()) return false;
       }
       const deptMatch =
@@ -1983,7 +1983,7 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
       phone: d.mobileNumber || '',
       status: d.status || 'Active',
       employeeCategory: 'Non-Teaching',
-      branch: (d as any).branch || 'Main Campus'
+      branch: (d as any).branch || ''
     }));
 
     const combinedStaff = [...staff];
@@ -2002,7 +2002,7 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
     return combinedStaff.filter((s) => {
       if (isTeachingStaff(s) || s.status === "Inactive") return false;
       if (selectedBranch && selectedBranch !== "All" && selectedBranch !== "All Branches" && selectedBranch !== "All Campuses") {
-        const staffBranch = (s.branch || "Main Campus").trim().toLowerCase();
+        const staffBranch = (s.branch || "").trim().toLowerCase();
         if (staffBranch !== selectedBranch.trim().toLowerCase()) return false;
       }
       const deptMatch =
