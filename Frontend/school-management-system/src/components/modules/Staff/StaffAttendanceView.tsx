@@ -51,6 +51,7 @@ import { useToast } from "../../../context/ToastContext";
 import { useAuth } from "../../../context/AuthContext";
 import { DateInput } from "../../common/DateInput";
 import { ConfirmModal } from "../../common/ConfirmModal";
+import { Pagination } from "../../common/Pagination";
 import {
   teacherCheckInApi,
   teacherCheckOutApi,
@@ -1631,7 +1632,7 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
   // Pagination State
   const [dailyPage, setDailyPage] = useState<number>(1);
   const [monthlyPage, setMonthlyPage] = useState<number>(1);
-  const pageSize = 10;
+  const [pageSize, setPageSize] = useState<number>(10);
 
   // Reset pagination on filter changes
   useEffect(() => {
@@ -3435,56 +3436,18 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
 
               {/* Daily Pagination Controls */}
               {currentTabStaffList.length > 0 && (
-                <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-4 pb-4 px-6 border-t border-slate-100 dark:border-slate-800 text-xs">
-                  <span className="text-slate-500 font-medium">
-                    Showing <strong className="text-slate-800 dark:text-slate-200">{(dailyPage - 1) * pageSize + 1}</strong> - <strong className="text-slate-800 dark:text-slate-200">{Math.min(dailyPage * pageSize, currentTabStaffList.length)}</strong> of <strong className="text-slate-800 dark:text-slate-200">{currentTabStaffList.length}</strong> employees
-                  </span>
-
-                  {Math.ceil(currentTabStaffList.length / pageSize) > 1 && (
-                    <div className="flex items-center gap-1.5">
-                      <button
-                        type="button"
-                        disabled={dailyPage === 1}
-                        onClick={() => setDailyPage((p) => Math.max(1, p - 1))}
-                        className="px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-50 dark:hover:bg-slate-800 transition cursor-pointer flex items-center gap-1 font-bold text-[11px] shadow-xs h-[32px]"
-                      >
-                        <ChevronLeft className="w-3.5 h-3.5" /> Prev
-                      </button>
-
-                      <div className="flex items-center gap-1">
-                        {Array.from(
-                          { length: Math.ceil(currentTabStaffList.length / pageSize) },
-                          (_, i) => i + 1,
-                        ).map((page) => (
-                          <button
-                            key={page}
-                            type="button"
-                            onClick={() => setDailyPage(page)}
-                            className={`w-8 h-8 rounded-xl font-bold text-[11px] transition cursor-pointer flex items-center justify-center ${
-                              dailyPage === page
-                                ? "bg-sky-600 text-white shadow-xs"
-                                : "border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800"
-                            }`}
-                          >
-                            {page}
-                          </button>
-                        ))}
-                      </div>
-
-                      <button
-                        type="button"
-                        disabled={dailyPage === Math.ceil(currentTabStaffList.length / pageSize)}
-                        onClick={() =>
-                          setDailyPage((p) =>
-                            Math.min(Math.ceil(currentTabStaffList.length / pageSize), p + 1),
-                          )
-                        }
-                        className="px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-50 dark:hover:bg-slate-800 transition cursor-pointer flex items-center gap-1 font-bold text-[11px] shadow-xs h-[32px]"
-                      >
-                        Next <ChevronRight className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                  )}
+                <div className="px-6 pb-4">
+                  <Pagination
+                    currentPage={dailyPage}
+                    totalItems={currentTabStaffList.length}
+                    itemsPerPage={pageSize}
+                    onPageChange={setDailyPage}
+                    onItemsPerPageChange={(n) => {
+                      setPageSize(n);
+                      setDailyPage(1);
+                    }}
+                    label="employees"
+                  />
                 </div>
               )}
             </div>
@@ -3822,56 +3785,18 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
 
               {/* Monthly Pagination Controls */}
               {registerStaffList.length > 0 && (
-                <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-4 pb-4 px-6 border-t border-slate-100 dark:border-slate-800 text-xs font-semibold">
-                  <span className="text-slate-500 font-medium">
-                    Showing <strong className="text-slate-800 dark:text-slate-200">{(monthlyPage - 1) * pageSize + 1}</strong> - <strong className="text-slate-800 dark:text-slate-200">{Math.min(monthlyPage * pageSize, registerStaffList.length)}</strong> of <strong className="text-slate-800 dark:text-slate-200">{registerStaffList.length}</strong> employees
-                  </span>
-
-                  {Math.ceil(registerStaffList.length / pageSize) > 1 && (
-                    <div className="flex items-center gap-1.5 font-bold">
-                      <button
-                        type="button"
-                        disabled={monthlyPage === 1}
-                        onClick={() => setMonthlyPage((p) => Math.max(1, p - 1))}
-                        className="px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-50 dark:hover:bg-slate-800 transition cursor-pointer flex items-center gap-1 font-bold text-[11px] shadow-xs h-[32px]"
-                      >
-                        <ChevronLeft className="w-3.5 h-3.5" /> Prev
-                      </button>
-
-                      <div className="flex items-center gap-1">
-                        {Array.from(
-                          { length: Math.ceil(registerStaffList.length / pageSize) },
-                          (_, i) => i + 1,
-                        ).map((page) => (
-                          <button
-                            key={page}
-                            type="button"
-                            onClick={() => setMonthlyPage(page)}
-                            className={`w-8 h-8 rounded-xl font-bold text-[11px] transition cursor-pointer flex items-center justify-center ${
-                              monthlyPage === page
-                                ? "bg-sky-600 text-white shadow-xs"
-                                : "border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800"
-                            }`}
-                          >
-                            {page}
-                          </button>
-                        ))}
-                      </div>
-
-                      <button
-                        type="button"
-                        disabled={monthlyPage === Math.ceil(registerStaffList.length / pageSize)}
-                        onClick={() =>
-                          setMonthlyPage((p) =>
-                            Math.min(Math.ceil(registerStaffList.length / pageSize), p + 1),
-                          )
-                        }
-                        className="px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-50 dark:hover:bg-slate-800 transition cursor-pointer flex items-center gap-1 font-bold text-[11px] shadow-xs h-[32px]"
-                      >
-                        Next <ChevronRight className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                  )}
+                <div className="px-6 pb-4">
+                  <Pagination
+                    currentPage={monthlyPage}
+                    totalItems={registerStaffList.length}
+                    itemsPerPage={pageSize}
+                    onPageChange={setMonthlyPage}
+                    onItemsPerPageChange={(n) => {
+                      setPageSize(n);
+                      setMonthlyPage(1);
+                    }}
+                    label="employees"
+                  />
                 </div>
               )}
             </div>
