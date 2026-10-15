@@ -678,15 +678,41 @@ export const LeaveManagementView: React.FC = () => {
   const handleTypeSubmit = (e: React.SyntheticEvent) => {
     e.preventDefault();
     const data = new FormData(e.target as HTMLFormElement);
+    const rawName = (data.get('name') as string)?.trim();
+    const rawCode = (data.get('code') as string)?.trim();
+    const rawAllowance = data.get('annualAllowance');
+    const rawCarryForward = data.get('carryForward');
+    const rawMaxConsecutive = data.get('maxConsecutiveDays');
+    const rawRequiresAttachment = data.get('requiresAttachment');
+    const rawIsPaid = data.get('isPaid');
+    const rawStatus = data.get('status');
+
+    if (!rawName || !rawCode) {
+      addToast('warning', 'Missing Details', 'Please fill in Leave Name and Leave Code.');
+      return;
+    }
+
+    if (rawAllowance === '' || rawAllowance === null || isNaN(Number(rawAllowance))) {
+      addToast('warning', 'Missing Details', 'Please enter Annual Allowance (Days).');
+      return;
+    }
+
+    if (!rawCarryForward || !rawRequiresAttachment || !rawIsPaid || !rawStatus) {
+      addToast('warning', 'Selection Required', 'Please select all configuration options.');
+      return;
+    }
+
     const payload: Omit<LeaveType, 'id'> = {
-      name: data.get('name') as string,
-      code: data.get('code') as string,
-      annualAllowance: Number(data.get('annualAllowance')),
-      carryForward: data.get('carryForward') === 'true',
-      maxConsecutiveDays: Number(data.get('maxConsecutiveDays')),
-      requiresAttachment: data.get('requiresAttachment') === 'true',
-      isPaid: data.get('isPaid') === 'true',
-      status: data.get('status') as any
+      name: rawName,
+      code: rawCode.toUpperCase(),
+      annualAllowance: Number(rawAllowance),
+      maxDays: Number(rawAllowance),
+      carryForward: rawCarryForward === 'true',
+      maxConsecutiveDays: rawMaxConsecutive !== '' && rawMaxConsecutive !== null ? Number(rawMaxConsecutive) : 0,
+      requiresAttachment: rawRequiresAttachment === 'true',
+      requiresDocument: rawRequiresAttachment === 'true',
+      isPaid: rawIsPaid === 'true',
+      status: rawStatus as 'Active' | 'Inactive'
     };
 
     if (editingType) {
@@ -1703,48 +1729,122 @@ export const LeaveManagementView: React.FC = () => {
       {isTypeModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm animate-in fade-in">
           <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-sm w-full p-6 shadow-2xl space-y-4">
-            <h3 className="text-base font-bold">{editingType ? 'Edit Leave Type' : 'Configure Leave Type'}</h3>
-            <form onSubmit={handleTypeSubmit} className="space-y-3.5 text-xs">
+            <div className="flex items-center justify-between">
+              <h3 className="text-base font-bold text-slate-900 dark:text-white">
+                {editingType ? 'Edit Leave Type' : 'Configure Leave Type'}
+              </h3>
+              <button 
+                type="button" 
+                onClick={() => { setIsTypeModalOpen(false); setEditingType(null); }}
+                className="p-1 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <form key={editingType ? editingType.id : 'new'} onSubmit={handleTypeSubmit} className="space-y-3.5 text-xs">
               <div>
-                <label className="block font-semibold mb-1">Leave Name <span className="text-rose-500 font-bold ml-0.5">*</span></label>
-                <input type="text" name="name" required defaultValue={editingType?.name || ''} className="w-full px-3 py-2 rounded-xl bg-slate-50 border outline-none" />
+                <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">
+                  Leave Name <span className="text-rose-500 font-bold ml-0.5">*</span>
+                </label>
+                <input 
+                  type="text" 
+                  name="name" 
+                  required 
+                  placeholder="e.g. Casual Leave"
+                  defaultValue={editingType?.name || ''} 
+                  className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 outline-none text-slate-800 dark:text-slate-100" 
+                />
               </div>
+
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-semibold mb-1">Leave Code <span className="text-rose-500 font-bold ml-0.5">*</span></label>
-                  <input type="text" name="code" placeholder="e.g. CL" required defaultValue={editingType?.code || ''} className="w-full px-3 py-2 rounded-xl bg-slate-50 border outline-none font-mono" />
+                  <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">
+                    Leave Code <span className="text-rose-500 font-bold ml-0.5">*</span>
+                  </label>
+                  <input 
+                    type="text" 
+                    name="code" 
+                    placeholder="e.g. CL" 
+                    required 
+                    defaultValue={editingType?.code || ''} 
+                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 outline-none font-mono uppercase text-slate-800 dark:text-slate-100" 
+                  />
                 </div>
                 <div>
-                  <label className="block font-semibold mb-1">Annual Allowance (Days) <span className="text-rose-500 font-bold ml-0.5">*</span></label>
-                  <input type="number" name="annualAllowance" required defaultValue={editingType?.annualAllowance || 10} className="w-full px-3 py-2 rounded-xl bg-slate-50 border outline-none" />
+                  <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">
+                    Annual Allowance (Days) <span className="text-rose-500 font-bold ml-0.5">*</span>
+                  </label>
+                  <input 
+                    type="number" 
+                    name="annualAllowance" 
+                    placeholder="e.g. 10" 
+                    required 
+                    min="0"
+                    defaultValue={editingType ? (editingType.annualAllowance ?? editingType.maxDays ?? '') : ''} 
+                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 outline-none text-slate-800 dark:text-slate-100" 
+                  />
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-semibold mb-1">Carry Forward</label>
-                  <select name="carryForward" defaultValue={String(editingType?.carryForward || false)} className="w-full px-3 py-2 rounded-xl bg-slate-50 border outline-none cursor-pointer">
+                  <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">
+                    Carry Forward <span className="text-rose-500 font-bold ml-0.5">*</span>
+                  </label>
+                  <select 
+                    name="carryForward" 
+                    required
+                    defaultValue={editingType ? String(editingType.carryForward ?? false) : ''} 
+                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 outline-none cursor-pointer text-slate-800 dark:text-slate-100"
+                  >
+                    <option value="" disabled>Select Option</option>
                     <option value="true">Yes</option>
                     <option value="false">No</option>
                   </select>
                 </div>
                 <div>
-                  <label className="block font-semibold mb-1">Max Consecutive Days</label>
-                  <input type="number" name="maxConsecutiveDays" defaultValue={editingType?.maxConsecutiveDays || 5} className="w-full px-3 py-2 rounded-xl bg-slate-50 border outline-none" />
+                  <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">
+                    Max Consecutive Days
+                  </label>
+                  <input 
+                    type="number" 
+                    name="maxConsecutiveDays" 
+                    placeholder="e.g. 5"
+                    min="0"
+                    defaultValue={editingType ? (editingType.maxConsecutiveDays ?? '') : ''} 
+                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 outline-none text-slate-800 dark:text-slate-100" 
+                  />
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-semibold mb-1">Requires Attachment</label>
-                  <select name="requiresAttachment" defaultValue={String(editingType?.requiresAttachment || false)} className="w-full px-3 py-2 rounded-xl bg-slate-50 border outline-none cursor-pointer">
+                  <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">
+                    Requires Attachment <span className="text-rose-500 font-bold ml-0.5">*</span>
+                  </label>
+                  <select 
+                    name="requiresAttachment" 
+                    required
+                    defaultValue={editingType ? String(editingType.requiresAttachment ?? editingType.requiresDocument ?? false) : ''} 
+                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 outline-none cursor-pointer text-slate-800 dark:text-slate-100"
+                  >
+                    <option value="" disabled>Select Option</option>
                     <option value="true">Yes</option>
                     <option value="false">No</option>
                   </select>
                 </div>
                 <div>
-                  <label className="block font-semibold mb-1">Is Paid Leave</label>
-                  <select name="isPaid" defaultValue={String(editingType?.isPaid || true)} className="w-full px-3 py-2 rounded-xl bg-slate-50 border outline-none cursor-pointer">
+                  <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">
+                    Is Paid Leave <span className="text-rose-500 font-bold ml-0.5">*</span>
+                  </label>
+                  <select 
+                    name="isPaid" 
+                    required
+                    defaultValue={editingType ? String(editingType.isPaid ?? true) : ''} 
+                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 outline-none cursor-pointer text-slate-800 dark:text-slate-100"
+                  >
+                    <option value="" disabled>Select Option</option>
                     <option value="true">Paid</option>
                     <option value="false">Unpaid (LOP)</option>
                   </select>
@@ -1752,16 +1852,35 @@ export const LeaveManagementView: React.FC = () => {
               </div>
 
               <div>
-                <label className="block font-semibold mb-1">Status</label>
-                <select name="status" defaultValue={editingType?.status || 'Active'} className="w-full px-3 py-2 rounded-xl bg-slate-50 border outline-none cursor-pointer">
+                <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">
+                  Status <span className="text-rose-500 font-bold ml-0.5">*</span>
+                </label>
+                <select 
+                  name="status" 
+                  required
+                  defaultValue={editingType?.status || ''} 
+                  className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 outline-none cursor-pointer text-slate-800 dark:text-slate-100"
+                >
+                  <option value="" disabled>Select Option</option>
                   <option value="Active">Active</option>
                   <option value="Inactive">Inactive</option>
                 </select>
               </div>
 
               <div className="flex items-center justify-end gap-2 pt-4">
-                <button type="button" onClick={() => setIsTypeModalOpen(false)} className="px-4 py-2 font-semibold bg-slate-100 rounded-xl">Cancel</button>
-                <button type="submit" className="px-5 py-2 font-bold text-white bg-brand-600 rounded-xl">Save Configuration</button>
+                <button 
+                  type="button" 
+                  onClick={() => { setIsTypeModalOpen(false); setEditingType(null); }} 
+                  className="px-4 py-2 font-semibold bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-xl transition-colors"
+                >
+                  Cancel
+                </button>
+                <button 
+                  type="submit" 
+                  className="px-5 py-2 font-bold text-white bg-brand-600 hover:bg-brand-700 rounded-xl shadow-sm transition-colors"
+                >
+                  Save Configuration
+                </button>
               </div>
             </form>
           </div>
@@ -1792,7 +1911,8 @@ export const LeaveManagementView: React.FC = () => {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block font-semibold mb-1">Holiday Type <span className="text-rose-500 font-bold ml-0.5">*</span></label>
-                  <select name="type" defaultValue={editingHoliday?.type || 'School'} className="w-full px-3 py-2 rounded-xl bg-slate-50 border outline-none cursor-pointer">
+                  <select name="type" required defaultValue={editingHoliday?.type || ''} className="w-full px-3 py-2 rounded-xl bg-slate-50 border outline-none cursor-pointer">
+                    <option value="" disabled>Select Option</option>
                     <option value="National">National Holiday</option>
                     <option value="School">School Holiday</option>
                     <option value="Festival">Festival Holiday</option>
