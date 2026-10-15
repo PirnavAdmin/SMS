@@ -3493,7 +3493,6 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
                <div className="flex flex-wrap items-center gap-3">
                  {/* Specific Employee Filter */}
                  <div className="flex items-center gap-2">
-                   <span className="text-[10px] font-extrabold uppercase text-slate-400 whitespace-nowrap">Filter:</span>
                    <select
                      value={regEmpId}
                      onChange={(e) => setRegEmpId(e.target.value)}
