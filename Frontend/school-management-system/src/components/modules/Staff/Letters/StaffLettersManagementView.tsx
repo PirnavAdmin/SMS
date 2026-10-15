@@ -460,7 +460,7 @@ export const StaffLettersManagementView: React.FC<StaffLettersManagementViewProp
                 <input
                   type="text"
                   maxLength={50}
-                  placeholder="Search by staff name, ID, ref no..."
+                  placeholder="Search by staff name..."
                   value={searchQuery}
                   onChange={(e) => {
                     const val = e.target.value;
