@@ -36,10 +36,16 @@ export const StudentDashboardView: React.FC<StudentDashboardViewProps> = ({ onNa
 
   const [registryVersion, setRegistryVersion] = React.useState(0);
   React.useEffect(() => {
-    const handleUpdate = () => setRegistryVersion(v => v + 1);
+    let timeoutId: any;
+    const handleUpdate = () => {
+      timeoutId = setTimeout(() => {
+        setRegistryVersion(v => v + 1);
+      }, 0);
+    };
     window.addEventListener('storage', handleUpdate);
     window.addEventListener('attendance_updated', handleUpdate);
     return () => {
+      clearTimeout(timeoutId);
       window.removeEventListener('storage', handleUpdate);
       window.removeEventListener('attendance_updated', handleUpdate);
     };
