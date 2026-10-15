@@ -950,11 +950,14 @@ export const StaffList: React.FC<{
               <tr className="bg-slate-100/70 dark:bg-slate-800/60 text-slate-500 font-bold uppercase border-b border-slate-200 dark:border-slate-800">
                 <th
                   className="sticky left-0 bg-slate-100 dark:bg-slate-800 z-20 py-3.5 px-4 text-center whitespace-nowrap"
-                  style={{ width: 120, minWidth: 120, maxWidth: 120 }}
+                  style={{ width: 160, minWidth: 160, maxWidth: 160 }}
                 >
                   Employee ID
                 </th>
-                <th className="sticky left-[120px] bg-slate-100 dark:bg-slate-800 z-20 py-3.5 px-4 text-center whitespace-nowrap border-r border-slate-200/80 dark:border-slate-800 shadow-[2px_0_5px_rgba(0,0,0,0.02)] dark:shadow-none">
+                <th
+                  className="sticky left-[160px] bg-slate-100 dark:bg-slate-800 z-20 py-3.5 px-4 text-center whitespace-nowrap border-r border-slate-200/80 dark:border-slate-800 shadow-[2px_0_5px_rgba(0,0,0,0.02)] dark:shadow-none"
+                  style={{ left: 160 }}
+                >
                   Employee Name
                 </th>
                 <th className="py-3.5 px-4 text-center whitespace-nowrap">Department</th>
@@ -988,12 +991,15 @@ export const StaffList: React.FC<{
                       className="group hover:bg-slate-50/80 dark:hover:bg-slate-800/40"
                     >
                       <td
-                        className="sticky left-0 bg-white dark:bg-slate-900 group-hover:bg-slate-50/80 dark:group-hover:bg-slate-800/40 z-10 transition-colors py-3 px-4 font-bold text-brand-600 dark:text-brand-400 text-center"
-                        style={{ width: 120, minWidth: 120, maxWidth: 120 }}
+                        className="sticky left-0 bg-white dark:bg-slate-900 group-hover:bg-slate-50/80 dark:group-hover:bg-slate-800/40 z-10 transition-colors py-3 px-4 font-bold text-brand-600 dark:text-brand-400 text-center whitespace-nowrap"
+                        style={{ width: 160, minWidth: 160, maxWidth: 160 }}
                       >
                         {st.empId}
                       </td>
-                      <td className="sticky left-[120px] bg-white dark:bg-slate-900 group-hover:bg-slate-50/80 dark:group-hover:bg-slate-800/40 z-10 transition-colors py-3 px-4 border-r border-slate-200/80 dark:border-slate-800 shadow-[2px_0_5px_rgba(0,0,0,0.02)] dark:shadow-none text-center">
+                      <td
+                        className="sticky left-[160px] bg-white dark:bg-slate-900 group-hover:bg-slate-50/80 dark:group-hover:bg-slate-800/40 z-10 transition-colors py-3 px-4 border-r border-slate-200/80 dark:border-slate-800 shadow-[2px_0_5px_rgba(0,0,0,0.02)] dark:shadow-none text-center"
+                        style={{ left: 160 }}
+                      >
                         <button
                           type="button"
                           onClick={() => setSelectedStaff(st)}
