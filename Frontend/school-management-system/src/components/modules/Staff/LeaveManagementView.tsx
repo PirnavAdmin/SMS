@@ -616,7 +616,12 @@ export const LeaveManagementView: React.FC = () => {
       ? loggedUserStaffMember
       : (staff.find(s => s.id === applyForm.employeeId) || loggedUserStaffMember);
 
-    const lType = leaveTypes.find(t => t.id === applyForm.leaveTypeId) || activeLeaveTypes[0] || { id: 'LT-01', name: 'Casual Leave', isPaid: true };
+    const lType = activeLeaveTypes.find(t => t.id === applyForm.leaveTypeId)
+      || leaveTypes.find(t => t.id === applyForm.leaveTypeId)
+      || activeLeaveTypes.find(t => t.name.toLowerCase() === (applyForm.leaveTypeId || '').toLowerCase())
+      || (editingApplication ? { id: applyForm.leaveTypeId, name: editingApplication.leaveTypeName, isPaid: true } : null)
+      || activeLeaveTypes[0]
+      || { id: 'LT-01', name: 'Casual Leave', isPaid: true };
 
     if (!employee || !applyForm.reason.trim()) {
       addToast('warning', 'Missing Details', 'Please provide a reason for your leave request.');
@@ -660,8 +665,8 @@ export const LeaveManagementView: React.FC = () => {
       numberOfDays: requestedDays,
       reason: applyForm.reason,
       attachments: applyForm.attachments,
-      status: 'Pending',
-      appliedDate: new Date().toISOString().split('T')[0]
+      status: editingApplication ? editingApplication.status : 'Pending',
+      appliedDate: editingApplication ? editingApplication.appliedDate : new Date().toISOString().split('T')[0]
     };
 
     // Balance validation
@@ -726,9 +731,38 @@ export const LeaveManagementView: React.FC = () => {
 
   const openEditApplication = (app: LeaveApplication) => {
     setEditingApplication(app);
+
+    // Resolve matching leave type from activeLeaveTypes using ID, numeric ID, name, or code
+    const appTypeIdStr = String(app.leaveTypeId || '').trim();
+    const appTypeIdDigits = appTypeIdStr.replace(/\D/g, '');
+    const appTypeName = (app.leaveTypeName || '').trim().toLowerCase();
+    const appTypeCode = ((app as any).leaveTypeCode || '').trim().toLowerCase();
+
+    const matchedType = activeLeaveTypes.find(t => {
+      const tIdStr = String(t.id).trim();
+      const tIdDigits = tIdStr.replace(/\D/g, '');
+      const tName = (t.name || '').trim().toLowerCase();
+      const tCode = (t.code || '').trim().toLowerCase();
+
+      // 1. Direct ID match
+      if (appTypeIdStr && tIdStr.toLowerCase() === appTypeIdStr.toLowerCase()) return true;
+      // 2. Exact Name match (e.g. "Sick Leave" === "Sick Leave")
+      if (appTypeName && tName === appTypeName) return true;
+      // 3. Exact Code match (e.g. "SL" === "SL")
+      if (appTypeCode && tCode === appTypeCode) return true;
+      // 4. Numeric ID match (e.g. "2" matches "LT-002" or vice-versa)
+      if (appTypeIdDigits && tIdDigits && appTypeIdDigits === tIdDigits) return true;
+      // 5. Partial/normalized name match (e.g. "sick" in "sick leave")
+      if (appTypeName && (tName.includes(appTypeName) || appTypeName.includes(tName))) return true;
+
+      return false;
+    });
+
+    const resolvedLeaveTypeId = matchedType ? matchedType.id : (app.leaveTypeId || '');
+
     setApplyForm({
       employeeId: app.employeeId,
-      leaveTypeId: app.leaveTypeId,
+      leaveTypeId: resolvedLeaveTypeId,
       fromDate: app.fromDate,
       toDate: app.toDate,
       isHalfDay: app.isHalfDay,
@@ -1552,6 +1586,11 @@ export const LeaveManagementView: React.FC = () => {
                   >
                     <option value="">Select Leave Type</option>
                     {activeLeaveTypes.map(t => <option key={t.id} value={t.id}>{t.name} ({t.code})</option>)}
+                    {applyForm.leaveTypeId && !activeLeaveTypes.some(t => t.id === applyForm.leaveTypeId) && (
+                      <option value={applyForm.leaveTypeId}>
+                        {editingApplication?.leaveTypeName || applyForm.leaveTypeId}
+                      </option>
+                    )}
                   </select>
                 </div>
 

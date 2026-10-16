@@ -37,6 +37,7 @@ public class LeaveApplicationResponseDto
     public string Department { get; set; } = string.Empty;
     public string Branch { get; set; } = string.Empty;
     public string EmployeeCategory { get; set; } = string.Empty;
+    public int LeaveTypeId { get; set; }
     public string LeaveTypeName { get; set; } = string.Empty;
     public string LeaveTypeCode { get; set; } = string.Empty;
     public string FromDate { get; set; } = string.Empty;

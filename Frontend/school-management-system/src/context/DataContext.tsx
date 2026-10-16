@@ -20325,8 +20325,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
             branch: item.branch || item.branchName || "",
             employeeCategory:
               item.employeeCategory === "Teacher" ? "Teacher" : "Staff",
-            leaveTypeId: item.leaveTypeId ? item.leaveTypeId.toString() : "1",
+            leaveTypeId: item.leaveTypeId ? item.leaveTypeId.toString() : (item.leaveTypeCode || ""),
             leaveTypeName: item.leaveTypeName || "Leave",
+            leaveTypeCode: item.leaveTypeCode || "",
             fromDate: item.fromDate,
             toDate: item.toDate,
             isHalfDay: item.isHalfDay,
@@ -20502,9 +20503,18 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     }
 
     let leaveTypeIdNum = 0;
-    const typeMatch = leaveTypes.find(
+    const allKnownTypes = (leaveTypes && leaveTypes.length > 0) ? leaveTypes : [
+      { id: '1', name: 'Casual Leave', code: 'CL' },
+      { id: '2', name: 'Sick Leave', code: 'SL' },
+      { id: '3', name: 'Paid / Earned Leave', code: 'PL' },
+      { id: '4', name: 'On Duty Leave', code: 'OD' },
+      { id: '5', name: 'Maternity / Paternity Leave', code: 'ML' },
+      { id: '6', name: 'Loss of Pay (Unpaid)', code: 'LOP' }
+    ];
+    const typeMatch = allKnownTypes.find(
       (t) =>
         t.id === appData.leaveTypeId ||
+        (t.id && appData.leaveTypeId && String(t.id).replace(/\D/g, '') !== '' && String(t.id).replace(/\D/g, '') === String(appData.leaveTypeId).replace(/\D/g, '')) ||
         t.name.toLowerCase() === (appData.leaveTypeName || "").toLowerCase() ||
         (t.code && appData.leaveTypeName && t.code.toLowerCase() === appData.leaveTypeName.toLowerCase()),
     );
