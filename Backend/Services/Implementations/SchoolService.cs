@@ -2222,25 +2222,27 @@ public class SchoolService : ISchoolService
 		var application = await _schoolRepository.GetLeaveApplicationByIdAsync(applicationId)
 			?? throw new NotFoundException($"Leave application with ID {applicationId} not found.");
 
+		var previousStatus = application.Status;
 		application.Status = status;
 		if (!string.IsNullOrWhiteSpace(approverRemarks)) application.ApproverRemarks = approverRemarks;
 		if (!string.IsNullOrWhiteSpace(approvedBy)) application.ApprovedBy = approvedBy;
 
-		if (status.Equals("Approved", StringComparison.OrdinalIgnoreCase))
+		if (!previousStatus.Equals("Approved", StringComparison.OrdinalIgnoreCase) && status.Equals("Approved", StringComparison.OrdinalIgnoreCase))
 		{
 			var staff = await _schoolRepository.GetStaffByIdAsync(application.StaffId);
 			if (staff != null)
 			{
 				var code = (application.LeaveType?.Code ?? "").ToUpper();
-				if (code.Contains("CL"))
+				var name = (application.LeaveType?.Name ?? "").ToUpper();
+				if (code.Contains("CL") || name.Contains("CASUAL"))
 				{
 					staff.CasualLeaveBalance = Math.Max(0, staff.CasualLeaveBalance - application.RequestedDays);
 				}
-				else if (code.Contains("SL"))
+				else if (code.Contains("SL") || name.Contains("SICK"))
 				{
 					staff.SickLeaveBalance = Math.Max(0, staff.SickLeaveBalance - application.RequestedDays);
 				}
-				else if (code.Contains("EL") || code.Contains("PL"))
+				else if (code.Contains("EL") || code.Contains("PL") || name.Contains("EARNED") || name.Contains("PAID"))
 				{
 					staff.EarnedLeaveBalance = Math.Max(0, staff.EarnedLeaveBalance - application.RequestedDays);
 				}
@@ -2277,6 +2279,19 @@ public class SchoolService : ISchoolService
 				}
 			}
 		}
+		else if (previousStatus.Equals("Approved", StringComparison.OrdinalIgnoreCase) && !status.Equals("Approved", StringComparison.OrdinalIgnoreCase))
+		{
+			// Refund balance if previously approved leave is rejected or cancelled
+			var staff = await _schoolRepository.GetStaffByIdAsync(application.StaffId);
+			if (staff != null)
+			{
+				var code = (application.LeaveType?.Code ?? "").ToUpper();
+				var name = (application.LeaveType?.Name ?? "").ToUpper();
+				if (code.Contains("CL") || name.Contains("CASUAL")) staff.CasualLeaveBalance += application.RequestedDays;
+				else if (code.Contains("SL") || name.Contains("SICK")) staff.SickLeaveBalance += application.RequestedDays;
+				else if (code.Contains("EL") || code.Contains("PL") || name.Contains("EARNED") || name.Contains("PAID")) staff.EarnedLeaveBalance += application.RequestedDays;
+			}
+		}
 
 		await _schoolRepository.SaveChangesAsync();
 
@@ -2306,9 +2321,21 @@ public class SchoolService : ISchoolService
 
 	public async Task<bool> DeleteLeaveApplicationAsync(int id)
 	{
-		var application = await _context.LeaveApplications.FindAsync(id);
+		var application = await _schoolRepository.GetLeaveApplicationByIdAsync(id);
 		if (application != null)
 		{
+			if (application.Status.Equals("Approved", StringComparison.OrdinalIgnoreCase))
+			{
+				var staff = await _schoolRepository.GetStaffByIdAsync(application.StaffId);
+				if (staff != null)
+				{
+					var code = (application.LeaveType?.Code ?? "").ToUpper();
+					var name = (application.LeaveType?.Name ?? "").ToUpper();
+					if (code.Contains("CL") || name.Contains("CASUAL")) staff.CasualLeaveBalance += application.RequestedDays;
+					else if (code.Contains("SL") || name.Contains("SICK")) staff.SickLeaveBalance += application.RequestedDays;
+					else if (code.Contains("EL") || code.Contains("PL") || name.Contains("EARNED") || name.Contains("PAID")) staff.EarnedLeaveBalance += application.RequestedDays;
+				}
+			}
 			_context.LeaveApplications.Remove(application);
 			await _context.SaveChangesAsync();
 			return true;

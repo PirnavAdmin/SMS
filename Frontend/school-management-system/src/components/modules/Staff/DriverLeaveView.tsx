@@ -91,6 +91,25 @@ export const DriverLeaveView: React.FC = () => {
     });
   }, [leaveApplications, driverEmpId, driverFirstName]);
 
+  // Matching Staff profile for driver to get database leave balances
+  const driverStaff = useMemo(() => {
+    const empId = String(matchedDriver?.employeeId || matchedDriver?.id || '').toLowerCase();
+    const driverName = (matchedDriver?.driverName || '').toLowerCase();
+    return staff.find(s => 
+      (empId && (String(s.empId).toLowerCase() === empId || String(s.id).toLowerCase() === empId)) ||
+      (driverName && `${s.firstName || ''} ${s.lastName || ''}`.trim().toLowerCase() === driverName)
+    );
+  }, [staff, matchedDriver]);
+
+  const getLeaveTypeAllowance = (codeOrName: string): number => {
+    const q = codeOrName.toLowerCase();
+    const found = (leaveTypes || []).find(t => 
+      (t.code && t.code.toLowerCase() === q) || 
+      (t.name && t.name.toLowerCase().includes(q))
+    );
+    return found ? (Number(found.annualAllowance) || Number(found.maxDays) || 0) : 0;
+  };
+
   // 3. Dynamic Leave Balances Calculation
   const leaveBalances = useMemo(() => {
     let casualUsed = 0;
@@ -98,35 +117,50 @@ export const DriverLeaveView: React.FC = () => {
     let paidUsed = 0;
 
     driverApplications.forEach(app => {
-      if (app.status === 'Approved' || app.status === 'Pending') {
+      if (app.status === 'Approved') {
         const typeName = (app.leaveTypeName || '').toLowerCase();
         const typeId = (app.leaveTypeId || '').toLowerCase();
-        const days = Number(app.daysCount || 1);
+        const days = Number(app.daysCount || (app as any).numberOfDays || 1);
 
         if (typeName.includes('casual') || typeId.includes('cl')) {
           casualUsed += days;
         } else if (typeName.includes('sick') || typeId.includes('sl') || typeName.includes('medical')) {
           sickUsed += days;
-        } else if (typeName.includes('paid') || typeName.includes('earned') || typeId.includes('pl')) {
+        } else if (typeName.includes('paid') || typeName.includes('earned') || typeId.includes('pl') || typeId.includes('el')) {
           paidUsed += days;
         }
       }
     });
 
+    const bal = driverStaff?.leaveBalance || {};
+    const defaultCasual = getLeaveTypeAllowance('cl') || getLeaveTypeAllowance('casual');
+    const defaultSick = getLeaveTypeAllowance('sl') || getLeaveTypeAllowance('sick');
+    const defaultPaid = getLeaveTypeAllowance('pl') || getLeaveTypeAllowance('el') || getLeaveTypeAllowance('earned') || getLeaveTypeAllowance('paid');
+
+    const remCasual = Math.max(0, bal.casual !== undefined ? bal.casual : defaultCasual);
+    const remSick = Math.max(0, bal.sick !== undefined ? bal.sick : defaultSick);
+    const remPaid = Math.max(0, bal.paid !== undefined ? bal.paid : defaultPaid);
+
     return {
-      casual: { total: 10, remaining: Math.max(0, 10 - casualUsed), used: casualUsed },
-      sick: { total: 10, remaining: Math.max(0, 10 - sickUsed), used: sickUsed },
-      paid: { total: 15, remaining: Math.max(0, 15 - paidUsed), used: paidUsed }
+      casual: { total: Math.max(remCasual + casualUsed, defaultCasual), remaining: remCasual, used: casualUsed },
+      sick: { total: Math.max(remSick + sickUsed, defaultSick), remaining: remSick, used: sickUsed },
+      paid: { total: Math.max(remPaid + paidUsed, defaultPaid), remaining: remPaid, used: paidUsed }
     };
-  }, [driverApplications]);
+  }, [driverApplications, driverStaff, leaveTypes]);
 
   // Modal State
   const [isApplyModalOpen, setIsApplyModalOpen] = useState(false);
-  const [leaveTypeId, setLeaveTypeId] = useState('LT-001');
+  const [leaveTypeId, setLeaveTypeId] = useState<string>('');
   const [fromDate, setFromDate] = useState(todayStr);
   const [toDate, setToDate] = useState(todayStr);
   const [reason, setReason] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (!leaveTypeId && leaveTypes && leaveTypes.length > 0) {
+      setLeaveTypeId(String(leaveTypes[0].id));
+    }
+  }, [leaveTypes, leaveTypeId]);
 
   // Calculate days
   const durationDays = useMemo(() => {
@@ -147,36 +181,28 @@ export const DriverLeaveView: React.FC = () => {
 
     setIsSubmitting(true);
     try {
-      const selectedType = (leaveTypes || []).find(t => t.id === leaveTypeId) || {
-        id: leaveTypeId,
-        name: leaveTypeId === 'LT-002' ? 'Sick Leave' : leaveTypeId === 'LT-003' ? 'Paid / Earned Leave' : 'Casual Leave',
-        code: leaveTypeId === 'LT-002' ? 'SL' : leaveTypeId === 'LT-003' ? 'PL' : 'CL',
-        isPaid: true
-      };
-
-      const staffMember = staff.find(s =>
+      const selectedType = (leaveTypes || []).find(t => String(t.id) === String(leaveTypeId)) || (leaveTypes || [])[0];
+      const staffMember = driverStaff || staff.find(s =>
         (user?.email && s.email?.toLowerCase() === user.email.toLowerCase()) ||
         (user?.name && `${s.firstName || ''} ${s.lastName || ''}`.trim().toLowerCase() === user.name.toLowerCase().trim()) ||
         String(s.id) === String(matchedDriver.id) ||
-        s.empId === matchedDriver.employeeId ||
-        (s.designation || '').toLowerCase().includes('driver') ||
-        (s.department || '').toLowerCase().includes('transport')
-      ) || staff[0];
+        s.empId === matchedDriver.employeeId
+      );
 
-      const staffId = staffMember?.id || matchedDriver.id || '3';
-      const staffEmpId = staffMember?.empId || staffMember?.employeeId || matchedDriver.employeeId || 'STF-2026-0003';
-      const staffFullName = staffMember ? `${staffMember.firstName} ${staffMember.lastName}` : (matchedDriver.driverName || 'Nag Sahoo');
+      const staffId = staffMember?.id || matchedDriver.id || '';
+      const staffEmpId = staffMember?.empId || (staffMember as any)?.employeeId || matchedDriver.employeeId || staffId;
+      const staffFullName = staffMember ? `${staffMember.firstName} ${staffMember.lastName}`.trim() : (matchedDriver.driverName || user?.name || '');
 
       const newApp: any = {
         id: `LA-DRV-${Date.now()}`,
         employeeId: staffId,
         empId: staffEmpId,
         employeeName: staffFullName,
-        department: staffMember?.department || 'Transport Dept',
-        designation: staffMember?.designation || 'Driver',
-        employeeCategory: 'Non-Teaching Staff',
-        leaveTypeId: selectedType.id,
-        leaveTypeName: selectedType.name,
+        department: staffMember?.department || 'Transport & Logistics',
+        designation: staffMember?.designation || 'Bus Driver',
+        employeeCategory: staffMember?.employeeCategory || 'Non-Teaching Staff',
+        leaveTypeId: String(selectedType?.id || ''),
+        leaveTypeName: selectedType?.name || '',
         fromDate: fromDate,
         toDate: toDate,
         startDate: fromDate,
@@ -186,8 +212,8 @@ export const DriverLeaveView: React.FC = () => {
         reason: reason.trim(),
         appliedDate: todayStr,
         status: 'Pending',
-        branch: '',
-        isPaid: (selectedType as any).isPaid !== false,
+        branch: staffMember?.branch || (staffMember as any)?.branchName || '',
+        isPaid: (selectedType as any)?.isPaid !== false,
         requiresDocument: false
       };
 
@@ -422,11 +448,23 @@ export const DriverLeaveView: React.FC = () => {
                   onChange={(e) => setLeaveTypeId(e.target.value)}
                   className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-bold focus:ring-2 focus:ring-sky-500/20 outline-none cursor-pointer"
                 >
-                  <option value="LT-001">Casual Leave (CL) - {leaveBalances.casual.remaining} {leaveBalances.casual.remaining === 1 ? 'day' : 'days'} left</option>
-                  <option value="LT-002">Sick Leave (SL) - {leaveBalances.sick.remaining} {leaveBalances.sick.remaining === 1 ? 'day' : 'days'} left</option>
-                  <option value="LT-003">Paid / Earned Leave (PL) - {leaveBalances.paid.remaining} {leaveBalances.paid.remaining === 1 ? 'day' : 'days'} left</option>
-                  <option value="LT-004">On Duty Leave (OD)</option>
-                  <option value="LT-006">Loss of Pay (LOP / Unpaid)</option>
+                  {(leaveTypes || []).map((t) => {
+                    const c = (t.code || "").toUpperCase();
+                    const n = (t.name || "").toLowerCase();
+                    const rem =
+                      c.includes("CL") || n.includes("casual")
+                        ? leaveBalances.casual.remaining
+                        : c.includes("SL") || n.includes("sick")
+                          ? leaveBalances.sick.remaining
+                          : c.includes("EL") || c.includes("PL") || n.includes("earned") || n.includes("paid")
+                            ? leaveBalances.paid.remaining
+                            : (t.annualAllowance ?? t.maxDays ?? 0);
+                    return (
+                      <option key={t.id} value={t.id}>
+                        {t.name} {t.code ? `(${t.code})` : ""} - {rem} {rem === 1 ? "day" : "days"} left
+                      </option>
+                    );
+                  })}
                 </select>
               </div>
 

@@ -4874,7 +4874,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
                 experienceRecords:
                   item.experienceRecords || existing?.experienceRecords || [],
                 avatar: item.avatar || existing?.avatar || "",
-                leaveBalance: existing?.leaveBalance || [],
+                leaveBalance: existing?.leaveBalance,
                 branch: item.branchName || item.branch || existing?.branch || "",
               } as unknown as Staff);
             }
@@ -21503,6 +21503,37 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       }
     } catch (err: any) {
       console.warn("API warning during status update (saved locally):", err);
+      if (status === "Approved") {
+        setStaff((prevStaff) => {
+          const app = leaveApplications.find((a) => a.id === id);
+          if (!app) return prevStaff;
+          const targetStaffId = app.employeeId;
+          const days = Number(app.numberOfDays) || 1;
+          const tName = ((app as any).leaveType || app.leaveTypeName || "").toLowerCase();
+
+          return prevStaff.map((s) => {
+            if (s.id === targetStaffId || (app.empId && s.empId === app.empId)) {
+              const getAllowance = (code: string) => {
+                const found = leaveTypes.find(lt => lt.code?.toUpperCase().includes(code) || lt.name?.toUpperCase().includes(code));
+                return found?.annualAllowance ?? found?.maxDays ?? 0;
+              };
+              const defaultCasual = getAllowance("CL");
+              const defaultSick = getAllowance("SL");
+              const defaultPaid = getAllowance("PL") || getAllowance("EL");
+
+              const currentBal = s.leaveBalance || { casual: defaultCasual, sick: defaultSick, paid: defaultPaid };
+              let casual = currentBal.casual ?? defaultCasual;
+              let sick = currentBal.sick ?? defaultSick;
+              let paid = currentBal.paid ?? defaultPaid;
+              if (tName.includes("casual")) casual = Math.max(0, casual - days);
+              else if (tName.includes("sick")) sick = Math.max(0, sick - days);
+              else if (tName.includes("earned") || tName.includes("paid")) paid = Math.max(0, paid - days);
+              return { ...s, leaveBalance: { casual, sick, paid } };
+            }
+            return s;
+          });
+        });
+      }
     }
   };
 

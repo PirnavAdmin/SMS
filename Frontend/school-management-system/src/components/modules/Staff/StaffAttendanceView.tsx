@@ -68,6 +68,8 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
     attendance = [],
     markAttendance,
     leaveApplications = [],
+    leaveTypes = [],
+    addLeaveApplication,
     holidays = [],
     schoolEvents = [],
     schoolProfile,
@@ -94,6 +96,19 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
   );
 
   const todayStr = new Date().toLocaleDateString('en-CA');
+
+  const getLeaveTypeAllowance = (codeOrName: string): number => {
+    const q = codeOrName.toLowerCase();
+    const found = (leaveTypes || []).find(t => 
+      (t.code && t.code.toLowerCase() === q) || 
+      (t.name && t.name.toLowerCase().includes(q))
+    );
+    return found ? (Number(found.annualAllowance) || Number(found.maxDays) || 0) : 0;
+  };
+
+  const defaultCasual = getLeaveTypeAllowance('cl') || getLeaveTypeAllowance('casual');
+  const defaultSick = getLeaveTypeAllowance('sl') || getLeaveTypeAllowance('sick');
+  const defaultEarned = getLeaveTypeAllowance('pl') || getLeaveTypeAllowance('el') || getLeaveTypeAllowance('earned') || getLeaveTypeAllowance('paid');
 
   const isPersonalView =
     userRole === "teacher" ||
@@ -207,9 +222,9 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
       department: matchedDept,
       assignedClasses: dbTeacher?.assignedClasses || (user as any)?.assignedClasses || [],
       assignedSubjects: (dbTeacher as any)?.assignedSubjects || (user as any)?.assignedSubjects || [],
-      leaveBalance: dbTeacher?.leaveBalance || { casual: 10, sick: 10, paid: 15 }
+      leaveBalance: dbTeacher?.leaveBalance || { casual: defaultCasual, sick: defaultSick, paid: defaultEarned }
     };
-  }, [dbTeacher, user, userRole]);
+  }, [dbTeacher, user, userRole, defaultCasual, defaultSick, defaultEarned]);
 
   // PERSONAL TEACHER ATTENDANCE STATES
   const todayDateStr = useMemo(() => new Date().toLocaleDateString('en-CA'), []);
@@ -268,16 +283,32 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
   const [correctionReason, setCorrectionReason] = useState("");
 
   // Leave Application Form state
-  const [leaveType, setLeaveType] = useState("Casual");
+  const [selectedLeaveTypeId, setSelectedLeaveTypeId] = useState<string>("");
   const [leaveFromDate, setLeaveFromDate] = useState(todayStr);
   const [leaveToDate, setLeaveToDate] = useState(todayStr);
   const [leaveReason, setLeaveReason] = useState("");
 
+  useEffect(() => {
+    if (!selectedLeaveTypeId && leaveTypes && leaveTypes.length > 0) {
+      setSelectedLeaveTypeId(String(leaveTypes[0].id));
+    }
+  }, [leaveTypes, selectedLeaveTypeId]);
+
   const [leaveBalance, setLeaveBalance] = useState({
-    casual: teacher.leaveBalance?.casual ?? 10,
-    sick: teacher.leaveBalance?.sick ?? 10,
-    paid: teacher.leaveBalance?.paid ?? 15,
+    casual: teacher.leaveBalance?.casual ?? defaultCasual,
+    sick: teacher.leaveBalance?.sick ?? defaultSick,
+    paid: teacher.leaveBalance?.paid ?? defaultEarned,
   });
+
+  useEffect(() => {
+    if (teacher?.leaveBalance) {
+      setLeaveBalance({
+        casual: teacher.leaveBalance.casual ?? defaultCasual,
+        sick: teacher.leaveBalance.sick ?? defaultSick,
+        paid: teacher.leaveBalance.paid ?? defaultEarned,
+      });
+    }
+  }, [teacher?.leaveBalance, defaultCasual, defaultSick, defaultEarned]);
 
   const [requests, setRequests] = useState<any[]>([]);
 
@@ -757,37 +788,65 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
       return;
     }
 
-    const typeKey = leaveType.toLowerCase() as "casual" | "sick" | "paid";
-    const available =
-      typeKey === "casual"
-        ? leaveBalance.casual
-        : typeKey === "sick"
-          ? leaveBalance.sick
-          : leaveBalance.paid;
+    const selectedType = (leaveTypes || []).find(t => String(t.id) === String(selectedLeaveTypeId)) || (leaveTypes || [])[0];
+    const typeName = selectedType?.name || "Leave";
+    const typeCode = (selectedType?.code || "").toUpperCase();
+    const typeNameLower = typeName.toLowerCase();
+
+    let available = 0;
+    if (typeCode.includes("CL") || typeNameLower.includes("casual")) {
+      available = leaveBalance.casual;
+    } else if (typeCode.includes("SL") || typeNameLower.includes("sick")) {
+      available = leaveBalance.sick;
+    } else if (typeCode.includes("EL") || typeCode.includes("PL") || typeNameLower.includes("earned") || typeNameLower.includes("paid")) {
+      available = leaveBalance.paid;
+    } else {
+      available = Number(selectedType?.annualAllowance) || Number(selectedType?.maxDays) || 99;
+    }
 
     if (available < daysCount) {
       addToast(
         "error",
         "Insufficient Leave Balance",
-        `You only have ${available} days of ${leaveType} leave remaining.`,
+        `You only have ${available} days of ${typeName} remaining.`,
       );
       return;
     }
 
-    setLeaveBalance((prev) => ({
-      ...prev,
-      [typeKey]:
-        (typeKey === "casual"
-          ? prev.casual
-          : typeKey === "sick"
-            ? prev.sick
-            : prev.paid) - daysCount,
-    }));
+    const currentStaff = dbTeacher || (staff || []).find(s => s.id === teacher.id || s.empId === teacher.empId) || (user as any);
+    const empId = currentStaff?.empId || teacher.empId || (user as any)?.empId || teacher.id || String(user?.id || "");
+    const employeeId = currentStaff?.id || teacher.id || empId;
+    const employeeName = `${currentStaff?.firstName || teacher.firstName || ""} ${currentStaff?.lastName || teacher.lastName || ""}`.trim() || user?.name || "";
+    const department = currentStaff?.department || teacher.department || (user as any)?.department || "";
+    const designation = currentStaff?.designation || teacher.designation || (user as any)?.designation || "";
+    const branch = currentStaff?.branch || (currentStaff as any)?.branchName || (teacher as any)?.branch || selectedBranch || "";
+    const employeeCategory = currentStaff?.employeeCategory || teacher.employeeCategory || (userRole === "teacher" || userRole === "class-teacher" ? "Teaching Staff" : "Non-Teaching Staff");
+
+    if (addLeaveApplication) {
+      addLeaveApplication({
+        employeeId,
+        empId,
+        employeeName,
+        department,
+        designation,
+        branch,
+        employeeCategory,
+        leaveTypeId: String(selectedType?.id || ""),
+        leaveTypeName: typeName,
+        fromDate: leaveFromDate,
+        toDate: leaveToDate,
+        numberOfDays: daysCount,
+        reason: leaveReason,
+        status: "Pending",
+        appliedDate: new Date().toISOString().split("T")[0],
+        isHalfDay: false,
+      });
+    }
 
     addToast(
       "success",
       "Leave Applied Successfully",
-      `Submitted application for ${daysCount} ${daysCount === 1 ? 'day' : 'days'} of ${leaveType} Leave.`,
+      `Submitted application for ${daysCount} ${daysCount === 1 ? "day" : "days"} of ${typeName} (Pending approval).`,
     );
     setShowApplyLeaveModal(false);
     setLeaveReason("");
@@ -1298,19 +1357,27 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
                     Leave Type
                   </label>
                   <select
-                    value={leaveType}
-                    onChange={(e) => setLeaveType(e.target.value)}
+                    value={selectedLeaveTypeId}
+                    onChange={(e) => setSelectedLeaveTypeId(e.target.value)}
                     className="w-full px-3.5 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-855 dark:text-slate-200 outline-none cursor-pointer"
                   >
-                    <option value="Casual">
-                      Casual Leave ({leaveBalance.casual} left)
-                    </option>
-                    <option value="Sick">
-                      Sick Leave ({leaveBalance.sick} left)
-                    </option>
-                    <option value="Paid">
-                      Earned Leave ({leaveBalance.paid} left)
-                    </option>
+                    {(leaveTypes || []).map((t) => {
+                      const c = (t.code || "").toUpperCase();
+                      const n = (t.name || "").toLowerCase();
+                      const bal =
+                        c.includes("CL") || n.includes("casual")
+                          ? leaveBalance.casual
+                          : c.includes("SL") || n.includes("sick")
+                            ? leaveBalance.sick
+                            : c.includes("EL") || c.includes("PL") || n.includes("earned") || n.includes("paid")
+                              ? leaveBalance.paid
+                              : (t.annualAllowance ?? t.maxDays ?? 0);
+                      return (
+                        <option key={t.id} value={t.id}>
+                          {t.name} ({bal} days left)
+                        </option>
+                      );
+                    })}
                   </select>
                 </div>
 

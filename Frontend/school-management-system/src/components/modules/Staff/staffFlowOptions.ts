@@ -1060,9 +1060,9 @@ export function buildBasicStaffCreatePayload(
       upiId: "",
     },
     leaveBalance: {
-      casual: 12,
-      sick: 10,
-      paid: 15,
+      casual: 0,
+      sick: 0,
+      paid: 0,
     },
     profileStatus: (form.firstName && form.lastName && form.dob && form.mobileNumber && form.department && form.designation)
       ? "Completed"

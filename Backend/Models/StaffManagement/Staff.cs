@@ -61,9 +61,9 @@ public class Staff
     public string? UpiId { get; set; }
 
     public bool? IsActive { get; set; } = true;
-    public int CasualLeaveBalance { get; set; } = 10;
-    public int SickLeaveBalance { get; set; } = 10;
-    public int EarnedLeaveBalance { get; set; } = 15;
+    public int CasualLeaveBalance { get; set; } = 0;
+    public int SickLeaveBalance { get; set; } = 0;
+    public int EarnedLeaveBalance { get; set; } = 0;
 
     // Additional details from the 5-step registration form
     public string? MiddleName { get; set; }

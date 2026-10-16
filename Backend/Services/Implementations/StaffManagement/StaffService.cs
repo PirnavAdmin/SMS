@@ -250,6 +250,25 @@ public class StaffService : IStaffService
             IsActive = dto.IsActive ?? true
         };
 
+        // Initialize leave balances dynamically from configured leave types in database
+        try
+        {
+            var leaveConfigs = await _context.LeaveTypeConfigs.AsNoTracking().ToListAsync();
+            var cl = leaveConfigs.FirstOrDefault(l => (l.Code != null && l.Code.ToUpper().Contains("CL")) || (l.Name != null && l.Name.ToUpper().Contains("CASUAL")));
+            var sl = leaveConfigs.FirstOrDefault(l => (l.Code != null && l.Code.ToUpper().Contains("SL")) || (l.Name != null && l.Name.ToUpper().Contains("SICK")));
+            var el = leaveConfigs.FirstOrDefault(l => (l.Code != null && (l.Code.ToUpper().Contains("PL") || l.Code.ToUpper().Contains("EL"))) || (l.Name != null && (l.Name.ToUpper().Contains("EARNED") || l.Name.ToUpper().Contains("PAID"))));
+            staff.CasualLeaveBalance = cl?.AnnualAllowance ?? 0;
+            staff.SickLeaveBalance = sl?.AnnualAllowance ?? 0;
+            staff.EarnedLeaveBalance = el?.AnnualAllowance ?? 0;
+        }
+        catch
+        {
+            // Fallback to 0 if table not yet initialized
+            staff.CasualLeaveBalance = 0;
+            staff.SickLeaveBalance = 0;
+            staff.EarnedLeaveBalance = 0;
+        }
+
         if (DateTime.TryParse(dto.DateOfBirth, out var parsedDob)) staff.DateOfBirth = parsedDob;
         if (DateTime.TryParse(dto.JoiningDate, out var parsedJoining)) staff.JoiningDate = parsedJoining;
 
