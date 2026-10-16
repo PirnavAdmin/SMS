@@ -468,11 +468,12 @@ export const LoginView: React.FC<LoginViewProps> = ({ onBack, initialRole }) => 
                     <button
                       type="button"
                       onClick={() => setShowPassword(!showPassword)}
-                      aria-label={showPassword ? "Hide Password" : "Show Password"}
+                      aria-label={showPassword ? "Hide password" : "Show password"}
+                      title={showPassword ? "Hide password" : "Show password"}
                       className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors cursor-pointer"
                       tabIndex={-1}
                     >
-                      {showPassword ? <EyeOff className="w-4.5 h-4.5" /> : <Eye className="w-4.5 h-4.5" />}
+                      {showPassword ? <Eye className="w-4.5 h-4.5" /> : <EyeOff className="w-4.5 h-4.5" />}
                     </button>
                   </div>
                   {passwordError && (
