@@ -421,10 +421,16 @@ export const LeaveManagementView: React.FC = () => {
   }, [isTypeModalOpen, editingType]);
 
   const handleAllowanceChange = (raw: string) => {
+    const hasInvalidChars = /[^\d]/.test(raw);
     const digitsOnly = raw.replace(/\D/g, '');
     const num = Number(digitsOnly);
 
-    if (raw.length > 3 || num > 365) {
+    if (hasInvalidChars) {
+      setTypeFormErrors((prev) => ({
+        ...prev,
+        annualAllowance: 'Only numeric digits (0-9) are allowed.'
+      }));
+    } else if (digitsOnly.length > 3 || num > 365) {
       setTypeFormErrors((prev) => ({
         ...prev,
         annualAllowance: 'Annual allowance cannot exceed 365 days (maximum 3 digits).'
@@ -464,11 +470,17 @@ export const LeaveManagementView: React.FC = () => {
   };
 
   const handleConsecutiveChange = (raw: string) => {
+    const hasInvalidChars = /[^\d]/.test(raw);
     const digitsOnly = raw.replace(/\D/g, '');
     const consNum = Number(digitsOnly);
     const allowNum = Number(allowanceVal);
 
-    if (raw.length > 3 || consNum > 365) {
+    if (hasInvalidChars) {
+      setTypeFormErrors((prev) => ({
+        ...prev,
+        maxConsecutiveDays: 'Only numeric digits (0-9) are allowed.'
+      }));
+    } else if (digitsOnly.length > 3 || consNum > 365) {
       setTypeFormErrors((prev) => ({
         ...prev,
         maxConsecutiveDays: 'Max consecutive days cannot exceed 365 days (maximum 3 digits).'
@@ -810,12 +822,12 @@ export const LeaveManagementView: React.FC = () => {
       return;
     }
 
-    if (rawAllowance === '' || rawAllowance === null || isNaN(Number(rawAllowance))) {
+    if (rawAllowance === '' || rawAllowance === null || /[^\d]/.test(String(rawAllowance).trim()) || isNaN(Number(rawAllowance))) {
       setTypeFormErrors((prev) => ({
         ...prev,
-        annualAllowance: 'Please enter Annual Allowance (Days).'
+        annualAllowance: 'Only numeric digits (0-9) are allowed.'
       }));
-      addToast('warning', 'Missing Details', 'Please enter Annual Allowance (Days).');
+      addToast('warning', 'Invalid Input', 'Only numeric digits (0-9) are allowed for Annual Allowance.');
       return;
     }
 
@@ -830,6 +842,14 @@ export const LeaveManagementView: React.FC = () => {
     }
 
     if (rawMaxConsecutive !== '' && rawMaxConsecutive !== null) {
+      if (/[^\d]/.test(String(rawMaxConsecutive).trim())) {
+        setTypeFormErrors((prev) => ({
+          ...prev,
+          maxConsecutiveDays: 'Only numeric digits (0-9) are allowed.'
+        }));
+        addToast('warning', 'Invalid Input', 'Only numeric digits (0-9) are allowed for Max Consecutive Days.');
+        return;
+      }
       const maxConsecutiveNum = Number(rawMaxConsecutive);
       if (isNaN(maxConsecutiveNum) || maxConsecutiveNum < 0 || maxConsecutiveNum > 365 || String(rawMaxConsecutive).trim().length > 3) {
         setTypeFormErrors((prev) => ({
@@ -1934,18 +1954,28 @@ export const LeaveManagementView: React.FC = () => {
                     Annual Allowance (Days) <span className="text-rose-500 font-bold ml-0.5">*</span>
                   </label>
                   <input 
-                    type="number" 
+                    type="text"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
                     name="annualAllowance" 
                     placeholder="e.g. 10" 
                     required 
-                    min="1"
-                    max="365"
                     maxLength={3}
                     value={allowanceVal}
                     onChange={(e) => handleAllowanceChange(e.target.value)}
                     onKeyDown={(e) => {
-                      if (['e', 'E', '+', '-', '.'].includes(e.key)) {
+                      if (
+                        ['Backspace', 'Delete', 'Tab', 'Escape', 'Enter', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End'].includes(e.key) ||
+                        (e.ctrlKey || e.metaKey)
+                      ) {
+                        return;
+                      }
+                      if (!/^[0-9]$/.test(e.key)) {
                         e.preventDefault();
+                        setTypeFormErrors((prev) => ({
+                          ...prev,
+                          annualAllowance: 'Only numeric digits (0-9) are allowed.'
+                        }));
                       }
                     }}
                     onPaste={(e) => {
@@ -1988,17 +2018,27 @@ export const LeaveManagementView: React.FC = () => {
                     Max Consecutive Days
                   </label>
                   <input 
-                    type="number" 
+                    type="text" 
+                    inputMode="numeric"
+                    pattern="[0-9]*"
                     name="maxConsecutiveDays" 
                     placeholder="e.g. 5"
-                    min="0"
-                    max="365"
                     maxLength={3}
                     value={consecutiveVal}
                     onChange={(e) => handleConsecutiveChange(e.target.value)}
                     onKeyDown={(e) => {
-                      if (['e', 'E', '+', '-', '.'].includes(e.key)) {
+                      if (
+                        ['Backspace', 'Delete', 'Tab', 'Escape', 'Enter', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End'].includes(e.key) ||
+                        (e.ctrlKey || e.metaKey)
+                      ) {
+                        return;
+                      }
+                      if (!/^[0-9]$/.test(e.key)) {
                         e.preventDefault();
+                        setTypeFormErrors((prev) => ({
+                          ...prev,
+                          maxConsecutiveDays: 'Only numeric digits (0-9) are allowed.'
+                        }));
                       }
                     }}
                     onPaste={(e) => {
