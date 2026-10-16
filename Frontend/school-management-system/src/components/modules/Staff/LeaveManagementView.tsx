@@ -1,6 +1,7 @@
 // @ts-nocheck
 import React, { useState, useEffect, useMemo } from 'react';
 import { formatCurrency } from '../../../utils/currency';
+import { validateSearchQuery } from '../../../utils/validation';
 import {
   FileText, Plus, Edit, Trash2, Eye, Printer, Calendar, CheckCircle, XCircle, Search, Filter, X,
   User, Layers, HelpCircle, ChevronLeft, ChevronRight, RefreshCw, AlertTriangle, AlertCircle, ChevronDown, GraduationCap
@@ -320,6 +321,26 @@ export const LeaveManagementView: React.FC = () => {
 
   // Filter States
   const [query, setQuery] = useState('');
+  const [searchError, setSearchError] = useState<string | undefined>(undefined);
+
+  const handleSearchChange = (val: string) => {
+    setQuery(val);
+    if (!val) {
+      setSearchError(undefined);
+    } else {
+      const validation = validateSearchQuery(val);
+      setSearchError(validation.isValid ? undefined : validation.error);
+    }
+  };
+
+  useEffect(() => {
+    if (query) {
+      const validation = validateSearchQuery(query);
+      setSearchError(validation.isValid ? undefined : validation.error);
+    } else {
+      setSearchError(undefined);
+    }
+  }, [activeTab]);
   const [filterCategory, setFilterCategory] = useState('All');
   const [filterDept, setFilterDept] = useState('All');
   const [filterType, setFilterType] = useState('All');
@@ -1201,16 +1222,41 @@ export const LeaveManagementView: React.FC = () => {
       {activeTab === 'applications' && (
         <div className="space-y-4">
           {/* Advanced Filter Header */}
-          <div className="glass-card p-4 rounded-2xl bg-white dark:bg-slate-900 border flex flex-col sm:flex-row items-center justify-between gap-3">
-            <div className="relative w-full sm:w-60">
-              <Search className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
-              <input
-                type="text"
-                placeholder="Search employee name..."
-                value={query}
-                onChange={e => setQuery(e.target.value)}
-                className="w-full pl-9 pr-4 py-2 text-xs rounded-xl bg-slate-50 border outline-none"
-              />
+          <div className="glass-card p-4 rounded-2xl bg-white dark:bg-slate-900 border flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+            <div className="w-full sm:w-64">
+              <div className="relative w-full">
+                <Search className={`w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 transition-colors ${searchError ? 'text-rose-500' : 'text-slate-400'}`} />
+                <input
+                  type="text"
+                  placeholder="Search employee name..."
+                  value={query}
+                  onChange={e => handleSearchChange(e.target.value)}
+                  className={`w-full pl-9 pr-8 py-2 text-xs rounded-xl bg-slate-50 dark:bg-slate-800 border outline-none transition-colors ${
+                    searchError
+                      ? 'border-rose-500 text-rose-700 dark:text-rose-300 focus:border-rose-500 focus:ring-1 focus:ring-rose-500'
+                      : 'border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:border-brand-500'
+                  }`}
+                />
+                {query && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setQuery('');
+                      setSearchError(undefined);
+                    }}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer"
+                    title="Clear search"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </div>
+              {searchError && (
+                <p className="text-[11px] font-bold text-rose-500 mt-1 flex items-center gap-1 animate-in fade-in">
+                  <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                  <span>{searchError}</span>
+                </p>
+              )}
             </div>
             
             <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
@@ -1393,16 +1439,41 @@ export const LeaveManagementView: React.FC = () => {
       {activeTab === 'balance' && (
         <div className="space-y-4">
           {!isSelfServiceStaff && (
-            <div className="glass-card p-4 rounded-2xl bg-white dark:bg-slate-900 border flex flex-col sm:flex-row items-center justify-between gap-3">
-              <div className="relative w-full sm:w-60">
-                <Search className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
-                <input
-                  type="text"
-                  placeholder="Search by staff..."
-                  value={query}
-                  onChange={e => setQuery(e.target.value)}
-                  className="w-full pl-9 pr-4 py-2 text-xs rounded-xl bg-slate-50 border outline-none"
-                />
+            <div className="glass-card p-4 rounded-2xl bg-white dark:bg-slate-900 border flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+              <div className="w-full sm:w-64">
+                <div className="relative w-full">
+                  <Search className={`w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 transition-colors ${searchError ? 'text-rose-500' : 'text-slate-400'}`} />
+                  <input
+                    type="text"
+                    placeholder="Search by staff..."
+                    value={query}
+                    onChange={e => handleSearchChange(e.target.value)}
+                    className={`w-full pl-9 pr-8 py-2 text-xs rounded-xl bg-slate-50 dark:bg-slate-800 border outline-none transition-colors ${
+                      searchError
+                        ? 'border-rose-500 text-rose-700 dark:text-rose-300 focus:border-rose-500 focus:ring-1 focus:ring-rose-500'
+                        : 'border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:border-brand-500'
+                    }`}
+                  />
+                  {query && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setQuery('');
+                        setSearchError(undefined);
+                      }}
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer"
+                      title="Clear search"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                </div>
+                {searchError && (
+                  <p className="text-[11px] font-bold text-rose-500 mt-1 flex items-center gap-1 animate-in fade-in">
+                    <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                    <span>{searchError}</span>
+                  </p>
+                )}
               </div>
 
               <div className="flex items-center gap-2 w-full sm:w-auto">

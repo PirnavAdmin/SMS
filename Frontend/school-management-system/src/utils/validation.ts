@@ -660,8 +660,8 @@ function setGlobalInputError(input: HTMLInputElement | HTMLTextAreaElement, erro
   const directSibling = (isIconWrapper ? container.nextElementSibling : input.nextElementSibling) as HTMLElement | null;
   let errEl = (directSibling && directSibling.getAttribute('data-global-validation-error') === 'true')
     ? directSibling
-    : (container.parentElement?.querySelector(':scope > [data-global-validation-error="true"]') ||
-       container.querySelector(':scope > [data-global-validation-error="true"]')) as HTMLElement | null;
+    : (container.querySelector(':scope > [data-global-validation-error="true"]') ||
+       container.parentElement?.querySelector(':scope > [data-global-validation-error="true"]')) as HTMLElement | null;
 
   if (!error) {
     input.removeAttribute('data-global-invalid');
@@ -693,8 +693,24 @@ function setGlobalInputError(input: HTMLInputElement | HTMLTextAreaElement, erro
     errEl.style.fontSize = '11px';
     errEl.style.fontWeight = '700';
     errEl.style.marginTop = '4px';
-    if (isIconWrapper) {
+
+    const isParentHorizontalFlex = Boolean(
+      container.parentElement &&
+      container.parentElement !== document.body &&
+      (() => {
+        try {
+          const cs = window.getComputedStyle(container.parentElement);
+          return (cs.display === 'flex' || cs.display === 'inline-flex') && !cs.flexDirection.startsWith('column');
+        } catch {
+          return false;
+        }
+      })()
+    );
+
+    if (isIconWrapper && !isParentHorizontalFlex) {
       container.insertAdjacentElement('afterend', errEl);
+    } else if (isIconWrapper && isParentHorizontalFlex) {
+      container.insertAdjacentElement('beforeend', errEl);
     } else {
       input.insertAdjacentElement('afterend', errEl);
     }
