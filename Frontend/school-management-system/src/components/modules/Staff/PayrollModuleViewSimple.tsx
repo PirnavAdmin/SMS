@@ -1097,9 +1097,156 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
   }, [historyEmployee, historyMonth, historyYear, historyDepartment]);
 
   const [payslipMode, setPayslipMode] = useState<'Auto Payslip'>('Auto Payslip');
+  const MAX_DEDUCTION_AMOUNT = 100000; // ₹1,00,000 maximum allowed deduction amount per business rules
   const [globalDeduction, setGlobalDeduction] = useState<string>('');
+  const [deductionError, setDeductionError] = useState<string | undefined>(undefined);
   const [globalTdsPct, setGlobalTdsPct] = useState<string>('');
   const [tdsError, setTdsError] = useState<string | undefined>(undefined);
+
+  const sanitizeDeductionValue = (input: string): string => {
+    // Strip everything except digits and decimal point
+    const cleaned = input.replace(/[^0-9.]/g, '');
+    if (!cleaned) return '';
+
+    // Split on decimal point and ensure only at most 1 decimal point
+    const parts = cleaned.split('.');
+    const intPart = parts[0].slice(0, 6); // Up to 6 integer digits (values up to 100,000)
+    if (parts.length > 1) {
+      const decPart = parts.slice(1).join('').slice(0, 2); // Up to 2 decimal places
+      return `${intPart}.${decPart}`.slice(0, 9);
+    }
+    return intPart.slice(0, 6);
+  };
+
+  const handleDeductionChange = (raw: string) => {
+    const formatted = sanitizeDeductionValue(raw);
+
+    if (formatted === '') {
+      setGlobalDeduction('');
+      setDeductionError(undefined);
+      return;
+    }
+
+    if (formatted === '.') {
+      setGlobalDeduction('.');
+      setDeductionError(undefined);
+      return;
+    }
+
+    const num = Number(formatted);
+    if (isNaN(num)) {
+      setDeductionError('Please enter a valid numeric deduction amount.');
+      setGlobalDeduction(formatted);
+      return;
+    }
+
+    if (num < 0) {
+      setDeductionError('Deduction amount cannot be negative.');
+      setGlobalDeduction(formatted);
+      return;
+    }
+
+    if (num > MAX_DEDUCTION_AMOUNT) {
+      setDeductionError(`Deduction amount cannot exceed ₹${MAX_DEDUCTION_AMOUNT.toLocaleString('en-IN')}.`);
+      setGlobalDeduction(formatted);
+      return;
+    }
+
+    setDeductionError(undefined);
+    setGlobalDeduction(formatted);
+  };
+
+  const handleDeductionKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    // Allow control / navigation keys
+    if (
+      [
+        'Backspace',
+        'Delete',
+        'Tab',
+        'ArrowLeft',
+        'ArrowRight',
+        'ArrowUp',
+        'ArrowDown',
+        'Home',
+        'End',
+        'Enter',
+        'Escape'
+      ].includes(e.key) ||
+      e.ctrlKey ||
+      e.metaKey ||
+      e.altKey
+    ) {
+      return;
+    }
+
+    // Allow decimal point if not already present
+    if (e.key === '.') {
+      const input = e.currentTarget;
+      const val = input.value;
+      const selectionStart = input.selectionStart ?? 0;
+      const selectionEnd = input.selectionEnd ?? 0;
+      const selectedText = val.substring(selectionStart, selectionEnd);
+
+      if (val.includes('.') && !selectedText.includes('.')) {
+        e.preventDefault();
+        return;
+      }
+      return;
+    }
+
+    // Only allow digits 0-9
+    if (!/^[0-9]$/.test(e.key)) {
+      e.preventDefault();
+      return;
+    }
+
+    // Check digit length limits
+    const input = e.currentTarget;
+    const val = input.value;
+    const selectionStart = input.selectionStart ?? 0;
+    const selectionEnd = input.selectionEnd ?? 0;
+    const isReplacing = selectionEnd > selectionStart;
+
+    if (!isReplacing) {
+      if (val.length >= 9) {
+        e.preventDefault();
+        return;
+      }
+
+      const dotIndex = val.indexOf('.');
+      if (dotIndex === -1) {
+        if (val.length >= 6) {
+          e.preventDefault();
+          return;
+        }
+      } else {
+        if (selectionStart <= dotIndex) {
+          const intPart = val.slice(0, dotIndex);
+          if (intPart.length >= 6) {
+            e.preventDefault();
+            return;
+          }
+        } else {
+          const decPart = val.slice(dotIndex + 1);
+          if (decPart.length >= 2) {
+            e.preventDefault();
+            return;
+          }
+        }
+      }
+    }
+  };
+
+  const handleDeductionPaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
+    e.preventDefault();
+    const pasted = e.clipboardData.getData('text');
+    const input = e.currentTarget;
+    const start = input.selectionStart ?? 0;
+    const end = input.selectionEnd ?? 0;
+    const current = input.value;
+    const nextVal = current.slice(0, start) + pasted + current.slice(end);
+    handleDeductionChange(nextVal);
+  };
 
   const sanitizeTdsValue = (input: string): string => {
     // Strip everything except digits and decimal point
@@ -1520,7 +1667,8 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
       const workingDays = Math.max(1, Math.max(presentDays + halfDays, 22));
       const lopDays = Math.max(0, workingDays - presentDays - approvedLeaveDays - halfDays * 0.5);
       const attendanceDeduction = Math.round((breakdown.grossSalary / workingDays) * lopDays);
-      const extraDeduction = Math.max(0, Number(globalDeduction) || 0);
+      const rawDeduction = Number(globalDeduction) || 0;
+      const extraDeduction = (rawDeduction < 0 || rawDeduction > MAX_DEDUCTION_AMOUNT) ? 0 : rawDeduction;
       const rawTds = Number(globalTdsPct) || 0;
       const tdsPercentage = (rawTds < 0 || rawTds > 100) ? 0 : rawTds;
       const tdsDeduction = Math.round(breakdown.grossSalary * (tdsPercentage / 100));
@@ -1857,8 +2005,14 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
     const structure = row.structure;
     const breakdown = row.breakdown;
     const grossSalary = breakdown.grossSalary > 0 ? breakdown.grossSalary : Number(member.salary || 0);
-    const attendanceDeduction = Math.max(0, row.deductions - breakdown.deductions);
-    const totalDeductions = row.deductions > 0 ? row.deductions : breakdown.deductions;
+    const rawDeduction = Number(globalDeduction) || 0;
+    const extraDeduction = (rawDeduction < 0 || rawDeduction > MAX_DEDUCTION_AMOUNT) ? 0 : rawDeduction;
+    const rawTds = Number(globalTdsPct) || 0;
+    const tdsPercentage = (rawTds < 0 || rawTds > 100) ? 0 : rawTds;
+    const tdsDeduction = Math.round(grossSalary * (tdsPercentage / 100));
+
+    const attendanceDeduction = Math.max(0, row.deductions - breakdown.deductions - extraDeduction - tdsDeduction);
+    const totalDeductions = row.deductions > 0 ? row.deductions : breakdown.deductions + extraDeduction + tdsDeduction;
     const netSalary = row.netSalary > 0 ? row.netSalary : Math.max(0, grossSalary - totalDeductions);
     const basicSalary = breakdown.basicSalary > 0 ? breakdown.basicSalary : Math.round(grossSalary * 0.5);
     const allowances = breakdown.allowances > 0 ? breakdown.allowances : Math.max(0, grossSalary - basicSalary);
@@ -1881,7 +2035,9 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
       ],
       deductions: [
         { name: 'Structure Deductions', amount: breakdown.deductions, type: 'Fixed', value: breakdown.deductions },
-        ...(attendanceDeduction > 0 ? [{ name: 'Attendance Deduction', amount: attendanceDeduction, type: 'Fixed', value: attendanceDeduction }] : [])
+        ...(attendanceDeduction > 0 ? [{ name: 'Attendance Deduction', amount: attendanceDeduction, type: 'Fixed', value: attendanceDeduction }] : []),
+        ...(extraDeduction > 0 ? [{ name: 'Additional Deduction', amount: extraDeduction, type: 'Fixed', value: extraDeduction }] : []),
+        ...(tdsDeduction > 0 ? [{ name: `TDS (${tdsPercentage}%)`, amount: tdsDeduction, type: 'Fixed', value: tdsDeduction }] : [])
       ],
       grossSalary,
       otherDeductions: totalDeductions,
@@ -1910,7 +2066,13 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
       addToast('error', 'Cannot Generate Payroll', 'Payroll cannot be generated for future dates or months.');
       return;
     }
-    if (tdsError || (globalTdsPct !== '' && (Number(globalTdsPct) > 100 || Number(globalTdsPct) < 0))) {
+    const isDeductionInvalid = Boolean(deductionError) || (globalDeduction !== '' && (Number(globalDeduction) > MAX_DEDUCTION_AMOUNT || Number(globalDeduction) < 0 || isNaN(Number(globalDeduction))));
+    if (isDeductionInvalid) {
+      addToast('error', 'Invalid Deduction Amount', `Deduction amount must be between ₹0 and ₹${MAX_DEDUCTION_AMOUNT.toLocaleString('en-IN')}.`);
+      return;
+    }
+    const isTdsInvalid = Boolean(tdsError) || (globalTdsPct !== '' && (Number(globalTdsPct) > 100 || Number(globalTdsPct) < 0 || isNaN(Number(globalTdsPct))));
+    if (isTdsInvalid) {
       addToast('error', 'Invalid TDS Percentage', 'TDS percentage must be between 0% and 100%.');
       return;
     }
@@ -1921,6 +2083,16 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
     setIsGenerateModalOpen(false);
     if (isFutureMonthYear(generationMonth, generationYear)) {
       addToast('error', 'Cannot Generate Payroll', 'Payroll cannot be generated for future dates or months.');
+      return;
+    }
+    const isDeductionInvalid = Boolean(deductionError) || (globalDeduction !== '' && (Number(globalDeduction) > MAX_DEDUCTION_AMOUNT || Number(globalDeduction) < 0 || isNaN(Number(globalDeduction))));
+    if (isDeductionInvalid) {
+      addToast('error', 'Invalid Deduction Amount', `Deduction amount must be between ₹0 and ₹${MAX_DEDUCTION_AMOUNT.toLocaleString('en-IN')}.`);
+      return;
+    }
+    const isTdsInvalid = Boolean(tdsError) || (globalTdsPct !== '' && (Number(globalTdsPct) > 100 || Number(globalTdsPct) < 0 || isNaN(Number(globalTdsPct))));
+    if (isTdsInvalid) {
+      addToast('error', 'Invalid TDS Percentage', 'TDS percentage must be between 0% and 100%.');
       return;
     }
     const targetRows = selectedGenerationIds.length > 0
@@ -2455,58 +2627,35 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
             <label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">DEDUCTION (₹)</label>
             <input
               type="text"
-              inputMode="numeric"
-              pattern="[0-9]*"
-              maxLength={8}
+              inputMode="decimal"
+              pattern="[0-9]*[.]?[0-9]*"
+              maxLength={9}
               value={globalDeduction}
-              onChange={e => {
-                const val = e.target.value.replace(/[^0-9]/g, '').slice(0, 8);
-                setGlobalDeduction(val);
-              }}
-              onKeyDown={e => {
-                if (
-                  [
-                    'Backspace',
-                    'Delete',
-                    'Tab',
-                    'ArrowLeft',
-                    'ArrowRight',
-                    'ArrowUp',
-                    'ArrowDown',
-                    'Home',
-                    'End',
-                    'Enter',
-                    'Escape'
-                  ].includes(e.key) ||
-                  e.ctrlKey ||
-                  e.metaKey
-                ) {
-                  return;
-                }
-                if (!/^[0-9]$/.test(e.key)) {
-                  e.preventDefault();
-                  return;
-                }
-                const input = e.currentTarget;
-                if (input.selectionEnd === input.selectionStart && input.value.length >= 8) {
-                  e.preventDefault();
-                }
-              }}
-              onPaste={e => {
-                e.preventDefault();
-                const pasted = e.clipboardData.getData('text').replace(/[^0-9]/g, '').slice(0, 8);
-                const input = e.currentTarget;
-                const start = input.selectionStart ?? 0;
-                const end = input.selectionEnd ?? 0;
-                const current = input.value;
-                const nextVal = (current.slice(0, start) + pasted + current.slice(end)).replace(/[^0-9]/g, '').slice(0, 8);
-                setGlobalDeduction(nextVal);
-              }}
-              placeholder="Enter Deduction"
-              className={inputClass}
+              onChange={e => handleDeductionChange(e.target.value)}
+              onKeyDown={handleDeductionKeyDown}
+              onPaste={handleDeductionPaste}
+              placeholder="Enter Deduction (Max ₹1,00,000)"
+              className={`${inputClass} ${
+                deductionError
+                  ? 'border-rose-500 focus:border-rose-500 ring-1 ring-rose-500/20 text-rose-600 dark:text-rose-400'
+                  : ''
+              }`}
             />
+            {deductionError && (
+              <p className="text-[11px] font-bold text-rose-500 mt-1 flex items-center gap-1 animate-in fade-in">
+                <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                <span>{deductionError}</span>
+              </p>
+            )}
             <p className="text-[11px] font-bold text-slate-500 pt-0.5">
-              Current Deduction: ₹{globalDeduction || '0'}
+              Current Deduction:{' '}
+              {deductionError ? (
+                <span className="text-rose-500 font-bold">
+                  Invalid (₹{Number(globalDeduction).toLocaleString('en-IN') || globalDeduction}) - Maximum limit is ₹{MAX_DEDUCTION_AMOUNT.toLocaleString('en-IN')}
+                </span>
+              ) : (
+                `₹${globalDeduction ? Number(globalDeduction).toLocaleString('en-IN') : '0'}`
+              )}
             </p>
           </div>
 
@@ -2742,25 +2891,35 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
                 </div>
               </div>
 
-              <button
-                type="button"
-                onClick={handleBulkGenerate}
-                disabled={eligibleSelectedCount === 0 || isFutureSelected || Boolean(tdsError) || (globalTdsPct !== '' && (Number(globalTdsPct) > 100 || Number(globalTdsPct) < 0))}
-                className={`w-full py-3.5 rounded-xl font-black text-sm transition-all shadow-lg flex items-center justify-center gap-2 ${
-                  eligibleSelectedCount > 0 && !isFutureSelected && !tdsError && !(globalTdsPct !== '' && (Number(globalTdsPct) > 100 || Number(globalTdsPct) < 0))
-                    ? 'bg-brand-600 text-white hover:bg-brand-700 shadow-brand-500/25 cursor-pointer'
-                    : 'bg-slate-200 text-slate-400 cursor-not-allowed dark:bg-slate-800 dark:text-slate-600'
-                }`}
-              >
-                <ReceiptText className="w-4 h-4" />
-                {isFutureSelected
-                  ? 'Cannot generate payroll for future period'
-                  : tdsError || (globalTdsPct !== '' && (Number(globalTdsPct) > 100 || Number(globalTdsPct) < 0))
-                  ? 'Enter valid TDS percentage (0-100%) to generate'
-                  : eligibleSelectedCount > 0
-                  ? `Generate Payslips for ${eligibleSelectedCount} Employee(s) (${standardPeriod} / ${currentPeriodLabel})`
-                  : 'Select eligible employee(s) to generate'}
-              </button>
+              {(() => {
+                const isTdsInvalid = Boolean(tdsError) || (globalTdsPct !== '' && (Number(globalTdsPct) > 100 || Number(globalTdsPct) < 0 || isNaN(Number(globalTdsPct))));
+                const isDeductionInvalid = Boolean(deductionError) || (globalDeduction !== '' && (Number(globalDeduction) > MAX_DEDUCTION_AMOUNT || Number(globalDeduction) < 0 || isNaN(Number(globalDeduction))));
+                const isGenerateDisabled = eligibleSelectedCount === 0 || isFutureSelected || isTdsInvalid || isDeductionInvalid;
+
+                return (
+                  <button
+                    type="button"
+                    onClick={handleBulkGenerate}
+                    disabled={isGenerateDisabled}
+                    className={`w-full py-3.5 rounded-xl font-black text-sm transition-all shadow-lg flex items-center justify-center gap-2 ${
+                      !isGenerateDisabled
+                        ? 'bg-brand-600 text-white hover:bg-brand-700 shadow-brand-500/25 cursor-pointer'
+                        : 'bg-slate-200 text-slate-400 cursor-not-allowed dark:bg-slate-800 dark:text-slate-600'
+                    }`}
+                  >
+                    <ReceiptText className="w-4 h-4" />
+                    {isFutureSelected
+                      ? 'Cannot generate payroll for future period'
+                      : isDeductionInvalid
+                      ? `Enter valid deduction amount (₹0 - ₹${MAX_DEDUCTION_AMOUNT.toLocaleString('en-IN')}) to generate`
+                      : isTdsInvalid
+                      ? 'Enter valid TDS percentage (0-100%) to generate'
+                      : eligibleSelectedCount > 0
+                      ? `Generate Payslips for ${eligibleSelectedCount} Employee(s) (${standardPeriod} / ${currentPeriodLabel})`
+                      : 'Select eligible employee(s) to generate'}
+                  </button>
+                );
+              })()}
             </div>
 
             {/* Recently Generated Section */}
