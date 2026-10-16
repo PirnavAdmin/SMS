@@ -21528,6 +21528,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
               if (tName.includes("casual")) casual = Math.max(0, casual - days);
               else if (tName.includes("sick")) sick = Math.max(0, sick - days);
               else if (tName.includes("earned") || tName.includes("paid")) paid = Math.max(0, paid - days);
+              else casual = Math.max(0, casual - days);
               return { ...s, leaveBalance: { casual, sick, paid } };
             }
             return s;

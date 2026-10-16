@@ -507,27 +507,18 @@ export const LeaveManagementView: React.FC = () => {
   const targetList = isSelfServiceStaff ? myApplications : campusApplications;
   const pendingCount = targetList.filter(a => (a.status || '').toLowerCase() === 'pending').length;
   const approvedCount = targetList.filter(a => (a.status || '').toLowerCase() === 'approved').length;
-  const rejectedCount = targetList.filter(a => (a.status || '').toLowerCase() === 'rejected').length;
-  
-  // Helper function to get approved leave days for an employee by type
-  const getEmployeeApprovedUsedLeaves = (empId: string, empCode?: string) => {
-    const apps = leaveApplications.filter(
-      app => (String(app.employeeId) === String(empId) || (empCode && app.empId === empCode)) && (app.status || '').toLowerCase() === 'approved'
-    );
-    let casual = 0;
-    let sick = 0;
-    let earned = 0;
-    apps.forEach(app => {
-      const tName = (app.leaveType || app.leaveTypeName || '').toLowerCase();
-      const days = Number(app.numberOfDays) || 0;
-      if (tName.includes('casual')) casual += days;
-      else if (tName.includes('sick')) sick += days;
-      else if (tName.includes('earned') || tName.includes('paid')) earned += days;
-      else casual += days;
-    });
-    return { casual, sick, earned, total: casual + sick + earned };
-  };
+  const rejectedCount = targetList.filter(a => ['rejected', 'cancelled', 'canceled'].includes((a.status || '').toLowerCase())).length;
 
+  const approvedDays = targetList
+    .filter(a => (a.status || '').toLowerCase() === 'approved')
+    .reduce((sum, a) => sum + (Number(a.numberOfDays) || 0), 0);
+  const pendingDays = targetList
+    .filter(a => (a.status || '').toLowerCase() === 'pending')
+    .reduce((sum, a) => sum + (Number(a.numberOfDays) || 0), 0);
+  const rejectedDays = targetList
+    .filter(a => ['rejected', 'cancelled', 'canceled'].includes((a.status || '').toLowerCase()))
+    .reduce((sum, a) => sum + (Number(a.numberOfDays) || 0), 0);
+  
   // Dynamic allowance resolution from database configured leave types
   const getLeaveTypeAllowance = (codeOrName: string): number => {
     const q = codeOrName.toLowerCase();
@@ -538,15 +529,62 @@ export const LeaveManagementView: React.FC = () => {
     return found ? (Number(found.annualAllowance) || Number(found.maxDays) || 0) : 0;
   };
 
+  // Helper function to get approved leave days for an employee by type
+  const getEmployeeApprovedUsedLeaves = (empId: string, empCode?: string) => {
+    const cleanId = String(empId || '').trim().toLowerCase();
+    const cleanCode = String(empCode || '').trim().toLowerCase();
+    const apps = leaveApplications.filter(app => {
+      const isApproved = (app.status || '').toLowerCase() === 'approved';
+      if (!isApproved) return false;
+      const appStaffId = String(app.employeeId || '').trim().toLowerCase();
+      const appEmpId = String(app.empId || '').trim().toLowerCase();
+      return (cleanId && (appStaffId === cleanId || appEmpId === cleanId)) ||
+             (cleanCode && (appStaffId === cleanCode || appEmpId === cleanCode));
+    });
+
+    const seen = new Set<string>();
+    let casual = 0;
+    let sick = 0;
+    let earned = 0;
+    let other = 0;
+
+    apps.forEach(app => {
+      const key = `${app.id}_${app.fromDate}_${app.toDate}`;
+      if (seen.has(key)) return;
+      seen.add(key);
+
+      const tName = (app.leaveType || app.leaveTypeName || '').toLowerCase();
+      const days = Number(app.numberOfDays) || 0;
+      if (tName.includes('casual')) casual += days;
+      else if (tName.includes('sick')) sick += days;
+      else if (tName.includes('earned') || tName.includes('paid')) earned += days;
+      else other += days;
+    });
+
+    return { casual, sick, earned, other, total: casual + sick + earned + other };
+  };
+
   const getEmployeeRemainingBalances = (s: Staff) => {
     const bal = s?.leaveBalance || {};
-    const defaultCasual = getLeaveTypeAllowance('cl') || getLeaveTypeAllowance('casual');
-    const defaultSick = getLeaveTypeAllowance('sl') || getLeaveTypeAllowance('sick');
-    const defaultEarned = getLeaveTypeAllowance('pl') || getLeaveTypeAllowance('el') || getLeaveTypeAllowance('earned') || getLeaveTypeAllowance('paid');
+    const defaultCasual = getLeaveTypeAllowance('cl') || getLeaveTypeAllowance('casual') || 10;
+    const defaultSick = getLeaveTypeAllowance('sl') || getLeaveTypeAllowance('sick') || 10;
+    const defaultEarned = getLeaveTypeAllowance('pl') || getLeaveTypeAllowance('el') || getLeaveTypeAllowance('earned') || getLeaveTypeAllowance('paid') || 15;
 
-    const casual = bal.casual !== undefined ? bal.casual : defaultCasual;
-    const sick = bal.sick !== undefined ? bal.sick : defaultSick;
-    const earned = bal.paid !== undefined ? bal.paid : defaultEarned;
+    const used = getEmployeeApprovedUsedLeaves(s?.id, s?.empId);
+
+    // Initial default or API balance
+    let casual = bal.casual !== undefined ? bal.casual : Math.max(0, defaultCasual - used.casual);
+    let sick = bal.sick !== undefined ? bal.sick : Math.max(0, defaultSick - used.sick);
+    let earned = bal.paid !== undefined ? bal.paid : Math.max(0, defaultEarned - used.earned);
+
+    // Reconcile other approved leaves (e.g. maternity/paternity) so total remaining + total used = total allowance
+    const totalAllowance = defaultCasual + defaultSick + defaultEarned;
+    const currentSum = casual + sick + earned;
+    if (used.other > 0 && currentSum + used.total > totalAllowance) {
+      const excess = (currentSum + used.total) - totalAllowance;
+      casual = Math.max(0, casual - excess);
+    }
+
     return {
       casual: Math.max(0, casual),
       sick: Math.max(0, sick),
@@ -1079,15 +1117,38 @@ export const LeaveManagementView: React.FC = () => {
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div className="glass-card p-4 rounded-2xl bg-white dark:bg-slate-900 border shadow-sm">
           <span className="text-[10px] uppercase font-bold text-brand-500">Approved Leaves</span>
-          <p className="text-lg font-black text-brand-600 mt-1">{approvedCount} {approvedCount === 1 ? 'Leave' : 'Leaves'}</p>
+          <div className="flex items-baseline gap-2 mt-1">
+            <p className="text-lg font-black text-brand-600">
+              {approvedDays} {approvedDays === 1 ? 'Day' : 'Days'}
+            </p>
+            <span className="text-xs text-slate-400 font-semibold">
+              ({approvedCount} {approvedCount === 1 ? 'Application' : 'Applications'})
+            </span>
+          </div>
         </div>
         <div className="glass-card p-4 rounded-2xl bg-white dark:bg-slate-900 border shadow-sm">
           <span className="text-[10px] uppercase font-bold text-amber-500">Pending Approvals</span>
-          <p className="text-lg font-black text-amber-600 mt-1">{pendingCount} {pendingCount === 1 ? 'Application' : 'Applications'}</p>
+          <div className="flex items-baseline gap-2 mt-1">
+            <p className="text-lg font-black text-amber-600">
+              {pendingCount} {pendingCount === 1 ? 'Application' : 'Applications'}
+            </p>
+            {pendingDays > 0 && (
+              <span className="text-xs text-slate-400 font-semibold">
+                ({pendingDays} {pendingDays === 1 ? 'Day' : 'Days'})
+              </span>
+            )}
+          </div>
         </div>
         <div className="glass-card p-4 rounded-2xl bg-white dark:bg-slate-900 border shadow-sm">
           <span className="text-[10px] uppercase font-bold text-rose-500">Rejected / Cancelled</span>
-          <p className="text-lg font-black text-rose-600 mt-1">{rejectedCount} {rejectedCount === 1 ? 'Leave' : 'Leaves'}</p>
+          <div className="flex items-baseline gap-2 mt-1">
+            <p className="text-lg font-black text-rose-600">
+              {rejectedDays} {rejectedDays === 1 ? 'Day' : 'Days'}
+            </p>
+            <span className="text-xs text-slate-400 font-semibold">
+              ({rejectedCount} {rejectedCount === 1 ? 'Application' : 'Applications'})
+            </span>
+          </div>
         </div>
       </div>
 

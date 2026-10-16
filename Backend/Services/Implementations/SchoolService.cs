@@ -2246,6 +2246,19 @@ public class SchoolService : ISchoolService
 				{
 					staff.EarnedLeaveBalance = Math.Max(0, staff.EarnedLeaveBalance - application.RequestedDays);
 				}
+				else
+				{
+					if (staff.CasualLeaveBalance >= application.RequestedDays)
+					{
+						staff.CasualLeaveBalance -= application.RequestedDays;
+					}
+					else
+					{
+						var remainder = application.RequestedDays - staff.CasualLeaveBalance;
+						staff.CasualLeaveBalance = 0;
+						staff.EarnedLeaveBalance = Math.Max(0, staff.EarnedLeaveBalance - remainder);
+					}
+				}
 			}
 
 			// Generate Staff Attendance Records
@@ -2290,6 +2303,7 @@ public class SchoolService : ISchoolService
 				if (code.Contains("CL") || name.Contains("CASUAL")) staff.CasualLeaveBalance += application.RequestedDays;
 				else if (code.Contains("SL") || name.Contains("SICK")) staff.SickLeaveBalance += application.RequestedDays;
 				else if (code.Contains("EL") || code.Contains("PL") || name.Contains("EARNED") || name.Contains("PAID")) staff.EarnedLeaveBalance += application.RequestedDays;
+				else staff.CasualLeaveBalance += application.RequestedDays;
 			}
 		}
 
@@ -2334,6 +2348,7 @@ public class SchoolService : ISchoolService
 					if (code.Contains("CL") || name.Contains("CASUAL")) staff.CasualLeaveBalance += application.RequestedDays;
 					else if (code.Contains("SL") || name.Contains("SICK")) staff.SickLeaveBalance += application.RequestedDays;
 					else if (code.Contains("EL") || code.Contains("PL") || name.Contains("EARNED") || name.Contains("PAID")) staff.EarnedLeaveBalance += application.RequestedDays;
+					else staff.CasualLeaveBalance += application.RequestedDays;
 				}
 			}
 			_context.LeaveApplications.Remove(application);
@@ -2345,11 +2360,50 @@ public class SchoolService : ISchoolService
 
 	public async Task<List<LeaveBalanceDto>> GetLeaveBalancesAsync()
 	{
-		var allStaff = await _schoolRepository.GetAllStaffAsync(null, null);
+		var allStaff = await _context.Staff.ToListAsync();
+		var allApprovedLeaves = await _context.LeaveApplications
+			.Include(l => l.LeaveType)
+			.Where(l => l.Status == "Approved")
+			.ToListAsync();
+
+		var leaveConfigs = await _context.LeaveTypeConfigs.AsNoTracking().ToListAsync();
+		var clDef = leaveConfigs.FirstOrDefault(l => (l.Code != null && l.Code.ToUpper().Contains("CL")) || (l.Name != null && l.Name.ToUpper().Contains("CASUAL")))?.AnnualAllowance ?? 10;
+		var slDef = leaveConfigs.FirstOrDefault(l => (l.Code != null && l.Code.ToUpper().Contains("SL")) || (l.Name != null && l.Name.ToUpper().Contains("SICK")))?.AnnualAllowance ?? 10;
+		var elDef = leaveConfigs.FirstOrDefault(l => (l.Code != null && (l.Code.ToUpper().Contains("PL") || l.Code.ToUpper().Contains("EL"))) || (l.Name != null && (l.Name.ToUpper().Contains("EARNED") || l.Name.ToUpper().Contains("PAID"))))?.AnnualAllowance ?? 15;
+
 		var result = new List<LeaveBalanceDto>();
+		bool hasUpdates = false;
 
 		foreach (var s in allStaff)
 		{
+			var staffLeaves = allApprovedLeaves.Where(l => l.StaffId == s.StaffId).ToList();
+			int casualUsed = 0;
+			int sickUsed = 0;
+			int earnedUsed = 0;
+			int otherUsed = 0;
+
+			foreach (var l in staffLeaves)
+			{
+				var code = (l.LeaveType?.Code ?? "").ToUpper();
+				var name = (l.LeaveType?.Name ?? "").ToUpper();
+				if (code.Contains("CL") || name.Contains("CASUAL")) casualUsed += l.RequestedDays;
+				else if (code.Contains("SL") || name.Contains("SICK")) sickUsed += l.RequestedDays;
+				else if (code.Contains("EL") || code.Contains("PL") || name.Contains("EARNED") || name.Contains("PAID")) earnedUsed += l.RequestedDays;
+				else otherUsed += l.RequestedDays;
+			}
+
+			int calculatedCasual = Math.Max(0, clDef - casualUsed - otherUsed);
+			int calculatedSick = Math.Max(0, slDef - sickUsed);
+			int calculatedEarned = Math.Max(0, elDef - earnedUsed);
+
+			if (s.CasualLeaveBalance != calculatedCasual || s.SickLeaveBalance != calculatedSick || s.EarnedLeaveBalance != calculatedEarned)
+			{
+				s.CasualLeaveBalance = calculatedCasual;
+				s.SickLeaveBalance = calculatedSick;
+				s.EarnedLeaveBalance = calculatedEarned;
+				hasUpdates = true;
+			}
+
 			result.Add(new LeaveBalanceDto
 			{
 				StaffId = s.StaffId,
@@ -2361,6 +2415,11 @@ public class SchoolService : ISchoolService
 				EarnedLeaveBalance = s.EarnedLeaveBalance,
 				TotalRemainingBalance = s.CasualLeaveBalance + s.SickLeaveBalance + s.EarnedLeaveBalance
 			});
+		}
+
+		if (hasUpdates)
+		{
+			await _context.SaveChangesAsync();
 		}
 
 		return result;
