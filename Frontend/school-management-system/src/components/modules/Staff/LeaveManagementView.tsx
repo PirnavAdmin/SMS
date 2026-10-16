@@ -3,7 +3,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { formatCurrency } from '../../../utils/currency';
 import {
   FileText, Plus, Edit, Trash2, Eye, Printer, Calendar, CheckCircle, XCircle, Search, Filter, X,
-  User, Layers, HelpCircle, ChevronLeft, ChevronRight, RefreshCw, AlertTriangle, ChevronDown, GraduationCap
+  User, Layers, HelpCircle, ChevronLeft, ChevronRight, RefreshCw, AlertTriangle, AlertCircle, ChevronDown, GraduationCap
 } from 'lucide-react';
 import { LeaveApplication, LeaveType, Holiday, Staff } from '../../../types';
 import { useData } from '../../../context/DataContext';
@@ -405,6 +405,90 @@ export const LeaveManagementView: React.FC = () => {
   // Leave Type Modals
   const [isTypeModalOpen, setIsTypeModalOpen] = useState(false);
   const [editingType, setEditingType] = useState<LeaveType | null>(null);
+  const [allowanceVal, setAllowanceVal] = useState<string>('');
+  const [consecutiveVal, setConsecutiveVal] = useState<string>('');
+  const [typeFormErrors, setTypeFormErrors] = useState<{
+    annualAllowance?: string;
+    maxConsecutiveDays?: string;
+  }>({});
+
+  useEffect(() => {
+    if (isTypeModalOpen) {
+      setAllowanceVal(editingType ? String(editingType.annualAllowance ?? editingType.maxDays ?? '') : '');
+      setConsecutiveVal(editingType ? String(editingType.maxConsecutiveDays ?? '') : '');
+      setTypeFormErrors({});
+    }
+  }, [isTypeModalOpen, editingType]);
+
+  const handleAllowanceChange = (raw: string) => {
+    const digitsOnly = raw.replace(/\D/g, '');
+    const num = Number(digitsOnly);
+
+    if (raw.length > 3 || num > 365) {
+      setTypeFormErrors((prev) => ({
+        ...prev,
+        annualAllowance: 'Annual allowance cannot exceed 365 days (maximum 3 digits).'
+      }));
+    } else if (digitsOnly === '0') {
+      setTypeFormErrors((prev) => ({
+        ...prev,
+        annualAllowance: 'Annual allowance must be at least 1 day.'
+      }));
+    } else {
+      setTypeFormErrors((prev) => {
+        const next = { ...prev };
+        delete next.annualAllowance;
+        return next;
+      });
+    }
+
+    const truncated = digitsOnly.slice(0, 3);
+    setAllowanceVal(truncated);
+
+    if (consecutiveVal) {
+      const consNum = Number(consecutiveVal);
+      const newAllowNum = Number(truncated);
+      if (newAllowNum > 0 && consNum > newAllowNum) {
+        setTypeFormErrors((prev) => ({
+          ...prev,
+          maxConsecutiveDays: `Max consecutive days cannot exceed annual allowance (${newAllowNum} days).`
+        }));
+      } else if (consNum <= 365) {
+        setTypeFormErrors((prev) => {
+          const next = { ...prev };
+          delete next.maxConsecutiveDays;
+          return next;
+        });
+      }
+    }
+  };
+
+  const handleConsecutiveChange = (raw: string) => {
+    const digitsOnly = raw.replace(/\D/g, '');
+    const consNum = Number(digitsOnly);
+    const allowNum = Number(allowanceVal);
+
+    if (raw.length > 3 || consNum > 365) {
+      setTypeFormErrors((prev) => ({
+        ...prev,
+        maxConsecutiveDays: 'Max consecutive days cannot exceed 365 days (maximum 3 digits).'
+      }));
+    } else if (allowanceVal && allowNum > 0 && consNum > allowNum) {
+      setTypeFormErrors((prev) => ({
+        ...prev,
+        maxConsecutiveDays: `Max consecutive days cannot exceed annual allowance (${allowNum} days).`
+      }));
+    } else {
+      setTypeFormErrors((prev) => {
+        const next = { ...prev };
+        delete next.maxConsecutiveDays;
+        return next;
+      });
+    }
+
+    const truncated = digitsOnly.slice(0, 3);
+    setConsecutiveVal(truncated);
+  };
 
   // Holiday Modals
   const [isHolidayModalOpen, setIsHolidayModalOpen] = useState(false);
@@ -693,8 +777,42 @@ export const LeaveManagementView: React.FC = () => {
     }
 
     if (rawAllowance === '' || rawAllowance === null || isNaN(Number(rawAllowance))) {
+      setTypeFormErrors((prev) => ({
+        ...prev,
+        annualAllowance: 'Please enter Annual Allowance (Days).'
+      }));
       addToast('warning', 'Missing Details', 'Please enter Annual Allowance (Days).');
       return;
+    }
+
+    const allowanceNum = Number(rawAllowance);
+    if (allowanceNum < 1 || allowanceNum > 365 || String(rawAllowance).trim().length > 3) {
+      setTypeFormErrors((prev) => ({
+        ...prev,
+        annualAllowance: 'Annual allowance must be between 1 and 365 days (maximum 3 digits).'
+      }));
+      addToast('warning', 'Invalid Allowance', 'Annual allowance must be between 1 and 365 days (maximum 3 digits).');
+      return;
+    }
+
+    if (rawMaxConsecutive !== '' && rawMaxConsecutive !== null) {
+      const maxConsecutiveNum = Number(rawMaxConsecutive);
+      if (isNaN(maxConsecutiveNum) || maxConsecutiveNum < 0 || maxConsecutiveNum > 365 || String(rawMaxConsecutive).trim().length > 3) {
+        setTypeFormErrors((prev) => ({
+          ...prev,
+          maxConsecutiveDays: 'Max consecutive days must be between 0 and 365 days (maximum 3 digits).'
+        }));
+        addToast('warning', 'Invalid Consecutive Days', 'Max consecutive days must be between 0 and 365 days (maximum 3 digits).');
+        return;
+      }
+      if (allowanceNum > 0 && maxConsecutiveNum > allowanceNum) {
+        setTypeFormErrors((prev) => ({
+          ...prev,
+          maxConsecutiveDays: `Max consecutive days cannot exceed annual allowance (${allowanceNum} days).`
+        }));
+        addToast('warning', 'Invalid Consecutive Days', `Max consecutive days cannot exceed annual allowance (${allowanceNum} days).`);
+        return;
+      }
     }
 
     if (!rawCarryForward || !rawRequiresAttachment || !rawIsPaid || !rawStatus) {
@@ -724,6 +842,7 @@ export const LeaveManagementView: React.FC = () => {
     }
     setIsTypeModalOpen(false);
     setEditingType(null);
+    setTypeFormErrors({});
   };
 
   // Holiday Form Handlers
@@ -1735,7 +1854,7 @@ export const LeaveManagementView: React.FC = () => {
               </h3>
               <button 
                 type="button" 
-                onClick={() => { setIsTypeModalOpen(false); setEditingType(null); }}
+                onClick={() => { setIsTypeModalOpen(false); setEditingType(null); setTypeFormErrors({}); }}
                 className="p-1 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
               >
                 <X className="w-4 h-4" />
@@ -1780,10 +1899,32 @@ export const LeaveManagementView: React.FC = () => {
                     name="annualAllowance" 
                     placeholder="e.g. 10" 
                     required 
-                    min="0"
-                    defaultValue={editingType ? (editingType.annualAllowance ?? editingType.maxDays ?? '') : ''} 
-                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 outline-none text-slate-800 dark:text-slate-100" 
+                    min="1"
+                    max="365"
+                    maxLength={3}
+                    value={allowanceVal}
+                    onChange={(e) => handleAllowanceChange(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (['e', 'E', '+', '-', '.'].includes(e.key)) {
+                        e.preventDefault();
+                      }
+                    }}
+                    onPaste={(e) => {
+                      e.preventDefault();
+                      handleAllowanceChange(e.clipboardData.getData('text'));
+                    }}
+                    className={`w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border ${
+                      typeFormErrors.annualAllowance
+                        ? 'border-rose-500 focus:border-rose-500 ring-1 ring-rose-500/20'
+                        : 'border-slate-200 dark:border-slate-700'
+                    } outline-none text-slate-800 dark:text-slate-100 transition-colors`} 
                   />
+                  {typeFormErrors.annualAllowance && (
+                    <p className="text-[10px] text-rose-500 font-bold mt-1 flex items-center gap-1">
+                      <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                      {typeFormErrors.annualAllowance}
+                    </p>
+                  )}
                 </div>
               </div>
 
@@ -1812,9 +1953,31 @@ export const LeaveManagementView: React.FC = () => {
                     name="maxConsecutiveDays" 
                     placeholder="e.g. 5"
                     min="0"
-                    defaultValue={editingType ? (editingType.maxConsecutiveDays ?? '') : ''} 
-                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 outline-none text-slate-800 dark:text-slate-100" 
+                    max="365"
+                    maxLength={3}
+                    value={consecutiveVal}
+                    onChange={(e) => handleConsecutiveChange(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (['e', 'E', '+', '-', '.'].includes(e.key)) {
+                        e.preventDefault();
+                      }
+                    }}
+                    onPaste={(e) => {
+                      e.preventDefault();
+                      handleConsecutiveChange(e.clipboardData.getData('text'));
+                    }}
+                    className={`w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border ${
+                      typeFormErrors.maxConsecutiveDays
+                        ? 'border-rose-500 focus:border-rose-500 ring-1 ring-rose-500/20'
+                        : 'border-slate-200 dark:border-slate-700'
+                    } outline-none text-slate-800 dark:text-slate-100 transition-colors`} 
                   />
+                  {typeFormErrors.maxConsecutiveDays && (
+                    <p className="text-[10px] text-rose-500 font-bold mt-1 flex items-center gap-1">
+                      <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                      {typeFormErrors.maxConsecutiveDays}
+                    </p>
+                  )}
                 </div>
               </div>
 
@@ -1870,7 +2033,7 @@ export const LeaveManagementView: React.FC = () => {
               <div className="flex items-center justify-end gap-2 pt-4">
                 <button 
                   type="button" 
-                  onClick={() => { setIsTypeModalOpen(false); setEditingType(null); }} 
+                  onClick={() => { setIsTypeModalOpen(false); setEditingType(null); setTypeFormErrors({}); }} 
                   className="px-4 py-2 font-semibold bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-xl transition-colors"
                 >
                   Cancel
