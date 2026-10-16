@@ -2808,7 +2808,7 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
   return (
     <div className="space-y-6 animate-in fade-in text-xs pb-12">
       {/* Title & Top Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="flex items-center justify-between gap-4">
         <div>
           <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white flex items-center gap-2">
             <CalendarCheck className="w-6 h-6 text-brand-600 dark:text-brand-400" />
@@ -2820,7 +2820,7 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
           type="button"
           onClick={handleExportReport}
           disabled={isExporting}
-          className="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs flex items-center gap-2 shadow-lg shadow-emerald-600/20 transition-all cursor-pointer disabled:opacity-50 self-start sm:self-center"
+          className="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs flex items-center gap-2 shadow-lg shadow-emerald-600/20 transition-all cursor-pointer disabled:opacity-50"
         >
           {isExporting ? (
             <Loader2 className="w-4 h-4 animate-spin" />
