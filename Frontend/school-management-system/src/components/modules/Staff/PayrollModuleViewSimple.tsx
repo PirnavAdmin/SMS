@@ -1101,49 +1101,149 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
   const [globalTdsPct, setGlobalTdsPct] = useState<string>('');
   const [tdsError, setTdsError] = useState<string | undefined>(undefined);
 
-  const handleTdsChange = (raw: string) => {
-    // Prevent typing negative sign or invalid non-numeric chars
-    if (raw.includes('-') || raw.includes('+') || raw.toLowerCase().includes('e')) {
-      setTdsError('Please enter a valid percentage between 0 and 100.');
-      return;
-    }
+  const sanitizeTdsValue = (input: string): string => {
+    // Strip everything except digits and decimal point
+    const cleaned = input.replace(/[^0-9.]/g, '');
+    if (!cleaned) return '';
 
-    if (raw === '') {
+    // Split on decimal point and ensure only at most 1 decimal point
+    const parts = cleaned.split('.');
+    const intPart = parts[0].slice(0, 3); // Maximum 3 integer digits (percentage up to 100)
+    if (parts.length > 1) {
+      const decPart = parts.slice(1).join('').slice(0, 2); // Maximum 2 decimal places
+      return `${intPart}.${decPart}`.slice(0, 6);
+    }
+    return intPart.slice(0, 3);
+  };
+
+  const handleTdsChange = (raw: string) => {
+    const formatted = sanitizeTdsValue(raw);
+
+    if (formatted === '') {
       setGlobalTdsPct('');
       setTdsError(undefined);
       return;
     }
 
-    const num = Number(raw);
+    if (formatted === '.') {
+      setGlobalTdsPct('.');
+      setTdsError(undefined);
+      return;
+    }
+
+    const num = Number(formatted);
     if (isNaN(num)) {
       setTdsError('Please enter a valid numeric percentage.');
-      setGlobalTdsPct(raw);
+      setGlobalTdsPct(formatted);
       return;
     }
 
     if (num < 0) {
       setTdsError('TDS percentage cannot be negative.');
-      setGlobalTdsPct(raw);
+      setGlobalTdsPct(formatted);
       return;
     }
 
     if (num > 100) {
       setTdsError('TDS percentage cannot exceed 100%.');
-      setGlobalTdsPct(raw);
+      setGlobalTdsPct(formatted);
       return;
-    }
-
-    // Limit decimal precision to 2 decimal places if decimals present
-    let formatted = raw;
-    if (formatted.includes('.')) {
-      const parts = formatted.split('.');
-      if (parts[1] && parts[1].length > 2) {
-        formatted = `${parts[0]}.${parts[1].slice(0, 2)}`;
-      }
     }
 
     setTdsError(undefined);
     setGlobalTdsPct(formatted);
+  };
+
+  const handleTdsKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    // Allow control / navigation keys
+    if (
+      [
+        'Backspace',
+        'Delete',
+        'Tab',
+        'ArrowLeft',
+        'ArrowRight',
+        'ArrowUp',
+        'ArrowDown',
+        'Home',
+        'End',
+        'Enter',
+        'Escape'
+      ].includes(e.key) ||
+      e.ctrlKey ||
+      e.metaKey ||
+      e.altKey
+    ) {
+      return;
+    }
+
+    // Allow decimal point if not already present
+    if (e.key === '.') {
+      const input = e.currentTarget;
+      const val = input.value;
+      const selectionStart = input.selectionStart ?? 0;
+      const selectionEnd = input.selectionEnd ?? 0;
+      const selectedText = val.substring(selectionStart, selectionEnd);
+
+      if (val.includes('.') && !selectedText.includes('.')) {
+        e.preventDefault();
+        return;
+      }
+      return;
+    }
+
+    // Only allow digits 0-9
+    if (!/^[0-9]$/.test(e.key)) {
+      e.preventDefault();
+      return;
+    }
+
+    // Check digit length limits
+    const input = e.currentTarget;
+    const val = input.value;
+    const selectionStart = input.selectionStart ?? 0;
+    const selectionEnd = input.selectionEnd ?? 0;
+    const isReplacing = selectionEnd > selectionStart;
+
+    if (!isReplacing) {
+      if (val.length >= 6) {
+        e.preventDefault();
+        return;
+      }
+
+      const dotIndex = val.indexOf('.');
+      if (dotIndex === -1) {
+        if (val.length >= 3) {
+          e.preventDefault();
+          return;
+        }
+      } else {
+        if (selectionStart <= dotIndex) {
+          const intPart = val.slice(0, dotIndex);
+          if (intPart.length >= 3) {
+            e.preventDefault();
+            return;
+          }
+        } else {
+          const decPart = val.slice(dotIndex + 1);
+          if (decPart.length >= 2) {
+            e.preventDefault();
+            return;
+          }
+        }
+      }
+    }
+  };
+
+  const handleTdsPaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
+    e.preventDefault();
+    const pasted = e.clipboardData.getData('text');
+    const input = e.currentTarget;
+    const start = input.selectionStart ?? 0;
+    const end = input.selectionEnd ?? 0;
+    const current = input.value;
+    const nextVal = current.slice(0, start) + pasted + current.slice(end);
+    handleTdsChange(nextVal);
   };
   const [standardPeriod, setStandardPeriod] = useState<'1m' | '3m' | '6m' | '12m'>('1m');
   const [leftEmployeeSearch, setLeftEmployeeSearch] = useState<string>('');
@@ -2354,19 +2454,53 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
           <div className="bg-white dark:bg-slate-900 border border-sky-200 dark:border-sky-900/40 p-4 rounded-2xl shadow-xs space-y-1">
             <label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">DEDUCTION (₹)</label>
             <input
-              type="number"
-              min="0"
+              type="text"
+              inputMode="numeric"
+              pattern="[0-9]*"
+              maxLength={8}
               value={globalDeduction}
               onChange={e => {
-                const val = e.target.value;
-                if (!val.includes('-')) {
-                  setGlobalDeduction(val);
-                }
+                const val = e.target.value.replace(/[^0-9]/g, '').slice(0, 8);
+                setGlobalDeduction(val);
               }}
               onKeyDown={e => {
-                if (['e', 'E', '+', '-'].includes(e.key)) {
+                if (
+                  [
+                    'Backspace',
+                    'Delete',
+                    'Tab',
+                    'ArrowLeft',
+                    'ArrowRight',
+                    'ArrowUp',
+                    'ArrowDown',
+                    'Home',
+                    'End',
+                    'Enter',
+                    'Escape'
+                  ].includes(e.key) ||
+                  e.ctrlKey ||
+                  e.metaKey
+                ) {
+                  return;
+                }
+                if (!/^[0-9]$/.test(e.key)) {
+                  e.preventDefault();
+                  return;
+                }
+                const input = e.currentTarget;
+                if (input.selectionEnd === input.selectionStart && input.value.length >= 8) {
                   e.preventDefault();
                 }
+              }}
+              onPaste={e => {
+                e.preventDefault();
+                const pasted = e.clipboardData.getData('text').replace(/[^0-9]/g, '').slice(0, 8);
+                const input = e.currentTarget;
+                const start = input.selectionStart ?? 0;
+                const end = input.selectionEnd ?? 0;
+                const current = input.value;
+                const nextVal = (current.slice(0, start) + pasted + current.slice(end)).replace(/[^0-9]/g, '').slice(0, 8);
+                setGlobalDeduction(nextVal);
               }}
               placeholder="Enter Deduction"
               className={inputClass}
@@ -2379,17 +2513,14 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
           <div className="bg-white dark:bg-slate-900 border border-sky-200 dark:border-sky-900/40 p-4 rounded-2xl shadow-xs space-y-1">
             <label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">TDS (%)</label>
             <input
-              type="number"
-              min="0"
-              max="100"
-              step="any"
+              type="text"
+              inputMode="decimal"
+              pattern="[0-9]*[.]?[0-9]*"
+              maxLength={6}
               value={globalTdsPct}
               onChange={e => handleTdsChange(e.target.value)}
-              onKeyDown={e => {
-                if (['e', 'E', '+', '-'].includes(e.key)) {
-                  e.preventDefault();
-                }
-              }}
+              onKeyDown={handleTdsKeyDown}
+              onPaste={handleTdsPaste}
               placeholder="Enter TDS Percentage (0 - 100%)"
               className={`${inputClass} ${
                 tdsError
