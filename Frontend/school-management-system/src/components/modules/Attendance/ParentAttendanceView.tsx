@@ -46,10 +46,16 @@ export const ParentAttendanceView: React.FC = () => {
   // Listen for real-time attendance updates
   const [registryVersion, setRegistryVersion] = useState(0);
   useEffect(() => {
-    const handleUpdate = () => setRegistryVersion(v => v + 1);
+    let timeoutId: any;
+    const handleUpdate = () => {
+      timeoutId = setTimeout(() => {
+        setRegistryVersion(v => v + 1);
+      }, 0);
+    };
     window.addEventListener('storage', handleUpdate);
     window.addEventListener('attendance_updated', handleUpdate);
     return () => {
+      clearTimeout(timeoutId);
       window.removeEventListener('storage', handleUpdate);
       window.removeEventListener('attendance_updated', handleUpdate);
     };

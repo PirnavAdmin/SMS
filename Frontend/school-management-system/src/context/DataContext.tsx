@@ -5134,11 +5134,13 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
             }
 
             const merged = Array.from(existingMap.values());
+            return merged;
+          });
+          setTimeout(() => {
             try {
               window.dispatchEvent(new Event("attendance_updated"));
             } catch {}
-            return merged;
-          });
+          }, 0);
         }
       } catch (err) {
         console.warn("Error fetching student attendance:", err);
@@ -18349,11 +18351,13 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         return !isMatch;
       });
       const updated = [...filtered, { ...record, date: recordDate }];
+      return updated;
+    });
+    setTimeout(() => {
       try {
         window.dispatchEvent(new Event("attendance_updated"));
       } catch {}
-      return updated;
-    });
+    }, 0);
 
     // Async backend persistence
     saveBulkStudentAttendanceApi({
@@ -18409,11 +18413,13 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
             });
           });
           const updated = Array.from(map.values());
+          return updated;
+        });
+        setTimeout(() => {
           try {
             window.dispatchEvent(new Event("attendance_updated"));
           } catch {}
-          return updated;
-        });
+        }, 0);
 
         const response = await saveBulkStudentAttendanceApi(payload);
         return response;

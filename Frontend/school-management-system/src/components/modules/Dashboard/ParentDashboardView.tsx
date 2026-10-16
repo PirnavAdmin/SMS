@@ -5,6 +5,7 @@ import {
   Home, MapPin, Users, Heart, Phone, IndianRupee, ClipboardList
 } from 'lucide-react';
 import { StatCard } from '../../common/StatCard';
+import { Badge } from '../../common/Badge';
 import { useAuth } from '../../../context/AuthContext';
 import { useData } from '../../../context/DataContext';
 import { DashboardShimmer } from '../../common/DashboardShimmer';
@@ -228,8 +229,6 @@ export const ParentDashboardView: React.FC<ParentDashboardViewProps> = ({ onNavi
     fetchStudentAttendanceData
   } = useData();
   const [selectedChildIdx, setSelectedChildIdx] = useState(0);
-  const [loading, setLoading] = useState(true);
-  const [apiChildren, setApiChildren] = useState<ParentChild[]>([]);
 
   useEffect(() => {
     fetchHomeworkData?.();
@@ -238,10 +237,16 @@ export const ParentDashboardView: React.FC<ParentDashboardViewProps> = ({ onNavi
 
   const [registryVersion, setRegistryVersion] = useState(0);
   useEffect(() => {
-    const handleUpdate = () => setRegistryVersion(v => v + 1);
+    let timeoutId: any;
+    const handleUpdate = () => {
+      timeoutId = setTimeout(() => {
+        setRegistryVersion(v => v + 1);
+      }, 0);
+    };
     window.addEventListener('storage', handleUpdate);
     window.addEventListener('attendance_updated', handleUpdate);
     return () => {
+      clearTimeout(timeoutId);
       window.removeEventListener('storage', handleUpdate);
       window.removeEventListener('attendance_updated', handleUpdate);
     };
@@ -482,16 +487,8 @@ export const ParentDashboardView: React.FC<ParentDashboardViewProps> = ({ onNavi
   }, [homework, currentWard, wardClassNumP, wardSecP]);
 
   // Early conditional return blocks (must be placed AFTER all Hook calls!)
-  if (loading) {
-    return <DashboardShimmer />;
-  }
-
   if (parentWards.length === 0) {
-    return (
-      <div className="p-8 text-center text-slate-500 font-medium">
-        No active wards found.
-      </div>
-    );
+    return <DashboardShimmer />;
   }
 
   const wardAttendance = wardAttendanceStats.wardAttendance;
@@ -528,7 +525,10 @@ export const ParentDashboardView: React.FC<ParentDashboardViewProps> = ({ onNavi
             </h1>
             {currentWard && (
               <p className="text-xs text-slate-600 dark:text-slate-400">
-                <strong className="text-slate-800 dark:text-slate-200">{currentWard.className.startsWith('Class') ? currentWard.className : `Class ${currentWard.className}`}-{currentWard.section}</strong> • Adm No: <strong className="text-slate-800 dark:text-slate-200">{currentWard.admissionNo || 'REG-1104'}</strong>
+                <strong className="text-slate-800 dark:text-slate-200">{(currentWard.className || '').startsWith('Class') ? currentWard.className : `Class ${currentWard.className || ''}`}{currentWard.section ? `-${currentWard.section}` : ''}</strong>
+                {currentWard.admissionNo && (
+                  <> • Adm No: <strong className="text-slate-800 dark:text-slate-200">{currentWard.admissionNo}</strong></>
+                )}
               </p>
             )}
           </div>
@@ -621,7 +621,7 @@ export const ParentDashboardView: React.FC<ParentDashboardViewProps> = ({ onNavi
             </div>
             <span className="text-[11px] font-bold text-slate-600 dark:text-slate-300 leading-tight">Enrolled Class</span>
           </div>
-          <p className="text-2xl font-black text-slate-900 dark:text-white">{currentWard.className.startsWith('Class') ? currentWard.className : `Class ${currentWard.className}`}-{currentWard.section}</p>
+          <p className="text-2xl font-black text-slate-900 dark:text-white">{(currentWard.className || '').startsWith('Class') ? currentWard.className : `Class ${currentWard.className || ''}`}{currentWard.section ? `-${currentWard.section}` : ''}</p>
         </div>
       </div>
 
