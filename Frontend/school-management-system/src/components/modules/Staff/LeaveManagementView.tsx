@@ -1983,6 +1983,16 @@ export const LeaveManagementView: React.FC = () => {
                           ...prev,
                           annualAllowance: 'Only numeric digits (0-9) are allowed.'
                         }));
+                        return;
+                      }
+                      const input = e.currentTarget;
+                      const selLen = (input.selectionEnd ?? 0) - (input.selectionStart ?? 0);
+                      if (allowanceVal.length >= 3 && selLen === 0) {
+                        e.preventDefault();
+                        setTypeFormErrors((prev) => ({
+                          ...prev,
+                          annualAllowance: 'Annual allowance cannot exceed 3 digits (maximum 365 days).'
+                        }));
                       }
                     }}
                     onPaste={(e) => {
@@ -2045,6 +2055,16 @@ export const LeaveManagementView: React.FC = () => {
                         setTypeFormErrors((prev) => ({
                           ...prev,
                           maxConsecutiveDays: 'Only numeric digits (0-9) are allowed.'
+                        }));
+                        return;
+                      }
+                      const input = e.currentTarget;
+                      const selLen = (input.selectionEnd ?? 0) - (input.selectionStart ?? 0);
+                      if (consecutiveVal.length >= 3 && selLen === 0) {
+                        e.preventDefault();
+                        setTypeFormErrors((prev) => ({
+                          ...prev,
+                          maxConsecutiveDays: 'Max consecutive days cannot exceed 3 digits (maximum 365 days).'
                         }));
                       }
                     }}
