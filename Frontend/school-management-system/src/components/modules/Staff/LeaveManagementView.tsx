@@ -370,7 +370,7 @@ export const LeaveManagementView: React.FC = () => {
     };
 
     return (staff || []).filter(s => {
-      const matchesQuery = `${s.firstName} ${s.lastName}`.toLowerCase().includes(query.toLowerCase());
+      const matchesQuery = Boolean(searchError) || !query.trim() || `${s.firstName} ${s.lastName}`.toLowerCase().includes(query.trim().toLowerCase());
       
       let matchesCategory = true;
       if (balanceCategoryFilter === 'Teaching Staff') {
@@ -391,7 +391,7 @@ export const LeaveManagementView: React.FC = () => {
 
       return matchesQuery && matchesCategory && matchesBranch;
     });
-  }, [isSelfServiceStaff, loggedUserStaffMember, staff, query, balanceCategoryFilter, selectedBranch]);
+  }, [isSelfServiceStaff, loggedUserStaffMember, staff, query, searchError, balanceCategoryFilter, selectedBranch]);
 
   const totalBalancePages = Math.ceil(filteredStaffForBalance.length / balancePageSize) || 1;
 
@@ -1325,7 +1325,7 @@ export const LeaveManagementView: React.FC = () => {
                   {(() => {
                     const baseApps = isSelfServiceStaff ? myApplications : campusApplications;
                     const filteredList = baseApps.filter(app => {
-                      const nameMatch = !query || app.employeeName.toLowerCase().includes(query.toLowerCase());
+                      const nameMatch = Boolean(searchError) || !query.trim() || app.employeeName.toLowerCase().includes(query.trim().toLowerCase());
                       const catMatch = filterCategory === 'All' || app.employeeCategory === filterCategory;
                       const statusMatch = filterStatus === 'All' || (app.status || '').toLowerCase() === filterStatus.toLowerCase();
                       const typeMatch = filterType === 'All' || app.leaveTypeName === filterType;
@@ -1333,6 +1333,9 @@ export const LeaveManagementView: React.FC = () => {
                     });
 
                     if (filteredList.length === 0) {
+                      if (searchError) {
+                        return null;
+                      }
                       return (
                         <tr>
                           <td colSpan={10} className="py-12 text-center text-slate-400 font-bold italic">
