@@ -586,7 +586,7 @@ export const LeaveManagementView: React.FC = () => {
     employeeId: '',
     leaveTypeId: '',
     fromDate: new Date().toISOString().split('T')[0],
-    toDate: new Date().toISOString().split('T')[0],
+    toDate: '',
     isHalfDay: false,
     halfDayPeriod: 'First Half' as 'First Half' | 'Second Half',
     reason: '',
@@ -600,6 +600,7 @@ export const LeaveManagementView: React.FC = () => {
 
   const calculateDays = (from: string, to: string, half: boolean) => {
     if (half) return 0.5;
+    if (!from || !to) return 0;
     const start = new Date(from);
     const end = new Date(to);
     const diff = end.getTime() - start.getTime();
@@ -646,18 +647,27 @@ export const LeaveManagementView: React.FC = () => {
       return;
     }
 
-    if (applyForm.toDate < applyForm.fromDate) {
+    const effectiveToDate = applyForm.isHalfDay ? applyForm.fromDate : applyForm.toDate;
+
+    if (!applyForm.fromDate || !effectiveToDate) {
+      addToast('warning', 'Missing Dates', 'Please select both from and to dates.');
+      return;
+    }
+
+    if (effectiveToDate < applyForm.fromDate) {
       addToast('error', 'Invalid Date Range', 'End date cannot be earlier than start date.');
       return;
     }
 
-    if (hasOverlappingLeaves(employee.id, applyForm.fromDate, applyForm.toDate, editingApplication?.id)) {
+    if (hasOverlappingLeaves(employee.id, applyForm.fromDate, effectiveToDate, editingApplication?.id)) {
       addToast('error', 'Date Overlap', 'Leave has already been applied for the selected dates.');
       return;
     }
 
     const availableBal = getAvailableBalance(employee, lType.name);
     const empBranch = (employee as any).branch || (employee as any).branchId || selectedBranch || '';
+
+    const effectiveDays = applyForm.isHalfDay ? 0.5 : calculateDays(applyForm.fromDate, effectiveToDate, false);
 
     const appData: Omit<LeaveApplication, 'id'> = {
       employeeId: employee.id,
@@ -671,10 +681,10 @@ export const LeaveManagementView: React.FC = () => {
       leaveTypeId: lType.id,
       leaveTypeName: lType.name,
       fromDate: applyForm.fromDate,
-      toDate: applyForm.toDate,
+      toDate: effectiveToDate,
       isHalfDay: applyForm.isHalfDay,
       halfDayPeriod: applyForm.isHalfDay ? applyForm.halfDayPeriod : undefined,
-      numberOfDays: requestedDays,
+      numberOfDays: effectiveDays,
       reason: applyForm.reason,
       attachments: applyForm.attachments,
       status: editingApplication ? editingApplication.status : 'Pending',
@@ -682,11 +692,11 @@ export const LeaveManagementView: React.FC = () => {
     };
 
     // Balance validation
-    if (lType.isPaid && requestedDays > availableBal) {
+    if (lType.isPaid && effectiveDays > availableBal) {
       setLopWarning({
         show: true,
         available: availableBal,
-        requested: requestedDays,
+        requested: effectiveDays,
         appData
       });
       return;
@@ -733,7 +743,7 @@ export const LeaveManagementView: React.FC = () => {
       employeeId: '',
       leaveTypeId: '',
       fromDate: new Date().toISOString().split('T')[0],
-      toDate: new Date().toISOString().split('T')[0],
+      toDate: '',
       isHalfDay: false,
       halfDayPeriod: 'First Half',
       reason: '',
@@ -776,7 +786,7 @@ export const LeaveManagementView: React.FC = () => {
       employeeId: app.employeeId,
       leaveTypeId: resolvedLeaveTypeId,
       fromDate: app.fromDate,
-      toDate: app.toDate,
+      toDate: app.toDate || '',
       isHalfDay: app.isHalfDay,
       halfDayPeriod: app.halfDayPeriod || 'First Half',
       reason: app.reason,
@@ -1632,11 +1642,11 @@ export const LeaveManagementView: React.FC = () => {
                         checked={applyForm.isHalfDay}
                         onChange={e => {
                           const checked = e.target.checked;
-                          setApplyForm({
-                            ...applyForm,
+                          setApplyForm(prev => ({
+                            ...prev,
                             isHalfDay: checked,
-                            toDate: checked ? applyForm.fromDate : applyForm.toDate
-                          });
+                            toDate: checked ? prev.fromDate : prev.toDate
+                          }));
                         }}
                         className="rounded text-brand-600"
                       />
@@ -1646,7 +1656,7 @@ export const LeaveManagementView: React.FC = () => {
                     {applyForm.isHalfDay && (
                       <select
                         value={applyForm.halfDayPeriod}
-                        onChange={e => setApplyForm({ ...applyForm, halfDayPeriod: e.target.value as any })}
+                        onChange={e => setApplyForm(prev => ({ ...prev, halfDayPeriod: e.target.value as any }))}
                         className="px-2 py-0.5 text-[10px] rounded bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 cursor-pointer outline-none font-bold"
                       >
                         <option value="First Half">First Half</option>
@@ -1673,7 +1683,9 @@ export const LeaveManagementView: React.FC = () => {
                       setApplyForm(prev => ({
                         ...prev,
                         fromDate: newFrom,
-                        toDate: prev.toDate < newFrom ? newFrom : prev.toDate
+                        toDate: prev.isHalfDay
+                          ? newFrom
+                          : (prev.toDate && prev.toDate < newFrom ? newFrom : prev.toDate)
                       }));
                     }}
                     className="w-full px-2.5 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 outline-none text-xs"
@@ -1685,11 +1697,11 @@ export const LeaveManagementView: React.FC = () => {
                   </label>
                   <input
                     type="date"
-                    required
+                    required={!applyForm.isHalfDay}
                     min={applyForm.fromDate || new Date().toISOString().split('T')[0]}
                     value={applyForm.toDate}
                     disabled={applyForm.isHalfDay}
-                    onChange={e => setApplyForm({ ...applyForm, toDate: e.target.value })}
+                    onChange={e => setApplyForm(prev => ({ ...prev, toDate: e.target.value }))}
                     className="w-full px-2.5 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 outline-none text-xs disabled:bg-slate-100 dark:disabled:bg-slate-800/40 disabled:cursor-not-allowed"
                   />
                 </div>
