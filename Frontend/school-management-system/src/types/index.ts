@@ -31,6 +31,8 @@ export type ModulePermissions = Record<string, any>;
 
 export interface User {
   id: string;
+  empId?: string;
+  staffId?: number;
   name: string;
   email: string;
   role: Role;

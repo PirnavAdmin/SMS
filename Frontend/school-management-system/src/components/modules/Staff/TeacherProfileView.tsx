@@ -14,6 +14,33 @@ import { StaffLetterModal } from './Letters/StaffLetterModal';
 import { getLettersForStaff } from '../../../utils/staffLetterTemplates';
 import { StaffLetterType, GeneratedStaffLetterRecord } from '../../../types/staffLetter';
 import { resolveMediaUrl } from '../../../utils/mediaUtils';
+import {
+  getTeacherProfileMe,
+  updateTeacherProfileMe,
+  getTeacherAssignmentsMe,
+  TeacherSelfProfile
+} from '../../../services/teacherProfileApi';
+
+export const formatDisplayDate = (d?: string | Date) => {
+  if (!d) return 'Not Specified';
+  try {
+    const raw = String(d).trim();
+    if (!raw || raw.toLowerCase() === 'not specified' || raw.toLowerCase() === 'null') return 'Not Specified';
+    const cleanDate = raw.split('T')[0].split(' ')[0];
+    if (/^\d{4}-\d{2}-\d{2}$/.test(cleanDate)) {
+      const [y, m, day] = cleanDate.split('-');
+      const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      const mIdx = parseInt(m, 10) - 1;
+      return `${parseInt(day, 10)} ${monthNames[mIdx] || m} ${y}`;
+    }
+    const parsed = new Date(raw);
+    if (!isNaN(parsed.getTime()) && parsed.getFullYear() > 1900) {
+      return parsed.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+    }
+    return cleanDate;
+  } catch {}
+  return String(d);
+};
 
 export const TeacherProfileView: React.FC = () => {
   const { user } = useAuth();
@@ -24,102 +51,146 @@ export const TeacherProfileView: React.FC = () => {
   const isWarden = userRoleStr.includes('warden');
   const isAccountant = userRoleStr.includes('accountant') || userRoleStr === 'finance';
 
-  const [loading, setLoading] = useState(false);
+  const [apiProfile, setApiProfile] = useState<TeacherSelfProfile | null>(null);
+  const [apiAssignments, setApiAssignments] = useState<any | null>(null);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const fetchProfileData = () => window.location.reload();
 
-  // Find logged in teacher/warden/staff from DataContext staff list matching email, name, or ID
+  const fetchProfileData = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const data = await getTeacherProfileMe();
+      if (data) {
+        setApiProfile(data);
+      }
+    } catch (err: any) {
+      console.warn('Teacher profile direct load failed, falling back to context staff:', err);
+    }
+
+    try {
+      const assignData = await getTeacherAssignmentsMe();
+      if (assignData) {
+        setApiAssignments(assignData);
+      }
+    } catch (err: any) {
+      console.warn('Teacher assignments load failed:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchProfileData();
+  }, [user?.email, user?.id, (user as any)?.staffId]);
+
+  // Find logged in teacher/warden/staff from direct API or DataContext staff list matching email, phone, name, or ID
   const dbTeacher = useMemo(() => {
-    const userEmail = (user?.email || '').toLowerCase().trim();
-    const userName = (user?.name || '').toLowerCase().trim();
-    const userId = (user?.id || (user as any)?.empId || '').trim().toLowerCase();
     const userRoleStr = (user?.role || '').toLowerCase().trim();
-
     const isWarden = userRoleStr.includes('warden');
     const isAccountant = userRoleStr.includes('accountant') || userRoleStr === 'finance';
 
-    // 1. Check exact ID or Employee ID match
-    if (userId) {
-      const byId = staff.find(s =>
-        (s.id && String(s.id).toLowerCase().trim() === userId) ||
-        (s.empId && String(s.empId).toLowerCase().trim() === userId) ||
-        (s.employeeId && String(s.employeeId).toLowerCase().trim() === userId)
-      );
-      if (byId) {
-        return {
-          ...byId,
-          designation: isAccountant ? 'Accountant' : isWarden ? 'Hostel Warden' : (byId.designation || 'Teacher'),
-          department: isAccountant ? 'Finance & Accounts' : isWarden ? 'Hostel Management' : (byId.department || 'Academics'),
-          role: isAccountant ? 'Accountant' : isWarden ? 'Hostel Warden' : (byId.role || 'Teacher')
-        };
-      }
+    // 0. Direct API profile loaded from backend is the primary source of truth
+    if (apiProfile) {
+      return {
+        id: String(apiProfile.staffId),
+        staffId: apiProfile.staffId,
+        empId: apiProfile.employeeId,
+        employeeId: apiProfile.employeeId,
+        name: apiProfile.fullName,
+        firstName: apiProfile.firstName || (apiProfile.fullName || '').split(' ')[0] || '',
+        lastName: apiProfile.lastName || (apiProfile.fullName || '').split(' ').slice(1).join(' ') || '',
+        email: apiProfile.email || user?.email || '',
+        phone: apiProfile.mobile || user?.phone || '',
+        gender: apiProfile.gender || 'Not Specified',
+        dob: apiProfile.dateOfBirth ? String(apiProfile.dateOfBirth).split('T')[0] : '',
+        dateOfBirth: apiProfile.dateOfBirth ? String(apiProfile.dateOfBirth).split('T')[0] : '',
+        bloodGroup: apiProfile.bloodGroup || 'Not Specified',
+        address: apiProfile.address || apiProfile.permanentAddress || '',
+        presentAddress: apiProfile.address || '',
+        emergencyContact: apiProfile.emergencyContact || '',
+        branch: apiProfile.branch || user?.branch || '',
+        department: apiProfile.department || (isAccountant ? 'Finance & Accounts' : isWarden ? 'Hostel Management' : 'Academics'),
+        designation: apiProfile.designation || (isAccountant ? 'Accountant' : isWarden ? 'Hostel Warden' : 'Teacher'),
+        role: apiProfile.designation || (isAccountant ? 'Accountant' : isWarden ? 'Hostel Warden' : 'Teacher'),
+        joiningDate: apiProfile.joiningDate ? String(apiProfile.joiningDate).split('T')[0] : '',
+        qualification: apiProfile.qualification || '',
+        experience: apiProfile.experience || '',
+        status: apiProfile.employmentStatus || 'Active',
+        avatar: apiProfile.profilePhoto || user?.avatar || '',
+        profilePhoto: apiProfile.profilePhoto || user?.avatar || '',
+        basicSalary: apiProfile.basicSalary,
+        grossSalary: apiProfile.grossSalary,
+        netSalary: apiProfile.netSalary,
+        bankName: apiProfile.bankName,
+        bankAccountNumber: apiProfile.bankAccountNumber,
+        ifscCode: apiProfile.ifscCode,
+        panNumber: apiProfile.panNumber,
+        aadhaarNumber: apiProfile.aadhaarNumber,
+        assignedClasses: apiProfile.assignedClasses || [],
+        assignedSections: apiProfile.assignedSections || [],
+        assignedSubjects: apiProfile.assignedSubjects || []
+      };
     }
 
-    // 2. Check name match
-    if (userName && !userName.includes('admin')) {
-      const byName = staff.find(s => {
-        const sFullName = `${s.firstName || ''} ${s.lastName || ''}`.toLowerCase().trim();
-        const sName = (s.name || '').toLowerCase().trim();
-        const uFirst = userName.split(' ')[0].toLowerCase();
-        return (sFullName && sFullName === userName) || (sName && sName === userName) || (uFirst.length > 2 && sFullName.includes(uFirst));
+    const userEmail = (user?.email || '').toLowerCase().trim();
+    const userName = (user?.name || '').toLowerCase().trim();
+    const userPhone = (user?.phone || '').replace(/\D/g, '');
+    const userEmpId = ((user as any)?.empId || (user as any)?.employeeId || '').toLowerCase().trim();
+    const userStaffId = (user as any)?.staffId ? String((user as any)?.staffId) : '';
+
+    // 1. Check exact staffId or employeeId from user session
+    if (userStaffId || userEmpId) {
+      const byId = staff.find(s =>
+        (userStaffId && String(s.id).toLowerCase() === userStaffId) ||
+        (userEmpId && ((s.empId && s.empId.toLowerCase() === userEmpId) || (s.employeeId && s.employeeId.toLowerCase() === userEmpId)))
+      );
+      if (byId) return byId;
+    }
+
+    // 2. Check phone number match
+    if (userPhone && userPhone.length >= 7) {
+      const byPhone = staff.find(s => {
+        const sPhone = (s.phone || (s as any)?.mobile || '').replace(/\D/g, '');
+        return sPhone === userPhone || (userPhone.length >= 10 && sPhone.endsWith(userPhone)) || (sPhone.length >= 10 && userPhone.endsWith(sPhone));
       });
-      if (byName) {
-        return {
-          ...byName,
-          designation: isAccountant ? 'Accountant' : isWarden ? 'Hostel Warden' : (byName.designation || 'Teacher'),
-          department: isAccountant ? 'Finance & Accounts' : isWarden ? 'Hostel Management' : (byName.department || 'Academics'),
-          role: isAccountant ? 'Accountant' : isWarden ? 'Hostel Warden' : (byName.role || 'Teacher')
-        };
-      }
+      if (byPhone) return byPhone;
     }
 
     // 3. Check exact email match across all staff
     if (userEmail) {
       const byEmail = staff.find(s => s.email && s.email.toLowerCase().trim() === userEmail);
-      if (byEmail) {
-        const isGenericName = (byEmail.firstName || '').toLowerCase().includes('administrator') || (byEmail.firstName || '').toLowerCase().includes('admin');
-        const userFirst = userName ? userName.split(' ')[0] : '';
-        const userLast = userName ? userName.split(' ').slice(1).join(' ') : '';
-        return {
-          ...byEmail,
-          firstName: (isGenericName && userFirst) ? userFirst : (byEmail.firstName || userFirst || ''),
-          lastName: (isGenericName && userLast) ? userLast : (byEmail.lastName || userLast || ''),
-          designation: isAccountant ? 'Accountant' : isWarden ? 'Hostel Warden' : (byEmail.designation || 'Teacher'),
-          department: isAccountant ? 'Finance & Accounts' : isWarden ? 'Hostel Management' : (byEmail.department || 'Academics'),
-          role: isAccountant ? 'Accountant' : isWarden ? 'Hostel Warden' : (byEmail.role || 'Teacher'),
-          empId: byEmail.empId || byEmail.employeeId || (user as any)?.empId || byEmail.id || user?.id || ''
-        };
-      }
+      if (byEmail) return byEmail;
     }
 
-    // 4. Role specific search if accountant or warden
-    if (isAccountant) {
-      const accountantStaff = staff.find(s =>
-        (s.designation || '').toLowerCase().includes('accountant') ||
-        (s.role || '').toLowerCase().includes('accountant') ||
-        (s.department || '').toLowerCase().includes('finance')
-      );
-      if (accountantStaff) return accountantStaff;
-    }
-    if (isWarden) {
-      const wardenStaff = staff.find(s =>
-        (s.designation || '').toLowerCase().includes('warden') ||
-        (s.role || '').toLowerCase().includes('warden') ||
-        (s.department || '').toLowerCase().includes('hostel')
-      );
-      if (wardenStaff) return wardenStaff;
+    // 4. Check name match
+    if (userName && !userName.includes('admin')) {
+      const byName = staff.find(s => {
+        const sFullName = `${s.firstName || ''} ${s.lastName || ''}`.toLowerCase().trim();
+        const sName = (s.name || '').toLowerCase().trim();
+        return (sFullName && sFullName === userName) || (sName && sName === userName);
+      });
+      if (byName) return byName;
     }
 
-    // 5. Fallback: Return dynamic profile object from logged in user
+    // 5. Fallback: Return dynamic profile object from logged in user (DO NOT use user account id as empId)
     const rawName = user?.name || (isAccountant ? 'Accountant' : isWarden ? 'Hostel Warden' : 'Faculty Member');
     const nameParts = rawName.split(' ');
     return {
-      id: (user as any)?.empId || user?.id || '',
-      empId: (user as any)?.empId || user?.id || '',
+      id: userEmpId || '',
+      empId: userEmpId || '',
+      employeeId: userEmpId || '',
       firstName: nameParts[0] || (user?.name || ''),
       lastName: nameParts.slice(1).join(' ') || '',
       email: user?.email || '',
       phone: user?.phone || '',
+      gender: (user as any)?.gender || 'Not Specified',
+      bloodGroup: (user as any)?.bloodGroup || 'Not Specified',
+      dob: (user as any)?.dob || '',
+      dateOfBirth: (user as any)?.dob || (user as any)?.dateOfBirth || '',
+      address: (user as any)?.address || '',
+      emergencyContact: (user as any)?.emergencyContact || '',
+      joiningDate: (user as any)?.joiningDate || '',
       assignedClasses: [],
       assignedSections: [],
       assignedSubjects: [],
@@ -130,7 +201,7 @@ export const TeacherProfileView: React.FC = () => {
       branch: user?.branch || '',
       avatar: user?.avatar || ''
     };
-  }, [user, staff]);
+  }, [user, staff, apiProfile]);
 
   // Dynamically compute Class Teacher assignment details from all master sources (Class Management, Assignments, Staff DB)
   const classTeacherInfo = useMemo(() => {
@@ -285,11 +356,18 @@ export const TeacherProfileView: React.FC = () => {
     const merged = Array.from(new Set([...fromAcademicClasses, ...fromStaff, ...fromAssignments, ...fromTimetable])).filter(Boolean);
     const cleaned = merged.filter((c: any) => !c.toLowerCase().includes('nursery') && !c.toLowerCase().includes('lkg') && !c.toLowerCase().includes('ukg')) as string[];
 
-    return cleaned.length > 0 ? cleaned : ['Class 9-A', 'Class 8-A', 'Class 10-A', 'Class 1-B'];
-  }, [dbTeacher, user, teacherAssignments, timetable, academicClasses]);
+    if (apiProfile?.assignedClasses && apiProfile.assignedClasses.length > 0) {
+      return apiProfile.assignedClasses;
+    }
+    return cleaned;
+  }, [dbTeacher, user, teacherAssignments, timetable, academicClasses, apiProfile]);
 
   // Dynamically compute assigned sections from Admin teacherAssignments, timetable, and staff record
   const dynamicAssignedSections = useMemo(() => {
+    if (apiProfile?.assignedSections && apiProfile.assignedSections.length > 0) {
+      return apiProfile.assignedSections;
+    }
+
     const teacherName = dbTeacher ? `${dbTeacher.firstName || ''} ${dbTeacher.lastName || ''}`.trim() : (user?.name || '');
     const tFirstName = (dbTeacher?.firstName || '').toLowerCase().trim();
 
@@ -311,10 +389,14 @@ export const TeacherProfileView: React.FC = () => {
     const fromStaffSections = (dbTeacher?.assignedSections || []).map(sec => sec.startsWith('Section ') ? sec : `Section ${sec}`);
 
     return Array.from(new Set([...fromStaff, ...fromStaffSections, ...fromAssignments, ...fromTimetable])).filter(Boolean) as string[];
-  }, [dbTeacher, user, teacherAssignments, timetable]);
+  }, [dbTeacher, user, teacherAssignments, timetable, apiProfile]);
 
   // Dynamically compute assigned subjects from Admin teacherAssignments, timetable, and staff record
   const dynamicAssignedSubjects = useMemo(() => {
+    if (apiProfile?.assignedSubjects && apiProfile.assignedSubjects.length > 0) {
+      return apiProfile.assignedSubjects;
+    }
+
     const teacherName = dbTeacher ? `${dbTeacher.firstName || ''} ${dbTeacher.lastName || ''}`.trim() : (user?.name || '');
     const tFirstName = (dbTeacher?.firstName || '').toLowerCase().trim();
 
@@ -332,19 +414,17 @@ export const TeacherProfileView: React.FC = () => {
       })
       .map(t => t.subject);
 
-    const fromStaff = (dbTeacher?.assignedSubjects || []).filter(s => s !== 'Mathematics');
+    const fromStaff = dbTeacher?.assignedSubjects || [];
 
-    const merged = Array.from(new Set([...fromStaff, ...fromAssignments, ...fromTimetable]))
-      .filter(Boolean)
-      .filter(s => s !== 'Mathematics') as string[];
+    const merged = Array.from(new Set([...fromStaff, ...fromAssignments, ...fromTimetable])).filter(Boolean) as string[];
 
     if (fromStaff.length > 0) {
       return fromStaff;
     }
 
-    const defaultSub = dbTeacher?.department || (dbTeacher as any)?.primarySubject || 'General';
-    return merged.length > 0 ? merged : [defaultSub];
-  }, [dbTeacher, user, teacherAssignments, timetable]);
+    const defaultSub = dbTeacher?.department || (dbTeacher as any)?.primarySubject || '';
+    return merged.length > 0 ? merged : (defaultSub ? [defaultSub] : []);
+  }, [dbTeacher, user, teacherAssignments, timetable, apiProfile]);
 
   // User-scoped Local Storage key for Teacher self-edits
   const userStorageKey = useMemo(() => {
@@ -396,8 +476,8 @@ export const TeacherProfileView: React.FC = () => {
       : (dbTeacher?.role || fallbackDesignation);
 
     return {
-      staffId: dbTeacher?.empId || dbTeacher?.employeeId || (user as any)?.empId || user?.id || '',
-      employeeId: dbTeacher?.empId || dbTeacher?.employeeId || (user as any)?.empId || user?.id || '',
+      staffId: dbTeacher?.staffId || dbTeacher?.id || (user as any)?.staffId || '',
+      employeeId: dbTeacher?.empId || dbTeacher?.employeeId || (user as any)?.empId || '',
       fullName: localEdit?.fullName || defaultFullName,
       email: localEdit?.email || dbTeacher?.email || user?.email || '',
       mobile: localEdit?.mobile || dbTeacher?.phone || user?.phone || (user as any)?.mobile || '',
@@ -413,6 +493,14 @@ export const TeacherProfileView: React.FC = () => {
       joiningDate: dbTeacher?.joiningDate || (user as any)?.joiningDate || '',
       qualification: localEdit?.qualification || (dbTeacher as any)?.qualification || dbTeacher?.highestQualification || (user as any)?.qualification || '',
       experience: localEdit?.experience || (dbTeacher as any)?.experience || (user as any)?.experience || '',
+      basicSalary: dbTeacher?.basicSalary,
+      grossSalary: dbTeacher?.grossSalary,
+      netSalary: dbTeacher?.netSalary,
+      bankName: dbTeacher?.bankName,
+      bankAccountNumber: dbTeacher?.bankAccountNumber,
+      ifscCode: dbTeacher?.ifscCode,
+      panNumber: dbTeacher?.panNumber,
+      aadhaarNumber: dbTeacher?.aadhaarNumber,
       assignedClasses: dynamicAssignedClasses,
       assignedSections: dynamicAssignedSections,
       assignedSubjects: isAccountant ? (dbTeacher?.assignedSubjects || ['Finance & Accounts']) : isWarden ? (dbTeacher?.assignedSubjects || ['Hostel Administration']) : dynamicAssignedSubjects,
@@ -480,6 +568,18 @@ export const TeacherProfileView: React.FC = () => {
       setLocalEdit(updatedEdits);
       localStorage.setItem(userStorageKey, JSON.stringify(updatedEdits));
 
+      // Sync directly to backend Teacher Profile API
+      try {
+        await updateTeacherProfileMe({
+          profilePhoto: formData.profilePhoto,
+          mobile: formData.mobile,
+          address: formData.address,
+          emergencyContact: formData.emergencyContact
+        });
+      } catch (apiErr) {
+        console.warn('Teacher Profile API update warning:', apiErr);
+      }
+
       // Sync directly to DataContext staff store if staff record exists
       if (dbTeacher && dbTeacher.id && updateStaff) {
         const nameParts = formData.fullName.split(' ');
@@ -502,6 +602,7 @@ export const TeacherProfileView: React.FC = () => {
         } as any);
       }
 
+      await fetchProfileData();
       setIsEditModalOpen(false);
       addToast('success', 'Profile Updated', 'Teacher profile details saved and synced with Admin Database!');
     } catch (err: any) {
@@ -519,7 +620,7 @@ export const TeacherProfileView: React.FC = () => {
   const [staffLetters, setStaffLetters] = useState<GeneratedStaffLetterRecord[]>([]);
 
   const refreshStaffLetters = () => {
-    const sId = dbTeacher?.empId || dbTeacher?.id || (user as any)?.empId || user?.id;
+    const sId = profile.employeeId || dbTeacher?.empId || dbTeacher?.id || (user as any)?.empId || user?.id;
     if (sId) {
       setStaffLetters(getLettersForStaff(sId));
     }
@@ -529,14 +630,14 @@ export const TeacherProfileView: React.FC = () => {
     refreshStaffLetters();
     window.addEventListener('staff_letters_updated', refreshStaffLetters);
     return () => window.removeEventListener('staff_letters_updated', refreshStaffLetters);
-  }, [dbTeacher?.id, dbTeacher?.empId, user?.id]);
+  }, [profile.employeeId, dbTeacher?.id, dbTeacher?.empId, user?.id]);
 
   const staffForLetter = useMemo(() => {
     const fullNameStr = profile.fullName || 'Staff Member';
     const parts = fullNameStr.split(' ');
     return {
-      id: dbTeacher?.id || user?.id || 'STF-001',
-      empId: profile.employeeId || dbTeacher?.empId || 'STF-001',
+      id: dbTeacher?.id || String(profile.staffId || user?.id || ''),
+      empId: profile.employeeId || dbTeacher?.empId || (user as any)?.empId || '',
       firstName: parts[0] || 'Staff',
       lastName: parts.slice(1).join(' ') || 'Member',
       email: profile.email,
@@ -550,19 +651,19 @@ export const TeacherProfileView: React.FC = () => {
       qualification: profile.qualification,
       experience: profile.experience,
       address: profile.address,
-      basicSalary: Number((dbTeacher as any)?.basicSalary) || 35000,
-      hra: Number((dbTeacher as any)?.hra) || 12000,
-      da: Number((dbTeacher as any)?.da) || 5000,
-      specialAllowance: Number((dbTeacher as any)?.specialAllowance) || 3000,
-      conveyance: Number((dbTeacher as any)?.conveyance) || 2000,
-      medicalAllowance: Number((dbTeacher as any)?.medicalAllowance) || 1500,
-      grossSalary: Number((dbTeacher as any)?.grossSalary) || 58500,
-      netSalary: Number((dbTeacher as any)?.netSalary) || 55000,
-      bankName: (dbTeacher as any)?.bankName || 'State Bank of India',
-      bankAccountNumber: (dbTeacher as any)?.bankAccountNumber || '38920199201',
-      ifscCode: (dbTeacher as any)?.ifscCode || 'SBIN0004012',
-      panNumber: (dbTeacher as any)?.panNumber || 'ABCDE1234F',
-      aadhaarNumber: (dbTeacher as any)?.aadhaarNumber || '9876-5432-1098',
+      basicSalary: Number(profile.basicSalary ?? (dbTeacher as any)?.basicSalary ?? (dbTeacher as any)?.monthlySalary ?? 0),
+      hra: Number((dbTeacher as any)?.hra ?? 0),
+      da: Number((dbTeacher as any)?.da ?? 0),
+      specialAllowance: Number((dbTeacher as any)?.specialAllowance ?? 0),
+      conveyance: Number((dbTeacher as any)?.conveyance ?? 0),
+      medicalAllowance: Number((dbTeacher as any)?.medicalAllowance ?? 0),
+      grossSalary: Number(profile.grossSalary ?? (dbTeacher as any)?.grossSalary ?? 0),
+      netSalary: Number(profile.netSalary ?? (dbTeacher as any)?.netSalary ?? 0),
+      bankName: profile.bankName || (dbTeacher as any)?.bankName || '',
+      bankAccountNumber: profile.bankAccountNumber || (dbTeacher as any)?.bankAccountNumber || (dbTeacher as any)?.accountNumber || '',
+      ifscCode: profile.ifscCode || (dbTeacher as any)?.ifscCode || '',
+      panNumber: profile.panNumber || (dbTeacher as any)?.panNumber || '',
+      aadhaarNumber: profile.aadhaarNumber || (dbTeacher as any)?.aadhaarNumber || '',
       ...dbTeacher
     };
   }, [dbTeacher, profile, user]);
@@ -677,13 +778,13 @@ export const TeacherProfileView: React.FC = () => {
             </p>
 
             <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2 text-xs text-slate-500 dark:text-slate-400 pt-0.5 font-semibold">
-              <span className="flex items-center gap-1.5 bg-slate-50 dark:bg-slate-800/60 px-2.5 py-0.5 rounded-lg border border-sky-100 dark:border-slate-700 text-slate-600 dark:text-slate-300">
+              <span className="flex items-center gap-1.5 bg-slate-50 dark:bg-slate-800/60 px-2.5 py-0.5 rounded-lg border border-sky-100 dark:border-slate-700 text-slate-600 dark:text-slate-300 font-mono">
                 <Shield className="w-3.5 h-3.5 text-slate-400 dark:text-slate-500" />
-                Emp ID: {profile.employeeId}
+                Emp ID: {profile.employeeId || 'Not Assigned'}
               </span>
               <span className="flex items-center gap-1.5 bg-slate-50 dark:bg-slate-800/60 px-2.5 py-0.5 rounded-lg border border-sky-100 dark:border-slate-700 text-slate-600 dark:text-slate-300">
                 <Calendar className="w-3.5 h-3.5 text-slate-400 dark:text-slate-500" />
-                Joined: {profile.joiningDate}
+                Joined: {formatDisplayDate(profile.joiningDate)}
               </span>
             </div>
           </div>
@@ -706,7 +807,7 @@ export const TeacherProfileView: React.FC = () => {
                 <span className="text-[10px] text-slate-400 uppercase font-bold block mb-0.5">Email Address</span>
                 <span className="text-slate-900 dark:text-white font-bold flex items-center gap-2">
                   <Mail className="w-4 h-4 text-slate-400 shrink-0" />
-                  {profile.email}
+                  {profile.email || 'Not Specified'}
                 </span>
               </div>
 
@@ -714,7 +815,7 @@ export const TeacherProfileView: React.FC = () => {
                 <span className="text-[10px] text-slate-400 uppercase font-bold block mb-0.5">Mobile Number</span>
                 <span className="text-slate-900 dark:text-white font-mono font-bold flex items-center gap-2">
                   <Phone className="w-4 h-4 text-slate-400 shrink-0" />
-                  {profile.mobile}
+                  {profile.mobile || 'Not Specified'}
                 </span>
               </div>
 
@@ -722,7 +823,7 @@ export const TeacherProfileView: React.FC = () => {
                 <span className="text-[10px] text-slate-400 uppercase font-bold block mb-0.5">Emergency Contact</span>
                 <span className="text-slate-900 dark:text-white font-mono font-bold flex items-center gap-2">
                   <AlertCircle className="w-4 h-4 text-amber-500 shrink-0" />
-                  {profile.emergencyContact}
+                  {profile.emergencyContact || 'Not Specified'}
                 </span>
               </div>
 
@@ -730,7 +831,7 @@ export const TeacherProfileView: React.FC = () => {
                 <span className="text-[10px] text-slate-400 uppercase font-bold block mb-0.5">Residential Address</span>
                 <span className="text-slate-900 dark:text-white font-medium flex items-start gap-2 leading-relaxed">
                   <MapPin className="w-4 h-4 text-slate-400 shrink-0 mt-0.5" />
-                  {profile.address}
+                  {profile.address || 'Not Specified'}
                 </span>
               </div>
             </div>
@@ -748,32 +849,32 @@ export const TeacherProfileView: React.FC = () => {
             <div className="grid grid-cols-2 gap-4 text-xs mt-4">
               <div>
                 <span className="text-[10px] text-slate-400 uppercase font-bold block mb-0.5">Gender</span>
-                <span className="text-slate-900 dark:text-white font-bold">{profile.gender}</span>
+                <span className="text-slate-900 dark:text-white font-bold">{profile.gender || 'Not Specified'}</span>
               </div>
 
               <div>
                 <span className="text-[10px] text-slate-400 uppercase font-bold block mb-0.5">Blood Group</span>
-                <span className="text-slate-900 dark:text-white font-bold">{profile.bloodGroup}</span>
+                <span className="text-slate-900 dark:text-white font-bold">{profile.bloodGroup || 'Not Specified'}</span>
               </div>
 
               <div>
                 <span className="text-[10px] text-slate-400 uppercase font-bold block mb-0.5">Date of Birth</span>
-                <span className="text-slate-900 dark:text-white font-bold font-mono">{profile.dateOfBirth}</span>
+                <span className="text-slate-900 dark:text-white font-bold font-mono">{formatDisplayDate(profile.dateOfBirth)}</span>
               </div>
 
               <div>
                 <span className="text-[10px] text-slate-400 uppercase font-bold block mb-0.5">Role</span>
-                <span className="text-slate-900 dark:text-white font-bold">{profile.designation}</span>
+                <span className="text-slate-900 dark:text-white font-bold">{profile.designation || profile.role || 'Teacher'}</span>
               </div>
 
               <div>
                 <span className="text-[10px] text-slate-400 uppercase font-bold block mb-0.5">Employee ID</span>
-                <span className="text-slate-900 dark:text-white font-bold font-mono">{profile.employeeId}</span>
+                <span className="text-slate-900 dark:text-white font-bold font-mono">{profile.employeeId || 'Not Assigned'}</span>
               </div>
 
               <div>
                 <span className="text-[10px] text-slate-400 uppercase font-bold block mb-0.5">Joined Date</span>
-                <span className="text-slate-900 dark:text-white font-bold font-mono">{profile.joiningDate}</span>
+                <span className="text-slate-900 dark:text-white font-bold font-mono">{formatDisplayDate(profile.joiningDate)}</span>
               </div>
             </div>
           </div>
@@ -805,14 +906,18 @@ export const TeacherProfileView: React.FC = () => {
                 <div className="flex flex-wrap justify-center items-center gap-1.5 w-full">
                   {(user?.role || '').toLowerCase().includes('warden') || (user?.role || '').toLowerCase().includes('accountant') || (user?.role || '').toLowerCase() === 'finance' ? (
                     <span className="bg-sky-100 dark:bg-sky-950/80 text-sky-800 dark:text-sky-300 text-xs font-extrabold px-3 py-1.5 rounded-xl border border-sky-200 dark:border-sky-800 text-center">
-                      {profile.department}
+                      {profile.department || 'Not Specified'}
                     </span>
-                  ) : (
+                  ) : profile.assignedClasses && profile.assignedClasses.length > 0 ? (
                     profile.assignedClasses.map((cls, idx) => (
                       <span key={idx} className="bg-sky-100 dark:bg-sky-950/80 text-sky-800 dark:text-sky-300 text-xs font-extrabold px-3 py-1.5 rounded-xl border border-sky-200 dark:border-sky-800 text-center">
                         {cls}
                       </span>
                     ))
+                  ) : (
+                    <span className="text-slate-400 dark:text-slate-500 text-xs font-medium italic">
+                      No Classes Assigned
+                    </span>
                   )}
                 </div>
               </div>
@@ -823,11 +928,17 @@ export const TeacherProfileView: React.FC = () => {
                   {(user?.role || '').toLowerCase().includes('warden') || (user?.role || '').toLowerCase().includes('accountant') || (user?.role || '').toLowerCase() === 'finance' ? 'CORE RESPONSIBILITIES' : 'ASSIGNED SUBJECTS'}
                 </span>
                 <div className="flex flex-wrap justify-center items-center gap-1.5 w-full">
-                  {profile.assignedSubjects.map((sbj, idx) => (
-                    <span key={idx} className="bg-sky-100 dark:bg-sky-950/80 text-sky-800 dark:text-sky-300 text-xs font-extrabold px-3 py-1.5 rounded-xl border border-sky-200 dark:border-sky-800 text-center">
-                      {sbj}
+                  {profile.assignedSubjects && profile.assignedSubjects.length > 0 ? (
+                    profile.assignedSubjects.map((sbj, idx) => (
+                      <span key={idx} className="bg-sky-100 dark:bg-sky-950/80 text-sky-800 dark:text-sky-300 text-xs font-extrabold px-3 py-1.5 rounded-xl border border-sky-200 dark:border-sky-800 text-center">
+                        {sbj}
+                      </span>
+                    ))
+                  ) : (
+                    <span className="text-slate-400 dark:text-slate-500 text-xs font-medium italic">
+                      No Subjects Assigned
                     </span>
-                  ))}
+                  )}
                 </div>
               </div>
             </div>
@@ -848,7 +959,7 @@ export const TeacherProfileView: React.FC = () => {
                   ACADEMIC QUALIFICATIONS
                 </span>
                 <p className="text-slate-900 dark:text-white font-bold bg-slate-50 dark:bg-slate-800/60 p-3 rounded-2xl text-xs sm:text-sm border border-sky-200/70 dark:border-slate-700">
-                  {profile.qualification}
+                  {profile.qualification || 'Not Specified'}
                 </p>
               </div>
 
@@ -857,7 +968,7 @@ export const TeacherProfileView: React.FC = () => {
                   WORK EXPERIENCE
                 </span>
                 <p className="text-slate-900 dark:text-white font-bold bg-slate-50 dark:bg-slate-800/60 p-3 rounded-2xl text-xs sm:text-sm border border-sky-200/70 dark:border-slate-700">
-                  {profile.experience}
+                  {profile.experience || 'Not Specified'}
                 </p>
               </div>
             </div>

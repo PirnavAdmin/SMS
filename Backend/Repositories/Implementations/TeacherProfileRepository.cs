@@ -61,13 +61,29 @@ public class TeacherProfileRepository : ITeacherProfileRepository
                 if (!string.IsNullOrWhiteSpace(user.MobileNumber))
                 {
                     var userMobile = user.MobileNumber.Trim();
+                    var digits = new string(userMobile.Where(char.IsDigit).ToArray());
                     var staffByMobile = await _context.Staff
                         .AsNoTracking()
-                        .Where(s => s.IsActive == true && s.Phone != null && s.Phone == userMobile)
+                        .Where(s => s.IsActive == true && s.Phone != null && (s.Phone == userMobile || (digits.Length >= 10 && s.Phone.EndsWith(digits))))
                         .Select(s => (int?)s.StaffId)
                         .FirstOrDefaultAsync();
 
                     if (staffByMobile.HasValue) return staffByMobile;
+                }
+
+                if (!string.IsNullOrWhiteSpace(user.FullName))
+                {
+                    var uName = user.FullName.Trim().ToLower();
+                    var staffByName = await _context.Staff
+                        .AsNoTracking()
+                        .Where(s => s.IsActive == true && (
+                            ((s.FirstName ?? "") + " " + (s.LastName ?? "")).Trim().ToLower() == uName ||
+                            (s.FirstName != null && s.LastName != null && (s.LastName + " " + s.FirstName).Trim().ToLower() == uName)
+                        ))
+                        .Select(s => (int?)s.StaffId)
+                        .FirstOrDefaultAsync();
+
+                    if (staffByName.HasValue) return staffByName;
                 }
             }
         }

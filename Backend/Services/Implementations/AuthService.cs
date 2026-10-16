@@ -329,7 +329,7 @@ namespace SMS.Api.Services.Implementations
                             Role = resolvedRole
                         };
                         var staffRoles = new List<string> { resolvedRole };
-                        var stToken = GenerateJwtToken(staffUser, staffRoles);
+                        var stToken = GenerateJwtToken(staffUser, staffRoles, staffMember.StaffId, staffMember.EmployeeId);
 
                         return new AuthResponseDto(
                             staffUser.UserId,
@@ -339,7 +339,9 @@ namespace SMS.Api.Services.Implementations
                             linkedUser.Email ?? staffMember.Email,
                             linkedUser.MobileNumber ?? staffMember.Phone,
                             staffMember.ProfilePhoto ?? linkedUser.Avatar,
-                            "Main Campus");
+                            staffMember.BranchName ?? "Main Campus",
+                            staffMember.EmployeeId,
+                            staffMember.StaffId);
                     }
                 }
                 return null;
@@ -654,13 +656,13 @@ namespace SMS.Api.Services.Implementations
             return rolesList.Distinct().ToList();
         }
 
-        private string GenerateJwtToken(User user, List<string> roles)
+        private string GenerateJwtToken(User user, List<string> roles, int? staffId = null, string? employeeId = null)
         {
             var claims = new List<Claim>
             {
                 new Claim(ClaimTypes.NameIdentifier, user.UserId.ToString()),
                 new Claim(ClaimTypes.Name, user.FullName),
-                new Claim(ClaimTypes.MobilePhone, user.MobileNumber)
+                new Claim(ClaimTypes.MobilePhone, user.MobileNumber ?? "")
             };
 
             if (!string.IsNullOrEmpty(user.Email))
@@ -668,6 +670,17 @@ namespace SMS.Api.Services.Implementations
 
             if (user.SchoolId.HasValue)
                 claims.Add(new Claim("schoolId", user.SchoolId.Value.ToString()));
+
+            if (staffId.HasValue && staffId.Value > 0)
+            {
+                claims.Add(new Claim("StaffId", staffId.Value.ToString()));
+                claims.Add(new Claim("staff_id", staffId.Value.ToString()));
+            }
+
+            if (!string.IsNullOrEmpty(employeeId))
+            {
+                claims.Add(new Claim("EmployeeId", employeeId));
+            }
 
             foreach (var role in roles)
                 claims.Add(new Claim(ClaimTypes.Role, role));

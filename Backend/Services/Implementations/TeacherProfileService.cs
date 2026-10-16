@@ -58,6 +58,14 @@ public class TeacherProfileService : ITeacherProfileService
             AssignedClasses = assignments.Classes.Select(c => c.ClassName).Distinct().ToList(),
             AssignedSections = assignments.Sections.Select(s => s.SectionName).Distinct().ToList(),
             AssignedSubjects = assignments.Subjects.Select(s => s.SubjectName).Distinct().ToList(),
+            BasicSalary = staff.MonthlySalary,
+            GrossSalary = staff.GrossSalary,
+            NetSalary = staff.NetSalary,
+            BankName = staff.BankName,
+            BankAccountNumber = staff.AccountNumber,
+            IfscCode = staff.IfscCode,
+            PanNumber = staff.PanNumber,
+            AadhaarNumber = staff.AadhaarNumber,
             EmploymentStatus = staff.EmploymentType ?? (staff.IsActive == true ? "Active" : "Inactive"),
             ProfileStatus = "Completed"
         };

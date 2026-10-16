@@ -388,18 +388,29 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       const userPhone = response?.mobileNumber || response?.phone || (!emailOrPhone.includes('@') ? emailOrPhone : '') || savedProfile?.phone || '';
 
+      const empIdStr = response?.employeeId || response?.empId || undefined;
+      const staffIdVal = response?.staffId ? Number(response.staffId) : undefined;
+      const userBranch = response?.branch || savedProfile?.branch || selectedBranch || '';
+
       const loggedUser: User = {
         id: userIdStr,
+        empId: empIdStr,
+        staffId: staffIdVal,
         name: userName,
         email: loginEmail || (emailOrPhone.includes('@') ? emailOrPhone : ''),
         phone: userPhone,
-        branch: response?.branch || savedProfile?.branch || selectedBranch || '',
+        branch: userBranch,
         role: mappedRole,
         avatar: userAvatar,
         lastLogin: new Date().toLocaleString(),
         status: 'Active',
         isFirstLogin: false
       };
+
+      if (userBranch) {
+        setSelectedBranchState(userBranch);
+        setActiveBranchHeader(userBranch);
+      }
 
       setUser(loggedUser);
       setRoleState(mappedRole);

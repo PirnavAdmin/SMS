@@ -26,6 +26,14 @@ public class TeacherSelfProfileDto
     public DateTime? JoiningDate { get; set; }
     public string? Qualification { get; set; }
     public string? Experience { get; set; }
+    public decimal? BasicSalary { get; set; }
+    public decimal? GrossSalary { get; set; }
+    public decimal? NetSalary { get; set; }
+    public string? BankName { get; set; }
+    public string? BankAccountNumber { get; set; }
+    public string? IfscCode { get; set; }
+    public string? PanNumber { get; set; }
+    public string? AadhaarNumber { get; set; }
     public List<string> AssignedClasses { get; set; } = new();
     public List<string> AssignedSections { get; set; } = new();
     public List<string> AssignedSubjects { get; set; } = new();

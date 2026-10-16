@@ -22,6 +22,14 @@ export interface TeacherSelfProfile {
   joiningDate?: string;
   qualification?: string;
   experience?: string;
+  basicSalary?: number;
+  grossSalary?: number;
+  netSalary?: number;
+  bankName?: string;
+  bankAccountNumber?: string;
+  ifscCode?: string;
+  panNumber?: string;
+  aadhaarNumber?: string;
   assignedClasses: string[];
   assignedSections: string[];
   assignedSubjects: string[];
