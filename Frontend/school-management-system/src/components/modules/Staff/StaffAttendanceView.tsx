@@ -3232,7 +3232,7 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
                           >
                             {/* Emp ID */}
                             <td
-                              className="py-3 px-4 font-mono font-bold text-slate-600 dark:text-slate-300 sticky left-0 bg-white dark:bg-slate-900 group-hover:bg-slate-50/80 dark:group-hover:bg-slate-800/40 z-10 w-[160px] min-w-[160px] max-w-[160px] border-r border-slate-200 dark:border-slate-800 whitespace-nowrap text-left"
+                              className="py-3 px-4 font-mono font-bold text-brand-600 dark:text-brand-400 sticky left-0 bg-white dark:bg-slate-900 group-hover:bg-slate-50/80 dark:group-hover:bg-slate-800/40 z-10 w-[160px] min-w-[160px] max-w-[160px] border-r border-slate-200 dark:border-slate-800 whitespace-nowrap text-left"
                               style={{ width: 160, minWidth: 160, maxWidth: 160 }}
                             >
                               {s.empId || s.id}
@@ -3754,7 +3754,7 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
                           >
                             {/* Employee ID */}
                             <td
-                              className="py-2 px-3 font-mono font-bold text-slate-600 dark:text-slate-300 sticky left-0 bg-white dark:bg-slate-900 group-hover:bg-slate-50/50 dark:group-hover:bg-slate-800/50 z-10 w-[160px] min-w-[160px] max-w-[160px] border-r border-slate-200 dark:border-slate-800 whitespace-nowrap text-left"
+                              className="py-2 px-3 font-mono font-bold text-brand-600 dark:text-brand-400 sticky left-0 bg-white dark:bg-slate-900 group-hover:bg-slate-50/50 dark:group-hover:bg-slate-800/50 z-10 w-[160px] min-w-[160px] max-w-[160px] border-r border-slate-200 dark:border-slate-800 whitespace-nowrap text-left"
                               style={{ width: 160, minWidth: 160, maxWidth: 160 }}
                             >
                               {s.empId || s.id}
