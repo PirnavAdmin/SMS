@@ -488,7 +488,7 @@ export const LeaveManagementView: React.FC = () => {
     } else if (allowanceVal && allowNum > 0 && consNum > allowNum) {
       setTypeFormErrors((prev) => ({
         ...prev,
-        maxConsecutiveDays: `Max consecutive days cannot exceed annual allowance (${allowNum} days).`
+        maxConsecutiveDays: `Max consecutive days cannot exceed annual allowance (${allowNum} ${allowNum === 1 ? 'day' : 'days'}).`
       }));
     } else {
       setTypeFormErrors((prev) => {
@@ -862,9 +862,9 @@ export const LeaveManagementView: React.FC = () => {
       if (allowanceNum > 0 && maxConsecutiveNum > allowanceNum) {
         setTypeFormErrors((prev) => ({
           ...prev,
-          maxConsecutiveDays: `Max consecutive days cannot exceed annual allowance (${allowanceNum} days).`
+          maxConsecutiveDays: `Max consecutive days cannot exceed annual allowance (${allowanceNum} ${allowanceNum === 1 ? 'day' : 'days'}).`
         }));
-        addToast('warning', 'Invalid Consecutive Days', `Max consecutive days cannot exceed annual allowance (${allowanceNum} days).`);
+        addToast('warning', 'Invalid Consecutive Days', `Max consecutive days cannot exceed annual allowance (${allowanceNum} ${allowanceNum === 1 ? 'day' : 'days'}).`);
         return;
       }
     }
@@ -999,7 +999,7 @@ export const LeaveManagementView: React.FC = () => {
               <div class="card"><div class="label">Department</div><div class="value">${app.department}</div></div>
               <div class="card"><div class="label">Designation</div><div class="value">${app.designation || 'Faculty Member'}</div></div>
               <div class="card"><div class="label">Leave Type</div><div class="value">${app.leaveTypeName}</div></div>
-              <div class="card"><div class="label">Leave Duration</div><div class="value">${app.numberOfDays} Day(s) (${app.fromDate} to ${app.toDate})</div></div>
+              <div class="card"><div class="label">Leave Duration</div><div class="value">${app.numberOfDays} ${Number(app.numberOfDays) === 1 ? 'Day' : 'Days'} (${app.fromDate} to ${app.toDate})</div></div>
               <div class="card"><div class="label">Applied Date</div><div class="value">${app.appliedDate}</div></div>
               <div class="card"><div class="label">Application Status</div><div class="value" style="color: ${app.status === 'Approved' ? '#16a34a' : (app.status === 'Pending' ? '#d97706' : '#dc2626')}">${app.status.toUpperCase()}</div></div>
             </div>
@@ -1064,15 +1064,15 @@ export const LeaveManagementView: React.FC = () => {
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div className="glass-card p-4 rounded-2xl bg-white dark:bg-slate-900 border shadow-sm">
           <span className="text-[10px] uppercase font-bold text-brand-500">Approved Leaves</span>
-          <p className="text-lg font-black text-brand-600 mt-1">{approvedCount} Leaves</p>
+          <p className="text-lg font-black text-brand-600 mt-1">{approvedCount} {approvedCount === 1 ? 'Leave' : 'Leaves'}</p>
         </div>
         <div className="glass-card p-4 rounded-2xl bg-white dark:bg-slate-900 border shadow-sm">
           <span className="text-[10px] uppercase font-bold text-amber-500">Pending Approvals</span>
-          <p className="text-lg font-black text-amber-600 mt-1">{pendingCount} Applications</p>
+          <p className="text-lg font-black text-amber-600 mt-1">{pendingCount} {pendingCount === 1 ? 'Application' : 'Applications'}</p>
         </div>
         <div className="glass-card p-4 rounded-2xl bg-white dark:bg-slate-900 border shadow-sm">
           <span className="text-[10px] uppercase font-bold text-rose-500">Rejected / Cancelled</span>
-          <p className="text-lg font-black text-rose-600 mt-1">{rejectedCount} Leaves</p>
+          <p className="text-lg font-black text-rose-600 mt-1">{rejectedCount} {rejectedCount === 1 ? 'Leave' : 'Leaves'}</p>
         </div>
       </div>
 
@@ -1233,7 +1233,7 @@ export const LeaveManagementView: React.FC = () => {
                         <td className="py-3.5 px-4 text-center whitespace-nowrap font-mono text-slate-700 dark:text-slate-300">
                           {app.fromDate} <span className="text-slate-400 font-sans mx-0.5">to</span> {app.toDate}
                         </td>
-                        <td className="py-3.5 px-4 font-bold text-slate-900 dark:text-white text-center whitespace-nowrap">{app.numberOfDays} Days</td>
+                        <td className="py-3.5 px-4 font-bold text-slate-900 dark:text-white text-center whitespace-nowrap">{app.numberOfDays} {Number(app.numberOfDays) === 1 ? 'Day' : 'Days'}</td>
                         <td className="py-3.5 px-4 text-center whitespace-nowrap font-mono text-slate-500">{app.appliedDate}</td>
                         <td className="py-3.5 px-4 text-center whitespace-nowrap">
                           <Badge variant={app.status === 'Approved' ? 'success' : (app.status === 'Pending' ? 'warning' : 'danger')}>
@@ -1297,9 +1297,9 @@ export const LeaveManagementView: React.FC = () => {
                 </div>
 
                 <div className="grid grid-cols-2 gap-2 text-[11px] pt-2 border-t">
-                  <div><span className="text-slate-400">Allowance:</span> <span className="font-bold text-slate-800">{t.annualAllowance} Days/yr</span></div>
+                  <div><span className="text-slate-400">Allowance:</span> <span className="font-bold text-slate-800">{t.annualAllowance} {Number(t.annualAllowance) === 1 ? 'Day' : 'Days'}/yr</span></div>
                   <div><span className="text-slate-400">Carry Forward:</span> <span className="font-bold text-slate-800">{t.carryForward ? 'Yes' : 'No'}</span></div>
-                  <div><span className="text-slate-400">Max Consecutive:</span> <span className="font-bold text-slate-800">{t.maxConsecutiveDays} Days</span></div>
+                  <div><span className="text-slate-400">Max Consecutive:</span> <span className="font-bold text-slate-800">{t.maxConsecutiveDays} {Number(t.maxConsecutiveDays) === 1 ? 'Day' : 'Days'}</span></div>
                   <div><span className="text-slate-400">Type:</span> <span className={`font-bold ${t.isPaid ? 'text-brand-600' : 'text-amber-600'}`}>{t.isPaid ? 'Paid' : 'Unpaid (LOP)'}</span></div>
                 </div>
 
@@ -1375,11 +1375,11 @@ export const LeaveManagementView: React.FC = () => {
                         <p className="font-bold text-slate-800 dark:text-slate-100">{s.firstName} {s.lastName}</p>
                         <p className="text-[10px] text-slate-400">{s.designation} • {s.empId}</p>
                       </td>
-                      <td className="py-3 px-4 font-mono font-bold text-slate-700 dark:text-slate-300 text-center">{remCasual} Days</td>
-                      <td className="py-3 px-4 font-mono font-bold text-slate-700 dark:text-slate-300 text-center">{remSick} Days</td>
-                      <td className="py-3 px-4 font-mono font-bold text-slate-700 dark:text-slate-300 text-center">{remEarned} Days</td>
-                      <td className="py-3 px-4 font-mono font-bold text-slate-700 dark:text-slate-300 text-center">{used.total} Days</td>
-                      <td className="py-3 px-4 font-mono font-black text-brand-600 dark:text-brand-400 text-center">{totalRemaining} Days</td>
+                      <td className="py-3 px-4 font-mono font-bold text-slate-700 dark:text-slate-300 text-center">{remCasual} {remCasual === 1 ? 'Day' : 'Days'}</td>
+                      <td className="py-3 px-4 font-mono font-bold text-slate-700 dark:text-slate-300 text-center">{remSick} {remSick === 1 ? 'Day' : 'Days'}</td>
+                      <td className="py-3 px-4 font-mono font-bold text-slate-700 dark:text-slate-300 text-center">{remEarned} {remEarned === 1 ? 'Day' : 'Days'}</td>
+                      <td className="py-3 px-4 font-mono font-bold text-slate-700 dark:text-slate-300 text-center">{used.total} {used.total === 1 ? 'Day' : 'Days'}</td>
+                      <td className="py-3 px-4 font-mono font-black text-brand-600 dark:text-brand-400 text-center">{totalRemaining} {totalRemaining === 1 ? 'Day' : 'Days'}</td>
                     </tr>
                   );
                 })}
@@ -1436,7 +1436,14 @@ export const LeaveManagementView: React.FC = () => {
                         <td className="py-3 px-4 font-semibold text-sky-600 text-center">{app.leaveTypeName}</td>
                         <td className="py-3 px-4 text-center">{app.appliedDate}</td>
                         <td className="py-3 px-4 text-center">{app.fromDate} to {app.toDate}</td>
-                        <td className="py-3 px-4 font-bold text-slate-900 text-center">{app.numberOfDays || (app as any).daysCount || 1} Days</td>
+                        {(() => {
+                          const reqDays = Number(app.numberOfDays || (app as any).daysCount || 1);
+                          return (
+                            <td className="py-3 px-4 font-bold text-slate-900 text-center">
+                              {reqDays} {reqDays === 1 ? 'Day' : 'Days'}
+                            </td>
+                          );
+                        })()}
                         <td className="py-3 px-4 text-slate-500 italic max-w-xs truncate text-center">{app.reason}</td>
                         <td className="py-3 px-4 text-center">
                           <div className="flex items-center justify-center gap-1.5">
@@ -1705,7 +1712,7 @@ export const LeaveManagementView: React.FC = () => {
               {/* Submissions Footer */}
               <div className="flex items-center justify-between pt-2 border-t border-slate-100 dark:border-slate-800">
                 <span className="font-bold text-slate-900 dark:text-white text-[11px]">
-                  Total duration: <span className="text-sky-600 font-extrabold">{requestedDays} Days</span>
+                  Total duration: <span className="text-sky-600 font-extrabold">{requestedDays} {requestedDays === 1 ? 'Day' : 'Days'}</span>
                 </span>
                 <div className="flex gap-2">
                   <button type="button" onClick={() => setIsApplyOpen(false)} className="px-3.5 py-1.5 font-bold bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-lg text-xs transition-colors">Cancel</button>
@@ -1733,8 +1740,8 @@ export const LeaveManagementView: React.FC = () => {
             <div>
               <h3 className="text-base font-bold text-slate-900 dark:text-white">Leave Balance Exceeded</h3>
               <div className="text-xs text-slate-500 mt-2 space-y-1">
-                <p>Available Balance: <strong className="text-slate-800">{lopWarning.available} Days</strong></p>
-                <p>Requested Leave: <strong className="text-slate-800">{lopWarning.requested} Days</strong></p>
+                <p>Available Balance: <strong className="text-slate-800">{lopWarning.available} {lopWarning.available === 1 ? 'Day' : 'Days'}</strong></p>
+                <p>Requested Leave: <strong className="text-slate-800">{lopWarning.requested} {lopWarning.requested === 1 ? 'Day' : 'Days'}</strong></p>
                 <p className="pt-2 text-rose-600">Would you like to file the excess request as **Loss of Pay (LOP)** unpaid leave?</p>
               </div>
             </div>
@@ -1860,7 +1867,7 @@ export const LeaveManagementView: React.FC = () => {
                 </div>
                 <div>
                   <span className="text-[10px] uppercase font-bold text-slate-400">Total Duration</span>
-                  <p className="font-black text-slate-900 dark:text-white mt-0.5">{viewingApplication.numberOfDays} Day(s) {viewingApplication.isHalfDay ? `(Half Day - ${viewingApplication.halfDayPeriod})` : ''}</p>
+                  <p className="font-black text-slate-900 dark:text-white mt-0.5">{viewingApplication.numberOfDays} {Number(viewingApplication.numberOfDays) === 1 ? 'Day' : 'Days'} {viewingApplication.isHalfDay ? `(Half Day - ${viewingApplication.halfDayPeriod})` : ''}</p>
                 </div>
               </div>
 

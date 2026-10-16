@@ -787,7 +787,7 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
     addToast(
       "success",
       "Leave Applied Successfully",
-      `Submitted application for ${daysCount} days of ${leaveType} Leave.`,
+      `Submitted application for ${daysCount} ${daysCount === 1 ? 'day' : 'days'} of ${leaveType} Leave.`,
     );
     setShowApplyLeaveModal(false);
     setLeaveReason("");

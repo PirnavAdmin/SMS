@@ -839,7 +839,7 @@ export const StaffProfileDrawer: React.FC<StaffProfileDrawerProps> = ({ staff: s
               <div key={item.id} className="flex items-center justify-between rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/70 px-4 py-3">
                 <div>
                   <p className="text-sm font-bold text-slate-900 dark:text-white">{item.leaveTypeName}</p>
-                  <p className="text-[10px] text-slate-500">{item.fromDate} to {item.toDate} | {item.numberOfDays} days</p>
+                  <p className="text-[10px] text-slate-500">{item.fromDate} to {item.toDate} | {item.numberOfDays} {Number(item.numberOfDays) === 1 ? 'day' : 'days'}</p>
                 </div>
                 <Badge variant={item.status === 'Approved' ? 'success' : item.status === 'Rejected' ? 'danger' : 'warning'} size="sm">
                   {item.status}

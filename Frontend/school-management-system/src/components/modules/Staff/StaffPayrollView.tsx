@@ -2194,11 +2194,11 @@ export const StaffPayrollView: React.FC<StaffPayrollViewProps> = ({ initialTab, 
                       <tr key={s.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-850/20">
                         <td className="p-3 font-bold text-slate-850 dark:text-slate-200">{s.firstName} {s.lastName}</td>
                         <td className="p-3 text-slate-500">{s.employeeCategory}</td>
-                        <td className="p-3 font-bold text-brand-600">{present} Days</td>
-                        <td className="p-3 text-amber-600">{late} Entries</td>
-                        <td className="p-3 text-sky-600">{half} Days</td>
-                        <td className="p-3 font-bold text-rose-500">{unpaid} Days</td>
-                        <td className="p-3 font-black text-slate-800 dark:text-slate-200 font-mono">{totalDays - unpaid} / {totalDays} Days</td>
+                        <td className="p-3 font-bold text-brand-600">{present} {present === 1 ? 'Day' : 'Days'}</td>
+                        <td className="p-3 text-amber-600">{late} {late === 1 ? 'Entry' : 'Entries'}</td>
+                        <td className="p-3 text-sky-600">{half} {half === 1 ? 'Day' : 'Days'}</td>
+                        <td className="p-3 font-bold text-rose-500">{unpaid} {unpaid === 1 ? 'Day' : 'Days'}</td>
+                        <td className="p-3 font-black text-slate-800 dark:text-slate-200 font-mono">{totalDays - unpaid} / {totalDays} {totalDays === 1 ? 'Day' : 'Days'}</td>
                       </tr>
                     );
                   })}
@@ -2238,8 +2238,8 @@ export const StaffPayrollView: React.FC<StaffPayrollViewProps> = ({ initialTab, 
                     return (
                       <tr key={s.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-850/20">
                         <td className="p-3 font-bold text-slate-850 dark:text-slate-200">{s.firstName} {s.lastName}</td>
-                        <td className="p-3 font-bold text-brand-600">{calc.leaveDetails?.paidLeaveDays || 0} Days</td>
-                        <td className="p-3 font-bold text-rose-500">{calc.leaveDetails?.unpaidLeaveDays || 0} Days</td>
+                        <td className="p-3 font-bold text-brand-600">{calc.leaveDetails?.paidLeaveDays || 0} {(calc.leaveDetails?.paidLeaveDays || 0) === 1 ? 'Day' : 'Days'}</td>
+                        <td className="p-3 font-bold text-rose-500">{calc.leaveDetails?.unpaidLeaveDays || 0} {(calc.leaveDetails?.unpaidLeaveDays || 0) === 1 ? 'Day' : 'Days'}</td>
                         <td className="p-3 font-black text-rose-600 font-mono">{calc.leaveDetails?.unpaidLeaveDays || 0} LOP</td>
                         <td className="p-3 font-mono font-extrabold text-rose-600">-{formatCurrency(calc.leaveDeduction)}</td>
                       </tr>

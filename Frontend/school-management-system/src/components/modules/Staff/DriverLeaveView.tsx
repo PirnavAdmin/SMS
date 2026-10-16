@@ -256,7 +256,7 @@ export const DriverLeaveView: React.FC = () => {
           </div>
           <div className="flex items-baseline justify-between">
             <span className="text-2xl font-black text-slate-900 dark:text-white">
-              {leaveBalances.casual.remaining} <span className="text-xs font-bold text-slate-500">/ {leaveBalances.casual.total} Days</span>
+              {leaveBalances.casual.remaining} <span className="text-xs font-bold text-slate-500">/ {leaveBalances.casual.total} {leaveBalances.casual.total === 1 ? 'Day' : 'Days'}</span>
             </span>
             <span className="text-xs font-bold text-slate-500">Used: {leaveBalances.casual.used}</span>
           </div>
@@ -278,7 +278,7 @@ export const DriverLeaveView: React.FC = () => {
           </div>
           <div className="flex items-baseline justify-between">
             <span className="text-2xl font-black text-slate-900 dark:text-white">
-              {leaveBalances.sick.remaining} <span className="text-xs font-bold text-slate-500">/ {leaveBalances.sick.total} Days</span>
+              {leaveBalances.sick.remaining} <span className="text-xs font-bold text-slate-500">/ {leaveBalances.sick.total} {leaveBalances.sick.total === 1 ? 'Day' : 'Days'}</span>
             </span>
             <span className="text-xs font-bold text-slate-500">Used: {leaveBalances.sick.used}</span>
           </div>
@@ -300,7 +300,7 @@ export const DriverLeaveView: React.FC = () => {
           </div>
           <div className="flex items-baseline justify-between">
             <span className="text-2xl font-black text-slate-900 dark:text-white">
-              {leaveBalances.paid.remaining} <span className="text-xs font-bold text-slate-500">/ {leaveBalances.paid.total} Days</span>
+              {leaveBalances.paid.remaining} <span className="text-xs font-bold text-slate-500">/ {leaveBalances.paid.total} {leaveBalances.paid.total === 1 ? 'Day' : 'Days'}</span>
             </span>
             <span className="text-xs font-bold text-slate-500">Used: {leaveBalances.paid.used}</span>
           </div>
@@ -349,7 +349,7 @@ export const DriverLeaveView: React.FC = () => {
                       {app.fromDate || app.startDate} to {app.toDate || app.endDate}
                     </td>
                     <td className="py-2.5 px-3 font-bold text-sky-600 dark:text-sky-400">
-                      {app.daysCount || 1} day(s)
+                      {app.daysCount || 1} {Number(app.daysCount || 1) === 1 ? 'Day' : 'Days'}
                     </td>
                     <td className="py-2.5 px-3 text-slate-600 dark:text-slate-400 max-w-xs truncate" title={app.reason}>
                       {app.reason || 'Personal leave'}
@@ -422,9 +422,9 @@ export const DriverLeaveView: React.FC = () => {
                   onChange={(e) => setLeaveTypeId(e.target.value)}
                   className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-bold focus:ring-2 focus:ring-sky-500/20 outline-none cursor-pointer"
                 >
-                  <option value="LT-001">Casual Leave (CL) - {leaveBalances.casual.remaining} days left</option>
-                  <option value="LT-002">Sick Leave (SL) - {leaveBalances.sick.remaining} days left</option>
-                  <option value="LT-003">Paid / Earned Leave (PL) - {leaveBalances.paid.remaining} days left</option>
+                  <option value="LT-001">Casual Leave (CL) - {leaveBalances.casual.remaining} {leaveBalances.casual.remaining === 1 ? 'day' : 'days'} left</option>
+                  <option value="LT-002">Sick Leave (SL) - {leaveBalances.sick.remaining} {leaveBalances.sick.remaining === 1 ? 'day' : 'days'} left</option>
+                  <option value="LT-003">Paid / Earned Leave (PL) - {leaveBalances.paid.remaining} {leaveBalances.paid.remaining === 1 ? 'day' : 'days'} left</option>
                   <option value="LT-004">On Duty Leave (OD)</option>
                   <option value="LT-006">Loss of Pay (LOP / Unpaid)</option>
                 </select>
