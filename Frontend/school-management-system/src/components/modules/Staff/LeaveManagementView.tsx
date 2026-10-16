@@ -770,7 +770,7 @@ export const LeaveManagementView: React.FC = () => {
       return false;
     });
 
-    const resolvedLeaveTypeId = matchedType ? matchedType.id : (app.leaveTypeId || '');
+    const resolvedLeaveTypeId = matchedType ? matchedType.id : (app.leaveTypeId || app.leaveTypeName || (app as any).leaveType || '');
 
     setApplyForm({
       employeeId: app.employeeId,
