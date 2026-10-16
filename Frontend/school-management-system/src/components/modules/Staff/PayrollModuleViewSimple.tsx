@@ -2,6 +2,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { ConfirmModal } from '../../common/ConfirmModal';
 import {
+  AlertCircle,
   AlertTriangle,
   BadgeIndianRupee,
   Building2,
@@ -1098,6 +1099,52 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
   const [payslipMode, setPayslipMode] = useState<'Auto Payslip'>('Auto Payslip');
   const [globalDeduction, setGlobalDeduction] = useState<string>('');
   const [globalTdsPct, setGlobalTdsPct] = useState<string>('');
+  const [tdsError, setTdsError] = useState<string | undefined>(undefined);
+
+  const handleTdsChange = (raw: string) => {
+    // Prevent typing negative sign or invalid non-numeric chars
+    if (raw.includes('-') || raw.includes('+') || raw.toLowerCase().includes('e')) {
+      setTdsError('Please enter a valid percentage between 0 and 100.');
+      return;
+    }
+
+    if (raw === '') {
+      setGlobalTdsPct('');
+      setTdsError(undefined);
+      return;
+    }
+
+    const num = Number(raw);
+    if (isNaN(num)) {
+      setTdsError('Please enter a valid numeric percentage.');
+      setGlobalTdsPct(raw);
+      return;
+    }
+
+    if (num < 0) {
+      setTdsError('TDS percentage cannot be negative.');
+      setGlobalTdsPct(raw);
+      return;
+    }
+
+    if (num > 100) {
+      setTdsError('TDS percentage cannot exceed 100%.');
+      setGlobalTdsPct(raw);
+      return;
+    }
+
+    // Limit decimal precision to 2 decimal places if decimals present
+    let formatted = raw;
+    if (formatted.includes('.')) {
+      const parts = formatted.split('.');
+      if (parts[1] && parts[1].length > 2) {
+        formatted = `${parts[0]}.${parts[1].slice(0, 2)}`;
+      }
+    }
+
+    setTdsError(undefined);
+    setGlobalTdsPct(formatted);
+  };
   const [standardPeriod, setStandardPeriod] = useState<'1m' | '3m' | '6m' | '12m'>('1m');
   const [leftEmployeeSearch, setLeftEmployeeSearch] = useState<string>('');
   const [structureModalOpen, setStructureModalOpen] = useState(false);
@@ -1373,8 +1420,9 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
       const workingDays = Math.max(1, Math.max(presentDays + halfDays, 22));
       const lopDays = Math.max(0, workingDays - presentDays - approvedLeaveDays - halfDays * 0.5);
       const attendanceDeduction = Math.round((breakdown.grossSalary / workingDays) * lopDays);
-      const extraDeduction = Number(globalDeduction) || 0;
-      const tdsPercentage = Number(globalTdsPct) || 0;
+      const extraDeduction = Math.max(0, Number(globalDeduction) || 0);
+      const rawTds = Number(globalTdsPct) || 0;
+      const tdsPercentage = (rawTds < 0 || rawTds > 100) ? 0 : rawTds;
       const tdsDeduction = Math.round(breakdown.grossSalary * (tdsPercentage / 100));
 
       const deductions = breakdown.deductions + attendanceDeduction + extraDeduction + tdsDeduction;
@@ -1760,6 +1808,10 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
   const handleBulkGenerate = () => {
     if (isFutureMonthYear(generationMonth, generationYear)) {
       addToast('error', 'Cannot Generate Payroll', 'Payroll cannot be generated for future dates or months.');
+      return;
+    }
+    if (tdsError || (globalTdsPct !== '' && (Number(globalTdsPct) > 100 || Number(globalTdsPct) < 0))) {
+      addToast('error', 'Invalid TDS Percentage', 'TDS percentage must be between 0% and 100%.');
       return;
     }
     setIsGenerateModalOpen(true);
@@ -2303,8 +2355,19 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
             <label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">DEDUCTION (₹)</label>
             <input
               type="number"
+              min="0"
               value={globalDeduction}
-              onChange={e => setGlobalDeduction(e.target.value)}
+              onChange={e => {
+                const val = e.target.value;
+                if (!val.includes('-')) {
+                  setGlobalDeduction(val);
+                }
+              }}
+              onKeyDown={e => {
+                if (['e', 'E', '+', '-'].includes(e.key)) {
+                  e.preventDefault();
+                }
+              }}
               placeholder="Enter Deduction"
               className={inputClass}
             />
@@ -2317,13 +2380,36 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
             <label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">TDS (%)</label>
             <input
               type="number"
+              min="0"
+              max="100"
+              step="any"
               value={globalTdsPct}
-              onChange={e => setGlobalTdsPct(e.target.value)}
-              placeholder="Enter TDS Percentage"
-              className={inputClass}
+              onChange={e => handleTdsChange(e.target.value)}
+              onKeyDown={e => {
+                if (['e', 'E', '+', '-'].includes(e.key)) {
+                  e.preventDefault();
+                }
+              }}
+              placeholder="Enter TDS Percentage (0 - 100%)"
+              className={`${inputClass} ${
+                tdsError
+                  ? 'border-rose-500 focus:border-rose-500 ring-1 ring-rose-500/20 text-rose-600 dark:text-rose-400'
+                  : ''
+              }`}
             />
+            {tdsError && (
+              <p className="text-[11px] font-bold text-rose-500 mt-1 flex items-center gap-1 animate-in fade-in">
+                <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                <span>{tdsError}</span>
+              </p>
+            )}
             <p className="text-[11px] font-bold text-slate-500 pt-0.5">
-              Current TDS: {globalTdsPct || '0'}%
+              Current TDS:{' '}
+              {tdsError ? (
+                <span className="text-rose-500 font-bold">Invalid ({globalTdsPct}%) - Maximum limit is 100%</span>
+              ) : (
+                `${globalTdsPct || '0'}%`
+              )}
             </p>
           </div>
         </div>
@@ -2528,9 +2614,9 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
               <button
                 type="button"
                 onClick={handleBulkGenerate}
-                disabled={eligibleSelectedCount === 0 || isFutureSelected}
+                disabled={eligibleSelectedCount === 0 || isFutureSelected || Boolean(tdsError) || (globalTdsPct !== '' && (Number(globalTdsPct) > 100 || Number(globalTdsPct) < 0))}
                 className={`w-full py-3.5 rounded-xl font-black text-sm transition-all shadow-lg flex items-center justify-center gap-2 ${
-                  eligibleSelectedCount > 0 && !isFutureSelected
+                  eligibleSelectedCount > 0 && !isFutureSelected && !tdsError && !(globalTdsPct !== '' && (Number(globalTdsPct) > 100 || Number(globalTdsPct) < 0))
                     ? 'bg-brand-600 text-white hover:bg-brand-700 shadow-brand-500/25 cursor-pointer'
                     : 'bg-slate-200 text-slate-400 cursor-not-allowed dark:bg-slate-800 dark:text-slate-600'
                 }`}
@@ -2538,6 +2624,8 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
                 <ReceiptText className="w-4 h-4" />
                 {isFutureSelected
                   ? 'Cannot generate payroll for future period'
+                  : tdsError || (globalTdsPct !== '' && (Number(globalTdsPct) > 100 || Number(globalTdsPct) < 0))
+                  ? 'Enter valid TDS percentage (0-100%) to generate'
                   : eligibleSelectedCount > 0
                   ? `Generate Payslips for ${eligibleSelectedCount} Employee(s) (${standardPeriod} / ${currentPeriodLabel})`
                   : 'Select eligible employee(s) to generate'}
