@@ -1581,7 +1581,7 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
     return range.startDate;
   });
 
-  const [viewMode, setViewMode] = useState<"daily" | "monthly">("daily");
+  const [viewMode, setViewMode] = useState<"daily" | "monthly" | "">("");
   const [showSaveConfirm, setShowSaveConfirm] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
@@ -1602,7 +1602,7 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
   const [regFromDate, setRegFromDate] = useState("");
   const [regToDate, setRegToDate] = useState("");
 
-  const [dateMode, setDateMode] = useState<'Daily' | 'Monthly' | 'Custom Range'>('Daily');
+  const [dateMode, setDateMode] = useState<'Daily' | 'Monthly' | 'Custom Range' | 'Select' | ''>('');
 
   const prevAYRef = useRef(selectedAcademicYear);
   useEffect(() => {
@@ -1643,18 +1643,19 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
   useEffect(() => {
     if (dateMode === 'Daily') {
       setViewMode('daily');
-    } else {
+    } else if (dateMode === 'Monthly') {
       setViewMode('monthly');
-      if (dateMode === 'Monthly') {
-        setRegFromDate("");
-        setRegToDate("");
-      } else if (dateMode === 'Custom Range') {
-        const y = regYear;
-        const m = String(regMonth + 1).padStart(2, '0');
-        const daysInM = new Date(y, regMonth + 1, 0).getDate();
-        setRegFromDate(`${y}-${m}-01`);
-        setRegToDate(`${y}-${m}-${String(daysInM).padStart(2, '0')}`);
-      }
+      setRegFromDate("");
+      setRegToDate("");
+    } else if (dateMode === 'Custom Range') {
+      setViewMode('monthly');
+      const y = regYear;
+      const m = String(regMonth + 1).padStart(2, '0');
+      const daysInM = new Date(y, regMonth + 1, 0).getDate();
+      setRegFromDate(`${y}-${m}-01`);
+      setRegToDate(`${y}-${m}-${String(daysInM).padStart(2, '0')}`);
+    } else {
+      setViewMode('');
     }
   }, [dateMode, regYear, regMonth]);
 
@@ -2703,6 +2704,10 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
 
   // Export Report Handler
   const handleExportReport = () => {
+    if (!dateMode || dateMode === "Select") {
+      addToast("warning", "Select Date Mode", "Please select a Date Mode first to export attendance reports.");
+      return;
+    }
     setIsExporting(true);
     setTimeout(() => {
       try {
@@ -2886,7 +2891,7 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
         <button
           type="button"
           onClick={handleExportReport}
-          disabled={isExporting}
+          disabled={isExporting || !dateMode || dateMode === "Select"}
           className="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs flex items-center gap-2 shadow-lg shadow-emerald-600/20 transition-all cursor-pointer disabled:opacity-50"
         >
           {isExporting ? (
@@ -2932,10 +2937,11 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
               Date Mode
             </label>
             <select
-              value={dateMode}
+              value={dateMode || ""}
               onChange={(e) => setDateMode(e.target.value as any)}
               className="w-full px-2.5 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none focus:border-brand-500 transition-colors cursor-pointer"
             >
+              <option value="">Select</option>
               <option value="Daily">Daily</option>
               <option value="Monthly">Monthly</option>
               <option value="Custom Range">Custom Range</option>
@@ -2947,6 +2953,14 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
             <label className="block text-[10px] font-black uppercase text-slate-400 mb-1">
               Date Selection
             </label>
+            {(!dateMode || dateMode === "Select") && (
+              <input
+                type="text"
+                disabled
+                placeholder="Select Date Mode"
+                className="w-full px-2.5 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-400 cursor-not-allowed"
+              />
+            )}
             {dateMode === "Daily" && (
               <DateInput
                 value={attendanceDate}
@@ -3087,6 +3101,21 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
         </div>
       </div>
 
+      {/* PROMPT TO SELECT DATE MODE */}
+      {(activeTab === "teaching" || activeTab === "non-teaching") && (!dateMode || dateMode === "Select") && (
+        <div className="p-12 text-center rounded-2xl bg-white dark:bg-slate-900 border border-dashed border-slate-300 dark:border-slate-700 space-y-3">
+          <div className="w-12 h-12 mx-auto rounded-full bg-brand-50 dark:bg-brand-950/40 text-brand-600 flex items-center justify-center">
+            <Calendar className="w-6 h-6" />
+          </div>
+          <h3 className="text-base font-bold text-slate-800 dark:text-slate-100">
+            Select Date Mode
+          </h3>
+          <p className="text-xs text-slate-500 max-w-sm mx-auto">
+            Please choose a Date Mode (Daily, Monthly, or Custom Range) from the dropdown above to view and mark staff attendance.
+          </p>
+        </div>
+      )}
+
       {/* DAILY ATTENDANCE MARKING (TEACHING & NON-TEACHING) */}
       {(activeTab === "teaching" || activeTab === "non-teaching") &&
         viewMode === "daily" && (
@@ -3159,11 +3188,11 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
                   </p>
                 </div>
 
-                <div className="p-3 rounded-2xl bg-brand-50 dark:bg-brand-950/40 border border-brand-200 dark:border-brand-900 text-center">
-                  <p className="text-[10px] font-bold text-brand-700 dark:text-brand-400 uppercase">
+                <div className="p-3 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-900 text-center">
+                  <p className="text-[10px] font-bold text-emerald-700 dark:text-emerald-400 uppercase">
                     Present
                   </p>
-                  <p className="text-lg font-black text-brand-800 dark:text-brand-300 mt-0.5">
+                  <p className="text-lg font-black text-emerald-800 dark:text-emerald-300 mt-0.5">
                     {liveSummaryStats.present}
                   </p>
                 </div>
@@ -3206,7 +3235,7 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
                     <button
                       type="button"
                       onClick={() => handleBulkAction("Present")}
-                      className="px-3 py-1.5 rounded-xl bg-brand-100 dark:bg-brand-950/80 text-brand-800 dark:text-brand-300 hover:bg-brand-200 font-bold text-[11px] transition-colors"
+                      className="px-3 py-1.5 rounded-xl bg-emerald-100 dark:bg-emerald-950/80 text-emerald-800 dark:text-emerald-300 hover:bg-emerald-200 font-bold text-[11px] transition-colors"
                     >
                       Mark All Present
                     </button>
@@ -3346,7 +3375,7 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
                                   let activeStyle = "";
                                   if (st === "Present")
                                     activeStyle =
-                                      "bg-brand-600 text-white font-black border-brand-600 shadow-sm";
+                                      "bg-emerald-600 text-white font-black border-emerald-600 shadow-sm";
                                   else if (st === "Absent")
                                     activeStyle =
                                       "bg-rose-600 text-white font-black border-rose-600 shadow-sm";

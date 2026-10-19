@@ -4121,7 +4121,12 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
                       : "";
                   if (sName) {
                     const existingSec = secDetails[sName] || {};
-                    secDetails[sName] = {
+                    const resolvedSecId = isObj ? (s.sectionId || s.id) : existingSec.id;
+                    const secInfo = {
+                      id: resolvedSecId,
+                      sectionId: resolvedSecId,
+                      name: sName,
+                      sectionName: sName,
                       capacity:
                         (isObj ? s.capacity : undefined) ??
                         existingSec.capacity ??
@@ -4141,6 +4146,11 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
                         existingSec.roomNo ||
                         "",
                     };
+                    secDetails[sName] = secInfo;
+                    const cleanSName = sName.replace(/^Section\s*/i, "").trim();
+                    secDetails[cleanSName] = secInfo;
+                    secDetails[`Section ${cleanSName}`] = secInfo;
+
                     if (isObj && s.classTeacherName) {
                       const cleanCTName = typeof s.classTeacherName === "string"
                         ? s.classTeacherName
@@ -4149,7 +4159,6 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
                             .trim()
                         : s.classTeacherName;
                       sectionTeachersMap[sName] = cleanCTName;
-                      const cleanSName = sName.replace(/^Section\s*/i, "").trim();
                       sectionTeachersMap[cleanSName] = cleanCTName;
                       sectionTeachersMap[`Section ${cleanSName}`] = cleanCTName;
                     }
@@ -4955,6 +4964,10 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
               section: s.sectionName || s.section || "",
               academicYear: s.academicYearName || s.academicYear || "",
               branch: s.branchName || s.branch || "",
+              branchId: s.branchId || s.branch_id || undefined,
+              academicYearId: s.academicYearId || s.academic_year_id || undefined,
+              classId: s.classId || s.class_id || undefined,
+              sectionId: s.sectionId || s.section_id || undefined,
               status: s.status || "Active",
               studentType: s.studentType || "Day Scholar",
               parentName,
@@ -6460,15 +6473,28 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         }
       }
 
+      const studentBranchName = (newStudent.branch || selectedBranch || "").trim().toLowerCase();
+      const matchedBranch = (branches || []).find((b: any) =>
+        (b.name || b.branchName || "").trim().toLowerCase() === studentBranchName
+      );
+      const resolvedBranchId = Number((newStudent as any)?.branchId)
+        || (matchedBranch ? Number(matchedBranch.id || matchedBranch.branchId) : undefined)
+        || (branches.length > 0 ? Number(branches[0].id || branches[0].branchId) : 1);
+
+      const matchedYear = (academicYears || []).find(
+        (y: any) => (y.year || y.academicYear) === (newStudent.academicYear || selectedAcademicYear)
+      );
+      const resolvedYearId = Number((newStudent as any)?.academicYearId)
+        || (matchedYear ? Number(String(matchedYear.id || matchedYear.academicYearId).replace(/\D/g, "")) : undefined)
+        || (academicYears.length > 0 ? Number(String(academicYears[0].id || academicYears[0].academicYearId).replace(/\D/g, "")) : 1);
+
       createStudentApi({
-        admissionNumber:
-          newStudent.admissionNo ||
-          `ADM-${Math.floor(1000 + Math.random() * 9000)}`,
+        admissionNumber: newStudent.admissionNo || "",
         rollNumber: newStudent.rollNo || "",
         studentName:
           `${newStudent.firstName || ""} ${newStudent.lastName || ""}`.trim(),
         dateOfBirth: newStudent.dob || undefined,
-        gender: newStudent.gender || "Male",
+        gender: newStudent.gender || undefined,
         fatherName: newStudent.parentName || "",
         fatherMobile:
           (newStudent as any).parentPhone || (newStudent as any).mobile || "",
@@ -6476,8 +6502,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         mobileNumber:
           (newStudent as any).parentPhone || (newStudent as any).mobile || "",
         address: newStudent.address || "",
-        branchId: 1,
-        academicYearId: 1,
+        branchId: resolvedBranchId,
+        academicYearId: resolvedYearId,
         classId: targetClassId,
         sectionId: targetSectionId as any,
         status: newStudent.status || "Active",
@@ -6535,42 +6561,61 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           c.name.replace("Class ", "") ===
             (fullStudent.className || "").replace("Class ", ""),
       );
-      const targetClassId = targetClass ? parseInt(targetClass.id) || 1 : 1;
+      const targetClassId = targetClass ? Number(String(targetClass.id).replace(/\D/g, "")) || 1 : 1;
 
-      let targetSectionId: number | undefined = undefined;
+      let targetSectionId: number = (oldStudent as any)?.sectionId || 1;
       if (
         fullStudent.section &&
         fullStudent.section !== "Unassigned" &&
         targetClass
       ) {
-        const cleanSecName = fullStudent.section.replace("Section ", "").trim();
+        const cleanSecName = fullStudent.section.replace(/^Section\s*/i, "").trim();
         const secDetail =
           (targetClass as any).sectionDetails?.[cleanSecName] ||
-          (targetClass as any).sectionDetails?.[fullStudent.section];
-        if (secDetail?.id) {
-          targetSectionId = parseInt(secDetail.id);
+          (targetClass as any).sectionDetails?.[fullStudent.section] ||
+          (targetClass as any).sectionDetails?.[`Section ${cleanSecName}`];
+        if (secDetail?.id || secDetail?.sectionId) {
+          targetSectionId = Number(String(secDetail.id || secDetail.sectionId).replace(/\D/g, "")) || targetSectionId;
+        } else if ((targetClass as any).sections?.[0]?.id || (targetClass as any).sections?.[0]?.sectionId) {
+          targetSectionId = Number(String((targetClass as any).sections[0].id || (targetClass as any).sections[0].sectionId).replace(/\D/g, "")) || targetSectionId;
         }
       }
 
+      const matchedYear = (academicYears || []).find(
+        (y: any) => (y.year || y.academicYear) === fullStudent.academicYear,
+      );
+      const targetAcademicYearId = matchedYear
+        ? Number(String(matchedYear.id || matchedYear.academicYearId).replace(/\D/g, ""))
+        : Number((oldStudent as any)?.academicYearId) || Number((fullStudent as any)?.academicYearId) || (academicYears.length > 0 ? Number(String(academicYears[0].id || academicYears[0].academicYearId).replace(/\D/g, "")) : 1);
+
+      const studentBranchName = (fullStudent.branch || (oldStudent as any)?.branch || selectedBranch || "").trim().toLowerCase();
+      const matchedBranch = (branches || []).find((b: any) =>
+        (b.name || b.branchName || "").trim().toLowerCase() === studentBranchName
+      );
+      const resolvedBranchId = Number((oldStudent as any)?.branchId)
+        || Number((fullStudent as any)?.branchId)
+        || (matchedBranch ? Number(matchedBranch.id || matchedBranch.branchId) : undefined)
+        || (branches.length > 0 ? Number(branches[0].id || branches[0].branchId) : 1);
+
       updateStudentApi(numericId, {
-        admissionNumber: fullStudent.admissionNo || "ADM-00",
-        rollNumber: fullStudent.rollNo || "",
+        admissionNumber: fullStudent.admissionNo || (oldStudent as any)?.admissionNo || "",
+        rollNumber: fullStudent.rollNo || (oldStudent as any)?.rollNo || "",
         studentName:
           `${fullStudent.firstName || ""} ${fullStudent.lastName || ""}`.trim(),
         dateOfBirth: fullStudent.dob || undefined,
-        gender: fullStudent.gender || "Male",
-        fatherName: fullStudent.parentName || "",
+        gender: fullStudent.gender || (oldStudent as any)?.gender || undefined,
+        fatherName: fullStudent.parentName || (oldStudent as any)?.parentName || "",
         fatherMobile:
-          (fullStudent as any).parentPhone || (fullStudent as any).mobile || "",
-        email: fullStudent.email || undefined,
+          (fullStudent as any).parentPhone || (fullStudent as any).mobile || (oldStudent as any)?.phone || "",
+        email: fullStudent.email || (oldStudent as any)?.email || undefined,
         mobileNumber:
-          (fullStudent as any).parentPhone || (fullStudent as any).mobile || "",
-        address: fullStudent.address || "",
-        branchId: 1,
-        academicYearId: 1,
+          (fullStudent as any).parentPhone || (fullStudent as any).mobile || (oldStudent as any)?.phone || "",
+        address: fullStudent.address || (oldStudent as any)?.address || "",
+        branchId: resolvedBranchId,
+        academicYearId: targetAcademicYearId,
         classId: targetClassId,
-        sectionId: targetSectionId as any,
-        status: fullStudent.status || "Active",
+        sectionId: targetSectionId,
+        status: fullStudent.status || (oldStudent as any)?.status || "Active",
       })
         .then(() => {
           fetchStudents();
@@ -6638,14 +6683,41 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       ? Number(String(matchedClass.id).replace(/\D/g, "")) || 1
       : 1;
 
+    const cleanSecName = (targetSection || "A").replace(/^Section\s*/i, "").trim();
+    const secDetail =
+      (matchedClass as any)?.sectionDetails?.[cleanSecName] ||
+      (matchedClass as any)?.sectionDetails?.[targetSection] ||
+      (matchedClass as any)?.sectionDetails?.[`Section ${cleanSecName}`];
+    const resolvedSectionId = secDetail?.id || secDetail?.sectionId
+      ? Number(String(secDetail.id || secDetail.sectionId).replace(/\D/g, "")) || 1
+      : ((targetStudent as any)?.sectionId || 1);
+
+    const matchedYear = (academicYears || []).find(
+      (y: any) => (y.year || y.academicYear) === targetYear,
+    );
+    const resolvedAcademicYearId = matchedYear
+      ? Number(String(matchedYear.id || matchedYear.academicYearId).replace(/\D/g, ""))
+      : Number((targetStudent as any)?.academicYearId) || (academicYears.length > 0 ? Number(String(academicYears[0].id || academicYears[0].academicYearId).replace(/\D/g, "")) : 1);
+
+    const studentBranchName = (targetBranch || targetStudent?.branch || selectedBranch || "").trim().toLowerCase();
+    const matchedBranch = (branches || []).find((b: any) =>
+      (b.name || b.branchName || "").trim().toLowerCase() === studentBranchName
+    );
+    const resolvedBranchId = Number((targetStudent as any)?.branchId)
+      || (matchedBranch ? Number(matchedBranch.id || matchedBranch.branchId) : undefined)
+      || (branches.length > 0 ? Number(branches[0].id || branches[0].branchId) : 1);
+
+    const isHighest = getHighestClass ? targetClass === getHighestClass() : false;
+    const resolvedStatus = isHighest ? "Completed" : "Active";
+
     if (!isNaN(numericId) && targetStudent) {
       updateStudentApi(numericId, {
-        admissionNumber: targetStudent.admissionNo || "ADM-00",
-        rollNumber: targetStudent.rollNo || "00",
+        admissionNumber: targetStudent.admissionNo || "",
+        rollNumber: targetStudent.rollNo || "",
         studentName:
           `${targetStudent.firstName || ""} ${targetStudent.lastName || ""}`.trim(),
         dateOfBirth: targetStudent.dob || undefined,
-        gender: targetStudent.gender || "Male",
+        gender: targetStudent.gender || undefined,
         fatherName: targetStudent.parentName || "",
         fatherMobile:
           (targetStudent as any).parentPhone ||
@@ -6657,11 +6729,11 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           (targetStudent as any).mobile ||
           "",
         address: targetStudent.address || "",
-        branchId: 1,
-        academicYearId: 1,
+        branchId: resolvedBranchId,
+        academicYearId: resolvedAcademicYearId,
         classId: resolvedClassId,
-        sectionId: 1,
-        status: "Promoted",
+        sectionId: resolvedSectionId,
+        status: resolvedStatus,
       })
         .then(() => {
           fetchStudents();

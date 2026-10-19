@@ -3,7 +3,7 @@ import {
   TrendingUp, Search, CheckSquare, Square, ArrowRight, Building2, 
   CheckCircle2, GraduationCap, Award, RefreshCw, Filter, Sparkles, 
   AlertCircle, Users, LayoutGrid, Check, FileCheck2, ShieldCheck, XCircle,
-  ChevronLeft, ChevronRight
+  ChevronLeft, ChevronRight, Loader2
 } from 'lucide-react';
 import { useData } from '../../../../context/DataContext';
 import { useAuth } from '../../../../context/AuthContext';
@@ -13,6 +13,12 @@ import { SectionAssignmentMethod, PromotionHistoryItem, ExamSetup } from '../../
 import { executePromotionApi, loadPromotionResultsApi, loadFinalResultsApi } from '../../../../api/studentPromotion';
 import { fetchReportCardsApi, fetchExamOptionsApi } from '../../../../api/examination';
 import { matchesClassName } from '../../../../utils/classSorter';
+import { 
+  updateStudentApi, 
+  fetchStudentClassesDropdownApi, 
+  fetchStudentSectionsDropdownApi, 
+  fetchStudentAcademicYearsDropdownApi 
+} from '../../../../api/students';
 
 interface StudentPromotionViewProps {
   onNavigate?: (module: string) => void;
@@ -48,6 +54,9 @@ export const StudentPromotionView: React.FC<StudentPromotionViewProps> = ({ onNa
     addAcademicHistoryRecord, 
     getHighestClass, 
     logActivity,
+    fetchStudents,
+    fetchBranches,
+    branches = [],
     processedResults = [],
     examMarks = [],
     exams = [],
@@ -56,6 +65,12 @@ export const StudentPromotionView: React.FC<StudentPromotionViewProps> = ({ onNa
   } = useData() as any;
   const { selectedBranch, selectedAcademicYear } = useAuth();
   const { addToast } = useToast();
+
+  useEffect(() => {
+    if (fetchBranches && (!branches || branches.length === 0)) {
+      fetchBranches();
+    }
+  }, [fetchBranches, branches]);
 
   const highestClass = getHighestClass();
 
@@ -109,6 +124,7 @@ export const StudentPromotionView: React.FC<StudentPromotionViewProps> = ({ onNa
   // Dynamic Examinations State fetched from Examination Module API
   const [dynamicExams, setDynamicExams] = useState<ExamSetup[]>([]);
   const [isLoadingExams, setIsLoadingExams] = useState<boolean>(false);
+  const [isPromoting, setIsPromoting] = useState<boolean>(false);
 
   // Load all examinations dynamically from Examination module API
   const loadDynamicExaminations = useCallback(async () => {
@@ -399,6 +415,13 @@ export const StudentPromotionView: React.FC<StudentPromotionViewProps> = ({ onNa
       const matchClass = matchesClassName(s.className, fromClass);
       if (!matchClass) return false;
 
+      // If this student was already promoted to targetYear, do not show in pending promotion list
+      const isAlreadyPromoted = s.promotionHistory?.some((h: any) =>
+        (h.academicYear === targetYear || h.toAcademicYear === targetYear) &&
+        (h.status === 'Promoted' || h.status === 'Completed' || h.status === 'Graduated')
+      );
+      if (isAlreadyPromoted) return false;
+
       // Academic Year Validation
       const studentYear = (s as any).academicYear || selectedAcademicYear || '';
       if (!currentYear) return true;
@@ -447,11 +470,31 @@ export const StudentPromotionView: React.FC<StudentPromotionViewProps> = ({ onNa
       promotionHistory: s.promotionHistory
     }));
 
-    // If report cards have students not yet in candidateStudents, add them
+    // If report cards have students not yet in candidateStudents, add them ONLY if currently enrolled in fromClass
     relevantReportCards.forEach((rc: any, idx: number) => {
       const rcStudentId = String(rc.studentId || rc.id || '');
       const rcAdm = (rc.admissionNo || rc.admissionNumber || '').trim().toLowerCase();
       const rcName = (rc.studentName || `${rc.firstName || ''} ${rc.lastName || ''}`).trim().toLowerCase();
+
+      // Check if student exists in all students
+      const studentInDb = (students || []).find((st: any) =>
+        (rcStudentId && String(st.id) === rcStudentId) ||
+        (rcAdm && st.admissionNo && st.admissionNo.toLowerCase() === rcAdm) ||
+        (rcName && `${st.firstName} ${st.lastName}`.trim().toLowerCase() === rcName)
+      );
+
+      // If the student already exists in DB and is no longer in fromClass (e.g. promoted to Class 7), DO NOT ADD!
+      if (studentInDb && !matchesClassName(studentInDb.className, fromClass)) {
+        return;
+      }
+
+      // If student already has a promotion history record to targetYear, DO NOT ADD!
+      if (studentInDb?.promotionHistory?.some((h: any) =>
+        (h.academicYear === targetYear || h.toAcademicYear === targetYear) &&
+        (h.status === 'Promoted' || h.status === 'Completed' || h.status === 'Graduated')
+      )) {
+        return;
+      }
 
       const exists = candidateStudents.some(cs => {
         if (rcStudentId && cs.id === rcStudentId) return true;
@@ -461,22 +504,27 @@ export const StudentPromotionView: React.FC<StudentPromotionViewProps> = ({ onNa
       });
 
       if (!exists) {
-        const fullName = rc.studentName || `${rc.firstName || ''} ${rc.lastName || ''}`.trim() || `Student ${idx + 1}`;
-        const nameParts = fullName.split(' ');
+        const adm = studentInDb?.admissionNo || rc.admissionNo || rc.admissionNumber || '';
+        const roll = studentInDb?.rollNo || rc.rollNo || rc.rollNumber || '';
+        const fullName = rc.studentName || `${rc.firstName || ''} ${rc.lastName || ''}`.trim();
+        if (!studentInDb && !adm && !fullName) {
+          return;
+        }
+        const nameParts = (fullName || 'Student').split(' ');
         const firstName = nameParts[0] || 'Student';
         const lastName = nameParts.slice(1).join(' ') || '';
 
         candidateStudents.push({
-          id: rcStudentId || `RC-${idx + 1}`,
-          admissionNo: rc.admissionNo || rc.admissionNumber || `ADM-${1000 + idx}`,
-          rollNo: rc.rollNo || rc.rollNumber || `R-${101 + idx}`,
-          firstName,
-          lastName,
-          avatar: '',
-          branch: effectiveBranch,
-          className: rc.className || fromClass,
-          section: rc.sectionName || rc.section || 'A',
-          promotionHistory: [],
+          id: studentInDb ? String(studentInDb.id) : (rcStudentId || ''),
+          admissionNo: adm,
+          rollNo: roll,
+          firstName: studentInDb?.firstName || firstName,
+          lastName: studentInDb?.lastName || lastName,
+          avatar: studentInDb?.avatar || '',
+          branch: studentInDb?.branch || rc.branch || effectiveBranch,
+          className: studentInDb?.className || rc.className || fromClass,
+          section: studentInDb?.section || rc.sectionName || rc.section || 'A',
+          promotionHistory: studentInDb?.promotionHistory || [],
           reportCard: rc
         });
       }
@@ -990,7 +1038,7 @@ export const StudentPromotionView: React.FC<StudentPromotionViewProps> = ({ onNa
   }, [isResultsLoaded, promotionRows, feeStructures, targetYear]);
 
   // Complete Promotion Action Handler
-  const handleCompletePromotion = () => {
+  const handleCompletePromotion = async () => {
     if (promotionRows.length === 0) {
       addToast('warning', 'No Records', 'No student records available for promotion.');
       return;
@@ -1009,120 +1057,238 @@ export const StudentPromotionView: React.FC<StudentPromotionViewProps> = ({ onNa
       return;
     }
 
+    setIsPromoting(true);
     let promotedCount = 0;
     let retainedCount = 0;
     const today = new Date().toISOString().split('T')[0];
 
-    rowsToProcess.forEach(row => {
-      const isPromote = row.promotionStatus === 'Promote';
-      const cleanSection = row.newSection.replace('Section ', '').trim();
+    try {
+      // 1. Fetch dropdowns to obtain exact database foreign keys
+      const [classesRes, yearsRes] = await Promise.allSettled([
+        fetchStudentClassesDropdownApi(),
+        fetchStudentAcademicYearsDropdownApi(),
+      ]);
 
-      const historyItem: PromotionHistoryItem = {
-        id: 'PROM-' + Math.floor(100000 + Math.random() * 900000),
-        academicYear: targetYear,
-        fromClass: row.currentClass,
-        toClass: row.newClass,
-        fromSection: row.currentSection,
-        toSection: cleanSection,
-        fromBranch: row.branch,
-        toBranch: row.branch,
-        date: today,
-        rollNo: row.rollNo,
-        overallPct: row.overallPct,
-        grade: row.grade,
-        finalResult: row.finalResult,
-        status: isPromote ? (isHighestClass ? 'Graduated' : 'Promoted') : 'Retained',
-        remarks: row.remarks
+      const classesDropdown: Array<{ id: number; name: string }> =
+        classesRes.status === 'fulfilled'
+          ? (Array.isArray(classesRes.value) ? classesRes.value : (classesRes.value as any)?.data || [])
+          : [];
+
+      const yearsDropdown: Array<{ id: number; name: string }> =
+        yearsRes.status === 'fulfilled'
+          ? (Array.isArray(yearsRes.value) ? yearsRes.value : (yearsRes.value as any)?.data || [])
+          : [];
+
+      // Cache sections for target classes
+      const sectionsCache = new Map<number, Array<{ id: number; name: string }>>();
+      const getSectionsForClass = async (cId: number): Promise<Array<{ id: number; name: string }>> => {
+        if (sectionsCache.has(cId)) return sectionsCache.get(cId)!;
+        try {
+          const res: any = await fetchStudentSectionsDropdownApi(cId);
+          const list = Array.isArray(res) ? res : res?.data || [];
+          sectionsCache.set(cId, list);
+          return list;
+        } catch {
+          return [];
+        }
       };
 
-      const existingStudent = (students || []).find((s: any) => s.id === row.id);
-      const updatedHistory = [...(existingStudent?.promotionHistory || []), historyItem];
+      // Match target academic year ID dynamically without hardcoding
+      const targetYearClean = (targetYear || '').replace(/\s+/g, '').toLowerCase();
+      const matchedYearObj = (yearsDropdown || []).find((y: any) =>
+        (y.name || '').replace(/\s+/g, '').toLowerCase() === targetYearClean ||
+        (y.name || '').toLowerCase().includes(targetYearClean)
+      ) || (academicYears || []).find((y: any) =>
+        (y.year || y.academicYear || y.name || '').replace(/\s+/g, '').toLowerCase() === targetYearClean ||
+        (y.year || y.academicYear || y.name || '').toLowerCase().includes(targetYearClean)
+      );
+      const targetYearId = matchedYearObj
+        ? Number(matchedYearObj.id || (matchedYearObj as any).academicYearId)
+        : (yearsDropdown.length > 0 ? Number(yearsDropdown[0].id) : (academicYears.length > 0 ? Number(academicYears[0].id) : undefined));
 
-      // 1. History record for completed year (currentYear)
-      addAcademicHistoryRecord(row.id, {
-        id: `ACH-${row.id}-${currentYear}`,
-        studentId: row.id,
-        admissionNo: row.admissionNo,
-        academicYear: currentYear,
-        className: row.currentClass,
-        section: row.currentSection,
-        rollNo: row.rollNo,
-        branch: row.branch,
-        status: isPromote ? (isHighestClass ? 'Graduated' : 'Promoted') : 'Retained',
-        promotionStatus: isPromote ? 'Promoted' : 'Retained',
-        remarks: row.remarks,
-        createdAt: today,
+      // 2. Call batch promotion API for audit log & promotion history
+      await executePromotionApi({
+        currentAcademicYear: currentYear,
+        targetAcademicYear: targetYear,
+        currentClass: fromClass,
+        branch: branch || effectiveBranch || selectedBranch || '',
+        policy: assignmentMethod,
+        promotions: rowsToProcess.map(r => ({
+          studentId: Number(r.id) || 0,
+          id: r.id,
+          admissionNo: r.admissionNo || '',
+          rollNo: r.rollNo || '',
+          currentClass: r.currentClass,
+          currentSection: r.currentSection,
+          promotionStatus: r.promotionStatus,
+          newClass: r.newClass,
+          newSection: r.newSection,
+          overallPct: r.overallPct,
+          grade: r.grade,
+          finalResult: r.finalResult,
+          remarks: r.remarks
+        }))
+      }).catch(err => {
+        console.warn('executePromotionApi audit log notice:', err);
       });
 
-      // 2. History record for new year (targetYear) if not graduated
-      if (!isHighestClass || !isPromote) {
+      // 3. Directly update each student record in the database via updateStudentApi
+      for (const row of rowsToProcess) {
+        const isPromote = row.promotionStatus === 'Promote';
+        const cleanSection = (row.newSection || '').replace(/^Section\s*/i, '').trim();
+        const destClassName = isPromote ? row.newClass : row.currentClass;
+
+        // Resolve class ID from classesDropdown
+        const matchedClassObj = classesDropdown.find((c: any) =>
+          matchesClassName(c.name, destClassName) ||
+          c.name.trim().toLowerCase() === destClassName.trim().toLowerCase()
+        );
+        const resolvedClassId = matchedClassObj ? Number(matchedClassObj.id) : undefined;
+
+        let resolvedSectionId: number | undefined = undefined;
+        if (resolvedClassId) {
+          const secs = await getSectionsForClass(resolvedClassId);
+          const matchedSec = secs.find((s: any) =>
+            (s.name || '').trim().toLowerCase() === cleanSection.toLowerCase()
+          );
+          if (matchedSec) {
+            resolvedSectionId = Number(matchedSec.id);
+          } else if (secs.length > 0) {
+            resolvedSectionId = Number(secs[0].id);
+          }
+        }
+
+        const existingStudent = (students || []).find((s: any) => String(s.id) === String(row.id));
+        const numericId = parseInt(row.id, 10);
+
+        // Dynamically resolve branch ID without hardcoding
+        const studentBranchName = (existingStudent?.branch || row.branch || effectiveBranch || selectedBranch || branch || '').trim().toLowerCase();
+        const matchedBranchObj = (branches || []).find((b: any) =>
+          (b.name || b.branchName || '').trim().toLowerCase() === studentBranchName
+        );
+        const resolvedBranchId = Number((existingStudent as any)?.branchId)
+          || (matchedBranchObj ? Number(matchedBranchObj.id || matchedBranchObj.branchId) : undefined)
+          || (branches.length > 0 ? Number(branches[0].id || branches[0].branchId) : 1);
+
+        if (!isNaN(numericId) && existingStudent && resolvedClassId && resolvedSectionId) {
+          try {
+            await updateStudentApi(numericId, {
+              admissionNumber: existingStudent.admissionNo || row.admissionNo || "",
+              rollNumber: row.rollNo || existingStudent.rollNo || "",
+              studentName: `${existingStudent.firstName || row.firstName || ""} ${existingStudent.lastName || row.lastName || ""}`.trim(),
+              dateOfBirth: existingStudent.dob || undefined,
+              gender: existingStudent.gender || undefined,
+              fatherName: existingStudent.fatherName || existingStudent.parentName || "",
+              fatherMobile: existingStudent.fatherPhone || existingStudent.parentPhone || existingStudent.phone || "",
+              motherName: existingStudent.motherName || "",
+              motherMobile: existingStudent.motherPhone || "",
+              email: existingStudent.email || undefined,
+              mobileNumber: existingStudent.phone || existingStudent.fatherPhone || "",
+              address: existingStudent.address || "",
+              branchId: resolvedBranchId,
+              academicYearId: targetYearId || (existingStudent as any).academicYearId,
+              classId: resolvedClassId,
+              sectionId: resolvedSectionId,
+              status: isHighestClass && isPromote ? "Completed" : "Active"
+            });
+          } catch (updateErr) {
+            console.error(`Failed to update student ID ${numericId}:`, updateErr);
+          }
+        }
+
+        // Add history records & update local state
+        const historyItem: PromotionHistoryItem = {
+          id: 'PROM-' + Math.floor(100000 + Math.random() * 900000),
+          academicYear: targetYear,
+          fromClass: row.currentClass,
+          toClass: row.newClass,
+          fromSection: row.currentSection,
+          toSection: cleanSection,
+          fromBranch: row.branch,
+          toBranch: row.branch,
+          date: today,
+          rollNo: row.rollNo,
+          overallPct: row.overallPct,
+          grade: row.grade,
+          finalResult: row.finalResult,
+          status: isPromote ? (isHighestClass ? 'Graduated' : 'Promoted') : 'Retained',
+          remarks: row.remarks
+        };
+
+        const updatedHistory = [...(existingStudent?.promotionHistory || []), historyItem];
+
         addAcademicHistoryRecord(row.id, {
-          id: `ACH-${row.id}-${targetYear}`,
+          id: `ACH-${row.id}-${currentYear}`,
           studentId: row.id,
           admissionNo: row.admissionNo,
-          academicYear: targetYear,
-          className: row.newClass,
-          section: cleanSection,
+          academicYear: currentYear,
+          className: row.currentClass,
+          section: row.currentSection,
           rollNo: row.rollNo,
           branch: row.branch,
-          status: 'Active',
-          promotionStatus: isPromote ? 'Enrolled' : 'Retained Enrollment',
-          remarks: `Enrolled for ${targetYear}`,
+          status: isPromote ? (isHighestClass ? 'Graduated' : 'Promoted') : 'Retained',
+          promotionStatus: isPromote ? 'Promoted' : 'Retained',
+          remarks: row.remarks,
           createdAt: today,
         });
+
+        if (!isHighestClass || !isPromote) {
+          addAcademicHistoryRecord(row.id, {
+            id: `ACH-${row.id}-${targetYear}`,
+            studentId: row.id,
+            admissionNo: row.admissionNo,
+            academicYear: targetYear,
+            className: row.newClass,
+            section: cleanSection,
+            rollNo: row.rollNo,
+            branch: row.branch,
+            status: 'Active',
+            promotionStatus: isPromote ? 'Enrolled' : 'Retained Enrollment',
+            remarks: `Enrolled for ${targetYear}`,
+            createdAt: today,
+          });
+        }
+
+        updateStudent(row.id, {
+          className: row.newClass,
+          section: cleanSection,
+          academicYear: targetYear,
+          status: isHighestClass && isPromote ? 'Completed' : 'Active',
+          promotionHistory: updatedHistory,
+          remarks: row.remarks
+        });
+
+        if (isPromote) promotedCount++;
+        else retainedCount++;
       }
 
-      updateStudent(row.id, {
-        className: row.newClass,
-        section: cleanSection,
-        status: isHighestClass && isPromote ? 'Completed' : 'Active',
-        promotionHistory: updatedHistory,
-        remarks: row.remarks
-      });
+      // 4. Freshly synchronize student records from backend
+      if (fetchStudents) {
+        await fetchStudents();
+      }
 
-      if (isPromote) promotedCount++;
-      else retainedCount++;
-    });
+      const remainingRows = promotionRows.filter(r => !rowsToProcess.some(p => p.id === r.id));
 
-    executePromotionApi({
-      currentAcademicYear: currentYear,
-      targetAcademicYear: targetYear,
-      currentClass: fromClass,
-      branch: branch,
-      policy: assignmentMethod,
-      promotions: rowsToProcess.map(r => ({
-        studentId: Number(r.id) || 0,
-        id: r.id,
-        admissionNo: r.admissionNo,
-        rollNo: r.rollNo,
-        currentClass: r.currentClass,
-        currentSection: r.currentSection,
-        promotionStatus: r.promotionStatus,
-        newClass: r.newClass,
-        newSection: r.newSection,
-        overallPct: r.overallPct,
-        grade: r.grade,
-        finalResult: r.finalResult,
-        remarks: r.remarks
-      }))
-    }).catch(() => {});
+      logActivity('Batch Student Promotion', `Executed promotion for ${fromClass} (${branch}) to ${targetYear}. Promoted: ${promotedCount}, Retained: ${retainedCount}`);
 
-    const remainingRows = promotionRows.filter(r => !rowsToProcess.some(p => p.id === r.id));
+      if (remainingRows.length > 0) {
+        addToast('success', 'Promotion Processed', `Promoted ${promotedCount} student(s) to ${targetYear}. ${remainingRows.length} student(s) remain in list for lateral promotion.`);
+        setPromotionRows(remainingRows);
+      } else {
+        addToast('success', 'Promotion Completed', `All ${promotedCount + retainedCount} student(s) promoted for Academic Year ${targetYear}.`);
+        setPromotionRows([]);
+        setIsResultsLoaded(false);
+      }
 
-    logActivity('Batch Student Promotion', `Executed promotion for ${fromClass} (${branch}) to ${targetYear}. Promoted: ${promotedCount}, Retained: ${retainedCount}`);
-
-    if (remainingRows.length > 0) {
-      addToast('success', 'Promotion Processed', `Promoted ${promotedCount} student(s) to ${targetYear}. ${remainingRows.length} student(s) remain in list for lateral promotion.`);
-      setPromotionRows(remainingRows);
-    } else {
-      addToast('success', 'Promotion Completed', `All ${promotedCount + retainedCount} student(s) promoted for Academic Year ${targetYear}.`);
-      setPromotionRows([]);
-      setIsResultsLoaded(false);
+      setSelectedStudentIds([]);
+      setBulkTargetSection('');
+      setBulkStatus('');
+    } catch (err: any) {
+      console.error('Promotion execution failed:', err);
+      addToast('error', 'Promotion Failed', err?.message || 'Failed to persist student promotion.');
+    } finally {
+      setIsPromoting(false);
     }
-
-    setSelectedStudentIds([]);
-    setBulkTargetSection('');
-    setBulkStatus('');
   };
 
   return (
@@ -1238,20 +1404,9 @@ export const StudentPromotionView: React.FC<StudentPromotionViewProps> = ({ onNa
 
           {/* Examination / Result Type */}
           <div>
-            <div className="flex items-center justify-between mb-1">
-              <label className="block text-[10px] font-black uppercase tracking-wider text-slate-400">
-                Examination <span className="text-rose-500 font-bold ml-0.5">*</span>
-              </label>
-              <button
-                type="button"
-                onClick={() => loadDynamicExaminations()}
-                title="Refresh examinations from Examination module"
-                className="text-[10px] text-sky-600 dark:text-sky-400 hover:text-sky-700 dark:hover:text-sky-300 flex items-center gap-1 font-bold cursor-pointer transition-colors"
-              >
-                <RefreshCw className={`w-2.5 h-2.5 ${isLoadingExams ? 'animate-spin' : ''}`} />
-                <span>Sync</span>
-              </button>
-            </div>
+            <label className="block text-[10px] font-black uppercase tracking-wider text-slate-400 mb-1">
+              Examination <span className="text-rose-500 font-bold ml-0.5">*</span>
+            </label>
             <select
               value={selectedExamId}
               disabled={!fromClass || (availableExaminations.length === 0 && !isLoadingExams)}
@@ -1544,9 +1699,18 @@ export const StudentPromotionView: React.FC<StudentPromotionViewProps> = ({ onNa
               {/* Main Execute Promote CTA Button placed on the far right side */}
               <button
                 onClick={handleCompletePromotion}
-                className="px-6 py-2 rounded-xl bg-brand-600 hover:bg-brand-500 text-white text-xs font-black shadow-md shadow-brand-500/20 flex items-center gap-2 transition-all active:scale-95 cursor-pointer shrink-0 ml-auto"
+                disabled={isPromoting || promotionRows.length === 0}
+                className="px-6 py-2 rounded-xl bg-brand-600 hover:bg-brand-500 disabled:opacity-50 text-white text-xs font-black shadow-md shadow-brand-500/20 flex items-center gap-2 transition-all active:scale-95 cursor-pointer shrink-0 ml-auto"
               >
-                <CheckCircle2 className="w-4 h-4" /> Promote
+                {isPromoting ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" /> Promoting...
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle2 className="w-4 h-4" /> Promote
+                  </>
+                )}
               </button>
             </div>
           </div>
