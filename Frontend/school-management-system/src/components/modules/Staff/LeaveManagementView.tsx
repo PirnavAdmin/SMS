@@ -651,7 +651,7 @@ export const LeaveManagementView: React.FC = () => {
   const [applyForm, setApplyForm] = useState({
     employeeId: '',
     leaveTypeId: '',
-    fromDate: new Date().toISOString().split('T')[0],
+    fromDate: '',
     toDate: '',
     isHalfDay: false,
     halfDayPeriod: 'First Half' as 'First Half' | 'Second Half',
@@ -706,7 +706,7 @@ export const LeaveManagementView: React.FC = () => {
     }
 
     const todayStr = new Date().toISOString().split('T')[0];
-    if (!editingApplication && applyForm.fromDate < todayStr) {
+    if (!editingApplication && applyForm.fromDate && applyForm.fromDate < todayStr) {
       addToast('error', 'Invalid Date', 'Leave cannot be requested for past dates.');
       return;
     }
@@ -806,7 +806,7 @@ export const LeaveManagementView: React.FC = () => {
     setApplyForm({
       employeeId: '',
       leaveTypeId: '',
-      fromDate: new Date().toISOString().split('T')[0],
+      fromDate: '',
       toDate: '',
       isHalfDay: false,
       halfDayPeriod: 'First Half',
@@ -1480,7 +1480,7 @@ export const LeaveManagementView: React.FC = () => {
               </div>
 
               <div className="flex items-center gap-2 w-full sm:w-auto">
-                <span className="text-xs text-slate-500 font-bold whitespace-nowrap">Filter By Category:</span>
+                {/* <span className="text-xs text-slate-500 font-bold whitespace-nowrap">Filter By Category:</span> */}
                 <div className="relative w-full sm:w-48">
                   <select
                     value={balanceCategoryFilter}

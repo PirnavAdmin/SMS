@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { installGlobalInputValidation } from "./utils/validation";
 import { ThemeProvider } from "./context/ThemeContext";
 import { ToastProvider } from "./context/ToastContext";
@@ -92,7 +92,7 @@ const MainLayout: React.FC = () => {
     }
   });
 
-  const setActiveModule = (mod: string | ((prev: string) => string)) => {
+  const setActiveModule = useCallback((mod: string | ((prev: string) => string)) => {
     setActiveModuleState((prev) => {
       const next = typeof mod === "function" ? mod(prev) : mod;
       try {
@@ -100,7 +100,7 @@ const MainLayout: React.FC = () => {
       } catch {}
       return next;
     });
-  };
+  }, []);
   const [showLogin, setShowLogin] = useState(false);
   const [selectedPortalRole, setSelectedPortalRole] = useState<string | undefined>(undefined);
 

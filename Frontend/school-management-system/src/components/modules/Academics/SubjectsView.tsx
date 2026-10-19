@@ -228,12 +228,11 @@ export const SubjectsView: React.FC = () => {
   // Subject Form Handlers
   const handleOpenAdd = () => {
     setEditingSubject(null);
-    const activeDepts = departments.filter(d => d.status === 'Active');
     setFormData({
       subjectId: '',
       name: '',
       code: '',
-      department: activeDepts[0]?.departmentName || 'Mathematics'
+      department: ''
     });
     setIsFormOpen(true);
   };
@@ -244,7 +243,7 @@ export const SubjectsView: React.FC = () => {
       subjectId: sub.subjectId,
       name: sub.name,
       code: sub.code || sub.subjectId,
-      department: sub.department || 'Mathematics'
+      department: sub.department || ''
     });
     setIsFormOpen(true);
   };
@@ -1081,7 +1080,7 @@ export const SubjectsView: React.FC = () => {
                   onChange={e => setFormData({ ...formData, department: e.target.value })}
                   className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-[#1e293b] border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white font-bold"
                 >
-                  <option value="" disabled>Select Department</option>
+                  <option value="">Select Department</option>
                   {departments
                     .filter(d => {
                       const isNonTeaching = d.category === 'Non-Teaching' || (!d.category && (d.departmentName.toLowerCase().includes('transport') || d.departmentName.toLowerCase().includes('admin') || d.departmentName.toLowerCase().includes('account')));

@@ -151,8 +151,8 @@ export const DriverLeaveView: React.FC = () => {
   // Modal State
   const [isApplyModalOpen, setIsApplyModalOpen] = useState(false);
   const [leaveTypeId, setLeaveTypeId] = useState<string>('');
-  const [fromDate, setFromDate] = useState(todayStr);
-  const [toDate, setToDate] = useState(todayStr);
+  const [fromDate, setFromDate] = useState('');
+  const [toDate, setToDate] = useState('');
   const [reason, setReason] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -164,16 +164,20 @@ export const DriverLeaveView: React.FC = () => {
 
   // Calculate days
   const durationDays = useMemo(() => {
-    if (!fromDate || !toDate) return 1;
+    if (!fromDate || !toDate) return 0;
     const start = new Date(fromDate);
     const end = new Date(toDate);
-    if (end < start) return 1;
+    if (end < start) return 0;
     const diffTime = Math.abs(end.getTime() - start.getTime());
     return Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
   }, [fromDate, toDate]);
 
   const handleApplySubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!fromDate || !toDate) {
+      addToast('error', 'Dates Required', 'Please select both from and to dates.');
+      return;
+    }
     if (!reason.trim()) {
       addToast('error', 'Reason Required', 'Please enter a reason for taking leave.');
       return;
@@ -224,8 +228,8 @@ export const DriverLeaveView: React.FC = () => {
       addToast('success', 'Leave Submitted', `Applied for ${durationDays} day(s) of ${selectedType.name}. Synced with Admin approval queue.`);
       setIsApplyModalOpen(false);
       setReason('');
-      setFromDate(todayStr);
-      setToDate(todayStr);
+      setFromDate('');
+      setToDate('');
     } catch (err) {
       console.error(err);
       addToast('error', 'Submission Failed', 'Could not submit leave application.');

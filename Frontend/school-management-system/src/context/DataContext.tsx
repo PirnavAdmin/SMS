@@ -6482,11 +6482,11 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         || (branches.length > 0 ? Number(branches[0].id || branches[0].branchId) : 1);
 
       const matchedYear = (academicYears || []).find(
-        (y: any) => (y.year || y.academicYear) === (newStudent.academicYear || selectedAcademicYear)
+        (y: any) => (y.year || y.academicYear) === ((newStudent as any)?.academicYear || selectedAcademicYear)
       );
       const resolvedYearId = Number((newStudent as any)?.academicYearId)
-        || (matchedYear ? Number(String(matchedYear.id || matchedYear.academicYearId).replace(/\D/g, "")) : undefined)
-        || (academicYears.length > 0 ? Number(String(academicYears[0].id || academicYears[0].academicYearId).replace(/\D/g, "")) : 1);
+        || (matchedYear ? Number(String(matchedYear.id || (matchedYear as any).academicYearId).replace(/\D/g, "")) : undefined)
+        || (academicYears.length > 0 ? Number(String(academicYears[0].id || (academicYears[0] as any).academicYearId).replace(/\D/g, "")) : 1);
 
       createStudentApi({
         admissionNumber: newStudent.admissionNo || "",
@@ -6582,11 +6582,11 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       }
 
       const matchedYear = (academicYears || []).find(
-        (y: any) => (y.year || y.academicYear) === fullStudent.academicYear,
+        (y: any) => (y.year || y.academicYear) === (fullStudent as any)?.academicYear,
       );
       const targetAcademicYearId = matchedYear
-        ? Number(String(matchedYear.id || matchedYear.academicYearId).replace(/\D/g, ""))
-        : Number((oldStudent as any)?.academicYearId) || Number((fullStudent as any)?.academicYearId) || (academicYears.length > 0 ? Number(String(academicYears[0].id || academicYears[0].academicYearId).replace(/\D/g, "")) : 1);
+        ? Number(String(matchedYear.id || (matchedYear as any).academicYearId).replace(/\D/g, ""))
+        : Number((oldStudent as any)?.academicYearId) || Number((fullStudent as any)?.academicYearId) || (academicYears.length > 0 ? Number(String(academicYears[0].id || (academicYears[0] as any).academicYearId).replace(/\D/g, "")) : 1);
 
       const studentBranchName = (fullStudent.branch || (oldStudent as any)?.branch || selectedBranch || "").trim().toLowerCase();
       const matchedBranch = (branches || []).find((b: any) =>
@@ -6696,8 +6696,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       (y: any) => (y.year || y.academicYear) === targetYear,
     );
     const resolvedAcademicYearId = matchedYear
-      ? Number(String(matchedYear.id || matchedYear.academicYearId).replace(/\D/g, ""))
-      : Number((targetStudent as any)?.academicYearId) || (academicYears.length > 0 ? Number(String(academicYears[0].id || academicYears[0].academicYearId).replace(/\D/g, "")) : 1);
+      ? Number(String(matchedYear.id || (matchedYear as any).academicYearId).replace(/\D/g, ""))
+      : Number((targetStudent as any)?.academicYearId) || (academicYears.length > 0 ? Number(String(academicYears[0].id || (academicYears[0] as any).academicYearId).replace(/\D/g, "")) : 1);
 
     const studentBranchName = (targetBranch || targetStudent?.branch || selectedBranch || "").trim().toLowerCase();
     const matchedBranch = (branches || []).find((b: any) =>
