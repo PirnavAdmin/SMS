@@ -75,9 +75,15 @@ export const StaffLetterModal: React.FC<StaffLetterModalProps> = ({
 
   useEffect(() => {
     if (staff) {
-      setCurrentStaff(staff);
-    } else if (effectiveStaffList.length > 0 && !currentStaff?.id) {
-      setCurrentStaff(effectiveStaffList[0]);
+      if (staff.id !== currentStaff?.id || staff.empId !== currentStaff?.empId) {
+        setCurrentStaff(staff);
+      }
+    } else if (effectiveStaffList.length > 0) {
+      const first = effectiveStaffList[0];
+      const hasCurrent = Boolean(currentStaff?.id || currentStaff?.empId || (currentStaff as any)?._id || currentStaff?.name);
+      if (!hasCurrent && first) {
+        setCurrentStaff(first);
+      }
     }
   }, [staff, effectiveStaffList]);
 

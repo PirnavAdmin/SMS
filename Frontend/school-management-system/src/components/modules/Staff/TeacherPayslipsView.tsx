@@ -22,6 +22,7 @@ import { Badge } from '../../common/Badge';
 import { formatCurrency } from '../../../utils/currency';
 import { Payslip } from '../../../types';
 import { resolveMediaUrl } from '../../../utils/mediaUtils';
+import { numberToWords } from '../../../utils/numberToWords';
 
 export const TeacherPayslipsView: React.FC = () => {
   const { user } = useAuth();
@@ -287,21 +288,6 @@ export const TeacherPayslipsView: React.FC = () => {
     const printWin = window.open('', '_blank');
     if (!printWin) return;
 
-    const earnings = p.earnings || [
-      { name: 'Basic Pay', amount: p.basicSalary },
-      { name: 'House Rent Allowance (HRA)', amount: p.hra },
-      { name: 'Dearness Allowance (DA)', amount: p.da },
-    ];
-
-    const deductions = p.deductions || [
-      { name: 'Provident Fund (PF)', amount: p.pfDeduction },
-      { name: 'Professional Tax (PT)', amount: p.otherDeductions || 200 },
-      ...(p.lopDeduction ? [{ name: 'Loss of Pay (LOP)', amount: p.lopDeduction }] : [])
-    ];
-
-    const totalEarnings = earnings.reduce((sum, e) => sum + e.amount, 0);
-    const totalDeductions = deductions.reduce((sum, d) => sum + d.amount, 0);
-
     const basicVal = Number(p.basicSalary) || 35000;
     const hraVal = Number(p.hra) || 12000;
     const daVal = Number(p.da) || 5000;
@@ -312,35 +298,65 @@ export const TeacherPayslipsView: React.FC = () => {
     const ptVal = Number(p.otherDeductions) || 200;
     const pfVal = Number(p.pfDeduction) || 2400;
     const esiVal = Number((p as any).esiDeduction) || 0;
-    const totalDeductionsVal = ptVal + pfVal + esiVal + (Number(p.lopDeduction) || 0);
+    const lopVal = Number(p.lopDeduction) || 0;
+    const totalDeductionsVal = ptVal + pfVal + esiVal + lopVal;
     const netTakeHomeVal = grossVal - totalDeductionsVal;
-    const employerPfVal = pfVal;
-    const employerEsiVal = esiVal;
-    const ctcVal = grossVal + employerPfVal + employerEsiVal;
+
+    const formatNum = (num: number) => isNaN(num) ? '0.00' : num.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const inWords = numberToWords(netTakeHomeVal);
+
+    const earningsRows = [
+      { name: 'Basic Pay', amount: basicVal },
+      { name: 'House Rent Allowance (HRA)', amount: hraVal },
+      { name: 'Conveyance Allowance', amount: conveyanceVal },
+      { name: 'Medical Allowance', amount: medicalVal },
+      { name: 'Other Allowances', amount: othAllowVal },
+    ].filter(e => e.amount > 0);
+
+    const deductionsRows = [
+      { name: 'Provident Fund (PF)', amount: pfVal },
+      { name: 'Professional Tax (PT)', amount: ptVal },
+      ...(esiVal > 0 ? [{ name: 'ESI Deduction', amount: esiVal }] : []),
+      ...(lopVal > 0 ? [{ name: 'Loss of Pay (LOP)', amount: lopVal }] : []),
+    ].filter(d => d.amount > 0);
+
+    const maxRows = Math.max(earningsRows.length, deductionsRows.length, 1);
+
+    const rowsHtml = Array.from({ length: maxRows }).map((_, i) => {
+      const e = earningsRows[i];
+      const d = deductionsRows[i];
+      return `
+        <tr>
+          <td style="padding: 5px 8px; border-right: 1px solid #cbd5e1; border-bottom: 1px solid #e2e8f0; font-weight: 500;">${e ? e.name : ''}</td>
+          <td style="padding: 5px 8px; border-right: 2px solid #94a3b8; border-bottom: 1px solid #e2e8f0; text-align: right; font-family: 'Consolas', monospace; font-weight: 600;">${e ? `₹${formatNum(e.amount)}` : ''}</td>
+          <td style="padding: 5px 8px; border-right: 1px solid #cbd5e1; border-bottom: 1px solid #e2e8f0; font-weight: 500;">${d ? d.name : ''}</td>
+          <td style="padding: 5px 8px; border-bottom: 1px solid #e2e8f0; text-align: right; font-family: 'Consolas', monospace; font-weight: 600; color: ${d ? '#b91c1c' : 'inherit'};">${d ? `₹${formatNum(d.amount)}` : ''}</td>
+        </tr>
+      `;
+    }).join('');
 
     printWin.document.write(`
       <!DOCTYPE html>
       <html>
         <head>
-          <title>Payslip - ${p.month} - ${p.employeeName}</title>
+          <title>Salary Payslip - ${p.month} - ${p.employeeName}</title>
           <style>
             @page {
               size: A4 portrait;
-              margin: 5mm;
+              margin: 8mm;
             }
             @media print {
               html, body {
                 margin: 0 !important;
-                padding: 4mm !important;
+                padding: 0 !important;
                 height: auto !important;
-                max-height: 100vh !important;
-                overflow: hidden !important;
                 -webkit-print-color-adjust: exact !important;
                 print-color-adjust: exact !important;
               }
               .payslip-sheet {
-                max-height: 270mm !important;
-                overflow: hidden !important;
+                box-shadow: none !important;
+                border: 1.5px solid #0f172a !important;
+                max-height: 275mm !important;
                 page-break-after: avoid !important;
                 page-break-before: avoid !important;
                 page-break-inside: avoid !important;
@@ -348,130 +364,310 @@ export const TeacherPayslipsView: React.FC = () => {
               .no-print { display: none !important; }
             }
             * { box-sizing: border-box; }
-            body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 12px 16px; color: #0f172a; line-height: 1.2; font-size: 10px; }
-            .payslip-sheet { max-height: 270mm; overflow: hidden; }
-            .header-banner { text-align: center; border-bottom: 2px double #0284c7; padding-bottom: 4px; margin-bottom: 8px; }
-            .school-title { font-size: 16px; font-weight: 900; color: #0369a1; letter-spacing: 0.5px; }
-            .sub-logo { font-size: 10px; color: #64748b; font-weight: 700; text-transform: uppercase; margin-top: 1px; }
-            .doc-heading { font-size: 11px; font-weight: 800; background: #f0f9ff; display: inline-block; padding: 2px 10px; border-radius: 4px; border: 1px solid #bae6fd; color: #0369a1; margin-top: 4px; }
-            .emp-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 2px 10px; margin-bottom: 8px; font-size: 10px; background: #f8fafc; padding: 6px 10px; border-radius: 6px; border: 1px solid #e2e8f0; }
-            .emp-cell { display: flex; justify-content: space-between; border-bottom: 1px dashed #cbd5e1; padding-bottom: 1px; }
-            .emp-label { color: #64748b; font-weight: 600; }
-            .emp-val { font-weight: 700; color: #0f172a; }
-            table { width: 100%; border-collapse: collapse; font-size: 10px; margin-bottom: 8px; }
-            th { background: #f1f5f9; padding: 4px 6px; text-align: left; font-weight: 700; color: #334155; border-bottom: 1.5px solid #cbd5e1; text-transform: uppercase; font-size: 9px; }
-            td { padding: 3px 6px; border-bottom: 1px solid #e2e8f0; }
-            .t-right { text-align: right; }
-            .tot-row { font-weight: 800; background: #f8fafc; font-size: 10px; }
-            .net-box { background: #ecfdf5; border: 1.5px solid #a7f3d0; padding: 6px; border-radius: 6px; text-align: center; margin-bottom: 10px; }
-            .net-label { font-size: 9px; font-weight: 800; color: #047857; text-transform: uppercase; letter-spacing: 0.5px; }
-            .net-val { font-size: 17px; font-weight: 900; color: #065f46; margin: 1px 0; }
-            .sign-grid { display: flex; justify-content: space-between; margin-top: 16px; font-size: 10px; font-weight: 700; color: #475569; }
+            body {
+              font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+              color: #0f172a;
+              background: #f8fafc;
+              margin: 0;
+              padding: 12px;
+              font-size: 11px;
+              line-height: 1.35;
+            }
+            .payslip-sheet {
+              max-width: 210mm;
+              margin: 0 auto;
+              background: #ffffff;
+              border: 1.5px solid #0f172a;
+              padding: 20px 24px;
+              box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            }
+            .school-header {
+              display: flex;
+              align-items: center;
+              justify-content: space-between;
+              border-bottom: 2px solid #0f172a;
+              padding-bottom: 12px;
+              margin-bottom: 12px;
+            }
+            .school-info {
+              flex: 1;
+              text-align: center;
+              padding: 0 10px;
+            }
+            .school-name {
+              font-size: 19px;
+              font-weight: 900;
+              color: #0f172a;
+              letter-spacing: 0.5px;
+              text-transform: uppercase;
+              margin-bottom: 2px;
+            }
+            .school-sub {
+              font-size: 10px;
+              color: #475569;
+              font-weight: 500;
+              line-height: 1.3;
+            }
+            .logo-img {
+              max-height: 52px;
+              max-width: 100px;
+              object-fit: contain;
+            }
+            .doc-title-bar {
+              background: #0f172a;
+              color: #ffffff;
+              display: flex;
+              align-items: center;
+              justify-content: space-between;
+              padding: 5px 12px;
+              font-size: 11px;
+              font-weight: 800;
+              letter-spacing: 0.8px;
+              text-transform: uppercase;
+              margin-bottom: 12px;
+            }
+            .emp-table {
+              width: 100%;
+              border-collapse: collapse;
+              margin-bottom: 12px;
+              border: 1px solid #cbd5e1;
+            }
+            .emp-table td {
+              padding: 4px 8px;
+              font-size: 10px;
+              border: 1px solid #e2e8f0;
+            }
+            .emp-table .lbl {
+              background: #f8fafc;
+              color: #475569;
+              font-weight: 700;
+              width: 18%;
+              text-transform: uppercase;
+              font-size: 9.5px;
+              letter-spacing: 0.3px;
+            }
+            .emp-table .val {
+              color: #0f172a;
+              font-weight: 600;
+              width: 32%;
+            }
+            .salary-table {
+              width: 100%;
+              border-collapse: collapse;
+              margin-bottom: 12px;
+              border: 1.5px solid #0f172a;
+            }
+            .salary-table th {
+              padding: 5px 8px;
+              font-size: 10px;
+              font-weight: 800;
+              text-transform: uppercase;
+              letter-spacing: 0.5px;
+              border: 1px solid #cbd5e1;
+            }
+            .salary-table th.main-hdr {
+              background: #0f172a;
+              color: #ffffff;
+              font-size: 10.5px;
+              text-align: left;
+            }
+            .salary-table th.sub-hdr {
+              background: #f1f5f9;
+              color: #334155;
+            }
+            .salary-table td {
+              padding: 4.5px 8px;
+              font-size: 10.5px;
+              border: 1px solid #e2e8f0;
+              color: #1e293b;
+            }
+            .salary-table td.amount {
+              text-align: right;
+              font-family: 'Consolas', 'Courier New', monospace;
+              font-weight: 600;
+            }
+            .salary-table .divider-col {
+              border-right: 2px solid #94a3b8 !important;
+            }
+            .salary-table .tot-row td {
+              background: #f1f5f9;
+              font-weight: 800;
+              color: #0f172a;
+              border-top: 1.5px solid #0f172a;
+              border-bottom: 1.5px solid #0f172a;
+            }
+            .net-summary-box {
+              border: 1.5px solid #0f172a;
+              background: #f8fafc;
+              padding: 10px 14px;
+              margin-bottom: 14px;
+              border-radius: 2px;
+            }
+            .net-main {
+              display: flex;
+              justify-content: space-between;
+              align-items: center;
+              border-bottom: 1px dashed #cbd5e1;
+              padding-bottom: 6px;
+              margin-bottom: 6px;
+            }
+            .net-title {
+              font-size: 11px;
+              font-weight: 900;
+              color: #0f172a;
+              text-transform: uppercase;
+              letter-spacing: 0.5px;
+            }
+            .net-amount {
+              font-size: 19px;
+              font-weight: 900;
+              color: #0f172a;
+              font-family: 'Consolas', 'Courier New', monospace;
+            }
+            .net-words {
+              font-size: 10px;
+              color: #334155;
+              font-weight: 600;
+            }
+            .net-words strong {
+              color: #0f172a;
+            }
+            .net-meta {
+              margin-top: 4px;
+              font-size: 9.5px;
+              color: #64748b;
+            }
+            .signature-block {
+              display: flex;
+              justify-content: space-between;
+              align-items: flex-end;
+              margin-top: 36px;
+              margin-bottom: 12px;
+              padding: 0 10px;
+            }
+            .sign-col {
+              text-align: center;
+              width: 210px;
+            }
+            .sign-line {
+              border-top: 1px solid #475569;
+              margin-bottom: 4px;
+            }
+            .sign-label {
+              font-size: 9.5px;
+              font-weight: 700;
+              color: #334155;
+              text-transform: uppercase;
+            }
+            .footer-note {
+              text-align: center;
+              font-size: 9px;
+              color: #64748b;
+              border-top: 1px solid #e2e8f0;
+              padding-top: 6px;
+              margin-top: 8px;
+              font-style: italic;
+            }
           </style>
         </head>
         <body>
           <div class="payslip-sheet">
-            <div class="header-banner">
-              ${schoolProfile?.logoUrl ? `<img src="${resolveMediaUrl(schoolProfile.logoUrl)}" style="max-height: 48px; margin-bottom: 4px; object-fit: contain;" />` : ''}
-              <div class="school-title">${(schoolProfile?.name || schoolProfile?.schoolName || 'PIRNAV EDUCATIONAL INSTITUTION').toUpperCase()}</div>
-              <div class="sub-logo">Official Monthly Salary Slip</div>
-              <div class="doc-heading">SALARY PAYSLIP - ${p.month.toUpperCase()}</div>
+            <div class="school-header">
+              ${schoolProfile?.logoUrl ? `<img src="${resolveMediaUrl(schoolProfile.logoUrl)}" class="logo-img" alt="Logo" />` : '<div style="width: 70px;"></div>'}
+              <div class="school-info">
+                <div class="school-name">${(schoolProfile?.name || schoolProfile?.schoolName || 'PIRNAV EDUCATIONAL INSTITUTIONS').toUpperCase()}</div>
+                <div class="school-sub">
+                  ${schoolProfile?.address || 'Madhapur Campus, Hyderabad, Telangana - 500081'}<br/>
+                  Affiliated to CBSE, New Delhi | Affiliation No. 3630284 | Phone: ${schoolProfile?.phone || '+91 40 2345 6789'}
+                </div>
+              </div>
+              <div style="width: 70px; text-align: right;">
+                <span style="font-size: 9px; font-weight: 800; color: #16a34a; background: #dcfce7; border: 1px solid #86efac; padding: 2px 6px; border-radius: 3px;">PAID</span>
+              </div>
             </div>
 
-            <div class="emp-grid">
-              <div class="emp-cell"><span class="emp-label">Employee Name:</span><span class="emp-val">${p.employeeName}</span></div>
-              <div class="emp-cell"><span class="emp-label">Employee ID:</span><span class="emp-val">${p.empId}</span></div>
-              <div class="emp-cell"><span class="emp-label">Department:</span><span class="emp-val">${p.department || 'Academics'}</span></div>
-              <div class="emp-cell"><span class="emp-label">Designation:</span><span class="emp-val">${p.designation || 'Teacher'}</span></div>
-              <div class="emp-cell"><span class="emp-label">Branch/Campus:</span><span class="emp-val">${p.branch || '—'}</span></div>
-              <div class="emp-cell"><span class="emp-label">Disbursed Date:</span><span class="emp-val">${p.disbursedDate}</span></div>
-              <div class="emp-cell"><span class="emp-label">Bank Account:</span><span class="emp-val">${p.bankAccount}</span></div>
-              <div class="emp-cell"><span class="emp-label">Payment Status:</span><span class="emp-val" style="color: #16a34a;">CONFIRMED (PAID)</span></div>
+            <div class="doc-title-bar">
+              <span>SALARY PAYSLIP FOR THE MONTH OF ${p.month.toUpperCase()}</span>
+              <span style="font-size: 9.5px; font-weight: 600; opacity: 0.9;">Ref: PS-${p.empId || 'EMP'}-${p.month.replace(/[^a-zA-Z0-9]/g, '').toUpperCase()}</span>
             </div>
 
-            <div style="text-align: center; font-weight: 800; font-size: 11px; text-decoration: underline; margin-bottom: 6px; letter-spacing: 0.5px;">
-              MONTHLY SALARY BREAKDOWN STATEMENT
-            </div>
+            <table class="emp-table">
+              <tr>
+                <td class="lbl">Employee ID</td>
+                <td class="val" style="font-family: monospace; font-weight: 700;">${p.empId}</td>
+                <td class="lbl">Employee Name</td>
+                <td class="val">${p.employeeName}</td>
+              </tr>
+              <tr>
+                <td class="lbl">Designation</td>
+                <td class="val">${p.designation || 'Teacher'}</td>
+                <td class="lbl">Department</td>
+                <td class="val">${p.department || 'Academics'}</td>
+              </tr>
+              <tr>
+                <td class="lbl">Campus / Branch</td>
+                <td class="val">${p.branch || 'Main Campus'}</td>
+                <td class="lbl">Disbursed Date</td>
+                <td class="val">${p.disbursedDate || new Date().toISOString().split('T')[0]}</td>
+              </tr>
+              <tr>
+                <td class="lbl">Bank Name &amp; A/C</td>
+                <td class="val" style="font-family: monospace;">${p.bankAccount ? `Bank A/C: ${p.bankAccount}` : 'Direct Bank Deposit'}</td>
+                <td class="lbl">Payment Status</td>
+                <td class="val" style="color: #16a34a; font-weight: 700;">CONFIRMED (PAID)</td>
+              </tr>
+            </table>
 
-            <table style="width: 100%; border-collapse: collapse; border: 1.5px solid #15803d; font-size: 10px; margin-bottom: 10px;">
+            <table class="salary-table">
               <thead>
-                <tr style="background-color: #dcfce7; color: #14532d; font-weight: 800; border-bottom: 1.5px solid #15803d;">
-                  <th style="padding: 4px 6px; border-right: 1px solid #86efac; width: 50px; text-align: center;">S. No.</th>
-                  <th style="padding: 4px 6px; border-right: 1px solid #86efac; text-align: left;">Particulars / Component</th>
-                  <th style="padding: 4px 6px; text-align: right;">Monthly Amount (₹)</th>
+                <tr>
+                  <th class="main-hdr divider-col" colspan="2">EARNINGS</th>
+                  <th class="main-hdr" colspan="2">DEDUCTIONS</th>
+                </tr>
+                <tr>
+                  <th class="sub-hdr" style="text-align: left; width: 33%;">Particulars / Component</th>
+                  <th class="sub-hdr divider-col" style="text-align: right; width: 17%;">Amount (₹)</th>
+                  <th class="sub-hdr" style="text-align: left; width: 33%;">Particulars / Component</th>
+                  <th class="sub-hdr" style="text-align: right; width: 17%;">Amount (₹)</th>
                 </tr>
               </thead>
               <tbody>
-                <tr style="font-weight: 800; background: #f1f5f9;">
-                  <td style="padding: 3px 6px; border-right: 1px solid #e2e8f0; border-bottom: 1px solid #e2e8f0; text-align: center;">A</td>
-                  <td style="padding: 3px 6px; border-bottom: 1px solid #e2e8f0;" colspan="2">EARNINGS</td>
-                </tr>
-                <tr>
-                  <td style="padding: 3px 6px; border-right: 1px solid #e2e8f0; border-bottom: 1px solid #e2e8f0; text-align: center; background: #f8fafc;">1</td>
-                  <td style="padding: 3px 6px; border-right: 1px solid #e2e8f0; border-bottom: 1px solid #e2e8f0;">Basic Pay</td>
-                  <td style="padding: 3px 6px; border-bottom: 1px solid #e2e8f0; text-align: right; font-family: monospace;">₹${basicVal.toFixed(2)}</td>
-                </tr>
-                <tr>
-                  <td style="padding: 3px 6px; border-right: 1px solid #e2e8f0; border-bottom: 1px solid #e2e8f0; text-align: center; background: #f8fafc;">2</td>
-                  <td style="padding: 3px 6px; border-right: 1px solid #e2e8f0; border-bottom: 1px solid #e2e8f0;">House Rent Allowance (HRA)</td>
-                  <td style="padding: 3px 6px; border-bottom: 1px solid #e2e8f0; text-align: right; font-family: monospace;">₹${hraVal.toFixed(2)}</td>
-                </tr>
-                <tr>
-                  <td style="padding: 3px 6px; border-right: 1px solid #e2e8f0; border-bottom: 1px solid #e2e8f0; text-align: center; background: #f8fafc;">3</td>
-                  <td style="padding: 3px 6px; border-right: 1px solid #e2e8f0; border-bottom: 1px solid #e2e8f0;">Conveyance Allowance</td>
-                  <td style="padding: 3px 6px; border-bottom: 1px solid #e2e8f0; text-align: right; font-family: monospace;">₹${conveyanceVal.toFixed(2)}</td>
-                </tr>
-                <tr>
-                  <td style="padding: 3px 6px; border-right: 1px solid #e2e8f0; border-bottom: 1px solid #e2e8f0; text-align: center; background: #f8fafc;">4</td>
-                  <td style="padding: 3px 6px; border-right: 1px solid #e2e8f0; border-bottom: 1px solid #e2e8f0;">Medical Allowance</td>
-                  <td style="padding: 3px 6px; border-bottom: 1px solid #e2e8f0; text-align: right; font-family: monospace;">₹${medicalVal.toFixed(2)}</td>
-                </tr>
-                <tr>
-                  <td style="padding: 3px 6px; border-right: 1px solid #e2e8f0; border-bottom: 1px solid #e2e8f0; text-align: center; background: #f8fafc;">5</td>
-                  <td style="padding: 3px 6px; border-right: 1px solid #e2e8f0; border-bottom: 1px solid #e2e8f0;">Other Allowances</td>
-                  <td style="padding: 3px 6px; border-bottom: 1px solid #e2e8f0; text-align: right; font-family: monospace;">₹${othAllowVal.toFixed(2)}</td>
-                </tr>
-                <tr style="background-color: #dcfce7; font-weight: 800; color: #14532d; border-top: 1.5px solid #15803d; border-bottom: 1.5px solid #15803d;">
-                  <td style="padding: 3px 6px; border-right: 1px solid #86efac; text-align: center;"></td>
-                  <td style="padding: 3px 6px; border-right: 1px solid #86efac;">GROSS EARNINGS</td>
-                  <td style="padding: 3px 6px; text-align: right; font-family: monospace;">₹${grossVal.toFixed(2)}</td>
-                </tr>
-                <tr style="font-weight: 800; background: #f1f5f9; border-top: 1.5px solid #cbd5e1;">
-                  <td style="padding: 3px 6px; border-right: 1px solid #e2e8f0; border-bottom: 1px solid #e2e8f0; text-align: center;">B</td>
-                  <td style="padding: 3px 6px; border-bottom: 1px solid #e2e8f0;" colspan="2">DEDUCTIONS</td>
-                </tr>
-                <tr>
-                  <td style="padding: 3px 6px; border-right: 1px solid #e2e8f0; border-bottom: 1px solid #e2e8f0; text-align: center; background: #f8fafc;">1</td>
-                  <td style="padding: 3px 6px; border-right: 1px solid #e2e8f0; border-bottom: 1px solid #e2e8f0;">Provident Fund (PF)</td>
-                  <td style="padding: 3px 6px; border-bottom: 1px solid #e2e8f0; text-align: right; font-family: monospace; color: #b91c1c;">-₹${pfVal.toFixed(2)}</td>
-                </tr>
-                <tr>
-                  <td style="padding: 3px 6px; border-right: 1px solid #e2e8f0; border-bottom: 1px solid #e2e8f0; text-align: center; background: #f8fafc;">2</td>
-                  <td style="padding: 3px 6px; border-right: 1px solid #e2e8f0; border-bottom: 1px solid #e2e8f0;">Professional Tax (PT)</td>
-                  <td style="padding: 3px 6px; border-bottom: 1px solid #e2e8f0; text-align: right; font-family: monospace; color: #b91c1c;">-₹${ptVal.toFixed(2)}</td>
-                </tr>
-                <tr style="background-color: #ffe4e6; font-weight: 800; color: #9f1239; border-top: 1.5px solid #fda4af; border-bottom: 1.5px solid #fda4af;">
-                  <td style="padding: 3px 6px; border-right: 1px solid #fecdd3; text-align: center;"></td>
-                  <td style="padding: 3px 6px; border-right: 1px solid #fecdd3;">TOTAL DEDUCTIONS</td>
-                  <td style="padding: 3px 6px; text-align: right; font-family: monospace;">-₹${totalDeductionsVal.toFixed(2)}</td>
-                </tr>
-                <tr style="background-color: #bbf7d0; font-weight: 900; color: #14532d; border-top: 2px solid #15803d; font-size: 11px;">
-                  <td style="padding: 4px 6px; border-right: 1px solid #86efac; text-align: center;">C</td>
-                  <td style="padding: 4px 6px; border-right: 1px solid #86efac;">NET TAKE-HOME SALARY (A - B)</td>
-                  <td style="padding: 4px 6px; text-align: right; font-family: monospace;">₹${netTakeHomeVal.toFixed(2)}</td>
+                ${rowsHtml}
+                <tr class="tot-row">
+                  <td><strong>TOTAL GROSS EARNINGS (A)</strong></td>
+                  <td class="amount divider-col"><strong>₹${formatNum(grossVal)}</strong></td>
+                  <td><strong>TOTAL DEDUCTIONS (B)</strong></td>
+                  <td class="amount" style="color: #b91c1c;"><strong>₹${formatNum(totalDeductionsVal)}</strong></td>
                 </tr>
               </tbody>
             </table>
 
-            <div class="net-box">
-              <div class="net-label">NET TAKE-HOME SALARY DISBURSED</div>
-              <div class="net-val">₹${p.netSalary.toLocaleString()}</div>
-              <div style="font-size: 10px; color: #047857; font-weight: 600;">(Credited directly to Bank Account ${p.bankAccount})</div>
+            <div class="net-summary-box">
+              <div class="net-main">
+                <div>
+                  <div class="net-title">NET TAKE-HOME SALARY PAYABLE (A - B)</div>
+                  <div class="net-meta">Payment Mode: Direct Bank Transfer (NEFT/RTGS) &bull; Credit Account: ${p.bankAccount}</div>
+                </div>
+                <div class="net-amount">₹${formatNum(netTakeHomeVal)}</div>
+              </div>
+              <div class="net-words">
+                Amount in Words: <strong>Rupees ${inWords}</strong>
+              </div>
             </div>
 
-            <div class="sign-grid">
-              <div>__________________________________<br/>Employee Signature</div>
-              <div>__________________________________<br/>Authorized Accounts / HR Officer</div>
+            <div class="signature-block">
+              <div class="sign-col">
+                <div class="sign-line"></div>
+                <div class="sign-label">Employee Signature</div>
+              </div>
+              <div class="sign-col">
+                <div class="sign-line"></div>
+                <div class="sign-label">Authorised Signatory / Accounts</div>
+              </div>
+            </div>
+
+            <div class="footer-note">
+              This is a computer-generated official payslip issued by ${(schoolProfile?.name || schoolProfile?.schoolName || 'Pirnav Educational Institutions')}. Does not require an ink signature.
             </div>
           </div>
 
@@ -686,72 +882,83 @@ export const TeacherPayslipsView: React.FC = () => {
 
       {/* VIEW PAYSLIP MODAL PREVIEW */}
       {viewingPayslip && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm animate-in fade-in">
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-2xl w-full p-6 shadow-2xl space-y-4 overflow-y-auto max-h-[90vh] [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm animate-in fade-in">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-4xl w-full p-6 sm:p-7 shadow-2xl space-y-4 overflow-y-auto max-h-[92vh] [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
             
             {/* Header */}
-            <div className="flex items-center justify-between border-b pb-4">
-              <div className="flex items-center gap-3">
+            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-4">
+              <div className="flex items-center gap-3.5">
                 {schoolProfile?.logoUrl ? (
                   <img
                     src={resolveMediaUrl(schoolProfile.logoUrl)}
                     alt={schoolProfile?.name || 'School Logo'}
-                    className="w-10 h-10 object-contain rounded-2xl border border-slate-200 dark:border-slate-800 p-1 bg-white shrink-0 shadow-sm"
+                    className="w-12 h-12 object-contain rounded-2xl border border-slate-200 dark:border-slate-700 p-1 bg-white shrink-0 shadow-sm"
                   />
                 ) : (
-                  <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-sky-500 to-violet-600 flex items-center justify-center text-white font-black text-lg shadow-md shrink-0">
-                    <GraduationCap className="w-5 h-5" />
+                  <div className="w-12 h-12 rounded-2xl bg-slate-900 text-white flex items-center justify-center font-black text-lg shadow-md shrink-0">
+                    <GraduationCap className="w-6 h-6 text-brand-400" />
                   </div>
                 )}
                 <div>
-                  <h3 className="text-sm font-black text-slate-900 dark:text-white tracking-tight uppercase">
-                    {schoolProfile?.name || schoolProfile?.schoolName || 'PIRNAV EDUCATIONAL INSTITUTION'}
+                  <h3 className="text-base font-black text-slate-900 dark:text-white tracking-tight uppercase">
+                    {schoolProfile?.name || schoolProfile?.schoolName || 'PIRNAV EDUCATIONAL INSTITUTIONS'}
                   </h3>
-                  <p className="text-[10px] font-bold text-sky-600 uppercase tracking-wide">Monthly Salary Statement ({viewingPayslip.month})</p>
+                  <div className="flex items-center gap-2 mt-0.5">
+                    <span className="text-[11px] font-bold text-slate-600 dark:text-slate-300 uppercase tracking-wide">
+                      Salary Payslip &bull; {viewingPayslip.month}
+                    </span>
+                    <span className="text-[9px] font-extrabold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-950/80 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
+                      PAID
+                    </span>
+                  </div>
                 </div>
               </div>
-              <button onClick={() => setViewingPayslip(null)} className="p-1.5 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-100 cursor-pointer">
+              <button 
+                onClick={() => setViewingPayslip(null)} 
+                className="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                title="Close"
+              >
                 <XCircle className="w-5 h-5" />
               </button>
             </div>
 
-            {/* Employee Info Card */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 p-4 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-100 dark:border-slate-800 text-xs">
+            {/* Employee Info Card (4 Columns) */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 p-4 bg-slate-50/80 dark:bg-slate-800/50 rounded-2xl border border-slate-200/80 dark:border-slate-700/80 text-xs">
               <div>
-                <span className="text-[10px] uppercase font-bold text-slate-400">Employee Name</span>
-                <p className="font-bold text-slate-900 dark:text-white mt-0.5">{viewingPayslip.employeeName}</p>
-              </div>
-              <div>
-                <span className="text-[10px] uppercase font-bold text-slate-400">Employee ID</span>
+                <span className="text-[10px] uppercase font-bold text-slate-400 dark:text-slate-500">Employee ID</span>
                 <p className="font-mono font-bold text-slate-900 dark:text-white mt-0.5">{viewingPayslip.empId}</p>
               </div>
               <div>
-                <span className="text-[10px] uppercase font-bold text-slate-400">Department</span>
-                <p className="font-semibold text-slate-700 dark:text-slate-300 mt-0.5">{viewingPayslip.department || 'Academics'}</p>
+                <span className="text-[10px] uppercase font-bold text-slate-400 dark:text-slate-500">Employee Name</span>
+                <p className="font-bold text-slate-900 dark:text-white mt-0.5">{viewingPayslip.employeeName}</p>
               </div>
               <div>
-                <span className="text-[10px] uppercase font-bold text-slate-400">Designation</span>
-                <p className="font-semibold text-slate-700 dark:text-slate-300 mt-0.5">{viewingPayslip.designation || 'Teacher'}</p>
+                <span className="text-[10px] uppercase font-bold text-slate-400 dark:text-slate-500">Designation</span>
+                <p className="font-semibold text-slate-700 dark:text-slate-200 mt-0.5">{viewingPayslip.designation || 'Teacher'}</p>
               </div>
               <div>
-                <span className="text-[10px] uppercase font-bold text-slate-400">Bank Account</span>
-                <p className="font-mono font-bold text-slate-900 dark:text-white mt-0.5">{viewingPayslip.bankAccount}</p>
+                <span className="text-[10px] uppercase font-bold text-slate-400 dark:text-slate-500">Department</span>
+                <p className="font-semibold text-slate-700 dark:text-slate-200 mt-0.5">{viewingPayslip.department || 'Academics'}</p>
               </div>
               <div>
-                <span className="text-[10px] uppercase font-bold text-slate-400">Disbursed Date</span>
-                <p className="font-bold text-slate-900 dark:text-white mt-0.5">{viewingPayslip.disbursedDate}</p>
+                <span className="text-[10px] uppercase font-bold text-slate-400 dark:text-slate-500">Campus / Branch</span>
+                <p className="font-semibold text-slate-700 dark:text-slate-200 mt-0.5">{viewingPayslip.branch || 'Main Campus'}</p>
               </div>
               <div>
-                <span className="text-[10px] uppercase font-bold text-slate-400">Branch</span>
-                <p className="font-bold text-slate-900 dark:text-white mt-0.5">{viewingPayslip.branch || '—'}</p>
+                <span className="text-[10px] uppercase font-bold text-slate-400 dark:text-slate-500">Disbursed Date</span>
+                <p className="font-semibold text-slate-700 dark:text-slate-200 mt-0.5">{viewingPayslip.disbursedDate || new Date().toISOString().split('T')[0]}</p>
               </div>
               <div>
-                <span className="text-[10px] uppercase font-bold text-slate-400">Payment Status</span>
-                <div className="mt-0.5"><Badge variant="success">Paid</Badge></div>
+                <span className="text-[10px] uppercase font-bold text-slate-400 dark:text-slate-500">Bank Account</span>
+                <p className="font-mono font-bold text-slate-900 dark:text-white mt-0.5">{viewingPayslip.bankAccount ? `A/C: ${viewingPayslip.bankAccount}` : 'Bank Deposit'}</p>
+              </div>
+              <div>
+                <span className="text-[10px] uppercase font-bold text-slate-400 dark:text-slate-500">Payment Status</span>
+                <p className="font-bold text-emerald-600 dark:text-emerald-400 mt-0.5">CONFIRMED (PAID)</p>
               </div>
             </div>
 
-            {/* MONTHLY SALARY STATEMENT BREAKDOWN TABLE */}
+            {/* MONTHLY SALARY STATEMENT BREAKDOWN (SIDE-BY-SIDE REALTIME TABLE) */}
             {(() => {
               const basicVal = Number(viewingPayslip.basicSalary) || 35000;
               const hraVal = Number(viewingPayslip.hra) || 12000;
@@ -763,131 +970,122 @@ export const TeacherPayslipsView: React.FC = () => {
               const ptVal = Number(viewingPayslip.otherDeductions) || 200;
               const pfVal = Number(viewingPayslip.pfDeduction) || 2400;
               const esiVal = Number((viewingPayslip as any).esiDeduction) || 0;
-              const totalDeductionsVal = ptVal + pfVal + esiVal + (Number(viewingPayslip.lopDeduction) || 0);
+              const lopVal = Number(viewingPayslip.lopDeduction) || 0;
+              const totalDeductionsVal = ptVal + pfVal + esiVal + lopVal;
               const netTakeHomeVal = grossVal - totalDeductionsVal;
 
               const formatNum = (num: number) => isNaN(num) ? '0.00' : num.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+              const inWords = numberToWords(netTakeHomeVal);
+
+              const earningsRows = [
+                { name: 'Basic Pay', amount: basicVal },
+                { name: 'House Rent Allowance (HRA)', amount: hraVal },
+                { name: 'Conveyance Allowance', amount: conveyanceVal },
+                { name: 'Medical Allowance', amount: medicalVal },
+                { name: 'Other Allowances', amount: othAllowVal },
+              ].filter(e => e.amount > 0);
+
+              const deductionsRows = [
+                { name: 'Provident Fund (PF)', amount: pfVal },
+                { name: 'Professional Tax (PT)', amount: ptVal },
+                ...(esiVal > 0 ? [{ name: 'ESI Deduction', amount: esiVal }] : []),
+                ...(lopVal > 0 ? [{ name: 'Loss of Pay (LOP)', amount: lopVal }] : []),
+              ].filter(d => d.amount > 0);
+
+              const maxRows = Math.max(earningsRows.length, deductionsRows.length, 1);
 
               return (
                 <div className="space-y-3">
-                  <div className="text-center font-extrabold text-xs text-slate-800 dark:text-white uppercase tracking-wider underline">
-                    MONTHLY SALARY BREAKDOWN STATEMENT
+                  <div className="text-center font-extrabold text-xs text-slate-700 dark:text-slate-300 uppercase tracking-wider">
+                    MONTHLY SALARY BREAKDOWN (SIDE-BY-SIDE)
                   </div>
 
-                  <div className="rounded-2xl border border-slate-300 dark:border-slate-800 overflow-hidden shadow-xs">
+                  <div className="rounded-2xl border border-slate-200 dark:border-slate-700 overflow-hidden shadow-xs">
                     <table className="w-full text-left text-xs border-collapse">
                       <thead>
-                        <tr className="bg-emerald-100/90 dark:bg-emerald-950/80 text-emerald-950 dark:text-emerald-200 border-b border-emerald-300 dark:border-emerald-800 font-extrabold text-[11px]">
-                          <th className="py-2.5 px-3 border-r border-emerald-200 dark:border-emerald-800 w-14 text-center">S. No.</th>
-                          <th className="py-2.5 px-3 border-r border-emerald-200 dark:border-emerald-800">Particulars / Component</th>
-                          <th className="py-2.5 px-3 text-right">Monthly Amount (₹)</th>
+                        <tr className="bg-slate-900 text-white dark:bg-slate-800 text-[11px] font-extrabold uppercase tracking-wider">
+                          <th colSpan={2} className="py-2.5 px-4 border-r border-slate-700">
+                            EARNINGS
+                          </th>
+                          <th colSpan={2} className="py-2.5 px-4">
+                            DEDUCTIONS
+                          </th>
+                        </tr>
+                        <tr className="bg-slate-100 dark:bg-slate-850 text-slate-500 dark:text-slate-400 font-bold text-[10px] uppercase border-b border-slate-200 dark:border-slate-700">
+                          <th className="py-2 px-4 w-[35%]">Particulars / Component</th>
+                          <th className="py-2 px-4 text-right w-[15%] border-r border-slate-200 dark:border-slate-700">Monthly Amount (₹)</th>
+                          <th className="py-2 px-4 w-[35%]">Particulars / Component</th>
+                          <th className="py-2 px-4 text-right w-[15%]">Monthly Amount (₹)</th>
                         </tr>
                       </thead>
-                      <tbody className="divide-y divide-slate-200 dark:divide-slate-800 font-medium text-slate-800 dark:text-slate-200 text-xs">
-                        {/* Section A: Earnings */}
-                        <tr className="font-bold bg-slate-50 dark:bg-slate-850">
-                          <td className="py-2 px-3 border-r text-center font-bold text-slate-900 dark:text-white">A</td>
-                          <td className="py-2 px-3 border-r font-extrabold" colSpan={2}>EARNINGS</td>
-                        </tr>
-                        <tr>
-                          <td className="py-2 px-3 border-r text-center bg-slate-50/60 dark:bg-slate-900/60">1</td>
-                          <td className="py-2 px-3 border-r font-medium">Basic Pay</td>
-                          <td className="py-2 px-3 text-right font-mono font-semibold">₹{formatNum(basicVal)}</td>
-                        </tr>
-                        <tr>
-                          <td className="py-2 px-3 border-r text-center bg-slate-50/60 dark:bg-slate-900/60">2</td>
-                          <td className="py-2 px-3 border-r font-medium">House Rent Allowance (HRA)</td>
-                          <td className="py-2 px-3 text-right font-mono font-semibold">₹{formatNum(hraVal)}</td>
-                        </tr>
-                        <tr>
-                          <td className="py-2 px-3 border-r text-center bg-slate-50/60 dark:bg-slate-900/60">3</td>
-                          <td className="py-2 px-3 border-r font-medium">Conveyance Allowance</td>
-                          <td className="py-2 px-3 text-right font-mono font-semibold">₹{formatNum(conveyanceVal)}</td>
-                        </tr>
-                        <tr>
-                          <td className="py-2 px-3 border-r text-center bg-slate-50/60 dark:bg-slate-900/60">4</td>
-                          <td className="py-2 px-3 border-r font-medium">Medical Allowance</td>
-                          <td className="py-2 px-3 text-right font-mono font-semibold">₹{formatNum(medicalVal)}</td>
-                        </tr>
-                        <tr>
-                          <td className="py-2 px-3 border-r text-center bg-slate-50/60 dark:bg-slate-900/60">5</td>
-                          <td className="py-2 px-3 border-r font-medium">Other Allowances</td>
-                          <td className="py-2 px-3 text-right font-mono font-semibold">₹{formatNum(othAllowVal)}</td>
-                        </tr>
-                        {/* Gross Earnings (Green Highlight) */}
-                        <tr className="bg-emerald-100/90 dark:bg-emerald-950/70 font-black text-emerald-950 dark:text-emerald-100 border-t-2 border-emerald-300">
-                          <td className="py-2.5 px-3 border-r border-emerald-200 text-center"></td>
-                          <td className="py-2.5 px-3 border-r border-emerald-200">GROSS EARNINGS</td>
-                          <td className="py-2.5 px-3 text-right font-mono text-emerald-700 dark:text-emerald-300">₹{formatNum(grossVal)}</td>
-                        </tr>
-
-                        {/* Section B: Deductions */}
-                        <tr className="font-bold bg-slate-50 dark:bg-slate-850 border-t-2 border-slate-300 dark:border-slate-700">
-                          <td className="py-2 px-3 border-r text-center font-bold text-slate-900 dark:text-white">B</td>
-                          <td className="py-2 px-3 border-r font-extrabold" colSpan={2}>DEDUCTIONS</td>
-                        </tr>
-                        <tr>
-                          <td className="py-2 px-3 border-r text-center bg-slate-50/60 dark:bg-slate-900/60">1</td>
-                          <td className="py-2 px-3 border-r font-medium">Provident Fund (PF)</td>
-                          <td className="py-2 px-3 text-right font-mono font-semibold text-rose-600 dark:text-rose-400">-₹{formatNum(pfVal)}</td>
-                        </tr>
-                        <tr>
-                          <td className="py-2 px-3 border-r text-center bg-slate-50/60 dark:bg-slate-900/60">2</td>
-                          <td className="py-2 px-3 border-r font-medium">Professional Tax (PT)</td>
-                          <td className="py-2 px-3 text-right font-mono font-semibold text-rose-600 dark:text-rose-400">-₹{formatNum(ptVal)}</td>
-                        </tr>
-                        {esiVal > 0 && (
-                          <tr>
-                            <td className="py-2 px-3 border-r text-center bg-slate-50/60 dark:bg-slate-900/60">3</td>
-                            <td className="py-2 px-3 border-r font-medium">ESI Deduction</td>
-                            <td className="py-2 px-3 text-right font-mono font-semibold text-rose-600 dark:text-rose-400">-₹{formatNum(esiVal)}</td>
-                          </tr>
-                        )}
-                        {viewingPayslip.lopDeduction ? (
-                          <tr>
-                            <td className="py-2 px-3 border-r text-center bg-slate-50/60 dark:bg-slate-900/60">4</td>
-                            <td className="py-2 px-3 border-r font-medium">Loss of Pay (LOP)</td>
-                            <td className="py-2 px-3 text-right font-mono font-semibold text-rose-600 dark:text-rose-400">-₹{formatNum(viewingPayslip.lopDeduction)}</td>
-                          </tr>
-                        ) : null}
-                        {/* Total Deductions (Rose Highlight) */}
-                        <tr className="bg-rose-50/90 dark:bg-rose-950/70 font-black text-rose-950 dark:text-rose-100 border-t-2 border-rose-300">
-                          <td className="py-2.5 px-3 border-r border-rose-200 text-center"></td>
-                          <td className="py-2.5 px-3 border-r border-rose-200">TOTAL DEDUCTIONS</td>
-                          <td className="py-2.5 px-3 text-right font-mono text-rose-700 dark:text-rose-300">-₹{formatNum(totalDeductionsVal)}</td>
-                        </tr>
-
-                        {/* Section C: Net Take Home Salary (Green Highlight) */}
-                        <tr className="bg-emerald-200/90 dark:bg-emerald-900/80 font-black text-emerald-950 dark:text-emerald-50 border-t-2 border-emerald-400 text-sm">
-                          <td className="py-3 px-3 border-r border-emerald-300 text-center font-bold">C</td>
-                          <td className="py-3 px-3 border-r border-emerald-300">NET TAKE-HOME SALARY (A - B)</td>
-                          <td className="py-3 px-3 text-right font-mono text-emerald-800 dark:text-emerald-200">₹{formatNum(netTakeHomeVal)}</td>
+                      <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-medium text-slate-700 dark:text-slate-200 text-xs">
+                        {Array.from({ length: maxRows }).map((_, i) => {
+                          const e = earningsRows[i];
+                          const d = deductionsRows[i];
+                          return (
+                            <tr key={i} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors">
+                              <td className="py-2.5 px-4 font-medium text-slate-800 dark:text-slate-200">{e ? e.name : ''}</td>
+                              <td className="py-2.5 px-4 text-right font-mono font-semibold text-slate-900 dark:text-white border-r border-slate-200 dark:border-slate-700">
+                                {e ? `₹${formatNum(e.amount)}` : ''}
+                              </td>
+                              <td className="py-2.5 px-4 font-medium text-slate-800 dark:text-slate-200">{d ? d.name : ''}</td>
+                              <td className="py-2.5 px-4 text-right font-mono font-semibold text-rose-600 dark:text-rose-400">
+                                {d ? `-₹${formatNum(d.amount)}` : ''}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                        {/* Summary Total Row */}
+                        <tr className="bg-slate-100/90 dark:bg-slate-800/90 font-extrabold text-slate-900 dark:text-white border-t-2 border-slate-300 dark:border-slate-600">
+                          <td className="py-2.5 px-4 font-black">TOTAL GROSS EARNINGS (A)</td>
+                          <td className="py-2.5 px-4 text-right font-mono font-black text-slate-900 dark:text-white border-r border-slate-200 dark:border-slate-700">
+                            ₹{formatNum(grossVal)}
+                          </td>
+                          <td className="py-2.5 px-4 font-black">TOTAL DEDUCTIONS (B)</td>
+                          <td className="py-2.5 px-4 text-right font-mono font-black text-rose-600 dark:text-rose-400">
+                            -₹{formatNum(totalDeductionsVal)}
+                          </td>
                         </tr>
                       </tbody>
                     </table>
+                  </div>
+
+                  {/* Net Salary Executive Summary Card */}
+                  <div className="p-4 bg-slate-900 text-white dark:bg-slate-800 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-lg border border-slate-800 dark:border-slate-700">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">
+                          NET TAKE-HOME SALARY PAYABLE (A - B)
+                        </span>
+                        <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                          DISBURSED
+                        </span>
+                      </div>
+                      <p className="text-2xl font-black text-white mt-1">₹{formatNum(netTakeHomeVal)}</p>
+                      <p className="text-[11px] text-slate-300 font-medium mt-1">
+                        Amount in Words: <strong className="text-white font-bold">Rupees {inWords}</strong>
+                      </p>
+                      <p className="text-[10px] text-slate-400 mt-0.5">
+                        Credited directly to Bank Account: <span className="font-mono text-slate-200 font-semibold">{viewingPayslip.bankAccount}</span>
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <button
+                        onClick={() => handleDownloadPayslip(viewingPayslip)}
+                        className="px-4 py-2.5 bg-brand-600 hover:bg-brand-500 text-white font-bold text-xs rounded-xl shadow-md flex items-center gap-2 cursor-pointer transition-all"
+                      >
+                        <Download className="w-4 h-4" /> Download PDF / Print
+                      </button>
+                    </div>
                   </div>
                 </div>
               );
             })()}
 
-            {/* Net Salary Summary Callout & Download Button */}
-            <div className="p-4 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-900 rounded-2xl flex items-center justify-between">
-              <div>
-                <span className="text-[10px] uppercase font-extrabold text-emerald-700 dark:text-emerald-400 tracking-wider">NET TAKE-HOME SALARY</span>
-                <p className="text-2xl font-black text-emerald-700 dark:text-emerald-300 mt-0.5">{formatCurrency(viewingPayslip.netSalary)}</p>
-              </div>
-              <button
-                onClick={() => handleDownloadPayslip(viewingPayslip)}
-                className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-xl shadow-md flex items-center gap-2 cursor-pointer transition-all"
-              >
-                <Download className="w-4 h-4" /> Download PDF / Print
-              </button>
-            </div>
-
-            <div className="flex justify-end pt-2 border-t">
+            <div className="flex justify-end pt-2 border-t border-slate-100 dark:border-slate-800">
               <button
                 onClick={() => setViewingPayslip(null)}
-                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-semibold text-xs rounded-xl cursor-pointer"
+                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-semibold text-xs rounded-xl cursor-pointer transition-colors"
               >
                 Close Statement
               </button>

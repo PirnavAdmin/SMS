@@ -4,9 +4,10 @@ import { FileText, Printer, Search, HelpCircle } from 'lucide-react';
 import { Payslip } from '../../../types';
 import { useData } from '../../../context/DataContext';
 import { resolveMediaUrl } from '../../../utils/mediaUtils';
+import { numberToWords } from '../../../utils/numberToWords';
 
 export const StaffPayslipView: React.FC = () => {
-  const { payslips, schoolProfile } = useData();
+  const { payslips, schoolProfile, staff } = useData();
 
   const [query, setQuery] = useState('');
   const [selectedMonth, setSelectedMonth] = useState('All');
@@ -19,94 +20,392 @@ export const StaffPayslipView: React.FC = () => {
 
   const handlePrint = (p: Payslip) => {
     const printWindow = window.open('', '_blank');
-    if (printWindow) {
-      printWindow.document.write(`
-        <html>
-          <head>
-            <title>Salary Payslip - ${p.employeeName}</title>
-            <style>
-              @page { size: A4 portrait; margin: 8mm; }
-              @media print {
-                html, body { height: 100vh; margin: 0 !important; padding: 10px !important; box-sizing: border-box; page-break-inside: avoid !important; }
+    if (!printWindow) return;
+
+    const matchedStaff = (staff || []).find(s => s.id === p.employeeId || s.empId === p.empId);
+    const basicVal = Number(p.basicSalary) || 0;
+    const hraVal = Number(p.hra) || 0;
+    const daVal = Number(p.da) || 0;
+    const grossVal = Number(p.grossSalary) || (basicVal + hraVal + daVal);
+    const pfVal = Number(p.pfDeduction) || 0;
+    const lopVal = Number(p.lopDeduction) || 0;
+    const ptVal = Number(p.otherDeductions) || 0;
+    const totalDeductionsVal = pfVal + lopVal + ptVal;
+    const netSalaryVal = Number(p.netSalary) || Math.max(0, grossVal - totalDeductionsVal);
+
+    const formatNum = (num: number) => isNaN(num) ? '0.00' : num.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const inWords = numberToWords(netSalaryVal);
+
+    const earningsRows = [
+      { name: 'Basic Salary', amount: basicVal },
+      { name: 'House Rent Allowance (HRA)', amount: hraVal },
+      { name: 'Dearness Allowance (DA)', amount: daVal },
+      ...(Array.isArray(p.earnings) ? p.earnings.filter(e => !['basic', 'hra', 'da'].some(k => e.name.toLowerCase().includes(k))) : [])
+    ].filter(e => e.amount > 0);
+
+    const deductionsRows = [
+      { name: 'Provident Fund (PF)', amount: pfVal },
+      ...(ptVal > 0 ? [{ name: 'Professional Tax (PT)', amount: ptVal }] : []),
+      ...(lopVal > 0 ? [{ name: 'Loss of Pay (LOP)', amount: lopVal }] : []),
+      ...(Array.isArray(p.deductions) ? p.deductions.filter(d => !['pf', 'lop', 'pt'].some(k => d.name.toLowerCase().includes(k))) : [])
+    ].filter(d => d.amount > 0);
+
+    const maxRows = Math.max(earningsRows.length, deductionsRows.length, 1);
+    const tableRowsHtml = Array.from({ length: maxRows }).map((_, i) => {
+      const earn = earningsRows[i];
+      const ded = deductionsRows[i];
+      return `
+        <tr>
+          <td style="padding: 5px 8px; border-right: 1px solid #cbd5e1; border-bottom: 1px solid #e2e8f0; font-weight: 500;">${earn ? earn.name : ''}</td>
+          <td style="padding: 5px 8px; border-right: 2px solid #94a3b8; border-bottom: 1px solid #e2e8f0; text-align: right; font-family: 'Consolas', monospace; font-weight: 600;">${earn ? `₹${formatNum(earn.amount)}` : ''}</td>
+          <td style="padding: 5px 8px; border-right: 1px solid #cbd5e1; border-bottom: 1px solid #e2e8f0; font-weight: 500;">${ded ? ded.name : ''}</td>
+          <td style="padding: 5px 8px; border-bottom: 1px solid #e2e8f0; text-align: right; font-family: 'Consolas', monospace; font-weight: 600; color: ${ded ? '#b91c1c' : 'inherit'};">${ded ? `₹${formatNum(ded.amount)}` : ''}</td>
+        </tr>
+      `;
+    }).join('');
+
+    const activeSchoolName = schoolProfile?.name || schoolProfile?.schoolName || 'PIRNAV EDUCATIONAL INSTITUTIONS';
+
+    printWindow.document.write(`
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>Salary Payslip - ${p.month} - ${p.employeeName}</title>
+          <style>
+            @page {
+              size: A4 portrait;
+              margin: 8mm;
+            }
+            @media print {
+              html, body {
+                margin: 0 !important;
+                padding: 0 !important;
+                height: auto !important;
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
               }
-              * { box-sizing: border-box; }
-              body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 20px 24px; color: #333; font-size: 11px; line-height: 1.3; }
-              .header { text-align: center; border-bottom: 2px solid #0284c7; padding-bottom: 10px; margin-bottom: 12px; }
-              .header h2 { margin: 0; font-size: 18px; color: #0284c7; }
-              .header p { margin: 3px 0 0 0; font-size: 11px; color: #64748b; font-weight: 600; }
-              .details { margin-top: 12px; display: grid; grid-template-columns: 1fr 1fr; gap: 6px 12px; background: #f8fafc; padding: 10px; border-radius: 8px; border: 1px solid #e2e8f0; font-size: 11px; }
-              .table { width: 100%; border-collapse: collapse; margin-top: 14px; font-size: 11px; }
-              .table th, .table td { border: 1px solid #ddd; padding: 6px 8px; text-align: left; }
-              .table th { background-color: #f1f5f9; font-weight: 700; }
-              .net { font-size: 1.1em; font-weight: bold; margin-top: 14px; text-align: right; color: #16a34a; background: #f0fdf4; padding: 8px; border-radius: 6px; border: 1px solid #bbf7d0; }
-              .sign { margin-top: 40px; display: flex; justify-content: space-between; font-size: 11px; font-weight: 600; color: #475569; }
-            </style>
-          </head>
-          <body>
-            <div class="header">
-              <div style="display: flex; align-items: center; justify-content: center; gap: 12px; margin-bottom: 6px;">
-                ${schoolProfile?.logoUrl ? `<img src="${resolveMediaUrl(schoolProfile.logoUrl)}" style="width: 45px; height: 45px; object-fit: contain;" alt="Logo" />` : ''}
-                <div>
-                  <h2 style="margin: 0; font-size: 18px; color: #0284c7;">${schoolProfile?.name || 'Pirnav Educational Institutions'}</h2>
-                  <p style="margin: 2px 0 0 0; font-size: 10px; color: #64748b;">${schoolProfile?.address || ''}</p>
+              .payslip-sheet {
+                box-shadow: none !important;
+                border: 1.5px solid #0f172a !important;
+                max-height: 275mm !important;
+                page-break-after: avoid !important;
+                page-break-before: avoid !important;
+                page-break-inside: avoid !important;
+              }
+              .no-print { display: none !important; }
+            }
+            * { box-sizing: border-box; }
+            body {
+              font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+              color: #0f172a;
+              background: #f8fafc;
+              margin: 0;
+              padding: 12px;
+              font-size: 11px;
+              line-height: 1.35;
+            }
+            .payslip-sheet {
+              max-width: 210mm;
+              margin: 0 auto;
+              background: #ffffff;
+              border: 1.5px solid #0f172a;
+              padding: 20px 24px;
+              box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            }
+            .school-header {
+              display: flex;
+              align-items: center;
+              justify-content: space-between;
+              border-bottom: 2px solid #0f172a;
+              padding-bottom: 12px;
+              margin-bottom: 12px;
+            }
+            .school-info {
+              flex: 1;
+              text-align: center;
+              padding: 0 10px;
+            }
+            .school-name {
+              font-size: 19px;
+              font-weight: 900;
+              color: #0f172a;
+              letter-spacing: 0.5px;
+              text-transform: uppercase;
+              margin-bottom: 2px;
+            }
+            .school-sub {
+              font-size: 10px;
+              color: #475569;
+              font-weight: 500;
+              line-height: 1.3;
+            }
+            .logo-img {
+              max-height: 52px;
+              max-width: 100px;
+              object-fit: contain;
+            }
+            .doc-title-bar {
+              background: #0f172a;
+              color: #ffffff;
+              display: flex;
+              align-items: center;
+              justify-content: space-between;
+              padding: 5px 12px;
+              font-size: 11px;
+              font-weight: 800;
+              letter-spacing: 0.8px;
+              text-transform: uppercase;
+              margin-bottom: 12px;
+            }
+            .emp-table {
+              width: 100%;
+              border-collapse: collapse;
+              margin-bottom: 12px;
+              border: 1px solid #cbd5e1;
+            }
+            .emp-table td {
+              padding: 4px 8px;
+              font-size: 10px;
+              border: 1px solid #e2e8f0;
+            }
+            .emp-table .lbl {
+              background: #f8fafc;
+              color: #475569;
+              font-weight: 700;
+              width: 18%;
+              text-transform: uppercase;
+              font-size: 9.5px;
+              letter-spacing: 0.3px;
+            }
+            .emp-table .val {
+              color: #0f172a;
+              font-weight: 600;
+              width: 32%;
+            }
+            .salary-table {
+              width: 100%;
+              border-collapse: collapse;
+              margin-bottom: 12px;
+              border: 1.5px solid #0f172a;
+            }
+            .salary-table th {
+              padding: 5px 8px;
+              font-size: 10px;
+              font-weight: 800;
+              text-transform: uppercase;
+              letter-spacing: 0.5px;
+              border: 1px solid #cbd5e1;
+            }
+            .salary-table th.main-hdr {
+              background: #0f172a;
+              color: #ffffff;
+              font-size: 10.5px;
+              text-align: left;
+            }
+            .salary-table th.sub-hdr {
+              background: #f1f5f9;
+              color: #334155;
+            }
+            .salary-table td {
+              padding: 4.5px 8px;
+              font-size: 10.5px;
+              border: 1px solid #e2e8f0;
+              color: #1e293b;
+            }
+            .salary-table td.amount {
+              text-align: right;
+              font-family: 'Consolas', 'Courier New', monospace;
+              font-weight: 600;
+            }
+            .salary-table .divider-col {
+              border-right: 2px solid #94a3b8 !important;
+            }
+            .salary-table .tot-row td {
+              background: #f1f5f9;
+              font-weight: 800;
+              color: #0f172a;
+              border-top: 1.5px solid #0f172a;
+              border-bottom: 1.5px solid #0f172a;
+            }
+            .net-summary-box {
+              border: 1.5px solid #0f172a;
+              background: #f8fafc;
+              padding: 10px 14px;
+              margin-bottom: 14px;
+              border-radius: 2px;
+            }
+            .net-main {
+              display: flex;
+              justify-content: space-between;
+              align-items: center;
+              border-bottom: 1px dashed #cbd5e1;
+              padding-bottom: 6px;
+              margin-bottom: 6px;
+            }
+            .net-title {
+              font-size: 11px;
+              font-weight: 900;
+              color: #0f172a;
+              text-transform: uppercase;
+              letter-spacing: 0.5px;
+            }
+            .net-amount {
+              font-size: 19px;
+              font-weight: 900;
+              color: #0f172a;
+              font-family: 'Consolas', 'Courier New', monospace;
+            }
+            .net-words {
+              font-size: 10px;
+              color: #334155;
+              font-weight: 600;
+            }
+            .net-words strong {
+              color: #0f172a;
+            }
+            .net-meta {
+              margin-top: 4px;
+              font-size: 9.5px;
+              color: #64748b;
+            }
+            .signature-block {
+              display: flex;
+              justify-content: space-between;
+              align-items: flex-end;
+              margin-top: 36px;
+              margin-bottom: 12px;
+              padding: 0 10px;
+            }
+            .sign-col {
+              text-align: center;
+              width: 210px;
+            }
+            .sign-line {
+              border-top: 1px solid #475569;
+              margin-bottom: 4px;
+            }
+            .sign-label {
+              font-size: 9.5px;
+              font-weight: 700;
+              color: #334155;
+              text-transform: uppercase;
+            }
+            .footer-note {
+              text-align: center;
+              font-size: 9px;
+              color: #64748b;
+              border-top: 1px solid #e2e8f0;
+              padding-top: 6px;
+              margin-top: 8px;
+              font-style: italic;
+            }
+          </style>
+        </head>
+        <body>
+          <div class="payslip-sheet">
+            <div class="school-header">
+              ${schoolProfile?.logoUrl ? `<img src="${resolveMediaUrl(schoolProfile.logoUrl)}" class="logo-img" alt="Logo" />` : '<div style="width: 70px;"></div>'}
+              <div class="school-info">
+                <div class="school-name">${activeSchoolName.toUpperCase()}</div>
+                <div class="school-sub">
+                  ${schoolProfile?.address || 'Madhapur Campus, Hyderabad, Telangana - 500081'}<br/>
+                  Affiliated to CBSE, New Delhi | Affiliation No. 3630284 | Phone: ${schoolProfile?.phone || '+91 40 2345 6789'}
                 </div>
               </div>
-              <p style="margin: 4px 0 0 0; font-size: 11px; color: #0284c7; font-weight: 700;">MONTHLY SALARY PAYSLIP - HR DEPARTMENT</p>
+              <div style="width: 70px; text-align: right;">
+                <span style="font-size: 9px; font-weight: 800; color: #16a34a; background: #dcfce7; border: 1px solid #86efac; padding: 2px 6px; border-radius: 3px;">PAID</span>
+              </div>
             </div>
-            <div class="details">
-              <div><strong>Employee Name:</strong> ${p.employeeName}</div>
-              <div><strong>Employee ID:</strong> ${p.empId}</div>
-              <div><strong>Salary Month:</strong> ${p.month}</div>
-              <div><strong>Disbursed Date:</strong> ${p.disbursedDate}</div>
-              <div><strong>Bank Account:</strong> ${p.bankAccount}</div>
-              <div><strong>Status:</strong> ${p.status}</div>
+
+            <div class="doc-title-bar">
+              <span>SALARY PAYSLIP FOR THE MONTH OF ${String(p.month || 'CURRENT').toUpperCase()}</span>
+              <span style="font-size: 9.5px; font-weight: 600; opacity: 0.9;">Ref: PS-${p.empId || 'EMP'}-${String(p.month || 'M').replace(/[^a-zA-Z0-9]/g, '').toUpperCase()}</span>
             </div>
-            
-            <table class="table">
+
+            <table class="emp-table">
+              <tr>
+                <td class="lbl">Employee ID</td>
+                <td class="val" style="font-family: monospace; font-weight: 700;">${p.empId}</td>
+                <td class="lbl">Employee Name</td>
+                <td class="val">${p.employeeName}</td>
+              </tr>
+              <tr>
+                <td class="lbl">Designation</td>
+                <td class="val">${matchedStaff?.designation || 'Staff'}</td>
+                <td class="lbl">Department</td>
+                <td class="val">${matchedStaff?.department || 'Administration'}</td>
+              </tr>
+              <tr>
+                <td class="lbl">Campus / Branch</td>
+                <td class="val">${matchedStaff?.branch || 'Main Campus'}</td>
+                <td class="lbl">Disbursed Date</td>
+                <td class="val">${p.disbursedDate || new Date().toISOString().split('T')[0]}</td>
+              </tr>
+              <tr>
+                <td class="lbl">Bank Name &amp; A/C</td>
+                <td class="val" style="font-family: monospace;">${p.bankAccount ? `Bank A/C: ${p.bankAccount}` : 'Direct Bank Deposit'}</td>
+                <td class="lbl">Payment Status</td>
+                <td class="val" style="color: #16a34a; font-weight: 700;">CONFIRMED (PAID)</td>
+              </tr>
+            </table>
+
+            <table class="salary-table">
               <thead>
                 <tr>
-                  <th>Earning Details</th>
-                  <th>Amount</th>
-                  <th>Deduction Details</th>
-                  <th>Amount</th>
+                  <th class="main-hdr divider-col" colspan="2">EARNINGS</th>
+                  <th class="main-hdr" colspan="2">DEDUCTIONS</th>
+                </tr>
+                <tr>
+                  <th class="sub-hdr" style="text-align: left; width: 33%;">Particulars / Component</th>
+                  <th class="sub-hdr divider-col" style="text-align: right; width: 17%;">Amount (₹)</th>
+                  <th class="sub-hdr" style="text-align: left; width: 33%;">Particulars / Component</th>
+                  <th class="sub-hdr" style="text-align: right; width: 17%;">Amount (₹)</th>
                 </tr>
               </thead>
               <tbody>
-                <tr>
-                  <td>Basic Salary</td>
-                  <td>${formatCurrency(p.basicSalary)}</td>
-                  <td>Provident Fund (PF)</td>
-                  <td>${formatCurrency(p.pfDeduction)}</td>
-                </tr>
-                <tr>
-                  <td>House Rent Allowance (HRA)</td>
-                  <td>${formatCurrency(p.hra)}</td>
-                  <td>Loss of Pay (LOP)</td>
-                  <td>${formatCurrency(p.lopDeduction)}</td>
-                </tr>
-                <tr>
-                  <td>Dearness Allowance (DA)</td>
-                  <td>${formatCurrency(p.da)}</td>
-                  <td></td>
-                  <td></td>
+                ${tableRowsHtml}
+                <tr class="tot-row">
+                  <td><strong>TOTAL GROSS EARNINGS (A)</strong></td>
+                  <td class="amount divider-col"><strong>₹${formatNum(grossVal)}</strong></td>
+                  <td><strong>TOTAL DEDUCTIONS (B)</strong></td>
+                  <td class="amount" style="color: #b91c1c;"><strong>₹${formatNum(totalDeductionsVal)}</strong></td>
                 </tr>
               </tbody>
             </table>
 
-            <div class="net">
-              Net Disbursed Salary: ${formatCurrency(p.netSalary)}
+            <div class="net-summary-box">
+              <div class="net-main">
+                <div>
+                  <div class="net-title">NET TAKE-HOME SALARY PAYABLE (A - B)</div>
+                  <div class="net-meta">Payment Mode: Direct Bank Transfer (NEFT/RTGS) &bull; Credit Account: ${p.bankAccount || 'On File'}</div>
+                </div>
+                <div class="net-amount">₹${formatNum(netSalaryVal)}</div>
+              </div>
+              <div class="net-words">
+                Amount in Words: <strong>Rupees ${inWords}</strong>
+              </div>
             </div>
 
-            <div class="sign">
-              <div>____________________<br/>Employee Signature</div>
-              <div>____________________<br/>Accounts Authority</div>
+            <div class="signature-block">
+              <div class="sign-col">
+                <div class="sign-line"></div>
+                <div class="sign-label">Employee Signature</div>
+              </div>
+              <div class="sign-col">
+                <div class="sign-line"></div>
+                <div class="sign-label">Authorised Signatory / Accounts</div>
+              </div>
             </div>
-            <script>window.print();</script>
-          </body>
-        </html>
-      `);
-      printWindow.document.close();
-    }
+
+            <div class="footer-note">
+              This is a computer-generated official payslip issued by ${activeSchoolName}. Does not require an ink signature.
+            </div>
+          </div>
+          <script>window.print();</script>
+        </body>
+      </html>
+    `);
+    printWindow.document.close();
   };
 
   const uniqueMonths = Array.from(new Set(payslips.map(p => p.month)));

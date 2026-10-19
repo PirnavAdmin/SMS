@@ -284,8 +284,8 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
 
   // Leave Application Form state
   const [selectedLeaveTypeId, setSelectedLeaveTypeId] = useState<string>("");
-  const [leaveFromDate, setLeaveFromDate] = useState(todayStr);
-  const [leaveToDate, setLeaveToDate] = useState(todayStr);
+  const [leaveFromDate, setLeaveFromDate] = useState("");
+  const [leaveToDate, setLeaveToDate] = useState("");
   const [leaveReason, setLeaveReason] = useState("");
 
   useEffect(() => {
@@ -773,6 +773,10 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
 
   const handleApplyLeaveSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!leaveFromDate || !leaveToDate) {
+      addToast("error", "Dates Required", "Please select both from and to dates.");
+      return;
+    }
     const from = new Date(leaveFromDate);
     const to = new Date(leaveToDate);
     const diffMs = to.getTime() - from.getTime();
@@ -849,6 +853,8 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
       `Submitted application for ${daysCount} ${daysCount === 1 ? "day" : "days"} of ${typeName} (Pending approval).`,
     );
     setShowApplyLeaveModal(false);
+    setLeaveFromDate("");
+    setLeaveToDate("");
     setLeaveReason("");
   };
 

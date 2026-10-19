@@ -85,7 +85,7 @@ export const FineRulesView: React.FC = () => {
             <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-2">
               <div>
                 <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${
-                  r.status === 'Active' ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300' : 'bg-slate-100 text-slate-500'
+                  r.status === 'Active' ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300' : 'bg-rose-50 text-rose-700 dark:bg-rose-950 dark:text-rose-300'
                 }`}>
                   {r.status} Rule
                 </span>

@@ -463,7 +463,7 @@ export const FeeHeadsView: React.FC = () => {
                       <button
                         onClick={() => toggleFeeHeadStatus(h.id)}
                         className={`px-2.5 py-1 rounded-full text-[10px] font-extrabold transition-all ${
-                          h.status === 'Active' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300' : 'bg-slate-100 text-slate-500 dark:bg-slate-800'
+                          h.status === 'Active' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300' : 'bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-300'
                         }`}
                       >
                         {h.status}
