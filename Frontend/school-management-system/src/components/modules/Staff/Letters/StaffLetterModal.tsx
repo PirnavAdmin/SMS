@@ -269,9 +269,222 @@ export const StaffLetterModal: React.FC<StaffLetterModalProps> = ({
     }));
   };
 
+  const [isPrinting, setIsPrinting] = useState(false);
+
   const handlePrint = () => {
-    window.print();
+    if (isPrinting) return;
+    setIsPrinting(true);
+
+    const printElement = document.getElementById('staff-letter-printable-area');
+    if (!printElement) {
+      window.print();
+      setIsPrinting(false);
+      return;
+    }
+
+    // Remove any previous print iframe
+    const prevFrame = document.getElementById('staff-letter-print-frame');
+    if (prevFrame) prevFrame.remove();
+
+    // Create an off-screen iframe with standard desktop dimensions to ensure full layout rendering
+    const iframe = document.createElement('iframe');
+    iframe.id = 'staff-letter-print-frame';
+    iframe.style.position = 'fixed';
+    iframe.style.left = '-9999px';
+    iframe.style.top = '0';
+    iframe.style.width = '1024px';
+    iframe.style.height = '1400px';
+    iframe.style.border = '0';
+    iframe.style.opacity = '0';
+    iframe.style.pointerEvents = 'none';
+    iframe.setAttribute('aria-hidden', 'true');
+    document.body.appendChild(iframe);
+
+    const iframeDoc = iframe.contentWindow?.document;
+    if (!iframeDoc) {
+      if (iframe.parentNode) iframe.parentNode.removeChild(iframe);
+      window.print();
+      setIsPrinting(false);
+      return;
+    }
+
+    const docTypeLabel =
+      activeType === 'offer'
+        ? 'Offer Letter'
+        : activeType === 'relieving'
+        ? 'Relieving Letter'
+        : 'Experience Certificate';
+    const docTitle = `${payload.refNo ? `${payload.refNo} - ` : ''}${payload.candidateName || 'Staff'} - ${docTypeLabel}`;
+
+    iframeDoc.open();
+    iframeDoc.write(`
+      <!DOCTYPE html>
+      <html lang="en">
+        <head>
+          <meta charset="utf-8" />
+          <title>${docTitle}</title>
+        </head>
+        <body>
+          <div id="print-root">${printElement.innerHTML}</div>
+        </body>
+      </html>
+    `);
+
+    // Extract all compiled CSS rules from document.styleSheets into the iframe
+    for (let i = 0; i < document.styleSheets.length; i++) {
+      const sheet = document.styleSheets[i];
+      try {
+        if (sheet.cssRules) {
+          const style = iframeDoc.createElement('style');
+          let cssText = '';
+          for (let j = 0; j < sheet.cssRules.length; j++) {
+            const ruleText = sheet.cssRules[j].cssText;
+            if (!ruleText.includes('visibility: hidden')) {
+              cssText += ruleText + '\n';
+            }
+          }
+          style.textContent = cssText;
+          iframeDoc.head.appendChild(style);
+        }
+      } catch (e) {
+        if (sheet.href) {
+          const link = iframeDoc.createElement('link');
+          link.rel = 'stylesheet';
+          link.href = sheet.href;
+          iframeDoc.head.appendChild(link);
+        }
+      }
+    }
+
+    // Also copy all <link rel="stylesheet"> elements (Google Fonts, etc.)
+    document.querySelectorAll('link[rel="stylesheet"]').forEach((link) => {
+      iframeDoc.head.appendChild(link.cloneNode(true));
+    });
+
+    // Inject dedicated, guaranteed-visible print styles
+    const printStyle = iframeDoc.createElement('style');
+    printStyle.textContent = `
+      @page {
+        size: A4 portrait;
+        margin: 8mm 10mm;
+      }
+      @media print {
+        @page {
+          size: A4 portrait;
+          margin: 8mm 10mm;
+        }
+      }
+      *, *::before, *::after {
+        box-sizing: border-box !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+      }
+      html, body {
+        margin: 0 !important;
+        padding: 0 !important;
+        background: #ffffff !important;
+        color: #0f172a !important;
+        font-family: 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+        width: 100% !important;
+        height: auto !important;
+        overflow: visible !important;
+      }
+      #print-root {
+        width: 100% !important;
+        max-width: 800px !important;
+        margin: 0 auto !important;
+        padding: 0 !important;
+        background: #ffffff !important;
+        display: block !important;
+      }
+      .printable-staff-letter {
+        box-shadow: none !important;
+        border: none !important;
+        padding: 0 !important;
+        margin: 0 auto !important;
+        max-width: 800px !important;
+        width: 100% !important;
+        min-height: auto !important;
+        height: auto !important;
+        color: #0f172a !important;
+        background: #ffffff !important;
+        display: block !important;
+        page-break-after: avoid !important;
+        break-after: avoid !important;
+      }
+      .no-print, .print\:hidden {
+        display: none !important;
+      }
+    `;
+    iframeDoc.head.appendChild(printStyle);
+    iframeDoc.close();
+
+    const triggerIframePrint = () => {
+      setTimeout(() => {
+        try {
+          iframe.contentWindow?.focus();
+          iframe.contentWindow?.print();
+        } catch (e) {
+          console.error('Print failed:', e);
+          window.print();
+        } finally {
+          setIsPrinting(false);
+          setTimeout(() => {
+            if (iframe.parentNode) {
+              iframe.parentNode.removeChild(iframe);
+            }
+          }, 2000);
+        }
+      }, 250);
+    };
+
+    // Wait for images (school logo, signatures) inside the letter to finish loading
+    const images = Array.from(iframeDoc.getElementsByTagName('img'));
+    if (images.length === 0) {
+      triggerIframePrint();
+    } else {
+      let loaded = 0;
+      let finished = false;
+      const onImageDone = () => {
+        loaded++;
+        if (loaded >= images.length && !finished) {
+          finished = true;
+          triggerIframePrint();
+        }
+      };
+
+      images.forEach((img) => {
+        if (img.complete && img.naturalHeight !== 0) {
+          onImageDone();
+        } else {
+          img.onload = onImageDone;
+          img.onerror = onImageDone;
+        }
+      });
+
+      // Fallback timeout in case an image hangs
+      setTimeout(() => {
+        if (!finished) {
+          finished = true;
+          triggerIframePrint();
+        }
+      }, 1500);
+    }
   };
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'p') {
+        e.preventDefault();
+        handlePrint();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, isPrinting, payload, activeType]);
 
   const handleSaveAndIssue = () => {
     const targetStaff = currentStaff || staff;
@@ -342,10 +555,10 @@ export const StaffLetterModal: React.FC<StaffLetterModalProps> = ({
   const isViewMode = readOnly || !!existingRecord;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-slate-950/70 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl w-full max-w-5xl h-[92vh] flex flex-col shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-slate-950/70 backdrop-blur-sm animate-in fade-in duration-200 print:p-0 print:bg-white print:fixed print:inset-0">
+      <div className="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl w-full max-w-5xl h-[92vh] flex flex-col shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200 print:shadow-none print:border-none print:w-full print:max-w-none print:h-auto print:bg-white">
         {/* Top Header Bar */}
-        <div className="px-4 py-3 bg-white dark:bg-slate-850 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between gap-3 shrink-0">
+        <div className="px-4 py-3 bg-white dark:bg-slate-850 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between gap-3 shrink-0 no-print print:hidden">
           <div className="flex items-center gap-3 min-w-0">
             <div className="p-2 rounded-xl bg-sky-50 dark:bg-sky-950/60 text-sky-600 dark:text-sky-400 border border-sky-200 dark:border-sky-800/60 shadow-xs shrink-0">
               <FileText className="w-5 h-5" />
@@ -412,10 +625,11 @@ export const StaffLetterModal: React.FC<StaffLetterModalProps> = ({
             <button
               type="button"
               onClick={handlePrint}
+              disabled={isPrinting}
               title="Print / PDF Document"
-              className="p-2.5 rounded-xl bg-sky-600 hover:bg-sky-500 text-white shadow-sm transition-all cursor-pointer flex items-center justify-center"
+              className="p-2.5 rounded-xl bg-sky-600 hover:bg-sky-500 text-white shadow-sm transition-all cursor-pointer flex items-center justify-center disabled:opacity-70 disabled:cursor-not-allowed"
             >
-              <Printer className="w-4 h-4" />
+              {isPrinting ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Printer className="w-4 h-4" />}
             </button>
 
             <button
@@ -430,7 +644,7 @@ export const StaffLetterModal: React.FC<StaffLetterModalProps> = ({
 
         {/* Sub-bar: Letter Type Switcher & Save (Only when generating new document) */}
         {!isViewMode && (
-          <div className="px-4 py-2 bg-slate-100/70 dark:bg-slate-800/40 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between gap-2 shrink-0 overflow-x-auto no-scrollbar">
+          <div className="px-4 py-2 bg-slate-100/70 dark:bg-slate-800/40 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between gap-2 shrink-0 overflow-x-auto no-scrollbar no-print print:hidden">
             <div className="flex items-center gap-2">
               {[
                 { id: 'offer', label: 'Offer & Appointment Letter', icon: FileText },
@@ -469,17 +683,20 @@ export const StaffLetterModal: React.FC<StaffLetterModalProps> = ({
         )}
 
         {/* Content Area */}
-        <div className="flex-1 overflow-y-auto p-4 sm:p-6 no-scrollbar">
+        <div className="flex-1 overflow-y-auto p-4 sm:p-6 no-scrollbar print:p-0 print:overflow-visible">
           {activeView === 'preview' || isViewMode ? (
-            <div className="flex justify-center pb-8">
-              <PrintableStaffLetter
-                type={activeType}
-                payload={payload}
-                schoolProfile={schoolProfile}
-              />
+            <div className="flex justify-center pb-8 print:pb-0">
+              <div id="staff-letter-printable-area" className="w-full">
+                <PrintableStaffLetter
+                  type={activeType}
+                  payload={payload}
+                  schoolProfile={schoolProfile}
+                />
+              </div>
             </div>
           ) : (
-            <div className="max-w-3xl mx-auto space-y-4 pb-8 text-xs">
+            <>
+              <div className="max-w-3xl mx-auto space-y-4 pb-8 text-xs no-print">
               {/* Target Employee Switcher */}
               {!readOnly && !existingRecord && effectiveStaffList.length > 0 && (
                 <div className="bg-white dark:bg-slate-850 p-4 rounded-2xl border border-sky-200/80 dark:border-slate-800 shadow-xs space-y-3">
@@ -1006,7 +1223,16 @@ export const StaffLetterModal: React.FC<StaffLetterModalProps> = ({
                 </div>
               </div>
             </div>
-          )}
+            {/* Hidden printable letter so printing from configure tab still prints only the letter document */}
+            <div id="staff-letter-printable-area" className="hidden">
+              <PrintableStaffLetter
+                type={activeType}
+                payload={payload}
+                schoolProfile={schoolProfile}
+              />
+            </div>
+          </>
+        )}
         </div>
       </div>
     </div>

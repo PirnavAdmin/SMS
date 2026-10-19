@@ -54,7 +54,7 @@ interface PayrollModuleViewProps {
   onTabChange?: (tab: string) => void;
 }
 
-type CategoryValue = 'Teacher' | 'Staff';
+type CategoryValue = 'Teacher' | 'Staff' | '';
 
 type StructureDraft = {
   id?: string;
@@ -68,7 +68,7 @@ type StructureDraft = {
   hraPercentage: string;
   status: 'Active' | 'Inactive';
   effectiveDate: string;
-  payrollFrequency: 'Monthly' | 'Weekly' | 'Bi-Weekly' | 'Hourly' | 'Daily' | 'Per Class' | 'Contractual';
+  payrollFrequency: 'Monthly' | 'Weekly' | 'Bi-Weekly' | 'Hourly' | 'Daily' | 'Per Class' | 'Contractual' | '';
   salaryPaymentDay: string;
   pfApplicable: boolean;
   pfPercentage: string;
@@ -204,7 +204,7 @@ const SelectField: React.FC<{
 
 const normalize = (value: string) => value.toLowerCase().replace(/[^a-z0-9]+/g, '');
 
-const getCategoryLabel = (category?: CategoryValue | null) => (category === 'Teacher' ? 'Teaching Staff' : 'Non-Teaching Staff');
+const getCategoryLabel = (category?: CategoryValue | null) => (!category ? '' : category === 'Teacher' ? 'Teaching Staff' : 'Non-Teaching Staff');
 
 const resolveCategory = (staff: Staff): CategoryValue => {
   if (staff.employeeCategory) return staff.employeeCategory;
@@ -625,7 +625,7 @@ const defaultEffectiveDate = '';
 
 const structureDraftDefaults: StructureDraft = {
   structureName: '',
-  employeeCategory: 'Teacher',
+  employeeCategory: '',
   staffId: '',
   department: '',
   designation: '',
@@ -633,7 +633,7 @@ const structureDraftDefaults: StructureDraft = {
   hraPercentage: '40',
   status: 'Active',
   effectiveDate: defaultEffectiveDate,
-  payrollFrequency: 'Monthly',
+  payrollFrequency: '',
   salaryPaymentDay: '5',
   pfApplicable: true,
   pfPercentage: '12',
@@ -661,6 +661,34 @@ const structureDraftDefaults: StructureDraft = {
 
 const parseMoney = (value: string) => Number(value) || 0;
 
+const validateAnnualCtc = (val: string | undefined | null): string | null => {
+  if (val === undefined || val === null) return null;
+  const trimmed = String(val).trim();
+  if (trimmed === '') return null;
+
+  if (trimmed.includes('e') || trimmed.includes('E') || trimmed.includes('+')) {
+    return 'Invalid number format. Scientific / exponential notation is not allowed.';
+  }
+
+  const num = Number(trimmed);
+  if (isNaN(num)) {
+    return 'Please enter a valid numeric amount for Annual CTC.';
+  }
+  if (num < 0) {
+    return 'Annual CTC cannot be negative.';
+  }
+  if (num === 0) {
+    return 'Annual CTC must be greater than zero.';
+  }
+  if (!isFinite(num) || num > 100000000) {
+    return 'Annual CTC cannot exceed ₹10,00,00,000 (10 Crores).';
+  }
+  if (num < 1000) {
+    return 'Annual CTC is too low. Please enter a realistic annual salary.';
+  }
+  return null;
+};
+
 const getPayslipUniqueId = (item: any, fallbackIndex?: number): string => {
   return String(item?.id || item?._id || item?.payslipNumber || item?.slipNo || (item?.employeeId && item?.month ? `${item.employeeId}-${item.month}` : '') || (item?.empId && item?.month ? `${item.empId}-${item.month}` : '') || `payslip-${fallbackIndex ?? 0}`);
 };
@@ -679,13 +707,13 @@ const getStructureDraftFromStructure = (structure: SalaryStructure, mode: 'add' 
   staffId: (structure as any).staffId || (structure as any).employeeId || '',
   department: (structure as any).department || '',
   structureName: mode === 'duplicate' ? `${structure.structureName} Copy` : structure.structureName,
-  employeeCategory: structure.employeeCategory,
+  employeeCategory: structure.employeeCategory || '',
   designation: structure.designation || '',
   basicPercentage: String(structure.basicPercentage ?? 50),
   hraPercentage: String(structure.hraPercentage ?? 40),
   status: mode === 'duplicate' ? 'Inactive' : structure.status,
   effectiveDate: structure.effectiveDate || defaultEffectiveDate,
-  payrollFrequency: 'Monthly',
+  payrollFrequency: (structure.payrollFrequency as any) || '',
   salaryPaymentDay: structure.salaryPaymentDay || '5',
   pfApplicable: structure.pfApplicable ?? findLineAmount(structure.deductions, ['employee pf', 'employer pf', 'provident fund']) > 0,
   pfPercentage: String(structure.pfPercentage ?? 12),
@@ -787,7 +815,7 @@ const buildStructurePayload = (draft: StructureDraft): Omit<SalaryStructure, 'id
     staffId: draft.staffId || undefined,
     employeeId: draft.staffId || undefined,
     structureName: draft.structureName.trim(),
-    employeeCategory: draft.employeeCategory,
+    employeeCategory: (draft.employeeCategory || 'Staff') as 'Teacher' | 'Staff',
     branch: '',
     earnings: [
       { name: 'Basic Salary', amount: parseMoney(draft.basicSalary), type: 'Fixed', value: parseMoney(draft.basicSalary) },
@@ -812,7 +840,7 @@ const buildStructurePayload = (draft: StructureDraft): Omit<SalaryStructure, 'id
     netSalaryFormula: 'Gross Salary - Total Deductions',
     status: draft.status,
     designation: draft.designation.trim(),
-    payrollFrequency: draft.payrollFrequency,
+    payrollFrequency: draft.payrollFrequency ? (draft.payrollFrequency as any) : undefined,
     salaryPaymentDay: draft.salaryPaymentDay.trim() || '5',
     basicPercentage: Number(draft.basicPercentage) || 50,
     hraPercentage: Number(draft.hraPercentage) || 40,
@@ -1534,11 +1562,16 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
 
   const availableCategoryStaff = useMemo(() => {
     const cat = structureDraft.employeeCategory;
+    if (!cat) return staff;
     return staff.filter(s => resolveCategory(s) === cat);
   }, [staff, structureDraft.employeeCategory]);
 
+  const annualCtcError = useMemo(() => validateAnnualCtc(structureDraft.annualCtc), [structureDraft.annualCtc]);
+
   const autoCalculateCorporateSalary = (inputCtc?: string, customBasicPct?: string, customHraPct?: string) => {
-    const annual = parseMoney(inputCtc !== undefined ? inputCtc : structureDraft.annualCtc || '0');
+    const rawVal = inputCtc !== undefined ? inputCtc : structureDraft.annualCtc || '0';
+    if (validateAnnualCtc(rawVal)) return;
+    const annual = parseMoney(rawVal);
     if (annual <= 0) return;
 
     const monthlyGross = Math.round(annual / 12);
@@ -1555,7 +1588,7 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
     setStructureDraft(prev => {
       const updated: StructureDraft = {
         ...prev,
-        annualCtc: String(annual),
+        annualCtc: inputCtc !== undefined ? inputCtc : prev.annualCtc,
         basicPercentage: customBasicPct !== undefined ? customBasicPct : prev.basicPercentage,
         hraPercentage: customHraPct !== undefined ? customHraPct : prev.hraPercentage,
         basicSalary: String(basic),
@@ -1575,6 +1608,20 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
     });
   };
 
+  const handleAutoCalculateClick = () => {
+    if (!structureDraft.annualCtc || !String(structureDraft.annualCtc).trim()) {
+      addToast('warning', 'Annual CTC Required', 'Please enter an Annual CTC amount to auto-calculate the breakdown.');
+      return;
+    }
+    const err = validateAnnualCtc(structureDraft.annualCtc);
+    if (err) {
+      addToast('error', 'Invalid Annual CTC', err);
+      return;
+    }
+    autoCalculateCorporateSalary();
+    addToast('success', 'Breakdown Calculated', 'Salary structure auto-calculated successfully based on Annual CTC.');
+  };
+
   const handleStaffSelect = (staffId: string) => {
     const selectedStaff = staff.find(s => String(s.id) === String(staffId));
     if (selectedStaff) {
@@ -1582,14 +1629,16 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
       const autoDept = (selectedStaff as any).department || selectedStaff.designation || selectedStaff.role || 'Staff';
       const staffName = selectedStaff.name || `${selectedStaff.firstName || ''} ${selectedStaff.lastName || ''}`.trim() || 'Staff Scale';
       const staffSalary = Number((selectedStaff as any).basicSalary || (selectedStaff as any).salary || 0);
+      const staffCategory = resolveCategory(selectedStaff);
 
       setStructureDraft(prev => {
         const next = {
           ...prev,
+          employeeCategory: prev.employeeCategory || staffCategory,
           staffId,
           designation: autoDesignation,
           department: autoDept,
-          structureName: prev.structureName ? prev.structureName : `${staffName} Scale`
+          structureName: prev.structureName || ''
         };
 
         if (staffSalary > 0) {
@@ -1867,21 +1916,28 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
     }
   }, [assignmentDraft.employeeId, assignmentModalOpen, salaryStructures, staff]);
 
-  useEffect(() => {
-    if (!structureModalOpen) return;
-    if (structureDraft.id) return;
-    if (!structureDraft.structureName) {
-      setStructureDraft(prev => ({
-        ...prev,
-        structureName: `${getCategoryLabel(prev.employeeCategory)} ${prev.designation || 'Scale'}`.trim()
-      }));
-    }
-  }, [structureDraft.designation, structureDraft.employeeCategory, structureDraft.id, structureDraft.structureName, structureModalOpen]);
-
   const saveStructure = async () => {
     if (!structureDraft.structureName.trim() || !structureDraft.designation.trim()) {
       addToast('warning', 'Missing details', 'Please enter a structure name and designation before saving.');
       return;
+    }
+
+    if (!structureDraft.employeeCategory) {
+      addToast('warning', 'Missing details', 'Please select an employee category before saving.');
+      return;
+    }
+
+    if (!structureDraft.payrollFrequency) {
+      addToast('warning', 'Missing details', 'Please select a payroll frequency before saving.');
+      return;
+    }
+
+    if (structureDraft.annualCtc) {
+      const ctcErr = validateAnnualCtc(structureDraft.annualCtc);
+      if (ctcErr) {
+        addToast('error', 'Invalid Annual CTC', ctcErr);
+        return;
+      }
     }
 
     const payload = buildStructurePayload(structureDraft);
@@ -3334,7 +3390,7 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
                 </div>
                 <button
                   type="button"
-                  onClick={() => autoCalculateCorporateSalary()}
+                  onClick={handleAutoCalculateClick}
                   className="inline-flex items-center gap-1.5 rounded-xl bg-sky-50 px-3 py-1.5 text-xs font-bold text-sky-700 hover:bg-sky-100 dark:bg-sky-950/50 dark:text-sky-300 dark:hover:bg-sky-900/60 transition-colors shrink-0 cursor-pointer"
                 >
                   <Wand2 className="h-3.5 w-3.5" /> Auto-Calculate Breakdown
@@ -3343,26 +3399,45 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
 
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                 <div>
-                  <label className="mb-2 block text-[10px] font-black uppercase tracking-[0.28em] text-sky-600 dark:text-sky-400">Annual CTC (Without Variable Pay) *</label>
+                  <label className="mb-2 block text-[10px] font-black uppercase tracking-[0.28em] text-sky-600 dark:text-sky-400">
+                    Annual CTC (Without Variable Pay) <span className="text-rose-500 font-bold ml-0.5">*</span>
+                  </label>
                   <div className="relative">
                     <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-sm font-bold text-slate-400">₹</span>
                     <input
-                      type="number"
-                      min="0"
+                      type="text"
+                      inputMode="numeric"
                       value={structureDraft.annualCtc || ''}
+                      onKeyDown={e => {
+                        if (['e', 'E', '+', '-'].includes(e.key)) {
+                          e.preventDefault();
+                        }
+                      }}
                       onChange={e => {
                         const val = e.target.value;
                         setStructureDraft(prev => ({ ...prev, annualCtc: val }));
                         autoCalculateCorporateSalary(val);
                       }}
-                      className={`${inputClass} pl-8 font-extrabold text-sky-700 dark:text-sky-300`}
+                      className={`${inputClass} pl-8 font-extrabold ${
+                        annualCtcError
+                          ? 'border-rose-400 focus:border-rose-500 focus:ring-rose-500/20 text-rose-600 dark:border-rose-600 dark:text-rose-400'
+                          : 'text-sky-700 dark:text-sky-300'
+                      }`}
                       placeholder="e.g. 399996"
                     />
                   </div>
+                  {annualCtcError && (
+                    <p className="mt-1.5 flex items-center gap-1.5 text-xs font-semibold text-rose-600 dark:text-rose-400">
+                      <AlertCircle className="h-3.5 w-3.5 shrink-0" />
+                      <span>{annualCtcError}</span>
+                    </p>
+                  )}
                 </div>
 
                 <div>
-                  <label className="mb-2 block text-[10px] font-black uppercase tracking-[0.28em] text-slate-400">Employee Category *</label>
+                  <label className="mb-2 block text-[10px] font-black uppercase tracking-[0.28em] text-slate-400">
+                    Employee Category <span className="text-rose-500 font-bold ml-0.5">*</span>
+                  </label>
                   <SelectField
                     value={structureDraft.employeeCategory}
                     onChange={e => {
@@ -3370,13 +3445,16 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
                       setStructureDraft(prev => ({ ...prev, employeeCategory: newCat, staffId: '', designation: '', department: '' }));
                     }}
                   >
+                    <option value="">Select Category</option>
                     <option value="Teacher">Teaching Staff</option>
                     <option value="Staff">Non-Teaching Staff</option>
                   </SelectField>
                 </div>
 
                 <div>
-                  <label className="mb-2 block text-[10px] font-black uppercase tracking-[0.28em] text-slate-400">Select Employee / Staff *</label>
+                  <label className="mb-2 block text-[10px] font-black uppercase tracking-[0.28em] text-slate-400">
+                    Select Employee / Staff <span className="text-rose-500 font-bold ml-0.5">*</span>
+                  </label>
                   <SearchableStaffSelect
                     value={structureDraft.staffId || ''}
                     onChange={handleStaffSelect}
@@ -3408,7 +3486,9 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
                 </div>
 
                 <div>
-                  <label className="mb-2 block text-[10px] font-black uppercase tracking-[0.28em] text-slate-400">Structure Name *</label>
+                  <label className="mb-2 block text-[10px] font-black uppercase tracking-[0.28em] text-slate-400">
+                    Structure Name <span className="text-rose-500 font-bold ml-0.5">*</span>
+                  </label>
                   <input
                     value={structureDraft.structureName}
                     onChange={e => setStructureDraft(prev => ({ ...prev, structureName: e.target.value }))}
@@ -3428,11 +3508,14 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
                 </div>
 
                 <div>
-                  <label className="mb-2 block text-[10px] font-black uppercase tracking-[0.28em] text-slate-400">Payroll Frequency</label>
+                  <label className="mb-2 block text-[10px] font-black uppercase tracking-[0.28em] text-slate-400">
+                    Payroll Frequency <span className="text-rose-500 font-bold ml-0.5">*</span>
+                  </label>
                   <SelectField
                     value={structureDraft.payrollFrequency}
                     onChange={e => setStructureDraft(prev => ({ ...prev, payrollFrequency: e.target.value as any }))}
                   >
+                    <option value="">Select Frequency</option>
                     <option value="Monthly">Monthly</option>
                     <option value="Weekly">Weekly</option>
                     <option value="Bi-Weekly">Bi-Weekly</option>
@@ -3806,7 +3889,9 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
           <div className="grid grid-cols-1 gap-6 md:grid-cols-[1.1fr_0.9fr]">
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               <div className="md:col-span-2">
-                <label className="mb-2 block text-[10px] font-black uppercase tracking-[0.28em] text-slate-400">Employee</label>
+                <label className="mb-2 block text-[10px] font-black uppercase tracking-[0.28em] text-slate-400">
+                  Employee <span className="text-rose-500 font-bold ml-0.5">*</span>
+                </label>
                 <SearchableStaffSelect
                   value={assignmentDraft.employeeId}
                   staffList={staff}
@@ -3847,7 +3932,9 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
                 />
               </div>
               <div>
-                <label className="mb-2 block text-[10px] font-black uppercase tracking-[0.28em] text-slate-400">Category</label>
+                <label className="mb-2 block text-[10px] font-black uppercase tracking-[0.28em] text-slate-400">
+                  Category <span className="text-rose-500 font-bold ml-0.5">*</span>
+                </label>
                 <SelectField
                   value={assignmentDraft.employeeCategory}
                   onChange={e => {
@@ -3872,7 +3959,9 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
                 </SelectField>
               </div>
               <div>
-                <label className="mb-2 block text-[10px] font-black uppercase tracking-[0.28em] text-slate-400">Designation</label>
+                <label className="mb-2 block text-[10px] font-black uppercase tracking-[0.28em] text-slate-400">
+                  Designation <span className="text-rose-500 font-bold ml-0.5">*</span>
+                </label>
                 <SearchableSelect
                     value={assignmentDraft.designation}
                     onChange={(val: string) => {
@@ -3895,7 +3984,9 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
                   />
               </div>
               <div className="md:col-span-2">
-                <label className="mb-2 block text-[10px] font-black uppercase tracking-[0.28em] text-slate-400">Salary Structure</label>
+                <label className="mb-2 block text-[10px] font-black uppercase tracking-[0.28em] text-slate-400">
+                  Salary Structure <span className="text-rose-500 font-bold ml-0.5">*</span>
+                </label>
                 <SelectField
                   value={assignmentDraft.salaryStructureId}
                   onChange={e => {

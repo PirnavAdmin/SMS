@@ -1924,7 +1924,9 @@ export const LeaveManagementView: React.FC = () => {
             
             <form onSubmit={handleApprovalSubmit} className="space-y-3.5">
               <div>
-                <label className="block text-xs font-semibold mb-1 text-slate-700">Approver Remarks / Reason {queueActionType === 'Rejected' && '*'}</label>
+                <label className="block text-xs font-semibold mb-1 text-slate-700">
+                  Approver Remarks / Reason {queueActionType === 'Rejected' && <span className="text-rose-500 font-bold ml-0.5">*</span>}
+                </label>
                 <textarea
                   required={queueActionType === 'Rejected'}
                   placeholder="Provide comments or reason for rejection/approval..."
