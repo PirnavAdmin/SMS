@@ -51,10 +51,16 @@ const getRegisterKey = (cls: string, sec: string, d: string) => {
 };
 
 export const AttendanceView = () => {
-  const { user } = useAuth();
+  const { user, role } = useAuth();
   const { staff = [], students: allStudents = [], academicClasses = [], studentAttendance = [], holidays = [], saveStudentAttendance, saveBulkStudentAttendance, teacherAssignments = [], timetable = [], periodSettings = [], fetchStudents, fetchStudentAttendanceData } = useData();
 
-  const isTeacher = (user?.role as any) === 'Teacher' || (user?.role as any) === 'Class Teacher';
+  const isTeacher = useMemo(() => {
+    const normRole = (user?.role || role || '').toLowerCase().replace(/[_\s-]+/g, '');
+    const empCat = ((user as any)?.employeeCategory || '').toLowerCase();
+    const isTeacherRole = normRole === 'teacher' || normRole === 'classteacher' || normRole === 'faculty' || empCat.includes('teach');
+    const isAdminOrPrincipal = normRole.includes('admin') || normRole.includes('principal');
+    return isTeacherRole && !isAdminOrPrincipal;
+  }, [user, role]);
 
   // Real students mapped from DataContext
   const realStudents: Student[] = useMemo(() => {
@@ -80,109 +86,192 @@ export const AttendanceView = () => {
   const dbTeacher = useMemo(() => {
     const userEmail = (user?.email || '').toLowerCase().trim();
     const userName = (user?.name || '').toLowerCase().trim();
+    const userId = String(user?.id || (user as any)?.empId || (user as any)?.staffId || '').toLowerCase().trim();
 
     let matchedStaff: any = null;
 
-    if (userEmail) {
+    if (userId) {
       matchedStaff = staff.find(s => {
-        if (!s.email) return false;
-        const sEmail = s.email.toLowerCase().trim();
-        return sEmail === userEmail || 
-          (userEmail.includes('teacher') && (sEmail.includes('teacher') || s.empId === 'STF-2026-0000' || s.id === 'STF-2026-0000'));
-      });
-    }
-    if (!matchedStaff && userName) {
-      matchedStaff = staff.find(s => {
-        const sFullName = `${s.firstName || ''} ${s.lastName || ''}`.toLowerCase().trim();
-        return sFullName.includes(userName) || userName.includes(sFullName);
+        const sId = String(s.id || '').toLowerCase().trim();
+        const sEmpId = String(s.empId || (s as any)?.employeeId || '').toLowerCase().trim();
+        return (sId && sId === userId) || (sEmpId && sEmpId === userId);
       });
     }
 
-    const rawName = user?.name || 'Robert Teacher';
-    const nameParts = rawName.split(' ');
+    if (!matchedStaff && userEmail) {
+      matchedStaff = staff.find(s => {
+        if (!s.email) return false;
+        const sEmail = s.email.toLowerCase().trim();
+        return sEmail === userEmail;
+      });
+    }
+
+    if (!matchedStaff && userName) {
+      matchedStaff = staff.find(s => {
+        const sFullName = `${s.firstName || ''} ${s.lastName || ''}`.toLowerCase().trim();
+        const sName = (s.name || '').toLowerCase().trim();
+        return (
+          sFullName === userName ||
+          sName === userName ||
+          (userName.length > 3 && (sFullName.includes(userName) || userName.includes(sFullName))) ||
+          (userName.length > 3 && sName && (sName.includes(userName) || userName.includes(sName)))
+        );
+      });
+    }
+
+    const rawName = (user?.name || '').trim();
+    const nameParts = rawName ? rawName.split(' ') : ['Teacher'];
     const fallback = matchedStaff || {
-      id: user?.id || 'STF-2026-0000',
-      empId: (user as any)?.empId || 'STF-2026-0000',
-      firstName: nameParts[0] || 'Robert',
-      lastName: nameParts.slice(1).join(' ') || 'Teacher',
-      assignedClasses: ['Class 4-A'],
-      assignedSubjects: ['English', 'Chemistry']
+      id: user?.id || 'STF-TEACHER',
+      empId: (user as any)?.empId || user?.id || 'STF-TEACHER',
+      firstName: nameParts[0] || 'Teacher',
+      lastName: nameParts.slice(1).join(' ') || '',
+      assignedClasses: (user as any)?.assignedClasses || [],
+      assignedSubjects: (user as any)?.assignedSubjects || []
     };
 
     return {
       ...fallback,
-      firstName: fallback.firstName || 'Robert',
-      lastName: fallback.lastName || 'Teacher',
-      assignedClasses: fallback.assignedClasses || ['Class 4-A'],
-      assignedSubjects: fallback.assignedSubjects || ['English', 'Chemistry']
+      firstName: fallback.firstName || nameParts[0] || 'Teacher',
+      lastName: fallback.lastName || nameParts.slice(1).join(' ') || '',
+      assignedClasses: fallback.assignedClasses || (user as any)?.assignedClasses || [],
+      assignedSubjects: fallback.assignedSubjects || (user as any)?.assignedSubjects || []
     };
   }, [user, staff]);
 
-  // Extract assigned classes & sections for teacher merging Admin assignments & timetable
-  // Extract single assigned Class Teacher class & section for teacher
+  // Extract assigned classes & sections for teacher dynamically from all assignment sources
   const teacherClasses = useMemo(() => {
-    const tName = `${dbTeacher.firstName || ''} ${dbTeacher.lastName || ''}`.toLowerCase().trim();
-    const tId = String(dbTeacher.id || (dbTeacher as any).empId || '').toLowerCase().trim();
+    const tFullName = `${dbTeacher.firstName || ''} ${dbTeacher.lastName || ''}`.toLowerCase().trim();
+    const uFullName = (user?.name || '').toLowerCase().trim();
+    const tSingleName = (dbTeacher?.name || '').toLowerCase().trim();
+    const tFirstName = (dbTeacher?.firstName || (user?.name || '').split(' ')[0] || '').toLowerCase().trim();
+    const tLastName = (dbTeacher?.lastName || (user?.name || '').split(' ').slice(1).join(' ') || '').toLowerCase().trim();
+    const tId = String(dbTeacher.id || (dbTeacher as any).empId || user?.id || (user as any)?.empId || '').toLowerCase().trim();
 
-    // 1. Check teacherAssignments for Class Teacher role
-    const ctAssignments = (teacherAssignments || [])
-      .filter((ta: any) => {
-        const nameMatch = ta.teacherName && (ta.teacherName.toLowerCase().includes(tName) || tName.includes(ta.teacherName.toLowerCase()));
-        const idMatch = ta.teacherId && (String(ta.teacherId).toLowerCase() === tId);
-        const isCT = ta.role === 'Class Teacher' || ta.isClassTeacher === true || (ta.designation || '').toLowerCase().includes('class teacher');
-        return (nameMatch || idMatch) && isCT;
-      })
-      .map((ta: any) => {
-        const cls = (ta.className || '').trim();
-        const sec = (ta.section || '').trim();
-        return sec ? `${cls}-${sec}` : cls;
+    const namesToMatch = Array.from(new Set([tFullName, uFullName, tSingleName])).filter(Boolean);
+
+    const isTeacherMatch = (targetName?: string, targetId?: any) => {
+      if (targetId && tId) {
+        const cleanTId = String(targetId).toLowerCase().trim();
+        if (cleanTId === tId || cleanTId === String(dbTeacher.id).toLowerCase() || cleanTId === String((dbTeacher as any).empId).toLowerCase()) {
+          return true;
+        }
+      }
+      if (!targetName) return false;
+      const tn = String(targetName).toLowerCase().trim();
+      if (namesToMatch.some(nm => nm === tn || (nm.length > 2 && (tn.includes(nm) || nm.includes(tn))))) {
+        return true;
+      }
+      if (tFirstName && tFirstName.length > 2 && tLastName && tLastName.length > 2) {
+        if (tn.includes(tFirstName) && tn.includes(tLastName)) return true;
+      }
+      if (tFirstName && tFirstName.length > 3 && tn.includes(tFirstName)) return true;
+      return false;
+    };
+
+    const pairs: Array<{ className: string; section: string }> = [];
+    const addPair = (rawClass?: string, rawSec?: string) => {
+      if (!rawClass) return;
+      let str = String(rawClass).trim();
+      let sec = (rawSec || '').trim().replace(/^section\s*/i, '');
+      if (str.includes('-')) {
+        const parts = str.split('-');
+        str = parts[0].trim();
+        if (!sec && parts[1]) {
+          sec = parts[1].trim().replace(/^section\s*/i, '');
+        }
+      }
+      const cName = formatDisplayClassName(str);
+      if (!cName) return;
+      pairs.push({ className: cName, section: sec || 'A' });
+    };
+
+    // 1. Check academicClasses
+    (academicClasses || []).forEach((ac: any) => {
+      const cName = ac.name || ac.className || '';
+      // a. sectionTeachers map
+      const secTeachers = (ac as any).sectionTeachers || {};
+      Object.entries(secTeachers).forEach(([sec, teacherVal]: [string, any]) => {
+        if (isTeacherMatch(teacherVal)) {
+          addPair(cName, sec);
+        }
       });
 
-    // 2. Check academicClasses for sections where this teacher is assigned as classTeacher
-    const fromAcademic: string[] = [];
-    (academicClasses || []).forEach((ac: any) => {
-      const cName = ac.name || '';
+      // b. sections array
       (ac.sections || []).forEach((secObj: any) => {
-        const sName = typeof secObj === 'string' ? secObj : secObj.name || secObj.sectionName || '';
-        const ctName = (typeof secObj === 'object' && secObj.classTeacher) ? String(secObj.classTeacher).toLowerCase() : String(ac.classTeacher || '').toLowerCase();
-        if (ctName && (ctName.includes(tName) || tName.includes(ctName) || ctName === tId)) {
-          fromAcademic.push(`${cName}-${sName || 'A'}`);
+        const sName = typeof secObj === 'string' ? secObj : (secObj.sectionName || secObj.name || 'A');
+        const ctName = typeof secObj === 'object' ? (secObj.classTeacherName || secObj.classTeacher || secObj.teacherName || secObj.teacher || '') : '';
+        const ctId = typeof secObj === 'object' ? (secObj.classTeacherId || secObj.teacherId || '') : '';
+        if (isTeacherMatch(ctName, ctId)) {
+          addPair(cName, sName);
+        }
+      });
+
+      // c. class level classTeacher
+      const singleCT = ac.classTeacher || ac.classTeacherName || '';
+      const singleCTId = ac.classTeacherId || '';
+      if (isTeacherMatch(singleCT, singleCTId)) {
+        if (Array.isArray(ac.sections) && ac.sections.length > 0) {
+          ac.sections.forEach((s: any) => {
+            const sName = typeof s === 'string' ? s : (s.sectionName || s.name || 'A');
+            addPair(cName, sName);
+          });
+        } else {
+          addPair(cName, 'A');
+        }
+      }
+
+      // d. subjects array
+      (ac.subjects || []).forEach((sub: any) => {
+        const subTeacher = typeof sub === 'object' ? (sub.teacherName || sub.teacher || '') : '';
+        const subTeacherId = typeof sub === 'object' ? (sub.teacherId || '') : '';
+        if (isTeacherMatch(subTeacher, subTeacherId)) {
+          const sSec = typeof sub === 'object' ? (sub.section || 'A') : 'A';
+          addPair(cName, sSec);
         }
       });
     });
 
-    // 3. Fallback to general teacherAssignments or assignedClasses
-    const generalAssignments = (teacherAssignments || [])
-      .filter((ta: any) => {
-        const nameMatch = ta.teacherName && (ta.teacherName.toLowerCase().includes(tName) || tName.includes(ta.teacherName.toLowerCase()));
-        const idMatch = ta.teacherId && (String(ta.teacherId).toLowerCase() === tId);
-        return nameMatch || idMatch;
-      })
-      .map((ta: any) => {
-        const cls = (ta.className || '').trim();
-        const sec = (ta.section || '').trim();
-        return sec ? `${cls}-${sec}` : cls;
+    // 2. Check teacherAssignments
+    (teacherAssignments || []).forEach((ta: any) => {
+      if (isTeacherMatch(ta.teacherName, ta.teacherId)) {
+        addPair(ta.className, ta.section);
+      }
+    });
+
+    // 3. Check timetable
+    (timetable || []).forEach((t: any) => {
+      if (isTeacherMatch(t.teacherName, t.teacherId)) {
+        addPair(t.className, t.section);
+      }
+    });
+
+    // 4. Check dbTeacher.assignedClasses or user.assignedClasses
+    let rawAssigned = (dbTeacher as any)?.assignedClasses || (user as any)?.assignedClasses || (dbTeacher as any)?.classes || [];
+    if (typeof rawAssigned === 'string') rawAssigned = [rawAssigned];
+    if (Array.isArray(rawAssigned)) {
+      rawAssigned.forEach((item: any) => {
+        if (typeof item === 'string') {
+          addPair(item);
+        } else if (item && typeof item === 'object') {
+          addPair(item.className || item.name, item.section);
+        }
       });
+    }
 
-    let raw = (dbTeacher as any)?.assignedClasses || (dbTeacher as any)?.classes || [];
-    if (!Array.isArray(raw)) raw = [raw];
+    // Deduplicate
+    const uniqueMap = new Map<string, { className: string; section: string }>();
+    pairs.forEach(p => {
+      const key = `${p.className.toLowerCase()}_${p.section.toLowerCase()}`;
+      if (!uniqueMap.has(key)) {
+        uniqueMap.set(key, p);
+      }
+    });
 
-    const mergedCT = [...ctAssignments, ...fromAcademic];
-    const uniqueList = Array.from(new Set(mergedCT)).filter(Boolean);
+    return Array.from(uniqueMap.values());
+  }, [dbTeacher, user, teacherAssignments, academicClasses, timetable]);
 
-    const result = uniqueList.map((c: any) => {
-      const str = typeof c === 'string' ? c : (c.className ? `${c.className}-${c.section || 'A'}` : '');
-      const parts = str.split('-');
-      let className = formatDisplayClassName(parts[0].trim());
-      const section = parts[1] ? parts[1].trim() : 'A';
-      return { className, section };
-    }).filter((c: any) => Boolean(c.className) && !c.className.toLowerCase().includes('nursery') && !c.className.toLowerCase().includes('lkg') && !c.className.toLowerCase().includes('ukg'));
-
-    // Returns classes/sections where this teacher is assigned as Class Teacher
-    return result;
-  }, [dbTeacher, teacherAssignments, academicClasses]);
-
-  const teacherFullName = `${dbTeacher.firstName || 'Suteja'} ${dbTeacher.lastName || 'K'}`.trim();
+  const teacherFullName = `${dbTeacher.firstName || user?.name || 'Teacher'} ${dbTeacher.lastName || ''}`.trim();
 
   // Dynamic list of class names from Academic Management & Students
   const classOptions = useMemo(() => {
@@ -231,82 +320,36 @@ export const AttendanceView = () => {
 
   // Dynamic list of section options for selected class
   const sectionOptions = useMemo(() => {
-    if (isTeacher && teacherClasses.length > 0) {
-      if (selectedClass === 'Select Class' || selectedClass === 'All Classes') {
-        return ['Select Section'];
-      }
-      const matched = teacherClasses.filter(c => matchesClassName(c.className, selectedClass));
-      const secs = matched.length > 0 ? Array.from(new Set(matched.map(c => c.section))) : ['A'];
-      return ['Select Section', ...secs];
-    }
-    if (selectedClass === 'Select Class' || selectedClass === 'All Classes') {
+    if (!selectedClass || selectedClass === 'Select Class' || selectedClass === 'All Classes') {
       return ['Select Section'];
     }
-    const fromAcademic = (academicClasses || [])
-      .find(ac => matchesClassName(ac.name, selectedClass));
-    const academicSections = (fromAcademic?.sections || []).map((s: any) => typeof s === 'string' ? s : s.name || s.sectionName || 'A');
-    const fromStudents = (allStudents || [])
-      .filter(s => matchesClassName(s.className, selectedClass))
-      .map(s => s.section)
-      .filter(Boolean);
-    const merged = Array.from(new Set([...academicSections, ...fromStudents])).filter(Boolean);
-    const validSections = merged.length > 0 ? merged.sort() : ['A'];
-    return ['Select Section', ...validSections];
-  }, [isTeacher, teacherClasses, selectedClass, academicClasses, allStudents]);
 
-  // Combined Class & Section Options
-  const classSectionOptions = useMemo(() => {
     if (isTeacher && teacherClasses.length > 0) {
-      const items = teacherClasses.map(c => {
-        const cName = formatDisplayClassName(c.className);
-        const sec = c.section || 'A';
-        return {
-          label: `${cName} - Section ${sec}`,
-          className: cName,
-          section: sec
-        };
-      });
-      const uniqueMap = new Map<string, { label: string; className: string; section: string }>();
-      items.forEach(it => {
-        if (!uniqueMap.has(it.label)) uniqueMap.set(it.label, it);
-      });
-      return Array.from(uniqueMap.values());
+      const matched = teacherClasses.filter(c => matchesClassName(c.className, selectedClass));
+      if (matched.length > 0) {
+        const secs = Array.from(new Set(matched.map(c => (c.section || 'A').replace(/^section\s*/i, '').trim()))).filter(Boolean).sort();
+        return ['Select Section', ...(secs.length > 0 ? secs : ['A'])];
+      }
     }
 
-    const map = new Map<string, Set<string>>();
-
-    (academicClasses || []).forEach(ac => {
-      if (!ac.name) return;
-      const cName = formatDisplayClassName(ac.name);
-      if (!map.has(cName)) map.set(cName, new Set<string>());
-      const secList = (ac.sections || []).map((s: any) => typeof s === 'string' ? s : s.name || s.sectionName || 'A');
-      secList.forEach(s => { if (s) map.get(cName)!.add(s); });
+    const fromAcademic = (academicClasses || [])
+      .find(ac => matchesClassName(ac.name, selectedClass));
+    const academicSections = (fromAcademic?.sections || []).map((s: any) => {
+      const raw = typeof s === 'string' ? s : s.name || s.sectionName || 'A';
+      return raw.replace(/^section\s*/i, '').trim() || 'A';
     });
+    const fromStudents = (allStudents || [])
+      .filter(s => matchesClassName(s.className, selectedClass))
+      .map(s => (s.section || '').replace(/^section\s*/i, '').trim())
+      .filter(Boolean);
+    const merged = Array.from(new Set([...academicSections, ...fromStudents])).filter(Boolean).sort();
+    const validSections = merged.length > 0 ? merged : ['A'];
 
-    (allStudents || []).forEach(s => {
-      if (!s.className) return;
-      const cName = formatDisplayClassName(s.className);
-      if (!map.has(cName)) map.set(cName, new Set<string>());
-      if (s.section) map.get(cName)!.add(s.section);
-    });
-
-    const result: Array<{ label: string; className: string; section: string }> = [];
-    const sortedClassNames = Array.from(map.keys()).sort(compareClassesAscending);
-
-    sortedClassNames.forEach(cName => {
-      const secSet = map.get(cName)!;
-      const secArr = secSet.size > 0 ? Array.from(secSet).sort() : ['A'];
-      secArr.forEach(sec => {
-        result.push({
-          label: `${cName} - Section ${sec}`,
-          className: cName,
-          section: sec
-        });
-      });
-    });
-
-    return result;
-  }, [isTeacher, teacherClasses, academicClasses, allStudents]);
+    if (!isTeacher) {
+      return ['Select Section', 'All Sections', ...validSections];
+    }
+    return ['Select Section', ...validSections];
+  }, [isTeacher, teacherClasses, selectedClass, academicClasses, allStudents]);
 
   const currentClassSectionValue = useMemo(() => {
     if (!selectedClass || selectedClass === 'Select Class' || selectedClass === 'All Classes') return 'Select Class';
@@ -316,12 +359,19 @@ export const AttendanceView = () => {
   // Auto-select primary class teacher class for teacher
   useEffect(() => {
     if (isTeacher && teacherClasses.length > 0) {
-      if (selectedClass === 'Select Class' || !teacherClasses.some(c => c.className === selectedClass && c.section === selectedSection)) {
+      const isCurrentClassValid = teacherClasses.some(c => matchesClassName(c.className, selectedClass));
+      if (selectedClass === 'Select Class' || !isCurrentClassValid) {
         setSelectedClass(teacherClasses[0].className);
         setSelectedSection(teacherClasses[0].section);
+      } else {
+        const matchingClassEntries = teacherClasses.filter(c => matchesClassName(c.className, selectedClass));
+        const isCurrentSecValid = matchingClassEntries.some(c => c.section.toLowerCase() === selectedSection.toLowerCase());
+        if (!isCurrentSecValid && matchingClassEntries.length > 0) {
+          setSelectedSection(matchingClassEntries[0].section);
+        }
       }
     }
-  }, [isTeacher, teacherClasses]);
+  }, [isTeacher, teacherClasses, selectedClass, selectedSection]);
 
   // Dynamic list of period options matching selected Class, Section, Teacher & Day from Timetable
   const dynamicPeriodsList = useMemo(() => {
@@ -556,8 +606,8 @@ export const AttendanceView = () => {
     selectedSection !== 'All Sections'
   );
 
-  // Enable editing by default when a specific Class & Section is selected for both Admin & Teacher
-  const [isEditable, setIsEditable] = useState<boolean>(() => !isAggregatedView);
+  // Initial view mode: disabled by default until user clicks Unlock Editing
+  const [isEditable, setIsEditable] = useState<boolean>(false);
   const [expandedRemarks, setExpandedRemarks] = useState<Record<string, boolean>>({});
   const [isDownloading, setIsDownloading] = useState(false);
  
@@ -573,8 +623,6 @@ export const AttendanceView = () => {
   useEffect(() => {
     if (isAggregatedView || (isTeacher && !isAuthorizedClassTeacher)) {
       setIsEditable(false);
-    } else {
-      setIsEditable(true);
     }
   }, [selectedClass, selectedSection, isAggregatedView, isTeacher, isAuthorizedClassTeacher]);
  
@@ -1225,7 +1273,7 @@ export const AttendanceView = () => {
 
       {/* Control Filters Row */}
       <div className="glass-card p-4 rounded-2xl border border-slate-200/60 dark:border-slate-800/60 bg-white dark:bg-slate-900 space-y-4">
-        <div className={`grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 ${dateMode === 'Custom Range' ? 'lg:grid-cols-5' : 'lg:grid-cols-4'} gap-3 items-end`}>
+        <div className={`grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 ${dateMode === 'Custom Range' ? 'lg:grid-cols-6' : 'lg:grid-cols-5'} gap-3 items-end`}>
           <div className="space-y-1">
             <label className="text-[10px] font-black uppercase text-slate-400">Date Mode</label>
             <select
@@ -1326,28 +1374,74 @@ export const AttendanceView = () => {
           <div className="space-y-1">
             <label className="text-[10px] font-black uppercase text-slate-400">Class</label>
             <select
-              value={currentClassSectionValue}
+              value={selectedClass}
               onChange={e => {
-                const val = e.target.value;
-                if (val === 'Select Class') {
-                  setSelectedClass('Select Class');
+                const newClass = e.target.value;
+                setSelectedClass(newClass);
+                if (newClass === 'Select Class' || newClass === 'All Classes') {
                   setSelectedSection('Select Section');
                 } else {
-                  const matched = classSectionOptions.find(opt => opt.label === val);
-                  if (matched) {
-                    setSelectedClass(matched.className);
-                    setSelectedSection(matched.section);
+                  let availableSecs: string[] = [];
+                  if (isTeacher && teacherClasses.length > 0) {
+                    const matched = teacherClasses.filter(c => matchesClassName(c.className, newClass));
+                    availableSecs = matched.map(c => (c.section || 'A').replace(/^section\s*/i, '').trim());
+                  } else {
+                    const fromAcademic = (academicClasses || []).find(ac => matchesClassName(ac.name, newClass));
+                    const academicSections = (fromAcademic?.sections || []).map((s: any) => {
+                      const raw = typeof s === 'string' ? s : s.name || s.sectionName || 'A';
+                      return raw.replace(/^section\s*/i, '').trim() || 'A';
+                    });
+                    const fromStudents = (allStudents || [])
+                      .filter(s => matchesClassName(s.className, newClass))
+                      .map(s => (s.section || '').replace(/^section\s*/i, '').trim())
+                      .filter(Boolean);
+                    availableSecs = Array.from(new Set([...academicSections, ...fromStudents])).filter(Boolean);
+                  }
+                  const cleanSecs = Array.from(new Set(availableSecs)).filter(Boolean);
+                  if (cleanSecs.length === 1) {
+                    setSelectedSection(cleanSecs[0]);
+                  } else if (cleanSecs.length > 0 && selectedSection && selectedSection !== 'Select Section' && cleanSecs.includes(selectedSection)) {
+                    // keep current section if valid
+                  } else if (cleanSecs.length > 0) {
+                    setSelectedSection(cleanSecs[0]);
+                  } else {
+                    setSelectedSection('A');
                   }
                 }
               }}
-              className="w-full px-2.5 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none focus:border-brand-500 transition-colors cursor-pointer"
+              disabled={isTeacher && teacherClasses.length === 0}
+              className="w-full px-2.5 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none focus:border-brand-500 transition-colors cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
             >
-              <option value="Select Class">Select Class</option>
-              {classSectionOptions.map(opt => (
-                <option key={opt.label} value={opt.label}>
-                  {opt.label}
-                </option>
-              ))}
+              {isTeacher && teacherClasses.length === 0 ? (
+                <option value="Select Class">No Assigned Classes</option>
+              ) : (
+                classOptions.map(cls => (
+                  <option key={cls} value={cls}>
+                    {cls}
+                  </option>
+                ))
+              )}
+            </select>
+          </div>
+
+          <div className="space-y-1">
+            <label className="text-[10px] font-black uppercase text-slate-400">Section</label>
+            <select
+              value={selectedSection}
+              onChange={e => setSelectedSection(e.target.value)}
+              disabled={!selectedClass || selectedClass === 'Select Class' || selectedClass === 'All Classes'}
+              className="w-full px-2.5 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none focus:border-brand-500 transition-colors cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
+            >
+              {sectionOptions.map(sec => {
+                const displayLabel = sec === 'Select Section' || sec === 'All Sections' 
+                  ? sec 
+                  : (sec.toLowerCase().startsWith('section') ? sec : `Section ${sec}`);
+                return (
+                  <option key={sec} value={sec}>
+                    {displayLabel}
+                  </option>
+                );
+              })}
             </select>
           </div>
 
@@ -1374,9 +1468,15 @@ export const AttendanceView = () => {
             <Filter className="w-8 h-8" />
           </div>
           <div className="space-y-1.5 max-w-md mx-auto">
-            <h3 className="text-base font-black text-slate-900 dark:text-white">Select Filter Options</h3>
+            <h3 className="text-base font-black text-slate-900 dark:text-white">
+              {isTeacher && teacherClasses.length === 0 ? 'No Assigned Classes' : 'Select Filter Options'}
+            </h3>
             <p className="text-xs text-slate-500 dark:text-slate-400 font-medium leading-relaxed">
-              Please select a specific <strong>Class &amp; Section</strong> from the filter bar above to view attendance records and summary metrics.
+              {isTeacher && teacherClasses.length === 0
+                ? 'You do not have any classes assigned to your profile yet. Please contact the administrator to assign classes.'
+                : (
+                  <>Please select a specific <strong>Class</strong> and <strong>Section</strong> from the filter bar above to view attendance records and summary metrics.</>
+                )}
             </p>
           </div>
         </div>
@@ -1511,7 +1611,7 @@ export const AttendanceView = () => {
                       <Clock className="w-3.5 h-3.5 text-slate-450 shrink-0 mt-0.5 sm:mt-0" />
                       <span>
                         <strong className="font-extrabold text-slate-700 dark:text-slate-350">Read-Only Mode:</strong> Records are locked to prevent accidental modifications. Click the
-                        <span className="mx-1.5 px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 font-bold text-[9px] uppercase">🔒 Edit</span>
+                        <span className="mx-1.5 px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 font-bold text-[9px]">Unlock Editing</span>
                         button in the top header if you need to modify attendance entries.
                       </span>
                     </>

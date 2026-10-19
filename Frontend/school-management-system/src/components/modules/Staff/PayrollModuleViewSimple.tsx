@@ -33,6 +33,8 @@ import { ExportButton } from '../../common/ExportButton';
 import { Pagination } from '../../common/Pagination';
 import { formatCurrency } from '../../../utils/currency';
 import { exportToExcel } from '../../../utils/excelExport';
+import { numberToWords } from '../../../utils/numberToWords';
+import { resolveMediaUrl } from '../../../utils/mediaUtils';
 import { useData } from '../../../context/DataContext';
 import { useToast } from '../../../context/ToastContext';
 import {
@@ -884,7 +886,8 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
     disburseSalary,
     designations,
     fetchSalaryStructures,
-    fetchSalaryAssignments
+    fetchSalaryAssignments,
+    schoolProfile
   } = useData();
 
   useEffect(() => {
@@ -974,92 +977,366 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
       }
     }
 
+    const inWords = numberToWords(safeNet);
+    const formatNum = (num: number) => isNaN(num) ? '0.00' : num.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     const maxRows = Math.max(earningsList.length, deductionsList.length, 1);
     const tableRowsHtml = Array.from({ length: maxRows }).map((_, i) => {
       const earn = earningsList[i];
       const ded = deductionsList[i];
       return `
         <tr>
-          <td>${earn ? earn.name : ''}</td>
-          <td style="text-align: right; font-weight: 600;">${earn ? formatCurrency(earn.amount) : ''}</td>
-          <td>${ded ? ded.name : ''}</td>
-          <td style="text-align: right; font-weight: 600;">${ded ? formatCurrency(ded.amount) : ''}</td>
+          <td style="padding: 5px 8px; border-right: 1px solid #cbd5e1; border-bottom: 1px solid #e2e8f0; font-weight: 500;">${earn ? earn.name : ''}</td>
+          <td style="padding: 5px 8px; border-right: 2px solid #94a3b8; border-bottom: 1px solid #e2e8f0; text-align: right; font-family: 'Consolas', monospace; font-weight: 600;">${earn ? `₹${formatNum(earn.amount)}` : ''}</td>
+          <td style="padding: 5px 8px; border-right: 1px solid #cbd5e1; border-bottom: 1px solid #e2e8f0; font-weight: 500;">${ded ? ded.name : ''}</td>
+          <td style="padding: 5px 8px; border-bottom: 1px solid #e2e8f0; text-align: right; font-family: 'Consolas', monospace; font-weight: 600; color: ${ded ? '#b91c1c' : 'inherit'};">${ded ? `₹${formatNum(ded.amount)}` : ''}</td>
         </tr>
       `;
     }).join('');
 
     const printWindow = window.open('', '_blank');
     if (printWindow) {
-      const schoolName = localStorage.getItem('school_name') || 'Educational Institution';
+      const activeSchoolName = schoolProfile?.name || schoolProfile?.schoolName || localStorage.getItem('school_name') || 'PIRNAV EDUCATIONAL INSTITUTIONS';
+      const employeeName = p.employeeName || (linkedStaff ? `${linkedStaff.firstName} ${linkedStaff.lastName}` : 'Staff');
+      const empId = p.empId || linkedStaff?.empId || 'N/A';
+      const designation = p.designation || linkedStaff?.designation || 'Staff';
+      const department = p.department || linkedStaff?.department || 'Administration';
+      const branch = p.branch || linkedStaff?.branch || 'Main Campus';
+      const disbursedDate = p.disbursedDate || p.paymentDate || new Date().toISOString().split('T')[0];
+      const bankAccount = p.bankAccount || linkedStaff?.bankDetails?.accountNumber || 'Direct Bank Deposit';
+
       printWindow.document.write(`
+        <!DOCTYPE html>
         <html>
           <head>
-            <title>Salary Payslip - ${p.employeeName || (linkedStaff ? `${linkedStaff.firstName} ${linkedStaff.lastName}` : 'Staff')}</title>
+            <title>Salary Payslip - ${p.month} - ${employeeName}</title>
             <style>
-              @page { size: A4 portrait; margin: 8mm; }
+              @page {
+                size: A4 portrait;
+                margin: 8mm;
+              }
               @media print {
-                html, body { height: 100vh; margin: 0 !important; padding: 10px !important; box-sizing: border-box; page-break-inside: avoid !important; }
+                html, body {
+                  margin: 0 !important;
+                  padding: 0 !important;
+                  height: auto !important;
+                  -webkit-print-color-adjust: exact !important;
+                  print-color-adjust: exact !important;
+                }
+                .payslip-sheet {
+                  box-shadow: none !important;
+                  border: 1.5px solid #0f172a !important;
+                  max-height: 275mm !important;
+                  page-break-after: avoid !important;
+                  page-break-before: avoid !important;
+                  page-break-inside: avoid !important;
+                }
+                .no-print { display: none !important; }
               }
               * { box-sizing: border-box; }
-              body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 20px 24px; color: #333; font-size: 11px; line-height: 1.3; }
-              .header { text-align: center; border-bottom: 2px solid #0284c7; padding-bottom: 10px; margin-bottom: 12px; }
-              .header h2 { margin: 0; font-size: 18px; color: #0284c7; }
-              .header p { margin: 3px 0 0 0; font-size: 11px; color: #64748b; font-weight: 600; }
-              .details { margin-top: 12px; display: grid; grid-template-columns: 1fr 1fr; gap: 6px 12px; background: #f8fafc; padding: 10px; border-radius: 8px; border: 1px solid #e2e8f0; font-size: 11px; }
-              .table { width: 100%; border-collapse: collapse; margin-top: 14px; font-size: 11px; }
-              .table th, .table td { border: 1px solid #ddd; padding: 6px 8px; text-align: left; }
-              .table th { background-color: #f1f5f9; font-weight: 700; }
-              .net { font-size: 1.1em; font-weight: bold; margin-top: 14px; display: flex; justify-content: space-between; align-items: center; color: #16a34a; background: #f0fdf4; padding: 10px 14px; border-radius: 6px; border: 1px solid #bbf7d0; }
-              .sign { margin-top: 40px; display: flex; justify-content: space-between; font-size: 11px; font-weight: 600; color: #475569; }
+              body {
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+                color: #0f172a;
+                background: #f8fafc;
+                margin: 0;
+                padding: 12px;
+                font-size: 11px;
+                line-height: 1.35;
+              }
+              .payslip-sheet {
+                max-width: 210mm;
+                margin: 0 auto;
+                background: #ffffff;
+                border: 1.5px solid #0f172a;
+                padding: 20px 24px;
+                box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+              }
+              .school-header {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                border-bottom: 2px solid #0f172a;
+                padding-bottom: 12px;
+                margin-bottom: 12px;
+              }
+              .school-info {
+                flex: 1;
+                text-align: center;
+                padding: 0 10px;
+              }
+              .school-name {
+                font-size: 19px;
+                font-weight: 900;
+                color: #0f172a;
+                letter-spacing: 0.5px;
+                text-transform: uppercase;
+                margin-bottom: 2px;
+              }
+              .school-sub {
+                font-size: 10px;
+                color: #475569;
+                font-weight: 500;
+                line-height: 1.3;
+              }
+              .logo-img {
+                max-height: 52px;
+                max-width: 100px;
+                object-fit: contain;
+              }
+              .doc-title-bar {
+                background: #0f172a;
+                color: #ffffff;
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                padding: 5px 12px;
+                font-size: 11px;
+                font-weight: 800;
+                letter-spacing: 0.8px;
+                text-transform: uppercase;
+                margin-bottom: 12px;
+              }
+              .emp-table {
+                width: 100%;
+                border-collapse: collapse;
+                margin-bottom: 12px;
+                border: 1px solid #cbd5e1;
+              }
+              .emp-table td {
+                padding: 4px 8px;
+                font-size: 10px;
+                border: 1px solid #e2e8f0;
+              }
+              .emp-table .lbl {
+                background: #f8fafc;
+                color: #475569;
+                font-weight: 700;
+                width: 18%;
+                text-transform: uppercase;
+                font-size: 9.5px;
+                letter-spacing: 0.3px;
+              }
+              .emp-table .val {
+                color: #0f172a;
+                font-weight: 600;
+                width: 32%;
+              }
+              .salary-table {
+                width: 100%;
+                border-collapse: collapse;
+                margin-bottom: 12px;
+                border: 1.5px solid #0f172a;
+              }
+              .salary-table th {
+                padding: 5px 8px;
+                font-size: 10px;
+                font-weight: 800;
+                text-transform: uppercase;
+                letter-spacing: 0.5px;
+                border: 1px solid #cbd5e1;
+              }
+              .salary-table th.main-hdr {
+                background: #0f172a;
+                color: #ffffff;
+                font-size: 10.5px;
+                text-align: left;
+              }
+              .salary-table th.sub-hdr {
+                background: #f1f5f9;
+                color: #334155;
+              }
+              .salary-table td {
+                padding: 4.5px 8px;
+                font-size: 10.5px;
+                border: 1px solid #e2e8f0;
+                color: #1e293b;
+              }
+              .salary-table td.amount {
+                text-align: right;
+                font-family: 'Consolas', 'Courier New', monospace;
+                font-weight: 600;
+              }
+              .salary-table .divider-col {
+                border-right: 2px solid #94a3b8 !important;
+              }
+              .salary-table .tot-row td {
+                background: #f1f5f9;
+                font-weight: 800;
+                color: #0f172a;
+                border-top: 1.5px solid #0f172a;
+                border-bottom: 1.5px solid #0f172a;
+              }
+              .net-summary-box {
+                border: 1.5px solid #0f172a;
+                background: #f8fafc;
+                padding: 10px 14px;
+                margin-bottom: 14px;
+                border-radius: 2px;
+              }
+              .net-main {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                border-bottom: 1px dashed #cbd5e1;
+                padding-bottom: 6px;
+                margin-bottom: 6px;
+              }
+              .net-title {
+                font-size: 11px;
+                font-weight: 900;
+                color: #0f172a;
+                text-transform: uppercase;
+                letter-spacing: 0.5px;
+              }
+              .net-amount {
+                font-size: 19px;
+                font-weight: 900;
+                color: #0f172a;
+                font-family: 'Consolas', 'Courier New', monospace;
+              }
+              .net-words {
+                font-size: 10px;
+                color: #334155;
+                font-weight: 600;
+              }
+              .net-words strong {
+                color: #0f172a;
+              }
+              .net-meta {
+                margin-top: 4px;
+                font-size: 9.5px;
+                color: #64748b;
+              }
+              .signature-block {
+                display: flex;
+                justify-content: space-between;
+                align-items: flex-end;
+                margin-top: 36px;
+                margin-bottom: 12px;
+                padding: 0 10px;
+              }
+              .sign-col {
+                text-align: center;
+                width: 210px;
+              }
+              .sign-line {
+                border-top: 1px solid #475569;
+                margin-bottom: 4px;
+              }
+              .sign-label {
+                font-size: 9.5px;
+                font-weight: 700;
+                color: #334155;
+                text-transform: uppercase;
+              }
+              .footer-note {
+                text-align: center;
+                font-size: 9px;
+                color: #64748b;
+                border-top: 1px solid #e2e8f0;
+                padding-top: 6px;
+                margin-top: 8px;
+                font-style: italic;
+              }
             </style>
           </head>
           <body>
-            <div class="header">
-              <h2>MONTHLY SALARY PAYSLIP</h2>
-              <p>${schoolName} - HR Department</p>
-            </div>
-            <div class="details">
-              <div><strong>Employee Name:</strong> ${p.employeeName || (linkedStaff ? `${linkedStaff.firstName} ${linkedStaff.lastName}` : 'Staff')}</div>
-              <div><strong>Employee ID:</strong> ${p.empId || linkedStaff?.empId || 'N/A'}</div>
-              <div><strong>Salary Month:</strong> ${p.month}</div>
-              <div><strong>Generated Date:</strong> ${p.disbursedDate || p.paymentDate || new Date().toISOString().split('T')[0]}</div>
-              <div><strong>Bank Account:</strong> ${p.bankAccount || linkedStaff?.bankDetails?.accountNumber || 'N/A'}</div>
-              <div><strong>Status:</strong> ${p.status || 'Generated'}</div>
-            </div>
-            
-            <table class="table">
-              <thead>
-                <tr>
-                  <th>Earning Details</th>
-                  <th style="text-align: right;">Amount</th>
-                  <th>Deduction Details</th>
-                  <th style="text-align: right;">Amount</th>
-                </tr>
-              </thead>
-              <tbody>
-                ${tableRowsHtml}
-                <tr style="background: #f8fafc; font-weight: bold; border-top: 2px solid #cbd5e1;">
-                  <td><strong>Gross Earning</strong></td>
-                  <td style="text-align: right; color: #0284c7;"><strong>${formatCurrency(safeGross)}</strong></td>
-                  <td><strong>Total Deductions</strong></td>
-                  <td style="text-align: right; color: #ef4444;"><strong>${formatCurrency(safeDeductions)}</strong></td>
-                </tr>
-              </tbody>
-            </table>
-            
-            <div class="net">
-              <span>Net Payable Salary:</span>
-              <span style="font-size: 1.25em; font-weight: 900;">${formatCurrency(safeNet)}</span>
-            </div>
-            
-            <div class="sign">
-              <div>
-                <p>_______________________</p>
-                <p>Employee Signature</p>
+            <div class="payslip-sheet">
+              <div class="school-header">
+                ${schoolProfile?.logoUrl ? `<img src="${resolveMediaUrl(schoolProfile.logoUrl)}" class="logo-img" alt="Logo" />` : '<div style="width: 70px;"></div>'}
+                <div class="school-info">
+                  <div class="school-name">${activeSchoolName.toUpperCase()}</div>
+                  <div class="school-sub">
+                    ${schoolProfile?.address || 'Madhapur Campus, Hyderabad, Telangana - 500081'}<br/>
+                    Affiliated to CBSE, New Delhi | Affiliation No. 3630284 | Phone: ${schoolProfile?.phone || '+91 40 2345 6789'}
+                  </div>
+                </div>
+                <div style="width: 70px; text-align: right;">
+                  <span style="font-size: 9px; font-weight: 800; color: #16a34a; background: #dcfce7; border: 1px solid #86efac; padding: 2px 6px; border-radius: 3px;">PAID</span>
+                </div>
               </div>
-              <div>
-                <p>_______________________</p>
-                <p>Authorized Signatory</p>
+
+              <div class="doc-title-bar">
+                <span>SALARY PAYSLIP FOR THE MONTH OF ${String(p.month || 'CURRENT').toUpperCase()}</span>
+                <span style="font-size: 9.5px; font-weight: 600; opacity: 0.9;">Ref: PS-${empId}-${String(p.month || 'M').replace(/[^a-zA-Z0-9]/g, '').toUpperCase()}</span>
+              </div>
+
+              <table class="emp-table">
+                <tr>
+                  <td class="lbl">Employee ID</td>
+                  <td class="val" style="font-family: monospace; font-weight: 700;">${empId}</td>
+                  <td class="lbl">Employee Name</td>
+                  <td class="val">${employeeName}</td>
+                </tr>
+                <tr>
+                  <td class="lbl">Designation</td>
+                  <td class="val">${designation}</td>
+                  <td class="lbl">Department</td>
+                  <td class="val">${department}</td>
+                </tr>
+                <tr>
+                  <td class="lbl">Campus / Branch</td>
+                  <td class="val">${branch}</td>
+                  <td class="lbl">Disbursed Date</td>
+                  <td class="val">${disbursedDate}</td>
+                </tr>
+                <tr>
+                  <td class="lbl">Bank Name &amp; A/C</td>
+                  <td class="val" style="font-family: monospace;">${bankAccount ? `Bank A/C: ${bankAccount}` : 'Direct Bank Deposit'}</td>
+                  <td class="lbl">Payment Status</td>
+                  <td class="val" style="color: #16a34a; font-weight: 700;">CONFIRMED (PAID)</td>
+                </tr>
+              </table>
+
+              <table class="salary-table">
+                <thead>
+                  <tr>
+                    <th class="main-hdr divider-col" colspan="2">EARNINGS</th>
+                    <th class="main-hdr" colspan="2">DEDUCTIONS</th>
+                  </tr>
+                  <tr>
+                    <th class="sub-hdr" style="text-align: left; width: 33%;">Particulars / Component</th>
+                    <th class="sub-hdr divider-col" style="text-align: right; width: 17%;">Amount (₹)</th>
+                    <th class="sub-hdr" style="text-align: left; width: 33%;">Particulars / Component</th>
+                    <th class="sub-hdr" style="text-align: right; width: 17%;">Amount (₹)</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${tableRowsHtml}
+                  <tr class="tot-row">
+                    <td><strong>TOTAL GROSS EARNINGS (A)</strong></td>
+                    <td class="amount divider-col"><strong>₹${formatNum(safeGross)}</strong></td>
+                    <td><strong>TOTAL DEDUCTIONS (B)</strong></td>
+                    <td class="amount" style="color: #b91c1c;"><strong>₹${formatNum(safeDeductions)}</strong></td>
+                  </tr>
+                </tbody>
+              </table>
+
+              <div class="net-summary-box">
+                <div class="net-main">
+                  <div>
+                    <div class="net-title">NET TAKE-HOME SALARY PAYABLE (A - B)</div>
+                    <div class="net-meta">Payment Mode: Direct Bank Transfer (NEFT/RTGS) &bull; Credit Account: ${bankAccount}</div>
+                  </div>
+                  <div class="net-amount">₹${formatNum(safeNet)}</div>
+                </div>
+                <div class="net-words">
+                  Amount in Words: <strong>Rupees ${inWords}</strong>
+                </div>
+              </div>
+
+              <div class="signature-block">
+                <div class="sign-col">
+                  <div class="sign-line"></div>
+                  <div class="sign-label">Employee Signature</div>
+                </div>
+                <div class="sign-col">
+                  <div class="sign-line"></div>
+                  <div class="sign-label">Authorised Signatory / Accounts</div>
+                </div>
+              </div>
+
+              <div class="footer-note">
+                This is a computer-generated official payslip issued by ${activeSchoolName}. Does not require an ink signature.
               </div>
             </div>
           </body>
@@ -2219,7 +2496,7 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
             </div>
           )}
         >
-          <div className="flex flex-wrap items-center gap-3">
+          <div className="flex flex-wrap items-start gap-3">
             <div className="flex-1 min-w-[200px]">
               <div className="relative">
                 <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
@@ -2252,7 +2529,7 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
             </div>
           </div>
 
-          <div className="mt-5 overflow-x-auto">
+          <div className="mt-6 overflow-x-auto">
             <table className="min-w-[1100px] w-full text-center border-collapse text-xs border border-slate-200 dark:border-slate-800 [&_th]:border [&_th]:border-slate-200 dark:[&_th]:border-slate-800 [&_td]:border [&_td]:border-slate-200 dark:[&_td]:border-slate-800 rounded-xl overflow-hidden">
               <thead>
                 <tr className="bg-slate-100/70 dark:bg-slate-800/60 text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider">
@@ -2432,7 +2709,7 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
           </div>
         )}
       >
-        <div className="flex flex-wrap items-center gap-3">
+        <div className="flex flex-wrap items-start gap-3">
           <div className="flex-1 min-w-[200px]">
             <div className="relative">
               <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
@@ -2460,7 +2737,7 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
           </div>
         </div>
 
-        <div className="mt-5 overflow-x-auto">
+        <div className="mt-6 overflow-x-auto">
           <table className="min-w-[1200px] w-full text-left border-collapse text-xs border border-slate-200 dark:border-slate-800 [&_th]:border [&_th]:border-slate-200 dark:[&_th]:border-slate-800 [&_td]:border [&_td]:border-slate-200 dark:[&_td]:border-slate-800 rounded-xl overflow-hidden">
             <thead>
               <tr className="bg-slate-100/70 dark:bg-slate-800/60 text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider">

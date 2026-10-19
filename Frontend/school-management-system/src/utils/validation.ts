@@ -657,11 +657,38 @@ function setGlobalInputError(input: HTMLInputElement | HTMLTextAreaElement, erro
     ? container.parentElement
     : container;
 
+  const label = inferInputFieldLabel(input);
+  const isSearch =
+    (input instanceof HTMLInputElement && input.type === 'search') ||
+    label.includes('search') ||
+    (input.placeholder || '').toLowerCase().includes('search');
+
+  // Check if inside a horizontal layout (flex row, inline-flex, or flex items-center)
+  const isInsideHorizontalLayout = (() => {
+    let curr: HTMLElement | null = container;
+    let depth = 0;
+    while (curr && curr !== document.body && depth < 5) {
+      try {
+        const cs = window.getComputedStyle(curr);
+        const isFlex = (cs.display === 'flex' || cs.display === 'inline-flex') && !cs.flexDirection.startsWith('column');
+        if (isFlex) {
+          return true;
+        }
+      } catch {
+        // ignore
+      }
+      curr = curr.parentElement;
+      depth++;
+    }
+    return false;
+  })();
+
+  const shouldAbsolute = isIconWrapper || isSearch || isInsideHorizontalLayout;
+
   const directSibling = (isIconWrapper ? container.nextElementSibling : input.nextElementSibling) as HTMLElement | null;
-  let errEl = (directSibling && directSibling.getAttribute('data-global-validation-error') === 'true')
-    ? directSibling
-    : (container.querySelector(':scope > [data-global-validation-error="true"]') ||
-       container.parentElement?.querySelector(':scope > [data-global-validation-error="true"]')) as HTMLElement | null;
+  let errEl = (container.querySelector(':scope > [data-global-validation-error="true"]') ||
+               (directSibling && directSibling.getAttribute('data-global-validation-error') === 'true' ? directSibling : null) ||
+               container.parentElement?.querySelector(':scope > [data-global-validation-error="true"]')) as HTMLElement | null;
 
   if (!error) {
     input.removeAttribute('data-global-invalid');
@@ -689,29 +716,52 @@ function setGlobalInputError(input: HTMLInputElement | HTMLTextAreaElement, erro
   if (!errEl) {
     errEl = document.createElement('p');
     errEl.setAttribute('data-global-validation-error', 'true');
+  }
+
+  if (shouldAbsolute) {
+    const anchor = container;
+    try {
+      if (window.getComputedStyle(anchor).position === 'static') {
+        anchor.style.position = 'relative';
+      }
+    } catch {
+      anchor.style.position = 'relative';
+    }
+
+    errEl.style.position = 'absolute';
+    if (isIconWrapper || anchor.children.length <= 2) {
+      errEl.style.left = '0';
+      errEl.style.top = '100%';
+    } else {
+      errEl.style.left = `${input.offsetLeft}px`;
+      errEl.style.top = `${input.offsetTop + input.offsetHeight}px`;
+    }
+    errEl.style.marginTop = '2px';
+    errEl.style.fontSize = '11px';
+    errEl.style.fontWeight = '700';
+    errEl.style.color = '#f43f5e';
+    errEl.style.lineHeight = '1.2';
+    errEl.style.zIndex = '30';
+    errEl.style.pointerEvents = 'none';
+    errEl.style.whiteSpace = 'nowrap';
+
+    if (errEl.parentElement !== anchor) {
+      anchor.appendChild(errEl);
+    }
+  } else {
+    errEl.style.position = '';
+    errEl.style.left = '';
+    errEl.style.top = '';
+    errEl.style.zIndex = '';
+    errEl.style.pointerEvents = '';
+    errEl.style.whiteSpace = '';
     errEl.style.color = '#f43f5e';
     errEl.style.fontSize = '11px';
     errEl.style.fontWeight = '700';
     errEl.style.marginTop = '4px';
+    errEl.style.lineHeight = '1.2';
 
-    const isParentHorizontalFlex = Boolean(
-      container.parentElement &&
-      container.parentElement !== document.body &&
-      (() => {
-        try {
-          const cs = window.getComputedStyle(container.parentElement);
-          return (cs.display === 'flex' || cs.display === 'inline-flex') && !cs.flexDirection.startsWith('column');
-        } catch {
-          return false;
-        }
-      })()
-    );
-
-    if (isIconWrapper && !isParentHorizontalFlex) {
-      container.insertAdjacentElement('afterend', errEl);
-    } else if (isIconWrapper && isParentHorizontalFlex) {
-      container.insertAdjacentElement('beforeend', errEl);
-    } else {
+    if (errEl.previousElementSibling !== input) {
       input.insertAdjacentElement('afterend', errEl);
     }
   }
