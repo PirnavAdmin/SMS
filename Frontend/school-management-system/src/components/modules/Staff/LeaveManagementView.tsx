@@ -973,6 +973,15 @@ export const LeaveManagementView: React.FC = () => {
     setTypeFormErrors({});
   };
 
+  const handleToggleLeaveTypeStatus = (t: any) => {
+    const newStatus: 'Active' | 'Inactive' = t.status === 'Active' ? 'Inactive' : 'Active';
+    updateLeaveType(t.id, {
+      ...t,
+      status: newStatus
+    });
+    addToast('success', 'Status Updated', `${t.name} is now ${newStatus}.`);
+  };
+
   // Holiday Form Handlers
   const handleHolidaySubmit = (e: React.SyntheticEvent) => {
     e.preventDefault();
@@ -1418,7 +1427,14 @@ export const LeaveManagementView: React.FC = () => {
                     <h4 className="font-extrabold text-sm text-slate-900 dark:text-white">{t.name}</h4>
                     <span className="font-mono text-[10px] text-sky-600 font-bold uppercase">{t.code}</span>
                   </div>
-                  <Badge variant={t.status === 'Active' ? 'success' : 'neutral'}>{t.status}</Badge>
+                  <button
+                    type="button"
+                    onClick={() => handleToggleLeaveTypeStatus(t)}
+                    title={`Click to mark as ${t.status === 'Active' ? 'Inactive' : 'Active'}`}
+                    className="cursor-pointer transition-transform active:scale-95"
+                  >
+                    <Badge variant={t.status === 'Active' ? 'success' : 'danger'}>{t.status}</Badge>
+                  </button>
                 </div>
 
                 <div className="grid grid-cols-2 gap-2 text-[11px] pt-2 border-t">
