@@ -328,15 +328,19 @@ const getStructureBreakdown = (
 
 const splitMonthYear = (monthLabel?: string) => {
   if (!monthLabel) return { month: 'N/A', year: 'N/A' };
-  const match = monthLabel.match(/^(.*?)(?:\s+(\d{4}))?$/);
-  if (!match) return { month: monthLabel, year: 'N/A' };
-  return {
-    month: match[1] || monthLabel,
-    year: match[2] || 'N/A'
-  };
+  const ym = monthLabel.match(/\b(19|20\d\d)\b/g);
+  const year = ym ? ym[0] : 'N/A';
+  const month = monthLabel.replace(/\b(19|20\d\d)\b/g, '').trim() || 'N/A';
+  return { month, year };
 };
 
-const periodLabel = (month: string, year: string) => `${month} ${year}`.trim();
+const periodLabel = (month: string, year: string) => {
+  const cleanMonth = (month || '').replace(/\b(19|20\d\d)\b/g, '').trim();
+  const cleanYear = (year || '').trim();
+  if (!cleanYear || cleanYear === 'N/A') return cleanMonth;
+  if (!cleanMonth || cleanMonth === 'N/A') return cleanYear;
+  return `${cleanMonth} ${cleanYear}`;
+};
 
 const todayString = () => new Date().toISOString().split('T')[0];
 
@@ -887,12 +891,14 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
     designations,
     fetchSalaryStructures,
     fetchSalaryAssignments,
+    fetchPayslips,
     schoolProfile
   } = useData();
 
   useEffect(() => {
     if (fetchSalaryStructures) fetchSalaryStructures();
     if (fetchSalaryAssignments) fetchSalaryAssignments();
+    if (fetchPayslips) fetchPayslips();
   }, []);
 
   const { addToast } = useToast();
@@ -2317,7 +2323,7 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
     closeAssignmentModal();
   };
 
-  const createPayslipForRow = (row: (typeof generationRows)[number]) => {
+  const createPayslipForRow = (row: (typeof generationRows)[number], silent = false) => {
     const existing = row.existing;
     if (existing && Number(existing.grossSalary) > 0 && Number(existing.netSalary) > 0) {
       return existing;
@@ -2389,7 +2395,7 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
       status: 'Generated'
     };
 
-    disburseSalary(payload);
+    disburseSalary(payload, silent);
     return payload as Payslip;
   };
 
@@ -2431,7 +2437,7 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
       ? generationRows.filter(row => selectedGenerationIds.includes(row.member.id))
       : generationRows;
     const validRows = targetRows.filter(row => !isBeforeJoiningDate(row.member.joiningDate, generationMonth, generationYear));
-    const created = validRows.filter(row => !row.existing).map(createPayslipForRow).filter(Boolean).length;
+    const created = validRows.filter(row => !row.existing).map(row => createPayslipForRow(row, true)).filter(Boolean).length;
     addToast('success', 'Payslips generated', created > 0 ? `${created} payslip${created === 1 ? '' : 's'} generated for ${payrollMonthLabel}.` : 'Nothing new to generate for this payroll period.');
   };
 
@@ -2889,7 +2895,7 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
   const renderPayslipGenerationTab = () => {
     const allStaffCount = staff.length;
     const selectedCount = selectedGenerationIds.length;
-    const currentPeriodLabel = `${generationMonth} ${generationYear}`;
+    const currentPeriodLabel = periodLabel(generationMonth, generationYear);
 
     const filteredLeftStaff = staff.filter(member => {
       const category = resolveCategory(member);

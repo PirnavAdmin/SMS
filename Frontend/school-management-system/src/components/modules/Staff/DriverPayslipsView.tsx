@@ -14,9 +14,24 @@ import { Pagination } from '../../common/Pagination';
 import { numberToWords } from '../../../utils/numberToWords';
 import { resolveMediaUrl } from '../../../utils/mediaUtils';
 
+const formatPayMonth = (monthLabel?: string): string => {
+  if (!monthLabel) return 'N/A';
+  const ym = monthLabel.match(/\b(19|20\d\d)\b/g);
+  const year = ym ? ym[0] : '';
+  const monthName = monthLabel.replace(/\b(19|20\d\d)\b/g, '').trim();
+  if (monthName && year) return `${monthName} ${year}`;
+  return monthName || year || 'N/A';
+};
+
 export const DriverPayslipsView: React.FC = () => {
   const { user } = useAuth();
-  const { staff = [], driverMasters = [], payslips = [], schoolProfile } = useData();
+  const { staff = [], driverMasters = [], payslips = [], schoolProfile, fetchPayslips } = useData();
+
+  useEffect(() => {
+    if (fetchPayslips) {
+      fetchPayslips();
+    }
+  }, [fetchPayslips]);
 
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedYear, setSelectedYear] = useState('All');
@@ -62,74 +77,19 @@ export const DriverPayslipsView: React.FC = () => {
     };
   }, [user, driverMasters, staff]);
 
-  // 2. Synthesize or Retrieve Realistic Monthly Payslips
+  // 2. Retrieve Generated Monthly Payslips
   const driverPayslips: Payslip[] = useMemo(() => {
     const driverId = String(matchedDriver.employeeId || matchedDriver.id || '').toLowerCase();
     const driverName = (matchedDriver.driverName || '').toLowerCase();
 
-    const existing = payslips.filter(p =>
+    return payslips.filter(p =>
       (p.employeeId && p.employeeId.toLowerCase() === driverId) ||
       (p.empId && p.empId.toLowerCase() === driverId) ||
       (p.employeeName && p.employeeName.toLowerCase().includes(driverName))
-    );
-
-    if (existing.length >= 3) return existing;
-
-    const baseSalary = (matchedDriver as any).salary || 30000;
-    const basic = Math.round(baseSalary * 0.60) || 20000;
-    const hra = Math.round(baseSalary * 0.25) || 6000;
-    const transitAllowance = Math.round(baseSalary * 0.15) || 4000;
-    const pf = Math.round(basic * 0.12) || 1800;
-
-    const pastMonths = [
-      { month: 'July 2026', date: '2026-07-31' },
-      { month: 'June 2026', date: '2026-06-30' },
-      { month: 'May 2026', date: '2026-05-31' },
-      { month: 'April 2026', date: '2026-04-30' },
-      { month: 'March 2026', date: '2026-03-31' },
-      { month: 'February 2026', date: '2026-02-28' },
-      { month: 'January 2026', date: '2026-01-31' },
-      { month: 'December 2025', date: '2025-12-31' },
-    ];
-
-    return pastMonths.map((m, idx) => {
-      const gross = basic + hra + transitAllowance;
-      const totalDeductions = pf + 200; // 200 PT
-      const net = gross - totalDeductions;
-
-      return {
-        id: `PS-DRV-${1000 + idx}`,
-        employeeId: matchedDriver.employeeId || matchedDriver.id || '',
-        employeeName: matchedDriver.driverName || 'Driver',
-        empId: matchedDriver.employeeId || matchedDriver.id || '',
-        branch: '',
-        department: 'Transport & Logistics',
-        designation: 'Senior Bus Driver',
-        employeeCategory: 'Non-Teaching Staff',
-        month: m.month,
-        basicSalary: basic,
-        hra: hra,
-        da: transitAllowance,
-        grossSalary: gross,
-        pfDeduction: pf,
-        lopDeduction: 0,
-        otherDeductions: 200,
-        netSalary: net,
-        bankAccount: 'HDFC •••• 9843',
-        disbursedDate: m.date,
-        paymentDate: m.date,
-        status: 'Paid',
-        earnings: [
-          { name: 'Basic Pay', amount: basic },
-          { name: 'House Rent Allowance (HRA)', amount: hra },
-          { name: 'Special Transit Allowance', amount: transitAllowance },
-        ],
-        deductions: [
-          { name: 'Provident Fund (PF)', amount: pf },
-          { name: 'Professional Tax (PT)', amount: 200 },
-        ]
-      };
-    });
+    ).map(p => ({
+      ...p,
+      month: formatPayMonth(p.month)
+    }));
   }, [payslips, matchedDriver]);
 
   // 3. Filtered & Sorted payslips

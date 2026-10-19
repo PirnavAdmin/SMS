@@ -1294,7 +1294,8 @@ interface DataContextType {
   deleteHoliday: (id: string) => void;
 
   payslips: Payslip[];
-  disburseSalary: (payslip: Omit<Payslip, "id">) => void;
+  disburseSalary: (payslip: Omit<Payslip, "id">, silent?: boolean) => Promise<void>;
+  fetchPayslips: (month?: string, year?: number) => Promise<void>;
 
   payrollConfigurations: PayrollConfiguration[];
   addPayrollConfiguration: (config: Omit<PayrollConfiguration, "id">) => void;
@@ -1775,9 +1776,20 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   const [leaveApplications, setLeaveApplications] = useState<
     LeaveApplication[]
   >([]);
-  const [payslips, setPayslips] = useState<Payslip[]>(() =>
-    getStored("payslips", initialPayslips),
-  );
+  const cleanPayslipMonth = (m?: string): string => {
+    if (!m) return '';
+    const ym = m.match(/\b(19|20\d\d)\b/g);
+    const y = ym ? ym[0] : '';
+    const mon = m.replace(/\b(19|20\d\d)\b/g, '').trim();
+    if (mon && y) return `${mon} ${y}`;
+    return mon || y;
+  };
+  const [payslips, setPayslips] = useState<Payslip[]>([]);
+  useEffect(() => {
+    try {
+      localStorage.removeItem("edu_db_payslips");
+    } catch {}
+  }, []);
   const [payrollConfigurations, setPayrollConfigurations] = useState<
     PayrollConfiguration[]
   >(() => getStored("payroll_configurations", initialPayrollConfigurations));
@@ -3906,9 +3918,6 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   useEffect(() => {
     localStorage.setItem("edu_db_leave_types", JSON.stringify(leaveTypes));
   }, [leaveTypes]);
-  useEffect(() => {
-    localStorage.setItem("edu_db_payslips", JSON.stringify(payslips));
-  }, [payslips]);
   useEffect(() => {
     localStorage.setItem(
       "edu_db_payroll_configurations",
@@ -20518,11 +20527,16 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   }, []);
 
-  const fetchPayslips = useCallback(async () => {
+  const fetchPayslips = useCallback(async (month?: string, year?: number) => {
     try {
-      const response = await fetchPayslipsApi();
+      const response = await fetchPayslipsApi(month, year);
       if (response && response.success && response.data) {
-        setPayslips(response.data);
+        setPayslips(
+          response.data.map((p: Payslip) => ({
+            ...p,
+            month: cleanPayslipMonth(p.month),
+          })),
+        );
       }
     } catch (err) {
       console.warn("Failed to fetch payslips from API", err);
@@ -21090,21 +21104,37 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     );
   };
 
-  // Payslip handler
-  const disburseSalary = async (pData: Omit<Payslip, "id">) => {
+  // Payslip handler - strictly backend and database
+  const disburseSalary = async (pData: Omit<Payslip, "id">, silent = false) => {
+    const sanitizedData = {
+      ...pData,
+      month: cleanPayslipMonth(pData.month),
+    };
     try {
-      const response = await createPayslipApi(pData);
+      const response = await createPayslipApi(sanitizedData);
       if (response && response.success) {
-        addToast(
-          "success",
-          "Success",
-          "Payslip generated and disbursal completed.",
-        );
+        if (!silent) {
+          addToast(
+            "success",
+            "Success",
+            "Payslip generated and disbursal completed.",
+          );
+        }
         await fetchPayslips();
+      } else {
+        addToast(
+          "error",
+          "Error",
+          response?.message || "Failed to generate payslip in database.",
+        );
       }
-    } catch (err) {
-      console.error("Failed to disburse salary", err);
-      addToast("error", "Error", "Failed to disburse salary and save payslip.");
+    } catch (err: any) {
+      console.error("Failed to disburse salary via API", err);
+      addToast(
+        "error",
+        "Error",
+        err?.response?.data?.message || err?.message || "Failed to generate payslip in database.",
+      );
     }
   };
 
@@ -22697,6 +22727,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         deleteHoliday,
         payslips: filteredPayslips,
         disburseSalary,
+        fetchPayslips,
         payrollConfigurations: filteredPayrollConfigurations,
         addPayrollConfiguration,
         updatePayrollConfiguration,

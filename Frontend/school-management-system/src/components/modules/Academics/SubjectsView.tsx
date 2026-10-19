@@ -73,13 +73,13 @@ export const SubjectsView: React.FC = () => {
     departmentName: string;
     departmentCode: string;
     description: string;
-    category: 'Teaching' | 'Non-Teaching';
+    category: 'Teaching' | 'Non-Teaching' | '';
     status: 'Active' | 'Inactive';
   }>({
     departmentName: '',
     departmentCode: '',
     description: '',
-    category: 'Teaching',
+    category: '',
     status: 'Active'
   });
 
@@ -457,7 +457,7 @@ export const SubjectsView: React.FC = () => {
       departmentName: '',
       departmentCode: '',
       description: '',
-      category: 'Teaching',
+      category: '',
       status: 'Active'
     });
     setIsDeptModalOpen(true);
@@ -482,6 +482,11 @@ export const SubjectsView: React.FC = () => {
     const deptCheck = validateDepartmentName(name, true);
     if (!deptCheck.isValid) {
       addToast('warning', 'Validation Error', deptCheck.error || 'Enter a valid department name.');
+      return;
+    }
+
+    if (!deptFormData.category) {
+      addToast('warning', 'Validation Error', 'Please select a department type.');
       return;
     }
 
@@ -1167,12 +1172,16 @@ export const SubjectsView: React.FC = () => {
               <div>
                 <label className="block font-bold mb-1 text-slate-700 dark:text-slate-200">Department Type <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                 <select
+                  required
                   value={deptFormData.category}
-                  onChange={e => setDeptFormData({ ...deptFormData, category: e.target.value as 'Teaching' | 'Non-Teaching' })}
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-[#1e293b] border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white font-bold"
+                  onChange={e => setDeptFormData({ ...deptFormData, category: e.target.value as 'Teaching' | 'Non-Teaching' | '' })}
+                  className={`w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-[#1e293b] border border-slate-200 dark:border-slate-800 font-bold ${
+                    !deptFormData.category ? 'text-slate-400 dark:text-slate-500' : 'text-slate-900 dark:text-white'
+                  }`}
                 >
-                  <option value="Teaching">Teaching (Academic / Subject Department)</option>
-                  <option value="Non-Teaching">Non-Teaching (Administrative / Support Department)</option>
+                  <option value="" disabled>Select Department</option>
+                  <option value="Teaching" className="text-slate-900 dark:text-white">Teaching (Academic / Subject Department)</option>
+                  <option value="Non-Teaching" className="text-slate-900 dark:text-white">Non-Teaching (Administrative / Support Department)</option>
                 </select>
                 <p className="mt-1 text-[11px] text-slate-400 font-normal">
                   Determines whether this department appears in Add Teaching Staff or Add Non-Teaching Staff forms.
