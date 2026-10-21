@@ -14,6 +14,7 @@ import {
 } from '../../../api/academic';
 import { teachingDesignationNames } from '../Staff/staffFlowOptions';
 import { Pagination } from '../../common/Pagination';
+import { validateDesignationName, validateDepartmentName, validateSubjectName } from '../../../utils/validation';
 
 export const SubjectsView: React.FC = () => {
   const { 
@@ -72,13 +73,13 @@ export const SubjectsView: React.FC = () => {
     departmentName: string;
     departmentCode: string;
     description: string;
-    category: 'Teaching' | 'Non-Teaching';
+    category: 'Teaching' | 'Non-Teaching' | '';
     status: 'Active' | 'Inactive';
   }>({
     departmentName: '',
     departmentCode: '',
     description: '',
-    category: 'Teaching',
+    category: '',
     status: 'Active'
   });
 
@@ -227,12 +228,11 @@ export const SubjectsView: React.FC = () => {
   // Subject Form Handlers
   const handleOpenAdd = () => {
     setEditingSubject(null);
-    const activeDepts = departments.filter(d => d.status === 'Active');
     setFormData({
       subjectId: '',
       name: '',
       code: '',
-      department: activeDepts[0]?.departmentName || 'Mathematics'
+      department: ''
     });
     setIsFormOpen(true);
   };
@@ -243,7 +243,7 @@ export const SubjectsView: React.FC = () => {
       subjectId: sub.subjectId,
       name: sub.name,
       code: sub.code || sub.subjectId,
-      department: sub.department || 'Mathematics'
+      department: sub.department || ''
     });
     setIsFormOpen(true);
   };
@@ -252,8 +252,9 @@ export const SubjectsView: React.FC = () => {
     e.preventDefault();
     const finalSubjectId = formData.subjectId || `SUB-${Math.floor(100 + subjects.length + 1)}`;
 
-    if (!formData.name.trim()) {
-      addToast('warning', 'Required Field Missing', 'Subject Name is mandatory.');
+    const subNameCheck = validateSubjectName(formData.name, true);
+    if (!subNameCheck.isValid) {
+      addToast('warning', 'Validation Error', subNameCheck.error || 'Enter a valid subject name.');
       return;
     }
 
@@ -371,8 +372,9 @@ export const SubjectsView: React.FC = () => {
   const handleDesigSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const name = desigFormData.designationName.trim();
-    if (!name) {
-      addToast('warning', 'Validation Warning', 'Designation Name is required.');
+    const desigCheck = validateDesignationName(name, true);
+    if (!desigCheck.isValid) {
+      addToast('warning', 'Validation Error', desigCheck.error || 'Enter a valid designation name.');
       return;
     }
     if (editingDesignation && !editingDesignation.id.toString().startsWith('static-')) {
@@ -455,7 +457,7 @@ export const SubjectsView: React.FC = () => {
       departmentName: '',
       departmentCode: '',
       description: '',
-      category: 'Teaching',
+      category: '',
       status: 'Active'
     });
     setIsDeptModalOpen(true);
@@ -477,8 +479,14 @@ export const SubjectsView: React.FC = () => {
     e.preventDefault();
 
     const name = deptFormData.departmentName.trim();
-    if (!name) {
-      addToast('warning', 'Validation Warning', 'Department Name is required.');
+    const deptCheck = validateDepartmentName(name, true);
+    if (!deptCheck.isValid) {
+      addToast('warning', 'Validation Error', deptCheck.error || 'Enter a valid department name.');
+      return;
+    }
+
+    if (!deptFormData.category) {
+      addToast('warning', 'Validation Error', 'Please select a department type.');
       return;
     }
 
@@ -648,15 +656,17 @@ export const SubjectsView: React.FC = () => {
       {activeTab === 'subjects' && (
         <div className="space-y-4">
           <div className="flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-3">
-            <div className="relative flex-1 sm:w-72">
-              <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-              <input
-                type="text"
-                placeholder="Search subjects, course code, department..."
-                value={query}
-                onChange={e => setQuery(e.target.value)}
-                className="w-full pl-9 pr-4 py-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-xs font-bold text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-sky-500/50 shadow-sm"
-              />
+            <div className="flex-1 sm:w-72">
+              <div className="relative">
+                <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                <input
+                  type="text"
+                  placeholder="Search subjects, course code, department..."
+                  value={query}
+                  onChange={e => setQuery(e.target.value)}
+                  className="w-full pl-9 pr-4 py-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-xs font-bold text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-sky-500/50 shadow-sm"
+                />
+              </div>
             </div>
 
             <div className="flex items-center gap-2">
@@ -674,12 +684,12 @@ export const SubjectsView: React.FC = () => {
               <div className="overflow-x-auto">
                 <table className="w-full text-left border-collapse text-[13px]">
                   <thead>
-                    <tr className="text-slate-400 dark:text-slate-500 font-extrabold uppercase tracking-wider text-[10px] border-b border-slate-100 dark:border-slate-800/50">
-                      <th className="py-3 px-2">S.No</th>
-                      <th className="py-3 px-2">Subject Name</th>
-                      <th className="py-3 px-2">Course Code</th>
-                      <th className="py-3 px-2">Department</th>
-                      <th className="py-3 px-2 text-right">Actions</th>
+                    <tr className="bg-slate-50/80 dark:bg-slate-800/60 text-slate-700 dark:text-slate-200 font-extrabold uppercase tracking-wider text-xs border-b border-slate-200 dark:border-slate-800">
+                      <th className="py-3 px-3">S.No</th>
+                      <th className="py-3 px-3">Subject Name</th>
+                      <th className="py-3 px-3">Course Code</th>
+                      <th className="py-3 px-3">Department</th>
+                      <th className="py-3 px-3 text-right">Actions</th>
                     </tr>
                   </thead>
                   <tbody className="font-medium">
@@ -745,15 +755,17 @@ export const SubjectsView: React.FC = () => {
       {activeTab === 'departments' && (
         <div className="space-y-4">
           <div className="flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-3">
-            <div className="relative flex-1 sm:w-72">
-              <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-              <input
-                type="text"
-                placeholder="Search departments or code..."
-                value={deptQuery}
-                onChange={e => setDeptQuery(e.target.value)}
-                className="w-full pl-9 pr-4 py-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-xs font-bold text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-sky-500/50 shadow-sm"
-              />
+            <div className="flex-1 sm:w-72">
+              <div className="relative">
+                <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                <input
+                  type="text"
+                  placeholder="Search departments or code..."
+                  value={deptQuery}
+                  onChange={e => setDeptQuery(e.target.value)}
+                  className="w-full pl-9 pr-4 py-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-xs font-bold text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-sky-500/50 shadow-sm"
+                />
+              </div>
             </div>
 
             <button
@@ -769,14 +781,14 @@ export const SubjectsView: React.FC = () => {
               <div className="overflow-x-auto">
                 <table className="w-full text-left border-collapse text-[13px]">
                   <thead>
-                    <tr className="text-slate-400 dark:text-slate-500 font-extrabold uppercase tracking-wider text-[10px] border-b border-slate-100 dark:border-slate-800/50">
-                      <th className="py-3 px-2">S.No</th>
-                      <th className="py-3 px-2">Department Name</th>
-                      <th className="py-3 px-2">Department Code</th>
-                      <th className="py-3 px-2">Department Type</th>
-                      <th className="py-3 px-2">Assigned Staff</th>
-                      <th className="py-3 px-2">Status</th>
-                      <th className="py-3 px-2 text-right">Actions</th>
+                    <tr className="bg-slate-50/80 dark:bg-slate-800/60 text-slate-700 dark:text-slate-200 font-extrabold uppercase tracking-wider text-xs border-b border-slate-200 dark:border-slate-800">
+                      <th className="py-3 px-3">S.No</th>
+                      <th className="py-3 px-3">Department Name</th>
+                      <th className="py-3 px-3">Department Code</th>
+                      <th className="py-3 px-3">Department Type</th>
+                      <th className="py-3 px-3">Assigned Staff</th>
+                      <th className="py-3 px-3">Status</th>
+                      <th className="py-3 px-3 text-right">Actions</th>
                     </tr>
                   </thead>
                   <tbody className="font-medium">
@@ -889,15 +901,17 @@ export const SubjectsView: React.FC = () => {
       {activeTab === 'designations' && (
         <div className="space-y-4">
           <div className="flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-3">
-            <div className="relative flex-1 sm:w-72">
-              <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-              <input
-                type="text"
-                placeholder="Search designations..."
-                value={desigQuery}
-                onChange={e => setDesigQuery(e.target.value)}
-                className="w-full pl-9 pr-4 py-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-xs font-bold text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-sky-500/50 shadow-sm"
-              />
+            <div className="flex-1 sm:w-72">
+              <div className="relative">
+                <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                <input
+                  type="text"
+                  placeholder="Search designations..."
+                  value={desigQuery}
+                  onChange={e => setDesigQuery(e.target.value)}
+                  className="w-full pl-9 pr-4 py-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-xs font-bold text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-sky-500/50 shadow-sm"
+                />
+              </div>
             </div>
             
             <select
@@ -923,13 +937,13 @@ export const SubjectsView: React.FC = () => {
               <div className="overflow-x-auto">
                 <table className="w-full text-left border-collapse text-[13px]">
                   <thead>
-                    <tr className="text-slate-400 dark:text-slate-500 font-extrabold uppercase tracking-wider text-[10px] border-b border-slate-100 dark:border-slate-800/50">
-                      <th className="py-3 px-2">S.No</th>
-                      <th className="py-3 px-2">Designation Name</th>
-                      <th className="py-3 px-2">Category</th>
-                      <th className="py-3 px-2">Assigned Staff</th>
-                      <th className="py-3 px-2">Status</th>
-                      <th className="py-3 px-2 text-right">Actions</th>
+                    <tr className="bg-slate-50/80 dark:bg-slate-800/60 text-slate-700 dark:text-slate-200 font-extrabold uppercase tracking-wider text-xs border-b border-slate-200 dark:border-slate-800">
+                      <th className="py-3 px-3">S.No</th>
+                      <th className="py-3 px-3">Designation Name</th>
+                      <th className="py-3 px-3">Category</th>
+                      <th className="py-3 px-3">Assigned Staff</th>
+                      <th className="py-3 px-3">Status</th>
+                      <th className="py-3 px-3 text-right">Actions</th>
                     </tr>
                   </thead>
                   <tbody className="font-medium">
@@ -1024,7 +1038,7 @@ export const SubjectsView: React.FC = () => {
               <h3 className="text-lg font-black text-slate-900 dark:text-white">
                 {editingSubject ? 'Edit Academic Subject' : 'Add New Academic Subject'}
               </h3>
-              <button onClick={() => setIsFormOpen(false)} className="p-1 text-slate-400 hover:text-slate-700 dark:hover:text-white">
+              <button type="button" aria-label="Close" onClick={() => setIsFormOpen(false)} className="p-1 text-slate-400 hover:text-slate-700 dark:hover:text-white cursor-pointer">
                 <X className="w-5 h-5" />
               </button>
             </div>
@@ -1038,8 +1052,17 @@ export const SubjectsView: React.FC = () => {
                   placeholder="e.g. Advanced Mathematics"
                   value={formData.name}
                   onChange={e => setFormData({ ...formData, name: e.target.value })}
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-[#1e293b] border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white font-bold"
+                  className={`w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-[#1e293b] border ${
+                    formData.name && !validateSubjectName(formData.name, false).isValid
+                      ? 'border-rose-500 dark:border-rose-500'
+                      : 'border-slate-200 dark:border-slate-800'
+                  } text-slate-900 dark:text-white font-bold`}
                 />
+                {formData.name && !validateSubjectName(formData.name, false).isValid && (
+                  <p className="mt-1 text-[11px] font-bold text-rose-500">
+                    {validateSubjectName(formData.name, false).error}
+                  </p>
+                )}
               </div>
 
               <div>
@@ -1062,7 +1085,7 @@ export const SubjectsView: React.FC = () => {
                   onChange={e => setFormData({ ...formData, department: e.target.value })}
                   className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-[#1e293b] border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white font-bold"
                 >
-                  <option value="" disabled>Select Department</option>
+                  <option value="">Select Department</option>
                   {departments
                     .filter(d => {
                       const isNonTeaching = d.category === 'Non-Teaching' || (!d.category && (d.departmentName.toLowerCase().includes('transport') || d.departmentName.toLowerCase().includes('admin') || d.departmentName.toLowerCase().includes('account')));
@@ -1097,7 +1120,7 @@ export const SubjectsView: React.FC = () => {
                 <Building2 className="w-5 h-5 text-sky-600" />
                 {editingDepartment ? 'Modify Department' : 'Create New Department'}
               </h3>
-              <button onClick={() => setIsDeptModalOpen(false)} className="p-1 text-slate-400 hover:text-slate-700 dark:hover:text-white">
+              <button type="button" aria-label="Close" onClick={() => setIsDeptModalOpen(false)} className="p-1 text-slate-400 hover:text-slate-700 dark:hover:text-white cursor-pointer">
                 <X className="w-5 h-5" />
               </button>
             </div>
@@ -1111,8 +1134,17 @@ export const SubjectsView: React.FC = () => {
                   placeholder="e.g. Mathematics / Performing Arts"
                   value={deptFormData.departmentName}
                   onChange={e => setDeptFormData({ ...deptFormData, departmentName: e.target.value })}
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-[#1e293b] border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white font-bold"
+                  className={`w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-[#1e293b] border ${
+                    deptFormData.departmentName && !validateDepartmentName(deptFormData.departmentName, false).isValid
+                      ? 'border-rose-500 dark:border-rose-500'
+                      : 'border-slate-200 dark:border-slate-800'
+                  } text-slate-900 dark:text-white font-bold`}
                 />
+                {deptFormData.departmentName && !validateDepartmentName(deptFormData.departmentName, false).isValid && (
+                  <p className="mt-1 text-[11px] font-bold text-rose-500">
+                    {validateDepartmentName(deptFormData.departmentName, false).error}
+                  </p>
+                )}
               </div>
 
               <div>
@@ -1140,12 +1172,16 @@ export const SubjectsView: React.FC = () => {
               <div>
                 <label className="block font-bold mb-1 text-slate-700 dark:text-slate-200">Department Type <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                 <select
+                  required
                   value={deptFormData.category}
-                  onChange={e => setDeptFormData({ ...deptFormData, category: e.target.value as 'Teaching' | 'Non-Teaching' })}
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-[#1e293b] border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white font-bold"
+                  onChange={e => setDeptFormData({ ...deptFormData, category: e.target.value as 'Teaching' | 'Non-Teaching' | '' })}
+                  className={`w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-[#1e293b] border border-slate-200 dark:border-slate-800 font-bold ${
+                    !deptFormData.category ? 'text-slate-400 dark:text-slate-500' : 'text-slate-900 dark:text-white'
+                  }`}
                 >
-                  <option value="Teaching">Teaching (Academic / Subject Department)</option>
-                  <option value="Non-Teaching">Non-Teaching (Administrative / Support Department)</option>
+                  <option value="" disabled>Select Department</option>
+                  <option value="Teaching" className="text-slate-900 dark:text-white">Teaching (Academic / Subject Department)</option>
+                  <option value="Non-Teaching" className="text-slate-900 dark:text-white">Non-Teaching (Administrative / Support Department)</option>
                 </select>
                 <p className="mt-1 text-[11px] text-slate-400 font-normal">
                   Determines whether this department appears in Add Teaching Staff or Add Non-Teaching Staff forms.
@@ -1185,14 +1221,30 @@ export const SubjectsView: React.FC = () => {
                 <Briefcase className="w-5 h-5 text-sky-600" />
                 {editingDesignation ? 'Modify Designation' : 'Create New Designation'}
               </h3>
-              <button onClick={() => setIsDesigModalOpen(false)} className="p-1 text-slate-400 hover:text-slate-700 dark:hover:text-white">
+              <button type="button" aria-label="Close" onClick={() => setIsDesigModalOpen(false)} className="p-1 text-slate-400 hover:text-slate-700 dark:hover:text-white cursor-pointer">
                 <X className="w-5 h-5" />
               </button>
             </div>
             <form onSubmit={handleDesigSubmit} className="space-y-4 text-xs font-semibold">
               <div>
                 <label className="block font-bold mb-1 text-slate-700 dark:text-slate-200">Designation Name <span className="text-rose-500 font-bold ml-0.5">*</span></label>
-                <input type="text" required placeholder="e.g. Senior Teacher" value={desigFormData.designationName} onChange={e => setDesigFormData({ ...desigFormData, designationName: e.target.value })} className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-[#1e293b] border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white font-bold" />
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Senior Teacher"
+                  value={desigFormData.designationName}
+                  onChange={e => setDesigFormData({ ...desigFormData, designationName: e.target.value })}
+                  className={`w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-[#1e293b] border ${
+                    desigFormData.designationName && !validateDesignationName(desigFormData.designationName, false).isValid
+                      ? 'border-rose-500 dark:border-rose-500'
+                      : 'border-slate-200 dark:border-slate-800'
+                  } text-slate-900 dark:text-white font-bold`}
+                />
+                {desigFormData.designationName && !validateDesignationName(desigFormData.designationName, false).isValid && (
+                  <p className="mt-1 text-[11px] font-bold text-rose-500">
+                    {validateDesignationName(desigFormData.designationName, false).error}
+                  </p>
+                )}
               </div>
               <div>
                 <label className="block font-bold mb-1 text-slate-700 dark:text-slate-200">Category <span className="text-rose-500 font-bold ml-0.5">*</span></label>
@@ -1382,7 +1434,7 @@ export const SubjectsView: React.FC = () => {
                 return (
                   <table className="w-full text-left border-collapse text-xs">
                     <thead>
-                      <tr className="text-slate-400 font-extrabold uppercase text-[10px] border-b border-slate-100 dark:border-slate-800">
+                      <tr className="bg-slate-50/80 dark:bg-slate-800/60 text-slate-700 dark:text-slate-200 font-extrabold uppercase text-[11px] border-b border-slate-200 dark:border-slate-800">
                         <th className="py-2.5 px-3">S.No</th>
                         <th className="py-2.5 px-3">Subject Name</th>
                         <th className="py-2.5 px-3">Course Code</th>
@@ -1523,7 +1575,7 @@ export const SubjectsView: React.FC = () => {
                 return (
                   <table className="w-full text-left border-collapse text-xs">
                     <thead>
-                      <tr className="text-slate-400 font-extrabold uppercase text-[10px] border-b border-slate-100 dark:border-slate-800">
+                      <tr className="bg-slate-50/80 dark:bg-slate-800/60 text-slate-700 dark:text-slate-200 font-extrabold uppercase text-[11px] border-b border-slate-200 dark:border-slate-800">
                         <th className="py-2.5 px-3">S.No</th>
                         <th className="py-2.5 px-3">Employee Code</th>
                         <th className="py-2.5 px-3">Employee Name</th>

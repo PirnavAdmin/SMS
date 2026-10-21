@@ -384,7 +384,11 @@ export const BasicStaffFormFields: React.FC<BasicStaffFormFieldsProps> = ({
   const handleMobileChange = (field: 'mobileNumber' | 'alternateMobileNumber', val: string) => {
     const numericVal = val.replace(/[^0-9]/g, '').slice(0, 10);
     const cc = field === 'mobileNumber' ? primaryCc : altCc;
-    onChange(field, `${cc}-${numericVal}`);
+    if (field === 'alternateMobileNumber') {
+      onChange(field, numericVal ? `${cc}-${numericVal}` : '');
+    } else {
+      onChange(field, `${cc}-${numericVal}`);
+    }
   };
 
   const handlePinCodeChange = async (val: string) => {
@@ -898,17 +902,20 @@ export const BasicStaffFormFields: React.FC<BasicStaffFormFieldsProps> = ({
                 />
               </div>
 
-              {/* Staff ID */}
+              {/* Employee ID */}
               <div>
                 <label className="text-xs font-bold text-slate-700 dark:text-slate-300">
-                  Staff ID <span className="text-slate-400 text-[10px]">(Auto Generated)</span>
+                  Employee ID <span className="text-rose-500">*</span>
                 </label>
                 <input
                   type="text"
-                  value={value.empId}
+                  value={value.empId || ''}
                   readOnly={employeeIdReadOnly}
-                  className={`${fieldClass} bg-slate-100 dark:bg-slate-900 text-slate-500 font-mono font-bold cursor-not-allowed`}
+                  onChange={e => onChange('empId', e.target.value)}
+                  placeholder="e.g. TCH-2026-0501"
+                  className={`${fieldClass} ${employeeIdReadOnly ? 'bg-slate-100 dark:bg-slate-900 text-slate-500 font-mono font-bold cursor-not-allowed' : 'font-mono'} ${errors.empId ? 'border-rose-500 text-rose-700 focus:border-rose-500 focus:ring-1 focus:ring-rose-500' : ''}`}
                 />
+                {errors.empId && <p className="mt-1 text-[11px] font-semibold text-rose-500">{errors.empId}</p>}
               </div>
 
               {/* Gender */}
@@ -1000,7 +1007,7 @@ export const BasicStaffFormFields: React.FC<BasicStaffFormFieldsProps> = ({
                   <div className="relative shrink-0 w-28">
                     <select
                       value={altCc}
-                      onChange={e => onChange('alternateMobileNumber', `${e.target.value}-${altLocal}`)}
+                      onChange={e => onChange('alternateMobileNumber', altLocal ? `${e.target.value}-${altLocal}` : '')}
                       className="w-full rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 pl-3 pr-7 py-2 text-xs outline-none transition focus:border-brand-500 text-slate-900 dark:text-white font-medium appearance-none cursor-pointer"
                     >
                       {COUNTRY_DIAL_CODES.map(item => (
@@ -1192,7 +1199,13 @@ export const BasicStaffFormFields: React.FC<BasicStaffFormFieldsProps> = ({
                 <textarea
                   rows={2}
                   value={value.presentAddress || ''}
-                  onChange={e => onChange('presentAddress', e.target.value)}
+                  onChange={e => {
+                    const val = e.target.value;
+                    onChange('presentAddress', val);
+                    if (value.sameAsPresentAddress) {
+                      onChange('permanentAddress', val);
+                    }
+                  }}
                   className={fieldClass}
                   placeholder="Enter present address"
                 />
@@ -1201,7 +1214,7 @@ export const BasicStaffFormFields: React.FC<BasicStaffFormFieldsProps> = ({
 
               <div>
                 <label className="text-xs font-bold text-slate-700 dark:text-slate-300">
-                  Permanent Address {!value.sameAsPresentAddress && <span className="text-rose-500">*</span>}
+                  Permanent Address <span className="text-rose-500">*</span>
                 </label>
                 <textarea
                   rows={2}
@@ -1535,44 +1548,71 @@ export const BasicStaffFormFields: React.FC<BasicStaffFormFieldsProps> = ({
             )}
 
             {normalizedCategory === 'Teaching Staff' && (
-              <div className="border-t border-slate-100 dark:border-slate-800 pt-4 mt-2">
-                <h4 className="font-black text-slate-900 dark:text-white text-[11px] uppercase tracking-wider mb-3">
-                  Academic Allocations
-                </h4>
+              <div className="border-t border-slate-200/80 dark:border-slate-800 pt-3.5 mt-3 space-y-3">
+                <div className="flex items-center gap-2">
+                  <GraduationCap className="w-4 h-4 text-brand-600 dark:text-brand-400" />
+                  <h4 className="font-black text-slate-900 dark:text-white text-xs uppercase tracking-wider">
+                    Academic Allocations
+                  </h4>
+                </div>
                 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {/* Assigned Classes */}
-                  <div className="space-y-2">
-                    <label className="text-xs font-bold text-slate-700 dark:text-slate-300">
-                      Assigned Classes <span className="text-slate-400 font-normal">(Select all that apply)</span>
-                    </label>
-                    <div className="relative">
-                      <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
+                        Assigned Classes
+                        <span className="text-[11px] font-normal text-slate-400 dark:text-slate-500">(Select all that apply)</span>
+                      </label>
+                      {(value.assignedClasses || []).length > 0 && (
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-brand-50 dark:bg-brand-950/60 text-brand-700 dark:text-brand-300 border border-brand-200 dark:border-brand-800/60">
+                          {(value.assignedClasses || []).length} selected
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Neat Search Bar */}
+                    <div className="relative group">
+                      <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
+                        <Search className="w-4 h-4 text-slate-400 group-focus-within:text-brand-600 dark:group-focus-within:text-brand-400 transition-colors" />
+                      </div>
                       <input
                         type="text"
                         placeholder="Search class sections..."
                         value={classSearch}
                         onChange={e => setClassSearch(e.target.value)}
-                        className="w-full pl-8 pr-7 py-1.5 text-[11px] font-semibold rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 outline-none focus:border-brand-500 transition-colors"
+                        className="w-full pl-9 pr-9 py-2 text-xs font-medium rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 placeholder:text-xs shadow-xs hover:border-slate-400 dark:hover:border-slate-500 focus:bg-white dark:focus:bg-slate-900 focus:border-brand-500 dark:focus:border-brand-400 focus:ring-2 focus:ring-brand-500/20 outline-none transition-all duration-200"
                       />
                       {classSearch && (
                         <button
                           type="button"
                           onClick={() => setClassSearch('')}
-                          className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                          className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors cursor-pointer"
+                          aria-label="Clear search"
                         >
-                          <X className="w-3 h-3" />
+                          <span className="p-0.5 rounded-md hover:bg-slate-200 dark:hover:bg-slate-700">
+                            <X className="w-3.5 h-3.5" />
+                          </span>
                         </button>
                       )}
                     </div>
-                    <div className="max-h-48 overflow-y-auto rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 p-3 space-y-2">
+
+                    {/* Checkbox Options Container */}
+                    <div className="max-h-52 overflow-y-auto rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/40 p-2.5 space-y-1 divide-y divide-slate-100 dark:divide-slate-800/60 custom-scrollbar">
                       {filteredClassSectionOptions.length === 0 ? (
-                        <p className="text-slate-400 italic text-[11px] text-center py-4">No matching classes found.</p>
+                        <p className="text-slate-400 italic text-[11px] text-center py-6">No matching classes found.</p>
                       ) : (
                         filteredClassSectionOptions.map(clsSec => {
                           const isChecked = (value.assignedClasses || []).includes(clsSec);
                           return (
-                            <label key={clsSec} className="flex items-center gap-2.5 cursor-pointer text-xs font-semibold text-slate-700 dark:text-slate-300 hover:text-brand-600 dark:hover:text-brand-400 transition-colors">
+                            <label
+                              key={clsSec}
+                              className={`flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg cursor-pointer text-xs font-semibold transition-colors ${
+                                isChecked
+                                  ? 'bg-brand-50/70 dark:bg-brand-950/40 text-brand-700 dark:text-brand-300 font-bold'
+                                  : 'text-slate-700 dark:text-slate-300 hover:bg-white dark:hover:bg-slate-800/80 hover:text-slate-900 dark:hover:text-white'
+                              }`}
+                            >
                               <input
                                 type="checkbox"
                                 checked={isChecked}
@@ -1583,9 +1623,9 @@ export const BasicStaffFormFields: React.FC<BasicStaffFormFieldsProps> = ({
                                     : current.filter(c => c !== clsSec);
                                   onChange('assignedClasses', next);
                                 }}
-                                className="rounded border-slate-300 dark:border-slate-700 text-brand-600 focus:ring-brand-500 w-3.5 h-3.5 cursor-pointer"
+                                className="rounded border-slate-300 dark:border-slate-600 text-brand-600 focus:ring-brand-500 w-4 h-4 cursor-pointer"
                               />
-                              {clsSec}
+                              <span>{clsSec}</span>
                             </label>
                           );
                         })
@@ -1594,32 +1634,49 @@ export const BasicStaffFormFields: React.FC<BasicStaffFormFieldsProps> = ({
                   </div>
 
                   {/* Assigned Subjects */}
-                  <div className="space-y-2">
-                    <label className="text-xs font-bold text-slate-700 dark:text-slate-300">
-                      Assigned Subjects <span className="text-slate-400 font-normal">(Select all that apply)</span>
-                    </label>
-                    <div className="relative">
-                      <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
+                        Assigned Subjects
+                        <span className="text-[11px] font-normal text-slate-400 dark:text-slate-500">(Select all that apply)</span>
+                      </label>
+                      {(value.assignedSubjects || []).length > 0 && (
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-brand-50 dark:bg-brand-950/60 text-brand-700 dark:text-brand-300 border border-brand-200 dark:border-brand-800/60">
+                          {(value.assignedSubjects || []).length} selected
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Neat Search Bar */}
+                    <div className="relative group">
+                      <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
+                        <Search className="w-4 h-4 text-slate-400 group-focus-within:text-brand-600 dark:group-focus-within:text-brand-400 transition-colors" />
+                      </div>
                       <input
                         type="text"
                         placeholder="Search subjects..."
                         value={subjectSearch}
                         onChange={e => setSubjectSearch(e.target.value)}
-                        className="w-full pl-8 pr-7 py-1.5 text-[11px] font-semibold rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 outline-none focus:border-brand-500 transition-colors"
+                        className="w-full pl-9 pr-9 py-2 text-xs font-medium rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 placeholder:text-xs shadow-xs hover:border-slate-400 dark:hover:border-slate-500 focus:bg-white dark:focus:bg-slate-900 focus:border-brand-500 dark:focus:border-brand-400 focus:ring-2 focus:ring-brand-500/20 outline-none transition-all duration-200"
                       />
                       {subjectSearch && (
                         <button
                           type="button"
                           onClick={() => setSubjectSearch('')}
-                          className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                          className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors cursor-pointer"
+                          aria-label="Clear search"
                         >
-                          <X className="w-3 h-3" />
+                          <span className="p-0.5 rounded-md hover:bg-slate-200 dark:hover:bg-slate-700">
+                            <X className="w-3.5 h-3.5" />
+                          </span>
                         </button>
                       )}
                     </div>
-                    <div className="max-h-48 overflow-y-auto rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 p-3 space-y-2">
+
+                    {/* Checkbox Options Container */}
+                    <div className="max-h-52 overflow-y-auto rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/40 p-2.5 space-y-1 divide-y divide-slate-100 dark:divide-slate-800/60 custom-scrollbar">
                       {filteredSubjectOptions.length === 0 ? (
-                        <p className="text-slate-400 italic text-[11px] text-center py-4">No matching subjects found.</p>
+                        <p className="text-slate-400 italic text-[11px] text-center py-6">No matching subjects found.</p>
                       ) : (
                         filteredSubjectOptions.map(subj => {
                           const isChecked = (value.assignedSubjects || []).includes(subj);
@@ -1627,7 +1684,14 @@ export const BasicStaffFormFields: React.FC<BasicStaffFormFieldsProps> = ({
                           const subjectCode = matchingSubject?.code;
                           const displayLabel = subjectCode ? `${subj} (${subjectCode})` : subj;
                           return (
-                            <label key={subj} className="flex items-center gap-2.5 cursor-pointer text-xs font-semibold text-slate-700 dark:text-slate-300 hover:text-brand-600 dark:hover:text-brand-400 transition-colors">
+                            <label
+                              key={subj}
+                              className={`flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg cursor-pointer text-xs font-semibold transition-colors ${
+                                isChecked
+                                  ? 'bg-brand-50/70 dark:bg-brand-950/40 text-brand-700 dark:text-brand-300 font-bold'
+                                  : 'text-slate-700 dark:text-slate-300 hover:bg-white dark:hover:bg-slate-800/80 hover:text-slate-900 dark:hover:text-white'
+                              }`}
+                            >
                               <input
                                 type="checkbox"
                                 checked={isChecked}
@@ -1638,7 +1702,7 @@ export const BasicStaffFormFields: React.FC<BasicStaffFormFieldsProps> = ({
                                     : current.filter(s => s !== subj);
                                   onChange('assignedSubjects', next);
                                 }}
-                                className="rounded border-slate-300 dark:border-slate-700 text-brand-600 focus:ring-brand-500 w-3.5 h-3.5 cursor-pointer"
+                                className="rounded border-slate-300 dark:border-slate-600 text-brand-600 focus:ring-brand-500 w-4 h-4 cursor-pointer"
                               />
                               <span className="select-none">{displayLabel}</span>
                             </label>

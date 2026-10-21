@@ -1,5 +1,5 @@
 // @ts-nocheck
-import React, { useState, useEffect, useMemo, useCallback } from "react";
+import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
 
 import {
   Calendar,
@@ -43,7 +43,7 @@ import {
   Edit,
   RotateCcw,
 } from "lucide-react";
-import { formatToDDMMYYYY, formatToISO, checkSundayOrHoliday } from "../../../utils/dateValidation";
+import { formatToDDMMYYYY, formatToISO, checkSundayOrHoliday, parseAcademicYearRange, getTargetMonthInAY } from "../../../utils/dateValidation";
 import { exportToExcel } from "../../../utils/excelExport";
 import { DailyAttendance, Staff } from "../../../types";
 import { useData } from "../../../context/DataContext";
@@ -51,6 +51,7 @@ import { useToast } from "../../../context/ToastContext";
 import { useAuth } from "../../../context/AuthContext";
 import { DateInput } from "../../common/DateInput";
 import { ConfirmModal } from "../../common/ConfirmModal";
+import { Pagination } from "../../common/Pagination";
 import {
   teacherCheckInApi,
   teacherCheckOutApi,
@@ -67,6 +68,8 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
     attendance = [],
     markAttendance,
     leaveApplications = [],
+    leaveTypes = [],
+    addLeaveApplication,
     holidays = [],
     schoolEvents = [],
     schoolProfile,
@@ -74,10 +77,11 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
     fetchMonthlyAttendance,
     lastAttendancePayload,
     lastAttendanceResponse,
-    driverMasters = []
+    driverMasters = [],
+    academicYears = [],
   } = useData();
   const { addToast } = useToast();
-  const { user, role, selectedBranch } = useAuth();
+  const { user, role, selectedBranch, selectedAcademicYear } = useAuth();
 
   const userRole = role?.toLowerCase() || "";
   const canMarkAttendance = [
@@ -92,6 +96,19 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
   );
 
   const todayStr = new Date().toLocaleDateString('en-CA');
+
+  const getLeaveTypeAllowance = (codeOrName: string): number => {
+    const q = codeOrName.toLowerCase();
+    const found = (leaveTypes || []).find(t => 
+      (t.code && t.code.toLowerCase() === q) || 
+      (t.name && t.name.toLowerCase().includes(q))
+    );
+    return found ? (Number(found.annualAllowance) || Number(found.maxDays) || 0) : 0;
+  };
+
+  const defaultCasual = getLeaveTypeAllowance('cl') || getLeaveTypeAllowance('casual');
+  const defaultSick = getLeaveTypeAllowance('sl') || getLeaveTypeAllowance('sick');
+  const defaultEarned = getLeaveTypeAllowance('pl') || getLeaveTypeAllowance('el') || getLeaveTypeAllowance('earned') || getLeaveTypeAllowance('paid');
 
   const isPersonalView =
     userRole === "teacher" ||
@@ -205,9 +222,9 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
       department: matchedDept,
       assignedClasses: dbTeacher?.assignedClasses || (user as any)?.assignedClasses || [],
       assignedSubjects: (dbTeacher as any)?.assignedSubjects || (user as any)?.assignedSubjects || [],
-      leaveBalance: dbTeacher?.leaveBalance || { casual: 10, sick: 10, paid: 15 }
+      leaveBalance: dbTeacher?.leaveBalance || { casual: defaultCasual, sick: defaultSick, paid: defaultEarned }
     };
-  }, [dbTeacher, user, userRole]);
+  }, [dbTeacher, user, userRole, defaultCasual, defaultSick, defaultEarned]);
 
   // PERSONAL TEACHER ATTENDANCE STATES
   const todayDateStr = useMemo(() => new Date().toLocaleDateString('en-CA'), []);
@@ -266,16 +283,32 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
   const [correctionReason, setCorrectionReason] = useState("");
 
   // Leave Application Form state
-  const [leaveType, setLeaveType] = useState("Casual");
-  const [leaveFromDate, setLeaveFromDate] = useState(todayStr);
-  const [leaveToDate, setLeaveToDate] = useState(todayStr);
+  const [selectedLeaveTypeId, setSelectedLeaveTypeId] = useState<string>("");
+  const [leaveFromDate, setLeaveFromDate] = useState("");
+  const [leaveToDate, setLeaveToDate] = useState("");
   const [leaveReason, setLeaveReason] = useState("");
 
+  useEffect(() => {
+    if (!selectedLeaveTypeId && leaveTypes && leaveTypes.length > 0) {
+      setSelectedLeaveTypeId(String(leaveTypes[0].id));
+    }
+  }, [leaveTypes, selectedLeaveTypeId]);
+
   const [leaveBalance, setLeaveBalance] = useState({
-    casual: teacher.leaveBalance?.casual ?? 10,
-    sick: teacher.leaveBalance?.sick ?? 10,
-    paid: teacher.leaveBalance?.paid ?? 15,
+    casual: teacher.leaveBalance?.casual ?? defaultCasual,
+    sick: teacher.leaveBalance?.sick ?? defaultSick,
+    paid: teacher.leaveBalance?.paid ?? defaultEarned,
   });
+
+  useEffect(() => {
+    if (teacher?.leaveBalance) {
+      setLeaveBalance({
+        casual: teacher.leaveBalance.casual ?? defaultCasual,
+        sick: teacher.leaveBalance.sick ?? defaultSick,
+        paid: teacher.leaveBalance.paid ?? defaultEarned,
+      });
+    }
+  }, [teacher?.leaveBalance, defaultCasual, defaultSick, defaultEarned]);
 
   const [requests, setRequests] = useState<any[]>([]);
 
@@ -582,19 +615,21 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
       }
     });
 
-    const today = new Date();
-    const currM = today.getMonth().toString();
-    const currLabel = `${today.toLocaleDateString("en-US", { month: "long" })} ${today.getFullYear()}`;
+    const ayRange = parseAcademicYearRange(selectedAcademicYear, academicYears);
+    const target = getTargetMonthInAY(new Date().getMonth(), ayRange);
+    const currM = target.month.toString();
+    const targetDate = new Date(target.year, target.month, 1);
+    const currLabel = `${targetDate.toLocaleDateString("en-US", { month: "long" })} ${target.year}`;
     if (!map.has(currM)) {
       map.set(currM, {
         value: currM,
         label: currLabel,
-        yearMonthKey: `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}`,
+        yearMonthKey: target.monthStr,
       });
     }
 
     return Array.from(map.values()).sort((a, b) => b.yearMonthKey.localeCompare(a.yearMonthKey));
-  }, [persCheckInTime, todayStr, attendance, teacher, dbTeacher]);
+  }, [persCheckInTime, todayStr, attendance, teacher, dbTeacher, selectedAcademicYear, academicYears]);
 
   const fullHistory = useMemo(() => {
     const todayRecord = persCheckInTime
@@ -738,6 +773,10 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
 
   const handleApplyLeaveSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!leaveFromDate || !leaveToDate) {
+      addToast("error", "Dates Required", "Please select both from and to dates.");
+      return;
+    }
     const from = new Date(leaveFromDate);
     const to = new Date(leaveToDate);
     const diffMs = to.getTime() - from.getTime();
@@ -753,39 +792,69 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
       return;
     }
 
-    const typeKey = leaveType.toLowerCase() as "casual" | "sick" | "paid";
-    const available =
-      typeKey === "casual"
-        ? leaveBalance.casual
-        : typeKey === "sick"
-          ? leaveBalance.sick
-          : leaveBalance.paid;
+    const selectedType = (leaveTypes || []).find(t => String(t.id) === String(selectedLeaveTypeId)) || (leaveTypes || [])[0];
+    const typeName = selectedType?.name || "Leave";
+    const typeCode = (selectedType?.code || "").toUpperCase();
+    const typeNameLower = typeName.toLowerCase();
+
+    let available = 0;
+    if (typeCode.includes("CL") || typeNameLower.includes("casual")) {
+      available = leaveBalance.casual;
+    } else if (typeCode.includes("SL") || typeNameLower.includes("sick")) {
+      available = leaveBalance.sick;
+    } else if (typeCode.includes("EL") || typeCode.includes("PL") || typeNameLower.includes("earned") || typeNameLower.includes("paid")) {
+      available = leaveBalance.paid;
+    } else {
+      available = Number(selectedType?.annualAllowance) || Number(selectedType?.maxDays) || 99;
+    }
 
     if (available < daysCount) {
       addToast(
         "error",
         "Insufficient Leave Balance",
-        `You only have ${available} days of ${leaveType} leave remaining.`,
+        `You only have ${available} days of ${typeName} remaining.`,
       );
       return;
     }
 
-    setLeaveBalance((prev) => ({
-      ...prev,
-      [typeKey]:
-        (typeKey === "casual"
-          ? prev.casual
-          : typeKey === "sick"
-            ? prev.sick
-            : prev.paid) - daysCount,
-    }));
+    const currentStaff = dbTeacher || (staff || []).find(s => s.id === teacher.id || s.empId === teacher.empId) || (user as any);
+    const empId = currentStaff?.empId || teacher.empId || (user as any)?.empId || teacher.id || String(user?.id || "");
+    const employeeId = currentStaff?.id || teacher.id || empId;
+    const employeeName = `${currentStaff?.firstName || teacher.firstName || ""} ${currentStaff?.lastName || teacher.lastName || ""}`.trim() || user?.name || "";
+    const department = currentStaff?.department || teacher.department || (user as any)?.department || "";
+    const designation = currentStaff?.designation || teacher.designation || (user as any)?.designation || "";
+    const branch = currentStaff?.branch || (currentStaff as any)?.branchName || (teacher as any)?.branch || selectedBranch || "";
+    const employeeCategory = currentStaff?.employeeCategory || teacher.employeeCategory || (userRole === "teacher" || userRole === "class-teacher" ? "Teaching Staff" : "Non-Teaching Staff");
+
+    if (addLeaveApplication) {
+      addLeaveApplication({
+        employeeId,
+        empId,
+        employeeName,
+        department,
+        designation,
+        branch,
+        employeeCategory,
+        leaveTypeId: String(selectedType?.id || ""),
+        leaveTypeName: typeName,
+        fromDate: leaveFromDate,
+        toDate: leaveToDate,
+        numberOfDays: daysCount,
+        reason: leaveReason,
+        status: "Pending",
+        appliedDate: new Date().toISOString().split("T")[0],
+        isHalfDay: false,
+      });
+    }
 
     addToast(
       "success",
       "Leave Applied Successfully",
-      `Submitted application for ${daysCount} days of ${leaveType} Leave.`,
+      `Submitted application for ${daysCount} ${daysCount === 1 ? "day" : "days"} of ${typeName} (Pending approval).`,
     );
     setShowApplyLeaveModal(false);
+    setLeaveFromDate("");
+    setLeaveToDate("");
     setLeaveReason("");
   };
 
@@ -1294,19 +1363,27 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
                     Leave Type
                   </label>
                   <select
-                    value={leaveType}
-                    onChange={(e) => setLeaveType(e.target.value)}
+                    value={selectedLeaveTypeId}
+                    onChange={(e) => setSelectedLeaveTypeId(e.target.value)}
                     className="w-full px-3.5 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-855 dark:text-slate-200 outline-none cursor-pointer"
                   >
-                    <option value="Casual">
-                      Casual Leave ({leaveBalance.casual} left)
-                    </option>
-                    <option value="Sick">
-                      Sick Leave ({leaveBalance.sick} left)
-                    </option>
-                    <option value="Paid">
-                      Earned Leave ({leaveBalance.paid} left)
-                    </option>
+                    {(leaveTypes || []).map((t) => {
+                      const c = (t.code || "").toUpperCase();
+                      const n = (t.name || "").toLowerCase();
+                      const bal =
+                        c.includes("CL") || n.includes("casual")
+                          ? leaveBalance.casual
+                          : c.includes("SL") || n.includes("sick")
+                            ? leaveBalance.sick
+                            : c.includes("EL") || c.includes("PL") || n.includes("earned") || n.includes("paid")
+                              ? leaveBalance.paid
+                              : (t.annualAllowance ?? t.maxDays ?? 0);
+                      return (
+                        <option key={t.id} value={t.id}>
+                          {t.name} ({bal} days left)
+                        </option>
+                      );
+                    })}
                   </select>
                 </div>
 
@@ -1471,8 +1548,46 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
   // Active Main Module Tab
   const [activeTab, setActiveTab] = useState<AttendanceTab>("teaching");
 
-  const [attendanceDate, setAttendanceDate] = useState(todayStr);
-  const [viewMode, setViewMode] = useState<"daily" | "monthly">("daily");
+  const activeAYInfo = useMemo(() => {
+    return parseAcademicYearRange(selectedAcademicYear, academicYears);
+  }, [selectedAcademicYear, academicYears]);
+
+  const [monthInputVal, setMonthInputVal] = useState<string>(() => {
+    const range = parseAcademicYearRange(selectedAcademicYear, academicYears);
+    const d = new Date();
+    const target = getTargetMonthInAY(d.getMonth(), range);
+    return target.monthStr;
+  });
+
+  const [regYear, setRegYear] = useState<number>(() => {
+    const range = parseAcademicYearRange(selectedAcademicYear, academicYears);
+    const d = new Date();
+    const target = getTargetMonthInAY(d.getMonth(), range);
+    return target.year;
+  });
+
+  const [regMonth, setRegMonth] = useState<number>(() => {
+    const range = parseAcademicYearRange(selectedAcademicYear, academicYears);
+    const d = new Date();
+    const target = getTargetMonthInAY(d.getMonth(), range);
+    return target.month;
+  });
+
+  const [attendanceDate, setAttendanceDate] = useState<string>(() => {
+    const range = parseAcademicYearRange(selectedAcademicYear, academicYears);
+    const today = new Date().toLocaleDateString('en-CA');
+    if (today >= range.startDate && today <= range.endDate) {
+      return today;
+    }
+    const target = getTargetMonthInAY(new Date().getMonth(), range);
+    const cand = `${target.year}-${String(target.month + 1).padStart(2, '0')}-${String(new Date().getDate()).padStart(2, '0')}`;
+    if (cand >= range.startDate && cand <= range.endDate) {
+      return cand;
+    }
+    return range.startDate;
+  });
+
+  const [viewMode, setViewMode] = useState<"daily" | "monthly" | "">("");
   const [showSaveConfirm, setShowSaveConfirm] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
@@ -1490,16 +1605,35 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
 
   // Register Filters (Tab 3 logic now in viewMode='monthly')
   const [regEmpId, setRegEmpId] = useState("All");
-  const [regMonth, setRegMonth] = useState<number>(new Date().getMonth());
-  const [regYear, setRegYear] = useState<number>(new Date().getFullYear());
   const [regFromDate, setRegFromDate] = useState("");
   const [regToDate, setRegToDate] = useState("");
 
-  const [dateMode, setDateMode] = useState<'Daily' | 'Monthly' | 'Custom Range'>('Daily');
-  const [monthInputVal, setMonthInputVal] = useState<string>(() => {
-    const d = new Date();
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-  });
+  const [dateMode, setDateMode] = useState<'Daily' | 'Monthly' | 'Custom Range' | 'Select' | ''>('');
+
+  const prevAYRef = useRef(selectedAcademicYear);
+  useEffect(() => {
+    if (prevAYRef.current !== selectedAcademicYear) {
+      prevAYRef.current = selectedAcademicYear;
+      const range = parseAcademicYearRange(selectedAcademicYear, academicYears);
+      const target = getTargetMonthInAY(regMonth, range);
+      setMonthInputVal(target.monthStr);
+      setRegYear(target.year);
+      setRegMonth(target.month);
+      setRegFromDate("");
+      setRegToDate("");
+
+      // Also synchronize daily attendanceDate
+      const parsedD = attendanceDate ? new Date(attendanceDate) : new Date();
+      const mNum = !isNaN(parsedD.getTime()) ? parsedD.getMonth() : target.month;
+      const dNum = !isNaN(parsedD.getTime()) ? String(parsedD.getDate()).padStart(2, "0") : "01";
+      const cand = `${target.year}-${String(target.month + 1).padStart(2, "0")}-${dNum}`;
+      if (cand >= range.startDate && cand <= range.endDate) {
+        setAttendanceDate(cand);
+      } else {
+        setAttendanceDate(range.startDate);
+      }
+    }
+  }, [selectedAcademicYear, academicYears, regMonth, attendanceDate]);
 
   const handleMonthInputChange = (val: string) => {
     setMonthInputVal(val);
@@ -1515,21 +1649,21 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
   useEffect(() => {
     if (dateMode === 'Daily') {
       setViewMode('daily');
-    } else {
+    } else if (dateMode === 'Monthly') {
       setViewMode('monthly');
-      if (dateMode === 'Monthly') {
-        setRegFromDate("");
-        setRegToDate("");
-      } else if (dateMode === 'Custom Range') {
-        const d = new Date();
-        const y = d.getFullYear();
-        const m = String(d.getMonth() + 1).padStart(2, '0');
-        const today = String(d.getDate()).padStart(2, '0');
-        setRegFromDate(`${y}-${m}-01`);
-        setRegToDate(`${y}-${m}-${today}`);
-      }
+      setRegFromDate("");
+      setRegToDate("");
+    } else if (dateMode === 'Custom Range') {
+      setViewMode('monthly');
+      const y = regYear;
+      const m = String(regMonth + 1).padStart(2, '0');
+      const daysInM = new Date(y, regMonth + 1, 0).getDate();
+      setRegFromDate(`${y}-${m}-01`);
+      setRegToDate(`${y}-${m}-${String(daysInM).padStart(2, '0')}`);
+    } else {
+      setViewMode('');
     }
-  }, [dateMode]);
+  }, [dateMode, regYear, regMonth]);
 
   const handleFromDateChange = (isoDate: string) => {
     setRegFromDate(isoDate);
@@ -1572,7 +1706,7 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
   // Pagination State
   const [dailyPage, setDailyPage] = useState<number>(1);
   const [monthlyPage, setMonthlyPage] = useState<number>(1);
-  const pageSize = 10;
+  const [pageSize, setPageSize] = useState<number>(10);
 
   // Reset pagination on filter changes
   useEffect(() => {
@@ -1753,9 +1887,8 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
     if ((viewMode === "monthly" || isPersonalView) && fetchMonthlyAttendance) {
       const activeDept =
         activeTab === "teaching" ? teachingDept : nonTeachingDept;
-      const now = new Date();
-      const m = viewMode === "monthly" ? regMonth + 1 : now.getMonth() + 1;
-      const y = viewMode === "monthly" ? regYear : now.getFullYear();
+      const m = regMonth + 1;
+      const y = regYear;
       fetchMonthlyAttendance(m, y, activeDept);
     }
   }, [
@@ -1894,7 +2027,11 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
       if (!isTeachingStaff(s) || s.status === "Inactive") return false;
       if (selectedBranch && selectedBranch !== "All" && selectedBranch !== "All Branches" && selectedBranch !== "All Campuses") {
         const staffBranch = (s.branch || "").trim().toLowerCase();
+<<<<<<< HEAD
         if (staffBranch && staffBranch !== selectedBranch.trim().toLowerCase()) return false;
+=======
+        if (staffBranch !== selectedBranch.trim().toLowerCase()) return false;
+>>>>>>> 2c7d0190f1106e317e9965ae947dc2f54d4d3f76
       }
       const deptMatch =
         teachingDept === "All" ||
@@ -1925,7 +2062,11 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
       phone: d.mobileNumber || '',
       status: d.status || 'Active',
       employeeCategory: 'Non-Teaching',
+<<<<<<< HEAD
       branch: (d as any).branch || selectedBranch || ''
+=======
+      branch: (d as any).branch || ''
+>>>>>>> 2c7d0190f1106e317e9965ae947dc2f54d4d3f76
     }));
 
     const combinedStaff = [...staff];
@@ -1945,7 +2086,11 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
       if (isTeachingStaff(s) || s.status === "Inactive") return false;
       if (selectedBranch && selectedBranch !== "All" && selectedBranch !== "All Branches" && selectedBranch !== "All Campuses") {
         const staffBranch = (s.branch || "").trim().toLowerCase();
+<<<<<<< HEAD
         if (staffBranch && staffBranch !== selectedBranch.trim().toLowerCase()) return false;
+=======
+        if (staffBranch !== selectedBranch.trim().toLowerCase()) return false;
+>>>>>>> 2c7d0190f1106e317e9965ae947dc2f54d4d3f76
       }
       const deptMatch =
         nonTeachingDept === "All" ||
@@ -2577,6 +2722,10 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
 
   // Export Report Handler
   const handleExportReport = () => {
+    if (!dateMode || dateMode === "Select") {
+      addToast("warning", "Select Date Mode", "Please select a Date Mode first to export attendance reports.");
+      return;
+    }
     setIsExporting(true);
     setTimeout(() => {
       try {
@@ -2749,7 +2898,7 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
   return (
     <div className="space-y-6 animate-in fade-in text-xs pb-12">
       {/* Title & Top Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="flex items-center justify-between gap-4">
         <div>
           <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white flex items-center gap-2">
             <CalendarCheck className="w-6 h-6 text-brand-600 dark:text-brand-400" />
@@ -2760,8 +2909,8 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
         <button
           type="button"
           onClick={handleExportReport}
-          disabled={isExporting}
-          className="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs flex items-center gap-2 shadow-lg shadow-emerald-600/20 transition-all cursor-pointer disabled:opacity-50 self-start sm:self-center"
+          disabled={isExporting || !dateMode || dateMode === "Select"}
+          className="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs flex items-center gap-2 shadow-lg shadow-emerald-600/20 transition-all cursor-pointer disabled:opacity-50"
         >
           {isExporting ? (
             <Loader2 className="w-4 h-4 animate-spin" />
@@ -2773,73 +2922,44 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
       </div>
 
       {/* Main Module Tabs (Teaching, Non-Teaching) */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-200 dark:border-slate-800 pb-3">
-        <div className="flex flex-wrap items-center gap-2">
-          <button
-            onClick={() => setActiveTab("teaching")}
-            className={`px-4 py-2 rounded-xl font-extrabold text-xs flex items-center gap-2 transition-all ${
-              activeTab === "teaching"
-                ? "bg-brand-600 text-white shadow-md shadow-brand-600/20"
-                : "bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700/50"
-            }`}
-          >
-            <Users className="w-4 h-4" /> Teaching Staff
-          </button>
+      <div className="flex flex-wrap items-center gap-2 border-b border-slate-200 dark:border-slate-800 pb-3">
+        <button
+          onClick={() => setActiveTab("teaching")}
+          className={`px-4 py-2 rounded-xl font-extrabold text-xs flex items-center gap-2 transition-all ${
+            activeTab === "teaching"
+              ? "bg-brand-600 text-white shadow-md shadow-brand-600/20"
+              : "bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700/50"
+          }`}
+        >
+          <Users className="w-4 h-4" /> Teaching Staff
+        </button>
 
-          <button
-            onClick={() => setActiveTab("non-teaching")}
-            className={`px-4 py-2 rounded-xl font-extrabold text-xs flex items-center gap-2 transition-all ${
-              activeTab === "non-teaching"
-                ? "bg-brand-600 text-white shadow-md shadow-brand-600/20"
-                : "bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700/50"
-            }`}
-          >
-            <Building2 className="w-4 h-4" /> Non-Teaching Staff
-          </button>
-        </div>
-
-        {/* Search Staff Bar (Top Right corner of main module tabs line) */}
-        <div className="w-full md:w-72 shrink-0">
-          <div className="relative">
-            <Search className={`w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 transition-colors ${hasStaffSearchError ? "text-red-500" : "text-slate-400"}`} />
-            <input
-              type="text"
-              placeholder="Search by name or ID..."
-              value={currentSearchQuery}
-              onChange={(e) =>
-                activeTab === "teaching"
-                  ? setTeachingQuery(e.target.value)
-                  : setNonTeachingQuery(e.target.value)
-              }
-              className={`w-full pl-9 pr-4 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border text-xs font-semibold outline-none transition-colors ${
-                hasStaffSearchError
-                  ? "border-red-500 text-red-700 dark:text-red-300 focus:border-red-500 focus:ring-1 focus:ring-red-500"
-                  : "border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:border-brand-500"
-              }`}
-            />
-          </div>
-          {hasStaffSearchError && (
-            <p className="text-[11px] font-semibold text-red-500 mt-1 flex items-center gap-1 animate-in fade-in">
-              <AlertCircle className="w-3.5 h-3.5 shrink-0" />
-              <span>Invalid input, please enter a valid staff name/ID</span>
-            </p>
-          )}
-        </div>
+        <button
+          onClick={() => setActiveTab("non-teaching")}
+          className={`px-4 py-2 rounded-xl font-extrabold text-xs flex items-center gap-2 transition-all ${
+            activeTab === "non-teaching"
+              ? "bg-brand-600 text-white shadow-md shadow-brand-600/20"
+              : "bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700/50"
+          }`}
+        >
+          <Building2 className="w-4 h-4" /> Non-Teaching Staff
+        </button>
       </div>
 
       {/* Control Filters Row */}
       <div className="glass-card p-4 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 space-y-4">
-        <div className={`grid grid-cols-1 sm:grid-cols-2 ${dateMode === 'Custom Range' ? 'lg:grid-cols-5' : 'lg:grid-cols-4'} gap-3 items-end`}>
+        <div className={`grid grid-cols-1 sm:grid-cols-2 ${dateMode === 'Custom Range' ? 'lg:grid-cols-3 xl:grid-cols-6' : 'lg:grid-cols-5'} gap-3 items-start`}>
           {/* Date Mode */}
           <div>
             <label className="block text-[10px] font-black uppercase text-slate-400 mb-1">
               Date Mode
             </label>
             <select
-              value={dateMode}
+              value={dateMode || ""}
               onChange={(e) => setDateMode(e.target.value as any)}
               className="w-full px-2.5 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none focus:border-brand-500 transition-colors cursor-pointer"
             >
+              <option value="">Select</option>
               <option value="Daily">Daily</option>
               <option value="Monthly">Monthly</option>
               <option value="Custom Range">Custom Range</option>
@@ -2847,14 +2967,33 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
           </div>
 
           {/* Date Selection */}
-          <div className={dateMode === "Custom Range" ? "sm:col-span-2 lg:col-span-2" : ""}>
+          <div className={dateMode === "Custom Range" ? "sm:col-span-2 lg:col-span-2 xl:col-span-2" : ""}>
             <label className="block text-[10px] font-black uppercase text-slate-400 mb-1">
               Date Selection
             </label>
+            {(!dateMode || dateMode === "Select") && (
+              <input
+                type="text"
+                disabled
+                placeholder="Select Date Mode"
+                className="w-full px-2.5 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-400 cursor-not-allowed"
+              />
+            )}
             {dateMode === "Daily" && (
               <DateInput
                 value={attendanceDate}
-                onChange={(e) => setAttendanceDate(e.target.value)}
+                min={activeAYInfo?.startDate}
+                max={activeAYInfo?.endDate}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  if (activeAYInfo && val) {
+                    if (val < activeAYInfo.startDate || val > activeAYInfo.endDate) {
+                      addToast("warning", "Date Out of Academic Year", `Please select a date between ${activeAYInfo.startDate} and ${activeAYInfo.endDate} for academic year ${selectedAcademicYear}.`);
+                      return;
+                    }
+                  }
+                  setAttendanceDate(val);
+                }}
                 className="w-full px-2.5 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white"
               />
             )}
@@ -2862,7 +3001,18 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
               <input
                 type="month"
                 value={monthInputVal}
-                onChange={(e) => handleMonthInputChange(e.target.value)}
+                min={activeAYInfo?.minMonth}
+                max={activeAYInfo?.maxMonth}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  if (activeAYInfo && val) {
+                    if (val < activeAYInfo.minMonth || val > activeAYInfo.maxMonth) {
+                      addToast("warning", "Month Out of Academic Year", `Please select a month between ${activeAYInfo.minMonth} and ${activeAYInfo.maxMonth} for academic year ${selectedAcademicYear}.`);
+                      return;
+                    }
+                  }
+                  handleMonthInputChange(val);
+                }}
                 onClick={(e) => e.currentTarget.showPicker?.()}
                 className="w-full px-2.5 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none focus:border-brand-500 transition-colors cursor-pointer"
               />
@@ -2871,6 +3021,8 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
               <div className="flex items-center gap-2">
                 <DateInput
                   value={regFromDate}
+                  min={activeAYInfo?.startDate}
+                  max={activeAYInfo?.endDate}
                   onChange={(e) => handleFromDateChange(e.target.value)}
                   placeholder="From"
                   className="w-full px-2.5 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white"
@@ -2878,6 +3030,8 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
                 <span className="text-slate-400 font-bold">-</span>
                 <DateInput
                   value={regToDate}
+                  min={activeAYInfo?.startDate}
+                  max={activeAYInfo?.endDate}
                   onChange={(e) => setRegToDate(e.target.value)}
                   placeholder="To"
                   className="w-full px-2.5 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white"
@@ -2931,8 +3085,54 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
               ))}
             </select>
           </div>
+
+          {/* Search Staff */}
+          <div>
+            <label className="block text-[10px] font-black uppercase text-slate-400 mb-1">
+              Search Staff
+            </label>
+            <div className="relative">
+              <Search className={`w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 transition-colors ${hasStaffSearchError ? "text-red-500" : "text-slate-400"}`} />
+              <input
+                type="text"
+                placeholder="Search by name or ID..."
+                value={currentSearchQuery}
+                onChange={(e) =>
+                  activeTab === "teaching"
+                    ? setTeachingQuery(e.target.value)
+                    : setNonTeachingQuery(e.target.value)
+                }
+                className={`w-full pl-9 pr-3 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border text-xs font-semibold outline-none transition-colors ${
+                  hasStaffSearchError
+                    ? "border-red-500 text-red-700 dark:text-red-300 focus:border-red-500 focus:ring-1 focus:ring-red-500"
+                    : "border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:border-brand-500"
+                }`}
+              />
+            </div>
+            {hasStaffSearchError && (
+              <p className="text-[11px] font-semibold text-red-500 mt-1 flex items-center gap-1 animate-in fade-in">
+                <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                <span>Invalid input, please enter a valid staff name/ID</span>
+              </p>
+            )}
+          </div>
         </div>
       </div>
+
+      {/* PROMPT TO SELECT DATE MODE */}
+      {(activeTab === "teaching" || activeTab === "non-teaching") && (!dateMode || dateMode === "Select") && (
+        <div className="p-12 text-center rounded-2xl bg-white dark:bg-slate-900 border border-dashed border-slate-300 dark:border-slate-700 space-y-3">
+          <div className="w-12 h-12 mx-auto rounded-full bg-brand-50 dark:bg-brand-950/40 text-brand-600 flex items-center justify-center">
+            <Calendar className="w-6 h-6" />
+          </div>
+          <h3 className="text-base font-bold text-slate-800 dark:text-slate-100">
+            Select Date Mode
+          </h3>
+          <p className="text-xs text-slate-500 max-w-sm mx-auto">
+            Please choose a Date Mode (Daily, Monthly, or Custom Range) from the dropdown above to view and mark staff attendance.
+          </p>
+        </div>
+      )}
 
       {/* DAILY ATTENDANCE MARKING (TEACHING & NON-TEACHING) */}
       {(activeTab === "teaching" || activeTab === "non-teaching") &&
@@ -3006,11 +3206,11 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
                   </p>
                 </div>
 
-                <div className="p-3 rounded-2xl bg-brand-50 dark:bg-brand-950/40 border border-brand-200 dark:border-brand-900 text-center">
-                  <p className="text-[10px] font-bold text-brand-700 dark:text-brand-400 uppercase">
+                <div className="p-3 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-900 text-center">
+                  <p className="text-[10px] font-bold text-emerald-700 dark:text-emerald-400 uppercase">
                     Present
                   </p>
-                  <p className="text-lg font-black text-brand-800 dark:text-brand-300 mt-0.5">
+                  <p className="text-lg font-black text-emerald-800 dark:text-emerald-300 mt-0.5">
                     {liveSummaryStats.present}
                   </p>
                 </div>
@@ -3053,7 +3253,7 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
                     <button
                       type="button"
                       onClick={() => handleBulkAction("Present")}
-                      className="px-3 py-1.5 rounded-xl bg-brand-100 dark:bg-brand-950/80 text-brand-800 dark:text-brand-300 hover:bg-brand-200 font-bold text-[11px] transition-colors"
+                      className="px-3 py-1.5 rounded-xl bg-emerald-100 dark:bg-emerald-950/80 text-emerald-800 dark:text-emerald-300 hover:bg-emerald-200 font-bold text-[11px] transition-colors"
                     >
                       Mark All Present
                     </button>
@@ -3091,8 +3291,18 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
                 <table className="w-full text-left border-collapse text-xs">
                   <thead>
                     <tr className="bg-slate-100/70 dark:bg-slate-800/60 text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider border-b border-slate-200 dark:border-slate-800">
-                      <th className="py-3.5 px-4 sticky left-0 bg-slate-100 dark:bg-slate-800 z-20 min-w-[110px] max-w-[110px] border-r border-slate-200 dark:border-slate-800 whitespace-nowrap text-left">Employee ID</th>
-                      <th className="py-3.5 px-4 sticky left-[110px] bg-slate-100 dark:bg-slate-800 z-20 min-w-[200px] max-w-[200px] border-r border-slate-200 dark:border-slate-800 whitespace-nowrap text-left">Employee Name</th>
+                      <th
+                        className="py-3.5 px-4 sticky left-0 bg-slate-100 dark:bg-slate-800 z-20 w-[160px] min-w-[160px] max-w-[160px] border-r border-slate-200 dark:border-slate-800 whitespace-nowrap text-left"
+                        style={{ width: 160, minWidth: 160, maxWidth: 160 }}
+                      >
+                        Employee ID
+                      </th>
+                      <th
+                        className="py-3.5 px-4 sticky left-[160px] bg-slate-100 dark:bg-slate-800 z-20 min-w-[200px] max-w-[200px] border-r border-slate-200 dark:border-slate-800 whitespace-nowrap text-left"
+                        style={{ left: 160 }}
+                      >
+                        Employee Name
+                      </th>
                       <th className="py-3.5 px-4 whitespace-nowrap text-left">Department</th>
                       <th className="py-3.5 px-4 whitespace-nowrap text-left">Designation</th>
                       <th className="py-3.5 px-4 text-center whitespace-nowrap">Attendance Status</th>
@@ -3135,12 +3345,18 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
                             className="group hover:bg-slate-50/80 dark:hover:bg-slate-800/40 text-slate-900 dark:text-slate-100"
                           >
                             {/* Emp ID */}
-                            <td className="py-3 px-4 font-mono font-bold text-slate-600 dark:text-slate-300 sticky left-0 bg-white dark:bg-slate-900 group-hover:bg-slate-50/80 dark:group-hover:bg-slate-800/40 z-10 w-[110px] min-w-[110px] max-w-[110px] border-r border-slate-200 dark:border-slate-800">
+                            <td
+                              className="py-3 px-4 font-mono font-bold text-brand-600 dark:text-brand-400 sticky left-0 bg-white dark:bg-slate-900 group-hover:bg-slate-50/80 dark:group-hover:bg-slate-800/40 z-10 w-[160px] min-w-[160px] max-w-[160px] border-r border-slate-200 dark:border-slate-800 whitespace-nowrap text-left"
+                              style={{ width: 160, minWidth: 160, maxWidth: 160 }}
+                            >
                               {s.empId || s.id}
                             </td>
 
                             {/* Employee Name */}
-                            <td className="py-3 px-4 sticky left-[110px] bg-white dark:bg-slate-900 group-hover:bg-slate-50/80 dark:group-hover:bg-slate-800/40 z-10 w-[200px] min-w-[200px] max-w-[200px] border-r border-slate-200 dark:border-slate-800">
+                            <td
+                              className="py-3 px-4 sticky left-[160px] bg-white dark:bg-slate-900 group-hover:bg-slate-50/80 dark:group-hover:bg-slate-800/40 z-10 w-[200px] min-w-[200px] max-w-[200px] border-r border-slate-200 dark:border-slate-800"
+                              style={{ left: 160 }}
+                            >
                               <div>
                                 <p className="font-extrabold text-slate-900 dark:text-white">
                                   {s.firstName} {s.lastName}
@@ -3177,7 +3393,7 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
                                   let activeStyle = "";
                                   if (st === "Present")
                                     activeStyle =
-                                      "bg-brand-600 text-white font-black border-brand-600 shadow-sm";
+                                      "bg-emerald-600 text-white font-black border-emerald-600 shadow-sm";
                                   else if (st === "Absent")
                                     activeStyle =
                                       "bg-rose-600 text-white font-black border-rose-600 shadow-sm";
@@ -3350,56 +3566,18 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
 
               {/* Daily Pagination Controls */}
               {currentTabStaffList.length > 0 && (
-                <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-4 pb-4 px-6 border-t border-slate-100 dark:border-slate-800 text-xs">
-                  <span className="text-slate-500 font-medium">
-                    Showing <strong className="text-slate-800 dark:text-slate-200">{(dailyPage - 1) * pageSize + 1}</strong> - <strong className="text-slate-800 dark:text-slate-200">{Math.min(dailyPage * pageSize, currentTabStaffList.length)}</strong> of <strong className="text-slate-800 dark:text-slate-200">{currentTabStaffList.length}</strong> employees
-                  </span>
-
-                  {Math.ceil(currentTabStaffList.length / pageSize) > 1 && (
-                    <div className="flex items-center gap-1.5">
-                      <button
-                        type="button"
-                        disabled={dailyPage === 1}
-                        onClick={() => setDailyPage((p) => Math.max(1, p - 1))}
-                        className="px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-50 dark:hover:bg-slate-800 transition cursor-pointer flex items-center gap-1 font-bold text-[11px] shadow-xs h-[32px]"
-                      >
-                        <ChevronLeft className="w-3.5 h-3.5" /> Prev
-                      </button>
-
-                      <div className="flex items-center gap-1">
-                        {Array.from(
-                          { length: Math.ceil(currentTabStaffList.length / pageSize) },
-                          (_, i) => i + 1,
-                        ).map((page) => (
-                          <button
-                            key={page}
-                            type="button"
-                            onClick={() => setDailyPage(page)}
-                            className={`w-8 h-8 rounded-xl font-bold text-[11px] transition cursor-pointer flex items-center justify-center ${
-                              dailyPage === page
-                                ? "bg-sky-600 text-white shadow-xs"
-                                : "border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800"
-                            }`}
-                          >
-                            {page}
-                          </button>
-                        ))}
-                      </div>
-
-                      <button
-                        type="button"
-                        disabled={dailyPage === Math.ceil(currentTabStaffList.length / pageSize)}
-                        onClick={() =>
-                          setDailyPage((p) =>
-                            Math.min(Math.ceil(currentTabStaffList.length / pageSize), p + 1),
-                          )
-                        }
-                        className="px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-50 dark:hover:bg-slate-800 transition cursor-pointer flex items-center gap-1 font-bold text-[11px] shadow-xs h-[32px]"
-                      >
-                        Next <ChevronRight className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                  )}
+                <div className="px-6 pb-4">
+                  <Pagination
+                    currentPage={dailyPage}
+                    totalItems={currentTabStaffList.length}
+                    itemsPerPage={pageSize}
+                    onPageChange={setDailyPage}
+                    onItemsPerPageChange={(n) => {
+                      setPageSize(n);
+                      setDailyPage(1);
+                    }}
+                    label="employees"
+                  />
                 </div>
               )}
             </div>
@@ -3445,7 +3623,6 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
                <div className="flex flex-wrap items-center gap-3">
                  {/* Specific Employee Filter */}
                  <div className="flex items-center gap-2">
-                   <span className="text-[10px] font-extrabold uppercase text-slate-400 whitespace-nowrap">Filter:</span>
                    <select
                      value={regEmpId}
                      onChange={(e) => setRegEmpId(e.target.value)}
@@ -3524,8 +3701,18 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
                 <table className="w-full text-left border-collapse text-[11px]">
                   <thead>
                     <tr className="bg-slate-100/70 dark:bg-slate-800/60 text-slate-550 dark:text-slate-400 font-bold uppercase border-b border-slate-200 dark:border-slate-800">
-                      <th className="py-2.5 px-3 sticky left-0 bg-slate-100 dark:bg-slate-800 z-20 w-[110px] min-w-[110px] max-w-[110px] border-r border-slate-200 dark:border-slate-800">Employee ID</th>
-                      <th className="py-2.5 px-3 sticky left-[110px] bg-slate-100 dark:bg-slate-800 z-20 w-[180px] min-w-[180px] max-w-[180px] border-r border-slate-200 dark:border-slate-800">Employee Name</th>
+                      <th
+                        className="py-2.5 px-3 sticky left-0 bg-slate-100 dark:bg-slate-800 z-20 w-[160px] min-w-[160px] max-w-[160px] border-r border-slate-200 dark:border-slate-800 whitespace-nowrap text-left"
+                        style={{ width: 160, minWidth: 160, maxWidth: 160 }}
+                      >
+                        Employee ID
+                      </th>
+                      <th
+                        className="py-2.5 px-3 sticky left-[160px] bg-slate-100 dark:bg-slate-800 z-20 w-[180px] min-w-[180px] max-w-[180px] border-r border-slate-200 dark:border-slate-800 whitespace-nowrap text-left"
+                        style={{ left: 160 }}
+                      >
+                        Employee Name
+                      </th>
                       {registerDaysList.map((item, idx) => (
                         <th
                           key={idx}
@@ -3680,12 +3867,18 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
                             className="group hover:bg-slate-50/50 text-slate-800 dark:text-slate-200 border-b border-slate-100 dark:border-slate-800/80"
                           >
                             {/* Employee ID */}
-                            <td className="py-2 px-3 font-mono font-bold text-slate-600 dark:text-slate-300 sticky left-0 bg-white dark:bg-slate-900 group-hover:bg-slate-50/50 dark:group-hover:bg-slate-800/50 z-10 w-[110px] min-w-[110px] max-w-[110px] border-r border-slate-200 dark:border-slate-800 whitespace-nowrap">
+                            <td
+                              className="py-2 px-3 font-mono font-bold text-brand-600 dark:text-brand-400 sticky left-0 bg-white dark:bg-slate-900 group-hover:bg-slate-50/50 dark:group-hover:bg-slate-800/50 z-10 w-[160px] min-w-[160px] max-w-[160px] border-r border-slate-200 dark:border-slate-800 whitespace-nowrap text-left"
+                              style={{ width: 160, minWidth: 160, maxWidth: 160 }}
+                            >
                               {s.empId || s.id}
                             </td>
 
                             {/* Employee Name */}
-                            <td className="py-2 px-3 sticky left-[110px] bg-white dark:bg-slate-900 group-hover:bg-slate-50/50 dark:group-hover:bg-slate-800/50 z-10 w-[180px] min-w-[180px] max-w-[180px] border-r border-slate-200 dark:border-slate-800 whitespace-nowrap">
+                            <td
+                              className="py-2 px-3 sticky left-[160px] bg-white dark:bg-slate-900 group-hover:bg-slate-50/50 dark:group-hover:bg-slate-800/50 z-10 w-[180px] min-w-[180px] max-w-[180px] border-r border-slate-200 dark:border-slate-800 whitespace-nowrap text-left"
+                              style={{ left: 160 }}
+                            >
                               <span className="font-extrabold text-slate-900 dark:text-white block">
                                 {s.firstName} {s.lastName}
                               </span>
@@ -3737,56 +3930,18 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
 
               {/* Monthly Pagination Controls */}
               {registerStaffList.length > 0 && (
-                <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-4 pb-4 px-6 border-t border-slate-100 dark:border-slate-800 text-xs font-semibold">
-                  <span className="text-slate-500 font-medium">
-                    Showing <strong className="text-slate-800 dark:text-slate-200">{(monthlyPage - 1) * pageSize + 1}</strong> - <strong className="text-slate-800 dark:text-slate-200">{Math.min(monthlyPage * pageSize, registerStaffList.length)}</strong> of <strong className="text-slate-800 dark:text-slate-200">{registerStaffList.length}</strong> employees
-                  </span>
-
-                  {Math.ceil(registerStaffList.length / pageSize) > 1 && (
-                    <div className="flex items-center gap-1.5 font-bold">
-                      <button
-                        type="button"
-                        disabled={monthlyPage === 1}
-                        onClick={() => setMonthlyPage((p) => Math.max(1, p - 1))}
-                        className="px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-50 dark:hover:bg-slate-800 transition cursor-pointer flex items-center gap-1 font-bold text-[11px] shadow-xs h-[32px]"
-                      >
-                        <ChevronLeft className="w-3.5 h-3.5" /> Prev
-                      </button>
-
-                      <div className="flex items-center gap-1">
-                        {Array.from(
-                          { length: Math.ceil(registerStaffList.length / pageSize) },
-                          (_, i) => i + 1,
-                        ).map((page) => (
-                          <button
-                            key={page}
-                            type="button"
-                            onClick={() => setMonthlyPage(page)}
-                            className={`w-8 h-8 rounded-xl font-bold text-[11px] transition cursor-pointer flex items-center justify-center ${
-                              monthlyPage === page
-                                ? "bg-sky-600 text-white shadow-xs"
-                                : "border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800"
-                            }`}
-                          >
-                            {page}
-                          </button>
-                        ))}
-                      </div>
-
-                      <button
-                        type="button"
-                        disabled={monthlyPage === Math.ceil(registerStaffList.length / pageSize)}
-                        onClick={() =>
-                          setMonthlyPage((p) =>
-                            Math.min(Math.ceil(registerStaffList.length / pageSize), p + 1),
-                          )
-                        }
-                        className="px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-50 dark:hover:bg-slate-800 transition cursor-pointer flex items-center gap-1 font-bold text-[11px] shadow-xs h-[32px]"
-                      >
-                        Next <ChevronRight className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                  )}
+                <div className="px-6 pb-4">
+                  <Pagination
+                    currentPage={monthlyPage}
+                    totalItems={registerStaffList.length}
+                    itemsPerPage={pageSize}
+                    onPageChange={setMonthlyPage}
+                    onItemsPerPageChange={(n) => {
+                      setPageSize(n);
+                      setMonthlyPage(1);
+                    }}
+                    label="employees"
+                  />
                 </div>
               )}
             </div>

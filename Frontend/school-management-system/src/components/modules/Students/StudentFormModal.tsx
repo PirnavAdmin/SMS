@@ -6,7 +6,12 @@ import { useData } from '../../../context/DataContext';
 import { useAuth } from '../../../context/AuthContext';
 import { useToast } from '../../../context/ToastContext';
 import { validateDOB, formatToDDMMYYYY, formatToISO } from '../../../utils/dateValidation';
+<<<<<<< HEAD
 import { validate10DigitPhone, BLOOD_GROUPS, CASTE_CATEGORIES, RELIGIONS } from '../../../utils/validation';
+=======
+import { validate10DigitPhone, BLOOD_GROUPS, CASTE_CATEGORIES, BRANCHES, RELIGIONS } from '../../../utils/validation';
+import { normalizeStudentType } from '../../../utils/studentTypeUtils';
+>>>>>>> 2c7d0190f1106e317e9965ae947dc2f54d4d3f76
 
 import { DateInput } from '../../common/DateInput';
 import { generateNextAdmissionNo, generateNextStudentId } from '../../../utils/idGenerator';
@@ -32,8 +37,18 @@ export const StudentFormModal: React.FC<StudentFormModalProps> = ({
       .filter((b: any) => b && (typeof b === 'string' || b.status !== 'Inactive'))
       .map((b: any) => typeof b === 'string' ? b : (b.name || b.branchName || b.campusName || ''))
       .filter(Boolean);
+<<<<<<< HEAD
     return Array.from(new Set(fromApi)).filter(Boolean);
   }, [branches]);
+=======
+    const combined = [
+      ...(selectedBranch && selectedBranch !== 'All' && selectedBranch !== 'All Branches' ? [selectedBranch] : []),
+      ...fromApi,
+    ];
+    const unique = Array.from(new Set(combined)).filter(Boolean);
+    return unique;
+  }, [branches, selectedBranch]);
+>>>>>>> 2c7d0190f1106e317e9965ae947dc2f54d4d3f76
 
   const [formData, setFormData] = useState<Partial<Student>>({
     firstName: '',
@@ -51,8 +66,13 @@ export const StudentFormModal: React.FC<StudentFormModalProps> = ({
     joiningDate: new Date().toISOString().split('T')[0],
     isLateAdmission: false,
     feeCalculationMethod: 'Term-wise',
+<<<<<<< HEAD
     branch: studentToEdit?.branch || (selectedBranch && selectedBranch !== 'All' && selectedBranch !== 'All Branches' && dynamicCampuses.includes(selectedBranch) ? selectedBranch : (dynamicCampuses[0] || '')),
     studentType: 'Day Scholar',
+=======
+    branch: selectedBranch && selectedBranch !== 'All' && selectedBranch !== 'All Branches' ? selectedBranch : (dynamicCampuses[0] || ''),
+    studentType: 'Non-Residential',
+>>>>>>> 2c7d0190f1106e317e9965ae947dc2f54d4d3f76
     busRoute: '',
     transportType: 'AC',
     pickupPoint: '',
@@ -241,6 +261,7 @@ export const StudentFormModal: React.FC<StudentFormModalProps> = ({
       const docsSub = (studentToEdit as any).documentsSubmitted || (studentToEdit as any).documents || [];
       setFormData({
         ...studentToEdit,
+        studentType: normalizeStudentType(studentToEdit.studentType),
         isLateAdmission: !!studentToEdit.isLateAdmission,
         feeCalculationMethod: studentToEdit.feeCalculationMethod || 'Term-wise',
         joiningDate: (studentToEdit as any).joiningDate || studentToEdit.admissionDate || new Date().toISOString().split('T')[0],

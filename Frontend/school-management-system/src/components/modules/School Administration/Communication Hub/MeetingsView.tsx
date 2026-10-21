@@ -15,7 +15,7 @@ import { useAuth } from '../../../../context/AuthContext';
 export const MeetingsView: React.FC = () => {
   const { meetings, staff, students, departments, schoolProfile, addMeeting, updateMeeting, cancelMeeting, deleteMeeting } = useData();
   const { addToast } = useToast();
-  const { user, role } = useAuth();
+  const { user, role, selectedBranch, selectedAcademicYear } = useAuth();
 
   const isAdminOrPrincipal = role === 'Super Admin' || role === 'Admin' || role === 'Principal' || role === 'HR';
   const isTeacher = role === 'Teacher';
@@ -33,7 +33,7 @@ export const MeetingsView: React.FC = () => {
 
   useEffect(() => {
     setMeetingPage(1);
-  }, [filterAudience, filterMode, filterStatus, searchQuery, meetingPageSize]);
+  }, [filterAudience, filterMode, filterStatus, searchQuery, meetingPageSize, selectedBranch, selectedAcademicYear]);
 
   // Modal States
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -627,7 +627,11 @@ export const MeetingsView: React.FC = () => {
     const payload: Omit<SchoolMeeting, 'id' | 'createdAt'> = {
       title: title.trim(),
       description: formData.description,
+<<<<<<< HEAD
       academicYear: schoolProfile.academicYear || '2025-2026',
+=======
+      academicYear: schoolProfile.academicYear || '',
+>>>>>>> 2c7d0190f1106e317e9965ae947dc2f54d4d3f76
       branch: user?.branch || '',
       meetingAudience,
       participantType: meetingAudience === 'Individual' ? participantType : selectedGroupParticipantTypes[0] || 'Teaching Staff',
@@ -816,6 +820,41 @@ export const MeetingsView: React.FC = () => {
       {/* Meetings Grid / List */}
       {(() => {
         const filtered = meetings.filter(m => {
+          // 1. Branch filter
+          if (selectedBranch && selectedBranch !== 'All' && selectedBranch !== 'All Branches' && selectedBranch !== 'All Campuses') {
+            const mBranch = (m as any).branch || (m as any).branchId || (m as any).campus;
+            if (mBranch && mBranch !== 'All' && mBranch !== 'All Branches' && mBranch !== 'All Campuses') {
+              const cleanM = String(mBranch).toLowerCase().trim();
+              const cleanSel = String(selectedBranch).toLowerCase().trim();
+              if (cleanM !== cleanSel && !cleanM.includes(cleanSel) && !cleanSel.includes(cleanM)) {
+                return false;
+              }
+            }
+          }
+
+          // 2. Academic Year filter
+          if (selectedAcademicYear && selectedAcademicYear !== 'All') {
+            const cleanAY = selectedAcademicYear.replace(/[^0-9]/g, '');
+            if (cleanAY) {
+              const selStart = parseInt(cleanAY.slice(0, 4), 10);
+              const mAY = (m as any).academicYear;
+              if (mAY) {
+                const cleanM = String(mAY).replace(/[^0-9]/g, '');
+                if (cleanM && parseInt(cleanM.slice(0, 4), 10) !== selStart) {
+                  return false;
+                }
+              } else if (m.meetingDate) {
+                const d = new Date(m.meetingDate);
+                if (!isNaN(d.getTime())) {
+                  const y = d.getFullYear();
+                  const mo = d.getMonth() + 1;
+                  const ayStart = mo >= 4 ? y : y - 1;
+                  if (ayStart !== selStart) return false;
+                }
+              }
+            }
+          }
+
           if (filterAudience && m.meetingAudience !== filterAudience) return false;
           if (filterMode && m.meetingMode !== filterMode) return false;
           if (filterStatus && m.status !== filterStatus) return false;

@@ -27,7 +27,7 @@ export const TransferStudentModal: React.FC<TransferStudentModalProps> = ({
   const { schoolProfile, transferStudent, logActivity, updateStudent, calculateStudentPayableFee, getStudentFeeOutstandingSummary } = useData();
   const { selectedAcademicYear } = useAuth();
   const { addToast } = useToast();
-  const activeAY = selectedAcademicYear || '2025-2026';
+  const activeAY = selectedAcademicYear || '';
 
   const schoolName = schoolProfile?.name || "Pirnav Educational Institutions";
   const schoolAddress = schoolProfile?.address || "";

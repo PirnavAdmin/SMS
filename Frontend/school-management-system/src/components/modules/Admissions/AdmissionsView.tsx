@@ -1,6 +1,11 @@
 // @ts-nocheck
 import React, { useState, useEffect, useMemo } from "react";
+<<<<<<< HEAD
 import { createAllocation, formatRoomNumber } from "../../../api/hostel";
+=======
+import { createAllocation } from "../../../api/hostel";
+import { downloadFeeSummaryPdf } from "../../../utils/feeSummaryPdf";
+>>>>>>> 2c7d0190f1106e317e9965ae947dc2f54d4d3f76
 import {
   GraduationCap,
   Plus,
@@ -57,6 +62,7 @@ import {
   BLOOD_GROUPS,
   CASTE_CATEGORIES,
   RELIGIONS,
+  formatTitleCase,
 } from "../../../utils/validation";
 import {
   validateDOB,
@@ -65,6 +71,7 @@ import {
 } from "../../../utils/dateValidation";
 import { getUniformFeeForClass } from "../../../utils/uniformUtils";
 import { formatCurrency } from "../../../utils/currency";
+import { formatStudentType, normalizeStudentType } from "../../../utils/studentTypeUtils";
 import {
   calculateLateAdmissionFees,
   FeeItemInput,
@@ -317,8 +324,18 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
       .filter((b: any) => b && (typeof b === "string" || b.status !== "Inactive"))
       .map((b: any) => typeof b === "string" ? b : (b.name || b.branchName || b.campusName || ""))
       .filter(Boolean);
+<<<<<<< HEAD
     return Array.from(new Set(fromApi)).filter(Boolean);
   }, [branches]);
+=======
+    const combined = [
+      ...(selectedBranch && selectedBranch !== "All" && selectedBranch !== "All Branches" ? [selectedBranch] : []),
+      ...fromApi,
+    ];
+    const unique = Array.from(new Set(combined)).filter(Boolean);
+    return unique;
+  }, [branches, selectedBranch]);
+>>>>>>> 2c7d0190f1106e317e9965ae947dc2f54d4d3f76
 
   const [query, setQuery] = useState("");
   const [filterClass, setFilterClass] = useState("All");
@@ -373,7 +390,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
       addressDistrict: "",
       addressState: "",
       addressPinCode: "",
-      studentType: "Day Scholar",
+      studentType: "Non-Residential",
       transportRequired: false,
       transportType: "",
       busRoute: "",
@@ -383,9 +400,13 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
       floor: "",
       hostelRoom: "",
       hostelBed: "",
+<<<<<<< HEAD
       branch: (selectedBranch && selectedBranch !== "All" && selectedBranch !== "All Branches" && dynamicCampuses.includes(selectedBranch))
         ? selectedBranch
         : (dynamicCampuses[0] || ""),
+=======
+      branch: selectedBranch && selectedBranch !== "All" && selectedBranch !== "All Branches" ? selectedBranch : (availableBranches[0] || ""),
+>>>>>>> 2c7d0190f1106e317e9965ae947dc2f54d4d3f76
       scholarshipId: "",
       discountId: "",
       selectedOptionalFees: [],
@@ -488,7 +509,11 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
       "Wright",
       "Class 1",
       "Male",
+<<<<<<< HEAD
       selectedBranch && selectedBranch !== "All" && selectedBranch !== "All Branches" && dynamicCampuses.includes(selectedBranch) ? selectedBranch : (dynamicCampuses[0] || ""),
+=======
+      selectedBranch && selectedBranch !== "All" && selectedBranch !== "All Branches" ? selectedBranch : (availableBranches[0] || ""),
+>>>>>>> 2c7d0190f1106e317e9965ae947dc2f54d4d3f76
       "15-08-2018",
       "O+",
       "Christianity",
@@ -507,7 +532,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
       "Central",
       "State",
       "600001",
-      "Day Scholar",
+      "Non-Residential",
       "No",
       "",
       ""
@@ -626,7 +651,11 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
 
               const rowStatus = String(row.Status || row.status || "Enrolled").trim();
               const rowClass = String(row.AppliedClass || row.appliedClass || row.Class || row.className || row["Applied Class"] || "Class 1").trim();
+<<<<<<< HEAD
               const defaultActiveBranch = selectedBranch && selectedBranch !== "All Branches" && selectedBranch !== "All" && dynamicCampuses.includes(selectedBranch) ? selectedBranch : (dynamicCampuses[0] || "");
+=======
+              const defaultActiveBranch = selectedBranch && selectedBranch !== "All Branches" && selectedBranch !== "All" ? selectedBranch : (availableBranches[0] || "");
+>>>>>>> 2c7d0190f1106e317e9965ae947dc2f54d4d3f76
               let rowBranch = String(row.Campus || row.branch || row.Branch || row.CampusLocation || "").trim();
               if (!rowBranch) {
                 rowBranch = defaultActiveBranch;
@@ -658,7 +687,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                 branch: rowBranch,
                 academicYear: rowAcademicYear,
                 status: rowStatus,
-                studentType: String(row.StudentType || row.studentType || "Day Scholar").trim(),
+                studentType: normalizeStudentType(row.StudentType || row.studentType),
                 transportRequired: Boolean(row.TransportRequired === "Yes" || row.transportRequired === true || String(row.TransportRequired).toLowerCase() === "true"),
                 busRoute: String(row.BusRoute || row.busRoute || "").trim(),
                 pickupPoint: String(row.PickupPoint || row.pickupPoint || "").trim(),
@@ -1497,9 +1526,15 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
   const handleOpenEdit = (app: AdmissionApplication) => {
     if (!app) return;
     setEditingApp(app);
+<<<<<<< HEAD
     const parts = String(app.applicantName || "").trim().split(" ");
     setFirstName(parts[0] || "");
     setLastName(parts.slice(1).join(" ") || "");
+=======
+    const parts = app.applicantName.split(" ");
+    setFirstName(formatTitleCase(parts[0] || ""));
+    setLastName(formatTitleCase(parts.slice(1).join(" ") || ""));
+>>>>>>> 2c7d0190f1106e317e9965ae947dc2f54d4d3f76
     setAvatar(app.avatar || "");
 
     let formattedDob = String(app.dob || "");
@@ -1539,7 +1574,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
 
     const docsSub = app.documentsSubmitted || (app as any).documents || [];
     const isTrp = Boolean(app.transportRequired || app.busRoute || app.pickupPoint);
-    const sType = app.studentType === ("Hosteller" as any) ? "Residential" : app.studentType || "Day Scholar";
+    const sType = normalizeStudentType(app.studentType);
 
     const isLateAdm =
       app.isLateAdmission !== undefined
@@ -1875,7 +1910,11 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
       ? (siblingDetails.map((d) => d.studentId).filter(Boolean) as string[])
       : [];
 
-    const fullApplicantName = `${firstName.trim()} ${lastName.trim()}`;
+    const finalFirst = formatTitleCase(firstName.trim());
+    const finalLast = formatTitleCase(lastName.trim());
+    const fullApplicantName = `${finalFirst} ${finalLast}`.trim();
+    const formattedParentName = formatTitleCase((formData.parentName || "").trim());
+    const formattedMotherName = formData.motherName ? formatTitleCase(formData.motherName.trim()) : "N/A";
 
     // Duplicate submission protection
     const isDuplicate = (admissions || []).some(
@@ -1902,6 +1941,8 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
       if (editingApp) {
         await updateAdmission(editingApp.id, {
           ...formData,
+          parentName: formattedParentName,
+          motherName: formattedMotherName,
           email: formData.email || "",
           parentEmail: formData.email || "",
           motherPhone: formData.motherPhone || "",
@@ -1930,8 +1971,8 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
           bloodGroup: formData.bloodGroup,
           religion: formData.religion || "General",
           casteCategory: formData.casteCategory || "General",
-          parentName: formData.parentName,
-          motherName: formData.motherName || "N/A",
+          parentName: formattedParentName,
+          motherName: formattedMotherName,
           email: formData.email || "",
           parentEmail: formData.email || "",
           phone: formData.phone || "9876543210",
@@ -1959,7 +2000,11 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
           floor: formData.floor,
           hostelRoom: formData.hostelRoom,
           hostelBed: formData.hostelBed,
+<<<<<<< HEAD
           branch: formData.branch || (selectedBranch && selectedBranch !== "All" && selectedBranch !== "All Branches" && dynamicCampuses.includes(selectedBranch) ? selectedBranch : "") || (dynamicCampuses[0] || ""),
+=======
+          branch: formData.branch || (selectedBranch && selectedBranch !== "All" && selectedBranch !== "All Branches" ? selectedBranch : (availableBranches[0] || "")),
+>>>>>>> 2c7d0190f1106e317e9965ae947dc2f54d4d3f76
           scholarshipId: formData.scholarshipId,
           discountId: formData.discountId,
           selectedOptionalFees: formData.selectedOptionalFees || [],
@@ -2164,7 +2209,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
       return { items: [], totalPayable: 0, isClassSelected: false };
     }
 
-    const stType = formData.studentType || "Day Scholar";
+    const stType = normalizeStudentType(formData.studentType);
     const clsName = formData.appliedClass;
 
     const matchesClass = (structCls?: string, targetCls?: string): boolean => {
@@ -2242,7 +2287,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
     const calculationMethod = formData.feeCalculationMethod || "Term-wise";
 
     const currentSchedule = (academicYearFeeSchedules || []).find(
-      (s) => s.academicYear === (selectedAcademicYear || "2026-2027"),
+      (s) => s.academicYear === (selectedAcademicYear || ""),
     );
 
     const gnd = formData.gender || "Unisex";
@@ -2305,7 +2350,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
       isLateAdmission,
       feeCalculationMethod: calculationMethod,
       schedule: currentSchedule,
-      academicYear: selectedAcademicYear || "2026-2027",
+      academicYear: selectedAcademicYear || "",
     });
 
     baseItems.forEach((i, idx) => {
@@ -2678,7 +2723,10 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                           required
                           placeholder="Enter First Name"
                           value={firstName}
-                          onChange={(e) => setFirstName(e.target.value.replace(/[^a-zA-Z\s]/g, ""))}
+                          onChange={(e) =>
+                            setFirstName(formatTitleCase(e.target.value.replace(/[^a-zA-Z\s]/g, "")))
+                          }
+                          onBlur={() => setFirstName((prev) => formatTitleCase(prev.trim()))}
                           className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none"
                         />
                       </div>
@@ -2691,7 +2739,10 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                           required
                           placeholder="Enter Last Name"
                           value={lastName}
-                          onChange={(e) => setLastName(e.target.value.replace(/[^a-zA-Z\s]/g, ""))}
+                          onChange={(e) =>
+                            setLastName(formatTitleCase(e.target.value.replace(/[^a-zA-Z\s]/g, "")))
+                          }
+                          onBlur={() => setLastName((prev) => formatTitleCase(prev.trim()))}
                           className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none"
                         />
                       </div>
@@ -3175,7 +3226,10 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                       required
                       value={formData.parentName}
                       onChange={(e) =>
-                        setFormData({ ...formData, parentName: e.target.value.replace(/[^a-zA-Z\s]/g, "") })
+                        setFormData({ ...formData, parentName: formatTitleCase(e.target.value.replace(/[^a-zA-Z\s]/g, "")) })
+                      }
+                      onBlur={() =>
+                        setFormData((prev) => ({ ...prev, parentName: formatTitleCase((prev.parentName || "").trim()) }))
                       }
                       className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none"
                     />
@@ -3188,7 +3242,10 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                       type="text"
                       value={formData.motherName}
                       onChange={(e) =>
-                        setFormData({ ...formData, motherName: e.target.value.replace(/[^a-zA-Z\s]/g, "") })
+                        setFormData({ ...formData, motherName: formatTitleCase(e.target.value.replace(/[^a-zA-Z\s]/g, "")) })
+                      }
+                      onBlur={() =>
+                        setFormData((prev) => ({ ...prev, motherName: formatTitleCase((prev.motherName || "").trim()) }))
                       }
                       className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none"
                     />
@@ -3266,7 +3323,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                     )}
                   </div>
 
-                  <div>
+                  <div className="relative group">
                     <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">
                       Email Address <span className="text-rose-500 font-bold ml-0.5">*</span>
                     </label>
@@ -3282,6 +3339,11 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                           : "border-slate-200 dark:border-slate-700 focus:border-brand-500"
                       }`}
                     />
+                    {formData.email && (
+                      <div className="pointer-events-none invisible opacity-0 group-hover:visible group-hover:opacity-100 transition-opacity duration-150 absolute right-0 -top-1 -translate-y-full z-30 px-3 py-1.5 rounded-lg bg-slate-900 dark:bg-slate-800 text-white text-xs font-semibold shadow-lg whitespace-nowrap border border-slate-700">
+                        {formData.email}
+                      </div>
+                    )}
                     {emailError && (
                       <p className="text-[10px] text-rose-500 mt-0.5 font-bold">
                         {emailError}
@@ -4402,7 +4464,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                   {liveFee.isClassSelected && (
                     <span className="px-2.5 py-0.5 rounded-full bg-sky-50 dark:bg-sky-950 text-sky-700 dark:text-sky-300 font-extrabold text-[10px] border border-sky-200 dark:border-sky-800">
                       {formData.appliedClass} •{" "}
-                      {formData.studentType || "Day Scholar"}
+                      {formatStudentType(formData.studentType)}
                     </span>
                   )}
                 </div>
@@ -4563,32 +4625,25 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
         </div>
 
         <div className="flex flex-wrap items-center gap-3 w-full lg:w-auto justify-end">
-          <div className="flex items-center gap-1.5">
-            <span className="text-[11px] font-bold text-slate-400">Class:</span>
-            <select
-              value={filterClass}
-              onChange={(e) => setFilterClass(e.target.value)}
-              className="px-3 py-1.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none cursor-pointer"
-            >
-              <option value="All">All Classes</option>
-              {dynamicClassOptions.map((c) => (
-                <option key={c} value={c}>
-                  {c}
-                </option>
-              ))}
-            </select>
-          </div>
+          <select
+            value={filterClass}
+            onChange={(e) => setFilterClass(e.target.value)}
+            className="px-3 py-1.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none cursor-pointer"
+          >
+            <option value="All">All Classes</option>
+            {dynamicClassOptions.map((c) => (
+              <option key={c} value={c}>
+                {c}
+              </option>
+            ))}
+          </select>
 
-          <div className="flex items-center gap-1.5">
-            <span className="text-[11px] font-bold text-slate-400">
-              Status:
-            </span>
-            <select
-              value={filterStatus}
-              onChange={(e) => setFilterStatus(e.target.value)}
-              className="px-3 py-1.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none cursor-pointer"
-            >
-              <option value="All">All Status</option>
+          <select
+            value={filterStatus}
+            onChange={(e) => setFilterStatus(e.target.value)}
+            className="px-3 py-1.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none cursor-pointer"
+          >
+            <option value="All">All Status</option>
               <option value="Un-Enrolled">Un-Enrolled</option>
               <option value="Enrolled">Enrolled</option>
               {Array.from(
@@ -4612,7 +4667,6 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
             </select>
           </div>
         </div>
-      </div>
 
       {/* Applications Table Format View */}
       <div id="printable-content" className="glass-card rounded-2xl overflow-hidden border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 print:p-0 print:border-none">
@@ -4693,7 +4747,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                     </td>
                     <td className="py-3 px-4">
                       <span className="font-bold text-slate-700 dark:text-slate-300 block">
-                        {app.studentType}
+                        {formatStudentType(app.studentType)}
                       </span>
                     </td>
                     <td className="py-3 px-4">
@@ -4977,7 +5031,9 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                     )}
 
                     {selectedAppForView.email && (
-                      <div className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-700/50 flex items-center gap-2">
+                      <div
+                        className="relative group p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-700/50 flex items-center gap-2"
+                      >
                         <Mail className="w-3.5 h-3.5 text-blue-500 shrink-0" />
                         <div className="min-w-0">
                           <p className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">
@@ -4987,6 +5043,9 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                             {selectedAppForView.email}
                           </p>
                         </div>
+                        <div className="pointer-events-none invisible opacity-0 group-hover:visible group-hover:opacity-100 transition-opacity duration-150 absolute left-0 -top-1.5 -translate-y-full z-30 px-3 py-1.5 rounded-lg bg-slate-900 dark:bg-slate-800 text-white text-xs font-semibold shadow-lg whitespace-nowrap border border-slate-700">
+                          {selectedAppForView.email}
+                        </div>
                       </div>
                     )}
                   </div>
@@ -4995,8 +5054,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                 {/* 3. Transport & Accommodation */}
                 <div className="bg-white dark:bg-slate-850 p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-3">
                   <div className="flex items-center gap-2 pb-2 border-b border-slate-100 dark:border-slate-700/60">
-                    {selectedAppForView.studentType === "Hosteller" ||
-                    selectedAppForView.studentType === "Residential" ? (
+                    {formatStudentType(selectedAppForView.studentType) === "Residential" ? (
                       <Home className="w-4 h-4 text-brand-500" />
                     ) : (
                       <Bus className="w-4 h-4 text-brand-500" />
@@ -5012,7 +5070,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                         Student Type
                       </p>
                       <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-brand-50 dark:bg-brand-900/30 text-brand-700 dark:text-brand-300 text-xs font-bold">
-                        {selectedAppForView.studentType || "Day Scholar"}
+                        {formatStudentType(selectedAppForView.studentType)}
                       </span>
                     </div>
                     <div className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-700/50">
@@ -5020,14 +5078,16 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                         Campus
                       </p>
                       <p className="text-xs font-bold text-slate-800 dark:text-slate-200">
+<<<<<<< HEAD
                         {selectedAppForView.branch || "-"}
+=======
+                        {selectedAppForView.branch || "—"}
+>>>>>>> 2c7d0190f1106e317e9965ae947dc2f54d4d3f76
                       </p>
                     </div>
                   </div>
 
-                  {(selectedAppForView.studentType === "Day Scholar" ||
-                    selectedAppForView.studentType === "Non-Residential" ||
-                    !selectedAppForView.studentType) && (
+                  {formatStudentType(selectedAppForView.studentType) === "Non-Residential" && (
                     <div className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-700/50">
                       <p className="text-[10px] uppercase font-bold text-slate-400 tracking-wider mb-1">
                         Transport Service
@@ -5054,8 +5114,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                     </div>
                   )}
 
-                  {(selectedAppForView.studentType === "Hosteller" ||
-                    selectedAppForView.studentType === "Residential") && (
+                  {formatStudentType(selectedAppForView.studentType) === "Residential" && (
                     <div className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-700/50">
                       <p className="text-[10px] uppercase font-bold text-slate-400 tracking-wider mb-1">
                         Hostel Allocation
@@ -5285,11 +5344,12 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
             ledger?.className ||
             "Nursery";
           const stSection = st?.section || adm?.section || (ledger?.section || "A");
-          const stType =
+          const stType = formatStudentType(
             st?.studentType ||
             adm?.studentType ||
             adm?.residentialStatus ||
-            (ledger?.studentType || "Day Scholar");
+            ledger?.studentType
+          );
 
           if (!ledger) {
             ledger = {
@@ -5298,7 +5358,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
               className: stClass,
               section: stSection,
               studentType: stType,
-              academicYear: selectedAcademicYear || "2026-2027",
+              academicYear: selectedAcademicYear || "",
               feeItems: [],
               totalScholarship: 0,
               totalDiscount: 0,
@@ -5376,7 +5436,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                       Student Type:
                     </span>
                     <span className="px-2 py-0.5 rounded-full bg-sky-100 text-sky-800 dark:bg-sky-950 dark:text-sky-300 font-extrabold text-[10px]">
-                      {ledger.studentType || "Day Scholar"}
+                      {formatStudentType(ledger.studentType)}
                     </span>
                   </div>
                 </div>
@@ -5536,8 +5596,8 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                             <div class="info-row"><span class="label">Student Name: </span><span class="value">${ledger.studentName || "Student"}</span></div>
                             <div class="info-row"><span class="label">Admission No: </span><span class="value">${ledger.admissionNo || "—"}</span></div>
                             <div class="info-row"><span class="label">Class & Section: </span><span class="value">${ledger.className || "Class 1"} - ${ledger.section || "A"}</span></div>
-                            <div class="info-row"><span class="label">Academic Session: </span><span class="value">${ledger.academicYear || "2026-2027"}</span></div>
-                            <div class="info-row"><span class="label">Student Category: </span><span class="value">${ledger.studentType || "Day Scholar"}</span></div>
+                            <div class="info-row"><span class="label">Academic Session: </span><span class="value">${ledger.academicYear || selectedAcademicYear || "—"}</span></div>
+                            <div class="info-row"><span class="label">Student Category: </span><span class="value">${formatStudentType(ledger.studentType)}</span></div>
                             <div class="info-row"><span class="label">Date of Statement: </span><span class="value">${new Date().toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })}</span></div>
                           </div>
 
@@ -5620,46 +5680,26 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                   </button>
                   <button
                     onClick={() => {
-                      const applicableItems = feeItems.filter(
-                        (i: any) => i && i.isApplicable,
+                      downloadFeeSummaryPdf(
+                        {
+                          schoolName: schoolProfile?.name,
+                          schoolTagline: schoolProfile?.tagline,
+                          schoolAddress: schoolProfile?.address,
+                          schoolPhone: schoolProfile?.phone,
+                          studentName: ledger.studentName || "Student",
+                          admissionNo: ledger.admissionNo || "—",
+                          className: ledger.className || "Class 1",
+                          section: ledger.section || "A",
+                          academicYear: ledger.academicYear || selectedAcademicYear || "",
+                          studentType: formatStudentType(ledger.studentType),
+                          appliedFeeItems,
+                          notApplicableItems,
+                          totalScholarship: ledger.totalScholarship || 0,
+                          totalDiscount: ledger.totalDiscount || 0,
+                          totalPayable: ledger.totalPayable || 0,
+                        },
+                        `FeeSummary_${ledger.admissionNo || "Student"}_${ledger.academicYear || "2026"}.pdf`,
                       );
-                      let text = `====================================================\n`;
-                      text += `   ${schoolProfile?.name || "PIRNAV EDUCATIONAL INSTITUTIONS"}\n`;
-                      text += `        STUDENT ANNUAL FEE SUMMARY STATEMENT\n`;
-                      text += `====================================================\n\n`;
-                      text += `Student Name   : ${ledger.studentName || "Student"}\n`;
-                      text += `Admission No   : ${ledger.admissionNo || "—"}\n`;
-                      text += `Class & Section: ${ledger.className || "Class 1"} - ${ledger.section || "A"}\n`;
-                      text += `Academic Year  : ${ledger.academicYear || "2026-2027"}\n`;
-                      text += `Student Type   : ${ledger.studentType || "Day Scholar"}\n`;
-                      text += `Date           : ${new Date().toLocaleDateString()}\n\n`;
-                      text += `----------------------------------------------------\n`;
-                      text += `APPLICABLE FEE HEAD BREAKDOWN\n`;
-                      text += `----------------------------------------------------\n`;
-                      applicableItems.forEach((i: any) => {
-                        text += `${(i.headName || "Fee Item").padEnd(32)}: ₹${(i.originalAmount || 0).toLocaleString("en-IN")}\n`;
-                      });
-                      if ((ledger.totalScholarship || 0) > 0) {
-                        text += `Scholarship Deduction           : -₹${(ledger.totalScholarship || 0).toLocaleString("en-IN")}\n`;
-                      }
-                      if ((ledger.totalDiscount || 0) > 0) {
-                        text += `Discount / Concession           : -₹${(ledger.totalDiscount || 0).toLocaleString("en-IN")}\n`;
-                      }
-                      text += `----------------------------------------------------\n`;
-                      text += `TOTAL NET ANNUAL PAYABLE        : ₹${(ledger.totalPayable || 0).toLocaleString("en-IN")}\n`;
-                      text += `====================================================\n`;
-
-                      const blob = new Blob([text], {
-                        type: "text/plain;charset=utf-8",
-                      });
-                      const url = URL.createObjectURL(blob);
-                      const a = document.createElement("a");
-                      a.href = url;
-                      a.download = `FeeSummary_${ledger.admissionNo || "Student"}_${ledger.academicYear || "2026"}.txt`;
-                      document.body.appendChild(a);
-                      a.click();
-                      document.body.removeChild(a);
-                      URL.revokeObjectURL(url);
                     }}
                     className="py-2.5 px-3 rounded-xl bg-sky-100 dark:bg-sky-950 hover:bg-sky-200 font-bold text-xs text-sky-800 dark:text-sky-300 text-center cursor-pointer transition-colors"
                   >

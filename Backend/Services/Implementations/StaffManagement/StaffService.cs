@@ -40,18 +40,29 @@ public class StaffService : IStaffService
                           category.Equals("Teaching Staff", StringComparison.OrdinalIgnoreCase) || 
                           category.Equals("Teacher", StringComparison.OrdinalIgnoreCase);
 
+        string? candidate = null;
         try
         {
             var genResult = await _settingsService.GenerateNextIdAsync(isTeaching ? "teaching" : "non-teaching");
             if (genResult != null && !string.IsNullOrWhiteSpace(genResult.NextId))
             {
-                return genResult.NextId;
+                candidate = genResult.NextId;
             }
         }
         catch { }
 
-        // Fallback
-        var existingIds = await _schoolRepository.GetAllEmployeeIdsAsync();
+        var existingIds = await _context.Staff
+            .Where(s => s.EmployeeId != null)
+            .Select(s => s.EmployeeId!)
+            .ToListAsync();
+
+        var existingSet = new HashSet<string>(existingIds, StringComparer.OrdinalIgnoreCase);
+
+        if (!string.IsNullOrWhiteSpace(candidate) && !existingSet.Contains(candidate))
+        {
+            return candidate;
+        }
+
         int maxNumber = 0;
         string prefix = isTeaching ? "TCH" : "NTS";
 
@@ -65,13 +76,43 @@ public class StaffService : IStaffService
             }
         }
 
-        int nextNumber = maxNumber + 1;
-        return $"{prefix}-{DateTime.UtcNow.Year}-{nextNumber:D4}";
+        int nextNumber = Math.Max(maxNumber + 1, isTeaching ? 501 : 801);
+        string finalId = $"{prefix}-{DateTime.UtcNow.Year}-{nextNumber:D4}";
+        while (existingSet.Contains(finalId))
+        {
+            nextNumber++;
+            finalId = $"{prefix}-{DateTime.UtcNow.Year}-{nextNumber:D4}";
+        }
+        return finalId;
     }
 
     public async Task<List<StaffResponseDto>> GetAllStaffAsync(string? search, string? department, string? branch = null)
     {
         var list = await _schoolRepository.GetAllStaffAsync(search, department, branch);
+
+        // Self-heal any legacy duplicate Employee IDs in database
+        var seenIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        bool anyHealed = false;
+        foreach (var staffMember in list.OrderBy(s => s.StaffId))
+        {
+            if (!string.IsNullOrWhiteSpace(staffMember.EmployeeId))
+            {
+                if (seenIds.Contains(staffMember.EmployeeId))
+                {
+                    var newEmpId = await GetNextEmployeeIdAsync(staffMember.EmployeeCategory);
+                    staffMember.EmployeeId = newEmpId;
+                    _context.Entry(staffMember).Property(x => x.EmployeeId).IsModified = true;
+                    anyHealed = true;
+                }
+                seenIds.Add(staffMember.EmployeeId);
+            }
+        }
+
+        if (anyHealed)
+        {
+            try { await _context.SaveChangesAsync(); } catch { }
+        }
+
         return list.Select(s => MapToStaffResponseDto(s)).ToList();
     }
 
@@ -159,8 +200,15 @@ public class StaffService : IStaffService
     public async Task<StaffResponseDto> CreateStaffAsync(StaffCreateDto dto)
     {
         var empId = !string.IsNullOrWhiteSpace(dto.EmployeeId) 
-            ? dto.EmployeeId 
+            ? dto.EmployeeId.Trim() 
             : await GetNextEmployeeIdAsync(dto.EmployeeCategory);
+
+        var isDuplicateEmpId = await _context.Staff
+            .AnyAsync(s => s.EmployeeId != null && s.EmployeeId.ToLower() == empId.ToLower());
+        if (isDuplicateEmpId)
+        {
+            throw new BadRequestException("Employee ID already exists. Please use a unique Employee ID.");
+        }
 
         var staff = new Staff
         {
@@ -201,6 +249,25 @@ public class StaffService : IStaffService
             UpiId = dto.UpiId,
             IsActive = dto.IsActive ?? true
         };
+
+        // Initialize leave balances dynamically from configured leave types in database
+        try
+        {
+            var leaveConfigs = await _context.LeaveTypeConfigs.AsNoTracking().ToListAsync();
+            var cl = leaveConfigs.FirstOrDefault(l => (l.Code != null && l.Code.ToUpper().Contains("CL")) || (l.Name != null && l.Name.ToUpper().Contains("CASUAL")));
+            var sl = leaveConfigs.FirstOrDefault(l => (l.Code != null && l.Code.ToUpper().Contains("SL")) || (l.Name != null && l.Name.ToUpper().Contains("SICK")));
+            var el = leaveConfigs.FirstOrDefault(l => (l.Code != null && (l.Code.ToUpper().Contains("PL") || l.Code.ToUpper().Contains("EL"))) || (l.Name != null && (l.Name.ToUpper().Contains("EARNED") || l.Name.ToUpper().Contains("PAID"))));
+            staff.CasualLeaveBalance = cl?.AnnualAllowance ?? 0;
+            staff.SickLeaveBalance = sl?.AnnualAllowance ?? 0;
+            staff.EarnedLeaveBalance = el?.AnnualAllowance ?? 0;
+        }
+        catch
+        {
+            // Fallback to 0 if table not yet initialized
+            staff.CasualLeaveBalance = 0;
+            staff.SickLeaveBalance = 0;
+            staff.EarnedLeaveBalance = 0;
+        }
 
         if (DateTime.TryParse(dto.DateOfBirth, out var parsedDob)) staff.DateOfBirth = parsedDob;
         if (DateTime.TryParse(dto.JoiningDate, out var parsedJoining)) staff.JoiningDate = parsedJoining;
@@ -329,6 +396,18 @@ public class StaffService : IStaffService
     {
         var staff = await _schoolRepository.GetStaffByIdAsync(id)
             ?? throw new NotFoundException($"Staff member with ID '{id}' not found.");
+
+        if (!string.IsNullOrWhiteSpace(dto.EmployeeId))
+        {
+            var trimmedEmpId = dto.EmployeeId.Trim();
+            var isDuplicateEmpId = await _context.Staff
+                .AnyAsync(s => s.StaffId != id && s.EmployeeId != null && s.EmployeeId.ToLower() == trimmedEmpId.ToLower());
+            if (isDuplicateEmpId)
+            {
+                throw new BadRequestException("Employee ID already exists. Please use a unique Employee ID.");
+            }
+            staff.EmployeeId = trimmedEmpId;
+        }
 
         var oldEmail = staff.Email;
         var oldPhone = staff.Phone;

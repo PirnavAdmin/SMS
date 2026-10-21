@@ -532,7 +532,11 @@ export const StudentList: React.FC<{ onNavigate?: (module: string) => void }> = 
         'Father Mobile': '9876543210',
         'Mother Name': 'Sunita Sharma',
         'Email': 'aarav.sharma@gmail.com',
+<<<<<<< HEAD
         'Branch': '',
+=======
+        'Branch': selectedBranch || (branches[0]?.name || branches[0]?.branchName || ''),
+>>>>>>> 2c7d0190f1106e317e9965ae947dc2f54d4d3f76
         'Student Type': 'Day Scholar',
         'Status': 'Active'
       },
@@ -549,7 +553,11 @@ export const StudentList: React.FC<{ onNavigate?: (module: string) => void }> = 
         'Father Mobile': '9876543211',
         'Mother Name': 'Meena Patel',
         'Email': 'ananya.patel@gmail.com',
+<<<<<<< HEAD
         'Branch': '',
+=======
+        'Branch': selectedBranch || (branches[0]?.name || branches[0]?.branchName || ''),
+>>>>>>> 2c7d0190f1106e317e9965ae947dc2f54d4d3f76
         'Student Type': 'Residential',
         'Status': 'Active'
       }
@@ -1532,7 +1540,7 @@ export const StudentList: React.FC<{ onNavigate?: (module: string) => void }> = 
                   {/* Footer subtext */}
                   <div className="mt-3 pt-2 border-t border-slate-100 dark:border-slate-800/60 flex items-center justify-between text-[10px] text-slate-400">
                     <span>Click section to open list</span>
-                    <span className="font-mono font-bold text-slate-500">2026-2027</span>
+                    <span className="font-mono font-bold text-slate-500">{selectedAcademicYear || ""}</span>
                   </div>
                 </div>
               ))}

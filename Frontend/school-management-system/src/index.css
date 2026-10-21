@@ -210,6 +210,8 @@
   #printable-receipt,
   #printable-return-receipt,
   #printable-exchange-receipt,
+  #staff-letter-printable-area,
+  .printable-staff-letter,
   .report-card-sheet,
   .printable-area {
     position: relative !important;

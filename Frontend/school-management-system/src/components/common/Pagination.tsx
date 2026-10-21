@@ -55,18 +55,18 @@ export const Pagination: React.FC<PaginationProps> = ({
   const effectiveOptions = Array.from(new Set([itemsPerPage, ...itemsPerPageOptions])).sort((a, b) => a - b);
 
   return (
-    <div className={`flex flex-col sm:flex-row items-center justify-between gap-3 pt-3.5 pb-1 select-none border-t border-slate-200/80 dark:border-slate-800/80 no-print print:hidden ${className}`}>
+    <div className={`flex flex-col sm:flex-row items-center justify-between gap-3 pt-3.5 pb-1 select-none border-t border-slate-200/80 dark:border-slate-800/80 no-print print:hidden flex-wrap ${className}`}>
       {/* Left side: Showing X to Y of Z records */}
-      <div className="text-xs font-semibold text-slate-500 dark:text-slate-400">
+      <div className="text-xs font-semibold text-slate-500 dark:text-slate-400 shrink-0">
         Showing <span className="font-black text-slate-800 dark:text-slate-200">{startItem}</span> to{' '}
         <span className="font-black text-slate-800 dark:text-slate-200">{endItem}</span> of{' '}
         <span className="font-black text-slate-800 dark:text-slate-200">{totalItems}</span> {label}
       </div>
 
       {/* Right side: Show: [dropdown]  Page Navigation */}
-      <div className="flex items-center gap-3 flex-wrap sm:flex-nowrap">
+      <div className="flex items-center gap-3 flex-wrap justify-end">
         {onItemsPerPageChange && (
-          <div className="flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400 font-semibold">
+          <div className="flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400 font-semibold shrink-0">
             <span>Show:</span>
             <div className="relative">
               <select
@@ -89,7 +89,7 @@ export const Pagination: React.FC<PaginationProps> = ({
           </div>
         )}
 
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-1 shrink-0 flex-wrap">
           {/* First Page Button */}
           <button
             type="button"

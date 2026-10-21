@@ -25,6 +25,7 @@ import {
   allocateStudentApi, 
   autoAllocateApi 
 } from '../../../api/academic';
+import { formatTitleCase } from '../../../utils/validation';
 
 const CLASS_NAMES = [
   'Nursery', 'LKG', 'UKG', 
@@ -81,6 +82,15 @@ interface ClassManagementWorkspaceProps {
   autoOpenClassModal?: boolean;
   setAutoOpenClassModal?: (open: boolean) => void;
 }
+
+const formatTeacherDisplayName = (name?: string): string => {
+  if (!name || typeof name !== 'string') return '';
+  const cleaned = name
+    .replace(/\s*\([^)]*(?:tch|emp|stf|id|\d)[^)]*\)/gi, '')
+    .replace(/\s*\([^)]*\)$/, '')
+    .trim();
+  return formatTitleCase(cleaned);
+};
 
 interface TeacherSearchDropdownProps {
   value?: string;
@@ -152,7 +162,6 @@ const TeacherSearchDropdown: React.FC<TeacherSearchDropdownProps> = ({
   const selectedFullName = selectedTeacher 
     ? (selectedTeacher.name || `${selectedTeacher.firstName} ${selectedTeacher.lastName}`) 
     : (value && isNaN(Number(value)) ? value : '');
-  const selectedEmpCode = selectedTeacher ? (selectedTeacher.empId || selectedTeacher.id) : '';
 
   return (
     <div className={`relative ${className}`} ref={dropdownRef}>
@@ -171,16 +180,9 @@ const TeacherSearchDropdown: React.FC<TeacherSearchDropdownProps> = ({
       >
         <div className="flex items-center gap-1.5 min-w-0 flex-1">
           {selectedTeacher || (value && isNaN(Number(value))) ? (
-            <>
-              <span className="text-xs font-black text-slate-900 dark:text-white truncate">
-                {selectedFullName || value}
-              </span>
-              {selectedEmpCode && (
-                <span className="px-1.5 py-0.5 rounded text-[10px] font-mono font-bold bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 border border-slate-200/80 dark:border-slate-600 shrink-0">
-                  {selectedEmpCode}
-                </span>
-              )}
-            </>
+            <span className="text-xs font-black text-slate-900 dark:text-white truncate">
+              {formatTeacherDisplayName(selectedFullName || value)}
+            </span>
           ) : (
             <span className="text-xs font-bold text-slate-400 dark:text-slate-500">
               {placeholder}
@@ -1505,7 +1507,6 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
       // Check if teacher assignments exist for this subject in any section of this class
       const classTeacherAssignments = teacherAssignments.filter(ta => ta.className === activeClass.name && ta.subject === subjectName);
       if (classTeacherAssignments.length > 0) {
-        addToast('info', 'Unmapping Teachers', `Unassigning subject teachers from sections first...`);
         try {
           await Promise.all(classTeacherAssignments.map(async (ta) => {
             await unassignTeacherApi(activeClass.id, ta.section, numericSubId).catch((err) => {
@@ -1525,7 +1526,7 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
           const updatedPeriods = { ...(activeClass.weeklyPeriods || {}) };
           delete updatedPeriods[subjectName];
           updateAcademicClass(activeClass.id, { subjects: updated, weeklyPeriods: updatedPeriods } as any);
-          addToast('info', 'Subject Unmapped', `${subjectName} removed from ${activeClass.name}`);
+          addToast('error', 'Subject removed');
         } else {
           addToast('error', 'Mapping Failed', res?.message || 'Could not unmap subject.');
         }
@@ -1595,7 +1596,7 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
           role: "Class Teacher"
         });
         await updateAcademicClass(activeClass.id, { sectionTeachers: updatedTeachers } as any);
-        addToast('info', 'Class Teacher Unassigned', `Class Teacher for Section ${activeWorkspaceSection} is now unassigned.`);
+        addToast('error', 'Class teacher removed');
       } catch (err: any) {
         console.error('Failed to unassign class teacher:', err);
         addToast('error', 'Error', err.message || 'Failed to unassign class teacher.');
@@ -1605,7 +1606,7 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
 
     const t = teachersList.find(s => s.id === teacherId);
     if (!t) return;
-    const teacherFullName = t.name || `${t.firstName} ${t.lastName}`;
+    const teacherFullName = formatTeacherDisplayName(t.name || `${t.firstName || ''} ${t.lastName || ''}`);
 
     // Verify if teacher is already assigned as Class Teacher in any other class or section
     let assignedConflict: { className: string; section: string } | null = null;
@@ -1764,7 +1765,7 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
 
       if (exist) {
         deleteTeacherAssignment(exist.id);
-        addToast('info', 'Teacher assignment removed');
+        addToast('error', 'Teacher assignment removed');
       }
 
       const targetSub = (subjects || []).find(s => norm(s.name) === norm(subjectName));
@@ -2104,11 +2105,13 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
                           <h4 className="font-black text-slate-900 dark:text-white text-xs uppercase tracking-wider mb-3">Class Teacher</h4>
                           <div className="space-y-2">
                             {activeClass.sections.map(sec => {
-                              const classTeacher = ((activeClass as any).sectionTeachers || {})[sec] || 'Not Assigned';
+                              const rawClassTeacher = ((activeClass as any).sectionTeachers || {})[sec] || 'Not Assigned';
+                              const isAssigned = Boolean(rawClassTeacher && rawClassTeacher !== 'Not Assigned' && rawClassTeacher !== 'Unassigned');
+                              const classTeacher = isAssigned ? formatTeacherDisplayName(rawClassTeacher) : 'Not Assigned';
                               return (
-                                <div key={sec} className="flex justify-between items-center text-xs p-2.5 bg-slate-50/90 dark:bg-slate-950 rounded-xl border border-slate-200/60 dark:border-slate-800">
-                                  <span className="font-bold text-slate-900 dark:text-white">Section {sec}:</span>
-                                  <span className={classTeacher === 'Not Assigned' ? 'text-rose-500 font-semibold' : 'text-slate-500 dark:text-slate-400 font-medium'}>{classTeacher}</span>
+                                <div key={sec} className="flex justify-between items-center text-xs p-2.5 bg-slate-50/90 dark:bg-slate-950 rounded-xl border border-slate-200/60 dark:border-slate-800 gap-2">
+                                  <span className="font-bold text-slate-900 dark:text-white shrink-0 whitespace-nowrap">Section {sec}:</span>
+                                  <span className={!isAssigned ? 'text-rose-500 font-semibold truncate text-right' : 'text-slate-500 dark:text-slate-400 font-medium truncate text-right'} title={isAssigned ? classTeacher : undefined}>{classTeacher}</span>
                                 </div>
                               );
                             })}
@@ -2120,67 +2123,67 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
                       </div>
 
                       {/* Quick Actions Panel - Modern Enterprise Design with expanded width & clean single-line actions */}
-                      <div className="lg:col-span-5 p-5 bg-white dark:bg-slate-900 border border-brand-400 dark:border-brand-800 rounded-2xl shadow-xs space-y-4 flex flex-col justify-between">
+                      <div className="lg:col-span-6 p-5 bg-white dark:bg-slate-900 border border-brand-400 dark:border-brand-800 rounded-2xl shadow-xs space-y-4 flex flex-col justify-between">
                         <div>
                           <h4 className="font-black text-slate-900 dark:text-white text-xs uppercase tracking-wider mb-3">Quick Actions</h4>
                           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                             <button 
                               onClick={() => setClassWorkspaceTab('sections')} 
-                              className="group px-3.5 py-3 rounded-xl bg-slate-50/80 hover:bg-brand-50/60 dark:bg-slate-800/60 dark:hover:bg-brand-950/30 border border-slate-200/70 hover:border-brand-400 dark:border-slate-700/60 dark:hover:border-brand-500 transition-all flex items-center justify-between text-left cursor-pointer hover:shadow-2xs active:scale-[0.98]"
+                              className="group px-3.5 py-3 rounded-xl bg-slate-50/80 hover:bg-brand-50/60 dark:bg-slate-800/60 dark:hover:bg-brand-950/30 border border-slate-200/70 hover:border-brand-400 dark:border-slate-700/60 dark:hover:border-brand-500 transition-all flex items-center justify-between gap-3 text-left cursor-pointer hover:shadow-2xs active:scale-[0.98]"
                             >
-                              <div className="flex items-center gap-2.5 min-w-0">
+                              <div className="flex items-center gap-2.5 min-w-0 pr-1">
                                 <div className="p-1.5 rounded-lg bg-brand-100/70 dark:bg-brand-900/40 text-brand-700 dark:text-brand-300 shrink-0">
                                   <Layers className="w-4 h-4" />
                                 </div>
                                 <span className="text-xs font-bold text-slate-900 dark:text-white whitespace-nowrap">Add Section</span>
                               </div>
-                              <ChevronRight className="w-3.5 h-3.5 text-slate-400 group-hover:text-brand-600 group-hover:translate-x-0.5 transition-all shrink-0 ml-1.5" />
+                              <ChevronRight className="w-3.5 h-3.5 text-slate-400 group-hover:text-brand-600 group-hover:translate-x-0.5 transition-all shrink-0 ml-3" />
                             </button>
 
                             <button 
                               onClick={() => setClassWorkspaceTab('subjects')} 
-                              className="group px-3.5 py-3 rounded-xl bg-slate-50/80 hover:bg-brand-50/60 dark:bg-slate-800/60 dark:hover:bg-brand-950/30 border border-slate-200/70 hover:border-brand-400 dark:border-slate-700/60 dark:hover:border-brand-500 transition-all flex items-center justify-between text-left cursor-pointer hover:shadow-2xs active:scale-[0.98]"
+                              className="group px-3.5 py-3 rounded-xl bg-slate-50/80 hover:bg-brand-50/60 dark:bg-slate-800/60 dark:hover:bg-brand-950/30 border border-slate-200/70 hover:border-brand-400 dark:border-slate-700/60 dark:hover:border-brand-500 transition-all flex items-center justify-between gap-3 text-left cursor-pointer hover:shadow-2xs active:scale-[0.98]"
                             >
-                              <div className="flex items-center gap-2.5 min-w-0">
+                              <div className="flex items-center gap-2.5 min-w-0 pr-1">
                                 <div className="p-1.5 rounded-lg bg-blue-100/70 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 shrink-0">
                                   <BookOpen className="w-4 h-4" />
                                 </div>
                                 <span className="text-xs font-bold text-slate-900 dark:text-white whitespace-nowrap">Assign Subject</span>
                               </div>
-                              <ChevronRight className="w-3.5 h-3.5 text-slate-400 group-hover:text-brand-600 group-hover:translate-x-0.5 transition-all shrink-0 ml-1.5" />
+                              <ChevronRight className="w-3.5 h-3.5 text-slate-400 group-hover:text-brand-600 group-hover:translate-x-0.5 transition-all shrink-0 ml-3" />
                             </button>
 
                             <button 
                               onClick={() => setClassWorkspaceTab('teachers')} 
-                              className="group px-3.5 py-3 rounded-xl bg-slate-50/80 hover:bg-brand-50/60 dark:bg-slate-800/60 dark:hover:bg-brand-950/30 border border-slate-200/70 hover:border-brand-400 dark:border-slate-700/60 dark:hover:border-brand-500 transition-all flex items-center justify-between text-left cursor-pointer hover:shadow-2xs active:scale-[0.98]"
+                              className="group px-3.5 py-3 rounded-xl bg-slate-50/80 hover:bg-brand-50/60 dark:bg-slate-800/60 dark:hover:bg-brand-950/30 border border-slate-200/70 hover:border-brand-400 dark:border-slate-700/60 dark:hover:border-brand-500 transition-all flex items-center justify-between gap-3 text-left cursor-pointer hover:shadow-2xs active:scale-[0.98]"
                             >
-                              <div className="flex items-center gap-2.5 min-w-0">
+                              <div className="flex items-center gap-2.5 min-w-0 pr-1">
                                 <div className="p-1.5 rounded-lg bg-emerald-100/70 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300 shrink-0">
                                   <UserCheck className="w-4 h-4" />
                                 </div>
                                 <span className="text-xs font-bold text-slate-900 dark:text-white whitespace-nowrap">Assign Teacher</span>
                               </div>
-                              <ChevronRight className="w-3.5 h-3.5 text-slate-400 group-hover:text-brand-600 group-hover:translate-x-0.5 transition-all shrink-0 ml-1.5" />
+                              <ChevronRight className="w-3.5 h-3.5 text-slate-400 group-hover:text-brand-600 group-hover:translate-x-0.5 transition-all shrink-0 ml-3" />
                             </button>
 
                             <button 
                               onClick={() => setClassWorkspaceTab('students')} 
-                              className="group px-3.5 py-3 rounded-xl bg-slate-50/80 hover:bg-brand-50/60 dark:bg-slate-800/60 dark:hover:bg-brand-950/30 border border-slate-200/70 hover:border-brand-400 dark:border-slate-700/60 dark:hover:border-brand-500 transition-all flex items-center justify-between text-left cursor-pointer hover:shadow-2xs active:scale-[0.98]"
+                              className="group px-3.5 py-3 rounded-xl bg-slate-50/80 hover:bg-brand-50/60 dark:bg-slate-800/60 dark:hover:bg-brand-950/30 border border-slate-200/70 hover:border-brand-400 dark:border-slate-700/60 dark:hover:border-brand-500 transition-all flex items-center justify-between gap-3 text-left cursor-pointer hover:shadow-2xs active:scale-[0.98]"
                             >
-                              <div className="flex items-center gap-2.5 min-w-0">
+                              <div className="flex items-center gap-2.5 min-w-0 pr-1">
                                 <div className="p-1.5 rounded-lg bg-purple-100/70 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300 shrink-0">
                                   <UserPlus className="w-4 h-4" />
                                 </div>
                                 <span className="text-xs font-bold text-slate-900 dark:text-white whitespace-nowrap">Allocate Students</span>
                               </div>
-                              <ChevronRight className="w-3.5 h-3.5 text-slate-400 group-hover:text-brand-600 group-hover:translate-x-0.5 transition-all shrink-0 ml-1.5" />
+                              <ChevronRight className="w-3.5 h-3.5 text-slate-400 group-hover:text-brand-600 group-hover:translate-x-0.5 transition-all shrink-0 ml-3" />
                             </button>
                           </div>
                         </div>
                       </div>
 
                       {/* Configuration Checklist status */}
-                      <div className="lg:col-span-4 p-5 bg-white dark:bg-slate-900 border border-brand-400 dark:border-brand-800 rounded-2xl shadow-xs space-y-4 flex flex-col justify-between">
+                      <div className="lg:col-span-3 p-5 bg-white dark:bg-slate-900 border border-brand-400 dark:border-brand-800 rounded-2xl shadow-xs space-y-4 flex flex-col justify-between">
                         <div>
                           <h4 className="font-black text-slate-900 dark:text-white text-xs uppercase tracking-wider mb-3">Setup Checklist</h4>
                           <div className="space-y-2 text-xs">
@@ -2301,7 +2304,9 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
 
                         const isSelected = selectedSections.includes(sec);
                         const status = detail.status || 'Active';
-                        const classTeacher = ((activeClass as any).sectionTeachers || {})[sec] || 'Unassigned';
+                        const rawClassTeacher = ((activeClass as any).sectionTeachers || {})[sec] || 'Unassigned';
+                        const isCtAssigned = Boolean(rawClassTeacher && rawClassTeacher !== 'Unassigned' && rawClassTeacher !== 'Not Assigned');
+                        const classTeacher = isCtAssigned ? formatTeacherDisplayName(rawClassTeacher) : 'Unassigned';
                         const roomNo = detail.roomNo || 'Unassigned';
 
                         return (
@@ -2338,7 +2343,7 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
                               <div className="flex justify-between"><span className="text-slate-450">Current Enrolled:</span> <span>{assigned} Students</span></div>
                               <div className="flex justify-between"><span className="text-slate-450">Seats Remaining:</span> <span className="text-sky-600">{free} / {cap} Seats</span></div>
                               <div className="flex justify-between"><span className="text-slate-450">Room Number:</span> <span className="text-slate-800 dark:text-white">{roomNo}</span></div>
-                              <div className="flex justify-between"><span className="text-slate-450">Class Teacher:</span> <span className="text-slate-800 dark:text-white">{classTeacher}</span></div>
+                              <div className="flex justify-between items-center gap-2"><span className="text-slate-450 shrink-0">Class Teacher:</span> <span className="text-slate-800 dark:text-white truncate text-right" title={isCtAssigned ? classTeacher : undefined}>{classTeacher}</span></div>
                             </div>
 
                             {/* Progress occupancy bar */}
@@ -2807,11 +2812,11 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
                           <table className="w-full text-left border-collapse">
                             <thead className="bg-slate-50 dark:bg-slate-900/60 uppercase text-[10px] text-slate-500 dark:text-slate-400 font-bold border-b border-slate-200/80 dark:border-slate-800">
                               <tr>
-                                <th className="py-3.5 px-4 whitespace-nowrap">Section</th>
-                                <th className="py-3.5 px-4 whitespace-nowrap">Class Teacher</th>
+                                <th className="py-3.5 px-4 text-center whitespace-nowrap">Section</th>
+                                <th className="py-3.5 px-4 text-center whitespace-nowrap">Class Teacher</th>
                                 <th className="py-3.5 px-4 text-center whitespace-nowrap">Subject Coverage</th>
-                                <th className="py-3.5 px-4 whitespace-nowrap">Assigned Subject Teachers</th>
-                                <th className="py-3.5 px-4 text-right whitespace-nowrap">Status</th>
+                                <th className="py-3.5 px-4 text-center whitespace-nowrap">Assigned Subject Teachers</th>
+                                <th className="py-3.5 px-4 text-center whitespace-nowrap">Status</th>
                               </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-100 dark:divide-slate-800/80 font-bold">
@@ -2850,16 +2855,16 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
                                         : 'hover:bg-slate-50/50 dark:hover:bg-slate-900/40'
                                     }`}
                                   >
-                                    <td className="py-3.5 px-4 text-slate-900 dark:text-white font-black whitespace-nowrap align-middle">
-                                      <div className="flex items-center gap-2">
+                                    <td className="py-3.5 px-4 text-slate-900 dark:text-white font-black whitespace-nowrap align-middle text-center">
+                                      <div className="inline-flex items-center justify-center gap-2">
                                         <span className={`w-2 h-2 rounded-full shrink-0 ${isSelected ? 'bg-sky-500 ring-2 ring-sky-300 dark:ring-sky-700' : 'bg-slate-300 dark:bg-slate-700'}`} />
                                         <span className="text-xs">Section {sec}</span>
                                       </div>
                                     </td>
-                                    <td className="py-3.5 px-4 whitespace-nowrap align-middle">
+                                    <td className="py-3.5 px-4 whitespace-nowrap align-middle text-center">
                                       {isCTAssigned ? (
                                         <span className="font-extrabold text-slate-900 dark:text-white text-xs">
-                                          {classTeacherName}
+                                          {formatTeacherDisplayName(classTeacherName)}
                                         </span>
                                       ) : (
                                         <span className="px-2.5 py-0.5 rounded-md text-[10px] font-bold bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 border border-amber-200/60 dark:border-amber-800/60 inline-block">
@@ -2878,23 +2883,37 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
                                         {assignedCount} / {totalCount} Subjects
                                       </span>
                                     </td>
-                                    <td className="py-3.5 px-4 align-middle">
-                                      <div className="flex flex-wrap gap-1.5 max-w-xl">
-                                        {secSubjectAssignments.filter(s => Boolean(s.teacherName)).length === 0 ? (
-                                          <span className="text-[11px] text-slate-400 font-normal italic">None allocated</span>
-                                        ) : (
-                                          secSubjectAssignments.filter(s => Boolean(s.teacherName)).map(s => (
-                                            <span 
-                                              key={s.subject} 
-                                              className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200/80 dark:border-slate-700 shadow-2xs whitespace-nowrap"
-                                            >
-                                              {s.code || s.subject}: <span className="text-slate-900 dark:text-white font-extrabold">{s.teacherName}</span>
-                                            </span>
-                                          ))
-                                        )}
-                                      </div>
+                                    <td className="py-3.5 px-4 text-center align-middle">
+                                      {(() => {
+                                        const allocated = secSubjectAssignments.filter(s => Boolean(s.teacherName));
+                                        if (allocated.length === 0) {
+                                          return <span className="text-[11px] text-slate-400 font-normal italic">None allocated</span>;
+                                        }
+                                        return (
+                                          <div className="grid grid-cols-2 gap-2 max-w-lg mx-auto">
+                                            {allocated.map((s, idx) => {
+                                              const isLastOdd = allocated.length % 2 !== 0 && idx === allocated.length - 1;
+                                              return (
+                                                <div 
+                                                  key={s.subject} 
+                                                  className={`flex items-center justify-center ${isLastOdd ? 'col-span-2' : ''}`}
+                                                >
+                                                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-bold bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200/80 dark:border-slate-700 shadow-2xs whitespace-nowrap hover:border-slate-300 dark:hover:border-slate-600 transition-colors">
+                                                    <span className="font-mono text-[9px] font-black text-sky-700 dark:text-sky-400 bg-sky-50 dark:bg-sky-950/60 px-1.5 py-0.5 rounded border border-sky-200/60 dark:border-sky-800/60">
+                                                      {s.code || s.subject}
+                                                    </span>
+                                                    <span className="text-slate-900 dark:text-white font-extrabold">
+                                                      {formatTeacherDisplayName(s.teacherName)}
+                                                    </span>
+                                                  </span>
+                                                </div>
+                                              );
+                                            })}
+                                          </div>
+                                        );
+                                      })()}
                                     </td>
-                                    <td className="py-3.5 px-4 text-right whitespace-nowrap align-middle">
+                                    <td className="py-3.5 px-4 text-center whitespace-nowrap align-middle">
                                       <span className={`px-2.5 py-1 rounded-full text-[10px] font-black border inline-block whitespace-nowrap ${
                                         isFullyStaffed
                                           ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400 border-emerald-200/60 dark:border-emerald-800'
@@ -3106,7 +3125,7 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
                                 <th className="py-3.5 px-4 whitespace-nowrap">Admission No</th>
                                 <th className="py-3.5 px-4 whitespace-nowrap">Student Name</th>
                                 <th className="py-3.5 px-4 whitespace-nowrap">Current Section</th>
-                                <th className="py-3.5 px-4 text-right whitespace-nowrap">Assign Section</th>
+                                <th className="py-3.5 px-4 text-center whitespace-nowrap">Assign Section</th>
                               </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-100 dark:divide-slate-800/80">
@@ -3143,7 +3162,7 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
                                         </span>
                                       )}
                                     </td>
-                                    <td className="py-3 px-4 text-right whitespace-nowrap align-middle">
+                                    <td className="py-3 px-4 text-center whitespace-nowrap align-middle">
                                       <select
                                         value={activeClass.sections.includes(stud.section || '') ? (stud.section || '') : ''}
                                         onChange={e => handleChangeStudentSection(stud.id, e.target.value)}
@@ -3260,20 +3279,17 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
 
                 {/* Filter and Add button on the right */}
                 <div className="flex items-center gap-3">
-                  <div className="flex items-center gap-2">
-                    <span className="text-[11px] text-slate-400 uppercase font-mono font-bold">Status</span>
-                    <div className="relative">
-                      <select
-                        value={filterStatus}
-                        onChange={e => setFilterStatus(e.target.value)}
-                        className="appearance-none pl-3 pr-8 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 outline-none font-bold text-xs cursor-pointer text-slate-700 dark:text-slate-200"
-                      >
-                        <option value="">All Statuses</option>
-                        <option value="Active">Active</option>
-                        <option value="Inactive">Inactive</option>
-                      </select>
-                      <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-                    </div>
+                  <div className="relative">
+                    <select
+                      value={filterStatus}
+                      onChange={e => setFilterStatus(e.target.value)}
+                      className="appearance-none pl-3 pr-8 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 outline-none font-bold text-xs cursor-pointer text-slate-700 dark:text-slate-200"
+                    >
+                      <option value="">All Statuses</option>
+                      <option value="Active">Active</option>
+                      <option value="Inactive">Inactive</option>
+                    </select>
+                    <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
                   </div>
                   <button
                     onClick={handleOpenAddClass}

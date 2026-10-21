@@ -16,25 +16,39 @@ export const PromoteStudentModal: React.FC<PromoteStudentModalProps> = ({
   isOpen,
   onClose
 }) => {
-  const { promoteStudent, completeStudent, getHighestClass, academicClasses, branches = [] } = useData();
+  const { promoteStudent, completeStudent, getHighestClass, academicClasses, branches = [], academicYears = [] } = useData();
   const { addToast } = useToast();
-  const { selectedBranch } = useAuth();
+  const { selectedBranch, selectedAcademicYear } = useAuth();
 
   const dynamicCampuses = useMemo(() => {
     const fromApi = (branches || [])
       .filter((b: any) => b && (typeof b === 'string' || b.status !== 'Inactive'))
       .map((b: any) => typeof b === 'string' ? b : (b.name || b.branchName || b.campusName || ''))
       .filter(Boolean);
+<<<<<<< HEAD
     return Array.from(new Set(fromApi)).filter(Boolean);
   }, [branches]);
+=======
+    const combined = [
+      ...(selectedBranch && selectedBranch !== 'All' && selectedBranch !== 'All Branches' ? [selectedBranch] : []),
+      ...fromApi,
+    ];
+    const unique = Array.from(new Set(combined)).filter(Boolean);
+    return unique;
+  }, [branches, selectedBranch]);
+>>>>>>> 2c7d0190f1106e317e9965ae947dc2f54d4d3f76
 
-  const [targetYear, setTargetYear] = useState('2026-2027');
+  const [targetYear, setTargetYear] = useState(selectedAcademicYear || ((academicYears[0] as any)?.academicYear || (academicYears[0] as any)?.year || ''));
   const [targetClass, setTargetClass] = useState(academicClasses[0]?.name || 'Class 11');
   const [targetSection, setTargetSection] = useState('A');
   const [enableBranchTransfer, setEnableBranchTransfer] = useState(false);
+<<<<<<< HEAD
   const [targetBranch, setTargetBranch] = useState<string>(
     student?.branch || (selectedBranch && selectedBranch !== 'All' && selectedBranch !== 'All Branches' && dynamicCampuses.includes(selectedBranch) ? selectedBranch : (dynamicCampuses[0] || ''))
   );
+=======
+  const [targetBranch, setTargetBranch] = useState<string>(student?.branch || (selectedBranch && selectedBranch !== 'All' ? selectedBranch : (dynamicCampuses[0] || '')));
+>>>>>>> 2c7d0190f1106e317e9965ae947dc2f54d4d3f76
 
   if (!isOpen || !student) return null;
 
@@ -110,9 +124,10 @@ export const PromoteStudentModal: React.FC<PromoteStudentModalProps> = ({
               onChange={e => setTargetYear(e.target.value)}
               className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-xs font-bold text-slate-900 dark:text-white"
             >
-              <option value="2026-2027">2026-2027 (Current Term)</option>
-              <option value="2025-2026">2025-2026</option>
-              <option value="2027-2028">2027-2028</option>
+              {academicYears.map((ay: any) => {
+                const yr = typeof ay === "string" ? ay : ay.year || ay.academicYear || "";
+                return <option key={yr} value={yr}>{yr}{yr === selectedAcademicYear ? " (Current Term)" : ""}</option>;
+              })}
             </select>
           </div>
 

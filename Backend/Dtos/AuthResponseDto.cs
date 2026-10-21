@@ -8,5 +8,7 @@ public record AuthResponseDto(
     string? Email = null,
     string? MobileNumber = null,
     string? Avatar = null,
-    string? Branch = null
+    string? Branch = null,
+    string? EmployeeId = null,
+    int? StaffId = null
 );

@@ -184,7 +184,7 @@ export const FinanceReportsView: React.FC = () => {
         break;
       case 'Term-wise Collection':
         students.forEach(st => {
-          const ledger = getStudentFeeLedger(st.id, selectedAcademicYear || financeSettings?.academicYear || '2026-2027');
+          const ledger = getStudentFeeLedger(st.id, selectedAcademicYear || financeSettings?.academicYear || '');
           if (ledger && ledger.installments) {
             ledger.installments.forEach(inst => {
               if (inst.paidAmount > 0) {
@@ -204,7 +204,7 @@ export const FinanceReportsView: React.FC = () => {
         break;
       case 'Term-wise Outstanding':
         students.forEach(st => {
-          const ledger = getStudentFeeLedger(st.id, selectedAcademicYear || financeSettings?.academicYear || '2026-2027');
+          const ledger = getStudentFeeLedger(st.id, selectedAcademicYear || financeSettings?.academicYear || '');
           if (ledger && ledger.installments) {
             ledger.installments.forEach(inst => {
               if (inst.dueAmount > 0) {
@@ -226,7 +226,7 @@ export const FinanceReportsView: React.FC = () => {
         {
           const todayStr = new Date().toISOString().split('T')[0];
           students.forEach(st => {
-            const ledger = getStudentFeeLedger(st.id, selectedAcademicYear || financeSettings?.academicYear || '2026-2027');
+            const ledger = getStudentFeeLedger(st.id, selectedAcademicYear || financeSettings?.academicYear || '');
             if (ledger && ledger.installments) {
               ledger.installments.forEach(inst => {
                 if (inst.dueAmount > 0 && inst.dueDate < todayStr) {
@@ -249,7 +249,7 @@ export const FinanceReportsView: React.FC = () => {
         {
           const currentToday = new Date().toISOString().split('T')[0];
           students.forEach(st => {
-            const ledger = getStudentFeeLedger(st.id, selectedAcademicYear || financeSettings?.academicYear || '2026-2027');
+            const ledger = getStudentFeeLedger(st.id, selectedAcademicYear || financeSettings?.academicYear || '');
             if (ledger && ledger.installments) {
               ledger.installments.forEach(inst => {
                 if (inst.dueAmount > 0 && inst.dueDate >= currentToday) {
@@ -269,7 +269,7 @@ export const FinanceReportsView: React.FC = () => {
         }
         break;
       case 'Academic Year Collection':
-        result = feePayments.filter(p => p.academicYear === (selectedAcademicYear || financeSettings?.academicYear || '2026-2027')).map(p => ({
+        result = feePayments.filter(p => p.academicYear === (selectedAcademicYear || financeSettings?.academicYear || '')).map(p => ({
           receiptNo: p.receiptNo,
           studentName: p.studentName,
           classSection: p.className,
@@ -280,13 +280,13 @@ export const FinanceReportsView: React.FC = () => {
         break;
       case 'Outstanding by Academic Year':
         students.forEach(st => {
-          const ledger = getStudentFeeLedger(st.id, selectedAcademicYear || financeSettings?.academicYear || '2026-2027');
+          const ledger = getStudentFeeLedger(st.id, selectedAcademicYear || financeSettings?.academicYear || '');
           if (ledger && ledger.dueBalance > 0) {
             result.push({
               studentName: `${st.firstName} ${st.lastName}`,
               admissionNo: st.admissionNo,
               classSection: `${st.className}-${st.section}`,
-              academicYear: selectedAcademicYear || financeSettings?.academicYear || '2026-2027',
+              academicYear: selectedAcademicYear || financeSettings?.academicYear || '',
               amount: ledger.dueBalance
             });
           }
@@ -377,7 +377,7 @@ export const FinanceReportsView: React.FC = () => {
     const address = schoolProfile?.address || 'Jain Sadguru Images Capital Park502B, Capital Pk Rd, VIP Hills, Madhapur, HITEC City, Hyderabad, Telangana 500081';
     const phone = schoolProfile?.phone || '+91 9123456789';
     const email = schoolProfile?.email || 'contact@pirnavschools.edu';
-    const academicYearStr = schoolProfile?.academicYear || '2026-2027';
+    const academicYearStr = schoolProfile?.academicYear || '';
 
     const headers = Object.keys(currentData[0] || {}).slice(0, 7);
     const rowsHtml = displayedData.map(row => `

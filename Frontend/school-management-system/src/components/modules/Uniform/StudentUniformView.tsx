@@ -518,8 +518,13 @@ export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialS
           email: adm.email || '',
           address: adm.address || '',
           status: 'Active',
+<<<<<<< HEAD
           academicYear: adm.academicYear || '2026-2027',
           branch: adm.branch || defaultBranch,
+=======
+          academicYear: adm.academicYear || selectedAcademicYear || '',
+          branch: adm.branch || selectedBranch || '',
+>>>>>>> 2c7d0190f1106e317e9965ae947dc2f54d4d3f76
           selectedOptionalFees: adm.selectedOptionalFees || []
         } as unknown as Student);
       });
@@ -710,7 +715,7 @@ export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialS
         section: secName,
         gender: st.gender || 'Unisex',
         issueDate: '--',
-        academicYear: st.academicYear || selectedAcademicYear || '2026-2027',
+        academicYear: st.academicYear || selectedAcademicYear || '',
         status: 'Not Issued',
         items: [],
         basePackage: undefined,
@@ -961,7 +966,7 @@ export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialS
       const totalToPay = baseAmountToPay + extrasAmountToPay;
       const payAmount = totalToPay > 0 ? totalToPay : (basePkgPrice > 0 ? basePkgPrice : 2000);
       const receiptNo = `REC-UNI-${Date.now().toString().slice(-6)}`;
-      const ay = student.academicYear || selectedAcademicYear || financeSettings?.academicYear || '2026-2027';
+      const ay = student.academicYear || selectedAcademicYear || financeSettings?.academicYear || '';
 
       // 3. Allocations for payment
       const allocations: any[] = [];
@@ -1208,7 +1213,11 @@ export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialS
         className: 'Class 1',
         section: 'A',
         gender: 'Male',
+<<<<<<< HEAD
         branch: defaultBranch
+=======
+        branch: selectedBranch || ''
+>>>>>>> 2c7d0190f1106e317e9965ae947dc2f54d4d3f76
       } as unknown as Student;
     }
 
@@ -1336,8 +1345,13 @@ export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialS
         paymentMode: payMode,
         account: 'Main Bank Account',
         status: 'Completed',
+<<<<<<< HEAD
         branch: studentObj.branch || defaultBranch,
         academicYear: selectedAcademicYear || financeSettings.academicYear || '2026-2027',
+=======
+        branch: studentObj.branch || selectedBranch || '',
+        academicYear: selectedAcademicYear || financeSettings.academicYear || '',
+>>>>>>> 2c7d0190f1106e317e9965ae947dc2f54d4d3f76
         createdBy: 'Uniform Counter'
       });
     }
@@ -1355,7 +1369,7 @@ export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialS
       quantity: 1,
       issueDate: new Date().toISOString().split('T')[0],
       status: 'Issued',
-      academicYear: selectedAcademicYear || financeSettings.academicYear || '2026-2027',
+      academicYear: selectedAcademicYear || financeSettings.academicYear || '',
       type: 'Base Package',
       price: feeAmount,
       notes: `Counter Fee Collected (${payMode}) — Ref #${receiptNo}`
@@ -1542,7 +1556,7 @@ export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialS
         issueDate: todayStr,
         returnDate: todayStr,
         status: 'Returned',
-        academicYear: issue.academicYear || selectedAcademicYear || financeSettings.academicYear || '2026-2027',
+        academicYear: issue.academicYear || selectedAcademicYear || financeSettings.academicYear || '',
         type: 'Base Package',
         price: issue.price || 0,
         notes: returnNote
@@ -1608,8 +1622,13 @@ export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialS
         paymentMode: 'Credit Note' as any,
         account: 'Main Bank Account',
         status: 'Completed',
+<<<<<<< HEAD
         branch: issue.branch || defaultBranch,
         academicYear: selectedAcademicYear || financeSettings.academicYear || '2026-2027',
+=======
+        branch: issue.branch || (schoolProfile as any)?.schoolName || selectedBranch || '',
+        academicYear: selectedAcademicYear || financeSettings.academicYear || '',
+>>>>>>> 2c7d0190f1106e317e9965ae947dc2f54d4d3f76
         createdBy: 'Uniform Counter'
       });
     }
@@ -1806,7 +1825,7 @@ export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialS
             issueDate: targetItem.issueDate || todayStr,
             returnDate: todayStr,
             status: 'Returned' as const,
-            academicYear: targetItem.academicYear || '2026-2027',
+            academicYear: targetItem.academicYear || selectedAcademicYear || '',
             type: targetItem.type || 'Additional Purchase',
             price: targetItem.price || 0,
             notes: returnNote
@@ -1899,7 +1918,7 @@ export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialS
             quantity: qty,
             issueDate: new Date().toISOString().split('T')[0],
             status: 'Issued',
-            academicYear: selectedAcademicYear || financeSettings.academicYear || '2026-2027',
+            academicYear: selectedAcademicYear || financeSettings.academicYear || '',
             type: 'Additional Purchase',
             price: itemUnitPrice,
             notes: form.notes || `Multi-Item Additional Purchase — Added to Fee Account (Collect from Finance & Fees)`,
@@ -1919,14 +1938,19 @@ export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialS
               paymentMode: 'Cash',
               account: 'Main Bank Account',
               status: 'Pending',
+<<<<<<< HEAD
               branch: studentObj.branch || defaultBranch,
               academicYear: selectedAcademicYear || financeSettings.academicYear || '2026-2027',
+=======
+              branch: studentObj.branch || selectedBranch || '',
+              academicYear: selectedAcademicYear || financeSettings.academicYear || '',
+>>>>>>> 2c7d0190f1106e317e9965ae947dc2f54d4d3f76
               createdBy: 'Uniform Distribution'
             });
           }
 
           // 3. Inject as StudentFeeInstallment so it shows up in Fee Collection
-          const acYear = selectedAcademicYear || financeSettings.academicYear || '2026-2027';
+          const acYear = selectedAcademicYear || financeSettings.academicYear || '';
           const installmentId = `FEE-UNI-EXTRA-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
           const feeInstallment: StudentFeeInstallment = {
             id: installmentId,
@@ -2090,7 +2114,7 @@ export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialS
           quantity: qty,
           issueDate: new Date().toISOString().split('T')[0],
           status: 'Issued',
-          academicYear: selectedAcademicYear || financeSettings.academicYear || '2026-2027',
+          academicYear: selectedAcademicYear || financeSettings.academicYear || '',
           type: 'Base Package',
           price: calculatedUnitPrice,
           totalAmount: totalLineAmount,
@@ -2112,7 +2136,7 @@ export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialS
             const newInst: StudentFeeInstallment = {
               id: instId1,
               studentId: form.studentId,
-              academicYear: selectedAcademicYear || financeSettings.academicYear || '2026-2027',
+              academicYear: selectedAcademicYear || financeSettings.academicYear || '',
               feeAssignmentId: `FA-UNI-${form.studentId}`,
               feeHeadId: 'FH-04',
               feeHeadName: 'Uniform & Accessories',
@@ -2150,7 +2174,7 @@ export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialS
           quantity: qty,
           issueDate: new Date().toISOString().split('T')[0],
           status: 'Issued',
-          academicYear: selectedAcademicYear || financeSettings.academicYear || '2026-2027',
+          academicYear: selectedAcademicYear || financeSettings.academicYear || '',
           type: 'Additional Purchase',
           price: itemUnitPrice,
           notes: `Additional Purchase — Added to Fee Account (Collect from Finance & Fees)`
@@ -2161,7 +2185,7 @@ export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialS
         setStudentFeeInstallments(prev => [...prev, {
           id: instId2,
           studentId: form.studentId,
-          academicYear: selectedAcademicYear || financeSettings.academicYear || '2026-2027',
+          academicYear: selectedAcademicYear || financeSettings.academicYear || '',
           feeAssignmentId: `FA-UNI-${form.studentId}`,
           feeHeadId: 'FH-UNI-EXTRA',
           feeHeadName: 'Uniform & Accessories',
@@ -2199,7 +2223,7 @@ export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialS
           issueDate: selectedIssue.issueDate || todayStr,
           replacementDate: todayStr,
           status: 'Issued',
-          academicYear: selectedIssue.academicYear || selectedAcademicYear || financeSettings.academicYear || '2026-2027',
+          academicYear: selectedIssue.academicYear || selectedAcademicYear || financeSettings.academicYear || '',
           type: 'Base Package',
           price: newUnitPrice,
           notes: exchangedNote
@@ -4003,7 +4027,7 @@ export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialS
                       RECEIPT #: UNIF-{receiptStudent.admissionNo}
                     </span>
                     <p className="text-[10px] font-mono font-bold text-slate-800">Date: {receiptStudent.issueDate || new Date().toISOString().split('T')[0]}</p>
-                    <p className="text-[10px] text-slate-500 font-mono">Academic Year: {receiptStudent.academicYear || '2026-2027'}</p>
+                    <p className="text-[10px] text-slate-500 font-mono">Academic Year: {receiptStudent.academicYear || selectedAcademicYear || '—'}</p>
                   </div>
                 </div>
 
@@ -4614,7 +4638,7 @@ export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialS
                       VOUCHER #: RET-UNIF-{currentReturnStudent.admissionNo}
                     </span>
                     <p className="text-[10px] font-mono font-bold text-slate-800">Return Date: {currentReturnStudent.returnDate || currentReturnStudent.issueDate || new Date().toISOString().split('T')[0]}</p>
-                    <p className="text-[10px] text-slate-500 font-mono">Academic Year: {currentReturnStudent.academicYear || '2026-2027'}</p>
+                    <p className="text-[10px] text-slate-500 font-mono">Academic Year: {currentReturnStudent.academicYear || selectedAcademicYear || '—'}</p>
                   </div>
                 </div>
 
@@ -4798,7 +4822,7 @@ export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialS
                       SLIP #: EXCH-UNIF-{currentExStudent.admissionNo}
                     </span>
                     <p className="text-[10px] font-mono font-bold text-slate-800">Exchange Date: {currentExStudent.replacementDate || currentExStudent.issueDate || new Date().toISOString().split('T')[0]}</p>
-                    <p className="text-[10px] text-slate-500 font-mono">Academic Year: {currentExStudent.academicYear || '2026-2027'}</p>
+                    <p className="text-[10px] text-slate-500 font-mono">Academic Year: {currentExStudent.academicYear || selectedAcademicYear || '—'}</p>
                   </div>
                 </div>
 

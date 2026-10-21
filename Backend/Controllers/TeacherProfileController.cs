@@ -10,7 +10,7 @@ namespace SMS.Api.Controllers;
 
 [ApiController]
 [Route("api/v1/teacher/profile")]
-[Authorize(Roles = "Teacher")]
+[Authorize]
 [Tags("Teacher Self Profile")]
 public class TeacherProfileController : ControllerBase
 {

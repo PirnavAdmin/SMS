@@ -60,7 +60,7 @@ export const DueFeesView: React.FC<DueFeesViewProps> = ({
   const { selectedAcademicYear, selectedBranch } = useAuth();
   const { addToast } = useToast();
 
-  const activeAYDefault = selectedAcademicYear || financeSettings?.academicYear || "2026-2027";
+  const activeAYDefault = selectedAcademicYear || financeSettings?.academicYear || "";
 
   const [query, setQuery] = useState('');
   const [selectedAY, setSelectedAY] = useState(activeAYDefault);

@@ -21,12 +21,12 @@ const monthName = () => new Date().toLocaleString('en-US', { month: 'long', year
 
 const defaultConfig = (branch: string, leaveTypes: ReturnType<typeof useData>['leaveTypes']): Omit<PayrollConfiguration, 'id'> => ({
   branch,
-  financialYear: '2026-2027',
+  financialYear: '',
   payrollName: `${branch} Payroll`,
   status: 'Draft',
   currency: 'INR',
   effectiveFrom: today(),
-  effectiveTo: '2027-03-31',
+  effectiveTo: `${new Date().getFullYear() + 1}-03-31`,
   leaveRules: leaveTypes.map(t => ({
     leaveTypeId: t.id,
     leaveTypeName: t.name,
@@ -425,7 +425,11 @@ export const StaffPayrollView: React.FC<StaffPayrollViewProps> = ({ initialTab, 
         id: item.id ? String(item.id) : ('SAL-STR-' + Math.floor(100 + Math.random() * 900)),
         structureName: item.structureName || item.name || 'Unnamed Structure',
         employeeCategory: item.employeeCategory || 'Teacher',
+<<<<<<< HEAD
         branch: item.branch || (item.branchId ? (data.branches?.find(b => String(b.id) === String(item.branchId))?.name || selectedBranch) : selectedBranch) || '',
+=======
+        branch: item.branch || selectedBranch || '',
+>>>>>>> 2c7d0190f1106e317e9965ae947dc2f54d4d3f76
         earnings: item.earnings || [
           { name: 'Basic Salary', amount: item.basicSalary || 10000, type: 'Fixed', value: item.basicSalary || 10000 },
           { name: 'House Rent Allowance (HRA)', amount: Math.round((item.basicSalary || 10000) * 0.2), type: 'Percentage', value: 20 },
@@ -1058,7 +1062,11 @@ export const StaffPayrollView: React.FC<StaffPayrollViewProps> = ({ initialTab, 
                 <Input
                   value={editingConfigModal.payrollName}
                   onChange={e => setEditingConfigModal({ ...editingConfigModal, payrollName: e.target.value })}
+<<<<<<< HEAD
                   placeholder="e.g. Monthly Staff Payroll"
+=======
+                  placeholder="e.g. Monthly Payroll"
+>>>>>>> 2c7d0190f1106e317e9965ae947dc2f54d4d3f76
                 />
               </Field>
               <div className="grid grid-cols-2 gap-3">
@@ -1074,10 +1082,10 @@ export const StaffPayrollView: React.FC<StaffPayrollViewProps> = ({ initialTab, 
                     value={editingConfigModal.financialYear}
                     onChange={e => setEditingConfigModal({ ...editingConfigModal, financialYear: e.target.value })}
                   >
-                    <option value="2024-2025">2024-2025</option>
-                    <option value="2025-2026">2025-2026</option>
-                    <option value="2026-2027">2026-2027</option>
-                    <option value="2027-2028">2027-2028</option>
+                    {(data.academicYears || []).map((ay: any) => {
+                      const yr = typeof ay === 'string' ? ay : ay.year || ay.academicYear || '';
+                      return <option key={yr} value={yr}>{yr}</option>;
+                    })}
                   </Select>
                 </Field>
               </div>
@@ -2194,11 +2202,11 @@ export const StaffPayrollView: React.FC<StaffPayrollViewProps> = ({ initialTab, 
                       <tr key={s.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-850/20">
                         <td className="p-3 font-bold text-slate-850 dark:text-slate-200">{s.firstName} {s.lastName}</td>
                         <td className="p-3 text-slate-500">{s.employeeCategory}</td>
-                        <td className="p-3 font-bold text-brand-600">{present} Days</td>
-                        <td className="p-3 text-amber-600">{late} Entries</td>
-                        <td className="p-3 text-sky-600">{half} Days</td>
-                        <td className="p-3 font-bold text-rose-500">{unpaid} Days</td>
-                        <td className="p-3 font-black text-slate-800 dark:text-slate-200 font-mono">{totalDays - unpaid} / {totalDays} Days</td>
+                        <td className="p-3 font-bold text-brand-600">{present} {present === 1 ? 'Day' : 'Days'}</td>
+                        <td className="p-3 text-amber-600">{late} {late === 1 ? 'Entry' : 'Entries'}</td>
+                        <td className="p-3 text-sky-600">{half} {half === 1 ? 'Day' : 'Days'}</td>
+                        <td className="p-3 font-bold text-rose-500">{unpaid} {unpaid === 1 ? 'Day' : 'Days'}</td>
+                        <td className="p-3 font-black text-slate-800 dark:text-slate-200 font-mono">{totalDays - unpaid} / {totalDays} {totalDays === 1 ? 'Day' : 'Days'}</td>
                       </tr>
                     );
                   })}
@@ -2238,8 +2246,8 @@ export const StaffPayrollView: React.FC<StaffPayrollViewProps> = ({ initialTab, 
                     return (
                       <tr key={s.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-850/20">
                         <td className="p-3 font-bold text-slate-850 dark:text-slate-200">{s.firstName} {s.lastName}</td>
-                        <td className="p-3 font-bold text-brand-600">{calc.leaveDetails?.paidLeaveDays || 0} Days</td>
-                        <td className="p-3 font-bold text-rose-500">{calc.leaveDetails?.unpaidLeaveDays || 0} Days</td>
+                        <td className="p-3 font-bold text-brand-600">{calc.leaveDetails?.paidLeaveDays || 0} {(calc.leaveDetails?.paidLeaveDays || 0) === 1 ? 'Day' : 'Days'}</td>
+                        <td className="p-3 font-bold text-rose-500">{calc.leaveDetails?.unpaidLeaveDays || 0} {(calc.leaveDetails?.unpaidLeaveDays || 0) === 1 ? 'Day' : 'Days'}</td>
                         <td className="p-3 font-black text-rose-600 font-mono">{calc.leaveDetails?.unpaidLeaveDays || 0} LOP</td>
                         <td className="p-3 font-mono font-extrabold text-rose-600">-{formatCurrency(calc.leaveDeduction)}</td>
                       </tr>
@@ -2826,7 +2834,11 @@ const AssignmentPanel = ({
           employeeName: `${employee.firstName} ${employee.lastName}`,
           empId: employee.empId,
           employeeCategory: employee.employeeCategory || 'Staff',
+<<<<<<< HEAD
           branch: employee.branch || structure.branch || '',
+=======
+          branch: employee.branch || '',
+>>>>>>> 2c7d0190f1106e317e9965ae947dc2f54d4d3f76
           department: employee.department || 'General',
           salaryStructureId: structure.id,
           salaryStructureName: structure.structureName,

@@ -50,8 +50,8 @@ export const AlumniView: React.FC<AlumniViewProps> = ({ onNavigate }) => {
       if (st.status === 'Completed' || st.status === 'Alumni') {
         const exists = list.some(a => a.studentId === st.id || a.admissionNo === st.admissionNo);
         if (!exists) {
-          const finalYear = st.completionAcademicYear || schoolProfile?.academicYear || '2025-2026';
-          const batchYear = finalYear.split('-')[1] || finalYear.split('-')[0] || '2026';
+          const finalYear = st.completionAcademicYear || schoolProfile?.academicYear || '';
+          const batchYear = finalYear.split('-')[1] || finalYear.split('-')[0] || String(new Date().getFullYear());
           list.push({
             id: 'ALM-' + st.id,
             studentId: st.id,

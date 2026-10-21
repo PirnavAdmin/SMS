@@ -69,7 +69,7 @@ export const PrintableCertificateContainer: React.FC<
   const schoolName = schoolProfile.name || "Pirnav Educational Institutions";
   const schoolAddress =
     schoolProfile.address ||
-    "Jain Sadguru Images Capital Park502B, Capital Pk Rd, VIP Hills, Madhapur, HITEC City, Hyderabad, Telangana 500081";
+    "";
   const schoolPhone = schoolProfile.phone || "+91 9123456789";
   const schoolEmail = schoolProfile.email || "contact@pirnavschools.edu";
   const schoolLogoUrl = resolveMediaUrl(schoolProfile.logoUrl);

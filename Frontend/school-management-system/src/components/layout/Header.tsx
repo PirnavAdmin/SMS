@@ -9,7 +9,7 @@ import { useData } from '../../context/DataContext';
 import { UserRole } from '../../types';
 import { ConfirmModal } from '../common/ConfirmModal';
 import { resolveMediaUrl, DEFAULT_USER_AVATAR, getInitialsAvatar } from '../../utils/mediaUtils';
-import { fetchBranchesApi, fetchAcademicYearsApi, createBranchApi, updateBranchApi, deleteBranchApi } from '../../api/settings';
+import { fetchBranchesApi, createBranchApi, updateBranchApi, deleteBranchApi } from '../../api/settings';
 
 interface HeaderProps {
   collapsed: boolean;
@@ -142,12 +142,6 @@ export const Header: React.FC<HeaderProps> = ({ collapsed, setCollapsed, onOpenS
       try {
         if (fetchAnnouncements) await fetchAnnouncements();
       } catch {}
-      try {
-        const ayRes: any = await fetchAcademicYearsApi();
-        if (ayRes?.success && Array.isArray(ayRes.data) && ayRes.data.length > 0) {
-          localStorage.setItem('edu_db_academic_years', JSON.stringify(ayRes.data));
-        }
-      } catch {}
     };
     loadSettingsData();
   }, [fetchBranches, fetchAnnouncements]);
@@ -168,11 +162,15 @@ export const Header: React.FC<HeaderProps> = ({ collapsed, setCollapsed, onOpenS
       .map((b: any) => typeof b === 'string' ? b : (b.name || b.branchName))
       .filter(Boolean);
 
+<<<<<<< HEAD
     if (fromApi.length > 0) {
       return Array.from(new Set(fromApi)).sort();
     }
 
     return [];
+=======
+    return Array.from(new Set(fromApi)).sort();
+>>>>>>> 2c7d0190f1106e317e9965ae947dc2f54d4d3f76
   }, [branches]);
 
   const authorizedBranches = useMemo(() => {
@@ -260,53 +258,55 @@ export const Header: React.FC<HeaderProps> = ({ collapsed, setCollapsed, onOpenS
   };
 
   const ayOptions = useMemo(() => {
+    // Map keyed by canonical formatted display string, e.g. "2026–27"
     const allYears = new Map<string, { id: string; academicYear: string; isCurrent: boolean; status?: string }>();
 
-    // 1. Prioritize academic years configured in Settings / DataContext
-    if (academicYears && academicYears.length > 0) {
-      academicYears.forEach(ay => {
-        const val = ay.academicYear || (ay as any).year;
-        if (val && String(val).trim().length >= 4) {
-          const yearStr = String(val).trim();
-          allYears.set(yearStr, {
-            id: ay.id || `AY-${yearStr}`,
-            academicYear: yearStr,
-            isCurrent: Boolean(ay.isCurrentAcademicYear || ay.status === 'Active'),
-            status: ay.status
-          });
+    const addOrMergeAY = (ay: any) => {
+      const val = ay?.academicYear || ay?.year || ay?.academicYearName;
+      if (!val || String(val).trim().length < 4) return;
+      const rawYearStr = String(val).trim();
+      const displayKey = formatAYDisplay(rawYearStr);
+      if (!displayKey) return;
+
+      const isCurrent = Boolean(
+        ay.isCurrentAcademicYear ||
+        ay.isCurrent ||
+        ay.status === 'Active' ||
+        ay.isActive
+      );
+
+      if (allYears.has(displayKey)) {
+        const existing = allYears.get(displayKey)!;
+        if (isCurrent) {
+          existing.isCurrent = true;
+          existing.status = 'Active';
+          existing.academicYear = rawYearStr;
         }
-      });
+      } else {
+        allYears.set(displayKey, {
+          id: ay.id || `AY-${displayKey}`,
+          academicYear: rawYearStr,
+          isCurrent,
+          status: ay.status
+        });
+      }
+    };
+
+    // 1. Prioritize academic years configured in Settings / DataContext
+    if (academicYears && Array.isArray(academicYears)) {
+      academicYears.forEach(addOrMergeAY);
     }
 
-    // 2. Also inspect local storage if any
-    try {
-      const storedAYs = localStorage.getItem('edu_db_academic_years') || localStorage.getItem('academic_years');
-      if (storedAYs) {
-        const parsed = JSON.parse(storedAYs);
-        if (Array.isArray(parsed)) {
-          parsed.forEach((ay: any) => {
-            const val = ay.academicYear || ay.year;
-            if (val && String(val).trim().length >= 4) {
-              const yearStr = String(val).trim();
-              if (!allYears.has(yearStr)) {
-                allYears.set(yearStr, {
-                  id: ay.id || `AY-${yearStr}`,
-                  academicYear: yearStr,
-                  isCurrent: Boolean(ay.isCurrentAcademicYear || ay.status === 'Active'),
-                  status: ay.status
-                });
-              }
-            }
-          });
-        }
-      }
-    } catch {}
-
-    return Array.from(allYears.values()).sort((a, b) => b.academicYear.localeCompare(a.academicYear));
-  }, [academicYears, students]);
+    // Sort descending by start year
+    return Array.from(allYears.values()).sort((a, b) => {
+      const numA = parseInt(formatAYDisplay(a.academicYear).slice(0, 4), 10) || 0;
+      const numB = parseInt(formatAYDisplay(b.academicYear).slice(0, 4), 10) || 0;
+      return numB - numA;
+    });
+  }, [academicYears]);
 
   useEffect(() => {
-    if (ayOptions.length > 0 && (!selectedAcademicYear || !ayOptions.some(a => a.academicYear === selectedAcademicYear))) {
+    if (ayOptions.length > 0 && (!selectedAcademicYear || !ayOptions.some(a => formatAYDisplay(a.academicYear) === formatAYDisplay(selectedAcademicYear)))) {
       const current = ayOptions.find(a => a.isCurrent) || ayOptions[0];
       if (current) {
         setSelectedAcademicYear(current.academicYear);
@@ -610,7 +610,7 @@ export const Header: React.FC<HeaderProps> = ({ collapsed, setCollapsed, onOpenS
               <Calendar className="w-4 h-4 text-sky-600 dark:text-sky-400 shrink-0" />
               <span className="text-sky-600 dark:text-sky-400 font-semibold whitespace-nowrap">Academic Year:</span>
               <span className="font-bold text-slate-900 dark:text-white whitespace-nowrap">
-                {formatAYDisplay(selectedAcademicYear) || "2026–27"}
+                {formatAYDisplay(selectedAcademicYear) || (ayOptions.length > 0 ? formatAYDisplay(ayOptions[0].academicYear) : "Select Academic Year")}
               </span>
               <ChevronDown className="w-3.5 h-3.5 text-sky-600 dark:text-sky-400 shrink-0" />
             </button>
@@ -779,7 +779,8 @@ export const Header: React.FC<HeaderProps> = ({ collapsed, setCollapsed, onOpenS
             className="flex items-center gap-2.5 p-1 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
           >
             <img
-              src={resolveMediaUrl(user?.avatar) || getInitialsAvatar(displayName, user?.email)}
+              key={user?.avatar || currentStaff?.avatar || 'avatar'}
+              src={resolveMediaUrl(user?.avatar || currentStaff?.avatar) || getInitialsAvatar(displayName, user?.email)}
               alt=""
               onError={(e) => {
                 const target = e.target as HTMLImageElement;

@@ -230,7 +230,7 @@ export const DocumentRequirementMasterModal: React.FC<DocumentRequirementMasterM
                           <span className="font-extrabold text-slate-900 dark:text-white text-sm">{rule.department}</span>
                           <span className="text-slate-400">•</span>
                           <span className="font-bold text-sky-600 dark:text-sky-400 text-xs">{rule.designation}</span>
-                          <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${rule.status === 'Active' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300' : 'bg-slate-200 text-slate-600'}`}>
+                          <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${rule.status === 'Active' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300' : 'bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-300'}`}>
                             {rule.status}
                           </span>
                         </div>

@@ -850,7 +850,7 @@ public class SchoolService : ISchoolService
 				MotherMobileNumber = s.MotherMobile ?? "",
 				ParentEmail = s.Email,
 				AreaLocality = s.Address ?? "",
-				StudentType = adm?.AdmissionType ?? "",
+				StudentType = NormalizeStudentType(adm?.AdmissionType),
 				Status = !string.IsNullOrWhiteSpace(s.Status) ? s.Status : (adm?.Status ?? "Enrolled"),
 				CreatedAt = s.CreatedAt
 			});
@@ -928,7 +928,7 @@ public class SchoolService : ISchoolService
 				MotherMobileNumber = s.MotherMobile ?? "",
 				ParentEmail = s.Email,
 				AreaLocality = s.Address ?? "",
-				StudentType = adm?.AdmissionType ?? "",
+				StudentType = NormalizeStudentType(adm?.AdmissionType),
 				Status = !string.IsNullOrWhiteSpace(s.Status) ? s.Status : (adm?.Status ?? "Enrolled"),
 				CreatedAt = s.CreatedAt
 			};
@@ -1237,7 +1237,7 @@ public class SchoolService : ISchoolService
 			PinCode = dto.PinCode,
 			NumberOfSiblings = dto.NumberOfSiblings,
 			ExistingSiblingLookup = dto.ExistingSiblingLookup,
-			StudentType = string.IsNullOrWhiteSpace(dto.StudentType) ? "Non-Residential" : dto.StudentType,
+			StudentType = NormalizeStudentType(dto.StudentType),
 			TransportRequired = dto.TransportRequired,
 			TransportType = dto.TransportType,
 			BusRoute = dto.BusRoute,
@@ -1305,7 +1305,7 @@ public class SchoolService : ISchoolService
 		{
 			app.BranchName = dto.BranchName;
 		}
-		if (!string.IsNullOrWhiteSpace(dto.StudentType)) app.StudentType = dto.StudentType;
+		if (!string.IsNullOrWhiteSpace(dto.StudentType)) app.StudentType = NormalizeStudentType(dto.StudentType);
 		app.BloodGroup = dto.BloodGroup;
 		app.Religion = dto.Religion;
 		app.Caste = dto.Caste;
@@ -1721,6 +1721,21 @@ public class SchoolService : ISchoolService
 		return null;
 	}
 
+	private static string NormalizeStudentType(string? studentType)
+	{
+		if (string.IsNullOrWhiteSpace(studentType)) return "Non-Residential";
+		var lower = studentType.Trim().ToLowerInvariant();
+		if (lower.Contains("non-res") || lower.Contains("non res") || lower.Contains("day scholar") || lower.Contains("dayscholar") || lower == "non-resident" || lower == "non resident" || lower == "non-residential" || lower == "regular")
+		{
+			return "Non-Residential";
+		}
+		if (lower.Contains("res") || lower.Contains("hostel") || lower == "resident" || lower == "residential" || lower == "hosteller")
+		{
+			return "Residential";
+		}
+		return "Non-Residential";
+	}
+
 	private static AdmissionApplicationResponseDto MapToAdmissionResponseDto(AdmissionApplication a) => new()
 	{
 		Id = a.Id,
@@ -1751,7 +1766,7 @@ public class SchoolService : ISchoolService
 		PinCode = a.PinCode,
 		NumberOfSiblings = a.NumberOfSiblings ?? 0,
 		ExistingSiblingLookup = a.ExistingSiblingLookup,
-		StudentType = a.StudentType ?? "",
+		StudentType = NormalizeStudentType(a.StudentType),
 		TransportRequired = a.TransportRequired ?? false,
 		TransportType = a.TransportType,
 		BusRoute = a.BusRoute,
@@ -2060,6 +2075,7 @@ public class SchoolService : ISchoolService
 			Department = l.Staff?.Department ?? "N/A",
 			Branch = l.Staff?.BranchName ?? "",
 			EmployeeCategory = l.Staff?.EmployeeCategory ?? "Staff",
+			LeaveTypeId = l.LeaveTypeId,
 			LeaveTypeName = l.LeaveType?.Name ?? "N/A",
 			LeaveTypeCode = l.LeaveType?.Code ?? "N/A",
 			FromDate = l.FromDate.ToString("yyyy-MM-dd"),
@@ -2142,6 +2158,7 @@ public class SchoolService : ISchoolService
 				Department = staff.Department ?? "",
 				Branch = staff.BranchName ?? "",
 				EmployeeCategory = staff.EmployeeCategory ?? "Staff",
+				LeaveTypeId = existingPending.LeaveTypeId,
 				LeaveTypeName = existingPending.LeaveType?.Name ?? leaveType.Name,
 				LeaveTypeCode = existingPending.LeaveType?.Code ?? leaveType.Code,
 				FromDate = existingPending.FromDate.ToString("yyyy-MM-dd"),
@@ -2182,6 +2199,7 @@ public class SchoolService : ISchoolService
 			Department = staff.Department ?? "",
 			Branch = staff.BranchName ?? "",
 			EmployeeCategory = staff.EmployeeCategory ?? "Staff",
+			LeaveTypeId = entity.LeaveTypeId,
 			LeaveTypeName = leaveType.Name,
 			LeaveTypeCode = leaveType.Code,
 			FromDate = entity.FromDate.ToString("yyyy-MM-dd"),
@@ -2201,27 +2219,42 @@ public class SchoolService : ISchoolService
 		var application = await _schoolRepository.GetLeaveApplicationByIdAsync(applicationId)
 			?? throw new NotFoundException($"Leave application with ID {applicationId} not found.");
 
+		var previousStatus = application.Status;
 		application.Status = status;
 		if (!string.IsNullOrWhiteSpace(approverRemarks)) application.ApproverRemarks = approverRemarks;
 		if (!string.IsNullOrWhiteSpace(approvedBy)) application.ApprovedBy = approvedBy;
 
-		if (status.Equals("Approved", StringComparison.OrdinalIgnoreCase))
+		if (!previousStatus.Equals("Approved", StringComparison.OrdinalIgnoreCase) && status.Equals("Approved", StringComparison.OrdinalIgnoreCase))
 		{
 			var staff = await _schoolRepository.GetStaffByIdAsync(application.StaffId);
 			if (staff != null)
 			{
 				var code = (application.LeaveType?.Code ?? "").ToUpper();
-				if (code.Contains("CL"))
+				var name = (application.LeaveType?.Name ?? "").ToUpper();
+				if (code.Contains("CL") || name.Contains("CASUAL"))
 				{
 					staff.CasualLeaveBalance = Math.Max(0, staff.CasualLeaveBalance - application.RequestedDays);
 				}
-				else if (code.Contains("SL"))
+				else if (code.Contains("SL") || name.Contains("SICK"))
 				{
 					staff.SickLeaveBalance = Math.Max(0, staff.SickLeaveBalance - application.RequestedDays);
 				}
-				else if (code.Contains("EL") || code.Contains("PL"))
+				else if (code.Contains("EL") || code.Contains("PL") || name.Contains("EARNED") || name.Contains("PAID"))
 				{
 					staff.EarnedLeaveBalance = Math.Max(0, staff.EarnedLeaveBalance - application.RequestedDays);
+				}
+				else
+				{
+					if (staff.CasualLeaveBalance >= application.RequestedDays)
+					{
+						staff.CasualLeaveBalance -= application.RequestedDays;
+					}
+					else
+					{
+						var remainder = application.RequestedDays - staff.CasualLeaveBalance;
+						staff.CasualLeaveBalance = 0;
+						staff.EarnedLeaveBalance = Math.Max(0, staff.EarnedLeaveBalance - remainder);
+					}
 				}
 			}
 
@@ -2256,6 +2289,20 @@ public class SchoolService : ISchoolService
 				}
 			}
 		}
+		else if (previousStatus.Equals("Approved", StringComparison.OrdinalIgnoreCase) && !status.Equals("Approved", StringComparison.OrdinalIgnoreCase))
+		{
+			// Refund balance if previously approved leave is rejected or cancelled
+			var staff = await _schoolRepository.GetStaffByIdAsync(application.StaffId);
+			if (staff != null)
+			{
+				var code = (application.LeaveType?.Code ?? "").ToUpper();
+				var name = (application.LeaveType?.Name ?? "").ToUpper();
+				if (code.Contains("CL") || name.Contains("CASUAL")) staff.CasualLeaveBalance += application.RequestedDays;
+				else if (code.Contains("SL") || name.Contains("SICK")) staff.SickLeaveBalance += application.RequestedDays;
+				else if (code.Contains("EL") || code.Contains("PL") || name.Contains("EARNED") || name.Contains("PAID")) staff.EarnedLeaveBalance += application.RequestedDays;
+				else staff.CasualLeaveBalance += application.RequestedDays;
+			}
+		}
 
 		await _schoolRepository.SaveChangesAsync();
 
@@ -2285,9 +2332,22 @@ public class SchoolService : ISchoolService
 
 	public async Task<bool> DeleteLeaveApplicationAsync(int id)
 	{
-		var application = await _context.LeaveApplications.FindAsync(id);
+		var application = await _schoolRepository.GetLeaveApplicationByIdAsync(id);
 		if (application != null)
 		{
+			if (application.Status.Equals("Approved", StringComparison.OrdinalIgnoreCase))
+			{
+				var staff = await _schoolRepository.GetStaffByIdAsync(application.StaffId);
+				if (staff != null)
+				{
+					var code = (application.LeaveType?.Code ?? "").ToUpper();
+					var name = (application.LeaveType?.Name ?? "").ToUpper();
+					if (code.Contains("CL") || name.Contains("CASUAL")) staff.CasualLeaveBalance += application.RequestedDays;
+					else if (code.Contains("SL") || name.Contains("SICK")) staff.SickLeaveBalance += application.RequestedDays;
+					else if (code.Contains("EL") || code.Contains("PL") || name.Contains("EARNED") || name.Contains("PAID")) staff.EarnedLeaveBalance += application.RequestedDays;
+					else staff.CasualLeaveBalance += application.RequestedDays;
+				}
+			}
 			_context.LeaveApplications.Remove(application);
 			await _context.SaveChangesAsync();
 			return true;
@@ -2297,11 +2357,50 @@ public class SchoolService : ISchoolService
 
 	public async Task<List<LeaveBalanceDto>> GetLeaveBalancesAsync()
 	{
-		var allStaff = await _schoolRepository.GetAllStaffAsync(null, null);
+		var allStaff = await _context.Staff.ToListAsync();
+		var allApprovedLeaves = await _context.LeaveApplications
+			.Include(l => l.LeaveType)
+			.Where(l => l.Status == "Approved")
+			.ToListAsync();
+
+		var leaveConfigs = await _context.LeaveTypeConfigs.AsNoTracking().ToListAsync();
+		var clDef = leaveConfigs.FirstOrDefault(l => (l.Code != null && l.Code.ToUpper().Contains("CL")) || (l.Name != null && l.Name.ToUpper().Contains("CASUAL")))?.AnnualAllowance ?? 10;
+		var slDef = leaveConfigs.FirstOrDefault(l => (l.Code != null && l.Code.ToUpper().Contains("SL")) || (l.Name != null && l.Name.ToUpper().Contains("SICK")))?.AnnualAllowance ?? 10;
+		var elDef = leaveConfigs.FirstOrDefault(l => (l.Code != null && (l.Code.ToUpper().Contains("PL") || l.Code.ToUpper().Contains("EL"))) || (l.Name != null && (l.Name.ToUpper().Contains("EARNED") || l.Name.ToUpper().Contains("PAID"))))?.AnnualAllowance ?? 15;
+
 		var result = new List<LeaveBalanceDto>();
+		bool hasUpdates = false;
 
 		foreach (var s in allStaff)
 		{
+			var staffLeaves = allApprovedLeaves.Where(l => l.StaffId == s.StaffId).ToList();
+			int casualUsed = 0;
+			int sickUsed = 0;
+			int earnedUsed = 0;
+			int otherUsed = 0;
+
+			foreach (var l in staffLeaves)
+			{
+				var code = (l.LeaveType?.Code ?? "").ToUpper();
+				var name = (l.LeaveType?.Name ?? "").ToUpper();
+				if (code.Contains("CL") || name.Contains("CASUAL")) casualUsed += l.RequestedDays;
+				else if (code.Contains("SL") || name.Contains("SICK")) sickUsed += l.RequestedDays;
+				else if (code.Contains("EL") || code.Contains("PL") || name.Contains("EARNED") || name.Contains("PAID")) earnedUsed += l.RequestedDays;
+				else otherUsed += l.RequestedDays;
+			}
+
+			int calculatedCasual = Math.Max(0, clDef - casualUsed - otherUsed);
+			int calculatedSick = Math.Max(0, slDef - sickUsed);
+			int calculatedEarned = Math.Max(0, elDef - earnedUsed);
+
+			if (s.CasualLeaveBalance != calculatedCasual || s.SickLeaveBalance != calculatedSick || s.EarnedLeaveBalance != calculatedEarned)
+			{
+				s.CasualLeaveBalance = calculatedCasual;
+				s.SickLeaveBalance = calculatedSick;
+				s.EarnedLeaveBalance = calculatedEarned;
+				hasUpdates = true;
+			}
+
 			result.Add(new LeaveBalanceDto
 			{
 				StaffId = s.StaffId,
@@ -2313,6 +2412,11 @@ public class SchoolService : ISchoolService
 				EarnedLeaveBalance = s.EarnedLeaveBalance,
 				TotalRemainingBalance = s.CasualLeaveBalance + s.SickLeaveBalance + s.EarnedLeaveBalance
 			});
+		}
+
+		if (hasUpdates)
+		{
+			await _context.SaveChangesAsync();
 		}
 
 		return result;

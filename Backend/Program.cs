@@ -159,6 +159,7 @@ builder.Services.AddScoped<ITransportService, TransportService>();
 // Hostel ERP Module
 builder.Services.AddScoped<IHostelRepository, HostelRepository>();
 builder.Services.AddScoped<IHostelService, HostelService>();
+builder.Services.AddScoped<IStudentHostelService, StudentHostelService>();
 
 // Uniform Management Module
 builder.Services.AddScoped<SMS.Api.Repositories.Interfaces.IUniformRepository, SMS.Api.Repositories.Implementations.UniformRepository>();
@@ -182,12 +183,13 @@ builder.Services.AddScoped<ITimetableGenerationService, TimetableGenerationServi
 builder.Services.AddScoped<ITimetableService, TimetableService>();
 builder.Services.AddScoped<ITeacherSubstitutionService, TeacherSubstitutionService>();
 
-//teacher dashboard
-// Teacher Dashboard Module
+// Teacher Dashboard & Profile Module
 builder.Services.AddScoped<ITeacherDashboardRepository, TeacherDashboardRepository>();
 builder.Services.AddScoped<ITeacherDashboardService, TeacherDashboardService>();
 builder.Services.AddScoped<ITeacherAttendanceRepository, TeacherAttendanceRepository>();
 builder.Services.AddScoped<ITeacherAttendanceService, TeacherAttendanceService>();
+builder.Services.AddScoped<ITeacherProfileRepository, TeacherProfileRepository>();
+builder.Services.AddScoped<ITeacherProfileService, TeacherProfileService>();
 
 // Faculty Development & Staff Training Module
 builder.Services.AddScoped<SMS.Api.Repositories.Interfaces.IFacultyTrainingRepository, SMS.Api.Repositories.Implementations.FacultyTrainingRepository>();

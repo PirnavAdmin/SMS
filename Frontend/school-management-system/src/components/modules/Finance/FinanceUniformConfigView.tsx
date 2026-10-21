@@ -36,7 +36,11 @@ export const FinanceUniformConfigView: React.FC = () => {
   const [deletingConfig, setDeletingConfig] = useState<FinanceUniformConfig | null>(null);
 
   const [form, setForm] = useState<Partial<FinanceUniformConfig>>({
+<<<<<<< HEAD
     academicYear: selectedAcademicYear || financeSettings.academicYear || '2026-2027',
+=======
+    academicYear: selectedAcademicYear || financeSettings.academicYear || '',
+>>>>>>> 2c7d0190f1106e317e9965ae947dc2f54d4d3f76
     branch: selectedBranch || '',
     className: '',
     gender: '',
@@ -195,7 +199,11 @@ export const FinanceUniformConfigView: React.FC = () => {
   const handleOpenAdd = () => {
     setEditingConfig(null);
     setForm({
+<<<<<<< HEAD
       academicYear: selectedAcademicYear || financeSettings.academicYear || '2026-2027',
+=======
+      academicYear: selectedAcademicYear || financeSettings.academicYear || '',
+>>>>>>> 2c7d0190f1106e317e9965ae947dc2f54d4d3f76
       branch: selectedBranch || '',
       className: '',
       gender: '',
@@ -223,7 +231,7 @@ export const FinanceUniformConfigView: React.FC = () => {
 
     const payload = {
       ...form,
-      academicYear: selectedAcademicYear || form.academicYear || financeSettings.academicYear || '2026-2027',
+      academicYear: selectedAcademicYear || form.academicYear || financeSettings.academicYear || '',
     } as Omit<FinanceUniformConfig, 'id'>;
 
     if (editingConfig) {

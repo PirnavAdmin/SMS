@@ -49,9 +49,15 @@ namespace SMS.Api.Controllers
 
         [HttpGet("load-results")]
         public async Task<IActionResult> LoadFinalResults(
+<<<<<<< HEAD
             [FromQuery] string? currentYear = "2026-2027",
             [FromQuery] string? targetYear = "2027-2028",
             [FromQuery] string? currentClass = "Class 10",
+=======
+            [FromQuery] string? currentYear = null,
+            [FromQuery] string? targetYear = null,
+            [FromQuery] string? currentClass = null,
+>>>>>>> 2c7d0190f1106e317e9965ae947dc2f54d4d3f76
             [FromQuery] string? branch = null,
             [FromQuery] string? policy = "Manual")
         {
@@ -67,6 +73,7 @@ namespace SMS.Api.Controllers
                 .AsNoTracking()
                 .Include(s => s.ClassGrade)
                 .Include(s => s.ClassSection)
+                .Include(s => s.Branch)
                 .Where(s => !s.IsDeleted && (s.Status == "Active" || s.Status == "Promoted"))
                 .ToListAsync();
 
@@ -81,12 +88,11 @@ namespace SMS.Api.Controllers
 
             if (filtered.Count == 0)
             {
-                rows = GetSamplePromotionRows(currentClass, nextClass, targetYear ?? "2027-2028");
+                rows = new List<StudentPromotionRowDto>();
             }
             else
             {
                 rows = new List<StudentPromotionRowDto>();
-                int rollIndex = 1;
 
                 foreach (var s in filtered)
                 {
@@ -102,12 +108,16 @@ namespace SMS.Api.Controllers
                     {
                         StudentId = s.StudentId,
                         Id = s.StudentId.ToString(),
-                        AdmissionNo = s.AdmissionNumber,
-                        RollNo = string.IsNullOrEmpty(s.RollNumber) ? $"R-{70 + rollIndex}" : s.RollNumber,
+                        AdmissionNo = s.AdmissionNumber ?? string.Empty,
+                        RollNo = s.RollNumber ?? string.Empty,
                         FirstName = s.StudentName.Split(' ').FirstOrDefault() ?? s.StudentName,
                         LastName = s.StudentName.Split(' ').Length > 1 ? s.StudentName.Substring(s.StudentName.IndexOf(' ') + 1) : "",
                         Avatar = "",
+<<<<<<< HEAD
                         Branch = branch ?? string.Empty,
+=======
+                        Branch = !string.IsNullOrWhiteSpace(branch) ? branch : (s.Branch?.BranchName ?? s.ClassGrade?.CampusLocation ?? string.Empty),
+>>>>>>> 2c7d0190f1106e317e9965ae947dc2f54d4d3f76
                         CurrentClass = s.ClassGrade?.ClassName ?? currentClass,
                         CurrentSection = s.ClassSection?.SectionName ?? "A",
                         OverallPct = basePct,
@@ -119,8 +129,6 @@ namespace SMS.Api.Controllers
                         Remarks = isPass ? "Pending section assignment" : "Retained - Minimum Passing Criteria Not Met",
                         IsAlreadyPromoted = isAlreadyPromoted
                     });
-
-                    rollIndex++;
                 }
             }
 
@@ -161,33 +169,195 @@ namespace SMS.Api.Controllers
             int retainedCount = 0;
             int graduatedCount = 0;
 
+            // 1. Resolve or dynamically create target AcademicYear
+            string targetYearStr = (request.TargetAcademicYear ?? "").Trim();
+            AcademicYear? targetYear = null;
+            if (!string.IsNullOrWhiteSpace(targetYearStr))
+            {
+                targetYear = await _context.AcademicYears
+                    .FirstOrDefaultAsync(y => !y.IsDeleted && y.AcademicYearName == targetYearStr)
+                    ?? await _context.AcademicYears
+                    .FirstOrDefaultAsync(y => !y.IsDeleted && y.AcademicYearName.Contains(targetYearStr));
+
+                if (targetYear == null)
+                {
+                    int startYear = DateTime.UtcNow.Year;
+                    int endYear = DateTime.UtcNow.Year + 1;
+                    var parts = targetYearStr.Split('-');
+                    if (parts.Length >= 2 && int.TryParse(parts[0], out int sy) && int.TryParse(parts[1], out int ey))
+                    {
+                        startYear = sy;
+                        endYear = ey;
+                    }
+
+                    targetYear = new AcademicYear
+                    {
+                        AcademicYearName = targetYearStr,
+                        StartDate = new DateTime(startYear, 6, 1),
+                        EndDate = new DateTime(endYear, 4, 30),
+                        IsActive = true,
+                        IsCurrent = false,
+                        CreatedAt = DateTime.UtcNow
+                    };
+                    _context.AcademicYears.Add(targetYear);
+                    await _context.SaveChangesAsync();
+                }
+            }
+
+            // 2. Load classes with their sections
+            var allClasses = await _context.Classes
+                .Include(c => c.Sections)
+                .Where(c => !string.IsNullOrEmpty(c.ClassName))
+                .ToListAsync();
+
+            // 3. Batch query students to update
+            var studentIds = request.Promotions.Where(p => p.StudentId > 0).Select(p => p.StudentId).Distinct().ToList();
+            var admissionNos = request.Promotions.Where(p => !string.IsNullOrWhiteSpace(p.AdmissionNo)).Select(p => p.AdmissionNo.Trim().ToLowerInvariant()).Distinct().ToList();
+
+            var dbStudents = await _context.Students
+                .Include(s => s.ClassGrade)
+                .Include(s => s.ClassSection)
+                .Include(s => s.Branch)
+                .Where(s => !s.IsDeleted && (studentIds.Contains(s.StudentId) || admissionNos.Contains(s.AdmissionNumber.ToLower())))
+                .ToListAsync();
+
+            // 4. Process each student record
             foreach (var item in request.Promotions)
             {
                 string cleanSection = (item.NewSection ?? "").Replace("Section ", "").Trim();
                 bool isPromote = string.Equals(item.PromotionStatus, "Promote", StringComparison.OrdinalIgnoreCase);
+                bool isGraduated = string.Equals(item.PromotionStatus, "Graduated", StringComparison.OrdinalIgnoreCase) ||
+                                   string.Equals(item.NewClass, "Graduated", StringComparison.OrdinalIgnoreCase) ||
+                                   string.Equals(item.NewClass, "Completed", StringComparison.OrdinalIgnoreCase);
 
+                var student = dbStudents.FirstOrDefault(s =>
+                    (item.StudentId > 0 && s.StudentId == item.StudentId) ||
+                    (!string.IsNullOrWhiteSpace(item.AdmissionNo) && string.Equals(s.AdmissionNumber, item.AdmissionNo.Trim(), StringComparison.OrdinalIgnoreCase)) ||
+                    (int.TryParse(item.Id, out int pId) && s.StudentId == pId));
+
+                string studentName = student?.StudentName ?? $"{item.CurrentClass} Student ({item.AdmissionNo})";
+                string destClassName = isPromote ? (item.NewClass ?? "").Trim() : (item.CurrentClass ?? "").Trim();
+
+                if (student != null)
+                {
+                    // Destination Class resolution
+                    var destClass = allClasses.FirstOrDefault(c => string.Equals(c.ClassName, destClassName, StringComparison.OrdinalIgnoreCase))
+                        ?? allClasses.FirstOrDefault(c => string.Equals(c.ClassName?.Replace(" ", ""), destClassName.Replace(" ", ""), StringComparison.OrdinalIgnoreCase));
+
+                    if (destClass == null && isPromote && !isGraduated && !string.IsNullOrWhiteSpace(destClassName))
+                    {
+                        destClass = new SMS.Api.Models.AcademicManagement.ClassGrade
+                        {
+                            ClassName = destClassName,
+                            CampusLocation = !string.IsNullOrWhiteSpace(request.Branch) ? request.Branch : (student?.Branch?.BranchName ?? student?.ClassGrade?.CampusLocation ?? string.Empty),
+                            AcademicYear = request.TargetAcademicYear ?? "",
+                            Status = "Active",
+                            CreatedAt = DateTime.UtcNow
+                        };
+                        _context.Classes.Add(destClass);
+                        await _context.SaveChangesAsync();
+
+                        var newSec = new SMS.Api.Models.AcademicManagement.ClassSection
+                        {
+                            ClassId = destClass.ClassId,
+                            SectionName = !string.IsNullOrWhiteSpace(cleanSection) ? cleanSection : "A",
+                            Capacity = 40,
+                            Status = "Active"
+                        };
+                        _context.ClassSections.Add(newSec);
+                        await _context.SaveChangesAsync();
+
+                        destClass.Sections.Add(newSec);
+                        allClasses.Add(destClass);
+                    }
+
+                    if (destClass != null)
+                    {
+                        student.ClassId = destClass.ClassId;
+
+                        // Destination Section resolution
+                        var destSection = destClass.Sections.FirstOrDefault(s => string.Equals(s.SectionName, cleanSection, StringComparison.OrdinalIgnoreCase))
+                            ?? destClass.Sections.FirstOrDefault(s => string.Equals(s.SectionName?.Replace("Section ", "").Trim(), cleanSection, StringComparison.OrdinalIgnoreCase))
+                            ?? destClass.Sections.FirstOrDefault();
+
+                        if (destSection == null && !string.IsNullOrWhiteSpace(cleanSection))
+                        {
+                            destSection = new SMS.Api.Models.AcademicManagement.ClassSection
+                            {
+                                ClassId = destClass.ClassId,
+                                SectionName = cleanSection,
+                                Capacity = 40,
+                                Status = "Active"
+                            };
+                            _context.ClassSections.Add(destSection);
+                            await _context.SaveChangesAsync();
+                            destClass.Sections.Add(destSection);
+                        }
+
+                        if (destSection != null)
+                        {
+                            student.SectionId = destSection.SectionId;
+                        }
+                    }
+                    else if (!isPromote)
+                    {
+                        if (!string.IsNullOrWhiteSpace(cleanSection))
+                        {
+                            var currentClassSections = allClasses.FirstOrDefault(c => c.ClassId == student.ClassId)?.Sections;
+                            var matchedSec = currentClassSections?.FirstOrDefault(s => string.Equals(s.SectionName, cleanSection, StringComparison.OrdinalIgnoreCase));
+                            if (matchedSec != null)
+                            {
+                                student.SectionId = matchedSec.SectionId;
+                            }
+                        }
+                    }
+
+                    if (targetYear != null)
+                    {
+                        student.AcademicYearId = targetYear.AcademicYearId;
+                    }
+
+                    if (!string.IsNullOrWhiteSpace(item.RollNo))
+                    {
+                        student.RollNumber = item.RollNo.Trim();
+                    }
+
+                    if (isGraduated)
+                    {
+                        student.Status = "Completed";
+                    }
+                    else
+                    {
+                        student.Status = "Active";
+                    }
+
+                    student.UpdatedAt = DateTime.UtcNow;
+                }
+
+                // Audit history record
                 var history = new StudentPromotionHistory
                 {
-                    StudentId = item.StudentId > 0 ? item.StudentId : 1,
-                    AdmissionNo = item.AdmissionNo,
-                    StudentName = $"{item.CurrentClass} Student ({item.AdmissionNo})",
+                    StudentId = student?.StudentId ?? (item.StudentId > 0 ? item.StudentId : (int.TryParse(item.Id, out int parsedId) ? parsedId : 0)),
+                    AdmissionNo = student?.AdmissionNumber ?? item.AdmissionNo ?? string.Empty,
+                    StudentName = studentName,
                     FromAcademicYear = request.CurrentAcademicYear,
                     ToAcademicYear = request.TargetAcademicYear,
                     FromClass = item.CurrentClass,
-                    ToClass = isPromote ? item.NewClass : item.CurrentClass,
+                    ToClass = isGraduated ? "Graduated" : (isPromote ? item.NewClass : item.CurrentClass),
                     FromSection = item.CurrentSection,
                     ToSection = cleanSection,
                     OverallPct = item.OverallPct,
                     Grade = item.Grade,
                     FinalResult = item.FinalResult,
-                    Status = isPromote ? "Promoted" : "Retained",
+                    Status = isGraduated ? "Graduated" : (isPromote ? "Promoted" : "Retained"),
                     Remarks = item.Remarks,
                     PromotionDate = DateTime.UtcNow
                 };
 
                 _context.StudentPromotionHistories.Add(history);
 
-                if (isPromote) promotedCount++;
+                if (isGraduated) graduatedCount++;
+                else if (isPromote) promotedCount++;
                 else retainedCount++;
             }
 
@@ -259,6 +429,7 @@ namespace SMS.Api.Controllers
             if (pct >= 35) return "C2";
             return "F";
         }
+<<<<<<< HEAD
 
         private static List<StudentPromotionRowDto> GetSamplePromotionRows(string currentClass, string nextClass, string targetYear)
         {
@@ -273,5 +444,7 @@ namespace SMS.Api.Controllers
                 new StudentPromotionRowDto { StudentId = 7, Id = "7", AdmissionNo = "REG-1072", RollNo = "R-79", FirstName = "Indra", LastName = "Reddy", Branch = string.Empty, CurrentClass = currentClass, CurrentSection = "A", OverallPct = 91, Grade = "A1", FinalResult = "PASS", PromotionStatus = "Promote", NewClass = nextClass, NewSection = "", Remarks = "Pending section assignment" }
             };
         }
+=======
+>>>>>>> 2c7d0190f1106e317e9965ae947dc2f54d4d3f76
     }
 }

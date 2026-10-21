@@ -1,7 +1,18 @@
+let activeBranchHeader = '';
+let activeAcademicYearHeader = '';
+
+export const setActiveBranchHeader = (b: string) => {
+  activeBranchHeader = b || '';
+};
+
+export const setActiveAcademicYearHeader = (ay: string) => {
+  activeAcademicYearHeader = ay || '';
+};
+
 export const apiClient = async (endpoint: string, options: RequestInit = {}) => {
   const token = localStorage.getItem('auth_token');
-  const branch = localStorage.getItem('auth_branch') || '';
-  const academicYear = localStorage.getItem('auth_academic_year') || '';
+  const branch = activeBranchHeader;
+  const academicYear = activeAcademicYearHeader;
 
   let userRole = '';
   try {

@@ -739,7 +739,7 @@ export const CertificateSettingsTab: React.FC = () => {
                       {t.name}
                     </h4>
                     <span className={`inline-block mt-1 px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider ${
-                      t.status === 'Active' ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300' : 'bg-slate-100 text-slate-600'
+                      t.status === 'Active' ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300' : 'bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300'
                     }`}>
                       {t.status} {t.isSystem ? '• System' : ''}
                     </span>

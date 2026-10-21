@@ -3,7 +3,8 @@ import { User, UserRole } from '../types';
 import { loginApi, sendOtpApi, verifyOtpApi, resetPasswordWithOtpApi } from '../api/login';
 import { fetchUserProfileApi, getLocalUserProfile, saveLocalUserProfile, getActiveUserKey } from '../api/profile';
 import { DEFAULT_USER_AVATAR } from '../utils/mediaUtils';
-import { fetchBranchesApi } from '../api/settings';
+import { fetchBranchesApi, fetchAcademicYearsApi } from '../api/settings';
+import { setActiveBranchHeader, setActiveAcademicYearHeader } from '../api/client';
 
 interface AuthContextType {
   user: User | null;
@@ -174,18 +175,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return t || null;
   });
 
-  const [selectedBranch, setSelectedBranchState] = useState<string>(() => {
-    return localStorage.getItem('selected_branch') || '';
-  });
-
-  const [selectedAcademicYear, setSelectedAcademicYearState] = useState<string>(() => {
-    return localStorage.getItem('selected_academic_year') || '';
-  });
+  const [selectedBranch, setSelectedBranchState] = useState<string>('');
+  const [selectedAcademicYear, setSelectedAcademicYearState] = useState<string>('');
 
   useEffect(() => {
     const handleSync = async () => {
       try {
         const res: any = await fetchBranchesApi();
+<<<<<<< HEAD
         const branchList = (res?.success && Array.isArray(res.data)) ? res.data : (Array.isArray(res) ? res : []);
         const validBranchNames = branchList
           .filter((b: any) => b && b.status !== 'Inactive')
@@ -207,49 +204,56 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setSelectedBranchState('');
         localStorage.removeItem('selected_branch');
       }
-
-      const storedAY = localStorage.getItem('selected_academic_year');
-      if (storedAY) {
-        setSelectedAcademicYearState(storedAY);
-      } else {
-        try {
-          const stored = localStorage.getItem('edu_db_academic_years') || localStorage.getItem('academic_years');
-          if (stored) {
-            const parsed = JSON.parse(stored);
-            if (Array.isArray(parsed) && parsed.length > 0) {
-              const active = parsed.find((a: any) => a.isCurrentAcademicYear || a.status === 'Active') || parsed[0];
-              const val = active?.academicYear || active?.year;
-              if (val) {
-                setSelectedAcademicYearState(val);
-                localStorage.setItem('selected_academic_year', val);
-              }
-            }
+=======
+        if (res?.success && Array.isArray(res.data) && res.data.length > 0) {
+          const firstActive = res.data.find((b: any) => b.status !== 'Inactive') || res.data[0];
+          const name = firstActive?.name || firstActive?.branchName;
+          if (name) {
+            setSelectedBranchState(prev => prev || name);
           }
-        } catch {}
-      }
+        }
+      } catch {}
+>>>>>>> 2c7d0190f1106e317e9965ae947dc2f54d4d3f76
+
+      try {
+        const ayRes: any = await fetchAcademicYearsApi();
+        if (ayRes?.success && Array.isArray(ayRes.data) && ayRes.data.length > 0) {
+          const active = ayRes.data.find((a: any) => a.isCurrentAcademicYear || a.status === 'Active') || ayRes.data[0];
+          const val = active?.academicYear || active?.year;
+          if (val) {
+            setSelectedAcademicYearState(prev => prev || val);
+          }
+        }
+      } catch {}
     };
 
     handleSync();
     window.addEventListener('branches_updated', handleSync);
     window.addEventListener('academic_years_updated', handleSync);
-    window.addEventListener('storage', handleSync);
 
     return () => {
       window.removeEventListener('branches_updated', handleSync);
       window.removeEventListener('academic_years_updated', handleSync);
-      window.removeEventListener('storage', handleSync);
     };
   }, []);
 
   const handleSetBranch = (branch: string) => {
     setSelectedBranchState(branch);
-    localStorage.setItem('selected_branch', branch);
+    setActiveBranchHeader(branch);
   };
 
   const handleSetAcademicYear = (academicYear: string) => {
     setSelectedAcademicYearState(academicYear);
-    localStorage.setItem('selected_academic_year', academicYear);
+    setActiveAcademicYearHeader(academicYear);
   };
+
+  useEffect(() => {
+    setActiveBranchHeader(selectedBranch);
+  }, [selectedBranch]);
+
+  useEffect(() => {
+    setActiveAcademicYearHeader(selectedAcademicYear);
+  }, [selectedAcademicYear]);
 
   const setRole = (newRole: UserRole) => {
     const normalized = normalizeUserRole(newRole);
@@ -408,18 +412,33 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       const userPhone = response?.mobileNumber || response?.phone || (!emailOrPhone.includes('@') ? emailOrPhone : '') || savedProfile?.phone || '';
 
+      const empIdStr = response?.employeeId || response?.empId || undefined;
+      const staffIdVal = response?.staffId ? Number(response.staffId) : undefined;
+      const userBranch = response?.branch || savedProfile?.branch || selectedBranch || '';
+
       const loggedUser: User = {
         id: userIdStr,
+        empId: empIdStr,
+        staffId: staffIdVal,
         name: userName,
         email: loginEmail || (emailOrPhone.includes('@') ? emailOrPhone : ''),
         phone: userPhone,
+<<<<<<< HEAD
         branch: response?.branch || savedProfile?.branch || (selectedBranch && selectedBranch !== 'All' && selectedBranch !== 'All Branches' ? selectedBranch : '') || '',
+=======
+        branch: userBranch,
+>>>>>>> 2c7d0190f1106e317e9965ae947dc2f54d4d3f76
         role: mappedRole,
         avatar: userAvatar,
         lastLogin: new Date().toLocaleString(),
         status: 'Active',
         isFirstLogin: false
       };
+
+      if (userBranch) {
+        setSelectedBranchState(userBranch);
+        setActiveBranchHeader(userBranch);
+      }
 
       setUser(loggedUser);
       setRoleState(mappedRole);

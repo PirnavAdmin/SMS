@@ -724,7 +724,7 @@ export interface DocumentRequirementSlot {
 }
 
 export const teachingDocumentRequirements: DocumentRequirementSlot[] = [
-  { label: "Passport Photo", required: true, type: "Other" },
+  { label: "Profile Picture", required: true, type: "Other" },
   { label: "Aadhaar Card", required: true, type: "Aadhaar Card" },
   { label: "PAN Card", required: true, type: "PAN Card" },
   { label: "Degree Certificate", required: true, type: "Degree Certificate" },
@@ -739,7 +739,7 @@ export const teachingDocumentRequirements: DocumentRequirementSlot[] = [
 ];
 
 export const nonTeachingDocumentRequirements: DocumentRequirementSlot[] = [
-  { label: "Passport Photo", required: true, type: "Other" },
+  { label: "Profile Picture", required: true, type: "Other" },
   { label: "Aadhaar Card", required: true, type: "Aadhaar Card" },
   { label: "PAN Card", required: true, type: "PAN Card" },
   {
@@ -879,7 +879,7 @@ export const defaultBasicStaffFormState = (
   reportingManager: "",
   status: "Active",
 
-  academicYear: "2026-2027",
+  academicYear: "",
   assignedClasses: [],
   assignedSections: [],
   assignedSubjects: [],
@@ -1000,7 +1000,11 @@ export function buildBasicStaffCreatePayload(
     role: isTeaching ? "Teacher" : "Staff",
     email: form.email.trim(),
     phone: form.mobileNumber.trim(),
-    alternateMobile: form.alternateMobileNumber ? form.alternateMobileNumber.trim() : "",
+    alternateMobile: (() => {
+      const alt = form.alternateMobileNumber ? form.alternateMobileNumber.trim() : "";
+      const digits = alt.replace(/\D/g, "");
+      return digits.length >= 5 ? alt : "";
+    })(),
     gender: form.gender || "Male",
     dob: form.dob || "",
     bloodGroup: form.bloodGroup,
@@ -1023,6 +1027,7 @@ export function buildBasicStaffCreatePayload(
     pinCode: form.pinCode || "",
     country: form.country ? form.country.trim() : "",
     aadhaarNumber: form.aadhaarNumber ? form.aadhaarNumber.trim() : "",
+    panNumber: form.panNumber ? form.panNumber.trim().toUpperCase() : "",
     assignedClasses: isTeaching ? form.assignedClasses || [] : [],
     assignedSubjects: isTeaching ? form.assignedSubjects || [] : [],
     primarySubject: isTeaching ? (form.assignedSubjects?.[0] || '') : '',
@@ -1055,9 +1060,9 @@ export function buildBasicStaffCreatePayload(
       upiId: "",
     },
     leaveBalance: {
-      casual: 12,
-      sick: 10,
-      paid: 15,
+      casual: 0,
+      sick: 0,
+      paid: 0,
     },
     profileStatus: (form.firstName && form.lastName && form.dob && form.mobileNumber && form.department && form.designation)
       ? "Completed"
@@ -1099,7 +1104,11 @@ export function buildBasicStaffUpdatePayload(
     role: isTeaching ? "Teacher" : "Staff",
     email: form.email.trim(),
     phone: form.mobileNumber.trim(),
-    alternateMobile: form.alternateMobileNumber ? form.alternateMobileNumber.trim() : "",
+    alternateMobile: (() => {
+      const alt = form.alternateMobileNumber ? form.alternateMobileNumber.trim() : "";
+      const digits = alt.replace(/\D/g, "");
+      return digits.length >= 5 ? alt : "";
+    })(),
     gender: form.gender,
     dob: form.dob,
     bloodGroup: form.bloodGroup,
@@ -1133,7 +1142,7 @@ export function buildBasicStaffUpdatePayload(
     pinCode: form.pinCode,
     country: form.country ? form.country.trim() : "",
     aadhaarNumber: form.aadhaarNumber ? form.aadhaarNumber.trim() : "",
-    panNumber: form.panNumber ? form.panNumber.trim() : "",
+    panNumber: form.panNumber ? form.panNumber.trim().toUpperCase() : "",
     assignedClasses: isTeaching ? form.assignedClasses || [] : [],
     assignedSubjects: isTeaching ? form.assignedSubjects || [] : [],
     primarySubject: isTeaching ? (form.assignedSubjects?.[0] || '') : '',

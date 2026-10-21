@@ -1,9 +1,10 @@
 // @ts-nocheck
 import React, { useState, useEffect, useMemo } from 'react';
 import { formatCurrency } from '../../../utils/currency';
+import { validateSearchQuery } from '../../../utils/validation';
 import {
   FileText, Plus, Edit, Trash2, Eye, Printer, Calendar, CheckCircle, XCircle, Search, Filter, X,
-  User, Layers, HelpCircle, ChevronLeft, ChevronRight, RefreshCw, AlertTriangle, ChevronDown, GraduationCap
+  User, Layers, HelpCircle, ChevronLeft, ChevronRight, RefreshCw, AlertTriangle, AlertCircle, ChevronDown, GraduationCap
 } from 'lucide-react';
 import { LeaveApplication, LeaveType, Holiday, Staff } from '../../../types';
 import { useData } from '../../../context/DataContext';
@@ -13,15 +14,6 @@ import { resolveMediaUrl } from '../../../utils/mediaUtils';
 import { Badge } from '../../common/Badge';
 import { ConfirmModal } from '../../common/ConfirmModal';
 import { Pagination } from '../../common/Pagination';
-
-const DEFAULT_LEAVE_TYPES: LeaveType[] = [
-  { id: 'LT-001', name: 'Casual Leave', code: 'CL', maxDays: 10, isPaid: true, description: 'Annual casual leave for personal matters', requiresDocument: false },
-  { id: 'LT-002', name: 'Sick Leave', code: 'SL', maxDays: 10, isPaid: true, description: 'Medical and health leave', requiresDocument: true },
-  { id: 'LT-003', name: 'Paid / Earned Leave', code: 'PL', maxDays: 15, isPaid: true, description: 'Earned paid annual leave', requiresDocument: false },
-  { id: 'LT-004', name: 'On Duty Leave', code: 'OD', maxDays: 12, isPaid: true, description: 'Official school duty, exam, seminar, or workshop', requiresDocument: false },
-  { id: 'LT-005', name: 'Maternity / Paternity Leave', code: 'ML', maxDays: 90, isPaid: true, description: 'Parental leave', requiresDocument: true },
-  { id: 'LT-006', name: 'Loss of Pay (Unpaid)', code: 'LOP', maxDays: 30, isPaid: false, description: 'Unpaid leave beyond entitlement', requiresDocument: false }
-];
 
 export const LeaveManagementView: React.FC = () => {
   const {
@@ -39,7 +31,7 @@ export const LeaveManagementView: React.FC = () => {
     if (fetchLeaveBalances) fetchLeaveBalances();
   }, []);
 
-  const activeLeaveTypes = (Array.isArray(leaveTypes) && leaveTypes.length > 0) ? leaveTypes : DEFAULT_LEAVE_TYPES;
+  const activeLeaveTypes = Array.isArray(leaveTypes) ? leaveTypes : [];
 
   const { user, role, selectedBranch } = useAuth();
   const { addToast } = useToast();
@@ -101,16 +93,16 @@ export const LeaveManagementView: React.FC = () => {
       if (fromDriverDesignation) return fromDriverDesignation;
     }
 
-    const parts = (user?.name || 'Staff Member').trim().split(' ');
+    const parts = (user?.name || '').trim().split(' ');
     return {
-      id: user?.id || 'STF-2026-0000',
-      firstName: parts[0] || 'Staff',
-      lastName: parts.slice(1).join(' ') || 'Member',
-      department: isDriver ? 'Transport Dept' : 'Academic Dept',
-      designation: isDriver ? 'Driver' : 'Teacher',
+      id: user?.id || (user as any)?.empId || '',
+      firstName: parts[0] || user?.name || '',
+      lastName: parts.slice(1).join(' ') || '',
+      department: (user as any)?.department || (isDriver ? 'Transport & Logistics' : ''),
+      designation: (user as any)?.designation || (isDriver ? 'Bus Driver' : ''),
       employeeCategory: isDriver ? 'Non-Teaching Staff' : 'Teaching Staff',
-      empId: (user as any)?.empId || user?.id || 'STF-2026-0000',
-      leaveBalance: { casual: 10, sick: 10, paid: 15 }
+      empId: (user as any)?.empId || user?.id || '',
+      leaveBalance: matched?.leaveBalance
     } as any;
   }, [staff, user, isDriver]);
 
@@ -230,27 +222,20 @@ export const LeaveManagementView: React.FC = () => {
       if (byDriver) return byDriver;
     }
 
-    // Fallback default profile
-    const defaultFirstName = isWarden ? (user?.name?.split(' ')[0] || user?.firstName || 'Hostel') : isAccountant ? 'Sardhar' : isDriver ? 'Nag' : isLibrarian ? (user?.name?.split(' ')[0] || 'Librarian') : (user?.name?.split(' ')[0] || 'Staff');
-    const defaultLastName = isWarden ? (user?.name?.split(' ').slice(1).join(' ') || 'Warden') : isAccountant ? 'Karthi' : isDriver ? 'Sahoo' : isLibrarian ? (user?.name?.split(' ').slice(1).join(' ') || '') : (user?.name?.split(' ').slice(1).join(' ') || '');
-    const defaultEmpId = isWarden ? (user?.id ? `WRD-${user.id}` : 'WRD-102') : isAccountant ? 'ACT-101' : isDriver ? 'DRV-001' : isLibrarian ? (user?.id ? `LIB-${user.id}` : 'LIB-101') : (user?.id || 'STF-2026-0001');
-    const defaultDept = isWarden ? 'Hostel Management' : isAccountant ? 'Finance & Accounts' : isDriver ? 'Transport & Logistics' : isLibrarian ? 'Library Department' : 'Academic Dept';
-    const defaultDesig = isWarden ? 'Hostel Warden' : isAccountant ? 'Accountant' : isDriver ? 'Bus Driver' : isLibrarian ? 'Librarian' : 'Teacher';
-
     const rawName = user?.name || '';
-    const parts = (!isGenericAdminName && rawName.trim()) ? rawName.trim().split(' ') : [defaultFirstName, defaultLastName];
+    const parts = rawName.trim().split(' ');
 
     return {
-      id: uEmpId || uId || defaultEmpId,
-      empId: uEmpId || uId || defaultEmpId,
-      firstName: parts[0] || defaultFirstName,
-      lastName: parts.slice(1).join(' ') || defaultLastName,
-      department: (user as any)?.department || defaultDept,
-      designation: (user as any)?.designation || defaultDesig,
+      id: uEmpId || uId || String(user?.id || ''),
+      empId: uEmpId || uId || String(user?.id || ''),
+      firstName: parts[0] || (user as any)?.firstName || '',
+      lastName: parts.slice(1).join(' ') || (user as any)?.lastName || '',
+      department: (user as any)?.department || (isWarden ? 'Hostel Management' : isAccountant ? 'Finance & Accounts' : isDriver ? 'Transport & Logistics' : isLibrarian ? 'Library Department' : ''),
+      designation: (user as any)?.designation || (isWarden ? 'Hostel Warden' : isAccountant ? 'Accountant' : isDriver ? 'Bus Driver' : isLibrarian ? 'Librarian' : (userRole || 'Staff')),
       employeeCategory: (isWarden || isAccountant || isDriver || isLibrarian) ? 'Non-Teaching Staff' : 'Teaching Staff',
-      leaveBalance: { casual: 10, sick: 10, paid: 15 }
+      leaveBalance: driverStaffMember?.leaveBalance
     } as Staff;
-  }, [staff, user, userRole, isWarden, isAccountant, isDriver, isLibrarian]);
+  }, [staff, user, userRole, isWarden, isAccountant, isDriver, isLibrarian, driverStaffMember]);
 
   // Filter applications for current user if self service staff (teacher, warden, driver, accountant)
   const myApplications = useMemo(() => {
@@ -336,6 +321,26 @@ export const LeaveManagementView: React.FC = () => {
 
   // Filter States
   const [query, setQuery] = useState('');
+  const [searchError, setSearchError] = useState<string | undefined>(undefined);
+
+  const handleSearchChange = (val: string) => {
+    setQuery(val);
+    if (!val) {
+      setSearchError(undefined);
+    } else {
+      const validation = validateSearchQuery(val);
+      setSearchError(validation.isValid ? undefined : validation.error);
+    }
+  };
+
+  useEffect(() => {
+    if (query) {
+      const validation = validateSearchQuery(query);
+      setSearchError(validation.isValid ? undefined : validation.error);
+    } else {
+      setSearchError(undefined);
+    }
+  }, [activeTab]);
   const [filterCategory, setFilterCategory] = useState('All');
   const [filterDept, setFilterDept] = useState('All');
   const [filterType, setFilterType] = useState('All');
@@ -365,7 +370,7 @@ export const LeaveManagementView: React.FC = () => {
     };
 
     return (staff || []).filter(s => {
-      const matchesQuery = `${s.firstName} ${s.lastName}`.toLowerCase().includes(query.toLowerCase());
+      const matchesQuery = Boolean(searchError) || !query.trim() || `${s.firstName} ${s.lastName}`.toLowerCase().includes(query.trim().toLowerCase());
       
       let matchesCategory = true;
       if (balanceCategoryFilter === 'Teaching Staff') {
@@ -386,7 +391,7 @@ export const LeaveManagementView: React.FC = () => {
 
       return matchesQuery && matchesCategory && matchesBranch;
     });
-  }, [isSelfServiceStaff, loggedUserStaffMember, staff, query, balanceCategoryFilter, selectedBranch]);
+  }, [isSelfServiceStaff, loggedUserStaffMember, staff, query, searchError, balanceCategoryFilter, selectedBranch]);
 
   const totalBalancePages = Math.ceil(filteredStaffForBalance.length / balancePageSize) || 1;
 
@@ -405,6 +410,102 @@ export const LeaveManagementView: React.FC = () => {
   // Leave Type Modals
   const [isTypeModalOpen, setIsTypeModalOpen] = useState(false);
   const [editingType, setEditingType] = useState<LeaveType | null>(null);
+  const [allowanceVal, setAllowanceVal] = useState<string>('');
+  const [consecutiveVal, setConsecutiveVal] = useState<string>('');
+  const [typeFormErrors, setTypeFormErrors] = useState<{
+    annualAllowance?: string;
+    maxConsecutiveDays?: string;
+  }>({});
+
+  useEffect(() => {
+    if (isTypeModalOpen) {
+      setAllowanceVal(editingType ? String(editingType.annualAllowance ?? editingType.maxDays ?? '') : '');
+      setConsecutiveVal(editingType ? String(editingType.maxConsecutiveDays ?? '') : '');
+      setTypeFormErrors({});
+    }
+  }, [isTypeModalOpen, editingType]);
+
+  const handleAllowanceChange = (raw: string) => {
+    const hasInvalidChars = /[^\d]/.test(raw);
+    const digitsOnly = raw.replace(/\D/g, '');
+    const num = Number(digitsOnly);
+
+    if (hasInvalidChars) {
+      setTypeFormErrors((prev) => ({
+        ...prev,
+        annualAllowance: 'Only numeric digits (0-9) are allowed.'
+      }));
+    } else if (digitsOnly.length > 3 || num > 365) {
+      setTypeFormErrors((prev) => ({
+        ...prev,
+        annualAllowance: 'Annual allowance cannot exceed 365 days (maximum 3 digits).'
+      }));
+    } else if (digitsOnly === '0') {
+      setTypeFormErrors((prev) => ({
+        ...prev,
+        annualAllowance: 'Annual allowance must be at least 1 day.'
+      }));
+    } else {
+      setTypeFormErrors((prev) => {
+        const next = { ...prev };
+        delete next.annualAllowance;
+        return next;
+      });
+    }
+
+    const truncated = digitsOnly.slice(0, 3);
+    setAllowanceVal(truncated);
+
+    if (consecutiveVal) {
+      const consNum = Number(consecutiveVal);
+      const newAllowNum = Number(truncated);
+      if (newAllowNum > 0 && consNum > newAllowNum) {
+        setTypeFormErrors((prev) => ({
+          ...prev,
+          maxConsecutiveDays: `Max consecutive days cannot exceed annual allowance (${newAllowNum} days).`
+        }));
+      } else if (consNum <= 365) {
+        setTypeFormErrors((prev) => {
+          const next = { ...prev };
+          delete next.maxConsecutiveDays;
+          return next;
+        });
+      }
+    }
+  };
+
+  const handleConsecutiveChange = (raw: string) => {
+    const hasInvalidChars = /[^\d]/.test(raw);
+    const digitsOnly = raw.replace(/\D/g, '');
+    const consNum = Number(digitsOnly);
+    const allowNum = Number(allowanceVal);
+
+    if (hasInvalidChars) {
+      setTypeFormErrors((prev) => ({
+        ...prev,
+        maxConsecutiveDays: 'Only numeric digits (0-9) are allowed.'
+      }));
+    } else if (digitsOnly.length > 3 || consNum > 365) {
+      setTypeFormErrors((prev) => ({
+        ...prev,
+        maxConsecutiveDays: 'Max consecutive days cannot exceed 365 days (maximum 3 digits).'
+      }));
+    } else if (allowanceVal && allowNum > 0 && consNum > allowNum) {
+      setTypeFormErrors((prev) => ({
+        ...prev,
+        maxConsecutiveDays: `Max consecutive days cannot exceed annual allowance (${allowNum} ${allowNum === 1 ? 'day' : 'days'}).`
+      }));
+    } else {
+      setTypeFormErrors((prev) => {
+        const next = { ...prev };
+        delete next.maxConsecutiveDays;
+        return next;
+      });
+    }
+
+    const truncated = digitsOnly.slice(0, 3);
+    setConsecutiveVal(truncated);
+  };
 
   // Holiday Modals
   const [isHolidayModalOpen, setIsHolidayModalOpen] = useState(false);
@@ -427,35 +528,96 @@ export const LeaveManagementView: React.FC = () => {
   const targetList = isSelfServiceStaff ? myApplications : campusApplications;
   const pendingCount = targetList.filter(a => (a.status || '').toLowerCase() === 'pending').length;
   const approvedCount = targetList.filter(a => (a.status || '').toLowerCase() === 'approved').length;
-  const rejectedCount = targetList.filter(a => (a.status || '').toLowerCase() === 'rejected').length;
+  const rejectedCount = targetList.filter(a => ['rejected', 'cancelled', 'canceled'].includes((a.status || '').toLowerCase())).length;
+
+  const approvedDays = targetList
+    .filter(a => (a.status || '').toLowerCase() === 'approved')
+    .reduce((sum, a) => sum + (Number(a.numberOfDays) || 0), 0);
+  const pendingDays = targetList
+    .filter(a => (a.status || '').toLowerCase() === 'pending')
+    .reduce((sum, a) => sum + (Number(a.numberOfDays) || 0), 0);
+  const rejectedDays = targetList
+    .filter(a => ['rejected', 'cancelled', 'canceled'].includes((a.status || '').toLowerCase()))
+    .reduce((sum, a) => sum + (Number(a.numberOfDays) || 0), 0);
   
+  // Dynamic allowance resolution from database configured leave types
+  const getLeaveTypeAllowance = (codeOrName: string): number => {
+    const q = codeOrName.toLowerCase();
+    const found = activeLeaveTypes.find(t => 
+      (t.code && t.code.toLowerCase() === q) || 
+      (t.name && t.name.toLowerCase().includes(q))
+    );
+    return found ? (Number(found.annualAllowance) || Number(found.maxDays) || 0) : 0;
+  };
+
   // Helper function to get approved leave days for an employee by type
   const getEmployeeApprovedUsedLeaves = (empId: string, empCode?: string) => {
-    const apps = leaveApplications.filter(
-      app => (String(app.employeeId) === String(empId) || (empCode && app.empId === empCode)) && (app.status || '').toLowerCase() === 'approved'
-    );
+    const cleanId = String(empId || '').trim().toLowerCase();
+    const cleanCode = String(empCode || '').trim().toLowerCase();
+    const apps = leaveApplications.filter(app => {
+      const isApproved = (app.status || '').toLowerCase() === 'approved';
+      if (!isApproved) return false;
+      const appStaffId = String(app.employeeId || '').trim().toLowerCase();
+      const appEmpId = String(app.empId || '').trim().toLowerCase();
+      return (cleanId && (appStaffId === cleanId || appEmpId === cleanId)) ||
+             (cleanCode && (appStaffId === cleanCode || appEmpId === cleanCode));
+    });
+
+    const seen = new Set<string>();
     let casual = 0;
     let sick = 0;
     let earned = 0;
+    let other = 0;
+
     apps.forEach(app => {
+      const key = `${app.id}_${app.fromDate}_${app.toDate}`;
+      if (seen.has(key)) return;
+      seen.add(key);
+
       const tName = (app.leaveType || app.leaveTypeName || '').toLowerCase();
       const days = Number(app.numberOfDays) || 0;
       if (tName.includes('casual')) casual += days;
       else if (tName.includes('sick')) sick += days;
       else if (tName.includes('earned') || tName.includes('paid')) earned += days;
-      else casual += days;
+      else other += days;
     });
-    return { casual, sick, earned, total: casual + sick + earned };
+
+    return { casual, sick, earned, other, total: casual + sick + earned + other };
+  };
+
+  const getEmployeeRemainingBalances = (s: Staff) => {
+    const bal = s?.leaveBalance || {};
+    const defaultCasual = getLeaveTypeAllowance('cl') || getLeaveTypeAllowance('casual') || 10;
+    const defaultSick = getLeaveTypeAllowance('sl') || getLeaveTypeAllowance('sick') || 10;
+    const defaultEarned = getLeaveTypeAllowance('pl') || getLeaveTypeAllowance('el') || getLeaveTypeAllowance('earned') || getLeaveTypeAllowance('paid') || 15;
+
+    const used = getEmployeeApprovedUsedLeaves(s?.id, s?.empId);
+
+    // Initial default or API balance
+    let casual = bal.casual !== undefined ? bal.casual : Math.max(0, defaultCasual - used.casual);
+    let sick = bal.sick !== undefined ? bal.sick : Math.max(0, defaultSick - used.sick);
+    let earned = bal.paid !== undefined ? bal.paid : Math.max(0, defaultEarned - used.earned);
+
+    // Reconcile other approved leaves (e.g. maternity/paternity) so total remaining + total used = total allowance
+    const totalAllowance = defaultCasual + defaultSick + defaultEarned;
+    const currentSum = casual + sick + earned;
+    if (used.other > 0 && currentSum + used.total > totalAllowance) {
+      const excess = (currentSum + used.total) - totalAllowance;
+      casual = Math.max(0, casual - excess);
+    }
+
+    return {
+      casual: Math.max(0, casual),
+      sick: Math.max(0, sick),
+      earned: Math.max(0, earned),
+      total: Math.max(0, casual) + Math.max(0, sick) + Math.max(0, earned)
+    };
   };
 
   // Aggregate total remaining leave balance for current active staff
   const totalBalance = staff.reduce((sum, s) => {
-    const bal = s.leaveBalance || { casual: 10, sick: 10, paid: 15 };
-    const used = getEmployeeApprovedUsedLeaves(s.id, s.empId);
-    const remCasual = Math.max(0, (bal.casual || 0) - used.casual);
-    const remSick = Math.max(0, (bal.sick || 0) - used.sick);
-    const remPaid = Math.max(0, (bal.paid || 0) - used.earned);
-    return sum + remCasual + remSick + remPaid;
+    const rem = getEmployeeRemainingBalances(s);
+    return sum + rem.total;
   }, 0);
 
   // Overlap date checker
@@ -489,8 +651,8 @@ export const LeaveManagementView: React.FC = () => {
   const [applyForm, setApplyForm] = useState({
     employeeId: '',
     leaveTypeId: '',
-    fromDate: new Date().toISOString().split('T')[0],
-    toDate: new Date().toISOString().split('T')[0],
+    fromDate: '',
+    toDate: '',
     isHalfDay: false,
     halfDayPeriod: 'First Half' as 'First Half' | 'Second Half',
     reason: '',
@@ -504,6 +666,7 @@ export const LeaveManagementView: React.FC = () => {
 
   const calculateDays = (from: string, to: string, half: boolean) => {
     if (half) return 0.5;
+    if (!from || !to) return 0;
     const start = new Date(from);
     const end = new Date(to);
     const diff = end.getTime() - start.getTime();
@@ -514,13 +677,12 @@ export const LeaveManagementView: React.FC = () => {
   const requestedDays = calculateDays(applyForm.fromDate, applyForm.toDate, applyForm.isHalfDay);
 
   const getAvailableBalance = (s: Staff, typeName: string) => {
-    const bal = s.leaveBalance || { casual: 10, sick: 10, paid: 15 };
-    const used = getEmployeeApprovedUsedLeaves(s.id, s.empId);
+    const rem = getEmployeeRemainingBalances(s);
     const name = typeName.toLowerCase();
-    if (name.includes('casual')) return Math.max(0, (bal.casual || 0) - used.casual);
-    if (name.includes('sick')) return Math.max(0, (bal.sick || 0) - used.sick);
-    if (name.includes('earned') || name.includes('paid')) return Math.max(0, (bal.paid || 0) - used.earned);
-    return 99; // Lost of pay or unlimited allowance
+    if (name.includes('casual') || name === 'cl') return rem.casual;
+    if (name.includes('sick') || name === 'sl') return rem.sick;
+    if (name.includes('earned') || name.includes('paid') || name === 'pl' || name === 'el') return rem.earned;
+    return getLeaveTypeAllowance(typeName) || 99; // Loss of pay or unlimited allowance
   };
 
   // Submit Leave application
@@ -532,31 +694,47 @@ export const LeaveManagementView: React.FC = () => {
       ? loggedUserStaffMember
       : (staff.find(s => s.id === applyForm.employeeId) || loggedUserStaffMember);
 
-    const lType = leaveTypes.find(t => t.id === applyForm.leaveTypeId) || activeLeaveTypes[0] || { id: 'LT-01', name: 'Casual Leave', isPaid: true };
+    const lType = activeLeaveTypes.find(t => t.id === applyForm.leaveTypeId)
+      || leaveTypes.find(t => t.id === applyForm.leaveTypeId)
+      || activeLeaveTypes.find(t => t.name.toLowerCase() === (applyForm.leaveTypeId || '').toLowerCase())
+      || (editingApplication ? { id: applyForm.leaveTypeId, name: editingApplication.leaveTypeName, isPaid: true } : null)
+      || activeLeaveTypes[0];
 
-    if (!employee || !applyForm.reason.trim()) {
+    if (!lType || !employee || !applyForm.reason.trim()) {
       addToast('warning', 'Missing Details', 'Please provide a reason for your leave request.');
       return;
     }
 
     const todayStr = new Date().toISOString().split('T')[0];
-    if (!editingApplication && applyForm.fromDate < todayStr) {
+    if (!editingApplication && applyForm.fromDate && applyForm.fromDate < todayStr) {
       addToast('error', 'Invalid Date', 'Leave cannot be requested for past dates.');
       return;
     }
 
-    if (applyForm.toDate < applyForm.fromDate) {
+    const effectiveToDate = applyForm.isHalfDay ? applyForm.fromDate : applyForm.toDate;
+
+    if (!applyForm.fromDate || !effectiveToDate) {
+      addToast('warning', 'Missing Dates', 'Please select both from and to dates.');
+      return;
+    }
+
+    if (effectiveToDate < applyForm.fromDate) {
       addToast('error', 'Invalid Date Range', 'End date cannot be earlier than start date.');
       return;
     }
 
-    if (hasOverlappingLeaves(employee.id, applyForm.fromDate, applyForm.toDate, editingApplication?.id)) {
+    if (hasOverlappingLeaves(employee.id, applyForm.fromDate, effectiveToDate, editingApplication?.id)) {
       addToast('error', 'Date Overlap', 'Leave has already been applied for the selected dates.');
       return;
     }
 
     const availableBal = getAvailableBalance(employee, lType.name);
     const empBranch = (employee as any).branch || (employee as any).branchId || selectedBranch || '';
+<<<<<<< HEAD
+=======
+
+    const effectiveDays = applyForm.isHalfDay ? 0.5 : calculateDays(applyForm.fromDate, effectiveToDate, false);
+>>>>>>> 2c7d0190f1106e317e9965ae947dc2f54d4d3f76
 
     const appData: Omit<LeaveApplication, 'id'> = {
       employeeId: employee.id,
@@ -570,22 +748,22 @@ export const LeaveManagementView: React.FC = () => {
       leaveTypeId: lType.id,
       leaveTypeName: lType.name,
       fromDate: applyForm.fromDate,
-      toDate: applyForm.toDate,
+      toDate: effectiveToDate,
       isHalfDay: applyForm.isHalfDay,
       halfDayPeriod: applyForm.isHalfDay ? applyForm.halfDayPeriod : undefined,
-      numberOfDays: requestedDays,
+      numberOfDays: effectiveDays,
       reason: applyForm.reason,
       attachments: applyForm.attachments,
-      status: 'Pending',
-      appliedDate: new Date().toISOString().split('T')[0]
+      status: editingApplication ? editingApplication.status : 'Pending',
+      appliedDate: editingApplication ? editingApplication.appliedDate : new Date().toISOString().split('T')[0]
     };
 
     // Balance validation
-    if (lType.isPaid && requestedDays > availableBal) {
+    if (lType.isPaid && effectiveDays > availableBal) {
       setLopWarning({
         show: true,
         available: availableBal,
-        requested: requestedDays,
+        requested: effectiveDays,
         appData
       });
       return;
@@ -631,8 +809,8 @@ export const LeaveManagementView: React.FC = () => {
     setApplyForm({
       employeeId: '',
       leaveTypeId: '',
-      fromDate: new Date().toISOString().split('T')[0],
-      toDate: new Date().toISOString().split('T')[0],
+      fromDate: '',
+      toDate: '',
       isHalfDay: false,
       halfDayPeriod: 'First Half',
       reason: '',
@@ -642,11 +820,40 @@ export const LeaveManagementView: React.FC = () => {
 
   const openEditApplication = (app: LeaveApplication) => {
     setEditingApplication(app);
+
+    // Resolve matching leave type from activeLeaveTypes using ID, numeric ID, name, or code
+    const appTypeIdStr = String(app.leaveTypeId || '').trim();
+    const appTypeIdDigits = appTypeIdStr.replace(/\D/g, '');
+    const appTypeName = (app.leaveTypeName || '').trim().toLowerCase();
+    const appTypeCode = ((app as any).leaveTypeCode || '').trim().toLowerCase();
+
+    const matchedType = activeLeaveTypes.find(t => {
+      const tIdStr = String(t.id).trim();
+      const tIdDigits = tIdStr.replace(/\D/g, '');
+      const tName = (t.name || '').trim().toLowerCase();
+      const tCode = (t.code || '').trim().toLowerCase();
+
+      // 1. Direct ID match
+      if (appTypeIdStr && tIdStr.toLowerCase() === appTypeIdStr.toLowerCase()) return true;
+      // 2. Exact Name match (e.g. "Sick Leave" === "Sick Leave")
+      if (appTypeName && tName === appTypeName) return true;
+      // 3. Exact Code match (e.g. "SL" === "SL")
+      if (appTypeCode && tCode === appTypeCode) return true;
+      // 4. Numeric ID match (e.g. "2" matches "LT-002" or vice-versa)
+      if (appTypeIdDigits && tIdDigits && appTypeIdDigits === tIdDigits) return true;
+      // 5. Partial/normalized name match (e.g. "sick" in "sick leave")
+      if (appTypeName && (tName.includes(appTypeName) || appTypeName.includes(tName))) return true;
+
+      return false;
+    });
+
+    const resolvedLeaveTypeId = matchedType ? matchedType.id : (app.leaveTypeId || app.leaveTypeName || (app as any).leaveType || '');
+
     setApplyForm({
       employeeId: app.employeeId,
-      leaveTypeId: app.leaveTypeId,
+      leaveTypeId: resolvedLeaveTypeId,
       fromDate: app.fromDate,
-      toDate: app.toDate,
+      toDate: app.toDate || '',
       isHalfDay: app.isHalfDay,
       halfDayPeriod: app.halfDayPeriod || 'First Half',
       reason: app.reason,
@@ -678,15 +885,83 @@ export const LeaveManagementView: React.FC = () => {
   const handleTypeSubmit = (e: React.SyntheticEvent) => {
     e.preventDefault();
     const data = new FormData(e.target as HTMLFormElement);
+    const rawName = (data.get('name') as string)?.trim();
+    const rawCode = (data.get('code') as string)?.trim();
+    const rawAllowance = data.get('annualAllowance');
+    const rawCarryForward = data.get('carryForward');
+    const rawMaxConsecutive = data.get('maxConsecutiveDays');
+    const rawRequiresAttachment = data.get('requiresAttachment');
+    const rawIsPaid = data.get('isPaid');
+    const rawStatus = data.get('status');
+
+    if (!rawName || !rawCode) {
+      addToast('warning', 'Missing Details', 'Please fill in Leave Name and Leave Code.');
+      return;
+    }
+
+    if (rawAllowance === '' || rawAllowance === null || /[^\d]/.test(String(rawAllowance).trim()) || isNaN(Number(rawAllowance))) {
+      setTypeFormErrors((prev) => ({
+        ...prev,
+        annualAllowance: 'Only numeric digits (0-9) are allowed.'
+      }));
+      addToast('warning', 'Invalid Input', 'Only numeric digits (0-9) are allowed for Annual Allowance.');
+      return;
+    }
+
+    const allowanceNum = Number(rawAllowance);
+    if (allowanceNum < 1 || allowanceNum > 365 || String(rawAllowance).trim().length > 3) {
+      setTypeFormErrors((prev) => ({
+        ...prev,
+        annualAllowance: 'Annual allowance must be between 1 and 365 days (maximum 3 digits).'
+      }));
+      addToast('warning', 'Invalid Allowance', 'Annual allowance must be between 1 and 365 days (maximum 3 digits).');
+      return;
+    }
+
+    if (rawMaxConsecutive !== '' && rawMaxConsecutive !== null) {
+      if (/[^\d]/.test(String(rawMaxConsecutive).trim())) {
+        setTypeFormErrors((prev) => ({
+          ...prev,
+          maxConsecutiveDays: 'Only numeric digits (0-9) are allowed.'
+        }));
+        addToast('warning', 'Invalid Input', 'Only numeric digits (0-9) are allowed for Max Consecutive Days.');
+        return;
+      }
+      const maxConsecutiveNum = Number(rawMaxConsecutive);
+      if (isNaN(maxConsecutiveNum) || maxConsecutiveNum < 0 || maxConsecutiveNum > 365 || String(rawMaxConsecutive).trim().length > 3) {
+        setTypeFormErrors((prev) => ({
+          ...prev,
+          maxConsecutiveDays: 'Max consecutive days must be between 0 and 365 days (maximum 3 digits).'
+        }));
+        addToast('warning', 'Invalid Consecutive Days', 'Max consecutive days must be between 0 and 365 days (maximum 3 digits).');
+        return;
+      }
+      if (allowanceNum > 0 && maxConsecutiveNum > allowanceNum) {
+        setTypeFormErrors((prev) => ({
+          ...prev,
+          maxConsecutiveDays: `Max consecutive days cannot exceed annual allowance (${allowanceNum} ${allowanceNum === 1 ? 'day' : 'days'}).`
+        }));
+        addToast('warning', 'Invalid Consecutive Days', `Max consecutive days cannot exceed annual allowance (${allowanceNum} ${allowanceNum === 1 ? 'day' : 'days'}).`);
+        return;
+      }
+    }
+
+    if (!rawCarryForward || !rawRequiresAttachment || !rawIsPaid || !rawStatus) {
+      addToast('warning', 'Selection Required', 'Please select all configuration options.');
+      return;
+    }
+
     const payload: Omit<LeaveType, 'id'> = {
-      name: data.get('name') as string,
-      code: data.get('code') as string,
-      annualAllowance: Number(data.get('annualAllowance')),
-      carryForward: data.get('carryForward') === 'true',
-      maxConsecutiveDays: Number(data.get('maxConsecutiveDays')),
-      requiresAttachment: data.get('requiresAttachment') === 'true',
-      isPaid: data.get('isPaid') === 'true',
-      status: data.get('status') as any
+      name: rawName,
+      code: rawCode.toUpperCase(),
+      annualAllowance: Number(rawAllowance),
+      maxDays: Number(rawAllowance),
+      carryForward: rawCarryForward === 'true',
+      maxConsecutiveDays: rawMaxConsecutive !== '' && rawMaxConsecutive !== null ? Number(rawMaxConsecutive) : 0,
+      requiresAttachment: rawRequiresAttachment === 'true',
+      requiresDocument: rawRequiresAttachment === 'true',
+      isPaid: rawIsPaid === 'true',
+      status: rawStatus as 'Active' | 'Inactive'
     };
 
     if (editingType) {
@@ -698,6 +973,16 @@ export const LeaveManagementView: React.FC = () => {
     }
     setIsTypeModalOpen(false);
     setEditingType(null);
+    setTypeFormErrors({});
+  };
+
+  const handleToggleLeaveTypeStatus = (t: any) => {
+    const newStatus: 'Active' | 'Inactive' = t.status === 'Active' ? 'Inactive' : 'Active';
+    updateLeaveType(t.id, {
+      ...t,
+      status: newStatus
+    });
+    addToast('success', 'Status Updated', `${t.name} is now ${newStatus}.`);
   };
 
   // Holiday Form Handlers
@@ -755,7 +1040,7 @@ export const LeaveManagementView: React.FC = () => {
       const address = schoolProfile?.address || 'Jain Sadguru Images Capital Park502B, Capital Pk Rd, VIP Hills, Madhapur, HITEC City, Hyderabad, Telangana 500081';
       const phone = schoolProfile?.phone || '+91 9123456789';
       const email = schoolProfile?.email || 'contact@pirnavschools.edu';
-      const academicYearStr = schoolProfile?.academicYear || '2026-2027';
+      const academicYearStr = schoolProfile?.academicYear || '';
 
       printWindow.document.write(`
         <html>
@@ -800,7 +1085,7 @@ export const LeaveManagementView: React.FC = () => {
               <div class="card"><div class="label">Department</div><div class="value">${app.department}</div></div>
               <div class="card"><div class="label">Designation</div><div class="value">${app.designation || 'Faculty Member'}</div></div>
               <div class="card"><div class="label">Leave Type</div><div class="value">${app.leaveTypeName}</div></div>
-              <div class="card"><div class="label">Leave Duration</div><div class="value">${app.numberOfDays} Day(s) (${app.fromDate} to ${app.toDate})</div></div>
+              <div class="card"><div class="label">Leave Duration</div><div class="value">${app.numberOfDays} ${Number(app.numberOfDays) === 1 ? 'Day' : 'Days'} (${app.fromDate} to ${app.toDate})</div></div>
               <div class="card"><div class="label">Applied Date</div><div class="value">${app.appliedDate}</div></div>
               <div class="card"><div class="label">Application Status</div><div class="value" style="color: ${app.status === 'Approved' ? '#16a34a' : (app.status === 'Pending' ? '#d97706' : '#dc2626')}">${app.status.toUpperCase()}</div></div>
             </div>
@@ -865,15 +1150,38 @@ export const LeaveManagementView: React.FC = () => {
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div className="glass-card p-4 rounded-2xl bg-white dark:bg-slate-900 border shadow-sm">
           <span className="text-[10px] uppercase font-bold text-brand-500">Approved Leaves</span>
-          <p className="text-lg font-black text-brand-600 mt-1">{approvedCount} Leaves</p>
+          <div className="flex items-baseline gap-2 mt-1">
+            <p className="text-lg font-black text-brand-600">
+              {approvedDays} {approvedDays === 1 ? 'Day' : 'Days'}
+            </p>
+            <span className="text-xs text-slate-400 font-semibold">
+              ({approvedCount} {approvedCount === 1 ? 'Application' : 'Applications'})
+            </span>
+          </div>
         </div>
         <div className="glass-card p-4 rounded-2xl bg-white dark:bg-slate-900 border shadow-sm">
           <span className="text-[10px] uppercase font-bold text-amber-500">Pending Approvals</span>
-          <p className="text-lg font-black text-amber-600 mt-1">{pendingCount} Applications</p>
+          <div className="flex items-baseline gap-2 mt-1">
+            <p className="text-lg font-black text-amber-600">
+              {pendingCount} {pendingCount === 1 ? 'Application' : 'Applications'}
+            </p>
+            {pendingDays > 0 && (
+              <span className="text-xs text-slate-400 font-semibold">
+                ({pendingDays} {pendingDays === 1 ? 'Day' : 'Days'})
+              </span>
+            )}
+          </div>
         </div>
         <div className="glass-card p-4 rounded-2xl bg-white dark:bg-slate-900 border shadow-sm">
           <span className="text-[10px] uppercase font-bold text-rose-500">Rejected / Cancelled</span>
-          <p className="text-lg font-black text-rose-600 mt-1">{rejectedCount} Leaves</p>
+          <div className="flex items-baseline gap-2 mt-1">
+            <p className="text-lg font-black text-rose-600">
+              {rejectedDays} {rejectedDays === 1 ? 'Day' : 'Days'}
+            </p>
+            <span className="text-xs text-slate-400 font-semibold">
+              ({rejectedCount} {rejectedCount === 1 ? 'Application' : 'Applications'})
+            </span>
+          </div>
         </div>
       </div>
 
@@ -926,16 +1234,41 @@ export const LeaveManagementView: React.FC = () => {
       {activeTab === 'applications' && (
         <div className="space-y-4">
           {/* Advanced Filter Header */}
-          <div className="glass-card p-4 rounded-2xl bg-white dark:bg-slate-900 border flex flex-col sm:flex-row items-center justify-between gap-3">
-            <div className="relative w-full sm:w-60">
-              <Search className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
-              <input
-                type="text"
-                placeholder="Search employee name..."
-                value={query}
-                onChange={e => setQuery(e.target.value)}
-                className="w-full pl-9 pr-4 py-2 text-xs rounded-xl bg-slate-50 border outline-none"
-              />
+          <div className="glass-card p-4 rounded-2xl bg-white dark:bg-slate-900 border flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+            <div className="w-full sm:w-64">
+              <div className="relative w-full">
+                <Search className={`w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 transition-colors ${searchError ? 'text-rose-500' : 'text-slate-400'}`} />
+                <input
+                  type="text"
+                  placeholder="Search employee name..."
+                  value={query}
+                  onChange={e => handleSearchChange(e.target.value)}
+                  className={`w-full pl-9 pr-8 py-2 text-xs rounded-xl bg-slate-50 dark:bg-slate-800 border outline-none transition-colors ${
+                    searchError
+                      ? 'border-rose-500 text-rose-700 dark:text-rose-300 focus:border-rose-500 focus:ring-1 focus:ring-rose-500'
+                      : 'border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:border-brand-500'
+                  }`}
+                />
+                {query && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setQuery('');
+                      setSearchError(undefined);
+                    }}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer"
+                    title="Clear search"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </div>
+              {searchError && (
+                <p className="text-[11px] font-bold text-rose-500 mt-1 flex items-center gap-1 animate-in fade-in">
+                  <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                  <span>{searchError}</span>
+                </p>
+              )}
             </div>
             
             <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
@@ -1004,7 +1337,7 @@ export const LeaveManagementView: React.FC = () => {
                   {(() => {
                     const baseApps = isSelfServiceStaff ? myApplications : campusApplications;
                     const filteredList = baseApps.filter(app => {
-                      const nameMatch = !query || app.employeeName.toLowerCase().includes(query.toLowerCase());
+                      const nameMatch = Boolean(searchError) || !query.trim() || app.employeeName.toLowerCase().includes(query.trim().toLowerCase());
                       const catMatch = filterCategory === 'All' || app.employeeCategory === filterCategory;
                       const statusMatch = filterStatus === 'All' || (app.status || '').toLowerCase() === filterStatus.toLowerCase();
                       const typeMatch = filterType === 'All' || app.leaveTypeName === filterType;
@@ -1012,6 +1345,9 @@ export const LeaveManagementView: React.FC = () => {
                     });
 
                     if (filteredList.length === 0) {
+                      if (searchError) {
+                        return null;
+                      }
                       return (
                         <tr>
                           <td colSpan={10} className="py-12 text-center text-slate-400 font-bold italic">
@@ -1034,7 +1370,7 @@ export const LeaveManagementView: React.FC = () => {
                         <td className="py-3.5 px-4 text-center whitespace-nowrap font-mono text-slate-700 dark:text-slate-300">
                           {app.fromDate} <span className="text-slate-400 font-sans mx-0.5">to</span> {app.toDate}
                         </td>
-                        <td className="py-3.5 px-4 font-bold text-slate-900 dark:text-white text-center whitespace-nowrap">{app.numberOfDays} Days</td>
+                        <td className="py-3.5 px-4 font-bold text-slate-900 dark:text-white text-center whitespace-nowrap">{app.numberOfDays} {Number(app.numberOfDays) === 1 ? 'Day' : 'Days'}</td>
                         <td className="py-3.5 px-4 text-center whitespace-nowrap font-mono text-slate-500">{app.appliedDate}</td>
                         <td className="py-3.5 px-4 text-center whitespace-nowrap">
                           <Badge variant={app.status === 'Approved' ? 'success' : (app.status === 'Pending' ? 'warning' : 'danger')}>
@@ -1094,13 +1430,20 @@ export const LeaveManagementView: React.FC = () => {
                     <h4 className="font-extrabold text-sm text-slate-900 dark:text-white">{t.name}</h4>
                     <span className="font-mono text-[10px] text-sky-600 font-bold uppercase">{t.code}</span>
                   </div>
-                  <Badge variant={t.status === 'Active' ? 'success' : 'neutral'}>{t.status}</Badge>
+                  <button
+                    type="button"
+                    onClick={() => handleToggleLeaveTypeStatus(t)}
+                    title={`Click to mark as ${t.status === 'Active' ? 'Inactive' : 'Active'}`}
+                    className="cursor-pointer transition-transform active:scale-95"
+                  >
+                    <Badge variant={t.status === 'Active' ? 'success' : 'danger'}>{t.status}</Badge>
+                  </button>
                 </div>
 
                 <div className="grid grid-cols-2 gap-2 text-[11px] pt-2 border-t">
-                  <div><span className="text-slate-400">Allowance:</span> <span className="font-bold text-slate-800">{t.annualAllowance} Days/yr</span></div>
+                  <div><span className="text-slate-400">Allowance:</span> <span className="font-bold text-slate-800">{t.annualAllowance} {Number(t.annualAllowance) === 1 ? 'Day' : 'Days'}/yr</span></div>
                   <div><span className="text-slate-400">Carry Forward:</span> <span className="font-bold text-slate-800">{t.carryForward ? 'Yes' : 'No'}</span></div>
-                  <div><span className="text-slate-400">Max Consecutive:</span> <span className="font-bold text-slate-800">{t.maxConsecutiveDays} Days</span></div>
+                  <div><span className="text-slate-400">Max Consecutive:</span> <span className="font-bold text-slate-800">{t.maxConsecutiveDays} {Number(t.maxConsecutiveDays) === 1 ? 'Day' : 'Days'}</span></div>
                   <div><span className="text-slate-400">Type:</span> <span className={`font-bold ${t.isPaid ? 'text-brand-600' : 'text-amber-600'}`}>{t.isPaid ? 'Paid' : 'Unpaid (LOP)'}</span></div>
                 </div>
 
@@ -1118,20 +1461,45 @@ export const LeaveManagementView: React.FC = () => {
       {activeTab === 'balance' && (
         <div className="space-y-4">
           {!isSelfServiceStaff && (
-            <div className="glass-card p-4 rounded-2xl bg-white dark:bg-slate-900 border flex flex-col sm:flex-row items-center justify-between gap-3">
-              <div className="relative w-full sm:w-60">
-                <Search className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
-                <input
-                  type="text"
-                  placeholder="Search by staff..."
-                  value={query}
-                  onChange={e => setQuery(e.target.value)}
-                  className="w-full pl-9 pr-4 py-2 text-xs rounded-xl bg-slate-50 border outline-none"
-                />
+            <div className="glass-card p-4 rounded-2xl bg-white dark:bg-slate-900 border flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+              <div className="w-full sm:w-64">
+                <div className="relative w-full">
+                  <Search className={`w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 transition-colors ${searchError ? 'text-rose-500' : 'text-slate-400'}`} />
+                  <input
+                    type="text"
+                    placeholder="Search by staff..."
+                    value={query}
+                    onChange={e => handleSearchChange(e.target.value)}
+                    className={`w-full pl-9 pr-8 py-2 text-xs rounded-xl bg-slate-50 dark:bg-slate-800 border outline-none transition-colors ${
+                      searchError
+                        ? 'border-rose-500 text-rose-700 dark:text-rose-300 focus:border-rose-500 focus:ring-1 focus:ring-rose-500'
+                        : 'border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:border-brand-500'
+                    }`}
+                  />
+                  {query && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setQuery('');
+                        setSearchError(undefined);
+                      }}
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer"
+                      title="Clear search"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                </div>
+                {searchError && (
+                  <p className="text-[11px] font-bold text-rose-500 mt-1 flex items-center gap-1 animate-in fade-in">
+                    <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                    <span>{searchError}</span>
+                  </p>
+                )}
               </div>
 
               <div className="flex items-center gap-2 w-full sm:w-auto">
-                <span className="text-xs text-slate-500 font-bold whitespace-nowrap">Filter By Category:</span>
+                {/* <span className="text-xs text-slate-500 font-bold whitespace-nowrap">Filter By Category:</span> */}
                 <div className="relative w-full sm:w-48">
                   <select
                     value={balanceCategoryFilter}
@@ -1163,12 +1531,8 @@ export const LeaveManagementView: React.FC = () => {
               </thead>
               <tbody className="divide-y font-medium text-slate-705 dark:text-slate-300">
                 {paginatedStaffForBalance.map((s, idx) => {
-                  const baseBal = s.leaveBalance || { casual: 10, sick: 10, paid: 15 };
+                  const rem = getEmployeeRemainingBalances(s);
                   const used = getEmployeeApprovedUsedLeaves(s.id, s.empId);
-                  const remCasual = Math.max(0, (baseBal.casual || 0) - used.casual);
-                  const remSick = Math.max(0, (baseBal.sick || 0) - used.sick);
-                  const remEarned = Math.max(0, (baseBal.paid || 0) - used.earned);
-                  const totalRemaining = remCasual + remSick + remEarned;
                   return (
                     <tr key={s.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50">
                       <td className="py-3 px-4 font-mono font-bold text-slate-500 text-center">{(balanceCurrentPage - 1) * balancePageSize + idx + 1}</td>
@@ -1176,11 +1540,11 @@ export const LeaveManagementView: React.FC = () => {
                         <p className="font-bold text-slate-800 dark:text-slate-100">{s.firstName} {s.lastName}</p>
                         <p className="text-[10px] text-slate-400">{s.designation} • {s.empId}</p>
                       </td>
-                      <td className="py-3 px-4 font-mono font-bold text-slate-700 dark:text-slate-300 text-center">{remCasual} Days</td>
-                      <td className="py-3 px-4 font-mono font-bold text-slate-700 dark:text-slate-300 text-center">{remSick} Days</td>
-                      <td className="py-3 px-4 font-mono font-bold text-slate-700 dark:text-slate-300 text-center">{remEarned} Days</td>
-                      <td className="py-3 px-4 font-mono font-bold text-slate-700 dark:text-slate-300 text-center">{used.total} Days</td>
-                      <td className="py-3 px-4 font-mono font-black text-brand-600 dark:text-brand-400 text-center">{totalRemaining} Days</td>
+                      <td className="py-3 px-4 font-mono font-bold text-slate-700 dark:text-slate-300 text-center">{rem.casual} {rem.casual === 1 ? 'Day' : 'Days'}</td>
+                      <td className="py-3 px-4 font-mono font-bold text-slate-700 dark:text-slate-300 text-center">{rem.sick} {rem.sick === 1 ? 'Day' : 'Days'}</td>
+                      <td className="py-3 px-4 font-mono font-bold text-slate-700 dark:text-slate-300 text-center">{rem.earned} {rem.earned === 1 ? 'Day' : 'Days'}</td>
+                      <td className="py-3 px-4 font-mono font-bold text-slate-700 dark:text-slate-300 text-center">{used.total} {used.total === 1 ? 'Day' : 'Days'}</td>
+                      <td className="py-3 px-4 font-mono font-black text-brand-600 dark:text-brand-400 text-center">{rem.total} {rem.total === 1 ? 'Day' : 'Days'}</td>
                     </tr>
                   );
                 })}
@@ -1237,7 +1601,14 @@ export const LeaveManagementView: React.FC = () => {
                         <td className="py-3 px-4 font-semibold text-sky-600 text-center">{app.leaveTypeName}</td>
                         <td className="py-3 px-4 text-center">{app.appliedDate}</td>
                         <td className="py-3 px-4 text-center">{app.fromDate} to {app.toDate}</td>
-                        <td className="py-3 px-4 font-bold text-slate-900 text-center">{app.numberOfDays || (app as any).daysCount || 1} Days</td>
+                        {(() => {
+                          const reqDays = Number(app.numberOfDays || (app as any).daysCount || 1);
+                          return (
+                            <td className="py-3 px-4 font-bold text-slate-900 text-center">
+                              {reqDays} {reqDays === 1 ? 'Day' : 'Days'}
+                            </td>
+                          );
+                        })()}
                         <td className="py-3 px-4 text-slate-500 italic max-w-xs truncate text-center">{app.reason}</td>
                         <td className="py-3 px-4 text-center">
                           <div className="flex items-center justify-center gap-1.5">
@@ -1372,20 +1743,21 @@ export const LeaveManagementView: React.FC = () => {
 
               {selectedStaffMember && (
                 (() => {
-                  const baseBal = selectedStaffMember.leaveBalance || { casual: 10, sick: 10, paid: 15 };
+                  const rem = getEmployeeRemainingBalances(selectedStaffMember);
                   const used = getEmployeeApprovedUsedLeaves(selectedStaffMember.id, selectedStaffMember.empId);
-                  const remCasual = Math.max(0, (baseBal.casual || 0) - used.casual);
-                  const remSick = Math.max(0, (baseBal.sick || 0) - used.sick);
-                  const remPaid = Math.max(0, (baseBal.paid || 0) - used.earned);
                   return (
                     <div className="p-2 bg-slate-50 dark:bg-slate-800/40 rounded-xl border border-slate-200 dark:border-slate-700 grid grid-cols-2 gap-x-3 gap-y-0.5 text-[10px]">
+<<<<<<< HEAD
                       <div><span className="text-slate-400">Branch:</span> <span className="font-bold">{(selectedStaffMember as any).branch || selectedBranch || ''}</span></div>
+=======
+                      <div><span className="text-slate-400">Branch:</span> <span className="font-bold">{(selectedStaffMember as any).branch || '—'}</span></div>
+>>>>>>> 2c7d0190f1106e317e9965ae947dc2f54d4d3f76
                       <div><span className="text-slate-400">Department:</span> <span className="font-bold">{selectedStaffMember.department}</span></div>
                       <div><span className="text-slate-400">Designation:</span> <span className="font-bold">{selectedStaffMember.designation}</span></div>
                       <div className="col-span-2 pt-1 mt-0.5 border-t border-slate-200 dark:border-slate-700 text-brand-700 dark:text-brand-400 font-bold flex gap-3">
-                        <span>Casual: {remCasual}</span>
-                        <span>Sick: {remSick}</span>
-                        <span>Paid: {remPaid}</span>
+                        <span>Casual: {rem.casual}</span>
+                        <span>Sick: {rem.sick}</span>
+                        <span>Paid: {rem.earned}</span>
                         <span className="text-slate-500">Used: {used.total}</span>
                       </div>
                     </div>
@@ -1407,6 +1779,11 @@ export const LeaveManagementView: React.FC = () => {
                   >
                     <option value="">Select Leave Type</option>
                     {activeLeaveTypes.map(t => <option key={t.id} value={t.id}>{t.name} ({t.code})</option>)}
+                    {applyForm.leaveTypeId && !activeLeaveTypes.some(t => t.id === applyForm.leaveTypeId) && (
+                      <option value={applyForm.leaveTypeId}>
+                        {editingApplication?.leaveTypeName || applyForm.leaveTypeId}
+                      </option>
+                    )}
                   </select>
                 </div>
 
@@ -1421,11 +1798,11 @@ export const LeaveManagementView: React.FC = () => {
                         checked={applyForm.isHalfDay}
                         onChange={e => {
                           const checked = e.target.checked;
-                          setApplyForm({
-                            ...applyForm,
+                          setApplyForm(prev => ({
+                            ...prev,
                             isHalfDay: checked,
-                            toDate: checked ? applyForm.fromDate : applyForm.toDate
-                          });
+                            toDate: checked ? prev.fromDate : prev.toDate
+                          }));
                         }}
                         className="rounded text-brand-600"
                       />
@@ -1435,7 +1812,7 @@ export const LeaveManagementView: React.FC = () => {
                     {applyForm.isHalfDay && (
                       <select
                         value={applyForm.halfDayPeriod}
-                        onChange={e => setApplyForm({ ...applyForm, halfDayPeriod: e.target.value as any })}
+                        onChange={e => setApplyForm(prev => ({ ...prev, halfDayPeriod: e.target.value as any }))}
                         className="px-2 py-0.5 text-[10px] rounded bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 cursor-pointer outline-none font-bold"
                       >
                         <option value="First Half">First Half</option>
@@ -1462,7 +1839,9 @@ export const LeaveManagementView: React.FC = () => {
                       setApplyForm(prev => ({
                         ...prev,
                         fromDate: newFrom,
-                        toDate: prev.toDate < newFrom ? newFrom : prev.toDate
+                        toDate: prev.isHalfDay
+                          ? newFrom
+                          : (prev.toDate && prev.toDate < newFrom ? newFrom : prev.toDate)
                       }));
                     }}
                     className="w-full px-2.5 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 outline-none text-xs"
@@ -1474,11 +1853,11 @@ export const LeaveManagementView: React.FC = () => {
                   </label>
                   <input
                     type="date"
-                    required
+                    required={!applyForm.isHalfDay}
                     min={applyForm.fromDate || new Date().toISOString().split('T')[0]}
                     value={applyForm.toDate}
                     disabled={applyForm.isHalfDay}
-                    onChange={e => setApplyForm({ ...applyForm, toDate: e.target.value })}
+                    onChange={e => setApplyForm(prev => ({ ...prev, toDate: e.target.value }))}
                     className="w-full px-2.5 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 outline-none text-xs disabled:bg-slate-100 dark:disabled:bg-slate-800/40 disabled:cursor-not-allowed"
                   />
                 </div>
@@ -1501,7 +1880,7 @@ export const LeaveManagementView: React.FC = () => {
               {/* Submissions Footer */}
               <div className="flex items-center justify-between pt-2 border-t border-slate-100 dark:border-slate-800">
                 <span className="font-bold text-slate-900 dark:text-white text-[11px]">
-                  Total duration: <span className="text-sky-600 font-extrabold">{requestedDays} Days</span>
+                  Total duration: <span className="text-sky-600 font-extrabold">{requestedDays} {requestedDays === 1 ? 'Day' : 'Days'}</span>
                 </span>
                 <div className="flex gap-2">
                   <button type="button" onClick={() => setIsApplyOpen(false)} className="px-3.5 py-1.5 font-bold bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-lg text-xs transition-colors">Cancel</button>
@@ -1529,8 +1908,8 @@ export const LeaveManagementView: React.FC = () => {
             <div>
               <h3 className="text-base font-bold text-slate-900 dark:text-white">Leave Balance Exceeded</h3>
               <div className="text-xs text-slate-500 mt-2 space-y-1">
-                <p>Available Balance: <strong className="text-slate-800">{lopWarning.available} Days</strong></p>
-                <p>Requested Leave: <strong className="text-slate-800">{lopWarning.requested} Days</strong></p>
+                <p>Available Balance: <strong className="text-slate-800">{lopWarning.available} {lopWarning.available === 1 ? 'Day' : 'Days'}</strong></p>
+                <p>Requested Leave: <strong className="text-slate-800">{lopWarning.requested} {lopWarning.requested === 1 ? 'Day' : 'Days'}</strong></p>
                 <p className="pt-2 text-rose-600">Would you like to file the excess request as **Loss of Pay (LOP)** unpaid leave?</p>
               </div>
             </div>
@@ -1568,7 +1947,9 @@ export const LeaveManagementView: React.FC = () => {
             
             <form onSubmit={handleApprovalSubmit} className="space-y-3.5">
               <div>
-                <label className="block text-xs font-semibold mb-1 text-slate-700">Approver Remarks / Reason {queueActionType === 'Rejected' && '*'}</label>
+                <label className="block text-xs font-semibold mb-1 text-slate-700">
+                  Approver Remarks / Reason {queueActionType === 'Rejected' && <span className="text-rose-500 font-bold ml-0.5">*</span>}
+                </label>
                 <textarea
                   required={queueActionType === 'Rejected'}
                   placeholder="Provide comments or reason for rejection/approval..."
@@ -1656,7 +2037,7 @@ export const LeaveManagementView: React.FC = () => {
                 </div>
                 <div>
                   <span className="text-[10px] uppercase font-bold text-slate-400">Total Duration</span>
-                  <p className="font-black text-slate-900 dark:text-white mt-0.5">{viewingApplication.numberOfDays} Day(s) {viewingApplication.isHalfDay ? `(Half Day - ${viewingApplication.halfDayPeriod})` : ''}</p>
+                  <p className="font-black text-slate-900 dark:text-white mt-0.5">{viewingApplication.numberOfDays} {Number(viewingApplication.numberOfDays) === 1 ? 'Day' : 'Days'} {viewingApplication.isHalfDay ? `(Half Day - ${viewingApplication.halfDayPeriod})` : ''}</p>
                 </div>
               </div>
 
@@ -1703,48 +2084,206 @@ export const LeaveManagementView: React.FC = () => {
       {isTypeModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm animate-in fade-in">
           <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-sm w-full p-6 shadow-2xl space-y-4">
-            <h3 className="text-base font-bold">{editingType ? 'Edit Leave Type' : 'Configure Leave Type'}</h3>
-            <form onSubmit={handleTypeSubmit} className="space-y-3.5 text-xs">
+            <div className="flex items-center justify-between">
+              <h3 className="text-base font-bold text-slate-900 dark:text-white">
+                {editingType ? 'Edit Leave Type' : 'Configure Leave Type'}
+              </h3>
+              <button 
+                type="button" 
+                onClick={() => { setIsTypeModalOpen(false); setEditingType(null); setTypeFormErrors({}); }}
+                className="p-1 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <form key={editingType ? editingType.id : 'new'} onSubmit={handleTypeSubmit} className="space-y-3.5 text-xs">
               <div>
-                <label className="block font-semibold mb-1">Leave Name <span className="text-rose-500 font-bold ml-0.5">*</span></label>
-                <input type="text" name="name" required defaultValue={editingType?.name || ''} className="w-full px-3 py-2 rounded-xl bg-slate-50 border outline-none" />
+                <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">
+                  Leave Name <span className="text-rose-500 font-bold ml-0.5">*</span>
+                </label>
+                <input 
+                  type="text" 
+                  name="name" 
+                  required 
+                  placeholder="e.g. Casual Leave"
+                  defaultValue={editingType?.name || ''} 
+                  className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 outline-none text-slate-800 dark:text-slate-100" 
+                />
               </div>
+
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-semibold mb-1">Leave Code <span className="text-rose-500 font-bold ml-0.5">*</span></label>
-                  <input type="text" name="code" placeholder="e.g. CL" required defaultValue={editingType?.code || ''} className="w-full px-3 py-2 rounded-xl bg-slate-50 border outline-none font-mono" />
+                  <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">
+                    Leave Code <span className="text-rose-500 font-bold ml-0.5">*</span>
+                  </label>
+                  <input 
+                    type="text" 
+                    name="code" 
+                    placeholder="e.g. CL" 
+                    required 
+                    defaultValue={editingType?.code || ''} 
+                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 outline-none font-mono uppercase text-slate-800 dark:text-slate-100" 
+                  />
                 </div>
                 <div>
-                  <label className="block font-semibold mb-1">Annual Allowance (Days) <span className="text-rose-500 font-bold ml-0.5">*</span></label>
-                  <input type="number" name="annualAllowance" required defaultValue={editingType?.annualAllowance || 10} className="w-full px-3 py-2 rounded-xl bg-slate-50 border outline-none" />
+                  <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">
+                    Annual Allowance (Days) <span className="text-rose-500 font-bold ml-0.5">*</span>
+                  </label>
+                  <input 
+                    type="text"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
+                    name="annualAllowance" 
+                    placeholder="e.g. 10" 
+                    required 
+                    maxLength={3}
+                    value={allowanceVal}
+                    onChange={(e) => handleAllowanceChange(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (
+                        ['Backspace', 'Delete', 'Tab', 'Escape', 'Enter', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End'].includes(e.key) ||
+                        (e.ctrlKey || e.metaKey)
+                      ) {
+                        return;
+                      }
+                      if (!/^[0-9]$/.test(e.key)) {
+                        e.preventDefault();
+                        setTypeFormErrors((prev) => ({
+                          ...prev,
+                          annualAllowance: 'Only numeric digits (0-9) are allowed.'
+                        }));
+                        return;
+                      }
+                      const input = e.currentTarget;
+                      const selLen = (input.selectionEnd ?? 0) - (input.selectionStart ?? 0);
+                      if (allowanceVal.length >= 3 && selLen === 0) {
+                        e.preventDefault();
+                        setTypeFormErrors((prev) => ({
+                          ...prev,
+                          annualAllowance: 'Annual allowance cannot exceed 3 digits (maximum 365 days).'
+                        }));
+                      }
+                    }}
+                    onPaste={(e) => {
+                      e.preventDefault();
+                      handleAllowanceChange(e.clipboardData.getData('text'));
+                    }}
+                    className={`w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border ${
+                      typeFormErrors.annualAllowance
+                        ? 'border-rose-500 focus:border-rose-500 ring-1 ring-rose-500/20'
+                        : 'border-slate-200 dark:border-slate-700'
+                    } outline-none text-slate-800 dark:text-slate-100 transition-colors`} 
+                  />
+                  {typeFormErrors.annualAllowance && (
+                    <p className="text-[10px] text-rose-500 font-bold mt-1 flex items-center gap-1">
+                      <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                      {typeFormErrors.annualAllowance}
+                    </p>
+                  )}
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-semibold mb-1">Carry Forward</label>
-                  <select name="carryForward" defaultValue={String(editingType?.carryForward || false)} className="w-full px-3 py-2 rounded-xl bg-slate-50 border outline-none cursor-pointer">
+                  <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">
+                    Carry Forward <span className="text-rose-500 font-bold ml-0.5">*</span>
+                  </label>
+                  <select 
+                    name="carryForward" 
+                    required
+                    defaultValue={editingType ? String(editingType.carryForward ?? false) : ''} 
+                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 outline-none cursor-pointer text-slate-800 dark:text-slate-100"
+                  >
+                    <option value="" disabled>Select Option</option>
                     <option value="true">Yes</option>
                     <option value="false">No</option>
                   </select>
                 </div>
                 <div>
-                  <label className="block font-semibold mb-1">Max Consecutive Days</label>
-                  <input type="number" name="maxConsecutiveDays" defaultValue={editingType?.maxConsecutiveDays || 5} className="w-full px-3 py-2 rounded-xl bg-slate-50 border outline-none" />
+                  <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">
+                    Max Consecutive Days
+                  </label>
+                  <input 
+                    type="text" 
+                    inputMode="numeric"
+                    pattern="[0-9]*"
+                    name="maxConsecutiveDays" 
+                    placeholder="e.g. 5"
+                    maxLength={3}
+                    value={consecutiveVal}
+                    onChange={(e) => handleConsecutiveChange(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (
+                        ['Backspace', 'Delete', 'Tab', 'Escape', 'Enter', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End'].includes(e.key) ||
+                        (e.ctrlKey || e.metaKey)
+                      ) {
+                        return;
+                      }
+                      if (!/^[0-9]$/.test(e.key)) {
+                        e.preventDefault();
+                        setTypeFormErrors((prev) => ({
+                          ...prev,
+                          maxConsecutiveDays: 'Only numeric digits (0-9) are allowed.'
+                        }));
+                        return;
+                      }
+                      const input = e.currentTarget;
+                      const selLen = (input.selectionEnd ?? 0) - (input.selectionStart ?? 0);
+                      if (consecutiveVal.length >= 3 && selLen === 0) {
+                        e.preventDefault();
+                        setTypeFormErrors((prev) => ({
+                          ...prev,
+                          maxConsecutiveDays: 'Max consecutive days cannot exceed 3 digits (maximum 365 days).'
+                        }));
+                      }
+                    }}
+                    onPaste={(e) => {
+                      e.preventDefault();
+                      handleConsecutiveChange(e.clipboardData.getData('text'));
+                    }}
+                    className={`w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border ${
+                      typeFormErrors.maxConsecutiveDays
+                        ? 'border-rose-500 focus:border-rose-500 ring-1 ring-rose-500/20'
+                        : 'border-slate-200 dark:border-slate-700'
+                    } outline-none text-slate-800 dark:text-slate-100 transition-colors`} 
+                  />
+                  {typeFormErrors.maxConsecutiveDays && (
+                    <p className="text-[10px] text-rose-500 font-bold mt-1 flex items-center gap-1">
+                      <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                      {typeFormErrors.maxConsecutiveDays}
+                    </p>
+                  )}
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-semibold mb-1">Requires Attachment</label>
-                  <select name="requiresAttachment" defaultValue={String(editingType?.requiresAttachment || false)} className="w-full px-3 py-2 rounded-xl bg-slate-50 border outline-none cursor-pointer">
+                  <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">
+                    Requires Attachment <span className="text-rose-500 font-bold ml-0.5">*</span>
+                  </label>
+                  <select 
+                    name="requiresAttachment" 
+                    required
+                    defaultValue={editingType ? String(editingType.requiresAttachment ?? editingType.requiresDocument ?? false) : ''} 
+                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 outline-none cursor-pointer text-slate-800 dark:text-slate-100"
+                  >
+                    <option value="" disabled>Select Option</option>
                     <option value="true">Yes</option>
                     <option value="false">No</option>
                   </select>
                 </div>
                 <div>
-                  <label className="block font-semibold mb-1">Is Paid Leave</label>
-                  <select name="isPaid" defaultValue={String(editingType?.isPaid || true)} className="w-full px-3 py-2 rounded-xl bg-slate-50 border outline-none cursor-pointer">
+                  <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">
+                    Is Paid Leave <span className="text-rose-500 font-bold ml-0.5">*</span>
+                  </label>
+                  <select 
+                    name="isPaid" 
+                    required
+                    defaultValue={editingType ? String(editingType.isPaid ?? true) : ''} 
+                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 outline-none cursor-pointer text-slate-800 dark:text-slate-100"
+                  >
+                    <option value="" disabled>Select Option</option>
                     <option value="true">Paid</option>
                     <option value="false">Unpaid (LOP)</option>
                   </select>
@@ -1752,16 +2291,35 @@ export const LeaveManagementView: React.FC = () => {
               </div>
 
               <div>
-                <label className="block font-semibold mb-1">Status</label>
-                <select name="status" defaultValue={editingType?.status || 'Active'} className="w-full px-3 py-2 rounded-xl bg-slate-50 border outline-none cursor-pointer">
+                <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">
+                  Status <span className="text-rose-500 font-bold ml-0.5">*</span>
+                </label>
+                <select 
+                  name="status" 
+                  required
+                  defaultValue={editingType?.status || ''} 
+                  className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 outline-none cursor-pointer text-slate-800 dark:text-slate-100"
+                >
+                  <option value="" disabled>Select Option</option>
                   <option value="Active">Active</option>
                   <option value="Inactive">Inactive</option>
                 </select>
               </div>
 
               <div className="flex items-center justify-end gap-2 pt-4">
-                <button type="button" onClick={() => setIsTypeModalOpen(false)} className="px-4 py-2 font-semibold bg-slate-100 rounded-xl">Cancel</button>
-                <button type="submit" className="px-5 py-2 font-bold text-white bg-brand-600 rounded-xl">Save Configuration</button>
+                <button 
+                  type="button" 
+                  onClick={() => { setIsTypeModalOpen(false); setEditingType(null); setTypeFormErrors({}); }} 
+                  className="px-4 py-2 font-semibold bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-xl transition-colors"
+                >
+                  Cancel
+                </button>
+                <button 
+                  type="submit" 
+                  className="px-5 py-2 font-bold text-white bg-brand-600 hover:bg-brand-700 rounded-xl shadow-sm transition-colors"
+                >
+                  Save Configuration
+                </button>
               </div>
             </form>
           </div>
@@ -1792,7 +2350,8 @@ export const LeaveManagementView: React.FC = () => {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block font-semibold mb-1">Holiday Type <span className="text-rose-500 font-bold ml-0.5">*</span></label>
-                  <select name="type" defaultValue={editingHoliday?.type || 'School'} className="w-full px-3 py-2 rounded-xl bg-slate-50 border outline-none cursor-pointer">
+                  <select name="type" required defaultValue={editingHoliday?.type || ''} className="w-full px-3 py-2 rounded-xl bg-slate-50 border outline-none cursor-pointer">
+                    <option value="" disabled>Select Option</option>
                     <option value="National">National Holiday</option>
                     <option value="School">School Holiday</option>
                     <option value="Festival">Festival Holiday</option>
@@ -1801,7 +2360,11 @@ export const LeaveManagementView: React.FC = () => {
                 </div>
                 <div>
                   <label className="block font-semibold mb-1">Applicable Branch</label>
+<<<<<<< HEAD
                   <input type="text" name="branch" placeholder="Enter Branch" defaultValue={editingHoliday?.branch || ''} className="w-full px-3 py-2 rounded-xl bg-slate-50 border outline-none" />
+=======
+                  <input type="text" name="branch" placeholder="e.g. Branch Name" defaultValue={editingHoliday?.branch || ''} className="w-full px-3 py-2 rounded-xl bg-slate-50 border outline-none" />
+>>>>>>> 2c7d0190f1106e317e9965ae947dc2f54d4d3f76
                 </div>
               </div>
 

@@ -33,13 +33,10 @@ export class ErrorBoundary extends Component<Props, State> {
     try {
       const authUser = localStorage.getItem("auth_user");
       const authToken = localStorage.getItem("auth_token") || localStorage.getItem("sms_auth_token");
-      const activeYear = localStorage.getItem("academic_year") || localStorage.getItem("selected_academic_year");
-
       localStorage.clear();
 
       if (authUser) localStorage.setItem("auth_user", authUser);
       if (authToken) localStorage.setItem("auth_token", authToken);
-      if (activeYear) localStorage.setItem("academic_year", activeYear);
     } catch {}
     window.location.reload();
   };

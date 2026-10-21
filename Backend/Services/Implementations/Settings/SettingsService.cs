@@ -565,6 +565,20 @@ namespace SMS.Api.Services.Implementations.Settings
 
             string nextId = BuildFormattedId(prefix, nextNumber, padding, includeYear, separator, position);
 
+            if (normType.Contains("teach") || normType == "staff")
+            {
+                var existingStaffIds = await _context.Staff
+                    .Where(s => s.EmployeeId != null)
+                    .Select(s => s.EmployeeId!)
+                    .ToListAsync();
+                var set = new HashSet<string>(existingStaffIds, StringComparer.OrdinalIgnoreCase);
+                while (set.Contains(nextId))
+                {
+                    nextNumber++;
+                    nextId = BuildFormattedId(prefix, nextNumber, padding, includeYear, separator, position);
+                }
+            }
+
             return new GeneratedIdResponseDto
             {
                 FormatType = normType,

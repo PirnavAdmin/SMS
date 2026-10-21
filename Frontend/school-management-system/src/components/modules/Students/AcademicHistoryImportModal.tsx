@@ -87,7 +87,11 @@ export const AcademicHistoryImportModal: React.FC<AcademicHistoryImportModalProp
           'Section': 'A',
           'Roll No': '1001',
           'Class Teacher': 'Rajesh Sharma',
+<<<<<<< HEAD
           'Branch': defaultBranchName,
+=======
+          'Branch': '',
+>>>>>>> 2c7d0190f1106e317e9965ae947dc2f54d4d3f76
           'Status': 'Promoted',
           'Remarks': 'Promoted to Next Class'
         },
@@ -98,7 +102,11 @@ export const AcademicHistoryImportModal: React.FC<AcademicHistoryImportModalProp
           'Section': 'B',
           'Roll No': '1002',
           'Class Teacher': 'Anita Verma',
+<<<<<<< HEAD
           'Branch': defaultBranchName,
+=======
+          'Branch': '',
+>>>>>>> 2c7d0190f1106e317e9965ae947dc2f54d4d3f76
           'Status': 'Retained',
           'Remarks': 'Retained in Class 5'
         }
@@ -430,7 +438,11 @@ export const AcademicHistoryImportModal: React.FC<AcademicHistoryImportModalProp
             className: v.className,
             section: v.section,
             rollNo: v.rollNo,
+<<<<<<< HEAD
             branch: v.branch || targetStudent.branch || defaultBranchName || '',
+=======
+            branch: v.branch || targetStudent.branch || '',
+>>>>>>> 2c7d0190f1106e317e9965ae947dc2f54d4d3f76
             status: v.status as AcademicYearStatus,
             promotionStatus: v.status,
             remarks: v.remarks || 'Imported via Excel Import',

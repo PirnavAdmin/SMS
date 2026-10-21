@@ -62,7 +62,14 @@ export const StaffRegistrationPage: React.FC<StaffRegistrationPageProps> = ({ on
 
   useEffect(() => {
     const initCat = getInitialCategory();
-    setForm(prev => (prev.empId ? prev : { ...prev, empId: getNextEmployeeId(staff, initCat) }));
+    setForm(prev => {
+      const trimmed = (prev.empId || '').toLowerCase().trim();
+      const isColliding = trimmed && staff.some(s => String(s.empId || (s as any).employeeId || '').toLowerCase().trim() === trimmed);
+      if (!prev.empId || isColliding) {
+        return { ...prev, empId: getNextEmployeeId(staff, initCat) };
+      }
+      return prev;
+    });
   }, [staff]);
 
   const handleChange = (field: keyof BasicStaffFormState, value: any) => {
@@ -138,9 +145,17 @@ export const StaffRegistrationPage: React.FC<StaffRegistrationPageProps> = ({ on
       nextErrors.email = 'Invalid email format.';
     }
 
-    // Duplicate Staff ID Check
-    if (form.empId && staff.some(s => s.empId && s.empId.toLowerCase() === form.empId.toLowerCase())) {
-      nextErrors.empId = 'Staff ID already exists.';
+    // Duplicate Employee ID Check
+    require('empId', !!form.empId?.trim(), 'Employee ID is required.');
+    if (form.empId?.trim()) {
+      const trimmedEmpId = form.empId.trim().toLowerCase();
+      const isDuplicate = staff.some(s => {
+        const sEmpId = String(s.empId || (s as any).employeeId || '').toLowerCase().trim();
+        return sEmpId === trimmedEmpId;
+      });
+      if (isDuplicate) {
+        nextErrors.empId = 'Employee ID already exists. Please use a unique Employee ID.';
+      }
     }
 
     // Duplicate Email Check
@@ -263,7 +278,7 @@ export const StaffRegistrationPage: React.FC<StaffRegistrationPageProps> = ({ on
           errors={errors}
           onChange={handleChange}
           onCategoryChange={handleCategoryChange}
-          employeeIdReadOnly
+          employeeIdReadOnly={false}
           isSubmitting={submitting}
         />
       </form>

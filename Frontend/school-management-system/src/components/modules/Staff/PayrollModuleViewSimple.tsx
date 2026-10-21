@@ -2,6 +2,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { ConfirmModal } from '../../common/ConfirmModal';
 import {
+  AlertCircle,
   AlertTriangle,
   BadgeIndianRupee,
   Building2,
@@ -32,6 +33,8 @@ import { ExportButton } from '../../common/ExportButton';
 import { Pagination } from '../../common/Pagination';
 import { formatCurrency } from '../../../utils/currency';
 import { exportToExcel } from '../../../utils/excelExport';
+import { numberToWords } from '../../../utils/numberToWords';
+import { resolveMediaUrl } from '../../../utils/mediaUtils';
 import { useData } from '../../../context/DataContext';
 import { useToast } from '../../../context/ToastContext';
 import {
@@ -53,7 +56,7 @@ interface PayrollModuleViewProps {
   onTabChange?: (tab: string) => void;
 }
 
-type CategoryValue = 'Teacher' | 'Staff';
+type CategoryValue = 'Teacher' | 'Staff' | '';
 
 type StructureDraft = {
   id?: string;
@@ -67,7 +70,7 @@ type StructureDraft = {
   hraPercentage: string;
   status: 'Active' | 'Inactive';
   effectiveDate: string;
-  payrollFrequency: 'Monthly' | 'Weekly' | 'Bi-Weekly' | 'Hourly' | 'Daily' | 'Per Class' | 'Contractual';
+  payrollFrequency: 'Monthly' | 'Weekly' | 'Bi-Weekly' | 'Hourly' | 'Daily' | 'Per Class' | 'Contractual' | '';
   salaryPaymentDay: string;
   pfApplicable: boolean;
   pfPercentage: string;
@@ -203,7 +206,7 @@ const SelectField: React.FC<{
 
 const normalize = (value: string) => value.toLowerCase().replace(/[^a-z0-9]+/g, '');
 
-const getCategoryLabel = (category?: CategoryValue | null) => (category === 'Teacher' ? 'Teaching Staff' : 'Non-Teaching Staff');
+const getCategoryLabel = (category?: CategoryValue | null) => (!category ? '' : category === 'Teacher' ? 'Teaching Staff' : 'Non-Teaching Staff');
 
 const resolveCategory = (staff: Staff): CategoryValue => {
   if (staff.employeeCategory) return staff.employeeCategory;
@@ -325,15 +328,19 @@ const getStructureBreakdown = (
 
 const splitMonthYear = (monthLabel?: string) => {
   if (!monthLabel) return { month: 'N/A', year: 'N/A' };
-  const match = monthLabel.match(/^(.*?)(?:\s+(\d{4}))?$/);
-  if (!match) return { month: monthLabel, year: 'N/A' };
-  return {
-    month: match[1] || monthLabel,
-    year: match[2] || 'N/A'
-  };
+  const ym = monthLabel.match(/\b(19|20\d\d)\b/g);
+  const year = ym ? ym[0] : 'N/A';
+  const month = monthLabel.replace(/\b(19|20\d\d)\b/g, '').trim() || 'N/A';
+  return { month, year };
 };
 
-const periodLabel = (month: string, year: string) => `${month} ${year}`.trim();
+const periodLabel = (month: string, year: string) => {
+  const cleanMonth = (month || '').replace(/\b(19|20\d\d)\b/g, '').trim();
+  const cleanYear = (year || '').trim();
+  if (!cleanYear || cleanYear === 'N/A') return cleanMonth;
+  if (!cleanMonth || cleanMonth === 'N/A') return cleanYear;
+  return `${cleanMonth} ${cleanYear}`;
+};
 
 const todayString = () => new Date().toISOString().split('T')[0];
 
@@ -624,7 +631,7 @@ const defaultEffectiveDate = '';
 
 const structureDraftDefaults: StructureDraft = {
   structureName: '',
-  employeeCategory: 'Teacher',
+  employeeCategory: '',
   staffId: '',
   department: '',
   designation: '',
@@ -632,7 +639,7 @@ const structureDraftDefaults: StructureDraft = {
   hraPercentage: '40',
   status: 'Active',
   effectiveDate: defaultEffectiveDate,
-  payrollFrequency: 'Monthly',
+  payrollFrequency: '',
   salaryPaymentDay: '5',
   pfApplicable: true,
   pfPercentage: '12',
@@ -660,6 +667,34 @@ const structureDraftDefaults: StructureDraft = {
 
 const parseMoney = (value: string) => Number(value) || 0;
 
+const validateAnnualCtc = (val: string | undefined | null): string | null => {
+  if (val === undefined || val === null) return null;
+  const trimmed = String(val).trim();
+  if (trimmed === '') return null;
+
+  if (trimmed.includes('e') || trimmed.includes('E') || trimmed.includes('+')) {
+    return 'Invalid number format. Scientific / exponential notation is not allowed.';
+  }
+
+  const num = Number(trimmed);
+  if (isNaN(num)) {
+    return 'Please enter a valid numeric amount for Annual CTC.';
+  }
+  if (num < 0) {
+    return 'Annual CTC cannot be negative.';
+  }
+  if (num === 0) {
+    return 'Annual CTC must be greater than zero.';
+  }
+  if (!isFinite(num) || num > 100000000) {
+    return 'Annual CTC cannot exceed ₹10,00,00,000 (10 Crores).';
+  }
+  if (num < 1000) {
+    return 'Annual CTC is too low. Please enter a realistic annual salary.';
+  }
+  return null;
+};
+
 const getPayslipUniqueId = (item: any, fallbackIndex?: number): string => {
   return String(item?.id || item?._id || item?.payslipNumber || item?.slipNo || (item?.employeeId && item?.month ? `${item.employeeId}-${item.month}` : '') || (item?.empId && item?.month ? `${item.empId}-${item.month}` : '') || `payslip-${fallbackIndex ?? 0}`);
 };
@@ -678,13 +713,13 @@ const getStructureDraftFromStructure = (structure: SalaryStructure, mode: 'add' 
   staffId: (structure as any).staffId || (structure as any).employeeId || '',
   department: (structure as any).department || '',
   structureName: mode === 'duplicate' ? `${structure.structureName} Copy` : structure.structureName,
-  employeeCategory: structure.employeeCategory,
+  employeeCategory: structure.employeeCategory || '',
   designation: structure.designation || '',
   basicPercentage: String(structure.basicPercentage ?? 50),
   hraPercentage: String(structure.hraPercentage ?? 40),
   status: mode === 'duplicate' ? 'Inactive' : structure.status,
   effectiveDate: structure.effectiveDate || defaultEffectiveDate,
-  payrollFrequency: 'Monthly',
+  payrollFrequency: (structure.payrollFrequency as any) || '',
   salaryPaymentDay: structure.salaryPaymentDay || '5',
   pfApplicable: structure.pfApplicable ?? findLineAmount(structure.deductions, ['employee pf', 'employer pf', 'provident fund']) > 0,
   pfPercentage: String(structure.pfPercentage ?? 12),
@@ -786,8 +821,13 @@ const buildStructurePayload = (draft: StructureDraft): Omit<SalaryStructure, 'id
     staffId: draft.staffId || undefined,
     employeeId: draft.staffId || undefined,
     structureName: draft.structureName.trim(),
+<<<<<<< HEAD
     employeeCategory: draft.employeeCategory,
     branch: (draft as any).branch || 'All Branches',
+=======
+    employeeCategory: (draft.employeeCategory || 'Staff') as 'Teacher' | 'Staff',
+    branch: '',
+>>>>>>> 2c7d0190f1106e317e9965ae947dc2f54d4d3f76
     earnings: [
       { name: 'Basic Salary', amount: parseMoney(draft.basicSalary), type: 'Fixed', value: parseMoney(draft.basicSalary) },
       { name: 'HRA', amount: parseMoney(draft.hra), type: 'Fixed', value: parseMoney(draft.hra) },
@@ -811,7 +851,7 @@ const buildStructurePayload = (draft: StructureDraft): Omit<SalaryStructure, 'id
     netSalaryFormula: 'Gross Salary - Total Deductions',
     status: draft.status,
     designation: draft.designation.trim(),
-    payrollFrequency: draft.payrollFrequency,
+    payrollFrequency: draft.payrollFrequency ? (draft.payrollFrequency as any) : undefined,
     salaryPaymentDay: draft.salaryPaymentDay.trim() || '5',
     basicPercentage: Number(draft.basicPercentage) || 50,
     hraPercentage: Number(draft.hraPercentage) || 40,
@@ -855,12 +895,15 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
     disburseSalary,
     designations,
     fetchSalaryStructures,
-    fetchSalaryAssignments
+    fetchSalaryAssignments,
+    fetchPayslips,
+    schoolProfile
   } = useData();
 
   useEffect(() => {
     if (fetchSalaryStructures) fetchSalaryStructures();
     if (fetchSalaryAssignments) fetchSalaryAssignments();
+    if (fetchPayslips) fetchPayslips();
   }, []);
 
   const { addToast } = useToast();
@@ -945,92 +988,366 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
       }
     }
 
+    const inWords = numberToWords(safeNet);
+    const formatNum = (num: number) => isNaN(num) ? '0.00' : num.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     const maxRows = Math.max(earningsList.length, deductionsList.length, 1);
     const tableRowsHtml = Array.from({ length: maxRows }).map((_, i) => {
       const earn = earningsList[i];
       const ded = deductionsList[i];
       return `
         <tr>
-          <td>${earn ? earn.name : ''}</td>
-          <td style="text-align: right; font-weight: 600;">${earn ? formatCurrency(earn.amount) : ''}</td>
-          <td>${ded ? ded.name : ''}</td>
-          <td style="text-align: right; font-weight: 600;">${ded ? formatCurrency(ded.amount) : ''}</td>
+          <td style="padding: 5px 8px; border-right: 1px solid #cbd5e1; border-bottom: 1px solid #e2e8f0; font-weight: 500;">${earn ? earn.name : ''}</td>
+          <td style="padding: 5px 8px; border-right: 2px solid #94a3b8; border-bottom: 1px solid #e2e8f0; text-align: right; font-family: 'Consolas', monospace; font-weight: 600;">${earn ? `₹${formatNum(earn.amount)}` : ''}</td>
+          <td style="padding: 5px 8px; border-right: 1px solid #cbd5e1; border-bottom: 1px solid #e2e8f0; font-weight: 500;">${ded ? ded.name : ''}</td>
+          <td style="padding: 5px 8px; border-bottom: 1px solid #e2e8f0; text-align: right; font-family: 'Consolas', monospace; font-weight: 600; color: ${ded ? '#b91c1c' : 'inherit'};">${ded ? `₹${formatNum(ded.amount)}` : ''}</td>
         </tr>
       `;
     }).join('');
 
     const printWindow = window.open('', '_blank');
     if (printWindow) {
-      const schoolName = localStorage.getItem('school_name') || 'Educational Institution';
+      const activeSchoolName = schoolProfile?.name || schoolProfile?.schoolName || localStorage.getItem('school_name') || 'PIRNAV EDUCATIONAL INSTITUTIONS';
+      const employeeName = p.employeeName || (linkedStaff ? `${linkedStaff.firstName} ${linkedStaff.lastName}` : 'Staff');
+      const empId = p.empId || linkedStaff?.empId || 'N/A';
+      const designation = p.designation || linkedStaff?.designation || 'Staff';
+      const department = p.department || linkedStaff?.department || 'Administration';
+      const branch = p.branch || linkedStaff?.branch || 'Main Campus';
+      const disbursedDate = p.disbursedDate || p.paymentDate || new Date().toISOString().split('T')[0];
+      const bankAccount = p.bankAccount || linkedStaff?.bankDetails?.accountNumber || 'Direct Bank Deposit';
+
       printWindow.document.write(`
+        <!DOCTYPE html>
         <html>
           <head>
-            <title>Salary Payslip - ${p.employeeName || (linkedStaff ? `${linkedStaff.firstName} ${linkedStaff.lastName}` : 'Staff')}</title>
+            <title>Salary Payslip - ${p.month} - ${employeeName}</title>
             <style>
-              @page { size: A4 portrait; margin: 8mm; }
+              @page {
+                size: A4 portrait;
+                margin: 8mm;
+              }
               @media print {
-                html, body { height: 100vh; margin: 0 !important; padding: 10px !important; box-sizing: border-box; page-break-inside: avoid !important; }
+                html, body {
+                  margin: 0 !important;
+                  padding: 0 !important;
+                  height: auto !important;
+                  -webkit-print-color-adjust: exact !important;
+                  print-color-adjust: exact !important;
+                }
+                .payslip-sheet {
+                  box-shadow: none !important;
+                  border: 1.5px solid #0f172a !important;
+                  max-height: 275mm !important;
+                  page-break-after: avoid !important;
+                  page-break-before: avoid !important;
+                  page-break-inside: avoid !important;
+                }
+                .no-print { display: none !important; }
               }
               * { box-sizing: border-box; }
-              body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 20px 24px; color: #333; font-size: 11px; line-height: 1.3; }
-              .header { text-align: center; border-bottom: 2px solid #0284c7; padding-bottom: 10px; margin-bottom: 12px; }
-              .header h2 { margin: 0; font-size: 18px; color: #0284c7; }
-              .header p { margin: 3px 0 0 0; font-size: 11px; color: #64748b; font-weight: 600; }
-              .details { margin-top: 12px; display: grid; grid-template-columns: 1fr 1fr; gap: 6px 12px; background: #f8fafc; padding: 10px; border-radius: 8px; border: 1px solid #e2e8f0; font-size: 11px; }
-              .table { width: 100%; border-collapse: collapse; margin-top: 14px; font-size: 11px; }
-              .table th, .table td { border: 1px solid #ddd; padding: 6px 8px; text-align: left; }
-              .table th { background-color: #f1f5f9; font-weight: 700; }
-              .net { font-size: 1.1em; font-weight: bold; margin-top: 14px; display: flex; justify-content: space-between; align-items: center; color: #16a34a; background: #f0fdf4; padding: 10px 14px; border-radius: 6px; border: 1px solid #bbf7d0; }
-              .sign { margin-top: 40px; display: flex; justify-content: space-between; font-size: 11px; font-weight: 600; color: #475569; }
+              body {
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+                color: #0f172a;
+                background: #f8fafc;
+                margin: 0;
+                padding: 12px;
+                font-size: 11px;
+                line-height: 1.35;
+              }
+              .payslip-sheet {
+                max-width: 210mm;
+                margin: 0 auto;
+                background: #ffffff;
+                border: 1.5px solid #0f172a;
+                padding: 20px 24px;
+                box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+              }
+              .school-header {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                border-bottom: 2px solid #0f172a;
+                padding-bottom: 12px;
+                margin-bottom: 12px;
+              }
+              .school-info {
+                flex: 1;
+                text-align: center;
+                padding: 0 10px;
+              }
+              .school-name {
+                font-size: 19px;
+                font-weight: 900;
+                color: #0f172a;
+                letter-spacing: 0.5px;
+                text-transform: uppercase;
+                margin-bottom: 2px;
+              }
+              .school-sub {
+                font-size: 10px;
+                color: #475569;
+                font-weight: 500;
+                line-height: 1.3;
+              }
+              .logo-img {
+                max-height: 52px;
+                max-width: 100px;
+                object-fit: contain;
+              }
+              .doc-title-bar {
+                background: #0f172a;
+                color: #ffffff;
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                padding: 5px 12px;
+                font-size: 11px;
+                font-weight: 800;
+                letter-spacing: 0.8px;
+                text-transform: uppercase;
+                margin-bottom: 12px;
+              }
+              .emp-table {
+                width: 100%;
+                border-collapse: collapse;
+                margin-bottom: 12px;
+                border: 1px solid #cbd5e1;
+              }
+              .emp-table td {
+                padding: 4px 8px;
+                font-size: 10px;
+                border: 1px solid #e2e8f0;
+              }
+              .emp-table .lbl {
+                background: #f8fafc;
+                color: #475569;
+                font-weight: 700;
+                width: 18%;
+                text-transform: uppercase;
+                font-size: 9.5px;
+                letter-spacing: 0.3px;
+              }
+              .emp-table .val {
+                color: #0f172a;
+                font-weight: 600;
+                width: 32%;
+              }
+              .salary-table {
+                width: 100%;
+                border-collapse: collapse;
+                margin-bottom: 12px;
+                border: 1.5px solid #0f172a;
+              }
+              .salary-table th {
+                padding: 5px 8px;
+                font-size: 10px;
+                font-weight: 800;
+                text-transform: uppercase;
+                letter-spacing: 0.5px;
+                border: 1px solid #cbd5e1;
+              }
+              .salary-table th.main-hdr {
+                background: #0f172a;
+                color: #ffffff;
+                font-size: 10.5px;
+                text-align: left;
+              }
+              .salary-table th.sub-hdr {
+                background: #f1f5f9;
+                color: #334155;
+              }
+              .salary-table td {
+                padding: 4.5px 8px;
+                font-size: 10.5px;
+                border: 1px solid #e2e8f0;
+                color: #1e293b;
+              }
+              .salary-table td.amount {
+                text-align: right;
+                font-family: 'Consolas', 'Courier New', monospace;
+                font-weight: 600;
+              }
+              .salary-table .divider-col {
+                border-right: 2px solid #94a3b8 !important;
+              }
+              .salary-table .tot-row td {
+                background: #f1f5f9;
+                font-weight: 800;
+                color: #0f172a;
+                border-top: 1.5px solid #0f172a;
+                border-bottom: 1.5px solid #0f172a;
+              }
+              .net-summary-box {
+                border: 1.5px solid #0f172a;
+                background: #f8fafc;
+                padding: 10px 14px;
+                margin-bottom: 14px;
+                border-radius: 2px;
+              }
+              .net-main {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                border-bottom: 1px dashed #cbd5e1;
+                padding-bottom: 6px;
+                margin-bottom: 6px;
+              }
+              .net-title {
+                font-size: 11px;
+                font-weight: 900;
+                color: #0f172a;
+                text-transform: uppercase;
+                letter-spacing: 0.5px;
+              }
+              .net-amount {
+                font-size: 19px;
+                font-weight: 900;
+                color: #0f172a;
+                font-family: 'Consolas', 'Courier New', monospace;
+              }
+              .net-words {
+                font-size: 10px;
+                color: #334155;
+                font-weight: 600;
+              }
+              .net-words strong {
+                color: #0f172a;
+              }
+              .net-meta {
+                margin-top: 4px;
+                font-size: 9.5px;
+                color: #64748b;
+              }
+              .signature-block {
+                display: flex;
+                justify-content: space-between;
+                align-items: flex-end;
+                margin-top: 36px;
+                margin-bottom: 12px;
+                padding: 0 10px;
+              }
+              .sign-col {
+                text-align: center;
+                width: 210px;
+              }
+              .sign-line {
+                border-top: 1px solid #475569;
+                margin-bottom: 4px;
+              }
+              .sign-label {
+                font-size: 9.5px;
+                font-weight: 700;
+                color: #334155;
+                text-transform: uppercase;
+              }
+              .footer-note {
+                text-align: center;
+                font-size: 9px;
+                color: #64748b;
+                border-top: 1px solid #e2e8f0;
+                padding-top: 6px;
+                margin-top: 8px;
+                font-style: italic;
+              }
             </style>
           </head>
           <body>
-            <div class="header">
-              <h2>MONTHLY SALARY PAYSLIP</h2>
-              <p>${schoolName} - HR Department</p>
-            </div>
-            <div class="details">
-              <div><strong>Employee Name:</strong> ${p.employeeName || (linkedStaff ? `${linkedStaff.firstName} ${linkedStaff.lastName}` : 'Staff')}</div>
-              <div><strong>Employee ID:</strong> ${p.empId || linkedStaff?.empId || 'N/A'}</div>
-              <div><strong>Salary Month:</strong> ${p.month}</div>
-              <div><strong>Generated Date:</strong> ${p.disbursedDate || p.paymentDate || new Date().toISOString().split('T')[0]}</div>
-              <div><strong>Bank Account:</strong> ${p.bankAccount || linkedStaff?.bankDetails?.accountNumber || 'N/A'}</div>
-              <div><strong>Status:</strong> ${p.status || 'Generated'}</div>
-            </div>
-            
-            <table class="table">
-              <thead>
-                <tr>
-                  <th>Earning Details</th>
-                  <th style="text-align: right;">Amount</th>
-                  <th>Deduction Details</th>
-                  <th style="text-align: right;">Amount</th>
-                </tr>
-              </thead>
-              <tbody>
-                ${tableRowsHtml}
-                <tr style="background: #f8fafc; font-weight: bold; border-top: 2px solid #cbd5e1;">
-                  <td><strong>Gross Earning</strong></td>
-                  <td style="text-align: right; color: #0284c7;"><strong>${formatCurrency(safeGross)}</strong></td>
-                  <td><strong>Total Deductions</strong></td>
-                  <td style="text-align: right; color: #ef4444;"><strong>${formatCurrency(safeDeductions)}</strong></td>
-                </tr>
-              </tbody>
-            </table>
-            
-            <div class="net">
-              <span>Net Payable Salary:</span>
-              <span style="font-size: 1.25em; font-weight: 900;">${formatCurrency(safeNet)}</span>
-            </div>
-            
-            <div class="sign">
-              <div>
-                <p>_______________________</p>
-                <p>Employee Signature</p>
+            <div class="payslip-sheet">
+              <div class="school-header">
+                ${schoolProfile?.logoUrl ? `<img src="${resolveMediaUrl(schoolProfile.logoUrl)}" class="logo-img" alt="Logo" />` : '<div style="width: 70px;"></div>'}
+                <div class="school-info">
+                  <div class="school-name">${activeSchoolName.toUpperCase()}</div>
+                  <div class="school-sub">
+                    ${schoolProfile?.address || 'Madhapur Campus, Hyderabad, Telangana - 500081'}<br/>
+                    Affiliated to CBSE, New Delhi | Affiliation No. 3630284 | Phone: ${schoolProfile?.phone || '+91 40 2345 6789'}
+                  </div>
+                </div>
+                <div style="width: 70px; text-align: right;">
+                  <span style="font-size: 9px; font-weight: 800; color: #16a34a; background: #dcfce7; border: 1px solid #86efac; padding: 2px 6px; border-radius: 3px;">PAID</span>
+                </div>
               </div>
-              <div>
-                <p>_______________________</p>
-                <p>Authorized Signatory</p>
+
+              <div class="doc-title-bar">
+                <span>SALARY PAYSLIP FOR THE MONTH OF ${String(p.month || 'CURRENT').toUpperCase()}</span>
+                <span style="font-size: 9.5px; font-weight: 600; opacity: 0.9;">Ref: PS-${empId}-${String(p.month || 'M').replace(/[^a-zA-Z0-9]/g, '').toUpperCase()}</span>
+              </div>
+
+              <table class="emp-table">
+                <tr>
+                  <td class="lbl">Employee ID</td>
+                  <td class="val" style="font-family: monospace; font-weight: 700;">${empId}</td>
+                  <td class="lbl">Employee Name</td>
+                  <td class="val">${employeeName}</td>
+                </tr>
+                <tr>
+                  <td class="lbl">Designation</td>
+                  <td class="val">${designation}</td>
+                  <td class="lbl">Department</td>
+                  <td class="val">${department}</td>
+                </tr>
+                <tr>
+                  <td class="lbl">Campus / Branch</td>
+                  <td class="val">${branch}</td>
+                  <td class="lbl">Disbursed Date</td>
+                  <td class="val">${disbursedDate}</td>
+                </tr>
+                <tr>
+                  <td class="lbl">Bank Name &amp; A/C</td>
+                  <td class="val" style="font-family: monospace;">${bankAccount ? `Bank A/C: ${bankAccount}` : 'Direct Bank Deposit'}</td>
+                  <td class="lbl">Payment Status</td>
+                  <td class="val" style="color: #16a34a; font-weight: 700;">CONFIRMED (PAID)</td>
+                </tr>
+              </table>
+
+              <table class="salary-table">
+                <thead>
+                  <tr>
+                    <th class="main-hdr divider-col" colspan="2">EARNINGS</th>
+                    <th class="main-hdr" colspan="2">DEDUCTIONS</th>
+                  </tr>
+                  <tr>
+                    <th class="sub-hdr" style="text-align: left; width: 33%;">Particulars / Component</th>
+                    <th class="sub-hdr divider-col" style="text-align: right; width: 17%;">Amount (₹)</th>
+                    <th class="sub-hdr" style="text-align: left; width: 33%;">Particulars / Component</th>
+                    <th class="sub-hdr" style="text-align: right; width: 17%;">Amount (₹)</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${tableRowsHtml}
+                  <tr class="tot-row">
+                    <td><strong>TOTAL GROSS EARNINGS (A)</strong></td>
+                    <td class="amount divider-col"><strong>₹${formatNum(safeGross)}</strong></td>
+                    <td><strong>TOTAL DEDUCTIONS (B)</strong></td>
+                    <td class="amount" style="color: #b91c1c;"><strong>₹${formatNum(safeDeductions)}</strong></td>
+                  </tr>
+                </tbody>
+              </table>
+
+              <div class="net-summary-box">
+                <div class="net-main">
+                  <div>
+                    <div class="net-title">NET TAKE-HOME SALARY PAYABLE (A - B)</div>
+                    <div class="net-meta">Payment Mode: Direct Bank Transfer (NEFT/RTGS) &bull; Credit Account: ${bankAccount}</div>
+                  </div>
+                  <div class="net-amount">₹${formatNum(safeNet)}</div>
+                </div>
+                <div class="net-words">
+                  Amount in Words: <strong>Rupees ${inWords}</strong>
+                </div>
+              </div>
+
+              <div class="signature-block">
+                <div class="sign-col">
+                  <div class="sign-line"></div>
+                  <div class="sign-label">Employee Signature</div>
+                </div>
+                <div class="sign-col">
+                  <div class="sign-line"></div>
+                  <div class="sign-label">Authorised Signatory / Accounts</div>
+                </div>
+              </div>
+
+              <div class="footer-note">
+                This is a computer-generated official payslip issued by ${activeSchoolName}. Does not require an ink signature.
               </div>
             </div>
           </body>
@@ -1096,8 +1413,301 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
   }, [historyEmployee, historyMonth, historyYear, historyDepartment]);
 
   const [payslipMode, setPayslipMode] = useState<'Auto Payslip'>('Auto Payslip');
+  const MAX_DEDUCTION_AMOUNT = 100000; // ₹1,00,000 maximum allowed deduction amount per business rules
   const [globalDeduction, setGlobalDeduction] = useState<string>('');
+  const [deductionError, setDeductionError] = useState<string | undefined>(undefined);
   const [globalTdsPct, setGlobalTdsPct] = useState<string>('');
+  const [tdsError, setTdsError] = useState<string | undefined>(undefined);
+
+  const sanitizeDeductionValue = (input: string): string => {
+    // Strip everything except digits and decimal point
+    const cleaned = input.replace(/[^0-9.]/g, '');
+    if (!cleaned) return '';
+
+    // Split on decimal point and ensure only at most 1 decimal point
+    const parts = cleaned.split('.');
+    const intPart = parts[0].slice(0, 6); // Up to 6 integer digits (values up to 100,000)
+    if (parts.length > 1) {
+      const decPart = parts.slice(1).join('').slice(0, 2); // Up to 2 decimal places
+      return `${intPart}.${decPart}`.slice(0, 9);
+    }
+    return intPart.slice(0, 6);
+  };
+
+  const handleDeductionChange = (raw: string) => {
+    const formatted = sanitizeDeductionValue(raw);
+
+    if (formatted === '') {
+      setGlobalDeduction('');
+      setDeductionError(undefined);
+      return;
+    }
+
+    if (formatted === '.') {
+      setGlobalDeduction('.');
+      setDeductionError(undefined);
+      return;
+    }
+
+    const num = Number(formatted);
+    if (isNaN(num)) {
+      setDeductionError('Please enter a valid numeric deduction amount.');
+      setGlobalDeduction(formatted);
+      return;
+    }
+
+    if (num < 0) {
+      setDeductionError('Deduction amount cannot be negative.');
+      setGlobalDeduction(formatted);
+      return;
+    }
+
+    if (num > MAX_DEDUCTION_AMOUNT) {
+      setDeductionError(`Deduction amount cannot exceed ₹${MAX_DEDUCTION_AMOUNT.toLocaleString('en-IN')}.`);
+      setGlobalDeduction(formatted);
+      return;
+    }
+
+    setDeductionError(undefined);
+    setGlobalDeduction(formatted);
+  };
+
+  const handleDeductionKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    // Allow control / navigation keys
+    if (
+      [
+        'Backspace',
+        'Delete',
+        'Tab',
+        'ArrowLeft',
+        'ArrowRight',
+        'ArrowUp',
+        'ArrowDown',
+        'Home',
+        'End',
+        'Enter',
+        'Escape'
+      ].includes(e.key) ||
+      e.ctrlKey ||
+      e.metaKey ||
+      e.altKey
+    ) {
+      return;
+    }
+
+    // Allow decimal point if not already present
+    if (e.key === '.') {
+      const input = e.currentTarget;
+      const val = input.value;
+      const selectionStart = input.selectionStart ?? 0;
+      const selectionEnd = input.selectionEnd ?? 0;
+      const selectedText = val.substring(selectionStart, selectionEnd);
+
+      if (val.includes('.') && !selectedText.includes('.')) {
+        e.preventDefault();
+        return;
+      }
+      return;
+    }
+
+    // Only allow digits 0-9
+    if (!/^[0-9]$/.test(e.key)) {
+      e.preventDefault();
+      return;
+    }
+
+    // Check digit length limits
+    const input = e.currentTarget;
+    const val = input.value;
+    const selectionStart = input.selectionStart ?? 0;
+    const selectionEnd = input.selectionEnd ?? 0;
+    const isReplacing = selectionEnd > selectionStart;
+
+    if (!isReplacing) {
+      if (val.length >= 9) {
+        e.preventDefault();
+        return;
+      }
+
+      const dotIndex = val.indexOf('.');
+      if (dotIndex === -1) {
+        if (val.length >= 6) {
+          e.preventDefault();
+          return;
+        }
+      } else {
+        if (selectionStart <= dotIndex) {
+          const intPart = val.slice(0, dotIndex);
+          if (intPart.length >= 6) {
+            e.preventDefault();
+            return;
+          }
+        } else {
+          const decPart = val.slice(dotIndex + 1);
+          if (decPart.length >= 2) {
+            e.preventDefault();
+            return;
+          }
+        }
+      }
+    }
+  };
+
+  const handleDeductionPaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
+    e.preventDefault();
+    const pasted = e.clipboardData.getData('text');
+    const input = e.currentTarget;
+    const start = input.selectionStart ?? 0;
+    const end = input.selectionEnd ?? 0;
+    const current = input.value;
+    const nextVal = current.slice(0, start) + pasted + current.slice(end);
+    handleDeductionChange(nextVal);
+  };
+
+  const sanitizeTdsValue = (input: string): string => {
+    // Strip everything except digits and decimal point
+    const cleaned = input.replace(/[^0-9.]/g, '');
+    if (!cleaned) return '';
+
+    // Split on decimal point and ensure only at most 1 decimal point
+    const parts = cleaned.split('.');
+    const intPart = parts[0].slice(0, 3); // Maximum 3 integer digits (percentage up to 100)
+    if (parts.length > 1) {
+      const decPart = parts.slice(1).join('').slice(0, 2); // Maximum 2 decimal places
+      return `${intPart}.${decPart}`.slice(0, 6);
+    }
+    return intPart.slice(0, 3);
+  };
+
+  const handleTdsChange = (raw: string) => {
+    const formatted = sanitizeTdsValue(raw);
+
+    if (formatted === '') {
+      setGlobalTdsPct('');
+      setTdsError(undefined);
+      return;
+    }
+
+    if (formatted === '.') {
+      setGlobalTdsPct('.');
+      setTdsError(undefined);
+      return;
+    }
+
+    const num = Number(formatted);
+    if (isNaN(num)) {
+      setTdsError('Please enter a valid numeric percentage.');
+      setGlobalTdsPct(formatted);
+      return;
+    }
+
+    if (num < 0) {
+      setTdsError('TDS percentage cannot be negative.');
+      setGlobalTdsPct(formatted);
+      return;
+    }
+
+    if (num > 100) {
+      setTdsError('TDS percentage cannot exceed 100%.');
+      setGlobalTdsPct(formatted);
+      return;
+    }
+
+    setTdsError(undefined);
+    setGlobalTdsPct(formatted);
+  };
+
+  const handleTdsKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    // Allow control / navigation keys
+    if (
+      [
+        'Backspace',
+        'Delete',
+        'Tab',
+        'ArrowLeft',
+        'ArrowRight',
+        'ArrowUp',
+        'ArrowDown',
+        'Home',
+        'End',
+        'Enter',
+        'Escape'
+      ].includes(e.key) ||
+      e.ctrlKey ||
+      e.metaKey ||
+      e.altKey
+    ) {
+      return;
+    }
+
+    // Allow decimal point if not already present
+    if (e.key === '.') {
+      const input = e.currentTarget;
+      const val = input.value;
+      const selectionStart = input.selectionStart ?? 0;
+      const selectionEnd = input.selectionEnd ?? 0;
+      const selectedText = val.substring(selectionStart, selectionEnd);
+
+      if (val.includes('.') && !selectedText.includes('.')) {
+        e.preventDefault();
+        return;
+      }
+      return;
+    }
+
+    // Only allow digits 0-9
+    if (!/^[0-9]$/.test(e.key)) {
+      e.preventDefault();
+      return;
+    }
+
+    // Check digit length limits
+    const input = e.currentTarget;
+    const val = input.value;
+    const selectionStart = input.selectionStart ?? 0;
+    const selectionEnd = input.selectionEnd ?? 0;
+    const isReplacing = selectionEnd > selectionStart;
+
+    if (!isReplacing) {
+      if (val.length >= 6) {
+        e.preventDefault();
+        return;
+      }
+
+      const dotIndex = val.indexOf('.');
+      if (dotIndex === -1) {
+        if (val.length >= 3) {
+          e.preventDefault();
+          return;
+        }
+      } else {
+        if (selectionStart <= dotIndex) {
+          const intPart = val.slice(0, dotIndex);
+          if (intPart.length >= 3) {
+            e.preventDefault();
+            return;
+          }
+        } else {
+          const decPart = val.slice(dotIndex + 1);
+          if (decPart.length >= 2) {
+            e.preventDefault();
+            return;
+          }
+        }
+      }
+    }
+  };
+
+  const handleTdsPaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
+    e.preventDefault();
+    const pasted = e.clipboardData.getData('text');
+    const input = e.currentTarget;
+    const start = input.selectionStart ?? 0;
+    const end = input.selectionEnd ?? 0;
+    const current = input.value;
+    const nextVal = current.slice(0, start) + pasted + current.slice(end);
+    handleTdsChange(nextVal);
+  };
   const [standardPeriod, setStandardPeriod] = useState<'1m' | '3m' | '6m' | '12m'>('1m');
   const [leftEmployeeSearch, setLeftEmployeeSearch] = useState<string>('');
   const [structureModalOpen, setStructureModalOpen] = useState(false);
@@ -1108,12 +1718,11 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
   const [assignmentDraft, setAssignmentDraft] = useState<AssignmentDraft>(assignmentDraftDefaults);
 
   useEffect(() => {
-    setActiveTab(normalizePayrollTab(initialTab));
+    if (initialTab) {
+      const normalized = normalizePayrollTab(initialTab);
+      setActiveTab(prev => (prev !== normalized ? normalized : prev));
+    }
   }, [initialTab]);
-
-  useEffect(() => {
-    onTabChange?.(activeTab);
-  }, [activeTab, onTabChange]);
 
   const branches = useMemo(() => {
     const list = Array.from(new Set(staff.map(item => item.branch).filter(Boolean)));
@@ -1240,11 +1849,16 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
 
   const availableCategoryStaff = useMemo(() => {
     const cat = structureDraft.employeeCategory;
+    if (!cat) return staff;
     return staff.filter(s => resolveCategory(s) === cat);
   }, [staff, structureDraft.employeeCategory]);
 
+  const annualCtcError = useMemo(() => validateAnnualCtc(structureDraft.annualCtc), [structureDraft.annualCtc]);
+
   const autoCalculateCorporateSalary = (inputCtc?: string, customBasicPct?: string, customHraPct?: string) => {
-    const annual = parseMoney(inputCtc !== undefined ? inputCtc : structureDraft.annualCtc || '0');
+    const rawVal = inputCtc !== undefined ? inputCtc : structureDraft.annualCtc || '0';
+    if (validateAnnualCtc(rawVal)) return;
+    const annual = parseMoney(rawVal);
     if (annual <= 0) return;
 
     const monthlyGross = Math.round(annual / 12);
@@ -1261,7 +1875,7 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
     setStructureDraft(prev => {
       const updated: StructureDraft = {
         ...prev,
-        annualCtc: String(annual),
+        annualCtc: inputCtc !== undefined ? inputCtc : prev.annualCtc,
         basicPercentage: customBasicPct !== undefined ? customBasicPct : prev.basicPercentage,
         hraPercentage: customHraPct !== undefined ? customHraPct : prev.hraPercentage,
         basicSalary: String(basic),
@@ -1281,6 +1895,20 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
     });
   };
 
+  const handleAutoCalculateClick = () => {
+    if (!structureDraft.annualCtc || !String(structureDraft.annualCtc).trim()) {
+      addToast('warning', 'Annual CTC Required', 'Please enter an Annual CTC amount to auto-calculate the breakdown.');
+      return;
+    }
+    const err = validateAnnualCtc(structureDraft.annualCtc);
+    if (err) {
+      addToast('error', 'Invalid Annual CTC', err);
+      return;
+    }
+    autoCalculateCorporateSalary();
+    addToast('success', 'Breakdown Calculated', 'Salary structure auto-calculated successfully based on Annual CTC.');
+  };
+
   const handleStaffSelect = (staffId: string) => {
     const selectedStaff = staff.find(s => String(s.id) === String(staffId));
     if (selectedStaff) {
@@ -1288,14 +1916,16 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
       const autoDept = (selectedStaff as any).department || selectedStaff.designation || selectedStaff.role || 'Staff';
       const staffName = selectedStaff.name || `${selectedStaff.firstName || ''} ${selectedStaff.lastName || ''}`.trim() || 'Staff Scale';
       const staffSalary = Number((selectedStaff as any).basicSalary || (selectedStaff as any).salary || 0);
+      const staffCategory = resolveCategory(selectedStaff);
 
       setStructureDraft(prev => {
         const next = {
           ...prev,
+          employeeCategory: prev.employeeCategory || staffCategory,
           staffId,
           designation: autoDesignation,
           department: autoDept,
-          structureName: prev.structureName ? prev.structureName : `${staffName} Scale`
+          structureName: prev.structureName || ''
         };
 
         if (staffSalary > 0) {
@@ -1346,7 +1976,11 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
       const isSelected = selectedGenerationIds.includes(row.member.id);
       if (!isSelected && row.payrollStatus !== 'Active' && (!row.assignment || row.assignment.status !== 'Active')) return false;
       const staffBranch = row.member.branch || '';
+<<<<<<< HEAD
       const matchesBranch = generationBranch === 'All Branches' || !generationBranch || staffBranch === generationBranch || !staffBranch;
+=======
+      const matchesBranch = generationBranch === 'All Branches' || staffBranch === generationBranch;
+>>>>>>> 2c7d0190f1106e317e9965ae947dc2f54d4d3f76
       const matchesDepartment = generationDepartment === 'All Departments' || row.member.department === generationDepartment;
       const matchesCategory = generationCategory === 'All' || row.category === generationCategory;
       const employeeLabel = `${row.member.firstName} ${row.member.lastName} (${row.member.empId})`.trim();
@@ -1373,8 +2007,10 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
       const workingDays = Math.max(1, Math.max(presentDays + halfDays, 22));
       const lopDays = Math.max(0, workingDays - presentDays - approvedLeaveDays - halfDays * 0.5);
       const attendanceDeduction = Math.round((breakdown.grossSalary / workingDays) * lopDays);
-      const extraDeduction = Number(globalDeduction) || 0;
-      const tdsPercentage = Number(globalTdsPct) || 0;
+      const rawDeduction = Number(globalDeduction) || 0;
+      const extraDeduction = (rawDeduction < 0 || rawDeduction > MAX_DEDUCTION_AMOUNT) ? 0 : rawDeduction;
+      const rawTds = Number(globalTdsPct) || 0;
+      const tdsPercentage = (rawTds < 0 || rawTds > 100) ? 0 : rawTds;
       const tdsDeduction = Math.round(breakdown.grossSalary * (tdsPercentage / 100));
 
       const deductions = breakdown.deductions + attendanceDeduction + extraDeduction + tdsDeduction;
@@ -1571,21 +2207,28 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
     }
   }, [assignmentDraft.employeeId, assignmentModalOpen, salaryStructures, staff]);
 
-  useEffect(() => {
-    if (!structureModalOpen) return;
-    if (structureDraft.id) return;
-    if (!structureDraft.structureName) {
-      setStructureDraft(prev => ({
-        ...prev,
-        structureName: `${getCategoryLabel(prev.employeeCategory)} ${prev.designation || 'Scale'}`.trim()
-      }));
-    }
-  }, [structureDraft.designation, structureDraft.employeeCategory, structureDraft.id, structureDraft.structureName, structureModalOpen]);
-
   const saveStructure = async () => {
     if (!structureDraft.structureName.trim() || !structureDraft.designation.trim()) {
       addToast('warning', 'Missing details', 'Please enter a structure name and designation before saving.');
       return;
+    }
+
+    if (!structureDraft.employeeCategory) {
+      addToast('warning', 'Missing details', 'Please select an employee category before saving.');
+      return;
+    }
+
+    if (!structureDraft.payrollFrequency) {
+      addToast('warning', 'Missing details', 'Please select a payroll frequency before saving.');
+      return;
+    }
+
+    if (structureDraft.annualCtc) {
+      const ctcErr = validateAnnualCtc(structureDraft.annualCtc);
+      if (ctcErr) {
+        addToast('error', 'Invalid Annual CTC', ctcErr);
+        return;
+      }
     }
 
     const payload = buildStructurePayload(structureDraft);
@@ -1689,7 +2332,7 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
     closeAssignmentModal();
   };
 
-  const createPayslipForRow = (row: (typeof generationRows)[number]) => {
+  const createPayslipForRow = (row: (typeof generationRows)[number], silent = false) => {
     const existing = row.existing;
     if (existing && Number(existing.grossSalary) > 0 && Number(existing.netSalary) > 0) {
       return existing;
@@ -1709,8 +2352,14 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
     const structure = row.structure;
     const breakdown = row.breakdown;
     const grossSalary = breakdown.grossSalary > 0 ? breakdown.grossSalary : Number(member.salary || 0);
-    const attendanceDeduction = Math.max(0, row.deductions - breakdown.deductions);
-    const totalDeductions = row.deductions > 0 ? row.deductions : breakdown.deductions;
+    const rawDeduction = Number(globalDeduction) || 0;
+    const extraDeduction = (rawDeduction < 0 || rawDeduction > MAX_DEDUCTION_AMOUNT) ? 0 : rawDeduction;
+    const rawTds = Number(globalTdsPct) || 0;
+    const tdsPercentage = (rawTds < 0 || rawTds > 100) ? 0 : rawTds;
+    const tdsDeduction = Math.round(grossSalary * (tdsPercentage / 100));
+
+    const attendanceDeduction = Math.max(0, row.deductions - breakdown.deductions - extraDeduction - tdsDeduction);
+    const totalDeductions = row.deductions > 0 ? row.deductions : breakdown.deductions + extraDeduction + tdsDeduction;
     const netSalary = row.netSalary > 0 ? row.netSalary : Math.max(0, grossSalary - totalDeductions);
     const basicSalary = breakdown.basicSalary > 0 ? breakdown.basicSalary : Math.round(grossSalary * 0.5);
     const allowances = breakdown.allowances > 0 ? breakdown.allowances : Math.max(0, grossSalary - basicSalary);
@@ -1733,7 +2382,9 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
       ],
       deductions: [
         { name: 'Structure Deductions', amount: breakdown.deductions, type: 'Fixed', value: breakdown.deductions },
-        ...(attendanceDeduction > 0 ? [{ name: 'Attendance Deduction', amount: attendanceDeduction, type: 'Fixed', value: attendanceDeduction }] : [])
+        ...(attendanceDeduction > 0 ? [{ name: 'Attendance Deduction', amount: attendanceDeduction, type: 'Fixed', value: attendanceDeduction }] : []),
+        ...(extraDeduction > 0 ? [{ name: 'Additional Deduction', amount: extraDeduction, type: 'Fixed', value: extraDeduction }] : []),
+        ...(tdsDeduction > 0 ? [{ name: `TDS (${tdsPercentage}%)`, amount: tdsDeduction, type: 'Fixed', value: tdsDeduction }] : [])
       ],
       grossSalary,
       otherDeductions: totalDeductions,
@@ -1753,13 +2404,23 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
       status: 'Generated'
     };
 
-    disburseSalary(payload);
+    disburseSalary(payload, silent);
     return payload as Payslip;
   };
 
   const handleBulkGenerate = () => {
     if (isFutureMonthYear(generationMonth, generationYear)) {
       addToast('error', 'Cannot Generate Payroll', 'Payroll cannot be generated for future dates or months.');
+      return;
+    }
+    const isDeductionInvalid = Boolean(deductionError) || (globalDeduction !== '' && (Number(globalDeduction) > MAX_DEDUCTION_AMOUNT || Number(globalDeduction) < 0 || isNaN(Number(globalDeduction))));
+    if (isDeductionInvalid) {
+      addToast('error', 'Invalid Deduction Amount', `Deduction amount must be between ₹0 and ₹${MAX_DEDUCTION_AMOUNT.toLocaleString('en-IN')}.`);
+      return;
+    }
+    const isTdsInvalid = Boolean(tdsError) || (globalTdsPct !== '' && (Number(globalTdsPct) > 100 || Number(globalTdsPct) < 0 || isNaN(Number(globalTdsPct))));
+    if (isTdsInvalid) {
+      addToast('error', 'Invalid TDS Percentage', 'TDS percentage must be between 0% and 100%.');
       return;
     }
     setIsGenerateModalOpen(true);
@@ -1771,11 +2432,21 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
       addToast('error', 'Cannot Generate Payroll', 'Payroll cannot be generated for future dates or months.');
       return;
     }
+    const isDeductionInvalid = Boolean(deductionError) || (globalDeduction !== '' && (Number(globalDeduction) > MAX_DEDUCTION_AMOUNT || Number(globalDeduction) < 0 || isNaN(Number(globalDeduction))));
+    if (isDeductionInvalid) {
+      addToast('error', 'Invalid Deduction Amount', `Deduction amount must be between ₹0 and ₹${MAX_DEDUCTION_AMOUNT.toLocaleString('en-IN')}.`);
+      return;
+    }
+    const isTdsInvalid = Boolean(tdsError) || (globalTdsPct !== '' && (Number(globalTdsPct) > 100 || Number(globalTdsPct) < 0 || isNaN(Number(globalTdsPct))));
+    if (isTdsInvalid) {
+      addToast('error', 'Invalid TDS Percentage', 'TDS percentage must be between 0% and 100%.');
+      return;
+    }
     const targetRows = selectedGenerationIds.length > 0
       ? generationRows.filter(row => selectedGenerationIds.includes(row.member.id))
       : generationRows;
     const validRows = targetRows.filter(row => !isBeforeJoiningDate(row.member.joiningDate, generationMonth, generationYear));
-    const created = validRows.filter(row => !row.existing).map(createPayslipForRow).filter(Boolean).length;
+    const created = validRows.filter(row => !row.existing).map(row => createPayslipForRow(row, true)).filter(Boolean).length;
     addToast('success', 'Payslips generated', created > 0 ? `${created} payslip${created === 1 ? '' : 's'} generated for ${payrollMonthLabel}.` : 'Nothing new to generate for this payroll period.');
   };
 
@@ -1840,9 +2511,8 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
             </div>
           )}
         >
-          <div className="flex flex-wrap items-end gap-3">
+          <div className="flex flex-wrap items-start gap-3">
             <div className="flex-1 min-w-[200px]">
-              <label className="mb-2 block text-[10px] font-black uppercase tracking-[0.28em] text-slate-400">Search</label>
               <div className="relative">
                 <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
                 <input
@@ -1854,7 +2524,6 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
               </div>
             </div>
             <div className="w-48">
-              <label className="mb-2 block text-[10px] font-black uppercase tracking-[0.28em] text-slate-400">Category</label>
               <SelectField value={employeeCategoryFilter} onChange={e => setEmployeeCategoryFilter(e.target.value as 'All' | CategoryValue)}>
                 <option value="All">All Categories</option>
                 <option value="Teacher">Teaching Staff</option>
@@ -1862,13 +2531,11 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
               </SelectField>
             </div>
             <div className="w-48">
-              <label className="mb-2 block text-[10px] font-black uppercase tracking-[0.28em] text-slate-400">Salary Structure</label>
               <SelectField value={employeeStructureFilter} onChange={e => setEmployeeStructureFilter(e.target.value)}>
                 {structureOptions.map(option => <option key={option}>{option}</option>)}
               </SelectField>
             </div>
             <div className="w-48">
-              <label className="mb-2 block text-[10px] font-black uppercase tracking-[0.28em] text-slate-400">Status</label>
               <SelectField value={employeeStatusFilter} onChange={e => setEmployeeStatusFilter(e.target.value as 'All' | 'Active' | 'Inactive')}>
                 <option value="All">All Status</option>
                 <option value="Active">Active</option>
@@ -1877,7 +2544,7 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
             </div>
           </div>
 
-          <div className="mt-5 overflow-x-auto">
+          <div className="mt-6 overflow-x-auto">
             <table className="min-w-[1100px] w-full text-center border-collapse text-xs border border-slate-200 dark:border-slate-800 [&_th]:border [&_th]:border-slate-200 dark:[&_th]:border-slate-800 [&_td]:border [&_td]:border-slate-200 dark:[&_td]:border-slate-800 rounded-xl overflow-hidden">
               <thead>
                 <tr className="bg-slate-100/70 dark:bg-slate-800/60 text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider">
@@ -1939,7 +2606,11 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
                         <td className="px-3 py-2 text-center align-middle">
                           <button type="button" onClick={() => setDrawerStaff(row.member)} className="text-center">
                             <div className="text-xs font-black text-slate-900 dark:text-white">{row.member.firstName} {row.member.lastName}</div>
+<<<<<<< HEAD
                             {row.member.branch ? <p className="text-[10px] text-slate-500">{row.member.branch}</p> : null}
+=======
+                            <p className="text-[10px] text-slate-500">{row.member.branch || '—'}</p>
+>>>>>>> 2c7d0190f1106e317e9965ae947dc2f54d4d3f76
                           </button>
                         </td>
                         <td className="px-3 py-2 text-xs font-semibold text-slate-700 dark:text-slate-300 text-center align-middle">{getCategoryLabel(row.category)}</td>
@@ -2057,16 +2728,14 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
           </div>
         )}
       >
-        <div className="flex flex-wrap items-end gap-3">
+        <div className="flex flex-wrap items-start gap-3">
           <div className="flex-1 min-w-[200px]">
-            <label className="mb-2 block text-[10px] font-black uppercase tracking-[0.28em] text-slate-400">Search</label>
             <div className="relative">
               <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
               <input value={structureSearch} onChange={e => setStructureSearch(e.target.value)} placeholder="Search by Structure Name, Employee, Code..." className={`${inputClass} pl-9`} />
             </div>
           </div>
           <div className="w-48">
-            <label className="mb-2 block text-[10px] font-black uppercase tracking-[0.28em] text-slate-400">Category</label>
             <SelectField value={structureCategoryFilter} onChange={e => setStructureCategoryFilter(e.target.value as 'All' | CategoryValue)}>
               <option value="All">All Categories</option>
               <option value="Teacher">Teaching Staff</option>
@@ -2074,13 +2743,11 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
             </SelectField>
           </div>
           <div className="w-48">
-            <label className="mb-2 block text-[10px] font-black uppercase tracking-[0.28em] text-slate-400">Designation</label>
             <SelectField value={structureDesignationFilter} onChange={e => setStructureDesignationFilter(e.target.value)}>
               {designationSet.map(item => <option key={item}>{item}</option>)}
             </SelectField>
           </div>
           <div className="w-48">
-            <label className="mb-2 block text-[10px] font-black uppercase tracking-[0.28em] text-slate-400">Status</label>
             <SelectField value={structureStatusFilter} onChange={e => setStructureStatusFilter(e.target.value as 'All' | 'Active' | 'Inactive')}>
               <option value="All">All Status</option>
               <option value="Active">Active</option>
@@ -2089,7 +2756,7 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
           </div>
         </div>
 
-        <div className="mt-5 overflow-x-auto">
+        <div className="mt-6 overflow-x-auto">
           <table className="min-w-[1200px] w-full text-left border-collapse text-xs border border-slate-200 dark:border-slate-800 [&_th]:border [&_th]:border-slate-200 dark:[&_th]:border-slate-800 [&_td]:border [&_td]:border-slate-200 dark:[&_td]:border-slate-800 rounded-xl overflow-hidden">
             <thead>
               <tr className="bg-slate-100/70 dark:bg-slate-800/60 text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider">
@@ -2241,7 +2908,7 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
   const renderPayslipGenerationTab = () => {
     const allStaffCount = staff.length;
     const selectedCount = selectedGenerationIds.length;
-    const currentPeriodLabel = `${generationMonth} ${generationYear}`;
+    const currentPeriodLabel = periodLabel(generationMonth, generationYear);
 
     const filteredLeftStaff = staff.filter(member => {
       const category = resolveCategory(member);
@@ -2302,28 +2969,70 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
           <div className="bg-white dark:bg-slate-900 border border-sky-200 dark:border-sky-900/40 p-4 rounded-2xl shadow-xs space-y-1">
             <label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">DEDUCTION (₹)</label>
             <input
-              type="number"
+              type="text"
+              inputMode="decimal"
+              pattern="[0-9]*[.]?[0-9]*"
+              maxLength={9}
               value={globalDeduction}
-              onChange={e => setGlobalDeduction(e.target.value)}
-              placeholder="Enter Deduction"
-              className={inputClass}
+              onChange={e => handleDeductionChange(e.target.value)}
+              onKeyDown={handleDeductionKeyDown}
+              onPaste={handleDeductionPaste}
+              placeholder="Enter Deduction (Max ₹1,00,000)"
+              className={`${inputClass} ${
+                deductionError
+                  ? 'border-rose-500 focus:border-rose-500 ring-1 ring-rose-500/20 text-rose-600 dark:text-rose-400'
+                  : ''
+              }`}
             />
+            {deductionError && (
+              <p className="text-[11px] font-bold text-rose-500 mt-1 flex items-center gap-1 animate-in fade-in">
+                <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                <span>{deductionError}</span>
+              </p>
+            )}
             <p className="text-[11px] font-bold text-slate-500 pt-0.5">
-              Current Deduction: ₹{globalDeduction || '0'}
+              Current Deduction:{' '}
+              {deductionError ? (
+                <span className="text-rose-500 font-bold">
+                  Invalid (₹{Number(globalDeduction).toLocaleString('en-IN') || globalDeduction}) - Maximum limit is ₹{MAX_DEDUCTION_AMOUNT.toLocaleString('en-IN')}
+                </span>
+              ) : (
+                `₹${globalDeduction ? Number(globalDeduction).toLocaleString('en-IN') : '0'}`
+              )}
             </p>
           </div>
 
           <div className="bg-white dark:bg-slate-900 border border-sky-200 dark:border-sky-900/40 p-4 rounded-2xl shadow-xs space-y-1">
             <label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">TDS (%)</label>
             <input
-              type="number"
+              type="text"
+              inputMode="decimal"
+              pattern="[0-9]*[.]?[0-9]*"
+              maxLength={6}
               value={globalTdsPct}
-              onChange={e => setGlobalTdsPct(e.target.value)}
-              placeholder="Enter TDS Percentage"
-              className={inputClass}
+              onChange={e => handleTdsChange(e.target.value)}
+              onKeyDown={handleTdsKeyDown}
+              onPaste={handleTdsPaste}
+              placeholder="Enter TDS Percentage (0 - 100%)"
+              className={`${inputClass} ${
+                tdsError
+                  ? 'border-rose-500 focus:border-rose-500 ring-1 ring-rose-500/20 text-rose-600 dark:text-rose-400'
+                  : ''
+              }`}
             />
+            {tdsError && (
+              <p className="text-[11px] font-bold text-rose-500 mt-1 flex items-center gap-1 animate-in fade-in">
+                <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                <span>{tdsError}</span>
+              </p>
+            )}
             <p className="text-[11px] font-bold text-slate-500 pt-0.5">
-              Current TDS: {globalTdsPct || '0'}%
+              Current TDS:{' '}
+              {tdsError ? (
+                <span className="text-rose-500 font-bold">Invalid ({globalTdsPct}%) - Maximum limit is 100%</span>
+              ) : (
+                `${globalTdsPct || '0'}%`
+              )}
             </p>
           </div>
         </div>
@@ -2525,23 +3234,35 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
                 </div>
               </div>
 
-              <button
-                type="button"
-                onClick={handleBulkGenerate}
-                disabled={eligibleSelectedCount === 0 || isFutureSelected}
-                className={`w-full py-3.5 rounded-xl font-black text-sm transition-all shadow-lg flex items-center justify-center gap-2 ${
-                  eligibleSelectedCount > 0 && !isFutureSelected
-                    ? 'bg-brand-600 text-white hover:bg-brand-700 shadow-brand-500/25 cursor-pointer'
-                    : 'bg-slate-200 text-slate-400 cursor-not-allowed dark:bg-slate-800 dark:text-slate-600'
-                }`}
-              >
-                <ReceiptText className="w-4 h-4" />
-                {isFutureSelected
-                  ? 'Cannot generate payroll for future period'
-                  : eligibleSelectedCount > 0
-                  ? `Generate Payslips for ${eligibleSelectedCount} Employee(s) (${standardPeriod} / ${currentPeriodLabel})`
-                  : 'Select eligible employee(s) to generate'}
-              </button>
+              {(() => {
+                const isTdsInvalid = Boolean(tdsError) || (globalTdsPct !== '' && (Number(globalTdsPct) > 100 || Number(globalTdsPct) < 0 || isNaN(Number(globalTdsPct))));
+                const isDeductionInvalid = Boolean(deductionError) || (globalDeduction !== '' && (Number(globalDeduction) > MAX_DEDUCTION_AMOUNT || Number(globalDeduction) < 0 || isNaN(Number(globalDeduction))));
+                const isGenerateDisabled = eligibleSelectedCount === 0 || isFutureSelected || isTdsInvalid || isDeductionInvalid;
+
+                return (
+                  <button
+                    type="button"
+                    onClick={handleBulkGenerate}
+                    disabled={isGenerateDisabled}
+                    className={`w-full py-3.5 rounded-xl font-black text-sm transition-all shadow-lg flex items-center justify-center gap-2 ${
+                      !isGenerateDisabled
+                        ? 'bg-brand-600 text-white hover:bg-brand-700 shadow-brand-500/25 cursor-pointer'
+                        : 'bg-slate-200 text-slate-400 cursor-not-allowed dark:bg-slate-800 dark:text-slate-600'
+                    }`}
+                  >
+                    <ReceiptText className="w-4 h-4" />
+                    {isFutureSelected
+                      ? 'Cannot generate payroll for future period'
+                      : isDeductionInvalid
+                      ? `Enter valid deduction amount (₹0 - ₹${MAX_DEDUCTION_AMOUNT.toLocaleString('en-IN')}) to generate`
+                      : isTdsInvalid
+                      ? 'Enter valid TDS percentage (0-100%) to generate'
+                      : eligibleSelectedCount > 0
+                      ? `Generate Payslips for ${eligibleSelectedCount} Employee(s) (${standardPeriod} / ${currentPeriodLabel})`
+                      : 'Select eligible employee(s) to generate'}
+                  </button>
+                );
+              })()}
             </div>
 
             {/* Recently Generated Section */}
@@ -2922,7 +3643,10 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
             <button
               key={tab.id}
               type="button"
-              onClick={() => setActiveTab(tab.id)}
+              onClick={() => {
+                setActiveTab(tab.id);
+                onTabChange?.(tab.id);
+              }}
               className={`flex min-h-[52px] items-center justify-center xl:justify-start gap-2 rounded-2xl border px-3 py-2 text-left transition-all ${
                 active
                   ? 'border-brand-600 bg-brand-600 text-white shadow-md shadow-brand-500/20'
@@ -2956,7 +3680,7 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
                 </div>
                 <button
                   type="button"
-                  onClick={() => autoCalculateCorporateSalary()}
+                  onClick={handleAutoCalculateClick}
                   className="inline-flex items-center gap-1.5 rounded-xl bg-sky-50 px-3 py-1.5 text-xs font-bold text-sky-700 hover:bg-sky-100 dark:bg-sky-950/50 dark:text-sky-300 dark:hover:bg-sky-900/60 transition-colors shrink-0 cursor-pointer"
                 >
                   <Wand2 className="h-3.5 w-3.5" /> Auto-Calculate Breakdown
@@ -2965,26 +3689,45 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
 
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                 <div>
-                  <label className="mb-2 block text-[10px] font-black uppercase tracking-[0.28em] text-sky-600 dark:text-sky-400">Annual CTC (Without Variable Pay) *</label>
+                  <label className="mb-2 block text-[10px] font-black uppercase tracking-[0.28em] text-sky-600 dark:text-sky-400">
+                    Annual CTC (Without Variable Pay) <span className="text-rose-500 font-bold ml-0.5">*</span>
+                  </label>
                   <div className="relative">
                     <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-sm font-bold text-slate-400">₹</span>
                     <input
-                      type="number"
-                      min="0"
+                      type="text"
+                      inputMode="numeric"
                       value={structureDraft.annualCtc || ''}
+                      onKeyDown={e => {
+                        if (['e', 'E', '+', '-'].includes(e.key)) {
+                          e.preventDefault();
+                        }
+                      }}
                       onChange={e => {
                         const val = e.target.value;
                         setStructureDraft(prev => ({ ...prev, annualCtc: val }));
                         autoCalculateCorporateSalary(val);
                       }}
-                      className={`${inputClass} pl-8 font-extrabold text-sky-700 dark:text-sky-300`}
+                      className={`${inputClass} pl-8 font-extrabold ${
+                        annualCtcError
+                          ? 'border-rose-400 focus:border-rose-500 focus:ring-rose-500/20 text-rose-600 dark:border-rose-600 dark:text-rose-400'
+                          : 'text-sky-700 dark:text-sky-300'
+                      }`}
                       placeholder="e.g. 399996"
                     />
                   </div>
+                  {annualCtcError && (
+                    <p className="mt-1.5 flex items-center gap-1.5 text-xs font-semibold text-rose-600 dark:text-rose-400">
+                      <AlertCircle className="h-3.5 w-3.5 shrink-0" />
+                      <span>{annualCtcError}</span>
+                    </p>
+                  )}
                 </div>
 
                 <div>
-                  <label className="mb-2 block text-[10px] font-black uppercase tracking-[0.28em] text-slate-400">Employee Category *</label>
+                  <label className="mb-2 block text-[10px] font-black uppercase tracking-[0.28em] text-slate-400">
+                    Employee Category <span className="text-rose-500 font-bold ml-0.5">*</span>
+                  </label>
                   <SelectField
                     value={structureDraft.employeeCategory}
                     onChange={e => {
@@ -2992,13 +3735,16 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
                       setStructureDraft(prev => ({ ...prev, employeeCategory: newCat, staffId: '', designation: '', department: '' }));
                     }}
                   >
+                    <option value="">Select Category</option>
                     <option value="Teacher">Teaching Staff</option>
                     <option value="Staff">Non-Teaching Staff</option>
                   </SelectField>
                 </div>
 
                 <div>
-                  <label className="mb-2 block text-[10px] font-black uppercase tracking-[0.28em] text-slate-400">Select Employee / Staff *</label>
+                  <label className="mb-2 block text-[10px] font-black uppercase tracking-[0.28em] text-slate-400">
+                    Select Employee / Staff <span className="text-rose-500 font-bold ml-0.5">*</span>
+                  </label>
                   <SearchableStaffSelect
                     value={structureDraft.staffId || ''}
                     onChange={handleStaffSelect}
@@ -3030,7 +3776,9 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
                 </div>
 
                 <div>
-                  <label className="mb-2 block text-[10px] font-black uppercase tracking-[0.28em] text-slate-400">Structure Name *</label>
+                  <label className="mb-2 block text-[10px] font-black uppercase tracking-[0.28em] text-slate-400">
+                    Structure Name <span className="text-rose-500 font-bold ml-0.5">*</span>
+                  </label>
                   <input
                     value={structureDraft.structureName}
                     onChange={e => setStructureDraft(prev => ({ ...prev, structureName: e.target.value }))}
@@ -3050,11 +3798,14 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
                 </div>
 
                 <div>
-                  <label className="mb-2 block text-[10px] font-black uppercase tracking-[0.28em] text-slate-400">Payroll Frequency</label>
+                  <label className="mb-2 block text-[10px] font-black uppercase tracking-[0.28em] text-slate-400">
+                    Payroll Frequency <span className="text-rose-500 font-bold ml-0.5">*</span>
+                  </label>
                   <SelectField
                     value={structureDraft.payrollFrequency}
                     onChange={e => setStructureDraft(prev => ({ ...prev, payrollFrequency: e.target.value as any }))}
                   >
+                    <option value="">Select Frequency</option>
                     <option value="Monthly">Monthly</option>
                     <option value="Weekly">Weekly</option>
                     <option value="Bi-Weekly">Bi-Weekly</option>
@@ -3428,7 +4179,9 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
           <div className="grid grid-cols-1 gap-6 md:grid-cols-[1.1fr_0.9fr]">
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               <div className="md:col-span-2">
-                <label className="mb-2 block text-[10px] font-black uppercase tracking-[0.28em] text-slate-400">Employee</label>
+                <label className="mb-2 block text-[10px] font-black uppercase tracking-[0.28em] text-slate-400">
+                  Employee <span className="text-rose-500 font-bold ml-0.5">*</span>
+                </label>
                 <SearchableStaffSelect
                   value={assignmentDraft.employeeId}
                   staffList={staff}
@@ -3469,7 +4222,9 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
                 />
               </div>
               <div>
-                <label className="mb-2 block text-[10px] font-black uppercase tracking-[0.28em] text-slate-400">Category</label>
+                <label className="mb-2 block text-[10px] font-black uppercase tracking-[0.28em] text-slate-400">
+                  Category <span className="text-rose-500 font-bold ml-0.5">*</span>
+                </label>
                 <SelectField
                   value={assignmentDraft.employeeCategory}
                   onChange={e => {
@@ -3494,7 +4249,9 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
                 </SelectField>
               </div>
               <div>
-                <label className="mb-2 block text-[10px] font-black uppercase tracking-[0.28em] text-slate-400">Designation</label>
+                <label className="mb-2 block text-[10px] font-black uppercase tracking-[0.28em] text-slate-400">
+                  Designation <span className="text-rose-500 font-bold ml-0.5">*</span>
+                </label>
                 <SearchableSelect
                     value={assignmentDraft.designation}
                     onChange={(val: string) => {
@@ -3517,7 +4274,9 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
                   />
               </div>
               <div className="md:col-span-2">
-                <label className="mb-2 block text-[10px] font-black uppercase tracking-[0.28em] text-slate-400">Salary Structure</label>
+                <label className="mb-2 block text-[10px] font-black uppercase tracking-[0.28em] text-slate-400">
+                  Salary Structure <span className="text-rose-500 font-bold ml-0.5">*</span>
+                </label>
                 <SelectField
                   value={assignmentDraft.salaryStructureId}
                   onChange={e => {

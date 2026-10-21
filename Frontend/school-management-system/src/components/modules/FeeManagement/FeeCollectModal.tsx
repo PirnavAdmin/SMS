@@ -26,7 +26,7 @@ export const FeeCollectModal: React.FC<FeeCollectModalProps> = ({
   } = useData();
   const { addToast } = useToast();
 
-  const activeAY = financeSettings?.academicYear || '2026-2027';
+  const activeAY = financeSettings?.academicYear || '';
 
   // Selected Installment IDs
   const [selectedInstIds, setSelectedInstIds] = useState<string[]>([]);

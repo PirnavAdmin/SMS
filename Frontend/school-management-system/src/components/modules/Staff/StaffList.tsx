@@ -49,6 +49,7 @@ import {
 
 import { useAuth } from "../../../context/AuthContext";
 import { TeacherProfileView } from "./TeacherProfileView";
+import { generateNextEmployeeId } from "../../../utils/idGenerator";
 
 const StaffListRowAvatar: React.FC<{ st: Staff }> = ({ st }) => {
   const [imgErr, setImgErr] = useState(false);
@@ -314,21 +315,40 @@ export const StaffList: React.FC<{
         const workbook = XLSX.utils.book_new();
 
         // 1. Personal Details Sheet
-        const personalData = filtered.map((st) => ({
+        const personalData = filtered.map((st: any) => ({
           "Employee ID": st.empId || "",
           "Category": st.employeeCategory || "",
           "First Name": st.firstName || "",
           "Middle Name": st.middleName || "",
           "Last Name": st.lastName || "",
           "Email": st.email || "",
-          "Phone": st.phone || "",
-          "Alternate Mobile": st.alternateMobile || "",
+          "Phone": st.phone || st.mobileNumber || st.mobile || "",
+          "Alternate Mobile": (() => {
+            const raw = st.alternateMobile || st.alternateMobileNumber || st.alternatePhone || st.altMobile || "";
+            if (!raw) return "";
+            const str = String(raw).trim();
+            const digits = str.replace(/\D/g, "");
+            if (digits.length < 5) return "";
+            return str;
+          })(),
           "Gender": st.gender || "",
-          "Date of Birth": st.dob || "",
+          "Date of Birth": st.dob || st.dateOfBirth || "",
           "Blood Group": st.bloodGroup || "",
           "Aadhaar Number": st.aadhaarNumber || "",
-          "PAN Number": st.panNumber || "",
-          "Present Address": st.presentAddress || "",
+          "PAN Number": (() => {
+            let pan = st.panNumber || st.pan || st.panNo || st.panCard || "";
+            if (!pan && st.documents && Array.isArray(st.documents)) {
+              const panDoc = st.documents.find((d: any) => {
+                const t = (d.type || d.documentType || d.title || d.name || "").toLowerCase();
+                return t.includes("pan");
+              });
+              if (panDoc) {
+                pan = panDoc.documentNumber || panDoc.docNumber || "";
+              }
+            }
+            return pan ? String(pan).toUpperCase().trim() : "";
+          })(),
+          "Present Address": st.presentAddress || st.residentialAddress || st.address || "",
           "Permanent Address": st.permanentAddress || "",
           "City": st.city || "",
           "State": st.state || "",
@@ -508,7 +528,11 @@ export const StaffList: React.FC<{
         "city": "Hyderabad",
         "state": "Telangana",
         "pinCode": "500001",
+<<<<<<< HEAD
         "branch": selectedBranch || (branches && branches[0]?.name) || "",
+=======
+        "branch": "",
+>>>>>>> 2c7d0190f1106e317e9965ae947dc2f54d4d3f76
         "department": activeCategory === "Teaching Staff" ? "Mathematics" : "Administration",
         "designation": activeCategory === "Teaching Staff" ? "PGT Teacher" : "Administrator",
         "employmentType": "Full Time",
@@ -551,6 +575,7 @@ export const StaffList: React.FC<{
           const data = XLSX.utils.sheet_to_json(sheet) as any[];
 
           let count = 0;
+          const currentBatchStaff = [...staff];
           data.forEach((row) => {
             if (row.firstName || row.lastName || row.applicantName) {
               const fName =
@@ -563,36 +588,62 @@ export const StaffList: React.FC<{
                 (row.applicantName
                   ? row.applicantName.split(" ").slice(1).join(" ")
                   : "Unknown");
+
+              const rowCategory = row.employeeCategory || activeCategory;
+              let rowEmpId = (row.empId || "").trim();
+              const isDuplicate =
+                rowEmpId &&
+                currentBatchStaff.some(
+                  (s) =>
+                    (s.empId || (s as any).employeeId || "")
+                      .trim()
+                      .toLowerCase() === rowEmpId.toLowerCase(),
+                );
+
+              if (!rowEmpId || isDuplicate) {
+                rowEmpId = generateNextEmployeeId(currentBatchStaff, rowCategory);
+              }
+
               const newStaff: Omit<Staff, "id"> = {
-                empId: row.empId || `EMP${Math.floor(1000 + Math.random() * 9000)}`,
+                empId: rowEmpId,
                 firstName: fName,
                 middleName: row.middleName || "",
                 lastName: lName,
-                employeeCategory: row.employeeCategory || activeCategory,
+                employeeCategory: rowCategory,
                 gender: row.gender || "Male",
                 dob: row.dob || "",
-                bloodGroup: row.bloodGroup || "",
+                phone: row.mobileNumber || row.phone || row.mobile || "",
                 mobileNumber: row.mobileNumber || row.phone || row.mobile || "",
+                alternateMobile: (() => {
+                  const alt = row.alternateMobile || row.alternateMobileNumber || row.alternatePhone || "";
+                  const digits = String(alt).replace(/\D/g, "");
+                  return digits.length >= 5 ? String(alt).trim() : "";
+                })(),
                 alternateMobileNumber: row.alternateMobileNumber || "",
-                email: row.email || `${fName.toLowerCase()}@pirnav.com`,
+                email: row.email || "",
                 aadhaarNumber: row.aadhaarNumber || "",
-                panNumber: row.panNumber || "",
+                panNumber: row.panNumber || row.pan || row.panNo || "",
                 presentAddress: row.presentAddress || "",
                 permanentAddress: row.permanentAddress || "",
                 city: row.city || "",
                 state: row.state || "",
                 pinCode: row.pinCode || "",
+<<<<<<< HEAD
                 branch: row.branch || selectedBranch || (branches && branches[0]?.name) || "",
+=======
+                branch: row.branch || "",
+>>>>>>> 2c7d0190f1106e317e9965ae947dc2f54d4d3f76
                 department: row.department || "General",
-                designation: row.designation || (activeCategory === "Teaching Staff" ? "Subject Teacher" : "Administrator"),
+                designation: row.designation || (rowCategory === "Teaching Staff" ? "Subject Teacher" : "Administrator"),
                 employmentType: row.employmentType || "Full Time",
                 joiningDate: row.joiningDate || "",
-                role: activeCategory === "Teaching Staff" ? "Teacher" : "Staff",
+                role: (rowCategory === "Teaching Staff" || rowCategory === "Teacher") ? "Teacher" : "Staff",
                 status: "Active",
                 assignedClasses: [],
                 assignedSubjects: [],
               } as unknown as Omit<Staff, "id">;
-              addStaff(newStaff);
+              const added = addStaff(newStaff);
+              currentBatchStaff.push(added);
               count++;
             }
           });
@@ -786,6 +837,74 @@ export const StaffList: React.FC<{
             )}
           </div>
 
+          {/* Designation */}
+          <div
+            ref={designationDropdownRef}
+            className="relative flex-1 min-w-[140px] w-full"
+          >
+            <div
+              className="flex items-center gap-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 cursor-pointer h-full"
+              onClick={() =>
+                setDesignationDropdownOpen(!designationDropdownOpen)
+              }
+            >
+              <span className="text-xs text-slate-900 dark:text-white font-semibold flex-1 truncate">
+                {filterDesignation === "All"
+                  ? "All Designations"
+                  : filterDesignation}
+              </span>
+              <ChevronDown className="w-3.5 h-3.5 text-slate-600 dark:text-slate-400 shrink-0" />
+            </div>
+
+            {designationDropdownOpen && (
+              <div className="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-lg z-50 overflow-hidden">
+                <div className="p-2 border-b border-slate-100 dark:border-slate-700">
+                  <input
+                    type="text"
+                    placeholder="Search designations..."
+                    value={designationSearch}
+                    onChange={(e) => setDesignationSearch(e.target.value)}
+                    className="w-full px-3 py-2 text-xs bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg outline-none text-slate-900 dark:text-white"
+                    onClick={(e) => e.stopPropagation()}
+                  />
+                </div>
+                <div className="max-h-[160px] overflow-y-auto py-1">
+                  <div
+                    className={`px-3 py-2.5 text-xs cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors ${filterDesignation === "All" ? "text-brand-600 font-bold bg-brand-50/50 dark:bg-brand-900/20" : "text-slate-700 dark:text-slate-300"}`}
+                    onClick={() => {
+                      setFilterDesignation("All");
+                      setCurrentPage(1);
+                      setDesignationDropdownOpen(false);
+                      setDesignationSearch("");
+                    }}
+                  >
+                    All Designations
+                  </div>
+                  {uniqueDesignations
+                    .filter((d) =>
+                      d
+                        .toLowerCase()
+                        .includes(designationSearch.toLowerCase()),
+                    )
+                    .map((desig) => (
+                      <div
+                        key={desig}
+                        className={`px-3 py-2.5 text-xs cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors ${filterDesignation === desig ? "text-brand-600 font-bold bg-brand-50/50 dark:bg-brand-900/20" : "text-slate-700 dark:text-slate-300"}`}
+                        onClick={() => {
+                          setFilterDesignation(desig);
+                          setCurrentPage(1);
+                          setDesignationDropdownOpen(false);
+                          setDesignationSearch("");
+                        }}
+                      >
+                        {desig}
+                      </div>
+                    ))}
+                </div>
+              </div>
+            )}
+          </div>
+
           {/* Status */}
           <div className="flex-1 min-w-[140px] w-full">
             <div className="relative h-full">
@@ -825,78 +944,6 @@ export const StaffList: React.FC<{
               <ChevronDown className="w-3.5 h-3.5 text-slate-650 dark:text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
             </div>
           </div>
-
-
-
-          {activeCategory === "Non-Teaching Staff" && uniqueDesignations.length > 0 && (
-            <div
-              ref={designationDropdownRef}
-              className="relative flex-1 min-w-[140px] w-full"
-            >
-              <div
-                className="flex items-center gap-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 cursor-pointer h-full"
-                onClick={() =>
-                  setDesignationDropdownOpen(!designationDropdownOpen)
-                }
-              >
-                <span className="text-xs text-slate-900 dark:text-white font-semibold flex-1 truncate">
-                  {filterDesignation === "All"
-                    ? "All Designations"
-                    : filterDesignation}
-                </span>
-                <ChevronDown className="w-3.5 h-3.5 text-slate-600 dark:text-slate-400 shrink-0" />
-              </div>
-
-              {designationDropdownOpen && (
-                <div className="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-lg z-50 overflow-hidden">
-                  <div className="p-2 border-b border-slate-100 dark:border-slate-700">
-                    <input
-                      type="text"
-                      placeholder="Search designations..."
-                      value={designationSearch}
-                      onChange={(e) => setDesignationSearch(e.target.value)}
-                      className="w-full px-3 py-2 text-xs bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg outline-none text-slate-900 dark:text-white"
-                      onClick={(e) => e.stopPropagation()}
-                    />
-                  </div>
-                  <div className="max-h-[160px] overflow-y-auto py-1">
-                    <div
-                      className={`px-3 py-2.5 text-xs cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors ${filterDesignation === "All" ? "text-brand-600 font-bold bg-brand-50/50 dark:bg-brand-900/20" : "text-slate-700 dark:text-slate-300"}`}
-                      onClick={() => {
-                        setFilterDesignation("All");
-                        setCurrentPage(1);
-                        setDesignationDropdownOpen(false);
-                        setDesignationSearch("");
-                      }}
-                    >
-                      All Designations
-                    </div>
-                    {uniqueDesignations
-                      .filter((d) =>
-                        d
-                          .toLowerCase()
-                          .includes(designationSearch.toLowerCase()),
-                      )
-                      .slice(0, 5)
-                      .map((desig) => (
-                        <div
-                          key={desig}
-                          className={`px-3 py-2.5 text-xs cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors ${filterDesignation === desig ? "text-brand-600 font-bold bg-brand-50/50 dark:bg-brand-900/20" : "text-slate-700 dark:text-slate-300"}`}
-                          onClick={() => {
-                            setFilterDesignation(desig);
-                            setCurrentPage(1);
-                            setDesignationDropdownOpen(false);
-                            setDesignationSearch("");
-                          }}
-                        >
-                          {desig}
-                        </div>
-                      ))}
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
         </div>
       </div>
 
@@ -911,12 +958,15 @@ export const StaffList: React.FC<{
             <thead>
               <tr className="bg-slate-100/70 dark:bg-slate-800/60 text-slate-500 font-bold uppercase border-b border-slate-200 dark:border-slate-800">
                 <th
-                  className="sticky left-0 bg-slate-100 dark:bg-slate-800 z-20 py-3.5 px-4 font-mono text-center whitespace-nowrap"
-                  style={{ width: 120, minWidth: 120, maxWidth: 120 }}
+                  className="sticky left-0 bg-slate-100 dark:bg-slate-800 z-20 py-3.5 px-4 text-center whitespace-nowrap"
+                  style={{ width: 160, minWidth: 160, maxWidth: 160 }}
                 >
                   Employee ID
                 </th>
-                <th className="sticky left-[120px] bg-slate-100 dark:bg-slate-800 z-20 py-3.5 px-4 text-center whitespace-nowrap border-r border-slate-200/80 dark:border-slate-800 shadow-[2px_0_5px_rgba(0,0,0,0.02)] dark:shadow-none">
+                <th
+                  className="sticky left-[160px] bg-slate-100 dark:bg-slate-800 z-20 py-3.5 px-4 text-center whitespace-nowrap border-r border-slate-200/80 dark:border-slate-800 shadow-[2px_0_5px_rgba(0,0,0,0.02)] dark:shadow-none"
+                  style={{ left: 160 }}
+                >
                   Employee Name
                 </th>
                 <th className="py-3.5 px-4 text-center whitespace-nowrap">Department</th>
@@ -950,12 +1000,15 @@ export const StaffList: React.FC<{
                       className="group hover:bg-slate-50/80 dark:hover:bg-slate-800/40"
                     >
                       <td
-                        className="sticky left-0 bg-white dark:bg-slate-900 group-hover:bg-slate-50/80 dark:group-hover:bg-slate-800/40 z-10 transition-colors py-3 px-4 font-mono font-bold text-brand-600 dark:text-brand-400 text-center"
-                        style={{ width: 120, minWidth: 120, maxWidth: 120 }}
+                        className="sticky left-0 bg-white dark:bg-slate-900 group-hover:bg-slate-50/80 dark:group-hover:bg-slate-800/40 z-10 transition-colors py-3 px-4 font-bold text-brand-600 dark:text-brand-400 text-center whitespace-nowrap"
+                        style={{ width: 160, minWidth: 160, maxWidth: 160 }}
                       >
                         {st.empId}
                       </td>
-                      <td className="sticky left-[120px] bg-white dark:bg-slate-900 group-hover:bg-slate-50/80 dark:group-hover:bg-slate-800/40 z-10 transition-colors py-3 px-4 border-r border-slate-200/80 dark:border-slate-800 shadow-[2px_0_5px_rgba(0,0,0,0.02)] dark:shadow-none text-center">
+                      <td
+                        className="sticky left-[160px] bg-white dark:bg-slate-900 group-hover:bg-slate-50/80 dark:group-hover:bg-slate-800/40 z-10 transition-colors py-3 px-4 border-r border-slate-200/80 dark:border-slate-800 shadow-[2px_0_5px_rgba(0,0,0,0.02)] dark:shadow-none text-center"
+                        style={{ left: 160 }}
+                      >
                         <button
                           type="button"
                           onClick={() => setSelectedStaff(st)}
@@ -984,11 +1037,13 @@ export const StaffList: React.FC<{
                         <div className="inline-flex justify-center w-full">
                           <Badge
                             variant={
-                              st.status === "Active"
+                              (st.status || "").toLowerCase() === "active"
                                 ? "success"
-                                : st.status === "Resigned"
-                                  ? "danger"
-                                  : "neutral"
+                                : (st.status || "").toLowerCase() === "inactive"
+                                  ? "warning"
+                                  : (st.status || "").toLowerCase() === "resigned"
+                                    ? "danger"
+                                    : "neutral"
                             }
                             size="sm"
                           >

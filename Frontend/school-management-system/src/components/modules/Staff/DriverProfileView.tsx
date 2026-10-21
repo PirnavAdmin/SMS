@@ -9,6 +9,7 @@ import { useAuth } from '../../../context/AuthContext';
 import { useData } from '../../../context/DataContext';
 import { useToast } from '../../../context/ToastContext';
 import { Badge } from '../../common/Badge';
+import { resolveMediaUrl } from '../../../utils/mediaUtils';
 
 export const DriverProfileView: React.FC = () => {
   const { user } = useAuth();
@@ -229,7 +230,25 @@ export const DriverProfileView: React.FC = () => {
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div className="flex items-center gap-3">
             <div className="relative">
-              <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-gradient-to-br from-sky-500 to-indigo-600 text-white font-black text-xl flex items-center justify-center shadow-md">
+              {((matchedDriver as any)?.avatar || user?.avatar) ? (
+                <img
+                  key={(matchedDriver as any)?.avatar || user?.avatar}
+                  src={resolveMediaUrl((matchedDriver as any)?.avatar || user?.avatar)}
+                  alt={matchedDriver.driverName || 'Driver'}
+                  className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl object-cover shadow-md ring-2 ring-sky-500/20"
+                  onError={(e) => {
+                    const target = e.target as HTMLElement;
+                    target.style.display = 'none';
+                    const fb = target.nextElementSibling as HTMLElement | null;
+                    if (fb) fb.classList.remove('hidden');
+                  }}
+                />
+              ) : null}
+              <div
+                className={`w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-gradient-to-br from-sky-500 to-indigo-600 text-white font-black text-xl items-center justify-center shadow-md ${
+                  ((matchedDriver as any)?.avatar || user?.avatar) ? 'hidden' : 'flex'
+                }`}
+              >
                 {matchedDriver.driverName?.charAt(0) || 'D'}
               </div>
               <span className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full bg-emerald-500 border-2 border-white dark:border-slate-900" title="Active Staff" />

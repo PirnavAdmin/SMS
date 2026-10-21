@@ -672,7 +672,7 @@ export const HostelAttendanceView: React.FC = () => {
             <button
               type="button"
               onClick={() => handleBulkAction('Present')}
-              className="px-3.5 py-1.5 rounded-xl bg-sky-100 text-sky-700 dark:bg-sky-950 dark:text-sky-300 font-extrabold text-xs hover:bg-sky-200 transition-all"
+              className="px-3.5 py-1.5 rounded-xl bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 font-extrabold text-xs hover:bg-emerald-200 transition-all"
             >
               Mark All Present
             </button>
@@ -752,7 +752,7 @@ export const HostelAttendanceView: React.FC = () => {
                               onClick={() => handleStatusChange(itemKey, st)}
                               className={`px-3 py-1.5 rounded-xl text-xs font-extrabold whitespace-nowrap transition-all ${
                                 currentSt === st
-                                  ? st === 'Present' ? 'bg-sky-600 text-white shadow-md shadow-sky-500/25 scale-[1.02]' :
+                                  ? st === 'Present' ? 'bg-emerald-600 text-white shadow-md shadow-emerald-500/25 scale-[1.02]' :
                                     st === 'Absent' ? 'bg-rose-600 text-white shadow-md shadow-rose-500/25 scale-[1.02]' :
                                     st === 'Late' ? 'bg-amber-500 text-white shadow-md shadow-amber-500/25 scale-[1.02]' :
                                     'bg-blue-600 text-white shadow-md shadow-blue-500/25 scale-[1.02]'

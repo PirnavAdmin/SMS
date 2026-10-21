@@ -64,7 +64,7 @@ namespace SMS.Api.Controllers.AcademicManagement
                 className = ta.ClassGrade?.ClassName ?? "",
                 section = ta.SectionLetter,
                 teacherId = ta.TeacherId.ToString(),
-                teacherName = ta.Teacher != null ? $"{ta.Teacher.FirstName} {ta.Teacher.LastName}".Trim() : "",
+                teacherName = ta.Teacher != null ? System.Text.RegularExpressions.Regex.Replace($"{ta.Teacher.FirstName} {ta.Teacher.LastName}".Trim(), @"\s*\([^)]*\)$", "").Trim() : "",
                 subject = ta.Subject?.SubjectName ?? "",
                 subjectId = ta.SubjectId,
                 role = ta.Role,
@@ -135,7 +135,7 @@ namespace SMS.Api.Controllers.AcademicManagement
                         SectionName = s.SectionName ?? "",
                         ClassTeacherEmpId = classTeacherAssign?.TeacherId,
                         ClassTeacherName = classTeacherAssign?.Teacher != null
-                            ? $"{classTeacherAssign.Teacher.FirstName} {classTeacherAssign.Teacher.LastName}".Trim()
+                            ? System.Text.RegularExpressions.Regex.Replace($"{classTeacherAssign.Teacher.FirstName} {classTeacherAssign.Teacher.LastName}".Trim(), @"\s*\([^)]*\)$", "").Trim()
                             : null,
                         EmployeeId = classTeacherAssign?.Teacher?.EmployeeId,
                         Capacity = s.Capacity,
@@ -210,7 +210,7 @@ namespace SMS.Api.Controllers.AcademicManagement
                         SectionName = s.SectionName,
                         ClassTeacherEmpId = classTeacherAssign?.TeacherId,
                         ClassTeacherName = classTeacherAssign?.Teacher != null
-                            ? $"{classTeacherAssign.Teacher.FirstName} {classTeacherAssign.Teacher.LastName}".Trim()
+                            ? System.Text.RegularExpressions.Regex.Replace($"{classTeacherAssign.Teacher.FirstName} {classTeacherAssign.Teacher.LastName}".Trim(), @"\s*\([^)]*\)$", "").Trim()
                             : null,
                         EmployeeId = classTeacherAssign?.Teacher?.EmployeeId,
                         Capacity = s.Capacity,

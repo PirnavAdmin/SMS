@@ -1,6 +1,6 @@
 // @ts-nocheck
 import React, { useState, useEffect } from 'react';
-import { FileText, Download, Menu } from 'lucide-react';
+import { FileText, Download, Menu, Search } from 'lucide-react';
 import { useData } from '../../../context/DataContext';
 import { useAuth } from '../../../context/AuthContext';
 import { useParentWards, ParentStudentSelector } from '../../common/ParentStudentSelector';
@@ -13,6 +13,7 @@ export const ParentHomeworkView: React.FC = () => {
   const [filterSubject, setFilterSubject] = useState('All');
   const [filterDate, setFilterDate] = useState('');
   const [filterStatus, setFilterStatus] = useState<'Upcoming' | 'Closed'>('Upcoming');
+  const [searchQuery, setSearchQuery] = useState('');
   const [popupDescription, setPopupDescription] = useState<string | null>(null);
 
   const isStudentRole = (role || '').toLowerCase() === 'student';
@@ -271,7 +272,17 @@ export const ParentHomeworkView: React.FC = () => {
               Closed Homework
             </button>
           </div>
-          <div className="flex px-4 py-2 sm:p-0 w-full sm:w-auto border-t sm:border-t-0 border-slate-100 dark:border-slate-800 gap-2 items-center">
+          <div className="flex flex-wrap px-4 py-2 sm:p-0 w-full sm:w-auto border-t sm:border-t-0 border-slate-100 dark:border-slate-800 gap-2 items-center">
+            <div className="relative w-full sm:w-auto">
+              <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+              <input 
+                type="text"
+                placeholder="Search homework..."
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
+                className="w-full sm:w-44 pl-8 pr-3 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-700 dark:text-slate-300 outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 transition-all placeholder:text-slate-400"
+              />
+            </div>
             <input 
               type="date"
               value={filterDate}

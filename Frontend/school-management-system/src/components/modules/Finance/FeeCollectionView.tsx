@@ -336,6 +336,7 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
           email: adm.email || (adm as any).parentEmail || "",
           address: adm.address || (adm as any).areaLocality || "",
           status: "Active",
+<<<<<<< HEAD
           academicYear: adm.academicYear || "2026-2027",
           branch: adm.branch || (selectedBranch && selectedBranch !== "All" && selectedBranch !== "All Branches" ? selectedBranch : "") || "",
           selectedOptionalFees: adm.selectedOptionalFees || [],
@@ -348,6 +349,11 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
           pickupPointId: (adm as any).pickupPointId || "",
           registrationNo: adm.registrationNo || (adm as any).registrationNumber || "",
           applicationNo: adm.applicationNo || (adm as any).applicationId || "",
+=======
+          academicYear: adm.academicYear || selectedAcademicYear || "",
+          branch: adm.branch || selectedBranch || "",
+          selectedOptionalFees: adm.selectedOptionalFees || []
+>>>>>>> 2c7d0190f1106e317e9965ae947dc2f54d4d3f76
         } as unknown as Student);
       });
 
@@ -860,7 +866,7 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
               quantity: 1,
               issueDate: new Date().toISOString().split("T")[0],
               status: "Paid" as any,
-              academicYear: selectedAcademicYear || financeSettings.academicYear || "2026-2027",
+              academicYear: selectedAcademicYear || financeSettings.academicYear || "",
               type: "Base Package",
               price: paidAmount,
               notes: `Fees Paid at Counter (${paymentMode}) — Receipt #${receiptNumber}`,
@@ -977,7 +983,7 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
   };
 
   const currentYear =
-    selectedAcademicYear || financeSettings?.academicYear || "2026-2027";
+    selectedAcademicYear || financeSettings?.academicYear || "";
 
   const allInstallments = React.useMemo(() => {
     if (!selectedStudent) return [];
@@ -2347,7 +2353,11 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
                   </span>{" "}
                   | Branch:{" "}
                   <span className="font-bold text-slate-800 dark:text-slate-200">
+<<<<<<< HEAD
                     {activeStudent.branch || (activeStudent as any).campus || (selectedBranch && selectedBranch !== "All" && selectedBranch !== "All Branches" ? selectedBranch : "-")}
+=======
+                    {activeStudent.branch || (activeStudent as any).campus || selectedBranch || "—"}
+>>>>>>> 2c7d0190f1106e317e9965ae947dc2f54d4d3f76
                   </span>
                 </p>
               </div>
@@ -2428,7 +2438,11 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
                         {st.admissionNo || st.id}
                       </td>
                       <td className="py-3 px-4 text-slate-500">
+<<<<<<< HEAD
                         {st.branch || (selectedBranch && selectedBranch !== "All" && selectedBranch !== "All Branches" ? selectedBranch : "-")}
+=======
+                        {st.branch || selectedBranch || "—"}
+>>>>>>> 2c7d0190f1106e317e9965ae947dc2f54d4d3f76
                       </td>
                       <td className="py-3 px-4 text-right">
                         <button

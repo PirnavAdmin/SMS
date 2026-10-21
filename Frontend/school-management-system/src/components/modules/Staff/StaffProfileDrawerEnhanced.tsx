@@ -138,6 +138,7 @@ export const StaffProfileDrawer: React.FC<StaffProfileDrawerProps> = ({ staff: s
     teacherAssignments = [],
     payslips = [],
     leaveApplications = [],
+    leaveTypes = [],
     workshops = [],
     employeeAssessments = [],
     issuedCertificates = [],
@@ -273,8 +274,14 @@ export const StaffProfileDrawer: React.FC<StaffProfileDrawerProps> = ({ staff: s
         <InfoLine label="Date of Birth" value={staff.dob} />
         <InfoLine label="Blood Group" value={(staff as any).bloodGroup} />
         <InfoLine label="Mobile Number" value={staff.phone} />
-        <InfoLine label="Email" value={staff.email} />
-        <InfoLine label="Alternate Mobile" value={(staff as any).alternateMobile} />
+        <InfoLine label="Alternate Mobile" value={(() => {
+          const raw = (staff as any).alternateMobile || (staff as any).alternateMobileNumber || (staff as any).alternatePhone;
+          if (!raw) return undefined;
+          const str = String(raw).trim();
+          return str.replace(/\D/g, "").length >= 5 ? str : undefined;
+        })()} />
+        <InfoLine label="Aadhaar Number" value={(staff as any).aadhaarNumber} />
+        <InfoLine label="PAN Number" value={(staff as any).panNumber || (staff as any).panNo || (staff as any).pan} />
         <InfoLine label="Father's Name" value={(staff as any).fatherName} />
         <InfoLine label="Mother's Name" value={(staff as any).motherName} />
         <InfoLine label="Marital Status" value={(staff as any).maritalStatus} />
@@ -800,23 +807,23 @@ export const StaffProfileDrawer: React.FC<StaffProfileDrawerProps> = ({ staff: s
   );
 
   const renderLeave = () => {
-    const baseBal = staff.leaveBalance || { casual: 10, sick: 10, paid: 15 };
-    const approved = (leaveHistory || []).filter(item => item.status === 'Approved');
-    let usedCasual = 0;
-    let usedSick = 0;
-    let usedPaid = 0;
-    approved.forEach(item => {
-      const tName = (item.leaveTypeName || '').toLowerCase();
-      const days = Number(item.numberOfDays) || 0;
-      if (tName.includes('casual')) usedCasual += days;
-      else if (tName.includes('sick')) usedSick += days;
-      else if (tName.includes('paid') || tName.includes('earned')) usedPaid += days;
-      else usedCasual += days;
-    });
+    const getLeaveTypeAllowance = (codeOrName: string): number => {
+      const q = codeOrName.toLowerCase();
+      const found = (leaveTypes || []).find(t => 
+        (t.code && t.code.toLowerCase() === q) || 
+        (t.name && t.name.toLowerCase().includes(q))
+      );
+      return found ? (Number(found.annualAllowance) || Number(found.maxDays) || 0) : 0;
+    };
 
-    const remCasual = Math.max(0, (baseBal.casual || 0) - usedCasual);
-    const remSick = Math.max(0, (baseBal.sick || 0) - usedSick);
-    const remPaid = Math.max(0, (baseBal.paid || 0) - usedPaid);
+    const baseBal = staff.leaveBalance || {};
+    const defaultCasual = getLeaveTypeAllowance('cl') || getLeaveTypeAllowance('casual');
+    const defaultSick = getLeaveTypeAllowance('sl') || getLeaveTypeAllowance('sick');
+    const defaultEarned = getLeaveTypeAllowance('pl') || getLeaveTypeAllowance('el') || getLeaveTypeAllowance('earned') || getLeaveTypeAllowance('paid');
+
+    const remCasual = Math.max(0, baseBal.casual !== undefined ? baseBal.casual : defaultCasual);
+    const remSick = Math.max(0, baseBal.sick !== undefined ? baseBal.sick : defaultSick);
+    const remPaid = Math.max(0, baseBal.paid !== undefined ? baseBal.paid : defaultEarned);
 
     return (
       <SectionBlock title="Leave" subtitle="Leave balances and recent applications.">
@@ -833,7 +840,7 @@ export const StaffProfileDrawer: React.FC<StaffProfileDrawerProps> = ({ staff: s
               <div key={item.id} className="flex items-center justify-between rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/70 px-4 py-3">
                 <div>
                   <p className="text-sm font-bold text-slate-900 dark:text-white">{item.leaveTypeName}</p>
-                  <p className="text-[10px] text-slate-500">{item.fromDate} to {item.toDate} | {item.numberOfDays} days</p>
+                  <p className="text-[10px] text-slate-500">{item.fromDate} to {item.toDate} | {item.numberOfDays} {Number(item.numberOfDays) === 1 ? 'day' : 'days'}</p>
                 </div>
                 <Badge variant={item.status === 'Approved' ? 'success' : item.status === 'Rejected' ? 'danger' : 'warning'} size="sm">
                   {item.status}
@@ -932,7 +939,18 @@ export const StaffProfileDrawer: React.FC<StaffProfileDrawerProps> = ({ staff: s
                   </div>
                 )}
                 <div className="absolute -bottom-1 -right-1">
-                  <Badge variant={staff.status === 'Active' ? 'success' : 'neutral'} size="sm">
+                  <Badge
+                    variant={
+                      (staff.status || '').toLowerCase() === 'active'
+                        ? 'success'
+                        : (staff.status || '').toLowerCase() === 'inactive'
+                          ? 'warning'
+                          : (staff.status || '').toLowerCase() === 'resigned'
+                            ? 'danger'
+                            : 'neutral'
+                    }
+                    size="sm"
+                  >
                     {staff.status}
                   </Badge>
                 </div>
@@ -944,7 +962,11 @@ export const StaffProfileDrawer: React.FC<StaffProfileDrawerProps> = ({ staff: s
                   <Badge variant="info" size="sm">{staff.empId}</Badge>
                 </div>
                 <p className="text-xs text-slate-500 font-bold mt-0.5">{designation} | {department}</p>
+<<<<<<< HEAD
                 <p className="text-[10px] text-slate-400 font-medium">{staff.branch ? `Branch: ${staff.branch} | ` : ''}Role: {staff.role === 'Teacher' ? 'Teacher' : (staff.role === 'Staff' ? 'Non-Teaching Staff' : staff.role || 'Non-Teaching Staff')}</p>
+=======
+                <p className="text-[10px] text-slate-400 font-medium">Branch: {staff.branch || '—'} | Role: {staff.role === 'Teacher' ? 'Teacher' : (staff.role === 'Staff' ? 'Non-Teaching Staff' : staff.role || 'Non-Teaching Staff')}</p>
+>>>>>>> 2c7d0190f1106e317e9965ae947dc2f54d4d3f76
               </div>
             </div>
 

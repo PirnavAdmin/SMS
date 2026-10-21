@@ -347,6 +347,12 @@ export const StaffLettersManagementView: React.FC<StaffLettersManagementViewProp
       if (l?.branch) list.add(l.branch);
     });
     if (schoolProfile?.branchName) list.add(schoolProfile.branchName);
+<<<<<<< HEAD
+=======
+    if (list.size === 0) {
+      
+    }
+>>>>>>> 2c7d0190f1106e317e9965ae947dc2f54d4d3f76
     return Array.from(list).filter(Boolean).sort();
   }, [branches, staff, letters, schoolProfile]);
 
@@ -452,12 +458,12 @@ export const StaffLettersManagementView: React.FC<StaffLettersManagementViewProp
           {/* Filter and Search Toolbar */}
           <div className="bg-white dark:bg-slate-900 rounded-2xl px-3.5 py-2 shadow-xs border border-sky-300 dark:border-sky-800 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5">
             <div className="w-full sm:w-80">
-              <div className="relative w-full">
-                <Search className={`w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 ${searchError ? 'text-rose-500' : 'text-slate-400'}`} />
+              <div className="relative w-full flex items-center">
+                <Search className={`w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none transition-colors ${searchError ? 'text-rose-500' : 'text-slate-400 dark:text-slate-500'}`} />
                 <input
                   type="text"
                   maxLength={50}
-                  placeholder="Search by staff name, ID, ref no..."
+                  placeholder="Search by staff name..."
                   value={searchQuery}
                   onChange={(e) => {
                     const val = e.target.value;
@@ -469,10 +475,10 @@ export const StaffLettersManagementView: React.FC<StaffLettersManagementViewProp
                       setSearchError(validation.isValid ? undefined : validation.error);
                     }
                   }}
-                  className={`w-full pl-9 pr-8 py-1.5 text-xs rounded-xl bg-slate-50 dark:bg-slate-800 border text-slate-900 dark:text-white outline-none transition ${
+                  className={`w-full pl-9 pr-8 py-2 text-xs font-semibold rounded-xl bg-white dark:bg-slate-900 border text-slate-900 dark:text-white outline-none transition shadow-2xs ${
                     searchError
-                      ? 'border-rose-500 dark:border-rose-500 focus:ring-1 focus:ring-rose-500 bg-rose-50/30 dark:bg-rose-950/20'
-                      : 'border-sky-200 dark:border-sky-800 focus:ring-1 focus:ring-sky-500'
+                      ? 'border-rose-500 focus:ring-2 focus:ring-rose-500/20 bg-rose-50/20 dark:bg-rose-950/20'
+                      : 'border-slate-300 dark:border-slate-700 hover:border-slate-400 dark:hover:border-slate-600 focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20'
                   }`}
                 />
                 {searchQuery && (

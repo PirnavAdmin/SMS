@@ -47,7 +47,7 @@ export const StudentFeeAssignmentView: React.FC = () => {
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [previewInstallments, setPreviewInstallments] = useState<any[]>([]);
 
-  const activeAY = selectedAcademicYear || '2026-2027';
+  const activeAY = selectedAcademicYear || '';
 
   // Academic Year Start/End Date Range Check
   const currentAYObj = academicYears.find((ay) => ay.academicYear === activeAY);
