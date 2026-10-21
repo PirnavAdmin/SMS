@@ -153,10 +153,18 @@ export const LoginView: React.FC<LoginViewProps> = ({ onBack, initialRole }) => 
   // High Resolution School Campus Background Image
   const bgCampusImage = 'https://images.unsplash.com/photo-1541339907198-e08756dedf3f?q=80&w=2000&auto=format&fit=crop';
 
-  // Listen for session expiration events (24-hour token reset)
+  // Listen for session expiration events (24-hour token reset or inactivity timeout)
   useEffect(() => {
+    try {
+      const isTimeout = localStorage.getItem('session_timeout_occurred');
+      if (isTimeout) {
+        localStorage.removeItem('session_timeout_occurred');
+        setError('Your session has expired due to inactivity. Please sign in again to continue.');
+      }
+    } catch {}
+
     const handleSessionExpired = () => {
-      setError('Session expired. Please sign in again.');
+      setError('Your session has expired due to inactivity. Please sign in again to continue.');
     };
     window.addEventListener('session_expired', handleSessionExpired);
     return () => window.removeEventListener('session_expired', handleSessionExpired);

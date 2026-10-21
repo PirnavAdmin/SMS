@@ -286,6 +286,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, [token, user?.email, user?.role]);
 
   const logout = () => {
+    try {
+      const currentModule = localStorage.getItem('active_module');
+      if (currentModule && currentModule !== 'dashboard') {
+        localStorage.setItem('session_resume_module', currentModule);
+      }
+    } catch {}
     setUser(null);
     setToken(null);
     localStorage.removeItem('auth_user');
@@ -315,7 +321,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => {
     const checkSessionValidity = () => {
       if (token && !isTokenValid()) {
-        console.warn('Session expired: 24-hour token duration reached.');
+        console.warn('Session expired: token duration reached.');
+        try {
+          localStorage.setItem('session_timeout_occurred', 'true');
+        } catch {}
         logout();
         window.dispatchEvent(new CustomEvent('session_expired'));
       }
@@ -432,7 +441,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       localStorage.setItem('auth_token', realToken);
       localStorage.setItem('auth_token_timestamp', Date.now().toString());
       localStorage.setItem('roles', JSON.stringify(roles));
-      localStorage.setItem('active_module', 'dashboard');
+      const resumeModule = localStorage.getItem('session_resume_module');
+      if (resumeModule) {
+        localStorage.removeItem('session_resume_module');
+        localStorage.setItem('active_module', resumeModule);
+      } else {
+        localStorage.setItem('active_module', 'dashboard');
+      }
 
       return true;
     } catch (err: any) {

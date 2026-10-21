@@ -102,6 +102,13 @@ export const apiClient = async (endpoint: string, options: RequestInit = {}) => 
 
   if (!response.ok) {
     if (response.status === 401 && !endpoint.includes('/auth/')) {
+      try {
+        const currentModule = localStorage.getItem('active_module');
+        if (currentModule && currentModule !== 'dashboard') {
+          localStorage.setItem('session_resume_module', currentModule);
+        }
+        localStorage.setItem('session_timeout_occurred', 'true');
+      } catch {}
       localStorage.removeItem('auth_user');
       localStorage.removeItem('auth_token');
       localStorage.removeItem('auth_token_timestamp');
@@ -109,6 +116,7 @@ export const apiClient = async (endpoint: string, options: RequestInit = {}) => 
       localStorage.removeItem('active_module');
       try {
         window.dispatchEvent(new CustomEvent('auth_unauthorized'));
+        window.dispatchEvent(new CustomEvent('session_expired'));
       } catch (e) {}
     }
     let errorMessage = `HTTP error! status: ${response.status}`;

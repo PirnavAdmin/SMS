@@ -40,7 +40,22 @@ export const TrainingContainerView: React.FC = () => {
   const canManageTraining = !isWarden && !isLibrarianRole && (userRole.includes('admin') || userRole.includes('principal') || userRole.includes('director') || userRole.includes('coordinator') || userRole.includes('staff'));
 
   // Active Sub-Tab: 'dashboard' | 'workshops' | 'assessments' | 'certificates' | 'reports' | 'profile-view'
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'workshops' | 'assessments' | 'certificates' | 'reports' | 'profile-view'>('dashboard');
+  const [activeTab, setActiveTabState] = useState<'dashboard' | 'workshops' | 'assessments' | 'certificates' | 'reports' | 'profile-view'>(() => {
+    try {
+      const saved = localStorage.getItem('training_active_tab');
+      if (saved && ['dashboard', 'workshops', 'assessments', 'certificates', 'reports', 'profile-view'].includes(saved)) {
+        return saved as any;
+      }
+    } catch {}
+    return 'dashboard';
+  });
+
+  const setActiveTab = (tab: any) => {
+    setActiveTabState(tab);
+    try {
+      localStorage.setItem('training_active_tab', tab);
+    } catch {}
+  };
 
   // Filters
   const [searchQuery, setSearchQuery] = useState('');

@@ -312,9 +312,24 @@ export const CertificateSettingsTab: React.FC = () => {
     return rawMatch ? rawMatch[0] : currentYearStr;
   }, [activeAY, currentYearStr]);
 
-  const [activeSubSection, setActiveSubSection] = useState<
+  const [activeSubSection, setActiveSubSectionState] = useState<
     'types' | 'templates' | 'numbering' | 'fields' | 'signatures'
-  >('types');
+  >(() => {
+    try {
+      const saved = localStorage.getItem('certificate_settings_active_subsection');
+      if (saved && ['types', 'templates', 'numbering', 'fields', 'signatures'].includes(saved)) {
+        return saved as any;
+      }
+    } catch {}
+    return 'types';
+  });
+
+  const setActiveSubSection = (section: 'types' | 'templates' | 'numbering' | 'fields' | 'signatures') => {
+    setActiveSubSectionState(section);
+    try {
+      localStorage.setItem('certificate_settings_active_subsection', section);
+    } catch {}
+  };
 
   // Certificate Types State
   const [types, setTypes] = useState<CertificateTypeConfig[]>(() => {

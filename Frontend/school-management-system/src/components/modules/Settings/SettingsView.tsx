@@ -260,7 +260,7 @@ export const SettingsView: React.FC = () => {
   useEffect(() => {
     setProfileForm(schoolProfile);
   }, [schoolProfile]);
-  const [activeTab, setActiveTab] = useState<
+  const [activeTab, setActiveTabState] = useState<
     | "my-profile"
     | "profile"
     | "campus"
@@ -270,20 +270,39 @@ export const SettingsView: React.FC = () => {
     | "backup"
     | "audit"
   >(() => {
-    const saved = localStorage.getItem("settings_active_tab");
-    if (saved) {
-      localStorage.removeItem("settings_active_tab");
-      return saved as any;
-    }
+    try {
+      const saved = localStorage.getItem("settings_active_tab");
+      if (
+        saved &&
+        [
+          "my-profile",
+          "profile",
+          "campus",
+          "academic-year",
+          "certificates",
+          "automated-ids",
+          "backup",
+          "audit",
+        ].includes(saved)
+      ) {
+        return saved as any;
+      }
+    } catch {}
     return "my-profile";
   });
+
+  const setActiveTab = (tab: any) => {
+    setActiveTabState(tab);
+    try {
+      localStorage.setItem("settings_active_tab", tab);
+    } catch {}
+  };
 
   useEffect(() => {
     const handleTabChange = (e: any) => {
       const targetTab = e?.detail?.tab || localStorage.getItem("settings_active_tab");
       if (targetTab) {
         setActiveTab(targetTab as any);
-        localStorage.removeItem("settings_active_tab");
       }
     };
     window.addEventListener("settings_tab_change", handleTabChange);

@@ -193,6 +193,13 @@ const MainLayout: React.FC = () => {
       if (prevAuthenticated.current) {
         setShowLogin(true);
       }
+    } else {
+      try {
+        const saved = localStorage.getItem("active_module");
+        if (saved && saved !== activeModule) {
+          setActiveModuleState(saved);
+        }
+      } catch {}
     }
     prevAuthenticated.current = isAuthenticated;
   }, [isAuthenticated]);
