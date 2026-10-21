@@ -47,12 +47,10 @@ export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialS
     dynamicFeeStructures = [],
     feeStructures = [],
     studentFeeAssignments = [],
-    addFeePayment,
-    branches = []
+    addFeePayment
   } = useData() as any;
 
   const { addToast } = useToast();
-  const defaultBranch = selectedBranch || branches[0]?.name || '';
   const feeStructuresToUse = feeStructures?.length > 0 ? feeStructures : dynamicFeeStructures;
 
   const getPackageFeeForStudent = (className: string, priceOverride?: number, gender?: string) => {
@@ -518,13 +516,8 @@ export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialS
           email: adm.email || '',
           address: adm.address || '',
           status: 'Active',
-<<<<<<< HEAD
-          academicYear: adm.academicYear || '2026-2027',
-          branch: adm.branch || defaultBranch,
-=======
           academicYear: adm.academicYear || selectedAcademicYear || '',
           branch: adm.branch || selectedBranch || '',
->>>>>>> 2c7d0190f1106e317e9965ae947dc2f54d4d3f76
           selectedOptionalFees: adm.selectedOptionalFees || []
         } as unknown as Student);
       });
@@ -1213,11 +1206,7 @@ export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialS
         className: 'Class 1',
         section: 'A',
         gender: 'Male',
-<<<<<<< HEAD
-        branch: defaultBranch
-=======
         branch: selectedBranch || ''
->>>>>>> 2c7d0190f1106e317e9965ae947dc2f54d4d3f76
       } as unknown as Student;
     }
 
@@ -1345,13 +1334,8 @@ export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialS
         paymentMode: payMode,
         account: 'Main Bank Account',
         status: 'Completed',
-<<<<<<< HEAD
-        branch: studentObj.branch || defaultBranch,
-        academicYear: selectedAcademicYear || financeSettings.academicYear || '2026-2027',
-=======
         branch: studentObj.branch || selectedBranch || '',
         academicYear: selectedAcademicYear || financeSettings.academicYear || '',
->>>>>>> 2c7d0190f1106e317e9965ae947dc2f54d4d3f76
         createdBy: 'Uniform Counter'
       });
     }
@@ -1622,13 +1606,8 @@ export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialS
         paymentMode: 'Credit Note' as any,
         account: 'Main Bank Account',
         status: 'Completed',
-<<<<<<< HEAD
-        branch: issue.branch || defaultBranch,
-        academicYear: selectedAcademicYear || financeSettings.academicYear || '2026-2027',
-=======
         branch: issue.branch || (schoolProfile as any)?.schoolName || selectedBranch || '',
         academicYear: selectedAcademicYear || financeSettings.academicYear || '',
->>>>>>> 2c7d0190f1106e317e9965ae947dc2f54d4d3f76
         createdBy: 'Uniform Counter'
       });
     }
@@ -1938,13 +1917,8 @@ export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialS
               paymentMode: 'Cash',
               account: 'Main Bank Account',
               status: 'Pending',
-<<<<<<< HEAD
-              branch: studentObj.branch || defaultBranch,
-              academicYear: selectedAcademicYear || financeSettings.academicYear || '2026-2027',
-=======
               branch: studentObj.branch || selectedBranch || '',
               academicYear: selectedAcademicYear || financeSettings.academicYear || '',
->>>>>>> 2c7d0190f1106e317e9965ae947dc2f54d4d3f76
               createdBy: 'Uniform Distribution'
             });
           }

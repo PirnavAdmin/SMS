@@ -730,11 +730,8 @@ export const LeaveManagementView: React.FC = () => {
 
     const availableBal = getAvailableBalance(employee, lType.name);
     const empBranch = (employee as any).branch || (employee as any).branchId || selectedBranch || '';
-<<<<<<< HEAD
-=======
 
     const effectiveDays = applyForm.isHalfDay ? 0.5 : calculateDays(applyForm.fromDate, effectiveToDate, false);
->>>>>>> 2c7d0190f1106e317e9965ae947dc2f54d4d3f76
 
     const appData: Omit<LeaveApplication, 'id'> = {
       employeeId: employee.id,
@@ -1747,11 +1744,7 @@ export const LeaveManagementView: React.FC = () => {
                   const used = getEmployeeApprovedUsedLeaves(selectedStaffMember.id, selectedStaffMember.empId);
                   return (
                     <div className="p-2 bg-slate-50 dark:bg-slate-800/40 rounded-xl border border-slate-200 dark:border-slate-700 grid grid-cols-2 gap-x-3 gap-y-0.5 text-[10px]">
-<<<<<<< HEAD
-                      <div><span className="text-slate-400">Branch:</span> <span className="font-bold">{(selectedStaffMember as any).branch || selectedBranch || ''}</span></div>
-=======
                       <div><span className="text-slate-400">Branch:</span> <span className="font-bold">{(selectedStaffMember as any).branch || '—'}</span></div>
->>>>>>> 2c7d0190f1106e317e9965ae947dc2f54d4d3f76
                       <div><span className="text-slate-400">Department:</span> <span className="font-bold">{selectedStaffMember.department}</span></div>
                       <div><span className="text-slate-400">Designation:</span> <span className="font-bold">{selectedStaffMember.designation}</span></div>
                       <div className="col-span-2 pt-1 mt-0.5 border-t border-slate-200 dark:border-slate-700 text-brand-700 dark:text-brand-400 font-bold flex gap-3">
@@ -2360,11 +2353,7 @@ export const LeaveManagementView: React.FC = () => {
                 </div>
                 <div>
                   <label className="block font-semibold mb-1">Applicable Branch</label>
-<<<<<<< HEAD
-                  <input type="text" name="branch" placeholder="Enter Branch" defaultValue={editingHoliday?.branch || ''} className="w-full px-3 py-2 rounded-xl bg-slate-50 border outline-none" />
-=======
                   <input type="text" name="branch" placeholder="e.g. Branch Name" defaultValue={editingHoliday?.branch || ''} className="w-full px-3 py-2 rounded-xl bg-slate-50 border outline-none" />
->>>>>>> 2c7d0190f1106e317e9965ae947dc2f54d4d3f76
                 </div>
               </div>
 

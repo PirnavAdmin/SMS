@@ -19,8 +19,7 @@ export const TrainingContainerView: React.FC = () => {
   const {
     staff, workshops, addWorkshop, updateWorkshop, deleteWorkshop, markWorkshopAttendance, submitWorkshopFeedback,
     employeeAssessments, addAssessment, updateAssessment, deleteAssessment, saveAssessmentResults,
-    issuedCertificates, issueCertificate, reissueCertificate, logActivity, fetchFacultyTrainingData,
-    branches = []
+    issuedCertificates, issueCertificate, reissueCertificate, logActivity, fetchFacultyTrainingData
   } = useData();
 
   useEffect(() => {
@@ -31,9 +30,6 @@ export const TrainingContainerView: React.FC = () => {
 
   const { addToast } = useToast();
   const { user, role, selectedBranch } = useAuth();
-  const defaultBranch = selectedBranch && selectedBranch !== 'All' && selectedBranch !== 'All Branches'
-    ? selectedBranch
-    : ((branches?.[0]?.name || branches?.[0]?.branchName || '') as string);
   const userRole = (user?.role || role || '').toLowerCase();
   const isWarden = userRole.includes('warden');
   const isLibrarianRole = userRole.includes('librarian') || userRole.includes('library');
@@ -67,11 +63,7 @@ export const TrainingContainerView: React.FC = () => {
     type: 'Internal' as 'Internal' | 'External',
     trainerName: '',
     organization: 'Pirnav Schools Professional Cell',
-<<<<<<< HEAD
-    branch: defaultBranch,
-=======
     branch: selectedBranch || '',
->>>>>>> 2c7d0190f1106e317e9965ae947dc2f54d4d3f76
     department: 'Academics',
     applicableDesignation: 'All Staff',
     venue: 'Main Auditorium',
@@ -110,11 +102,7 @@ export const TrainingContainerView: React.FC = () => {
   const [wizardStep2, setWizardStep2] = useState({
     targetEmployeeType: 'Teaching Staff' as 'Teaching Staff' | 'Non-Teaching Staff' | 'Both',
     academicYear: '2025-2026',
-<<<<<<< HEAD
-    branch: defaultBranch,
-=======
     branch: selectedBranch || '',
->>>>>>> 2c7d0190f1106e317e9965ae947dc2f54d4d3f76
     department: 'All',
     designation: 'All',
     subject: 'All',
@@ -150,11 +138,7 @@ export const TrainingContainerView: React.FC = () => {
     setWizardStep2({
       targetEmployeeType: 'Teaching Staff',
       academicYear: '2025-2026',
-<<<<<<< HEAD
-      branch: defaultBranch,
-=======
       branch: selectedBranch || '',
->>>>>>> 2c7d0190f1106e317e9965ae947dc2f54d4d3f76
       department: 'All',
       designation: 'All',
       subject: 'All',
@@ -206,11 +190,7 @@ export const TrainingContainerView: React.FC = () => {
       const matchesRole = (wizardStep2.targetEmployeeType as string) === 'Both' || (wizardStep2.targetEmployeeType as string) === 'All Staff' ||
         (wizardStep2.targetEmployeeType === 'Teaching Staff' ? isTeacherRole : !isTeacherRole);
 
-<<<<<<< HEAD
-      const matchesBranch = wizardStep2.branch === 'All' || wizardStep2.branch === 'All Branches' || !s.branch || s.branch === 'All Branches' ||
-=======
       const matchesBranch = wizardStep2.branch === 'All' || !s.branch || s.branch === 'All Branches' ||
->>>>>>> 2c7d0190f1106e317e9965ae947dc2f54d4d3f76
         s.branch.toLowerCase() === wizardStep2.branch.toLowerCase();
 
       const matchesDept = wizardStep2.department === 'All' || wizardStep2.department === 'All Departments' || !wizardStep2.department ||
@@ -305,11 +285,7 @@ export const TrainingContainerView: React.FC = () => {
       const matchesRole = (workshopForm.targetRoleType as string) === 'All Staff' || (workshopForm.targetRoleType as string) === 'Both' ||
         (workshopForm.targetRoleType === 'Teaching Staff' ? isTeacherRole : !isTeacherRole);
 
-<<<<<<< HEAD
-      const matchesBranch = participantFilters.branch === 'All' || participantFilters.branch === 'All Branches' || !s.branch || s.branch === 'All Branches' ||
-=======
       const matchesBranch = participantFilters.branch === 'All' || !s.branch || s.branch === 'All Branches' ||
->>>>>>> 2c7d0190f1106e317e9965ae947dc2f54d4d3f76
         s.branch.toLowerCase() === participantFilters.branch.toLowerCase();
 
       const matchesDept = participantFilters.department === 'All' || participantFilters.department === 'All Departments' ||
@@ -355,11 +331,7 @@ export const TrainingContainerView: React.FC = () => {
         employeeRole: s?.role === 'Teacher' ? 'Teaching Staff' : 'Non-Teaching Staff',
         department: s?.department || 'General',
         designation: s?.designation || 'Staff',
-<<<<<<< HEAD
-        branch: s?.branch || defaultBranch,
-=======
         branch: s?.branch || selectedBranch || '',
->>>>>>> 2c7d0190f1106e317e9965ae947dc2f54d4d3f76
         attendanceStatus: 'Pending'
       };
     });
@@ -442,11 +414,7 @@ export const TrainingContainerView: React.FC = () => {
         employeeName: s ? `${s.firstName} ${s.lastName}` : 'Staff Member',
         department: s?.department || 'Academics',
         designation: s?.designation || 'Staff',
-<<<<<<< HEAD
-        branch: s?.branch || wizardStep2.branch || defaultBranch,
-=======
         branch: s?.branch || wizardStep2.branch || selectedBranch || '',
->>>>>>> 2c7d0190f1106e317e9965ae947dc2f54d4d3f76
         marksObtained: 0,
         totalMarks: Number(wizardStep1.totalMarks),
         percentage: 0,
@@ -1482,17 +1450,10 @@ export const TrainingContainerView: React.FC = () => {
                           onChange={e => setWizardStep2({ ...wizardStep2, branch: e.target.value })}
                           className="w-full px-2.5 py-1.5 rounded-lg bg-white dark:bg-slate-900 border font-bold text-xs cursor-pointer"
                         >
-<<<<<<< HEAD
-=======
                           
                           <option value="North Branch">North Branch</option>
                           <option value="West Campus">West Campus</option>
->>>>>>> 2c7d0190f1106e317e9965ae947dc2f54d4d3f76
                           <option value="All">All Branches</option>
-                          {(branches || []).map((b: any) => {
-                            const name = typeof b === 'string' ? b : (b.name || b.branchName);
-                            return <option key={name} value={name}>{name}</option>;
-                          })}
                         </select>
                       </div>
 
@@ -1616,11 +1577,7 @@ export const TrainingContainerView: React.FC = () => {
                               </div>
                               <div className="text-right">
                                 <span className="px-2 py-0.5 rounded-md bg-sky-50 dark:bg-sky-950 text-sky-700 dark:text-sky-300 font-bold text-[10px]">{emp.designation || emp.role}</span>
-<<<<<<< HEAD
-                                <span className="text-[10px] text-slate-400 block font-medium">{emp.department || 'General'}{emp.branch ? ` • ${emp.branch}` : ''}</span>
-=======
                                 <span className="text-[10px] text-slate-400 block font-medium">{emp.department || 'Main'} • {emp.branch || '—'}</span>
->>>>>>> 2c7d0190f1106e317e9965ae947dc2f54d4d3f76
                               </div>
                             </label>
                           ))

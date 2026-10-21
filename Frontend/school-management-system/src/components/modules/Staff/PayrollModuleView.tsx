@@ -189,11 +189,7 @@ const baseStructures = [
     structureName: 'Principal Premium',
     department: 'Academics',
     employeeCategory: 'Staff',
-<<<<<<< HEAD
-    branch: 'All Branches',
-=======
     branch: '',
->>>>>>> 2c7d0190f1106e317e9965ae947dc2f54d4d3f76
     designation: 'Principal',
     employmentType: 'Permanent',
     basicSalary: 45000,
@@ -214,11 +210,7 @@ const baseStructures = [
     structureName: 'Senior Teacher Scale',
     department: 'Mathematics',
     employeeCategory: 'Teacher',
-<<<<<<< HEAD
-    branch: 'All Branches',
-=======
     branch: '',
->>>>>>> 2c7d0190f1106e317e9965ae947dc2f54d4d3f76
     designation: 'Senior Teacher',
     employmentType: 'Permanent',
     basicSalary: 32000,
@@ -239,11 +231,7 @@ const baseStructures = [
     structureName: 'Standard Teacher Scale',
     department: 'Science',
     employeeCategory: 'Teacher',
-<<<<<<< HEAD
-    branch: 'All Branches',
-=======
     branch: '',
->>>>>>> 2c7d0190f1106e317e9965ae947dc2f54d4d3f76
     designation: 'Subject Teacher',
     employmentType: 'Permanent',
     basicSalary: 25000,
@@ -264,11 +252,7 @@ const baseStructures = [
     structureName: 'Office & Admin Scale',
     department: 'Administration',
     employeeCategory: 'Staff',
-<<<<<<< HEAD
-    branch: 'All Branches',
-=======
     branch: '',
->>>>>>> 2c7d0190f1106e317e9965ae947dc2f54d4d3f76
     designation: 'Office Assistant',
     employmentType: 'Permanent',
     basicSalary: 22000,
@@ -289,11 +273,7 @@ const baseStructures = [
     structureName: 'Support Staff Scale',
     department: 'Maintenance',
     employeeCategory: 'Staff',
-<<<<<<< HEAD
-    branch: 'All Branches',
-=======
     branch: '',
->>>>>>> 2c7d0190f1106e317e9965ae947dc2f54d4d3f76
     designation: 'Support Staff',
     employmentType: 'Contract',
     basicSalary: 18000,
@@ -526,11 +506,7 @@ const salaryBreakdown = [
 ];
 
 const recentActivity = [
-<<<<<<< HEAD
-  { title: 'Payroll Generated', time: '08:30 AM', detail: 'July 2026 batch generated.' },
-=======
   { title: 'Payroll Generated', time: '08:30 AM', detail: 'Payroll batch generated successfully.' },
->>>>>>> 2c7d0190f1106e317e9965ae947dc2f54d4d3f76
   { title: 'Payslip Published', time: '09:10 AM', detail: '170 payslips published to employee portals.' },
   { title: 'Salary Structure Updated', time: '10:05 AM', detail: 'Senior Teacher Scale revised for two faculty members.' },
   { title: 'Employee Assigned', time: '11:15 AM', detail: 'Three new staff members linked to payroll structures.' },
@@ -887,10 +863,9 @@ interface PayrollModuleViewProps {
 }
 
 export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab = 'staff-payroll-payslips', onTabChange }) => {
-  const { staff, branches } = useData();
+  const { staff } = useData();
   const { selectedBranch } = useAuth();
   const { addToast } = useToast();
-  const defaultBranch = selectedBranch || branches[0]?.name || '';
 
   const branchOptions = useMemo(() => getDynamicBranchFilterOptions(), [selectedBranch]);
   const sampleEmployees = useMemo(() => staff.slice(0, 5), [staff]);
@@ -905,11 +880,7 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
     structureName: '',
     department: 'Administration',
     employeeCategory: 'Teacher',
-<<<<<<< HEAD
-    branch: defaultBranch,
-=======
     branch: selectedBranch || '',
->>>>>>> 2c7d0190f1106e317e9965ae947dc2f54d4d3f76
     designation: '',
     employmentType: 'Permanent',
     basicSalary: 30000,
@@ -1041,11 +1012,7 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
   const filteredPayslips = useMemo(() => {
     return payslipRows.filter(row => {
       const matchesMonth = payrollMonth === 'All Months' || row.month === payrollMonth;
-<<<<<<< HEAD
-      const matchesBranch = !selectedBranch || selectedBranch === 'All' || selectedBranch === 'All Branches' || row.branch === selectedBranch || !row.branch || row.branch === 'All Branches';
-=======
       const matchesBranch = !selectedBranch || selectedBranch === 'All' || selectedBranch === 'All Branches' || row.branch === selectedBranch;
->>>>>>> 2c7d0190f1106e317e9965ae947dc2f54d4d3f76
       return matchesMonth && matchesBranch;
     });
   }, [payrollMonth, payslipRows, selectedBranch]);
@@ -1179,11 +1146,7 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
         structureName: '',
         department: 'Administration',
         employeeCategory: 'Teacher',
-<<<<<<< HEAD
-        branch: defaultBranch,
-=======
         branch: selectedBranch || '',
->>>>>>> 2c7d0190f1106e317e9965ae947dc2f54d4d3f76
         designation: '',
         employmentType: 'Permanent',
         basicSalary: 30000,

@@ -158,19 +158,11 @@ export const Header: React.FC<HeaderProps> = ({ collapsed, setCollapsed, onOpenS
 
   const branchOptions = useMemo(() => {
     const fromApi = (branches || [])
-      .filter((b: any) => b && b.status !== 'Inactive')
-      .map((b: any) => typeof b === 'string' ? b : (b.name || b.branchName))
+      .filter((b: any) => b.status !== 'Inactive')
+      .map((b: any) => b.name || b.branchName)
       .filter(Boolean);
 
-<<<<<<< HEAD
-    if (fromApi.length > 0) {
-      return Array.from(new Set(fromApi)).sort();
-    }
-
-    return [];
-=======
     return Array.from(new Set(fromApi)).sort();
->>>>>>> 2c7d0190f1106e317e9965ae947dc2f54d4d3f76
   }, [branches]);
 
   const authorizedBranches = useMemo(() => {
@@ -184,8 +176,6 @@ export const Header: React.FC<HeaderProps> = ({ collapsed, setCollapsed, onOpenS
   useEffect(() => {
     if (authorizedBranches.length > 0 && (!selectedBranch || !authorizedBranches.includes(selectedBranch))) {
       setSelectedBranch(authorizedBranches[0]);
-    } else if (authorizedBranches.length === 0 && selectedBranch && selectedBranch !== 'All' && selectedBranch !== 'All Branches') {
-      setSelectedBranch('');
     }
   }, [selectedBranch, authorizedBranches, setSelectedBranch]);
 
@@ -589,11 +579,6 @@ export const Header: React.FC<HeaderProps> = ({ collapsed, setCollapsed, onOpenS
                       </div>
                     );
                   })}
-                  {branchOptions.length === 0 && (
-                    <div className="py-2 text-center text-[11px] text-slate-400">
-                      No campuses configured
-                    </div>
-                  )}
                 </div>
               </div>
             )}

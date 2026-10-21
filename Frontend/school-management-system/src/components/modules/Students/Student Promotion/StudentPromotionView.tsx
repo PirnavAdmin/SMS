@@ -102,15 +102,9 @@ export const StudentPromotionView: React.FC<StudentPromotionViewProps> = ({ onNa
   };
 
   // Filter States
-<<<<<<< HEAD
-  const [currentYear, setCurrentYear] = useState<string>('2026-2027');
-  const [targetYear, setTargetYear] = useState<string>('2027-2028');
-  const [branch, setBranch] = useState<string>('');
-=======
   const [currentYear, setCurrentYear] = useState<string>(selectedAcademicYear || (academicYears[0]?.year || ''));
   const [targetYear, setTargetYear] = useState<string>(() => getTargetYearFromCurrent(selectedAcademicYear || (academicYears[0]?.year || '')));
   const [branch, setBranch] = useState<string>(selectedBranch && selectedBranch !== 'All' ? selectedBranch : '');
->>>>>>> 2c7d0190f1106e317e9965ae947dc2f54d4d3f76
   const [fromClass, setFromClass] = useState<string>('');
   const [selectedExamId, setSelectedExamId] = useState<string>('');
 

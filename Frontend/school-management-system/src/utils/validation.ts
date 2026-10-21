@@ -1,10 +1,6 @@
 export const BLOOD_GROUPS = ['A+', 'A-', 'B+', 'B-', 'O+', 'O-', 'AB+', 'AB-'] as const;
 export const CASTE_CATEGORIES = ['General', 'OBC', 'SC', 'ST', 'EWS', 'Others'] as const;
-<<<<<<< HEAD
-export const BRANCHES: readonly string[] = [] as const;
-=======
 export const BRANCHES: readonly string[] = [];
->>>>>>> 2c7d0190f1106e317e9965ae947dc2f54d4d3f76
 export const RELIGIONS = ['Hinduism', 'Islam', 'Christianity', 'Sikhism', 'Buddhism', 'Jainism', 'Zoroastrianism', 'Judaism', 'Other'] as const;
 export const MARITAL_STATUSES = ['Married', 'Unmarried'] as const;
 

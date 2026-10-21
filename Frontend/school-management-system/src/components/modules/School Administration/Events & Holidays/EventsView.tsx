@@ -19,38 +19,12 @@ export const EventsView: React.FC = () => {
     holidays, addHoliday, updateHoliday, deleteHoliday,
     schoolEvents, addSchoolEvent, updateSchoolEvent, deleteSchoolEvent,
     birthdays, students, staff, exams, examSchedules, meetings, admissions, homework,
-    announcements, branches = []
+    announcements
   } = useData();
-<<<<<<< HEAD
-  const { selectedBranch } = useAuth();
-  const defaultBranch = selectedBranch && selectedBranch !== 'All' && selectedBranch !== 'All Branches'
-    ? selectedBranch
-    : ((branches?.[0]?.name || branches?.[0]?.branchName || '') as string);
-
-  // Comprehensive Realistic Official Holidays List for Academic Year 2026-2027
-  const REALISTIC_HOLIDAYS_2026_2027: Holiday[] = useMemo(() => [
-    { id: 'HOL-2026-01', name: 'Independence Day', type: 'National', startDate: '2026-08-15', endDate: '2026-08-15', branch: 'All Branches', description: 'National Holiday celebrating Indian Independence Day', status: 'Active' },
-    { id: 'HOL-2026-02', name: 'Raksha Bandhan', type: 'Festival', startDate: '2026-08-28', endDate: '2026-08-28', branch: 'All Branches', description: 'Traditional Festival Holiday', status: 'Active' },
-    { id: 'HOL-2026-03', name: 'Sri Krishna Janmashtami', type: 'Festival', startDate: '2026-09-04', endDate: '2026-09-04', branch: 'All Branches', description: 'Lord Krishna Jayanti Festival', status: 'Active' },
-    { id: 'HOL-2026-04', name: 'Ganesh Chaturthi', type: 'Festival', startDate: '2026-09-14', endDate: '2026-09-14', branch: 'All Branches', description: 'Ganesh Chaturthi Celebration', status: 'Active' },
-    { id: 'HOL-2026-05', name: 'Mahatma Gandhi Jayanti', type: 'National', startDate: '2026-10-02', endDate: '2026-10-02', branch: 'All Branches', description: 'Father of the Nation Birthday National Holiday', status: 'Active' },
-    { id: 'HOL-2026-06', name: 'Dussehra / Vijayadashami Break', type: 'Vacation', startDate: '2026-10-18', endDate: '2026-10-22', branch: 'All Branches', description: '5-Day Term Break for Dussehra Celebrations', status: 'Active' },
-    { id: 'HOL-2026-07', name: 'Diwali / Deepavali Vacation', type: 'Festival', startDate: '2026-11-08', endDate: '2026-11-12', branch: 'All Branches', description: '5-Day Festival Break for Diwali Lights Celebration', status: 'Active' },
-    { id: 'HOL-2026-08', name: 'Guru Nanak Jayanti', type: 'Gazetted', startDate: '2026-11-24', endDate: '2026-11-24', branch: 'All Branches', description: 'Guru Nanak Dev Ji Prakash Purab', status: 'Active' },
-    { id: 'HOL-2026-09', name: 'Christmas & Winter Vacation', type: 'Vacation', startDate: '2026-12-24', endDate: '2027-01-01', branch: 'All Branches', description: 'Official 9-Day Winter Vacation Break', status: 'Active' },
-    { id: 'HOL-2027-10', name: 'Makar Sankranti / Pongal', type: 'Festival', startDate: '2027-01-14', endDate: '2027-01-15', branch: 'All Branches', description: 'Harvest Festival Holiday', status: 'Active' },
-    { id: 'HOL-2027-11', name: 'Republic Day', type: 'National', startDate: '2027-01-26', endDate: '2027-01-26', branch: 'All Branches', description: 'Indian Constitution & Republic Day Flag Hoisting', status: 'Active' },
-    { id: 'HOL-2027-12', name: 'Maha Shivratri', type: 'Festival', startDate: '2027-03-06', endDate: '2027-03-06', branch: 'All Branches', description: 'Maha Shivratri Observance', status: 'Active' },
-    { id: 'HOL-2027-13', name: 'Holi Festival of Colors', type: 'Festival', startDate: '2027-03-22', endDate: '2027-03-22', branch: 'All Branches', description: 'Holi Festival Holiday', status: 'Active' },
-    { id: 'HOL-2027-14', name: 'Id-ul-Fitr (Ramzan Eid)', type: 'Gazetted', startDate: '2027-04-09', endDate: '2027-04-09', branch: 'All Branches', description: 'Gazetted Festival Holiday for Id-ul-Fitr', status: 'Active' },
-    { id: 'HOL-2027-15', name: 'Annual Summer Vacation Break', type: 'Vacation', startDate: '2027-05-01', endDate: '2027-06-05', branch: 'All Branches', description: '5-Week Annual Summer Vacation for Students & Academic Staff', status: 'Active' }
-  ], []);
-=======
   const { selectedBranch, selectedAcademicYear } = useAuth();
 
   // Realistic Official Holidays List
   const REALISTIC_HOLIDAYS_2026_2027: Holiday[] = useMemo(() => [], []);
->>>>>>> 2c7d0190f1106e317e9965ae947dc2f54d4d3f76
 
   // Fetch backend holidays & events from API on mount
   React.useEffect(() => {
@@ -183,11 +157,7 @@ export const EventsView: React.FC = () => {
       type: h.type,
       startDate: h.startDate,
       endDate: h.endDate || h.startDate,
-<<<<<<< HEAD
-      branch: h.branch || defaultBranch,
-=======
       branch: h.branch || selectedBranch || '',
->>>>>>> 2c7d0190f1106e317e9965ae947dc2f54d4d3f76
       description: h.description || '',
       status: h.status || 'Active',
       applicableTo: h.applicableTo || 'All'
@@ -207,13 +177,8 @@ export const EventsView: React.FC = () => {
       endDate: evt.endDate || evt.startDate,
       startTime: evt.startTime || '09:00 AM',
       endTime: evt.endTime || '04:00 PM',
-<<<<<<< HEAD
-      branch: evt.branch || defaultBranch,
-      academicYear: evt.academicYear || '2026-2027',
-=======
       branch: evt.branch || selectedBranch || '',
       academicYear: evt.academicYear || selectedAcademicYear || '',
->>>>>>> 2c7d0190f1106e317e9965ae947dc2f54d4d3f76
       participants: evt.participants || 'All Students & Staff',
       applicableClasses: evt.applicableClasses || ['All Classes'],
       status: evt.status || 'Published',
@@ -232,11 +197,7 @@ export const EventsView: React.FC = () => {
       type: 'National',
       startDate: new Date().toISOString().split('T')[0],
       endDate: new Date().toISOString().split('T')[0],
-<<<<<<< HEAD
-      branch: defaultBranch,
-=======
       branch: selectedBranch || '',
->>>>>>> 2c7d0190f1106e317e9965ae947dc2f54d4d3f76
       description: '',
       status: 'Active',
       applicableTo: 'All'
@@ -256,13 +217,8 @@ export const EventsView: React.FC = () => {
       endDate: new Date().toISOString().split('T')[0],
       startTime: '09:00 AM',
       endTime: '04:00 PM',
-<<<<<<< HEAD
-      branch: defaultBranch,
-      academicYear: '2026-2027',
-=======
       branch: selectedBranch || '',
       academicYear: selectedAcademicYear || '',
->>>>>>> 2c7d0190f1106e317e9965ae947dc2f54d4d3f76
       participants: 'All Students & Staff',
       applicableClasses: ['All Classes'],
       status: 'Published',
@@ -283,13 +239,8 @@ export const EventsView: React.FC = () => {
     endDate: new Date().toISOString().split('T')[0],
     startTime: '09:00 AM',
     endTime: '04:00 PM',
-<<<<<<< HEAD
-    branch: defaultBranch,
-    academicYear: '2026-2027',
-=======
     branch: selectedBranch || '',
     academicYear: selectedAcademicYear || '',
->>>>>>> 2c7d0190f1106e317e9965ae947dc2f54d4d3f76
     participants: 'All Students & Staff',
     applicableClasses: ['All Classes'],
     status: 'Published' as 'Completed' | 'Cancelled' | 'Draft' | 'Published',
@@ -304,11 +255,7 @@ export const EventsView: React.FC = () => {
     type: 'National' as HolidayType,
     startDate: new Date().toISOString().split('T')[0],
     endDate: new Date().toISOString().split('T')[0],
-<<<<<<< HEAD
-    branch: defaultBranch,
-=======
     branch: selectedBranch || '',
->>>>>>> 2c7d0190f1106e317e9965ae947dc2f54d4d3f76
     description: '',
     status: 'Active' as 'Active' | 'Inactive',
     applicableTo: 'All' as 'All' | 'Students' | 'Teaching Staff' | 'Non-Teaching Staff'
@@ -436,11 +383,7 @@ export const EventsView: React.FC = () => {
         description: `Status: ${adm.status}. Parent: ${adm.parentName}`,
         color: 'teal',
         sourceModule: 'Admissions Module',
-<<<<<<< HEAD
-        branch: adm.branch || defaultBranch,
-=======
         branch: adm.branch || selectedBranch || '',
->>>>>>> 2c7d0190f1106e317e9965ae947dc2f54d4d3f76
         rawItem: adm
       });
     });
@@ -458,11 +401,7 @@ export const EventsView: React.FC = () => {
         description: ann.content || 'Official Communication Hub Broadcast Circular',
         color: 'purple',
         sourceModule: 'Communication Hub',
-<<<<<<< HEAD
-        branch: (ann as any).branch || defaultBranch,
-=======
         branch: selectedBranch || '',
->>>>>>> 2c7d0190f1106e317e9965ae947dc2f54d4d3f76
         rawItem: ann
       });
     });
@@ -691,13 +630,8 @@ export const EventsView: React.FC = () => {
       endDate: new Date().toISOString().split('T')[0],
       startTime: '09:00 AM',
       endTime: '04:00 PM',
-<<<<<<< HEAD
-      branch: defaultBranch,
-      academicYear: '2026-2027',
-=======
       branch: selectedBranch || '',
       academicYear: selectedAcademicYear || '',
->>>>>>> 2c7d0190f1106e317e9965ae947dc2f54d4d3f76
       participants: 'All Students & Staff',
       applicableClasses: ['All Classes'],
       status: 'Published',
@@ -746,11 +680,7 @@ export const EventsView: React.FC = () => {
       type: 'National',
       startDate: new Date().toISOString().split('T')[0],
       endDate: new Date().toISOString().split('T')[0],
-<<<<<<< HEAD
-      branch: defaultBranch,
-=======
       branch: selectedBranch || '',
->>>>>>> 2c7d0190f1106e317e9965ae947dc2f54d4d3f76
       description: '',
       status: 'Active',
       applicableTo: 'All'
@@ -1604,11 +1534,7 @@ export const EventsView: React.FC = () => {
               )}
               <div className="flex justify-between">
                 <span>🏢 <strong>Branch:</strong></span>
-<<<<<<< HEAD
-                <span>{selectedEventForDetail.branch || defaultBranch || 'All Branches'}</span>
-=======
                 <span>{selectedEventForDetail.branch || '—'}</span>
->>>>>>> 2c7d0190f1106e317e9965ae947dc2f54d4d3f76
               </div>
             </div>
 

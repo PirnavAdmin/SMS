@@ -110,7 +110,6 @@ export const StaffList: React.FC<{
     subjects = [],
     departments = [],
     designations = [],
-    branches = [],
   } = useData();
   const { addToast } = useToast();
 
@@ -528,11 +527,7 @@ export const StaffList: React.FC<{
         "city": "Hyderabad",
         "state": "Telangana",
         "pinCode": "500001",
-<<<<<<< HEAD
-        "branch": selectedBranch || (branches && branches[0]?.name) || "",
-=======
         "branch": "",
->>>>>>> 2c7d0190f1106e317e9965ae947dc2f54d4d3f76
         "department": activeCategory === "Teaching Staff" ? "Mathematics" : "Administration",
         "designation": activeCategory === "Teaching Staff" ? "PGT Teacher" : "Administrator",
         "employmentType": "Full Time",
@@ -628,11 +623,7 @@ export const StaffList: React.FC<{
                 city: row.city || "",
                 state: row.state || "",
                 pinCode: row.pinCode || "",
-<<<<<<< HEAD
-                branch: row.branch || selectedBranch || (branches && branches[0]?.name) || "",
-=======
                 branch: row.branch || "",
->>>>>>> 2c7d0190f1106e317e9965ae947dc2f54d4d3f76
                 department: row.department || "General",
                 designation: row.designation || (rowCategory === "Teaching Staff" ? "Subject Teacher" : "Administrator"),
                 employmentType: row.employmentType || "Full Time",

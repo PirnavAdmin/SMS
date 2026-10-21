@@ -418,11 +418,7 @@ export const PayrollDrawer: React.FC<PayrollDrawerProps> = ({ staff, isOpen, onC
                 </DrawerCard>
                 <DrawerCard title="Employment Info" subtitle="Core profile and payroll mapping.">
                   <div className="space-y-3 text-sm">
-<<<<<<< HEAD
-                    <div className="flex items-center justify-between"><span className="text-slate-500">Branch</span><span className="font-bold text-slate-900 dark:text-white">{staff.branch || ''}</span></div>
-=======
                     <div className="flex items-center justify-between"><span className="text-slate-500">Branch</span><span className="font-bold text-slate-900 dark:text-white">{staff.branch || '—'}</span></div>
->>>>>>> 2c7d0190f1106e317e9965ae947dc2f54d4d3f76
                     <div className="flex items-center justify-between"><span className="text-slate-500">Joining Date</span><span className="font-bold text-slate-900 dark:text-white">{formatShortDate(staff.joiningDate)}</span></div>
                     <div className="flex items-center justify-between"><span className="text-slate-500">Current Assignment</span><span className="font-bold text-slate-900 dark:text-white">{assignment?.salaryStructureName || 'Unassigned'}</span></div>
                     <div className="flex items-center justify-between"><span className="text-slate-500">Bank</span><span className="font-bold text-slate-900 dark:text-white">{staff.bankDetails?.bankName || 'N/A'}</span></div>
@@ -691,11 +687,7 @@ export const PayrollDrawer: React.FC<PayrollDrawerProps> = ({ staff, isOpen, onC
                 </div>
                 <div>
                   <span className="text-[10px] uppercase font-bold text-slate-400">Branch</span>
-<<<<<<< HEAD
-                  <p className="font-bold text-slate-900 dark:text-white mt-0.5">{viewingPayslip.branch || staff.branch || ''}</p>
-=======
                   <p className="font-bold text-slate-900 dark:text-white mt-0.5">{viewingPayslip.branch || staff.branch || '—'}</p>
->>>>>>> 2c7d0190f1106e317e9965ae947dc2f54d4d3f76
                 </div>
                 <div>
                   <span className="text-[10px] uppercase font-bold text-slate-400">Payment Status</span>

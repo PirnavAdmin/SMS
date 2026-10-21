@@ -210,49 +210,8 @@ export const TeacherPayslipsView: React.FC = () => {
       if (userId && (pEmployeeId === userId || pEmpId === userId)) return true;
       if (empIdCode && (pEmpId === String(empIdCode).toLowerCase().trim() || pEmployeeId === String(empIdCode).toLowerCase().trim())) return true;
 
-<<<<<<< HEAD
-    const generated: Payslip[] = pastMonths.map((m, idx) => {
-      const gross = m.basic + m.hra + m.da;
-      const totalDeductions = m.pf + m.lop + 200; // 200 Professional Tax
-      const net = gross - totalDeductions;
-      return {
-        id: `PS-TCH-${1000 + idx}`,
-        employeeId: teacherStaffMember?.id || empIdCode,
-        employeeName: staffName,
-        empId: empIdCode,
-        branch: (teacherStaffMember as any)?.branch || user?.branch || '',
-        department: dept,
-        designation: desig,
-        employeeCategory: isAccountant ? 'Accountant' : isWarden ? 'Hostel Warden' : 'Teacher',
-        month: m.month,
-        basicSalary: m.basic,
-        hra: m.hra,
-        da: m.da,
-        grossSalary: gross,
-        pfDeduction: m.pf,
-        lopDeduction: m.lop,
-        otherDeductions: 200,
-        netSalary: net,
-        bankAccount: teacherStaffMember?.bankDetails?.accountNumber || 'XXXX-XXXX-4829',
-        disbursedDate: m.date,
-        paymentDate: m.date,
-        status: 'Paid',
-        earnings: [
-          { name: 'Basic Pay', amount: m.basic },
-          { name: 'House Rent Allowance (HRA)', amount: m.hra },
-          { name: 'Dearness Allowance (DA)', amount: m.da },
-        ],
-        deductions: [
-          { name: 'Provident Fund (PF)', amount: m.pf },
-          { name: 'Professional Tax (PT)', amount: 200 },
-          ...(m.lop > 0 ? [{ name: 'Loss of Pay (LOP)', amount: m.lop }] : [])
-        ]
-      };
-    });
-=======
       // Check Email match
       if (staffEmail && pEmail && pEmail === staffEmail) return true;
->>>>>>> 2c7d0190f1106e317e9965ae947dc2f54d4d3f76
 
       // Check Full Name match
       if (staffFullName && !staffFullName.includes('admin') && pName === staffFullName) return true;
@@ -606,21 +565,9 @@ export const TeacherPayslipsView: React.FC = () => {
               </div>
             </div>
 
-<<<<<<< HEAD
-            <div class="emp-grid">
-              <div class="emp-cell"><span class="emp-label">Employee Name:</span><span class="emp-val">${p.employeeName}</span></div>
-              <div class="emp-cell"><span class="emp-label">Employee ID:</span><span class="emp-val">${p.empId}</span></div>
-              <div class="emp-cell"><span class="emp-label">Department:</span><span class="emp-val">${p.department || 'Academics'}</span></div>
-              <div class="emp-cell"><span class="emp-label">Designation:</span><span class="emp-val">${p.designation || 'Teacher'}</span></div>
-              <div class="emp-cell"><span class="emp-label">Branch/Campus:</span><span class="emp-val">${p.branch || '—'}</span></div>
-              <div class="emp-cell"><span class="emp-label">Disbursed Date:</span><span class="emp-val">${p.disbursedDate}</span></div>
-              <div class="emp-cell"><span class="emp-label">Bank Account:</span><span class="emp-val">${p.bankAccount}</span></div>
-              <div class="emp-cell"><span class="emp-label">Payment Status:</span><span class="emp-val" style="color: #16a34a;">CONFIRMED (PAID)</span></div>
-=======
             <div class="doc-title-bar">
               <span>SALARY PAYSLIP FOR THE MONTH OF ${formatPayMonth(p.month).toUpperCase()}</span>
               <span style="font-size: 9.5px; font-weight: 600; opacity: 0.9;">Ref: PS-${p.empId || 'EMP'}-${formatPayMonth(p.month).replace(/[^a-zA-Z0-9]/g, '').toUpperCase()}</span>
->>>>>>> 2c7d0190f1106e317e9965ae947dc2f54d4d3f76
             </div>
 
             <table class="emp-table">
@@ -1002,13 +949,8 @@ export const TeacherPayslipsView: React.FC = () => {
                 <p className="font-semibold text-slate-700 dark:text-slate-200 mt-0.5">{viewingPayslip.branch || 'Main Campus'}</p>
               </div>
               <div>
-<<<<<<< HEAD
-                <span className="text-[10px] uppercase font-bold text-slate-400">Branch</span>
-                <p className="font-bold text-slate-900 dark:text-white mt-0.5">{viewingPayslip.branch || '—'}</p>
-=======
                 <span className="text-[10px] uppercase font-bold text-slate-400 dark:text-slate-500">Disbursed Date</span>
                 <p className="font-semibold text-slate-700 dark:text-slate-200 mt-0.5">{viewingPayslip.disbursedDate || new Date().toISOString().split('T')[0]}</p>
->>>>>>> 2c7d0190f1106e317e9965ae947dc2f54d4d3f76
               </div>
               <div>
                 <span className="text-[10px] uppercase font-bold text-slate-400 dark:text-slate-500">Bank Account</span>

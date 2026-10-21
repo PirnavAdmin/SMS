@@ -962,11 +962,7 @@ export const StaffProfileDrawer: React.FC<StaffProfileDrawerProps> = ({ staff: s
                   <Badge variant="info" size="sm">{staff.empId}</Badge>
                 </div>
                 <p className="text-xs text-slate-500 font-bold mt-0.5">{designation} | {department}</p>
-<<<<<<< HEAD
-                <p className="text-[10px] text-slate-400 font-medium">{staff.branch ? `Branch: ${staff.branch} | ` : ''}Role: {staff.role === 'Teacher' ? 'Teacher' : (staff.role === 'Staff' ? 'Non-Teaching Staff' : staff.role || 'Non-Teaching Staff')}</p>
-=======
                 <p className="text-[10px] text-slate-400 font-medium">Branch: {staff.branch || '—'} | Role: {staff.role === 'Teacher' ? 'Teacher' : (staff.role === 'Staff' ? 'Non-Teaching Staff' : staff.role || 'Non-Teaching Staff')}</p>
->>>>>>> 2c7d0190f1106e317e9965ae947dc2f54d4d3f76
               </div>
             </div>
 

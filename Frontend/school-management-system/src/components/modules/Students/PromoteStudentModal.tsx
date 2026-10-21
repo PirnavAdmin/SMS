@@ -22,13 +22,8 @@ export const PromoteStudentModal: React.FC<PromoteStudentModalProps> = ({
 
   const dynamicCampuses = useMemo(() => {
     const fromApi = (branches || [])
-      .filter((b: any) => b && (typeof b === 'string' || b.status !== 'Inactive'))
       .map((b: any) => typeof b === 'string' ? b : (b.name || b.branchName || b.campusName || ''))
       .filter(Boolean);
-<<<<<<< HEAD
-    return Array.from(new Set(fromApi)).filter(Boolean);
-  }, [branches]);
-=======
     const combined = [
       ...(selectedBranch && selectedBranch !== 'All' && selectedBranch !== 'All Branches' ? [selectedBranch] : []),
       ...fromApi,
@@ -36,19 +31,12 @@ export const PromoteStudentModal: React.FC<PromoteStudentModalProps> = ({
     const unique = Array.from(new Set(combined)).filter(Boolean);
     return unique;
   }, [branches, selectedBranch]);
->>>>>>> 2c7d0190f1106e317e9965ae947dc2f54d4d3f76
 
   const [targetYear, setTargetYear] = useState(selectedAcademicYear || ((academicYears[0] as any)?.academicYear || (academicYears[0] as any)?.year || ''));
   const [targetClass, setTargetClass] = useState(academicClasses[0]?.name || 'Class 11');
   const [targetSection, setTargetSection] = useState('A');
   const [enableBranchTransfer, setEnableBranchTransfer] = useState(false);
-<<<<<<< HEAD
-  const [targetBranch, setTargetBranch] = useState<string>(
-    student?.branch || (selectedBranch && selectedBranch !== 'All' && selectedBranch !== 'All Branches' && dynamicCampuses.includes(selectedBranch) ? selectedBranch : (dynamicCampuses[0] || ''))
-  );
-=======
   const [targetBranch, setTargetBranch] = useState<string>(student?.branch || (selectedBranch && selectedBranch !== 'All' ? selectedBranch : (dynamicCampuses[0] || '')));
->>>>>>> 2c7d0190f1106e317e9965ae947dc2f54d4d3f76
 
   if (!isOpen || !student) return null;
 
@@ -189,7 +177,6 @@ export const PromoteStudentModal: React.FC<PromoteStudentModalProps> = ({
                     onChange={e => setTargetBranch(e.target.value)}
                     className="w-full px-3 py-2 rounded-xl bg-white dark:bg-slate-900 border text-xs font-bold text-slate-900 dark:text-white"
                   >
-                    <option value="">Select Campus</option>
                     {dynamicCampuses.map(b => (
                       <option key={b} value={b}>{b}</option>
                     ))}
