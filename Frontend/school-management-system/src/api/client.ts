@@ -103,10 +103,7 @@ export const apiClient = async (endpoint: string, options: RequestInit = {}) => 
   if (!response.ok) {
     if (response.status === 401 && !endpoint.includes('/auth/')) {
       try {
-        const currentModule = localStorage.getItem('active_module');
-        if (currentModule && currentModule !== 'dashboard') {
-          localStorage.setItem('session_resume_module', currentModule);
-        }
+        localStorage.removeItem('session_resume_module');
         localStorage.setItem('session_timeout_occurred', 'true');
       } catch {}
       localStorage.removeItem('auth_user');
