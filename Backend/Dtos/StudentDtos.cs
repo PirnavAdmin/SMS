@@ -127,6 +127,8 @@ public class CreateStudentDto
 
     public DateTime? DateOfBirth { get; set; }
 
+    public DateTime? AdmissionDate { get; set; }
+
     [MaxLength(20)]
     public string? Gender { get; set; }
 
@@ -185,6 +187,8 @@ public class UpdateStudentDto
     public string StudentName { get; set; } = string.Empty;
 
     public DateTime? DateOfBirth { get; set; }
+
+    public DateTime? AdmissionDate { get; set; }
 
     [MaxLength(20)]
     public string? Gender { get; set; }

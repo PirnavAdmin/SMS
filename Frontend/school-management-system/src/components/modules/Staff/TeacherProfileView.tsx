@@ -978,23 +978,20 @@ export const TeacherProfileView: React.FC = () => {
       </div>
 
       {/* Official Institutional Letters & HR Documents Section */}
-      <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 sm:p-7 shadow-sm border border-sky-300 dark:border-sky-800 space-y-6">
-        <div className="border-b pb-5 border-slate-100 dark:border-slate-800">
+      <div className="bg-white dark:bg-slate-900 rounded-3xl p-5 sm:p-6 shadow-sm border border-sky-300 dark:border-sky-800 space-y-4">
+        <div className="border-b pb-3 border-slate-100 dark:border-slate-800">
           <div>
             <h2 className="text-base sm:text-lg font-black text-slate-900 dark:text-white flex items-center gap-2.5">
               <FileText className="w-5 h-5 text-sky-600 dark:text-sky-400" />
               Official Institutional Letters & HR Documents
             </h2>
-            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-              Access your official employment appointment offer letter, salary breakdown, and service records.
-            </p>
           </div>
         </div>
 
         {/* HR Letter Cards Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {/* Card 1: Offer / Appointment Letter */}
-          <div className="p-5 rounded-2xl bg-white dark:bg-slate-900/60 border border-sky-300 dark:border-sky-800 flex flex-col justify-between space-y-4 hover:shadow-md hover:border-sky-400 dark:hover:border-sky-700 transition-all">
+          <div className="p-4 sm:p-4.5 rounded-2xl bg-white dark:bg-slate-900/60 border border-sky-300 dark:border-sky-800 flex flex-col justify-between space-y-3 hover:shadow-md hover:border-sky-400 dark:hover:border-sky-700 transition-all">
             <div>
               <div className="flex items-center justify-between min-h-[36px]">
                 <div className="w-9 h-9 rounded-xl bg-sky-50 dark:bg-sky-950/60 text-sky-600 dark:text-sky-400 flex items-center justify-center shrink-0">
@@ -1004,8 +1001,8 @@ export const TeacherProfileView: React.FC = () => {
                   Official
                 </span>
               </div>
-              <h3 className="font-black text-slate-900 dark:text-white text-sm mt-3">Appointment / Offer Letter</h3>
-              <p className="text-xs text-slate-500 dark:text-slate-400 mt-1.5 leading-relaxed">
+              <h3 className="font-black text-slate-900 dark:text-white text-sm mt-2.5">Appointment / Offer Letter</h3>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 leading-relaxed">
                 Institutional appointment contract with terms of service, compensation structure, and probation details.
               </p>
             </div>
@@ -1024,7 +1021,7 @@ export const TeacherProfileView: React.FC = () => {
           </div>
 
           {/* Card 2: Relieving Letter */}
-          <div className="p-5 rounded-2xl bg-white dark:bg-slate-900/60 border border-sky-300 dark:border-sky-800 flex flex-col justify-between space-y-4 hover:shadow-md hover:border-sky-400 dark:hover:border-sky-700 transition-all">
+          <div className="p-4 sm:p-4.5 rounded-2xl bg-white dark:bg-slate-900/60 border border-sky-300 dark:border-sky-800 flex flex-col justify-between space-y-3 hover:shadow-md hover:border-sky-400 dark:hover:border-sky-700 transition-all">
             <div>
               <div className="flex items-center justify-between min-h-[36px]">
                 <div className="w-9 h-9 rounded-xl bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0">
@@ -1040,8 +1037,8 @@ export const TeacherProfileView: React.FC = () => {
                   </span>
                 )}
               </div>
-              <h3 className="font-black text-slate-900 dark:text-white text-sm mt-3">Relieving & Clearance Letter</h3>
-              <p className="text-xs text-slate-500 dark:text-slate-400 mt-1.5 leading-relaxed">
+              <h3 className="font-black text-slate-900 dark:text-white text-sm mt-2.5">Relieving & Clearance Letter</h3>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 leading-relaxed">
                 Official relieving letter confirming formal clearance of institutional dues, assets, and service tenure.
               </p>
             </div>
@@ -1066,7 +1063,7 @@ export const TeacherProfileView: React.FC = () => {
           </div>
 
           {/* Card 3: Experience / Service Certificate */}
-          <div className="p-5 rounded-2xl bg-white dark:bg-slate-900/60 border border-sky-300 dark:border-sky-800 flex flex-col justify-between space-y-4 hover:shadow-md hover:border-sky-400 dark:hover:border-sky-700 transition-all">
+          <div className="p-4 sm:p-4.5 rounded-2xl bg-white dark:bg-slate-900/60 border border-sky-300 dark:border-sky-800 flex flex-col justify-between space-y-3 hover:shadow-md hover:border-sky-400 dark:hover:border-sky-700 transition-all">
             <div>
               <div className="flex items-center justify-between min-h-[36px]">
                 <div className="w-9 h-9 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
@@ -1082,8 +1079,8 @@ export const TeacherProfileView: React.FC = () => {
                   </span>
                 )}
               </div>
-              <h3 className="font-black text-slate-900 dark:text-white text-sm mt-3">Experience Certificate</h3>
-              <p className="text-xs text-slate-500 dark:text-slate-400 mt-1.5 leading-relaxed">
+              <h3 className="font-black text-slate-900 dark:text-white text-sm mt-2.5">Experience Certificate</h3>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 leading-relaxed">
                 Institutional service testimonial verifying your designation, responsibilities, and tenure performance.
               </p>
             </div>

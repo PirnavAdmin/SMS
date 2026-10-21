@@ -15,7 +15,22 @@ import { DateInput } from '../../../common/DateInput';
 import { TimeInput, formatTo12Hour, timeToMinutes, isTimeOverlapping } from '../../../common/TimeInput';
 
 export const MeetingsView: React.FC = () => {
-  const { meetings, staff, students, departments, schoolProfile, addMeeting, updateMeeting, cancelMeeting, deleteMeeting } = useData();
+  const { 
+    meetings: rawMeetings, 
+    staff: rawStaff, 
+    students: rawStudents, 
+    departments: rawDepartments, 
+    schoolProfile = {} as any, 
+    addMeeting, 
+    updateMeeting, 
+    cancelMeeting, 
+    deleteMeeting 
+  } = useData() || {};
+
+  const meetings = Array.isArray(rawMeetings) ? rawMeetings : [];
+  const staff = Array.isArray(rawStaff) ? rawStaff : [];
+  const students = Array.isArray(rawStudents) ? rawStudents : [];
+  const departments = Array.isArray(rawDepartments) ? rawDepartments : [];
   const { addToast } = useToast();
   const { user, role, selectedBranch, selectedAcademicYear } = useAuth();
 
@@ -778,9 +793,8 @@ export const MeetingsView: React.FC = () => {
       </div>
 
       {/* Filter Bar */}
-      <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-sky-400 dark:border-sky-500 shadow-xs grid grid-cols-2 md:grid-cols-5 gap-3 text-xs font-semibold">
+      <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-sky-400 dark:border-sky-500 shadow-xs grid grid-cols-2 md:grid-cols-5 gap-3 text-xs font-semibold items-center">
         <div>
-          <label className="block text-[10px] font-bold text-slate-400 mb-1">Audience</label>
           <select
             value={filterAudience}
             onChange={e => setFilterAudience(e.target.value)}
@@ -793,7 +807,6 @@ export const MeetingsView: React.FC = () => {
         </div>
 
         <div>
-          <label className="block text-[10px] font-bold text-slate-400 mb-1">Mode</label>
           <select
             value={filterMode}
             onChange={e => setFilterMode(e.target.value)}
@@ -807,7 +820,6 @@ export const MeetingsView: React.FC = () => {
         </div>
 
         <div>
-          <label className="block text-[10px] font-bold text-slate-400 mb-1">Status</label>
           <select
             value={filterStatus}
             onChange={e => setFilterStatus(e.target.value)}
@@ -822,16 +834,25 @@ export const MeetingsView: React.FC = () => {
         </div>
 
         <div className="col-span-2">
-          <label className="block text-[10px] font-bold text-slate-400 mb-1">Search Meetings</label>
           <div className="relative">
-            <Search className="w-3.5 h-3.5 absolute left-3 top-3 text-slate-400" />
+            <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
             <input
               type="text"
               placeholder="Search title, venue, participant..."
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
-              className="w-full pl-8 pr-3 py-2 rounded-xl border bg-slate-50 dark:bg-slate-800 font-bold"
+              className="w-full pl-8 pr-8 py-2 rounded-xl border bg-slate-50 dark:bg-slate-800 font-bold"
             />
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => setSearchQuery('')}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 p-0.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer"
+                title="Clear Search"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
           </div>
         </div>
       </div>

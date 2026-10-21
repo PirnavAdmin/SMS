@@ -5,7 +5,7 @@ import { Student, StudentType, SiblingDetail } from '../../../types';
 import { useData } from '../../../context/DataContext';
 import { useAuth } from '../../../context/AuthContext';
 import { useToast } from '../../../context/ToastContext';
-import { validateDOB, formatToDDMMYYYY, formatToISO } from '../../../utils/dateValidation';
+import { validateDOB, validateStudentAge, formatToDDMMYYYY, formatToISO } from '../../../utils/dateValidation';
 import { validate10DigitPhone, BLOOD_GROUPS, CASTE_CATEGORIES, BRANCHES, RELIGIONS } from '../../../utils/validation';
 import { normalizeStudentType } from '../../../utils/studentTypeUtils';
 
@@ -95,6 +95,7 @@ export const StudentFormModal: React.FC<StudentFormModalProps> = ({
   const [pinCode, setPinCode] = useState('');
 
   const [dobError, setDobError] = useState<string>('');
+  const [admissionDateError, setAdmissionDateError] = useState<string>('');
   const [phoneError, setPhoneError] = useState<string>('');
   const [isMidYearFeeModalOpen, setIsMidYearFeeModalOpen] = useState(false);
 
@@ -294,19 +295,73 @@ export const StudentFormModal: React.FC<StudentFormModalProps> = ({
         rollNo: generateNextStudentId(students)
       }));
     }
+    setDobError('');
+    setAdmissionDateError('');
   }, [studentToEdit, isOpen, students]);
 
   if (!isOpen) return null;
 
+  const validateAgeAndDates = (
+    dobVal?: string,
+    admVal?: string,
+    classVal?: string,
+  ) => {
+    const targetDob = dobVal !== undefined ? dobVal : formData.dob;
+    const targetAdm =
+      admVal !== undefined
+        ? admVal
+        : (formData.joiningDate || (formData as any).admissionDate);
+    const targetClass =
+      classVal !== undefined ? classVal : formData.className;
+
+    setAdmissionDateError('');
+
+    if (targetDob) {
+      const basicDob = validateDOB(targetDob);
+      if (!basicDob.isValid) {
+        setDobError(basicDob.error || 'Invalid DOB format');
+        return;
+      } else {
+        setDobError('');
+      }
+    } else {
+      setDobError('');
+    }
+
+    if (targetDob && targetAdm) {
+      const result = validateStudentAge({
+        dateOfBirth: targetDob,
+        dateOfAdmission: targetAdm,
+        className: targetClass,
+        academicClasses,
+      });
+
+      if (!result.isValid) {
+        if (result.errorCode === 'ADMISSION_BEFORE_DOB') {
+          setAdmissionDateError(
+            result.message ||
+              'Date of Admission cannot be earlier than Date of Birth.',
+          );
+        } else if (result.errorCode === 'UNDERAGE') {
+          setDobError(
+            result.message ||
+              'Student does not meet the minimum age requirement for the selected class.',
+          );
+        } else if (result.errorCode === 'INVALID_ADMISSION_DATE') {
+          setAdmissionDateError(
+            result.message || 'Invalid Date of Admission.',
+          );
+        } else if (result.errorCode === 'INVALID_DOB') {
+          setDobError(result.message || 'Invalid Date of Birth.');
+        }
+      }
+    }
+  };
+
   const handleDOBChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
     setFormData(prev => ({ ...prev, dob: value }));
-    if (value) {
-      const res = validateDOB(value);
-      setDobError(res.isValid ? '' : res.error || '');
-    } else {
-      setDobError('Date of birth is required.');
-    }
+    validateAgeAndDates(value, undefined, undefined);
   };
 
   const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -346,10 +401,57 @@ export const StudentFormModal: React.FC<StudentFormModalProps> = ({
       return;
     }
 
-    const dobValidation = validateDOB(formData.dob || '');
-    if (!dobValidation.isValid) {
-      setDobError(dobValidation.error || 'Invalid DOB format');
-      addToast('error', 'Date Validation Error', dobValidation.error);
+    const ageValidation = validateStudentAge({
+      dateOfBirth: formData.dob,
+      dateOfAdmission: formData.joiningDate || (formData as any).admissionDate,
+      className: formData.className,
+      academicClasses,
+    });
+
+    if (!ageValidation.isValid) {
+      if (ageValidation.errorCode === 'ADMISSION_BEFORE_DOB') {
+        setAdmissionDateError(
+          ageValidation.message ||
+            'Date of Admission cannot be earlier than Date of Birth.',
+        );
+        addToast(
+          'error',
+          'Invalid Admission Date',
+          ageValidation.message ||
+            'Date of Admission cannot be earlier than Date of Birth.',
+        );
+      } else if (ageValidation.errorCode === 'UNDERAGE') {
+        setDobError(
+          ageValidation.message ||
+            'Student does not meet the minimum age requirement for the selected class.',
+        );
+        addToast(
+          'error',
+          'Age Eligibility Error',
+          ageValidation.message ||
+            'Student does not meet the minimum age requirement for the selected class.',
+        );
+      } else if (
+        ageValidation.errorCode === 'MISSING_DOB' ||
+        ageValidation.errorCode === 'INVALID_DOB'
+      ) {
+        setDobError(ageValidation.message || 'Invalid Date of Birth.');
+        addToast('error', 'DOB Validation Error', ageValidation.message);
+      } else if (
+        ageValidation.errorCode === 'MISSING_ADMISSION_DATE' ||
+        ageValidation.errorCode === 'INVALID_ADMISSION_DATE'
+      ) {
+        setAdmissionDateError(
+          ageValidation.message || 'Invalid Date of Admission.',
+        );
+        addToast('error', 'Admission Date Error', ageValidation.message);
+      } else {
+        addToast(
+          'error',
+          'Validation Error',
+          ageValidation.message || 'Student age or admission date is invalid.',
+        );
+      }
       return;
     }
 
@@ -501,6 +603,7 @@ export const StudentFormModal: React.FC<StudentFormModalProps> = ({
                   onChange={e => {
                     const selectedClass = e.target.value;
                     setFormData({ ...formData, className: selectedClass, section: '' });
+                    validateAgeAndDates(undefined, undefined, selectedClass);
                   }}
                   className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none"
                 >
@@ -581,10 +684,12 @@ export const StudentFormModal: React.FC<StudentFormModalProps> = ({
                   onChange={e => {
                     const val = e.target.value;
                     if (val) {
-                      setFormData({ ...formData, dob: formatToDDMMYYYY(val, '-') });
-                      if (dobError) setDobError('');
+                      const formatted = formatToDDMMYYYY(val, '-');
+                      setFormData({ ...formData, dob: formatted });
+                      validateAgeAndDates(formatted, undefined, undefined);
                     } else {
                       setFormData({ ...formData, dob: '' });
+                      validateAgeAndDates('', undefined, undefined);
                     }
                   }}
                   className={`w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-mono text-slate-900 dark:text-white outline-none ${
@@ -657,9 +762,16 @@ export const StudentFormModal: React.FC<StudentFormModalProps> = ({
                 <DateInput
                   required
                   value={formData.joiningDate || new Date().toISOString().split('T')[0]}
-                  onChange={e => setFormData({ ...formData, joiningDate: e.target.value })}
-                  className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-mono text-slate-900 dark:text-white outline-none"
+                  onChange={e => {
+                    const val = e.target.value;
+                    setFormData({ ...formData, joiningDate: val });
+                    validateAgeAndDates(undefined, val, undefined);
+                  }}
+                  className={`w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-mono text-slate-900 dark:text-white outline-none ${
+                    admissionDateError ? 'border-rose-500' : 'border-slate-200 dark:border-slate-700'
+                  }`}
                 />
+                {admissionDateError && <p className="text-[10px] text-rose-500 font-semibold mt-0.5">{admissionDateError}</p>}
                 <div className="mt-2 flex items-center gap-2">
                   <input
                     type="checkbox"
