@@ -2931,15 +2931,12 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
         <div className={`grid grid-cols-1 sm:grid-cols-2 ${dateMode === 'Custom Range' ? 'lg:grid-cols-3 xl:grid-cols-6' : 'lg:grid-cols-5'} gap-3 items-start`}>
           {/* Date Mode */}
           <div>
-            <label className="block text-[10px] font-black uppercase text-slate-400 mb-1">
-              Date Mode
-            </label>
             <select
               value={dateMode || ""}
               onChange={(e) => setDateMode(e.target.value as any)}
               className="w-full px-2.5 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none focus:border-brand-500 transition-colors cursor-pointer"
             >
-              <option value="">Select</option>
+              <option value="">Select Mode</option>
               <option value="Daily">Daily</option>
               <option value="Monthly">Monthly</option>
               <option value="Custom Range">Custom Range</option>
@@ -2948,9 +2945,6 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
 
           {/* Date Selection */}
           <div className={dateMode === "Custom Range" ? "sm:col-span-2 lg:col-span-2 xl:col-span-2" : ""}>
-            <label className="block text-[10px] font-black uppercase text-slate-400 mb-1">
-              Date Selection
-            </label>
             {(!dateMode || dateMode === "Select") && (
               <input
                 type="text"
@@ -3022,9 +3016,6 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
 
           {/* Department */}
           <div>
-            <label className="block text-[10px] font-black uppercase text-slate-400 mb-1">
-              Department
-            </label>
             <select
               value={activeTab === "teaching" ? teachingDept : nonTeachingDept}
               onChange={(e) =>
@@ -3045,9 +3036,6 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
 
           {/* Designation */}
           <div>
-            <label className="block text-[10px] font-black uppercase text-slate-400 mb-1">
-              Designation
-            </label>
             <select
               value={activeTab === "teaching" ? teachingDesignation : nonTeachingDesignation}
               onChange={(e) =>
@@ -3068,9 +3056,6 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
 
           {/* Search Staff */}
           <div>
-            <label className="block text-[10px] font-black uppercase text-slate-400 mb-1">
-              Search Staff
-            </label>
             <div className="relative">
               <Search className={`w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 transition-colors ${hasStaffSearchError ? "text-red-500" : "text-slate-400"}`} />
               <input
