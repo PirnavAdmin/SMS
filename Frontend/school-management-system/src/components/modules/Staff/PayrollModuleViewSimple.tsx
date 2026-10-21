@@ -1,5 +1,5 @@
 // @ts-nocheck
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ConfirmModal } from '../../common/ConfirmModal';
 import {
   AlertCircle,
@@ -114,6 +114,35 @@ const payrollTabs: { id: PayrollTabId; label: string; icon: React.ComponentType<
   { id: 'staff-payroll-payslips', label: 'Generate Payslips', icon: ReceiptText },
   { id: 'staff-payroll-history', label: 'Payslip History', icon: Clock3 }
 ];
+
+const IndeterminateCheckbox: React.FC<{
+  checked: boolean;
+  indeterminate?: boolean;
+  onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  className?: string;
+  title?: string;
+  id?: string;
+}> = ({ checked, indeterminate = false, onChange, className, title, id }) => {
+  const ref = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (ref.current) {
+      ref.current.indeterminate = indeterminate;
+    }
+  }, [indeterminate]);
+
+  return (
+    <input
+      id={id}
+      type="checkbox"
+      ref={ref}
+      checked={checked}
+      onChange={onChange}
+      title={title}
+      className={className || "rounded border-slate-300 text-brand-600 focus:ring-brand-600"}
+    />
+  );
+};
 
 
 
@@ -2456,6 +2485,10 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
     const activeEmployees = employeeRows.filter(row => row.assignment && row.assignment.status === 'Active').length;
     const unassignedEmployees = totalEmployees - activeEmployees;
 
+    const allEmployeeIds = filteredEmployeeRows.map((r, idx) => getEmployeeUniqueId(r.member, idx));
+    const isAllEmployeesSelected = allEmployeeIds.length > 0 && allEmployeeIds.every(id => selectedEmployeeIds.includes(id));
+    const isSomeEmployeesSelected = selectedEmployeeIds.length > 0 && !isAllEmployeesSelected;
+
     const paginatedEmployeeRows = filteredEmployeeRows.slice(
       (employeePage - 1) * employeePerPage,
       employeePage * employeePerPage
@@ -2596,17 +2629,18 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
                 <tr className="bg-slate-100/70 dark:bg-slate-800/60 text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider">
                   <th className="px-3 py-2 text-center w-10">
                     {filteredEmployeeRows.length > 0 && (
-                      <input 
-                        type="checkbox" 
+                      <IndeterminateCheckbox 
                         className="rounded border-slate-300 text-brand-600 focus:ring-brand-600"
-                        checked={filteredEmployeeRows.length > 0 && filteredEmployeeRows.every((r, idx) => selectedEmployeeIds.includes(getEmployeeUniqueId(r.member, idx)))}
-                        onChange={(e) => {
-                          if (e.target.checked) {
-                            setSelectedEmployeeIds(filteredEmployeeRows.map((r, idx) => getEmployeeUniqueId(r.member, idx)));
-                          } else {
+                        checked={isAllEmployeesSelected}
+                        indeterminate={isSomeEmployeesSelected}
+                        onChange={() => {
+                          if (isSomeEmployeesSelected || isAllEmployeesSelected) {
                             setSelectedEmployeeIds([]);
+                          } else {
+                            setSelectedEmployeeIds(allEmployeeIds);
                           }
                         }}
+                        title="Select all employees"
                       />
                     )}
                   </th>
@@ -2725,6 +2759,10 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
   };
 
   const renderStructureTab = () => {
+    const allStructureIds = filteredStructureRows.map((r, idx) => r.structure?.id || `struct-${idx}`);
+    const isAllStructuresSelected = allStructureIds.length > 0 && allStructureIds.every(id => selectedStructureIds.includes(id));
+    const isSomeStructuresSelected = selectedStructureIds.length > 0 && !isAllStructuresSelected;
+
     const handleBulkStructureStatus = async (status: 'Active' | 'Inactive') => {
       setIsBulkStructureMenuOpen(false);
       const count = selectedStructureIds.length;
@@ -2874,17 +2912,18 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
               <tr className="bg-slate-100/70 dark:bg-slate-800/60 text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider">
                 <th className="px-3 py-2 w-10">
                   {filteredStructureRows.length > 0 && (
-                    <input 
-                      type="checkbox" 
+                    <IndeterminateCheckbox 
                       className="rounded border-slate-300 text-brand-600 focus:ring-brand-600"
-                      checked={filteredStructureRows.length > 0 && filteredStructureRows.every((r, idx) => selectedStructureIds.includes(r.structure?.id || `struct-${idx}`))}
-                      onChange={(e) => {
-                        if (e.target.checked) {
-                          setSelectedStructureIds(filteredStructureRows.map((r, idx) => r.structure?.id || `struct-${idx}`));
-                        } else {
+                      checked={isAllStructuresSelected}
+                      indeterminate={isSomeStructuresSelected}
+                      onChange={() => {
+                        if (isSomeStructuresSelected || isAllStructuresSelected) {
                           setSelectedStructureIds([]);
+                        } else {
+                          setSelectedStructureIds(allStructureIds);
                         }
                       }}
+                      title="Select all salary structures"
                     />
                   )}
                 </th>
@@ -3042,6 +3081,10 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
     const eligibleLeftStaff = filteredLeftStaff.filter(
       member => !isBeforeJoiningDate(member.joiningDate, generationMonth, generationYear)
     );
+    const eligibleLeftStaffIds = eligibleLeftStaff.map((s, idx) => getEmployeeUniqueId(s, idx));
+    const isAllEligibleSelected = eligibleLeftStaffIds.length > 0 && eligibleLeftStaffIds.every(id => selectedGenerationIds.includes(id));
+    const isSomeEligibleSelected = selectedGenerationIds.length > 0 && !isAllEligibleSelected;
+
     const eligibleSelectedCount = selectedGenerationIds.filter(id => {
       const s = staff.find((m, idx) => getEmployeeUniqueId(m, idx) === id || m.id === id);
       return s && !isBeforeJoiningDate(s.joiningDate, generationMonth, generationYear);
@@ -3177,17 +3220,18 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
 
             <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-2 px-1">
               <label className="flex items-center gap-2 cursor-pointer text-xs font-black text-slate-900 dark:text-white">
-                <input
-                  type="checkbox"
+                <IndeterminateCheckbox
                   className="rounded border-slate-300 text-brand-600 focus:ring-brand-600 h-4 w-4"
-                  checked={eligibleLeftStaff.length > 0 && eligibleLeftStaff.every((s, idx) => selectedGenerationIds.includes(getEmployeeUniqueId(s, idx)))}
-                  onChange={e => {
-                    if (e.target.checked) {
-                      setSelectedGenerationIds(eligibleLeftStaff.map((s, idx) => getEmployeeUniqueId(s, idx)));
-                    } else {
+                  checked={isAllEligibleSelected}
+                  indeterminate={isSomeEligibleSelected}
+                  onChange={() => {
+                    if (isSomeEligibleSelected || isAllEligibleSelected) {
                       setSelectedGenerationIds([]);
+                    } else {
+                      setSelectedGenerationIds(eligibleLeftStaffIds);
                     }
                   }}
+                  title="Select all eligible staff"
                 />
                 <span>Select All Eligible ({eligibleLeftStaff.length})</span>
               </label>
@@ -3495,8 +3539,13 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
     );
   };
 
-  const renderHistoryTab = () => (
-    <div className="space-y-6">
+  const renderHistoryTab = () => {
+    const allHistoryRowIds = historyRows.map((r, idx) => getPayslipUniqueId(r, idx));
+    const isAllHistorySelected = allHistoryRowIds.length > 0 && allHistoryRowIds.every(id => selectedHistoryIds.includes(id));
+    const isSomeHistorySelected = selectedHistoryIds.length > 0 && !isAllHistorySelected;
+
+    return (
+      <div className="space-y-6">
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         <StatCard label="Paid" value={String(historyRows.filter(item => item.status === 'Paid').length)} icon={CheckCircle2} tone="emerald" />
         <StatCard label="Generated" value={String(historyRows.filter(item => item.status === 'Generated').length)} icon={ReceiptText} tone="amber" />
@@ -3596,17 +3645,18 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
               <tr className="bg-slate-100/70 dark:bg-slate-800/60 text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider">
                 <th className="px-3 py-2 w-10">
                   {historyRows.length > 0 && (
-                    <input 
-                      type="checkbox" 
+                    <IndeterminateCheckbox 
                       className="rounded border-slate-300 text-brand-600 focus:ring-brand-600"
-                      checked={historyRows.length > 0 && historyRows.every((r, idx) => selectedHistoryIds.includes(getPayslipUniqueId(r, idx)))}
-                      onChange={(e) => {
-                        if (e.target.checked) {
-                          setSelectedHistoryIds(historyRows.map((r, idx) => getPayslipUniqueId(r, idx)));
-                        } else {
+                      checked={isAllHistorySelected}
+                      indeterminate={isSomeHistorySelected}
+                      onChange={() => {
+                        if (isSomeHistorySelected || isAllHistorySelected) {
                           setSelectedHistoryIds([]);
+                        } else {
+                          setSelectedHistoryIds(allHistoryRowIds);
                         }
                       }}
+                      title="Select all payslips"
                     />
                   )}
                 </th>
@@ -3721,6 +3771,7 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
       </Panel>
     </div>
   );
+};
 
   const renderTabContent = () => {
     switch (activeTab) {

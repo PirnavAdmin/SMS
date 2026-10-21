@@ -37,6 +37,7 @@ import {
   Download,
   ChevronDown,
   FileText,
+  AlertCircle,
 } from "lucide-react";
 import {
   AdmissionApplication,
@@ -55,6 +56,7 @@ import { lookupPostalCode, getOfflinePostalInfo } from "../../../utils/postalLoo
 import {
   validate10DigitPhone,
   validateEmail,
+  validateSearchQuery,
   BLOOD_GROUPS,
   CASTE_CATEGORIES,
   RELIGIONS,
@@ -329,10 +331,21 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
   }, [branches, selectedBranch]);
 
   const [query, setQuery] = useState("");
+  const [searchError, setSearchError] = useState<string | undefined>(undefined);
   const [filterClass, setFilterClass] = useState("All");
   const [filterStatus, setFilterStatus] = useState("All");
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
+
+  const handleQueryChange = (val: string) => {
+    setQuery(val);
+    if (!val) {
+      setSearchError(undefined);
+    } else {
+      const validation = validateSearchQuery(val);
+      setSearchError(validation.isValid ? undefined : validation.error);
+    }
+  };
 
   // Reset pagination on search query or filter changes
   useEffect(() => {
@@ -361,7 +374,9 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
     setHasSiblings(false);
     setSiblingsCount(1);
     setSiblingDetails([]);
-    setPhoneError(null);
+    setPhoneError("");
+    setMotherPhoneError("");
+    setAltPhoneError("");
     setDobError(null);
     setFormData({
       appliedClass: "Select Class",
@@ -1291,12 +1306,15 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
     const cleaned = val.replace(/\D/g, "").slice(0, 10);
     setFormData((prev) => ({ ...prev, alternatePhone: cleaned }));
 
-    if (cleaned && cleaned === formData.phone) {
-      setAltPhoneError(
-        "Alternate mobile cannot be identical to Father primary mobile number",
-      );
-    } else if (cleaned && cleaned.length > 0 && cleaned.length !== 10) {
-      setAltPhoneError("Alternate mobile number must be exactly 10 digits");
+    if (cleaned) {
+      if (cleaned === formData.phone) {
+        setAltPhoneError(
+          "Alternate mobile cannot be identical to Father primary mobile number",
+        );
+      } else {
+        const res = validate10DigitPhone(cleaned);
+        setAltPhoneError(res.isValid ? "" : res.error || "Enter a valid 10-digit mobile number.");
+      }
     } else {
       setAltPhoneError("");
     }
@@ -1448,6 +1466,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
       documentsSubmitted: [],
     });
     setPhoneError("");
+    setMotherPhoneError("");
     setAltPhoneError("");
     setEmailError("");
     setDobError("");
@@ -1626,6 +1645,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
         (app.siblingStudentId ? [app.siblingStudentId] : []),
     );
     setPhoneError("");
+    setMotherPhoneError("");
     setAltPhoneError("");
     setEmailError("");
     setDobError("");
@@ -1674,8 +1694,9 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
   const handleMotherPhoneChange = (val: string) => {
     const cleaned = val.replace(/\D/g, "").slice(0, 10);
     setFormData((prev) => ({ ...prev, motherPhone: cleaned }));
-    if (cleaned && cleaned.length > 0 && cleaned.length !== 10) {
-      setMotherPhoneError("Mother mobile number must be exactly 10 digits");
+    if (cleaned) {
+      const res = validate10DigitPhone(cleaned);
+      setMotherPhoneError(res.isValid ? "" : res.error || "Enter a valid 10-digit mobile number.");
     } else {
       setMotherPhoneError("");
     }
@@ -1777,7 +1798,49 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
       setPhoneError(phoneValidation.error || "Invalid 10-digit phone");
       addToast("error", "Phone Validation Error", phoneValidation.error);
       setIsSubmitting(false);
+      setIsSubmittingForm(false);
       return;
+    }
+
+    if (formData.motherPhone && formData.motherPhone.trim()) {
+      const motherPhoneValidation = validate10DigitPhone(formData.motherPhone.trim());
+      if (!motherPhoneValidation.isValid) {
+        setMotherPhoneError(motherPhoneValidation.error || "Invalid Mother mobile number.");
+        addToast(
+          "error",
+          "Mother Phone Validation Error",
+          motherPhoneValidation.error || "Mother mobile number must start with 6, 7, 8, or 9."
+        );
+        setIsSubmitting(false);
+        setIsSubmittingForm(false);
+        return;
+      }
+    }
+
+    if (formData.alternatePhone && formData.alternatePhone.trim()) {
+      if (formData.alternatePhone.trim() === (formData.phone || "").trim()) {
+        setAltPhoneError("Alternate mobile cannot be identical to Father primary mobile number");
+        addToast(
+          "error",
+          "Alternate Phone Error",
+          "Alternate mobile cannot be identical to Father primary mobile number"
+        );
+        setIsSubmitting(false);
+        setIsSubmittingForm(false);
+        return;
+      }
+      const altPhoneValidation = validate10DigitPhone(formData.alternatePhone.trim());
+      if (!altPhoneValidation.isValid) {
+        setAltPhoneError(altPhoneValidation.error || "Invalid Alternate mobile number.");
+        addToast(
+          "error",
+          "Alternate Phone Validation Error",
+          altPhoneValidation.error || "Alternate mobile number must start with 6, 7, 8, or 9."
+        );
+        setIsSubmitting(false);
+        setIsSubmittingForm(false);
+        return;
+      }
     }
 
     if (!formData.email || !formData.email.trim()) {
@@ -4548,25 +4611,50 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
       </div>
 
       {/* Multi-Filter Bar */}
-      <div className="glass-card p-4 rounded-2xl flex flex-col lg:flex-row items-center justify-between gap-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
-        <div className="flex flex-col sm:flex-row items-center gap-3 w-full lg:w-auto">
-          <div className="relative w-full sm:w-64 lg:w-72">
-            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
-            <input
-              type="text"
-              placeholder="Search by applicant, reg no, or father name..."
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              className="w-full pl-9 pr-4 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs text-slate-900 dark:text-white outline-none"
-            />
+      <div className="glass-card p-4 rounded-2xl flex flex-col lg:flex-row items-start justify-between gap-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
+        <div className="flex flex-col sm:flex-row items-start gap-3 w-full lg:w-auto">
+          <div className="flex flex-col w-full sm:w-64 lg:w-72">
+            <div className="relative w-full h-9">
+              <Search className={`w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none transition-colors ${searchError ? "text-rose-500" : "text-slate-400"}`} />
+              <input
+                type="text"
+                placeholder="Search by applicant, reg no, or father name..."
+                value={query}
+                onChange={(e) => handleQueryChange(e.target.value)}
+                className={`w-full h-9 pl-9 ${query ? "pr-8" : "pr-4"} rounded-xl bg-slate-50 dark:bg-slate-800 border text-xs text-slate-900 dark:text-white outline-none transition ${
+                  searchError
+                    ? "border-rose-500 focus:border-rose-500 ring-1 ring-rose-500/20"
+                    : "border-slate-200 dark:border-slate-700 focus:border-sky-500"
+                }`}
+              />
+              {query && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setQuery("");
+                    setSearchError(undefined);
+                  }}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer"
+                  title="Clear search"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </div>
+            {searchError && (
+              <p className="text-[11px] font-bold text-rose-500 flex items-center gap-1 mt-1.5 animate-in fade-in">
+                <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                <span>{searchError}</span>
+              </p>
+            )}
           </div>
 
           {/* Enrolled & Un-Enrolled Navigation Badges */}
-          <div className="flex items-center gap-2 shrink-0">
+          <div className="flex items-center gap-2 shrink-0 h-9">
             <button
               type="button"
               onClick={() => setFilterStatus(filterStatus === "Enrolled" ? "All" : "Enrolled")}
-              className={`px-3 py-1.5 rounded-xl border text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+              className={`px-3 h-9 rounded-xl border text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
                 filterStatus === "Enrolled"
                   ? "bg-emerald-600 text-white border-emerald-600 shadow-md shadow-emerald-500/20"
                   : "bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800 hover:bg-emerald-100 dark:hover:bg-emerald-900/50"
@@ -4580,7 +4668,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
             <button
               type="button"
               onClick={() => setFilterStatus(filterStatus === "Un-Enrolled" ? "All" : "Un-Enrolled")}
-              className={`px-3 py-1.5 rounded-xl border text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+              className={`px-3 h-9 rounded-xl border text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
                 filterStatus === "Un-Enrolled"
                   ? "bg-amber-600 text-white border-amber-600 shadow-md shadow-amber-500/20"
                   : "bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-400 border-amber-200 dark:border-amber-800 hover:bg-amber-100 dark:hover:bg-amber-900/50"
@@ -4593,11 +4681,11 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
           </div>
         </div>
 
-        <div className="flex flex-wrap items-center gap-3 w-full lg:w-auto justify-end">
+        <div className="flex flex-wrap items-center gap-3 w-full lg:w-auto justify-end min-h-[36px]">
           <select
             value={filterClass}
             onChange={(e) => setFilterClass(e.target.value)}
-            className="px-3 py-1.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none cursor-pointer"
+            className="px-3 h-9 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none cursor-pointer"
           >
             <option value="All">All Classes</option>
             {dynamicClassOptions.map((c) => (
@@ -4610,7 +4698,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
           <select
             value={filterStatus}
             onChange={(e) => setFilterStatus(e.target.value)}
-            className="px-3 py-1.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none cursor-pointer"
+            className="px-3 h-9 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none cursor-pointer"
           >
             <option value="All">All Status</option>
               <option value="Un-Enrolled">Un-Enrolled</option>

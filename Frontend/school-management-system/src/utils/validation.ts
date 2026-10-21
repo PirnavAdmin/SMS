@@ -5,11 +5,14 @@ export const RELIGIONS = ['Hinduism', 'Islam', 'Christianity', 'Sikhism', 'Buddh
 export const MARITAL_STATUSES = ['Married', 'Unmarried'] as const;
 
 function checkMobileNumberRules(cleaned: string): { isValid: boolean; error?: string } {
-  if (cleaned.length !== 10) {
-    return { isValid: false, error: 'Phone number must be exactly 10 digits.' };
+  if (!cleaned) {
+    return { isValid: false, error: 'Enter a valid 10-digit mobile number.' };
   }
   if (!/^[6-9]/.test(cleaned)) {
     return { isValid: false, error: 'Mobile number must start with 6, 7, 8, or 9.' };
+  }
+  if (cleaned.length !== 10) {
+    return { isValid: false, error: 'Phone number must be exactly 10 digits.' };
   }
   if (/^(\d)\1{9}$/.test(cleaned)) {
     return { isValid: false, error: 'Enter a valid mobile number (repeated digits not allowed).' };
@@ -277,7 +280,9 @@ const VALID_SHORT_TOKENS = new Set([
   // Tech & common short tokens
   'html', 'css', 'sql', 'xml', 'php', 'sdk', 'api', 'url', 'pdf', 'aws', 'gcp',
   'lkg', 'ukg', 'std', 'ssc', 'hsc', 'dept', 'org', 'corp', 'ltd', 'pvt', 'inc', 'llc', 'llp',
-  'univ', 'inst', 'acad', 'col', 'sch', 'govt', 'gov', 'co'
+  'univ', 'inst', 'acad', 'col', 'sch', 'govt', 'gov', 'co',
+  // Common valid English words that have single vowels or consonant clusters
+  'pe', 'pt', 'sports', 'sport', 'strengths', 'strength', 'spring', 'springs', 'branch', 'branches', 'www'
 ]);
 
 /**
@@ -295,7 +300,7 @@ export function isGibberishSegment(seg: string): boolean {
   if (clean.length > 20) return true;
 
   // 2. 3 or more consecutive identical letters (e.g., "aaa", "fff", "ddd")
-  if (/([a-zA-Z])\1{2,}/i.test(clean)) return true;
+  if (/([a-zA-Z])\1{2,}/i.test(clean) && lower !== 'www') return true;
 
   // 3. Repeating 2-4 character sequences (e.g., "dfdfdf", "gdfsgdfs", "asdasdasd")
   if (/([a-zA-Z]{2,4})\1{2,}/i.test(clean)) return true;
@@ -330,10 +335,11 @@ export function isGibberishSegment(seg: string): boolean {
     }
   }
 
-  // 8. Low vowel ratio in longer alphabetic segments
-  if (clean.length >= 6) {
+  // 8. Low vowel ratio in longer alphabetic segments (length >= 10, e.g. "bcdfghjkaqwrtyp")
+  // Note: Short words with single vowels like "sports", "french", "branch", "growth" have ratios 0.14-0.17 and are perfectly valid English words.
+  if (clean.length >= 10) {
     const vowelCount = (clean.match(/[aeiouy]/gi) || []).length;
-    if (vowelCount / clean.length < 0.22) return true;
+    if (vowelCount / clean.length < 0.11 || vowelCount <= 1) return true;
   }
 
   // 9. Words composed of only 1 or 2 distinct letters or heavily dominated by 1 letter (catches "dfdfdfdf", "abababab")
@@ -507,6 +513,112 @@ export function validateCampusAddress(address: string, required: boolean = true)
       return { isValid: false, error: 'Enter a valid address.' };
     }
   }
+  return { isValid: true };
+}
+
+/**
+ * Validator for circular headlines, notice titles, broadcast titles, and announcement headers.
+ * Allows common punctuation (colons, exclamation marks, question marks, quotes, brackets, etc.) and emojis.
+ */
+export function validateCircularHeadline(
+  val: string,
+  options: { label?: string; required?: boolean; minLength?: number; maxLength?: number } = {}
+): { isValid: boolean; error?: string } {
+  const { label = 'circular headline / title', required = true, minLength = 2, maxLength = 200 } = options;
+  const cleanLabel = label.trim().toLowerCase() || 'circular headline';
+  const capLabel = cleanLabel.charAt(0).toUpperCase() + cleanLabel.slice(1);
+  const invalidMsg = `Enter a valid ${cleanLabel}.`;
+
+  if (!val || typeof val !== 'string' || !val.trim()) {
+    if (required) {
+      return { isValid: false, error: `${capLabel} is required.` };
+    }
+    return { isValid: true };
+  }
+
+  const trimmed = val.trim();
+  if (trimmed.length < minLength) {
+    return { isValid: false, error: invalidMsg };
+  }
+  if (trimmed.length > maxLength) {
+    return { isValid: false, error: `Maximum ${maxLength} characters allowed.` };
+  }
+  if (!/[a-zA-Z]/.test(trimmed)) {
+    return { isValid: false, error: invalidMsg };
+  }
+
+  // Strip emojis before checking keyboard row mashing
+  const withoutEmojis = trimmed.replace(/\p{Extended_Pictographic}/gu, '');
+  if (KEYBOARD_MASH_REGEX.test(withoutEmojis)) {
+    return { isValid: false, error: invalidMsg };
+  }
+
+  const words = trimmed
+    .split(/[\s\-\–\—\/\.\,\&\(\)\_\'\:\!\?\"\%\+\#\@\;\[\]\<\>\|\*]+/g)
+    .filter(Boolean);
+  for (const w of words) {
+    if (/^[a-zA-Z]+$/.test(w) && isGibberishSegment(w)) {
+      return { isValid: false, error: invalidMsg };
+    }
+  }
+
+  return { isValid: true };
+}
+
+/**
+ * Validator for multi-line circular message bodies, descriptions, and remarks.
+ * Exempts web URLs / www and allows common punctuation, emojis, and normal sentences.
+ */
+export function validateMessageContent(
+  val: string,
+  options: { label?: string; required?: boolean; minLength?: number; maxLength?: number } = {}
+): { isValid: boolean; error?: string } {
+  const { label = 'message content / circular text', required = true, minLength = 2, maxLength = 5000 } = options;
+  const cleanLabel = label.trim().toLowerCase() || 'message content';
+  const capLabel = cleanLabel.charAt(0).toUpperCase() + cleanLabel.slice(1);
+  const invalidMsg = `Enter a valid ${cleanLabel}.`;
+
+  if (!val || typeof val !== 'string' || !val.trim()) {
+    if (required) {
+      return { isValid: false, error: `${capLabel} is required.` };
+    }
+    return { isValid: true };
+  }
+
+  const trimmed = val.trim();
+  if (trimmed.length < minLength) {
+    return { isValid: false, error: invalidMsg };
+  }
+  if (trimmed.length > maxLength) {
+    return { isValid: false, error: `Maximum ${maxLength} characters allowed.` };
+  }
+  if (!/[a-zA-Z]/.test(trimmed)) {
+    return { isValid: false, error: invalidMsg };
+  }
+
+  // Strip URLs, www, and emojis before checking consecutive letters or keyboard mash across the paragraph
+  const testContent = trimmed
+    .replace(/\bhttps?:\/\/\S+/gi, '')
+    .replace(/\bwww\b/gi, '')
+    .replace(/\p{Extended_Pictographic}/gu, '');
+
+  if (
+    /([a-zA-Z])\1{3,}/i.test(testContent) ||
+    /([a-zA-Z]{2,4})\1{3,}/i.test(testContent) ||
+    KEYBOARD_MASH_REGEX.test(testContent)
+  ) {
+    return { isValid: false, error: invalidMsg };
+  }
+
+  const words = trimmed
+    .split(/[\s\-\–\—\/\.\,\&\(\)\_\'\:\!\?\"\%\+\#\@\;\[\]\<\>\|\*\n\r\t]+/g)
+    .filter(Boolean);
+  for (const w of words) {
+    if (/^[a-zA-Z]+$/.test(w) && isGibberishSegment(w)) {
+      return { isValid: false, error: invalidMsg };
+    }
+  }
+
   return { isValid: true };
 }
 
@@ -831,6 +943,39 @@ export function validateInputElement(
     return { isValid: true };
   }
 
+  const isContentField =
+    input instanceof HTMLTextAreaElement ||
+    label.includes('content') ||
+    label.includes('message') ||
+    label.includes('description') ||
+    label.includes('remark') ||
+    label.includes('note') ||
+    label.includes('body') ||
+    label.includes('detail') ||
+    label.includes('reason');
+
+  if (isContentField) {
+    return validateMessageContent(val, {
+      label,
+      required: enforceRequired && input.required,
+    });
+  }
+
+  const isCircularHeadlineField =
+    label.includes('headline') ||
+    label.includes('circular') ||
+    label.includes('broadcast') ||
+    label.includes('announcement') ||
+    label.includes('notice');
+
+  if (isCircularHeadlineField) {
+    return validateCircularHeadline(val, {
+      label,
+      required: enforceRequired && input.required,
+      maxLength: 200,
+    });
+  }
+
   const isStrictNameField =
     label.includes('name') ||
     label.includes('title') ||
@@ -897,10 +1042,15 @@ export function validateInputElement(
 
   // Generic text input: reject gibberish / keyboard mashing / repeating character sequences
   const trimmed = val.trim();
+  const testInput = trimmed
+    .replace(/\bhttps?:\/\/\S+/gi, '')
+    .replace(/\bwww\b/gi, '')
+    .replace(/\p{Extended_Pictographic}/gu, '');
+
   if (
-    /([a-zA-Z])\1{2,}/i.test(trimmed) ||
-    /([a-zA-Z]{2,4})\1{2,}/i.test(trimmed) ||
-    KEYBOARD_MASH_REGEX.test(trimmed)
+    /([a-zA-Z])\1{2,}/i.test(testInput) ||
+    /([a-zA-Z]{2,4})\1{2,}/i.test(testInput) ||
+    KEYBOARD_MASH_REGEX.test(testInput)
   ) {
     return { isValid: false, error: `Enter a valid ${label}.` };
   }
