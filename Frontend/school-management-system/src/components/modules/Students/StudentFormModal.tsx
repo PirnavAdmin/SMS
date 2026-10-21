@@ -6,7 +6,7 @@ import { useData } from '../../../context/DataContext';
 import { useAuth } from '../../../context/AuthContext';
 import { useToast } from '../../../context/ToastContext';
 import { validateDOB, validateStudentAge, formatToDDMMYYYY, formatToISO } from '../../../utils/dateValidation';
-import { validate10DigitPhone, BLOOD_GROUPS, CASTE_CATEGORIES, BRANCHES, RELIGIONS } from '../../../utils/validation';
+import { validate10DigitPhone, validateHouseNumber, validateCity, BLOOD_GROUPS, CASTE_CATEGORIES, BRANCHES, RELIGIONS } from '../../../utils/validation';
 import { normalizeStudentType } from '../../../utils/studentTypeUtils';
 
 import { DateInput } from '../../common/DateInput';
@@ -97,6 +97,8 @@ export const StudentFormModal: React.FC<StudentFormModalProps> = ({
   const [dobError, setDobError] = useState<string>('');
   const [admissionDateError, setAdmissionDateError] = useState<string>('');
   const [phoneError, setPhoneError] = useState<string>('');
+  const [houseNoError, setHouseNoError] = useState<string>('');
+  const [cityError, setCityError] = useState<string>('');
   const [isMidYearFeeModalOpen, setIsMidYearFeeModalOpen] = useState(false);
 
   const [hasSiblings, setHasSiblings] = useState<boolean>(false);
@@ -460,6 +462,24 @@ export const StudentFormModal: React.FC<StudentFormModalProps> = ({
       setPhoneError(phoneValidation.error || 'Invalid 10-digit phone');
       addToast('error', 'Phone Validation Error', phoneValidation.error);
       return;
+    }
+
+    if (houseNo && houseNo.trim()) {
+      const houseValidation = validateHouseNumber(houseNo.trim());
+      if (!houseValidation.isValid) {
+        setHouseNoError(houseValidation.error || 'Enter a valid House No.');
+        addToast('error', 'House No Validation Error', houseValidation.error || 'Enter a valid House No.');
+        return;
+      }
+    }
+
+    if (city && city.trim()) {
+      const cityValidation = validateCity(city.trim());
+      if (!cityValidation.isValid) {
+        setCityError(cityValidation.error || 'Enter a valid City name.');
+        addToast('error', 'City Validation Error', cityValidation.error || 'Enter a valid City name.');
+        return;
+      }
     }
 
     // Combine address
@@ -940,10 +960,62 @@ export const StudentFormModal: React.FC<StudentFormModalProps> = ({
               <Home className="w-3.5 h-3.5" /> 3. Complete Residential Address
             </h4>
             <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
-              <div><label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">House No</label><input type="text" value={houseNo} onChange={e => setHouseNo(e.target.value)} className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none" /></div>
+              <div>
+                <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">House No</label>
+                <input
+                  type="text"
+                  maxLength={35}
+                  placeholder="e.g. 12-34, Flat 402"
+                  value={houseNo}
+                  onChange={e => {
+                    const val = e.target.value;
+                    setHouseNo(val);
+                    if (val.trim()) {
+                      const res = validateHouseNumber(val);
+                      setHouseNoError(res.isValid ? '' : res.error || '');
+                    } else {
+                      setHouseNoError('');
+                    }
+                  }}
+                  className={`w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-brand-500/20 ${
+                    houseNoError
+                      ? 'border-rose-500 focus:border-rose-500'
+                      : 'border-slate-200 dark:border-slate-700 focus:border-brand-500'
+                  }`}
+                />
+                {houseNoError && (
+                  <p className="text-[10px] text-rose-500 mt-0.5 font-bold">{houseNoError}</p>
+                )}
+              </div>
               <div><label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Street</label><input type="text" maxLength={60} value={street} onChange={e => setStreet(e.target.value.slice(0, 60))} className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none" /></div>
               <div><label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Area / Locality</label><input type="text" value={area} onChange={e => setArea(e.target.value)} className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none" /></div>
-              <div><label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">City</label><input type="text" value={city} onChange={e => setCity(e.target.value)} className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none" /></div>
+              <div>
+                <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">City</label>
+                <input
+                  type="text"
+                  maxLength={50}
+                  placeholder="e.g. Hyderabad, Vijayawada"
+                  value={city}
+                  onChange={e => {
+                    const val = e.target.value;
+                    setCity(val);
+                    if (val.trim()) {
+                      const res = validateCity(val);
+                      setCityError(res.isValid ? '' : res.error || '');
+                    } else {
+                      setCityError('');
+                    }
+                  }}
+                  className={`w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-brand-500/20 ${
+                    cityError
+                      ? 'border-rose-500 focus:border-rose-500'
+                      : 'border-slate-200 dark:border-slate-700 focus:border-brand-500'
+                  }`}
+                />
+                {cityError && (
+                  <p className="text-[10px] text-rose-500 mt-0.5 font-bold">{cityError}</p>
+                )}
+              </div>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div><label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">District</label><input type="text" value={district} onChange={e => setDistrict(e.target.value)} className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none" /></div>

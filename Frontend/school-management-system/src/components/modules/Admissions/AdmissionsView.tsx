@@ -57,6 +57,8 @@ import {
   validate10DigitPhone,
   validateEmail,
   validateSearchQuery,
+  validateHouseNumber,
+  validateCity,
   BLOOD_GROUPS,
   CASTE_CATEGORIES,
   RELIGIONS,
@@ -381,6 +383,8 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
     setDobError(null);
     setAdmissionDateError("");
     setPinCodeError("");
+    setHouseNoError("");
+    setCityError("");
     setFormData({
       appliedClass: "Select Class",
       gender: "",
@@ -1245,6 +1249,8 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
   const [admissionDateError, setAdmissionDateError] = useState("");
   const [photoError, setPhotoError] = useState("");
   const [pinCodeError, setPinCodeError] = useState("");
+  const [houseNoError, setHouseNoError] = useState("");
+  const [cityError, setCityError] = useState("");
 
   const maxDobISO = useMemo(() => {
     const yesterday = new Date();
@@ -1478,6 +1484,8 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
     setAdmissionDateError("");
     setPhotoError("");
     setPinCodeError("");
+    setHouseNoError("");
+    setCityError("");
     setIsFormView(true);
   };
 
@@ -1665,6 +1673,8 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
     setAdmissionDateError("");
     setPhotoError("");
     setPinCodeError("");
+    setHouseNoError("");
+    setCityError("");
     setIsFormView(true);
   };
 
@@ -1940,6 +1950,28 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
       if (cleanPin.length !== 6) {
         setPinCodeError("PIN Code must be exactly 6 digits.");
         addToast("error", "PIN Code Error", "PIN Code must be exactly 6 digits.");
+        setIsSubmitting(false);
+        setIsSubmittingForm(false);
+        return;
+      }
+    }
+
+    if (formData.addressHouseNo && formData.addressHouseNo.trim()) {
+      const houseValidation = validateHouseNumber(formData.addressHouseNo.trim());
+      if (!houseValidation.isValid) {
+        setHouseNoError(houseValidation.error || "Enter a valid House No.");
+        addToast("error", "House No Validation Error", houseValidation.error || "Enter a valid House No.");
+        setIsSubmitting(false);
+        setIsSubmittingForm(false);
+        return;
+      }
+    }
+
+    if (formData.addressCity && formData.addressCity.trim()) {
+      const cityValidation = validateCity(formData.addressCity.trim());
+      if (!cityValidation.isValid) {
+        setCityError(cityValidation.error || "Enter a valid City name.");
+        addToast("error", "City Validation Error", cityValidation.error || "Enter a valid City name.");
         setIsSubmitting(false);
         setIsSubmittingForm(false);
         return;
@@ -3540,15 +3572,33 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                     </label>
                     <input
                       type="text"
+                      maxLength={35}
+                      placeholder="e.g. 12-34, Flat 402"
                       value={formData.addressHouseNo}
-                      onChange={(e) =>
+                      onChange={(e) => {
+                        const val = e.target.value;
                         setFormData({
                           ...formData,
-                          addressHouseNo: e.target.value,
-                        })
-                      }
-                      className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none"
+                          addressHouseNo: val,
+                        });
+                        if (val.trim()) {
+                          const res = validateHouseNumber(val);
+                          setHouseNoError(res.isValid ? "" : res.error || "");
+                        } else {
+                          setHouseNoError("");
+                        }
+                      }}
+                      className={`w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-brand-500/20 ${
+                        houseNoError
+                          ? "border-rose-500 focus:border-rose-500"
+                          : "border-slate-200 dark:border-slate-700 focus:border-brand-500"
+                      }`}
                     />
+                    {houseNoError && (
+                      <p className="text-[10px] text-rose-500 mt-0.5 font-bold">
+                        {houseNoError}
+                      </p>
+                    )}
                   </div>
                   <div>
                     <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">
@@ -3589,15 +3639,33 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                     </label>
                     <input
                       type="text"
+                      maxLength={50}
+                      placeholder="e.g. Hyderabad, Vijayawada"
                       value={formData.addressCity}
-                      onChange={(e) =>
+                      onChange={(e) => {
+                        const val = e.target.value;
                         setFormData({
                           ...formData,
-                          addressCity: e.target.value,
-                        })
-                      }
-                      className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none"
+                          addressCity: val,
+                        });
+                        if (val.trim()) {
+                          const res = validateCity(val);
+                          setCityError(res.isValid ? "" : res.error || "");
+                        } else {
+                          setCityError("");
+                        }
+                      }}
+                      className={`w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-brand-500/20 ${
+                        cityError
+                          ? "border-rose-500 focus:border-rose-500"
+                          : "border-slate-200 dark:border-slate-700 focus:border-brand-500"
+                      }`}
                     />
+                    {cityError && (
+                      <p className="text-[10px] text-rose-500 mt-0.5 font-bold">
+                        {cityError}
+                      </p>
+                    )}
                   </div>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">

@@ -1,4 +1,5 @@
 import { parseDateOnly, compareDates, formatDateForDisplay } from './dateValidation';
+import { VALID_INDIAN_STATES } from './postalLookup';
 
 export const BLOOD_GROUPS = ['A+', 'A-', 'B+', 'B-', 'O+', 'O-', 'AB+', 'AB-'] as const;
 export const CASTE_CATEGORIES = ['General', 'OBC', 'SC', 'ST', 'EWS', 'Others'] as const;
@@ -626,6 +627,98 @@ export function validateCampusAddress(address: string, required: boolean = true)
  * Validator for circular headlines, notice titles, broadcast titles, and announcement headers.
  * Allows common punctuation (colons, exclamation marks, question marks, quotes, brackets, etc.) and emojis.
  */
+/**
+ * Validates a House Number (e.g. 12, 12-34/A, Flat 402, Plot #15).
+ * Allows alphanumeric characters, spaces, and standard address punctuation (-, /, #, ., ,, :).
+ */
+export function validateHouseNumber(
+  val: string,
+  options: { required?: boolean } = {}
+): { isValid: boolean; error?: string } {
+  const { required = false } = options;
+  if (!val || typeof val !== 'string' || !val.trim()) {
+    return required ? { isValid: false, error: 'House No is required.' } : { isValid: true };
+  }
+
+  const trimmed = val.trim();
+  if (trimmed.length > 35) {
+    return { isValid: false, error: 'House No cannot exceed 35 characters.' };
+  }
+
+  // Must contain only letters, numbers, spaces, and -, /, #, ., ,, :
+  if (!/^[a-zA-Z0-9\s\-\/\#\.\,\:]+$/.test(trimmed)) {
+    return { isValid: false, error: 'Special characters are not allowed (allowed: letters, numbers, -, /, #, ., ,, :).' };
+  }
+
+  // Must contain at least one letter or digit
+  if (!/[a-zA-Z0-9]/.test(trimmed)) {
+    return { isValid: false, error: 'Enter a valid House No (e.g. 12-34, Flat 402, Plot #15).' };
+  }
+
+  // Reject consecutive repeating characters (4+)
+  if (/([a-zA-Z0-9])\1{3,}/i.test(trimmed) || KEYBOARD_MASH_REGEX.test(trimmed)) {
+    return { isValid: false, error: 'Enter a valid House No.' };
+  }
+
+  // Reject 3 or more consecutive symbols (e.g. ---, ///)
+  if (/[\-\/\#\.\,\:]{3,}/.test(trimmed)) {
+    return { isValid: false, error: 'Enter a valid House No.' };
+  }
+
+  return { isValid: true };
+}
+
+/**
+ * Validates a City name.
+ * Allows only alphabetic characters, spaces, hyphens, periods, and apostrophes.
+ * Rejects numbers, special characters, state names, keyboard mash, and gibberish.
+ */
+export function validateCity(
+  val: string,
+  options: { required?: boolean } = {}
+): { isValid: boolean; error?: string } {
+  const { required = false } = options;
+  if (!val || typeof val !== 'string' || !val.trim()) {
+    return required ? { isValid: false, error: 'City is required.' } : { isValid: true };
+  }
+
+  const trimmed = val.trim();
+  if (trimmed.length < 2) {
+    return { isValid: false, error: 'City name must be at least 2 characters.' };
+  }
+  if (trimmed.length > 50) {
+    return { isValid: false, error: 'City name cannot exceed 50 characters.' };
+  }
+
+  if (!/^[a-zA-Z\s\.\-\']+$/.test(trimmed)) {
+    return { isValid: false, error: 'City name must contain only letters.' };
+  }
+
+  // Reject state names entered into city
+  const lowerInput = trimmed.toLowerCase();
+  const matchedState = VALID_INDIAN_STATES.find(s => s.toLowerCase() === lowerInput);
+  if (matchedState) {
+    return {
+      isValid: false,
+      error: `"${trimmed}" is a State name. Please enter a valid City name.`
+    };
+  }
+
+  // Reject 3+ repeating letters or keyboard mash
+  if (/([a-zA-Z])\1{2,}/i.test(trimmed) || KEYBOARD_MASH_REGEX.test(trimmed)) {
+    return { isValid: false, error: 'Enter a valid city name.' };
+  }
+
+  const words = trimmed.split(/[\s\.\-\']+/).filter(Boolean);
+  for (const word of words) {
+    if (isGibberishSegment(word)) {
+      return { isValid: false, error: 'Enter a valid city name.' };
+    }
+  }
+
+  return { isValid: true };
+}
+
 export function validateCircularHeadline(
   val: string,
   options: { label?: string; required?: boolean; minLength?: number; maxLength?: number } = {}
@@ -819,6 +912,8 @@ function inferInputFieldLabel(input: HTMLInputElement | HTMLTextAreaElement): st
   if (ph.includes('company') || ph.includes('employer')) return 'company name';
   if (ph.includes('search')) return 'search term';
   if (ph.includes('address')) return 'address';
+  if (ph.includes('house') || ph.includes('flat') || ph.includes('plot')) return 'house no';
+  if (ph.includes('city')) return 'city';
   if (ph.includes('name')) return 'name';
 
   return 'value';
@@ -1074,6 +1169,32 @@ export function validateInputElement(
       return { isValid: false, error: 'Enter a valid time (e.g. 10:00 AM).' };
     }
     return { isValid: true };
+  }
+
+  const isHouseNumberField =
+    label.includes('house') ||
+    label.includes('flat') ||
+    label.includes('door') ||
+    label.includes('plot') ||
+    (input.placeholder || '').toLowerCase().includes('house') ||
+    (input.placeholder || '').toLowerCase().includes('flat') ||
+    (input.placeholder || '').toLowerCase().includes('plot');
+
+  if (isHouseNumberField) {
+    return validateHouseNumber(val, {
+      required: enforceRequired && input.required,
+    });
+  }
+
+  const isCityField =
+    label === 'city' ||
+    label.includes('city') ||
+    (input.placeholder || '').toLowerCase().includes('city');
+
+  if (isCityField) {
+    return validateCity(val, {
+      required: enforceRequired && input.required,
+    });
   }
 
   if (label.includes('address') && !label.includes('email') && !label.includes('ip') && !label.includes('web')) {
