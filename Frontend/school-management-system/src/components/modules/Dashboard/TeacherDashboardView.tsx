@@ -691,10 +691,10 @@ export const TeacherDashboardView: React.FC<TeacherDashboardViewProps> = ({ onNa
 
           <div className="space-y-2.5 flex-grow pt-2">
             <div 
-              className="flex items-center justify-between p-2.5 rounded-xl bg-slate-50/50 dark:bg-slate-900/30 border border-slate-100 dark:border-slate-800/40 text-xs"
+              className="flex items-center justify-between gap-2.5 p-2.5 rounded-xl bg-slate-50/50 dark:bg-slate-900/30 border border-slate-100 dark:border-slate-800/40 text-xs"
             >
-              <span className="font-bold text-slate-500">Pending Attendance</span>
-              <span className={`px-2 py-0.5 rounded-full text-[10px] font-black ${
+              <span className="font-bold text-slate-500 min-w-0 truncate">Pending Attendance</span>
+              <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-black shrink-0 whitespace-nowrap inline-flex items-center justify-center leading-normal ${
                 pendingAttendanceCount > 0 ? 'bg-rose-100 text-rose-700 dark:bg-rose-950/50 dark:text-rose-400' : 'bg-slate-100 text-slate-500'
               }`}>
                 {pendingAttendanceCount} Classes
@@ -702,19 +702,19 @@ export const TeacherDashboardView: React.FC<TeacherDashboardViewProps> = ({ onNa
             </div>
 
             <div 
-              className="flex items-center justify-between p-2.5 rounded-xl bg-slate-50/50 dark:bg-slate-900/30 border border-slate-100 dark:border-slate-800/40 text-xs"
+              className="flex items-center justify-between gap-2.5 p-2.5 rounded-xl bg-slate-50/50 dark:bg-slate-900/30 border border-slate-100 dark:border-slate-800/40 text-xs"
             >
-              <span className="font-bold text-slate-500">Pending Marks Entry</span>
-              <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-amber-100 text-amber-800 dark:bg-amber-950/50 dark:text-amber-300">
+              <span className="font-bold text-slate-500 min-w-0 truncate">Pending Marks Entry</span>
+              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-amber-100 text-amber-800 dark:bg-amber-950/50 dark:text-amber-300 shrink-0 whitespace-nowrap inline-flex items-center justify-center leading-normal">
                 {pendingMarksEntryCount} Subjects
               </span>
             </div>
 
             <div 
-              className="flex items-center justify-between p-2.5 rounded-xl bg-slate-50/50 dark:bg-slate-900/30 border border-slate-100 dark:border-slate-800/40 text-xs"
+              className="flex items-center justify-between gap-2.5 p-2.5 rounded-xl bg-slate-50/50 dark:bg-slate-900/30 border border-slate-100 dark:border-slate-800/40 text-xs"
             >
-              <span className="font-bold text-slate-500">Pending Assignment Grading</span>
-              <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-blue-100 text-blue-700 dark:bg-blue-950/50 dark:text-blue-400">
+              <span className="font-bold text-slate-500 min-w-0 truncate" title="Pending Assignment Grading">Pending Assignment Grading</span>
+              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-blue-100 text-blue-700 dark:bg-blue-950/50 dark:text-blue-400 shrink-0 whitespace-nowrap inline-flex items-center justify-center leading-normal">
                 {pendingGradingCount} Submissions
               </span>
             </div>
@@ -745,21 +745,21 @@ export const TeacherDashboardView: React.FC<TeacherDashboardViewProps> = ({ onNa
           </div>
 
           <div className="space-y-2.5 flex-grow pt-2 text-xs">
-            <div className="flex items-center justify-between p-2.5 rounded-xl bg-slate-50/50 dark:bg-slate-900/30 border border-slate-100 dark:border-slate-800/40">
-              <span className="font-bold text-slate-500">School Notices</span>
-              <span className="font-black text-slate-700 dark:text-slate-300">{notificationsData.schoolNotices} Bulletins</span>
+            <div className="flex items-center justify-between gap-2.5 p-2.5 rounded-xl bg-slate-50/50 dark:bg-slate-900/30 border border-slate-100 dark:border-slate-800/40">
+              <span className="font-bold text-slate-500 min-w-0 truncate">School Notices</span>
+              <span className="font-black text-slate-700 dark:text-slate-300 shrink-0 whitespace-nowrap">{notificationsData.schoolNotices} Bulletins</span>
             </div>
 
-            <div className="flex items-center justify-between p-2.5 rounded-xl bg-slate-50/50 dark:bg-slate-900/30 border border-slate-100 dark:border-slate-800/40">
-              <span className="font-bold text-slate-500">Principal Announcements</span>
-              <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-purple-100 text-purple-700 dark:bg-purple-950/50 dark:text-purple-300">
+            <div className="flex items-center justify-between gap-2.5 p-2.5 rounded-xl bg-slate-50/50 dark:bg-slate-900/30 border border-slate-100 dark:border-slate-800/40">
+              <span className="font-bold text-slate-500 min-w-0 truncate">Principal Announcements</span>
+              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-purple-100 text-purple-700 dark:bg-purple-950/50 dark:text-purple-300 shrink-0 whitespace-nowrap inline-flex items-center justify-center leading-normal">
                 {notificationsData.principalNotices} Alerts
               </span>
             </div>
 
-            <div className="flex items-center justify-between p-2.5 rounded-xl bg-slate-50/50 dark:bg-slate-900/30 border border-slate-100 dark:border-slate-800/40">
-              <span className="font-bold text-slate-500">Parent Messages</span>
-              <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-rose-100 text-rose-700 dark:bg-rose-950/50 dark:text-rose-400">
+            <div className="flex items-center justify-between gap-2.5 p-2.5 rounded-xl bg-slate-50/50 dark:bg-slate-900/30 border border-slate-100 dark:border-slate-800/40">
+              <span className="font-bold text-slate-500 min-w-0 truncate">Parent Messages</span>
+              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-rose-100 text-rose-700 dark:bg-rose-950/50 dark:text-rose-400 shrink-0 whitespace-nowrap inline-flex items-center justify-center leading-normal">
                 {notificationsData.parentMessages} Unread
               </span>
             </div>
