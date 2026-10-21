@@ -11,6 +11,8 @@ import {
 import { useData } from '../../../../context/DataContext';
 import { useToast } from '../../../../context/ToastContext';
 import { useAuth } from '../../../../context/AuthContext';
+import { DateInput } from '../../../common/DateInput';
+import { TimeInput, formatTo12Hour, timeToMinutes, isTimeOverlapping } from '../../../common/TimeInput';
 
 export const MeetingsView: React.FC = () => {
   const { meetings, staff, students, departments, schoolProfile, addMeeting, updateMeeting, cancelMeeting, deleteMeeting } = useData();
@@ -44,7 +46,7 @@ export const MeetingsView: React.FC = () => {
 
   // Form State - Individual Meetings (Preserved & Untouched)
   const [meetingAudience, setMeetingAudience] = useState<MeetingAudience>('Individual');
-  const [participantType, setParticipantType] = useState<MeetingParticipantType>('Parent');
+  const [participantType, setParticipantType] = useState<MeetingParticipantType | ''>('');
   const [selectedParticipantId, setSelectedParticipantId] = useState<string>('');
   const [participantSearch, setParticipantSearch] = useState<string>('');
   const [isSearchOpen, setIsSearchOpen] = useState<boolean>(false);
@@ -68,41 +70,41 @@ export const MeetingsView: React.FC = () => {
   ]);
 
   // Teaching Staff Filters
-  const [teachingGroupType, setTeachingGroupType] = useState<string>('All Teaching Staff');
-  const [teachingTargetDept, setTeachingTargetDept] = useState<string>('Mathematics');
-  const [teachingTargetDesignation, setTeachingTargetDesignation] = useState<string>('Subject Teacher');
-  const [teachingTargetSubject, setTeachingTargetSubject] = useState<string>('Mathematics');
-  const [teachingTargetClass, setTeachingTargetClass] = useState<string>('10');
-  const [teachingTargetSection, setTeachingTargetSection] = useState<string>('A');
-  const [teachingTargetExp, setTeachingTargetExp] = useState<string>('3–5 Years');
+  const [teachingGroupType, setTeachingGroupType] = useState<string>('');
+  const [teachingTargetDept, setTeachingTargetDept] = useState<string>('');
+  const [teachingTargetDesignation, setTeachingTargetDesignation] = useState<string>('');
+  const [teachingTargetSubject, setTeachingTargetSubject] = useState<string>('');
+  const [teachingTargetClass, setTeachingTargetClass] = useState<string>('');
+  const [teachingTargetSection, setTeachingTargetSection] = useState<string>('');
+  const [teachingTargetExp, setTeachingTargetExp] = useState<string>('');
   const [teachingTargetEmpType, setTeachingTargetEmpType] = useState<string>('Full-Time');
   const [teachingSelectedIds, setTeachingSelectedIds] = useState<string[]>([]);
   const [teachingSearchQuery, setTeachingSearchQuery] = useState<string>('');
 
   // Non-Teaching Staff Filters
-  const [nonTeachingGroupType, setNonTeachingGroupType] = useState<string>('All Non-Teaching Staff');
-  const [nonTeachingTargetDept, setNonTeachingTargetDept] = useState<string>('Administration');
-  const [nonTeachingTargetDesignation, setNonTeachingTargetDesignation] = useState<string>('Office Administrator');
-  const [nonTeachingTargetExp, setNonTeachingTargetExp] = useState<string>('3–5 Years');
+  const [nonTeachingGroupType, setNonTeachingGroupType] = useState<string>('');
+  const [nonTeachingTargetDept, setNonTeachingTargetDept] = useState<string>('');
+  const [nonTeachingTargetDesignation, setNonTeachingTargetDesignation] = useState<string>('');
+  const [nonTeachingTargetExp, setNonTeachingTargetExp] = useState<string>('');
   const [nonTeachingTargetEmpType, setNonTeachingTargetEmpType] = useState<string>('Full-Time');
   const [nonTeachingSelectedIds, setNonTeachingSelectedIds] = useState<string[]>([]);
   const [nonTeachingSearchQuery, setNonTeachingSearchQuery] = useState<string>('');
 
   // Student Filters
-  const [studentGroupType, setStudentGroupType] = useState<string>('All Students');
-  const [studentTargetClass, setStudentTargetClass] = useState<string>('10');
-  const [studentTargetSection, setStudentTargetSection] = useState<string>('A');
-  const [studentTargetHouse, setStudentTargetHouse] = useState<string>('Red House');
-  const [studentTargetRoute, setStudentTargetRoute] = useState<string>('Route 1 - Main City');
-  const [studentTargetClub, setStudentTargetClub] = useState<string>('Science Club');
-  const [studentTargetSports, setStudentTargetSports] = useState<string>('Basketball');
+  const [studentGroupType, setStudentGroupType] = useState<string>('');
+  const [studentTargetClass, setStudentTargetClass] = useState<string>('');
+  const [studentTargetSection, setStudentTargetSection] = useState<string>('');
+  const [studentTargetHouse, setStudentTargetHouse] = useState<string>('');
+  const [studentTargetRoute, setStudentTargetRoute] = useState<string>('');
+  const [studentTargetClub, setStudentTargetClub] = useState<string>('');
+  const [studentTargetSports, setStudentTargetSports] = useState<string>('');
   const [studentSelectedIds, setStudentSelectedIds] = useState<string[]>([]);
   const [studentSearchQuery, setStudentSearchQuery] = useState<string>('');
 
   // Parent Filters
-  const [parentGroupType, setParentGroupType] = useState<string>('All Parents');
-  const [parentTargetClass, setParentTargetClass] = useState<string>('10');
-  const [parentTargetSection, setParentTargetSection] = useState<string>('A');
+  const [parentGroupType, setParentGroupType] = useState<string>('');
+  const [parentTargetClass, setParentTargetClass] = useState<string>('');
+  const [parentTargetSection, setParentTargetSection] = useState<string>('');
   const [parentSelectedIds, setParentSelectedIds] = useState<string[]>([]);
   const [parentSearchQuery, setParentSearchQuery] = useState<string>('');
 
@@ -111,9 +113,9 @@ export const MeetingsView: React.FC = () => {
   const [excludeSearchQuery, setExcludeSearchQuery] = useState<string>('');
 
   // Enterprise ERP Meeting Parameters
-  const [meetingPriority, setMeetingPriority] = useState<'Low' | 'Normal' | 'High' | 'Urgent'>('Normal');
-  const [attendanceRequired, setAttendanceRequired] = useState<'Mandatory' | 'Optional'>('Mandatory');
-  const [recurrence, setRecurrence] = useState<'None' | 'Daily' | 'Weekly' | 'Monthly'>('None');
+  const [meetingPriority, setMeetingPriority] = useState<'Low' | 'Normal' | 'High' | 'Urgent' | ''>('');
+  const [attendanceRequired, setAttendanceRequired] = useState<'Mandatory' | 'Optional' | ''>('');
+  const [recurrence, setRecurrence] = useState<'None' | 'Daily' | 'Weekly' | 'Monthly' | ''>('');
 
   // Audience Template State
   const [savedTemplates, setSavedTemplates] = useState<Array<{ name: string; types: MeetingParticipantType[]; desc: string }>>([
@@ -137,20 +139,20 @@ export const MeetingsView: React.FC = () => {
     meetingDate: string;
     startTime: string;
     endTime: string;
-    status: MeetingStatus;
+    status: MeetingStatus | '';
   }>({
     title: '',
     description: '',
     meetingMode: 'In-Person',
-    building: 'Academic Wing A',
-    floor: '1st Floor',
-    roomVenue: 'Conference Room 102',
+    building: '',
+    floor: '',
+    roomVenue: '',
     roomCapacity: 15,
-    onlineMeetingUrl: 'https://meet.google.com/abc-defg-hij',
-    meetingDate: new Date().toISOString().split('T')[0],
-    startTime: '10:00',
-    endTime: '10:30',
-    status: 'Scheduled'
+    onlineMeetingUrl: '',
+    meetingDate: '',
+    startTime: '',
+    endTime: '',
+    status: ''
   });
 
   // Dynamic Options for Participant Type (Individual)
@@ -453,9 +455,7 @@ export const MeetingsView: React.FC = () => {
       m.id !== editingMeeting?.id &&
       m.status === 'Scheduled' &&
       m.meetingDate === formData.meetingDate &&
-      ((formData.startTime >= m.startTime && formData.startTime < m.endTime) ||
-       (formData.endTime > m.startTime && formData.endTime <= m.endTime) ||
-       (formData.startTime <= m.startTime && formData.endTime >= m.endTime))
+      isTimeOverlapping(formData.startTime, formData.endTime, m.startTime, m.endTime)
     );
 
     if (overlappingMeetings.length === 0) return [];
@@ -477,21 +477,41 @@ export const MeetingsView: React.FC = () => {
   const handleOpenAddModal = () => {
     setEditingMeeting(null);
     setMeetingAudience('Individual');
-    setParticipantType('Parent');
-    setSelectedParticipantId(parentOptions[0]?.id || '');
+    setParticipantType('');
+    setSelectedParticipantId('');
+    setSelectedGroupParticipantTypes(['Parent']);
+    setTeachingGroupType('');
+    setTeachingTargetDept('');
+    setTeachingTargetDesignation('');
+    setTeachingTargetSubject('');
+    setTeachingTargetClass('');
+    setTeachingTargetSection('');
+    setTeachingTargetExp('');
+    setNonTeachingGroupType('');
+    setNonTeachingTargetDept('');
+    setStudentGroupType('');
+    setStudentTargetClass('');
+    setStudentTargetSection('');
+    setParentGroupType('');
+    setParentTargetClass('');
+    setParentTargetSection('');
+    setMeetingPriority('');
+    setAttendanceRequired('');
+    setRecurrence('');
+    setExcludedParticipantIds([]);
     setFormData({
       title: '',
       description: '',
       meetingMode: 'In-Person',
-      building: 'Academic Block A',
-      floor: '1st Floor',
-      roomVenue: 'Conference Room 102',
+      building: '',
+      floor: '',
+      roomVenue: '',
       roomCapacity: 15,
-      onlineMeetingUrl: 'https://meet.google.com/abc-defg-hij',
-      meetingDate: new Date().toISOString().split('T')[0],
-      startTime: '10:00',
-      endTime: '10:30',
-      status: 'Scheduled'
+      onlineMeetingUrl: '',
+      meetingDate: '',
+      startTime: '',
+      endTime: '',
+      status: ''
     });
     setIsModalOpen(true);
   };
@@ -503,22 +523,25 @@ export const MeetingsView: React.FC = () => {
     }
     setEditingMeeting(meeting);
     setMeetingAudience(meeting.meetingAudience);
-    setParticipantType(meeting.participantType || 'Parent');
+    setParticipantType(meeting.participantType || '');
     setSelectedGroupParticipantTypes([meeting.participantType || 'Teaching Staff']);
     setSelectedParticipantId(meeting.participants?.[0]?.id || '');
+    setMeetingPriority(meeting.priority || '');
+    setAttendanceRequired(meeting.attendanceRequired || '');
+    setRecurrence(meeting.recurrence || '');
     setFormData({
       title: meeting.title,
       description: meeting.description || '',
       meetingMode: meeting.meetingMode,
-      building: meeting.building || 'Academic Block A',
-      floor: meeting.floor || '1st Floor',
-      roomVenue: meeting.roomVenue || 'Conference Room 102',
+      building: meeting.building || '',
+      floor: meeting.floor || '',
+      roomVenue: meeting.roomVenue || '',
       roomCapacity: meeting.roomCapacity || 15,
       onlineMeetingUrl: meeting.onlineMeetingUrl || '',
-      meetingDate: meeting.meetingDate,
-      startTime: meeting.startTime,
-      endTime: meeting.endTime,
-      status: meeting.status
+      meetingDate: meeting.meetingDate || '',
+      startTime: formatTo12Hour(meeting.startTime || ''),
+      endTime: formatTo12Hour(meeting.endTime || ''),
+      status: meeting.status || 'Scheduled'
     });
     setIsModalOpen(true);
   };
@@ -535,7 +558,9 @@ export const MeetingsView: React.FC = () => {
     }
 
     // 1. Time validation
-    if (startTime >= endTime) {
+    const startMin = timeToMinutes(startTime);
+    const endMin = timeToMinutes(endTime);
+    if (startMin >= endMin) {
       addToast('error', 'Time Error', 'Start Time must be strictly before End Time.');
       return;
     }
@@ -553,13 +578,11 @@ export const MeetingsView: React.FC = () => {
         (m.meetingMode === 'In-Person' || m.meetingMode === 'Hybrid') &&
         m.roomVenue?.toLowerCase().trim() === roomVenue.toLowerCase().trim() &&
         m.meetingDate === meetingDate &&
-        ((startTime >= m.startTime && startTime < m.endTime) ||
-         (endTime > m.startTime && endTime <= m.endTime) ||
-         (startTime <= m.startTime && endTime >= m.endTime))
+        isTimeOverlapping(startTime, endTime, m.startTime, m.endTime)
       );
 
       if (venueConflict) {
-        addToast('error', 'Venue Conflict Error', `Room '${roomVenue}' is already reserved for '${venueConflict.title}' from ${venueConflict.startTime} to ${venueConflict.endTime} on ${meetingDate}.`);
+        addToast('error', 'Venue Conflict Error', `Room '${roomVenue}' is already reserved for '${venueConflict.title}' from ${formatTo12Hour(venueConflict.startTime)} to ${formatTo12Hour(venueConflict.endTime)} on ${meetingDate}.`);
         return;
       }
     }
@@ -630,7 +653,7 @@ export const MeetingsView: React.FC = () => {
       academicYear: schoolProfile.academicYear || selectedAcademicYear || '',
       branch: user?.branch || '',
       meetingAudience,
-      participantType: meetingAudience === 'Individual' ? participantType : selectedGroupParticipantTypes[0] || 'Teaching Staff',
+      participantType: (meetingAudience === 'Individual' ? (participantType || undefined) : selectedGroupParticipantTypes[0]) || 'Teaching Staff',
       participants: participantsList,
       targetGroupDescription: meetingAudience === 'Group' ? computedGroupTitle : undefined,
       meetingMode,
@@ -642,12 +665,12 @@ export const MeetingsView: React.FC = () => {
       meetingDate,
       startTime,
       endTime,
-      status,
+      status: (status || 'Scheduled') as MeetingStatus,
       organizerName: user?.name || 'Administrator',
       organizerRole: role || 'Admin',
-      priority: meetingPriority,
-      attendanceRequired: attendanceRequired,
-      recurrence: recurrence,
+      priority: meetingPriority ? meetingPriority : undefined,
+      attendanceRequired: attendanceRequired ? attendanceRequired : undefined,
+      recurrence: recurrence ? recurrence : undefined,
       excludedParticipantIds: excludedParticipantIds
     };
 
@@ -945,7 +968,7 @@ export const MeetingsView: React.FC = () => {
                       <Calendar className="w-3.5 h-3.5 text-slate-400 shrink-0" />
                       <span className="font-mono text-xs">{meeting.meetingDate}</span>
                       <Clock className="w-3.5 h-3.5 text-slate-400 shrink-0 ml-2" />
-                      <span className="font-mono text-xs">{meeting.startTime} - {meeting.endTime}</span>
+                      <span className="font-mono text-xs">{formatTo12Hour(meeting.startTime)} - {formatTo12Hour(meeting.endTime)}</span>
                     </div>
 
                     {/* Venue / Link */}
@@ -1121,8 +1144,8 @@ export const MeetingsView: React.FC = () => {
                         building: 'Academic Block A',
                         floor: '1st Floor',
                         roomVenue: 'Conference Room 102',
-                        startTime: '14:00',
-                        endTime: '14:30',
+                        startTime: '02:00 PM',
+                        endTime: '02:30 PM',
                       }));
                       addToast('info', 'Preset Loaded', 'Auto-filled Parent-Teacher Sync details.');
                     }}
@@ -1143,8 +1166,8 @@ export const MeetingsView: React.FC = () => {
                         building: 'Science & Tech Wing',
                         floor: '1st Floor',
                         roomVenue: 'Staff Seminar Hall B',
-                        startTime: '11:00',
-                        endTime: '12:00',
+                        startTime: '11:00 AM',
+                        endTime: '12:00 PM',
                       }));
                       addToast('info', 'Preset Loaded', 'Auto-filled HOD Department Sync details.');
                     }}
@@ -1165,8 +1188,8 @@ export const MeetingsView: React.FC = () => {
                         building: 'Main Administration Block',
                         floor: '2nd Floor',
                         roomVenue: 'Auditorium Conference Room',
-                        startTime: '15:00',
-                        endTime: '16:00',
+                        startTime: '03:00 PM',
+                        endTime: '04:00 PM',
                       }));
                       addToast('info', 'Preset Loaded', 'Auto-filled All-Faculty Meeting details.');
                     }}
@@ -1186,8 +1209,8 @@ export const MeetingsView: React.FC = () => {
                         description: 'Online Google Meet session with student guardian to address attendance and subject improvement plan.',
                         meetingMode: 'Online',
                         onlineMeetingUrl: 'https://meet.google.com/pirnav-ptm-sync',
-                        startTime: '16:00',
-                        endTime: '16:30',
+                        startTime: '04:00 PM',
+                        endTime: '04:30 PM',
                       }));
                       addToast('info', 'Preset Loaded', 'Auto-filled Virtual Meeting details.');
                     }}
@@ -1247,9 +1270,11 @@ export const MeetingsView: React.FC = () => {
                         else if (nextType === 'Non-Teaching Staff') setSelectedParticipantId(nonTeachingStaffOptions[0]?.id || '');
                         else if (nextType === 'Student') setSelectedParticipantId(studentOptions[0]?.id || '');
                         else if (nextType === 'Parent') setSelectedParticipantId(parentOptions[0]?.id || '');
+                        else setSelectedParticipantId('');
                       }}
                       className="w-full px-3 py-2 rounded-xl border bg-white dark:bg-slate-800 font-bold text-slate-900 dark:text-white"
                     >
+                      <option value="">Select Participant Type</option>
                       <option value="Parent">Parent</option>
                       <option value="Student">Student</option>
                       <option value="Teaching Staff">Teaching Staff</option>
@@ -1259,17 +1284,20 @@ export const MeetingsView: React.FC = () => {
 
                   <div>
                     <label className="block text-[10px] font-bold text-sky-700 dark:text-sky-300 mb-1">
-                      Search & Select Participant ({participantType}) <span className="text-rose-500 font-bold ml-0.5">*</span></label>
+                      Search & Select Participant {participantType ? `(${participantType})` : ''} <span className="text-rose-500 font-bold ml-0.5">*</span></label>
 
                     {/* Search Bar Input */}
                     <div ref={searchRef} className="relative">
                       <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-sky-400" />
                       <input
                         type="text"
+                        disabled={!participantType}
                         placeholder={
-                          participantType === 'Parent' || participantType === 'Student'
-                            ? "Type Student Name, Admission No, Parent Name..."
-                            : "Type Staff Name, Employee ID, Department..."
+                          !participantType
+                            ? "Select a participant type first..."
+                            : participantType === 'Parent' || participantType === 'Student'
+                              ? "Type Student Name, Admission No, Parent Name..."
+                              : "Type Staff Name, Employee ID, Department..."
                         }
                         value={participantSearch}
                         onFocus={() => setIsSearchOpen(true)}
@@ -1635,6 +1663,7 @@ export const MeetingsView: React.FC = () => {
                             onChange={e => setTeachingGroupType(e.target.value)}
                             className="w-full px-2.5 py-1.5 rounded-xl border bg-slate-50 dark:bg-slate-800 text-xs font-bold"
                           >
+                            <option value="">Select Group Type</option>
                             <option value="All Teaching Staff">All Teaching Staff</option>
                             <option value="Department">Department</option>
                             <option value="Designation">Designation</option>
@@ -1659,6 +1688,7 @@ export const MeetingsView: React.FC = () => {
                               onChange={e => setTeachingTargetDept(e.target.value)}
                               className="w-full px-2.5 py-1.5 rounded-xl border bg-slate-50 dark:bg-slate-800 text-xs font-bold"
                             >
+                              <option value="">Select Department</option>
                               {Array.from(new Set(['Mathematics', 'Science', 'English', 'Social Science', 'Languages', 'Computer Science / ICT', 'Commerce', 'Physical Education', ...(departments || []).map(d => d.departmentName)])).map(d => (
                                 <option key={d} value={d}>{d}</option>
                               ))}
@@ -1674,6 +1704,7 @@ export const MeetingsView: React.FC = () => {
                               onChange={e => setTeachingTargetDesignation(e.target.value)}
                               className="w-full px-2.5 py-1.5 rounded-xl border bg-slate-50 dark:bg-slate-800 text-xs font-bold"
                             >
+                              <option value="">Select Designation</option>
                               {['Principal', 'Vice Principal', 'Academic Coordinator', 'HOD', 'Subject Teacher', 'Class Teacher', 'Assistant Teacher', 'Librarian', 'Physical Education Teacher', 'Computer Teacher', 'Art Teacher', 'Music Teacher'].map(des => (
                                 <option key={des} value={des}>{des}</option>
                               ))}
@@ -1689,6 +1720,7 @@ export const MeetingsView: React.FC = () => {
                               onChange={e => setTeachingTargetSubject(e.target.value)}
                               className="w-full px-2.5 py-1.5 rounded-xl border bg-slate-50 dark:bg-slate-800 text-xs font-bold"
                             >
+                              <option value="">Select Subject</option>
                               {['Mathematics', 'Physics', 'Chemistry', 'Biology', 'English', 'Computer Science', 'Social Studies', 'Economics', 'History', 'Geography'].map(subj => (
                                 <option key={subj} value={subj}>{subj}</option>
                               ))}
@@ -1704,6 +1736,7 @@ export const MeetingsView: React.FC = () => {
                               onChange={e => setTeachingTargetClass(e.target.value)}
                               className="w-full px-2.5 py-1.5 rounded-xl border bg-slate-50 dark:bg-slate-800 text-xs font-bold"
                             >
+                              <option value="">Select Class</option>
                               {['10', '9', '8', '7', '6', '5', '4', '3', '2', '1'].map(c => (
                                 <option key={c} value={c}>Class {c}</option>
                               ))}
@@ -1719,6 +1752,7 @@ export const MeetingsView: React.FC = () => {
                               onChange={e => setTeachingTargetSection(e.target.value)}
                               className="w-full px-2.5 py-1.5 rounded-xl border bg-slate-50 dark:bg-slate-800 text-xs font-bold"
                             >
+                              <option value="">Select Section</option>
                               {['A', 'B', 'C', 'D'].map(sec => (
                                 <option key={sec} value={sec}>Section {sec}</option>
                               ))}
@@ -1734,6 +1768,7 @@ export const MeetingsView: React.FC = () => {
                               onChange={e => setTeachingTargetExp(e.target.value)}
                               className="w-full px-2.5 py-1.5 rounded-xl border bg-slate-50 dark:bg-slate-800 text-xs font-bold"
                             >
+                              <option value="">Select Experience Range</option>
                               {['0–2 Years', '3–5 Years', '6–10 Years', '10+ Years'].map(eRange => (
                                 <option key={eRange} value={eRange}>{eRange}</option>
                               ))}
@@ -1794,6 +1829,7 @@ export const MeetingsView: React.FC = () => {
                             onChange={e => setNonTeachingGroupType(e.target.value)}
                             className="w-full px-2.5 py-1.5 rounded-xl border bg-slate-50 dark:bg-slate-800 text-xs font-bold"
                           >
+                            <option value="">Select Group Type</option>
                             <option value="All Non-Teaching Staff">All Non-Teaching Staff</option>
                             <option value="Department">Department</option>
                             <option value="Designation">Designation</option>
@@ -1809,6 +1845,7 @@ export const MeetingsView: React.FC = () => {
                               onChange={e => setNonTeachingTargetDept(e.target.value)}
                               className="w-full px-2.5 py-1.5 rounded-xl border bg-slate-50 dark:bg-slate-800 text-xs font-bold"
                             >
+                              <option value="">Select Department</option>
                               {['Administration', 'HR', 'Finance', 'Transport', 'Hostel', 'IT', 'Maintenance', 'Security', 'Housekeeping'].map(d => (
                                 <option key={d} value={d}>{d}</option>
                               ))}
@@ -1869,6 +1906,7 @@ export const MeetingsView: React.FC = () => {
                             onChange={e => setStudentGroupType(e.target.value)}
                             className="w-full px-2.5 py-1.5 rounded-xl border bg-slate-50 dark:bg-slate-800 text-xs font-bold"
                           >
+                            <option value="">Select Group Type</option>
                             <option value="All Students">All Students</option>
                             <option value="Class">Class</option>
                             <option value="Section">Section</option>
@@ -1887,6 +1925,7 @@ export const MeetingsView: React.FC = () => {
                               onChange={e => setStudentTargetClass(e.target.value)}
                               className="w-full px-2.5 py-1.5 rounded-xl border bg-slate-50 dark:bg-slate-800 text-xs font-bold"
                             >
+                              <option value="">Select Class</option>
                               {['10', '9', '8', '7', '6', '5', '4', '3', '2', '1'].map(cls => (
                                 <option key={cls} value={cls}>Class {cls}</option>
                               ))}
@@ -1902,6 +1941,7 @@ export const MeetingsView: React.FC = () => {
                               onChange={e => setStudentTargetSection(e.target.value)}
                               className="w-full px-2.5 py-1.5 rounded-xl border bg-slate-50 dark:bg-slate-800 text-xs font-bold"
                             >
+                              <option value="">Select Section</option>
                               {['A', 'B', 'C', 'D'].map(sec => (
                                 <option key={sec} value={sec}>Section {sec}</option>
                               ))}
@@ -1962,6 +2002,7 @@ export const MeetingsView: React.FC = () => {
                             onChange={e => setParentGroupType(e.target.value)}
                             className="w-full px-2.5 py-1.5 rounded-xl border bg-slate-50 dark:bg-slate-800 text-xs font-bold"
                           >
+                            <option value="">Select Group Type</option>
                             <option value="All Parents">All Parents</option>
                             <option value="Parents of Class">Parents of Class</option>
                             <option value="Parents of Class & Section">Parents of Class & Section</option>
@@ -1977,8 +2018,25 @@ export const MeetingsView: React.FC = () => {
                               onChange={e => setParentTargetClass(e.target.value)}
                               className="w-full px-2.5 py-1.5 rounded-xl border bg-slate-50 dark:bg-slate-800 text-xs font-bold"
                             >
+                              <option value="">Select Class</option>
                               {['10', '9', '8', '7', '6', '5', '4', '3', '2', '1'].map(cls => (
                                 <option key={cls} value={cls}>Class {cls}</option>
+                              ))}
+                            </select>
+                          </div>
+                        )}
+
+                        {parentGroupType === 'Parents of Class & Section' && (
+                          <div>
+                            <label className="block text-[10px] font-bold text-slate-500 mb-1">Target Section</label>
+                            <select
+                              value={parentTargetSection}
+                              onChange={e => setParentTargetSection(e.target.value)}
+                              className="w-full px-2.5 py-1.5 rounded-xl border bg-slate-50 dark:bg-slate-800 text-xs font-bold"
+                            >
+                              <option value="">Select Section</option>
+                              {['A', 'B', 'C', 'D'].map(sec => (
+                                <option key={sec} value={sec}>Section {sec}</option>
                               ))}
                             </select>
                           </div>
@@ -2072,6 +2130,7 @@ export const MeetingsView: React.FC = () => {
                         onChange={e => setMeetingPriority(e.target.value as any)}
                         className="w-full px-2.5 py-1.5 rounded-xl border border-sky-200 dark:border-sky-900 bg-white dark:bg-slate-800 font-bold text-xs"
                       >
+                        <option value="">Select Priority</option>
                         <option value="Low">Low</option>
                         <option value="Normal">Normal</option>
                         <option value="High">High</option>
@@ -2086,6 +2145,7 @@ export const MeetingsView: React.FC = () => {
                         onChange={e => setAttendanceRequired(e.target.value as any)}
                         className="w-full px-2.5 py-1.5 rounded-xl border border-sky-200 dark:border-sky-900 bg-white dark:bg-slate-800 font-bold text-xs"
                       >
+                        <option value="">Select Attendance</option>
                         <option value="Mandatory">Mandatory</option>
                         <option value="Optional">Optional</option>
                       </select>
@@ -2098,6 +2158,7 @@ export const MeetingsView: React.FC = () => {
                         onChange={e => setRecurrence(e.target.value as any)}
                         className="w-full px-2.5 py-1.5 rounded-xl border border-sky-200 dark:border-sky-900 bg-white dark:bg-slate-800 font-bold text-xs"
                       >
+                        <option value="">Select Recurrence</option>
                         <option value="None">None (One-time)</option>
                         <option value="Daily">Daily</option>
                         <option value="Weekly">Weekly</option>
@@ -2274,36 +2335,34 @@ export const MeetingsView: React.FC = () => {
               <div className="grid grid-cols-3 gap-3">
                 <div>
                   <label className="block text-[10px] font-bold text-slate-455 mb-1">Date <span className="text-rose-500 font-bold ml-0.5">*</span></label>
-                  <input
-                    type="date"
+                  <DateInput
                     required
                     value={formData.meetingDate}
                     onChange={e => setFormData({ ...formData, meetingDate: e.target.value })}
                     className="w-full px-3 py-2 rounded-xl border bg-slate-50 dark:bg-slate-800 font-mono text-xs"
+                    placeholder="DD-MM-YYYY"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-[10px] font-bold text-slate-455 mb-1">Start Time (24h) <span className="text-rose-500 font-bold ml-0.5">*</span></label>
-                  <input
-                    type="text"
+                  <label className="block text-[10px] font-bold text-slate-455 mb-1">Start Time (12hrs) <span className="text-rose-500 font-bold ml-0.5">*</span></label>
+                  <TimeInput
                     required
-                    placeholder="e.g. 10:00"
+                    placeholder="hh:mm AM/PM"
                     value={formData.startTime}
                     onChange={e => setFormData({ ...formData, startTime: e.target.value })}
-                    className="w-full px-3 py-2 rounded-xl border bg-slate-50 dark:bg-slate-800 text-center font-mono font-bold"
+                    className="w-full px-3 py-2 rounded-xl border bg-slate-50 dark:bg-slate-800 font-mono font-bold text-xs"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-[10px] font-bold text-slate-455 mb-1">End Time (24h) <span className="text-rose-500 font-bold ml-0.5">*</span></label>
-                  <input
-                    type="text"
+                  <label className="block text-[10px] font-bold text-slate-455 mb-1">End Time (12hrs) <span className="text-rose-500 font-bold ml-0.5">*</span></label>
+                  <TimeInput
                     required
-                    placeholder="e.g. 10:30"
+                    placeholder="hh:mm AM/PM"
                     value={formData.endTime}
                     onChange={e => setFormData({ ...formData, endTime: e.target.value })}
-                    className="w-full px-3 py-2 rounded-xl border bg-slate-50 dark:bg-slate-800 text-center font-mono font-bold"
+                    className="w-full px-3 py-2 rounded-xl border bg-slate-50 dark:bg-slate-800 font-mono font-bold text-xs"
                   />
                 </div>
               </div>
@@ -2315,6 +2374,7 @@ export const MeetingsView: React.FC = () => {
                   onChange={e => setFormData({ ...formData, status: e.target.value as MeetingStatus })}
                   className="w-full px-3 py-2 rounded-xl border bg-slate-50 dark:bg-slate-800 font-bold"
                 >
+                  <option value="">Select Meeting Status</option>
                   <option value="Scheduled">Scheduled (Send Notifications Immediately)</option>
                   <option value="Draft">Draft (Do Not Notify)</option>
                 </select>
@@ -2369,7 +2429,7 @@ export const MeetingsView: React.FC = () => {
                 <div>
                   <span className="text-[10px] text-slate-400 block font-bold">Time Window</span>
                   <span className="font-mono text-slate-800 dark:text-slate-200">
-                    {viewingMeeting.startTime || '14:30'} - {viewingMeeting.endTime || '15:30'}
+                    {formatTo12Hour(viewingMeeting.startTime || '14:30')} - {formatTo12Hour(viewingMeeting.endTime || '15:30')}
                   </span>
                 </div>
               </div>

@@ -9,6 +9,7 @@ import { useAuth } from '../../../context/AuthContext';
 import { useToast } from '../../../context/ToastContext';
 import { Homework, HomeworkAttachment, Student } from '../../../types';
 import { ConfirmModal } from '../../common/ConfirmModal';
+import { DateInput } from '../../common/DateInput';
 
 export const HomeworkView: React.FC = () => {
   const { homework, addHomework, updateHomework, deleteHomework, staff, academicClasses, teacherAssignments, timetable = [], students, subjects = [], schoolProfile, fetchHomeworkData } = useData();
@@ -334,7 +335,7 @@ export const HomeworkView: React.FC = () => {
     subject: '',
     teacherName: `${teacher.firstName || ''} ${teacher.lastName || ''}`.trim(),
     assignedDate: new Date().toISOString().split('T')[0],
-    dueDate: new Date(Date.now() + 86400000 * 3).toISOString().split('T')[0],
+    dueDate: '',
     description: '',
     status: 'Published',
     publishToType: 'Class',
@@ -407,12 +408,12 @@ export const HomeworkView: React.FC = () => {
     setStudentSearchQuery('');
     setFormData({
       title: '',
-      className: classOptions[0] || (academicClasses?.[0]?.name || ''),
-      section: formSectionOptions[0] || (academicClasses?.[0]?.sections?.[0] || ''),
-      subject: formSubjectOptions[0] || assignedSubjects[0] || '',
+      className: '',
+      section: '',
+      subject: '',
       teacherName: `${teacher.firstName || ''} ${teacher.lastName || ''}`.trim(),
       assignedDate: new Date().toISOString().split('T')[0],
-      dueDate: new Date(Date.now() + 86400000 * 3).toISOString().split('T')[0],
+      dueDate: '',
       description: '',
       status: 'Published',
       publishToType: 'Class',
@@ -489,8 +490,18 @@ export const HomeworkView: React.FC = () => {
   };
 
   const handleSaveForm = (statusMode: 'Draft' | 'Published') => {
-    if (!formData.title || !formData.description) {
+    if (!formData.title?.trim() || !formData.description?.trim()) {
       addToast('warning', 'Incomplete Form', 'Please fill in the title and description.');
+      return;
+    }
+
+    if (!formData.className?.trim() || !formData.section?.trim() || !formData.subject?.trim()) {
+      addToast('warning', 'Incomplete Form', 'Please select Class, Section, and Subject.');
+      return;
+    }
+
+    if (statusMode === 'Published' && !formData.dueDate?.trim()) {
+      addToast('warning', 'Incomplete Form', 'Please select a Due Date for the assignment.');
       return;
     }
 
@@ -610,8 +621,8 @@ export const HomeworkView: React.FC = () => {
   }, [formData.className, academicClasses, teacherAssignments, students, teacherAssignedClasses]);
 
   useEffect(() => {
-    if (formSectionOptions.length > 0 && !formSectionOptions.includes(cleanSectionName(formData.section || ''))) {
-      setFormData(prev => ({ ...prev, section: formSectionOptions[0] }));
+    if (formData.section && formSectionOptions.length > 0 && !formSectionOptions.includes(cleanSectionName(formData.section || ''))) {
+      setFormData(prev => ({ ...prev, section: '' }));
     }
   }, [formSectionOptions]);
 
@@ -687,8 +698,8 @@ export const HomeworkView: React.FC = () => {
   }, [formData.className, formData.section, dbTeacher, teacherAssignments, homework, assignedSubjects, academicClasses, subjects, role]);
 
   useEffect(() => {
-    if (formSubjectOptions.length > 0 && !formSubjectOptions.includes(formData.subject)) {
-      setFormData(prev => ({ ...prev, subject: formSubjectOptions[0] }));
+    if (formData.subject && formSubjectOptions.length > 0 && !formSubjectOptions.includes(formData.subject)) {
+      setFormData(prev => ({ ...prev, subject: '' }));
     }
   }, [formSubjectOptions]);
 
@@ -966,29 +977,19 @@ export const HomeworkView: React.FC = () => {
                 <div>
                   <label className="block font-extrabold text-slate-700 dark:text-slate-300 mb-1">Class</label>
                   <select 
-                    value={formData.className} 
+                    value={formData.className || ''} 
                     onChange={e => {
                       const selectedCls = e.target.value;
-                      const availableSecs = Array.from(new Set(
-                        students
-                          .filter(s => cleanClassName(s.className) === cleanClassName(selectedCls))
-                          .map(s => cleanSectionName(s.section))
-                          .concat(
-                            teacherAssignedClasses
-                              .filter(c => cleanClassName(c.split('-')[0]) === cleanClassName(selectedCls))
-                              .map(c => cleanSectionName(c.split('-')[1]))
-                          )
-                          .concat(['A', 'B'])
-                          .filter(Boolean)
-                      ));
                       setFormData(prev => ({
                         ...prev,
                         className: selectedCls,
-                        section: availableSecs[0] || 'A'
+                        section: '',
+                        subject: ''
                       }));
                     }} 
-                    className="w-full px-2.5 py-2 rounded-xl bg-slate-50 dark:bg-slate-805 border border-slate-200 dark:border-slate-800 font-bold outline-none"
+                    className="w-full px-2.5 py-2 rounded-xl bg-slate-50 dark:bg-slate-805 border border-slate-200 dark:border-slate-800 font-bold outline-none cursor-pointer"
                   >
+                    <option value="">Select Class</option>
                     {classOptions.map(c => (
                       <option key={c} value={c}>{c}</option>
                     ))}
@@ -997,10 +998,11 @@ export const HomeworkView: React.FC = () => {
                 <div>
                   <label className="block font-extrabold text-slate-700 dark:text-slate-300 mb-1">Section</label>
                   <select 
-                    value={formData.section} 
-                    onChange={e => setFormData({ ...formData, section: e.target.value })} 
-                    className="w-full px-2.5 py-2 rounded-xl bg-slate-50 dark:bg-slate-805 border border-slate-200 dark:border-slate-800 font-bold outline-none"
+                    value={formData.section || ''} 
+                    onChange={e => setFormData({ ...formData, section: e.target.value, subject: '' })} 
+                    className="w-full px-2.5 py-2 rounded-xl bg-slate-50 dark:bg-slate-805 border border-slate-200 dark:border-slate-800 font-bold outline-none cursor-pointer"
                   >
+                    <option value="">Select Section</option>
                     {formSectionOptions.map(sec => (
                       <option key={sec} value={sec}>{sec.toLowerCase().startsWith('section') ? sec : `Section ${sec}`}</option>
                     ))}
@@ -1009,10 +1011,11 @@ export const HomeworkView: React.FC = () => {
                 <div>
                   <label className="block font-extrabold text-slate-700 dark:text-slate-300 mb-1">Subject</label>
                   <select 
-                    value={formData.subject} 
+                    value={formData.subject || ''} 
                     onChange={e => setFormData({ ...formData, subject: e.target.value })} 
-                    className="w-full px-2.5 py-2 rounded-xl bg-slate-50 dark:bg-slate-805 border border-slate-200 dark:border-slate-800 font-bold outline-none"
+                    className="w-full px-2.5 py-2 rounded-xl bg-slate-50 dark:bg-slate-805 border border-slate-200 dark:border-slate-800 font-bold outline-none cursor-pointer"
                   >
+                    <option value="">Select Subject</option>
                     {formSubjectOptions.map(s => (
                       <option key={s} value={s}>{s}</option>
                     ))}
@@ -1105,9 +1108,9 @@ export const HomeworkView: React.FC = () => {
 
               <div>
                 <label className="block font-extrabold text-slate-700 dark:text-slate-300 mb-1">Due Date</label>
-                <input
-                  type="date"
-                  value={formData.dueDate}
+                <DateInput
+                  placeholder="DD-MM-YYYY"
+                  value={formData.dueDate || ''}
                   onChange={e => setFormData({ ...formData, dueDate: e.target.value })}
                   className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-805 border border-slate-200 dark:border-slate-800 outline-none font-bold"
                 />
@@ -1377,13 +1380,13 @@ export const HomeworkView: React.FC = () => {
                       <div>
                         <span className="block text-[8px] uppercase text-slate-400 font-bold">Class Section</span>
                         <p className="font-bold text-slate-850 dark:text-slate-200 mt-0.5">
-                          {formData.className}-{formData.section}
+                          {formData.className && formData.section ? `${formData.className}-${formData.section}` : (formData.className || formData.section || 'Not Selected')}
                         </p>
                       </div>
                       <div>
                         <span className="block text-[8px] uppercase text-slate-400 font-bold">Subject Name</span>
                         <p className="font-bold text-slate-850 dark:text-slate-200 mt-0.5">
-                          {formData.subject}
+                          {formData.subject || 'Not Selected'}
                         </p>
                       </div>
                       <div>

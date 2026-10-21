@@ -10,6 +10,7 @@ import { useAuth } from '../../../../context/AuthContext';
 import { MeetingsView } from './MeetingsView';
 import { WardenCommunicationHubView } from './WardenCommunicationHubView';
 import { fetchNotificationsApi, createNotificationApi, updateNotificationApi, deleteNotificationApi } from '../../../../api/communication';
+import { DateInput } from '../../../common/DateInput';
 
 export interface AnnouncementItem {
   id: string;
@@ -77,7 +78,7 @@ export const CommunicationView: React.FC = () => {
   // Form State
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
-  const [broadcastDate, setBroadcastDate] = useState(new Date().toISOString().split('T')[0]);
+  const [broadcastDate, setBroadcastDate] = useState('');
   const [broadcastTime, setBroadcastTime] = useState('');
   const [emergencyDate, setEmergencyDate] = useState(() => new Date().toISOString().split('T')[0]);
   const [emergencyTime, setEmergencyTime] = useState(() => new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
@@ -332,7 +333,6 @@ export const CommunicationView: React.FC = () => {
   // Quick Auto Templates Handler
   const applyTemplate = (tmplKey: 'SPORTS' | 'ACADEMIC' | 'ASSEMBLY' | 'URGENT' | 'EXAM' | 'HOLIDAY' | 'GENERAL') => {
     setCategory(tmplKey);
-    setBroadcastDate(newDateDate());
 
     switch (tmplKey) {
       case 'SPORTS':
@@ -386,7 +386,7 @@ export const CommunicationView: React.FC = () => {
       setEditingItem(null);
       setTitle('');
       setContent('');
-      setBroadcastDate(newDateDate());
+      setBroadcastDate('');
       setBroadcastTime('');
       setCategory('GENERAL');
       setTarget('ALL');
@@ -403,6 +403,10 @@ export const CommunicationView: React.FC = () => {
   const handleBroadcast = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!title.trim() || !content.trim()) return;
+    if (!broadcastDate.trim()) {
+      addToast('warning', 'Validation Error', 'Please select or enter a valid Broadcast Date.');
+      return;
+    }
 
     if (editingItem) {
       const numericId = parseInt(editingItem.id.replace(/\D/g, ''), 10);
@@ -992,9 +996,9 @@ export const CommunicationView: React.FC = () => {
               <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
                 <div>
                   <label className="block font-bold mb-1 text-slate-700 dark:text-slate-300">Broadcast Date <span className="text-rose-500 font-bold ml-0.5">*</span></label>
-                  <input
-                    type="date"
+                  <DateInput
                     required
+                    placeholder="DD-MM-YYYY"
                     value={broadcastDate}
                     onChange={e => setBroadcastDate(e.target.value)}
                     className="w-full px-2.5 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-slate-900 dark:text-white font-bold outline-none font-mono text-[11px]"
