@@ -38,8 +38,8 @@ export const FinanceContainerView: React.FC<FinanceContainerViewProps> = ({ init
 
   const handleNavigate = (tab: string) => {
     const lower = tab.toLowerCase();
-    if (lower.includes('transport') || lower.includes('hostel') || lower.includes('uniform')) {
-      const targetModule = lower.includes('transport') ? 'transport' : lower.includes('hostel') ? 'hostel' : 'uniforms';
+    if (lower === 'transport' || lower === 'hostel' || lower === 'uniforms') {
+      const targetModule = lower;
       if (onTabChange) {
         onTabChange(targetModule);
       }
@@ -71,10 +71,13 @@ export const FinanceContainerView: React.FC<FinanceContainerViewProps> = ({ init
       case 'fee-structures':
       case 'fee-schedule':
       case 'hostel-fee':
+      case 'transport':
       case 'transport-fee':
+      case 'transport-config':
+      case 'finance-transport-config':
       case 'uniform-fee':
       case 'settings':
-        return <FeeSetupView initialTab={activeTab === 'hostel-fee' || activeTab === 'transport-fee' || activeTab === 'uniform-fee' ? 'structures' : activeTab} />;
+        return <FeeSetupView initialTab={activeTab === 'transport-fee' || activeTab === 'transport-config' || activeTab === 'transport' || activeTab === 'finance-transport-config' ? 'transport-fee' : activeTab === 'hostel-fee' || activeTab === 'uniform-fee' ? 'structures' : activeTab} />;
 
       case 'student-fees':
       case 'student-fee-assignment':

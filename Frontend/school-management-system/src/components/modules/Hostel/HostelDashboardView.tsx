@@ -4,7 +4,7 @@ import { useToast } from '../../../context/ToastContext';
 import { useAuth } from '../../../context/AuthContext';
 import { useData } from '../../../context/DataContext';
 import { Pagination } from '../../common/Pagination';
-import { getHostelBlocks, getRooms, getAllocations, HostelBlock, HostelRoom, BedAllocation } from '../../../api/hostel';
+import { getHostelBlocks, getRooms, getAllocations, formatRoomNumber, HostelBlock, HostelRoom, BedAllocation } from '../../../api/hostel';
 import { formatCurrency } from '../../../utils/currency';
 
 interface HostelDashboardViewProps {
@@ -468,16 +468,24 @@ export const HostelDashboardView: React.FC<HostelDashboardViewProps> = ({ onNavi
               </div>
 
               <div className="space-y-2">
-                <div className="p-3 bg-slate-50 dark:bg-slate-800/50 rounded-2xl flex items-center justify-between text-xs border border-slate-200/70 dark:border-slate-700/70">
-                  <div>
-                    <span className="font-bold text-slate-900 dark:text-white block">Rahul Sharma</span>
-                    <span className="text-[10px] text-slate-400 font-mono">ADM-2024-001 • Boys Residence - Block A</span>
+                {validAllocations.length === 0 ? (
+                  <div className="py-4 text-center text-slate-400 text-xs font-semibold">
+                    No active student allocations found.
                   </div>
-                  <div className="text-right">
-                    <span className="font-mono font-bold text-emerald-600 block text-[11px]">Room #101 (BED-1)</span>
-                    <span className="text-[10px] text-slate-400 font-medium">Joined: 2026-08-01</span>
-                  </div>
-                </div>
+                ) : (
+                  validAllocations.slice(0, 3).map((a, idx) => (
+                    <div key={`alloc-${a.allocationId || idx}`} className="p-3 bg-slate-50 dark:bg-slate-800/50 rounded-2xl flex items-center justify-between text-xs border border-slate-200/70 dark:border-slate-700/70">
+                      <div>
+                        <span className="font-bold text-slate-900 dark:text-white block">{a.studentName || 'Student'}</span>
+                        <span className="text-[10px] text-slate-400 font-mono">{a.admissionNo || a.registrationNo || 'ADM'} • {a.hostelName || 'Hostel'}</span>
+                      </div>
+                      <div className="text-right">
+                        <span className="font-mono font-bold text-emerald-600 block text-[11px]">{formatRoomNumber(a.roomNumber)} ({a.bedNumber || 'BED-1'})</span>
+                        <span className="text-[10px] text-slate-400 font-medium">Joined: {a.joiningDate ? new Date(a.joiningDate).toLocaleDateString() : 'Active'}</span>
+                      </div>
+                    </div>
+                  ))
+                )}
               </div>
             </div>
 
@@ -496,17 +504,8 @@ export const HostelDashboardView: React.FC<HostelDashboardViewProps> = ({ onNavi
               </div>
 
               <div className="space-y-2">
-                <div className="p-3 bg-slate-50 dark:bg-slate-800/50 rounded-2xl flex items-center justify-between text-xs border border-slate-200/70 dark:border-slate-700/70">
-                  <div>
-                    <span className="font-bold text-slate-900 dark:text-white block">Ananya Verma</span>
-                    <span className="text-[10px] text-slate-400 font-mono">Local Outpass • Room #204</span>
-                  </div>
-                  <div className="text-right">
-                    <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 block">
-                      Pending Approval
-                    </span>
-                    <span className="text-[10px] text-slate-400 font-medium">Return: 2026-08-14</span>
-                  </div>
+                <div className="py-4 text-center text-slate-400 text-xs font-semibold">
+                  No pending outpass or leave requests.
                 </div>
               </div>
             </div>

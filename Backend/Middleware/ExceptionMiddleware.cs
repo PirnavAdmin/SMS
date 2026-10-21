@@ -77,10 +77,19 @@ public class ExceptionMiddleware
             statusCode = HttpStatusCode.BadRequest;
             message = exception.Message;
         }
-        else if (exception is Microsoft.EntityFrameworkCore.DbUpdateException)
+        else if (exception is Microsoft.EntityFrameworkCore.DbUpdateException dbUpdateEx)
         {
             statusCode = HttpStatusCode.BadRequest;
-            message = "This operation could not be completed because this record is referenced by other items in the database (e.g., classes, assignments, or student records).";
+            var innerMsg = dbUpdateEx.InnerException?.Message ?? dbUpdateEx.Message;
+            if (innerMsg.Contains("FOREIGN KEY", StringComparison.OrdinalIgnoreCase) &&
+                (innerMsg.Contains("DELETE", StringComparison.OrdinalIgnoreCase) || innerMsg.Contains("cannot delete", StringComparison.OrdinalIgnoreCase)))
+            {
+                message = "This operation could not be completed because this record is referenced by other items in the database (e.g., classes, assignments, or student records).";
+            }
+            else
+            {
+                message = innerMsg;
+            }
         }
 
         context.Response.StatusCode = (int)statusCode;

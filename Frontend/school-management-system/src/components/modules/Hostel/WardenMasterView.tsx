@@ -123,8 +123,8 @@ export const WardenMasterView: React.FC = () => {
   }, [staffList]);
 
   const handleOpenAdd = () => {
-    setSelectedStaffId(wardenCandidates.length > 0 ? wardenCandidates[0].staffId.toString() : '101');
-    setSelectedHostelId(hostels.length > 0 ? hostels[0].hostelId.toString() : '1');
+    setSelectedStaffId(wardenCandidates.length > 0 ? String(wardenCandidates[0].staffId ?? '101') : '101');
+    setSelectedHostelId(hostels.length > 0 ? String(hostels[0].hostelId ?? '1') : '1');
     setSelectedBlock('Block A');
     setSelectedFloor('Floor 1');
     setAssignmentDate(new Date().toISOString().split('T')[0]);
@@ -138,7 +138,7 @@ export const WardenMasterView: React.FC = () => {
       return;
     }
 
-    const staffMember = (wardenCandidates || []).find(s => s.staffId.toString() === selectedStaffId);
+    const staffMember = (wardenCandidates || []).find(s => String(s.staffId ?? '') === selectedStaffId);
     if (!staffMember) {
       addToast('error', 'Error', 'Selected staff member not found.');
       return;

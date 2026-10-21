@@ -85,31 +85,16 @@ public class FinanceRepository : IFinanceRepository
 
                         if (remainingItems.Count != items.Count)
                         {
-                            var cat = (s.TargetAudience ?? "").Trim().ToLowerInvariant();
-                            bool isTuitionOrOthers = cat == "" || cat == "tuition" || cat == "tuition fee" || cat == "others" || cat == "other" || cat == "general";
+                            s.ItemsJson = JsonSerializer.Serialize(remainingItems);
+                            s.TotalAmount = remainingItems.Sum(x => x.Amount);
+                            _context.DynamicFeeStructures.Update(s);
 
-                            if (remainingItems.Count == 0 && isTuitionOrOthers)
+                            var linked = await _context.StudentFeeAssignments.Where(a => a.DynamicFeeStructureId == s.Id).ToListAsync();
+                            foreach (var la in linked)
                             {
-                                _context.DynamicFeeStructures.Remove(s);
-                                var linked = await _context.StudentFeeAssignments.Where(a => a.DynamicFeeStructureId == s.Id).ToListAsync();
-                                if (linked.Count > 0)
-                                {
-                                    _context.StudentFeeAssignments.RemoveRange(linked);
-                                }
-                            }
-                            else
-                            {
-                                s.ItemsJson = JsonSerializer.Serialize(remainingItems);
-                                s.TotalAmount = remainingItems.Sum(x => x.Amount);
-                                _context.DynamicFeeStructures.Update(s);
-
-                                var linked = await _context.StudentFeeAssignments.Where(a => a.DynamicFeeStructureId == s.Id).ToListAsync();
-                                foreach (var la in linked)
-                                {
-                                    la.TotalAmount = s.TotalAmount;
-                                    la.DueAmount = Math.Max(0m, s.TotalAmount - la.PaidAmount);
-                                    _context.StudentFeeAssignments.Update(la);
-                                }
+                                la.TotalAmount = s.TotalAmount;
+                                la.DueAmount = Math.Max(0m, s.TotalAmount - la.PaidAmount);
+                                _context.StudentFeeAssignments.Update(la);
                             }
                         }
                     }
@@ -227,6 +212,28 @@ public class FinanceRepository : IFinanceRepository
 
     public async Task<FeePayment> CreateFeePaymentAsync(FeePayment payment)
     {
+        if (!string.IsNullOrEmpty(payment.ReceiptNo))
+        {
+            var existing = await _context.FeePayments.FirstOrDefaultAsync(p => p.ReceiptNo == payment.ReceiptNo);
+            if (existing != null)
+            {
+                existing.Amount = payment.Amount;
+                existing.DiscountAmount = payment.DiscountAmount;
+                existing.FineAmount = payment.FineAmount;
+                existing.TransportFee = payment.TransportFee;
+                existing.PaymentMethod = payment.PaymentMethod;
+                existing.TransactionId = payment.TransactionId;
+                existing.PaymentDate = payment.PaymentDate;
+                existing.Status = payment.Status;
+                existing.TermName = payment.TermName;
+                existing.FeeHeadName = payment.FeeHeadName;
+                existing.Remarks = payment.Remarks;
+                existing.PaidItemsJson = payment.PaidItemsJson;
+                await _context.SaveChangesAsync();
+                return existing;
+            }
+        }
+
         if (!string.IsNullOrEmpty(payment.StudentId) && int.TryParse(payment.StudentId, out int rawId))
         {
             bool existsInStudents = await _context.Students.AnyAsync(s => s.StudentId == rawId);

@@ -494,7 +494,7 @@ export const HostelTransferVacateView: React.FC = () => {
                 >
                   <option value="" disabled>Select Resident Student...</option>
                   {displayStudentsList.map(st => (
-                    <option key={st.id} value={st.id.toString()}>{st.firstName} {st.lastName} ({st.admissionNo})</option>
+                    <option key={st.id} value={String(st.id ?? '')}>{st.firstName} {st.lastName} ({st.admissionNo})</option>
                   ))}
                 </select>
               </div>

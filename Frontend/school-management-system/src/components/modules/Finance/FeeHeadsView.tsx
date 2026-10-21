@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { Tag, Plus, Search, Edit, Trash2, CheckCircle2, XCircle, Building2, Bus, Shirt, BookOpen, AlertTriangle, Calculator } from 'lucide-react';
 import { FeeHead, FeeHeadCategory, FeeHeadFrequency, FeePaymentEligibility } from '../../../types';
-import { useData } from '../../../context/DataContext';
+import { useData, matchesAcademicYear } from '../../../context/DataContext';
 import { useAuth } from '../../../context/AuthContext';
 import { useToast } from '../../../context/ToastContext';
 import { ExportButton } from '../../common/ExportButton';
@@ -90,7 +90,7 @@ export const FeeHeadsView: React.FC = () => {
 
   const availableAcademicTerms = useMemo(() => {
     const activeAY = selectedAcademicYear || (academicYears && (academicYears[0]?.academicYear || (academicYears[0] as any)?.name)) || '';
-    const schedule = (academicYearFeeSchedules || []).find((s) => s.academicYear === activeAY);
+    const schedule = (academicYearFeeSchedules || []).find((s) => matchesAcademicYear(s.academicYear, activeAY));
     if (schedule && schedule.terms && schedule.terms.length > 0) {
       return [...schedule.terms].sort((a, b) => a.sequence - b.sequence).map(t => t.termName || t.id);
     }

@@ -346,27 +346,28 @@ public class FinanceService : IFinanceService
                                      cat.Equals("Other", StringComparison.OrdinalIgnoreCase);
 
             List<FeeStructureItemDto> items;
-            if (isTuitionOrOthers && feeHeads.Count > 0)
+            if (feeHeads.Count > 0)
             {
                 // Filter items whose fee heads still exist
                 items = rawItems.Where(i =>
                     (!string.IsNullOrEmpty(i.FeeHeadId) && activeHeadIds.Contains(i.FeeHeadId)) ||
                     (!string.IsNullOrEmpty(i.FeeHeadName) && activeHeadNames.Contains(i.FeeHeadName.Trim()))
                 ).ToList();
-
-                // If all fee heads were deleted or no valid items remain, remove orphan structure from DB and skip
-                if (items.Count == 0)
-                {
-                    try { await _repo.DeleteDynamicFeeStructureAsync(x.Id); } catch { }
-                    continue;
-                }
             }
             else
             {
                 items = rawItems;
             }
 
-            decimal totalAmount = items.Count > 0 ? items.Sum(i => i.Amount) : x.TotalAmount;
+            // Sync updated items back to database if any deleted fee heads were removed
+            if (rawItems.Count != items.Count)
+            {
+                x.ItemsJson = JsonSerializer.Serialize(items);
+                x.TotalAmount = items.Sum(i => i.Amount);
+                try { await _repo.UpdateDynamicFeeStructureAsync(x); } catch { }
+            }
+
+            decimal totalAmount = items.Count > 0 ? items.Sum(i => i.Amount) : 0m;
 
             result.Add(new DynamicFeeStructureDto
             {
@@ -870,6 +871,11 @@ public class FinanceService : IFinanceService
 
     public async Task<FeePaymentDto> CreateFeePaymentAsync(FeePaymentDto dto)
     {
+        if (dto.Amount <= 0)
+        {
+            throw new ArgumentException("Payment amount must be greater than zero.");
+        }
+
         var model = new FeePayment
         {
             ReceiptNo = dto.ReceiptNo,

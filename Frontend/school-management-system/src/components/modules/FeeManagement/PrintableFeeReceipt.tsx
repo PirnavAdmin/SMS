@@ -60,16 +60,16 @@ export const PrintableFeeReceipt: React.FC<PrintableFeeReceiptProps> = ({ paymen
       const inst = alloc.installmentId ? (studentFeeInstallments || []).find(i => i.id === alloc.installmentId) : null;
       const due = inst?.amount || (alloc as any).dueAmount || (payment.grossAmount ? Math.round(payment.grossAmount / totalCount) : (paid + con));
 
-      const headName = alloc.feeHeadName || inst?.feeHeadName || (inst as any)?.headName || "";
-      const termName = alloc.termName || inst?.termName || "";
+      const rawHead = (alloc.feeHeadName || (alloc as any).headName || (alloc as any).title || (alloc as any).category || inst?.feeHeadName || (inst as any)?.headName || "").trim();
+      const rawTerm = (alloc.termName || inst?.termName || "").trim();
       
       let desc = "";
-      if (headName && headName !== "Fee" && !headName.startsWith("Fee Item")) {
-        desc = (termName && termName !== headName && termName !== "Installment") ? `${headName} (${termName})` : headName;
-      } else if (termName && termName !== "Installment") {
-        desc = termName;
+      if (rawHead && rawHead !== "Fee" && !rawHead.toLowerCase().startsWith("fee item")) {
+        desc = (rawTerm && rawTerm !== rawHead && rawTerm !== "Installment") ? `${rawHead} (${rawTerm})` : rawHead;
+      } else if (rawTerm && rawTerm !== "Installment") {
+        desc = `Tuition Fee (${rawTerm})`;
       } else {
-        desc = inst?.feeHeadName || inst?.termName || `Fee Item ${idx + 1}`;
+        desc = payment.feeHeadName || inst?.feeHeadName || "Tuition Fee";
       }
 
       return { slNo: idx + 1, description: desc, due, con, paid };
@@ -78,7 +78,7 @@ export const PrintableFeeReceipt: React.FC<PrintableFeeReceiptProps> = ({ paymen
     const paid = totalAmountPaid;
     const con = discountVal;
     const due = grossFee;
-    const desc = payment.feeHeadName || payment.notes || "Tuition / Academic Fees";
+    const desc = payment.feeHeadName || payment.notes || "Tuition Fee";
     feeRows = [{ slNo: 1, description: desc, due, con, paid }];
   }
 
@@ -93,8 +93,8 @@ export const PrintableFeeReceipt: React.FC<PrintableFeeReceiptProps> = ({ paymen
     installmentLabel = payment.notes.toUpperCase();
   }
 
-  const schoolName = schoolProfile?.name || "";
-  const schoolAddress = schoolProfile?.address || "";
+  const schoolName = schoolProfile?.name || "Pirnav Educational Institutions";
+  const schoolAddress = schoolProfile?.address || "Sri Sadguru Nilayam, Capital ParkRd28, Capital Pk Rd, VVIP Hills, Madhapur, HITEC City, Hyderabad, Telangana 500081";
   const schoolPhone = schoolProfile?.phone ? ` • Ph: ${schoolProfile.phone}` : "";
 
   const receiptNo = payment.receiptNo || payment.id || "";
@@ -110,36 +110,76 @@ export const PrintableFeeReceipt: React.FC<PrintableFeeReceiptProps> = ({ paymen
   const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=90x90&data=${encodeURIComponent(receiptNo)}`;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm animate-in fade-in">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm animate-in fade-in printable-receipt-backdrop">
       <style>{`
         @media print {
+          @page {
+            size: A4 portrait;
+            margin: 6mm 8mm !important;
+          }
+          html, body {
+            height: 100% !important;
+            min-height: 0 !important;
+            max-height: 100% !important;
+            overflow: hidden !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            background: #ffffff !important;
+            color: #000000 !important;
+          }
           body * {
             visibility: hidden !important;
           }
-          #printable-receipt-modal, #printable-receipt-modal * {
+          .no-print {
+            display: none !important;
+          }
+          .printable-receipt-backdrop {
+            position: static !important;
+            padding: 0 !important;
+            margin: 0 !important;
+            background: transparent !important;
+            filter: none !important;
+            backdrop-filter: none !important;
+            transform: none !important;
+          }
+          .printable-receipt-card {
+            border: none !important;
+            box-shadow: none !important;
+            max-height: none !important;
+            overflow: visible !important;
+            padding: 0 !important;
+            margin: 0 !important;
+            width: 100% !important;
+            max-width: 100% !important;
+            background: transparent !important;
+          }
+          #printable-receipt-modal,
+          #printable-receipt-modal * {
             visibility: visible !important;
           }
           #printable-receipt-modal {
-            position: fixed !important;
+            position: absolute !important;
             left: 0 !important;
             top: 0 !important;
             width: 100% !important;
-            height: auto !important;
+            max-width: 100% !important;
             margin: 0 !important;
-            padding: 10mm !important;
+            padding: 0 !important;
             box-shadow: none !important;
             border: none !important;
             background: #ffffff !important;
             color: #000000 !important;
             font-family: Arial, Helvetica, ui-sans-serif, system-ui, sans-serif !important;
-          }
-          .no-print {
-            display: none !important;
+            page-break-inside: avoid !important;
+            page-break-after: avoid !important;
+            page-break-before: avoid !important;
+            break-inside: avoid !important;
+            overflow: visible !important;
           }
         }
       `}</style>
 
-      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl max-w-2xl w-full shadow-2xl overflow-hidden flex flex-col max-h-[92vh]">
+      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl max-w-2xl w-full shadow-2xl overflow-hidden flex flex-col max-h-[92vh] printable-receipt-card">
         {/* Top Control Bar */}
         <div className="p-4 bg-slate-100 dark:bg-slate-800 flex items-center justify-between border-b border-slate-200 dark:border-slate-700 no-print">
           <h3 className="font-bold text-xs text-slate-800 dark:text-slate-200 flex items-center gap-2 font-sans">
@@ -159,100 +199,100 @@ export const PrintableFeeReceipt: React.FC<PrintableFeeReceiptProps> = ({ paymen
         </div>
 
         {/* Printable Receipt Card Body */}
-        <div className="p-6 overflow-y-auto bg-white text-black font-sans text-xs leading-tight">
+        <div className="p-4 sm:p-6 overflow-y-auto bg-white text-black font-sans text-xs leading-tight">
           <div id="printable-receipt-modal" className="w-full mx-auto space-y-0 text-black font-sans">
             {/* Main Receipt Outer Border Box */}
-            <div className="border border-black bg-white p-3 space-y-2 font-sans">
+            <div className="border border-black bg-white p-3 space-y-1.5 font-sans">
               
               {/* Header: Logo + School Info */}
-              <div className="flex items-center justify-center relative pb-2">
+              <div className="flex items-center justify-center relative pb-1">
                 {schoolProfile?.logoUrl && (
                   <img
                     src={resolveMediaUrl(schoolProfile.logoUrl)}
                     alt="School Logo"
-                    className="w-14 h-14 object-contain absolute left-1 top-0"
+                    className="w-12 h-12 object-contain absolute left-1 top-0"
                   />
                 )}
-                <div className="text-center px-12">
-                  <h1 className="text-2xl font-bold tracking-tight text-black font-sans">{schoolName}</h1>
-                  <p className="text-[11px] text-gray-800 font-sans mt-0.5">{schoolAddress}{schoolPhone}</p>
+                <div className="text-center px-10">
+                  <h1 className="text-xl font-black tracking-tight text-black font-sans uppercase">{schoolName}</h1>
+                  <p className="text-[10px] text-gray-800 font-sans mt-0.5 leading-snug">{schoolAddress}{schoolPhone}</p>
                 </div>
               </div>
 
               {/* Banner 1: FEE RECEIPT */}
-              <div className="bg-gray-200 text-black border-y border-black py-1 text-center font-bold text-sm tracking-wider uppercase font-sans">
+              <div className="bg-gray-200 text-black border-y border-black py-0.5 text-center font-black text-xs tracking-wider uppercase font-sans">
                 FEE RECEIPT
               </div>
 
               {/* Metadata Key-Value Table */}
-              <div className="grid grid-cols-2 gap-x-6 gap-y-1 py-1 text-[12px] font-sans">
-                <div className="space-y-1">
-                  <div className="flex"><span className="w-24 font-bold">Receipt No</span><span className="font-sans">: {receiptNo}</span></div>
-                  <div className="flex"><span className="w-24 font-bold">Adm No</span><span className="font-sans">: {admissionNo}</span></div>
-                  <div className="flex"><span className="w-24 font-bold">Name</span><span className="font-sans">: {studentNameUpper}</span></div>
-                  <div className="flex"><span className="w-24 font-bold">Installment</span><span className="font-sans">: {installmentLabel}</span></div>
+              <div className="grid grid-cols-2 gap-x-6 gap-y-0.5 py-1 text-[11px] font-sans">
+                <div className="space-y-0.5">
+                  <div className="flex"><span className="w-24 font-bold text-gray-900">Receipt No</span><span className="font-sans">: {receiptNo}</span></div>
+                  <div className="flex"><span className="w-24 font-bold text-gray-900">Adm No</span><span className="font-sans">: {admissionNo}</span></div>
+                  <div className="flex"><span className="w-24 font-bold text-gray-900">Name</span><span className="font-sans font-bold">: {studentNameUpper}</span></div>
+                  <div className="flex"><span className="w-24 font-bold text-gray-900">Installment</span><span className="font-sans font-bold text-blue-900">: {installmentLabel}</span></div>
                 </div>
-                <div className="space-y-1">
-                  <div className="flex"><span className="w-24 font-bold">Date</span><span className="font-sans">: {paymentDate}</span></div>
-                  <div className="flex"><span className="w-24 font-bold">Session</span><span className="font-sans">: {currentAY}</span></div>
-                  <div className="flex"><span className="w-24 font-bold">Class</span><span className="font-sans">: {classNameDisplay}</span></div>
-                  <div className="flex"><span className="w-24 font-bold">CounterNo</span><span className="font-sans">: {counterNo}</span></div>
+                <div className="space-y-0.5">
+                  <div className="flex"><span className="w-24 font-bold text-gray-900">Date</span><span className="font-sans">: {paymentDate}</span></div>
+                  <div className="flex"><span className="w-24 font-bold text-gray-900">Session</span><span className="font-sans">: {currentAY}</span></div>
+                  <div className="flex"><span className="w-24 font-bold text-gray-900">Class</span><span className="font-sans">: {classNameDisplay}</span></div>
+                  <div className="flex"><span className="w-24 font-bold text-gray-900">CounterNo</span><span className="font-sans">: {counterNo}</span></div>
                 </div>
               </div>
 
               {/* Itemized Fee Table */}
               <table className="w-full border-collapse border border-black text-[11px] font-sans">
                 <thead>
-                  <tr className="bg-gray-200 border-b border-black font-bold">
-                    <th className="border-r border-black px-2 py-1 text-center w-12">Sl.No</th>
-                    <th className="border-r border-black px-2 py-1 text-left">Description</th>
-                    <th className="border-r border-black px-2 py-1 text-right w-20">Due</th>
-                    <th className="border-r border-black px-2 py-1 text-right w-16">Con</th>
-                    <th className="px-2 py-1 text-right w-20">Paid</th>
+                  <tr className="bg-gray-200 border-b border-black font-bold text-[10px]">
+                    <th className="border-r border-black px-2 py-0.5 text-center w-12">SL.NO</th>
+                    <th className="border-r border-black px-2 py-0.5 text-left">DESCRIPTION</th>
+                    <th className="border-r border-black px-2 py-0.5 text-right w-20">DUE</th>
+                    <th className="border-r border-black px-2 py-0.5 text-right w-16">CON</th>
+                    <th className="px-2 py-0.5 text-right w-20">PAID</th>
                   </tr>
                 </thead>
                 <tbody>
                   {feeRows.map((row) => (
                     <tr key={row.slNo} className="border-b border-gray-300">
-                      <td className="border-r border-black px-2 py-1 text-center font-sans">{row.slNo}</td>
-                      <td className="border-r border-black px-2 py-1 font-sans">{row.description}</td>
-                      <td className="border-r border-black px-2 py-1 text-right font-sans">{row.due}</td>
-                      <td className="border-r border-black px-2 py-1 text-right font-sans">{row.con}</td>
-                      <td className="px-2 py-1 text-right font-sans font-medium">{row.paid}</td>
+                      <td className="border-r border-black px-2 py-1 text-center font-sans font-medium">{row.slNo}</td>
+                      <td className="border-r border-black px-2 py-1 font-sans font-bold">{row.description}</td>
+                      <td className="border-r border-black px-2 py-1 text-right font-sans font-medium">{row.due}</td>
+                      <td className="border-r border-black px-2 py-1 text-right font-sans font-medium">{row.con}</td>
+                      <td className="px-2 py-1 text-right font-sans font-bold">{row.paid}</td>
                     </tr>
                   ))}
-                  {/* Empty buffer rows to maintain table height like reference */}
-                  {feeRows.length < 5 && Array.from({ length: 5 - feeRows.length }).map((_, i) => (
-                    <tr key={`empty-${i}`} className="border-b border-gray-200">
-                      <td className="border-r border-black px-2 py-1 text-center">&nbsp;</td>
-                      <td className="border-r border-black px-2 py-1">&nbsp;</td>
-                      <td className="border-r border-black px-2 py-1 text-right">&nbsp;</td>
-                      <td className="border-r border-black px-2 py-1 text-right">&nbsp;</td>
-                      <td className="px-2 py-1 text-right">&nbsp;</td>
+                  {/* Subtle buffer row if only 1 item to maintain neat visual proportions */}
+                  {feeRows.length === 1 && (
+                    <tr className="border-b border-gray-200 h-5">
+                      <td className="border-r border-black px-2 py-0.5 text-center">&nbsp;</td>
+                      <td className="border-r border-black px-2 py-0.5">&nbsp;</td>
+                      <td className="border-r border-black px-2 py-0.5 text-right">&nbsp;</td>
+                      <td className="border-r border-black px-2 py-0.5 text-right">&nbsp;</td>
+                      <td className="px-2 py-0.5 text-right">&nbsp;</td>
                     </tr>
-                  ))}
+                  )}
                 </tbody>
               </table>
 
               {/* Banner 2: PAY MODE INFORMATION */}
-              <div className="bg-gray-200 text-black border-y border-black py-1 text-center font-bold text-sm tracking-wider uppercase font-sans">
+              <div className="bg-gray-200 text-black border-y border-black py-0.5 text-center font-black text-xs tracking-wider uppercase font-sans">
                 PAY MODE INFORMATION
               </div>
 
               {/* Pay Mode Grid */}
-              <div className="space-y-1 text-[12px] font-sans py-1">
+              <div className="space-y-0.5 text-[11px] font-sans py-0.5">
                 <div className="grid grid-cols-2 gap-x-6">
-                  <div className="flex"><span className="w-24 font-bold">Pay Mode</span><span className="font-sans">{payMode}</span></div>
-                  <div className="flex"><span className="w-24 font-bold">Date</span><span className="font-sans">{paymentDate}</span></div>
+                  <div className="flex"><span className="w-24 font-bold text-gray-900">Pay Mode</span><span className="font-sans">: {payMode}</span></div>
+                  <div className="flex"><span className="w-24 font-bold text-gray-900">Date</span><span className="font-sans">: {paymentDate}</span></div>
                 </div>
                 <div className="grid grid-cols-2 gap-x-6">
-                  <div className="flex"><span className="w-24 font-bold">Bank</span><span className="font-sans">{bankName}</span></div>
-                  <div className="flex"><span className="w-24 font-bold">Number</span><span className="font-sans">{transactionNumber}</span></div>
+                  <div className="flex"><span className="w-24 font-bold text-gray-900">Bank</span><span className="font-sans">: {bankName}</span></div>
+                  <div className="flex"><span className="w-24 font-bold text-gray-900">Number</span><span className="font-sans">: {transactionNumber}</span></div>
                 </div>
 
-                {/* Financial Summary Breakdown Row */}
+                {/* Financial Summary Breakdown Row if concession/discount exists */}
                 {discountVal > 0 && (
-                  <div className="border-t border-dashed border-gray-400 mt-1.5 pt-1.5 space-y-0.5 text-[11px] font-sans bg-gray-50 p-1.5 rounded border border-gray-200">
+                  <div className="border-t border-dashed border-gray-400 mt-1 pt-0.5 space-y-0.5 text-[10px] font-sans bg-gray-50 p-1 rounded border border-gray-200">
                     <div className="flex justify-between items-center text-gray-700">
                       <span>Total Gross Fee Due:</span>
                       <span className="font-semibold">{formatCurrency(grossFee)}</span>
@@ -269,53 +309,49 @@ export const PrintableFeeReceipt: React.FC<PrintableFeeReceiptProps> = ({ paymen
                     )}
                   </div>
                 )}
-
-                {/* Total Bar Row inside Pay Mode */}
-                <div className="bg-gray-300 border-y border-black py-1 px-2 flex justify-between items-center font-bold text-xs mt-1 font-sans">
-                  <span>Total</span>
-                  <span className="font-sans">{totalAmountPaid}</span>
-                </div>
               </div>
 
               {/* Total & Amount In Words Section */}
-              <div className="border-t border-black pt-2 space-y-1 font-sans text-[12px]">
-                <div className="flex justify-between items-center font-bold text-sm px-1">
-                  <span>Total :</span>
-                  <span className="font-sans">{totalAmountPaid}</span>
+              <div className="border-t border-black pt-1 space-y-1 font-sans text-[11px]">
+                <div className="bg-gray-200 border border-black py-0.5 px-2 flex justify-between items-center font-bold text-xs font-sans">
+                  <span>Total Amount Paid</span>
+                  <span className="font-sans font-black text-sm">{totalAmountPaid}</span>
                 </div>
-                <div className="border-t border-black pt-1 px-1 font-semibold text-[11px] leading-snug font-sans">
+                <div className="px-1 font-semibold text-[11px] leading-tight font-sans">
                   Total in Words: {amountWords}
                 </div>
               </div>
 
               {/* Receipt Footer with QR Code & Computer Generated Note */}
-              <div className="border-t border-black pt-2 flex items-center justify-between text-[10px] font-sans">
-                <div className="flex items-center gap-3">
+              <div className="border-t border-black pt-1.5 flex items-center justify-between text-[10px] font-sans">
+                <div className="flex items-center gap-2.5">
                   <img
                     src={qrCodeUrl}
                     alt="Receipt QR Code"
-                    className="w-16 h-16 object-contain border border-gray-300"
+                    className="w-11 h-11 object-contain border border-gray-300 shrink-0"
                   />
                   <div>
-                    <p className="font-bold text-xs font-sans">
-                      Note :{discountVal > 0 ? (
+                    <p className="font-bold text-[10px] font-sans leading-tight">
+                      Note: {discountVal > 0 ? (
                         remarksNote && remarksNote.includes("Concession Applied")
                           ? (remarksNote.includes(" - ") || remarksNote.includes("Discount:") ? remarksNote : `${remarksNote} (${discountTitle} - Discount: ${formatCurrency(discountVal)})`)
                           : `Concession Applied (${discountTitle} - Discount: ${formatCurrency(discountVal)})`
-                      ) : (remarksNote || "Receipt generated successfully")}
+                      ) : (remarksNote || "Fee Collection Receipt")}
+                    </p>
+                    <p className="text-[9px] text-gray-500 font-sans mt-0.5">
+                      Verified by Finance Office
                     </p>
                   </div>
                 </div>
-                <div className="text-right font-bold text-gray-800 max-w-[260px] font-sans">
+                <div className="text-right font-bold text-gray-700 max-w-[240px] font-sans text-[9px] leading-snug">
                   This is a computer generated Receipt. Does not require signature.
                 </div>
               </div>
 
-            </div>
-
-            {/* Sub-Footer Parent Copy Label */}
-            <div className="text-center pt-2 font-bold text-gray-500 uppercase tracking-widest text-xs font-sans">
-              PARENT COPY
+              {/* Sub-Footer Parent Copy Label inside the border */}
+              <div className="border-t border-dashed border-gray-300 pt-1 text-center font-bold text-gray-500 uppercase tracking-widest text-[10px] font-sans">
+                PARENT COPY
+              </div>
             </div>
           </div>
         </div>

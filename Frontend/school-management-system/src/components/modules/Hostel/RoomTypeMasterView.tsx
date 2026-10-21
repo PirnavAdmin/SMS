@@ -233,12 +233,14 @@ export const RoomTypeMasterView: React.FC = () => {
 
   const handleOpenEdit = (rt: RoomType) => {
     setEditingRt(rt);
-    setSelectedHostelId(rt.hostelId ? rt.hostelId.toString() : (blocks[0]?.hostelId.toString() || ''));
+    const defaultHostelId = blocks.length > 0 ? String(blocks[0]?.hostelId ?? '') : '';
+    const targetHostelId = rt.hostelId ? String(rt.hostelId) : defaultHostelId;
+    setSelectedHostelId(targetHostelId);
     setSelectedFloorLevel(rt.floorLevel || '');
     setFormStatus(rt.status || 'Active');
     setFormDescription(rt.description || '');
     if (blocks.length > 0) {
-      handleHostelChange(rt.hostelId ? rt.hostelId.toString() : blocks[0].hostelId.toString());
+      handleHostelChange(targetHostelId);
     }
     setActiveModalTab('block');
     setIsModalOpen(true);
@@ -349,7 +351,7 @@ export const RoomTypeMasterView: React.FC = () => {
         'success'
       );
 
-      saveStoredFloorConfigs(selectedBlock.hostelId.toString(), floorConfigs);
+      saveStoredFloorConfigs(String(selectedBlock?.hostelId ?? ''), floorConfigs);
       setIsModalOpen(false);
       loadData();
     } catch (err: any) {
@@ -727,8 +729,8 @@ export const RoomTypeMasterView: React.FC = () => {
                           const roomRangeText = totalRoomsOnFloor === 0 
                             ? 'No rooms allocated' 
                             : totalRoomsOnFloor === 1 
-                              ? `Room #${startRoomNum}` 
-                              : `Room #${startRoomNum} to #${endRoomNum}`;
+                              ? `Room No - ${parseInt(startRoomNum, 10)}` 
+                              : `Room No - ${parseInt(startRoomNum, 10)} to ${parseInt(endRoomNum, 10)}`;
 
                           return (
                             <div key={fc.floorIndex} className="p-3.5 bg-slate-50 dark:bg-slate-800/60 rounded-2xl border border-slate-200/80 dark:border-slate-700/60 space-y-3">
@@ -981,7 +983,7 @@ export const RoomTypeMasterView: React.FC = () => {
                               <div key={fc.floorIndex} className="p-2.5 bg-slate-50 dark:bg-slate-800/60 rounded-xl border border-slate-200/70 dark:border-slate-700/70 space-y-1.5">
                                 <div className="flex items-center justify-between">
                                   <span className="font-bold text-xs text-slate-800 dark:text-slate-200">
-                                    {fc.floorLabel} (Room #{startRoomNum} to #{endRoomNum})
+                                    {fc.floorLabel} (Room No - {parseInt(startRoomNum, 10)} to {parseInt(endRoomNum, 10)})
                                   </span>
                                   <span className="text-[11px] font-extrabold text-sky-600 dark:text-sky-400 font-mono">
                                     {totalRoomsOnFloor} Rooms • {totalBedsOnFloor} Beds

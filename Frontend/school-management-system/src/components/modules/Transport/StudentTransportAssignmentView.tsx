@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import { StudentTransport, Student } from '../../../types';
 import { useData } from '../../../context/DataContext';
+import { useAuth } from '../../../context/AuthContext';
 import { useToast } from '../../../context/ToastContext';
 import { Badge } from '../../common/Badge';
 import { ExportButton } from '../../common/ExportButton';
@@ -35,12 +36,13 @@ export const StudentTransportAssignmentView: React.FC = () => {
   const {
     students, studentTransports, routeMasters, pickupPoints, vehicleAssignments,
     vehicleMasters, driverMasters, assignStudentTransport, removeStudentTransport, checkVehicleCapacity,
-    academicClasses, financeTransportConfigs, busAttendants
+    academicClasses, financeTransportConfigs, busAttendants, academicYearFeeSchedules
   } = useData();
+  const { selectedAcademicYear } = useAuth();
   const { addToast } = useToast();
 
   const [query, setQuery] = useState('');
-  const selectedAcademicYear = '2026-2027';
+  const activeAY = selectedAcademicYear || '2026-2027';
   const [selectedClass, setSelectedClass] = useState('All');
   const [selectedSection, setSelectedSection] = useState('All');
   const [activeTab, setActiveTab] = useState<'current' | 'history'>('current');
@@ -69,7 +71,7 @@ export const StudentTransportAssignmentView: React.FC = () => {
           studentName: st.studentName || student?.name || 'Unknown Student',
           admissionNo: st.admissionNo || student?.admissionNo || '-',
           academicYear: (st as any).academicYear || '2026-2027',
-          branch: (st as any).branch || 'Main Campus',
+          branch: (st as any).branch || student?.branch || '',
           routeName: st.routeName || '-',
           pickupPoint: st.pickupPoint || '-',
           vehicleNumber: st.vehicleNumber || '-',
@@ -177,10 +179,12 @@ export const StudentTransportAssignmentView: React.FC = () => {
       ? (rt.acRatePerKm || 0) 
       : (rt.ratePerKm || (rt as any).nonAcRatePerKm || 0);
     const distance = pk ? (pk.distanceFromSchoolKm || pk.distanceFromStart || 0) : 0;
+    const minKm = rt?.minDistanceKm ?? 5;
+    const additionalKm = Math.max(0, distance - minKm);
 
     let calculatedFee = 0;
     if (baseFare > 0 || ratePerKm > 0) {
-      calculatedFee = baseFare + distance * ratePerKm;
+      calculatedFee = baseFare + additionalKm * ratePerKm;
     }
 
     const multiplier = feePlan === 'Quarterly' ? 3 : feePlan === 'Half Yearly' || feePlan === 'Half-Yearly' ? 6 : feePlan === 'Annual' ? 12 : 1;
@@ -225,8 +229,8 @@ export const StudentTransportAssignmentView: React.FC = () => {
       studentId: st.id,
       studentName: `${st.firstName} ${st.lastName}`,
       admissionNo: st.admissionNo,
-      academicYear: selectedAcademicYear,
-      branch: st.branch || 'Main Campus',
+      academicYear: activeAY,
+      branch: st.branch || '',
       routeName: rt.routeName,
       pickupPoint: pk.pickupName,
       vehicleNumber: autoVehicleNumber,

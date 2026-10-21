@@ -4,6 +4,7 @@ import { formatCurrency } from '../../../utils/currency';
 import { Shirt, Plus, Search, Edit, Trash2, CheckCircle2, XCircle, ShieldAlert } from 'lucide-react';
 import { FinanceUniformConfig } from '../../../types';
 import { useData } from '../../../context/DataContext';
+import { useAuth } from '../../../context/AuthContext';
 import { useToast } from '../../../context/ToastContext';
 import { ConfirmModal } from '../../common/ConfirmModal';
 import { getUniformPackageFeeByClass, normalizeUniformCategoryName } from '../../../utils/uniformUtils';
@@ -20,9 +21,9 @@ export const FinanceUniformConfigView: React.FC = () => {
     uniformCategories,
     uniforms,
     uniformSizes,
-    selectedBranch,
-    selectedAcademicYear
   } = useData();
+
+  const { selectedBranch, selectedAcademicYear } = useAuth();
 
   const { addToast } = useToast();
 

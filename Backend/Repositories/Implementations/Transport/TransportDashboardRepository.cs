@@ -519,40 +519,6 @@ namespace SMS.Api.Repositories.Implementations
                 new OperationTripHistoryDto
                 {
                     Date = today.ToString("dd/MM/yyyy"),
-                    VehicleNumber = vehicle?.VehicleNumber ?? "TS Z 0678",
-                    RouteName = route?.RouteName ?? "",
-                    DriverName = driver?.DriverName ?? "Main Driver",
-                    AttendantName = "Unassigned",
-                    MorningStart = assignment.MorningTripTime ?? "07:00 AM",
-                    MorningEnd = "07:30 AM",
-                    EveningStart = assignment.EveningTripTime ?? "03:45 PM",
-                    EveningEnd = assignment.EveningTripTime ?? "03:45 PM",
-                    Status = "Completed"
-                },
-                new OperationTripHistoryDto
-                {
-                    Date = today.AddDays(-1).ToString("dd/MM/yyyy"),
-                    VehicleNumber = vehicle?.VehicleNumber ?? "TS Z 0678",
-                    RouteName = route?.RouteName ?? "",
-                    DriverName = driver?.DriverName ?? "Main Driver",
-                    AttendantName = "Unassigned",
-                    MorningStart = assignment.MorningTripTime ?? "07:00 AM",
-                    MorningEnd = "07:30 AM",
-                    EveningStart = assignment.EveningTripTime ?? "03:45 PM",
-                    EveningEnd = assignment.EveningTripTime ?? "03:45 PM",
-                    Status = "Completed"
-                },
-                new OperationTripHistoryDto
-                {
-                    Date = today.AddDays(-2).ToString("dd/MM/yyyy"),
-                    VehicleNumber = vehicle?.VehicleNumber ?? "TS Z 0678",
-                    RouteName = route?.RouteName ?? "",
-                    DriverName = driver?.DriverName ?? "Main Driver",
-                    AttendantName = "Unassigned",
-                    MorningStart = assignment.MorningTripTime ?? "07:00 AM",
-                    MorningEnd = "07:30 AM",
-                    EveningStart = assignment.EveningTripTime ?? "03:45 PM",
-                    EveningEnd = assignment.EveningTripTime ?? "03:45 PM",
                     VehicleNumber = vehicle?.VehicleNumber ?? string.Empty,
                     RouteName = route?.RouteName ?? string.Empty,
                     DriverName = driver?.DriverName ?? string.Empty,
@@ -572,7 +538,6 @@ namespace SMS.Api.Repositories.Implementations
                 VehicleNumber = vehicle?.VehicleNumber ?? string.Empty,
                 RegistrationNumber = vehicle?.RegistrationNumber ?? vehicle?.VehicleNumber ?? string.Empty,
                 RouteId = assignment.RouteId,
-                RouteName = route?.RouteName ?? "",
                 RouteName = route?.RouteName ?? string.Empty,
                 Status = "Completed",
                 EffectiveFrom = assignment.EffectiveFrom,

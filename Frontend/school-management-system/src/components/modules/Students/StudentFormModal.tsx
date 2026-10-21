@@ -10,6 +10,7 @@ import { validate10DigitPhone, BLOOD_GROUPS, CASTE_CATEGORIES, RELIGIONS } from 
 
 import { DateInput } from '../../common/DateInput';
 import { generateNextAdmissionNo, generateNextStudentId } from '../../../utils/idGenerator';
+import { formatRoomNumber } from '../../../api/hostel';
 
 interface StudentFormModalProps {
   isOpen: boolean;
@@ -1128,7 +1129,7 @@ export const StudentFormModal: React.FC<StudentFormModalProps> = ({
                     <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Select Available Bed</label>
                     <select value={formData.hostelBed} onChange={e => setFormData({ ...formData, hostelBed: e.target.value })} className="w-full px-3 py-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-emerald-600 dark:text-emerald-400 font-bold outline-none">
                       <option value="">-- Select Available Bed --</option>
-                      {availableBeds.map(b => <option key={b.id} value={b.id}>{b.bedNo} (Room #{b.roomId}) - Available</option>)}
+                      {availableBeds.map(b => <option key={b.id} value={b.id}>{b.bedNo} ({formatRoomNumber(b.roomId)}) - Available</option>)}
                     </select>
                   </div>
                 </div>

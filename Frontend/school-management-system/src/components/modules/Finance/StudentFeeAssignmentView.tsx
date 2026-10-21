@@ -51,19 +51,29 @@ export const StudentFeeAssignmentView: React.FC = () => {
 
   // Academic Year Start/End Date Range Check
   const currentAYObj = academicYears.find((ay) => ay.academicYear === activeAY);
-  const ayStartDate = currentAYObj?.startDate || `${activeAY.slice(0, 4)}-06-01`;
+  const rawAyStartDate = currentAYObj?.startDate || `${activeAY.slice(0, 4)}-06-01`;
+  const ayStartDate = rawAyStartDate;
   const ayEndDate = currentAYObj?.endDate || `${parseInt(activeAY.slice(0, 4), 10) + 1}-05-31`;
+
+  const safeTerm1Start = (rawAyStartDate && rawAyStartDate <= `${activeAY.slice(0, 4)}-08-31`)
+    ? rawAyStartDate
+    : `${activeAY.slice(0, 4)}-06-01`;
 
   // Active Schedule & Configured Terms for Policy calculation
   const activeAYSchedule = (academicYearFeeSchedules || []).find((s) => s.academicYear === activeAY);
   const configuredTerms: FeeScheduleTerm[] =
     activeAYSchedule && activeAYSchedule.terms && activeAYSchedule.terms.length > 0
-      ? [...activeAYSchedule.terms].sort((a, b) => a.sequence - b.sequence)
+      ? [...activeAYSchedule.terms].map((t) => {
+          if (t.startDate && t.endDate && t.startDate > t.endDate) {
+            return { ...t, startDate: safeTerm1Start };
+          }
+          return t;
+        }).sort((a, b) => a.sequence - b.sequence)
       : [
           {
             id: `T1-${activeAY}`,
             termName: 'Term 1',
-            startDate: ayStartDate,
+            startDate: safeTerm1Start,
             endDate: `${activeAY.slice(0, 4)}-08-31`,
             dueDate: `${activeAY.slice(0, 4)}-06-15`,
             sequence: 1,
@@ -97,10 +107,6 @@ export const StudentFeeAssignmentView: React.FC = () => {
             status: 'Active'
           }
         ];
-
-  const applicableTerms = getApplicableTermsForLateAdmission(modalAdmissionDate, configuredTerms);
-  const ayStartYear = parseInt(activeAY.split('-')[0], 10) || 2026;
-  const applicableMonthIndices = getApplicableMonthIndicesForLateAdmission(modalAdmissionDate, ayStartYear);
 
   const filteredStudents = students
     .filter((s) => {
@@ -173,8 +179,8 @@ export const StudentFeeAssignmentView: React.FC = () => {
     const admDate = st.joiningDate || (st as any).admissionDate || `${activeAY.slice(0, 4)}-08-15`;
     setModalAdmissionDate(admDate);
 
-    const initialApplicableTerms = getApplicableTermsForLateAdmission(admDate, configuredTerms);
-    const initialTermIds = initialApplicableTerms.map((t) => t.id || t.termName);
+    // Default to all configured terms so standard fee applies with no unwanted adjustment
+    const initialTermIds = configuredTerms.map((t) => t.id || t.termName);
     setSelectedTermIds(initialTermIds);
 
     // Check existing assignment
@@ -279,11 +285,19 @@ export const StudentFeeAssignmentView: React.FC = () => {
           if (filtered.length > 0) catTerms = filtered;
         }
 
-        let appTerms = catTerms;
-        if (admDateStr) {
-          appTerms = getApplicableTermsForLateAdmission(admDateStr, catTerms);
-        }
-        const categoryTermsRatio = configuredTerms.length > 0 ? appTerms.length / configuredTerms.length : 1.0;
+        // Active selected terms among catTerms based on user selection in modal
+        const selectedForCategory = catTerms.filter((t) =>
+          activeTerms.some((atId) =>
+            String(atId).toLowerCase() === String(t.id).toLowerCase() ||
+            String(atId).toLowerCase() === String(t.termName).toLowerCase()
+          )
+        );
+
+        // If all terms are selected, ratio is 1.0 (assigned = orig, adjustment = 0)
+        const categoryTermsRatio = catTerms.length > 0
+          ? selectedForCategory.length / catTerms.length
+          : 1.0;
+
         assigned = Math.round(orig * categoryTermsRatio);
       }
 
@@ -331,10 +345,7 @@ export const StudentFeeAssignmentView: React.FC = () => {
   const handleAdmissionDateChange = (newDate: string) => {
     setModalAdmissionDate(newDate);
     const dfsObj = dynamicFeeStructures.find((d) => d.id === modalStructureId);
-    const appTerms = getApplicableTermsForLateAdmission(newDate, configuredTerms);
-    const termIds = appTerms.map((t) => t.id || t.termName);
-    setSelectedTermIds(termIds);
-    buildModalBreakdown(dfsObj, modalPolicy, newDate, customBreakdown, termIds);
+    buildModalBreakdown(dfsObj, modalPolicy, newDate, customBreakdown, selectedTermIds);
   };
 
   const handleToggleTerm = (termId: string) => {
@@ -373,11 +384,9 @@ export const StudentFeeAssignmentView: React.FC = () => {
         } else if (isFixedFullAmountHead || modalPolicy === 'Full Annual Fee') {
           assigned = item.originalAmount;
         } else if (modalPolicy === 'Term-wise' || modalPolicy === 'Term-wise Fee') {
-          if (modalAdmissionDate) {
-            const appTerms = getApplicableTermsForLateAdmission(modalAdmissionDate, configuredTerms);
-            const remainingTermsRatio = configuredTerms.length > 0 ? appTerms.length / configuredTerms.length : 1.0;
-            assigned = Math.round(item.originalAmount * remainingTermsRatio);
-          }
+          const activeCount = selectedTermIds.length > 0 ? selectedTermIds.length : configuredTerms.length;
+          const ratio = configuredTerms.length > 0 ? activeCount / configuredTerms.length : 1.0;
+          assigned = Math.round(item.originalAmount * ratio);
         }
 
         return {
@@ -409,11 +418,9 @@ export const StudentFeeAssignmentView: React.FC = () => {
         } else if (isFixedFullAmountHead || modalPolicy === 'Full Annual Fee') {
           assigned = item.originalAmount;
         } else if (modalPolicy === 'Term-wise' || modalPolicy === 'Term-wise Fee') {
-          if (modalAdmissionDate) {
-            const appTerms = getApplicableTermsForLateAdmission(modalAdmissionDate, configuredTerms);
-            const remainingTermsRatio = configuredTerms.length > 0 ? appTerms.length / configuredTerms.length : 1.0;
-            assigned = Math.round(item.originalAmount * remainingTermsRatio);
-          }
+          const activeCount = selectedTermIds.length > 0 ? selectedTermIds.length : configuredTerms.length;
+          const ratio = configuredTerms.length > 0 ? activeCount / configuredTerms.length : 1.0;
+          assigned = Math.round(item.originalAmount * ratio);
         }
 
         return {
@@ -1244,9 +1251,15 @@ export const StudentFeeAssignmentView: React.FC = () => {
                     </button>
                     <button
                       onClick={handleGenerateSchedulePreview}
-                      className="px-6 py-2 rounded-xl bg-sky-600 hover:bg-sky-700 text-white font-extrabold shadow-md transition-colors flex items-center gap-1.5 cursor-pointer"
+                      className="px-5 py-2 rounded-xl border border-sky-300 dark:border-sky-700 text-sky-700 dark:text-sky-300 font-bold hover:bg-sky-50 dark:hover:bg-sky-950 transition-colors flex items-center gap-1.5 cursor-pointer text-xs"
                     >
-                      <ArrowRight className="w-4 h-4" /> Generate Schedule
+                      <ArrowRight className="w-4 h-4" /> Preview Schedule
+                    </button>
+                    <button
+                      onClick={handleSaveModalAssignment}
+                      className="px-6 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold shadow-md transition-colors flex items-center gap-1.5 cursor-pointer text-xs"
+                    >
+                      <Check className="w-4 h-4" /> Save & Apply Policy
                     </button>
                   </div>
                 </>

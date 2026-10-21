@@ -93,7 +93,7 @@ function generateTermsFromDates(
       const mode = existingMatch?.dueDateMode === 'MANUAL' ? 'MANUAL' : 'AUTO';
 
       let dueDateStr: string;
-      if (mode === 'MANUAL' && existingMatch?.dueDate) {
+      if (existingMatch?.dueDate) {
         dueDateStr = existingMatch.dueDate;
       } else {
         const calculatedDue = new Date(termStart);
@@ -108,13 +108,13 @@ function generateTermsFromDates(
         id: existingMatch?.id || `T${i}-${ayName.replace(/\s+/g, '')}`,
         sequence: i,
         termName,
-        startDate: formatDateIso(termStart),
-        endDate: formatDateIso(termEnd),
+        startDate: existingMatch?.startDate || formatDateIso(termStart),
+        endDate: existingMatch?.endDate || formatDateIso(termEnd),
         dueDate: dueDateStr,
         dueDateMode: mode,
         dueDateOffsetDays,
-        status: 'Active',
-        percentageShare: Math.round((100 / 12) * 100) / 100,
+        status: existingMatch?.status || 'Active',
+        percentageShare: existingMatch?.percentageShare ?? (Math.round((100 / 12) * 100) / 100),
       });
 
       if (i < 12) {
@@ -147,7 +147,7 @@ function generateTermsFromDates(
     const mode = existingMatch?.dueDateMode === 'MANUAL' ? 'MANUAL' : 'AUTO';
 
     let dueDateStr: string;
-    if (mode === 'MANUAL' && existingMatch?.dueDate) {
+    if (existingMatch?.dueDate) {
       dueDateStr = existingMatch.dueDate;
     } else {
       const calculatedDue = new Date(termStart);
@@ -171,13 +171,13 @@ function generateTermsFromDates(
       id: existingMatch?.id || `T${i}-${ayName.replace(/\s+/g, '')}`,
       sequence: i,
       termName,
-      startDate: formatDateIso(termStart),
-      endDate: formatDateIso(termEnd),
+      startDate: existingMatch?.startDate || formatDateIso(termStart),
+      endDate: existingMatch?.endDate || formatDateIso(termEnd),
       dueDate: dueDateStr,
       dueDateMode: mode,
       dueDateOffsetDays,
-      status: 'Active',
-      percentageShare: Math.round((100 / numberOfTerms) * 100) / 100,
+      status: existingMatch?.status || 'Active',
+      percentageShare: existingMatch?.percentageShare ?? (Math.round((100 / numberOfTerms) * 100) / 100),
     });
 
     currentStart = new Date(termEnd);

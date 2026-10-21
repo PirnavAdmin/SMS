@@ -4,7 +4,7 @@
       "C:\\Program Files\\nodejs\\node.exe",
       "C:\\Users\\ADMIN\\source\\repos\\SMS\\automation\\node_modules\\@playwright\\test\\cli.js",
       "test",
-      "--config=playwright.config.ts"
+      "e2e/test_fee_collection.spec.ts"
     ],
     "configFile": "C:\\Users\\ADMIN\\source\\repos\\SMS\\automation\\playwright.config.ts",
     "rootDir": "C:/Users/ADMIN/source/repos/SMS/automation/e2e",
@@ -73,402 +73,213 @@
   },
   "suites": [
     {
-      "title": "academic-students-staff.spec.ts",
-      "file": "academic-students-staff.spec.ts",
+      "title": "test_fee_collection.spec.ts",
+      "file": "test_fee_collection.spec.ts",
       "column": 0,
       "line": 0,
-      "specs": [],
-      "suites": [
+      "specs": [
         {
-          "title": "Academic, Students & Staff E2E Suite",
-          "file": "academic-students-staff.spec.ts",
-          "line": 3,
-          "column": 6,
-          "specs": [
+          "title": "inspect fee collection view for Veera Garikapati",
+          "ok": true,
+          "tags": [],
+          "tests": [
             {
-              "title": "should render Admissions application workflow components",
-              "ok": true,
-              "tags": [],
-              "tests": [
+              "timeout": 45000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
                 {
-                  "timeout": 45000,
-                  "annotations": [],
-                  "expectedStatus": "passed",
-                  "projectId": "",
-                  "projectName": "",
-                  "results": [
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 13860,
+                  "errors": [],
+                  "stdout": [
                     {
-                      "workerIndex": 0,
-                      "parallelIndex": 0,
-                      "status": "passed",
-                      "duration": 10847,
-                      "errors": [],
-                      "stdout": [],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2026-10-09T08:14:09.462Z",
-                      "annotations": [],
-                      "attachments": []
+                      "text": "BROWSER LOG: [vite] connecting...\n"
+                    },
+                    {
+                      "text": "BROWSER LOG: [vite] connected.\n"
+                    },
+                    {
+                      "text": "BROWSER LOG: %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold\n"
+                    },
+                    {
+                      "text": "BROWSER LOG: Failed to load resource: the server responded with a status of 401 (Unauthorized)\n"
+                    },
+                    {
+                      "text": "BROWSER LOG: Failed to load resource: the server responded with a status of 401 (Unauthorized)\n"
+                    },
+                    {
+                      "text": "BROWSER LOG: Failed to load resource: the server responded with a status of 401 (Unauthorized)\n"
+                    },
+                    {
+                      "text": "BROWSER LOG: Failed to load resource: the server responded with a status of 401 (Unauthorized)\n"
+                    },
+                    {
+                      "text": "BROWSER LOG: Failed to load resource: the server responded with a status of 401 (Unauthorized)\n"
+                    },
+                    {
+                      "text": "BROWSER LOG: Failed to load resource: the server responded with a status of 401 (Unauthorized)\n"
+                    },
+                    {
+                      "text": "BROWSER LOG: Failed to load resource: the server responded with a status of 401 (Unauthorized)\n"
+                    },
+                    {
+                      "text": "BROWSER LOG: Failed to load resource: the server responded with a status of 401 (Unauthorized)\n"
+                    },
+                    {
+                      "text": "BROWSER LOG: Failed to load resource: the server responded with a status of 401 (Unauthorized)\n"
+                    },
+                    {
+                      "text": "BROWSER LOG: Failed to load resource: the server responded with a status of 401 (Unauthorized)\n"
+                    },
+                    {
+                      "text": "BROWSER LOG: Failed to load resource: the server responded with a status of 401 (Unauthorized)\n"
+                    },
+                    {
+                      "text": "BROWSER LOG: Failed to load resource: the server responded with a status of 401 (Unauthorized)\n"
+                    },
+                    {
+                      "text": "BROWSER LOG: Failed to load resource: the server responded with a status of 401 (Unauthorized)\n"
+                    },
+                    {
+                      "text": "BROWSER LOG: Failed to load resource: the server responded with a status of 401 (Unauthorized)\n"
+                    },
+                    {
+                      "text": "BROWSER LOG: Failed to load resource: the server responded with a status of 401 (Unauthorized)\n"
+                    },
+                    {
+                      "text": "BROWSER LOG: Failed to load resource: the server responded with a status of 401 (Unauthorized)\n"
+                    },
+                    {
+                      "text": "BROWSER LOG: Failed to load resource: the server responded with a status of 401 (Unauthorized)\n"
+                    },
+                    {
+                      "text": "BROWSER LOG: Failed to load resource: the server responded with a status of 401 (Unauthorized)\n"
+                    },
+                    {
+                      "text": "BROWSER LOG: Failed to load resource: the server responded with a status of 401 (Unauthorized)\n"
+                    },
+                    {
+                      "text": "BROWSER LOG: Failed to load resource: the server responded with a status of 401 (Unauthorized)\n"
+                    },
+                    {
+                      "text": "BROWSER LOG: Failed to load resource: the server responded with a status of 401 (Unauthorized)\n"
+                    },
+                    {
+                      "text": "BROWSER LOG: Failed to load resource: the server responded with a status of 401 (Unauthorized)\n"
+                    },
+                    {
+                      "text": "BROWSER LOG: Failed to load resource: the server responded with a status of 401 (Unauthorized)\n"
+                    },
+                    {
+                      "text": "BROWSER LOG: Failed to load resource: the server responded with a status of 401 (Unauthorized)\n"
+                    },
+                    {
+                      "text": "BROWSER LOG: Failed to load resource: the server responded with a status of 401 (Unauthorized)\n"
+                    },
+                    {
+                      "text": "BROWSER LOG: Failed to load resource: the server responded with a status of 401 (Unauthorized)\n"
+                    },
+                    {
+                      "text": "BROWSER LOG: Failed to fetch staff from API Error: HTTP error! status: 401\n    at apiClient (http://localhost:5173/src/api/client.ts:112:17)\n    at async http://localhost:5173/src/context/DataContext.tsx?t=1792125484163:2448:22\n"
+                    },
+                    {
+                      "text": "BROWSER LOG: Error fetching classes Error: HTTP error! status: 401\n    at apiClient (http://localhost:5173/src/api/client.ts:112:17)\n    at async Promise.all (index 0)\n    at async http://localhost:5173/src/context/DataContext.tsx?t=1792125484163:2031:28\n"
+                    },
+                    {
+                      "text": "BROWSER LOG: Error fetching subjects Error: HTTP error! status: 401\n    at apiClient (http://localhost:5173/src/api/client.ts:112:17)\n    at async http://localhost:5173/src/context/DataContext.tsx?t=1792125484163:2148:17\n"
+                    },
+                    {
+                      "text": "BROWSER LOG: Error fetching periods Error: HTTP error! status: 401\n    at apiClient (http://localhost:5173/src/api/client.ts:112:17)\n    at async http://localhost:5173/src/context/DataContext.tsx?t=1792125484163:2167:17\n"
+                    },
+                    {
+                      "text": "BROWSER LOG: Failed to fetch all timetables from backend Error: HTTP error! status: 401\n    at apiClient (http://localhost:5173/src/api/client.ts:112:17)\n    at async http://localhost:5173/src/context/DataContext.tsx?t=1792125484163:2216:17\n"
+                    },
+                    {
+                      "text": "BROWSER LOG: Failed to fetch designations Error: HTTP error! status: 401\n    at apiClient (http://localhost:5173/src/api/client.ts:112:17)\n    at async http://localhost:5173/src/context/DataContext.tsx?t=1792125484163:2404:21\n"
+                    },
+                    {
+                      "text": "BROWSER LOG: Failed to fetch departments Error: HTTP error! status: 401\n    at apiClient (http://localhost:5173/src/api/client.ts:112:17)\n    at async http://localhost:5173/src/context/DataContext.tsx?t=1792125484163:2385:21\n"
+                    },
+                    {
+                      "text": "BROWSER LOG: Failed to load resource: the server responded with a status of 401 (Unauthorized)\n"
+                    },
+                    {
+                      "text": "BROWSER LOG: Failed to load resource: the server responded with a status of 401 (Unauthorized)\n"
+                    },
+                    {
+                      "text": "BROWSER LOG: Failed to load resource: the server responded with a status of 401 (Unauthorized)\n"
+                    },
+                    {
+                      "text": "BROWSER LOG: Failed to load resource: the server responded with a status of 401 (Unauthorized)\n"
+                    },
+                    {
+                      "text": "BROWSER LOG: Failed to load resource: the server responded with a status of 401 (Unauthorized)\n"
+                    },
+                    {
+                      "text": "BROWSER LOG: Failed to load resource: the server responded with a status of 401 (Unauthorized)\n"
+                    },
+                    {
+                      "text": "BROWSER LOG: Error fetching subjects Error: HTTP error! status: 401\n    at apiClient (http://localhost:5173/src/api/client.ts:112:17)\n    at async http://localhost:5173/src/context/DataContext.tsx?t=1792125484163:2148:17\n"
+                    },
+                    {
+                      "text": "BROWSER LOG: Error fetching periods Error: HTTP error! status: 401\n    at apiClient (http://localhost:5173/src/api/client.ts:112:17)\n    at async http://localhost:5173/src/context/DataContext.tsx?t=1792125484163:2167:17\n"
+                    },
+                    {
+                      "text": "BROWSER LOG: Failed to fetch all timetables from backend Error: HTTP error! status: 401\n    at apiClient (http://localhost:5173/src/api/client.ts:112:17)\n    at async http://localhost:5173/src/context/DataContext.tsx?t=1792125484163:2216:17\n"
+                    },
+                    {
+                      "text": "BROWSER LOG: Failed to fetch designations Error: HTTP error! status: 401\n    at apiClient (http://localhost:5173/src/api/client.ts:112:17)\n    at async http://localhost:5173/src/context/DataContext.tsx?t=1792125484163:2404:21\n"
+                    },
+                    {
+                      "text": "BROWSER LOG: Failed to fetch departments Error: HTTP error! status: 401\n    at apiClient (http://localhost:5173/src/api/client.ts:112:17)\n    at async http://localhost:5173/src/context/DataContext.tsx?t=1792125484163:2385:21\n"
+                    },
+                    {
+                      "text": "BROWSER LOG: Failed to load resource: the server responded with a status of 401 (Unauthorized)\n"
+                    },
+                    {
+                      "text": "Current URL: http://localhost:5173/\n"
+                    },
+                    {
+                      "text": "Has Fee Collection: \u001b[33mfalse\u001b[39m\n"
+                    },
+                    {
+                      "text": "Veera Garikapati not found directly.\n"
+                    },
+                    {
+                      "text": "Count of \"Transport Fee\" on page: \u001b[33m0\u001b[39m\n"
+                    },
+                    {
+                      "text": "Table rows found: \u001b[33m0\u001b[39m\n"
                     }
                   ],
-                  "status": "expected"
-                }
-              ],
-              "id": "b25bbb200aae6399fac2-9b20015aee535e855510",
-              "file": "academic-students-staff.spec.ts",
-              "line": 4,
-              "column": 7
-            },
-            {
-              "title": "should render Staff Management with sequential employee ID support",
-              "ok": true,
-              "tags": [],
-              "tests": [
-                {
-                  "timeout": 45000,
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-16T05:40:29.284Z",
                   "annotations": [],
-                  "expectedStatus": "passed",
-                  "projectId": "",
-                  "projectName": "",
-                  "results": [
-                    {
-                      "workerIndex": 0,
-                      "parallelIndex": 0,
-                      "status": "passed",
-                      "duration": 6872,
-                      "errors": [],
-                      "stdout": [],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2026-10-09T08:14:23.107Z",
-                      "annotations": [],
-                      "attachments": []
-                    }
-                  ],
-                  "status": "expected"
+                  "attachments": []
                 }
               ],
-              "id": "b25bbb200aae6399fac2-de99b2fd82837e18f067",
-              "file": "academic-students-staff.spec.ts",
-              "line": 15,
-              "column": 7
-            },
-            {
-              "title": "should render Timetable generator & Examination scheduling",
-              "ok": true,
-              "tags": [],
-              "tests": [
-                {
-                  "timeout": 45000,
-                  "annotations": [],
-                  "expectedStatus": "passed",
-                  "projectId": "",
-                  "projectName": "",
-                  "results": [
-                    {
-                      "workerIndex": 0,
-                      "parallelIndex": 0,
-                      "status": "passed",
-                      "duration": 5203,
-                      "errors": [],
-                      "stdout": [],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2026-10-09T08:14:30.032Z",
-                      "annotations": [],
-                      "attachments": []
-                    }
-                  ],
-                  "status": "expected"
-                }
-              ],
-              "id": "b25bbb200aae6399fac2-fd91ac6d9435f79560e3",
-              "file": "academic-students-staff.spec.ts",
-              "line": 26,
-              "column": 7
+              "status": "expected"
             }
-          ]
-        }
-      ]
-    },
-    {
-      "title": "auth.spec.ts",
-      "file": "auth.spec.ts",
-      "column": 0,
-      "line": 0,
-      "specs": [],
-      "suites": [
-        {
-          "title": "Authentication & Navigation E2E Suite",
-          "file": "auth.spec.ts",
+          ],
+          "id": "ef6751eeed02c1eb9e6a-4ef616cc2a65f23c7a6f",
+          "file": "test_fee_collection.spec.ts",
           "line": 3,
-          "column": 6,
-          "specs": [
-            {
-              "title": "should render login page with role selections and input fields",
-              "ok": true,
-              "tags": [],
-              "tests": [
-                {
-                  "timeout": 45000,
-                  "annotations": [],
-                  "expectedStatus": "passed",
-                  "projectId": "",
-                  "projectName": "",
-                  "results": [
-                    {
-                      "workerIndex": 0,
-                      "parallelIndex": 0,
-                      "status": "passed",
-                      "duration": 4730,
-                      "errors": [],
-                      "stdout": [],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2026-10-09T08:14:35.297Z",
-                      "annotations": [],
-                      "attachments": []
-                    }
-                  ],
-                  "status": "expected"
-                }
-              ],
-              "id": "d748ac400d08b85935ef-5fb51fb12fde7573a818",
-              "file": "auth.spec.ts",
-              "line": 4,
-              "column": 7
-            },
-            {
-              "title": "should display validation or error for invalid credentials",
-              "ok": true,
-              "tags": [],
-              "tests": [
-                {
-                  "timeout": 45000,
-                  "annotations": [],
-                  "expectedStatus": "passed",
-                  "projectId": "",
-                  "projectName": "",
-                  "results": [
-                    {
-                      "workerIndex": 0,
-                      "parallelIndex": 0,
-                      "status": "passed",
-                      "duration": 4648,
-                      "errors": [],
-                      "stdout": [],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2026-10-09T08:14:40.062Z",
-                      "annotations": [],
-                      "attachments": []
-                    }
-                  ],
-                  "status": "expected"
-                }
-              ],
-              "id": "d748ac400d08b85935ef-5ce1fab88f1cbe5b5eff",
-              "file": "auth.spec.ts",
-              "line": 19,
-              "column": 7
-            },
-            {
-              "title": "should support quick login or demo login navigation",
-              "ok": true,
-              "tags": [],
-              "tests": [
-                {
-                  "timeout": 45000,
-                  "annotations": [],
-                  "expectedStatus": "passed",
-                  "projectId": "",
-                  "projectName": "",
-                  "results": [
-                    {
-                      "workerIndex": 0,
-                      "parallelIndex": 0,
-                      "status": "passed",
-                      "duration": 5227,
-                      "errors": [],
-                      "stdout": [],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2026-10-09T08:14:44.752Z",
-                      "annotations": [],
-                      "attachments": []
-                    }
-                  ],
-                  "status": "expected"
-                }
-              ],
-              "id": "d748ac400d08b85935ef-e24a558875b03dff9aab",
-              "file": "auth.spec.ts",
-              "line": 38,
-              "column": 7
-            }
-          ]
-        }
-      ]
-    },
-    {
-      "title": "finance.spec.ts",
-      "file": "finance.spec.ts",
-      "column": 0,
-      "line": 0,
-      "specs": [],
-      "suites": [
-        {
-          "title": "Finance & Fee Management E2E Suite",
-          "file": "finance.spec.ts",
-          "line": 3,
-          "column": 6,
-          "specs": [
-            {
-              "title": "should verify Fee Setup Schedule section term options and due date rules",
-              "ok": true,
-              "tags": [],
-              "tests": [
-                {
-                  "timeout": 45000,
-                  "annotations": [],
-                  "expectedStatus": "passed",
-                  "projectId": "",
-                  "projectName": "",
-                  "results": [
-                    {
-                      "workerIndex": 0,
-                      "parallelIndex": 0,
-                      "status": "passed",
-                      "duration": 4614,
-                      "errors": [],
-                      "stdout": [],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2026-10-09T08:14:50.035Z",
-                      "annotations": [],
-                      "attachments": []
-                    }
-                  ],
-                  "status": "expected"
-                }
-              ],
-              "id": "1d1b0b311adfe43979fc-9fcda282937e776d9b8a",
-              "file": "finance.spec.ts",
-              "line": 9,
-              "column": 7
-            },
-            {
-              "title": "should verify 12 Terms Monthly Billing hides duplicate monthly due date configuration",
-              "ok": true,
-              "tags": [],
-              "tests": [
-                {
-                  "timeout": 45000,
-                  "annotations": [],
-                  "expectedStatus": "passed",
-                  "projectId": "",
-                  "projectName": "",
-                  "results": [
-                    {
-                      "workerIndex": 0,
-                      "parallelIndex": 0,
-                      "status": "passed",
-                      "duration": 4390,
-                      "errors": [],
-                      "stdout": [],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2026-10-09T08:14:54.693Z",
-                      "annotations": [],
-                      "attachments": []
-                    }
-                  ],
-                  "status": "expected"
-                }
-              ],
-              "id": "1d1b0b311adfe43979fc-9ccfab656a2fbeb07d89",
-              "file": "finance.spec.ts",
-              "line": 22,
-              "column": 7
-            },
-            {
-              "title": "should display dynamic Fee Schedule term details without hardcoded year/date defaults",
-              "ok": true,
-              "tags": [],
-              "tests": [
-                {
-                  "timeout": 45000,
-                  "annotations": [],
-                  "expectedStatus": "passed",
-                  "projectId": "",
-                  "projectName": "",
-                  "results": [
-                    {
-                      "workerIndex": 0,
-                      "parallelIndex": 0,
-                      "status": "passed",
-                      "duration": 5008,
-                      "errors": [],
-                      "stdout": [],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2026-10-09T08:14:59.119Z",
-                      "annotations": [],
-                      "attachments": []
-                    }
-                  ],
-                  "status": "expected"
-                }
-              ],
-              "id": "1d1b0b311adfe43979fc-64869adb3070ba89ab8f",
-              "file": "finance.spec.ts",
-              "line": 28,
-              "column": 7
-            },
-            {
-              "title": "should load Student Fee Assignment and Fee Collection views",
-              "ok": true,
-              "tags": [],
-              "tests": [
-                {
-                  "timeout": 45000,
-                  "annotations": [],
-                  "expectedStatus": "passed",
-                  "projectId": "",
-                  "projectName": "",
-                  "results": [
-                    {
-                      "workerIndex": 0,
-                      "parallelIndex": 0,
-                      "status": "passed",
-                      "duration": 4522,
-                      "errors": [],
-                      "stdout": [],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2026-10-09T08:15:04.167Z",
-                      "annotations": [],
-                      "attachments": []
-                    }
-                  ],
-                  "status": "expected"
-                }
-              ],
-              "id": "1d1b0b311adfe43979fc-d6e1e464dcdaa532f16f",
-              "file": "finance.spec.ts",
-              "line": 34,
-              "column": 7
-            }
-          ]
+          "column": 5
         }
       ]
     }
   ],
   "errors": [],
   "stats": {
-    "startTime": "2026-10-09T08:14:08.460Z",
-    "duration": 60681.267,
-    "expected": 10,
+    "startTime": "2026-10-16T05:40:28.357Z",
+    "duration": 15331.898,
+    "expected": 1,
     "skipped": 0,
     "unexpected": 0,
     "flaky": 0

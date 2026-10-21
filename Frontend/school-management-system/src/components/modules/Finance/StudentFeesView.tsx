@@ -9,7 +9,7 @@ interface StudentFeesViewProps {
   initialTab?: string;
   initialClass?: string;
   initialFeeHead?: string;
-  onNavigateToCollect?: (studentId?: string) => void;
+  onNavigateToCollect?: (studentOrId?: any) => void;
 }
 
 export const StudentFeesView: React.FC<StudentFeesViewProps> = ({
@@ -37,7 +37,7 @@ export const StudentFeesView: React.FC<StudentFeesViewProps> = ({
           <DueFeesView
             initialClass={initialClass}
             initialFeeHead={initialFeeHead}
-            onCollectStudentFee={(st) => onNavigateToCollect && onNavigateToCollect(st.id)}
+            onCollectStudentFee={(st) => onNavigateToCollect && onNavigateToCollect(st)}
             onCollectClick={(sId: string) => onNavigateToCollect && onNavigateToCollect(sId)}
           />
         );

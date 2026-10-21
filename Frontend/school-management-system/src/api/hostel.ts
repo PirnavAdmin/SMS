@@ -471,6 +471,21 @@ const ROOMS_STORE_KEY = 'edu_db_hostel_rooms';
 
 const DEFAULT_INITIAL_ROOMS: HostelRoom[] = [];
 
+export const formatRoomNumber = (roomNumber?: string | number | null): string => {
+  if (roomNumber === undefined || roomNumber === null || String(roomNumber).trim() === '') {
+    return 'Room No - 1';
+  }
+  const str = String(roomNumber).trim();
+  const stripped = str.replace(/^room\s*(no\.?|-|#)?\s*/i, '').replace(/^#\s*/, '').trim();
+  if (!stripped) return 'Room No - 1';
+
+  const num = parseInt(stripped, 10);
+  if (!isNaN(num) && /^\d+$/.test(stripped)) {
+    return `Room No - ${num}`;
+  }
+  return `Room No - ${stripped}`;
+};
+
 const getStoredRooms = (): HostelRoom[] => {
   if (typeof window === 'undefined') return DEFAULT_INITIAL_ROOMS;
   const stored = localStorage.getItem(ROOMS_STORE_KEY);
@@ -479,15 +494,24 @@ const getStoredRooms = (): HostelRoom[] => {
       const parsed = JSON.parse(stored);
       if (Array.isArray(parsed)) {
         const blocks = getStoredHostelBlocks();
-        parsed.forEach((r: HostelRoom) => {
-          if (r && r.hostelId) {
+        const validRooms: HostelRoom[] = [];
+        parsed.forEach((r: any) => {
+          const rId = Number(r.roomId ?? r.id);
+          const rNum = String(r.roomNumber ?? r.roomNo ?? '').trim();
+          if (!rId || isNaN(rId) || !rNum) return;
+          if (r.hostelId) {
             const matchBlk = blocks.find(b => String(b.hostelId) === String(r.hostelId));
             if (matchBlk && matchBlk.hostelName) {
               r.hostelName = matchBlk.hostelName;
             }
           }
+          validRooms.push({
+            ...r,
+            roomId: rId,
+            roomNumber: rNum
+          });
         });
-        return parsed;
+        return validRooms;
       }
     } catch (e) {}
   }
@@ -497,13 +521,19 @@ const getStoredRooms = (): HostelRoom[] => {
 
 const saveStoredRooms = (rooms: HostelRoom[]) => {
   if (typeof window !== 'undefined') {
-    localStorage.setItem(ROOMS_STORE_KEY, JSON.stringify(rooms));
+    const cleaned = (rooms || []).filter(r => {
+      const rId = Number(r.roomId ?? (r as any).id);
+      const rNum = String(r.roomNumber ?? (r as any).roomNo ?? '').trim();
+      return rId && !isNaN(rId) && rNum !== '';
+    });
+    localStorage.setItem(ROOMS_STORE_KEY, JSON.stringify(cleaned));
   }
 };
 
 // 3. Room Masters API
 export const getRooms = async (hostelId?: number, floor?: string, roomTypeId?: number): Promise<HostelRoom[]> => {
   let serverRooms: HostelRoom[] = [];
+  let fetchSucceeded = false;
   try {
     const params = new URLSearchParams();
     if (hostelId) params.append('hostelId', hostelId.toString());
@@ -511,46 +541,63 @@ export const getRooms = async (hostelId?: number, floor?: string, roomTypeId?: n
     if (roomTypeId) params.append('roomTypeId', roomTypeId.toString());
     const query = params.toString();
     const res = await hostelApiClient(`/api/hostels/rooms${query ? `?${query}` : ''}`);
-    if (Array.isArray(res) && res.length > 0) serverRooms = res;
-  } catch (e) {}
+    if (Array.isArray(res)) {
+      serverRooms = res.filter(r => r && (r.roomId || (r as any).id) && (r.roomNumber || (r as any).roomNo));
+      fetchSucceeded = true;
+    }
+  } catch (e) {
+    console.warn('Failed to fetch rooms from server', e);
+  }
 
-  const localRooms = getStoredRooms();
   const roomTypes = getStoredRoomTypes();
   const allocations = getStoredAllocations();
-
-  const roomMap = new Map<number, HostelRoom>();
-
-  serverRooms.forEach(r => roomMap.set(Number(r.roomId), r));
-  localRooms.forEach(r => roomMap.set(Number(r.roomId), r));
-
   const blocks = getStoredHostelBlocks();
 
-  let roomsList = Array.from(roomMap.values()).map(rm => {
-    const matchingBlock = blocks.find(b => Number(b.hostelId) === Number(rm.hostelId));
-    const matchingRt = roomTypes.find(rt => Number(rt.roomTypeId) === Number(rm.roomTypeId));
-    const cap = rm.bedCapacity || rm.capacity || matchingRt?.bedCapacity || 4;
+  let sourceRooms: HostelRoom[] = [];
+  if (fetchSucceeded) {
+    sourceRooms = serverRooms;
+    saveStoredRooms(serverRooms);
+  } else {
+    sourceRooms = getStoredRooms();
+  }
 
-    const occCount = allocations.filter(a =>
-      a && a.status === 'Active' &&
-      (Number(a.roomId) === Number(rm.roomId) || (String(a.roomNumber) === String(rm.roomNumber) && Number(a.hostelId) === Number(rm.hostelId)))
-    ).length;
+  let roomsList = sourceRooms
+    .filter(r => {
+      const rId = Number(r.roomId ?? (r as any).id);
+      const rNum = String(r.roomNumber ?? (r as any).roomNo ?? '').trim();
+      return rId && !isNaN(rId) && rNum !== '';
+    })
+    .map(rm => {
+      const rawHid = rm.hostelId ?? (rm as any).hostel_id ?? (rm as any).hostelBlockId;
+      const matchingBlock = blocks.find(b => Number(b.hostelId) === Number(rawHid));
+      const finalHostelId = Number(rawHid) || (matchingBlock ? Number(matchingBlock.hostelId) : 1);
+      const matchingRt = roomTypes.find(rt => Number(rt.roomTypeId) === Number(rm.roomTypeId ?? (rm as any).room_type_id));
+      const cap = rm.bedCapacity || rm.capacity || matchingRt?.bedCapacity || 4;
 
-    const rawHostelName = String(rm.hostelName || '').trim();
-    const isInvalidHostelName = !rawHostelName || !isNaN(Number(rawHostelName)) || rawHostelName === String(rm.hostelId);
-    const resolvedHostelName = isInvalidHostelName
-      ? (matchingBlock?.hostelName || `Hostel Block #${rm.hostelId}`)
-      : rawHostelName;
+      const occCount = allocations.filter(a =>
+        a && a.status === 'Active' &&
+        (Number(a.roomId) === Number(rm.roomId) || (String(a.roomNumber) === String(rm.roomNumber) && Number(a.hostelId ?? (a as any).hostel_id) === finalHostelId))
+      ).length;
 
-    return {
-      ...rm,
-      hostelName: resolvedHostelName,
-      roomTypeSpecification: rm.roomTypeSpecification || matchingRt?.roomTypeSpecification || 'Standard Room',
-      bedCapacity: cap,
-      capacity: cap,
-      occupiedBeds: occCount,
-      vacantBeds: Math.max(0, cap - occCount)
-    };
-  });
+      const rawHostelName = String(rm.hostelName || '').trim();
+      const isInvalidHostelName = !rawHostelName || !isNaN(Number(rawHostelName)) || rawHostelName === String(finalHostelId);
+      const resolvedHostelName = isInvalidHostelName
+        ? (matchingBlock?.hostelName || `Hostel Block #${finalHostelId}`)
+        : rawHostelName;
+
+      return {
+        ...rm,
+        roomId: Number(rm.roomId ?? (rm as any).id),
+        roomNumber: String(rm.roomNumber ?? (rm as any).roomNo ?? '').trim(),
+        hostelId: finalHostelId,
+        hostelName: resolvedHostelName,
+        roomTypeSpecification: rm.roomTypeSpecification || matchingRt?.roomTypeSpecification || 'Standard Room',
+        bedCapacity: cap,
+        capacity: cap,
+        occupiedBeds: occCount,
+        vacantBeds: Math.max(0, cap - occCount)
+      };
+    });
 
   if (hostelId) {
     roomsList = roomsList.filter(r => Number(r.hostelId) === Number(hostelId));
@@ -641,17 +688,29 @@ export const updateRoom = async (id: number, data: Partial<HostelRoom>) => {
   }
 };
 
-export const deleteRoom = async (id: number) => {
+export const deleteRoom = async (id: number | string) => {
+  const numId = Number(id);
   const current = getStoredRooms();
-  const updated = current.filter(r => Number(r.roomId) !== Number(id));
+  const updated = current.filter(r => {
+    const rId = Number(r.roomId ?? (r as any).id);
+    return rId !== numId && !isNaN(rId) && r.roomNumber && String(r.roomNumber).trim() !== '';
+  });
   saveStoredRooms(updated);
 
+  if (!numId || isNaN(numId)) {
+    return { success: true };
+  }
+
   try {
-    return await hostelApiClient(`/api/hostels/rooms/${id}`, {
+    await hostelApiClient(`/api/hostels/rooms/${numId}`, {
       method: 'DELETE'
     });
-  } catch (e) {
     return { success: true };
+  } catch (e: any) {
+    if (e && (e.status === 404 || e.message?.includes('404') || e.message?.includes('not found'))) {
+      return { success: true };
+    }
+    throw e;
   }
 };
 

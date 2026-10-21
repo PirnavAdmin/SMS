@@ -370,6 +370,45 @@ public class DynamicFeeStructureServiceTests
     }
 
     [Fact]
+    public async Task GetDynamicFeeStructuresAsync_WhenAllFeeHeadsDeleted_RetainsStructureWithEmptyItemsAndZeroTotal()
+    {
+        var activeFeeHeads = new List<FeeHead>
+        {
+            new FeeHead { Id = 1, Name = "Tuition Fee", Category = "Tuition", DefaultAmount = 15000m }
+        };
+        _repoMock.Setup(r => r.GetFeeHeadsAsync()).ReturnsAsync(activeFeeHeads);
+
+        var structures = new List<DynamicFeeStructure>
+        {
+            new DynamicFeeStructure
+            {
+                Id = 1,
+                Name = "Grade 1 Fee Structure",
+                ClassName = "Grade 1",
+                AcademicYear = "2026-2027",
+                Branch = "Main Branch",
+                TargetAudience = "Tuition Fee",
+                TotalAmount = 10000m,
+                ItemsJson = JsonSerializer.Serialize(new[]
+                {
+                    new FeeStructureItemDto { FeeHeadId = "99", FeeHeadName = "Deleted Fee Head", Amount = 10000m }
+                })
+            }
+        };
+
+        _repoMock.Setup(r => r.GetDynamicFeeStructuresAsync()).ReturnsAsync(structures);
+
+        var all = await _service.GetDynamicFeeStructuresAsync();
+        var allList = all.ToList();
+
+        // The structure MUST remain, but items must be empty and total amount must be 0
+        Assert.Single(allList);
+        var s = allList[0];
+        Assert.Empty(s.Items);
+        Assert.Equal(0m, s.TotalAmount);
+    }
+
+    [Fact]
     public async Task DeleteFeeHeadAsync_DelegatesToRepository()
     {
         _repoMock.Setup(r => r.DeleteFeeHeadAsync(1)).Returns(Task.CompletedTask);

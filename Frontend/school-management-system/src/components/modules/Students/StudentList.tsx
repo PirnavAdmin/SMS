@@ -23,7 +23,7 @@ import { PromoteStudentModal } from './PromoteStudentModal';
 import { TransferStudentModal } from './TransferStudentModal';
 import { AcademicHistoryImportModal } from './AcademicHistoryImportModal';
 import { fetchAdmissionsApi } from '../../../api/admission';
-import { getAllocations, getHostelBlocks, BedAllocation } from '../../../api/hostel';
+import { getAllocations, getHostelBlocks, formatRoomNumber, BedAllocation } from '../../../api/hostel';
 import { Pagination } from '../../common/Pagination';
 import { hasModuleAccess } from '../../../utils/rbac';
 
@@ -1044,7 +1044,7 @@ export const StudentList: React.FC<{ onNavigate?: (module: string) => void }> = 
 
       let matchesRoom = wardenSelectedRoom === 'All Rooms';
       if (!matchesRoom) {
-        const cleanRoomFilter = wardenSelectedRoom.replace(/^Room\s*#/i, '').trim().toLowerCase();
+        const cleanRoomFilter = wardenSelectedRoom.replace(/^Room\s*(?:No\s*-\s*|#)/i, '').trim().toLowerCase();
         const cleanStudentRoom = rawRoom.toLowerCase();
         if (cleanStudentRoom && (cleanStudentRoom === cleanRoomFilter || cleanStudentRoom.includes(cleanRoomFilter) || cleanRoomFilter.includes(cleanStudentRoom))) {
           matchesRoom = true;
@@ -1099,9 +1099,9 @@ export const StudentList: React.FC<{ onNavigate?: (module: string) => void }> = 
         (a.studentId && String(a.studentId).toLowerCase().trim() === sId) ||
         (a.admissionNo && String(a.admissionNo).toLowerCase().trim() === sAdm)
       );
-      const rm = String((alloc?.roomNumber || (s as any).roomNumber || (s as any).roomNo || (s as any).room || '')).trim().replace(/^Room\s*#/i, '');
+      const rm = String((alloc?.roomNumber || (s as any).roomNumber || (s as any).roomNo || (s as any).room || '')).trim().replace(/^Room\s*(?:No\s*-\s*|#)/i, '');
       if (rm && rm.toUpperCase() !== 'N/A' && rm.toLowerCase() !== 'undefined' && rm.toLowerCase() !== 'null') {
-        roomsSet.add(`Room #${rm}`);
+        roomsSet.add(formatRoomNumber(rm));
       }
     });
     const list = Array.from(roomsSet).filter(r => r && !r.toUpperCase().includes('N/A')).sort();

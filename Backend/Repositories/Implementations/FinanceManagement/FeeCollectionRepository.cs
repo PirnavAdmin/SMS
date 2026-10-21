@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using SMS.Api.Data;
 using SMS.Api.Dtos;
 using SMS.Api.Dtos.FinanceManagement;
+using SMS.Api.Models;
 using SMS.Api.Models.FinanceManagement;
 using SMS.Api.Repositories.Interfaces.FinanceManagement;
 using System;
@@ -140,6 +141,19 @@ public class FeeCollectionRepository : IFeeCollectionRepository
             .Select(b => b.StudentId!.Value)
             .ToListAsync();
 
+        var transportAssignments = await _context.StudentTransportAssignments.AsNoTracking()
+            .Include(t => t.Route)
+            .Include(t => t.PickupPoint)
+            .Where(t => t.Status && !t.IsDeleted)
+            .ToListAsync();
+
+        var transportApps = await _context.AdmissionApplications.AsNoTracking()
+            .Where(a => a.TransportRequired == true)
+            .ToListAsync();
+
+        var allRoutes = await _context.TransportRoutes.AsNoTracking().ToListAsync();
+        var allPickups = await _context.PickupPoints.AsNoTracking().ToListAsync();
+
         var items = new List<FeeCollectionStudentSummaryDto>();
 
         foreach (var st in students)
@@ -167,12 +181,33 @@ public class FeeCollectionRepository : IFeeCollectionRepository
                 baseClassFee = matchedStructure.TotalAmount;
             }
 
+            decimal transportFee = 0m;
+            if (!isHosteller)
+            {
+                var ta = transportAssignments.FirstOrDefault(t => t.StudentId == st.StudentId || (st.AdmissionNumber != null && t.AdmissionNo == st.AdmissionNumber));
+                var app = transportApps.FirstOrDefault(a => st.AdmissionNumber != null && (a.AdmissionNo == st.AdmissionNumber || a.RegistrationNo == st.AdmissionNumber));
+                if (ta != null || app != null)
+                {
+                    var r = ta?.Route ?? allRoutes.FirstOrDefault(x => x.RouteName == app?.BusRoute || x.RouteId.ToString() == app?.BusRoute);
+                    var p = ta?.PickupPoint ?? allPickups.FirstOrDefault(x => x.PickupPointName == app?.PickupPoint || x.PickupPointId.ToString() == app?.PickupPoint);
+                    decimal distance = p?.DistanceFromStart ?? (r?.DistanceKm ?? 0m);
+                    decimal minKm = r?.MinRangeKm ?? 5m;
+                    string trpType = ta?.TransportType ?? app?.TransportType ?? "AC";
+                    bool isAc = trpType.Contains("AC", StringComparison.OrdinalIgnoreCase);
+                    decimal baseFare = isAc ? (r?.AcBaseFare ?? 1200m) : (r?.NonAcBaseFare ?? 1000m);
+                    decimal ratePerKm = isAc ? (r?.AcRatePerKm ?? 150m) : (r?.NonAcRatePerKm ?? 100m);
+                    decimal monthlyFare = baseFare + Math.Max(0m, distance - minKm) * ratePerKm;
+                    transportFee = monthlyFare * 12m;
+                }
+            }
+
             var stPayments = payments.Where(p => p.StudentId == st.StudentId.ToString() || p.StudentId == st.AdmissionNumber).ToList();
             decimal paidAmt = stPayments.Sum(p => p.Amount);
             decimal discountAmt = stPayments.Sum(p => p.DiscountAmount);
             decimal fineAmt = stPayments.Sum(p => p.FineAmount);
 
-            decimal outstanding = Math.Max(0m, baseClassFee - paidAmt - discountAmt + fineAmt);
+            decimal totalStudentFee = baseClassFee + transportFee;
+            decimal outstanding = Math.Max(0m, totalStudentFee - paidAmt - discountAmt + fineAmt);
 
             items.Add(new FeeCollectionStudentSummaryDto
             {
@@ -187,10 +222,10 @@ public class FeeCollectionRepository : IFeeCollectionRepository
                 Section = sName,
                 StudentType = stType,
                 Branch = st.Branch?.BranchName ?? string.Empty,
-                AcademicYear = st.AcademicYear?.AcademicYearName ?? "2026-2027",
+                AcademicYear = st.AcademicYear?.AcademicYearName ?? $"{DateTime.UtcNow.Year}-{(DateTime.UtcNow.Year + 1)}",
                 FatherName = st.FatherName ?? "",
                 FatherMobile = st.FatherMobile ?? "",
-                TotalFee = baseClassFee,
+                TotalFee = totalStudentFee,
                 PaidFee = paidAmt,
                 TotalOutstanding = outstanding,
                 CurrentYearDue = outstanding,
@@ -228,6 +263,19 @@ public class FeeCollectionRepository : IFeeCollectionRepository
                     .Include(s => s.Branch)
                     .Include(s => s.AcademicYear)
                     .FirstOrDefaultAsync(s => s.AdmissionNumber == admission.ApplicationNo);
+            }
+            if (student == null)
+            {
+                var app = await _context.AdmissionApplications.AsNoTracking().FirstOrDefaultAsync(a => a.Id == studentId);
+                if (app != null && !string.IsNullOrEmpty(app.AdmissionNo))
+                {
+                    student = await _context.Students.AsNoTracking()
+                        .Include(s => s.ClassGrade)
+                        .Include(s => s.ClassSection)
+                        .Include(s => s.Branch)
+                        .Include(s => s.AcademicYear)
+                        .FirstOrDefaultAsync(s => s.AdmissionNumber == app.AdmissionNo);
+                }
             }
         }
 
@@ -275,6 +323,90 @@ public class FeeCollectionRepository : IFeeCollectionRepository
         var lineItems = new List<FeeLineItemDto>();
         decimal runningPaid = totalPaid;
 
+        string activeAYName = student.AcademicYear?.AcademicYearName ?? academicYear ?? $"{DateTime.UtcNow.Year}-{(DateTime.UtcNow.Year + 1)}";
+        var matchYear = System.Text.RegularExpressions.Regex.Match(activeAYName, @"\d{4}");
+        string yearPrefix = matchYear.Success ? matchYear.Value : activeAYName;
+
+        var schedule = await _context.FeeSchedules.AsNoTracking()
+            .Include(s => s.Terms)
+            .FirstOrDefaultAsync(s => s.AcademicYear.Contains(yearPrefix) || s.Status == "Active" || s.Status == "Published");
+
+        var scheduleTerms = schedule?.Terms?.OrderBy(t => t.Sequence).ToList() ?? new List<FeeScheduleTerm>();
+        string defaultDueDate = !string.IsNullOrEmpty(schedule?.AnnualDueDate)
+            ? schedule.AnnualDueDate
+            : (scheduleTerms.FirstOrDefault()?.DueDate ?? DateTime.UtcNow.AddMonths(1).ToString("yyyy-MM-dd"));
+        string dynamicFrequency = scheduleTerms.Count > 0 ? $"Term-Wise ({scheduleTerms.Count} Terms)" : "Annual";
+
+        var tuitionHead = await _context.FeeHeads.AsNoTracking()
+            .FirstOrDefaultAsync(h => h.Category.Contains("Tuition") || h.Name.Contains("Tuition"));
+        string tuitionHeadId = tuitionHead?.Code ?? (!string.IsNullOrEmpty(tuitionHead?.Id.ToString()) ? tuitionHead.Id.ToString() : "FH-101");
+        string tuitionHeadName = tuitionHead?.Name ?? "Academic Fee";
+        string tuitionFrequency = !string.IsNullOrEmpty(tuitionHead?.Frequency) ? tuitionHead.Frequency : dynamicFrequency;
+
+        List<FeeTermItemDto> BuildDynamicTerms(decimal totalAmount, decimal paidAmount, string prefix = "")
+        {
+            var terms = new List<FeeTermItemDto>();
+            decimal runningPaidTerm = paidAmount;
+
+            if (scheduleTerms.Count > 0)
+            {
+                int count = scheduleTerms.Count;
+                for (int i = 0; i < count; i++)
+                {
+                    var curTerm = scheduleTerms[i];
+                    decimal sharePct = curTerm.PercentageShare > 0 ? curTerm.PercentageShare : (100m / count);
+                    decimal termAmt = (i == count - 1)
+                        ? (totalAmount - terms.Sum(t => t.Amount))
+                        : Math.Round(totalAmount * (sharePct / 100m), 2);
+
+                    decimal termPaid = Math.Min(termAmt, runningPaidTerm);
+                    runningPaidTerm -= termPaid;
+                    decimal termRemaining = Math.Max(0m, termAmt - termPaid);
+
+                    DateTime termDue;
+                    bool hasDue = DateTime.TryParse(curTerm.DueDate, out termDue);
+                    bool isTermOverdue = termRemaining > 0 && hasDue && DateTime.UtcNow.Date > termDue.Date;
+                    int daysOverdue = isTermOverdue ? Math.Max(0, (DateTime.UtcNow.Date - termDue.Date).Days) : 0;
+
+                    terms.Add(new FeeTermItemDto
+                    {
+                        TermId = string.IsNullOrEmpty(prefix) ? curTerm.Id : $"{prefix}-{curTerm.Id}",
+                        TermNumber = curTerm.Sequence,
+                        TermName = curTerm.TermName,
+                        DueDate = curTerm.DueDate,
+                        Amount = termAmt,
+                        PaidAmount = termPaid,
+                        RemainingAmount = termRemaining,
+                        Status = termRemaining == 0 ? "PAID" : (termPaid > 0 ? "PARTIAL" : (isTermOverdue ? "OVERDUE" : "PENDING")),
+                        IsOverdue = isTermOverdue,
+                        DaysOverdue = daysOverdue
+                    });
+                }
+            }
+            else
+            {
+                DateTime dueDt = DateTime.UtcNow.AddMonths(1);
+                bool hasDue = DateTime.TryParse(defaultDueDate, out dueDt);
+                bool isTermOverdue = totalAmount > paidAmount && hasDue && DateTime.UtcNow.Date > dueDt.Date;
+                int daysOverdue = isTermOverdue ? Math.Max(0, (DateTime.UtcNow.Date - dueDt.Date).Days) : 0;
+
+                terms.Add(new FeeTermItemDto
+                {
+                    TermId = string.IsNullOrEmpty(prefix) ? "term-1" : $"{prefix}-term-1",
+                    TermNumber = 1,
+                    TermName = "Full Fee",
+                    DueDate = defaultDueDate,
+                    Amount = totalAmount,
+                    PaidAmount = paidAmount,
+                    RemainingAmount = Math.Max(0m, totalAmount - paidAmount),
+                    Status = (totalAmount <= paidAmount) ? "PAID" : (paidAmount > 0 ? "PARTIAL" : (isTermOverdue ? "OVERDUE" : "PENDING")),
+                    IsOverdue = isTermOverdue,
+                    DaysOverdue = daysOverdue
+                });
+            }
+            return terms;
+        }
+
         if (totalExpectedFee > 0m)
         {
             List<FeeStructureItemDto>? parsedItems = null;
@@ -296,44 +428,22 @@ public class FeeCollectionRepository : IFeeCollectionRepository
                     runningPaid -= itemPaid;
                     decimal itemRemaining = Math.Max(0m, itemTotal - itemPaid);
 
-                    decimal termAmt = Math.Round(itemTotal / 4m, 0);
-                    decimal termRunningPaid = itemPaid;
-                    var itemTerms = new List<FeeTermItemDto>();
-                    for (int tIdx = 1; tIdx <= 4; tIdx++)
-                    {
-                        decimal thisTermAmt = (tIdx == 4) ? (itemTotal - termAmt * 3m) : termAmt;
-                        decimal thisTermPaid = Math.Min(thisTermAmt, termRunningPaid);
-                        termRunningPaid -= thisTermPaid;
-                        decimal thisTermRemaining = Math.Max(0m, thisTermAmt - thisTermPaid);
-                        bool isTermOverdue = thisTermRemaining > 0 && tIdx <= 2;
-                        itemTerms.Add(new FeeTermItemDto
-                        {
-                            TermId = $"term-{tIdx}",
-                            TermNumber = tIdx,
-                            TermName = $"Term {tIdx}",
-                            DueDate = tIdx switch { 1 => "2026-04-15", 2 => "2026-07-15", 3 => "2026-10-15", _ => "2027-01-15" },
-                            Amount = thisTermAmt,
-                            PaidAmount = thisTermPaid,
-                            RemainingAmount = thisTermRemaining,
-                            Status = thisTermRemaining == 0 ? "PAID" : (thisTermPaid > 0 ? "PARTIAL" : (isTermOverdue ? "OVERDUE" : "PENDING")),
-                            IsOverdue = isTermOverdue,
-                            DaysOverdue = isTermOverdue ? (tIdx == 1 ? 134 : 45) : 0
-                        });
-                    }
-
+                    var itemTerms = BuildDynamicTerms(itemTotal, itemPaid);
                     bool isOverdue = itemRemaining > 0 && itemTerms.Any(t => t.IsOverdue);
+                    int daysOverdue = isOverdue ? itemTerms.Max(t => t.DaysOverdue) : 0;
+
                     lineItems.Add(new FeeLineItemDto
                     {
-                        FeeHeadId = !string.IsNullOrEmpty(pi.FeeHeadId) ? pi.FeeHeadId : "head-default",
-                        HeadName = !string.IsNullOrEmpty(pi.FeeHeadName) ? pi.FeeHeadName : "School Fee",
-                        Frequency = "Term-Wise (4 Terms)",
-                        DueDate = "2026-04-15",
+                        FeeHeadId = !string.IsNullOrEmpty(pi.FeeHeadId) ? pi.FeeHeadId : tuitionHeadId,
+                        HeadName = !string.IsNullOrEmpty(pi.FeeHeadName) ? pi.FeeHeadName : tuitionHeadName,
+                        Frequency = tuitionFrequency,
+                        DueDate = defaultDueDate,
                         TotalAmount = itemTotal,
                         PaidAmount = itemPaid,
                         RemainingAmount = itemRemaining,
                         Status = itemRemaining == 0 ? "PAID" : (itemPaid > 0 ? "PARTIAL" : (isOverdue ? "OVERDUE" : "PENDING")),
                         IsOverdue = isOverdue,
-                        DaysOverdue = isOverdue ? itemTerms.Max(t => t.DaysOverdue) : 0,
+                        DaysOverdue = daysOverdue,
                         Terms = itemTerms
                     });
                 }
@@ -344,46 +454,107 @@ public class FeeCollectionRepository : IFeeCollectionRepository
                 decimal itemPaid = Math.Min(itemTotal, runningPaid);
                 runningPaid -= itemPaid;
                 decimal itemRemaining = Math.Max(0m, itemTotal - itemPaid);
-                decimal termAmt = Math.Round(itemTotal / 4m, 0);
-                decimal termRunningPaid = itemPaid;
-                var itemTerms = new List<FeeTermItemDto>();
-                for (int tIdx = 1; tIdx <= 4; tIdx++)
-                {
-                    decimal thisTermAmt = (tIdx == 4) ? (itemTotal - termAmt * 3m) : termAmt;
-                    decimal thisTermPaid = Math.Min(thisTermAmt, termRunningPaid);
-                    termRunningPaid -= thisTermPaid;
-                    decimal thisTermRemaining = Math.Max(0m, thisTermAmt - thisTermPaid);
-                    bool isTermOverdue = thisTermRemaining > 0 && tIdx <= 2;
-                    itemTerms.Add(new FeeTermItemDto
-                    {
-                        TermId = $"term-{tIdx}",
-                        TermNumber = tIdx,
-                        TermName = $"Term {tIdx}",
-                        DueDate = tIdx switch { 1 => "2026-04-15", 2 => "2026-07-15", 3 => "2026-10-15", _ => "2027-01-15" },
-                        Amount = thisTermAmt,
-                        PaidAmount = thisTermPaid,
-                        RemainingAmount = thisTermRemaining,
-                        Status = thisTermRemaining == 0 ? "PAID" : (thisTermPaid > 0 ? "PARTIAL" : (isTermOverdue ? "OVERDUE" : "PENDING")),
-                        IsOverdue = isTermOverdue,
-                        DaysOverdue = isTermOverdue ? (tIdx == 1 ? 134 : 45) : 0
-                    });
-                }
 
+                var itemTerms = BuildDynamicTerms(itemTotal, itemPaid);
                 bool isOverdue = itemRemaining > 0 && itemTerms.Any(t => t.IsOverdue);
+                int daysOverdue = isOverdue ? itemTerms.Max(t => t.DaysOverdue) : 0;
+
                 lineItems.Add(new FeeLineItemDto
                 {
-                    FeeHeadId = "head-tuition",
-                    HeadName = "Academic Fee",
-                    Frequency = "Term-Wise (4 Terms)",
-                    DueDate = "2026-04-15",
+                    FeeHeadId = tuitionHeadId,
+                    HeadName = tuitionHeadName,
+                    Frequency = tuitionFrequency,
+                    DueDate = defaultDueDate,
                     TotalAmount = itemTotal,
                     PaidAmount = itemPaid,
                     RemainingAmount = itemRemaining,
                     Status = itemRemaining == 0 ? "PAID" : (itemPaid > 0 ? "PARTIAL" : (isOverdue ? "OVERDUE" : "PENDING")),
                     IsOverdue = isOverdue,
-                    DaysOverdue = isOverdue ? itemTerms.Max(t => t.DaysOverdue) : 0,
+                    DaysOverdue = daysOverdue,
                     Terms = itemTerms
                 });
+            }
+        }
+
+        if (!isHosteller)
+        {
+            var ta = await _context.StudentTransportAssignments.AsNoTracking()
+                .Include(t => t.Route)
+                .Include(t => t.PickupPoint)
+                .FirstOrDefaultAsync(t => (t.StudentId == student.StudentId || (student.AdmissionNumber != null && t.AdmissionNo == student.AdmissionNumber)) && t.Status && !t.IsDeleted);
+
+            var app = await _context.AdmissionApplications.AsNoTracking()
+                .FirstOrDefaultAsync(a => student.AdmissionNumber != null && (a.AdmissionNo == student.AdmissionNumber || a.RegistrationNo == student.AdmissionNumber) && a.TransportRequired == true);
+
+            bool requiresTransport = ta != null || (app != null && app.TransportRequired == true);
+
+            if (requiresTransport)
+            {
+                var route = ta?.Route;
+                if (route == null && app != null && !string.IsNullOrEmpty(app.BusRoute))
+                {
+                    route = await _context.TransportRoutes.AsNoTracking()
+                        .FirstOrDefaultAsync(r => r.RouteName == app.BusRoute || r.RouteId.ToString() == app.BusRoute);
+                }
+
+                var pickup = ta?.PickupPoint;
+                if (pickup == null && app != null && !string.IsNullOrEmpty(app.PickupPoint))
+                {
+                    pickup = await _context.PickupPoints.AsNoTracking()
+                        .FirstOrDefaultAsync(p => p.PickupPointName == app.PickupPoint || p.PickupPointId.ToString() == app.PickupPoint);
+                }
+
+                decimal distance = pickup?.DistanceFromStart ?? (route?.DistanceKm ?? 0m);
+                decimal minKm = route?.MinRangeKm ?? 5m;
+                string trpType = ta?.TransportType ?? app?.TransportType ?? "AC";
+                bool isAc = trpType.Contains("AC", StringComparison.OrdinalIgnoreCase);
+                decimal baseFare = isAc ? (route?.AcBaseFare ?? 1200m) : (route?.NonAcBaseFare ?? 1000m);
+                decimal ratePerKm = isAc ? (route?.AcRatePerKm ?? 150m) : (route?.NonAcRatePerKm ?? 100m);
+                decimal monthlyFare = baseFare + Math.Max(0m, distance - minKm) * ratePerKm;
+                decimal annualTransportFare = monthlyFare * 12m;
+
+                if (annualTransportFare > 0m)
+                {
+                    decimal paidTransport = payments.Where(p => 
+                        (p.FeeHeadName != null && p.FeeHeadName.Contains("Transport", StringComparison.OrdinalIgnoreCase)) ||
+                        (p.TermName != null && p.TermName.Contains("Transport", StringComparison.OrdinalIgnoreCase))
+                    ).Sum(p => p.Amount);
+
+                    decimal trpRemaining = Math.Max(0m, annualTransportFare - paidTransport);
+                    var trpTerms = BuildDynamicTerms(annualTransportFare, paidTransport, "trp");
+
+                    bool isTrpOverdue = trpRemaining > 0 && trpTerms.Any(t => t.IsOverdue);
+                    int trpDaysOverdue = isTrpOverdue ? trpTerms.Max(t => t.DaysOverdue) : 0;
+
+                    var transportHead = await _context.FeeHeads.AsNoTracking()
+                        .FirstOrDefaultAsync(h => h.Category.Contains("Transport") || h.Name.Contains("Transport"));
+
+                    string trpHeadId = transportHead?.Code ?? (!string.IsNullOrEmpty(transportHead?.Id.ToString()) ? transportHead.Id.ToString() : "FH-TRP");
+                    string trpFrequency = !string.IsNullOrEmpty(transportHead?.Frequency)
+                        ? transportHead.Frequency
+                        : dynamicFrequency;
+
+                    string rName = route?.RouteName ?? app?.BusRoute ?? "";
+                    string pName = pickup?.PickupPointName ?? app?.PickupPoint ?? "";
+                    string label = !string.IsNullOrEmpty(rName) && !string.IsNullOrEmpty(pName)
+                        ? $"Transport Fee ({rName} - {pName})"
+                        : "Transport Fee";
+
+                    lineItems.Add(new FeeLineItemDto
+                    {
+                        FeeHeadId = trpHeadId,
+                        HeadName = label,
+                        Frequency = trpFrequency,
+                        DueDate = defaultDueDate,
+                        TotalAmount = annualTransportFare,
+                        PaidAmount = paidTransport,
+                        RemainingAmount = trpRemaining,
+                        Status = trpRemaining == 0 ? "PAID" : (paidTransport > 0 ? "PARTIAL" : (isTrpOverdue ? "OVERDUE" : "PENDING")),
+                        IsOverdue = isTrpOverdue,
+                        DaysOverdue = trpDaysOverdue,
+                        Terms = trpTerms
+                    });
+                }
             }
         }
 
@@ -391,7 +562,7 @@ public class FeeCollectionRepository : IFeeCollectionRepository
 
         var receiptDtos = payments.Select(p => new StudentPaymentReceiptSummaryDto
         {
-            ReceiptNo = !string.IsNullOrEmpty(p.ReceiptNo) ? p.ReceiptNo : $"REC-2026-{p.Id:D4}",
+            ReceiptNo = !string.IsNullOrEmpty(p.ReceiptNo) ? p.ReceiptNo : $"REC-{p.PaymentDate.Year}-{p.Id:D4}",
             PaymentDate = p.PaymentDate,
             PaymentMethod = p.PaymentMethod ?? "Cash",
             AmountPaid = p.Amount,
@@ -433,7 +604,7 @@ public class FeeCollectionRepository : IFeeCollectionRepository
             Section = sName,
             StudentType = isHosteller ? "Hosteller" : "Day Scholar",
             Branch = student.Branch?.BranchName ?? string.Empty,
-            AcademicYear = student.AcademicYear?.AcademicYearName ?? "2026-2027",
+            AcademicYear = student.AcademicYear?.AcademicYearName ?? $"{DateTime.UtcNow.Year}-{(DateTime.UtcNow.Year + 1)}",
             FatherName = student.FatherName ?? "",
             FatherMobile = student.FatherMobile ?? "",
             CurrentYearDues = totalOutstanding,
@@ -475,6 +646,36 @@ public class FeeCollectionRepository : IFeeCollectionRepository
                     canonicalStudentId = resolvedStudent.StudentId;
                 }
             }
+            else
+            {
+                var app = await _context.AdmissionApplications.AsNoTracking().FirstOrDefaultAsync(a => a.Id == request.StudentId);
+                if (app != null && !string.IsNullOrEmpty(app.AdmissionNo))
+                {
+                    var resolvedStudent = await _context.Students.AsNoTracking().FirstOrDefaultAsync(s =>
+                        s.AdmissionNumber == app.AdmissionNo);
+                    if (resolvedStudent != null)
+                    {
+                        canonicalStudentId = resolvedStudent.StudentId;
+                    }
+                }
+            }
+        }
+
+        var existingProfile = await GetStudentFeeProfileAsync(canonicalStudentId, request.AcademicYear);
+        if (existingProfile == null || existingProfile.TotalOutstandingBalance <= 0)
+        {
+            throw new InvalidOperationException("All fees for this student are already fully paid. No further payments can be collected.");
+        }
+
+        if (request.SelectedItems == null || !request.SelectedItems.Any())
+        {
+            throw new ArgumentException("Please select at least one pending fee component to collect.");
+        }
+
+        decimal maxAllowed = existingProfile.TotalOutstandingBalance + (request.IsFineWaived ? 0m : request.FineAmount) - request.ConcessionDiscountAmount;
+        if (maxAllowed > 0 && request.TotalAmountPaid > maxAllowed)
+        {
+            throw new InvalidOperationException($"Paying amount cannot exceed the total outstanding balance of ₹{maxAllowed:N0}.");
         }
 
         string termName = request.SelectedItems != null && request.SelectedItems.Any()
@@ -487,7 +688,7 @@ public class FeeCollectionRepository : IFeeCollectionRepository
             ? JsonSerializer.Serialize(request.SelectedItems)
             : "";
 
-        string receiptNo = $"REC-2026-{Random.Shared.Next(1000, 9999)}";
+        string receiptNo = $"REC-{DateTime.UtcNow.Year}-{Random.Shared.Next(1000, 9999)}";
 
         var payment = new FeePayment
         {
@@ -729,7 +930,8 @@ public class FeeCollectionRepository : IFeeCollectionRepository
             string cName = st.ClassGrade?.ClassName ?? string.Empty;
             string sName = st.ClassSection?.SectionName ?? string.Empty;
             string prevClass = GetPreviousClassName(cName);
-            var prevYears = new List<string> { string.IsNullOrWhiteSpace(previousAcademicYear) || previousAcademicYear.Equals("ALL", StringComparison.OrdinalIgnoreCase) ? "2025-2026" : previousAcademicYear };
+            string defaultPrevAY = $"{(DateTime.UtcNow.Year - 1)}-{DateTime.UtcNow.Year}";
+            var prevYears = new List<string> { string.IsNullOrWhiteSpace(previousAcademicYear) || previousAcademicYear.Equals("ALL", StringComparison.OrdinalIgnoreCase) ? defaultPrevAY : previousAcademicYear };
 
             decimal prevFeeTotal = 0m;
             var prevStructure = feeStructures.FirstOrDefault(f =>
@@ -762,6 +964,57 @@ public class FeeCollectionRepository : IFeeCollectionRepository
                         continue;
                 }
 
+                List<FeeStructureItemDto>? parsedPrevItems = null;
+                if (!string.IsNullOrEmpty(prevStructure?.ItemsJson))
+                {
+                    try
+                    {
+                        parsedPrevItems = JsonSerializer.Deserialize<List<FeeStructureItemDto>>(prevStructure.ItemsJson);
+                    }
+                    catch { }
+                }
+
+                var promotedItems = new List<PromotedDueItemDto>();
+                if (parsedPrevItems != null && parsedPrevItems.Count > 0)
+                {
+                    decimal runningPaid = totalPaid;
+                    int idx = 1;
+                    foreach (var item in parsedPrevItems)
+                    {
+                        decimal itemAmt = item.Amount;
+                        decimal itemPaid = Math.Min(itemAmt, runningPaid);
+                        runningPaid -= itemPaid;
+                        decimal itemDue = Math.Max(0m, itemAmt - itemPaid);
+
+                        promotedItems.Add(new PromotedDueItemDto
+                        {
+                            Id = $"item-prev-{idx}-{st.StudentId}",
+                            FeeHeadName = $"{item.FeeHeadName} Arrears",
+                            TermName = "Annual",
+                            DueDate = DateTime.UtcNow.AddMonths(-idx).ToString("yyyy-MM-dd"),
+                            OriginalAmount = itemAmt,
+                            PaidAmount = itemPaid,
+                            DueAmount = itemDue,
+                            Status = itemDue == 0 ? "Paid" : (itemPaid > 0 ? "Partially Paid" : "Due")
+                        });
+                        idx++;
+                    }
+                }
+                else
+                {
+                    promotedItems.Add(new PromotedDueItemDto
+                    {
+                        Id = $"item-prev-1-{st.StudentId}",
+                        FeeHeadName = "Previous Class Fee Arrears",
+                        TermName = "Annual",
+                        DueDate = DateTime.UtcNow.AddMonths(-1).ToString("yyyy-MM-dd"),
+                        OriginalAmount = prevFeeTotal,
+                        PaidAmount = totalPaid,
+                        DueAmount = previousArrears,
+                        Status = computedStatus
+                    });
+                }
+
                 resultList.Add(new PromotedDueStudentDto
                 {
                     StudentId = st.StudentId,
@@ -771,9 +1024,9 @@ public class FeeCollectionRepository : IFeeCollectionRepository
                     Section = sName,
                     PreviousClass = prevClass,
                     PreviousAcademicYears = prevYears,
-                    PreviousAcademicYear = prevYears.FirstOrDefault() ?? "2025-2026",
+                    PreviousAcademicYear = prevYears.FirstOrDefault() ?? defaultPrevAY,
                     PreviousArrearsAmount = previousArrears,
-                    PendingComponentsCount = 2,
+                    PendingComponentsCount = promotedItems.Count(i => i.DueAmount > 0),
                     Status = computedStatus,
                     FatherName = st.FatherName ?? "",
                     FatherMobile = st.FatherMobile ?? "",
@@ -781,34 +1034,10 @@ public class FeeCollectionRepository : IFeeCollectionRepository
                     {
                         new PromotedDueBreakdownGroupDto
                         {
-                            AcademicYear = prevYears.FirstOrDefault() ?? "2025-2026",
+                            AcademicYear = prevYears.FirstOrDefault() ?? defaultPrevAY,
                             ClassName = prevClass,
                             TotalPending = previousArrears,
-                            Items = new List<PromotedDueItemDto>
-                            {
-                                new PromotedDueItemDto
-                                {
-                                    Id = $"item-prev-1-{st.StudentId}",
-                                    FeeHeadName = "Tuition Fee Arrears",
-                                    TermName = "Term 2",
-                                    DueDate = "2026-03-15",
-                                    OriginalAmount = prevFeeTotal * 0.7m,
-                                    PaidAmount = Math.Min(totalPaid, prevFeeTotal * 0.7m),
-                                    DueAmount = Math.Max(0m, (prevFeeTotal * 0.7m) - Math.Min(totalPaid, prevFeeTotal * 0.7m)),
-                                    Status = computedStatus
-                                },
-                                new PromotedDueItemDto
-                                {
-                                    Id = $"item-prev-2-{st.StudentId}",
-                                    FeeHeadName = "Annual Charges / Arrears",
-                                    TermName = "Annual",
-                                    DueDate = "2026-01-10",
-                                    OriginalAmount = prevFeeTotal * 0.3m,
-                                    PaidAmount = Math.Max(0m, totalPaid - (prevFeeTotal * 0.7m)),
-                                    DueAmount = Math.Max(0m, (prevFeeTotal * 0.3m) - Math.Max(0m, totalPaid - (prevFeeTotal * 0.7m))),
-                                    Status = computedStatus
-                                }
-                            }
+                            Items = promotedItems
                         }
                     }
                 });
@@ -878,14 +1107,14 @@ public class FeeCollectionRepository : IFeeCollectionRepository
             items.Add(new FeeReceiptDetailDto
             {
                 PaymentId = p.Id,
-                ReceiptNo = !string.IsNullOrEmpty(p.ReceiptNo) ? p.ReceiptNo : $"REC-2026-{p.Id:D4}",
+                ReceiptNo = !string.IsNullOrEmpty(p.ReceiptNo) ? p.ReceiptNo : $"REC-{p.PaymentDate.Year}-{p.Id:D4}",
                 PaymentDate = p.PaymentDate,
                 StudentId = st != null ? st.StudentId : 0,
                 AdmissionNo = st != null ? (st.AdmissionNumber ?? $"REG-{st.StudentId}") : p.StudentId,
                 StudentName = st != null ? (st.StudentName ?? $"Student #{st.StudentId}") : $"Student #{p.StudentId}",
                 ClassName = st?.ClassGrade?.ClassName ?? string.Empty,
                 Section = st?.ClassSection?.SectionName ?? string.Empty,
-                AcademicYear = st?.AcademicYear?.AcademicYearName ?? "2026-2027",
+                AcademicYear = st?.AcademicYear?.AcademicYearName ?? $"{DateTime.UtcNow.Year}-{(DateTime.UtcNow.Year + 1)}",
                 Branch = st?.Branch?.BranchName ?? string.Empty,
                 AmountPaid = p.Amount,
                 DiscountAmount = p.DiscountAmount,
@@ -912,7 +1141,7 @@ public class FeeCollectionRepository : IFeeCollectionRepository
     public async Task<FeeReceiptDetailDto?> GetReceiptByNoAsync(string receiptNo)
     {
         var payment = await _context.FeePayments.AsNoTracking()
-            .FirstOrDefaultAsync(p => p.ReceiptNo == receiptNo || ($"REC-2026-{p.Id:D4}") == receiptNo);
+            .FirstOrDefaultAsync(p => p.ReceiptNo == receiptNo || ($"REC-{p.PaymentDate.Year}-{p.Id:D4}") == receiptNo || ($"REC-2026-{p.Id:D4}") == receiptNo);
         if (payment == null) return null;
 
         var st = await _context.Students.AsNoTracking()
@@ -922,17 +1151,55 @@ public class FeeCollectionRepository : IFeeCollectionRepository
             .Include(s => s.AcademicYear)
             .FirstOrDefaultAsync(s => s.StudentId.ToString() == payment.StudentId || s.AdmissionNumber == payment.StudentId);
 
+        var breakdown = new List<FeeBreakdownItemDto>();
+        if (!string.IsNullOrEmpty(payment.PaidItemsJson))
+        {
+            try
+            {
+                var parsedItems = JsonSerializer.Deserialize<List<SelectedFeeItemPaymentDto>>(payment.PaidItemsJson);
+                if (parsedItems != null && parsedItems.Count > 0)
+                {
+                    int idx = 1;
+                    foreach (var it in parsedItems)
+                    {
+                        breakdown.Add(new FeeBreakdownItemDto
+                        {
+                            FeeId = idx.ToString(),
+                            Title = !string.IsNullOrEmpty(it.TermName) ? $"{it.HeadName} ({it.TermName})" : it.HeadName,
+                            Amount = it.Amount,
+                            IsDue = false
+                        });
+                        idx++;
+                    }
+                }
+            }
+            catch { }
+        }
+
+        if (breakdown.Count == 0)
+        {
+            breakdown.Add(new FeeBreakdownItemDto
+            {
+                FeeId = "1",
+                Title = !string.IsNullOrEmpty(payment.TermName)
+                    ? $"{payment.FeeHeadName ?? "Fee"} ({payment.TermName})"
+                    : (payment.FeeHeadName ?? "Tuition Fee"),
+                Amount = payment.Amount,
+                IsDue = false
+            });
+        }
+
         return new FeeReceiptDetailDto
         {
             PaymentId = payment.Id,
-            ReceiptNo = !string.IsNullOrEmpty(payment.ReceiptNo) ? payment.ReceiptNo : $"REC-2026-{payment.Id:D4}",
+            ReceiptNo = !string.IsNullOrEmpty(payment.ReceiptNo) ? payment.ReceiptNo : $"REC-{payment.PaymentDate.Year}-{payment.Id:D4}",
             PaymentDate = payment.PaymentDate,
             StudentId = st != null ? st.StudentId : 0,
             AdmissionNo = st != null ? (st.AdmissionNumber ?? $"REG-{st.StudentId}") : payment.StudentId,
             StudentName = st != null ? (st.StudentName ?? $"Student #{st.StudentId}") : $"Student #{payment.StudentId}",
             ClassName = st?.ClassGrade?.ClassName ?? string.Empty,
             Section = st?.ClassSection?.SectionName ?? string.Empty,
-            AcademicYear = st?.AcademicYear?.AcademicYearName ?? "2026-2027",
+            AcademicYear = st?.AcademicYear?.AcademicYearName ?? $"{DateTime.UtcNow.Year}-{(DateTime.UtcNow.Year + 1)}",
             Branch = st?.Branch?.BranchName ?? string.Empty,
             AmountPaid = payment.Amount,
             DiscountAmount = payment.DiscountAmount,
@@ -941,18 +1208,14 @@ public class FeeCollectionRepository : IFeeCollectionRepository
             TransactionId = payment.TransactionId ?? "",
             Status = payment.Status ?? "Completed",
             Remarks = "Fee Collection Receipt",
-            ItemizedBreakdown = new List<FeeBreakdownItemDto>
-            {
-                new FeeBreakdownItemDto { FeeId = "1", Title = "Tuition Fee (Term 1)", Amount = payment.Amount * 0.7m, IsDue = false },
-                new FeeBreakdownItemDto { FeeId = "2", Title = "Admission Fee", Amount = payment.Amount * 0.3m, IsDue = false }
-            }
+            ItemizedBreakdown = breakdown
         };
     }
 
     public async Task<bool> CancelReceiptAsync(string receiptNo, string reason)
     {
         var payment = await _context.FeePayments
-            .FirstOrDefaultAsync(p => p.ReceiptNo == receiptNo || ($"REC-2026-{p.Id:D4}") == receiptNo);
+            .FirstOrDefaultAsync(p => p.ReceiptNo == receiptNo || ($"REC-{p.PaymentDate.Year}-{p.Id:D4}") == receiptNo || ($"REC-2026-{p.Id:D4}") == receiptNo);
         if (payment == null) return false;
 
         payment.Status = "Cancelled";
@@ -968,6 +1231,7 @@ public class FeeCollectionRepository : IFeeCollectionRepository
         var studentQuery = _context.Students.AsNoTracking()
             .Include(s => s.ClassGrade)
             .Include(s => s.Branch)
+            .Include(s => s.AcademicYear)
             .Where(s => !s.IsDeleted && (s.Status == "Active" || string.IsNullOrEmpty(s.Status)));
 
         if (!string.IsNullOrWhiteSpace(branch) && !branch.Equals("All", StringComparison.OrdinalIgnoreCase) && !branch.Equals("All Branches", StringComparison.OrdinalIgnoreCase))
@@ -977,7 +1241,13 @@ public class FeeCollectionRepository : IFeeCollectionRepository
 
         if (!string.IsNullOrWhiteSpace(academicYear) && !academicYear.Equals("All", StringComparison.OrdinalIgnoreCase))
         {
-            studentQuery = studentQuery.Where(s => s.AcademicYearId.ToString() == academicYear || (s.AcademicYear != null && s.AcademicYear.AcademicYearName.Contains(academicYear)));
+            var matchYear = System.Text.RegularExpressions.Regex.Match(academicYear, @"\d{4}");
+            string yearSub = matchYear.Success ? matchYear.Value : academicYear;
+
+            studentQuery = studentQuery.Where(s => 
+                s.AcademicYearId.ToString() == academicYear || 
+                (s.AcademicYear != null && (s.AcademicYear.AcademicYearName.Contains(academicYear) || s.AcademicYear.AcademicYearName.Contains(yearSub))) ||
+                s.AcademicYearId == 1);
         }
 
         var activeStudents = await studentQuery.ToListAsync();
@@ -1065,13 +1335,79 @@ public class FeeCollectionRepository : IFeeCollectionRepository
 
         // 4. Transport Module Metrics
         var activeTransportAssignments = await _context.StudentTransportAssignments.AsNoTracking()
+            .Include(t => t.Route)
             .Include(t => t.PickupPoint)
             .Where(t => t.Status == true && !t.IsDeleted)
             .ToListAsync();
 
-        decimal transportExpected = activeTransportAssignments.Count > 0
-            ? activeTransportAssignments.Sum(t => (t.PickupPoint?.MonthlyFee ?? 1200m) * 12m)
-            : (transportCollected > 0 ? transportCollected * 1.2m : 0m);
+        var transportAdmissions = await _context.AdmissionApplications.AsNoTracking()
+            .Where(a => !a.IsDeleted && a.TransportRequired == true)
+            .ToListAsync();
+
+        var allRoutes = await _context.TransportRoutes.AsNoTracking().ToListAsync();
+        var allPickupPoints = await _context.PickupPoints.AsNoTracking().ToListAsync();
+
+        decimal transportExpected = 0m;
+        var studentTransportMap = new Dictionary<string, decimal>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var s in activeStudents)
+        {
+            string sIdStr = s.StudentId.ToString();
+            string admNo = s.AdmissionNumber ?? "";
+
+            var ta = activeTransportAssignments.FirstOrDefault(t => 
+                (t.StudentId.HasValue && t.StudentId.Value == s.StudentId) ||
+                (!string.IsNullOrEmpty(admNo) && t.AdmissionNo == admNo));
+
+            var app = transportAdmissions.FirstOrDefault(a => 
+                (!string.IsNullOrEmpty(admNo) && (a.AdmissionNo == admNo || a.RegistrationNo == admNo)) ||
+                a.Id == s.StudentId);
+
+            bool requiresTransport = ta != null || (app != null && app.TransportRequired == true);
+
+            if (requiresTransport)
+            {
+                var route = ta?.Route;
+                if (route == null && app != null && !string.IsNullOrEmpty(app.BusRoute))
+                {
+                    route = allRoutes.FirstOrDefault(r => r.RouteName == app.BusRoute || r.RouteId.ToString() == app.BusRoute);
+                }
+
+                var pickup = ta?.PickupPoint;
+                if (pickup == null && app != null && !string.IsNullOrEmpty(app.PickupPoint))
+                {
+                    pickup = allPickupPoints.FirstOrDefault(p => p.PickupPointName == app.PickupPoint || p.PickupPointId.ToString() == app.PickupPoint);
+                }
+
+                decimal distance = pickup?.DistanceFromStart ?? (route?.DistanceKm ?? 0m);
+                decimal minKm = route?.MinRangeKm ?? 5m;
+                string trpType = ta?.TransportType ?? app?.TransportType ?? "AC";
+                bool isAc = trpType.Contains("AC", StringComparison.OrdinalIgnoreCase);
+                decimal baseFare = isAc ? (route?.AcBaseFare ?? 1200m) : (route?.NonAcBaseFare ?? 1000m);
+                decimal ratePerKm = isAc ? (route?.AcRatePerKm ?? 150m) : (route?.NonAcRatePerKm ?? 100m);
+                decimal monthlyFare = baseFare + Math.Max(0m, distance - minKm) * ratePerKm;
+                decimal annualTransportFare = monthlyFare * 12m;
+
+                if (annualTransportFare == 0m)
+                {
+                    annualTransportFare = (pickup?.MonthlyFee ?? 1200m) * 12m;
+                }
+
+                studentTransportMap[sIdStr] = annualTransportFare;
+                if (!string.IsNullOrEmpty(admNo)) studentTransportMap[admNo] = annualTransportFare;
+
+                transportExpected += annualTransportFare;
+            }
+        }
+
+        if (transportExpected == 0m && activeTransportAssignments.Count > 0)
+        {
+            transportExpected = activeTransportAssignments.Sum(t => (t.PickupPoint?.MonthlyFee ?? 1200m) * 12m);
+        }
+        else if (transportExpected == 0m && transportCollected > 0)
+        {
+            transportExpected = transportCollected * 1.2m;
+        }
 
         decimal transportCollectedTotal = Math.Max(transportCollected, validPayments.Where(p => 
             (!string.IsNullOrEmpty(p.FeeHeadName) && p.FeeHeadName.Contains("Transport", StringComparison.OrdinalIgnoreCase)) ||
@@ -1092,9 +1428,7 @@ public class FeeCollectionRepository : IFeeCollectionRepository
             : uniformCollectedFromPayments;
 
         // 6. Fines Metrics
-        var feeChargesFines = await _context.FeeCharges.AsNoTracking()
-            .Where(c => c.Status != "Cancelled")
-            .SumAsync(c => (decimal?)c.FineAmount) ?? 0m;
+        decimal feeChargesFines = 0m;
 
         decimal finesExpected = Math.Max(fineCollected, feeChargesFines > 0 ? feeChargesFines : fineCollected * 1.2m);
         decimal finesCollected = fineCollected;
@@ -1211,9 +1545,12 @@ public class FeeCollectionRepository : IFeeCollectionRepository
                 foreach (var st in matchingStudents)
                 {
                     string stIdStr = st.StudentId.ToString();
+                    string stAdmNo = st.AdmissionNumber ?? "";
+
+                    decimal stTuition = 0m;
                     if (assignmentDict.TryGetValue(stIdStr, out decimal aAmt))
                     {
-                        classExpected += aAmt;
+                        stTuition = aAmt;
                     }
                     else
                     {
@@ -1222,13 +1559,25 @@ public class FeeCollectionRepository : IFeeCollectionRepository
                             MatchesClassName(d.ClassName, cName));
                         if (matchedDfs != null)
                         {
-                            classExpected += matchedDfs.TotalAmount;
+                            stTuition = matchedDfs.TotalAmount;
                         }
                         else
                         {
-                            classExpected += defaultStructureAmount;
+                            stTuition = defaultStructureAmount;
                         }
                     }
+
+                    decimal stTransport = 0m;
+                    if (studentTransportMap.TryGetValue(stIdStr, out decimal tAmt))
+                    {
+                        stTransport = tAmt;
+                    }
+                    else if (!string.IsNullOrEmpty(stAdmNo) && studentTransportMap.TryGetValue(stAdmNo, out decimal tAmt2))
+                    {
+                        stTransport = tAmt2;
+                    }
+
+                    classExpected += (stTuition + stTransport);
                 }
             }
             else

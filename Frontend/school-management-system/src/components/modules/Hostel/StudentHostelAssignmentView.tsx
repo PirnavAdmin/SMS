@@ -6,7 +6,7 @@ import { ConfirmModal } from '../../common/ConfirmModal';
 import { Pagination } from '../../common/Pagination';
 import { SearchableSelect } from '../../common/SearchableSelect';
 import { useAuth } from '../../../context/AuthContext';
-import { getAllocations, createAllocation, vacateAllocation, vacateStudentAllocation, getRooms, getHostelBlocks, BedAllocation, HostelRoom, HostelBlock } from '../../../api/hostel';
+import { getAllocations, createAllocation, vacateAllocation, vacateStudentAllocation, getRooms, getHostelBlocks, formatRoomNumber, BedAllocation, HostelRoom, HostelBlock } from '../../../api/hostel';
 
 const StudentInlineCombobox: React.FC<{
   students: any[];
@@ -100,7 +100,7 @@ const StudentInlineCombobox: React.FC<{
                     {st.isAllocated ? (
                       <div className="text-[10px] font-extrabold text-amber-600 dark:text-amber-400 flex items-center gap-1 mt-0.5">
                         <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse inline-block"></span>
-                        <span>Already Allocated: {st.allocatedBlock || 'Hostel Block'} (Room #{st.allocatedRoom || '101'})</span>
+                        <span>Already Allocated: {st.allocatedBlock || 'Hostel Block'} ({formatRoomNumber(st.allocatedRoom)})</span>
                       </div>
                     ) : (
                       <div className="text-[10px] font-semibold text-emerald-600 dark:text-emerald-400 flex items-center gap-1 mt-0.5">
@@ -456,10 +456,14 @@ export const StudentHostelAssignmentView: React.FC = () => {
   const availableRoomOptions = useMemo(() => {
     const set = new Set<string>();
     rooms.forEach(r => {
-      if (r && r.roomNumber) set.add(`Room #${r.roomNumber}`);
+      if (r && r.roomNumber) set.add(formatRoomNumber(r.roomNumber));
     });
-    const list = Array.from(set).sort();
-    return ['All Rooms', ...list.length > 0 ? list : ['Room #101', 'Room #102', 'Room #103', 'Room #107', 'Room #108', 'Room #201', 'Room #202']];
+    const list = Array.from(set).sort((a, b) => {
+      const numA = parseInt(a.replace(/\D/g, ''), 10) || 0;
+      const numB = parseInt(b.replace(/\D/g, ''), 10) || 0;
+      return numA - numB;
+    });
+    return ['All Rooms', ...list];
   }, [rooms]);
 
   useEffect(() => {
@@ -487,7 +491,7 @@ export const StudentHostelAssignmentView: React.FC = () => {
       (selectedFilterBlock && a.hostelName && a.hostelName.toLowerCase().trim() === selectedFilterBlock.hostelName.toLowerCase().trim());
 
     const matchFloor = filterFloor === 'All Floors' || !filterFloor || ((a as any).floorLevel && (a as any).floorLevel.toLowerCase() === filterFloor.toLowerCase()) || a.isPendingAdmitted;
-    const matchRoom = filterRoom === 'All Rooms' || !filterRoom || (a.roomNumber && `Room #${a.roomNumber}` === filterRoom) || a.isPendingAdmitted;
+    const matchRoom = filterRoom === 'All Rooms' || !filterRoom || (a.roomNumber && formatRoomNumber(a.roomNumber) === filterRoom) || a.isPendingAdmitted;
 
     return matchQuery && matchHostel && matchFloor && matchRoom;
   });
@@ -638,13 +642,13 @@ export const StudentHostelAssignmentView: React.FC = () => {
                     <td className="py-3.5 px-4 font-bold text-slate-800 dark:text-slate-200 whitespace-nowrap">
                       {a.hostelName && isNaN(Number(a.hostelName))
                         ? a.hostelName
-                        : (blocks.find(b => b.hostelId.toString() === String(a.hostelName || (a as any).hostelId))?.hostelName || `Block #${a.hostelName || '1'}`)}
+                        : (blocks.find(b => String(b.hostelId ?? '') === String(a.hostelName || (a as any).hostelId))?.hostelName || `Block #${a.hostelName || '1'}`)}
                     </td>
                     <td className="py-3.5 px-5 font-mono font-bold">
                       {a.isPendingAdmitted ? (
                         <span className="text-amber-600">Unassigned (Needs Room)</span>
                       ) : (
-                        <span className="text-emerald-600">Room #{a.roomNumber} ({a.bedNumber || 'BED-1'})</span>
+                        <span className="text-emerald-600">{formatRoomNumber(a.roomNumber)} ({a.bedNumber || 'BED-1'})</span>
                       )}
                     </td>
                     <td className="py-3.5 px-5 text-slate-500 font-mono text-xs">
@@ -788,7 +792,7 @@ export const StudentHostelAssignmentView: React.FC = () => {
 
                         return (
                           <option key={`modal_rm_${rmId}_${idx}`} value={rmId}>
-                            Room #{rmNum} ({rmOccupiedCount}/{cap} Occupied{isFull ? ' • FULL' : ''})
+                            {formatRoomNumber(rmNum)} ({rmOccupiedCount}/{cap} Occupied{isFull ? ' • FULL' : ''})
                           </option>
                         );
                       })}
@@ -869,68 +873,82 @@ export const StudentHostelAssignmentView: React.FC = () => {
       )}
 
       {/* STUDENT PROFILE POPUP MODAL */}
-      {viewStudentModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm animate-in fade-in">
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-md w-full p-6 shadow-2xl space-y-4">
-            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
-              <h3 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                <User className="w-5 h-5 text-sky-500" /> Student Hostel Profile
-              </h3>
-              <button onClick={() => setViewStudentModal(null)} className="text-slate-400 hover:text-slate-600">✕</button>
-            </div>
+      {viewStudentModal && (() => {
+        const matchedStudent = students.find(s => 
+          String(s.id) === String(viewStudentModal.studentId) || 
+          String(s.admissionNo) === String(viewStudentModal.admissionNo)
+        );
+        const parentName = matchedStudent?.fatherName || matchedStudent?.parentName || matchedStudent?.guardianName || (matchedStudent as any)?.motherName || 'Parent / Guardian';
+        const parentPhone = matchedStudent?.fatherPhone || matchedStudent?.guardianPhone || matchedStudent?.phone || matchedStudent?.emergencyContact || (matchedStudent as any)?.parentPhone || 'N/A';
+        const matchedBlock = blocks.find(b => 
+          String(b.hostelId) === String(viewStudentModal.hostelId) || 
+          b.hostelName === viewStudentModal.hostelName
+        );
+        const wardenName = viewStudentModal.wardenName || (matchedBlock as any)?.wardenName || (matchedBlock as any)?.warden || 'Assigned Warden';
 
-            <div className="space-y-4 text-xs">
-              <div className="flex items-center gap-3.5 p-3.5 bg-slate-50 dark:bg-slate-800/60 rounded-2xl border border-slate-200/80 dark:border-slate-700/80">
-                <div className="w-12 h-12 rounded-2xl bg-sky-100 dark:bg-sky-950 text-sky-600 dark:text-sky-300 font-black text-lg flex items-center justify-center border border-sky-300 dark:border-sky-800 shadow-inner">
-                  {viewStudentModal.studentName ? viewStudentModal.studentName.charAt(0) : 'S'}
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm animate-in fade-in">
+            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-md w-full p-6 shadow-2xl space-y-4">
+              <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
+                <h3 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                  <User className="w-5 h-5 text-sky-500" /> Student Hostel Profile
+                </h3>
+                <button onClick={() => setViewStudentModal(null)} className="text-slate-400 hover:text-slate-600">✕</button>
+              </div>
+
+              <div className="space-y-4 text-xs">
+                <div className="flex items-center gap-3.5 p-3.5 bg-slate-50 dark:bg-slate-800/60 rounded-2xl border border-slate-200/80 dark:border-slate-700/80">
+                  <div className="w-12 h-12 rounded-2xl bg-sky-100 dark:bg-sky-950 text-sky-600 dark:text-sky-300 font-black text-lg flex items-center justify-center border border-sky-300 dark:border-sky-800 shadow-inner">
+                    {viewStudentModal.studentName ? viewStudentModal.studentName.charAt(0) : 'S'}
+                  </div>
+                  <div>
+                    <h4 className="font-extrabold text-sm text-slate-900 dark:text-white">{viewStudentModal.studentName}</h4>
+                    <span className="font-mono text-[11px] text-slate-400 font-bold">Adm ID: {viewStudentModal.admissionNo}</span>
+                    <span className="block text-[10px] text-emerald-600 font-bold">Resident Boarder • Active</span>
+                  </div>
                 </div>
-                <div>
-                  <h4 className="font-extrabold text-sm text-slate-900 dark:text-white">{viewStudentModal.studentName}</h4>
-                  <span className="font-mono text-[11px] text-slate-400 font-bold">Adm ID: {viewStudentModal.admissionNo}</span>
-                  <span className="block text-[10px] text-emerald-600 font-bold">Resident Boarder • Active</span>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="p-3 bg-slate-50 dark:bg-slate-800/40 rounded-xl border border-slate-200/60 dark:border-slate-700/60">
+                    <span className="text-[10px] text-slate-400 font-bold block uppercase">Hostel Facility</span>
+                    <span className="font-bold text-slate-800 dark:text-slate-200">{viewStudentModal.hostelName}</span>
+                  </div>
+                  <div className="p-3 bg-slate-50 dark:bg-slate-800/40 rounded-xl border border-slate-200/60 dark:border-slate-700/60">
+                    <span className="text-[10px] text-slate-400 font-bold block uppercase">Room & Bed</span>
+                    <span className="font-mono font-bold text-emerald-600">{formatRoomNumber(viewStudentModal.roomNumber)} ({viewStudentModal.bedNumber || 'BED-1'})</span>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="p-3 bg-slate-50 dark:bg-slate-800/40 rounded-xl border border-slate-200/60 dark:border-slate-700/60">
+                    <span className="text-[10px] text-slate-400 font-bold block uppercase">Joining Date</span>
+                    <span className="font-mono font-bold text-slate-700 dark:text-slate-300">{viewStudentModal.joiningDate ? viewStudentModal.joiningDate.split('T')[0] : 'N/A'}</span>
+                  </div>
+                  <div className="p-3 bg-slate-50 dark:bg-slate-800/40 rounded-xl border border-slate-200/60 dark:border-slate-700/60">
+                    <span className="text-[10px] text-slate-400 font-bold block uppercase">Assigned Warden</span>
+                    <span className="font-bold text-sky-600 dark:text-sky-400">{wardenName}</span>
+                  </div>
+                </div>
+
+                <div className="p-3 bg-sky-50 dark:bg-sky-950/40 rounded-2xl border border-sky-200 dark:border-sky-800 text-[11px] space-y-1">
+                  <span className="font-bold text-sky-800 dark:text-sky-300 block">📞 Emergency Contact & Guardian:</span>
+                  <p className="text-slate-600 dark:text-slate-300">Guardian: <strong>{parentName}</strong> ({parentPhone})</p>
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <div className="p-3 bg-slate-50 dark:bg-slate-800/40 rounded-xl border border-slate-200/60 dark:border-slate-700/60">
-                  <span className="text-[10px] text-slate-400 font-bold block uppercase">Hostel Facility</span>
-                  <span className="font-bold text-slate-800 dark:text-slate-200">{viewStudentModal.hostelName}</span>
-                </div>
-                <div className="p-3 bg-slate-50 dark:bg-slate-800/40 rounded-xl border border-slate-200/60 dark:border-slate-700/60">
-                  <span className="text-[10px] text-slate-400 font-bold block uppercase">Room & Bed</span>
-                  <span className="font-mono font-bold text-emerald-600">Room #{viewStudentModal.roomNumber} ({viewStudentModal.bedNumber || 'BED-1'})</span>
-                </div>
+              <div className="flex justify-end pt-2 border-t border-slate-100 dark:border-slate-800">
+                <button
+                  type="button"
+                  onClick={() => setViewStudentModal(null)}
+                  className="px-4 py-2 text-xs font-bold bg-sky-600 hover:bg-sky-500 text-white rounded-xl shadow-md"
+                >
+                  Close Profile
+                </button>
               </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div className="p-3 bg-slate-50 dark:bg-slate-800/40 rounded-xl border border-slate-200/60 dark:border-slate-700/60">
-                  <span className="text-[10px] text-slate-400 font-bold block uppercase">Joining Date</span>
-                  <span className="font-mono font-bold text-slate-700 dark:text-slate-300">{viewStudentModal.joiningDate}</span>
-                </div>
-                <div className="p-3 bg-slate-50 dark:bg-slate-800/40 rounded-xl border border-slate-200/60 dark:border-slate-700/60">
-                  <span className="text-[10px] text-slate-400 font-bold block uppercase">Assigned Warden</span>
-                  <span className="font-bold text-sky-600 dark:text-sky-400">Dr. Eleanor Vance</span>
-                </div>
-              </div>
-
-              <div className="p-3 bg-sky-50 dark:bg-sky-950/40 rounded-2xl border border-sky-200 dark:border-sky-800 text-[11px] space-y-1">
-                <span className="font-bold text-sky-800 dark:text-sky-300 block">📞 Emergency Contact & Guardian:</span>
-                <p className="text-slate-600 dark:text-slate-300">Guardian: <strong>Mr. Rajesh Sharma</strong> (+91 98765 43210)</p>
-              </div>
-            </div>
-
-            <div className="flex justify-end pt-2 border-t border-slate-100 dark:border-slate-800">
-              <button
-                type="button"
-                onClick={() => setViewStudentModal(null)}
-                className="px-4 py-2 text-xs font-bold bg-sky-600 hover:bg-sky-500 text-white rounded-xl shadow-md"
-              >
-                Close Profile
-              </button>
             </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
     </div>
   );
 };

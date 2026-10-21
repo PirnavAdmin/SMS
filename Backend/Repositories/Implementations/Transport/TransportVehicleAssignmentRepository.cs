@@ -87,10 +87,6 @@ namespace SMS.Api.Repositories.Implementations
                     AcademicYear = x.AcademicYear ?? string.Empty,
                     MorningTripTime = x.MorningTripTime ?? string.Empty,
                     EveningTripTime = x.EveningTripTime ?? string.Empty,
-                    BranchName = x.BranchName ?? string.Empty,
-                    AcademicYear = x.AcademicYear ?? "2026-2027",
-                    MorningTripTime = x.MorningTripTime ?? "07:00 AM",
-                    EveningTripTime = x.EveningTripTime ?? "03:45 PM",
 
                     AssignmentDate = x.AssignmentDate,
                     EffectiveFrom = x.EffectiveFrom,
@@ -127,7 +123,7 @@ namespace SMS.Api.Repositories.Implementations
                     AssignmentId = x.AssignmentId,
 
                     RouteId = x.RouteId,
-                    RouteName = x.Route != null && !string.IsNullOrWhiteSpace(x.Route.RouteName) ? x.Route.RouteName : "Main Campus Route",
+                    RouteName = x.Route != null && !string.IsNullOrWhiteSpace(x.Route.RouteName) ? x.Route.RouteName : string.Empty,
 
                     VehicleId = x.VehicleId,
                     VehicleNumber = x.Vehicle != null && !string.IsNullOrWhiteSpace(x.Vehicle.VehicleNumber) ? x.Vehicle.VehicleNumber : string.Empty,
@@ -141,10 +137,10 @@ namespace SMS.Api.Repositories.Implementations
                     AttendantId = x.AttendantId,
                     AttendantName = x.Attendant != null && !string.IsNullOrWhiteSpace(x.Attendant.AttendantName) ? x.Attendant.AttendantName : null,
 
-                    BranchName = !string.IsNullOrWhiteSpace(x.BranchName) ? x.BranchName : "Main Campus",
-                    AcademicYear = !string.IsNullOrWhiteSpace(x.AcademicYear) ? x.AcademicYear : "2026-2027",
-                    MorningTripTime = !string.IsNullOrWhiteSpace(x.MorningTripTime) ? x.MorningTripTime : "07:00 AM",
-                    EveningTripTime = !string.IsNullOrWhiteSpace(x.EveningTripTime) ? x.EveningTripTime : "03:45 PM",
+                    BranchName = x.BranchName ?? string.Empty,
+                    AcademicYear = x.AcademicYear ?? string.Empty,
+                    MorningTripTime = x.MorningTripTime ?? string.Empty,
+                    EveningTripTime = x.EveningTripTime ?? string.Empty,
 
                     AssignmentDate = x.AssignmentDate,
                     EffectiveFrom = x.EffectiveFrom,
@@ -170,18 +166,8 @@ namespace SMS.Api.Repositories.Implementations
                 var exists = await _context.TransportAttendants.AnyAsync(a => a.AttendantId == dto.AttendantId.Value && !a.IsDeleted);
                 if (exists)
                 {
-                    RouteCode = "R-01",
-                    RouteName = "Main Campus Route",
-                    StartLocation = "City Center",
-                    EndLocation = "School Campus",
-                    DistanceKm = 10,
-                    EstimatedDurationMinutes = 30,
-                    Status = true,
-                    CreatedAt = DateTime.UtcNow
-                };
-                _context.TransportRoutes.Add(newRoute);
-                await _context.SaveChangesAsync();
-                finalRouteId = newRoute.RouteId;
+                    resolvedAttendantId = dto.AttendantId.Value;
+                }
             }
 
             var candidateAttName = dto.SelectBusAttendant ?? dto.AttendantName ?? dto.BusAttendant;
@@ -216,14 +202,14 @@ namespace SMS.Api.Repositories.Implementations
 
             var entity = new TransportVehicleAssignment
             {
-                RouteId = finalRouteId,
-                VehicleId = finalVehicleId,
-                DriverId = finalDriverId,
-                AttendantId = finalAttendantId,
-                BranchName = !string.IsNullOrWhiteSpace(dto.BranchName) && !dto.BranchName.Equals("string", StringComparison.OrdinalIgnoreCase) ? dto.BranchName.Trim() : "Main Campus",
-                AcademicYear = !string.IsNullOrWhiteSpace(dto.AcademicYear) && !dto.AcademicYear.Equals("string", StringComparison.OrdinalIgnoreCase) ? dto.AcademicYear.Trim() : "2026-2027",
-                MorningTripTime = !string.IsNullOrWhiteSpace(dto.MorningTripTime) && !dto.MorningTripTime.Equals("string", StringComparison.OrdinalIgnoreCase) ? dto.MorningTripTime.Trim() : "07:00 AM",
-                EveningTripTime = !string.IsNullOrWhiteSpace(dto.EveningTripTime) && !dto.EveningTripTime.Equals("string", StringComparison.OrdinalIgnoreCase) ? dto.EveningTripTime.Trim() : "03:45 PM",
+                RouteId = dto.RouteId,
+                VehicleId = dto.VehicleId,
+                DriverId = dto.DriverId,
+                AttendantId = resolvedAttendantId,
+                BranchName = !string.IsNullOrWhiteSpace(dto.BranchName) && !dto.BranchName.Equals("string", StringComparison.OrdinalIgnoreCase) ? dto.BranchName.Trim() : string.Empty,
+                AcademicYear = !string.IsNullOrWhiteSpace(dto.AcademicYear) && !dto.AcademicYear.Equals("string", StringComparison.OrdinalIgnoreCase) ? dto.AcademicYear.Trim() : string.Empty,
+                MorningTripTime = !string.IsNullOrWhiteSpace(dto.MorningTripTime) && !dto.MorningTripTime.Equals("string", StringComparison.OrdinalIgnoreCase) ? dto.MorningTripTime.Trim() : string.Empty,
+                EveningTripTime = !string.IsNullOrWhiteSpace(dto.EveningTripTime) && !dto.EveningTripTime.Equals("string", StringComparison.OrdinalIgnoreCase) ? dto.EveningTripTime.Trim() : string.Empty,
                 AssignmentDate = dto.AssignmentDate != default ? dto.AssignmentDate : DateTime.UtcNow,
                 EffectiveFrom = dto.EffectiveFrom != default ? dto.EffectiveFrom : DateTime.UtcNow,
                 EffectiveTo = dto.EffectiveTo,

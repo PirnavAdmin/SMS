@@ -8,7 +8,7 @@ import { ExportButton } from '../../common/ExportButton';
 import { Pagination } from '../../common/Pagination';
 import { SchoolPrintHeader } from '../../common/SchoolPrintHeader';
 import { SearchableSelect } from '../../common/SearchableSelect';
-import { getHostelBlocks, getRooms, getAllocations, getWardens, HostelBlock, HostelRoom, BedAllocation, WardenRecord } from '../../../api/hostel';
+import { getHostelBlocks, getRooms, getAllocations, getWardens, formatRoomNumber, HostelBlock, HostelRoom, BedAllocation, WardenRecord } from '../../../api/hostel';
 
 const ENTERPRISE_HOSTEL_REPORTS = [
   'Block Report',
@@ -250,7 +250,7 @@ export const HostelReportsView: React.FC = () => {
           const occStatus = avail === 0 ? 'FULL' : occBeds > 0 ? 'PARTIAL' : 'VACANT';
 
           return {
-            'Room Number': `Room #${r.roomNumber || r.roomId}`,
+            'Room Number': formatRoomNumber(r.roomNumber || r.roomId),
             'Hostel Block': blockName,
             'Floor Level': r.floorLevel || 'Ground Floor',
             'Room Type': r.roomType || 'Standard',
@@ -276,7 +276,7 @@ export const HostelReportsView: React.FC = () => {
             'Admission No': a.admissionNo || 'N/A',
             'Student Name': a.studentName || 'Student',
             'Hostel Facility': bName,
-            'Room & Bed': a.roomNumber ? `Room #${a.roomNumber} (${a.bedNumber || 'BED-1'})` : 'Unassigned',
+            'Room & Bed': a.roomNumber ? `${formatRoomNumber(a.roomNumber)} (${a.bedNumber || 'BED-1'})` : 'Unassigned',
             'Assigned Warden': blockObj?.wardenName || 'Unassigned',
             'Joining Date': a.joiningDate ? a.joiningDate.split('T')[0] : 'N/A',
             'Status': a.status || 'Active'

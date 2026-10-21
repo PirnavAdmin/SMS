@@ -35,6 +35,7 @@ import {
 } from "../utils/uniformUtils";
 import { matchesClassName, normalizeClassName, compareClassesAscending } from "../utils/classSorter";
 import { buildTermMonthMap } from "../utils/lateAdmission";
+import { generateTermsFromAcademicYear } from "../utils/academicYearTermUtils";
 import {
   createStaffLetterRecord,
   saveStaffLetterRecord,
@@ -233,9 +234,9 @@ export function normalizeToISODate(dateStr?: string | null): string {
 
 export function normalizeAcademicYear(dateOrAy?: string | null): string {
   if (!dateOrAy || typeof dateOrAy !== "string") return "2026-2027";
-  const trimmed = dateOrAy.trim();
-  if (!trimmed) return "2026-2027";
-  const match = trimmed.match(/^(\d{4})[-/](\d{2,4})$/);
+  const cleaned = dateOrAy.replace(/\s+/g, "");
+  if (!cleaned) return "2026-2027";
+  const match = cleaned.match(/^(\d{4})[-/](\d{2,4})$/);
   if (match) {
     const startYear = parseInt(match[1], 10);
     let endYear = parseInt(match[2], 10);
@@ -245,7 +246,7 @@ export function normalizeAcademicYear(dateOrAy?: string | null): string {
     }
     return `${startYear}-${endYear}`;
   }
-  return trimmed;
+  return cleaned;
 }
 
 export function matchesAcademicYear(ay1?: string | null, ay2?: string | null): boolean {
@@ -357,7 +358,7 @@ import {
 } from "../api/admission";
 import * as TransportAPI from "../api/transport";
 import * as FinanceAPI from "../api/finance";
-import { getHostelBlocks, getRooms } from "../api/hostel";
+import { getHostelBlocks, getRooms, formatRoomNumber } from "../api/hostel";
 import {
   BusAttendantMaster,
   initialBusAttendants,
@@ -988,6 +989,7 @@ interface DataContextType {
     optStudentOrYear?: Student | AdmissionApplication | string,
     targetAcademicYear?: string,
   ) => StudentFeeLedger;
+  getDynamicTransportFee: (activeTa: any) => number;
   getStudentFeeOutstandingSummary: (
     studentId: string,
   ) => StudentFeeOutstandingSummary;
@@ -1536,12 +1538,23 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     getStored("fee_structures", initialFeeStructures),
   );
   const [feePayments, setFeePayments] = useState<FeePayment[]>(() => {
-    const versionKey = "edu_db_fee_payments_wipe_orphan_v1000";
-    const stored = getStored<FeePayment[]>("fee_payments", initialFeePayments);
-    
+    const rawStored = getStored<FeePayment[]>("fee_payments", initialFeePayments) || [];
+    const seen = new Set<string>();
+    const deduplicated = rawStored.filter((p) => {
+      if (!p) return false;
+      const key = (p.receiptNo && String(p.receiptNo).trim())
+        ? `REC_${String(p.receiptNo).trim()}`
+        : `ID_${String(p.id).trim()}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+
+    const versionKey = "edu_db_fee_payments_wipe_overpayment_v1006";
     if (!localStorage.getItem(versionKey)) {
-      const cleaned = (stored || []).filter((p) => {
+      const cleaned = deduplicated.filter((p) => {
         if (!p) return false;
+        if (p.receiptNo === "REC-2026-2500" || p.receiptNo === "REC-2026-3209" || p.id === "2" || (p.amountPaid === 5000 && (p.studentId === "2" || p.admissionNo === "ADM-2026-2001"))) return false;
         if (p.studentId === "1204" || p.receiptNo === "REC-2026-3912" || p.id === "3912") return false;
         if (!p.studentName || p.studentName.startsWith("Student #")) return false;
         const notesLower = (p.notes || "").toLowerCase();
@@ -1561,7 +1574,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       localStorage.setItem("fee_payments", JSON.stringify(cleaned));
       return cleaned;
     }
-    return stored;
+    return deduplicated;
   });
   const [attendance, setAttendance] = useState<DailyAttendance[]>([]);
   const [lastAttendancePayload, setLastAttendancePayload] = useState<any>(null);
@@ -2132,17 +2145,27 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   );
 
   // Transport ERP System States
-  const [routeMasters, setRouteMasters] = useState<RouteMaster[]>([]);
-  const [pickupPoints, setPickupPoints] = useState<PickupPoint[]>([]);
-  const [vehicleMasters, setVehicleMasters] = useState<VehicleMaster[]>([]);
-  const [driverMasters, setDriverMasters] = useState<DriverMaster[]>([]);
-  const [busAttendants, setBusAttendants] = useState<BusAttendantMaster[]>([]);
-  const [vehicleAssignments, setVehicleAssignments] = useState<
-    VehicleAssignment[]
-  >([]);
-  const [vehicleMaintenances, setVehicleMaintenances] = useState<
-    VehicleMaintenance[]
-  >([]);
+  const [routeMasters, setRouteMasters] = useState<RouteMaster[]>(() =>
+    getStored("edu_db_route_masters", getStored("route_masters", [])),
+  );
+  const [pickupPoints, setPickupPoints] = useState<PickupPoint[]>(() =>
+    getStored("edu_db_pickup_points", getStored("pickup_points", [])),
+  );
+  const [vehicleMasters, setVehicleMasters] = useState<VehicleMaster[]>(() =>
+    getStored("edu_db_vehicle_masters", getStored("vehicle_masters", [])),
+  );
+  const [driverMasters, setDriverMasters] = useState<DriverMaster[]>(() =>
+    getStored("edu_db_driver_masters", getStored("driver_masters", [])),
+  );
+  const [busAttendants, setBusAttendants] = useState<BusAttendantMaster[]>(() =>
+    getStored("edu_db_bus_attendants", getStored("bus_attendants", [])),
+  );
+  const [vehicleAssignments, setVehicleAssignments] = useState<VehicleAssignment[]>(() =>
+    getStored("edu_db_vehicle_assignments", getStored("vehicle_assignments", [])),
+  );
+  const [vehicleMaintenances, setVehicleMaintenances] = useState<VehicleMaintenance[]>(() =>
+    getStored("edu_db_vehicle_maintenances", getStored("vehicle_maintenances", [])),
+  );
 
   // Hostel ERP System States
   const [roomTypeMasters, setRoomTypeMasters] = useState<RoomTypeMaster[]>(() =>
@@ -2234,156 +2257,20 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       "academic_year_fee_schedules",
       [],
     );
-    const version = localStorage.getItem("edu_db_schedules_v64");
-    if (!version || stored.length < 3 || !stored[0]?.monthlyConfig) {
-      localStorage.setItem("edu_db_schedules_v64", "true");
-      const seeded: AcademicYearFeeSchedule[] = [
-        {
-          id: "SCH-2026-2027",
-          academicYear: "2026-2027",
-          numberOfTerms: 4,
-          status: "Active",
-          monthlyConfig: buildDefaultMonthlyConfig("2026-2027", 10),
-          annualDueDate: "2026-04-15",
-          oneTimeDueDate: "2026-04-15",
-          terms: [
-            {
-              id: "T1-2026-2027",
-              termName: "Term 1",
-              startDate: "2026-04-01",
-              endDate: "2026-06-30",
-              dueDate: "2026-04-15",
-              sequence: 1,
-              status: "Active",
-            },
-            {
-              id: "T2-2026-2027",
-              termName: "Term 2",
-              startDate: "2026-07-01",
-              endDate: "2026-09-30",
-              dueDate: "2026-07-15",
-              sequence: 2,
-              status: "Active",
-            },
-            {
-              id: "T3-2026-2027",
-              termName: "Term 3",
-              startDate: "2026-10-01",
-              endDate: "2026-12-31",
-              dueDate: "2026-10-15",
-              sequence: 3,
-              status: "Active",
-            },
-            {
-              id: "T4-2026-2027",
-              termName: "Term 4",
-              startDate: "2027-01-01",
-              endDate: "2027-03-31",
-              dueDate: "2027-01-15",
-              sequence: 4,
-              status: "Active",
-            },
-          ],
-        },
-        {
-          id: "SCH-2025-2026",
-          academicYear: "2025-2026",
-          numberOfTerms: 4,
-          status: "Active",
-          monthlyConfig: buildDefaultMonthlyConfig("2025-2026", 10),
-          annualDueDate: "2025-04-15",
-          oneTimeDueDate: "2025-04-15",
-          terms: [
-            {
-              id: "T1-2025-2026",
-              termName: "Term 1",
-              startDate: "2025-04-01",
-              endDate: "2025-06-30",
-              dueDate: "2025-04-15",
-              sequence: 1,
-              status: "Active",
-            },
-            {
-              id: "T2-2025-2026",
-              termName: "Term 2",
-              startDate: "2025-07-01",
-              endDate: "2025-09-30",
-              dueDate: "2025-07-15",
-              sequence: 2,
-              status: "Active",
-            },
-            {
-              id: "T3-2025-2026",
-              termName: "Term 3",
-              startDate: "2025-10-01",
-              endDate: "2025-12-31",
-              dueDate: "2025-10-15",
-              sequence: 3,
-              status: "Active",
-            },
-            {
-              id: "T4-2025-2026",
-              termName: "Term 4",
-              startDate: "2026-01-01",
-              endDate: "2026-03-31",
-              dueDate: "2026-01-15",
-              sequence: 4,
-              status: "Active",
-            },
-          ],
-        },
-        {
-          id: "SCH-2024-2025",
-          academicYear: "2024-2025",
-          numberOfTerms: 4,
-          status: "Active",
-          terms: [
-            {
-              id: "T1-2024-2025",
-              termName: "Term 1",
-              startDate: "2024-04-01",
-              endDate: "2024-06-30",
-              dueDate: "2024-06-15",
-              sequence: 1,
-              status: "Active",
-            },
-            {
-              id: "T2-2024-2025",
-              termName: "Term 2",
-              startDate: "2024-07-01",
-              endDate: "2024-09-30",
-              dueDate: "2024-09-15",
-              sequence: 2,
-              status: "Active",
-            },
-            {
-              id: "T3-2024-2025",
-              termName: "Term 3",
-              startDate: "2024-10-01",
-              endDate: "2024-12-31",
-              dueDate: "2024-12-15",
-              sequence: 3,
-              status: "Active",
-            },
-            {
-              id: "T4-2024-2025",
-              termName: "Term 4",
-              startDate: "2025-01-01",
-              endDate: "2025-03-31",
-              dueDate: "2025-03-15",
-              sequence: 4,
-              status: "Active",
-            },
-          ],
-        },
-      ];
-      localStorage.setItem(
-        "academic_year_fee_schedules",
-        JSON.stringify(seeded),
-      );
-      return seeded;
-    }
-    return stored;
+    // Sanitize stored schedules: strip out any stale mock schedules with legacy hardcoded 04-15 dates
+    const cleanStored = Array.isArray(stored)
+      ? stored.filter(
+          (s) =>
+            s &&
+            !s.terms?.some(
+              (t) =>
+                t.dueDate?.includes("04-15") ||
+                t.dueDate?.includes("2026-04") ||
+                t.dueDate?.includes("2025-04"),
+            ),
+        )
+      : [];
+    return cleanStored;
   });
 
   // Student Fee Installments State
@@ -2446,15 +2333,13 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           0,
         );
 
+      const finalPaid = Math.min(ledger.totalPayable, Math.max(0, (ledger.paidAmount || 0) - (ledger.paidAmount > 0 ? uniformPaid : 0)));
+      const finalDue = Math.max(0, ledger.totalPayable - finalPaid);
       return {
         ...ledger,
         feeItems: sanitizedItems,
-        paidAmount: Math.max(
-          0,
-          (ledger.paidAmount || 0) - (ledger.paidAmount > 0 ? uniformPaid : 0),
-        ),
-        dueBalance:
-          (ledger.dueBalance || 0) + (ledger.paidAmount > 0 ? uniformPaid : 0),
+        paidAmount: finalPaid,
+        dueBalance: finalDue,
       };
     });
   });
@@ -2462,7 +2347,23 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   // Master Finance Ledger & Transactions States
   const [financeTransactions, setFinanceTransactions] = useState<
     FinanceTransaction[]
-  >(() => getStored("finance_transactions", initialFinanceTransactions));
+  >(() => {
+    const rawStored = getStored<FinanceTransaction[]>("finance_transactions", initialFinanceTransactions) || [];
+    const seenRefs = new Set<string>();
+    const seenIds = new Set<string>();
+    const deduped: FinanceTransaction[] = [];
+    for (const t of rawStored) {
+      if (!t) continue;
+      const ref = (t.referenceNumber || "").trim();
+      const tid = (t.transactionId || t.id || "").trim();
+      if (ref && seenRefs.has(ref)) continue;
+      if (tid && seenIds.has(tid)) continue;
+      if (ref) seenRefs.add(ref);
+      if (tid) seenIds.add(tid);
+      deduped.push(t);
+    }
+    return deduped;
+  });
   const [financialAccounts, setFinancialAccounts] = useState<
     FinancialAccount[]
   >(() => getStored("financial_accounts", getStored("edu_db_financial_accounts", initialFinancialAccounts)));
@@ -3293,14 +3194,6 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
 
   // Fetch API data on mount
   useEffect(() => {
-    const allowedTransportRoles = [
-      "Super Admin",
-      "Admin",
-      "Transport Manager",
-      "Principal",
-      "Receptionist",
-    ];
-    if (!isAuthenticated || !allowedTransportRoles.includes(role)) return;
     const fetchTransportData = async () => {
       try {
         const results = await Promise.allSettled([
@@ -5048,14 +4941,23 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
               s.mobileNumber ||
               s.phone ||
               "";
+
+            const admNo = s.admissionNumber || s.admissionNo || "";
+            const regNo = s.registrationNumber || admNo;
+            const sIdStr = s.studentId?.toString() || s.id?.toString() || "";
+            const cleanSName = (s.studentName || s.name || "").trim().toLowerCase();
+
+            const matchingAdmission = (admissions || []).find((a) =>
+              (a.admissionNo && (a.admissionNo === admNo || a.admissionNo === regNo)) ||
+              (a.registrationNo && (a.registrationNo === regNo || a.registrationNo === admNo)) ||
+              (a.id && (a.id === sIdStr)) ||
+              (cleanSName && a.applicantName && a.applicantName.trim().toLowerCase() === cleanSName)
+            );
+
             return {
-              id: s.studentId?.toString() || s.id?.toString() || "",
-              admissionNo: s.admissionNumber || s.admissionNo || "",
-              registrationNumber:
-                s.registrationNumber ||
-                s.admissionNumber ||
-                s.admissionNo ||
-                "",
+              id: sIdStr,
+              admissionNo: admNo,
+              registrationNumber: regNo,
               firstName,
               middleName: s.middleName || "",
               lastName,
@@ -5073,7 +4975,11 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
               academicYear: s.academicYearName || s.academicYear || "",
               branch: s.branchName || s.branch || "",
               status: s.status || "Active",
-              studentType: s.studentType || "Day Scholar",
+              studentType: s.studentType || matchingAdmission?.studentType || "Day Scholar",
+              transportRequired: Boolean(s.transportRequired ?? matchingAdmission?.transportRequired),
+              transportType: s.transportType || matchingAdmission?.transportType || "",
+              busRoute: s.busRoute || matchingAdmission?.busRoute || "",
+              pickupPoint: s.pickupPoint || matchingAdmission?.pickupPoint || "",
               parentName,
               parentPhone,
               fatherName: s.fatherName || parentName,
@@ -5628,7 +5534,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           FinanceAPI.fetchFinancialAccountsApi(),
           FinanceAPI.fetchFinancialCategoriesApi(),
           FinanceAPI.fetchFinancialBudgetsApi(selectedBranch, selectedAcademicYear),
-          FinanceAPI.fetchFeeScheduleConfigApi("2026-2027"),
+          FinanceAPI.fetchFeeScheduleConfigApi(normalizeAcademicYear(selectedAcademicYear || "2026-2027")),
           FinanceAPI.fetchScholarshipsApi(),
           FinanceAPI.fetchStudentScholarshipsApi(),
           FinanceAPI.fetchDiscountsApi(),
@@ -5696,19 +5602,19 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
             ? feeScheduleRes.value?.data || feeScheduleRes.value
             : null;
         if (apiFeeSchedule && apiFeeSchedule.terms && apiFeeSchedule.terms.length > 0) {
-          const ay = apiFeeSchedule.academicYear || "2026-2027";
+          const ay = normalizeAcademicYear(apiFeeSchedule.academicYear || "2026-2027");
           const loadedSchedule: AcademicYearFeeSchedule = {
             id: apiFeeSchedule.id || `SCH-${ay}`,
             academicYear: ay,
-            numberOfTerms: apiFeeSchedule.numberOfTerms || 4,
+            numberOfTerms: apiFeeSchedule.numberOfTerms || apiFeeSchedule.terms.length,
             status: apiFeeSchedule.status || "Active",
-            annualDueDate: apiFeeSchedule.annualDueDate || "2026-04-15",
-            oneTimeDueDate: apiFeeSchedule.oneTimeDueDate || "2026-04-15",
+            annualDueDate: apiFeeSchedule.annualDueDate || apiFeeSchedule.terms[0]?.dueDate || "",
+            oneTimeDueDate: apiFeeSchedule.oneTimeDueDate || apiFeeSchedule.terms[0]?.dueDate || "",
             terms: apiFeeSchedule.terms,
             monthlyConfig: apiFeeSchedule.monthlyConfig,
           };
           setAcademicYearFeeSchedules((prev) => [
-            ...prev.filter((s) => s.academicYear !== ay),
+            ...prev.filter((s) => !matchesAcademicYear(s.academicYear, ay)),
             loadedSchedule,
           ]);
         }
@@ -5819,40 +5725,30 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         }
         if (structsRes.status === "fulfilled") {
           const apiStructs = Array.isArray(structs) ? structs : [];
-          const activeHeadIds = new Set(cleanHeads.map((h: any) => String(h.id)));
-          const activeHeadNames = new Set(cleanHeads.map((h: any) => (h.name || "").trim().toLowerCase()));
+          const activeHeadIds = new Set(cleanHeads.map((h: any) => String(h.id).trim().toLowerCase()));
+          const activeHeadCodes = new Set(cleanHeads.map((h: any) => (h.code || "").trim().toLowerCase()).filter(Boolean));
+          const activeHeadNames = new Set(cleanHeads.map((h: any) => (h.name || "").trim().toLowerCase()).filter(Boolean));
 
-          const validStructs = apiStructs
-            .map((s: any) => {
-              const cat = (s.category || s.feeCategory || s.targetAudience || "").trim().toLowerCase();
-              const isTuitionOrOthers = cat === "" || cat === "tuition" || cat === "tuition fee" || cat === "others" || cat === "other" || cat === "general";
-              if (!isTuitionOrOthers) return s;
+          const validStructs = apiStructs.map((s: any) => {
+            const currentItems = s.items || [];
+            const validItems = cleanHeads.length > 0
+              ? currentItems.filter((item: any) => {
+                  const iId = String(item.feeHeadId || item.headId || "").trim().toLowerCase();
+                  const iName = (item.feeHeadName || item.name || "").trim().toLowerCase();
+                  const idMatch = iId && (activeHeadIds.has(iId) || activeHeadCodes.has(iId));
+                  const nameMatch = iName && activeHeadNames.has(iName);
+                  return idMatch || nameMatch;
+                })
+              : currentItems;
 
-              const validItems = (cleanHeads.length > 0 && (activeHeadIds.size > 0 || activeHeadNames.size > 0))
-                ? (s.items || []).filter((item: any) => {
-                    const idMatch = item.feeHeadId && activeHeadIds.has(String(item.feeHeadId));
-                    const nameMatch = item.feeHeadName && activeHeadNames.has(item.feeHeadName.trim().toLowerCase());
-                    return idMatch || nameMatch;
-                  })
-                : (s.items || []);
+            const newTotal = validItems.reduce((sum: number, it: any) => sum + (Number(it.amount) || 0), 0);
 
-              const finalItems = (validItems.length > 0) ? validItems : (s.items || []);
-
-              if (finalItems.length === 0 && Number(s.totalAmount || 0) <= 0) {
-                return null;
-              }
-
-              const newTotal = finalItems.length > 0
-                ? finalItems.reduce((sum: number, it: any) => sum + (Number(it.amount) || 0), 0)
-                : Number(s.totalAmount || 0);
-
-              return {
-                ...s,
-                items: finalItems,
-                totalAmount: newTotal,
-              };
-            })
-            .filter(Boolean);
+            return {
+              ...s,
+              items: validItems,
+              totalAmount: newTotal,
+            };
+          });
 
           setDynamicFeeStructures(validStructs);
           try {
@@ -5862,7 +5758,16 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         }
         setDbAssignments(assignments);
         if (paymentsRes.status === "fulfilled") {
-          const freshPayments = Array.isArray(payments) ? payments : [];
+          const rawPayments = Array.isArray(payments) ? payments : [];
+          const seenKeys = new Set<string>();
+          const freshPayments = rawPayments.filter((p: any) => {
+            if (!p) return false;
+            const rNo = (p.receiptNo && String(p.receiptNo).trim());
+            const key = rNo ? `REC_${rNo}` : `ID_${String(p.id).trim()}`;
+            if (seenKeys.has(key)) return false;
+            seenKeys.add(key);
+            return true;
+          });
           setFeePayments((prev) => {
             if (freshPayments.length === 0) return [];
             return freshPayments.map((p: any) => {
@@ -5966,7 +5871,6 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
             setHostelRooms(mappedRooms);
             try {
               localStorage.setItem("hostel", JSON.stringify(mappedRooms));
-              localStorage.setItem("edu_db_hostel_rooms", JSON.stringify(mappedRooms));
             } catch (e) {}
           }
         } catch (e) {}
@@ -6047,8 +5951,21 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           }),
         );
 
+        const seenTxnRefs = new Set<string>();
+        const seenTxnIds = new Set<string>();
+        const uniqueApiTxns: any[] = [];
+        for (const item of (Array.isArray(apiTxns) ? apiTxns : [])) {
+          const tId = String(item.transactionId || item.id || "").trim();
+          const ref = String(item.referenceNumber || "").trim();
+          if (ref && seenTxnRefs.has(ref)) continue;
+          if (tId && seenTxnIds.has(tId)) continue;
+          if (ref) seenTxnRefs.add(ref);
+          if (tId) seenTxnIds.add(tId);
+          uniqueApiTxns.push(item);
+        }
+
         setFinanceTransactions(
-          apiTxns.map((item: any) => {
+          uniqueApiTxns.map((item: any) => {
             const tId = item.transactionId || `TXN-${item.id}`;
             return {
               id: String(item.id || tId),
@@ -8864,7 +8781,6 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           (clsData as any).campus ||
           (clsData as any).branch ||
           dynamicBranch,
-          (clsData as any).branch || (selectedBranch && selectedBranch !== "All" && selectedBranch !== "All Branches" ? selectedBranch : "") || "",
         academic_year:
           (clsData as any).academicYear || dynamicYear,
         display_order: (clsData as any).displayOrder,
@@ -9681,20 +9597,16 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   const addFeePayment = (
     paymentData: Omit<FeePayment, "id" | "receiptNo">,
   ): FeePayment => {
+    if (!paymentData || paymentData.amountPaid <= 0) {
+      console.warn("Attempted to add payment with amount <= 0, aborted");
+      return null as any;
+    }
     const receiptNo =
       (paymentData as any).receiptNo ||
       financeSettings.receiptPrefix + Math.floor(1000 + Math.random() * 9000);
     const id = "PAY-" + Math.floor(100 + Math.random() * 900);
     const activeAY =
       selectedAcademicYear || financeSettings?.academicYear || "2026-2027";
-
-    FinanceAPI.createFeePaymentApi({ ...paymentData, receiptNo } as any)
-      .then(() => {
-        fetchFinanceData().catch(() => {});
-      })
-      .catch((err) => {
-        console.warn("Fee payment API failed, continuing with local state", err);
-      });
 
     const targetStudentId = paymentData.studentId;
     const targetAdmissionNo = (paymentData as any).admissionNo;
@@ -9759,6 +9671,28 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
               (i.feeHeadName?.toLowerCase().trim() === allocItem.feeHeadName?.toLowerCase().trim() ||
                 (allocItem.termName && i.termName?.toLowerCase().trim() === allocItem.termName?.toLowerCase().trim())),
           );
+        }
+
+        if (instIndex === -1 && allocItem.amount > 0) {
+          const synthInst: StudentFeeInstallment = {
+            id: allocItem.installmentId || `INST-${targetStudentId}-${activeAY}-${allocItem.feeHeadName}`,
+            studentId: targetStudentId,
+            academicYear: activeAY,
+            feeAssignmentId: `FA-PAY-${targetStudentId}`,
+            feeHeadId: allocItem.feeHeadName?.toLowerCase().includes("transport") ? "FH-TRP" : "FH-GEN",
+            feeHeadName: allocItem.feeHeadName || "Fee Head",
+            frequency: "One Time",
+            termName: allocItem.termName || "Term",
+            dueDate: new Date().toISOString().split("T")[0],
+            amount: allocItem.amount,
+            paidAmount: 0,
+            dueAmount: allocItem.amount,
+            status: "Pending",
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+          };
+          nextInstallments.push(synthInst);
+          instIndex = nextInstallments.length - 1;
         }
 
         if (instIndex !== -1) {
@@ -9984,14 +9918,21 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     } as any;
 
     setFeePayments((prev) => {
-      const next = [newPayment, ...prev];
+      const filtered = prev.filter(
+        (p) => p.id !== newPayment.id && (!newPayment.receiptNo || p.receiptNo !== newPayment.receiptNo)
+      );
+      const next = [newPayment, ...filtered];
       localStorage.setItem("edu_db_fee_payments", JSON.stringify(next));
       return next;
     });
 
-    FinanceAPI.createFeePaymentApi(newPayment).catch((err: any) => {
-      console.warn("Backend create fee payment fallback to local state", err);
-    });
+    FinanceAPI.createFeePaymentApi(newPayment)
+      .then(() => {
+        fetchFinanceData().catch(() => {});
+      })
+      .catch((err: any) => {
+        console.warn("Backend create fee payment fallback to local state", err);
+      });
 
     const student = students.find(
       (s) =>
@@ -10010,16 +9951,16 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
 
     if (ledgerIndex !== -1) {
       const ledger = { ...nextLedgers[ledgerIndex] };
-      const newPaid = (ledger.paidAmount || 0) + paymentData.amountPaid;
       const payable = ledger.totalPayable || ledger.grossAmount || 0;
+      const newPaid = Math.min(payable, (ledger.paidAmount || 0) + paymentData.amountPaid);
       ledger.paidAmount = newPaid;
       ledger.dueBalance = Math.max(0, payable - newPaid);
       ledger.updatedAt = new Date().toISOString().split("T")[0];
       nextLedgers[ledgerIndex] = ledger;
     } else {
       const freshLedger = getStudentFeeLedger(paymentData.studentId, activeAY);
-      const newPaid = (freshLedger.paidAmount || 0) + paymentData.amountPaid;
       const payable = freshLedger.totalPayable || freshLedger.grossAmount || 0;
+      const newPaid = Math.min(payable, (freshLedger.paidAmount || 0) + paymentData.amountPaid);
       const updatedFresh = {
         ...freshLedger,
         paidAmount: newPaid,
@@ -10115,7 +10056,12 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       ],
     };
 
-    setFinanceTransactions((prev) => [autoLedgerTxn, ...prev]);
+    setFinanceTransactions((prev) => {
+      const filtered = prev.filter(
+        (t) => !(newPayment.receiptNo && t.referenceNumber === newPayment.receiptNo)
+      );
+      return [autoLedgerTxn, ...filtered];
+    });
 
     // Update Financial Account Balance
     setFinancialAccounts((prev) =>
@@ -10752,38 +10698,30 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       return next;
     });
 
-    // Cascade deletion to dynamic fee structures
+    // Cascade deletion to dynamic fee structures (fee structure container remains, only deleted fee head item is removed)
     setDynamicFeeStructures((prev) => {
-      const updated = prev
-        .map((s) => {
-          const items = s.items || [];
-          const remainingItems = items.filter((item) => {
-            const matchesId = String(item.feeHeadId) === stringId;
-            const matchesName = targetHeadName && item.feeHeadName && item.feeHeadName.trim().toLowerCase() === targetHeadName;
-            return !matchesId && !matchesName;
-          });
+      const updated = prev.map((s) => {
+        const items = s.items || [];
+        const remainingItems = items.filter((item) => {
+          const iHeadId = String(item.feeHeadId || (item as any).headId || "").trim().toLowerCase();
+          const iHeadName = (item.feeHeadName || (item as any).name || "").trim().toLowerCase();
+          const matchesId = iHeadId === stringId.toLowerCase() || (targetHead?.code && iHeadId === targetHead.code.trim().toLowerCase());
+          const matchesName = Boolean(targetHeadName && iHeadName === targetHeadName);
+          return !matchesId && !matchesName;
+        });
 
-          // If no items were removed, retain as is
-          if (remainingItems.length === items.length) {
-            return s;
-          }
+        // If no items were removed, retain as is
+        if (remainingItems.length === items.length) {
+          return s;
+        }
 
-          const cat = (s.category || s.feeCategory || s.targetAudience || "").trim().toLowerCase();
-          const isTuitionOrOthers = cat === "" || cat === "tuition" || cat === "tuition fee" || cat === "others" || cat === "other" || cat === "general";
-
-          // If all items were removed from tuition/others structure, remove the structure
-          if (remainingItems.length === 0 && isTuitionOrOthers) {
-            return null;
-          }
-
-          const newTotal = remainingItems.reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
-          return {
-            ...s,
-            items: remainingItems,
-            totalAmount: newTotal,
-          };
-        })
-        .filter(Boolean) as DynamicFeeStructure[];
+        const newTotal = remainingItems.reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
+        return {
+          ...s,
+          items: remainingItems,
+          totalAmount: newTotal,
+        };
+      });
 
       const remainingStructIds = new Set(updated.map((s) => String(s.id)));
       setStudentFeeAssignments((prevAssignments) => {
@@ -10833,6 +10771,14 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         localStorage.setItem("dynamic_fee_structures", JSON.stringify(updated));
         localStorage.setItem("edu_db_dynamic_fee_structures", JSON.stringify(updated));
       } catch (e) {}
+
+      // Persist updated fee structures to backend so changes are saved in MySQL
+      updated.forEach((s) => {
+        if (s.id) {
+          FinanceAPI.updateDynamicFeeStructureApi(String(s.id), s as any).catch(() => {});
+        }
+      });
+
       return updated;
     });
 
@@ -11179,11 +11125,10 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       );
       proRataFactor = remainingMonths / 12;
     } else if (
-      (feePolicy === "Term-wise" || feePolicy === "Term-wise Fee") &&
-      admissionDate
+      feePolicy === "Term-wise" ||
+      feePolicy === "Term-wise Fee"
     ) {
-      const admMonth = new Date(admissionDate).getMonth() + 1;
-      proRataFactor = admMonth <= 9 ? 0.67 : 0.33;
+      proRataFactor = 1.0;
     }
 
     dfs.items.forEach((item) => {
@@ -11824,7 +11769,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     setRoomMasters((prev) => [newRm, ...prev]);
     logActivity(
       "Added Room Master",
-      `Created room #${newRm.roomNumber} in ${newRm.hostelName}`,
+      `Created ${formatRoomNumber(newRm.roomNumber)} in ${newRm.hostelName}`,
     );
   };
 
@@ -11852,7 +11797,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     ]);
     logActivity(
       "Assigned Student Hostel Room",
-      `Assigned ${newSha.studentName} to Room #${newSha.roomNo}`,
+      `Assigned ${newSha.studentName} to ${formatRoomNumber(newSha.roomNo)}`,
     );
     setTimeout(() => generateStudentFeeLedger(newSha.studentId), 50);
   };
@@ -12149,6 +12094,39 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   // FEE SCHEDULING & INSTALLMENT DISTRIBUTION RULES
   // ==========================================
 
+  const findActiveStudentFeeAssignment = (
+    sId: string,
+    stObj?: Student | AdmissionApplication,
+    ay?: string,
+  ): StudentFeeAssignment | undefined => {
+    const normSId = String(sId || "").trim().toLowerCase();
+    const resolvedSt = stObj ||
+      students.find((s) => String(s.id).toLowerCase() === normSId || (s.admissionNo && String(s.admissionNo).toLowerCase() === normSId)) ||
+      admissions.find((a) => String(a.id).toLowerCase() === normSId || (a.applicationNo && String(a.applicationNo).toLowerCase() === normSId) || ((a as any).registrationNo && String((a as any).registrationNo).toLowerCase() === normSId));
+
+    const stAdm = String((resolvedSt as any)?.admissionNo || "").trim().toLowerCase();
+    const stApp = String((resolvedSt as any)?.applicationNo || "").trim().toLowerCase();
+    const stReg = String((resolvedSt as any)?.registrationNo || "").trim().toLowerCase();
+    const rawStName = `${(resolvedSt as any)?.firstName || (resolvedSt as any)?.applicantName || ""} ${(resolvedSt as any)?.lastName || ""}`.trim().toLowerCase();
+    const stName = rawStName && rawStName !== "student" && rawStName !== "enrolled student" ? rawStName : "";
+
+    return studentFeeAssignments.find((a) => {
+      if (a.status !== "Active" && a.status !== undefined) return false;
+      if (ay && a.academicYear && !matchesAcademicYear(a.academicYear, ay)) return false;
+
+      const aSid = String(a.studentId || "").trim().toLowerCase();
+      const aAdm = String(a.admissionNo || "").trim().toLowerCase();
+      const aName = String(a.studentName || "").trim().toLowerCase();
+
+      if (normSId && (aSid === normSId || aAdm === normSId)) return true;
+      if (stAdm && (aSid === stAdm || aAdm === stAdm)) return true;
+      if (stApp && (aSid === stApp || aAdm === stApp)) return true;
+      if (stReg && (aSid === stReg || aAdm === stReg)) return true;
+      if (stName && aName && aName !== "student" && (stName === aName || stName.includes(aName) || aName.includes(stName))) return true;
+      return false;
+    });
+  };
+
   const generateInstallmentsForStudent = (
     studentId: string,
     academicYear: string,
@@ -12156,108 +12134,30 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     ledger: StudentFeeLedger,
   ): StudentFeeInstallment[] => {
     let schedule = academicYearFeeSchedules.find(
-      (s) => s.academicYear === academicYear,
+      (s) => matchesAcademicYear(s.academicYear, academicYear),
     );
-    if (!schedule && academicYearFeeSchedules.length > 0) {
-      const baseSchedule = academicYearFeeSchedules[0];
-      const targetStartYear = parseInt(academicYear.split("-")[0]) || 2024;
-      const baseStartYear =
-        parseInt(baseSchedule.academicYear.split("-")[0]) || 2026;
-      const yearDiff = targetStartYear - baseStartYear;
-
-      const shiftDate = (dateStr: string): string => {
-        if (!dateStr) return "";
-        const parts = dateStr.split("-");
-        if (parts.length !== 3) return dateStr;
-        const y = parseInt(parts[0]);
-        return `${y + yearDiff}-${parts[1]}-${parts[2]}`;
-      };
-
-      schedule = {
-        ...baseSchedule,
-        academicYear,
-        id: `SCH-VIRTUAL-${academicYear}`,
-        terms: baseSchedule.terms.map((t) => ({
-          ...t,
-          id: `${t.id}-virtual-${academicYear}`,
-          startDate: shiftDate(t.startDate),
-          endDate: shiftDate(t.endDate),
-          dueDate: shiftDate(t.dueDate),
-        })),
-        monthlyConfig: baseSchedule.monthlyConfig
-          ? {
-              ...baseSchedule.monthlyConfig,
-              monthDueDates: baseSchedule.monthlyConfig.monthDueDates.map(
-                (m) => ({
-                  ...m,
-                  dueDate: shiftDate(m.dueDate),
-                }),
-              ),
-            }
-          : undefined,
-        annualDueDate: baseSchedule.annualDueDate
-          ? shiftDate(baseSchedule.annualDueDate)
-          : undefined,
-        oneTimeDueDate: baseSchedule.oneTimeDueDate
-          ? shiftDate(baseSchedule.oneTimeDueDate)
-          : undefined,
-      };
-    }
 
     const ayStartYear = parseInt(academicYear.split("-")[0]) || 2026;
+    const currentAYMaster = academicYears.find(a => matchesAcademicYear(a.academicYear, academicYear));
+    const ayStartStr = currentAYMaster?.startDate || `${ayStartYear}-06-01`;
+    const ayEndStr = currentAYMaster?.endDate || `${ayStartYear + 1}-05-31`;
+
+    const dynamicGeneratedTerms: FeeScheduleTerm[] = (schedule?.terms && schedule.terms.length > 0)
+      ? [...schedule.terms].sort((a, b) => a.sequence - b.sequence)
+      : generateTermsFromAcademicYear({ startDate: ayStartStr, endDate: ayEndStr, academicYear }, 4, 45);
 
     const monthlyConfig =
       schedule?.monthlyConfig || buildDefaultMonthlyConfig(academicYear, 10);
     const annualDueDate =
       schedule?.annualDueDate ||
-      schedule?.terms[0]?.dueDate ||
-      `${ayStartYear}-04-15`;
+      dynamicGeneratedTerms[0]?.dueDate ||
+      ayStartStr;
     const oneTimeDueDate =
       schedule?.oneTimeDueDate ||
-      schedule?.terms[0]?.dueDate ||
-      `${ayStartYear}-04-15`;
+      dynamicGeneratedTerms[0]?.dueDate ||
+      ayStartStr;
 
-    const terms =
-      schedule?.terms && schedule.terms.length > 0
-        ? [...schedule.terms].sort((a, b) => a.sequence - b.sequence)
-        : [
-            {
-              id: `T1-${academicYear}`,
-              termName: "Term 1",
-              startDate: `${ayStartYear}-04-01`,
-              endDate: `${ayStartYear}-06-30`,
-              dueDate: `${ayStartYear}-04-15`,
-              sequence: 1,
-              status: "Active" as const,
-            },
-            {
-              id: `T2-${academicYear}`,
-              termName: "Term 2",
-              startDate: `${ayStartYear}-07-01`,
-              endDate: `${ayStartYear}-09-30`,
-              dueDate: `${ayStartYear}-07-15`,
-              sequence: 2,
-              status: "Active" as const,
-            },
-            {
-              id: `T3-${academicYear}`,
-              termName: "Term 3",
-              startDate: `${ayStartYear}-10-01`,
-              endDate: `${ayStartYear}-12-31`,
-              dueDate: `${ayStartYear}-10-15`,
-              sequence: 3,
-              status: "Active" as const,
-            },
-            {
-              id: `T4-${academicYear}`,
-              termName: "Term 4",
-              startDate: `${ayStartYear + 1}-01-01`,
-              endDate: `${ayStartYear + 1}-03-31`,
-              dueDate: `${ayStartYear + 1}-01-15`,
-              sequence: 4,
-              status: "Active" as const,
-            },
-          ];
+    const terms: FeeScheduleTerm[] = dynamicGeneratedTerms;
 
     const student = students.find(
       (s) =>
@@ -12275,6 +12175,14 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
             student.admissionNo === (a as any).registrationNo)),
     );
 
+    const activeAssignment =
+      assignment ||
+      findActiveStudentFeeAssignment(
+        studentId,
+        student || admApp,
+        academicYear,
+      );
+
     const rawAdmissionDate =
       (student as any)?.admissionDate ||
       admApp?.admissionDate ||
@@ -12287,7 +12195,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     const firstTermStart = terms[0]?.startDate || `${ayStartYear}-04-01`;
 
     const configDateStr =
-      assignment?.assignedDate ||
+      activeAssignment?.assignedDate ||
       admissionDate ||
       new Date().toISOString().split("T")[0];
 
@@ -12325,13 +12233,41 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     const isLateAdmission = isExplicitLateAdmission;
 
     let rawMethod =
+      activeAssignment?.feePolicy ||
       (student as any)?.feeCalculationMethod ||
       admApp?.feeCalculationMethod ||
-      assignment?.feePolicy ||
-      "Remaining Terms";
+      "Full Annual Fee";
+
+    const studentPolicy =
+      activeAssignment?.feePolicy ||
+      (student as any)?.feeCalculationMethod ||
+      admApp?.feeCalculationMethod ||
+      rawMethod ||
+      "Full Annual Fee";
 
     const feeCalculationMethod =
-      rawMethod === "Monthly" ? "Monthly" : "Remaining Terms";
+      studentPolicy === "Monthly" || rawMethod === "Monthly" ? "Monthly" : "Remaining Terms";
+
+    const policyLower = String(studentPolicy || "").toLowerCase().trim();
+    const isFullAnnual =
+      policyLower === "full annual fee" ||
+      policyLower === "full annual" ||
+      policyLower === "one time" ||
+      policyLower === "one-time" ||
+      policyLower === "annual" ||
+      policyLower.includes("full") ||
+      policyLower.includes("one time") ||
+      policyLower.includes("one-time");
+
+    const isTermWise =
+      !isFullAnnual &&
+      (policyLower === "term-wise" ||
+      policyLower === "term-wise fee" ||
+      policyLower === "term wise" ||
+      policyLower.includes("term") ||
+      policyLower.includes("quarterly") ||
+      policyLower.includes("pro-rata") ||
+      policyLower.includes("prorated"));
 
     const installments: StudentFeeInstallment[] = [];
 
@@ -12428,18 +12364,44 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         frequency = "Half-Yearly";
       }
 
+      const isTransportItem =
+        catLower.includes("transport") ||
+        nameLower.includes("transport") ||
+        item.headId === "FH-TRP";
+
+      if (isTransportItem) {
+        const configuredTransportPolicy =
+          (typeof window !== "undefined" &&
+            window.localStorage?.getItem("transport_fee_billing_policy")) ||
+          "Term-wise";
+        if (
+          isFullAnnual ||
+          configuredTransportPolicy === "One-Time" ||
+          (item as any).feePlan === "Annual" ||
+          (item as any).billingType === "One-time"
+        ) {
+          frequency = "One Time";
+        } else {
+          frequency = "Quarterly";
+        }
+      }
+
       const catPaymentEligibility = (item as any).paymentEligibility || feeHead?.paymentEligibility;
       const catApplicableTerms: string[] = (item as any).applicableTerms || feeHead?.applicableTerms || [];
 
-      const studentPolicy = assignment?.feePolicy || (student as any)?.feeCalculationMethod || rawMethod || "Full Annual Fee";
-
-      if (studentPolicy === "Full Annual Fee") {
-        frequency = "One Time";
-      } else if (catPaymentEligibility === "One-Time Only") {
-        frequency = "One Time";
-      } else if (catPaymentEligibility === "Term-Wise Allowed") {
-        if (frequency === "One Time" || frequency === "Annual" || frequency === "One Term") {
-          frequency = "Term-wise";
+      if (!isTransportItem) {
+        if (isFullAnnual) {
+          frequency = "One Time";
+        } else if (isTermWise) {
+          if (catPaymentEligibility !== "One-Time Only") {
+            frequency = "Term-wise";
+          }
+        } else if (catPaymentEligibility === "One-Time Only") {
+          frequency = "One Time";
+        } else if (catPaymentEligibility === "Term-Wise Allowed") {
+          if (frequency === "One Time" || frequency === "Annual" || frequency === "One Term") {
+            frequency = "Term-wise";
+          }
         }
       }
 
@@ -12470,18 +12432,18 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
 
       // GENERATE OBLIGATIONS ACCORDING TO FREQUENCY & SCHEDULE DUE DATES:
 
-      // 1. ONE TIME
+      // 1. ONE TIME / FULL ANNUAL FEE
       if (frequency === "One Time") {
         installments.push({
           id: `INST-${studentId}-${academicYear}-${item.headId}-onetime`,
           studentId,
           academicYear,
-          feeAssignmentId: assignment?.id || "SYNTHETIC",
+          feeAssignmentId: activeAssignment?.id || "SYNTHETIC",
           feeHeadId: item.headId,
           feeHeadName: item.headName,
           frequency: "One Time",
           termId: "ONETIME",
-          termName: "One Time",
+          termName: isFullAnnual ? "Full Annual Fee" : (isTransportItem ? "Annual Transport Fee" : "Annual / One-Time"),
           dueDate: resolvedOneTimeDueDate,
           amount: finalAmount,
           paidAmount: 0,
@@ -12719,8 +12681,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
                   frequency:
                     frequency === "Quarterly" ? "Quarterly" : "Term-wise",
                   termId: term.id,
-                  termName: term.termName || `Term ${qNumber}`,
-                  dueDate: term.dueDate,
+                  termName: isTransportItem ? `Transport Fee - ${term.termName || `Term ${qNumber}`}` : (term.termName || `Term ${qNumber}`),
+                  dueDate: term.dueDate || resolvedOneTimeDueDate,
                   amount: amt,
                   paidAmount: 0,
                   dueAmount: amt,
@@ -12763,8 +12725,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
                 frequency:
                   frequency === "Quarterly" ? "Quarterly" : "Term-wise",
                 termId: term.id,
-                termName: term.termName || `Term ${qNumber}`,
-                dueDate: term.dueDate,
+                termName: isTransportItem ? `Transport Fee - ${term.termName || `Term ${qNumber}`}` : (term.termName || `Term ${qNumber}`),
+                dueDate: term.dueDate || resolvedOneTimeDueDate,
                 amount: amt,
                 paidAmount: 0,
                 dueAmount: amt,
@@ -12796,8 +12758,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
               feeHeadName: item.headName,
               frequency: frequency === "Quarterly" ? "Quarterly" : "Term-wise",
               termId: term.id,
-              termName: term.termName || `Term ${qNumber}`,
-              dueDate: term.dueDate,
+              termName: isTransportItem ? `Transport Fee - ${term.termName || `Term ${qNumber}`}` : (term.termName || `Term ${qNumber}`),
+              dueDate: term.dueDate || resolvedOneTimeDueDate,
               amount: amt,
               paidAmount: 0,
               dueAmount: amt,
@@ -13067,7 +13029,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       "2026-2027";
     const ledger = getStudentFeeLedger(studentId, activeAY);
     const schedule =
-      academicYearFeeSchedules.find((s) => s.academicYear === activeAY) ||
+      academicYearFeeSchedules.find((s) => matchesAcademicYear(s.academicYear, activeAY)) ||
       academicYearFeeSchedules[0];
 
     const fallback = {
@@ -13304,29 +13266,75 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const getDynamicTransportFee = (activeTa: any) => {
     if (!activeTa) return 0;
-    const rObj = routeMasters.find(
-      (r) =>
-        r.id?.toString() === activeTa.routeId?.toString() ||
-        r.routeName === activeTa.routeName,
-    );
-    const pObj = pickupPoints.find(
-      (p) =>
-        p.id?.toString() === (activeTa as any).pickupPointId?.toString() ||
-        (rObj &&
-          p.routeId === rObj.id &&
-          p.pickupName === activeTa.pickupPoint),
-    );
-    if (rObj && pObj) {
-      const assignment = vehicleAssignments?.find(
-        (va) => va.routeId === rObj.id,
-      );
-      const vehicle = vehicleMasters?.find(
-        (v) => v.id === assignment?.vehicleId,
-      );
-      const isAC = vehicle ? vehicle.isAC : activeTa.transportType === "AC";
+    const normalizeKey = (val: any) =>
+      String(val || "")
+        .replace(/^rm-0*/i, "")
+        .replace(/^pt-0*/i, "")
+        .replace(/^pp-0*/i, "")
+        .replace(/\s+/g, " ")
+        .trim()
+        .toLowerCase();
 
-      const plan = activeTa.feePlan || "Monthly";
-      let assignedFee = 0;
+    const taRouteIdNorm = normalizeKey(activeTa.routeId);
+    const taRouteNameNorm = normalizeKey(activeTa.routeName || activeTa.busRoute);
+    const taPtIdNorm = normalizeKey((activeTa as any).pickupPointId || activeTa.pickupId);
+    const taPtNameNorm = normalizeKey(activeTa.pickupPoint || (activeTa as any).pickupName || (activeTa as any).pickupPointName);
+
+    const routesPool = (routeMasters && routeMasters.length > 0)
+      ? routeMasters
+      : (() => {
+          try {
+            const raw = localStorage.getItem("edu_db_route_masters") || localStorage.getItem("route_masters");
+            return raw ? JSON.parse(raw) : [];
+          } catch {
+            return [];
+          }
+        })();
+
+    const pointsPool = (pickupPoints && pickupPoints.length > 0)
+      ? pickupPoints
+      : (() => {
+          try {
+            const raw = localStorage.getItem("edu_db_pickup_points") || localStorage.getItem("pickup_points");
+            return raw ? JSON.parse(raw) : [];
+          } catch {
+            return [];
+          }
+        })();
+
+    const rObj = routesPool.find((r: any) => {
+      const rIdNorm = normalizeKey(r.id || (r as any).routeId);
+      const rNameNorm = normalizeKey(r.routeName || (r as any).routeCode);
+      if (taRouteIdNorm && rIdNorm && taRouteIdNorm === rIdNorm) return true;
+      if (taRouteNameNorm && rNameNorm && taRouteNameNorm === rNameNorm) return true;
+      if (taRouteNameNorm && rNameNorm && (taRouteNameNorm.includes(rNameNorm) || rNameNorm.includes(taRouteNameNorm))) return true;
+      return false;
+    });
+
+    const pObj = pointsPool.find((p: any) => {
+      const pIdNorm = normalizeKey(p.id || (p as any).pickupPointId || (p as any).pickupId);
+      if (taPtIdNorm && pIdNorm && taPtIdNorm === pIdNorm) return true;
+
+      const pNameNorm = normalizeKey(p.pickupName || (p as any).pickupPointName);
+      if (taPtNameNorm && pNameNorm && taPtNameNorm === pNameNorm) {
+        if (!rObj) return true;
+        const pRouteIdNorm = normalizeKey(p.routeId || (p as any).transportRouteId);
+        const rIdNorm = normalizeKey(rObj.id || (rObj as any).routeId);
+        if (pRouteIdNorm && rIdNorm && pRouteIdNorm === rIdNorm) return true;
+        const pRouteNameNorm = normalizeKey(p.routeName);
+        const rRouteNameNorm = normalizeKey(rObj.routeName);
+        if (pRouteNameNorm && rRouteNameNorm && pRouteNameNorm === rRouteNameNorm) return true;
+        return true;
+      }
+      return false;
+    });
+
+    const isAC = String(activeTa.transportType || "").toUpperCase().includes("AC") &&
+      !String(activeTa.transportType || "").toUpperCase().includes("NON");
+
+    const plan = activeTa.feePlan || "Annual";
+    let assignedFee = 0;
+    if (pObj) {
       if (plan === "Monthly" && pObj.monthlyFee && pObj.monthlyFee > 0) {
         assignedFee = pObj.monthlyFee;
       } else if (
@@ -13344,41 +13352,86 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       } else if (plan === "Annual" && pObj.annualFee && pObj.annualFee > 0) {
         assignedFee = pObj.annualFee;
       }
-
-      if (assignedFee > 0) return assignedFee;
-
-      const baseFare = isAC
-        ? rObj.acMinBaseFare || (rObj as any).acBaseFare || 0
-        : rObj.minBaseFare || (rObj as any).nonAcBaseFare || 0;
-      const ratePerKm = isAC
-        ? rObj.acRatePerKm || 0
-        : rObj.ratePerKm || (rObj as any).nonAcRatePerKm || 0;
-      const distance =
-        pObj.distanceFromSchoolKm || (pObj as any).distanceFromStart || 0;
-      if (baseFare > 0 || ratePerKm > 0) {
-        const monthlyRate = baseFare + distance * ratePerKm;
-        const multiplier =
-          plan === "Quarterly"
-            ? 3
-            : plan === "Half Yearly" || plan === "Half-Yearly"
-              ? 6
-              : plan === "Annual"
-                ? 12
-                : 1;
-        return monthlyRate * multiplier;
-      }
     }
-    const transportConfig = financeTransportConfigs.find(
-      (c) =>
-        (c.routeId === activeTa.routeId ||
-          c.routeName === activeTa.routeName) &&
-        (c.pickupPointId === (activeTa as any).pickupPointId ||
-          c.pickupName === activeTa.pickupPoint) &&
-        c.status === "Active",
-    );
-    return transportConfig
-      ? transportConfig.feeAmount
-      : activeTa.feeAmount || 0;
+
+    if (assignedFee > 0) return assignedFee;
+
+    const baseFare = rObj
+      ? (isAC
+          ? Number(rObj.acMinBaseFare ?? (rObj as any).acBaseFare ?? 1500)
+          : Number(rObj.minBaseFare ?? (rObj as any).nonAcBaseFare ?? 1200))
+      : (isAC ? 1500 : 1200);
+    const ratePerKm = rObj
+      ? (isAC
+          ? Number(rObj.acRatePerKm ?? (rObj as any).acRateAddlKm ?? 150)
+          : Number(rObj.ratePerKm ?? (rObj as any).nonAcRatePerKm ?? (rObj as any).nonAcRateAddlKm ?? 100))
+      : (isAC ? 150 : 100);
+    const distance = pObj
+      ? Number(pObj.distanceFromSchoolKm ?? (pObj as any).distanceFromStart ?? 35)
+      : 35;
+    const minKm = rObj
+      ? Number(rObj.minDistanceKm ?? (rObj as any).minRangeKm ?? (rObj as any).minRange ?? 35)
+      : 35;
+    const additionalKm = Math.max(0, distance - minKm);
+
+    const calculatedMonthlyRate =
+      (baseFare > 0 || ratePerKm > 0)
+        ? (baseFare + additionalKm * ratePerKm)
+        : (pObj && pObj.monthlyFee ? pObj.monthlyFee : (isAC ? 1500 : 1200));
+
+    if (calculatedMonthlyRate > 0 && (pObj || rObj || taRouteNameNorm || taPtNameNorm)) {
+      const multiplier =
+        plan === "Quarterly"
+          ? 3
+          : plan === "Half Yearly" || plan === "Half-Yearly"
+            ? 6
+            : plan === "Annual"
+              ? 12
+              : 1;
+      return calculatedMonthlyRate * multiplier;
+    }
+
+    const transportConfig = financeTransportConfigs.find((c) => {
+      if (c.status !== "Active") return false;
+      const cRouteIdNorm = normalizeKey(c.routeId);
+      const cRouteNameNorm = normalizeKey(c.routeName);
+      const cPtIdNorm = normalizeKey(c.pickupPointId);
+      const cPtNameNorm = normalizeKey(c.pickupName);
+
+      const routeMatches =
+        (!taRouteIdNorm && !taRouteNameNorm) ||
+        (taRouteIdNorm && cRouteIdNorm && taRouteIdNorm === cRouteIdNorm) ||
+        (taRouteNameNorm && cRouteNameNorm && taRouteNameNorm === cRouteNameNorm);
+
+      const ptMatches =
+        (!taPtIdNorm && !taPtNameNorm) ||
+        (taPtIdNorm && cPtIdNorm && taPtIdNorm === cPtIdNorm) ||
+        (taPtNameNorm && cPtNameNorm && taPtNameNorm === cPtNameNorm);
+
+      return routeMatches && ptMatches;
+    });
+
+    if (transportConfig && transportConfig.feeAmount > 0) {
+      return transportConfig.feeAmount;
+    }
+
+    if (Number(activeTa.feeAmount) > 0) {
+      return Number(activeTa.feeAmount);
+    }
+
+    if (taRouteNameNorm || taPtNameNorm) {
+      const multiplier =
+        plan === "Quarterly"
+          ? 3
+          : plan === "Half Yearly" || plan === "Half-Yearly"
+            ? 6
+            : plan === "Annual"
+              ? 12
+              : 1;
+      return (isAC ? 1500 : 1200) * multiplier;
+    }
+
+    return 0;
   };
 
   const buildStudentFeeLedgerObject = (
@@ -13413,22 +13466,30 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         : undefined);
 
     const admApp =
-      admissions.find(
-        (a) =>
-          String(a.id).trim().toLowerCase() === sIdStr ||
-          (a.applicationNo && String(a.applicationNo).trim().toLowerCase() === sIdStr) ||
-          ((a as any).registrationNo && String((a as any).registrationNo).trim().toLowerCase() === sIdStr) ||
-          ((a as any).studentId && String((a as any).studentId).trim().toLowerCase() === sIdStr) ||
-          (student &&
-            (student.admissionNo === a.applicationNo ||
-              student.admissionNo === (a as any).registrationNo ||
-              String(student.id).trim() === String(a.id).trim())) ||
-          (student &&
-            a.applicantName &&
-            a.applicantName.trim().toLowerCase() ===
-              `${student.firstName} ${student.lastName}`.trim().toLowerCase()),
-      ) ||
-      (optStudent && ((optStudent as any).applicantName || (optStudent as any).appliedClass)
+      admissions.find((a) => {
+        if (!a) return false;
+        const aId = a.id != null ? String(a.id).trim().toLowerCase() : "";
+        const aApp = a.applicationNo ? String(a.applicationNo).trim().toLowerCase() : ((a as any).applicationId != null ? String((a as any).applicationId).trim().toLowerCase() : "");
+        const aReg = a.registrationNo ? String(a.registrationNo).trim().toLowerCase() : ((a as any).registrationNumber ? String((a as any).registrationNumber).trim().toLowerCase() : "");
+        const aAdm = (a as any).admissionNo ? String((a as any).admissionNo).trim().toLowerCase() : ((a as any).admissionNumber ? String((a as any).admissionNumber).trim().toLowerCase() : "");
+        const aName = (a.applicantName || (a as any).studentName || (a as any).applicantFullName || `${a.firstName || ''} ${a.lastName || ''}`).trim().toLowerCase();
+
+        if (sIdStr && (aId === sIdStr || aApp === sIdStr || aReg === sIdStr || aAdm === sIdStr)) return true;
+
+        if (student) {
+          const stId = student.id != null ? String(student.id).trim().toLowerCase() : "";
+          const stAdm = student.admissionNo ? String(student.admissionNo).trim().toLowerCase() : "";
+          const stReg = (student as any).registrationNo ? String((student as any).registrationNo).trim().toLowerCase() : "";
+          const stName = `${student.firstName || ''} ${student.lastName || ''}`.trim().toLowerCase();
+
+          if (stId && (aId === stId || aApp === stId || aReg === stId || aAdm === stId)) return true;
+          if (stAdm && (aAdm === stAdm || aReg === stAdm || aApp === stAdm || aId === stAdm)) return true;
+          if (stReg && (aReg === stReg || aAdm === stReg || aApp === stReg)) return true;
+          if (aName && stName && (aName === stName || aName.includes(stName) || stName.includes(aName))) return true;
+        }
+        return false;
+      }) ||
+      (optStudent && ((optStudent as any).applicantName || (optStudent as any).appliedClass || (optStudent as any).className || (optStudent as any).firstName)
         ? (optStudent as unknown as AdmissionApplication)
         : undefined);
 
@@ -13560,8 +13621,10 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     };
 
     // 1. Base Fee Structure
-    const assignment = studentFeeAssignments.find(
-      (a) => a.studentId === studentId && a.status === "Active",
+    const assignment = findActiveStudentFeeAssignment(
+      studentId,
+      student || admApp,
+      targetYear,
     );
 
     let ledgerItems: LedgerFeeItem[] = [];
@@ -13744,17 +13807,23 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
 
     if (isNonResident) {
       activeTransportAssign = studentTransports.find(
-        (t) => t.studentId === studentId && t.status === "Active",
+        (t) =>
+          t.status === "Active" &&
+          (t.studentId === studentId ||
+            (admNo && t.admissionNo === admNo) ||
+            (student?.admissionNo && t.admissionNo === student.admissionNo) ||
+            (admApp?.registrationNo && t.admissionNo === admApp.registrationNo) ||
+            (t.studentName && stName && t.studentName.trim().toLowerCase() === stName.trim().toLowerCase())),
       );
 
       const isTransportRequired =
         Boolean(activeTransportAssign) ||
-        (student?.transportRequired === true &&
-          Boolean(
-            (student as any)?.busRoute || (student as any)?.pickupPoint,
-          )) ||
-        ((admApp as any)?.transportRequired === true &&
-          Boolean((admApp as any)?.busRoute || (admApp as any)?.pickupPoint));
+        student?.transportRequired === true ||
+        Boolean(
+          (student as any)?.busRoute || (student as any)?.pickupPoint || (student as any)?.routeId,
+        ) ||
+        admApp?.transportRequired === true ||
+        Boolean((admApp as any)?.busRoute || (admApp as any)?.pickupPoint || (admApp as any)?.routeId);
 
       const hasPickupPoint = Boolean(
         activeTransportAssign?.pickupPoint ||
@@ -13763,38 +13832,71 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       );
 
       if (isTransportRequired && hasPickupPoint) {
+        const routeName =
+          activeTransportAssign?.routeName ||
+          (student as any)?.busRoute ||
+          (admApp as any)?.busRoute ||
+          (admApp as any)?.routeName ||
+          "";
+        const pickupName =
+          activeTransportAssign?.pickupPoint ||
+          (student as any)?.pickupPoint ||
+          (admApp as any)?.pickupPoint ||
+          "";
+        const routeId =
+          activeTransportAssign?.routeId ||
+          (student as any)?.routeId ||
+          (admApp as any)?.routeId ||
+          "";
+        const pickupPointId =
+          (activeTransportAssign as any)?.pickupPointId ||
+          (student as any)?.pickupPointId ||
+          (admApp as any)?.pickupPointId ||
+          "";
+        const transportType =
+          (activeTransportAssign as any)?.transportType ||
+          (student as any)?.transportType ||
+          (admApp as any)?.transportType ||
+          "AC";
+
+        const tempAssign = activeTransportAssign || {
+          id: `STRP-AUTO-${studentId}`,
+          studentId,
+          studentName: stName,
+          admissionNo: admNo,
+          routeId,
+          routeName,
+          pickupPointId,
+          pickupPoint: pickupName,
+          transportType,
+          feePlan: "Annual",
+          status: "Active",
+        };
+
+        let dynamicFare = getDynamicTransportFee({
+          ...tempAssign,
+          feePlan: "Annual",
+        });
+
+        if (dynamicFare <= 0 && (routeName || pickupName)) {
+          const isAC = String(transportType || "AC").toUpperCase().includes("AC") && !String(transportType || "AC").toUpperCase().includes("NON");
+          dynamicFare = (isAC ? 1500 : 1200) * 12;
+        }
+
         const configuredTransportFee =
           Number(activeTransportAssign?.feeAmount) ||
           Number((student as any)?.transportFee) ||
           Number((admApp as any)?.transportFee) ||
-          0;
+          dynamicFare;
 
-        if (configuredTransportFee > 0) {
+        if (configuredTransportFee > 0 || dynamicFare > 0) {
           transportApplicable = true;
           if (!activeTransportAssign) {
             activeTransportAssign = {
-              id: `STRP-AUTO-${studentId}`,
-              studentId,
-              studentName:
-                `${student?.firstName || admApp?.firstName || "Student"} ${student?.lastName || admApp?.lastName || ""}`.trim(),
-              admissionNo:
-                student?.admissionNo || admApp?.applicationNo || "ADM-001",
-              routeId:
-                (student as any)?.routeId || (admApp as any)?.routeId || "RM-01",
-              routeName:
-                (student as any)?.busRoute ||
-                (admApp as any)?.busRoute ||
-                (admApp as any)?.routeName ||
-                "Route 1",
-              pickupPoint:
-                (student as any)?.pickupPoint ||
-                (admApp as any)?.pickupPoint ||
-                "Main Stop",
-              feePlan: "Monthly",
-              feeAmount: configuredTransportFee,
+              ...tempAssign,
+              feeAmount: configuredTransportFee > 0 ? configuredTransportFee : dynamicFare,
               effectiveFrom:
-                student?.joiningDate || admApp?.admissionDate || "2026-04-01",
-              status: "Active",
+                student?.joiningDate || admApp?.admissionDate || new Date().toISOString().split("T")[0],
             };
           }
         }
@@ -13966,7 +14068,14 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
 
     if (transportApplicable && activeTransportAssign) {
       const activeTa = activeTransportAssign;
-      const trpAmount = getDynamicTransportFee(activeTa);
+      const isAC = String(activeTa.transportType || "AC").toUpperCase().includes("AC") && !String(activeTa.transportType || "AC").toUpperCase().includes("NON");
+      const trpAmount =
+        Number(activeTa.feeAmount) ||
+        getDynamicTransportFee({
+          ...activeTa,
+          feePlan: "Annual",
+        }) ||
+        (isAC ? 1500 : 1200) * 12;
 
       const trpItem: LedgerFeeItem = {
         headId: "FH-TRP",
@@ -14465,7 +14574,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
 
     const sIdStr = String(studentId || "").trim().toLowerCase();
     const resolvedStudent =
-      optStudent && "className" in optStudent
+      optStudent && ("className" in optStudent || (optStudent as any).firstName)
         ? (optStudent as Student)
         : students.find(
             (s) =>
@@ -14473,14 +14582,36 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
               (s.admissionNo &&
                 String(s.admissionNo).trim().toLowerCase() === sIdStr),
           ) ||
-          (admissions.find(
-            (a) =>
-              String(a.id).trim().toLowerCase() === sIdStr ||
-              (a.applicationNo &&
-                String(a.applicationNo).trim().toLowerCase() === sIdStr) ||
-              ((a as any).registrationNo &&
-                String((a as any).registrationNo).trim().toLowerCase() === sIdStr),
-          ) as unknown as Student);
+          (() => {
+            const matchedAdm = admissions.find((a) => {
+              if (!a) return false;
+              const aId = a.id != null ? String(a.id).trim().toLowerCase() : "";
+              const aApp = a.applicationNo ? String(a.applicationNo).trim().toLowerCase() : ((a as any).applicationId != null ? String((a as any).applicationId).trim().toLowerCase() : "");
+              const aReg = a.registrationNo ? String(a.registrationNo).trim().toLowerCase() : ((a as any).registrationNumber ? String((a as any).registrationNumber).trim().toLowerCase() : "");
+              const aAdm = (a as any).admissionNo ? String((a as any).admissionNo).trim().toLowerCase() : ((a as any).admissionNumber ? String((a as any).admissionNumber).trim().toLowerCase() : "");
+              return sIdStr && (aId === sIdStr || aApp === sIdStr || aReg === sIdStr || aAdm === sIdStr);
+            });
+            if (!matchedAdm) return undefined;
+            const fullName = (matchedAdm.applicantName || (matchedAdm as any).studentName || `${matchedAdm.firstName || ''} ${matchedAdm.lastName || ''}`).trim();
+            const nameParts = fullName.split(" ");
+            return {
+              id: String(matchedAdm.id || matchedAdm.applicationNo || (matchedAdm as any).registrationNo),
+              firstName: matchedAdm.firstName || nameParts[0] || "Student",
+              lastName: matchedAdm.lastName || nameParts.slice(1).join(" ") || "",
+              admissionNo: (matchedAdm as any).admissionNo || (matchedAdm as any).admissionNumber || matchedAdm.registrationNo || matchedAdm.applicationNo || String(matchedAdm.id),
+              className: matchedAdm.appliedClass || (matchedAdm as any).appliedClassGrade || matchedAdm.targetClass || matchedAdm.className || "Class 1",
+              section: matchedAdm.section || "A",
+              gender: matchedAdm.gender || "Male",
+              studentType: (matchedAdm.residentialStatus === "Residential" || matchedAdm.studentType === "Residential") ? "Hosteller" : "Day Scholar",
+              residentialStatus: matchedAdm.residentialStatus || matchedAdm.studentType || "Non-Residential",
+              transportRequired: Boolean(matchedAdm.transportRequired),
+              transportType: matchedAdm.transportType || "AC",
+              busRoute: matchedAdm.busRoute || (matchedAdm as any).routeName || "",
+              pickupPoint: matchedAdm.pickupPoint || (matchedAdm as any).pickupPointName || (matchedAdm as any).pickupName || "",
+              routeId: (matchedAdm as any).routeId || "",
+              pickupPointId: (matchedAdm as any).pickupPointId || "",
+            } as unknown as Student;
+          })();
 
     const existing = studentFeeLedgers.find(
       (l) =>
@@ -14504,17 +14635,35 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     };
 
     if (existing) {
-      const admApp = admissions.find(
-        (a) =>
-          a.id === studentId ||
-          (existing.admissionNo && a.applicationNo === existing.admissionNo) ||
-          (existing.admissionNo && a.registrationNo === existing.admissionNo) ||
-          (a.applicantName &&
-            existing.studentName &&
-            a.applicantName.trim().toLowerCase() ===
-              existing.studentName.trim().toLowerCase()) ||
-          (resolvedStudent && (a.id === resolvedStudent.id || a.applicationNo === resolvedStudent.admissionNo || a.registrationNo === resolvedStudent.admissionNo)),
-      );
+      const admApp = admissions.find((a) => {
+        if (!a) return false;
+        const aId = a.id != null ? String(a.id).trim().toLowerCase() : "";
+        const aApp = a.applicationNo ? String(a.applicationNo).trim().toLowerCase() : ((a as any).applicationId != null ? String((a as any).applicationId).trim().toLowerCase() : "");
+        const aReg = a.registrationNo ? String(a.registrationNo).trim().toLowerCase() : ((a as any).registrationNumber ? String((a as any).registrationNumber).trim().toLowerCase() : "");
+        const aAdm = (a as any).admissionNo ? String((a as any).admissionNo).trim().toLowerCase() : ((a as any).admissionNumber ? String((a as any).admissionNumber).trim().toLowerCase() : "");
+        const aName = (a.applicantName || (a as any).studentName || (a as any).applicantFullName || `${a.firstName || ''} ${a.lastName || ''}`).trim().toLowerCase();
+
+        if (sIdStr && (aId === sIdStr || aApp === sIdStr || aReg === sIdStr || aAdm === sIdStr)) return true;
+
+        const exAdm = existing.admissionNo ? String(existing.admissionNo).trim().toLowerCase() : "";
+        if (exAdm && (aApp === exAdm || aReg === exAdm || aAdm === exAdm || aId === exAdm)) return true;
+
+        const exName = existing.studentName ? String(existing.studentName).trim().toLowerCase() : "";
+        if (aName && exName && (aName === exName || aName.includes(exName) || exName.includes(aName))) return true;
+
+        if (resolvedStudent) {
+          const rId = resolvedStudent.id != null ? String(resolvedStudent.id).trim().toLowerCase() : "";
+          const rAdm = resolvedStudent.admissionNo ? String(resolvedStudent.admissionNo).trim().toLowerCase() : "";
+          const rReg = (resolvedStudent as any).registrationNo ? String((resolvedStudent as any).registrationNo).trim().toLowerCase() : "";
+          const rName = `${resolvedStudent.firstName || ''} ${resolvedStudent.lastName || ''}`.trim().toLowerCase();
+
+          if (rId && (aId === rId || aApp === rId || aReg === rId || aAdm === rId)) return true;
+          if (rAdm && (aAdm === rAdm || aReg === rAdm || aApp === rAdm || aId === rAdm)) return true;
+          if (rReg && (aReg === rReg || aAdm === rReg || aApp === rReg)) return true;
+          if (aName && rName && (aName === rName || aName.includes(rName) || rName.includes(aName))) return true;
+        }
+        return false;
+      });
       const selectedOptional = admApp
         ? admApp.selectedOptionalFees || []
         : (resolvedStudent as any)?.selectedOptionalFees || null;
@@ -14551,8 +14700,10 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         );
       };
 
-      const assignment = studentFeeAssignments.find(
-        (a) => a.studentId === studentId && a.status === "Active",
+      const assignment = findActiveStudentFeeAssignment(
+        studentId,
+        resolvedStudent || optStudent,
+        targetYear,
       );
       const hasUniformInAssignment = assignment?.assignedFeeHeads?.some(
         (h) =>
@@ -14580,8 +14731,54 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         return buildStudentFeeLedgerObject(studentId, optStudent, targetYear);
       }
 
-      if (assignment && existing.grossAmount !== assignment.baseFeeTotal) {
-        return buildStudentFeeLedgerObject(studentId, optStudent, targetYear);
+      if (assignment) {
+        const existingBaseTotal = existing.feeItems
+          .filter(
+            (fi) =>
+              fi.headId !== "FH-TRP" &&
+              fi.category !== "Transport Fee" &&
+              fi.headId !== "FH-HST" &&
+              fi.category !== "Hostel Fee" &&
+              fi.headId !== "FH-UNI-EXTRA" &&
+              fi.category !== "Additional Uniform Purchase",
+          )
+          .reduce((sum, fi) => sum + fi.originalAmount, 0);
+
+        if (existingBaseTotal !== assignment.baseFeeTotal && existing.grossAmount !== assignment.baseFeeTotal) {
+          return buildStudentFeeLedgerObject(studentId, optStudent, targetYear);
+        }
+
+        const policyLower = String(assignment.feePolicy || "").toLowerCase().trim();
+        const isFullAnnualPolicy =
+          policyLower === "full annual fee" ||
+          policyLower === "full annual" ||
+          policyLower === "one time" ||
+          policyLower === "one-time" ||
+          policyLower === "annual" ||
+          policyLower.includes("full") ||
+          policyLower.includes("one time") ||
+          policyLower.includes("one-time");
+
+        if (existing.installments && existing.installments.length > 0) {
+          const hasQuarterlyOrTermInstallments = existing.installments.some((inst) =>
+            inst.frequency === "Quarterly" ||
+            inst.frequency === "Term-wise" ||
+            (inst.termName && (inst.termName.toLowerCase().includes("term") || inst.termName.toLowerCase().includes("quarter"))),
+          );
+          const hasOnlyOneTimeInstallment = existing.installments.every(
+            (inst) =>
+              inst.frequency === "One Time" ||
+              inst.termName === "Full Annual Fee" ||
+              inst.termName === "Annual / One-Time",
+          );
+
+          if (
+            (isFullAnnualPolicy && hasQuarterlyOrTermInstallments) ||
+            (!isFullAnnualPolicy && hasOnlyOneTimeInstallment)
+          ) {
+            return buildStudentFeeLedgerObject(studentId, optStudent, targetYear);
+          }
+        }
       }
 
       if (dfs && dfs.items && dfs.items.length > 0) {
@@ -14687,6 +14884,142 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
             status: "Pending",
           });
         }
+      }
+
+      // Inject / Reconcile Transport Fee directly into feeItems for existing ledger
+      const isResidentStudent =
+        existing.studentType === "Hosteller" ||
+        student?.studentType === "Hosteller" ||
+        student?.studentType === "Residential" ||
+        (student as any)?.residentialStatus === "Residential" ||
+        (student as any)?.residentialStatus === "Resident" ||
+        admApp?.residentialStatus === "Residential" ||
+        admApp?.residentialStatus === "Resident" ||
+        admApp?.studentType === "Residential" ||
+        admApp?.studentType === "Hosteller";
+
+      const isNonResidentStudent = !isResidentStudent;
+
+      const activeTransportAssign = isNonResidentStudent
+        ? studentTransports.find(
+            (t) =>
+              t.status === "Active" &&
+              (t.studentId === studentId ||
+                (existing.admissionNo && t.admissionNo === existing.admissionNo) ||
+                (student?.admissionNo && t.admissionNo === student.admissionNo) ||
+                (admApp?.registrationNo && t.admissionNo === admApp.registrationNo) ||
+                (t.studentName &&
+                  existing.studentName &&
+                  t.studentName.trim().toLowerCase() === existing.studentName.trim().toLowerCase())),
+          )
+        : undefined;
+
+      const isTransportRequired =
+        isNonResidentStudent &&
+        (Boolean(activeTransportAssign) ||
+          student?.transportRequired === true ||
+          Boolean((student as any)?.busRoute || (student as any)?.pickupPoint) ||
+          admApp?.transportRequired === true ||
+          Boolean((admApp as any)?.busRoute || (admApp as any)?.pickupPoint));
+
+      const hasPickupPoint = Boolean(
+        activeTransportAssign?.pickupPoint ||
+          (student as any)?.pickupPoint ||
+          (admApp as any)?.pickupPoint,
+      );
+
+      const existingTrpIdx = itemsToReturn.findIndex(
+        (i) => i.headId === "FH-TRP" || i.category === "Transport Fee" || i.headName.toLowerCase().includes("transport"),
+      );
+
+      if (isTransportRequired && hasPickupPoint) {
+        const routeName =
+          activeTransportAssign?.routeName ||
+          (student as any)?.busRoute ||
+          (admApp as any)?.busRoute ||
+          (admApp as any)?.routeName ||
+          "";
+        const pickupName =
+          activeTransportAssign?.pickupPoint ||
+          (student as any)?.pickupPoint ||
+          (admApp as any)?.pickupPoint ||
+          "";
+        const routeId =
+          activeTransportAssign?.routeId ||
+          (student as any)?.routeId ||
+          (admApp as any)?.routeId ||
+          "";
+        const pickupPointId =
+          (activeTransportAssign as any)?.pickupPointId ||
+          (student as any)?.pickupPointId ||
+          (admApp as any)?.pickupPointId ||
+          "";
+        const transportType =
+          (activeTransportAssign as any)?.transportType ||
+          (student as any)?.transportType ||
+          (admApp as any)?.transportType ||
+          "AC";
+
+        const tempAssign = activeTransportAssign || {
+          id: `STRP-AUTO-${studentId}`,
+          studentId,
+          studentName: existing.studentName || student?.firstName || "",
+          admissionNo: existing.admissionNo || student?.admissionNo || "",
+          routeId,
+          routeName,
+          pickupPointId,
+          pickupPoint: pickupName,
+          transportType,
+          feePlan: "Annual",
+          status: "Active",
+        };
+
+        let dynamicFare = getDynamicTransportFee({
+          ...tempAssign,
+          feePlan: "Annual",
+        });
+
+        if (dynamicFare <= 0 && (routeName || pickupName)) {
+          const isAC = String(transportType || "AC").toUpperCase().includes("AC") && !String(transportType || "AC").toUpperCase().includes("NON");
+          dynamicFare = (isAC ? 1500 : 1200) * 12;
+        }
+
+        const trpAmount =
+          Number(activeTransportAssign?.feeAmount) ||
+          Number((student as any)?.transportFee) ||
+          Number((admApp as any)?.transportFee) ||
+          dynamicFare;
+
+        if (trpAmount > 0) {
+          const trpItem: LedgerFeeItem = {
+            headId: "FH-TRP",
+            headName: `Transport Fee (${routeName} - ${pickupName})`,
+            category: "Transport Fee",
+            originalAmount: trpAmount,
+            scholarshipDeduction: 0,
+            discountDeduction: 0,
+            fineAmount: 0,
+            finalAmount: trpAmount,
+            isApplicable: true,
+            status: "Pending",
+          };
+
+          if (existingTrpIdx >= 0) {
+            itemsToReturn[existingTrpIdx] = trpItem;
+          } else {
+            itemsToReturn.push(trpItem);
+          }
+        }
+      } else if (existingTrpIdx >= 0) {
+        itemsToReturn[existingTrpIdx] = {
+          ...itemsToReturn[existingTrpIdx],
+          originalAmount: 0,
+          finalAmount: 0,
+          isApplicable: false,
+          remarks: isResidentStudent
+            ? "Not Applicable for Residential Students"
+            : "Transport Not Opted",
+        };
       }
 
       let finalSchAmount = existing.scholarshipAmount || existing.totalScholarship || 0;
@@ -14865,7 +15198,57 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   const getStudentFeeOutstandingSummary = (
     studentId: string,
   ): StudentFeeOutstandingSummary => {
-    const student = students.find((s) => s.id === studentId || (s.admissionNo && s.admissionNo === studentId));
+    const student =
+      students.find((s) => s.id === studentId || (s.admissionNo && s.admissionNo === studentId)) ||
+      (() => {
+        const sId = String(studentId || "").trim().toLowerCase();
+        const adm = (admissions || []).find((a) => {
+          if (!a) return false;
+          const aId = a.id != null ? String(a.id).trim().toLowerCase() : "";
+          const aApp = a.applicationNo ? String(a.applicationNo).trim().toLowerCase() : ((a as any).applicationId != null ? String((a as any).applicationId).trim().toLowerCase() : "");
+          const aReg = a.registrationNo ? String(a.registrationNo).trim().toLowerCase() : ((a as any).registrationNumber ? String((a as any).registrationNumber).trim().toLowerCase() : "");
+          const aAdm = (a as any).admissionNo ? String((a as any).admissionNo).trim().toLowerCase() : ((a as any).admissionNumber ? String((a as any).admissionNumber).trim().toLowerCase() : "");
+          const aName = (a.applicantName || (a as any).studentName || (a as any).applicantFullName || `${a.firstName || ''} ${a.lastName || ''}`).trim().toLowerCase();
+          return sId && (aId === sId || aApp === sId || aReg === sId || aAdm === sId || aName === sId || aName.includes(sId));
+        });
+        if (!adm) return undefined;
+        const fullName = (adm.applicantName || (adm as any).studentName || (adm as any).applicantFullName || `${adm.firstName || ''} ${adm.lastName || ''}`).trim();
+        const nameParts = fullName.split(" ");
+        return {
+          id: String(adm.id || adm.applicationNo || (adm as any).registrationNo),
+          firstName: adm.firstName || nameParts[0] || "Student",
+          lastName: adm.lastName || nameParts.slice(1).join(" ") || "",
+          admissionNo: (adm as any).admissionNo || (adm as any).admissionNumber || adm.registrationNo || adm.applicationNo || String(adm.id),
+          className:
+            adm.appliedClass || (adm as any).appliedClassGrade || adm.targetClass || adm.className || "Nursery",
+          section: adm.section || "A",
+          gender: adm.gender || "Male",
+          studentType: (adm.residentialStatus === "Residential" || adm.studentType === "Residential") ? "Hosteller" : "Day Scholar",
+          residentialStatus: adm.residentialStatus || adm.studentType || "Non-Residential",
+          joiningDate:
+            adm.admissionDate || (adm as any).createdAt?.split("T")[0] || new Date().toISOString().split("T")[0],
+          dueFee: 0,
+          paidFee: 0,
+          totalFee: 0,
+          rollNo: "0",
+          fatherName: adm.parentName || (adm as any).fatherName || "",
+          motherName: adm.motherName || "",
+          mobile: adm.mobile || adm.phone || "",
+          email: adm.email || "",
+          address: adm.address || "",
+          status: "Active",
+          academicYear: adm.academicYear || "2026-2027",
+          branch: adm.branch || "",
+          transportRequired: Boolean(adm.transportRequired),
+          transportType: adm.transportType || "AC",
+          busRoute: adm.busRoute || (adm as any).routeName || "",
+          pickupPoint: adm.pickupPoint || (adm as any).pickupPointName || (adm as any).pickupName || "",
+          routeId: (adm as any).routeId || "",
+          pickupPointId: (adm as any).pickupPointId || "",
+          registrationNo: adm.registrationNo || (adm as any).registrationNumber || "",
+          applicationNo: adm.applicationNo || (adm as any).applicationId || "",
+        } as unknown as Student;
+      })();
     const activeAcademicYear =
       selectedAcademicYear || financeSettings?.academicYear || "2026-2027";
 
@@ -14973,15 +15356,44 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         ? activeAssignment.baseFeeTotal
         : matchedDfs?.totalAmount ?? 0;
 
-      let transportAssign = studentTransports.find(
-        (t) => t.studentId === studentId && t.status === "Active",
-      );
-      const transportFee =
-        (student.studentType === "Day Scholar" ||
-          student.studentType === "Non-Residential") &&
-        transportAssign
-          ? getDynamicTransportFee(transportAssign)
-          : 0;
+      const isNonResident =
+        student.studentType === "Day Scholar" ||
+        student.studentType === "Non-Residential" ||
+        (student as any).residentialStatus !== "Residential";
+
+      let transportAssign = isNonResident
+        ? studentTransports.find(
+            (t) =>
+              t.status === "Active" &&
+              (t.studentId === studentId ||
+                (student.admissionNo && t.admissionNo === student.admissionNo) ||
+                (t.studentName &&
+                  `${student.firstName} ${student.lastName}`.trim().toLowerCase() ===
+                    t.studentName.trim().toLowerCase())),
+          )
+        : undefined;
+
+      const isTrpReq =
+        isNonResident &&
+        (Boolean(transportAssign) ||
+          student.transportRequired === true ||
+          Boolean((student as any).busRoute || (student as any).pickupPoint));
+
+      const transportFee = isTrpReq
+        ? getDynamicTransportFee(
+            transportAssign || {
+              id: `STRP-AUTO-${studentId}`,
+              studentId,
+              studentName: `${student.firstName} ${student.lastName}`,
+              admissionNo: student.admissionNo || "",
+              busRoute: (student as any).busRoute || "",
+              pickupPoint: (student as any).pickupPoint || "",
+              transportType: (student as any).transportType || "AC",
+              feePlan: "Annual",
+              status: "Active",
+            },
+          )
+        : 0;
 
       // Include pending uniform extra purchase dues
       const pendingUniformExtrasSynth = financeTransactions
@@ -15183,15 +15595,44 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           ? activeAssignment.baseFeeTotal
           : (matchedDfs?.totalAmount ?? 0);
 
-        let transportAssign = studentTransports.find(
-          (t) => t.studentId === studentId && t.status === "Active",
-        );
-        const transportFee =
-          (student.studentType === "Day Scholar" ||
-            student.studentType === "Non-Residential") &&
-          transportAssign
-            ? getDynamicTransportFee(transportAssign)
-            : 0;
+        const isNonResident =
+          student.studentType === "Day Scholar" ||
+          student.studentType === "Non-Residential" ||
+          (student as any).residentialStatus !== "Residential";
+
+        let transportAssign = isNonResident
+          ? studentTransports.find(
+              (t) =>
+                t.status === "Active" &&
+                (t.studentId === studentId ||
+                  (student.admissionNo && t.admissionNo === student.admissionNo) ||
+                  (t.studentName &&
+                    `${student.firstName} ${student.lastName}`.trim().toLowerCase() ===
+                      t.studentName.trim().toLowerCase())),
+            )
+          : undefined;
+
+        const isTrpReq =
+          isNonResident &&
+          (Boolean(transportAssign) ||
+            student.transportRequired === true ||
+            Boolean((student as any).busRoute || (student as any).pickupPoint));
+
+        const transportFee = isTrpReq
+          ? getDynamicTransportFee(
+              transportAssign || {
+                id: `STRP-AUTO-${studentId}`,
+                studentId,
+                studentName: `${student.firstName} ${student.lastName}`,
+                admissionNo: student.admissionNo || "",
+                busRoute: (student as any).busRoute || "",
+                pickupPoint: (student as any).pickupPoint || "",
+                transportType: (student as any).transportType || "AC",
+                feePlan: "Annual",
+                status: "Active",
+              },
+            )
+          : 0;
 
         const hostelAssign = studentHostels.find(
           (h) => h.studentId === studentId && h.status === "Active",
@@ -16085,7 +16526,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
             : d.status === "On Leave"
               ? "On Leave"
               : "Inactive",
-        branch: (d as any).branch || selectedBranch || "Main Campus",
+        branch: (d as any).branch || selectedBranch || "",
       } as any;
 
       setDriverMasters((prev) => {
@@ -16125,7 +16566,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       const newDriver: DriverMaster = {
         ...d,
         id,
-        branch: (d as any).branch || selectedBranch || "Main Campus",
+        branch: (d as any).branch || selectedBranch || "",
       } as any;
       setDriverMasters((prev) => [...prev, newDriver]);
     }
@@ -16276,7 +16717,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           a.status === "Active"
             ? "Active"
             : "Inactive",
-        branch: (a as any).branch || selectedBranch || "Main Campus",
+        branch: (a as any).branch || selectedBranch || "",
       } as any;
 
       setBusAttendants((prev) => {
@@ -16316,7 +16757,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       const newAttendant: BusAttendantMaster = {
         ...a,
         id,
-        branch: (a as any).branch || selectedBranch || "Main Campus",
+        branch: (a as any).branch || selectedBranch || "",
       } as any;
       setBusAttendants((prev) => [...prev, newAttendant]);
     }
@@ -16898,44 +17339,57 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     const student =
       students.find((s) => s.id === studentId || s.admissionNo === studentId) ||
       (() => {
-        const adm = (admissions || []).find(
-          (a) =>
-            a.id === studentId ||
-            a.applicationNo === studentId ||
-            (a.applicantName &&
-              a.applicantName.toLowerCase().includes(studentId.toLowerCase())),
-        );
+        const sId = String(studentId || "").trim().toLowerCase();
+        const adm = (admissions || []).find((a) => {
+          if (!a) return false;
+          const aId = a.id != null ? String(a.id).trim().toLowerCase() : "";
+          const aApp = a.applicationNo ? String(a.applicationNo).trim().toLowerCase() : ((a as any).applicationId != null ? String((a as any).applicationId).trim().toLowerCase() : "");
+          const aReg = a.registrationNo ? String(a.registrationNo).trim().toLowerCase() : ((a as any).registrationNumber ? String((a as any).registrationNumber).trim().toLowerCase() : "");
+          const aAdm = (a as any).admissionNo ? String((a as any).admissionNo).trim().toLowerCase() : ((a as any).admissionNumber ? String((a as any).admissionNumber).trim().toLowerCase() : "");
+          const aName = (a.applicantName || (a as any).studentName || (a as any).applicantFullName || `${a.firstName || ''} ${a.lastName || ''}`).trim().toLowerCase();
+          return sId && (aId === sId || aApp === sId || aReg === sId || aAdm === sId || aName === sId || aName.includes(sId));
+        });
         if (!adm) return undefined;
-        const nameParts = (adm.applicantName || "").trim().split(" ");
+        const fullName = (adm.applicantName || (adm as any).studentName || (adm as any).applicantFullName || `${adm.firstName || ''} ${adm.lastName || ''}`).trim();
+        const nameParts = fullName.split(" ");
         return {
-          id: adm.id || adm.applicationNo,
+          id: String(adm.id || adm.applicationNo || (adm as any).registrationNo),
           firstName: adm.firstName || nameParts[0] || "Student",
           lastName: adm.lastName || nameParts.slice(1).join(" ") || "",
-          admissionNo: adm.applicationNo || adm.id,
+          admissionNo: (adm as any).admissionNo || (adm as any).admissionNumber || adm.registrationNo || adm.applicationNo || String(adm.id),
           className:
-            adm.appliedClass || adm.targetClass || adm.className || "Nursery",
+            adm.appliedClass || (adm as any).appliedClassGrade || adm.targetClass || adm.className || "Nursery",
           section: adm.section || "A",
           gender: adm.gender || "Male",
-          studentType: "Day Scholar",
+          studentType: (adm.residentialStatus === "Residential" || adm.studentType === "Residential") ? "Hosteller" : "Day Scholar",
+          residentialStatus: adm.residentialStatus || adm.studentType || "Non-Residential",
           joiningDate:
-            adm.admissionDate || new Date().toISOString().split("T")[0],
+            adm.admissionDate || (adm as any).createdAt?.split("T")[0] || new Date().toISOString().split("T")[0],
           dueFee: 0,
           paidFee: 0,
           totalFee: 0,
           rollNo: "0",
-          fatherName: adm.parentName || "",
+          fatherName: adm.parentName || (adm as any).fatherName || "",
           motherName: adm.motherName || "",
-          mobile: adm.mobile || "",
+          mobile: adm.mobile || adm.phone || "",
           email: adm.email || "",
           address: adm.address || "",
           status: "Active",
           academicYear: adm.academicYear || "2026-2027",
           branch: adm.branch || "",
+          transportRequired: Boolean(adm.transportRequired),
+          transportType: adm.transportType || "AC",
+          busRoute: adm.busRoute || (adm as any).routeName || "",
+          pickupPoint: adm.pickupPoint || (adm as any).pickupPointName || (adm as any).pickupName || "",
+          routeId: (adm as any).routeId || "",
+          pickupPointId: (adm as any).pickupPointId || "",
+          registrationNo: adm.registrationNo || (adm as any).registrationNumber || "",
+          applicationNo: adm.applicationNo || (adm as any).applicationId || "",
         } as unknown as Student;
       })();
     if (!student) return null;
 
-    const ledger = getStudentFeeLedger(studentId);
+    const ledger = getStudentFeeLedger(studentId, student);
 
     const assignment = studentFeeAssignments.find(
       (a) => a.studentId === studentId && a.status === "Active",
@@ -16950,16 +17404,55 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         : (dfs?.totalAmount ?? 0);
     const assignedFeeHeads = assignment ? assignment.assignedFeeHeads : [];
 
-    let transportAssign = studentTransports.find(
-      (t) => t.studentId === studentId && t.status === "Active",
-    );
+    const isNonResident =
+      student.studentType === "Day Scholar" ||
+      student.studentType === "Non-Residential" ||
+      (student as any).residentialStatus !== "Residential";
+
+    let transportAssign = isNonResident
+      ? studentTransports.find(
+          (t) =>
+            t.status === "Active" &&
+            (t.studentId === studentId ||
+              (student.admissionNo && t.admissionNo === student.admissionNo) ||
+              (t.studentName &&
+                `${student.firstName} ${student.lastName}`.trim().toLowerCase() ===
+                  t.studentName.trim().toLowerCase())),
+        )
+      : undefined;
+
+    const isTrpReq =
+      isNonResident &&
+      (Boolean(transportAssign) ||
+        student.transportRequired === true ||
+        Boolean((student as any).busRoute || (student as any).pickupPoint));
+
     let transportFee = 0;
-    if (
-      (student.studentType === "Day Scholar" ||
-        student.studentType === "Non-Residential") &&
-      transportAssign
-    ) {
-      transportFee = getDynamicTransportFee(transportAssign);
+    if (isTrpReq) {
+      transportFee = getDynamicTransportFee(
+        transportAssign || {
+          id: `STRP-AUTO-${studentId}`,
+          studentId,
+          studentName: `${student.firstName} ${student.lastName}`,
+          admissionNo: student.admissionNo || "",
+          busRoute: (student as any).busRoute || "",
+          pickupPoint: (student as any).pickupPoint || "",
+          transportType: (student as any).transportType || "AC",
+          feePlan: "Annual",
+          status: "Active",
+        },
+      );
+    }
+    const ledgerTrItem = ledger?.feeItems?.find(
+      (i) =>
+        i.isApplicable &&
+        (i.headId === "FH-TRP" ||
+          (i.category || "").toLowerCase().includes("transport") ||
+          (i.headName || "").toLowerCase().includes("transport")),
+    );
+    if (ledgerTrItem) {
+      transportFee =
+        ledgerTrItem.finalAmount || ledgerTrItem.originalAmount || transportFee;
     }
 
     const hostelAssign = studentHostels.find(
@@ -17114,8 +17607,6 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         activeFineRule.dueDate < todayStr
       ) {
         earliestOverdueDateStr = activeFineRule.dueDate;
-      } else if (todayStr > "2026-04-15") {
-        earliestOverdueDateStr = "2026-04-15";
       }
     }
 
@@ -17180,8 +17671,13 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
 
     const totalUniformFee = baseUniformLedgerAmt + pendingUniformExtras;
 
+    const hasTrpInLedger = Boolean(
+      ledgerTrItem && (ledgerTrItem.finalAmount || ledgerTrItem.originalAmount || 0) > 0,
+    );
+    const unincludedTransport = (!hasTrpInLedger && isTrpReq) ? transportFee : 0;
+
     const gross = ledger
-      ? (ledger.grossAmount || ledger.totalOriginalAmount) + pendingLibraryFines
+      ? (ledger.grossAmount || ledger.totalOriginalAmount) + unincludedTransport + pendingLibraryFines
       : baseFee +
         transportFee +
         hostelFee +
@@ -22530,6 +23026,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         generateStudentFeeLedger,
         recalculateStudentFeeLedger,
         getStudentFeeLedger,
+        getDynamicTransportFee,
         getPromotedStudentsWithPreviousDues,
         calculateStudentPayableFee,
         applyScholarshipToStudent,

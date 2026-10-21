@@ -767,9 +767,15 @@ public class FinanceMasterRepository : IFinanceMasterRepository
     public async Task<FeeScheduleConfigDto> GetFeeScheduleAsync(string? academicYear)
     {
         string ay = string.IsNullOrWhiteSpace(academicYear) ? "2026-2027" : academicYear.Trim();
+        string ayCompact = ay.Replace(" ", "");
+        string ayPrefix = ay.Contains('-') ? ay.Split('-')[0] : ay;
 
         var ayEntity = await _context.AcademicYears.AsNoTracking()
-            .FirstOrDefaultAsync(a => !a.IsDeleted && (a.AcademicYearName == ay || a.AcademicYearName == ay.Replace(" ", "")));
+            .FirstOrDefaultAsync(a => !a.IsDeleted && (
+                a.AcademicYearName == ay || 
+                a.AcademicYearName == ayCompact ||
+                (ay.Contains("-") && a.AcademicYearName.StartsWith(ayPrefix))
+            ));
 
         if (ayEntity == null)
         {
@@ -793,7 +799,12 @@ public class FinanceMasterRepository : IFinanceMasterRepository
         var entity = await _context.FeeSchedules.AsNoTracking()
             .Include(s => s.Terms)
             .Include(s => s.MonthlyDates)
-            .FirstOrDefaultAsync(s => s.AcademicYear == ay);
+            .FirstOrDefaultAsync(s => 
+                s.AcademicYear == ay || 
+                s.AcademicYear == ayCompact ||
+                s.Id == $"SCH-{ay}" ||
+                (ay.Contains("-") && s.AcademicYear.StartsWith(ayPrefix))
+            );
 
         if (entity != null)
         {
@@ -877,11 +888,17 @@ public class FinanceMasterRepository : IFinanceMasterRepository
     {
         if (schedule == null) return false;
         string ay = string.IsNullOrWhiteSpace(schedule.AcademicYear) ? "2026-2027" : schedule.AcademicYear.Trim();
+        string ayCompact = ay.Replace(" ", "");
+        string ayPrefix = ay.Contains('-') ? ay.Split('-')[0] : ay;
         string sId = string.IsNullOrWhiteSpace(schedule.Id) ? $"SCH-{ay}" : schedule.Id;
         int offset = schedule.DueDateOffsetDays > 0 ? schedule.DueDateOffsetDays : 45;
 
         var ayEntity = await _context.AcademicYears.AsNoTracking()
-            .FirstOrDefaultAsync(a => !a.IsDeleted && (a.AcademicYearName == ay || a.AcademicYearName == ay.Replace(" ", "")));
+            .FirstOrDefaultAsync(a => !a.IsDeleted && (
+                a.AcademicYearName == ay || 
+                a.AcademicYearName == ayCompact ||
+                (ay.Contains("-") && a.AcademicYearName.StartsWith(ayPrefix))
+            ));
 
         if (ayEntity == null)
         {
@@ -907,28 +924,19 @@ public class FinanceMasterRepository : IFinanceMasterRepository
         var existing = await _context.FeeSchedules
             .Include(s => s.Terms)
             .Include(s => s.MonthlyDates)
-            .FirstOrDefaultAsync(s => s.AcademicYear == ay || s.Id == sId);
+            .FirstOrDefaultAsync(s => 
+                s.AcademicYear == ay || 
+                s.AcademicYear == ayCompact ||
+                s.Id == sId ||
+                (ay.Contains("-") && s.AcademicYear.StartsWith(ayPrefix))
+            );
 
         bool applySameDay = schedule.MonthlyConfig?.ApplySameDayToAllMonths ?? true;
         int monthlyDueDay = schedule.MonthlyConfig?.DueDay ?? 10;
         string defaultDueDate = ayEntity.StartDate.AddDays(offset).ToString("yyyy-MM-dd");
         string annualDueDateVal = calculatedTerms.FirstOrDefault()?.DueDate ?? defaultDueDate;
 
-        if (existing != null)
-        {
-            existing.NumberOfTerms = schedule.NumberOfTerms;
-            existing.DueDateOffsetDays = offset;
-            existing.Status = string.IsNullOrWhiteSpace(schedule.Status) ? "Published" : schedule.Status;
-            existing.AnnualDueDate = annualDueDateVal;
-            existing.OneTimeDueDate = string.IsNullOrWhiteSpace(schedule.OneTimeDueDate) ? defaultDueDate : schedule.OneTimeDueDate;
-            existing.ApplySameDayToAllMonths = applySameDay;
-            existing.MonthlyDueDay = monthlyDueDay;
-            existing.TermsJson = null;
-            existing.MonthlyConfigJson = null;
-            existing.UpdatedAt = DateTime.UtcNow;
-            _context.FeeSchedules.Update(existing);
-        }
-        else
+        if (existing == null)
         {
             existing = new FeeSchedule
             {
@@ -948,14 +956,33 @@ public class FinanceMasterRepository : IFinanceMasterRepository
             };
             await _context.FeeSchedules.AddAsync(existing);
         }
-
-        var oldTerms = await _context.FeeScheduleTerms.Where(t => t.FeeScheduleId == sId).ToListAsync();
-        if (oldTerms.Count > 0)
+        else
         {
-            _context.FeeScheduleTerms.RemoveRange(oldTerms);
+            existing.NumberOfTerms = schedule.NumberOfTerms;
+            existing.DueDateOffsetDays = offset;
+            existing.Status = string.IsNullOrWhiteSpace(schedule.Status) ? "Published" : schedule.Status;
+            existing.AnnualDueDate = annualDueDateVal;
+            existing.OneTimeDueDate = string.IsNullOrWhiteSpace(schedule.OneTimeDueDate) ? defaultDueDate : schedule.OneTimeDueDate;
+            existing.ApplySameDayToAllMonths = applySameDay;
+            existing.MonthlyDueDay = monthlyDueDay;
+            existing.TermsJson = null;
+            existing.MonthlyConfigJson = null;
+            existing.UpdatedAt = DateTime.UtcNow;
+            sId = existing.Id;
         }
 
         var termsToSave = schedule.Terms != null && schedule.Terms.Count > 0 ? schedule.Terms : calculatedTerms;
+        var targetSequences = termsToSave.Select(t => t.Sequence).ToHashSet();
+
+        // Remove obsolete terms
+        var termsToRemove = existing.Terms.Where(t => !targetSequences.Contains(t.Sequence)).ToList();
+        foreach (var rem in termsToRemove)
+        {
+            existing.Terms.Remove(rem);
+            _context.FeeScheduleTerms.Remove(rem);
+        }
+
+        // Update or insert terms via aggregate root collection
         foreach (var t in termsToSave)
         {
             var gen = calculatedTerms.FirstOrDefault(c => c.Sequence == t.Sequence);
@@ -963,47 +990,81 @@ public class FinanceMasterRepository : IFinanceMasterRepository
             string endDate = gen?.EndDate ?? t.EndDate ?? ayEntity.EndDate.ToString("yyyy-MM-dd");
             string dueDate = !string.IsNullOrWhiteSpace(t.DueDate) ? t.DueDate : (gen?.DueDate ?? startDate);
             string mode = string.IsNullOrWhiteSpace(t.DueDateMode) ? "AUTO" : t.DueDateMode;
+            string termName = string.IsNullOrWhiteSpace(t.TermName) ? $"Term {t.Sequence}" : t.TermName;
 
-            string termId = string.IsNullOrWhiteSpace(t.Id) ? $"T{t.Sequence}-{ay}" : t.Id;
-            var termEntity = new FeeScheduleTerm
+            var existingTerm = existing.Terms.FirstOrDefault(x => x.Sequence == t.Sequence);
+            if (existingTerm != null)
             {
-                Id = termId,
-                FeeScheduleId = sId,
-                Sequence = t.Sequence,
-                TermName = string.IsNullOrWhiteSpace(t.TermName) ? $"Term {t.Sequence}" : t.TermName,
-                StartDate = startDate,
-                EndDate = endDate,
-                DueDate = dueDate,
-                DueDateMode = mode,
-                DueDateOffsetDays = offset,
-                PercentageShare = (decimal)t.PercentageShare,
-                Status = string.IsNullOrWhiteSpace(t.Status) ? "Active" : t.Status,
-                CreatedAt = DateTime.UtcNow,
-                UpdatedAt = DateTime.UtcNow
-            };
-            await _context.FeeScheduleTerms.AddAsync(termEntity);
+                existingTerm.TermName = termName;
+                existingTerm.StartDate = startDate;
+                existingTerm.EndDate = endDate;
+                existingTerm.DueDate = dueDate;
+                existingTerm.DueDateMode = mode;
+                existingTerm.DueDateOffsetDays = offset;
+                existingTerm.PercentageShare = (decimal)t.PercentageShare;
+                existingTerm.Status = string.IsNullOrWhiteSpace(t.Status) ? "Active" : t.Status;
+                existingTerm.UpdatedAt = DateTime.UtcNow;
+            }
+            else
+            {
+                string termId = string.IsNullOrWhiteSpace(t.Id) ? $"T{t.Sequence}-{existing.AcademicYear}" : t.Id;
+                var newTerm = new FeeScheduleTerm
+                {
+                    Id = termId,
+                    FeeScheduleId = existing.Id,
+                    Sequence = t.Sequence,
+                    TermName = termName,
+                    StartDate = startDate,
+                    EndDate = endDate,
+                    DueDate = dueDate,
+                    DueDateMode = mode,
+                    DueDateOffsetDays = offset,
+                    PercentageShare = (decimal)t.PercentageShare,
+                    Status = string.IsNullOrWhiteSpace(t.Status) ? "Active" : t.Status,
+                    CreatedAt = DateTime.UtcNow,
+                    UpdatedAt = DateTime.UtcNow,
+                    FeeSchedule = existing
+                };
+                existing.Terms.Add(newTerm);
+                await _context.FeeScheduleTerms.AddAsync(newTerm);
+            }
         }
 
-        var oldMonths = await _context.FeeScheduleMonthlyDates.Where(m => m.FeeScheduleId == sId).ToListAsync();
-        if (oldMonths.Count > 0)
-        {
-            _context.FeeScheduleMonthlyDates.RemoveRange(oldMonths);
-        }
-
+        // Update or insert monthly dates
         if (schedule.MonthlyConfig?.MonthDueDates != null && schedule.MonthlyConfig.MonthDueDates.Count > 0)
         {
+            var targetMonthIndices = schedule.MonthlyConfig.MonthDueDates.Select(m => m.MonthIndex).ToHashSet();
+            var monthsToRemove = existing.MonthlyDates.Where(m => !targetMonthIndices.Contains(m.MonthIndex)).ToList();
+            foreach (var rem in monthsToRemove)
+            {
+                existing.MonthlyDates.Remove(rem);
+                _context.FeeScheduleMonthlyDates.Remove(rem);
+            }
+
             foreach (var m in schedule.MonthlyConfig.MonthDueDates)
             {
-                var monthEntity = new FeeScheduleMonthlyDate
+                var existingMonth = existing.MonthlyDates.FirstOrDefault(x => x.MonthIndex == m.MonthIndex);
+                if (existingMonth != null)
                 {
-                    FeeScheduleId = sId,
-                    MonthIndex = m.MonthIndex,
-                    MonthName = m.MonthName ?? string.Empty,
-                    DueDate = m.DueDate ?? string.Empty,
-                    CreatedAt = DateTime.UtcNow,
-                    UpdatedAt = DateTime.UtcNow
-                };
-                await _context.FeeScheduleMonthlyDates.AddAsync(monthEntity);
+                    existingMonth.MonthName = m.MonthName ?? string.Empty;
+                    existingMonth.DueDate = m.DueDate ?? string.Empty;
+                    existingMonth.UpdatedAt = DateTime.UtcNow;
+                }
+                else
+                {
+                    var newMonth = new FeeScheduleMonthlyDate
+                    {
+                        FeeScheduleId = existing.Id,
+                        MonthIndex = m.MonthIndex,
+                        MonthName = m.MonthName ?? string.Empty,
+                        DueDate = m.DueDate ?? string.Empty,
+                        CreatedAt = DateTime.UtcNow,
+                        UpdatedAt = DateTime.UtcNow,
+                        FeeSchedule = existing
+                    };
+                    existing.MonthlyDates.Add(newMonth);
+                    await _context.FeeScheduleMonthlyDates.AddAsync(newMonth);
+                }
             }
         }
 

@@ -146,7 +146,9 @@ export const FeeScheduleView: React.FC = () => {
           const loadedOffset = apiData.dueDateOffsetDays || 45;
           setDueDateOffsetDays(loadedOffset);
 
-          const finalTerms = hasConfiguredDates ? generateTermsFromAcademicYear(ayDates, loadedNumTerms, loadedOffset, apiData.terms) : [];
+          const finalTerms = (apiData.terms && apiData.terms.length > 0)
+            ? apiData.terms
+            : (hasConfiguredDates ? generateTermsFromAcademicYear(ayDates, loadedNumTerms, loadedOffset) : []);
 
           const loaded: AcademicYearFeeSchedule = {
             id: apiData.id || `SCH-${activeAY}`,
@@ -154,16 +156,17 @@ export const FeeScheduleView: React.FC = () => {
             numberOfTerms: loadedNumTerms,
             dueDateOffsetDays: loadedOffset,
             status: (apiData.status === 'Inactive' ? 'Inactive' : 'Active'),
-            annualDueDate: finalTerms[0]?.dueDate || apiData.annualDueDate || ayDates.startDate,
-            oneTimeDueDate: apiData.oneTimeDueDate || ayDates.startDate,
+            annualDueDate: apiData.annualDueDate || finalTerms[0]?.dueDate || ayDates.startDate,
+            oneTimeDueDate: apiData.oneTimeDueDate || finalTerms[0]?.dueDate || ayDates.startDate,
             terms: finalTerms,
+            monthlyConfig: apiData.monthlyConfig,
           };
 
           setSchedule(loaded);
           if (loaded.oneTimeDueDate) setOneTimeDueDate(loaded.oneTimeDueDate);
 
           setAcademicYearFeeSchedules(prev => [
-            ...prev.filter(s => s.academicYear !== activeAY),
+            ...prev.filter(s => s.academicYear !== activeAY && s.academicYear !== loaded.academicYear),
             loaded
           ]);
         }
@@ -336,7 +339,8 @@ export const FeeScheduleView: React.FC = () => {
       terms: (schedule.terms || []).map(t => ({ ...t, status: 'Active' })),
       status: 'Active',
       annualDueDate: finalAnnualDueDate,
-      oneTimeDueDate
+      oneTimeDueDate,
+      monthlyConfig: schedule.monthlyConfig
     };
 
     try {

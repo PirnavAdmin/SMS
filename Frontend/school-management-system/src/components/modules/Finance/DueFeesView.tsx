@@ -21,7 +21,7 @@ import {
   FileSpreadsheet,
 } from 'lucide-react';
 import { Student } from '../../../types';
-import { useData } from '../../../context/DataContext';
+import { useData, matchesAcademicYear } from '../../../context/DataContext';
 import { useAuth } from '../../../context/AuthContext';
 import { useToast } from '../../../context/ToastContext';
 import { matchesClassName } from '../../../utils/classSorter';
@@ -47,6 +47,7 @@ export const DueFeesView: React.FC<DueFeesViewProps> = ({
     getStudentFeeLedger,
     academicClasses,
     academicYearFeeSchedules,
+    academicYears,
     feeHeads,
     financeSettings,
     dynamicFeeStructures,
@@ -70,8 +71,36 @@ export const DueFeesView: React.FC<DueFeesViewProps> = ({
   const [selectedDueDate, setSelectedDueDate] = useState('All');
   const [timelineFilter, setTimelineFilter] = useState<'All' | 'Overdue' | 'Current' | 'Upcoming'>('All');
 
+  // Keep selectedAY in sync when global academic year changes
+  React.useEffect(() => {
+    if (selectedAcademicYear && !matchesAcademicYear(selectedAcademicYear, selectedAY)) {
+      setSelectedAY(selectedAcademicYear);
+    }
+  }, [selectedAcademicYear]);
+
+  // Dynamically compile available academic years from database master and fee schedules
+  const availableAcademicYears = React.useMemo(() => {
+    const list: string[] = [];
+    (academicYears || []).forEach((ay) => {
+      const name = ay.academicYear?.trim();
+      if (name && !list.some((existing) => matchesAcademicYear(existing, name))) {
+        list.push(name);
+      }
+    });
+    (academicYearFeeSchedules || []).forEach((s) => {
+      const name = s.academicYear?.trim();
+      if (name && !list.some((existing) => matchesAcademicYear(existing, name))) {
+        list.push(name);
+      }
+    });
+    if (list.length === 0) {
+      list.push("2026-2027");
+    }
+    return list;
+  }, [academicYears, academicYearFeeSchedules]);
+
   const uniqueSections = Array.from(new Set(students.map(st => st.section))).filter(Boolean).sort();
-  const scheduleForAY = academicYearFeeSchedules.find(s => s.academicYear === selectedAY);
+  const scheduleForAY = academicYearFeeSchedules.find(s => matchesAcademicYear(s.academicYear, selectedAY));
   const termsList = scheduleForAY ? scheduleForAY.terms : [];
   const uniqueDueDates = Array.from(new Set(termsList.map((t: any) => t.dueDate))).filter(Boolean).sort();
 
@@ -236,6 +265,7 @@ export const DueFeesView: React.FC<DueFeesViewProps> = ({
     totalOutstanding: number;
     overdueAmount: number;
     earliestDueDate: string;
+    earliestDueTermName: string;
     isOverdue: boolean;
     unpaidCount: number;
   }[] = [];
@@ -303,12 +333,16 @@ export const DueFeesView: React.FC<DueFeesViewProps> = ({
     const totalOutstanding = unpaidInsts.reduce((sum, inst) => sum + inst.dueAmount, 0);
     if (totalAmount <= 0 || totalOutstanding <= 0) return;
 
-    const overdueInsts = unpaidInsts.filter((inst) => inst.dueDate <= todayStr);
+    const overdueInsts = unpaidInsts.filter((inst) => inst.dueDate < todayStr);
     const overdueAmount = overdueInsts.reduce((sum, inst) => sum + inst.dueAmount, 0);
 
-    const dueDates = unpaidInsts.map((inst) => inst.dueDate).sort();
-    const earliestDueDate = dueDates[0] || todayStr;
-    const isOverdue = overdueAmount > 0 || (dueDates.length > 0 && dueDates[0] < todayStr);
+    const sortedUnpaidInsts = [...unpaidInsts].sort((a, b) => (a.dueDate || '').localeCompare(b.dueDate || ''));
+    const nextUnpaidInst = sortedUnpaidInsts[0];
+    const earliestDueDate = nextUnpaidInst ? nextUnpaidInst.dueDate : "-";
+    const earliestDueTermName = nextUnpaidInst
+      ? (nextUnpaidInst.termName || nextUnpaidInst.feeHeadName || "")
+      : "";
+    const isOverdue = overdueAmount > 0 || (Boolean(nextUnpaidInst) && nextUnpaidInst.dueDate < todayStr);
 
     // Timeline Filter
     if (timelineFilter === "Overdue" && !isOverdue) return;
@@ -322,6 +356,7 @@ export const DueFeesView: React.FC<DueFeesViewProps> = ({
       totalOutstanding,
       overdueAmount,
       earliestDueDate,
+      earliestDueTermName,
       isOverdue,
       unpaidCount: unpaidInsts.length,
     });
@@ -364,6 +399,7 @@ export const DueFeesView: React.FC<DueFeesViewProps> = ({
       "Section": item.student.section || "",
       "Student Type": item.student.studentType || "Day Scholar",
       "Earliest Due Date": item.earliestDueDate || "",
+      "Earliest Due Term": item.earliestDueTermName || "",
       "Filtered Category": selectedFeeHead,
       "Total Fee (INR)": item.totalAmount,
       "Amount Paid (INR)": item.totalPaid,
@@ -404,7 +440,10 @@ export const DueFeesView: React.FC<DueFeesViewProps> = ({
         <td style="padding: 6px 8px; font-weight: 600;">${item.student.firstName} ${item.student.lastName}</td>
         <td style="padding: 6px 8px;">${item.student.className}-${item.student.section}</td>
         <td style="padding: 6px 8px;">${item.student.studentType || "Day Scholar"}</td>
-        <td style="padding: 6px 8px;">${formatDateForDisplay(item.earliestDueDate)}</td>
+        <td style="padding: 6px 8px;">
+          <div>${item.earliestDueDate && item.earliestDueDate !== "-" ? formatDateForDisplay(item.earliestDueDate) : "-"}</div>
+          ${item.earliestDueTermName ? `<div style="font-size: 9px; color: #64748b; font-weight: 500;">${item.earliestDueTermName}</div>` : ""}
+        </td>
         <td style="padding: 6px 8px; text-align: right;">${formatCurrency(item.totalAmount)}</td>
         <td style="padding: 6px 8px; text-align: right; color: #059669; font-weight: 600;">${formatCurrency(item.totalPaid)}</td>
         <td style="padding: 6px 8px; text-align: right; color: #d97706; font-weight: 600;">${formatCurrency(item.overdueAmount)}</td>
@@ -711,9 +750,9 @@ export const DueFeesView: React.FC<DueFeesViewProps> = ({
               onChange={(e) => setSelectedAY(e.target.value)}
               className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs font-bold text-slate-900 dark:text-white cursor-pointer"
             >
-              {academicYearFeeSchedules.map((s) => (
-                <option key={s.id} value={s.academicYear}>
-                  {s.academicYear}
+              {availableAcademicYears.map((ayStr) => (
+                <option key={ayStr} value={ayStr}>
+                  {ayStr}
                 </option>
               ))}
             </select>
@@ -865,10 +904,15 @@ export const DueFeesView: React.FC<DueFeesViewProps> = ({
                         </span>
                       </td>
                       <td className="py-3 px-4 font-mono text-slate-500">
-                        <div className="flex items-center gap-1">
-                          <Calendar className="w-3.5 h-3.5 text-slate-400" />
-                          <span>{formatDateForDisplay(item.earliestDueDate)}</span>
+                        <div className="flex items-center gap-1 font-semibold text-slate-700 dark:text-slate-300">
+                          <Calendar className="w-3.5 h-3.5 text-brand-500 shrink-0" />
+                          <span>{item.earliestDueDate && item.earliestDueDate !== "-" ? formatDateForDisplay(item.earliestDueDate) : "-"}</span>
                         </div>
+                        {item.earliestDueTermName && (
+                          <div className="text-[10px] text-slate-400 dark:text-slate-500 font-medium pl-4.5 truncate max-w-[160px]" title={item.earliestDueTermName}>
+                            {item.earliestDueTermName}
+                          </div>
+                        )}
                       </td>
                       <td className="py-3 px-4 font-mono text-right text-slate-600 dark:text-slate-400">
                         {formatCurrency(item.totalAmount)}

@@ -261,8 +261,23 @@ export const TransactionsMasterLedgerView: React.FC<TransactionsMasterLedgerView
     currentBalance: ''
   });
 
+  // Unique deduplicated transactions
+  const uniqueFinanceTransactions = React.useMemo(() => {
+    const seenRefs = new Set<string>();
+    const seenIds = new Set<string>();
+    return (financeTransactions || []).filter((t) => {
+      const ref = (t.referenceNumber || '').trim();
+      const tid = (t.transactionId || t.id || '').trim();
+      if (ref && seenRefs.has(ref)) return false;
+      if (tid && seenIds.has(tid)) return false;
+      if (ref) seenRefs.add(ref);
+      if (tid) seenIds.add(tid);
+      return true;
+    });
+  }, [financeTransactions]);
+
   // Summary Metrics Computation
-  const filteredTxns = financeTransactions.filter(t => {
+  const filteredTxns = uniqueFinanceTransactions.filter(t => {
     // Search
     const matchesSearch =
       !appliedFilters.searchQuery ||
@@ -341,22 +356,22 @@ export const TransactionsMasterLedgerView: React.FC<TransactionsMasterLedgerView
     return matchBranch && matchAy;
   });
 
-  const totalIncome = financeTransactions
+  const totalIncome = uniqueFinanceTransactions
     .filter(t => t.type === 'Income' && t.status === 'Completed')
     .reduce((sum, t) => sum + t.amount, 0);
 
-  const totalExpenses = financeTransactions
+  const totalExpenses = uniqueFinanceTransactions
     .filter(t => t.type === 'Expense' && t.status === 'Completed')
     .reduce((sum, t) => sum + t.amount, 0);
 
   const netBalance = totalIncome - totalExpenses;
 
   const todayStr = new Date().toISOString().split('T')[0];
-  const todayIncome = financeTransactions
+  const todayIncome = uniqueFinanceTransactions
     .filter(t => t.type === 'Income' && t.status === 'Completed' && t.date === todayStr)
     .reduce((sum, t) => sum + t.amount, 0);
 
-  const todayExpenses = financeTransactions
+  const todayExpenses = uniqueFinanceTransactions
     .filter(t => t.type === 'Expense' && t.status === 'Completed' && t.date === todayStr)
     .reduce((sum, t) => sum + t.amount, 0);
 
@@ -634,7 +649,7 @@ export const TransactionsMasterLedgerView: React.FC<TransactionsMasterLedgerView
               : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
           }`}
         >
-          <FileSpreadsheet className="w-3.5 h-3.5" /> Master Ledger ({financeTransactions.length})
+          <FileSpreadsheet className="w-3.5 h-3.5" /> Master Ledger ({uniqueFinanceTransactions.length})
         </button>
 
         <button

@@ -5,7 +5,7 @@ import { useAuth } from '../../../context/AuthContext';
 import { useData } from '../../../context/DataContext';
 import { ExportButton } from '../../common/ExportButton';
 import { Pagination } from '../../common/Pagination';
-import { getHostelBlocks, getRooms, getAllocations, getNightAttendance, saveNightAttendance, HostelBlock, HostelRoom, BedAllocation, NightAttendanceRecord } from '../../../api/hostel';
+import { getHostelBlocks, getRooms, getAllocations, getNightAttendance, saveNightAttendance, formatRoomNumber, HostelBlock, HostelRoom, BedAllocation, NightAttendanceRecord } from '../../../api/hostel';
 
 export const HostelAttendanceView: React.FC = () => {
   const { addToast } = useToast();
@@ -407,7 +407,7 @@ export const HostelAttendanceView: React.FC = () => {
     'Student Name': a.studentName,
     'Admission No': a.admissionNo,
     'Hostel Block': a.hostelName,
-    'Room No': `Room #${a.roomNumber}`,
+    'Room No': formatRoomNumber(a.roomNumber),
     'Bed No': a.bedNumber || 'BED-1',
     'Attendance Status': getAttendanceStatus(getItemKey(a, idx)),
     'In Time': getInTime(getItemKey(a, idx)),
@@ -619,7 +619,7 @@ export const HostelAttendanceView: React.FC = () => {
                   const rId = r.roomId !== undefined && r.roomId !== null ? String(r.roomId) : String((r as any).id || idx);
                   return (
                     <option key={`att_rm_${rId}_${idx}`} value={rId}>
-                      Room #{r.roomNumber || rId}
+                      {formatRoomNumber(r.roomNumber || rId)}
                     </option>
                   );
                 })}
@@ -738,10 +738,10 @@ export const HostelAttendanceView: React.FC = () => {
                       <td className="py-3.5 px-4 font-bold text-slate-800 dark:text-slate-200 whitespace-nowrap">
                         {a.hostelName && isNaN(Number(a.hostelName))
                           ? a.hostelName
-                          : (blocks.find(b => b.hostelId.toString() === String(a.hostelName || a.hostelId))?.hostelName || `Block #${a.hostelName || '1'}`)}
+                          : (blocks.find(b => String(b.hostelId ?? '') === String(a.hostelName || a.hostelId))?.hostelName || `Block #${a.hostelName || '1'}`)}
                       </td>
                       <td className="py-3.5 px-4 font-semibold text-slate-700 dark:text-slate-300 whitespace-nowrap font-mono">
-                        Room #{a.roomNumber} ({a.bedNumber || 'BED-1'})
+                        {formatRoomNumber(a.roomNumber)} ({a.bedNumber || 'BED-1'})
                       </td>
                       <td className="py-3.5 px-4">
                         <div className="flex items-center justify-center gap-1.5 whitespace-nowrap">

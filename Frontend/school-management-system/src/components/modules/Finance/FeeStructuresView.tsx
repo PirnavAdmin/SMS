@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect, useCallback } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { formatCurrency } from "../../../utils/currency";
 import {
   Layers,
@@ -6,222 +6,65 @@ import {
   Search,
   Edit,
   Trash2,
-  Calculator,
-  CheckCircle,
-  Building2,
   Calendar,
-  AlertTriangle,
-  Info,
-  CheckCircle2,
-  Tag,
-  Clock,
-  Sparkles,
-  Bus,
-  Shirt,
-  DollarSign,
-  Package,
-  MapPin,
-  Car,
   AlertCircle,
+  Tag,
+  CheckCircle2,
   GraduationCap,
+  Sparkles,
+  X,
 } from "lucide-react";
 import {
   DynamicFeeStructure,
   FeeStructureItem,
-  FeePaymentEligibility,
   FeeHead,
 } from "../../../types";
-import {
-  getHostelBlocks,
-  getRooms,
-  getRoomTypes,
-  HostelBlock as ApiHostelBlock,
-  HostelRoom as ApiHostelRoom,
-  RoomType as ApiRoomType,
-} from "../../../api/hostel";
-import { useData } from "../../../context/DataContext";
+import { useData, matchesAcademicYear } from "../../../context/DataContext";
 import { useAuth } from "../../../context/AuthContext";
 import { useToast } from "../../../context/ToastContext";
 import { ExportButton } from "../../common/ExportButton";
 import { ConfirmModal } from "../../common/ConfirmModal";
 import { compareClassesAscending } from "../../../utils/classSorter";
 
-export type FeeCategoryType = "Tuition Fee" | "Others" | "Hostel" | "Transport" | "Uniform";
+export type FeeCategoryType = string;
 
-interface FeeStructuresViewProps {
-  initialCategory?: "All" | FeeCategoryType;
+export interface FeeStructuresViewProps {
+  initialCategory?: string;
 }
 
-export const FeeStructuresView: React.FC<FeeStructuresViewProps> = ({ initialCategory = "All" }) => {
+export const FeeStructuresView: React.FC<FeeStructuresViewProps> = () => {
   const {
-    feeHeads,
-    dynamicFeeStructures,
+    feeHeads = [],
+    dynamicFeeStructures = [],
     addDynamicFeeStructure,
     updateDynamicFeeStructure,
     deleteDynamicFeeStructure,
-    academicClasses,
-    hostelBlocks,
-    hostelRooms,
-    roomTypeMasters,
-    routeMasters,
-    pickupPoints,
-    vehicleMasters,
-    uniforms,
-    uniformCategories,
-    uniformSizes,
-    academicYearFeeSchedules,
-    academicYears,
-    branches,
+    academicClasses = [],
+    academicYears = [],
+    branches = [],
   } = useData();
+
   const { selectedBranch, selectedAcademicYear } = useAuth();
   const { addToast } = useToast();
 
   const [query, setQuery] = useState("");
-  const [categoryFilter, setCategoryFilter] = useState<"All" | FeeCategoryType>(initialCategory);
   const [selectedClassFilter, setSelectedClassFilter] = useState<string>("All");
-
-  useEffect(() => {
-    if (initialCategory && initialCategory !== "All") {
-      setCategoryFilter(initialCategory);
-    }
-  }, [initialCategory]);
+  const [selectedStatusFilter, setSelectedStatusFilter] = useState<string>("All");
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingStruct, setEditingStruct] = useState<DynamicFeeStructure | null>(null);
   const [deletingStruct, setDeletingStruct] = useState<DynamicFeeStructure | null>(null);
 
-  // Modal Category Choice
-  const [modalCategory, setModalCategory] = useState<FeeCategoryType>("Tuition Fee");
+  // Form State for Modal
+  const [structName, setStructName] = useState("");
+  const [structClass, setStructClass] = useState("");
+  const [structAcademicYear, setStructAcademicYear] = useState("");
+  const [structStatus, setStructStatus] = useState<"Active" | "Inactive">("Active");
+  const [structItems, setStructItems] = useState<FeeStructureItem[]>([]);
 
-  // Common Modal State
-  const [modalAcademicYear, setModalAcademicYear] = useState<string>("");
-  const [modalStatus, setModalStatus] = useState<"Active" | "Inactive">("Active");
-
-  // --- Tuition Fee State ---
-  const [tuitionClass, setTuitionClass] = useState("");
-  const [selectedHeadIds, setSelectedHeadIds] = useState<string[]>([]);
-  const [selectedHeadAmounts, setSelectedHeadAmounts] = useState<Record<string, string>>({});
-
-  // --- Others Fee State ---
-  const [othersFeeHeadId, setOthersFeeHeadId] = useState("");
-  const [othersClass, setOthersClass] = useState("All");
-  const [othersFrequency, setOthersFrequency] = useState("Annual");
-  const [othersTerms, setOthersTerms] = useState<string[]>([]);
-  const [othersAmount, setOthersAmount] = useState("");
-
-  // --- Hostel Fee State ---
-  const [hostelFeeHeadId, setHostelFeeHeadId] = useState("");
-  const [selectedBlockId, setSelectedBlockId] = useState("");
-  const [selectedRoomId, setSelectedRoomId] = useState("");
-  const [hostelClass, setHostelClass] = useState("All");
-  const [hostelTerm, setHostelTerm] = useState("");
-  const [hostelAmount, setHostelAmount] = useState("");
-  const [hostelItemsList, setHostelItemsList] = useState<FeeStructureItem[]>([]);
-
-  // --- Dynamic Hostel Management Data from Existing Module ---
-  const [hostelFacilities, setHostelFacilities] = useState<ApiHostelBlock[]>([]);
-  const [hostelFacilitiesLoading, setHostelFacilitiesLoading] = useState(false);
-  const [hostelFacilitiesError, setHostelFacilitiesError] = useState<string | null>(null);
-  const [roomsForSelectedHostel, setRoomsForSelectedHostel] = useState<ApiHostelRoom[]>([]);
-  const [roomsLoading, setRoomsLoading] = useState(false);
-  const [roomTypesList, setRoomTypesList] = useState<ApiRoomType[]>([]);
-
-  const loadHostelFacilities = useCallback(async () => {
-    try {
-      setHostelFacilitiesLoading(true);
-      setHostelFacilitiesError(null);
-      const [blocksData, rtsData] = await Promise.all([
-        getHostelBlocks(),
-        getRoomTypes().catch(() => []),
-      ]);
-      const activeBlocks = (blocksData || []).filter(
-        (b) => !b.status || b.status.toLowerCase() === "active"
-      );
-      setHostelFacilities(activeBlocks);
-      setRoomTypesList(rtsData || []);
-    } catch (err: any) {
-      setHostelFacilitiesError(err?.message || "Failed to load hostel facilities.");
-    } finally {
-      setHostelFacilitiesLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    loadHostelFacilities();
-  }, [loadHostelFacilities]);
-
-  const handleHostelFacilityChange = useCallback(async (facilityId: string) => {
-    setSelectedBlockId(facilityId);
-    setSelectedRoomId("");
-    if (!facilityId) {
-      setRoomsForSelectedHostel([]);
-      return;
-    }
-    try {
-      setRoomsLoading(true);
-      const roomsData = await getRooms(Number(facilityId));
-      const activeRooms = (roomsData || []).filter(
-        (r) =>
-          String(r.hostelId) === String(facilityId) &&
-          (!r.status || r.status.toLowerCase() === "active")
-      );
-      setRoomsForSelectedHostel(activeRooms);
-    } catch {
-      setRoomsForSelectedHostel([]);
-    } finally {
-      setRoomsLoading(false);
-    }
-  }, []);
-
-  // --- Transport Fee State ---
-  const [transportFeeHeadId, setTransportFeeHeadId] = useState("");
-  const [selectedRouteId, setSelectedRouteId] = useState("");
-  const [selectedStopId, setSelectedStopId] = useState("");
-  const [selectedVehicleId, setSelectedVehicleId] = useState("");
-  const [transportClass, setTransportClass] = useState("All");
-  const [transportTerm, setTransportTerm] = useState("");
-  const [transportAmount, setTransportAmount] = useState("");
-  const [transportItemsList, setTransportItemsList] = useState<FeeStructureItem[]>([]);
-
-  // --- Uniform Fee State ---
-  const [uniformFeeHeadId, setUniformFeeHeadId] = useState("");
-  const [selectedUniformItemId, setSelectedUniformItemId] = useState("");
-  const [selectedUniformCategoryId, setSelectedUniformCategoryId] = useState("");
-  const [selectedUniformSizeId, setSelectedUniformSizeId] = useState("");
-  const [uniformClass, setUniformClass] = useState("All");
-  const [uniformQuantity, setUniformQuantity] = useState("1");
-  const [uniformAmount, setUniformAmount] = useState("");
-  const [uniformItemsList, setUniformItemsList] = useState<FeeStructureItem[]>([]);
-
-  const activeFeeHeads = useMemo(() => feeHeads.filter((h) => h.status === "Active"), [feeHeads]);
-
-  // Normalize structure category
-  const normalizeCategory = (s: DynamicFeeStructure): FeeCategoryType => {
-    const cat = (s.category || s.feeCategory || "").trim();
-    if (cat.toLowerCase().includes("hostel")) return "Hostel";
-    if (cat.toLowerCase().includes("transport")) return "Transport";
-    if (cat.toLowerCase().includes("uniform")) return "Uniform";
-    if (cat.toLowerCase() === "others" || cat.toLowerCase() === "other") return "Others";
-    return "Tuition Fee";
-  };
-
-  // Available Academic Terms for active year
-  const availableAcademicTerms = useMemo(() => {
-    const activeAY =
-      modalAcademicYear ||
-      selectedAcademicYear ||
-      (academicYears && (academicYears[0]?.academicYear || (academicYears[0] as any)?.name)) ||
-      "";
-    const schedule = (academicYearFeeSchedules || []).find((s) => s.academicYear === activeAY);
-    if (schedule && schedule.terms && schedule.terms.length > 0) {
-      return [...schedule.terms].sort((a, b) => a.sequence - b.sequence).map((t) => t.termName || t.id);
-    }
-    const anyScheduleWithTerms = (academicYearFeeSchedules || []).find((s) => s.terms && s.terms.length > 0);
-    if (anyScheduleWithTerms) {
-      return [...anyScheduleWithTerms.terms].sort((a, b) => a.sequence - b.sequence).map((t) => t.termName || t.id);
-    }
-    return [];
-  }, [academicYearFeeSchedules, selectedAcademicYear, modalAcademicYear, academicYears]);
+  // Fee Head Selector State inside Modal
+  const [selectedFeeHeadId, setSelectedFeeHeadId] = useState("");
+  const [feeHeadInputAmount, setFeeHeadInputAmount] = useState("");
 
   // Sorted Academic Classes for dropdowns
   const sortedClasses = useMemo(
@@ -229,1107 +72,234 @@ export const FeeStructuresView: React.FC<FeeStructuresViewProps> = ({ initialCat
     [academicClasses]
   );
 
-  // Selected Room Details derived dynamically from existing Hostel Management module
-  const selectedRoomDetails = useMemo(() => {
-    if (!selectedRoomId) return null;
-    const r: any =
-      (roomsForSelectedHostel || []).find(
-        (rm: any) => String(rm.roomId || rm.id) === String(selectedRoomId)
-      ) ||
-      (hostelRooms || []).find(
-        (rm: any) => String(rm.roomId || rm.id) === String(selectedRoomId)
-      );
-    if (!r) return null;
+  // Active Fee Heads from the master list (created in Fee Heads tab)
+  const activeFeeHeads = useMemo(() => {
+    return (feeHeads || []).filter((h) => h.status === "Active" || !h.status);
+  }, [feeHeads]);
 
-    const matchedType =
-      (roomTypesList || []).find(
-        (rt: any) => String(rt.roomTypeId || rt.id) === String(r.roomTypeId)
-      ) ||
-      (roomTypeMasters || []).find(
-        (rt: any) => String(rt.roomTypeId || rt.id) === String(r.roomTypeId)
-      );
+  // Currently selected Fee Head in the dropdown
+  const currentSelectedHead = useMemo(() => {
+    return activeFeeHeads.find((h) => String(h.id) === String(selectedFeeHeadId)) || null;
+  }, [activeFeeHeads, selectedFeeHeadId]);
 
-    const spec =
-      r.roomTypeSpecification ||
-      (matchedType as any)?.roomTypeSpecification ||
-      (matchedType as any)?.roomTypeName ||
-      "";
-    const isAc =
-      r.acType === "AC" ||
-      r.isAc === true ||
-      (matchedType as any)?.acType === "AC" ||
-      (spec.toUpperCase().includes("AC") && !spec.toUpperCase().includes("NON"));
-
-    const cap =
-      r.bedCapacity ||
-      r.capacity ||
-      (matchedType as any)?.bedCapacity ||
-      (matchedType as any)?.capacity ||
-      1;
-    const typeName = spec || (matchedType as any)?.roomTypeName || (isAc ? "AC Room" : "Non-AC Room");
-
-    return {
-      roomNumber: r.roomNumber || r.roomNo || `Room ${r.roomId || r.id}`,
-      acType: isAc ? "AC" : "Non-AC",
-      capacity: cap,
-      sharingType: `${cap}-Bed Sharing`,
-      roomTypeName: typeName,
-    };
-  }, [selectedRoomId, roomsForSelectedHostel, hostelRooms, roomTypesList, roomTypeMasters]);
-
-  // --- Academic Year string normalizer (handles "2026 -2027" vs "2026-2027") ---
-  const normalizeAY = useCallback((ay?: string) => (ay || "").replace(/\s+/g, "").trim(), []);
-
-  // --- Track configured items in existing Fee Structures for active Academic Year ---
-  const {
-    configuredHostelBlockIds,
-    configuredHostelRoomIds,
-    configuredTuitionClasses,
-  } = useMemo(() => {
-    const currentAY = normalizeAY(modalAcademicYear || selectedAcademicYear);
-    const blockIds = new Set<string>();
-    const roomIds = new Set<string>();
-    const tuitionClasses = new Set<string>();
-
-    dynamicFeeStructures.forEach((s) => {
-      // In edit mode, don't treat the structure currently being edited as already configured
-      if (editingStruct && String(s.id) === String(editingStruct.id)) return;
-
-      const structAY = normalizeAY(s.academicYear);
-      if (currentAY && structAY && structAY !== currentAY) return;
-
-      const cat = normalizeCategory(s);
-      if (cat === "Hostel") {
-        if (s.hostelId) blockIds.add(String(s.hostelId));
-        (s.items || []).forEach((item) => {
-          if (item.hostelBlockId) blockIds.add(String(item.hostelBlockId));
-          if (item.roomId) roomIds.add(String(item.roomId));
-          if (item.roomNo) roomIds.add(String(item.roomNo).trim());
-        });
-      } else if (cat === "Tuition Fee") {
-        if (s.className) tuitionClasses.add(s.className.trim().toLowerCase());
-      }
-    });
-
-    return {
-      configuredHostelBlockIds: blockIds,
-      configuredHostelRoomIds: roomIds,
-      configuredTuitionClasses: tuitionClasses,
-    };
-  }, [dynamicFeeStructures, modalAcademicYear, selectedAcademicYear, editingStruct, normalizeAY]);
-
-  // --- Available Hostel Facilities for Modal ---
-  const availableHostelFacilities = useMemo(() => {
-    if (editingStruct) {
-      // When editing an existing structure, keep all facilities available
-      return hostelFacilities;
-    }
-    // In create mode, filter out facilities that already have a fee structure configured
-    return hostelFacilities.filter((b) => {
-      const bId = String(b.hostelId || (b as any).id);
-      return !configuredHostelBlockIds.has(bId);
-    });
-  }, [hostelFacilities, configuredHostelBlockIds, editingStruct]);
-
-  // --- Track Room IDs already added to the current modal's table ---
-  const currentModalRoomIds = useMemo(() => {
-    const ids = new Set<string>();
-    hostelItemsList.forEach((item) => {
-      if (item.roomId) ids.add(String(item.roomId));
-      if (item.roomNo) ids.add(String(item.roomNo).trim());
-    });
-    return ids;
-  }, [hostelItemsList]);
-
-  // --- Available Rooms for Selected Hostel in Modal ---
-  const availableRoomsForHostel = useMemo(() => {
-    return roomsForSelectedHostel.filter((r) => {
-      const rId = String(r.roomId || (r as any).id);
-      const rNum = String(r.roomNumber || (r as any).roomNo || "").trim();
-      const isAlreadySaved = configuredHostelRoomIds.has(rId) || (rNum && configuredHostelRoomIds.has(rNum));
-      const isAlreadyInModal = currentModalRoomIds.has(rId) || (rNum && currentModalRoomIds.has(rNum));
-      return !isAlreadySaved && !isAlreadyInModal;
-    });
-  }, [roomsForSelectedHostel, configuredHostelRoomIds, currentModalRoomIds]);
-
-  // Pickup points filtered by selected route
-  const availableStopsForRoute = useMemo(() => {
-    if (!selectedRouteId) return [];
-    return (pickupPoints || []).filter(
-      (p: any) => String(p.routeId) === String(selectedRouteId)
-    );
-  }, [pickupPoints, selectedRouteId]);
-
-  // Selected Uniform Item details
-  const selectedUniformItem = useMemo(() => {
-    if (!selectedUniformItemId) return null;
-    return (uniforms || []).find((u) => String(u.id) === String(selectedUniformItemId)) || null;
-  }, [selectedUniformItemId, uniforms]);
-
-  // Filtered Structures
+  // Filtered Fee Structures for display
   const filteredStructures = useMemo(() => {
-    return dynamicFeeStructures
-      .map((s) => {
-        const structCat = normalizeCategory(s);
-        const isTuitionOrOthers = structCat === "Tuition Fee" || structCat === "Others";
-        if (!isTuitionOrOthers) return s;
-
-        // For Tuition and Others, filter items to only valid fee heads
-        const validItems = (s.items || []).filter((item) => {
-          return feeHeads.some(
-            (h) =>
-              String(h.id) === String(item.feeHeadId) ||
-              (item.feeHeadName && h.name.trim().toLowerCase() === item.feeHeadName.trim().toLowerCase())
-          );
-        });
-
-        // If no valid items exist, omit the orphan structure
-        if (validItems.length === 0) {
-          return null;
-        }
-
-        const newTotal = validItems.reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
-        return {
-          ...s,
-          items: validItems,
-          totalAmount: newTotal,
-        };
-      })
-      .filter((s): s is DynamicFeeStructure => s !== null)
+    return (dynamicFeeStructures || [])
       .filter((s) => {
-        const matchesYear =
-          !selectedAcademicYear || !s.academicYear || s.academicYear === selectedAcademicYear;
-        const structCat = normalizeCategory(s);
-
-        if (categoryFilter !== "All" && structCat !== categoryFilter) {
+        // Academic year matching
+        if (selectedAcademicYear && s.academicYear && !matchesAcademicYear(s.academicYear, selectedAcademicYear)) {
           return false;
         }
 
+        // Class filter
         if (
           selectedClassFilter !== "All" &&
           s.className &&
           s.className !== "All" &&
-          s.className !== selectedClassFilter &&
-          !["Hostel", "Transport", "Uniform"].includes(s.className)
+          s.className !== selectedClassFilter
         ) {
           return false;
         }
 
+        // Status filter
+        if (selectedStatusFilter !== "All" && s.status !== selectedStatusFilter) {
+          return false;
+        }
+
+        // Search query
         if (query.trim()) {
           const q = query.toLowerCase();
           const matchClass = (s.className || "").toLowerCase().includes(q);
           const matchName = (s.name || "").toLowerCase().includes(q);
-          const matchCat = structCat.toLowerCase().includes(q);
           const matchItems = (s.items || []).some(
             (i) =>
               (i.feeHeadName || "").toLowerCase().includes(q) ||
-              (i.hostelBlockName || "").toLowerCase().includes(q) ||
-              (i.roomNo || "").toLowerCase().includes(q) ||
-              (i.routeName || "").toLowerCase().includes(q) ||
-              (i.stopName || "").toLowerCase().includes(q) ||
-              (i.uniformItemName || "").toLowerCase().includes(q)
+              (i.category || "").toLowerCase().includes(q)
           );
-          if (!matchClass && !matchName && !matchCat && !matchItems) return false;
+          if (!matchClass && !matchName && !matchItems) return false;
         }
 
-        return matchesYear;
+        return true;
       })
       .sort((a, b) => compareClassesAscending(a.className || "", b.className || ""));
-  }, [dynamicFeeStructures, feeHeads, selectedAcademicYear, categoryFilter, selectedClassFilter, query]);
+  }, [dynamicFeeStructures, selectedAcademicYear, selectedClassFilter, selectedStatusFilter, query]);
 
-  // Handler for class change in Tuition form - resets old selections & amounts
-  const handleTuitionClassChange = (newClass: string) => {
-    setTuitionClass(newClass);
-    setSelectedHeadIds([]);
-    setSelectedHeadAmounts({});
-  };
-
-  // Handler for academic year change
-  const handleAcademicYearChange = (newYear: string) => {
-    setModalAcademicYear(newYear);
-    if (!editingStruct) {
-      setSelectedHeadIds([]);
-      setSelectedHeadAmounts({});
-    }
-  };
-
-  // Reset and open modal for Add
+  // Open modal for Create
   const handleOpenAdd = () => {
     setEditingStruct(null);
     const initialAy =
       selectedAcademicYear ||
       (academicYears && (academicYears[0]?.academicYear || (academicYears[0] as any)?.name)) ||
-      "";
-    setModalAcademicYear(initialAy);
-    setModalStatus("Active");
+      "2026-2027";
 
-    const hasTuition = activeFeeHeads.some(
-      (h) =>
-        h.category === "Tuition Fee" ||
-        h.category === "Tuition" ||
-        (!["Hostel", "Transport", "Uniform", "Others"].includes(h.category) &&
-          !h.category.toLowerCase().includes("hostel"))
-    );
-    const hasHostel = activeFeeHeads.some((h) => h.category === "Hostel" || (h.name || "").toLowerCase().includes("hostel"));
-    const hasTransport = activeFeeHeads.some((h) => h.category === "Transport" || (h.name || "").toLowerCase().includes("transport"));
-    const hasUniform = activeFeeHeads.some((h) => h.category === "Uniform" || (h.name || "").toLowerCase().includes("uniform"));
-    const hasOthers = activeFeeHeads.some((h) => h.category === "Others" || h.category === "Miscellaneous");
-
-    const preferredCat: FeeCategoryType = categoryFilter !== "All" ? categoryFilter : "Tuition Fee";
-    let activeCat = preferredCat;
-    if (preferredCat === "Tuition Fee" && !hasTuition) {
-      activeCat = hasHostel ? "Hostel" : hasTransport ? "Transport" : hasUniform ? "Uniform" : hasOthers ? "Others" : "Tuition Fee";
-    } else if (preferredCat === "Hostel" && !hasHostel) {
-      activeCat = hasTuition ? "Tuition Fee" : hasTransport ? "Transport" : hasUniform ? "Uniform" : hasOthers ? "Others" : "Hostel";
-    } else if (preferredCat === "Transport" && !hasTransport) {
-      activeCat = hasTuition ? "Tuition Fee" : hasHostel ? "Hostel" : hasUniform ? "Uniform" : hasOthers ? "Others" : "Transport";
-    } else if (preferredCat === "Uniform" && !hasUniform) {
-      activeCat = hasTuition ? "Tuition Fee" : hasHostel ? "Hostel" : hasTransport ? "Transport" : hasOthers ? "Others" : "Uniform";
-    } else if (preferredCat === "Others" && !hasOthers) {
-      activeCat = hasTuition ? "Tuition Fee" : hasHostel ? "Hostel" : hasTransport ? "Transport" : hasUniform ? "Uniform" : "Others";
-    }
-    setModalCategory(activeCat);
-
-    // Reset Tuition
-    setTuitionClass("");
-    setSelectedHeadIds([]);
-    setSelectedHeadAmounts({});
-
-    // Reset Others
-    const defaultOthersHead = activeFeeHeads.find((h) => h.category === "Others" || h.category === "Miscellaneous");
-    setOthersFeeHeadId(defaultOthersHead ? defaultOthersHead.id : "");
-    setOthersClass("All");
-    setOthersFrequency("Annual");
-    setOthersTerms([...availableAcademicTerms]);
-    setOthersAmount("");
-
-    // Reset Hostel
-    const defaultHostelHead = activeFeeHeads.find((h) => h.category === "Hostel" || (h.name || "").toLowerCase().includes("hostel"));
-    setHostelFeeHeadId(defaultHostelHead ? defaultHostelHead.id : "");
-    setSelectedBlockId("");
-    setSelectedRoomId("");
-    setRoomsForSelectedHostel([]);
-    setHostelClass("All");
-    setHostelTerm(availableAcademicTerms[0] || "Annual");
-    setHostelAmount("");
-    setHostelItemsList([]);
-
-    // Reset Transport
-    const defaultTransportHead = activeFeeHeads.find((h) => h.category === "Transport" || (h.name || "").toLowerCase().includes("transport"));
-    setTransportFeeHeadId(defaultTransportHead ? defaultTransportHead.id : "");
-    setSelectedRouteId(routeMasters[0] ? String(routeMasters[0].id) : "");
-    setSelectedStopId("");
-    setSelectedVehicleId(vehicleMasters[0] ? String(vehicleMasters[0].id) : "");
-    setTransportClass("All");
-    setTransportTerm(availableAcademicTerms[0] || "Term 1");
-    setTransportAmount("");
-    setTransportItemsList([]);
-
-    // Reset Uniform
-    const defaultUniformHead = activeFeeHeads.find((h) => h.category === "Uniform" || (h.name || "").toLowerCase().includes("uniform"));
-    setUniformFeeHeadId(defaultUniformHead ? defaultUniformHead.id : "");
-    setSelectedUniformItemId(uniforms[0] ? String(uniforms[0].id) : "");
-    setSelectedUniformCategoryId(uniformCategories[0] ? String(uniformCategories[0].id) : "");
-    setSelectedUniformSizeId(uniformSizes[0] ? String(uniformSizes[0].id) : "");
-    setUniformClass("All");
-    setUniformQuantity("1");
-    setUniformAmount(uniforms[0]?.price ? String(uniforms[0].price) : "");
-    setUniformItemsList([]);
-
+    const defaultClass = sortedClasses[0]?.name || "";
+    setStructClass(defaultClass);
+    setStructName(defaultClass ? `${defaultClass} Fee Structure` : "General Fee Structure");
+    setStructAcademicYear(initialAy);
+    setStructStatus("Active");
+    setStructItems([]);
+    setSelectedFeeHeadId(activeFeeHeads[0]?.id || "");
+    setFeeHeadInputAmount("");
     setIsModalOpen(true);
   };
 
   // Open modal for Edit
   const handleOpenEdit = (s: DynamicFeeStructure) => {
     setEditingStruct(s);
-    setModalAcademicYear(s.academicYear || selectedAcademicYear || "");
-    setModalStatus(s.status || "Active");
-
-    const cat = normalizeCategory(s);
-    setModalCategory(cat);
-
-    if (cat === "Tuition Fee") {
-      setTuitionClass(s.className || "");
-      const ids: string[] = [];
-      const amounts: Record<string, string> = {};
-      (s.items || []).forEach((item) => {
-        const head = feeHeads.find(
-          (h) => String(h.id) === String(item.feeHeadId) || h.name.toLowerCase() === item.feeHeadName.toLowerCase()
-        );
-        const realId = head ? head.id : item.feeHeadId;
-        if (realId) {
-          ids.push(realId);
-          amounts[realId] = String(item.amount || 0);
-        }
-      });
-      setSelectedHeadIds(ids);
-      setSelectedHeadAmounts(amounts);
-    } else if (cat === "Others") {
-      setOthersClass(s.className || "All");
-      const firstItem = s.items?.[0];
-      setOthersFeeHeadId(firstItem?.feeHeadId || activeFeeHeads.find((h) => h.category === "Others" || h.category === "Miscellaneous")?.id || "");
-      setOthersFrequency(firstItem?.frequency || "Annual");
-      setOthersTerms(firstItem?.applicableTerms || [...availableAcademicTerms]);
-      setOthersAmount(firstItem?.amount ? String(firstItem.amount) : String(s.totalAmount || ""));
-    } else if (cat === "Hostel") {
-      const firstItem = s.items?.[0];
-      setHostelFeeHeadId(firstItem?.feeHeadId || activeFeeHeads.find((h) => h.category === "Hostel" || (h.name || "").toLowerCase().includes("hostel"))?.id || "");
-      setHostelItemsList(s.items || []);
-      if (firstItem?.hostelBlockId) {
-        handleHostelFacilityChange(String(firstItem.hostelBlockId));
-      }
-    } else if (cat === "Transport") {
-      const firstItem = s.items?.[0];
-      setTransportFeeHeadId(firstItem?.feeHeadId || activeFeeHeads.find((h) => h.category === "Transport" || (h.name || "").toLowerCase().includes("transport"))?.id || "");
-      setTransportItemsList(s.items || []);
-    } else if (cat === "Uniform") {
-      const firstItem = s.items?.[0];
-      setUniformFeeHeadId(firstItem?.feeHeadId || activeFeeHeads.find((h) => h.category === "Uniform" || (h.name || "").toLowerCase().includes("uniform"))?.id || "");
-      setUniformItemsList(s.items || []);
-    }
-
+    setStructName(s.name || `${s.className} Fee Structure`);
+    setStructClass(s.className || "");
+    setStructAcademicYear(s.academicYear || selectedAcademicYear || "2026-2027");
+    setStructStatus(s.status || "Active");
+    const activeHeadIds = new Set(activeFeeHeads.map((h) => String(h.id).trim().toLowerCase()));
+    const activeHeadNames = new Set(activeFeeHeads.map((h) => (h.name || "").trim().toLowerCase()));
+    const validItems = (s.items ? [...s.items] : []).filter((item) => {
+      const iId = String(item.feeHeadId || (item as any).headId || "").trim().toLowerCase();
+      const iName = (item.feeHeadName || (item as any).name || "").trim().toLowerCase();
+      return (iId && activeHeadIds.has(iId)) || (iName && activeHeadNames.has(iName));
+    });
+    setStructItems(validItems);
+    setSelectedFeeHeadId(activeFeeHeads[0]?.id || "");
+    setFeeHeadInputAmount("");
     setIsModalOpen(true);
   };
 
-  // Add Item to Hostel List
-  const handleAddHostelItem = () => {
-    if (!selectedBlockId) {
-      addToast("warning", "Validation Error", "Please select a Hostel Facility.");
-      return;
+  // Handle Class change in Modal
+  const handleModalClassChange = (newClass: string) => {
+    setStructClass(newClass);
+    // Auto-update structure name if it was empty or default
+    if (!structName || structName.includes("Fee Structure")) {
+      setStructName(newClass ? `${newClass} Fee Structure` : "General Fee Structure");
     }
-    if (!selectedRoomId) {
-      addToast("warning", "Validation Error", "Please select a Room.");
-      return;
-    }
-    const amt = parseFloat(hostelAmount);
-    if (isNaN(amt) || amt <= 0) {
-      addToast("warning", "Validation Error", "Please enter a valid amount greater than 0.");
-      return;
-    }
-
-    const blk: any =
-      hostelFacilities.find(
-        (b: any) => String(b.hostelId || b.id) === String(selectedBlockId)
-      ) ||
-      (hostelBlocks || []).find(
-        (b: any) => String(b.hostelId || b.id) === String(selectedBlockId)
-      );
-    const blkName = blk?.hostelName || blk?.name || `Hostel ${selectedBlockId}`;
-    const headObj = activeFeeHeads.find((h) => h.id === hostelFeeHeadId) || selectedHostelHead;
-    if (!headObj || !hostelFeeHeadId) {
-      addToast("warning", "Validation Error", "Please configure and select an active Hostel Fee Head.");
-      return;
-    }
-
-    if (hostelTerm !== "Annual") {
-      if (headObj.applicableTerms && headObj.applicableTerms.length > 0 && !headObj.applicableTerms.includes(hostelTerm)) {
-        addToast("warning", "Validation Error", `Selected academic term '${hostelTerm}' is not configured for Fee Head '${headObj.name}'.`);
-        return;
-      }
-    } else if (headObj.paymentEligibility === "Term-Wise Allowed") {
-      addToast("warning", "Validation Error", `Annual / One-Time payment is not allowed for Fee Head '${headObj.name}'.`);
-      return;
-    }
-
-    const newItem: FeeStructureItem = {
-      feeHeadId: headObj.id,
-      feeHeadName: headObj.name,
-      category: "Hostel",
-      className: hostelClass,
-      term: hostelTerm,
-      amount: amt,
-      hostelBlockId: selectedBlockId,
-      hostelBlockName: blkName,
-      roomId: selectedRoomId,
-      roomNo: selectedRoomDetails?.roomNumber || `Room ${selectedRoomId}`,
-      roomType: selectedRoomDetails?.acType || "Standard",
-      capacity: selectedRoomDetails?.capacity || 1,
-      sharingType: selectedRoomDetails?.sharingType || "Single",
-    };
-
-    setHostelItemsList((prev) => [...prev, newItem]);
-    setSelectedRoomId("");
-    setHostelAmount("");
   };
 
-  // Add Item to Transport List
-  const handleAddTransportItem = () => {
-    if (!selectedRouteId) {
-      addToast("warning", "Validation Error", "Please select a Transport Route.");
+  // Add Fee Head to structure items list
+  const handleAddFeeHead = () => {
+    if (!selectedFeeHeadId) {
+      addToast("warning", "Select Fee Head", "Please select a Fee Head from the dropdown.");
       return;
     }
-    if (!selectedStopId) {
-      addToast("warning", "Validation Error", "Please select a Pickup Stop.");
+
+    const head = activeFeeHeads.find((h) => String(h.id) === String(selectedFeeHeadId));
+    if (!head) {
+      addToast("warning", "Invalid Fee Head", "The selected Fee Head was not found.");
       return;
     }
-    const amt = parseFloat(transportAmount);
+
+    const amt = parseFloat(feeHeadInputAmount);
     if (isNaN(amt) || amt <= 0) {
-      addToast("warning", "Validation Error", "Please enter a valid amount greater than 0.");
+      addToast("warning", "Invalid Amount", "Please enter a valid fee amount greater than 0.");
       return;
     }
 
-    const routeObj = routeMasters.find((r: any) => String(r.id) === String(selectedRouteId));
-    const stopObj = pickupPoints.find((p: any) => String(p.id) === String(selectedStopId));
-    const vehObj = vehicleMasters.find((v: any) => String(v.id) === String(selectedVehicleId));
-    const headObj = activeFeeHeads.find((h) => h.id === transportFeeHeadId) || selectedTransportHead;
-    if (!headObj || !transportFeeHeadId) {
-      addToast("warning", "Validation Error", "Please configure and select an active Transport Fee Head.");
-      return;
+    // Check if fee head is already in the list
+    const existingIndex = structItems.findIndex(
+      (item) =>
+        String(item.feeHeadId) === String(head.id) ||
+        (item.feeHeadName && item.feeHeadName.toLowerCase().trim() === head.name.toLowerCase().trim())
+    );
+
+    if (existingIndex >= 0) {
+      // Update existing item amount
+      const updated = [...structItems];
+      updated[existingIndex] = {
+        ...updated[existingIndex],
+        amount: amt,
+        feeHeadId: head.id,
+        feeHeadName: head.name,
+        category: head.category || "General",
+        frequency: head.frequency || "Annual",
+        paymentEligibility: head.paymentEligibility,
+        applicableTerms: head.applicableTerms,
+      };
+      setStructItems(updated);
+      addToast("info", "Fee Head Updated", `Updated amount for ${head.name} to ${formatCurrency(amt)}`);
+    } else {
+      // Add new fee head item
+      const newItem: FeeStructureItem = {
+        feeHeadId: head.id,
+        feeHeadName: head.name,
+        category: head.category || "General",
+        frequency: head.frequency || "Annual",
+        paymentEligibility: head.paymentEligibility,
+        applicableTerms: head.applicableTerms,
+        amount: amt,
+      };
+      setStructItems([...structItems, newItem]);
+      addToast("success", "Fee Head Added", `Added ${head.name} (${formatCurrency(amt)}) to structure.`);
     }
 
-    if (transportTerm !== "Annual") {
-      if (headObj.applicableTerms && headObj.applicableTerms.length > 0 && !headObj.applicableTerms.includes(transportTerm)) {
-        addToast("warning", "Validation Error", `Selected academic term '${transportTerm}' is not configured for Fee Head '${headObj.name}'.`);
-        return;
-      }
-    } else if (headObj.paymentEligibility === "Term-Wise Allowed") {
-      addToast("warning", "Validation Error", `Annual / One-Time payment is not allowed for Fee Head '${headObj.name}'.`);
-      return;
-    }
-
-    const newItem: FeeStructureItem = {
-      feeHeadId: headObj.id,
-      feeHeadName: headObj.name,
-      category: "Transport",
-      className: transportClass,
-      term: transportTerm,
-      amount: amt,
-      transportRouteId: selectedRouteId,
-      routeName: routeObj?.routeName || `Route ${selectedRouteId}`,
-      pickupPointId: selectedStopId,
-      stopName: stopObj?.pickupName || `Stop ${selectedStopId}`,
-      vehicleId: selectedVehicleId || undefined,
-      vehicleNumber: vehObj?.vehicleNumber || undefined,
-    };
-
-    setTransportItemsList((prev) => [...prev, newItem]);
-    setTransportAmount("");
+    // Clear amount input
+    setFeeHeadInputAmount("");
   };
 
-  // Add Item to Uniform List
-  const handleAddUniformItem = () => {
-    if (!selectedUniformItemId) {
-      addToast("warning", "Validation Error", "Please select a Uniform Item.");
-      return;
-    }
-    const amt = parseFloat(uniformAmount);
-    if (isNaN(amt) || amt <= 0) {
-      addToast("warning", "Validation Error", "Please enter a valid amount greater than 0.");
-      return;
-    }
-
-    const itemObj = uniforms.find((u) => String(u.id) === String(selectedUniformItemId));
-    const catObj = uniformCategories.find((c: any) => String(c.id) === String(selectedUniformCategoryId));
-    const sizeObj = uniformSizes.find((s: any) => String(s.id) === String(selectedUniformSizeId));
-    const headObj = activeFeeHeads.find((h) => h.id === uniformFeeHeadId) || selectedUniformHead;
-    if (!headObj || !uniformFeeHeadId) {
-      addToast("warning", "Validation Error", "Please configure and select an active Uniform Fee Head.");
-      return;
-    }
-
-    const newItem: FeeStructureItem = {
-      feeHeadId: headObj.id,
-      feeHeadName: headObj.name,
-      category: "Uniform",
-      className: uniformClass,
-      amount: amt,
-      uniformItemId: selectedUniformItemId,
-      uniformItemName: itemObj?.name || itemObj?.category || "Uniform Item",
-      uniformCategoryId: selectedUniformCategoryId || undefined,
-      uniformCategoryName: catObj?.name || (catObj as any)?.categoryName || itemObj?.category,
-      uniformSizeId: selectedUniformSizeId || undefined,
-      uniformSizeName: sizeObj?.sizeName || itemObj?.size,
-      quantity: parseInt(uniformQuantity, 10) || 1,
-    };
-
-    setUniformItemsList((prev) => [...prev, newItem]);
-    setUniformAmount("");
+  // Remove Fee Head item from structure
+  const handleRemoveItem = (index: number) => {
+    const updated = structItems.filter((_, i) => i !== index);
+    setStructItems(updated);
   };
 
-  // Submit Handler
-  const handleSubmit = (e: React.SyntheticEvent) => {
+  // Update item amount inline in the table
+  const handleItemAmountChange = (index: number, newAmountStr: string) => {
+    const updated = [...structItems];
+    const num = parseFloat(newAmountStr) || 0;
+    updated[index] = { ...updated[index], amount: num };
+    setStructItems(updated);
+  };
+
+  // Total amount calculated dynamically
+  const calculatedTotalAmount = useMemo(() => {
+    return structItems.reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
+  }, [structItems]);
+
+  // Submit Modal Form
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!categoryHeadCounts[modalCategory]) {
-      addToast("warning", "Fee Head Required", `Cannot create a ${modalCategory} structure because no active Fee Head is configured for this category.`);
+    if (!structClass.trim()) {
+      addToast("warning", "Class Required", "Please select a Class Grade.");
       return;
     }
 
-    const defaultAy =
-      modalAcademicYear ||
-      selectedAcademicYear ||
-      (academicYears && (academicYears[0]?.academicYear || (academicYears[0] as any)?.name)) ||
-      "";
-    const defaultBranch =
-      selectedBranch ||
-      (branches && (branches[0] as any)?.name) ||
-      (typeof branches?.[0] === "string" ? branches[0] : "");
-
-    let payload: Omit<DynamicFeeStructure, "id">;
-
-    if (modalCategory === "Tuition Fee") {
-      if (!tuitionClass) {
-        addToast("warning", "Validation Error", "Please select a Class Grade.");
-        return;
-      }
-      if (selectedHeadIds.length === 0) {
-        addToast("warning", "Validation Error", "Please select at least one fee head.");
-        return;
-      }
-
-      for (const headId of selectedHeadIds) {
-        const amtStr = (selectedHeadAmounts[headId] || "").trim();
-        if (amtStr === "" || isNaN(Number(amtStr)) || Number(amtStr) <= 0) {
-          const head = feeHeads.find((h) => h.id === headId);
-          addToast("warning", "Validation Error", `Please enter a valid amount (> 0) for ${head?.name || "fee head"}.`);
-          return;
-        }
-      }
-
-      const items: FeeStructureItem[] = selectedHeadIds
-        .map((headId) => {
-          const head = feeHeads.find((h) => h.id === headId);
-          if (!head) return null;
-          return {
-            feeHeadId: headId,
-            feeHeadName: head.name,
-            category: "Tuition Fee",
-            className: tuitionClass,
-            amount: Number(selectedHeadAmounts[headId]),
-            paymentEligibility: head.paymentEligibility,
-            applicableTerms: head.applicableTerms,
-          };
-        })
-        .filter(Boolean) as FeeStructureItem[];
-
-      const totalAmt = items.reduce((sum, item) => sum + item.amount, 0);
-
-      payload = {
-        name: `${tuitionClass} Tuition Fee Structure`,
-        academicYear: defaultAy,
-        branch: defaultBranch,
-        className: tuitionClass,
-        section: "A",
-        studentCategory: "General",
-        category: "Tuition Fee",
-        feeCategory: "Tuition Fee",
-        items,
-        totalAmount: totalAmt,
-        status: modalStatus,
-      };
-    } else if (modalCategory === "Others") {
-      const head = activeFeeHeads.find((h) => h.id === othersFeeHeadId);
-      if (!head) {
-        addToast("warning", "Validation Error", "Please select a Fee Head.");
-        return;
-      }
-      const amt = parseFloat(othersAmount);
-      if (isNaN(amt) || amt <= 0) {
-        addToast("warning", "Validation Error", "Please enter a valid amount (> 0).");
-        return;
-      }
-
-      if (othersFrequency === "Term-Wise" && head.applicableTerms && head.applicableTerms.length > 0) {
-        for (const t of othersTerms) {
-          if (!head.applicableTerms.includes(t)) {
-            addToast("warning", "Validation Error", `Selected academic term '${t}' is not configured for this Fee Head.`);
-            return;
-          }
-        }
-      }
-
-      const items: FeeStructureItem[] = [
-        {
-          feeHeadId: head.id,
-          feeHeadName: head.name,
-          category: "Others",
-          className: othersClass,
-          frequency: othersFrequency,
-          applicableTerms: othersFrequency === "Term-Wise" ? othersTerms : undefined,
-          amount: amt,
-        },
-      ];
-
-      payload = {
-        name: `${head.name} Fee Structure (${othersClass})`,
-        academicYear: defaultAy,
-        branch: defaultBranch,
-        className: othersClass,
-        studentCategory: "General",
-        category: "Others",
-        feeCategory: "Others",
-        items,
-        totalAmount: amt,
-        status: modalStatus,
-      };
-    } else if (modalCategory === "Hostel") {
-      if (hostelItemsList.length === 0) {
-        addToast("warning", "Validation Error", "Please add at least one Room Configuration row.");
-        return;
-      }
-      if (!editingStruct && availableHostelFacilities.length === 0 && hostelFacilities.length > 0) {
-        addToast("warning", "Hostel Already Configured", "All active hostel facilities already have fee structures configured for this academic year. Please edit the existing Fee Structure to add or update rooms.");
-        return;
-      }
-      for (const item of hostelItemsList) {
-        const hHead = activeFeeHeads.find(h => h.id === item.feeHeadId || (item.feeHeadName && h.name.toLowerCase() === item.feeHeadName.toLowerCase()));
-        if (hHead && item.term && item.term !== "Annual") {
-          if (hHead.applicableTerms && hHead.applicableTerms.length > 0 && !hHead.applicableTerms.includes(item.term)) {
-            addToast("warning", "Validation Error", `Selected academic term '${item.term}' is not configured for this Fee Head.`);
-            return;
-          }
-        }
-      }
-      const totalAmt = hostelItemsList.reduce((sum, i) => sum + i.amount, 0);
-      const firstBlk =
-        hostelFacilities.find((b: any) => String(b.hostelId || b.id) === String(hostelItemsList[0]?.hostelBlockId)) ||
-        (hostelBlocks || []).find((b: any) => String(b.hostelId || b.id) === String(hostelItemsList[0]?.hostelBlockId));
-      const blkName =
-        hostelItemsList[0]?.hostelBlockName ||
-        (firstBlk as any)?.hostelName ||
-        (firstBlk as any)?.name ||
-        "Hostel";
-      const structName = editingStruct?.name || (blkName && blkName !== "Hostel" ? `${blkName} Fee Structure (${defaultAy})` : `Hostel Fee Structure (${defaultAy})`);
-      payload = {
-        name: structName,
-        academicYear: defaultAy,
-        branch: defaultBranch,
-        className: blkName !== "Hostel" ? blkName : "Hostel",
-        studentCategory: "Resident",
-        category: "Hostel",
-        feeCategory: "Hostel",
-        items: hostelItemsList,
-        totalAmount: totalAmt,
-        status: modalStatus,
-      };
-    } else if (modalCategory === "Transport") {
-      if (transportItemsList.length === 0) {
-        addToast("warning", "Validation Error", "Please add at least one Route / Stop configuration row.");
-        return;
-      }
-      for (const item of transportItemsList) {
-        const tHead = activeFeeHeads.find(h => h.id === item.feeHeadId || (item.feeHeadName && h.name.toLowerCase() === item.feeHeadName.toLowerCase()));
-        if (tHead && item.term && item.term !== "Annual") {
-          if (tHead.applicableTerms && tHead.applicableTerms.length > 0 && !tHead.applicableTerms.includes(item.term)) {
-            addToast("warning", "Validation Error", `Selected academic term '${item.term}' is not configured for this Fee Head.`);
-            return;
-          }
-        }
-      }
-      const totalAmt = transportItemsList.reduce((sum, i) => sum + i.amount, 0);
-      payload = {
-        name: `Transport Fee Structure (${defaultAy})`,
-        academicYear: defaultAy,
-        branch: defaultBranch,
-        className: "Transport",
-        studentCategory: "Day Scholar",
-        category: "Transport",
-        feeCategory: "Transport",
-        items: transportItemsList,
-        totalAmount: totalAmt,
-        status: modalStatus,
-      };
-    } else {
-      // Uniform
-      if (uniformItemsList.length === 0) {
-        addToast("warning", "Validation Error", "Please add at least one Uniform Item configuration row.");
-        return;
-      }
-      const totalAmt = uniformItemsList.reduce((sum, i) => sum + i.amount, 0);
-      payload = {
-        name: `Uniform Fee Structure (${defaultAy})`,
-        academicYear: defaultAy,
-        branch: defaultBranch,
-        className: "Uniform",
-        studentCategory: "General",
-        category: "Uniform",
-        feeCategory: "Uniform",
-        items: uniformItemsList,
-        totalAmount: totalAmt,
-        status: modalStatus,
-      };
+    if (structItems.length === 0) {
+      addToast("warning", "Fee Heads Required", "Please add at least one Fee Head to this fee structure.");
+      return;
     }
+
+    const defaultBranch =
+      selectedBranch && selectedBranch !== "All" && selectedBranch !== "All Branches"
+        ? selectedBranch
+        : (branches && branches[0] ? (branches[0].branchName || (branches[0] as any).name) : "");
+
+    const defaultAy =
+      structAcademicYear ||
+      selectedAcademicYear ||
+      (academicYears && academicYears[0]?.academicYear) ||
+      "2026-2027";
+
+    const payload: Omit<DynamicFeeStructure, "id"> = {
+      name: structName.trim() || `${structClass} Fee Structure`,
+      academicYear: defaultAy,
+      branch: defaultBranch,
+      className: structClass,
+      section: "A",
+      studentCategory: "General",
+      category: "Tuition Fee",
+      feeCategory: "Tuition Fee",
+      items: structItems,
+      totalAmount: calculatedTotalAmount,
+      status: structStatus,
+    };
 
     if (editingStruct) {
       updateDynamicFeeStructure(editingStruct.id, payload);
-      addToast("success", "Fee Structure Updated", `Updated structure for ${payload.name}`);
+      addToast("success", "Fee Structure Updated", `Updated ${payload.name}`);
     } else {
       addDynamicFeeStructure(payload);
-      addToast("success", "Fee Structure Created", `Configured structure for ${payload.name}`);
+      addToast("success", "Fee Structure Created", `Created ${payload.name}`);
     }
 
     setIsModalOpen(false);
   };
-
-  // --- Fee Head Resolution & Matching Helpers ---
-  const isFeeHeadMatchingClass = useCallback((head: FeeHead, targetClass: string): boolean => {
-    if (!targetClass || !targetClass.trim()) return false;
-
-    const applicable = head.applicableClasses;
-    if (!applicable || !Array.isArray(applicable) || applicable.length === 0) {
-      return false;
-    }
-
-    // Check for "All Classes" or "All"
-    if (
-      applicable.some(
-        (c) =>
-          c &&
-          (c.trim().toLowerCase() === "all classes" ||
-            c.trim().toLowerCase() === "all")
-      )
-    ) {
-      return true;
-    }
-
-    const normalizeCls = (str?: string) =>
-      (str || "")
-        .trim()
-        .toLowerCase()
-        .replace(/^class\s+/i, "")
-        .replace(/\s+/g, " ");
-
-    const clsObj = academicClasses.find(
-      (c: any) =>
-        c.name === targetClass ||
-        c.className === targetClass ||
-        c.id === targetClass ||
-        String(c.classId || "") === targetClass
-    ) as any;
-
-    const targetLower = targetClass.trim().toLowerCase();
-    const targetNorm = normalizeCls(targetClass);
-    const clsNameLower = clsObj?.name ? String(clsObj.name).trim().toLowerCase() : "";
-    const clsNameNorm = clsObj?.name ? normalizeCls(clsObj.name) : "";
-    const clsClassNameLower = clsObj?.className ? String(clsObj.className).trim().toLowerCase() : "";
-    const clsClassNameNorm = clsObj?.className ? normalizeCls(clsObj.className) : "";
-    const clsIdLower = clsObj?.id ? String(clsObj.id).trim().toLowerCase() : "";
-    const clsNumericId = clsObj?.classId !== undefined ? String(clsObj.classId).trim() : "";
-
-    return applicable.some((c) => {
-      if (!c) return false;
-      const cTrim = c.trim();
-      const cLower = cTrim.toLowerCase();
-      const cNorm = normalizeCls(cTrim);
-
-      if (cLower === targetLower || cNorm === targetNorm) return true;
-      if (clsNameLower && (cLower === clsNameLower || cNorm === clsNameNorm)) return true;
-      if (clsClassNameLower && (cLower === clsClassNameLower || cNorm === clsClassNameNorm)) return true;
-      if (clsIdLower && (cLower === clsIdLower || (clsObj && cTrim === String(clsObj.id)))) return true;
-      if (clsNumericId && (cTrim === clsNumericId || cTrim === `CL-${clsNumericId}`)) return true;
-
-      return false;
-    });
-  }, [academicClasses]);
-
-  const isFeeHeadMatchingAcademicYear = useCallback((head: FeeHead, targetYear?: string): boolean => {
-    if (!targetYear || !targetYear.trim()) return true;
-    if (!head.academicYear || !head.academicYear.trim()) return true;
-
-    const hYear = head.academicYear.trim().toLowerCase();
-    if (hYear === "all" || hYear === "all years") return true;
-
-    const tYear = targetYear.trim().toLowerCase();
-    if (hYear === tYear) return true;
-
-    const cleanH = hYear.replace(/\s+/g, "");
-    const cleanT = tYear.replace(/\s+/g, "");
-    return cleanH === cleanT;
-  }, []);
-
-  const isFeeHeadMatchingBranch = useCallback((head: FeeHead, branchName?: string): boolean => {
-    if (!branchName || !branchName.trim() || branchName === "All Branches") return true;
-    if (!head.applicableBranches || !Array.isArray(head.applicableBranches) || head.applicableBranches.length === 0) {
-      return true;
-    }
-    if (
-      head.applicableBranches.some(
-        (b) =>
-          b &&
-          (b.trim().toLowerCase() === "all branches" ||
-            b.trim().toLowerCase() === "all")
-      )
-    ) {
-      return true;
-    }
-
-    const bLower = branchName.trim().toLowerCase();
-    return head.applicableBranches.some((b) => b && b.trim().toLowerCase() === bLower);
-  }, []);
-
-  // Tuition fee heads for selection (strictly filtered by selected class, academic year, and branch)
-  const tuitionFeeHeads = useMemo(() => {
-    if (!tuitionClass || !tuitionClass.trim()) return [];
-
-    return activeFeeHeads.filter((h) => {
-      // 1. Category check: Tuition Fee or Tuition or general non-specialized heads
-      const isTuitionCat =
-        h.category === "Tuition Fee" ||
-        h.category === "Tuition" ||
-        (!["Hostel", "Transport", "Uniform", "Others"].includes(h.category) &&
-          !h.category.toLowerCase().includes("hostel"));
-      if (!isTuitionCat) return false;
-
-      // 2. Academic Year filter
-      if (!isFeeHeadMatchingAcademicYear(h, modalAcademicYear)) return false;
-
-      // 3. Branch filter
-      if (!isFeeHeadMatchingBranch(h, selectedBranch)) return false;
-
-      // 4. Class Grade filter (Strict: NO global fallback)
-      if (!isFeeHeadMatchingClass(h, tuitionClass)) return false;
-
-      return true;
-    });
-  }, [
-    activeFeeHeads,
-    tuitionClass,
-    modalAcademicYear,
-    selectedBranch,
-    isFeeHeadMatchingClass,
-    isFeeHeadMatchingAcademicYear,
-    isFeeHeadMatchingBranch,
-  ]);
-
-  // Others fee heads for selection
-  const othersFeeHeads = useMemo(() => {
-    return activeFeeHeads.filter((h) => {
-      const isOthersCat =
-        h.category === "Others" ||
-        h.category === "Miscellaneous" ||
-        (!["Tuition Fee", "Tuition", "Hostel", "Transport", "Uniform"].includes(h.category));
-      if (!isOthersCat) return false;
-
-      // Academic Year filter
-      if (!isFeeHeadMatchingAcademicYear(h, modalAcademicYear)) return false;
-
-      // Branch filter
-      if (!isFeeHeadMatchingBranch(h, selectedBranch)) return false;
-
-      // Class filter if specific class is chosen in Others tab
-      if (othersClass && othersClass !== "All") {
-        if (!isFeeHeadMatchingClass(h, othersClass)) return false;
-      }
-
-      return true;
-    });
-  }, [
-    activeFeeHeads,
-    othersClass,
-    modalAcademicYear,
-    selectedBranch,
-    isFeeHeadMatchingClass,
-    isFeeHeadMatchingAcademicYear,
-    isFeeHeadMatchingBranch,
-  ]);
-
-  useEffect(() => {
-    if (modalCategory === "Others" && othersFeeHeads.length > 0) {
-      if (!othersFeeHeads.some((h) => h.id === othersFeeHeadId)) {
-        setOthersFeeHeadId(othersFeeHeads[0].id);
-      }
-    }
-  }, [modalCategory, othersFeeHeads, othersFeeHeadId]);
-
-  // Hostel fee heads for selection
-  const hostelFeeHeads = useMemo(() => {
-    return activeFeeHeads.filter((h) => {
-      const isHostelCat = h.category === "Hostel" || (h.name || "").toLowerCase().includes("hostel");
-      if (!isHostelCat) return false;
-      if (!isFeeHeadMatchingAcademicYear(h, modalAcademicYear)) return false;
-      if (!isFeeHeadMatchingBranch(h, selectedBranch)) return false;
-      if (hostelClass && hostelClass !== "All") {
-        if (!isFeeHeadMatchingClass(h, hostelClass)) return false;
-      }
-      return true;
-    });
-  }, [
-    activeFeeHeads,
-    hostelClass,
-    modalAcademicYear,
-    selectedBranch,
-    isFeeHeadMatchingClass,
-    isFeeHeadMatchingAcademicYear,
-    isFeeHeadMatchingBranch,
-  ]);
-
-  useEffect(() => {
-    if (modalCategory === "Hostel" && hostelFeeHeads.length > 0) {
-      if (!hostelFeeHeads.some((h) => h.id === hostelFeeHeadId)) {
-        setHostelFeeHeadId(hostelFeeHeads[0].id);
-      }
-    }
-  }, [modalCategory, hostelFeeHeads, hostelFeeHeadId]);
-
-  // Transport fee heads for selection
-  const transportFeeHeads = useMemo(() => {
-    return activeFeeHeads.filter((h) => {
-      const isTransportCat = h.category === "Transport" || (h.name || "").toLowerCase().includes("transport");
-      if (!isTransportCat) return false;
-      if (!isFeeHeadMatchingAcademicYear(h, modalAcademicYear)) return false;
-      if (!isFeeHeadMatchingBranch(h, selectedBranch)) return false;
-      if (transportClass && transportClass !== "All") {
-        if (!isFeeHeadMatchingClass(h, transportClass)) return false;
-      }
-      return true;
-    });
-  }, [
-    activeFeeHeads,
-    transportClass,
-    modalAcademicYear,
-    selectedBranch,
-    isFeeHeadMatchingClass,
-    isFeeHeadMatchingAcademicYear,
-    isFeeHeadMatchingBranch,
-  ]);
-
-  useEffect(() => {
-    if (modalCategory === "Transport" && transportFeeHeads.length > 0) {
-      if (!transportFeeHeads.some((h) => h.id === transportFeeHeadId)) {
-        setTransportFeeHeadId(transportFeeHeads[0].id);
-      }
-    }
-  }, [modalCategory, transportFeeHeads, transportFeeHeadId]);
-
-  // Uniform fee heads for selection
-  const uniformFeeHeads = useMemo(() => {
-    return activeFeeHeads.filter((h) => {
-      const isUniformCat = h.category === "Uniform" || (h.name || "").toLowerCase().includes("uniform");
-      if (!isUniformCat) return false;
-      if (!isFeeHeadMatchingAcademicYear(h, modalAcademicYear)) return false;
-      if (!isFeeHeadMatchingBranch(h, selectedBranch)) return false;
-      if (uniformClass && uniformClass !== "All") {
-        if (!isFeeHeadMatchingClass(h, uniformClass)) return false;
-      }
-      return true;
-    });
-  }, [
-    activeFeeHeads,
-    uniformClass,
-    modalAcademicYear,
-    selectedBranch,
-    isFeeHeadMatchingClass,
-    isFeeHeadMatchingAcademicYear,
-    isFeeHeadMatchingBranch,
-  ]);
-
-  useEffect(() => {
-    if (modalCategory === "Uniform" && uniformFeeHeads.length > 0) {
-      if (!uniformFeeHeads.some((h) => h.id === uniformFeeHeadId)) {
-        setUniformFeeHeadId(uniformFeeHeads[0].id);
-      }
-    }
-  }, [modalCategory, uniformFeeHeads, uniformFeeHeadId]);
-
-  // Selected Fee Heads
-  const selectedHostelHead = useMemo(() => {
-    return hostelFeeHeads.find((h) => h.id === hostelFeeHeadId) || hostelFeeHeads[0] || null;
-  }, [hostelFeeHeads, hostelFeeHeadId]);
-
-  const selectedTransportHead = useMemo(() => {
-    return transportFeeHeads.find((h) => h.id === transportFeeHeadId) || transportFeeHeads[0] || null;
-  }, [transportFeeHeads, transportFeeHeadId]);
-
-  const selectedUniformHead = useMemo(() => {
-    return uniformFeeHeads.find((h) => h.id === uniformFeeHeadId) || uniformFeeHeads[0] || null;
-  }, [uniformFeeHeads, uniformFeeHeadId]);
-
-  const selectedOthersHead = useMemo(() => {
-    return othersFeeHeads.find((h) => h.id === othersFeeHeadId) || othersFeeHeads[0] || null;
-  }, [othersFeeHeads, othersFeeHeadId]);
-
-  // Availability of active Fee Heads per category (Fee Heads are the Source of Truth)
-  const categoryHeadCounts = useMemo(() => {
-    const hasTuition = activeFeeHeads.some(
-      (h) =>
-        h.category === "Tuition Fee" ||
-        h.category === "Tuition" ||
-        (!["Hostel", "Transport", "Uniform", "Others"].includes(h.category) &&
-          !h.category.toLowerCase().includes("hostel"))
-    );
-    return {
-      "Tuition Fee": hasTuition,
-      Others: othersFeeHeads.length > 0,
-      Hostel: hostelFeeHeads.length > 0,
-      Transport: transportFeeHeads.length > 0,
-      Uniform: uniformFeeHeads.length > 0,
-    };
-  }, [activeFeeHeads, othersFeeHeads, hostelFeeHeads, transportFeeHeads, uniformFeeHeads]);
-
-  // Derived available terms from the selected active Fee Head
-  const hostelAvailableTerms = useMemo(() => {
-    if (selectedHostelHead?.applicableTerms && selectedHostelHead.applicableTerms.length > 0) {
-      return selectedHostelHead.applicableTerms;
-    }
-    if (selectedHostelHead?.paymentEligibility === "One-Time Only") {
-      return [];
-    }
-    return availableAcademicTerms;
-  }, [selectedHostelHead, availableAcademicTerms]);
-
-  const transportAvailableTerms = useMemo(() => {
-    if (selectedTransportHead?.applicableTerms && selectedTransportHead.applicableTerms.length > 0) {
-      return selectedTransportHead.applicableTerms;
-    }
-    if (selectedTransportHead?.paymentEligibility === "One-Time Only") {
-      return [];
-    }
-    return availableAcademicTerms;
-  }, [selectedTransportHead, availableAcademicTerms]);
-
-  const othersAvailableTerms = useMemo(() => {
-    if (selectedOthersHead?.applicableTerms && selectedOthersHead.applicableTerms.length > 0) {
-      return selectedOthersHead.applicableTerms;
-    }
-    if (selectedOthersHead?.paymentEligibility === "One-Time Only") {
-      return [];
-    }
-    return availableAcademicTerms;
-  }, [selectedOthersHead, availableAcademicTerms]);
-
-  // Sync hostelTerm with hostelAvailableTerms
-  useEffect(() => {
-    if (selectedHostelHead?.paymentEligibility === "One-Time Only") {
-      setHostelTerm("Annual");
-    } else if (hostelAvailableTerms.length > 0) {
-      if (selectedHostelHead?.paymentEligibility === "Term-Wise Allowed" && (hostelTerm === "Annual" || !hostelAvailableTerms.includes(hostelTerm))) {
-        setHostelTerm(hostelAvailableTerms[0]);
-      } else if (hostelTerm !== "Annual" && !hostelAvailableTerms.includes(hostelTerm)) {
-        setHostelTerm(hostelAvailableTerms[0]);
-      }
-    } else {
-      setHostelTerm("Annual");
-    }
-  }, [hostelAvailableTerms, selectedHostelHead?.paymentEligibility]);
-
-  // Sync transportTerm with transportAvailableTerms
-  useEffect(() => {
-    if (selectedTransportHead?.paymentEligibility === "One-Time Only") {
-      setTransportTerm("Annual");
-    } else if (transportAvailableTerms.length > 0) {
-      if (selectedTransportHead?.paymentEligibility === "Term-Wise Allowed" && (transportTerm === "Annual" || !transportAvailableTerms.includes(transportTerm))) {
-        setTransportTerm(transportAvailableTerms[0]);
-      } else if (transportTerm !== "Annual" && !transportAvailableTerms.includes(transportTerm)) {
-        setTransportTerm(transportAvailableTerms[0]);
-      }
-    } else {
-      setTransportTerm("Annual");
-    }
-  }, [transportAvailableTerms, selectedTransportHead?.paymentEligibility]);
-
-  // Sync othersTerms with othersAvailableTerms
-  useEffect(() => {
-    if (othersFrequency === "Term-Wise") {
-      if (selectedOthersHead?.paymentEligibility === "One-Time Only") {
-        setOthersTerms([]);
-      } else {
-        setOthersTerms((prev) => {
-          const filtered = prev.filter((t) => othersAvailableTerms.includes(t));
-          return filtered.length > 0 ? filtered : [...othersAvailableTerms];
-        });
-      }
-    }
-  }, [othersAvailableTerms, othersFrequency, selectedOthersHead?.paymentEligibility]);
 
   return (
     <div className="space-y-6 animate-in fade-in">
@@ -1340,7 +310,7 @@ export const FeeStructuresView: React.FC<FeeStructuresViewProps> = ({ initialCat
             <Layers className="w-6 h-6 text-sky-500" /> Fee Structures
           </h2>
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-            Dynamic fee structures across Tuition Fee, Others, Hostel, Transport, and Uniform modules.
+            Configure fee structures for academic classes by selecting created fee heads.
           </p>
         </div>
 
@@ -1358,33 +328,15 @@ export const FeeStructuresView: React.FC<FeeStructuresViewProps> = ({ initialCat
       {/* Filter Bar */}
       <div className="glass-card p-4 rounded-2xl grid grid-cols-1 sm:grid-cols-12 gap-3">
         {/* Search */}
-        <div className="sm:col-span-4 relative">
+        <div className="sm:col-span-6 relative">
           <Search className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
           <input
             type="text"
-            placeholder="Search class, block, stop, item..."
+            placeholder="Search class, fee head, or structure name..."
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             className="w-full pl-9 pr-4 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-xs text-slate-900 dark:text-white outline-none"
           />
-        </div>
-
-        {/* Category Filter */}
-        <div className="sm:col-span-5 flex rounded-xl bg-slate-100 dark:bg-slate-800 p-1 overflow-x-auto">
-          {(["All", "Tuition Fee", "Others", "Hostel", "Transport", "Uniform"] as const).map((cat) => (
-            <button
-              key={cat}
-              type="button"
-              onClick={() => setCategoryFilter(cat)}
-              className={`flex-1 min-w-[70px] py-1.5 text-xs font-bold rounded-lg transition-all text-center whitespace-nowrap ${
-                categoryFilter === cat
-                  ? "bg-white dark:bg-slate-900 text-sky-600 dark:text-sky-400 shadow-sm"
-                  : "text-slate-600 dark:text-slate-400 hover:text-slate-900"
-              }`}
-            >
-              {cat === "Tuition Fee" ? "Tuition" : cat}
-            </button>
-          ))}
         </div>
 
         {/* Class Filter */}
@@ -1392,8 +344,7 @@ export const FeeStructuresView: React.FC<FeeStructuresViewProps> = ({ initialCat
           <select
             value={selectedClassFilter}
             onChange={(e) => setSelectedClassFilter(e.target.value)}
-            disabled={categoryFilter === "Hostel" || categoryFilter === "Transport" || categoryFilter === "Uniform"}
-            className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-xs text-slate-900 dark:text-white outline-none cursor-pointer disabled:opacity-50"
+            className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-xs text-slate-900 dark:text-white outline-none cursor-pointer"
           >
             <option value="All">All Class Grades</option>
             {sortedClasses.map((c) => (
@@ -1403,9 +354,22 @@ export const FeeStructuresView: React.FC<FeeStructuresViewProps> = ({ initialCat
             ))}
           </select>
         </div>
+
+        {/* Status Filter */}
+        <div className="sm:col-span-3">
+          <select
+            value={selectedStatusFilter}
+            onChange={(e) => setSelectedStatusFilter(e.target.value)}
+            className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-xs text-slate-900 dark:text-white outline-none cursor-pointer"
+          >
+            <option value="All">All Statuses</option>
+            <option value="Active">Active</option>
+            <option value="Inactive">Inactive</option>
+          </select>
+        </div>
       </div>
 
-      {/* Grid of Structures */}
+      {/* Grid of Fee Structures */}
       {filteredStructures.length === 0 ? (
         <div className="glass-card p-12 text-center rounded-3xl border border-slate-200 dark:border-slate-800 space-y-4">
           <div className="w-12 h-12 rounded-2xl bg-sky-50 dark:bg-sky-950 text-sky-600 dark:text-sky-400 flex items-center justify-center mx-auto">
@@ -1416,7 +380,7 @@ export const FeeStructuresView: React.FC<FeeStructuresViewProps> = ({ initialCat
               No Fee Structures Found
             </h3>
             <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 max-w-sm mx-auto">
-              No fee structures configured matching your current filter. Click below to configure one.
+              No fee structures configured matching your current filter. Click below to create one.
             </p>
           </div>
           <button
@@ -1427,135 +391,94 @@ export const FeeStructuresView: React.FC<FeeStructuresViewProps> = ({ initialCat
           </button>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {filteredStructures.map((s) => {
-            const cat = normalizeCategory(s);
             const items = s.items || [];
-            const total = items.reduce((sum, item) => sum + (Number(item.amount) || 0), 0) || s.totalAmount;
-
-            let borderClass = "border-l-sky-500";
-            let badgeBg = "bg-sky-100 text-sky-800 dark:bg-sky-950 dark:text-sky-300";
-            let IconComp = Layers;
-
-            if (cat === "Hostel") {
-              borderClass = "border-l-amber-500";
-              badgeBg = "bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300";
-              IconComp = Building2;
-            } else if (cat === "Transport") {
-              borderClass = "border-l-teal-500";
-              badgeBg = "bg-teal-100 text-teal-800 dark:bg-teal-950 dark:text-teal-300";
-              IconComp = Bus;
-            } else if (cat === "Uniform") {
-              borderClass = "border-l-indigo-500";
-              badgeBg = "bg-indigo-100 text-indigo-800 dark:bg-indigo-950 dark:text-indigo-300";
-              IconComp = Shirt;
-            } else if (cat === "Others") {
-              borderClass = "border-l-purple-500";
-              badgeBg = "bg-purple-100 text-purple-800 dark:bg-purple-950 dark:text-purple-300";
-              IconComp = Sparkles;
-            }
+            const total = items.reduce((sum, item) => sum + (Number(item.amount) || 0), 0) || s.totalAmount || 0;
 
             return (
               <div
                 key={s.id}
-                className={`glass-card p-5 rounded-2xl space-y-3.5 border-l-4 ${borderClass} hover:shadow-md transition-all`}
+                className="glass-card p-5 rounded-2xl space-y-3.5 border-l-4 border-l-sky-500 hover:shadow-md transition-all flex flex-col justify-between"
               >
-                <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-2.5">
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <span className={`px-2 py-0.5 rounded-lg font-extrabold text-[10px] uppercase tracking-wider flex items-center gap-1 ${badgeBg}`}>
-                        <IconComp className="w-3 h-3" /> {cat}
-                      </span>
-                      <h3 className="font-bold text-sm text-slate-900 dark:text-white">
+                <div className="space-y-2.5">
+                  {/* Top Bar with Class and Actions */}
+                  <div className="flex items-start justify-between gap-2 border-b border-slate-100 dark:border-slate-800 pb-2.5">
+                    <div>
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span className="px-2 py-0.5 rounded-lg font-extrabold text-[10px] uppercase tracking-wider bg-sky-100 text-sky-800 dark:bg-sky-950 dark:text-sky-300">
+                          {s.className || "Class Grade"}
+                        </span>
+                        {s.status === "Inactive" && (
+                          <span className="px-1.5 py-0.5 rounded-md text-[9px] font-bold bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-400">
+                            Inactive
+                          </span>
+                        )}
+                      </div>
+                      <h3 className="font-bold text-sm text-slate-900 dark:text-white mt-1">
                         {s.name || `${s.className} Fee Structure`}
                       </h3>
+                      <p className="text-[11px] text-slate-400 mt-0.5">
+                        Academic Year:{" "}
+                        <span className="font-semibold text-slate-600 dark:text-slate-300">
+                          {s.academicYear || "Current Year"}
+                        </span>
+                      </p>
                     </div>
-                    <p className="text-[11px] text-slate-400 mt-0.5">
-                      Academic Year:{" "}
-                      <span className="font-semibold text-slate-600 dark:text-slate-300">
-                        {s.academicYear || "Current Year"}
-                      </span>
-                      {s.branch && (
-                        <>
-                          {" "}• Branch:{" "}
-                          <span className="font-semibold text-slate-600 dark:text-slate-300">
-                            {s.branch}
-                          </span>
-                        </>
-                      )}
-                    </p>
+
+                    <div className="flex items-center gap-1 shrink-0">
+                      <button
+                        onClick={() => handleOpenEdit(s)}
+                        className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-sky-600 cursor-pointer"
+                        title="Edit Structure"
+                      >
+                        <Edit className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={() => setDeletingStruct(s)}
+                        className="p-1.5 rounded-lg hover:bg-rose-50 dark:hover:bg-rose-950 text-rose-600 cursor-pointer"
+                        title="Delete Structure"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
                   </div>
 
-                  <div className="flex items-center gap-1">
-                    <button
-                      onClick={() => handleOpenEdit(s)}
-                      className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-sky-600 cursor-pointer"
-                      title="Edit Structure"
-                    >
-                      <Edit className="w-4 h-4" />
-                    </button>
-                    <button
-                      onClick={() => setDeletingStruct(s)}
-                      className="p-1.5 rounded-lg hover:bg-rose-50 dark:hover:bg-rose-950 text-rose-600 cursor-pointer"
-                      title="Delete Structure"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
-                </div>
-
-                {/* Items Breakdown */}
-                {items.length === 0 ? (
-                  <div className="py-2 text-xs text-slate-400 dark:text-slate-500 italic">
-                    No breakdown configured. Base amount: {formatCurrency(s.totalAmount)}
-                  </div>
-                ) : (
-                  <div className="space-y-1.5 text-xs max-h-48 overflow-y-auto pr-1">
-                    {items.map((item, idx) => {
-                      let itemLabel = item.feeHeadName || "Fee Item";
-                      let subDetail = "";
-
-                      if (cat === "Hostel") {
-                        itemLabel = `${item.hostelBlockName || "Block"} • ${item.roomNo || "Room"}`;
-                        subDetail = `${item.roomType || ""} (${item.sharingType || ""}) ${item.term ? `• ${item.term}` : ""}`;
-                      } else if (cat === "Transport") {
-                        itemLabel = `${item.routeName || "Route"} → ${item.stopName || "Stop"}`;
-                        subDetail = `${item.vehicleNumber ? `Veh: ${item.vehicleNumber} ` : ""}${item.term ? `• ${item.term}` : ""}`;
-                      } else if (cat === "Uniform") {
-                        itemLabel = `${item.uniformItemName || "Uniform"}`;
-                        subDetail = `${item.uniformCategoryName ? `${item.uniformCategoryName} ` : ""}${item.uniformSizeName ? `• Size: ${item.uniformSizeName}` : ""} • Qty: ${item.quantity || 1}`;
-                      } else if (cat === "Others") {
-                        itemLabel = item.feeHeadName;
-                        subDetail = `${item.frequency || "Annual"}${item.term ? ` • ${item.term}` : ""}`;
-                      } else {
-                        subDetail = item.term ? `• ${item.term}` : "";
-                      }
-
-                      return (
+                  {/* Fee Items Breakdown */}
+                  {items.length === 0 ? (
+                    <div className="py-2 text-xs text-slate-400 dark:text-slate-500 italic">
+                      No fee breakdown configured. Base amount: {formatCurrency(s.totalAmount)}
+                    </div>
+                  ) : (
+                    <div className="space-y-1.5 text-xs max-h-48 overflow-y-auto pr-1">
+                      {items.map((item, idx) => (
                         <div
                           key={idx}
                           className="flex items-center justify-between text-slate-600 dark:text-slate-300 py-1 border-b border-slate-50 dark:border-slate-800/40 last:border-none"
                         >
                           <div>
                             <span className="font-semibold text-slate-900 dark:text-white block">
-                              {itemLabel}
+                              {item.feeHeadName || "Fee Head"}
                             </span>
-                            {subDetail && (
-                              <span className="text-[10px] text-slate-400 block">{subDetail}</span>
+                            {item.frequency && (
+                              <span className="text-[10px] text-slate-400 block">
+                                {item.frequency}
+                              </span>
                             )}
                           </div>
                           <span className="font-mono font-bold text-slate-900 dark:text-white ml-2 shrink-0">
                             {formatCurrency(item.amount)}
                           </span>
                         </div>
-                      );
-                    })}
-                  </div>
-                )}
+                      ))}
+                    </div>
+                  )}
+                </div>
 
-                <div className="pt-2 border-t border-slate-100 dark:border-slate-800 flex justify-between font-extrabold text-sm text-slate-900 dark:text-white">
-                  <span>Standard Total:</span>
-                  <span className="text-emerald-600 dark:text-emerald-400 font-mono">
+                {/* Total */}
+                <div className="pt-2 border-t border-slate-100 dark:border-slate-800 flex justify-between items-center font-extrabold text-sm text-slate-900 dark:text-white">
+                  <span className="text-xs text-slate-500">Total Fee:</span>
+                  <span className="text-emerald-600 dark:text-emerald-400 font-mono text-base">
                     {formatCurrency(total)}
                   </span>
                 </div>
@@ -1565,94 +488,71 @@ export const FeeStructuresView: React.FC<FeeStructuresViewProps> = ({ initialCat
         </div>
       )}
 
-      {/* Main Configuration Modal */}
+      {/* Create / Edit Fee Structure Modal */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm animate-in fade-in">
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-2xl w-full p-6 shadow-2xl space-y-4 max-h-[90vh] flex flex-col">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-2xl w-full p-6 shadow-2xl space-y-4 max-h-[92vh] flex flex-col">
             {/* Modal Header */}
             <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
               <div>
                 <h3 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
                   <Layers className="w-5 h-5 text-sky-500" />
-                  {editingStruct ? "Edit Fee Structure" : "Configure Fee Structure"}
+                  {editingStruct ? "Edit Fee Structure" : "Create Fee Structure"}
                 </h3>
                 <p className="text-[11px] text-slate-400 mt-0.5">
-                  Select fee category and configure dynamic breakdowns across Academic, Hostel, Transport, or Uniform modules.
+                  Select a class grade and add your created fee heads to build the fee structure.
                 </p>
               </div>
               <button
                 onClick={() => setIsModalOpen(false)}
-                className="text-slate-400 hover:text-slate-600 cursor-pointer font-bold text-lg"
+                className="text-slate-400 hover:text-slate-600 cursor-pointer font-bold text-lg p-1"
               >
                 ✕
               </button>
             </div>
 
-            {/* Category Selector Tabs */}
-            <div className="flex p-1 bg-slate-100 dark:bg-slate-800 rounded-2xl overflow-x-auto gap-1">
-              {(
-                [
-                  { id: "Tuition Fee", label: "Tuition Fee", icon: Layers },
-                  { id: "Others", label: "Others", icon: Sparkles },
-                  { id: "Hostel", label: "Hostel", icon: Building2 },
-                  { id: "Transport", label: "Transport", icon: Bus },
-                  { id: "Uniform", label: "Uniform", icon: Shirt },
-                ] as const
-              ).map((tab) => {
-                const TabIcon = tab.icon;
-                const isSelected = modalCategory === tab.id;
-                const isConfigured = categoryHeadCounts[tab.id];
-                return (
-                  <button
-                    key={tab.id}
-                    type="button"
-                    disabled={!!editingStruct}
-                    onClick={() => setModalCategory(tab.id)}
-                    className={`flex-1 min-w-[105px] py-2 px-2 text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer whitespace-nowrap disabled:opacity-60 disabled:cursor-not-allowed ${
-                      isSelected
-                        ? "bg-white dark:bg-slate-900 text-sky-600 dark:text-sky-400 shadow-md"
-                        : isConfigured
-                        ? "text-slate-600 dark:text-slate-400 hover:text-slate-900"
-                        : "text-slate-400 dark:text-slate-500 opacity-60 hover:opacity-100"
-                    }`}
-                  >
-                    <TabIcon className="w-3.5 h-3.5" />
-                    <span>{tab.label}</span>
-                    {!isConfigured && (
-                      <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-400 font-semibold">
-                        0 Heads
-                      </span>
-                    )}
-                  </button>
-                );
-              })}
-            </div>
-
             <form onSubmit={handleSubmit} className="space-y-4 text-xs overflow-y-auto pr-1 flex-1">
-              {/* Warning if no active Fee Head configured for this category */}
-              {!categoryHeadCounts[modalCategory] && (
-                <div className="p-3.5 rounded-2xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 text-xs text-amber-900 dark:text-amber-200 flex items-start gap-2.5">
-                  <AlertCircle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
-                  <div className="space-y-1">
-                    <p className="font-bold text-amber-800 dark:text-amber-300">
-                      No Active Fee Head Configured for {modalCategory}
-                    </p>
-                    <p className="text-[11px] leading-relaxed text-amber-700 dark:text-amber-300/80">
-                      Under ERP rules, <strong>Fee Heads are the Source of Truth</strong>. A Fee Structure cannot be created for <strong>{modalCategory}</strong> because no active Fee Head exists for this category in the database. Please configure an active Fee Head in <strong>Fee Setup → Fee Heads</strong> first.
-                    </p>
-                  </div>
+              {/* Basic Settings: Class, Name, AY, Status */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">
+                    Class Grade <span className="text-rose-500">*</span>
+                  </label>
+                  <select
+                    value={structClass}
+                    onChange={(e) => handleModalClassChange(e.target.value)}
+                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-semibold outline-none text-xs cursor-pointer"
+                  >
+                    <option value="">Select Class Grade</option>
+                    {sortedClasses.map((c) => (
+                      <option key={c.id} value={c.name}>
+                        {c.name}
+                      </option>
+                    ))}
+                  </select>
                 </div>
-              )}
-              {/* Common: Academic Year */}
-              <div className="grid grid-cols-2 gap-3">
+
+                <div>
+                  <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">
+                    Structure Name <span className="text-rose-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={structName}
+                    onChange={(e) => setStructName(e.target.value)}
+                    placeholder="e.g. Class 10 Standard Fee"
+                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-semibold outline-none text-xs"
+                  />
+                </div>
+
                 <div>
                   <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">
                     Academic Year <span className="text-rose-500">*</span>
                   </label>
                   <select
-                    value={modalAcademicYear}
-                    onChange={(e) => handleAcademicYearChange(e.target.value)}
-                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-semibold outline-none text-xs"
+                    value={structAcademicYear}
+                    onChange={(e) => setStructAcademicYear(e.target.value)}
+                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-semibold outline-none text-xs cursor-pointer"
                   >
                     {academicYears && academicYears.length > 0 ? (
                       academicYears.map((ay) => {
@@ -1664,18 +564,19 @@ export const FeeStructuresView: React.FC<FeeStructuresViewProps> = ({ initialCat
                         );
                       })
                     ) : (
-                      <option value={modalAcademicYear}>{modalAcademicYear || "Current Year"}</option>
+                      <option value={structAcademicYear}>{structAcademicYear || "2026-2027"}</option>
                     )}
                   </select>
                 </div>
+
                 <div>
                   <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">
                     Status
                   </label>
                   <select
-                    value={modalStatus}
-                    onChange={(e) => setModalStatus(e.target.value as "Active" | "Inactive")}
-                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-semibold outline-none text-xs"
+                    value={structStatus}
+                    onChange={(e) => setStructStatus(e.target.value as "Active" | "Inactive")}
+                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-semibold outline-none text-xs cursor-pointer"
                   >
                     <option value="Active">Active</option>
                     <option value="Inactive">Inactive</option>
@@ -1683,897 +584,157 @@ export const FeeStructuresView: React.FC<FeeStructuresViewProps> = ({ initialCat
                 </div>
               </div>
 
-              {/* 1. TUITION FORM */}
-              {modalCategory === "Tuition Fee" && (
-                <div className="space-y-3">
-                  <div>
-                    <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">
-                      Class Grade <span className="text-rose-500 font-bold ml-0.5">*</span>
-                    </label>
-                    <select
-                      value={tuitionClass}
-                      onChange={(e) => handleTuitionClassChange(e.target.value)}
-                      className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-xs font-bold outline-none cursor-pointer"
-                    >
-                      <option value="">Select Class Grade</option>
-                      {sortedClasses.map((c) => {
-                        const isConfigured = !editingStruct && configuredTuitionClasses.has(c.name.trim().toLowerCase());
-                        return (
-                          <option key={c.id} value={c.name} disabled={isConfigured}>
-                            {c.name} {isConfigured ? "(Already Configured)" : ""}
-                          </option>
-                        );
-                      })}
-                    </select>
-                  </div>
-
-                  <div className="space-y-2 border-t border-slate-100 dark:border-slate-800 pt-3">
-                    <div className="flex items-center justify-between">
-                      <label className="font-extrabold text-slate-800 dark:text-slate-200 uppercase tracking-wider text-[10px] block">
-                        Select Master Fee Heads & Enter Amounts
-                      </label>
-                      {tuitionClass && tuitionFeeHeads.length > 0 && (
-                        <span className="text-[10px] text-sky-600 dark:text-sky-400 font-semibold">
-                          {tuitionFeeHeads.length} applicable head{tuitionFeeHeads.length !== 1 ? "s" : ""}
-                        </span>
-                      )}
-                    </div>
-
-                    {!tuitionClass ? (
-                      <div className="p-6 rounded-xl border border-dashed border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/30 text-center flex flex-col items-center justify-center gap-1.5">
-                        <GraduationCap className="w-5 h-5 text-slate-400 dark:text-slate-500" />
-                        <p className="text-slate-500 dark:text-slate-400 text-xs font-medium">
-                          Select a Class Grade to load applicable Fee Heads.
-                        </p>
-                        <p className="text-[10px] text-slate-400 dark:text-slate-500">
-                          Fee heads configured for the chosen class and academic year will appear here.
-                        </p>
-                      </div>
-                    ) : tuitionFeeHeads.length === 0 ? (
-                      <div className="p-6 rounded-xl border border-dashed border-amber-200 dark:border-amber-900/40 bg-amber-50/40 dark:bg-amber-950/20 text-center flex flex-col items-center justify-center gap-1.5">
-                        <AlertCircle className="w-5 h-5 text-amber-500" />
-                        <p className="text-amber-700 dark:text-amber-400 font-semibold text-xs">
-                          No Fee Heads configured for this class.
-                        </p>
-                        <p className="text-[10px] text-amber-600/80 dark:text-amber-400/80">
-                          Configure fee heads for {tuitionClass} under Fee Heads tab first.
-                        </p>
-                      </div>
-                    ) : (
-                      <div className="space-y-2">
-                        {tuitionFeeHeads.map((head) => {
-                          const isChecked = selectedHeadIds.includes(head.id);
-                          const amt = selectedHeadAmounts[head.id] ?? "";
-
-                          return (
-                            <div
-                              key={head.id}
-                              className={`flex items-center justify-between p-2.5 rounded-xl border transition-all ${
-                                isChecked
-                                  ? "bg-sky-50/50 dark:bg-sky-950/20 border-sky-200 dark:border-sky-800 shadow-xs"
-                                  : "bg-slate-50 dark:bg-slate-800/40 border-slate-100 dark:border-slate-800"
-                              }`}
-                            >
-                              <label className="flex items-center gap-2.5 cursor-pointer flex-1">
-                                <input
-                                  type="checkbox"
-                                  checked={isChecked}
-                                  onChange={() => {
-                                    if (isChecked) {
-                                      setSelectedHeadIds(selectedHeadIds.filter((id) => id !== head.id));
-                                    } else {
-                                      setSelectedHeadIds([...selectedHeadIds, head.id]);
-                                    }
-                                  }}
-                                  className="w-4 h-4 text-sky-600 rounded cursor-pointer"
-                                />
-                                <div>
-                                  <div className="flex items-center gap-2">
-                                    <p className="font-bold text-slate-900 dark:text-white text-xs">{head.name}</p>
-                                    <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300">
-                                      {head.code}
-                                    </span>
-                                  </div>
-                                  <p className="text-[10px] text-slate-400 mt-0.5">
-                                    {head.frequency || "Quarterly"} • {head.paymentEligibility || "Both One-Time and Term-Wise"}
-                                  </p>
-                                </div>
-                              </label>
-
-                              <div className="flex items-center gap-1">
-                                <span className="font-bold text-slate-400 text-xs">₹</span>
-                                <input
-                                  type="number"
-                                  disabled={!isChecked}
-                                  value={isChecked ? amt : ""}
-                                  placeholder="0.00"
-                                  onChange={(e) =>
-                                    setSelectedHeadAmounts({ ...selectedHeadAmounts, [head.id]: e.target.value })
-                                  }
-                                  className="w-28 px-2.5 py-1 text-right font-mono font-bold rounded-lg border bg-white dark:bg-slate-900 outline-none text-xs disabled:opacity-40 disabled:cursor-not-allowed"
-                                />
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    )}
-                  </div>
+              {/* Dynamic Fee Heads Selection Section */}
+              <div className="border-t border-slate-100 dark:border-slate-800 pt-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <label className="font-extrabold text-slate-800 dark:text-slate-200 uppercase tracking-wider text-[11px] flex items-center gap-1.5">
+                    <Tag className="w-3.5 h-3.5 text-sky-500" /> Select Created Fee Heads
+                  </label>
+                  <span className="text-[10px] text-slate-400">
+                    {activeFeeHeads.length} Fee Head{activeFeeHeads.length !== 1 ? "s" : ""} Available
+                  </span>
                 </div>
-              )}
 
-              {/* 2. OTHERS FORM */}
-              {modalCategory === "Others" && (
-                <div className="space-y-3">
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">
-                        Fee Head <span className="text-rose-500">*</span>
-                      </label>
-                      <select
-                        value={othersFeeHeadId}
-                        onChange={(e) => setOthersFeeHeadId(e.target.value)}
-                        disabled={othersFeeHeads.length === 0}
-                        className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-xs outline-none disabled:opacity-50"
-                      >
-                        {othersFeeHeads.length === 0 ? (
-                          <option value="">No fee heads configured for this class</option>
-                        ) : (
-                          othersFeeHeads.map((h) => (
-                            <option key={h.id} value={h.id}>
-                              {h.name}
+                {activeFeeHeads.length === 0 ? (
+                  <div className="p-4 rounded-xl border border-dashed border-amber-200 dark:border-amber-800 bg-amber-50/50 dark:bg-amber-950/20 text-center space-y-1">
+                    <p className="font-bold text-amber-800 dark:text-amber-300 text-xs">
+                      No Fee Heads Found in System
+                    </p>
+                    <p className="text-[11px] text-amber-700 dark:text-amber-400">
+                      Please create fee heads under the <strong>Fee Setup → Fee Heads</strong> tab first.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200/80 dark:border-slate-800 space-y-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-12 gap-2.5 items-end">
+                      {/* Fee Head Dropdown */}
+                      <div className="sm:col-span-7">
+                        <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">
+                          Select Fee Head
+                        </label>
+                        <select
+                          value={selectedFeeHeadId}
+                          onChange={(e) => setSelectedFeeHeadId(e.target.value)}
+                          className="w-full px-3 py-2 rounded-xl bg-white dark:bg-slate-900 border text-xs font-semibold outline-none cursor-pointer"
+                        >
+                          <option value="">-- Choose Fee Head --</option>
+                          {activeFeeHeads.map((head) => (
+                            <option key={head.id} value={head.id}>
+                              {head.name} {head.code ? `(${head.code})` : ""} {head.frequency ? `• ${head.frequency}` : ""}
                             </option>
-                          ))
+                          ))}
+                        </select>
+                      </div>
+
+                      {/* Amount Input */}
+                      <div className="sm:col-span-3">
+                        <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">
+                          Amount (₹)
+                        </label>
+                        <input
+                          type="number"
+                          placeholder="0.00"
+                          value={feeHeadInputAmount}
+                          onChange={(e) => setFeeHeadInputAmount(e.target.value)}
+                          className="w-full px-3 py-2 rounded-xl bg-white dark:bg-slate-900 border font-mono font-bold text-xs outline-none text-right"
+                        />
+                      </div>
+
+                      {/* Add Button */}
+                      <div className="sm:col-span-2">
+                        <button
+                          type="button"
+                          onClick={handleAddFeeHead}
+                          className="w-full py-2 px-3 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs flex items-center justify-center gap-1 shadow-md shadow-sky-500/20 transition-all cursor-pointer"
+                        >
+                          <Plus className="w-3.5 h-3.5" /> Add
+                        </button>
+                      </div>
+                    </div>
+
+                    {currentSelectedHead && (
+                      <div className="text-[10px] text-slate-400 flex items-center gap-3 pt-0.5">
+                        <span>Frequency: <strong className="text-slate-600 dark:text-slate-300">{currentSelectedHead.frequency || "Annual"}</strong></span>
+                        <span>Eligibility: <strong className="text-slate-600 dark:text-slate-300">{currentSelectedHead.paymentEligibility || "Both One-Time and Term-Wise"}</strong></span>
+                        {currentSelectedHead.category && (
+                          <span>Category: <strong className="text-slate-600 dark:text-slate-300">{currentSelectedHead.category}</strong></span>
                         )}
-                      </select>
-                    </div>
+                      </div>
+                    )}
+                  </div>
+                )}
 
-                    <div>
-                      <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">
-                        Applicable Class
-                      </label>
-                      <select
-                        value={othersClass}
-                        onChange={(e) => setOthersClass(e.target.value)}
-                        className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-xs outline-none"
-                      >
-                        <option value="All">All Classes</option>
-                        {sortedClasses.map((c) => (
-                          <option key={c.id} value={c.name}>
-                            {c.name}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
+                {/* Items Breakdown Table */}
+                <div className="space-y-2 pt-1">
+                  <div className="flex items-center justify-between text-[11px] font-bold text-slate-600 dark:text-slate-400">
+                    <span>Configured Fee Heads ({structItems.length})</span>
+                    <span>Amount</span>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">
-                        Frequency
-                      </label>
-                      <select
-                        value={othersFrequency}
-                        onChange={(e) => setOthersFrequency(e.target.value)}
-                        className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-xs outline-none"
-                      >
-                        <option value="One-Time">One-Time</option>
-                        <option value="Annual">Annual</option>
-                        <option value="Term-Wise">Term-Wise</option>
-                        <option value="Monthly">Monthly</option>
-                      </select>
+                  {structItems.length === 0 ? (
+                    <div className="p-6 rounded-2xl border border-dashed border-slate-200 dark:border-slate-800 text-center text-slate-400 text-xs">
+                      No fee heads added yet. Select a fee head from the dropdown above and enter the amount.
                     </div>
+                  ) : (
+                    <div className="space-y-1.5 max-h-56 overflow-y-auto pr-1">
+                      {structItems.map((item, idx) => (
+                        <div
+                          key={idx}
+                          className="flex items-center justify-between p-2.5 rounded-xl border border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/40 text-xs gap-2"
+                        >
+                          <div className="min-w-0 flex-1">
+                            <p className="font-bold text-slate-900 dark:text-white truncate">
+                              {item.feeHeadName}
+                            </p>
+                            <p className="text-[10px] text-slate-400">
+                              {item.frequency || "Annual"} {item.category ? `• ${item.category}` : ""}
+                            </p>
+                          </div>
 
-                    <div>
-                      <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">
-                        Amount (₹) <span className="text-rose-500">*</span>
-                      </label>
-                      <input
-                        type="number"
-                        value={othersAmount}
-                        placeholder="e.g. 1500"
-                        onChange={(e) => setOthersAmount(e.target.value)}
-                        className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-mono font-bold text-xs outline-none"
-                      />
-                    </div>
-                  </div>
-
-                  {othersFrequency === "Term-Wise" && (
-                    <div className="space-y-1.5 p-3 rounded-xl bg-slate-50 dark:bg-slate-800/40 border">
-                      <label className="font-semibold text-slate-700 dark:text-slate-300 text-xs block">
-                        Applicable Academic Terms
-                      </label>
-                      <div className="flex flex-wrap gap-2">
-                        {othersAvailableTerms.map((term) => (
-                          <label key={term} className="flex items-center gap-1.5 cursor-pointer text-xs">
+                          <div className="flex items-center gap-2 shrink-0">
+                            <span className="font-bold text-slate-400">₹</span>
                             <input
-                              type="checkbox"
-                              checked={othersTerms.includes(term)}
-                              onChange={(e) => {
-                                if (e.target.checked) setOthersTerms([...othersTerms, term]);
-                                else setOthersTerms(othersTerms.filter((t) => t !== term));
-                              }}
-                              className="w-3.5 h-3.5 text-purple-600 rounded"
+                              type="number"
+                              value={item.amount || ""}
+                              onChange={(e) => handleItemAmountChange(idx, e.target.value)}
+                              className="w-24 px-2 py-1 rounded-lg border bg-white dark:bg-slate-900 font-mono font-bold text-xs text-right outline-none"
                             />
-                            <span>{term}</span>
-                          </label>
-                        ))}
-                      </div>
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveItem(idx)}
+                              className="p-1 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors cursor-pointer"
+                              title="Remove Fee Head"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </div>
+                      ))}
                     </div>
                   )}
                 </div>
-              )}
 
-              {/* 3. HOSTEL FORM */}
-              {modalCategory === "Hostel" && (
-                <div className="space-y-4">
-                  <div className="p-3 rounded-xl bg-amber-50/70 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 text-xs text-amber-900 dark:text-amber-200 flex items-start gap-2">
-                    <Info className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
-                    <span>
-                      Configure Hostel fee dynamically by selecting <strong>Hostel Facility</strong> → <strong>Room</strong> → <strong>Room Type & Capacity</strong> → <strong>Class Grade</strong> → <strong>Terms</strong> → <strong>Amount</strong>. Add one or more room configs below.
-                    </span>
-                  </div>
-
-                  {hostelFeeHeads.length > 1 && (
-                    <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/40 border">
-                      <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300 text-xs">
-                        Select Hostel Fee Head <span className="text-rose-500">*</span>
-                      </label>
-                      <select
-                        value={hostelFeeHeadId}
-                        onChange={(e) => setHostelFeeHeadId(e.target.value)}
-                        className="w-full px-2.5 py-1.5 rounded-lg bg-white dark:bg-slate-900 border text-xs outline-none"
-                      >
-                        {hostelFeeHeads.map((h) => (
-                          <option key={h.id} value={h.id}>
-                            {h.name} ({h.code})
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                  )}
-
-                  {/* Dependent Dropdown Row */}
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 p-3 rounded-xl bg-slate-50 dark:bg-slate-800/40 border">
-                    <div>
-                      <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">
-                        Select Hostel Facility <span className="text-rose-500">*</span>
-                      </label>
-                      <select
-                        value={selectedBlockId}
-                        onChange={(e) => handleHostelFacilityChange(e.target.value)}
-                        disabled={hostelFacilitiesLoading || (!editingStruct && availableHostelFacilities.length === 0)}
-                        className="w-full px-2.5 py-1.5 rounded-lg bg-white dark:bg-slate-900 border text-xs outline-none disabled:opacity-50"
-                      >
-                        {hostelFacilitiesLoading ? (
-                          <option value="">Loading hostel facilities...</option>
-                        ) : hostelFacilitiesError ? (
-                          <option value="">Error loading hostel facilities</option>
-                        ) : hostelFacilities.length === 0 ? (
-                          <option value="">No active hostel facilities available</option>
-                        ) : !editingStruct && availableHostelFacilities.length === 0 ? (
-                          <option value="">All active hostel facilities are already configured</option>
-                        ) : (
-                          <>
-                            <option value="">Select Hostel...</option>
-                            {availableHostelFacilities.map((b) => (
-                              <option key={b.hostelId} value={String(b.hostelId)}>
-                                {b.hostelName} {b.hostelCode ? `(${b.hostelCode})` : ""}
-                              </option>
-                            ))}
-                          </>
-                        )}
-                      </select>
-                      {!hostelFacilitiesLoading && !editingStruct && availableHostelFacilities.length === 0 && hostelFacilities.length > 0 && (
-                        <p className="mt-1 text-[11px] text-sky-600 dark:text-sky-400 font-medium">
-                          All active hostel facilities have already been configured for {modalAcademicYear || "this academic year"}. To configure additional rooms or update rates, please edit the existing Fee Structure.
-                        </p>
-                      )}
-                      {!hostelFacilitiesLoading && hostelFacilities.length === 0 && (
-                        <p className="mt-1 text-[11px] text-amber-600 dark:text-amber-400">
-                          No active hostel facilities available. Create an active hostel facility in Hostel Management first.
-                        </p>
-                      )}
-                      {hostelFacilitiesError && (
-                        <p className="mt-1 text-[11px] text-rose-500">
-                          {hostelFacilitiesError}
-                        </p>
-                      )}
-                    </div>
-
-                    <div>
-                      <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">
-                        Select Room <span className="text-rose-500">*</span>
-                      </label>
-                      <select
-                        value={selectedRoomId}
-                        onChange={(e) => setSelectedRoomId(e.target.value)}
-                        disabled={!selectedBlockId || roomsLoading || availableRoomsForHostel.length === 0}
-                        className="w-full px-2.5 py-1.5 rounded-lg bg-white dark:bg-slate-900 border text-xs outline-none disabled:opacity-50"
-                      >
-                        {!selectedBlockId ? (
-                          <option value="">Select Hostel first</option>
-                        ) : roomsLoading ? (
-                          <option value="">Loading rooms...</option>
-                        ) : roomsForSelectedHostel.length === 0 ? (
-                          <option value="">No active rooms available</option>
-                        ) : availableRoomsForHostel.length === 0 ? (
-                          <option value="">All rooms for this facility are already configured</option>
-                        ) : (
-                          <>
-                            <option value="">Select Room...</option>
-                            {availableRoomsForHostel.map((r) => (
-                              <option key={r.roomId} value={String(r.roomId)}>
-                                Room {r.roomNumber} ({r.roomTypeSpecification || `${r.bedCapacity || 1}-Bed`} • Floor: {r.floorLevel || "Ground Floor"})
-                              </option>
-                            ))}
-                          </>
-                        )}
-                      </select>
-                      {selectedBlockId && !roomsLoading && roomsForSelectedHostel.length > 0 && availableRoomsForHostel.length === 0 && (
-                        <p className="mt-1 text-[11px] text-sky-600 dark:text-sky-400 font-medium">
-                          All rooms in this facility are already configured for this academic year.
-                        </p>
-                      )}
-                      {selectedBlockId && !roomsLoading && roomsForSelectedHostel.length === 0 && (
-                        <p className="mt-1 text-[11px] text-amber-600 dark:text-amber-400">
-                          No active rooms found for this facility. Add rooms in Hostel Management → Room Master first.
-                        </p>
-                      )}
-                    </div>
-
-                    <div>
-                      <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">
-                        Room Type & Sharing Capacity
-                      </label>
-                      <div className="px-2.5 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 text-xs font-semibold text-slate-600 dark:text-slate-300 flex items-center justify-between min-h-[34px]">
-                        <span>
-                          {selectedRoomDetails
-                            ? `${selectedRoomDetails.roomTypeName} • ${selectedRoomDetails.sharingType}`
-                            : "Auto-derived from room"}
-                        </span>
-                        {selectedRoomDetails && (
-                          <span
-                            className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${
-                              selectedRoomDetails.acType === "AC"
-                                ? "bg-sky-100 text-sky-700 dark:bg-sky-900/50 dark:text-sky-300"
-                                : "bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-300"
-                            }`}
-                          >
-                            {selectedRoomDetails.acType}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Amount and Class row */}
-                  <div className="grid grid-cols-1 sm:grid-cols-4 gap-2.5">
-                    <div>
-                      <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">
-                        Class Grade
-                      </label>
-                      <select
-                        value={hostelClass}
-                        onChange={(e) => setHostelClass(e.target.value)}
-                        className="w-full px-2.5 py-1.5 rounded-lg bg-white dark:bg-slate-900 border text-xs outline-none"
-                      >
-                        <option value="All">All Classes</option>
-                        {sortedClasses.map((c) => (
-                          <option key={c.id} value={c.name}>
-                            {c.name}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-
-                    <div>
-                      <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">
-                        Academic Term
-                      </label>
-                      <select
-                        value={hostelTerm}
-                        onChange={(e) => setHostelTerm(e.target.value)}
-                        className="w-full px-2.5 py-1.5 rounded-lg bg-white dark:bg-slate-900 border text-xs outline-none"
-                      >
-                        {selectedHostelHead?.paymentEligibility !== "Term-Wise Allowed" && (
-                          <option value="Annual">Annual / One-Time</option>
-                        )}
-                        {hostelAvailableTerms.map((t) => (
-                          <option key={t} value={t}>
-                            {t}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-
-                    <div>
-                      <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">
-                        Fee Amount (₹) <span className="text-rose-500">*</span>
-                      </label>
-                      <input
-                        type="number"
-                        value={hostelAmount}
-                        placeholder="e.g. 25000"
-                        onChange={(e) => setHostelAmount(e.target.value)}
-                        className="w-full px-2.5 py-1.5 rounded-lg bg-white dark:bg-slate-900 border font-mono font-bold text-xs outline-none"
-                      />
-                    </div>
-
-                    <div className="flex items-end">
-                      <button
-                        type="button"
-                        onClick={handleAddHostelItem}
-                        disabled={!selectedBlockId || !selectedRoomId || !hostelAmount}
-                        className="w-full px-3 py-1.5 bg-amber-600 hover:bg-amber-500 text-white font-bold rounded-lg text-xs flex items-center justify-center gap-1 cursor-pointer transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        <Plus className="w-3.5 h-3.5" /> Add Room Row
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Configured Rows Table */}
-                  <div className="space-y-1.5">
-                    <label className="font-extrabold text-slate-800 dark:text-slate-200 uppercase tracking-wider text-[10px] block">
-                      Configured Room Rates ({hostelItemsList.length} rows)
-                    </label>
-
-                    {hostelItemsList.length === 0 ? (
-                      <p className="text-slate-400 italic text-xs">No room configurations added yet.</p>
-                    ) : (
-                      <div className="border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden">
-                        <table className="w-full text-left text-xs">
-                          <thead className="bg-slate-50 dark:bg-slate-800/60 text-slate-600 dark:text-slate-300 font-bold border-b border-slate-200 dark:border-slate-800">
-                            <tr>
-                              <th className="p-2">Hostel Facility</th>
-                              <th className="p-2">Room</th>
-                              <th className="p-2">Type / Sharing</th>
-                              <th className="p-2">Class</th>
-                              <th className="p-2">Term</th>
-                              <th className="p-2 text-right">Amount</th>
-                              <th className="p-2 text-center">Action</th>
-                            </tr>
-                          </thead>
-                          <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                            {hostelItemsList.map((item, idx) => (
-                              <tr key={idx} className="hover:bg-slate-50/50">
-                                <td className="p-2 font-semibold">{item.hostelBlockName}</td>
-                                <td className="p-2">{item.roomNo}</td>
-                                <td className="p-2 text-slate-500">{item.roomType} ({item.sharingType})</td>
-                                <td className="p-2">{item.className || "All"}</td>
-                                <td className="p-2">{item.term || "Annual"}</td>
-                                <td className="p-2 text-right font-mono font-bold text-slate-900 dark:text-white">
-                                  {formatCurrency(item.amount)}
-                                </td>
-                                <td className="p-2 text-center">
-                                  <button
-                                    type="button"
-                                    onClick={() => setHostelItemsList(hostelItemsList.filter((_, i) => i !== idx))}
-                                    className="text-rose-500 hover:text-rose-700 cursor-pointer"
-                                  >
-                                    <Trash2 className="w-3.5 h-3.5 inline" />
-                                  </button>
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    )}
-                  </div>
+                {/* Total Bar */}
+                <div className="p-3 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-between font-extrabold text-sm text-slate-900 dark:text-white">
+                  <span>Total Structure Fee:</span>
+                  <span className="text-emerald-600 dark:text-emerald-400 font-mono text-base">
+                    {formatCurrency(calculatedTotalAmount)}
+                  </span>
                 </div>
-              )}
+              </div>
 
-              {/* 4. TRANSPORT FORM */}
-              {modalCategory === "Transport" && (
-                <div className="space-y-4">
-                  <div className="p-3 rounded-xl bg-teal-50/70 dark:bg-teal-950/30 border border-teal-200 dark:border-teal-800 text-xs text-teal-900 dark:text-teal-200 flex items-start gap-2">
-                    <Info className="w-4 h-4 text-teal-600 shrink-0 mt-0.5" />
-                    <span>
-                      Configure Transport fees dynamically by selecting <strong>Route</strong> → <strong>Pickup Stop</strong> → <strong>Vehicle</strong> → <strong>Amount</strong>. Add one or more route configs below.
-                    </span>
-                  </div>
-
-                  {transportFeeHeads.length > 1 && (
-                    <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/40 border">
-                      <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300 text-xs">
-                        Select Transport Fee Head <span className="text-rose-500">*</span>
-                      </label>
-                      <select
-                        value={transportFeeHeadId}
-                        onChange={(e) => setTransportFeeHeadId(e.target.value)}
-                        className="w-full px-2.5 py-1.5 rounded-lg bg-white dark:bg-slate-900 border text-xs outline-none"
-                      >
-                        {transportFeeHeads.map((h) => (
-                          <option key={h.id} value={h.id}>
-                            {h.name} ({h.code})
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                  )}
-
-                  {/* Dependent Dropdown Row */}
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 p-3 rounded-xl bg-slate-50 dark:bg-slate-800/40 border">
-                    <div>
-                      <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">
-                        Transport Route <span className="text-rose-500">*</span>
-                      </label>
-                      <select
-                        value={selectedRouteId}
-                        onChange={(e) => {
-                          setSelectedRouteId(e.target.value);
-                          setSelectedStopId(""); // Clear stop on route change
-                        }}
-                        className="w-full px-2.5 py-1.5 rounded-lg bg-white dark:bg-slate-900 border text-xs outline-none"
-                      >
-                        <option value="">Select Route</option>
-                        {routeMasters.map((r: any) => (
-                          <option key={r.id} value={r.id}>
-                            {r.routeName || r.routeCode || `Route ${r.id}`}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-
-                    <div>
-                      <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">
-                        Pickup Stop <span className="text-rose-500">*</span>
-                      </label>
-                      <select
-                        value={selectedStopId}
-                        onChange={(e) => {
-                          setSelectedStopId(e.target.value);
-                          const stop = pickupPoints.find((p: any) => String(p.id) === e.target.value);
-                          if (stop?.monthlyFee) setTransportAmount(String(stop.monthlyFee));
-                        }}
-                        disabled={!selectedRouteId}
-                        className="w-full px-2.5 py-1.5 rounded-lg bg-white dark:bg-slate-900 border text-xs outline-none disabled:opacity-50"
-                      >
-                        <option value="">
-                          {!selectedRouteId
-                            ? "Select Route first"
-                            : availableStopsForRoute.length === 0
-                            ? "No stops for route"
-                            : "Select Pickup Stop"}
-                        </option>
-                        {availableStopsForRoute.map((p: any) => (
-                          <option key={p.id} value={p.id}>
-                            {p.pickupName || `Stop ${p.id}`}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-
-                    <div>
-                      <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">
-                        Vehicle
-                      </label>
-                      <select
-                        value={selectedVehicleId}
-                        onChange={(e) => setSelectedVehicleId(e.target.value)}
-                        className="w-full px-2.5 py-1.5 rounded-lg bg-white dark:bg-slate-900 border text-xs outline-none"
-                      >
-                        <option value="">Select Vehicle (Optional)</option>
-                        {vehicleMasters.map((v: any) => (
-                          <option key={v.id} value={v.id}>
-                            {v.vehicleNumber} ({v.vehicleType || "Bus"})
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                  </div>
-
-                  {/* Amount and Class row */}
-                  <div className="grid grid-cols-1 sm:grid-cols-4 gap-2.5">
-                    <div>
-                      <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">
-                        Class Grade
-                      </label>
-                      <select
-                        value={transportClass}
-                        onChange={(e) => setTransportClass(e.target.value)}
-                        className="w-full px-2.5 py-1.5 rounded-lg bg-white dark:bg-slate-900 border text-xs outline-none"
-                      >
-                        <option value="All">All Classes</option>
-                        {sortedClasses.map((c) => (
-                          <option key={c.id} value={c.name}>
-                            {c.name}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-
-                    <div>
-                      <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">
-                        Academic Term
-                      </label>
-                      <select
-                        value={transportTerm}
-                        onChange={(e) => setTransportTerm(e.target.value)}
-                        className="w-full px-2.5 py-1.5 rounded-lg bg-white dark:bg-slate-900 border text-xs outline-none"
-                      >
-                        {selectedTransportHead?.paymentEligibility !== "Term-Wise Allowed" && (
-                          <option value="Annual">Annual / One-Time</option>
-                        )}
-                        {transportAvailableTerms.map((t) => (
-                          <option key={t} value={t}>
-                            {t}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-
-                    <div>
-                      <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">
-                        Fee Amount (₹) <span className="text-rose-500">*</span>
-                      </label>
-                      <input
-                        type="number"
-                        value={transportAmount}
-                        placeholder="e.g. 1200"
-                        onChange={(e) => setTransportAmount(e.target.value)}
-                        className="w-full px-2.5 py-1.5 rounded-lg bg-white dark:bg-slate-900 border font-mono font-bold text-xs outline-none"
-                      />
-                    </div>
-
-                    <div className="flex items-end">
-                      <button
-                        type="button"
-                        onClick={handleAddTransportItem}
-                        className="w-full px-3 py-1.5 bg-teal-600 hover:bg-teal-500 text-white font-bold rounded-lg text-xs flex items-center justify-center gap-1 cursor-pointer transition-all"
-                      >
-                        <Plus className="w-3.5 h-3.5" /> Add Route Row
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Configured Transport Rows */}
-                  <div className="space-y-1.5">
-                    <label className="font-extrabold text-slate-800 dark:text-slate-200 uppercase tracking-wider text-[10px] block">
-                      Configured Transport Rates ({transportItemsList.length} rows)
-                    </label>
-
-                    {transportItemsList.length === 0 ? (
-                      <p className="text-slate-400 italic text-xs">No route configurations added yet.</p>
-                    ) : (
-                      <div className="border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden">
-                        <table className="w-full text-left text-xs">
-                          <thead className="bg-slate-50 dark:bg-slate-800/60 text-slate-600 dark:text-slate-300 font-bold border-b border-slate-200 dark:border-slate-800">
-                            <tr>
-                              <th className="p-2">Route</th>
-                              <th className="p-2">Stop</th>
-                              <th className="p-2">Vehicle</th>
-                              <th className="p-2">Class</th>
-                              <th className="p-2">Term</th>
-                              <th className="p-2 text-right">Amount</th>
-                              <th className="p-2 text-center">Action</th>
-                            </tr>
-                          </thead>
-                          <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                            {transportItemsList.map((item, idx) => (
-                              <tr key={idx} className="hover:bg-slate-50/50">
-                                <td className="p-2 font-semibold">{item.routeName}</td>
-                                <td className="p-2">{item.stopName}</td>
-                                <td className="p-2 text-slate-500">{item.vehicleNumber || "Any"}</td>
-                                <td className="p-2">{item.className || "All"}</td>
-                                <td className="p-2">{item.term || "Annual"}</td>
-                                <td className="p-2 text-right font-mono font-bold text-slate-900 dark:text-white">
-                                  {formatCurrency(item.amount)}
-                                </td>
-                                <td className="p-2 text-center">
-                                  <button
-                                    type="button"
-                                    onClick={() => setTransportItemsList(transportItemsList.filter((_, i) => i !== idx))}
-                                    className="text-rose-500 hover:text-rose-700 cursor-pointer"
-                                  >
-                                    <Trash2 className="w-3.5 h-3.5 inline" />
-                                  </button>
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
-
-              {/* 5. UNIFORM FORM */}
-              {modalCategory === "Uniform" && (
-                <div className="space-y-4">
-                  <div className="p-3 rounded-xl bg-indigo-50/70 dark:bg-indigo-950/30 border border-indigo-200 dark:border-indigo-800 text-xs text-indigo-900 dark:text-indigo-200 flex items-start gap-2">
-                    <Info className="w-4 h-4 text-indigo-600 shrink-0 mt-0.5" />
-                    <span>
-                      Configure Uniform fees dynamically by selecting <strong>Item</strong> → <strong>Category</strong> → <strong>Size</strong> → <strong>Amount</strong>. Add one or more items below.
-                    </span>
-                  </div>
-
-                  {/* Item / Category / Size Dropdowns */}
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 p-3 rounded-xl bg-slate-50 dark:bg-slate-800/40 border">
-                    <div>
-                      <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">
-                        Uniform Item <span className="text-rose-500">*</span>
-                      </label>
-                      <select
-                        value={selectedUniformItemId}
-                        onChange={(e) => {
-                          setSelectedUniformItemId(e.target.value);
-                          const item = uniforms.find((u) => String(u.id) === e.target.value);
-                          if (item?.price) setUniformAmount(String(item.price));
-                          if (item?.className) setUniformClass(item.className);
-                        }}
-                        className="w-full px-2.5 py-1.5 rounded-lg bg-white dark:bg-slate-900 border text-xs outline-none"
-                      >
-                        <option value="">Select Item</option>
-                        {uniforms.map((u) => (
-                          <option key={u.id} value={u.id}>
-                            {u.name || u.category || `Item ${u.id}`}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-
-                    <div>
-                      <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">
-                        Category
-                      </label>
-                      <select
-                        value={selectedUniformCategoryId}
-                        onChange={(e) => setSelectedUniformCategoryId(e.target.value)}
-                        className="w-full px-2.5 py-1.5 rounded-lg bg-white dark:bg-slate-900 border text-xs outline-none"
-                      >
-                        <option value="">Select Category</option>
-                        {uniformCategories.map((c: any) => (
-                          <option key={c.id} value={c.id}>
-                            {c.name || c.categoryName || `Category ${c.id}`}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-
-                    <div>
-                      <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">
-                        Size
-                      </label>
-                      <select
-                        value={selectedUniformSizeId}
-                        onChange={(e) => setSelectedUniformSizeId(e.target.value)}
-                        className="w-full px-2.5 py-1.5 rounded-lg bg-white dark:bg-slate-900 border text-xs outline-none"
-                      >
-                        <option value="">Select Size</option>
-                        {uniformSizes.map((s: any) => (
-                          <option key={s.id} value={s.id}>
-                            {s.sizeName || s.sizeCodeName || `Size ${s.id}`}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                  </div>
-
-                  {/* Quantity and Amount Row */}
-                  <div className="grid grid-cols-1 sm:grid-cols-4 gap-2.5">
-                    <div>
-                      <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">
-                        Class Grade
-                      </label>
-                      <select
-                        value={uniformClass}
-                        onChange={(e) => setUniformClass(e.target.value)}
-                        className="w-full px-2.5 py-1.5 rounded-lg bg-white dark:bg-slate-900 border text-xs outline-none"
-                      >
-                        <option value="All">All Classes</option>
-                        {sortedClasses.map((c) => (
-                          <option key={c.id} value={c.name}>
-                            {c.name}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-
-                    <div>
-                      <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">
-                        Quantity
-                      </label>
-                      <input
-                        type="number"
-                        min="1"
-                        value={uniformQuantity}
-                        onChange={(e) => setUniformQuantity(e.target.value)}
-                        className="w-full px-2.5 py-1.5 rounded-lg bg-white dark:bg-slate-900 border font-mono font-bold text-xs outline-none"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">
-                        Fee Amount (₹) <span className="text-rose-500">*</span>
-                      </label>
-                      <input
-                        type="number"
-                        value={uniformAmount}
-                        placeholder="e.g. 750"
-                        onChange={(e) => setUniformAmount(e.target.value)}
-                        className="w-full px-2.5 py-1.5 rounded-lg bg-white dark:bg-slate-900 border font-mono font-bold text-xs outline-none"
-                      />
-                    </div>
-
-                    <div className="flex items-end">
-                      <button
-                        type="button"
-                        onClick={handleAddUniformItem}
-                        className="w-full px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-lg text-xs flex items-center justify-center gap-1 cursor-pointer transition-all"
-                      >
-                        <Plus className="w-3.5 h-3.5" /> Add Uniform Row
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Configured Uniform Rows */}
-                  <div className="space-y-1.5">
-                    <label className="font-extrabold text-slate-800 dark:text-slate-200 uppercase tracking-wider text-[10px] block">
-                      Configured Uniform Items ({uniformItemsList.length} rows)
-                    </label>
-
-                    {uniformItemsList.length === 0 ? (
-                      <p className="text-slate-400 italic text-xs">No uniform items added yet.</p>
-                    ) : (
-                      <div className="border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden">
-                        <table className="w-full text-left text-xs">
-                          <thead className="bg-slate-50 dark:bg-slate-800/60 text-slate-600 dark:text-slate-300 font-bold border-b border-slate-200 dark:border-slate-800">
-                            <tr>
-                              <th className="p-2">Item</th>
-                              <th className="p-2">Category</th>
-                              <th className="p-2">Size</th>
-                              <th className="p-2">Qty</th>
-                              <th className="p-2">Class</th>
-                              <th className="p-2 text-right">Amount</th>
-                              <th className="p-2 text-center">Action</th>
-                            </tr>
-                          </thead>
-                          <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                            {uniformItemsList.map((item, idx) => (
-                              <tr key={idx} className="hover:bg-slate-50/50">
-                                <td className="p-2 font-semibold">{item.uniformItemName}</td>
-                                <td className="p-2 text-slate-500">{item.uniformCategoryName || "Standard"}</td>
-                                <td className="p-2">{item.uniformSizeName || "Standard"}</td>
-                                <td className="p-2 font-mono">{item.quantity || 1}</td>
-                                <td className="p-2">{item.className || "All"}</td>
-                                <td className="p-2 text-right font-mono font-bold text-slate-900 dark:text-white">
-                                  {formatCurrency(item.amount)}
-                                </td>
-                                <td className="p-2 text-center">
-                                  <button
-                                    type="button"
-                                    onClick={() => setUniformItemsList(uniformItemsList.filter((_, i) => i !== idx))}
-                                    className="text-rose-500 hover:text-rose-700 cursor-pointer"
-                                  >
-                                    <Trash2 className="w-3.5 h-3.5 inline" />
-                                  </button>
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
-
-              {/* Modal Actions */}
-              <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100 dark:border-slate-800">
+              {/* Modal Action Buttons */}
+              <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-slate-100 dark:border-slate-800">
                 <button
                   type="button"
                   onClick={() => setIsModalOpen(false)}
-                  className="px-4 py-2 font-semibold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-xl text-xs transition-all cursor-pointer"
+                  className="px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 font-bold hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  disabled={!categoryHeadCounts[modalCategory]}
-                  className="px-4 py-2 font-bold bg-sky-600 hover:bg-sky-500 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-xl text-xs shadow-lg shadow-sky-500/20 transition-all cursor-pointer"
+                  className="px-5 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-bold shadow-md shadow-sky-500/20 transition-all cursor-pointer"
                 >
                   {editingStruct ? "Update Fee Structure" : "Save Fee Structure"}
                 </button>
@@ -2584,19 +745,22 @@ export const FeeStructuresView: React.FC<FeeStructuresViewProps> = ({ initialCat
       )}
 
       {/* Delete Confirmation Modal */}
-      <ConfirmModal
-        isOpen={!!deletingStruct}
-        title="Delete Structure"
-        message={`Are you sure you want to delete structure "${deletingStruct?.name || deletingStruct?.className}"?`}
-        onConfirm={() => {
-          if (deletingStruct) {
+      {deletingStruct && (
+        <ConfirmModal
+          isOpen={true}
+          title="Delete Fee Structure"
+          message={`Are you sure you want to delete "${deletingStruct.name || deletingStruct.className}"? This action cannot be undone.`}
+          confirmLabel="Delete Structure"
+          onConfirm={() => {
             deleteDynamicFeeStructure(deletingStruct.id);
-            addToast("success", "Fee Structure Removed");
+            addToast("success", "Structure Deleted", `Deleted ${deletingStruct.name}`);
             setDeletingStruct(null);
-          }
-        }}
-        onCancel={() => setDeletingStruct(null)}
-      />
+          }}
+          onCancel={() => setDeletingStruct(null)}
+        />
+      )}
     </div>
   );
 };
+
+export default FeeStructuresView;

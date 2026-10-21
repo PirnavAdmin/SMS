@@ -4,7 +4,7 @@ import { useToast } from '../../../context/ToastContext';
 import { useAuth } from '../../../context/AuthContext';
 import { ConfirmModal } from '../../common/ConfirmModal';
 import { Pagination } from '../../common/Pagination';
-import { getRooms, createRoom, updateRoom, deleteRoom, getHostelBlocks, getRoomTypes, HostelRoom, HostelBlock, RoomType } from '../../../api/hostel';
+import { getRooms, createRoom, updateRoom, deleteRoom, getHostelBlocks, getRoomTypes, formatRoomNumber, HostelRoom, HostelBlock, RoomType } from '../../../api/hostel';
 
 interface RoomMasterViewProps {
   selectedHostelFilter?: string;
@@ -109,10 +109,10 @@ export const RoomMasterView: React.FC<RoomMasterViewProps> = ({ selectedHostelFi
 
   const handleOpenEdit = (rm: HostelRoom) => {
     setEditingRoom(rm);
-    setFormHostelId(rm.hostelId.toString());
+    setFormHostelId(String(rm.hostelId ?? (rm as any).hostel_id ?? (rm as any).hostelBlockId ?? ''));
     setFormFloorLevel(rm.floorLevel || '1st Floor');
     setFormRoomNumber(rm.roomNumber || '');
-    setFormRoomTypeId(rm.roomTypeId.toString());
+    setFormRoomTypeId(String(rm.roomTypeId ?? (rm as any).room_type_id ?? ''));
     setFormStatus(rm.status || 'Active');
     setIsModalOpen(true);
   };
@@ -189,8 +189,10 @@ export const RoomMasterView: React.FC<RoomMasterViewProps> = ({ selectedHostelFi
   const availableFloorOptions = useMemo(() => {
     const floorsSet = new Set<string>();
     (rooms || []).forEach(rm => {
-      const isBlockMatch = !isWarden || targetBlocks.some(b => String(b.hostelId) === String(rm.hostelId));
-      const matchHostel = !filterHostel || filterHostel === 'All' || String(rm.hostelId) === String(filterHostel);
+      if (!rm) return;
+      const rmHostelId = String(rm.hostelId ?? (rm as any).hostel_id ?? (rm as any).hostelBlockId ?? '');
+      const isBlockMatch = !isWarden || targetBlocks.some(b => String(b.hostelId) === rmHostelId);
+      const matchHostel = !filterHostel || filterHostel === 'All' || rmHostelId === String(filterHostel);
       if (isBlockMatch && matchHostel && rm.floorLevel) {
         floorsSet.add(rm.floorLevel);
       }
@@ -206,11 +208,16 @@ export const RoomMasterView: React.FC<RoomMasterViewProps> = ({ selectedHostelFi
   const handleDelete = async () => {
     if (deletingRoom) {
       try {
-        await deleteRoom(deletingRoom.roomId);
-        addToast('success', 'Room Deleted', 'Room deleted successfully.');
-        fetchData();
+        const idToDelete = deletingRoom.roomId ?? (deletingRoom as any).id;
+        await deleteRoom(idToDelete);
+        setRooms(prev => prev.filter(r => {
+          const rId = Number(r.roomId ?? (r as any).id);
+          return rId !== Number(idToDelete) && r !== deletingRoom;
+        }));
+        addToast('success', 'Room Deleted', `${formatRoomNumber(deletingRoom.roomNumber)} deleted successfully.`);
+        await fetchData();
       } catch (error: any) {
-        addToast('error', 'Delete Failed', error.message);
+        addToast('error', 'Delete Failed', error.message || 'Failed to delete room');
       } finally {
         setDeletingRoom(null);
       }
@@ -218,13 +225,15 @@ export const RoomMasterView: React.FC<RoomMasterViewProps> = ({ selectedHostelFi
   };
 
   const filteredRooms = useMemo(() => {
-    const matched = rooms.filter(rm => {
-      const isBlockMatch = !isWarden || targetBlocks.some(b => String(b.hostelId) === String(rm.hostelId));
+    const matched = (rooms || []).filter(rm => {
+      if (!rm) return false;
+      const rmHostelId = String(rm.hostelId ?? (rm as any).hostel_id ?? (rm as any).hostelBlockId ?? '');
+      const isBlockMatch = !isWarden || targetBlocks.some(b => String(b.hostelId) === rmHostelId);
       const matchQuery = !searchQuery.trim() ||
-                         rm.roomNumber?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         rm.hostelName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         rm.roomTypeSpecification?.toLowerCase().includes(searchQuery.toLowerCase());
-      const matchHostel = !filterHostel || filterHostel === 'All' || rm.hostelId.toString() === filterHostel;
+                         (rm.roomNumber && rm.roomNumber.toLowerCase().includes(searchQuery.toLowerCase())) ||
+                         (rm.hostelName && rm.hostelName.toLowerCase().includes(searchQuery.toLowerCase())) ||
+                         (rm.roomTypeSpecification && rm.roomTypeSpecification.toLowerCase().includes(searchQuery.toLowerCase()));
+      const matchHostel = !filterHostel || filterHostel === 'All' || rmHostelId === String(filterHostel);
       const sFloor = rm.floorLevel || '';
       const matchFloor = filterFloor === 'All Floors' || !sFloor || sFloor.toLowerCase().includes(filterFloor.toLowerCase());
 
@@ -247,11 +256,12 @@ export const RoomMasterView: React.FC<RoomMasterViewProps> = ({ selectedHostelFi
 
   const getBlockDisplayName = (rm: HostelRoom) => {
     const rawName = String(rm.hostelName || '').trim();
-    if (rawName && isNaN(Number(rawName)) && rawName !== String(rm.hostelId)) {
+    const rmHostelId = String(rm.hostelId ?? (rm as any).hostel_id ?? (rm as any).hostelBlockId ?? '');
+    if (rawName && isNaN(Number(rawName)) && rawName !== rmHostelId) {
       return rawName;
     }
-    const matched = (blocks || []).find(b => Number(b.hostelId) === Number(rm.hostelId));
-    return matched?.hostelName || `Hostel Block #${rm.hostelId}`;
+    const matched = (blocks || []).find(b => String(b.hostelId) === rmHostelId);
+    return matched?.hostelName || `Hostel Block #${rmHostelId || '1'}`;
   };
 
   return (
@@ -352,7 +362,7 @@ export const RoomMasterView: React.FC<RoomMasterViewProps> = ({ selectedHostelFi
               <div key={`rm-card-${rm.roomId || idx}-${rm.roomNumber || idx}-${idx}`} className="glass-card p-5 rounded-3xl space-y-4 border border-slate-200/80 dark:border-slate-800 relative group hover:border-sky-500/50 transition-all">
                 <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
                   <div>
-                    <span className="font-mono text-xs font-black text-sky-600 dark:text-sky-400">Room #{rm.roomNumber}</span>
+                    <span className="font-mono text-xs font-black text-sky-600 dark:text-sky-400">{formatRoomNumber(rm.roomNumber)}</span>
                     <h3 className="font-black text-base text-slate-900 dark:text-white">{getBlockDisplayName(rm)}</h3>
                   </div>
                   <span className="px-2.5 py-1 rounded-full text-[11px] font-extrabold bg-sky-100 text-sky-800 dark:bg-sky-950 dark:text-sky-300">
@@ -361,7 +371,7 @@ export const RoomMasterView: React.FC<RoomMasterViewProps> = ({ selectedHostelFi
                 </div>
 
                 <div className="space-y-1.5 text-xs">
-                  <p className="text-slate-500">Hierarchy: <strong className="text-slate-900 dark:text-white font-bold">{getBlockDisplayName(rm)} → {rm.floorLevel}</strong></p>
+                  <p className="text-slate-500">Hierarchy: <strong className="text-slate-900 dark:text-white font-bold">{getBlockDisplayName(rm)} → {rm.floorLevel || 'Ground Floor'}</strong></p>
                   <p className="text-slate-500">Capacity: <strong className="text-emerald-600 font-mono font-bold">{rm.occupiedBeds || 0} / {rm.bedCapacity} Beds Occupied</strong></p>
                   <p className="text-slate-500">Vacant: <strong className="text-amber-600 font-mono font-bold">{rm.vacantBeds} Beds Vacant</strong></p>
                 </div>
@@ -497,7 +507,7 @@ export const RoomMasterView: React.FC<RoomMasterViewProps> = ({ selectedHostelFi
                       const hasAcInSpec = (rt.roomTypeSpecification || '').toLowerCase().includes('ac');
                       const acLabel = rt.acType && !hasAcInSpec ? ` (${rt.acType})` : '';
                       return (
-                        <option key={rt.roomTypeId} value={rt.roomTypeId.toString()}>
+                        <option key={rt.roomTypeId} value={String(rt.roomTypeId ?? '')}>
                           {rt.roomTypeSpecification}{acLabel} • (Cap: {rt.bedCapacity} {rt.bedCapacity === 1 ? 'Bed' : 'Beds'})
                         </option>
                       );
@@ -537,7 +547,7 @@ export const RoomMasterView: React.FC<RoomMasterViewProps> = ({ selectedHostelFi
           onCancel={() => setDeletingRoom(null)}
           onConfirm={handleDelete}
           title="Delete Room"
-          message={`Delete room ${deletingRoom.roomNumber}?`}
+          message={`Are you sure you want to delete ${formatRoomNumber(deletingRoom.roomNumber)}?`}
         />
       )}
     </div>

@@ -67,6 +67,11 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
     feeHeads = [],
     dynamicFeeStructures = [],
     getStudentFeeLedger,
+    getDynamicTransportFee,
+    studentTransports = [],
+    routeMasters = [],
+    pickupPoints = [],
+    academicYearFeeSchedules = [],
     getStudentFeeOutstandingSummary,
     getStudentInstallmentSummary,
     fetchFinanceData,
@@ -77,7 +82,7 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
     applyDiscountToStudent,
     removeDiscountFromStudent,
   } = useData();
-  const { selectedAcademicYear } = useAuth();
+  const { selectedAcademicYear, selectedBranch } = useAuth();
   const { addToast } = useToast();
 
   const [searchQuery, setSearchQuery] = useState("");
@@ -299,16 +304,16 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
       .filter((adm) => adm && (adm.status === "Enrolled" || adm.status === "Approved"))
       .forEach((adm) => {
         const admId = adm.id || adm.applicationNo || adm.registrationNo;
-        const admNo = adm.registrationNo || adm.applicationNo || adm.id;
+        const admNo = (adm as any).admissionNo || (adm as any).admissionNumber || adm.registrationNo || adm.applicationNo || adm.id;
         if (!admNo) return;
-        const fullName = (adm.applicantName || adm.studentName || `${adm.firstName || ''} ${adm.lastName || ''}`).trim();
+        const fullName = (adm.applicantName || adm.studentName || (adm as any).applicantFullName || `${adm.firstName || ''} ${adm.lastName || ''}`).trim();
         if (!fullName) return;
 
         const nameKey = fullName.toLowerCase().replace(/[^a-z0-9]/g, '');
         const nameParts = fullName.split(" ");
         const fName = adm.firstName || nameParts[0] || "Student";
         const lName = adm.lastName || nameParts.slice(1).join(" ") || "";
-        const targetCls = adm.appliedClass || adm.targetClass || adm.className || "Class 1";
+        const targetCls = adm.appliedClass || (adm as any).appliedClassGrade || adm.targetClass || adm.className || "Class 1";
 
         map.set(nameKey, {
           id: String(admId),
@@ -319,20 +324,30 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
           section: adm.section || "A",
           gender: adm.gender || "Male",
           studentType: (adm.residentialStatus === "Residential" || adm.studentType === "Residential") ? "Hosteller" : "Day Scholar",
-          joiningDate: adm.admissionDate || new Date().toISOString().split("T")[0],
+          residentialStatus: adm.residentialStatus || adm.studentType || "Non-Residential",
+          joiningDate: adm.admissionDate || (adm as any).createdAt?.split("T")[0] || new Date().toISOString().split("T")[0],
           dueFee: 0,
           paidFee: 0,
           totalFee: 0,
           rollNo: "0",
-          fatherName: adm.parentName || adm.fatherName || "",
-          motherName: adm.motherName || "",
-          mobile: adm.mobile || adm.phone || "",
-          email: adm.email || "",
-          address: adm.address || "",
+          fatherName: adm.parentName || adm.fatherName || (adm as any).fatherFullName || "",
+          motherName: adm.motherName || (adm as any).motherFullName || "",
+          mobile: adm.mobile || adm.phone || (adm as any).fatherContact || "",
+          email: adm.email || (adm as any).parentEmail || "",
+          address: adm.address || (adm as any).areaLocality || "",
           status: "Active",
           academicYear: adm.academicYear || "2026-2027",
           branch: adm.branch || (selectedBranch && selectedBranch !== "All" && selectedBranch !== "All Branches" ? selectedBranch : "") || "",
-          selectedOptionalFees: adm.selectedOptionalFees || []
+          selectedOptionalFees: adm.selectedOptionalFees || [],
+          // Preserve dynamic transport assignment information
+          transportRequired: Boolean(adm.transportRequired),
+          transportType: adm.transportType || "AC",
+          busRoute: adm.busRoute || (adm as any).routeName || "",
+          pickupPoint: adm.pickupPoint || (adm as any).pickupPointName || (adm as any).pickupName || "",
+          routeId: (adm as any).routeId || "",
+          pickupPointId: (adm as any).pickupPointId || "",
+          registrationNo: adm.registrationNo || (adm as any).registrationNumber || "",
+          applicationNo: adm.applicationNo || (adm as any).applicationId || "",
         } as unknown as Student);
       });
 
@@ -343,7 +358,20 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
         if (!s) return;
         const fullName = `${s.firstName || ''} ${s.lastName || ''}`.trim() || (s as any).studentName || '';
         const nameKey = fullName.toLowerCase().replace(/[^a-z0-9]/g, '');
-        if (nameKey && map.has(nameKey)) return;
+        if (nameKey && map.has(nameKey)) {
+          const existing = map.get(nameKey)!;
+          map.set(nameKey, {
+            ...s,
+            ...existing,
+            transportRequired: existing.transportRequired ?? (s as any).transportRequired,
+            busRoute: existing.busRoute || (s as any).busRoute,
+            pickupPoint: existing.pickupPoint || (s as any).pickupPoint,
+            transportType: existing.transportType || (s as any).transportType,
+            routeId: (existing as any).routeId || (s as any).routeId,
+            pickupPointId: (existing as any).pickupPointId || (s as any).pickupPointId,
+          });
+          return;
+        }
 
         const admKey = (s.admissionNo || s.id || "").toLowerCase().trim();
         if (admKey) {
@@ -352,7 +380,7 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
       });
 
     return Array.from(map.values());
-  }, [students, admissions]);
+  }, [students, admissions, selectedBranch]);
 
   const uniqueClassNames = React.useMemo(() => {
     const set = new Set<string>();
@@ -399,42 +427,57 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
       });
   }, [allEnrolledStudents, searchQuery, selectedClass, selectedSection]);
 
-  const displayedRecentPayments = React.useMemo(() => {
+  const displayedHistoryPayments = React.useMemo(() => {
     if (!feePayments || feePayments.length === 0) return [];
-    if (!selectedStudent) return feePayments.slice(0, 3);
-    const sid = String(selectedStudent.id).toLowerCase().trim();
-    const adm = String(selectedStudent.admissionNo || '').toLowerCase().trim();
-    const app = String((selectedStudent as any).applicationNo || '').toLowerCase().trim();
-    const reg = String((selectedStudent as any).registrationNo || '').toLowerCase().trim();
-    const filtered = feePayments.filter((p) => {
-      const pid = String(p.studentId || '').toLowerCase().trim();
-      const padm = String((p as any).admissionNo || '').toLowerCase().trim();
-      return (
-        (sid && (pid === sid || padm === sid)) ||
-        (adm && (pid === adm || padm === adm)) ||
-        (app && (pid === app || padm === app)) ||
-        (reg && (pid === reg || padm === reg))
-      );
+    const targetStudent = selectedStudent;
+    const sid = targetStudent ? String(targetStudent.id).toLowerCase().trim() : '';
+    const adm = String(targetStudent?.admissionNo || '').toLowerCase().trim();
+    const app = String((targetStudent as any)?.applicationNo || '').toLowerCase().trim();
+    const reg = String((targetStudent as any)?.registrationNo || '').toLowerCase().trim();
+    const seen = new Set<string>();
+    return feePayments.filter((p) => {
+      if (targetStudent) {
+        const pid = String(p.studentId || '').toLowerCase().trim();
+        const padm = String((p as any).admissionNo || '').toLowerCase().trim();
+        const match =
+          (sid && (pid === sid || padm === sid)) ||
+          (adm && (pid === adm || padm === adm)) ||
+          (app && (pid === app || padm === app)) ||
+          (reg && (pid === reg || padm === reg));
+        if (!match) return false;
+      }
+      const key = (p.receiptNo && String(p.receiptNo).trim())
+        ? `REC_${String(p.receiptNo).trim()}`
+        : `ID_${String(p.id).trim()}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
     });
-    return filtered.slice(0, 3);
   }, [feePayments, selectedStudent]);
+
+  const displayedRecentPayments = React.useMemo(() => {
+    return displayedHistoryPayments.slice(0, 3);
+  }, [displayedHistoryPayments]);
 
   const updateCalculation = (
     studentId: string,
     freshCalcResult = calculateStudentPayableFee(studentId),
     ledgerOverride?: StudentFeeLedger,
   ) => {
+    const targetStudent =
+      (selectedStudent && (selectedStudent.id === studentId || selectedStudent.admissionNo === studentId))
+        ? selectedStudent
+        : allEnrolledStudents.find(
+            (s) => s?.id === studentId || s?.admissionNo === studentId,
+          ) || selectedStudent;
+
     let calc = freshCalcResult;
-    const ledger = ledgerOverride || getStudentFeeLedger(studentId, selectedStudent || undefined, currentYear);
+    const ledger = ledgerOverride || getStudentFeeLedger(studentId, targetStudent || undefined, currentYear);
 
     // Fallback fee calculation if freshCalcResult is null
     if (!calc) {
-      const stObj =
-        allEnrolledStudents.find(
-          (s) => s?.id === studentId || s?.admissionNo === studentId,
-        ) || selectedStudent;
       const dfs = (dynamicFeeStructures || []).find((d) =>
-        matchesClassName(d.className, stObj?.className),
+        matchesClassName(d.className, targetStudent?.className),
       );
       const feeVal = dfs?.totalAmount ?? 0;
       calc = {
@@ -455,11 +498,25 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
       const discountAmt = ledger.discountAmount || ledger.totalDiscount || 0;
 
       const fineAmt = isFineWaived ? 0 : (calc.fineAmount || 0);
-      const grossAmt =
-        (calc.baseFee || 0) +
-        (calc.transportFee || 0) +
-        (calc.hostelFee || 0) +
-        (calc.uniformFee || 0);
+      const hasTrpInLedger = Boolean(
+        ledger.feeItems?.some(
+          (i) =>
+            i.isApplicable &&
+            (i.headId === "FH-TRP" ||
+              (i.category || "").toLowerCase().includes("transport") ||
+              (i.headName || "").toLowerCase().includes("transport")) &&
+            (i.finalAmount || i.originalAmount || 0) > 0,
+        ),
+      );
+      const extraTrp = !hasTrpInLedger && (calc.transportFee || 0) > 0 ? (calc.transportFee || 0) : 0;
+      const baseGross =
+        ledger.grossAmount || ledger.totalOriginalAmount || (
+          (calc.baseFee || 0) +
+          (calc.transportFee || 0) +
+          (calc.hostelFee || 0) +
+          (calc.uniformFee || 0)
+        );
+      const grossAmt = baseGross + extraTrp;
       const updatedTotalPayable = Math.max(
         0,
         grossAmt + fineAmt - scholarshipAmt - discountAmt,
@@ -471,6 +528,7 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
 
       calc = {
         ...calc,
+        baseFee: ledger.totalOriginalAmount || calc.baseFee || grossAmt,
         scholarshipId: ledger.scholarshipId,
         scholarshipName: ledger.scholarshipName,
         scholarshipDescription: ledger.scholarshipDescription,
@@ -498,24 +556,29 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
     setSelectedInstallments([]);
     setCustomCollectionAmounts({});
     setPaymentMode("Cash");
-    updateCalculation(st.id);
+    const freshLedger = getStudentFeeLedger(st.id, st, currentYear);
+    updateCalculation(st.id, calculateStudentPayableFee(st.id), freshLedger);
   };
 
   const lastInitialStudentIdRef = useRef<string | null>(null);
 
   useEffect(() => {
-    if (initialStudent && (initialStudent.id || initialStudent.admissionNo)) {
-      const studentKey = initialStudent.id || initialStudent.admissionNo;
-      if (lastInitialStudentIdRef.current !== studentKey) {
+    if (initialStudent) {
+      const studentKey = typeof initialStudent === "string" 
+        ? initialStudent 
+        : (initialStudent.id || initialStudent.admissionNo);
+      if (studentKey && lastInitialStudentIdRef.current !== studentKey) {
         lastInitialStudentIdRef.current = studentKey;
         const matched =
           allEnrolledStudents.find(
             (s) =>
-              s.id === initialStudent.id ||
-              (initialStudent.admissionNo &&
-                s.admissionNo === initialStudent.admissionNo),
-          ) || initialStudent;
-        handleSelectStudent(matched);
+              s.id === studentKey ||
+              s.admissionNo === studentKey ||
+              (typeof initialStudent === "object" && (s.id === initialStudent.id || s.admissionNo === initialStudent.admissionNo)),
+          ) || (typeof initialStudent === "object" ? initialStudent : null);
+        if (matched) {
+          handleSelectStudent(matched);
+        }
       }
     } else if (!initialStudent) {
       lastInitialStudentIdRef.current = null;
@@ -626,11 +689,47 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
     e.preventDefault();
     if (!selectedStudent || !calcResult) return;
 
-    if (amountPaying <= 0) {
+    if (totalOutstanding <= 0 || allInstallments.every((i) => i.dueAmount <= 0)) {
+      addToast(
+        "warning",
+        "Fees Fully Paid",
+        "All fees for this student are already fully paid. No further payments can be collected.",
+      );
+      return;
+    }
+
+    if (selectedInstallments.length === 0) {
       addToast(
         "warning",
         "Selection Required",
         "Please select at least one pending fee component to collect.",
+      );
+      return;
+    }
+
+    if (amountPaying <= 0) {
+      addToast(
+        "warning",
+        "Invalid Amount",
+        "Please enter a valid payment amount greater than ₹0.",
+      );
+      return;
+    }
+
+    if (amountPaying > computedNetPayable) {
+      addToast(
+        "error",
+        "Amount Exceeds Dues",
+        `Paying amount cannot exceed the selected net payable amount of ${formatCurrency(computedNetPayable)}.`,
+      );
+      return;
+    }
+
+    if (!isFormValid) {
+      addToast(
+        "warning",
+        "Validation Error",
+        validationMessage || "Please complete all required fields correctly.",
       );
       return;
     }
@@ -645,6 +744,24 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
 
   const executeProcessPayment = async () => {
     if (!selectedStudent || !calcResult || isProcessingPayment) return;
+    if (totalOutstanding <= 0 || allInstallments.every((i) => i.dueAmount <= 0) || selectedInstallments.length === 0 || amountPaying <= 0) {
+      addToast(
+        "warning",
+        "Operation Blocked",
+        "All fees for this student are already paid or no fee component is selected.",
+      );
+      setShowPaymentConfirmModal(false);
+      return;
+    }
+    if (amountPaying > computedNetPayable || isCustomExceeding) {
+      addToast(
+        "error",
+        "Amount Exceeds Dues",
+        `Paying amount cannot exceed the selected net payable amount of ${formatCurrency(computedNetPayable)}.`,
+      );
+      setShowPaymentConfirmModal(false);
+      return;
+    }
     setIsProcessingPayment(true);
     setShowPaymentConfirmModal(false);
 
@@ -839,21 +956,17 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
 
   useEffect(() => {
     if (selectedStudent) {
-      const freshCalc = calculateStudentPayableFee(selectedStudent.id);
-      if (freshCalc) {
-        setCalcResult((prev) => {
-          if (!prev) return freshCalc;
-          return {
-            ...prev,
-            paidAmount: freshCalc.paidAmount,
-            dueBalance: freshCalc.dueBalance,
-            totalPayable: freshCalc.totalPayable,
-            paymentHistory: freshCalc.paymentHistory,
-          };
-        });
-      }
+      updateCalculation(selectedStudent.id);
     }
-  }, [feePayments, selectedStudent?.id]);
+  }, [
+    feePayments,
+    selectedStudent?.id,
+    routeMasters,
+    pickupPoints,
+    studentTransports,
+    admissions,
+    studentFeeLedgers,
+  ]);
 
   const getInstallmentStatus = (dueAmount: number, dueDate: string, instStatus?: string) => {
     if (instStatus === "Cancelled") return "CANCELLED";
@@ -926,17 +1039,22 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
 
     const admRecord = (admissions || []).find((a) => {
       if (!a) return false;
-      const sId = selectedStudent.id ? String(selectedStudent.id).toLowerCase().trim() : '';
+      const sId = selectedStudent.id != null ? String(selectedStudent.id).toLowerCase().trim() : '';
       const sAdm = selectedStudent.admissionNo ? String(selectedStudent.admissionNo).toLowerCase().trim() : '';
+      const sReg = (selectedStudent as any).registrationNo ? String((selectedStudent as any).registrationNo).toLowerCase().trim() : '';
+      const sApp = (selectedStudent as any).applicationNo ? String((selectedStudent as any).applicationNo).toLowerCase().trim() : '';
       const sName = `${selectedStudent.firstName || ''} ${selectedStudent.lastName || ''}`.toLowerCase().trim();
 
-      const aId = a.id ? String(a.id).toLowerCase().trim() : '';
-      const aApp = a.applicationNo ? String(a.applicationNo).toLowerCase().trim() : '';
-      const aReg = a.registrationNo ? String(a.registrationNo).toLowerCase().trim() : '';
-      const aName = (a.applicantName || (a as any).studentName || `${a.firstName || ''} ${a.lastName || ''}`).toLowerCase().trim();
+      const aId = a.id != null ? String(a.id).toLowerCase().trim() : '';
+      const aApp = a.applicationNo ? String(a.applicationNo).toLowerCase().trim() : ((a as any).applicationId != null ? String((a as any).applicationId).toLowerCase().trim() : '');
+      const aReg = a.registrationNo ? String(a.registrationNo).toLowerCase().trim() : ((a as any).registrationNumber ? String((a as any).registrationNumber).toLowerCase().trim() : '');
+      const aAdm = (a as any).admissionNo ? String((a as any).admissionNo).toLowerCase().trim() : ((a as any).admissionNumber ? String((a as any).admissionNumber).toLowerCase().trim() : '');
+      const aName = (a.applicantName || (a as any).studentName || (a as any).applicantFullName || `${a.firstName || ''} ${a.lastName || ''}`).toLowerCase().trim();
 
-      if (sAdm && sAdm !== 'n/a' && (sAdm === aApp || sAdm === aReg || sAdm === aId)) return true;
-      if (sId && sId !== '1' && sId !== 'stu-1' && sId !== 'n/a' && (sId === aId || sId === aApp || sId === aReg)) return true;
+      if (sAdm && sAdm !== 'n/a' && (sAdm === aAdm || sAdm === aApp || sAdm === aReg || sAdm === aId)) return true;
+      if (sReg && sReg !== 'n/a' && (sReg === aReg || sReg === aAdm || sReg === aApp)) return true;
+      if (sApp && sApp !== 'n/a' && (sApp === aApp || sApp === aAdm || sApp === aReg)) return true;
+      if (sId && sId !== 'n/a' && (sId === aId || sId === aApp || sId === aReg || sId === aAdm)) return true;
       if (sName && sName !== 'student' && aName && (sName === aName || sName.includes(aName) || aName.includes(sName))) return true;
       return false;
     });
@@ -1012,6 +1130,230 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
         return !isExtraItem;
       },
     );
+
+    // Ensure Transport Fee installment is present for Non-Resident students who opted for transport
+    if (isNonResidentStudent) {
+      const hasTransportInst = combined.some((c) => {
+        const hLower = (c.feeHeadName || "").toLowerCase();
+        const tLower = (c.termName || "").toLowerCase();
+        return (c.feeHeadId === "FH-TRP" || hLower.includes("transport") || tLower.includes("transport")) && c.amount > 0;
+      });
+
+      if (!hasTransportInst) {
+        // Purge any stale 0-amount or non-applicable transport installments
+        for (let i = combined.length - 1; i >= 0; i--) {
+          const item = combined[i];
+          const hLower = (item.feeHeadName || "").toLowerCase();
+          const tLower = (item.termName || "").toLowerCase();
+          if (item.feeHeadId === "FH-TRP" || hLower.includes("transport") || tLower.includes("transport")) {
+            combined.splice(i, 1);
+          }
+        }
+      }
+
+      const activeTa = (studentTransports || []).find(
+        (t) =>
+          t.status === "Active" &&
+          (t.studentId === selectedStudent.id ||
+            (selectedStudent.admissionNo && t.admissionNo === selectedStudent.admissionNo) ||
+            (admRecord?.registrationNo && t.admissionNo === admRecord.registrationNo) ||
+            ((admRecord as any)?.admissionNo && t.admissionNo === (admRecord as any).admissionNo) ||
+            (t.studentName &&
+              `${selectedStudent.firstName} ${selectedStudent.lastName}`.trim().toLowerCase() ===
+                t.studentName.trim().toLowerCase())),
+      );
+
+      const isTrpRequired =
+        Boolean(activeTa) ||
+        selectedStudent.transportRequired === true ||
+        Boolean((selectedStudent as any).busRoute || (selectedStudent as any).pickupPoint) ||
+        admRecord?.transportRequired === true ||
+        Boolean(admRecord?.busRoute || admRecord?.pickupPoint);
+
+      const hasPickup = Boolean(
+        activeTa?.pickupPoint ||
+          (selectedStudent as any).pickupPoint ||
+          admRecord?.pickupPoint,
+      );
+
+      if (!hasTransportInst && isTrpRequired && hasPickup) {
+        const routeName =
+          activeTa?.routeName ||
+          (selectedStudent as any).busRoute ||
+          admRecord?.busRoute ||
+          "";
+        const pickupName =
+          activeTa?.pickupPoint ||
+          (selectedStudent as any).pickupPoint ||
+          admRecord?.pickupPoint ||
+          "";
+        const routeId =
+          activeTa?.routeId ||
+          (selectedStudent as any).routeId ||
+          admRecord?.routeId ||
+          "";
+        const pickupPointId =
+          (activeTa as any)?.pickupPointId ||
+          (selectedStudent as any).pickupPointId ||
+          admRecord?.pickupPointId ||
+          "";
+        const transportType =
+          (activeTa as any)?.transportType ||
+          (selectedStudent as any).transportType ||
+          admRecord?.transportType ||
+          "AC";
+
+        const tempAssign = activeTa || {
+          id: `STRP-AUTO-${selectedStudent.id}`,
+          studentId: selectedStudent.id,
+          studentName: `${selectedStudent.firstName} ${selectedStudent.lastName}`,
+          admissionNo: selectedStudent.admissionNo || "",
+          routeId,
+          routeName,
+          pickupPointId,
+          pickupPoint: pickupName,
+          transportType,
+          feePlan: "Annual",
+          status: "Active",
+        };
+
+        let trpFare = getDynamicTransportFee
+          ? getDynamicTransportFee({ ...tempAssign, feePlan: "Annual" })
+          : 0;
+
+        if (trpFare <= 0) {
+          const poolRoutes = (routeMasters && routeMasters.length > 0) ? routeMasters : (() => {
+            try {
+              const raw = localStorage.getItem("edu_db_route_masters") || localStorage.getItem("route_masters");
+              return raw ? JSON.parse(raw) : [];
+            } catch { return []; }
+          })();
+          const poolPoints = (pickupPoints && pickupPoints.length > 0) ? pickupPoints : (() => {
+            try {
+              const raw = localStorage.getItem("edu_db_pickup_points") || localStorage.getItem("pickup_points");
+              return raw ? JSON.parse(raw) : [];
+            } catch { return []; }
+          })();
+
+          const rObj = poolRoutes.find((r: any) => {
+            const rNorm = String(r.routeName || r.routeCode || "").replace(/\s+/g, " ").trim().toLowerCase();
+            const tNorm = String(routeName || "").replace(/\s+/g, " ").trim().toLowerCase();
+            return (rNorm && tNorm && (rNorm === tNorm || rNorm.includes(tNorm) || tNorm.includes(rNorm)));
+          });
+          const pObj = poolPoints.find((p: any) => {
+            const pNorm = String(p.pickupName || p.pickupPointName || "").replace(/\s+/g, " ").trim().toLowerCase();
+            const tNorm = String(pickupName || "").replace(/\s+/g, " ").trim().toLowerCase();
+            return (pNorm && tNorm && (pNorm === tNorm || pNorm.includes(tNorm) || tNorm.includes(pNorm)));
+          });
+          const isAC = String(transportType || "AC").toUpperCase().includes("AC") && !String(transportType || "AC").toUpperCase().includes("NON");
+          if (rObj) {
+            const baseFare = isAC ? Number(rObj.acMinBaseFare ?? (rObj as any).acBaseFare ?? 1500) : Number(rObj.minBaseFare ?? (rObj as any).nonAcBaseFare ?? 1200);
+            const rateKm = isAC ? Number(rObj.acRatePerKm ?? (rObj as any).acRateAddlKm ?? 150) : Number(rObj.ratePerKm ?? (rObj as any).nonAcRatePerKm ?? 100);
+            const dist = pObj ? Number(pObj.distanceFromSchoolKm ?? (pObj as any).distanceFromStart ?? 35) : 35;
+            const minKm = Number(rObj.minDistanceKm ?? (rObj as any).minRangeKm ?? (rObj as any).minRange ?? 35);
+            const addKm = Math.max(0, dist - minKm);
+            const monthly = baseFare + addKm * rateKm;
+            trpFare = monthly * 12;
+          } else if (pObj && pObj.monthlyFee) {
+            trpFare = Number(pObj.monthlyFee) * 12;
+          } else if (routeName || pickupName) {
+            const monthly = isAC ? 1500 : 1200;
+            trpFare = monthly * 12;
+          }
+        }
+
+        if (trpFare > 0) {
+          const configuredTransportPolicy =
+            (typeof window !== "undefined" &&
+              window.localStorage?.getItem("transport_fee_billing_policy")) ||
+            "Term-wise";
+
+          const isFullAnnualStudent =
+            ledger?.installments?.some((i: any) => i.termName?.toLowerCase().includes("full") || (i.frequency === "One Time" && !i.termName?.toLowerCase().includes("term"))) ||
+            combined.some((i: any) => i.termName?.toLowerCase().includes("full") || (i.frequency === "One Time" && !i.termName?.toLowerCase().includes("term")));
+
+          const isOneTimeBilling = configuredTransportPolicy === "One-Time" || isFullAnnualStudent;
+
+          const paidTrpAmt = (feePayments || []).filter((p) => {
+            const pSid = String(p.studentId || "").trim().toLowerCase();
+            const sId = String(selectedStudent.id || "").trim().toLowerCase();
+            const admNo = String(selectedStudent.admissionNo || "").trim().toLowerCase();
+            if (pSid !== sId && (!admNo || pSid !== admNo)) return false;
+            if (p.paymentAllocation && p.paymentAllocation.length > 0) {
+              return p.paymentAllocation.some((alloc) => {
+                const name = (alloc.feeHeadName || alloc.termName || "").toLowerCase();
+                return name.includes("transport");
+              });
+            }
+            return false;
+          }).reduce((sum, p) => sum + (Number(p.amountPaid ?? (p as any).amount) || 0), 0);
+
+          const termSchedule = (academicYearFeeSchedules || []).find(
+            (s: any) => s.academicYear === currentYear,
+          );
+          const dynamicTerms = (termSchedule?.terms && termSchedule.terms.length > 0)
+            ? termSchedule.terms
+            : [
+                { id: "1", termName: "Term 1", dueDate: `${currentYear.split('-')[0]}-06-15` },
+                { id: "2", termName: "Term 2", dueDate: `${currentYear.split('-')[0]}-09-15` },
+                { id: "3", termName: "Term 3", dueDate: `${currentYear.split('-')[0]}-12-15` },
+                { id: "4", termName: "Term 4", dueDate: `${Number(currentYear.split('-')[0]) + 1}-03-15` },
+              ];
+
+          if (isOneTimeBilling) {
+            const dueTrp = Math.max(0, trpFare - paidTrpAmt);
+            combined.push({
+              id: `INST-TRP-${selectedStudent.id}-annual`,
+              studentId: selectedStudent.id,
+              academicYear: currentYear,
+              feeAssignmentId: `FA-TRP-${selectedStudent.id}`,
+              feeHeadId: "FH-TRP",
+              feeHeadName: `Transport Fee (${routeName} - ${pickupName})`,
+              frequency: "One Time",
+              termName: isFullAnnualStudent ? "Full Annual Fee" : `Transport Fee (${currentYear})`,
+              dueDate: dynamicTerms[0]?.dueDate || new Date().toISOString().split("T")[0],
+              amount: trpFare,
+              paidAmount: Math.min(trpFare, paidTrpAmt),
+              dueAmount: dueTrp,
+              status: dueTrp === 0 ? "Paid" : paidTrpAmt > 0 ? "Partial" : "Pending",
+              createdAt: new Date().toISOString(),
+              updatedAt: new Date().toISOString(),
+            });
+          } else {
+            const count = Math.max(1, dynamicTerms.length);
+            const baseTermAmt = Math.floor(trpFare / count);
+            const remainder = trpFare - baseTermAmt * count;
+            let remainingPaid = paidTrpAmt;
+
+            dynamicTerms.forEach((t: any, tIdx: number) => {
+              const termAmt = baseTermAmt + (tIdx < remainder ? 1 : 0);
+              const paidForThis = Math.min(termAmt, remainingPaid);
+              remainingPaid = Math.max(0, remainingPaid - paidForThis);
+              const dueForThis = Math.max(0, termAmt - paidForThis);
+
+              combined.push({
+                id: `INST-TRP-${selectedStudent.id}-term-${t.id || tIdx + 1}`,
+                studentId: selectedStudent.id,
+                academicYear: currentYear,
+                feeAssignmentId: `FA-TRP-${selectedStudent.id}`,
+                feeHeadId: "FH-TRP",
+                feeHeadName: `Transport Fee (${routeName} - ${pickupName})`,
+                frequency: "Quarterly",
+                termId: String(t.id || tIdx + 1),
+                termName: `Transport Fee - ${t.termName || `Term ${tIdx + 1}`}`,
+                dueDate: t.dueDate || new Date().toISOString().split("T")[0],
+                amount: termAmt,
+                paidAmount: paidForThis,
+                dueAmount: dueForThis,
+                status: dueForThis === 0 ? "Paid" : paidForThis > 0 ? "Partial" : "Pending",
+                createdAt: new Date().toISOString(),
+                updatedAt: new Date().toISOString(),
+              });
+            });
+          }
+        }
+      }
+    }
 
     // 3. Build Base Package & Additional Purchases STRICTLY from active studentUniformIssues (Uniform Distribution)
     const studentIssues = (studentUniformIssues || []).filter((issue) => {
@@ -1427,7 +1769,14 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
         termLower.includes("tie") ||
         termLower.includes("belt");
 
+      const isUnifHead =
+        c.feeHeadId === "FH-04" ||
+        c.feeHeadId === "FH-UNI-BASE" ||
+        c.feeHeadId === "FH-UNI-EXTRA" ||
+        headLower.includes("uniform");
+
       const isBaseUniform =
+        isUnifHead &&
         !c.id.startsWith("INST-UNIF-") &&
         !isExplicitExtra &&
         (c.feeHeadId === "FH-UNI-BASE" ||
@@ -1547,8 +1896,39 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
     studentFeeInstallments,
     studentUniformIssues,
     selectedAcademicYear,
+    routeMasters,
+    pickupPoints,
+    studentTransports,
+    admissions,
     financeSettings,
+    academicYearFeeSchedules,
+    getDynamicTransportFee,
+    getStudentFeeLedger,
   ]);
+
+  const lastAutoSelectedStudentIdRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (selectedStudent && allInstallments.length > 0) {
+      const pendingInsts = allInstallments.filter((i) => i.dueAmount > 0 && i.status !== "Paid" && i.status !== "Cancelled");
+      const sKey = `${selectedStudent.id || selectedStudent.admissionNo}_${pendingInsts.map(i => `${i.id}_${i.dueAmount}`).join(';')}`;
+      if (sKey && lastAutoSelectedStudentIdRef.current !== sKey) {
+        lastAutoSelectedStudentIdRef.current = sKey;
+        if (pendingInsts.length > 0) {
+          const pendingIds = pendingInsts.map((i) => i.id);
+          setSelectedInstallments(pendingIds);
+          const initialCustom: Record<string, string> = {};
+          pendingInsts.forEach((inst) => {
+            initialCustom[inst.id] = String(inst.dueAmount);
+          });
+          setCustomCollectionAmounts(initialCustom);
+        }
+      }
+    } else if (!selectedStudent) {
+      lastAutoSelectedStudentIdRef.current = null;
+    }
+  }, [selectedStudent, allInstallments]);
+
   const currentYearInstallments = allInstallments.filter(
     (i) => i.academicYear === currentYear,
   );
@@ -1624,8 +2004,12 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
 
   const computedNetPayable = Math.max(0, baseSelectedAmount + effectiveFineAmount - effectiveDiscountAmount);
 
-  const amountPaying = (customAmountReceived !== "" && !isNaN(Number(customAmountReceived)) && Number(customAmountReceived) >= 0)
-    ? Number(customAmountReceived)
+  const customNumeric = (customAmountReceived !== "" && !isNaN(Number(customAmountReceived))) ? Number(customAmountReceived) : null;
+  const isCustomExceeding = customNumeric !== null && computedNetPayable > 0 && customNumeric > computedNetPayable;
+  const isFullyPaid = totalOutstanding <= 0 || allInstallments.every((i) => i.dueAmount <= 0);
+
+  const amountPaying = (computedNetPayable > 0 && customNumeric !== null && customNumeric > 0)
+    ? Math.min(customNumeric, computedNetPayable)
     : computedNetPayable;
 
   const hasAnyAmountError = selectedInstallments.some((id) => {
@@ -1634,15 +2018,27 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
   });
 
   const isAmountValid =
-    selectedInstallments.length > 0 && amountPaying > 0 && !hasAnyAmountError;
+    !isFullyPaid &&
+    selectedInstallments.length > 0 &&
+    amountPaying > 0 &&
+    amountPaying <= computedNetPayable &&
+    !isCustomExceeding &&
+    !hasAnyAmountError;
+
   const isModeSelected = Boolean(paymentMode);
 
   let isModeFieldsValid = false;
   let validationMessage = "";
 
-  if (selectedInstallments.length === 0) {
+  if (isFullyPaid) {
+    validationMessage = "All fees for this student have been fully paid. No pending dues.";
+  } else if (selectedInstallments.length === 0) {
     validationMessage =
       "Select at least one pending fee component checkbox to collect";
+  } else if (isCustomExceeding) {
+    validationMessage = `Custom paying amount cannot exceed the selected due amount of ${formatCurrency(computedNetPayable)}`;
+  } else if (amountPaying <= 0) {
+    validationMessage = "Collection amount must be greater than ₹0";
   } else if (hasAnyAmountError) {
     const errInstId = selectedInstallments.find((id) => {
       const inst = allInstallments.find((i: any) => i.id === id);
@@ -2058,17 +2454,27 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
         <div className="lg:col-span-8 space-y-6">
           {/* Outstanding Charges Table Card */}
           <div className="glass-card p-5 rounded-2xl border border-slate-200/80 dark:border-slate-800 space-y-4">
-            <div className="flex items-center justify-between">
-              <h3 className="text-base font-bold text-slate-900 dark:text-white">
-                Outstanding Charges
-              </h3>
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <h3 className="text-base font-bold text-slate-900 dark:text-white">
+                  Outstanding Charges
+                </h3>
+                {allInstallments.some(i => i.dueAmount > 0 && i.status !== "Paid" && i.status !== "Cancelled") && (
+                  <button
+                    type="button"
+                    onClick={handleSelectAllCurrentYear}
+                    className="px-3 py-1 rounded-lg border border-blue-600 dark:border-blue-500 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950 font-bold text-xs transition-colors cursor-pointer"
+                  >
+                    {currentYearInstallments.filter((i) => i.dueAmount > 0 && i.status !== "Paid" && i.status !== "Cancelled").every((i) => selectedInstallments.includes(i.id)) && currentYearInstallments.some(i => i.dueAmount > 0 && i.status !== "Paid" && i.status !== "Cancelled")
+                      ? "Deselect All"
+                      : "Select All Pending"}
+                  </button>
+                )}
+              </div>
               <div className="flex items-center gap-2">
-                <select className="px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs font-semibold">
-                  <option>All Fee Heads</option>
-                </select>
-                <select className="px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs font-semibold">
-                  <option>All Terms</option>
-                </select>
+                <span className="text-xs text-slate-600 dark:text-slate-300 font-semibold bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-2.5 py-1 rounded-lg">
+                  Configured Policy: <strong className="text-blue-600 dark:text-blue-400">{allInstallments.some(i => i.termName?.toLowerCase().includes("full") || (i.frequency === "One Time" && !i.termName?.toLowerCase().includes("term"))) ? "Full Annual Fee" : "Term-wise Fee"}</strong>
+                </span>
               </div>
             </div>
 
@@ -2084,6 +2490,7 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
                     <th className="p-3 text-right">Discount</th>
                     <th className="p-3 text-right">Paid Amount</th>
                     <th className="p-3 text-right">Due Amount</th>
+                    <th className="p-3 text-right">Paying Amount (₹)</th>
                     <th className="p-3 text-center">Select</th>
                   </tr>
                 </thead>
@@ -2101,15 +2508,26 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
                         .reduce((sum, prevInst) => sum + prevInst.dueAmount, 0);
 
                       const cumulativeDue = inst.dueAmount + priorArrears;
+                      const customAmtVal = customCollectionAmounts[inst.id] !== undefined
+                        ? customCollectionAmounts[inst.id]
+                        : (isSelected ? String(inst.dueAmount) : "");
 
                       return (
                         <tr
                           key={inst.id}
-                          className={`transition-colors ${isPaid ? 'bg-emerald-50/40 dark:bg-emerald-950/20' : 'hover:bg-slate-50/50 dark:hover:bg-slate-900/50'}`}
+                          className={`transition-colors ${isPaid ? 'bg-emerald-50/40 dark:bg-emerald-950/20' : isSelected ? 'bg-blue-50/30 dark:bg-blue-950/20' : 'hover:bg-slate-50/50 dark:hover:bg-slate-900/50'}`}
                         >
                           <td className="p-3 font-mono font-semibold text-slate-600">{index + 1}</td>
                           <td className="p-3 font-bold text-slate-900 dark:text-white">{inst.feeHeadName}</td>
-                          <td className="p-3 text-slate-600 dark:text-slate-400">{inst.termName || "Term 1"}</td>
+                          <td className="p-3 text-slate-600 dark:text-slate-400">
+                            <span className={`px-2 py-0.5 rounded text-[11px] font-semibold ${
+                              inst.termName?.toLowerCase().includes("full") 
+                                ? "bg-purple-100 text-purple-800 dark:bg-purple-950 dark:text-purple-300 font-bold" 
+                                : "bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300"
+                            }`}>
+                              {inst.termName || "Full Annual Fee"}
+                            </span>
+                          </td>
                           <td className="p-3 text-slate-500 font-mono">{formatDateForDisplay(inst.dueDate)}</td>
                           <td className="p-3 text-right font-mono font-semibold text-slate-800 dark:text-slate-200">{formatCurrency(inst.amount)}</td>
                           <td className="p-3 text-right font-mono text-emerald-600 font-semibold">₹ 0</td>
@@ -2128,6 +2546,28 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
                                   </span>
                                 )}
                               </div>
+                            )}
+                          </td>
+                          <td className="p-3 text-right font-mono">
+                            {isPaid ? (
+                              <span className="text-slate-400 font-medium">₹ 0</span>
+                            ) : isSelected ? (
+                              <div className="flex justify-end items-center">
+                                <div className="relative w-28">
+                                  <span className="absolute left-2.5 top-1.5 text-xs text-slate-400 font-bold">₹</span>
+                                  <input
+                                    type="number"
+                                    min="1"
+                                    max={inst.dueAmount}
+                                    value={customAmtVal}
+                                    onChange={(e) => handleCustomAmountChange(inst.id, e.target.value)}
+                                    className="w-full pl-6 pr-2 py-1 text-right border border-blue-400 dark:border-blue-500 rounded-lg text-xs font-mono font-bold bg-white dark:bg-slate-900 text-blue-700 dark:text-blue-300 focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm"
+                                    placeholder={String(inst.dueAmount)}
+                                  />
+                                </div>
+                              </div>
+                            ) : (
+                              <span className="text-slate-400 font-mono">-</span>
                             )}
                           </td>
                           <td className="p-3 text-center">
@@ -2156,7 +2596,7 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
                     })
                   ) : (
                     <tr>
-                      <td colSpan={9} className="p-6 text-center text-slate-500 dark:text-slate-400 font-medium">
+                      <td colSpan={10} className="p-6 text-center text-slate-500 dark:text-slate-400 font-medium">
                         No outstanding fee heads found for this student.
                       </td>
                     </tr>
@@ -2168,7 +2608,7 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
             <div className="flex justify-end pt-2 text-xs font-extrabold text-slate-700 dark:text-slate-200">
               Total Selected Amount:{" "}
               <span className="ml-2 text-blue-600 dark:text-blue-400 font-mono text-sm">
-                {formatCurrency(amountPaying)}
+                {formatCurrency(baseSelectedAmount)}
               </span>
             </div>
           </div>
@@ -2289,10 +2729,22 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
                 </label>
                 <input
                   type="number"
-                  value={customAmountReceived}
-                  onChange={(e) => setCustomAmountReceived(e.target.value)}
+                  min="1"
+                  max={computedNetPayable > 0 ? computedNetPayable : 0}
+                  disabled={isFullyPaid || computedNetPayable <= 0 || selectedInstallments.length === 0}
+                  value={computedNetPayable > 0 ? (customAmountReceived !== "" ? customAmountReceived : amountPaying) : 0}
+                  onChange={(e) => {
+                    if (isFullyPaid || computedNetPayable <= 0) return;
+                    const val = e.target.value;
+                    const numVal = Number(val);
+                    if (val !== "" && !isNaN(numVal) && numVal > computedNetPayable) {
+                      setCustomAmountReceived(String(computedNetPayable));
+                    } else {
+                      setCustomAmountReceived(val);
+                    }
+                  }}
                   placeholder={String(computedNetPayable)}
-                  className="w-full p-2 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-bold font-mono bg-white dark:bg-slate-900 text-blue-600 dark:text-blue-400"
+                  className="w-full p-2 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-bold font-mono bg-white dark:bg-slate-900 text-blue-600 dark:text-blue-400 disabled:opacity-50 disabled:bg-slate-100 dark:disabled:bg-slate-900 disabled:cursor-not-allowed"
                 />
               </div>
               <div>
@@ -2348,11 +2800,74 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
                 </span>
               </div>
 
+              {/* Custom Payment Amount Control */}
+              <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-2">
+                <div className="flex items-center justify-between">
+                  <label className="text-[11px] font-bold text-slate-700 dark:text-slate-300">
+                    Custom Paying Amount
+                  </label>
+                  {customAmountReceived ? (
+                    <button
+                      type="button"
+                      onClick={() => setCustomAmountReceived("")}
+                      className="text-[10px] font-bold text-blue-600 dark:text-blue-400 hover:underline cursor-pointer"
+                    >
+                      Reset to Full
+                    </button>
+                  ) : null}
+                </div>
+                <div className="relative">
+                  <span className="absolute left-3 top-2 text-xs font-bold text-slate-400">₹</span>
+                  <input
+                    type="number"
+                    min="1"
+                    max={computedNetPayable > 0 ? computedNetPayable : 0}
+                    disabled={isFullyPaid || computedNetPayable <= 0 || selectedInstallments.length === 0}
+                    value={customAmountReceived}
+                    onChange={(e) => {
+                      if (isFullyPaid || computedNetPayable <= 0) {
+                        setCustomAmountReceived("");
+                        return;
+                      }
+                      const val = e.target.value;
+                      const numVal = Number(val);
+                      if (val !== "" && !isNaN(numVal) && numVal > computedNetPayable) {
+                        setCustomAmountReceived(String(computedNetPayable));
+                      } else {
+                        setCustomAmountReceived(val);
+                      }
+                      if (selectedInstallments.length === 0 && allInstallments.some(i => i.dueAmount > 0)) {
+                        handleSelectAllCurrentYear();
+                      }
+                    }}
+                    placeholder={String(computedNetPayable)}
+                    className="w-full pl-7 pr-3 py-1.5 border border-slate-300 dark:border-slate-700 rounded-lg text-xs font-mono font-bold bg-white dark:bg-slate-950 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:bg-slate-100 dark:disabled:bg-slate-900 disabled:cursor-not-allowed"
+                  />
+                </div>
+                <p className="text-[10px] text-slate-400">
+                  {isFullyPaid ? (
+                    <span className="text-emerald-600 dark:text-emerald-400 font-semibold">
+                      All fees are fully paid. No pending dues to collect.
+                    </span>
+                  ) : selectedInstallments.length === 0 ? (
+                    <span className="text-amber-600 dark:text-amber-400 font-semibold">
+                      Select at least one pending fee component to enable payment.
+                    </span>
+                  ) : customAmountReceived && Number(customAmountReceived) < computedNetPayable ? (
+                    <span className="text-amber-600 dark:text-amber-400 font-semibold">
+                      Partial payment: {formatCurrency(Number(customAmountReceived))} will be collected, remaining {formatCurrency(computedNetPayable - Number(customAmountReceived))} stays due.
+                    </span>
+                  ) : (
+                    "Leave blank for full selected amount, or enter custom amount for partial payment."
+                  )}
+                </p>
+              </div>
+
               <div className="border-t border-slate-200 dark:border-slate-800 pt-3 flex justify-between items-center">
                 <span className="font-bold text-slate-900 dark:text-white">
-                  Net Payable Amount
+                  Amount to Collect
                 </span>
-                <span className="font-mono font-black text-lg text-blue-600 dark:text-blue-400">
+                <span className="font-mono font-black text-lg text-emerald-600 dark:text-emerald-400">
                   {formatCurrency(amountPaying)}
                 </span>
               </div>
@@ -2360,11 +2875,17 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
 
             <button
               type="button"
+              disabled={!isFormValid || isProcessingPayment}
               onClick={handleSubmitPayment}
-              className="w-full py-3.5 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-lg shadow-emerald-600/20 transition-all cursor-pointer"
+              title={!isFormValid ? validationMessage : undefined}
+              className={`w-full py-3.5 px-4 rounded-xl font-bold text-xs flex items-center justify-center gap-2 shadow-lg transition-all ${
+                isFormValid && !isProcessingPayment
+                  ? "bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-600/20 cursor-pointer"
+                  : "bg-slate-200 dark:bg-slate-800 text-slate-400 dark:text-slate-500 shadow-none cursor-not-allowed opacity-70"
+              }`}
             >
               <Receipt className="w-4 h-4" />
-              Confirm Payment & Generate Receipt
+              {isProcessingPayment ? "Processing Payment..." : "Confirm Payment & Generate Receipt"}
             </button>
           </div>
 
@@ -2513,9 +3034,9 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
               </button>
               <button
                 type="button"
-                disabled={isProcessingPayment}
+                disabled={isProcessingPayment || !isFormValid || totalOutstanding <= 0 || amountPaying <= 0}
                 onClick={executeProcessPayment}
-                className="flex-1 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white text-xs font-bold shadow-lg shadow-emerald-600/20"
+                className="flex-1 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed text-white text-xs font-bold shadow-lg shadow-emerald-600/20"
               >
                 {isProcessingPayment ? "Processing..." : "Confirm & Print"}
               </button>
@@ -2542,11 +3063,10 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
             </div>
 
             <div className="space-y-3">
-              {(feePayments || [])
-                .filter((p) => !activeStudent || p.studentId === activeStudent.id || (activeStudent.admissionNo && p.studentId === activeStudent.admissionNo))
-                .map((p) => (
+              {displayedHistoryPayments.length > 0 ? (
+                displayedHistoryPayments.map((p) => (
                   <div
-                    key={p.id}
+                    key={p.receiptNo || p.id}
                     className="p-4 rounded-xl border border-slate-200 dark:border-slate-800 flex justify-between items-center text-xs"
                   >
                     <div>
@@ -2573,7 +3093,12 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
                       </button>
                     </div>
                   </div>
-                ))}
+                ))
+              ) : (
+                <div className="p-8 text-center text-xs text-slate-400">
+                  No payment history found for this student.
+                </div>
+              )}
             </div>
 
             <div className="pt-3 border-t flex justify-end">

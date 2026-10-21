@@ -1,6 +1,6 @@
 // @ts-nocheck
 import React, { useState, useEffect, useMemo } from "react";
-import { createAllocation } from "../../../api/hostel";
+import { createAllocation, formatRoomNumber } from "../../../api/hostel";
 import {
   GraduationCap,
   Plus,
@@ -805,47 +805,53 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
   const combinedHostelBlocks = useMemo(() => {
     const list: { id: string; name: string; type: string; rawId: any }[] = [];
     if (dynamicHostelBlocks && dynamicHostelBlocks.length > 0) {
-      dynamicHostelBlocks.forEach((b) => {
+      dynamicHostelBlocks.forEach((b: any) => {
+        const blkId = b.hostelId != null ? String(b.hostelId) : b.id != null ? String(b.id) : "";
+        if (!blkId) return;
         list.push({
-          id: b.hostelId.toString(),
-          name: b.hostelName,
-          type: b.hostelType,
-          rawId: b.hostelId,
+          id: blkId,
+          name: b.hostelName || b.name || `Hostel ${blkId}`,
+          type: b.hostelType || "Mixed",
+          rawId: b.hostelId ?? b.id,
         });
       });
     }
     if (hostelMasters && hostelMasters.length > 0) {
-      hostelMasters.forEach((h) => {
+      hostelMasters.forEach((h: any) => {
+        const hId = h.id != null ? String(h.id) : h.hostelId != null ? String(h.hostelId) : "";
+        if (!hId) return;
         if (
           !list.some(
             (e) =>
-              e.id === h.id ||
+              e.id === hId ||
               e.name.toLowerCase() ===
                 (h.hostelName || h.name || "").toLowerCase(),
           )
         ) {
           list.push({
-            id: h.id.toString(),
+            id: hId,
             name: h.hostelName || h.name || "Hostel Block",
             type: h.hostelType || "Mixed",
-            rawId: h.id,
+            rawId: h.id ?? h.hostelId,
           });
         }
       });
     }
     if (hostelBlocks && hostelBlocks.length > 0) {
-      hostelBlocks.forEach((hb) => {
+      hostelBlocks.forEach((hb: any) => {
+        const hbId = hb.id != null ? String(hb.id) : hb.hostelId != null ? String(hb.hostelId) : "";
+        if (!hbId) return;
         if (
           !list.some(
             (e) =>
-              e.id === hb.id || e.name.toLowerCase() === hb.name.toLowerCase(),
+              e.id === hbId || e.name.toLowerCase() === (hb.name || "").toLowerCase(),
           )
         ) {
           list.push({
-            id: hb.id.toString(),
-            name: hb.name,
+            id: hbId,
+            name: hb.name || `Hostel ${hbId}`,
             type: "Mixed",
-            rawId: hb.id,
+            rawId: hb.id ?? hb.hostelId,
           });
         }
       });
@@ -855,13 +861,14 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
 
   const selectedBlockObj = useMemo(() => {
     if (!formData.hostelBlock) return null;
-    const target = formData.hostelBlock.toString().trim().toLowerCase();
+    const target = String(formData.hostelBlock).trim().toLowerCase();
+    if (!target) return null;
     return (
       combinedHostelBlocks.find(
         (b) =>
           String(b.id || "").toLowerCase() === target ||
           String(b.name || "").toLowerCase() === target ||
-          b.rawId?.toString().toLowerCase() === target,
+          String(b.rawId ?? "").toLowerCase() === target,
       ) || null
     );
   }, [formData.hostelBlock, combinedHostelBlocks]);
@@ -879,38 +886,43 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
     }[] = [];
 
     if (dynamicHostelRooms && dynamicHostelRooms.length > 0) {
-      dynamicHostelRooms.forEach((r) => {
+      dynamicHostelRooms.forEach((r: any) => {
+        const rmId = r.roomId != null ? String(r.roomId) : r.id != null ? String(r.id) : "";
+        const bId = r.hostelId != null ? String(r.hostelId) : r.blockId != null ? String(r.blockId) : "";
+        if (!rmId) return;
         list.push({
-          id: r.roomId.toString(),
-          blockId: r.hostelId.toString(),
-          blockName: r.hostelName,
-          roomNumber: r.roomNumber,
+          id: rmId,
+          blockId: bId,
+          blockName: r.hostelName || r.blockName || "",
+          roomNumber: r.roomNumber || r.roomNo || rmId,
           roomTypeId: r.roomTypeId,
           specification: r.roomTypeSpecification || "Standard Room",
-          capacity: r.bedCapacity || 2,
-          rawId: r.roomId,
+          capacity: r.bedCapacity || r.capacity || 2,
+          rawId: r.roomId ?? r.id,
         });
       });
     }
 
     if (hostelRooms && hostelRooms.length > 0) {
       hostelRooms.forEach((hr: any) => {
-        const bId = (hr.hostelId || hr.blockId || "").toString();
+        const rmId = hr.id != null ? String(hr.id) : hr.roomId != null ? String(hr.roomId) : "";
+        const bId = hr.hostelId != null ? String(hr.hostelId) : hr.blockId != null ? String(hr.blockId) : "";
+        if (!rmId) return;
         if (
           !list.some(
             (e) =>
-              e.id === hr.id || e.roomNumber === (hr.roomNumber || hr.roomNo),
+              e.id === rmId || e.roomNumber === (hr.roomNumber || hr.roomNo),
           )
         ) {
           list.push({
-            id: hr.id.toString(),
+            id: rmId,
             blockId: bId,
-            blockName: hr.blockName || "",
+            blockName: hr.blockName || hr.hostelName || "",
             roomNumber: hr.roomNumber || hr.roomNo || "101",
             roomTypeId: 1,
-            specification: hr.roomType || "Standard Room",
+            specification: hr.roomType || hr.roomTypeSpecification || "Standard Room",
             capacity: hr.capacity || hr.bedCapacity || 2,
-            rawId: hr.id,
+            rawId: hr.id ?? hr.roomId,
           });
         }
       });
@@ -921,30 +933,33 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
 
   const availableRoomsForSelectedBlock = useMemo(() => {
     if (!selectedBlockObj) return combinedHostelRooms;
+    const rawIdStr = selectedBlockObj.rawId != null ? String(selectedBlockObj.rawId) : "";
     return combinedHostelRooms.filter(
       (r) =>
         r.blockId === selectedBlockObj.id ||
-        r.blockId === selectedBlockObj.rawId?.toString() ||
+        (rawIdStr && r.blockId === rawIdStr) ||
         (selectedBlockObj.name &&
+          r.blockName &&
           r.blockName.toLowerCase() === selectedBlockObj.name.toLowerCase()),
     );
   }, [selectedBlockObj, combinedHostelRooms]);
 
   const selectedRoomObj = useMemo(() => {
     if (!formData.hostelRoom) return null;
-    const target = formData.hostelRoom.toString().trim().toLowerCase();
+    const target = String(formData.hostelRoom).trim().toLowerCase();
+    if (!target) return null;
     return (
       availableRoomsForSelectedBlock.find(
         (r) =>
           String(r.id || "").toLowerCase() === target ||
           String(r.roomNumber || "").toLowerCase() === target ||
-          r.rawId?.toString().toLowerCase() === target,
+          String(r.rawId ?? "").toLowerCase() === target,
       ) ||
       combinedHostelRooms.find(
         (r) =>
           String(r.id || "").toLowerCase() === target ||
           String(r.roomNumber || "").toLowerCase() === target ||
-          r.rawId?.toString().toLowerCase() === target,
+          String(r.rawId ?? "").toLowerCase() === target,
       ) ||
       null
     );
@@ -961,7 +976,8 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
 
   const selectedBedValue = useMemo(() => {
     if (!formData.hostelBed) return "";
-    const target = formData.hostelBed.toString().trim();
+    const target = String(formData.hostelBed).trim();
+    if (!target) return "";
     const match = availableBedsForSelectedRoom.find(
       (b) =>
         b.toLowerCase() === target.toLowerCase() ||
@@ -1479,13 +1495,14 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
   }, [initialFormOpen]);
 
   const handleOpenEdit = (app: AdmissionApplication) => {
+    if (!app) return;
     setEditingApp(app);
-    const parts = app.applicantName.split(" ");
+    const parts = String(app.applicantName || "").trim().split(" ");
     setFirstName(parts[0] || "");
     setLastName(parts.slice(1).join(" ") || "");
     setAvatar(app.avatar || "");
 
-    let formattedDob = app.dob || "";
+    let formattedDob = String(app.dob || "");
     if (formattedDob.includes("-") && formattedDob.split("-").length === 3) {
       const dParts = formattedDob.split("-");
       formattedDob = `${dParts[2]}/${dParts[1]}/${dParts[0]}`;
@@ -1578,7 +1595,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
       for (let i = 0; i < count; i++) {
         const sId = sIds[i];
         if (sId) {
-          const matchedSt = students.find((s) => s.id === sId);
+          const matchedSt = (students || []).find((s) => s.id === sId);
           reconstructed.push({
             id: sId,
             name: matchedSt
@@ -2407,11 +2424,11 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
     if (isHostelOpted && hasHostelBlockSelected && hasHostelRoomSelected) {
       const hObj =
         selectedBlockObj ||
-        hostelMasters.find(
+        (hostelMasters || []).find(
           (h) =>
             h.id === formData.hostelBlock ||
             h.hostelName === formData.hostelBlock ||
-            h.id.toString() === formData.hostelBlock?.toString(),
+            String(h.id ?? "") === String(formData.hostelBlock ?? ""),
         );
 
       const selectedRoom =
@@ -3906,7 +3923,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
 
                               return {
                                 value: String(r.roomId),
-                                label: `Room #${r.roomNumber} (${rName})`,
+                                label: `${formatRoomNumber(r.roomNumber)} (${rName})`,
                                 subLabel: `${occupied}/${rCap} Occupied${isFull ? " • FULL" : ""}`,
                                 disabled: isFull,
                               };
@@ -3959,8 +3976,12 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                           );
                         })()}
                         {(() => {
-                          const selRoom = dynamicHostelRooms.find(
-                            (r) => r.roomId.toString() === formData.hostelRoom,
+                          const selRoom = (dynamicHostelRooms || []).find(
+                            (r: any) =>
+                              String(r.roomId ?? r.id ?? "") ===
+                                String(formData.hostelRoom ?? "") ||
+                              String(r.roomNumber ?? "") ===
+                                String(formData.hostelRoom ?? ""),
                           );
                           if (selRoom) {
                             const rtObj = dynamicRoomTypes.find(
@@ -4001,8 +4022,12 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                           Bed
                         </label>
                         {(() => {
-                          const selRoom = dynamicHostelRooms.find(
-                            (r) => r.roomId.toString() === formData.hostelRoom,
+                          const selRoom = (dynamicHostelRooms || []).find(
+                            (r: any) =>
+                              String(r.roomId ?? r.id ?? "") ===
+                                String(formData.hostelRoom ?? "") ||
+                              String(r.roomNumber ?? "") ===
+                                String(formData.hostelRoom ?? ""),
                           );
                           const rtObj = selRoom
                             ? dynamicRoomTypes.find(

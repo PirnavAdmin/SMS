@@ -5,7 +5,7 @@ import { useToast } from '../../../context/ToastContext';
 import { useAuth } from '../../../context/AuthContext';
 import { SearchableSelect } from '../../common/SearchableSelect';
 import { ConfirmModal } from '../../common/ConfirmModal';
-import { getHostelBlocks, getAllocations, HostelBlock, BedAllocation } from '../../../api/hostel';
+import { getHostelBlocks, getAllocations, formatRoomNumber, HostelBlock, BedAllocation } from '../../../api/hostel';
 
 interface OutpassRecord {
   id: number;
@@ -379,7 +379,7 @@ export const HostelOutpassLeaveView: React.FC = () => {
                     <tr key={r.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/50 transition-colors">
                       <td className="py-3.5 px-5 font-bold text-slate-900 dark:text-white">{r.studentName}</td>
                       <td className="py-3.5 px-5 font-mono text-slate-500">{r.admissionNo}</td>
-                      <td className="py-3.5 px-5 font-semibold text-sky-600 dark:text-sky-400">{r.hostelName} (Room #{r.roomNumber})</td>
+                      <td className="py-3.5 px-5 font-semibold text-sky-600 dark:text-sky-400">{r.hostelName} ({formatRoomNumber(r.roomNumber)})</td>
                       <td className="py-3.5 px-5 font-bold text-slate-800 dark:text-slate-200">{r.outpassType}</td>
                       <td className="py-3.5 px-5 text-slate-500 font-mono text-[11px]">{r.departureDate}</td>
                       <td className="py-3.5 px-5 text-slate-500 font-mono text-[11px]">{r.returnDate}</td>
@@ -433,7 +433,7 @@ export const HostelOutpassLeaveView: React.FC = () => {
                 >
                   <option value="" disabled>Select Student...</option>
                   {displayStudentsList.map(st => (
-                    <option key={st.id} value={st.id.toString()}>{st.firstName} {st.lastName} ({st.admissionNo})</option>
+                    <option key={st.id} value={String(st.id ?? '')}>{st.firstName} {st.lastName} ({st.admissionNo})</option>
                   ))}
                 </select>
               </div>
