@@ -402,6 +402,8 @@ export const RoomMasterView: React.FC<RoomMasterViewProps> = ({ selectedHostelFi
             <Pagination
               currentPage={currentPage}
               totalPages={totalPages}
+              totalItems={filteredRooms.length}
+              itemsPerPage={itemsPerPage}
               onPageChange={setCurrentPage}
             />
           )}

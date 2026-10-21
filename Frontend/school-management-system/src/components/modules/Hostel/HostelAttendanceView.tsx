@@ -793,6 +793,8 @@ export const HostelAttendanceView: React.FC = () => {
             <Pagination
               currentPage={currentPage}
               totalPages={totalPages}
+              totalItems={matchedAssignments.length}
+              itemsPerPage={itemsPerPage}
               onPageChange={setCurrentPage}
             />
           </div>

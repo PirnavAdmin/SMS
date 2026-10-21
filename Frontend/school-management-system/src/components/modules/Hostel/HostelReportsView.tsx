@@ -287,19 +287,33 @@ export const HostelReportsView: React.FC = () => {
         });
 
         if (!isWarden) {
-          const allocatedStudentIds = new Set(allocations.map(a => String(a.studentId || a.admissionNo)));
+          const allocatedStudentIds = new Set(allocations.map(a => String(a.studentId || a.admissionNo).trim().toLowerCase()));
+          const allocatedNames = new Set(allocations.map(a => String(a.studentName || '').trim().toLowerCase()));
+          const seenCandidateKeys = new Set<string>();
+
           const allCandidates = [...students, ...admissions];
 
           allCandidates.forEach((s: any) => {
-            const sId = String(s.id || s.applicationNo || s.admissionNo);
+            const sId = String(s.id || '').trim().toLowerCase();
+            const sAdm = String(s.admissionNo || s.applicationNo || s.registrationNo || sId).trim().toLowerCase();
+            const sName = String(s.applicantName || `${s.firstName || ''} ${s.lastName || ''}`.trim() || s.name || '').trim().toLowerCase();
             const sType = String(s.studentType || s.residenceType || s.facilityOpted || '').toLowerCase();
             const isRes = sType.includes('hostel') || sType.includes('residential') || sType.includes('boarder') || s.isHostelRequired === true;
 
-            if (isRes && !allocatedStudentIds.has(sId) && !allocatedStudentIds.has(String(s.admissionNo))) {
-              allocatedStudentIds.add(sId);
+            const isAllocated =
+              (sId && allocatedStudentIds.has(sId)) ||
+              (sAdm && allocatedStudentIds.has(sAdm)) ||
+              (sName && allocatedNames.has(sName));
+
+            const candidateKey = sAdm || sName || sId;
+
+            if (isRes && !isAllocated && candidateKey && !seenCandidateKeys.has(candidateKey)) {
+              seenCandidateKeys.add(candidateKey);
+              if (sAdm) seenCandidateKeys.add(sAdm);
+              if (sName) seenCandidateKeys.add(sName);
               list.push({
-                'Admission No': s.admissionNo || s.applicationNo || sId,
-                'Student Name': s.applicantName || `${s.firstName || ''} ${s.lastName || ''}`.trim() || 'Student',
+                'Admission No': s.admissionNo || s.applicationNo || s.registrationNo || s.id || 'N/A',
+                'Student Name': s.applicantName || `${s.firstName || ''} ${s.lastName || ''}`.trim() || s.name || 'Student',
                 'Hostel Facility': s.hostelBlock || 'Opted during Admission',
                 'Room & Bed': 'Unassigned (Pending Bed)',
                 'Assigned Warden': 'Unassigned',

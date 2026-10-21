@@ -186,83 +186,115 @@ export const StudentHostelAssignmentView: React.FC = () => {
     const rawAdmissions = Array.isArray(dataContext?.admissions) ? dataContext.admissions : [];
 
     const map = new Map<string, any>();
+    const seenAdmNos = new Set<string>();
+    const seenNames = new Set<string>();
 
-    const getDedupKey = (item: any) => {
-      const reg = String(item.registrationNo || item.admissionNo || item.applicationNo || item.registrationNumber || '').toLowerCase().trim();
-      const name = String(item.applicantName || `${item.firstName || ''} ${item.lastName || ''}`.trim() || item.name || '').toLowerCase().trim();
-      if (reg && reg !== 'n/a') return `reg_${reg}`;
-      if (name) return `name_${name}`;
-      return `id_${item.id || item.studentId}`;
-    };
+    const normalize = (v: any) => String(v || '').trim().toLowerCase();
 
-    // Add students from Admissions store
-    rawAdmissions.forEach((a: any) => {
-      if (a) {
-        const key = getDedupKey(a);
-        const sType = String(a.studentType || a.residenceType || a.facilityOpted || a.residentialStatus || '').toLowerCase();
-        const isRes =
-          sType.includes('hostel') ||
-          sType.includes('residential') ||
-          sType.includes('boarder') ||
-          a.isHostelRequired === true ||
-          a.optedResidential === true ||
-          (a.hostelBlock && a.hostelBlock !== 'N/A') ||
-          (a.allocatedBedId && a.allocatedBedId !== 'N/A');
-
-        map.set(key, {
-          id: String(a.id || a.applicationNo || a.registrationNo),
-          name: a.applicantName || `${a.firstName || ''} ${a.lastName || ''}`.trim() || `Applicant #${a.id}`,
-          className: a.appliedClass || a.className || 'Class 10',
-          section: a.section || 'A',
-          admissionNo: a.applicationNo || a.registrationNo || String(a.id),
-          isResidential: Boolean(isRes),
-          studentType: isRes ? 'Residential' : 'Day Scholar'
-        });
-      }
-    });
-
-    // Add students from Students store
+    // 1. Process enrolled students first as primary source of truth
     rawStudents.forEach((s: any) => {
-      if (s) {
-        const key = getDedupKey(s);
-        const existing = map.get(key);
+      if (!s) return;
+      const sId = String(s.id || s.studentId || '').trim();
+      const sAdm = normalize(s.admissionNo || s.registrationNumber || sId);
+      const sName = normalize(`${s.firstName || ''} ${s.lastName || ''}`.trim() || s.name || `Student #${sId}`);
+      const sClass = normalize(s.className || s.class || '');
 
-        const sType = String(s.studentType || s.residenceType || s.facilityOpted || s.residentialStatus || '').toLowerCase();
-        const isRes =
-          sType.includes('hostel') ||
-          sType.includes('residential') ||
-          sType.includes('boarder') ||
-          s.isHostelRequired === true ||
-          s.optedResidential === true ||
-          (s.hostelBlock && s.hostelBlock !== 'N/A') ||
-          Boolean(existing?.isResidential);
+      const sType = normalize(s.studentType || s.residenceType || s.facilityOpted || s.residentialStatus);
+      const isRes =
+        sType.includes('hostel') ||
+        sType.includes('residential') ||
+        sType.includes('boarder') ||
+        s.isHostelRequired === true ||
+        s.optedResidential === true ||
+        (s.hostelBlock && s.hostelBlock !== 'N/A');
 
-        map.set(key, {
-          id: String(s.id || s.studentId || s.admissionNo),
-          name: `${s.firstName || ''} ${s.lastName || ''}`.trim() || s.name || existing?.name || `Student #${s.id}`,
-          className: s.className || s.class || existing?.className || 'Class 10',
-          section: s.section || existing?.section || 'A',
-          admissionNo: s.admissionNo || s.registrationNumber || existing?.admissionNo || String(s.id),
-          isResidential: Boolean(isRes),
-          studentType: s.studentType || existing?.studentType || (isRes ? 'Residential' : 'Day Scholar')
-        });
+      const studentObj = {
+        id: sId || sAdm,
+        name: `${s.firstName || ''} ${s.lastName || ''}`.trim() || s.name || `Student #${sId}`,
+        className: s.className || s.class || 'Class 10',
+        section: s.section || 'A',
+        admissionNo: s.admissionNo || s.registrationNumber || sId,
+        isResidential: Boolean(isRes),
+        studentType: isRes ? 'Residential' : (s.studentType || 'Day Scholar')
+      };
+
+      const primaryKey = sAdm || `id_${sId}` || `name_${sName}`;
+      map.set(primaryKey, studentObj);
+      if (sAdm) seenAdmNos.add(sAdm);
+      if (sName) {
+        seenNames.add(sName);
+        if (sClass) seenNames.add(`${sName}__${sClass}`);
       }
     });
 
-    // No hardcoded fallback list - use only actual students
+    // 2. Add students from Admissions store (only if not already enrolled)
+    rawAdmissions.forEach((a: any) => {
+      if (!a) return;
+      const aId = String(a.id || '').trim();
+      const aAdm = normalize(a.admissionNo || a.applicationNo || a.registrationNo || aId);
+      const aName = normalize(a.applicantName || `${a.firstName || ''} ${a.lastName || ''}`.trim() || `Applicant #${aId}`);
+      const aClass = normalize(a.appliedClass || a.className || '');
+
+      const sType = normalize(a.studentType || a.residenceType || a.facilityOpted || a.residentialStatus);
+      const isRes =
+        sType.includes('hostel') ||
+        sType.includes('residential') ||
+        sType.includes('boarder') ||
+        a.isHostelRequired === true ||
+        a.optedResidential === true ||
+        (a.hostelBlock && a.hostelBlock !== 'N/A') ||
+        (a.allocatedBedId && a.allocatedBedId !== 'N/A');
+
+      // Check if this applicant is already in map by admissionNo or Name
+      const isAlreadyAdded = (aAdm && seenAdmNos.has(aAdm)) || (aName && seenNames.has(aName));
+
+      if (isAlreadyAdded) {
+        // Find existing record and update residential status if opted in admission
+        for (const [, existing] of map.entries()) {
+          const matchAdm = aAdm && (normalize(existing.admissionNo) === aAdm || normalize(existing.id) === aAdm);
+          const matchName = aName && normalize(existing.name) === aName;
+          if (matchAdm || matchName) {
+            if (isRes && !existing.isResidential) {
+              existing.isResidential = true;
+              existing.studentType = 'Residential';
+            }
+            break;
+          }
+        }
+        return;
+      }
+
+      const admissionObj = {
+        id: aId || aAdm,
+        name: a.applicantName || `${a.firstName || ''} ${a.lastName || ''}`.trim() || `Applicant #${aId}`,
+        className: a.appliedClass || a.className || 'Class 10',
+        section: a.section || 'A',
+        admissionNo: a.admissionNo || a.applicationNo || a.registrationNo || aId,
+        isResidential: Boolean(isRes),
+        studentType: isRes ? 'Residential' : 'Day Scholar'
+      };
+
+      const key = aAdm || `id_${aId}` || `name_${aName}`;
+      map.set(key, admissionObj);
+      if (aAdm) seenAdmNos.add(aAdm);
+      if (aName) {
+        seenNames.add(aName);
+        if (aClass) seenNames.add(`${aName}__${aClass}`);
+      }
+    });
+
     const list = Array.from(map.values());
-    
     const activeAllocs = (allocations || []).filter(a => a && a.status !== 'Vacated' && a.status !== 'Inactive' && (a.status === 'Active' || !a.status));
 
     list.forEach((st: any) => {
-      const sId = String(st.id || '').toLowerCase().trim();
-      const sAdm = String(st.admissionNo || '').toLowerCase().trim();
-      const sName = String(st.name || '').toLowerCase().trim();
+      const sId = normalize(st.id);
+      const sAdm = normalize(st.admissionNo);
+      const sName = normalize(st.name);
 
       const matchedAlloc = activeAllocs.find(a => {
-        const aId = String(a.studentId || '').toLowerCase().trim();
-        const aAdm = String(a.admissionNo || '').toLowerCase().trim();
-        const aName = String(a.studentName || '').toLowerCase().trim();
+        const aId = normalize(a.studentId);
+        const aAdm = normalize(a.admissionNo);
+        const aName = normalize(a.studentName);
         return (sId && aId === sId) || (sAdm && aAdm === sAdm) || (sName && aName === sName) || (sName && aName.includes(sName));
       });
 
@@ -414,32 +446,84 @@ export const StudentHostelAssignmentView: React.FC = () => {
   const [viewStudentModal, setViewStudentModal] = useState<BedAllocation | null>(null);
 
   // Filter active bed allocations and unallocated students
-  const safeAllocations = (Array.isArray(allocations) ? allocations : []).filter(a => {
-    return a && a.status !== 'Vacated' && a.status !== 'Inactive';
-  });
+  const safeAllocations = useMemo(() => {
+    return (Array.isArray(allocations) ? allocations : []).filter(a => {
+      return a && a.status !== 'Vacated' && a.status !== 'Inactive';
+    });
+  }, [allocations]);
 
-  const unallocatedAdmittedHostellers = (candidateStudents || []).filter(s =>
-    s && s.isResidential && s.studentType !== 'Day Scholar' && !safeAllocations.some(a => a && (a.studentId?.toString() === s.id?.toString() || a.admissionNo === s.admissionNo))
-  );
+  const unallocatedAdmittedHostellers = useMemo(() => {
+    const allocatedIds = new Set<string>();
+    const allocatedAdmNos = new Set<string>();
+    const allocatedNames = new Set<string>();
 
-  const combinedAssignmentsList = [
-    ...safeAllocations.map(a => ({ ...a, isPendingAdmitted: false })),
-    ...unallocatedAdmittedHostellers.map(s => ({
-      allocationId: `ADM-PENDING-${s.id}`,
-      studentId: parseInt(String(s.id || '').replace(/\D/g, ''), 10) || 1001,
-      studentName: s.name || (s.firstName ? `${s.firstName} ${s.lastName || ''}`.trim() : 'Student'),
-      admissionNo: s.admissionNo || `REG-${s.id}`,
-      hostelId: 0,
-      hostelName: 'Opted during Admission',
-      roomId: 0,
-      roomNumber: 'N/A',
-      bedNumber: 'Unassigned',
-      joiningDate: 'Opted at Registration',
-      status: 'Pending Allocation',
-      isPendingAdmitted: true,
-      rawStudentId: s.id
-    }))
-  ];
+    safeAllocations.forEach(a => {
+      if (a.studentId) allocatedIds.add(String(a.studentId).trim().toLowerCase());
+      if (a.admissionNo) allocatedAdmNos.add(String(a.admissionNo).trim().toLowerCase());
+      if (a.studentName) allocatedNames.add(String(a.studentName).trim().toLowerCase());
+    });
+
+    const seenUnallocated = new Set<string>();
+
+    return (candidateStudents || []).filter(s => {
+      if (!s || !s.isResidential || s.studentType === 'Day Scholar') return false;
+
+      const sId = String(s.id || '').trim().toLowerCase();
+      const sAdm = String(s.admissionNo || '').trim().toLowerCase();
+      const sName = String(s.name || '').trim().toLowerCase();
+
+      // Check if already allocated
+      const isAllocated =
+        (sId && allocatedIds.has(sId)) ||
+        (sAdm && allocatedAdmNos.has(sAdm)) ||
+        (sName && allocatedNames.has(sName));
+
+      if (isAllocated) return false;
+
+      // Deduplicate unallocated entries
+      const dedupKey = sAdm || sName || sId;
+      if (seenUnallocated.has(dedupKey)) return false;
+      seenUnallocated.add(dedupKey);
+      if (sAdm) seenUnallocated.add(sAdm);
+      if (sName) seenUnallocated.add(sName);
+
+      return true;
+    });
+  }, [safeAllocations, candidateStudents]);
+
+  const combinedAssignmentsList = useMemo(() => {
+    const rawList = [
+      ...safeAllocations.map(a => ({ ...a, isPendingAdmitted: false })),
+      ...unallocatedAdmittedHostellers.map(s => ({
+        allocationId: `ADM-PENDING-${s.id}`,
+        studentId: parseInt(String(s.id || '').replace(/\D/g, ''), 10) || 1001,
+        studentName: s.name || (s.firstName ? `${s.firstName} ${s.lastName || ''}`.trim() : 'Student'),
+        admissionNo: s.admissionNo || `REG-${s.id}`,
+        hostelId: 0,
+        hostelName: 'Opted during Admission',
+        roomId: 0,
+        roomNumber: 'N/A',
+        bedNumber: 'Unassigned',
+        joiningDate: 'Opted at Registration',
+        status: 'Pending Allocation',
+        isPendingAdmitted: true,
+        rawStudentId: s.id
+      }))
+    ];
+
+    const seenListKeys = new Set<string>();
+    return rawList.filter(item => {
+      if (!item) return false;
+      const admKey = (item.admissionNo || '').trim().toLowerCase();
+      const nameKey = (item.studentName || '').trim().toLowerCase();
+      const itemKey = admKey ? `adm_${admKey}` : `name_${nameKey}`;
+      if (seenListKeys.has(itemKey)) return false;
+      seenListKeys.add(itemKey);
+      if (admKey) seenListKeys.add(`adm_${admKey}`);
+      if (nameKey) seenListKeys.add(`name_${nameKey}`);
+      return true;
+    });
+  }, [safeAllocations, unallocatedAdmittedHostellers]);
 
   const [filterFloor, setFilterFloor] = useState('All Floors');
   const [filterRoom, setFilterRoom] = useState('All Rooms');
