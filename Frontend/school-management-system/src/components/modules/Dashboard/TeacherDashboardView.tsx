@@ -526,22 +526,39 @@ export const TeacherDashboardView: React.FC<TeacherDashboardViewProps> = ({ onNa
     <div className="space-y-6 animate-in fade-in duration-300">
       
       {/* Welcome Banner */}
-      <div className="rounded-2xl bg-white dark:bg-slate-900 py-3.5 px-5 text-slate-900 dark:text-white border border-sky-200 dark:border-slate-800 shadow-sm">
-        <div className="space-y-1 text-left">
-          <div className="flex items-center gap-2 flex-wrap">
-            <h1 className="text-base sm:text-lg tracking-tight flex items-center gap-2">
+      <div className="relative overflow-hidden rounded-2xl bg-white/80 dark:bg-slate-900/80 backdrop-blur-md p-4 sm:p-5 text-slate-900 dark:text-white border border-slate-200/80 dark:border-slate-800 shadow-xs">
+        {/* Soft background ambient gradient */}
+        <div className="absolute right-0 top-0 w-96 h-96 bg-sky-100/30 dark:bg-white/5 rounded-full blur-3xl pointer-events-none" />
+
+        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="space-y-1.5 text-left">
+            <h1 className="text-lg sm:text-xl font-black tracking-tight text-slate-900 dark:text-white flex items-center gap-2">
               <span>
-                <span className="text-slate-500 dark:text-slate-400 font-extrabold">{greeting}</span>
-                {(user?.name || `${teacher.firstName || ''} ${teacher.lastName || ''}`).trim() ? (
-                  <>, <span className="font-extrabold text-sky-600 dark:text-sky-400">{(user?.name || `${teacher.firstName || ''} ${teacher.lastName || ''}`).trim()}</span></>
-                ) : ''}
+                {greeting}, <span className="text-sky-600 dark:text-sky-400">{(user?.name || `${teacher.firstName || ''} ${teacher.lastName || ''}`).trim() || 'Teacher'}</span>
               </span>
-              <span className="text-base inline-block hover:rotate-12 transition-transform select-none" role="img" aria-label="wave">👋</span>
+              <span className="text-lg inline-block hover:rotate-12 transition-transform select-none" role="img" aria-label="wave">👋</span>
             </h1>
+            <div className="text-xs text-slate-600 dark:text-slate-400 font-medium flex items-center gap-2 flex-wrap">
+              <span>Designated as <span className="font-extrabold text-rose-700 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/40 px-2.5 py-0.5 rounded-md border border-rose-200/70 dark:border-rose-800/50">{teacher.designation || 'Class Teacher'}</span></span>
+              <span className="text-slate-300 dark:text-slate-700">•</span>
+              <span>Classes: <span className="font-extrabold text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 px-2.5 py-0.5 rounded-md border border-emerald-200/70 dark:border-emerald-800/50">{assignedClassesFormatted}</span></span>
+            </div>
           </div>
-          <p className="text-xs text-slate-600 dark:text-slate-400 font-medium">
-            Designated as <span className="font-extrabold text-rose-700 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/40 px-2 py-0.5 rounded-md border border-rose-200 dark:border-rose-800/50">{teacher.designation || 'Class Teacher'}</span> for <span className="font-extrabold text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 px-2 py-0.5 rounded-md border border-emerald-200 dark:border-emerald-800/50">{assignedClassesFormatted}</span>.
-          </p>
+
+          {/* Right side: Today Date & Day pill */}
+          <div className="hidden md:flex items-center gap-3 bg-white/90 dark:bg-slate-800/90 backdrop-blur-xs px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 shadow-xs shrink-0">
+            <div className="flex items-center justify-center w-8 h-8 rounded-xl bg-sky-500/10 dark:bg-sky-500/20 text-sky-600 dark:text-sky-400 border border-sky-200/80 dark:border-sky-900/50 shrink-0">
+              <Calendar className="w-4 h-4" />
+            </div>
+            <div className="text-left font-mono shrink-0">
+              <p className="text-xs font-black text-slate-850 dark:text-slate-100 leading-none">
+                {new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+              </p>
+              <p className="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider leading-none mt-1">
+                {new Date().toLocaleDateString('en-US', { weekday: 'long' })}
+              </p>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -594,10 +611,11 @@ export const TeacherDashboardView: React.FC<TeacherDashboardViewProps> = ({ onNa
             </div>
           </div>
 
-          <div className="flex items-center justify-between text-xs pt-2 font-bold border-t border-slate-100 dark:border-slate-800/60 text-slate-500">
-            <span>Remaining classes today</span>
-            <span className="font-black text-slate-800 dark:text-white bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-full text-[10px]">
-              {scheduleData.remainingCount} Classes
+          <div className="pt-2.5 border-t border-slate-100 dark:border-slate-800/60 flex items-center justify-between text-xs">
+            <span className="text-slate-500 dark:text-slate-400 font-medium">Remaining classes today ({scheduleData.remainingCount})</span>
+            <span className="text-xs font-bold text-sky-600 dark:text-sky-400 hover:text-sky-700 dark:hover:text-sky-300 flex items-center gap-1 group-hover:translate-x-0.5 transition-all">
+              <span>View Timetable</span>
+              <ArrowRight className="w-3.5 h-3.5" />
             </span>
           </div>
         </div>
@@ -664,33 +682,36 @@ export const TeacherDashboardView: React.FC<TeacherDashboardViewProps> = ({ onNa
             </div>
           </div>
 
-          <div className="pt-2 border-t border-slate-100 dark:border-slate-800/60 flex items-center justify-between text-xs text-slate-400 font-medium">
-            <span>Class teacher dashboard</span>
-            <span className="text-[10px] text-emerald-500 font-bold hover:underline flex items-center gap-0.5">
-              Student List <ArrowRight className="w-3.5 h-3.5" />
+          <div className="pt-2.5 border-t border-slate-100 dark:border-slate-800/60 flex items-center justify-between text-xs">
+            <span className="text-slate-500 dark:text-slate-400 font-medium">Class teacher dashboard</span>
+            <span className="text-xs font-bold text-sky-600 dark:text-sky-400 hover:text-sky-700 dark:hover:text-sky-300 flex items-center gap-1 group-hover:translate-x-0.5 transition-all">
+              <span>Student List</span>
+              <ArrowRight className="w-3.5 h-3.5" />
             </span>
           </div>
         </div>
 
         {/* 4. Academic Tasks Card */}
         <div 
-          className="glass-card p-6 rounded-3xl border border-slate-200/60 dark:border-slate-800/60 flex flex-col justify-between space-y-4"
+          onClick={() => handleCardClick('marks-entry')}
+          className="glass-card p-6 rounded-3xl border border-slate-200/60 dark:border-slate-800/60 hover:-translate-y-1 hover:shadow-lg hover:border-purple-500/20 transition-all duration-300 cursor-pointer flex flex-col justify-between group space-y-4"
         >
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2.5">
-              <div className="p-2 rounded-xl bg-purple-50 text-purple-600 dark:bg-purple-950/40 dark:text-purple-400 border border-purple-100 dark:border-purple-900/40">
+              <div className="p-2 rounded-xl bg-purple-50 text-purple-600 dark:bg-purple-950/40 dark:text-purple-400 border border-purple-100 dark:border-purple-900/40 shrink-0">
                 <GraduationCap className="w-5 h-5" />
               </div>
               <h3 className="font-black text-sm text-slate-900 dark:text-white">Academic Tasks</h3>
             </div>
+            <ExternalLink className="w-4 h-4 text-slate-400 group-hover:text-purple-500 transition-colors shrink-0" />
           </div>
 
           <div className="space-y-2.5 flex-grow pt-2">
             <div 
-              className="flex items-center justify-between p-2.5 rounded-xl bg-slate-50/50 dark:bg-slate-900/30 border border-slate-100 dark:border-slate-800/40 text-xs"
+              className="flex items-center justify-between gap-2.5 p-2.5 rounded-xl bg-slate-50/50 dark:bg-slate-900/30 border border-slate-100 dark:border-slate-800/40 text-xs"
             >
-              <span className="font-bold text-slate-500">Pending Attendance</span>
-              <span className={`px-2 py-0.5 rounded-full text-[10px] font-black ${
+              <span className="font-bold text-slate-500 min-w-0 truncate">Pending Attendance</span>
+              <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-black shrink-0 whitespace-nowrap inline-flex items-center justify-center leading-normal ${
                 pendingAttendanceCount > 0 ? 'bg-rose-100 text-rose-700 dark:bg-rose-950/50 dark:text-rose-400' : 'bg-slate-100 text-slate-500'
               }`}>
                 {pendingAttendanceCount} Classes
@@ -698,30 +719,29 @@ export const TeacherDashboardView: React.FC<TeacherDashboardViewProps> = ({ onNa
             </div>
 
             <div 
-              className="flex items-center justify-between p-2.5 rounded-xl bg-slate-50/50 dark:bg-slate-900/30 border border-slate-100 dark:border-slate-800/40 text-xs"
+              className="flex items-center justify-between gap-2.5 p-2.5 rounded-xl bg-slate-50/50 dark:bg-slate-900/30 border border-slate-100 dark:border-slate-800/40 text-xs"
             >
-              <span className="font-bold text-slate-500">Pending Marks Entry</span>
-              <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-amber-100 text-amber-800 dark:bg-amber-950/50 dark:text-amber-300">
+              <span className="font-bold text-slate-500 min-w-0 truncate">Pending Marks Entry</span>
+              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-amber-100 text-amber-800 dark:bg-amber-950/50 dark:text-amber-300 shrink-0 whitespace-nowrap inline-flex items-center justify-center leading-normal">
                 {pendingMarksEntryCount} Subjects
               </span>
             </div>
 
             <div 
-              className="flex items-center justify-between p-2.5 rounded-xl bg-slate-50/50 dark:bg-slate-900/30 border border-slate-100 dark:border-slate-800/40 text-xs"
+              className="flex items-center justify-between gap-2.5 p-2.5 rounded-xl bg-slate-50/50 dark:bg-slate-900/30 border border-slate-100 dark:border-slate-800/40 text-xs"
             >
-              <span className="font-bold text-slate-500">Pending Assignment Grading</span>
-              <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-blue-100 text-blue-700 dark:bg-blue-950/50 dark:text-blue-400">
+              <span className="font-bold text-slate-500 min-w-0 truncate" title="Pending Assignment Grading">Pending Assignment Grading</span>
+              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-blue-100 text-blue-700 dark:bg-blue-950/50 dark:text-blue-400 shrink-0 whitespace-nowrap inline-flex items-center justify-center leading-normal">
                 {pendingGradingCount} Submissions
               </span>
             </div>
           </div>
 
-          <div className="pt-2 border-t border-slate-100 dark:border-slate-800/60 flex items-center justify-between text-xs text-slate-400 font-medium">
-            <span>Syllabus & Grading control</span>
-            <span 
-              className="text-[10px] text-purple-500 font-bold flex items-center gap-0.5"
-            >
-              Gradebook
+          <div className="pt-2.5 border-t border-slate-100 dark:border-slate-800/60 flex items-center justify-between text-xs">
+            <span className="text-slate-500 dark:text-slate-400 font-medium">Syllabus & Grading control</span>
+            <span className="text-xs font-bold text-sky-600 dark:text-sky-400 hover:text-sky-700 dark:hover:text-sky-300 flex items-center gap-1 group-hover:translate-x-0.5 transition-all">
+              <span>Gradebook</span>
+              <ArrowRight className="w-3.5 h-3.5" />
             </span>
           </div>
         </div>
@@ -742,37 +762,38 @@ export const TeacherDashboardView: React.FC<TeacherDashboardViewProps> = ({ onNa
           </div>
 
           <div className="space-y-2.5 flex-grow pt-2 text-xs">
-            <div className="flex items-center justify-between p-2.5 rounded-xl bg-slate-50/50 dark:bg-slate-900/30 border border-slate-100 dark:border-slate-800/40">
-              <span className="font-bold text-slate-500">School Notices</span>
-              <span className="font-black text-slate-700 dark:text-slate-300">{notificationsData.schoolNotices} Bulletins</span>
+            <div className="flex items-center justify-between gap-2.5 p-2.5 rounded-xl bg-slate-50/50 dark:bg-slate-900/30 border border-slate-100 dark:border-slate-800/40">
+              <span className="font-bold text-slate-500 min-w-0 truncate">School Notices</span>
+              <span className="font-black text-slate-700 dark:text-slate-300 shrink-0 whitespace-nowrap">{notificationsData.schoolNotices} Bulletins</span>
             </div>
 
-            <div className="flex items-center justify-between p-2.5 rounded-xl bg-slate-50/50 dark:bg-slate-900/30 border border-slate-100 dark:border-slate-800/40">
-              <span className="font-bold text-slate-500">Principal Announcements</span>
-              <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-purple-100 text-purple-700 dark:bg-purple-950/50 dark:text-purple-300">
+            <div className="flex items-center justify-between gap-2.5 p-2.5 rounded-xl bg-slate-50/50 dark:bg-slate-900/30 border border-slate-100 dark:border-slate-800/40">
+              <span className="font-bold text-slate-500 min-w-0 truncate">Principal Announcements</span>
+              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-purple-100 text-purple-700 dark:bg-purple-950/50 dark:text-purple-300 shrink-0 whitespace-nowrap inline-flex items-center justify-center leading-normal">
                 {notificationsData.principalNotices} Alerts
               </span>
             </div>
 
-            <div className="flex items-center justify-between p-2.5 rounded-xl bg-slate-50/50 dark:bg-slate-900/30 border border-slate-100 dark:border-slate-800/40">
-              <span className="font-bold text-slate-500">Parent Messages</span>
-              <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-rose-100 text-rose-700 dark:bg-rose-950/50 dark:text-rose-400">
+            <div className="flex items-center justify-between gap-2.5 p-2.5 rounded-xl bg-slate-50/50 dark:bg-slate-900/30 border border-slate-100 dark:border-slate-800/40">
+              <span className="font-bold text-slate-500 min-w-0 truncate">Parent Messages</span>
+              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-rose-100 text-rose-700 dark:bg-rose-950/50 dark:text-rose-400 shrink-0 whitespace-nowrap inline-flex items-center justify-center leading-normal">
                 {notificationsData.parentMessages} Unread
               </span>
             </div>
           </div>
 
-          <div className="pt-2 border-t border-slate-100 dark:border-slate-800/60 flex items-center justify-between text-xs text-slate-400 font-medium">
-            <span>Notice board feed & chat</span>
-            <span className="text-[10px] text-rose-500 font-bold hover:underline flex items-center gap-0.5">
-              Notice Board <ArrowRight className="w-3.5 h-3.5" />
+          <div className="pt-2.5 border-t border-slate-100 dark:border-slate-800/60 flex items-center justify-between text-xs">
+            <span className="text-slate-500 dark:text-slate-400 font-medium">Notice board feed & chat</span>
+            <span className="text-xs font-bold text-sky-600 dark:text-sky-400 hover:text-sky-700 dark:hover:text-sky-300 flex items-center gap-1 group-hover:translate-x-0.5 transition-all">
+              <span>Notice Board</span>
+              <ArrowRight className="w-3.5 h-3.5" />
             </span>
           </div>
         </div>
 
         {/* 6. Quick Actions Card */}
         <div 
-          className="glass-card p-6 rounded-3xl border border-slate-200/60 dark:border-slate-800/60 hover:-translate-y-1 hover:shadow-lg transition-all duration-300 flex flex-col justify-between space-y-4"
+          className="glass-card p-6 rounded-3xl border border-slate-200/60 dark:border-slate-800/60 hover:-translate-y-1 hover:shadow-lg hover:border-amber-500/20 transition-all duration-300 flex flex-col justify-between space-y-4 group"
         >
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2.5">
@@ -817,8 +838,12 @@ export const TeacherDashboardView: React.FC<TeacherDashboardViewProps> = ({ onNa
             </button>
           </div>
 
-          <div className="pt-2 border-t border-slate-100 dark:border-slate-800/60 flex items-center justify-between text-xs text-slate-400 font-medium">
-            <span>Administrative shortcut grid</span>
+          <div className="pt-2.5 border-t border-slate-100 dark:border-slate-800/60 flex items-center justify-between text-xs">
+            <span className="text-slate-500 dark:text-slate-400 font-medium">Administrative shortcut grid</span>
+            <span className="text-xs font-bold text-sky-600 dark:text-sky-400 hover:text-sky-700 dark:hover:text-sky-300 flex items-center gap-1 group-hover:translate-x-0.5 transition-all">
+              <span>Quick Access</span>
+              <ArrowRight className="w-3.5 h-3.5" />
+            </span>
           </div>
         </div>
 

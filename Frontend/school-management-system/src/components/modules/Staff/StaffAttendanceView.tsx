@@ -1103,7 +1103,7 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
                     Leave Balance
                   </h3>
                 </div>
-                <span className="text-[10px] font-extrabold text-sky-700 dark:text-sky-300 bg-sky-50 dark:bg-sky-950/40 px-2 py-0.5 rounded-full border border-sky-200/70 dark:border-sky-900/50">
+                <span className="text-[10px] font-extrabold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/40 px-2 py-0.5 rounded-full border border-emerald-200/80 dark:border-emerald-900/60">
                   Active
                 </span>
               </div>
@@ -1174,29 +1174,23 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
 
             {/* Filters */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <div>
-                <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">
-                  Search
-                </label>
-                <div className="relative">
-                  <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
-                  <input
-                    type="text"
-                    value={personalSearchQuery}
-                    onChange={(e) => setPersonalSearchQuery(e.target.value)}
-                    placeholder="Search status (e.g. Present)..."
-                    className="w-full pl-8 pr-3 py-1.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-855 dark:text-slate-200 outline-none"
-                  />
-                </div>
+              <div className="relative">
+                <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                <input
+                  type="text"
+                  value={personalSearchQuery}
+                  onChange={(e) => setPersonalSearchQuery(e.target.value)}
+                  placeholder="Search status (e.g. Present)..."
+                  aria-label="Search status"
+                  className="w-full pl-8 pr-3 py-1.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-855 dark:text-slate-200 outline-none"
+                />
               </div>
 
               <div>
-                <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">
-                  Filter by Month
-                </label>
                 <select
                   value={personalFilterMonth}
                   onChange={(e) => setPersonalFilterMonth(e.target.value)}
+                  aria-label="Filter by Month"
                   className="w-full px-3 py-1.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-855 dark:text-slate-200 outline-none cursor-pointer"
                 >
                   <option value="All">All Months</option>
@@ -1209,13 +1203,11 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
               </div>
 
               <div>
-                <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">
-                  Filter by Date
-                </label>
                 <input
                   type="date"
                   value={personalFilterDate}
                   onChange={(e) => setPersonalFilterDate(e.target.value)}
+                  aria-label="Filter by Date"
                   className="w-full px-3 py-1.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-855 dark:text-slate-200 outline-none"
                 />
               </div>

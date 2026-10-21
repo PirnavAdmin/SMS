@@ -46,6 +46,16 @@ public class SubmitAdmissionDto
         set => DateOfBirth = value;
     }
 
+    [JsonPropertyName("admissionDate")]
+    public string? AdmissionDate { get; set; }
+
+    [JsonPropertyName("joiningDate")]
+    public string? JoiningDate
+    {
+        get => AdmissionDate;
+        set { if (!string.IsNullOrWhiteSpace(value) && string.IsNullOrWhiteSpace(AdmissionDate)) AdmissionDate = value; }
+    }
+
     [JsonPropertyName("gender")]
     public string Gender { get; set; } = "Male";
 

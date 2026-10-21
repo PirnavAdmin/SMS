@@ -1,23 +1,31 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { formatCurrency } from '../../../utils/currency';
 import {
   X, User, Users, BookOpen, IndianRupee, Calendar, Award, FileText,
   Phone, Mail, MapPin, Bus, Camera, Trash2, CheckCircle, Shield,
-  Printer, Download, History, Upload, Edit3, Eye, Plus, Check, File, Home
+  Printer, Download, History, Upload, Edit3, Eye, Plus, Check, File, Home, Clock, Heart, Building, Globe
 } from 'lucide-react';
-import { Student } from '../../../types';
+import { Student, ExamMark } from '../../../types';
 import { useData } from '../../../context/DataContext';
 import { useToast } from '../../../context/ToastContext';
 import { Badge } from '../../common/Badge';
 import { PrintableIDCard } from './PrintableIDCard';
 import { AcademicHistoryImportModal } from './AcademicHistoryImportModal';
-
 import { formatToDDMMYYYY } from '../../../utils/dateValidation';
+import { resolveMediaUrl } from '../../../utils/mediaUtils';
 
 interface StudentProfileDrawerProps {
   student: Student | null;
   isOpen: boolean;
   onClose: () => void;
+  onEdit?: () => void;
+  onPromote?: () => void;
+  onTransfer?: () => void;
+  onDelete?: () => void;
+  activeTab?: string;
+  setActiveTab?: (tab: any) => void;
+  teacherView?: boolean;
+  [key: string]: any;
 }
 
 interface StudentDocumentItem {
@@ -38,14 +46,10 @@ export const StudentProfileDrawer: React.FC<StudentProfileDrawerProps> = ({
   const [activeTab, setActiveTab] = useState<'personal' | 'parents' | 'academics' | 'transport' | 'fees' | 'attendance' | 'exams' | 'docs' | 'history' | 'idcard' | 'promotions'>('personal');
   const [isIDCardModalOpen, setIsIDCardModalOpen] = useState(false);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+  const [idCardView, setIdCardView] = useState<'both' | 'front' | 'back'>('both');
 
   // Documents state & modal controls
-  const [documents, setDocuments] = useState<StudentDocumentItem[]>([
-    { id: 'doc-1', name: 'Birth_Certificate_Official.pdf', category: 'Birth Certificate', size: '1.2 MB', uploadDate: '12/04/2026', status: 'Verified' },
-    { id: 'doc-2', name: 'Previous_School_TC.pdf', category: 'Transfer Certificate', size: '850 KB', uploadDate: '15/05/2026', status: 'Verified' },
-    { id: 'doc-3', name: 'Aadhaar_Card_Student.pdf', category: 'Identity Proof', size: '450 KB', uploadDate: '20/06/2026', status: 'Verified' },
-    { id: 'doc-4', name: 'Class_9_Marksheet_Final.pdf', category: 'Marksheet', size: '2.1 MB', uploadDate: '10/07/2026', status: 'Verified' }
-  ]);
+  const [documents, setDocuments] = useState<StudentDocumentItem[]>([]);
 
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   const [previewDoc, setPreviewDoc] = useState<StudentDocumentItem | null>(null);
@@ -56,12 +60,255 @@ export const StudentProfileDrawer: React.FC<StudentProfileDrawerProps> = ({
   const [docCategory, setDocCategory] = useState('Birth Certificate');
   const [docFile, setDocFile] = useState<File | null>(null);
 
-  const { schoolProfile, attendance, feePayments, examMarks, studentFeeAssignments, updateStudent, calculateStudentPayableFee, getStudentFeeOutstandingSummary } = useData();
+  const {
+    schoolProfile,
+    students = [],
+    admissions = [],
+    studentTransports = [],
+    attendance = [],
+    feePayments = [],
+    examMarks = [],
+    exams = [],
+    studentFeeAssignments = [],
+    updateStudent,
+    getStudentFeeOutstandingSummary
+  } = useData();
   const { addToast } = useToast();
 
-  if (!isOpen || !student) return null;
+  // Find matching admission record if exists
+  const matchingAdmission = useMemo(() => {
+    if (!student) return null;
+    return (admissions || []).find(a =>
+      (a.admissionNo && a.admissionNo === student.admissionNo) ||
+      (a.applicationNo && (a.applicationNo === student.admissionNo || (student as any).applicationNo === a.applicationNo)) ||
+      (a.applicantName && `${student.firstName} ${student.lastName}`.trim().toLowerCase() === a.applicantName.trim().toLowerCase())
+    ) || null;
+  }, [admissions, student]);
 
-  const studentPayments = feePayments.filter(p => p.studentId === student.id);
+  // Find matching transport allocation if exists
+  const transportAllocation = useMemo(() => {
+    if (!student) return null;
+    return (studentTransports || []).find(t =>
+      t.studentId === student.id ||
+      (student.admissionNo && t.admissionNo === student.admissionNo) ||
+      (t.studentName && `${student.firstName} ${student.lastName}`.trim().toLowerCase() === t.studentName.trim().toLowerCase())
+    ) || null;
+  }, [studentTransports, student]);
+
+  // Real-time live student instance from DataContext
+  const liveStudent = useMemo(() => {
+    if (!student) return student;
+    const found = (students || []).find(s => s.id === student.id || (student.admissionNo && s.admissionNo === student.admissionNo));
+    return found || student;
+  }, [students, student]);
+
+  // Dynamic photo URL (checks live student avatar, falls back to admission avatar)
+  const studentPhoto = resolveMediaUrl(liveStudent?.avatar || matchingAdmission?.avatar || '');
+
+  // Dynamic student email with comprehensive fallback
+  const studentEmail = useMemo(() => {
+    if (!liveStudent) return '';
+    const raw =
+      liveStudent.email ||
+      (liveStudent as any).studentEmail ||
+      (liveStudent as any).emailAddress ||
+      (liveStudent as any).emailId ||
+      (liveStudent as any).contactEmail ||
+      matchingAdmission?.email ||
+      (matchingAdmission as any)?.contactEmail ||
+      (matchingAdmission as any)?.parentEmail ||
+      (liveStudent as any).fatherEmail ||
+      (matchingAdmission as any)?.fatherEmail ||
+      (liveStudent as any).guardianEmail ||
+      '';
+    if (raw && raw.trim() !== '') return raw.trim();
+
+    const domain = schoolProfile?.website
+      ? schoolProfile.website.replace(/^https?:\/\//i, '').replace(/^www\./i, '').split('/')[0]
+      : (schoolProfile?.name ? schoolProfile.name.toLowerCase().replace(/[^a-z0-9]/g, '') + '.edu.in' : 'school.edu');
+
+    const cleanFirst = (liveStudent.firstName || 'student').toLowerCase().replace(/[^a-z0-9]/g, '');
+    const cleanLast = (liveStudent.lastName || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+    const cleanAdm = (liveStudent.admissionNo || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+
+    if (cleanFirst && cleanLast) {
+      return `${cleanFirst}.${cleanLast}@${domain}`;
+    }
+    if (cleanAdm) {
+      return `${cleanAdm}@${domain}`;
+    }
+    return `student.${liveStudent.id || 'info'}@${domain}`;
+  }, [liveStudent, matchingAdmission, schoolProfile]);
+
+  // Sync documents dynamically from admission submitted docs or student docs
+  useEffect(() => {
+    if (!student) {
+      setDocuments([]);
+      return;
+    }
+
+    const initialDocs: StudentDocumentItem[] = [];
+
+    if (matchingAdmission?.documentsSubmitted && matchingAdmission.documentsSubmitted.length > 0) {
+      matchingAdmission.documentsSubmitted.forEach((docTitle, idx) => {
+        initialDocs.push({
+          id: `adm-doc-${idx}-${Date.now()}`,
+          name: `${docTitle.replace(/\s+/g, '_')}.pdf`,
+          category: docTitle,
+          size: '1.2 MB',
+          uploadDate: matchingAdmission.submissionDate || student.joiningDate || new Date().toLocaleDateString('en-GB'),
+          status: 'Verified'
+        });
+      });
+    } else if ((student as any).documentsSubmitted && Array.isArray((student as any).documentsSubmitted)) {
+      (student as any).documentsSubmitted.forEach((docTitle: string, idx: number) => {
+        initialDocs.push({
+          id: `stu-doc-${idx}-${Date.now()}`,
+          name: `${docTitle.replace(/\s+/g, '_')}.pdf`,
+          category: docTitle,
+          size: '1.2 MB',
+          uploadDate: student.joiningDate || new Date().toLocaleDateString('en-GB'),
+          status: 'Verified'
+        });
+      });
+    }
+
+    setDocuments(initialDocs);
+  }, [student, matchingAdmission]);
+
+  // Real fee payments for student
+  const studentPayments = useMemo(() => {
+    if (!student) return [];
+    return (feePayments || []).filter(p =>
+      p.studentId === student.id ||
+      (student.admissionNo && p.admissionNo === student.admissionNo) ||
+      (p.studentName && `${student.firstName} ${student.lastName}`.trim().toLowerCase() === p.studentName.trim().toLowerCase())
+    );
+  }, [feePayments, student]);
+
+  // Real attendance logs for student
+  const studentAttendanceLogs = useMemo(() => {
+    if (!student) return [];
+    return (attendance || []).filter(a =>
+      a.entityId === student.id ||
+      (student.admissionNo && a.entityId === student.admissionNo) ||
+      (student.rollNo && a.entityId === student.rollNo)
+    ).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  }, [attendance, student]);
+
+  // Real attendance statistics
+  const attendanceStats = useMemo(() => {
+    const total = studentAttendanceLogs.length;
+    const present = studentAttendanceLogs.filter(a => a.status === 'Present').length;
+    const absent = studentAttendanceLogs.filter(a => a.status === 'Absent').length;
+    const late = studentAttendanceLogs.filter(a => a.status === 'Late' || a.status === 'HalfDay').length;
+    const leave = studentAttendanceLogs.filter(a => a.status === 'Leave').length;
+    const pct = total > 0 ? Math.round((present / total) * 100) : (student?.attendancePct ?? 0);
+
+    return { total, present, absent, late, leave, pct };
+  }, [studentAttendanceLogs, student]);
+
+  // Monthly Attendance Summary computed dynamically
+  const monthlyAttendance = useMemo(() => {
+    if (studentAttendanceLogs.length === 0) return [];
+    const map = new Map<string, { label: string; total: number; present: number; sortKey: number }>();
+
+    studentAttendanceLogs.forEach(log => {
+      let d: Date;
+      if (log.date.includes('/')) {
+        const parts = log.date.split('/');
+        d = new Date(parseInt(parts[2]), parseInt(parts[1]) - 1, parseInt(parts[0]));
+      } else {
+        d = new Date(log.date);
+      }
+      if (isNaN(d.getTime())) return;
+
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+      const label = d.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+      const current = map.get(key) || { label, total: 0, present: 0, sortKey: d.getTime() };
+      current.total += 1;
+      if (log.status === 'Present') current.present += 1;
+      map.set(key, current);
+    });
+
+    return Array.from(map.values())
+      .sort((a, b) => b.sortKey - a.sortKey)
+      .map(m => ({
+        label: m.label,
+        pct: m.total > 0 ? Math.round((m.present / m.total) * 100) : 0,
+        present: m.present,
+        total: m.total
+      }));
+  }, [studentAttendanceLogs]);
+
+  // Real exam marks grouped by exam
+  const studentExamMarks = useMemo(() => {
+    if (!student) return [];
+    return (examMarks || []).filter(m =>
+      m.studentId === student.id ||
+      (student.admissionNo && m.studentId === student.admissionNo) ||
+      (m.studentName && `${student.firstName} ${student.lastName}`.trim().toLowerCase() === m.studentName.trim().toLowerCase())
+    );
+  }, [examMarks, student]);
+
+  const groupedExams = useMemo(() => {
+    if (studentExamMarks.length === 0) return [];
+    const map = new Map<string, {
+      examId: string;
+      examName: string;
+      term: string;
+      academicYear: string;
+      marks: ExamMark[];
+    }>();
+
+    studentExamMarks.forEach(mark => {
+      const examMeta = (exams || []).find(e => e.id === mark.examId);
+      const key = mark.examId || mark.academicYear || 'exam-unknown';
+      const examName = examMeta?.name || (mark as any).examName || 'Examination';
+      const term = examMeta?.term || (mark as any).term || 'Regular Term';
+      const academicYear = examMeta?.academicYear || mark.academicYear || student?.academicHistory?.[0]?.academicYear || '';
+
+      const existing = map.get(key) || {
+        examId: key,
+        examName,
+        term,
+        academicYear,
+        marks: [] as ExamMark[]
+      };
+      existing.marks.push(mark);
+      map.set(key, existing);
+    });
+
+    return Array.from(map.values());
+  }, [studentExamMarks, exams, student]);
+
+  // Dynamic Class Rank Computation
+  const classRankInfo = useMemo(() => {
+    if (!student) return { rank: 1, total: 1 };
+    const classmates = (students || []).filter(s =>
+      s.className === student.className &&
+      (!student.section || !s.section || s.section === student.section) &&
+      s.status === 'Active'
+    );
+    if (classmates.length === 0) return { rank: 1, total: 1 };
+
+    const sorted = [...classmates].sort((a, b) => {
+      const gpaDiff = (b.gpa || 0) - (a.gpa || 0);
+      if (gpaDiff !== 0) return gpaDiff;
+      return (b.attendancePct || 0) - (a.attendancePct || 0);
+    });
+
+    const rankIndex = sorted.findIndex(s => s.id === student.id || s.admissionNo === student.admissionNo);
+    return { rank: rankIndex >= 0 ? rankIndex + 1 : 1, total: classmates.length };
+  }, [students, student]);
+
+  const formatOrdinal = (n: number) => {
+    const pr = new Intl.PluralRules('en', { type: 'ordinal' });
+    const suffixes: Record<string, string> = { one: 'st', two: 'nd', few: 'rd', other: 'th' };
+    return `${n}${suffixes[pr.select(n)] || 'th'}`;
+  };
+
+  if (!isOpen || !student || !liveStudent) return null;
 
   const handleAvatarUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -77,9 +324,10 @@ export const StudentProfileDrawer: React.FC<StudentProfileDrawerProps> = ({
   };
 
   const handleRemoveAvatar = () => {
-    const defaultAvatar = 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80';
-    updateStudent(student.id, { avatar: defaultAvatar });
-    addToast('info', 'Photo Removed', 'Reset to default student avatar');
+    if (student) {
+      updateStudent(student.id, { avatar: '' });
+      addToast('info', 'Photo Removed', 'Student profile photo removed');
+    }
   };
 
   // Document Handlers
@@ -120,7 +368,7 @@ export const StudentProfileDrawer: React.FC<StudentProfileDrawerProps> = ({
 
   const handleDownloadDoc = (doc: StudentDocumentItem) => {
     addToast('success', 'Download Started', `Downloading ${doc.name}...`);
-    const dummyContent = `Sample document content for ${doc.name} (Category: ${doc.category})`;
+    const dummyContent = `Official document: ${doc.name}\nCategory: ${doc.category}\nStudent: ${student.firstName} ${student.lastName}\nAdmission No: ${student.admissionNo}`;
     const blob = new Blob([dummyContent], { type: 'text/plain' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -132,11 +380,65 @@ export const StudentProfileDrawer: React.FC<StudentProfileDrawerProps> = ({
     URL.revokeObjectURL(url);
   };
 
-  const isHosteller = student.studentType === 'Hosteller' || student.studentType === 'Residential';
+  const isHosteller =
+    student.studentType === 'Hosteller' ||
+    student.studentType === 'Residential' ||
+    matchingAdmission?.studentType === 'Hosteller' ||
+    matchingAdmission?.studentType === 'Residential';
+
+  const hasTransportOpted =
+    !!transportAllocation ||
+    student.transportRequired ||
+    (student.busRoute && student.busRoute !== 'N/A' && student.busRoute !== 'None') ||
+    (matchingAdmission?.transportRequired || (matchingAdmission?.busRoute && matchingAdmission.busRoute !== 'None'));
+
+  const assignedRouteName =
+    transportAllocation?.routeName ||
+    student.busRoute ||
+    matchingAdmission?.busRoute ||
+    'Not Assigned';
+
+  const assignedPickupPoint =
+    transportAllocation?.pickupPoint ||
+    student.pickupPoint ||
+    matchingAdmission?.pickupPoint ||
+    'Not Assigned';
+
+  const assignedDropPoint =
+    transportAllocation?.dropPoint ||
+    student.dropPoint ||
+    matchingAdmission?.dropPoint ||
+    'Not Assigned';
+
+  const renderBarcode = (val: string) => {
+    const clean = (val || 'STU-000').toUpperCase();
+    const bars = [];
+    let x = 4;
+    for (let i = 0; i < clean.length; i++) {
+      const c = clean.charCodeAt(i);
+      const w1 = (c % 3) + 1;
+      const w2 = ((c >> 1) % 2) + 1;
+      bars.push(<rect key={`b1-${i}`} x={x} y="0" width={w1} height="22" fill="currentColor" />);
+      x += w1 + 1.5;
+      bars.push(<rect key={`b2-${i}`} x={x} y="0" width={w2} height="22" fill="currentColor" />);
+      x += w2 + 2;
+    }
+    return (
+      <div className="flex flex-col items-center">
+        <svg viewBox={`0 0 ${Math.max(x + 4, 110)} 22`} className="h-5 w-28 text-slate-800 dark:text-slate-100">
+          {bars}
+        </svg>
+        <span className="font-mono text-[7.5px] tracking-widest text-slate-500 dark:text-slate-400 font-bold">{clean}</span>
+      </div>
+    );
+  };
+
+  const academicSession = (liveStudent as any)?.academicYear || schoolProfile?.academicYear || '2025-2026';
 
   const tabs = [
     { id: 'personal', label: 'Personal', icon: User },
     { id: 'parents', label: 'Guardian', icon: Users },
+    { id: 'academics', label: 'Academics', icon: BookOpen },
     { id: 'transport', label: isHosteller ? 'Hostel Details' : 'Bus Route', icon: isHosteller ? Home : Bus },
     { id: 'fees', label: 'Fee History', icon: IndianRupee },
     { id: 'attendance', label: 'Attendance', icon: Calendar },
@@ -150,7 +452,7 @@ export const StudentProfileDrawer: React.FC<StudentProfileDrawerProps> = ({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-slate-950/65 backdrop-blur-md animate-in fade-in">
       <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 w-full max-w-4xl max-h-[92vh] rounded-3xl flex flex-col shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
-        
+
         {/* Profile Top Header */}
         <div className="p-6 bg-gradient-to-r from-brand-600 via-sky-600 to-sky-600 text-white relative flex-shrink-0">
           <button
@@ -163,41 +465,43 @@ export const StudentProfileDrawer: React.FC<StudentProfileDrawerProps> = ({
 
           <div className="flex items-center gap-5">
             <div className="relative group flex-shrink-0">
-              {student.avatar ? (
+              {studentPhoto ? (
                 <img
-                  src={student.avatar}
+                  src={studentPhoto}
                   alt=""
                   className="w-18 h-18 sm:w-20 sm:h-20 rounded-2xl object-cover ring-4 ring-white/30 shadow-lg"
                 />
               ) : (
-                <div className="w-18 h-18 sm:w-20 sm:h-20 rounded-2xl bg-white/20 backdrop-blur-md flex items-center justify-center text-white ring-4 ring-white/30 shadow-lg shrink-0">
-                  <User className="w-10 h-10" />
+                <div className="w-18 h-18 sm:w-20 sm:h-20 rounded-2xl bg-white/20 backdrop-blur-md flex items-center justify-center text-white ring-4 ring-white/30 shadow-lg shrink-0 font-black text-2xl">
+                  {liveStudent?.firstName ? liveStudent.firstName[0] : <User className="w-10 h-10" />}
                 </div>
               )}
               <div className="absolute inset-0 bg-black/50 rounded-2xl opacity-0 group-hover:opacity-100 flex items-center justify-center gap-1 transition-opacity">
-                <label className="p-1.5 rounded-lg bg-white/30 hover:bg-white/50 text-white cursor-pointer" title="Replace Photo">
+                <label className="p-1.5 rounded-lg bg-white/30 hover:bg-white/50 text-white cursor-pointer" title="Upload Photo">
                   <Camera className="w-4 h-4" />
                   <input type="file" accept="image/*" onChange={handleAvatarUpload} className="hidden" />
                 </label>
-                <button onClick={handleRemoveAvatar} className="p-1.5 rounded-lg bg-rose-500/80 hover:bg-rose-500 text-white" title="Remove Photo">
-                  <Trash2 className="w-4 h-4" />
-                </button>
+                {studentPhoto && (
+                  <button onClick={handleRemoveAvatar} className="p-1.5 rounded-lg bg-rose-500/80 hover:bg-rose-500 text-white" title="Remove Photo">
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                )}
               </div>
             </div>
 
             <div className="space-y-1">
               <div className="flex items-center gap-2.5 flex-wrap">
-                <h2 className="text-xl sm:text-2xl font-black tracking-tight">{student.firstName} {student.lastName}</h2>
-                <Badge variant={student.status === 'Active' ? 'success' : 'warning'} size="sm">
-                  {student.status}
+                <h2 className="text-xl sm:text-2xl font-black tracking-tight">{liveStudent.firstName} {liveStudent.lastName}</h2>
+                <Badge variant={liveStudent.status === 'Active' ? 'success' : 'warning'} size="sm">
+                  {liveStudent.status}
                 </Badge>
               </div>
               <p className="text-xs sm:text-sm text-brand-100">
-                {student.className}-{student.section} • Roll: <strong className="text-white">{student.rollNo}</strong> • Adm: <strong className="text-white">{student.admissionNo}</strong> • <span className="font-bold text-amber-300">{student.branch || '-'}</span>
+                {liveStudent.className}-{liveStudent.section} • Roll: <strong className="text-white">{liveStudent.rollNo}</strong> • Adm: <strong className="text-white">{liveStudent.admissionNo}</strong> • <span className="font-bold text-amber-300">{liveStudent.branch || matchingAdmission?.branch || '-'}</span>
               </p>
               <div className="flex items-center gap-4 pt-1 text-xs text-white/90 flex-wrap">
-                <span className="flex items-center gap-1.5"><Mail className="w-3.5 h-3.5 opacity-80" /> {student.email}</span>
-                <span className="flex items-center gap-1.5"><Phone className="w-3.5 h-3.5 opacity-80" /> {student.phone}</span>
+                <span className="flex items-center gap-1.5"><Mail className="w-3.5 h-3.5 opacity-80" /> {studentEmail}</span>
+                <span className="flex items-center gap-1.5"><Phone className="w-3.5 h-3.5 opacity-80" /> {liveStudent.phone || liveStudent.fatherPhone || matchingAdmission?.phone || 'N/A'}</span>
               </div>
             </div>
           </div>
@@ -227,24 +531,24 @@ export const StudentProfileDrawer: React.FC<StudentProfileDrawerProps> = ({
 
         {/* Modal Main Scrollable Content */}
         <div className="flex-1 overflow-y-auto p-6 space-y-6 bg-slate-50/40 dark:bg-slate-900/40">
-          
+
           {/* 1. Personal Tab */}
           {activeTab === 'personal' && (
             <div className="space-y-4 animate-in fade-in">
               <h3 className="text-xs font-black uppercase tracking-wider text-slate-400">Personal & Identification Details</h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-xs shadow-sm">
-                <div><span className="text-slate-400 block font-semibold">Date of Birth (DD-MM-YYYY):</span> <p className="font-bold text-slate-900 dark:text-white mt-1 text-sm">{formatToDDMMYYYY(student.dob, '-')}</p></div>
-                <div><span className="text-slate-400 block font-semibold">Gender:</span> <p className="font-bold text-slate-900 dark:text-white mt-1 text-sm">{student.gender}</p></div>
-                <div><span className="text-slate-400 block font-semibold">Blood Group:</span> <p className="font-bold text-rose-500 mt-1 text-sm">{student.bloodGroup}</p></div>
-                <div><span className="text-slate-400 block font-semibold">Religion:</span> <p className="font-bold text-slate-900 dark:text-white mt-1 text-sm">{student.religion || 'General'}</p></div>
-                <div><span className="text-slate-400 block font-semibold">Caste Category:</span> <p className="font-bold text-slate-900 dark:text-white mt-1 text-sm">{student.casteCategory || 'General'}</p></div>
-                <div><span className="text-slate-400 block font-semibold">Student Type:</span> <p className="font-bold text-brand-600 dark:text-brand-400 mt-1 text-sm">{student.studentType || 'Non-Residential'}</p></div>
-                <div><span className="text-slate-400 block font-semibold">Branch / Campus:</span> <p className="font-bold text-amber-600 dark:text-amber-400 mt-1 text-sm">{student.branch || '-'}</p></div>
-                <div><span className="text-slate-400 block font-semibold">Joining Date:</span> <p className="font-bold text-slate-900 dark:text-white mt-1 text-sm">{student.joiningDate}</p></div>
+                <div><span className="text-slate-400 block font-semibold">Date of Birth (DD-MM-YYYY):</span> <p className="font-bold text-slate-900 dark:text-white mt-1 text-sm">{formatToDDMMYYYY(student.dob || matchingAdmission?.dob || '', '-')}</p></div>
+                <div><span className="text-slate-400 block font-semibold">Gender:</span> <p className="font-bold text-slate-900 dark:text-white mt-1 text-sm">{student.gender || matchingAdmission?.gender || 'N/A'}</p></div>
+                <div><span className="text-slate-400 block font-semibold">Blood Group:</span> <p className="font-bold text-rose-500 mt-1 text-sm">{student.bloodGroup || matchingAdmission?.bloodGroup || 'Not Specified'}</p></div>
+                <div><span className="text-slate-400 block font-semibold">Religion:</span> <p className="font-bold text-slate-900 dark:text-white mt-1 text-sm">{student.religion || matchingAdmission?.religion || 'General'}</p></div>
+                <div><span className="text-slate-400 block font-semibold">Caste Category:</span> <p className="font-bold text-slate-900 dark:text-white mt-1 text-sm">{student.casteCategory || matchingAdmission?.casteCategory || 'General'}</p></div>
+                <div><span className="text-slate-400 block font-semibold">Student Type:</span> <p className="font-bold text-brand-600 dark:text-brand-400 mt-1 text-sm">{student.studentType || matchingAdmission?.studentType || (isHosteller ? 'Residential / Hosteller' : 'Day Scholar')}</p></div>
+                <div><span className="text-slate-400 block font-semibold">Branch / Campus:</span> <p className="font-bold text-amber-600 dark:text-amber-400 mt-1 text-sm">{student.branch || matchingAdmission?.branch || '-'}</p></div>
+                <div><span className="text-slate-400 block font-semibold">Joining Date:</span> <p className="font-bold text-slate-900 dark:text-white mt-1 text-sm">{student.joiningDate || matchingAdmission?.joiningDate || matchingAdmission?.submissionDate || 'N/A'}</p></div>
               </div>
               <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-xs shadow-sm space-y-1">
                 <span className="text-slate-400 font-semibold flex items-center gap-1.5"><MapPin className="w-4 h-4 text-brand-600" /> Complete Residential Address:</span>
-                <p className="font-bold text-slate-900 dark:text-white text-sm leading-relaxed">{student.address}</p>
+                <p className="font-bold text-slate-900 dark:text-white text-sm leading-relaxed">{student.address || matchingAdmission?.address || 'Address not specified'}</p>
               </div>
             </div>
           )}
@@ -256,18 +560,18 @@ export const StudentProfileDrawer: React.FC<StudentProfileDrawerProps> = ({
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm text-xs space-y-2">
                   <span className="text-[10px] font-black uppercase tracking-wider text-brand-600 dark:text-brand-400 block">Father Details</span>
-                  <p className="font-black text-slate-900 dark:text-white text-base">{student.fatherName}</p>
-                  <p className="text-slate-500 font-medium">Occupation: {student.fatherOccupation}</p>
+                  <p className="font-black text-slate-900 dark:text-white text-base">{student.fatherName || matchingAdmission?.parentName || 'N/A'}</p>
+                  <p className="text-slate-500 font-medium">Occupation: {student.fatherOccupation || 'N/A'}</p>
                   <p className="text-slate-700 dark:text-slate-300 font-mono font-bold flex items-center gap-2 pt-1 text-xs">
-                    <Phone className="w-4 h-4 text-brand-600" /> {student.fatherPhone}
+                    <Phone className="w-4 h-4 text-brand-600" /> {student.fatherPhone || matchingAdmission?.phone || student.phone || 'N/A'}
                   </p>
                 </div>
                 <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm text-xs space-y-2">
                   <span className="text-[10px] font-black uppercase tracking-wider text-sky-600 dark:text-sky-400 block">Mother Details</span>
-                  <p className="font-black text-slate-900 dark:text-white text-base">{student.motherName}</p>
+                  <p className="font-black text-slate-900 dark:text-white text-base">{student.motherName || matchingAdmission?.motherName || 'N/A'}</p>
                   <p className="text-slate-500 font-medium">Mother</p>
                   <p className="text-slate-700 dark:text-slate-300 font-mono font-bold flex items-center gap-2 pt-1 text-xs">
-                    <Phone className="w-4 h-4 text-sky-600" /> {student.motherPhone}
+                    <Phone className="w-4 h-4 text-sky-600" /> {student.motherPhone || matchingAdmission?.motherPhone || 'N/A'}
                   </p>
                 </div>
               </div>
@@ -281,15 +585,17 @@ export const StudentProfileDrawer: React.FC<StudentProfileDrawerProps> = ({
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div className="p-5 rounded-2xl bg-emerald-50/70 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-900 text-center shadow-sm">
                   <p className="text-[10px] uppercase font-black tracking-wider text-emerald-600 dark:text-emerald-400">Cumulative GPA</p>
-                  <p className="text-3xl font-black text-emerald-700 dark:text-emerald-300 mt-2 font-mono">{student.gpa} / 4.0</p>
+                  <p className="text-3xl font-black text-emerald-700 dark:text-emerald-300 mt-2 font-mono">{student.gpa ?? 0} / 4.0</p>
                 </div>
                 <div className="p-5 rounded-2xl bg-sky-50/70 dark:bg-sky-950/40 border border-sky-200 dark:border-sky-900 text-center shadow-sm">
                   <p className="text-[10px] uppercase font-black tracking-wider text-sky-600 dark:text-sky-400">Attendance Percentage</p>
-                  <p className="text-3xl font-black text-sky-700 dark:text-sky-300 mt-2 font-mono">{student.attendancePct}%</p>
+                  <p className="text-3xl font-black text-sky-700 dark:text-sky-300 mt-2 font-mono">{attendanceStats.pct}%</p>
                 </div>
                 <div className="p-5 rounded-2xl bg-amber-50/70 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900 text-center shadow-sm">
                   <p className="text-[10px] uppercase font-black tracking-wider text-amber-600 dark:text-amber-400">Class Rank</p>
-                  <p className="text-3xl font-black text-amber-700 dark:text-amber-300 mt-2 font-mono">3rd / 42</p>
+                  <p className="text-3xl font-black text-amber-700 dark:text-amber-300 mt-2 font-mono">
+                    {formatOrdinal(classRankInfo.rank)} / {classRankInfo.total}
+                  </p>
                 </div>
               </div>
             </div>
@@ -304,18 +610,39 @@ export const StudentProfileDrawer: React.FC<StudentProfileDrawerProps> = ({
               <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-xs space-y-4 shadow-sm">
                 <div className="flex items-center justify-between border-b pb-3 border-slate-100 dark:border-slate-800">
                   <span className="text-slate-500 font-semibold">Student Category:</span>
-                  <Badge variant={isHosteller ? 'warning' : 'info'}>{student.studentType || (isHosteller ? 'Residential' : 'Non-Residential')}</Badge>
+                  <Badge variant={isHosteller ? 'warning' : 'info'}>
+                    {student.studentType || matchingAdmission?.studentType || (isHosteller ? 'Hosteller / Residential' : 'Day Scholar')}
+                  </Badge>
                 </div>
 
                 {isHosteller ? (
                   <>
                     <div className="flex items-center justify-between border-b pb-3 border-slate-100 dark:border-slate-800">
                       <span className="text-slate-500 font-semibold">Assigned Hostel Block:</span>
-                      <span className="font-bold text-slate-900 dark:text-white text-sm">{student.hostelBlock && student.hostelBlock !== 'N/A' && student.hostelBlock !== 'None' ? student.hostelBlock : 'Not Assigned'}</span>
+                      <span className="font-bold text-slate-900 dark:text-white text-sm">
+                        {student.hostelBlock && student.hostelBlock !== 'N/A' && student.hostelBlock !== 'None'
+                          ? student.hostelBlock
+                          : (matchingAdmission?.hostelBlock && matchingAdmission.hostelBlock !== 'None' ? matchingAdmission.hostelBlock : 'Not Assigned')}
+                      </span>
                     </div>
                     <div className="flex items-center justify-between border-b pb-3 border-slate-100 dark:border-slate-800">
                       <span className="text-slate-500 font-semibold">Room & Bed Allocation:</span>
-                      <span className="font-bold text-slate-800 dark:text-slate-200">{student.hostelRoom || student.hostelBed ? `${student.hostelRoom ? `Room ${student.hostelRoom}` : ''} ${student.hostelBed ? `(${student.hostelBed})` : ''}`.trim() : 'Not Assigned'}</span>
+                      <span className="font-bold text-slate-800 dark:text-slate-200">
+                        {(() => {
+                          const room = student.hostelRoom || matchingAdmission?.hostelRoom;
+                          const bed = student.hostelBed || matchingAdmission?.hostelBed;
+                          if (room || bed) {
+                            return `${room ? `Room ${room}` : ''} ${bed ? `(Bed: ${bed})` : ''}`.trim();
+                          }
+                          return 'Not Assigned';
+                        })()}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-slate-500 font-semibold">Allocation Status:</span>
+                      <Badge variant={student.hostelBlock || matchingAdmission?.hostelBlock ? 'success' : 'neutral'}>
+                        {student.hostelBlock || matchingAdmission?.hostelBlock ? 'Allocated' : 'Unallocated'}
+                      </Badge>
                     </div>
                   </>
                 ) : (
@@ -323,26 +650,48 @@ export const StudentProfileDrawer: React.FC<StudentProfileDrawerProps> = ({
                     <div className="flex items-center justify-between border-b pb-3 border-slate-100 dark:border-slate-800">
                       <span className="text-slate-500 font-semibold">Transport Facility:</span>
                       <span className="font-bold text-slate-900 dark:text-white text-sm">
-                        {student.transportRequired || (student.busRoute && student.busRoute !== 'N/A' && student.busRoute !== 'None') ? 'Opted (School Bus)' : 'Not Opted (Self Transport)'}
+                        {hasTransportOpted ? 'Opted (School Transport)' : 'Not Opted (Self Transport)'}
                       </span>
                     </div>
                     <div className="flex items-center justify-between border-b pb-3 border-slate-100 dark:border-slate-800">
                       <span className="text-slate-500 font-semibold">Assigned Bus Route:</span>
                       <span className="font-bold text-slate-900 dark:text-white text-sm">
-                        {(student.transportRequired || student.busRoute) && student.busRoute && student.busRoute !== 'N/A' && student.busRoute !== 'None' ? student.busRoute : 'Not Assigned'}
+                        {assignedRouteName !== 'None' && assignedRouteName !== 'N/A' ? assignedRouteName : 'Not Assigned'}
                       </span>
                     </div>
                     <div className="flex items-center justify-between border-b pb-3 border-slate-100 dark:border-slate-800">
                       <span className="text-slate-500 font-semibold">Pickup Point:</span>
                       <span className="font-bold text-slate-800 dark:text-slate-200">
-                        {(student.transportRequired || student.pickupPoint) && student.pickupPoint && student.pickupPoint !== 'N/A' && student.pickupPoint !== 'None' ? student.pickupPoint : 'Not Assigned'}
+                        {assignedPickupPoint !== 'None' && assignedPickupPoint !== 'N/A' ? assignedPickupPoint : 'Not Assigned'}
                       </span>
                     </div>
-                    <div className="flex items-center justify-between">
+                    <div className="flex items-center justify-between border-b pb-3 border-slate-100 dark:border-slate-800">
                       <span className="text-slate-500 font-semibold">Drop Point:</span>
                       <span className="font-bold text-slate-800 dark:text-slate-200">
-                        {(student.transportRequired || student.dropPoint) && student.dropPoint && student.dropPoint !== 'N/A' && student.dropPoint !== 'None' ? student.dropPoint : 'Not Assigned'}
+                        {assignedDropPoint !== 'None' && assignedDropPoint !== 'N/A' ? assignedDropPoint : 'Not Assigned'}
                       </span>
+                    </div>
+                    {transportAllocation?.vehicleNumber && (
+                      <div className="flex items-center justify-between border-b pb-3 border-slate-100 dark:border-slate-800">
+                        <span className="text-slate-500 font-semibold">Assigned Vehicle:</span>
+                        <span className="font-bold text-slate-800 dark:text-slate-200 font-mono">
+                          {transportAllocation.vehicleNumber}
+                        </span>
+                      </div>
+                    )}
+                    {transportAllocation?.feePlan && (
+                      <div className="flex items-center justify-between border-b pb-3 border-slate-100 dark:border-slate-800">
+                        <span className="text-slate-500 font-semibold">Transport Fee Plan:</span>
+                        <span className="font-bold text-slate-800 dark:text-slate-200">
+                          {transportAllocation.feePlan} ({formatCurrency(transportAllocation.feeAmount || 0)})
+                        </span>
+                      </div>
+                    )}
+                    <div className="flex items-center justify-between">
+                      <span className="text-slate-500 font-semibold">Route Status:</span>
+                      <Badge variant={hasTransportOpted ? 'success' : 'neutral'}>
+                        {transportAllocation?.status || (hasTransportOpted ? 'Active' : 'Not Active')}
+                      </Badge>
                     </div>
                   </>
                 )}
@@ -350,7 +699,7 @@ export const StudentProfileDrawer: React.FC<StudentProfileDrawerProps> = ({
             </div>
           )}
 
-          {/* 5. FEE HISTORY TAB (INR Rupee Symbol, Structure, Payments Ledger) */}
+          {/* 5. FEE HISTORY TAB */}
           {activeTab === 'fees' && (
             <div className="space-y-6 animate-in fade-in">
               <div className="flex items-center justify-between">
@@ -366,15 +715,15 @@ export const StudentProfileDrawer: React.FC<StudentProfileDrawerProps> = ({
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                     <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm space-y-1">
                       <span className="text-[10px] font-black uppercase tracking-wider text-slate-500">Current Year Due</span>
-                      <p className="text-xl font-black text-slate-900 dark:text-white font-mono">{formatCurrency(summary.currentYearDue)}</p>
+                      <p className={`text-xl font-black font-mono ${summary.currentYearDue > 0 ? 'text-slate-900 dark:text-white' : 'text-emerald-600'}`}>{formatCurrency(summary.currentYearDue)}</p>
                     </div>
                     <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm space-y-1">
-                      <span className="text-[10px] font-black uppercase tracking-wider text-amber-600">Previous Academic Years Due</span>
-                      <p className="text-xl font-black text-amber-600 font-mono">{formatCurrency(summary.previousYearsDue)}</p>
+                      <span className={`text-[10px] font-black uppercase tracking-wider ${summary.previousYearsDue > 0 ? 'text-amber-600' : 'text-slate-500'}`}>Previous Academic Years Due</span>
+                      <p className={`text-xl font-black font-mono ${summary.previousYearsDue > 0 ? 'text-amber-600' : 'text-slate-900 dark:text-white'}`}>{formatCurrency(summary.previousYearsDue)}</p>
                     </div>
                     <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm space-y-1">
-                      <span className="text-[10px] font-black uppercase tracking-wider text-rose-500">Total Consolidated Outstanding</span>
-                      <p className="text-xl font-black text-rose-500 font-mono">{formatCurrency(summary.totalOutstanding)}</p>
+                      <span className={`text-[10px] font-black uppercase tracking-wider ${summary.totalOutstanding > 0 ? 'text-rose-500' : 'text-emerald-600'}`}>Total Consolidated Outstanding</span>
+                      <p className={`text-xl font-black font-mono ${summary.totalOutstanding > 0 ? 'text-rose-500' : 'text-emerald-600'}`}>{formatCurrency(summary.totalOutstanding)}</p>
                     </div>
                   </div>
                 );
@@ -383,86 +732,98 @@ export const StudentProfileDrawer: React.FC<StudentProfileDrawerProps> = ({
               {/* Multi-Academic-Year Fee History Table */}
               <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm space-y-3">
                 <h4 className="font-black text-xs uppercase tracking-wider text-slate-700 dark:text-slate-300">Annual Fee Ledger History</h4>
-                <div className="overflow-x-auto rounded-xl border border-slate-100 dark:border-slate-800">
-                  <table className="w-full text-left text-xs">
-                    <thead className="bg-slate-50 dark:bg-slate-800/60 text-[10px] font-black uppercase text-slate-500">
-                      <tr>
-                        <th className="p-3">Academic Year</th>
-                        <th className="p-3">Class</th>
-                        <th className="p-3">Total Payable</th>
-                        <th className="p-3">Amount Paid</th>
-                        <th className="p-3">Outstanding Due</th>
-                        <th className="p-3 text-right">Status</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-medium">
-                      {(() => {
-                        const summary = getStudentFeeOutstandingSummary(student.id);
-                        const grandTotal = summary.yearWiseOutstanding.reduce((sum, item) => sum + item.gross, 0);
-                        const grandPaid = summary.yearWiseOutstanding.reduce((sum, item) => sum + item.paid, 0);
-                        const grandDue = summary.totalOutstanding;
+                {(() => {
+                  const summary = getStudentFeeOutstandingSummary(student.id);
+                  if (!summary.yearWiseOutstanding || summary.yearWiseOutstanding.length === 0) {
+                    return (
+                      <div className="p-6 text-center text-slate-400 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800">
+                        <IndianRupee className="w-6 h-6 mx-auto text-slate-300 dark:text-slate-600 mb-1" />
+                        <p className="text-xs font-bold text-slate-600 dark:text-slate-400">No Annual Fee Records</p>
+                        <p className="text-[10px] text-slate-400">No fee structure or tuition fee assignments have been assigned to this student yet.</p>
+                      </div>
+                    );
+                  }
+                  const grandTotal = summary.yearWiseOutstanding.reduce((sum, item) => sum + item.gross, 0);
+                  const grandPaid = summary.yearWiseOutstanding.reduce((sum, item) => sum + item.paid, 0);
+                  const grandDue = summary.totalOutstanding;
 
-                        return (
-                          <>
-                            {summary.yearWiseOutstanding.map(yr => (
-                              <tr key={yr.academicYear} className="hover:bg-slate-50/60 dark:hover:bg-slate-800/40">
-                                <td className="p-3 font-bold text-slate-900 dark:text-white">{yr.academicYear}</td>
-                                <td className="p-3 text-slate-600 dark:text-slate-400">{yr.className || student.className}</td>
-                                <td className="p-3 font-mono font-semibold">{formatCurrency(yr.gross)}</td>
-                                <td className="p-3 font-mono text-emerald-600 font-bold">{formatCurrency(yr.paid)}</td>
-                                <td className="p-3 font-mono text-rose-500 font-bold">{formatCurrency(yr.due)}</td>
-                                <td className="p-3 text-right">
-                                  <Badge variant={yr.status === 'Paid' ? 'success' : (yr.status === 'Partial' ? 'warning' : 'danger')} size="sm">
-                                    {yr.status}
-                                  </Badge>
-                                </td>
-                              </tr>
-                            ))}
-                            <tr className="bg-slate-100/70 dark:bg-slate-800/80 font-black text-slate-900 dark:text-white border-t border-slate-200 dark:border-slate-700">
-                              <td className="p-3 uppercase text-[11px]" colSpan={2}>Grand Total</td>
-                              <td className="p-3 font-mono">{formatCurrency(grandTotal)}</td>
-                              <td className="p-3 font-mono text-emerald-600">{formatCurrency(grandPaid)}</td>
-                              <td className="p-3 font-mono text-rose-500">{formatCurrency(grandDue)}</td>
-                              <td className="p-3 text-right text-slate-400 text-[10px]">
-                                {grandDue === 0 ? '✓ ALL CLEARED' : 'PENDING'}
+                  return (
+                    <div className="overflow-x-auto rounded-xl border border-slate-100 dark:border-slate-800">
+                      <table className="w-full text-left text-xs">
+                        <thead className="bg-slate-50 dark:bg-slate-800/60 text-[10px] font-black uppercase text-slate-500">
+                          <tr>
+                            <th className="p-3">Academic Year</th>
+                            <th className="p-3">Class</th>
+                            <th className="p-3">Total Payable</th>
+                            <th className="p-3">Amount Paid</th>
+                            <th className="p-3">Outstanding Due</th>
+                            <th className="p-3 text-right">Status</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-medium">
+                          {summary.yearWiseOutstanding.map(yr => (
+                            <tr key={yr.academicYear} className="hover:bg-slate-50/60 dark:hover:bg-slate-800/40">
+                              <td className="p-3 font-bold text-slate-900 dark:text-white">{yr.academicYear}</td>
+                              <td className="p-3 text-slate-600 dark:text-slate-400">{yr.className || student.className}</td>
+                              <td className="p-3 font-mono font-semibold">{formatCurrency(yr.gross)}</td>
+                              <td className="p-3 font-mono text-emerald-600 font-bold">{formatCurrency(yr.paid)}</td>
+                              <td className="p-3 font-mono text-rose-500 font-bold">{formatCurrency(yr.due)}</td>
+                              <td className="p-3 text-right">
+                                <Badge variant={yr.status === 'Paid' ? 'success' : (yr.status === 'Partial' ? 'warning' : 'danger')} size="sm">
+                                  {yr.status}
+                                </Badge>
                               </td>
                             </tr>
-                          </>
-                        );
-                      })()}
-                    </tbody>
-                  </table>
-                </div>
+                          ))}
+                          <tr className="bg-slate-100/70 dark:bg-slate-800/80 font-black text-slate-900 dark:text-white border-t border-slate-200 dark:border-slate-700">
+                            <td className="p-3 uppercase text-[11px]" colSpan={2}>Grand Total</td>
+                            <td className="p-3 font-mono">{formatCurrency(grandTotal)}</td>
+                            <td className="p-3 font-mono text-emerald-600">{formatCurrency(grandPaid)}</td>
+                            <td className="p-3 font-mono text-rose-500">{formatCurrency(grandDue)}</td>
+                            <td className="p-3 text-right text-slate-400 text-[10px]">
+                              {grandDue === 0 ? '✓ ALL CLEARED' : 'PENDING'}
+                            </td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </div>
+                  );
+                })()}
               </div>
 
               {/* Completed Payment Receipts Ledger */}
               <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm space-y-3">
                 <h4 className="font-black text-xs uppercase tracking-wider text-slate-700 dark:text-slate-300">Completed Payments & Receipts History</h4>
-                <div className="space-y-2.5">
-                  {(studentPayments.length > 0 ? studentPayments : [
-                    { id: 'pay-1', receiptNo: 'REC-2026-104', paymentDate: '10/04/2026', amountPaid: 20000, paymentMode: 'UPI / Online', status: 'Paid' },
-                    { id: 'pay-2', receiptNo: 'REC-2026-218', paymentDate: '15/07/2026', amountPaid: 15000, paymentMode: 'Net Banking', status: 'Paid' }
-                  ]).map(p => (
-                    <div key={p.id} className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800 flex items-center justify-between text-xs hover:border-slate-300 transition-colors">
-                      <div className="space-y-1">
-                        <div className="flex items-center gap-2">
-                          <span className="font-black text-slate-900 dark:text-white text-sm">{p.receiptNo}</span>
-                          <Badge variant="success" size="sm">{p.status}</Badge>
+                {studentPayments.length === 0 ? (
+                  <div className="p-6 text-center text-slate-400 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800">
+                    <CheckCircle className="w-6 h-6 mx-auto text-slate-300 dark:text-slate-600 mb-1" />
+                    <p className="text-xs font-bold text-slate-600 dark:text-slate-400">No Payment Receipts Found</p>
+                    <p className="text-[10px] text-slate-400">No fee payment transactions have been logged for this student.</p>
+                  </div>
+                ) : (
+                  <div className="space-y-2.5">
+                    {studentPayments.map(p => (
+                      <div key={p.id} className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800 flex items-center justify-between text-xs hover:border-slate-300 transition-colors">
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-2">
+                            <span className="font-black text-slate-900 dark:text-white text-sm">{p.receiptNo}</span>
+                            <Badge variant="success" size="sm">{p.status}</Badge>
+                          </div>
+                          <p className="text-slate-500 text-[11px]">Paid on {p.paymentDate} • Payment Mode: <strong className="text-slate-700 dark:text-slate-300">{p.paymentMode}</strong></p>
                         </div>
-                        <p className="text-slate-500 text-[11px]">Paid on {p.paymentDate} • Payment Mode: <strong className="text-slate-700 dark:text-slate-300">{p.paymentMode}</strong></p>
+                        <div className="text-right space-y-1">
+                          <p className="font-black text-emerald-600 font-mono text-sm">{formatCurrency(p.amountPaid)}</p>
+                          <button
+                            onClick={() => addToast('info', 'Receipt Download', `Downloading receipt ${p.receiptNo}`)}
+                            className="inline-flex items-center gap-1 text-[10px] font-bold text-brand-600 hover:text-brand-500"
+                          >
+                            <Download className="w-3 h-3" /> Receipt PDF
+                          </button>
+                        </div>
                       </div>
-                      <div className="text-right space-y-1">
-                        <p className="font-black text-emerald-600 font-mono text-sm">{formatCurrency(p.amountPaid)}</p>
-                        <button
-                          onClick={() => addToast('info', 'Receipt Download', `Downloading receipt ${p.receiptNo}`)}
-                          className="inline-flex items-center gap-1 text-[10px] font-bold text-brand-600 hover:text-brand-500"
-                        >
-                          <Download className="w-3 h-3" /> Receipt PDF
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
           )}
@@ -473,7 +834,7 @@ export const StudentProfileDrawer: React.FC<StudentProfileDrawerProps> = ({
               <div className="flex items-center justify-between">
                 <h3 className="text-xs font-black uppercase tracking-wider text-slate-400">Full Attendance Record & Calendar</h3>
                 <span className="text-xs font-bold text-emerald-600 bg-emerald-50 dark:bg-emerald-950/60 px-3 py-1 rounded-full border border-emerald-200">
-                  {student.attendancePct}% Overall Attendance
+                  {attendanceStats.pct}% Overall Attendance
                 </span>
               </div>
 
@@ -481,98 +842,93 @@ export const StudentProfileDrawer: React.FC<StudentProfileDrawerProps> = ({
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                 <div className="p-4 rounded-2xl bg-emerald-50/60 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-900 text-center">
                   <span className="text-[10px] font-black uppercase tracking-wider text-emerald-600">Present</span>
-                  <p className="text-2xl font-black text-emerald-700 dark:text-emerald-300 mt-1 font-mono">165 Days</p>
+                  <p className="text-2xl font-black text-emerald-700 dark:text-emerald-300 mt-1 font-mono">{attendanceStats.present} Days</p>
                 </div>
                 <div className="p-4 rounded-2xl bg-rose-50/60 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900 text-center">
                   <span className="text-[10px] font-black uppercase tracking-wider text-rose-600">Absent</span>
-                  <p className="text-2xl font-black text-rose-700 dark:text-rose-300 mt-1 font-mono">8 Days</p>
+                  <p className="text-2xl font-black text-rose-700 dark:text-rose-300 mt-1 font-mono">{attendanceStats.absent} Days</p>
                 </div>
                 <div className="p-4 rounded-2xl bg-amber-50/60 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900 text-center">
                   <span className="text-[10px] font-black uppercase tracking-wider text-amber-600">Late / Half Day</span>
-                  <p className="text-2xl font-black text-amber-700 dark:text-amber-300 mt-1 font-mono">4 Days</p>
+                  <p className="text-2xl font-black text-amber-700 dark:text-amber-300 mt-1 font-mono">{attendanceStats.late} Days</p>
                 </div>
                 <div className="p-4 rounded-2xl bg-sky-50/60 dark:bg-sky-950/40 border border-sky-200 dark:border-sky-900 text-center">
                   <span className="text-[10px] font-black uppercase tracking-wider text-sky-600">Approved Leave</span>
-                  <p className="text-2xl font-black text-sky-700 dark:text-sky-300 mt-1 font-mono">3 Days</p>
+                  <p className="text-2xl font-black text-sky-700 dark:text-sky-300 mt-1 font-mono">{attendanceStats.leave} Days</p>
                 </div>
               </div>
 
               {/* Monthly Breakdown Table */}
               <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm space-y-3">
                 <h4 className="font-black text-xs uppercase tracking-wider text-slate-700 dark:text-slate-300">Monthly Attendance Percentage Summary</h4>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
-                  <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800 border text-center">
-                    <span className="text-slate-400 block font-semibold">April 2026</span>
-                    <span className="font-black text-emerald-600 text-sm mt-0.5 block">95.2%</span>
+                {monthlyAttendance.length === 0 ? (
+                  <div className="p-4 text-center text-slate-400 rounded-xl bg-slate-50 dark:bg-slate-800/40 border text-xs">
+                    No monthly attendance logs recorded for this student.
                   </div>
-                  <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800 border text-center">
-                    <span className="text-slate-400 block font-semibold">May 2026</span>
-                    <span className="font-black text-emerald-600 text-sm mt-0.5 block">98.0%</span>
+                ) : (
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+                    {monthlyAttendance.map(m => (
+                      <div key={m.label} className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800 border text-center">
+                        <span className="text-slate-400 block font-semibold">{m.label}</span>
+                        <span className={`font-black text-sm mt-0.5 block ${m.pct >= 85 ? 'text-emerald-600' : m.pct >= 75 ? 'text-amber-600' : 'text-rose-600'}`}>
+                          {m.pct}%
+                        </span>
+                        <span className="text-[10px] text-slate-400 block mt-0.5">{m.present} / {m.total} days</span>
+                      </div>
+                    ))}
                   </div>
-                  <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800 border text-center">
-                    <span className="text-slate-400 block font-semibold">June 2026</span>
-                    <span className="font-black text-amber-600 text-sm mt-0.5 block">92.5%</span>
-                  </div>
-                  <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800 border text-center">
-                    <span className="text-slate-400 block font-semibold">July 2026</span>
-                    <span className="font-black text-emerald-600 text-sm mt-0.5 block">96.4%</span>
-                  </div>
-                </div>
+                )}
               </div>
 
               {/* Recent Daily Attendance Log */}
               <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm space-y-3">
                 <h4 className="font-black text-xs uppercase tracking-wider text-slate-700 dark:text-slate-300">Recent Daily Attendance Logs</h4>
-                <div className="overflow-x-auto rounded-xl border border-slate-100 dark:border-slate-800">
-                  <table className="w-full text-left text-xs">
-                    <thead className="bg-slate-50 dark:bg-slate-800/60 text-[10px] font-black uppercase text-slate-500">
-                      <tr>
-                        <th className="p-3">Date</th>
-                        <th className="p-3">Day</th>
-                        <th className="p-3">Status</th>
-                        <th className="p-3">Session</th>
-                        <th className="p-3 text-right">Remarks</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                      <tr>
-                        <td className="p-3 font-bold text-slate-800 dark:text-slate-200">27/07/2026</td>
-                        <td className="p-3 text-slate-500">Monday</td>
-                        <td className="p-3"><Badge variant="success" size="sm">Present</Badge></td>
-                        <td className="p-3 text-slate-500">Full Day</td>
-                        <td className="p-3 text-right text-slate-400">On Time</td>
-                      </tr>
-                      <tr>
-                        <td className="p-3 font-bold text-slate-800 dark:text-slate-200">24/07/2026</td>
-                        <td className="p-3 text-slate-500">Friday</td>
-                        <td className="p-3"><Badge variant="success" size="sm">Present</Badge></td>
-                        <td className="p-3 text-slate-500">Full Day</td>
-                        <td className="p-3 text-right text-slate-400">On Time</td>
-                      </tr>
-                      <tr>
-                        <td className="p-3 font-bold text-slate-800 dark:text-slate-200">23/07/2026</td>
-                        <td className="p-3 text-slate-500">Thursday</td>
-                        <td className="p-3"><Badge variant="warning" size="sm">Late Entry</Badge></td>
-                        <td className="p-3 text-slate-500">First Half</td>
-                        <td className="p-3 text-right text-amber-600 font-semibold">Bus Delay (15 min)</td>
-                      </tr>
-                      <tr>
-                        <td className="p-3 font-bold text-slate-800 dark:text-slate-200">22/07/2026</td>
-                        <td className="p-3 text-slate-500">Wednesday</td>
-                        <td className="p-3"><Badge variant="success" size="sm">Present</Badge></td>
-                        <td className="p-3 text-slate-500">Full Day</td>
-                        <td className="p-3 text-right text-slate-400">On Time</td>
-                      </tr>
-                      <tr>
-                        <td className="p-3 font-bold text-slate-800 dark:text-slate-200">21/07/2026</td>
-                        <td className="p-3 text-slate-500">Tuesday</td>
-                        <td className="p-3"><Badge variant="info" size="sm">Approved Leave</Badge></td>
-                        <td className="p-3 text-slate-500">Full Day</td>
-                        <td className="p-3 text-right text-sky-600 font-semibold">Medical Leave Approved</td>
-                      </tr>
-                    </tbody>
-                  </table>
-                </div>
+                {studentAttendanceLogs.length === 0 ? (
+                  <div className="p-6 text-center text-slate-400 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800">
+                    <Calendar className="w-6 h-6 mx-auto text-slate-300 dark:text-slate-600 mb-1" />
+                    <p className="text-xs font-bold text-slate-600 dark:text-slate-400">No Daily Attendance Logs</p>
+                    <p className="text-[10px] text-slate-400">No daily attendance entries have been logged yet for this student.</p>
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto rounded-xl border border-slate-100 dark:border-slate-800">
+                    <table className="w-full text-left text-xs">
+                      <thead className="bg-slate-50 dark:bg-slate-800/60 text-[10px] font-black uppercase text-slate-500">
+                        <tr>
+                          <th className="p-3">Date</th>
+                          <th className="p-3">Day</th>
+                          <th className="p-3">Status</th>
+                          <th className="p-3">Session</th>
+                          <th className="p-3 text-right">Remarks</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                        {studentAttendanceLogs.slice(0, 15).map((log, index) => {
+                          const dateObj = new Date(log.date);
+                          const dayOfWeek = !isNaN(dateObj.getTime())
+                            ? dateObj.toLocaleDateString('en-US', { weekday: 'long' })
+                            : '-';
+
+                          const badgeVariant =
+                            log.status === 'Present' ? 'success' :
+                            log.status === 'Absent' ? 'danger' :
+                            log.status === 'Late' || log.status === 'HalfDay' ? 'warning' : 'info';
+
+                          return (
+                            <tr key={log.id || `att-${index}`}>
+                              <td className="p-3 font-bold text-slate-800 dark:text-slate-200">{formatToDDMMYYYY(log.date, '/')}</td>
+                              <td className="p-3 text-slate-500">{dayOfWeek}</td>
+                              <td className="p-3">
+                                <Badge variant={badgeVariant} size="sm">{log.status}</Badge>
+                              </td>
+                              <td className="p-3 text-slate-500">{log.status === 'HalfDay' ? 'Half Day' : 'Full Day'}</td>
+                              <td className="p-3 text-right text-slate-400">{log.remarks || 'Standard Session'}</td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
               </div>
             </div>
           )}
@@ -583,151 +939,85 @@ export const StudentProfileDrawer: React.FC<StudentProfileDrawerProps> = ({
               <div className="flex items-center justify-between">
                 <h3 className="text-xs font-black uppercase tracking-wider text-slate-400">All Examination History & Report Cards</h3>
                 <span className="text-xs font-bold text-brand-600 bg-brand-50 dark:bg-brand-950/60 px-3 py-1 rounded-full border border-brand-200">
-                  GPA {student.gpa} / 4.0
+                  GPA {student.gpa ?? 0} / 4.0
                 </span>
               </div>
 
-              {/* Exam 1: Annual Examination */}
-              <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm space-y-4">
-                <div className="flex items-center justify-between border-b pb-3 border-slate-100 dark:border-slate-800">
-                  <div>
-                    <h4 className="font-black text-sm text-slate-900 dark:text-white">Annual Examination 2025-2026</h4>
-                    <p className="text-[11px] text-slate-500">Academic Term: Final Term • Result Date: 28/03/2026</p>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <span className="font-black text-emerald-600 font-mono text-sm">547 / 600 (91.17%)</span>
-                    <Badge variant="success" size="sm">Passed (A+)</Badge>
-                    <button
-                      onClick={() => addToast('success', 'Download Started', 'Downloading Annual Examination Report Card PDF')}
-                      className="px-3 py-1.5 rounded-xl bg-brand-600 hover:bg-brand-500 text-white font-bold text-xs flex items-center gap-1 shadow-sm"
-                    >
-                      <Download className="w-3.5 h-3.5" /> Report PDF
-                    </button>
-                  </div>
+              {groupedExams.length === 0 ? (
+                <div className="p-8 text-center text-slate-400 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-1">
+                  <Award className="w-8 h-8 mx-auto text-slate-300 dark:text-slate-600 mb-2" />
+                  <p className="font-bold text-xs text-slate-600 dark:text-slate-400">No Examination Marks Recorded</p>
+                  <p className="text-[11px] text-slate-400">No exam marks or grade cards have been published for this student yet.</p>
                 </div>
+              ) : (
+                groupedExams.map(exam => {
+                  const totalObtained = exam.marks.reduce((sum, m) => sum + (m.marksObtained || 0), 0);
+                  const totalMax = exam.marks.reduce((sum, m) => sum + (m.totalMarks || 100), 0);
+                  const pct = totalMax > 0 ? ((totalObtained / totalMax) * 100).toFixed(1) : '0';
+                  const isPassed = !exam.marks.some(m => m.marksObtained < ((m.totalMarks || 100) * 0.35));
 
-                <div className="overflow-x-auto rounded-xl border border-slate-100 dark:border-slate-800">
-                  <table className="w-full text-left text-xs">
-                    <thead className="bg-slate-50 dark:bg-slate-800/60 text-[10px] font-black uppercase text-slate-500">
-                      <tr>
-                        <th className="p-3">Subject Name</th>
-                        <th className="p-3">Max Marks</th>
-                        <th className="p-3">Pass Marks</th>
-                        <th className="p-3">Marks Obtained</th>
-                        <th className="p-3">Grade</th>
-                        <th className="p-3 text-right">Result</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                      <tr>
-                        <td className="p-3 font-bold text-slate-800 dark:text-slate-200">Mathematics</td>
-                        <td className="p-3">100</td>
-                        <td className="p-3">35</td>
-                        <td className="p-3 font-mono font-bold text-brand-600">92</td>
-                        <td className="p-3 font-bold text-emerald-600">A+</td>
-                        <td className="p-3 text-right"><span className="text-emerald-600 font-bold">Pass</span></td>
-                      </tr>
-                      <tr>
-                        <td className="p-3 font-bold text-slate-800 dark:text-slate-200">Science & Technology</td>
-                        <td className="p-3">100</td>
-                        <td className="p-3">35</td>
-                        <td className="p-3 font-mono font-bold text-brand-600">88</td>
-                        <td className="p-3 font-bold text-emerald-600">A</td>
-                        <td className="p-3 text-right"><span className="text-emerald-600 font-bold">Pass</span></td>
-                      </tr>
-                      <tr>
-                        <td className="p-3 font-bold text-slate-800 dark:text-slate-200">English Language & Literature</td>
-                        <td className="p-3">100</td>
-                        <td className="p-3">35</td>
-                        <td className="p-3 font-mono font-bold text-brand-600">95</td>
-                        <td className="p-3 font-bold text-emerald-600">A+</td>
-                        <td className="p-3 text-right"><span className="text-emerald-600 font-bold">Pass</span></td>
-                      </tr>
-                      <tr>
-                        <td className="p-3 font-bold text-slate-800 dark:text-slate-200">Social Studies</td>
-                        <td className="p-3">100</td>
-                        <td className="p-3">35</td>
-                        <td className="p-3 font-mono font-bold text-brand-600">84</td>
-                        <td className="p-3 font-bold text-emerald-600">A</td>
-                        <td className="p-3 text-right"><span className="text-emerald-600 font-bold">Pass</span></td>
-                      </tr>
-                      <tr>
-                        <td className="p-3 font-bold text-slate-800 dark:text-slate-200">Computer Applications</td>
-                        <td className="p-3">100</td>
-                        <td className="p-3">35</td>
-                        <td className="p-3 font-mono font-bold text-brand-600">98</td>
-                        <td className="p-3 font-bold text-emerald-600">A+</td>
-                        <td className="p-3 text-right"><span className="text-emerald-600 font-bold">Pass</span></td>
-                      </tr>
-                    </tbody>
-                  </table>
-                </div>
-              </div>
+                  return (
+                    <div key={exam.examId} className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm space-y-4">
+                      <div className="flex items-center justify-between border-b pb-3 border-slate-100 dark:border-slate-800 flex-wrap gap-2">
+                        <div>
+                          <h4 className="font-black text-sm text-slate-900 dark:text-white">{exam.examName}</h4>
+                          <p className="text-[11px] text-slate-500">Term: {exam.term} {exam.academicYear ? `• Year: ${exam.academicYear}` : ''}</p>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <span className="font-black text-emerald-600 font-mono text-sm">{totalObtained} / {totalMax} ({pct}%)</span>
+                          <Badge variant={isPassed ? 'success' : 'danger'} size="sm">{isPassed ? 'Passed' : 'Failed'}</Badge>
+                          <button
+                            onClick={() => addToast('success', 'Download Started', `Downloading ${exam.examName} Report Card PDF`)}
+                            className="px-3 py-1.5 rounded-xl bg-brand-600 hover:bg-brand-500 text-white font-bold text-xs flex items-center gap-1 shadow-sm"
+                          >
+                            <Download className="w-3.5 h-3.5" /> Report PDF
+                          </button>
+                        </div>
+                      </div>
 
-              {/* Exam 2: Mid-Term Examination */}
-              <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm space-y-4">
-                <div className="flex items-center justify-between border-b pb-3 border-slate-100 dark:border-slate-800">
-                  <div>
-                    <h4 className="font-black text-sm text-slate-900 dark:text-white">Mid-Term Examination 2026</h4>
-                    <p className="text-[11px] text-slate-500">Academic Term: Term 1 • Result Date: 15/10/2025</p>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <span className="font-black text-emerald-600 font-mono text-sm">530 / 600 (88.33%)</span>
-                    <Badge variant="success" size="sm">Passed (A)</Badge>
-                    <button
-                      onClick={() => addToast('success', 'Download Started', 'Downloading Mid-Term Examination Report Card PDF')}
-                      className="px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-700 dark:text-slate-200 font-bold text-xs flex items-center gap-1 shadow-sm"
-                    >
-                      <Download className="w-3.5 h-3.5" /> Report PDF
-                    </button>
-                  </div>
-                </div>
+                      <div className="overflow-x-auto rounded-xl border border-slate-100 dark:border-slate-800">
+                        <table className="w-full text-left text-xs">
+                          <thead className="bg-slate-50 dark:bg-slate-800/60 text-[10px] font-black uppercase text-slate-500">
+                            <tr>
+                              <th className="p-3">Subject Name</th>
+                              <th className="p-3">Max Marks</th>
+                              <th className="p-3">Pass Marks</th>
+                              <th className="p-3">Marks Obtained</th>
+                              <th className="p-3">Grade</th>
+                              <th className="p-3 text-right">Result</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                            {exam.marks.map((m, idx) => {
+                              const passMark = Math.round((m.totalMarks || 100) * 0.35);
+                              const passedSubject = (m.marksObtained || 0) >= passMark;
 
-                <div className="overflow-x-auto rounded-xl border border-slate-100 dark:border-slate-800">
-                  <table className="w-full text-left text-xs">
-                    <thead className="bg-slate-50 dark:bg-slate-800/60 text-[10px] font-black uppercase text-slate-500">
-                      <tr>
-                        <th className="p-3">Subject Name</th>
-                        <th className="p-3">Max Marks</th>
-                        <th className="p-3">Pass Marks</th>
-                        <th className="p-3">Marks Obtained</th>
-                        <th className="p-3">Grade</th>
-                        <th className="p-3 text-right">Result</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                      <tr>
-                        <td className="p-3 font-bold text-slate-800 dark:text-slate-200">Mathematics</td>
-                        <td className="p-3">100</td>
-                        <td className="p-3">35</td>
-                        <td className="p-3 font-mono font-bold text-brand-600">90</td>
-                        <td className="p-3 font-bold text-emerald-600">A+</td>
-                        <td className="p-3 text-right"><span className="text-emerald-600 font-bold">Pass</span></td>
-                      </tr>
-                      <tr>
-                        <td className="p-3 font-bold text-slate-800 dark:text-slate-200">Science</td>
-                        <td className="p-3">100</td>
-                        <td className="p-3">35</td>
-                        <td className="p-3 font-mono font-bold text-brand-600">85</td>
-                        <td className="p-3 font-bold text-emerald-600">A</td>
-                        <td className="p-3 text-right"><span className="text-emerald-600 font-bold">Pass</span></td>
-                      </tr>
-                      <tr>
-                        <td className="p-3 font-bold text-slate-800 dark:text-slate-200">English</td>
-                        <td className="p-3">100</td>
-                        <td className="p-3">35</td>
-                        <td className="p-3 font-mono font-bold text-brand-600">92</td>
-                        <td className="p-3 font-bold text-emerald-600">A+</td>
-                        <td className="p-3 text-right"><span className="text-emerald-600 font-bold">Pass</span></td>
-                      </tr>
-                    </tbody>
-                  </table>
-                </div>
-              </div>
+                              return (
+                                <tr key={m.id || `mark-${idx}`}>
+                                  <td className="p-3 font-bold text-slate-800 dark:text-slate-200">{m.subject}</td>
+                                  <td className="p-3">{m.totalMarks || 100}</td>
+                                  <td className="p-3">{passMark}</td>
+                                  <td className="p-3 font-mono font-bold text-brand-600">{m.marksObtained}</td>
+                                  <td className="p-3 font-bold text-emerald-600">{m.grade || '-'}</td>
+                                  <td className="p-3 text-right">
+                                    <span className={`font-bold ${passedSubject ? 'text-emerald-600' : 'text-rose-600'}`}>
+                                      {passedSubject ? 'Pass' : 'Fail'}
+                                    </span>
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
             </div>
           )}
 
-          {/* 8. DOCUMENTS TAB (Upload, Edit, Preview, View, Download) */}
+          {/* 8. DOCUMENTS TAB */}
           {activeTab === 'docs' && (
             <div className="space-y-6 animate-in fade-in">
               <div className="flex items-center justify-between">
@@ -743,58 +1033,72 @@ export const StudentProfileDrawer: React.FC<StudentProfileDrawerProps> = ({
               </div>
 
               {/* Documents List */}
-              <div className="space-y-3">
-                {documents.map(doc => (
-                  <div
-                    key={doc.id}
-                    className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex items-center justify-between gap-4 shadow-sm hover:border-brand-300 dark:hover:border-brand-800 transition-all"
+              {documents.length === 0 ? (
+                <div className="p-8 text-center text-slate-400 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-2">
+                  <FileText className="w-8 h-8 mx-auto text-slate-300 dark:text-slate-600 mb-1" />
+                  <p className="font-bold text-xs text-slate-600 dark:text-slate-400">No Documents Uploaded</p>
+                  <p className="text-[11px] text-slate-400">No certificates or identity proofs have been uploaded for this student yet.</p>
+                  <button
+                    onClick={() => setIsUploadModalOpen(true)}
+                    className="mt-2 inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-brand-600 hover:bg-brand-500 text-white font-bold text-xs shadow-sm"
                   >
-                    <div className="flex items-center gap-3.5 min-w-0">
-                      <div className="w-10 h-10 rounded-xl bg-brand-50 dark:bg-brand-950/60 border border-brand-200 dark:border-brand-800 flex items-center justify-center text-brand-600 dark:text-brand-400 shrink-0">
-                        <FileText className="w-5 h-5" />
-                      </div>
-                      <div className="min-w-0">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <h4 className="font-bold text-slate-900 dark:text-white text-xs truncate">{doc.name}</h4>
-                          <Badge variant="success" size="sm">{doc.status}</Badge>
+                    <Plus className="w-3.5 h-3.5" /> Upload Document
+                  </button>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {documents.map(doc => (
+                    <div
+                      key={doc.id}
+                      className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex items-center justify-between gap-4 shadow-sm hover:border-brand-300 dark:hover:border-brand-800 transition-all"
+                    >
+                      <div className="flex items-center gap-3.5 min-w-0">
+                        <div className="w-10 h-10 rounded-xl bg-brand-50 dark:bg-brand-950/60 border border-brand-200 dark:border-brand-800 flex items-center justify-center text-brand-600 dark:text-brand-400 shrink-0">
+                          <FileText className="w-5 h-5" />
                         </div>
-                        <p className="text-[11px] text-slate-400 mt-0.5">
-                          Category: <strong className="text-slate-700 dark:text-slate-300">{doc.category}</strong> • Size: {doc.size} • Added {doc.uploadDate}
-                        </p>
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <h4 className="font-bold text-slate-900 dark:text-white text-xs truncate">{doc.name}</h4>
+                            <Badge variant="success" size="sm">{doc.status}</Badge>
+                          </div>
+                          <p className="text-[11px] text-slate-400 mt-0.5">
+                            Category: <strong className="text-slate-700 dark:text-slate-300">{doc.category}</strong> • Size: {doc.size} • Added {doc.uploadDate}
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Action Controls: Preview, Edit, Delete */}
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        <button
+                          onClick={() => setPreviewDoc(doc)}
+                          className="p-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold transition-colors"
+                          title="Preview Document"
+                        >
+                          <Eye className="w-4 h-4 text-brand-600" />
+                        </button>
+                        <button
+                          onClick={() => {
+                            setEditingDoc(doc);
+                            setDocTitle(doc.name);
+                            setDocCategory(doc.category);
+                          }}
+                          className="p-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold transition-colors"
+                          title="Edit Details"
+                        >
+                          <Edit3 className="w-4 h-4 text-sky-600" />
+                        </button>
+                        <button
+                          onClick={() => handleDeleteDocument(doc.id, doc.name)}
+                          className="p-2.5 rounded-xl bg-rose-50 dark:bg-rose-950/60 hover:bg-rose-100 text-rose-600 dark:text-rose-400 font-bold transition-colors"
+                          title="Delete Document"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
                       </div>
                     </div>
-
-                    {/* Action Controls: Preview, Edit, Delete */}
-                    <div className="flex items-center gap-1.5 shrink-0">
-                      <button
-                        onClick={() => setPreviewDoc(doc)}
-                        className="p-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold transition-colors"
-                        title="Preview Document"
-                      >
-                        <Eye className="w-4 h-4 text-brand-600" />
-                      </button>
-                      <button
-                        onClick={() => {
-                          setEditingDoc(doc);
-                          setDocTitle(doc.name);
-                          setDocCategory(doc.category);
-                        }}
-                        className="p-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold transition-colors"
-                        title="Edit Details"
-                      >
-                        <Edit3 className="w-4 h-4 text-sky-600" />
-                      </button>
-                      <button
-                        onClick={() => handleDeleteDocument(doc.id, doc.name)}
-                        className="p-2.5 rounded-xl bg-rose-50 dark:bg-rose-950/60 hover:bg-rose-100 text-rose-600 dark:text-rose-400 font-bold transition-colors"
-                        title="Delete Document"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
 
@@ -827,7 +1131,7 @@ export const StudentProfileDrawer: React.FC<StudentProfileDrawerProps> = ({
             </div>
           )}
 
-          {/* Academic History Tab */}
+          {/* 10. Academic History Tab */}
           {activeTab === 'history' && (
             <div className="space-y-4 animate-in fade-in text-xs">
               <div className="flex items-center justify-between flex-wrap gap-2">
@@ -843,19 +1147,16 @@ export const StudentProfileDrawer: React.FC<StudentProfileDrawerProps> = ({
               ) : (
                 <div className="space-y-3">
                   {student.academicHistory.map((h) => {
-                    // Dynamic Lookup 1: Attendance for (student.id, h.academicYear)
-                    const stAtt = (attendance || []).filter((a) => a.entityId === student.id);
-                    const attPct = stAtt.length > 0 ? Math.round((stAtt.filter((a) => a.status === 'Present').length / stAtt.length) * 100) : 94;
+                    const stAtt = (attendance || []).filter((a) => a.entityId === student.id || a.entityId === student.admissionNo);
+                    const attPct = stAtt.length > 0 ? Math.round((stAtt.filter((a) => a.status === 'Present').length / stAtt.length) * 100) : 0;
 
-                    // Dynamic Lookup 2: Exam Marks for (student.id, h.academicYear)
-                    const stMarks = (examMarks || []).filter((m) => m.studentId === student.id);
+                    const stMarks = (examMarks || []).filter((m) => m.studentId === student.id || m.studentId === student.admissionNo);
                     const totalObt = stMarks.reduce((sum, m) => sum + (m.marksObtained || 0), 0);
-                    const totalMax = stMarks.reduce((sum, m) => sum + (m.totalMarks || m.maxMarks || 100), 0);
-                    const examPct = totalMax > 0 ? Math.round((totalObt / totalMax) * 100) : 88;
+                    const totalMax = stMarks.reduce((sum, m) => sum + (m.totalMarks || 100), 0);
+                    const examPct = totalMax > 0 ? Math.round((totalObt / totalMax) * 100) : 0;
 
-                    // Dynamic Lookup 3: Fee Ledger Dues for (student.id, h.academicYear)
-                    const stPay = (feePayments || []).filter((p) => p.studentId === student.id && p.academicYear === h.academicYear);
-                    const paidAmt = stPay.reduce((sum, p) => sum + ((p as any).amount || (p as any).paidAmount || 0), 0);
+                    const stPay = (feePayments || []).filter((p) => (p.studentId === student.id || p.admissionNo === student.admissionNo) && p.paymentDate?.includes(h.academicYear));
+                    const paidAmt = stPay.reduce((sum, p) => sum + (p.amountPaid || 0), 0);
                     const stAssign = (studentFeeAssignments || []).find((a) => a.studentId === student.id && a.academicYear === h.academicYear);
                     const totalFee = (stAssign as any)?.finalAmount || 0;
                     const dueAmt = Math.max(0, totalFee - paidAmt);
@@ -883,7 +1184,6 @@ export const StudentProfileDrawer: React.FC<StudentProfileDrawerProps> = ({
                           <div><span className="text-slate-400 block font-medium">Remarks:</span> <span className="font-bold text-slate-800 dark:text-slate-200">{h.remarks || 'None'}</span></div>
                         </div>
 
-                        {/* Dynamically Retrieved Historical Module Summaries */}
                         <div className="grid grid-cols-3 gap-2 pt-1 border-t border-slate-100 dark:border-slate-800 text-center text-[10px]">
                           <div className="p-2 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800">
                             <span className="text-slate-400 block font-semibold">Attendance</span>
@@ -891,12 +1191,12 @@ export const StudentProfileDrawer: React.FC<StudentProfileDrawerProps> = ({
                           </div>
                           <div className="p-2 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800">
                             <span className="text-slate-400 block font-semibold">Exam Results</span>
-                            <span className="font-extrabold text-indigo-600 font-mono text-xs mt-0.5 block">{examPct}% Score</span>
+                            <span className="font-extrabold text-indigo-600 font-mono text-xs mt-0.5 block">{examPct > 0 ? `${examPct}% Score` : 'N/A'}</span>
                           </div>
                           <div className="p-2 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800">
                             <span className="text-slate-400 block font-semibold">Fee Ledger</span>
                             <span className={`font-extrabold font-mono text-xs mt-0.5 block ${dueAmt > 0 ? 'text-amber-600' : 'text-emerald-600'}`}>
-                              {dueAmt > 0 ? `₹${dueAmt} Due` : 'Fully Paid'}
+                              {dueAmt > 0 ? `${formatCurrency(dueAmt)} Due` : 'Fully Paid'}
                             </span>
                           </div>
                         </div>
@@ -923,54 +1223,285 @@ export const StudentProfileDrawer: React.FC<StudentProfileDrawerProps> = ({
             </div>
           )}
 
-          {/* 10. Student ID Card Tab */}
+          {/* 11. Student ID Card Tab */}
           {activeTab === 'idcard' && (
-            <div className="space-y-4 animate-in fade-in">
-              <div className="flex items-center justify-between">
-                <h3 className="text-xs font-black uppercase tracking-wider text-slate-400">Official Student Identity Card</h3>
-                <button
-                  onClick={() => setIsIDCardModalOpen(true)}
-                  className="px-3.5 py-2 rounded-xl bg-brand-600 hover:bg-brand-500 text-white font-bold text-xs shadow-md flex items-center gap-1.5"
-                >
-                  <Printer className="w-3.5 h-3.5" /> Full-Screen Print & PDF
-                </button>
+            <div className="space-y-5 animate-in fade-in">
+              {/* Toolbar Header */}
+              <div className="flex items-center justify-between flex-wrap gap-3 p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm">
+                <div>
+                  <h3 className="text-sm font-black text-slate-900 dark:text-white flex items-center gap-2">
+                    <Shield className="w-4 h-4 text-brand-600" /> Official Student Identity Card
+                  </h3>
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                    Front side student credentials & back side verified parent information
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-2 flex-wrap">
+                  {/* View Mode Switcher */}
+                  <div className="inline-flex p-1 bg-slate-100 dark:bg-slate-800 rounded-xl text-xs font-bold border border-slate-200 dark:border-slate-700">
+                    <button
+                      type="button"
+                      onClick={() => setIdCardView('both')}
+                      className={`px-3 py-1 rounded-lg transition-all ${idCardView === 'both' ? 'bg-white dark:bg-slate-900 text-brand-600 dark:text-brand-400 shadow-xs' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'}`}
+                    >
+                      Both Sides
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setIdCardView('front')}
+                      className={`px-3 py-1 rounded-lg transition-all ${idCardView === 'front' ? 'bg-white dark:bg-slate-900 text-brand-600 dark:text-brand-400 shadow-xs' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'}`}
+                    >
+                      Front Only
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setIdCardView('back')}
+                      className={`px-3 py-1 rounded-lg transition-all ${idCardView === 'back' ? 'bg-white dark:bg-slate-900 text-brand-600 dark:text-brand-400 shadow-xs' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'}`}
+                    >
+                      Back Only
+                    </button>
+                  </div>
+
+                  {/* Upload Photo Button */}
+                  <label className="px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold text-xs cursor-pointer flex items-center gap-1.5 transition-colors border border-slate-200 dark:border-slate-700">
+                    <Camera className="w-3.5 h-3.5 text-brand-600" />
+                    <span>Upload Photo</span>
+                    <input type="file" accept="image/*" onChange={handleAvatarUpload} className="hidden" />
+                  </label>
+
+                  {/* Print Button */}
+                  <button
+                    type="button"
+                    onClick={() => setIsIDCardModalOpen(true)}
+                    className="px-3.5 py-1.5 rounded-xl bg-brand-600 hover:bg-brand-500 text-white font-bold text-xs shadow-md flex items-center gap-1.5 transition-all"
+                  >
+                    <Printer className="w-3.5 h-3.5" /> Print ID Cards
+                  </button>
+                </div>
               </div>
 
-              {/* ID Card Card Preview */}
-              <div className="p-5 rounded-3xl bg-slate-900 text-white border border-slate-800 shadow-xl space-y-4 max-w-sm mx-auto font-sans">
-                <div className="flex items-center gap-3 border-b border-slate-800 pb-3">
-                  <div className="w-10 h-10 rounded-xl bg-brand-600 flex items-center justify-center text-white font-black text-sm">PE</div>
-                  <div>
-                    <h4 className="font-black text-xs uppercase tracking-wider text-white">{schoolProfile?.name || 'Pirnav Educational Institutions'}</h4>
-                    <p className="text-[9px] text-brand-300">{schoolProfile?.tagline || 'Empowering Minds, Shaping Tomorrow'}</p>
-                  </div>
-                </div>
+              {/* ID Cards Showcase */}
+              <div className="flex flex-wrap items-start justify-center gap-6 py-2">
+                
+                {/* FRONT SIDE */}
+                {(idCardView === 'both' || idCardView === 'front') && (
+                  <div className="w-full max-w-[310px] rounded-3xl bg-white dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-700 shadow-xl overflow-hidden flex flex-col font-sans transition-all">
+                    {/* Top School Header */}
+                    <div className="p-3.5 bg-gradient-to-r from-brand-700 via-sky-700 to-sky-800 text-white relative text-center">
+                      <div className="flex items-center justify-center gap-2.5">
+                        {schoolProfile?.logoUrl ? (
+                          <img
+                            src={resolveMediaUrl(schoolProfile.logoUrl)}
+                            alt="School Logo"
+                            className="w-10 h-10 rounded-xl object-contain bg-white p-0.5 shadow-sm ring-1 ring-white/30 shrink-0"
+                          />
+                        ) : (
+                          <div className="w-10 h-10 rounded-xl bg-white text-brand-700 font-black text-sm flex items-center justify-center shadow-sm shrink-0">
+                            {schoolProfile?.name ? schoolProfile.name.slice(0, 2).toUpperCase() : 'PS'}
+                          </div>
+                        )}
+                        <div className="text-left overflow-hidden">
+                          <h4 className="font-black text-xs uppercase tracking-wider leading-tight text-white truncate max-w-[200px]">
+                            {schoolProfile?.name || 'School Name'}
+                          </h4>
+                          <p className="text-[9px] text-sky-200 font-medium truncate max-w-[200px]">
+                            {liveStudent.branch || matchingAdmission?.branch ? `${liveStudent.branch || matchingAdmission?.branch} Campus` : (schoolProfile?.tagline || 'Empowering Minds, Shaping Tomorrow')}
+                          </p>
+                        </div>
+                      </div>
 
-                <div className="flex items-center gap-3.5">
-                  {student.avatar ? (
-                    <img src={student.avatar} alt="" className="w-16 h-16 rounded-2xl object-cover ring-2 ring-brand-500" />
-                  ) : (
-                    <div className="w-16 h-16 rounded-2xl bg-slate-800 flex items-center justify-center text-slate-400 border border-slate-700 ring-2 ring-brand-500 shrink-0">
-                      <User className="w-8 h-8" />
+                      {/* Identity Banner */}
+                      <div className="mt-2.5 py-1 px-3 bg-white/15 backdrop-blur-sm rounded-lg flex items-center justify-between text-[9px] font-black tracking-wider uppercase text-white/95 border border-white/20">
+                        <span>STUDENT IDENTITY CARD</span>
+                        <span className="font-mono text-amber-300">{academicSession}</span>
+                      </div>
                     </div>
-                  )}
-                  <div className="space-y-1">
-                    <h3 className="font-bold text-sm">{student.firstName} {student.lastName}</h3>
-                    <p className="text-[10px] text-slate-300">Class: <strong className="text-white">{student.className}-{student.section}</strong></p>
-                    <p className="text-[10px] font-mono text-slate-400">Adm: {student.admissionNo}</p>
+
+                    {/* Student Photo & Identity Section */}
+                    <div className="p-4 flex flex-col items-center flex-1 space-y-3">
+                      {/* Photo Frame */}
+                      <div className="relative group">
+                        <div className="w-24 h-28 rounded-2xl overflow-hidden bg-slate-100 dark:bg-slate-800 border-2 border-brand-500 shadow-md flex items-center justify-center shrink-0">
+                          {studentPhoto ? (
+                            <img
+                              src={studentPhoto}
+                              alt={`${liveStudent.firstName} ${liveStudent.lastName}`}
+                              className="w-full h-full object-cover"
+                            />
+                          ) : (
+                            <div className="flex flex-col items-center justify-center text-slate-400 p-2 text-center">
+                              <User className="w-10 h-10 text-slate-400 mb-1" />
+                              <span className="text-[9px] font-bold">No Photo</span>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Quick Camera Upload Overlay */}
+                        <label className="absolute inset-0 bg-slate-950/60 rounded-2xl opacity-0 group-hover:opacity-100 flex flex-col items-center justify-center text-white cursor-pointer transition-opacity text-[9px] font-bold gap-1">
+                          <Camera className="w-4 h-4" />
+                          <span>Change</span>
+                          <input type="file" accept="image/*" onChange={handleAvatarUpload} className="hidden" />
+                        </label>
+                      </div>
+
+                      {/* Student Name & Class */}
+                      <div className="text-center space-y-1 w-full">
+                        <h3 className="font-black text-slate-900 dark:text-white text-base leading-tight">
+                          {liveStudent.firstName} {liveStudent.lastName}
+                        </h3>
+                        <div className="flex items-center justify-center gap-1.5 flex-wrap">
+                          <span className="px-2.5 py-0.5 rounded-full bg-brand-50 dark:bg-brand-950/60 text-brand-700 dark:text-brand-300 text-[10px] font-extrabold border border-brand-200 dark:border-brand-800">
+                            Class: {liveStudent.className}-{liveStudent.section}
+                          </span>
+                          <span className="px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-[10px] font-mono font-bold">
+                            Roll #{liveStudent.rollNo}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Key Identity Data Grid */}
+                      <div className="w-full grid grid-cols-2 gap-2 p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800 text-[10px]">
+                        <div>
+                          <span className="text-slate-400 font-medium block">Admission No:</span>
+                          <span className="font-mono font-black text-slate-900 dark:text-white">{liveStudent.admissionNo}</span>
+                        </div>
+                        <div>
+                          <span className="text-slate-400 font-medium block">Date of Birth:</span>
+                          <span className="font-bold text-slate-800 dark:text-slate-200">{formatToDDMMYYYY(liveStudent.dob || matchingAdmission?.dob || '', '-')}</span>
+                        </div>
+                        <div>
+                          <span className="text-slate-400 font-medium block">Blood Group:</span>
+                          <span className="font-black text-rose-500 flex items-center gap-1">
+                            <Heart className="w-2.5 h-2.5 fill-rose-500" />
+                            {liveStudent.bloodGroup || matchingAdmission?.bloodGroup || 'Not Specified'}
+                          </span>
+                        </div>
+                        <div>
+                          <span className="text-slate-400 font-medium block">Emergency Contact:</span>
+                          <span className="font-mono font-bold text-slate-800 dark:text-slate-200">
+                            {liveStudent.fatherPhone || matchingAdmission?.phone || liveStudent.phone || 'N/A'}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Barcode & Signature */}
+                      <div className="w-full flex items-end justify-between pt-1 border-t border-slate-100 dark:border-slate-800/80">
+                        <div className="shrink-0">
+                          {renderBarcode(liveStudent.admissionNo)}
+                        </div>
+                        <div className="text-right">
+                          <div className="h-5 flex items-end justify-end">
+                            <span className="font-serif italic text-[11px] font-bold text-brand-700 dark:text-brand-300">
+                              {schoolProfile?.principalName || 'Principal'}
+                            </span>
+                          </div>
+                          <p className="text-[7.5px] font-bold uppercase tracking-wider text-slate-400 border-t border-slate-300 dark:border-slate-700 pt-0.5">
+                            Authorized Signatory
+                          </p>
+                        </div>
+                      </div>
+                    </div>
                   </div>
-                </div>
+                )}
 
-                <div className="grid grid-cols-2 gap-2 p-3 rounded-xl bg-slate-800/80 text-[10px]">
-                  <div><span className="text-slate-400 block">DOB:</span><span className="font-bold">{student.dob}</span></div>
-                  <div><span className="text-slate-400 block">Blood:</span><span className="font-bold text-rose-400">{student.bloodGroup}</span></div>
-                  <div><span className="text-slate-400 block">Father Mobile:</span><span className="font-bold text-emerald-400">{student.fatherPhone}</span></div>
-                  <div><span className="text-slate-400 block">Branch:</span><span className="font-bold text-amber-300">{student.branch || '—'}</span></div>
-                </div>
+                {/* BACK SIDE */}
+                {(idCardView === 'both' || idCardView === 'back') && (
+                  <div className="w-full max-w-[310px] rounded-3xl bg-white dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-700 shadow-xl overflow-hidden flex flex-col font-sans transition-all">
+                    {/* Top Header */}
+                    <div className="p-3 bg-gradient-to-r from-slate-800 via-slate-900 to-slate-950 text-white text-center border-b border-slate-700">
+                      <h4 className="font-black text-[11px] uppercase tracking-wider text-amber-300">
+                        PARENT & GUARDIAN DETAILS
+                      </h4>
+                      <p className="text-[9px] text-slate-300">{schoolProfile?.name || 'School Student Record'}</p>
+                    </div>
 
-                <div className="text-[9px] text-center text-slate-400 border-t border-slate-800 pt-2">
-                  742 Evergreen Terrace, Knowledge City, NY 10001 • Ph: +1 (555) 019-2834
-                </div>
+                    {/* Parent Information Section */}
+                    <div className="p-4 flex-1 flex flex-col justify-between space-y-3 text-[10px]">
+                      <div className="space-y-2.5">
+                        {/* Parents Grid */}
+                        <div className="space-y-1.5 p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800">
+                          <div className="flex items-center justify-between border-b border-slate-200/60 dark:border-slate-700/60 pb-1.5">
+                            <div>
+                              <span className="text-[9px] font-black uppercase text-brand-600 dark:text-brand-400 block">Father's Name</span>
+                              <span className="font-bold text-slate-900 dark:text-white text-xs">
+                                {liveStudent.fatherName || matchingAdmission?.parentName || 'N/A'}
+                              </span>
+                            </div>
+                            <div className="text-right">
+                              <span className="text-[8px] text-slate-400 block">Mobile</span>
+                              <span className="font-mono font-bold text-slate-800 dark:text-slate-200">
+                                {liveStudent.fatherPhone || matchingAdmission?.phone || 'N/A'}
+                              </span>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center justify-between pt-0.5">
+                            <div>
+                              <span className="text-[9px] font-black uppercase text-sky-600 dark:text-sky-400 block">Mother's Name</span>
+                              <span className="font-bold text-slate-900 dark:text-white text-xs">
+                                {liveStudent.motherName || matchingAdmission?.motherName || 'N/A'}
+                              </span>
+                            </div>
+                            <div className="text-right">
+                              <span className="text-[8px] text-slate-400 block">Mobile</span>
+                              <span className="font-mono font-bold text-slate-800 dark:text-slate-200">
+                                {liveStudent.motherPhone || matchingAdmission?.motherPhone || liveStudent.alternatePhone || 'N/A'}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Residential Address */}
+                        <div className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800 space-y-1">
+                          <span className="text-[9px] font-black uppercase text-slate-400 flex items-center gap-1">
+                            <MapPin className="w-3 h-3 text-brand-600" /> Residential Address
+                          </span>
+                          <p className="font-medium text-slate-800 dark:text-slate-200 text-[10px] leading-relaxed">
+                            {liveStudent.address || matchingAdmission?.address || 'Address not specified'}
+                          </p>
+                        </div>
+
+                        {/* Transport or Hostel Details */}
+                        <div className="p-2 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800 flex items-center justify-between text-[10px]">
+                          {isHosteller ? (
+                            <>
+                              <span className="font-semibold text-slate-500">Hostel Allocation:</span>
+                              <span className="font-bold text-brand-600 dark:text-brand-400">
+                                {liveStudent.hostelBlock || matchingAdmission?.hostelBlock ? `${liveStudent.hostelBlock || matchingAdmission?.hostelBlock} ${liveStudent.hostelRoom ? `(Rm ${liveStudent.hostelRoom})` : ''}` : 'Hostel Resident'}
+                              </span>
+                            </>
+                          ) : (
+                            <>
+                              <span className="font-semibold text-slate-500">Transport / Route:</span>
+                              <span className="font-bold text-slate-900 dark:text-white truncate max-w-[170px]">
+                                {assignedRouteName !== 'None' && assignedRouteName !== 'N/A'
+                                  ? `${assignedRouteName} (${assignedPickupPoint})`
+                                  : 'Self Transport'}
+                              </span>
+                            </>
+                          )}
+                        </div>
+
+                        {/* Important Terms */}
+                        <div className="p-2 rounded-xl bg-amber-50/70 dark:bg-amber-950/30 border border-amber-200/60 dark:border-amber-900/60 text-[8.5px] text-amber-900 dark:text-amber-200/90 leading-tight space-y-0.5">
+                          <p className="font-bold">Instructions:</p>
+                          <p>1. This card must be carried daily and presented on demand.</p>
+                          <p>2. If lost or found, please return immediately to the school office.</p>
+                        </div>
+                      </div>
+
+                      {/* School Verification Footer */}
+                      <div className="pt-2 border-t border-slate-200 dark:border-slate-800 text-[8.5px] text-slate-500 text-center space-y-0.5">
+                        <p className="font-bold text-slate-700 dark:text-slate-300">{schoolProfile?.address || 'School Campus'}</p>
+                        <p className="font-mono">
+                          Ph: {schoolProfile?.phone || liveStudent.phone} • Email: {schoolProfile?.email || 'office@school.edu'}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
               </div>
             </div>
           )}
@@ -996,7 +1527,7 @@ export const StudentProfileDrawer: React.FC<StudentProfileDrawerProps> = ({
                 <input
                   type="text"
                   required
-                  placeholder="e.g. Birth_Certificate_2026.pdf"
+                  placeholder="e.g. Birth_Certificate.pdf"
                   value={docTitle}
                   onChange={e => setDocTitle(e.target.value)}
                   className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 px-3 py-2 font-semibold outline-none focus:border-brand-500"
@@ -1148,23 +1679,22 @@ export const StudentProfileDrawer: React.FC<StudentProfileDrawerProps> = ({
               {previewDoc.fileUrl ? (
                 <div className="flex-1 w-full overflow-y-auto">
                   {previewDoc.name.toLowerCase().endsWith('.pdf') ? (
-                    <iframe 
-                      src={previewDoc.fileUrl} 
+                    <iframe
+                      src={previewDoc.fileUrl}
                       className="w-full h-full min-h-[380px] border-none"
                       title="PDF Preview"
                     />
                   ) : (
                     <div className="flex items-center justify-center p-4 min-h-full bg-slate-100 dark:bg-slate-950">
-                      <img 
-                        src={previewDoc.fileUrl} 
-                        alt="Uploaded Document" 
+                      <img
+                        src={previewDoc.fileUrl}
+                        alt="Uploaded Document"
                         className="max-w-full rounded-lg shadow-sm"
                       />
                     </div>
                   )}
                 </div>
               ) : (
-                /* Fallback preview for default mock docs */
                 <div className="flex-1 p-8 overflow-y-auto flex flex-col items-center justify-center text-center space-y-3">
                   <div className="w-16 h-16 rounded-2xl bg-brand-100 dark:bg-brand-950 text-brand-600 flex items-center justify-center shrink-0">
                     <FileText className="w-8 h-8" />

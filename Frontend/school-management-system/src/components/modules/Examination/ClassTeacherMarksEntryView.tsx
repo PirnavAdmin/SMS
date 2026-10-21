@@ -26,7 +26,8 @@ import {
   Sparkles,
   Info,
   ShieldCheck,
-  Printer
+  Printer,
+  X
 } from 'lucide-react';
 import { useData } from '../../../context/DataContext';
 import { useAuth } from '../../../context/AuthContext';
@@ -34,6 +35,7 @@ import { useToast } from '../../../context/ToastContext';
 import { ExamSetup, Student, GradeConfig, SubjectItem, ProcessedResult, ExamMark } from '../../../types';
 import { calculateGrade, determinePassFail } from './utils/resultCalculation';
 import { publishExamResultsApi, submitMarksEntryApi, saveMarksEntryDraftApi, fetchExamSubjectsApi, fetchExamOptionsApi, fetchExamByIdApi, fetchClassMarksApi } from '../../../api/examination';
+import { validateSearchQuery } from '../../../utils/validation';
 
 interface ClassTeacherMarksEntryViewProps {
   onNavigate?: (module: string) => void;
@@ -291,6 +293,7 @@ export const ClassTeacherMarksEntryView: React.FC<ClassTeacherMarksEntryViewProp
   const [selectedClass, setSelectedClass] = useState<string>('');
   const [selectedSection, setSelectedSection] = useState<string>('');
   const [searchQuery, setSearchQuery] = useState<string>('');
+  const [searchError, setSearchError] = useState<string | undefined>(undefined);
   const [viewMode, setViewMode] = useState<'matrix' | 'single'>('matrix');
   const [activeSingleSubject, setActiveSingleSubject] = useState<string>('');
   const [showPublishModal, setShowPublishModal] = useState<boolean>(false);
@@ -299,6 +302,21 @@ export const ClassTeacherMarksEntryView: React.FC<ClassTeacherMarksEntryViewProp
   const [isEditingPublished, setIsEditingPublished] = useState<boolean>(false);
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [pageSize, setPageSize] = useState<number>(10);
+
+  const handleSearchChange = (val: string) => {
+    setSearchQuery(val);
+    if (!val) {
+      setSearchError(undefined);
+    } else {
+      const validation = validateSearchQuery(val);
+      setSearchError(validation.isValid ? undefined : validation.error);
+    }
+  };
+
+  const handleClearSearch = () => {
+    setSearchQuery('');
+    setSearchError(undefined);
+  };
 
   // Fetch live exam details and applicable classes whenever selectedExamId changes
   useEffect(() => {
@@ -350,8 +368,9 @@ export const ClassTeacherMarksEntryView: React.FC<ClassTeacherMarksEntryViewProp
 
   // Selected Exam
   const currentExam = useMemo(() => {
-    return allExams.find(e => String(e.id) === String(selectedExamId)) || teacherApplicableExams[0] || allExams[0] || null;
-  }, [allExams, selectedExamId, teacherApplicableExams]);
+    if (!selectedExamId) return null;
+    return allExams.find(e => String(e.id) === String(selectedExamId)) || null;
+  }, [allExams, selectedExamId]);
 
   // Allowed Classes for Selection, strictly dynamically filtered by the Selected Examination's Applicable Classes
   const availableClasses = useMemo(() => {
@@ -388,26 +407,12 @@ export const ClassTeacherMarksEntryView: React.FC<ClassTeacherMarksEntryViewProp
     return Array.from(new Set([...fromAcademic, ...fromStudents]));
   }, [academicClasses, students, isAdmin, isTeacher, myTeacherClasses, myClassTeacherAssignment, currentExam, apiExamApplicableClasses]);
 
-  // Initialize selections with Teacher assigned defaults
+  // Keep selections valid when options change
   useEffect(() => {
-    if (teacherApplicableExams.length > 0 && !selectedExamId) {
-      const activeExam = teacherApplicableExams.find(e => e.status === 'Active') || teacherApplicableExams[0];
-      setSelectedExamId(activeExam.id);
+    if (selectedClass && availableClasses.length > 0 && !availableClasses.some(c => c.toLowerCase() === selectedClass.toLowerCase())) {
+      setSelectedClass('');
     }
-  }, [teacherApplicableExams, selectedExamId]);
-
-  useEffect(() => {
-    if (availableClasses.length > 0) {
-      if (!selectedClass || !availableClasses.some(c => c.toLowerCase() === selectedClass.toLowerCase())) {
-        if (myClassTeacherAssignment?.className && availableClasses.some(c => c.toLowerCase() === myClassTeacherAssignment.className.toLowerCase())) {
-          const matched = availableClasses.find(c => c.toLowerCase() === myClassTeacherAssignment.className.toLowerCase());
-          setSelectedClass(matched || availableClasses[0]);
-        } else {
-          setSelectedClass(availableClasses[0]);
-        }
-      }
-    }
-  }, [availableClasses, selectedClass, myClassTeacherAssignment]);
+  }, [availableClasses, selectedClass]);
 
   // Available Sections for Selected Class
   const availableSections = useMemo(() => {
@@ -425,14 +430,10 @@ export const ClassTeacherMarksEntryView: React.FC<ClassTeacherMarksEntryViewProp
   }, [academicClasses, selectedClass, students]);
 
   useEffect(() => {
-    if (availableSections.length > 0) {
-      if (myClassTeacherAssignment?.className === selectedClass && availableSections.includes(myClassTeacherAssignment.section)) {
-        setSelectedSection(myClassTeacherAssignment.section);
-      } else if (!selectedSection || !availableSections.includes(selectedSection)) {
-        setSelectedSection(availableSections[0]);
-      }
+    if (selectedSection && availableSections.length > 0 && !availableSections.includes(selectedSection)) {
+      setSelectedSection('');
     }
-  }, [availableSections, selectedClass, myClassTeacherAssignment, selectedSection]);
+  }, [availableSections, selectedSection]);
 
   // Fetch API exam subject configurations
   const [apiExamSubjects, setApiExamSubjects] = useState<any[]>([]);
@@ -1059,6 +1060,10 @@ export const ClassTeacherMarksEntryView: React.FC<ClassTeacherMarksEntryViewProp
 
   // Save Draft Handler
   const handleSaveDraft = async () => {
+    if (!selectedExamId || !selectedClass || !selectedSection) {
+      addToast('warning', 'Selection Required', 'Please select an Examination, Class, and Section first.');
+      return;
+    }
     setIsSavingDraft(true);
     try {
       // 1. Prepare payload for DataContext saveMarks
@@ -1299,22 +1304,24 @@ export const ClassTeacherMarksEntryView: React.FC<ClassTeacherMarksEntryViewProp
               <h1 className="text-lg sm:text-xl font-black text-slate-900 dark:text-white tracking-tight leading-tight">
                 Class Marks Entry & Publishing
               </h1>
-              {isCurrentClassTeacher ? (
-                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-emerald-100 text-emerald-900 dark:bg-emerald-950 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
-                  Class Teacher • {selectedClass} ({selectedSection})
-                </span>
-              ) : (
-                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-sky-100 text-sky-900 dark:bg-sky-950 dark:text-sky-300 border border-sky-200 dark:border-sky-800">
-                  Subject Teacher • {selectedClass} ({selectedSection})
-                  {teacherAssignedSubjects.length > 0 ? ` (${teacherAssignedSubjects.join(', ')})` : ''}
-                </span>
-              )}
+              {selectedClass && selectedSection ? (
+                isCurrentClassTeacher ? (
+                  <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-emerald-100 text-emerald-900 dark:bg-emerald-950 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
+                    Class Teacher • {selectedClass} ({selectedSection})
+                  </span>
+                ) : (
+                  <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-sky-100 text-sky-900 dark:bg-sky-950 dark:text-sky-300 border border-sky-200 dark:border-sky-800">
+                    Subject Teacher • {selectedClass} ({selectedSection})
+                    {teacherAssignedSubjects.length > 0 ? ` (${teacherAssignedSubjects.join(', ')})` : ''}
+                  </span>
+                )
+              ) : null}
             </div>
           </div>
         </div>
 
         <div className="flex items-center gap-2.5 w-full sm:w-auto justify-end flex-wrap">
-          {isAlreadyPublished && isEditingPublished && (
+          {selectedExamId && selectedClass && selectedSection && isAlreadyPublished && isEditingPublished && (
             <button
               type="button"
               onClick={() => setIsEditingPublished(false)}
@@ -1328,7 +1335,7 @@ export const ClassTeacherMarksEntryView: React.FC<ClassTeacherMarksEntryViewProp
           <button
             type="button"
             onClick={handleSaveDraft}
-            disabled={isSavingDraft || isPublishing || (isAlreadyPublished && !isEditingPublished)}
+            disabled={!selectedExamId || !selectedClass || !selectedSection || isSavingDraft || isPublishing || (isAlreadyPublished && !isEditingPublished)}
             className="inline-flex h-9 items-center justify-center gap-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 dark:bg-slate-800 dark:text-slate-200 px-3.5 text-xs font-bold transition cursor-pointer disabled:opacity-50"
           >
             <Save className="h-3.5 w-3.5" />
@@ -1338,13 +1345,17 @@ export const ClassTeacherMarksEntryView: React.FC<ClassTeacherMarksEntryViewProp
           <button
             type="button"
             onClick={() => {
+              if (!selectedExamId || !selectedClass || !selectedSection) {
+                addToast('warning', 'Selection Required', 'Please select an Examination, Class, and Section first.');
+                return;
+              }
               if (!isCurrentClassTeacher && !isAdmin) {
                 addToast('warning', 'Class Teacher Privilege', 'Only the designated Class Teacher or Admin can publish final report cards for this class.');
                 return;
               }
               setShowPublishModal(true);
             }}
-            disabled={isPublishing || classStudents.length === 0 || (!isCurrentClassTeacher && !isAdmin) || (isAlreadyPublished && !isEditingPublished)}
+            disabled={!selectedExamId || !selectedClass || !selectedSection || isPublishing || classStudents.length === 0 || (!isCurrentClassTeacher && !isAdmin) || (isAlreadyPublished && !isEditingPublished)}
             title={!isCurrentClassTeacher && !isAdmin ? 'Only Class Teacher or Admin can publish final marks' : undefined}
             className={`inline-flex h-9 items-center justify-center gap-1.5 rounded-xl px-4 text-xs font-black shadow-sm transition disabled:opacity-50 ${
               isCurrentClassTeacher || isAdmin
@@ -1359,7 +1370,7 @@ export const ClassTeacherMarksEntryView: React.FC<ClassTeacherMarksEntryViewProp
       </div>
 
       {/* Role Notice Banner for Subject Teachers */}
-      {!isCurrentClassTeacher && !isAdmin && (
+      {!isCurrentClassTeacher && !isAdmin && selectedClass && selectedSection && (
         <div className="rounded-2xl border border-sky-200 bg-sky-50/80 p-3.5 dark:border-sky-900/50 dark:bg-sky-950/40 flex items-center justify-between gap-3 text-xs text-sky-800 dark:text-sky-200">
           <div className="flex items-center gap-2.5">
             <Info className="w-4 h-4 text-sky-600 shrink-0" />
@@ -1372,7 +1383,7 @@ export const ClassTeacherMarksEntryView: React.FC<ClassTeacherMarksEntryViewProp
       )}
 
       {/* Published Alert Banner if already published */}
-      {isAlreadyPublished && !isEditingPublished && (
+      {selectedExamId && selectedClass && selectedSection && isAlreadyPublished && !isEditingPublished && (
         <div className="rounded-2xl border border-emerald-200 bg-emerald-50/80 p-4 dark:border-emerald-900/50 dark:bg-emerald-950/40 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <div className="p-2 rounded-xl bg-emerald-500 text-white">
@@ -1447,7 +1458,7 @@ export const ClassTeacherMarksEntryView: React.FC<ClassTeacherMarksEntryViewProp
       )}
 
       {/* Editing Published Marks Active Notice Banner */}
-      {isAlreadyPublished && isEditingPublished && (
+      {selectedExamId && selectedClass && selectedSection && isAlreadyPublished && isEditingPublished && (
         <div className="rounded-2xl border border-amber-300 bg-amber-50/90 p-4 dark:border-amber-900/60 dark:bg-amber-950/40 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <div className="p-2 rounded-xl bg-amber-500 text-white">
@@ -1486,10 +1497,7 @@ export const ClassTeacherMarksEntryView: React.FC<ClassTeacherMarksEntryViewProp
       {/* Control Bar: Exam, Class, Section, Mode & Stats */}
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-4">
         {/* Exam Selector */}
-        <div className="bg-white dark:bg-slate-900 border border-sky-100 dark:border-sky-900/40 p-4 rounded-2xl shadow-xs">
-          <label className="block text-[10px] font-black uppercase tracking-wider text-slate-400 mb-1.5">
-            Select Examination
-          </label>
+        <div className="bg-white dark:bg-slate-900 border border-sky-300 dark:border-sky-700 p-4 rounded-2xl shadow-xs hover:border-sky-400 transition-colors">
           <div className="relative">
             <select
               value={selectedExamId}
@@ -1497,18 +1505,15 @@ export const ClassTeacherMarksEntryView: React.FC<ClassTeacherMarksEntryViewProp
                 const newId = e.target.value;
                 setSelectedExamId(newId);
                 const nextExam = allExams.find(ex => String(ex.id) === String(newId));
-                const nextApp = getExamApplicableClasses(nextExam);
-                if (nextApp.length > 0) {
-                  if (myClassTeacherAssignment?.className && nextApp.some(c => c.toLowerCase() === myClassTeacherAssignment.className.toLowerCase())) {
-                    const match = nextApp.find(c => c.toLowerCase() === myClassTeacherAssignment.className.toLowerCase());
-                    setSelectedClass(match || nextApp[0]);
-                  } else {
-                    setSelectedClass(nextApp[0]);
-                  }
+                const nextApp = nextExam ? getExamApplicableClasses(nextExam) : [];
+                if (selectedClass && nextApp.length > 0 && !nextApp.some(c => c.toLowerCase() === selectedClass.toLowerCase())) {
+                  setSelectedClass('');
+                  setSelectedSection('');
                 }
               }}
-              className="w-full appearance-none rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2.5 text-xs font-bold text-slate-800 focus:border-sky-500 focus:bg-white focus:outline-none dark:border-slate-800 dark:bg-slate-950 dark:text-white"
+              className="w-full appearance-none rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2.5 text-xs font-bold text-slate-800 focus:border-sky-500 focus:bg-white focus:outline-none dark:border-slate-800 dark:bg-slate-950 dark:text-white cursor-pointer"
             >
+              <option value="">Select Examination</option>
               {teacherApplicableExams.map(e => (
                 <option key={e.id} value={e.id}>
                   {e.name || e.examName}
@@ -1520,16 +1525,17 @@ export const ClassTeacherMarksEntryView: React.FC<ClassTeacherMarksEntryViewProp
         </div>
 
         {/* Class Selector */}
-        <div className="bg-white dark:bg-slate-900 border border-sky-100 dark:border-sky-900/40 p-4 rounded-2xl shadow-xs">
-          <label className="block text-[10px] font-black uppercase tracking-wider text-slate-400 mb-1.5">
-            Class
-          </label>
+        <div className="bg-white dark:bg-slate-900 border border-sky-300 dark:border-sky-700 p-4 rounded-2xl shadow-xs hover:border-sky-400 transition-colors">
           <div className="relative">
             <select
               value={selectedClass}
-              onChange={e => setSelectedClass(e.target.value)}
-              className="w-full appearance-none rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2.5 text-xs font-bold text-slate-800 focus:border-sky-500 focus:bg-white focus:outline-none dark:border-slate-800 dark:bg-slate-950 dark:text-white"
+              onChange={e => {
+                setSelectedClass(e.target.value);
+                setSelectedSection('');
+              }}
+              className="w-full appearance-none rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2.5 text-xs font-bold text-slate-800 focus:border-sky-500 focus:bg-white focus:outline-none dark:border-slate-800 dark:bg-slate-950 dark:text-white cursor-pointer"
             >
+              <option value="">Select Class</option>
               {availableClasses.map(cls => (
                 <option key={cls} value={cls}>
                   {cls}
@@ -1541,16 +1547,14 @@ export const ClassTeacherMarksEntryView: React.FC<ClassTeacherMarksEntryViewProp
         </div>
 
         {/* Section Selector */}
-        <div className="bg-white dark:bg-slate-900 border border-sky-100 dark:border-sky-900/40 p-4 rounded-2xl shadow-xs">
-          <label className="block text-[10px] font-black uppercase tracking-wider text-slate-400 mb-1.5">
-            Section
-          </label>
+        <div className="bg-white dark:bg-slate-900 border border-sky-300 dark:border-sky-700 p-4 rounded-2xl shadow-xs hover:border-sky-400 transition-colors">
           <div className="relative">
             <select
               value={selectedSection}
               onChange={e => setSelectedSection(e.target.value)}
-              className="w-full appearance-none rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2.5 text-xs font-bold text-slate-800 focus:border-sky-500 focus:bg-white focus:outline-none dark:border-slate-800 dark:bg-slate-950 dark:text-white"
+              className="w-full appearance-none rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2.5 text-xs font-bold text-slate-800 focus:border-sky-500 focus:bg-white focus:outline-none dark:border-slate-800 dark:bg-slate-950 dark:text-white cursor-pointer"
             >
+              <option value="">Select Section</option>
               {availableSections.map(sec => (
                 <option key={sec} value={sec}>
                   Section {sec}
@@ -1562,10 +1566,9 @@ export const ClassTeacherMarksEntryView: React.FC<ClassTeacherMarksEntryViewProp
         </div>
 
         {/* Quick Summary Card */}
-        <div className="bg-white dark:bg-slate-900 border border-sky-100 dark:border-sky-900/40 p-4 rounded-2xl shadow-xs flex items-center justify-between">
+        <div className="bg-white dark:bg-slate-900 border border-sky-300 dark:border-sky-700 p-4 rounded-2xl shadow-xs flex items-center justify-between hover:border-sky-400 transition-colors">
           <div>
-            <p className="text-[10px] font-black uppercase tracking-wider text-slate-400">Class Progress</p>
-            <p className="text-xl font-black text-slate-900 dark:text-white mt-0.5">
+            <p className="text-xl font-black text-slate-900 dark:text-white">
               {classStats.completedStudents}/{classStats.totalStudents}
             </p>
             <p className="text-[10px] font-bold text-slate-400 mt-0.5">
@@ -1576,7 +1579,12 @@ export const ClassTeacherMarksEntryView: React.FC<ClassTeacherMarksEntryViewProp
             <button
               type="button"
               onClick={handleQuickMarkAllPresent}
-              className="text-[10px] font-extrabold text-sky-600 hover:text-sky-700 dark:text-sky-400 bg-sky-50 dark:bg-sky-950/50 px-2.5 py-1.5 rounded-lg border border-sky-200/50 dark:border-sky-900 transition cursor-pointer"
+              disabled={!selectedExamId || !selectedClass || !selectedSection || classStudents.length === 0}
+              className={`text-[10px] font-extrabold px-2.5 py-1.5 rounded-lg border transition ${
+                !selectedExamId || !selectedClass || !selectedSection || classStudents.length === 0
+                  ? 'text-slate-400 bg-slate-100 dark:bg-slate-800 border-slate-200 dark:border-slate-700 cursor-not-allowed opacity-60'
+                  : 'text-sky-600 hover:text-sky-700 dark:text-sky-400 bg-sky-50 dark:bg-sky-950/50 border-sky-200/50 dark:border-sky-900 cursor-pointer'
+              }`}
             >
               Mark All Present
             </button>
@@ -1585,12 +1593,12 @@ export const ClassTeacherMarksEntryView: React.FC<ClassTeacherMarksEntryViewProp
       </div>
 
       {/* Mode Selector & Search */}
-      <div className="flex flex-col sm:flex-row items-center justify-between gap-4 bg-white dark:bg-slate-900 border border-sky-100 dark:border-sky-900/40 p-3 rounded-2xl shadow-xs">
-        <div className="flex items-center gap-2">
+      <div className="flex flex-col sm:flex-row items-start justify-between gap-4 bg-white dark:bg-slate-900 border border-sky-300 dark:border-sky-700 p-3 rounded-2xl shadow-xs">
+        <div className="flex items-center gap-2 shrink-0">
           <button
             type="button"
             onClick={() => setViewMode('matrix')}
-            className={`inline-flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-black transition cursor-pointer ${
+            className={`inline-flex items-center gap-2 h-9 rounded-xl px-4 text-xs font-black transition cursor-pointer ${
               viewMode === 'matrix'
                 ? 'bg-brand-600 text-white shadow-sm'
                 : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200'
@@ -1601,7 +1609,7 @@ export const ClassTeacherMarksEntryView: React.FC<ClassTeacherMarksEntryViewProp
           <button
             type="button"
             onClick={() => setViewMode('single')}
-            className={`inline-flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-black transition cursor-pointer ${
+            className={`inline-flex items-center gap-2 h-9 rounded-xl px-4 text-xs font-black transition cursor-pointer ${
               viewMode === 'single'
                 ? 'bg-brand-600 text-white shadow-sm'
                 : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200'
@@ -1613,38 +1621,74 @@ export const ClassTeacherMarksEntryView: React.FC<ClassTeacherMarksEntryViewProp
 
         {/* Subject Pills if in single subject mode */}
         {viewMode === 'single' && (
-          <div className="flex items-center gap-1.5 overflow-x-auto max-w-md no-scrollbar py-1">
+          <div className="flex items-center gap-1.5 overflow-x-auto max-w-md no-scrollbar py-0.5">
             {(isCurrentClassTeacher ? classSubjects : classSubjects.filter(s => canEditSubject(s.name))).map(sub => (
               <button
                 key={sub.id}
                 type="button"
                 onClick={() => setActiveSingleSubject(sub.name)}
-                className={`px-3 py-1.5 rounded-xl text-xs font-bold shrink-0 transition cursor-pointer ${
+                className={`px-3 h-8 rounded-xl text-xs font-bold shrink-0 transition cursor-pointer flex items-center gap-1 ${
                   activeSingleSubject === sub.name
                     ? 'bg-sky-600 text-white shadow-sm'
                     : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200'
                 }`}
               >
-                {sub.name} <span className="text-[10px] opacity-75">({sub.maxMarks})</span>
+                <span>{sub.name}</span>
+                <span className="text-[10px] opacity-75">({sub.maxMarks})</span>
               </button>
             ))}
           </div>
         )}
 
-        <div className="relative w-full sm:w-64">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={e => setSearchQuery(e.target.value)}
-            placeholder="Search student or roll no..."
-            className="w-full rounded-xl border border-slate-200 bg-slate-50 pl-9 pr-3 py-2 text-xs font-medium focus:border-sky-500 focus:bg-white focus:outline-none dark:border-slate-800 dark:bg-slate-950 dark:text-white"
-          />
+        <div className="flex flex-col w-full sm:w-64 shrink-0">
+          <div className="relative w-full h-9">
+            <Search className={`absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 pointer-events-none transition-colors ${searchError ? 'text-rose-500' : 'text-slate-400'}`} />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={e => handleSearchChange(e.target.value)}
+              placeholder="Search student or roll no..."
+              className={`w-full h-9 rounded-xl border bg-slate-50 pl-9 ${searchQuery ? 'pr-8' : 'pr-3'} py-2 text-xs font-medium focus:bg-white focus:outline-none dark:bg-slate-950 dark:text-white transition ${
+                searchError
+                  ? 'border-rose-500 focus:border-rose-500 ring-1 ring-rose-500/20'
+                  : 'border-slate-200 dark:border-slate-800 focus:border-sky-500'
+              }`}
+            />
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={handleClearSearch}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer p-0.5 rounded-full hover:bg-slate-200/50 dark:hover:bg-slate-800 transition"
+                title="Clear search"
+                aria-label="Clear search"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
+          {searchError && (
+            <p className="text-[11px] font-bold text-rose-500 flex items-center gap-1 mt-1.5 pl-0.5 leading-tight animate-in fade-in duration-150">
+              <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+              <span>{searchError}</span>
+            </p>
+          )}
         </div>
       </div>
 
       {/* Main Marks Entry Table or Empty State */}
-      {classSubjects.length === 0 ? (
+      {!selectedExamId || !selectedClass || !selectedSection ? (
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-12 text-center shadow-xs">
+          <div className="w-14 h-14 rounded-2xl bg-sky-50 dark:bg-sky-950/50 text-sky-600 dark:text-sky-400 flex items-center justify-center mx-auto mb-4 border border-sky-200 dark:border-sky-800">
+            <FileSpreadsheet className="w-7 h-7" />
+          </div>
+          <h3 className="text-base font-black text-slate-900 dark:text-white mb-1.5">
+            Select Examination, Class, and Section
+          </h3>
+          <p className="text-xs text-slate-500 dark:text-slate-400 max-w-md mx-auto leading-relaxed">
+            Please choose an Examination, Class, and Section from the dropdowns above to view or enter marks.
+          </p>
+        </div>
+      ) : classSubjects.length === 0 ? (
         <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-12 text-center shadow-xs">
           <div className="w-14 h-14 rounded-2xl bg-amber-50 dark:bg-amber-950/50 text-amber-600 dark:text-amber-400 flex items-center justify-center mx-auto mb-4 border border-amber-200 dark:border-amber-800">
             <AlertCircle className="w-7 h-7" />
@@ -1668,42 +1712,79 @@ export const ClassTeacherMarksEntryView: React.FC<ClassTeacherMarksEntryViewProp
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs border-collapse min-w-[900px]">
               <thead>
-                <tr className="border-b border-slate-200 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-950/60">
-                  <th className="px-4 py-3.5 text-[10px] font-black uppercase tracking-wider text-slate-400 w-16 text-center">
+                <tr className="border-b border-slate-200 dark:border-slate-800 bg-slate-100/75 dark:bg-slate-950/80">
+                  <th
+                    rowSpan={2}
+                    className="px-4 py-3 text-[10px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400 w-16 text-center border-r border-slate-200/80 dark:border-slate-800/80 align-middle"
+                  >
                     Roll
                   </th>
-                  <th className="px-4 py-3.5 text-[10px] font-black uppercase tracking-wider text-slate-400 min-w-[180px]">
+                  <th
+                    rowSpan={2}
+                    className="px-4 py-3 text-[10px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400 min-w-[180px] border-r border-slate-200/80 dark:border-slate-800/80 align-middle"
+                  >
                     Student Name
                   </th>
-                  {classSubjects.map(sub => {
+                  <th
+                    colSpan={classSubjects.length}
+                    className="px-4 py-2.5 text-[10px] font-black uppercase tracking-wider text-sky-800 dark:text-sky-300 bg-sky-50/80 dark:bg-sky-950/50 text-center border-b border-r border-slate-200/80 dark:border-slate-800/80"
+                  >
+                    Subject Marks & Passing Criteria
+                  </th>
+                  <th
+                    rowSpan={2}
+                    className="px-3 py-3 text-[10px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400 text-center w-24 border-r border-slate-200/80 dark:border-slate-800/80 align-middle"
+                  >
+                    Total
+                  </th>
+                  <th
+                    rowSpan={2}
+                    className="px-3 py-3 text-[10px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400 text-center w-20 border-r border-slate-200/80 dark:border-slate-800/80 align-middle"
+                  >
+                    %
+                  </th>
+                  <th
+                    rowSpan={2}
+                    className="px-3 py-3 text-[10px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400 text-center w-20 border-r border-slate-200/80 dark:border-slate-800/80 align-middle"
+                  >
+                    Grade
+                  </th>
+                  <th
+                    rowSpan={2}
+                    className="px-3 py-3 text-[10px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400 text-center w-24 align-middle"
+                  >
+                    Status
+                  </th>
+                </tr>
+                <tr className="border-b border-slate-200 dark:border-slate-800 bg-slate-50/90 dark:bg-slate-950/60">
+                  {classSubjects.map((sub, sIdx) => {
                     const isEditable = canEditSubject(sub.name);
+                    const isLast = sIdx === classSubjects.length - 1;
                     return (
-                      <th key={sub.id} className="px-3 py-3.5 text-[10px] font-black uppercase tracking-wider text-slate-400 text-center min-w-[120px]">
-                        <div className="flex items-center justify-center gap-1">
-                          <span>{sub.name}</span>
-                          {!isEditable && <Lock className="w-3 h-3 text-slate-400 inline" title="Subject Teacher Only" />}
+                      <th
+                        key={sub.id}
+                        className={`px-3 py-2.5 text-center min-w-[140px] border-r border-slate-200/80 dark:border-slate-800/80 ${isLast ? 'border-r-slate-200/80 dark:border-r-slate-800/80' : ''}`}
+                      >
+                        <div className="flex flex-col items-center gap-1">
+                          <div className="flex items-center justify-center gap-1.5">
+                            <span className="text-[9px] font-extrabold uppercase text-slate-400 dark:text-slate-500">Subject:</span>
+                            <span className="text-[11px] font-black uppercase tracking-wider text-slate-800 dark:text-slate-100">{sub.name}</span>
+                            {!isEditable && <Lock className="w-3 h-3 text-slate-400 inline" title="Subject Teacher Only" />}
+                          </div>
+                          <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-[9px] font-semibold text-slate-500 dark:text-slate-400 shadow-2xs">
+                            <span>Max Marks: <strong className="text-slate-800 dark:text-slate-200 font-bold">{sub.maxMarks}</strong></span>
+                            <span className="text-slate-300 dark:text-slate-600">•</span>
+                            <span>Passing Marks: <strong className="text-slate-800 dark:text-slate-200 font-bold">{sub.passMarks}</strong></span>
+                          </div>
+                          {!isEditable && (
+                            <span className="text-[8px] font-bold text-amber-600 dark:text-amber-400 block tracking-normal">
+                              (Subject Teacher)
+                            </span>
+                          )}
                         </div>
-                        <div className="text-[9px] font-normal text-slate-400">Max: {sub.maxMarks} • Pass: {sub.passMarks}</div>
-                        {!isEditable && (
-                          <span className="text-[8px] font-bold text-slate-400 block tracking-normal">
-                            (Subject Teacher)
-                          </span>
-                        )}
                       </th>
                     );
                   })}
-                  <th className="px-3 py-3.5 text-[10px] font-black uppercase tracking-wider text-slate-400 text-center w-24">
-                    Total
-                  </th>
-                  <th className="px-3 py-3.5 text-[10px] font-black uppercase tracking-wider text-slate-400 text-center w-20">
-                    %
-                  </th>
-                  <th className="px-3 py-3.5 text-[10px] font-black uppercase tracking-wider text-slate-400 text-center w-20">
-                    Grade
-                  </th>
-                  <th className="px-3 py-3.5 text-[10px] font-black uppercase tracking-wider text-slate-400 text-center w-24">
-                    Status
-                  </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60">
@@ -1850,8 +1931,8 @@ export const ClassTeacherMarksEntryView: React.FC<ClassTeacherMarksEntryViewProp
                   <th className="px-4 py-3.5 text-[10px] font-black uppercase tracking-wider text-slate-400 text-center w-36">
                     Attendance
                   </th>
-                  <th className="px-4 py-3.5 text-[10px] font-black uppercase tracking-wider text-slate-400 text-center w-32">
-                    Marks (Max: {classSubjects.find(s => s.name === activeSingleSubject)?.maxMarks || 100})
+                  <th className="px-4 py-3.5 text-[10px] font-black uppercase tracking-wider text-slate-400 text-center min-w-[140px]">
+                    Marks (Max: {classSubjects.find(s => s.name === activeSingleSubject)?.maxMarks || 100} • Pass: {classSubjects.find(s => s.name === activeSingleSubject)?.passMarks || 35})
                   </th>
                   <th className="px-4 py-3.5 text-[10px] font-black uppercase tracking-wider text-slate-400 text-center w-24">
                     Grade

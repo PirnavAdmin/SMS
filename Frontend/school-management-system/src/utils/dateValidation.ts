@@ -1,3 +1,345 @@
+export interface DateParts {
+  year: number;
+  month: number; // 1-12
+  day: number;   // 1-31
+}
+
+export function isLeapYear(year: number): boolean {
+  return (year % 4 === 0 && year % 100 !== 0) || (year % 400 === 0);
+}
+
+export function getDaysInMonth(year: number, month: number): number {
+  if (month === 2) return isLeapYear(year) ? 29 : 28;
+  if ([4, 6, 9, 11].includes(month)) return 30;
+  return 31;
+}
+
+/**
+ * Safely parses any date string, timestamp, or Date object into { year, month, day }
+ * without UTC/local timezone shifts or off-by-one errors.
+ */
+export function parseDateOnly(dateInput?: string | Date | number | null): DateParts | null {
+  if (!dateInput) return null;
+
+  if (dateInput instanceof Date) {
+    if (isNaN(dateInput.getTime())) return null;
+    return {
+      year: dateInput.getFullYear(),
+      month: dateInput.getMonth() + 1,
+      day: dateInput.getDate(),
+    };
+  }
+
+  if (typeof dateInput === 'number') {
+    if (dateInput < 100000) {
+      // Excel serial date
+      const utcDays = Math.floor(dateInput - 25569);
+      const d = new Date(utcDays * 86400 * 1000);
+      if (isNaN(d.getTime())) return null;
+      return {
+        year: d.getUTCFullYear(),
+        month: d.getUTCMonth() + 1,
+        day: d.getUTCDate(),
+      };
+    }
+    const d = new Date(dateInput);
+    if (isNaN(d.getTime())) return null;
+    return {
+      year: d.getFullYear(),
+      month: d.getMonth() + 1,
+      day: d.getDate(),
+    };
+  }
+
+  const str = String(dateInput).trim();
+  if (!str) return null;
+
+  const clean = str.split(/[T ]/)[0];
+  const parts = clean.split(/[-/.]/);
+  if (parts.length !== 3) return null;
+
+  let y = 0, m = 0, d = 0;
+
+  if (parts[0].length === 4) {
+    // YYYY-MM-DD or YYYY/MM/DD
+    y = parseInt(parts[0], 10);
+    m = parseInt(parts[1], 10);
+    d = parseInt(parts[2], 10);
+  } else if (parts[2].length === 4) {
+    const num0 = parseInt(parts[0], 10);
+    const num1 = parseInt(parts[1], 10);
+    y = parseInt(parts[2], 10);
+
+    if (num0 > 12) {
+      // DD-MM-YYYY or DD/MM/YYYY
+      d = num0;
+      m = num1;
+    } else if (num1 > 12) {
+      // MM/DD/YYYY or MM-DD-YYYY
+      m = num0;
+      d = num1;
+    } else {
+      // Default to DD-MM-YYYY / DD/MM/YYYY as standard across SMS
+      d = num0;
+      m = num1;
+    }
+  } else {
+    return null;
+  }
+
+  if (isNaN(y) || isNaN(m) || isNaN(d)) return null;
+  if (m < 1 || m > 12) return null;
+  const maxDays = getDaysInMonth(y, m);
+  if (d < 1 || d > maxDays) return null;
+  if (y < 1900 || y > 2200) return null;
+
+  return { year: y, month: m, day: d };
+}
+
+/**
+ * Compares two dates. Returns:
+ * < 0 if d1 < d2
+ *   0 if d1 === d2
+ * > 0 if d1 > d2
+ */
+export function compareDates(d1: DateParts, d2: DateParts): number {
+  if (d1.year !== d2.year) return d1.year - d2.year;
+  if (d1.month !== d2.month) return d1.month - d2.month;
+  return d1.day - d2.day;
+}
+
+/**
+ * Calculates completed exact age (years, months, days) between date of birth and target date.
+ */
+export function calculateExactAge(dob: DateParts, atDate: DateParts): { years: number; months: number; days: number } {
+  let years = atDate.year - dob.year;
+  let months = atDate.month - dob.month;
+  let days = atDate.day - dob.day;
+
+  if (days < 0) {
+    months--;
+    const prevMonth = atDate.month === 1 ? 12 : atDate.month - 1;
+    const prevYear = atDate.month === 1 ? atDate.year - 1 : atDate.year;
+    days += getDaysInMonth(prevYear, prevMonth);
+  }
+
+  if (months < 0) {
+    years--;
+    months += 12;
+  }
+
+  return { years, months, days };
+}
+
+/**
+ * Gets the configured or standard minimum age requirement for a given class.
+ */
+export function getMinimumAgeForClass(
+  className?: string | null,
+  academicClasses?: any[]
+): number | null {
+  if (!className || typeof className !== 'string') return null;
+  const clean = className.trim();
+  if (!clean || clean.toLowerCase() === 'select' || clean.toLowerCase() === 'select class') return null;
+
+  // 1. Check if explicitly configured in academicClasses master list
+  if (Array.isArray(academicClasses) && academicClasses.length > 0) {
+    const matched = academicClasses.find(
+      (c) => c && (
+        c.name?.toLowerCase().trim() === clean.toLowerCase() ||
+        c.className?.toLowerCase().trim() === clean.toLowerCase()
+      )
+    );
+    if (matched && typeof matched.minimumAge === 'number' && matched.minimumAge >= 0) {
+      return matched.minimumAge;
+    }
+  }
+
+  // 2. Standard school grade progression defaults
+  const lower = clean.toLowerCase();
+  if (lower.includes('play') || lower.includes('nursery') || lower.includes('pre-nursery')) {
+    return 3;
+  }
+  if (lower.includes('lkg') || lower.includes('pp1') || lower.includes('pre-kg') || lower.includes('junior kg')) {
+    return 4;
+  }
+  if (lower.includes('ukg') || lower.includes('pp2') || lower.includes('senior kg') || lower.includes('kg')) {
+    return 5;
+  }
+
+  // Check numbered classes: Class 1 -> 6, Class 2 -> 7, ..., Class 12 -> 17
+  const numMatch = lower.match(/\b(?:class|grade)?\s*(\d+)(?:st|nd|rd|th)?\b/) || lower.match(/(\d+)/);
+  if (numMatch) {
+    const gradeNum = parseInt(numMatch[1], 10);
+    if (!isNaN(gradeNum) && gradeNum >= 1 && gradeNum <= 12) {
+      return gradeNum + 5;
+    }
+  }
+
+  return null;
+}
+
+export type StudentAgeErrorCode =
+  | 'MISSING_DOB'
+  | 'INVALID_DOB'
+  | 'MISSING_ADMISSION_DATE'
+  | 'INVALID_ADMISSION_DATE'
+  | 'ADMISSION_BEFORE_DOB'
+  | 'MISSING_CLASS'
+  | 'UNDERAGE';
+
+export interface StudentAgeValidationResult {
+  isValid: boolean;
+  errorCode?: StudentAgeErrorCode | null;
+  message?: string;
+  ageYears?: number;
+  ageMonths?: number;
+  ageDays?: number;
+  minimumAge?: number;
+  className?: string;
+}
+
+export interface ValidateStudentAgeParams {
+  dateOfBirth?: string | Date | number | null;
+  dateOfAdmission?: string | Date | number | null;
+  className?: string | null;
+  classId?: string | number | null;
+  academicClasses?: any[];
+}
+
+/**
+ * Validates a student's age eligibility for admission.
+ * Validation priority:
+ * 1. Invalid / missing DOB
+ * 2. Invalid / missing Admission Date
+ * 3. Admission Date before DOB
+ * 4. Missing Class
+ * 5. Minimum age violation
+ * 6. Valid
+ */
+export function validateStudentAge(params: ValidateStudentAgeParams): StudentAgeValidationResult {
+  const { dateOfBirth, dateOfAdmission, className, classId, academicClasses } = params;
+
+  // 1. Missing / Invalid Date of Birth
+  if (!dateOfBirth || (typeof dateOfBirth === 'string' && !dateOfBirth.trim())) {
+    return {
+      isValid: false,
+      errorCode: 'MISSING_DOB',
+      message: 'Date of birth is required.',
+    };
+  }
+
+  const dobParts = parseDateOnly(dateOfBirth);
+  if (!dobParts) {
+    return {
+      isValid: false,
+      errorCode: 'INVALID_DOB',
+      message: 'Date of birth must be a valid date.',
+    };
+  }
+
+  const now = new Date();
+  const todayParts: DateParts = {
+    year: now.getFullYear(),
+    month: now.getMonth() + 1,
+    day: now.getDate(),
+  };
+
+  if (compareDates(dobParts, todayParts) >= 0) {
+    return {
+      isValid: false,
+      errorCode: 'INVALID_DOB',
+      message: 'Date of birth must be a past date (today or future dates are not allowed).',
+    };
+  }
+
+  // 2. Missing / Invalid Date of Admission
+  if (!dateOfAdmission || (typeof dateOfAdmission === 'string' && !dateOfAdmission.trim())) {
+    return {
+      isValid: false,
+      errorCode: 'MISSING_ADMISSION_DATE',
+      message: 'Date of admission is required.',
+    };
+  }
+
+  const admParts = parseDateOnly(dateOfAdmission);
+  if (!admParts) {
+    return {
+      isValid: false,
+      errorCode: 'INVALID_ADMISSION_DATE',
+      message: 'Date of admission must be a valid date.',
+    };
+  }
+
+  // 3. Date of Admission cannot be earlier than Date of Birth
+  if (compareDates(admParts, dobParts) < 0) {
+    return {
+      isValid: false,
+      errorCode: 'ADMISSION_BEFORE_DOB',
+      message: 'Date of Admission cannot be earlier than Date of Birth.',
+    };
+  }
+
+  // 4. Missing Class
+  let targetClass = className?.trim() || '';
+  if ((!targetClass || targetClass === 'Select' || targetClass === 'Select Class') && classId && Array.isArray(academicClasses)) {
+    const found = academicClasses.find((c) => String(c.id) === String(classId) || String(c.classId) === String(classId));
+    if (found) {
+      targetClass = found.name || found.className || '';
+    }
+  }
+
+  if (!targetClass || targetClass === 'Select' || targetClass === 'Select Class') {
+    return {
+      isValid: false,
+      errorCode: 'MISSING_CLASS',
+      message: 'Please select a class.',
+    };
+  }
+
+  // 5. Minimum age check
+  const exactAge = calculateExactAge(dobParts, admParts);
+  const minAge = getMinimumAgeForClass(targetClass, academicClasses);
+
+  if (minAge !== null && minAge > 0) {
+    if (exactAge.years < minAge) {
+      return {
+        isValid: false,
+        errorCode: 'UNDERAGE',
+        message: 'Student does not meet the minimum age requirement for the selected class.',
+        ageYears: exactAge.years,
+        ageMonths: exactAge.months,
+        ageDays: exactAge.days,
+        minimumAge: minAge,
+        className: targetClass,
+      };
+    }
+  } else if (exactAge.years === 0 && exactAge.months === 0 && exactAge.days === 0) {
+    return {
+      isValid: false,
+      errorCode: 'UNDERAGE',
+      message: 'Student does not meet the minimum age requirement for the selected class.',
+      ageYears: 0,
+      ageMonths: 0,
+      ageDays: 0,
+      minimumAge: 3,
+      className: targetClass,
+    };
+  }
+
+  // 6. Valid
+  return {
+    isValid: true,
+    errorCode: null,
+    message: '',
+    ageYears: exactAge.years,
+    ageMonths: exactAge.months,
+    ageDays: exactAge.days,
+    minimumAge: minAge ?? 0,
+    className: targetClass,
+  };
+}
+
 /**
  * Validates a Date of Birth string in exact DD-MM-YYYY format.
  * - Must match DD-MM-YYYY or DD/MM/YYYY pattern.
@@ -62,10 +404,6 @@ export function validateDOB(dateStr: string): { isValid: boolean; error?: string
   }
 
   return { isValid: true };
-}
-
-function isLeapYear(year: number): boolean {
-  return (year % 4 === 0 && year % 100 !== 0) || (year % 400 === 0);
 }
 
 /**

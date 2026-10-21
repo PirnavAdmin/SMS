@@ -1498,12 +1498,12 @@ export const AttendanceView = () => {
                 <span className="text-lg font-black text-rose-700 dark:text-rose-455">{summaryMetrics.absent}</span>
               </div>
               <div className="flex flex-col items-center">
-                <span className="text-[10px] text-blue-600 dark:text-blue-400 font-bold uppercase">Half Day</span>
-                <span className="text-lg font-black text-blue-700 dark:text-blue-455">{summaryMetrics.halfDay}</span>
+                <span className="text-[10px] text-amber-600 dark:text-amber-400 font-bold uppercase">Half Day</span>
+                <span className="text-lg font-black text-amber-700 dark:text-amber-400">{summaryMetrics.halfDay}</span>
               </div>
               <div className="flex flex-col items-center">
-                <span className="text-[10px] text-amber-600 dark:text-amber-400 font-bold uppercase">Late</span>
-                <span className="text-lg font-black text-amber-700 dark:text-amber-455">{summaryMetrics.late}</span>
+                <span className="text-[10px] text-orange-600 dark:text-orange-400 font-bold uppercase">Late</span>
+                <span className="text-lg font-black text-orange-700 dark:text-orange-400">{summaryMetrics.late}</span>
               </div>
             </div>
      
@@ -1596,7 +1596,7 @@ export const AttendanceView = () => {
                             <span className="mx-1 px-1.5 py-0.5 rounded bg-emerald-500 text-white font-bold text-[9px] uppercase">Present</span>,{' '}
                             <span className="mx-1 px-1.5 py-0.5 rounded bg-rose-600 text-white font-bold text-[9px] uppercase">Absent</span>,{' '}
                             <span className="mx-1 px-1.5 py-0.5 rounded bg-amber-400 text-amber-955 font-bold text-[9px] uppercase">Half Day</span>, or{' '}
-                            <span className="mx-1 px-1.5 py-0.5 rounded bg-amber-500 text-white font-bold text-[9px] uppercase">Late</span>{' '}
+                            <span className="mx-1 px-1.5 py-0.5 rounded bg-orange-500 text-white font-bold text-[9px] uppercase">Late</span>{' '}
                             to update any student's record. Click <strong>Save Attendance</strong> at the top right when you are finished.
                           </>
                         ) : (
@@ -1671,7 +1671,8 @@ export const AttendanceView = () => {
                                   let activeStyle = '';
                                   if (stType === 'Present') activeStyle = 'bg-emerald-500 text-white border-emerald-600 shadow-inner';
                                   else if (stType === 'Absent') activeStyle = 'bg-rose-600 text-white border-rose-700 shadow-inner';
-                                  else if (stType === 'HalfDay' || stType === 'Late') activeStyle = 'bg-amber-400 text-amber-950 border-amber-500 shadow-inner';
+                                  else if (stType === 'HalfDay') activeStyle = 'bg-amber-400 text-amber-950 border-amber-500 shadow-inner';
+                                  else if (stType === 'Late') activeStyle = 'bg-orange-500 text-white border-orange-600 shadow-inner';
                                  
                                   return (
                                     <button
@@ -1806,8 +1807,8 @@ export const AttendanceView = () => {
                                 
                                 if (status === 'Present') { code = 'P'; pCount++; badgeStyle = 'text-emerald-700 bg-emerald-50 dark:bg-emerald-500/10 dark:text-emerald-400 font-bold'; }
                                 else if (status === 'Absent') { code = 'A'; aCount++; badgeStyle = 'text-rose-700 bg-rose-100 dark:bg-rose-500/10 dark:text-rose-400 font-black'; }
-                                else if (status === 'HalfDay') { code = 'HD'; hdCount++; badgeStyle = 'text-blue-700 bg-blue-50 dark:bg-blue-500/10 dark:text-blue-400 font-bold'; }
-                                else if (status === 'Late') { code = 'L'; lCount++; badgeStyle = 'text-amber-700 bg-amber-50 dark:bg-amber-500/10 dark:text-amber-400 font-bold'; }
+                                else if (status === 'HalfDay') { code = 'HD'; hdCount++; badgeStyle = 'text-amber-700 bg-amber-50 dark:bg-amber-500/10 dark:text-amber-400 font-bold'; }
+                                else if (status === 'Late') { code = 'L'; lCount++; badgeStyle = 'text-orange-700 bg-orange-50 dark:bg-orange-500/10 dark:text-orange-400 font-bold'; }
                                 else if (status === 'Holiday' || holCheck.isHoliday) {
                                   code = 'H';
                                   hCount++;

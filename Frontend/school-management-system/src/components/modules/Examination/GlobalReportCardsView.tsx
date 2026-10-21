@@ -22,7 +22,8 @@ import {
   Check, 
   GraduationCap, 
   Sparkles,
-  AlertCircle
+  AlertCircle,
+  X
 } from 'lucide-react';
 import { PrintableReportCard } from './PrintableReportCard';
 import { ExamSetup, Student, SubjectItem, ProcessedResult } from '../../../types';
@@ -33,6 +34,7 @@ import { useToast } from '../../../context/ToastContext';
 import { fetchReportCardsApi, fetchExamOptionsApi } from '../../../api/examination';
 import { calculateGrade } from './utils/resultCalculation';
 import { printReportCard, printBulkReportCards, downloadReportCardPdf } from './utils/reportCardPrinter';
+import { validateSearchQuery } from '../../../utils/validation';
 
 interface GlobalReportCardsViewProps {
   onNavigate?: (module: string) => void;
@@ -72,6 +74,17 @@ export const GlobalReportCardsView: React.FC<GlobalReportCardsViewProps> = ({ on
   const [statusFilter, setStatusFilter] = useState<'All' | 'Pass' | 'Fail'>('All');
   const [sortOrder, setSortOrder] = useState<'rank-asc' | 'rank-desc' | 'name-asc' | 'pct-desc'>('rank-asc');
   const [searchQuery, setSearchQuery] = useState<string>('');
+  const [searchError, setSearchError] = useState<string | undefined>(undefined);
+
+  const handleSearchChange = (val: string) => {
+    setSearchQuery(val);
+    if (!val) {
+      setSearchError(undefined);
+    } else {
+      const validation = validateSearchQuery(val);
+      setSearchError(validation.isValid ? undefined : validation.error);
+    }
+  };
 
   // Dropdown UI states
   const [isStudentDropdownOpen, setIsStudentDropdownOpen] = useState(false);
@@ -681,6 +694,7 @@ export const GlobalReportCardsView: React.FC<GlobalReportCardsViewProps> = ({ on
     setStatusFilter('All');
     setSortOrder('rank-asc');
     setSearchQuery('');
+    setSearchError(undefined);
     setStudentSearchText('');
   };
 
@@ -822,8 +836,8 @@ export const GlobalReportCardsView: React.FC<GlobalReportCardsViewProps> = ({ on
       </div>
 
       {/* 3. Comprehensive Multi-Filter Bar with Searchable Student Dropdown with ID */}
-      <div className="p-4 sm:p-5 rounded-3xl border border-sky-400 bg-slate-50/60 dark:bg-slate-950/60 shadow-xs space-y-3.5 no-print">
-        <div className="flex items-center justify-between gap-2 border-b border-slate-200/70 dark:border-slate-800 pb-2.5">
+      <div className="p-3.5 sm:p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xs space-y-3 no-print">
+        <div className="flex items-center justify-between gap-2 border-b border-slate-100 dark:border-slate-800/80 pb-2.5">
           <div className="flex items-center gap-2 text-xs font-black uppercase tracking-wider text-slate-700 dark:text-slate-300">
             <Filter className="w-3.5 h-3.5 text-sky-600" />
             <span>Search & Filter</span>
@@ -841,16 +855,15 @@ export const GlobalReportCardsView: React.FC<GlobalReportCardsViewProps> = ({ on
           )}
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-2.5">
           {/* Exam Selector */}
-          <div className="space-y-1">
-            <label className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-400 dark:text-slate-500 block">
-              Examination
-            </label>
+          <div>
             <select
               value={selectedExamId}
               onChange={e => setSelectedExamId(e.target.value)}
-              className="w-full px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-xs font-extrabold text-slate-900 dark:text-white outline-none cursor-pointer h-[38px] shadow-xs"
+              aria-label="Examination"
+              title="Examination"
+              className="w-full px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/50 text-xs font-bold text-slate-900 dark:text-white outline-none cursor-pointer h-9 shadow-xs hover:border-slate-300 dark:hover:border-slate-700 focus:bg-white dark:focus:bg-slate-900 focus:border-sky-500 transition"
             >
               <option value="all">All Released Exams</option>
               {releasedExams.map(ex => {
@@ -865,10 +878,7 @@ export const GlobalReportCardsView: React.FC<GlobalReportCardsViewProps> = ({ on
           </div>
 
           {/* Class Selector */}
-          <div className="space-y-1">
-            <label className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-400 dark:text-slate-500 block">
-              Class / Grade <span className="text-rose-500 font-bold ml-0.5">*</span>
-            </label>
+          <div>
             <select
               value={selectedClass}
               onChange={e => {
@@ -876,9 +886,11 @@ export const GlobalReportCardsView: React.FC<GlobalReportCardsViewProps> = ({ on
                 setSelectedSection('');
                 setSelectedStudentId('all');
               }}
-              className="w-full px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-xs font-extrabold text-slate-900 dark:text-white outline-none cursor-pointer h-[38px] shadow-xs"
+              aria-label="Class / Grade"
+              title="Class / Grade"
+              className="w-full px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/50 text-xs font-bold text-slate-900 dark:text-white outline-none cursor-pointer h-9 shadow-xs hover:border-slate-300 dark:hover:border-slate-700 focus:bg-white dark:focus:bg-slate-900 focus:border-sky-500 transition"
             >
-              <option value="">-- All Classes --</option>
+              <option value="">All Classes</option>
               {classOptions.map(cls => (
                 <option key={cls} value={cls}>{cls}</option>
               ))}
@@ -886,10 +898,7 @@ export const GlobalReportCardsView: React.FC<GlobalReportCardsViewProps> = ({ on
           </div>
 
           {/* Section Selector */}
-          <div className="space-y-1">
-            <label className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-400 dark:text-slate-500 block">
-              Section
-            </label>
+          <div>
             <select
               value={selectedSection}
               onChange={e => {
@@ -897,7 +906,9 @@ export const GlobalReportCardsView: React.FC<GlobalReportCardsViewProps> = ({ on
                 setSelectedStudentId('all');
               }}
               disabled={!selectedClass}
-              className="w-full px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-xs font-extrabold text-slate-900 dark:text-white outline-none cursor-pointer h-[38px] shadow-xs disabled:opacity-50"
+              aria-label="Section"
+              title="Section"
+              className="w-full px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/50 text-xs font-bold text-slate-900 dark:text-white outline-none cursor-pointer h-9 shadow-xs hover:border-slate-300 dark:hover:border-slate-700 focus:bg-white dark:focus:bg-slate-900 focus:border-sky-500 transition disabled:opacity-50"
             >
               <option value="">All Sections</option>
               {availableSections.map(sec => (
@@ -909,21 +920,20 @@ export const GlobalReportCardsView: React.FC<GlobalReportCardsViewProps> = ({ on
           </div>
 
           {/* Searchable Student Dropdown displaying Student Name AND ID */}
-          <div className="space-y-1 relative" ref={studentDropdownRef}>
-            <label className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-400 dark:text-slate-500 block">
-              Search Student
-            </label>
+          <div className="relative" ref={studentDropdownRef}>
             <button
               type="button"
               onClick={() => setIsStudentDropdownOpen(prev => !prev)}
-              className="w-full px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-xs font-extrabold text-slate-900 dark:text-white outline-none cursor-pointer h-[38px] shadow-xs flex items-center justify-between text-left transition"
+              aria-label="Search Student"
+              title="Search Student"
+              className="w-full px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/50 text-xs font-bold text-slate-900 dark:text-white outline-none cursor-pointer h-9 shadow-xs flex items-center justify-between text-left hover:border-slate-300 dark:hover:border-slate-700 focus:bg-white dark:focus:bg-slate-900 focus:border-sky-500 transition"
             >
               <span className="truncate">
                 {selectedStudentObj 
                   ? `[${selectedStudentObj.admissionNo || selectedStudentObj.id}] ${selectedStudentObj.firstName} ${selectedStudentObj.lastName}`
                   : selectedStudentId === 'all' 
                     ? 'All Students' 
-                    : '-- Select Student --'}
+                    : 'Select Student'}
               </span>
               <ChevronDown className={`w-3.5 h-3.5 text-slate-400 shrink-0 ml-1 transition-transform ${isStudentDropdownOpen ? 'rotate-180' : ''}`} />
             </button>
@@ -1002,16 +1012,15 @@ export const GlobalReportCardsView: React.FC<GlobalReportCardsViewProps> = ({ on
           </div>
 
           {/* Status Filter */}
-          <div className="space-y-1">
-            <label className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-400 dark:text-slate-500 block">
-              Result Status
-            </label>
+          <div>
             <select
               value={statusFilter}
               onChange={e => setStatusFilter(e.target.value as any)}
-              className="w-full px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-xs font-extrabold text-slate-900 dark:text-white outline-none cursor-pointer h-[38px] shadow-xs"
+              aria-label="Result Status"
+              title="Result Status"
+              className="w-full px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/50 text-xs font-bold text-slate-900 dark:text-white outline-none cursor-pointer h-9 shadow-xs hover:border-slate-300 dark:hover:border-slate-700 focus:bg-white dark:focus:bg-slate-900 focus:border-sky-500 transition"
             >
-              <option value="All">All Results</option>
+              <option value="All">All Result Status</option>
               <option value="Pass">Pass</option>
               <option value="Fail">Fail</option>
             </select>
@@ -1019,15 +1028,41 @@ export const GlobalReportCardsView: React.FC<GlobalReportCardsViewProps> = ({ on
         </div>
 
         {/* Global Quick Search Bar */}
-        <div className="relative">
-          <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-          <input
-            type="text"
-            placeholder="Search..."
-            value={searchQuery}
-            onChange={e => setSearchQuery(e.target.value)}
-            className="w-full pl-9 pr-3 py-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-xs font-semibold text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-sky-500/50 transition h-[38px] shadow-xs"
-          />
+        <div className="flex flex-col">
+          <div className="relative">
+            <Search className={`w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none transition-colors ${searchError ? 'text-rose-500' : 'text-slate-400'}`} />
+            <input
+              type="text"
+              placeholder="Search student by name, roll no, or admission no..."
+              value={searchQuery}
+              onChange={e => handleSearchChange(e.target.value)}
+              className={`w-full pl-9 ${searchQuery ? 'pr-8' : 'pr-3'} py-2 rounded-xl bg-slate-50/50 dark:bg-slate-950/50 border text-xs font-semibold text-slate-900 dark:text-white outline-none focus:bg-white dark:focus:bg-slate-900 transition h-9 shadow-xs ${
+                searchError
+                  ? 'border-rose-500 focus:border-rose-500 ring-1 ring-rose-500/20'
+                  : 'border-slate-200 dark:border-slate-800 focus:border-sky-500'
+              }`}
+            />
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => {
+                  setSearchQuery('');
+                  setSearchError(undefined);
+                }}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer p-0.5 rounded-full hover:bg-slate-200/50 dark:hover:bg-slate-800 transition"
+                title="Clear search"
+                aria-label="Clear search"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
+          {searchError && (
+            <p className="text-[11px] font-bold text-rose-500 flex items-center gap-1 mt-1.5 pl-0.5 leading-tight animate-in fade-in duration-150">
+              <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+              <span>{searchError}</span>
+            </p>
+          )}
         </div>
       </div>
 

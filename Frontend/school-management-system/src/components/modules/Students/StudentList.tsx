@@ -28,12 +28,12 @@ import { Pagination } from '../../common/Pagination';
 import { hasModuleAccess } from '../../../utils/rbac';
 
 export const StudentList: React.FC<{ onNavigate?: (module: string) => void }> = ({ onNavigate }) => {
-  const { students, updateStudent, deleteStudent, academicClasses, staff, fetchStudents, admissions = [], applications = [], teacherAssignments = [], timetable = [] } = useData();
+  const { students = [], updateStudent, deleteStudent, academicClasses = [], staff = [], fetchStudents, admissions = [], applications = [], teacherAssignments = [], timetable = [] } = useData();
   const [apiStudents, setApiStudents] = useState<Student[]>([]);
   const [allocations, setAllocations] = useState<BedAllocation[]>([]);
   const [hostelBlocks, setHostelBlocks] = useState<any[]>([]);
   const [wardenSelectedBlockId, setWardenSelectedBlockId] = useState<string>('All');
-  const [loading, setLoading] = useState(students.length === 0);
+  const [loading, setLoading] = useState((students?.length ?? 0) === 0);
   const { addToast } = useToast();
   const { user, role, selectedBranch, selectedAcademicYear } = useAuth();
 
@@ -43,7 +43,7 @@ export const StudentList: React.FC<{ onNavigate?: (module: string) => void }> = 
 
   // Filter staff to teaching staff ONLY (exclude drivers, peons, conductors)
   const teachingStaff = useMemo(() => {
-    return staff.filter(s => {
+    return (staff || []).filter(s => {
       const desig = (s.designation || '').toLowerCase();
       const dept = (s.department || '').toLowerCase();
       return !desig.includes('driver') && !desig.includes('conductor') && !desig.includes('peon') && !dept.includes('transport');
@@ -91,53 +91,13 @@ export const StudentList: React.FC<{ onNavigate?: (module: string) => void }> = 
 
   const teacherFullName = `${teacher.firstName} ${teacher.lastName}`;
 
-  // Helper mock generators for Teacher detail drawer
-  const getAttendancePct = (id: string) => {
-    const seed = parseInt(id.replace(/\D/g, '')) || 7;
-    return `${88 + (seed % 11)}%`;
-  };
-
-  const getPerformance = (id: string) => {
-    const seed = parseInt(id.replace(/\D/g, '')) || 7;
-    const ratings = ['Excellent', 'Good', 'Average', 'Needs Improvement'];
-    return ratings[seed % ratings.length];
-  };
-
-  const getBehaviourRemarks = (id: string) => {
-    const seed = parseInt(id.replace(/\D/g, '')) || 7;
-    const comments = [
-      'Very attentive, participates actively in class discussions.',
-      'Polite and cooperative. Consistently submits homework on time.',
-      'Demonstrates good teamwork. Occasional talkativeness during lessons.',
-      'Highly creative. Shows great curiosity in subject topics, needs minor focus on exams.',
-      'Quiet and reserved, but performs exceptionally in written evaluations.',
-      'Helpful towards peers and maintains positive classroom conduct.'
-    ];
-    return comments[seed % comments.length];
-  };
-
-  const getMedicalInfo = (id: string) => {
-    const seed = parseInt(id.replace(/\D/g, '')) || 7;
-    const bloodGroups = ['A+', 'O+', 'B+', 'AB+', 'A-', 'O-'];
-    const allergies = ['None', 'Peanut allergy', 'Dust allergy', 'Penicillin sensitivity', 'None', 'None'];
-    return {
-      bloodGroup: bloodGroups[seed % bloodGroups.length],
-      allergy: allergies[seed % allergies.length],
-      emergencyPhone: `+91 98${(seed * 123456) % 100000000}`
-    };
-  };
-
-  const getDocumentsList = (id: string) => [
-    { name: 'Birth_Certificate.pdf', status: 'Verified', date: '12/04/2026' },
-    { name: 'Aadhaar_Card_Student.pdf', status: 'Verified', date: '15/05/2026' }
-  ];
 
   useEffect(() => {
     let isMounted = true;
 
     const loadStudents = async () => {
       try {
-        if (students.length === 0) {
+        if ((students?.length ?? 0) === 0) {
           setLoading(true);
         }
         await fetchStudents();
@@ -258,7 +218,7 @@ export const StudentList: React.FC<{ onNavigate?: (module: string) => void }> = 
       });
 
     const existingIds = new Set(
-      students.flatMap(s => [
+      (students || []).flatMap(s => [
         String(s.id).trim().toLowerCase(),
         (s.admissionNo || '').trim().toLowerCase()
       ]).filter(Boolean)
@@ -267,7 +227,7 @@ export const StudentList: React.FC<{ onNavigate?: (module: string) => void }> = 
       !existingIds.has(String(s.id).trim().toLowerCase()) && 
       !existingIds.has((s.admissionNo || '').trim().toLowerCase())
     );
-    const allCombined = [...students, ...newAdmissions];
+    const allCombined = [...(students || []), ...newAdmissions];
 
     const mapped = allCombined.map((s) => {
       if (!selectedAcademicYear || selectedAcademicYear === 'All') return s;
@@ -865,14 +825,6 @@ export const StudentList: React.FC<{ onNavigate?: (module: string) => void }> = 
             onPromote={() => setStudentToPromote(selectedStudent)}
             onTransfer={() => setStudentToTransfer(selectedStudent)}
             onDelete={() => setStudentToDelete(selectedStudent)}
-            activeTab={activeProfileTab}
-            setActiveTab={setActiveProfileTab}
-            teacherView={true}
-            getAttendancePct={getAttendancePct}
-            getPerformance={getPerformance}
-            getBehaviourRemarks={getBehaviourRemarks}
-            getMedicalInfo={getMedicalInfo}
-            getDocumentsList={getDocumentsList}
           />
         )}
       </div>
@@ -1337,18 +1289,6 @@ export const StudentList: React.FC<{ onNavigate?: (module: string) => void }> = 
             student={selectedStudent}
             isOpen={!!selectedStudent}
             onClose={() => setSelectedStudent(null)}
-            onEdit={() => {}}
-            onPromote={() => {}}
-            onTransfer={() => {}}
-            onDelete={() => {}}
-            activeTab={activeProfileTab}
-            setActiveTab={setActiveProfileTab}
-            teacherView={true}
-            getAttendancePct={getAttendancePct}
-            getPerformance={getPerformance}
-            getBehaviourRemarks={getBehaviourRemarks}
-            getMedicalInfo={getMedicalInfo}
-            getDocumentsList={getDocumentsList}
           />
         )}
       </div>
