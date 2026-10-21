@@ -582,6 +582,7 @@ function TableShell<T extends { id: string }>({
   const pageRows = sortedRows.slice((page - 1) * pageSize, page * pageSize);
   const visibleColumnDefs = columns.filter(column => visibleColumns.includes(column.id));
   const allSelected = selectable && pageRows.length > 0 && pageRows.every(row => selectedIds.includes(rowKey(row)));
+  const someSelected = selectable && pageRows.some(row => selectedIds.includes(rowKey(row))) && !allSelected;
 
   const toggleSelection = (rowId: string) => {
     if (!onSelectedIdsChange) return;
@@ -594,7 +595,7 @@ function TableShell<T extends { id: string }>({
   const toggleAll = () => {
     if (!onSelectedIdsChange) return;
     const pageIds = pageRows.map(row => rowKey(row));
-    if (allSelected) {
+    if (allSelected || someSelected) {
       onSelectedIdsChange(selectedIds.filter(id => !pageIds.includes(id)));
     } else {
       const merged = new Set([...selectedIds, ...pageIds]);
@@ -662,6 +663,7 @@ function TableShell<T extends { id: string }>({
                   {pageRows.length > 0 && (
                     <input
                       type="checkbox"
+                      ref={el => { if (el) el.indeterminate = Boolean(someSelected); }}
                       checked={allSelected}
                       onChange={toggleAll}
                       className="h-3.5 w-3.5 rounded border-slate-300 text-brand-600 focus:ring-brand-500"
