@@ -49,15 +49,9 @@ namespace SMS.Api.Controllers
 
         [HttpGet("load-results")]
         public async Task<IActionResult> LoadFinalResults(
-<<<<<<< HEAD
-            [FromQuery] string? currentYear = "2026-2027",
-            [FromQuery] string? targetYear = "2027-2028",
-            [FromQuery] string? currentClass = "Class 10",
-=======
             [FromQuery] string? currentYear = null,
             [FromQuery] string? targetYear = null,
             [FromQuery] string? currentClass = null,
->>>>>>> 2c7d0190f1106e317e9965ae947dc2f54d4d3f76
             [FromQuery] string? branch = null,
             [FromQuery] string? policy = "Manual")
         {
@@ -113,11 +107,7 @@ namespace SMS.Api.Controllers
                         FirstName = s.StudentName.Split(' ').FirstOrDefault() ?? s.StudentName,
                         LastName = s.StudentName.Split(' ').Length > 1 ? s.StudentName.Substring(s.StudentName.IndexOf(' ') + 1) : "",
                         Avatar = "",
-<<<<<<< HEAD
-                        Branch = branch ?? string.Empty,
-=======
                         Branch = !string.IsNullOrWhiteSpace(branch) ? branch : (s.Branch?.BranchName ?? s.ClassGrade?.CampusLocation ?? string.Empty),
->>>>>>> 2c7d0190f1106e317e9965ae947dc2f54d4d3f76
                         CurrentClass = s.ClassGrade?.ClassName ?? currentClass,
                         CurrentSection = s.ClassSection?.SectionName ?? "A",
                         OverallPct = basePct,
@@ -429,22 +419,5 @@ namespace SMS.Api.Controllers
             if (pct >= 35) return "C2";
             return "F";
         }
-<<<<<<< HEAD
-
-        private static List<StudentPromotionRowDto> GetSamplePromotionRows(string currentClass, string nextClass, string targetYear)
-        {
-            return new List<StudentPromotionRowDto>
-            {
-                new StudentPromotionRowDto { StudentId = 1, Id = "1", AdmissionNo = "REG-1064", RollNo = "R-74", FirstName = "Anjali", LastName = "Priyanka", Branch = string.Empty, CurrentClass = currentClass, CurrentSection = "A", OverallPct = 84, Grade = "A2", FinalResult = "PASS", PromotionStatus = "Promote", NewClass = nextClass, NewSection = "", Remarks = "Pending section assignment" },
-                new StudentPromotionRowDto { StudentId = 2, Id = "2", AdmissionNo = "REG-1067", RollNo = "R-64", FirstName = "Ashish", LastName = "Yadav", Branch = string.Empty, CurrentClass = currentClass, CurrentSection = "A", OverallPct = 84, Grade = "A2", FinalResult = "PASS", PromotionStatus = "Promote", NewClass = nextClass, NewSection = "", Remarks = "Pending section assignment" },
-                new StudentPromotionRowDto { StudentId = 3, Id = "3", AdmissionNo = "REG-1108", RollNo = "R-60", FirstName = "Bharath", LastName = "Addagarla", Branch = string.Empty, CurrentClass = currentClass, CurrentSection = "A", OverallPct = 70, Grade = "B1", FinalResult = "PASS", PromotionStatus = "Promote", NewClass = nextClass, NewSection = "", Remarks = "Pending section assignment" },
-                new StudentPromotionRowDto { StudentId = 4, Id = "4", AdmissionNo = "REG-1084", RollNo = "R-36", FirstName = "bhargav", LastName = "k", Branch = string.Empty, CurrentClass = currentClass, CurrentSection = "A", OverallPct = 91, Grade = "A1", FinalResult = "PASS", PromotionStatus = "Promote", NewClass = nextClass, NewSection = "", Remarks = "Pending section assignment" },
-                new StudentPromotionRowDto { StudentId = 5, Id = "5", AdmissionNo = "REG-1043", RollNo = "R-34", FirstName = "fahim", LastName = "Mohamad", Branch = string.Empty, CurrentClass = currentClass, CurrentSection = "A", OverallPct = 84, Grade = "A2", FinalResult = "PASS", PromotionStatus = "Promote", NewClass = nextClass, NewSection = "", Remarks = "Pending section assignment" },
-                new StudentPromotionRowDto { StudentId = 6, Id = "6", AdmissionNo = "REG-1089", RollNo = "R-54", FirstName = "gangadhar", LastName = "G", Branch = string.Empty, CurrentClass = currentClass, CurrentSection = "A", OverallPct = 84, Grade = "A2", FinalResult = "PASS", PromotionStatus = "Promote", NewClass = nextClass, NewSection = "", Remarks = "Pending section assignment" },
-                new StudentPromotionRowDto { StudentId = 7, Id = "7", AdmissionNo = "REG-1072", RollNo = "R-79", FirstName = "Indra", LastName = "Reddy", Branch = string.Empty, CurrentClass = currentClass, CurrentSection = "A", OverallPct = 91, Grade = "A1", FinalResult = "PASS", PromotionStatus = "Promote", NewClass = nextClass, NewSection = "", Remarks = "Pending section assignment" }
-            };
-        }
-=======
->>>>>>> 2c7d0190f1106e317e9965ae947dc2f54d4d3f76
     }
 }

@@ -878,13 +878,13 @@ export const StudentHostelAssignmentView: React.FC = () => {
           String(s.id) === String(viewStudentModal.studentId) || 
           String(s.admissionNo) === String(viewStudentModal.admissionNo)
         );
-        const parentName = matchedStudent?.fatherName || matchedStudent?.parentName || matchedStudent?.guardianName || (matchedStudent as any)?.motherName || 'Parent / Guardian';
-        const parentPhone = matchedStudent?.fatherPhone || matchedStudent?.guardianPhone || matchedStudent?.phone || matchedStudent?.emergencyContact || (matchedStudent as any)?.parentPhone || 'N/A';
+        const parentName = matchedStudent?.fatherName || (matchedStudent as any)?.parentName || (matchedStudent as any)?.guardianName || (matchedStudent as any)?.motherName || 'Parent / Guardian';
+        const parentPhone = matchedStudent?.fatherPhone || (matchedStudent as any)?.guardianPhone || (matchedStudent as any)?.phone || (matchedStudent as any)?.emergencyContact || (matchedStudent as any)?.parentPhone || 'N/A';
         const matchedBlock = blocks.find(b => 
           String(b.hostelId) === String(viewStudentModal.hostelId) || 
           b.hostelName === viewStudentModal.hostelName
         );
-        const wardenName = viewStudentModal.wardenName || (matchedBlock as any)?.wardenName || (matchedBlock as any)?.warden || 'Assigned Warden';
+        const wardenName = (viewStudentModal as any).wardenName || (matchedBlock as any)?.wardenName || (matchedBlock as any)?.warden || 'Assigned Warden';
 
         return (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm animate-in fade-in">

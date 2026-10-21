@@ -477,7 +477,7 @@ export const HostelDashboardView: React.FC<HostelDashboardViewProps> = ({ onNavi
                     <div key={`alloc-${a.allocationId || idx}`} className="p-3 bg-slate-50 dark:bg-slate-800/50 rounded-2xl flex items-center justify-between text-xs border border-slate-200/70 dark:border-slate-700/70">
                       <div>
                         <span className="font-bold text-slate-900 dark:text-white block">{a.studentName || 'Student'}</span>
-                        <span className="text-[10px] text-slate-400 font-mono">{a.admissionNo || a.registrationNo || 'ADM'} • {a.hostelName || 'Hostel'}</span>
+                        <span className="text-[10px] text-slate-400 font-mono">{a.admissionNo || (a as any).registrationNo || 'ADM'} • {a.hostelName || 'Hostel'}</span>
                       </div>
                       <div className="text-right">
                         <span className="font-mono font-bold text-emerald-600 block text-[11px]">{formatRoomNumber(a.roomNumber)} ({a.bedNumber || 'BED-1'})</span>

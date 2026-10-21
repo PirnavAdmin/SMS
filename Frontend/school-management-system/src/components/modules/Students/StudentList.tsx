@@ -532,11 +532,7 @@ export const StudentList: React.FC<{ onNavigate?: (module: string) => void }> = 
         'Father Mobile': '9876543210',
         'Mother Name': 'Sunita Sharma',
         'Email': 'aarav.sharma@gmail.com',
-<<<<<<< HEAD
-        'Branch': '',
-=======
         'Branch': selectedBranch || (branches[0]?.name || branches[0]?.branchName || ''),
->>>>>>> 2c7d0190f1106e317e9965ae947dc2f54d4d3f76
         'Student Type': 'Day Scholar',
         'Status': 'Active'
       },
@@ -553,11 +549,7 @@ export const StudentList: React.FC<{ onNavigate?: (module: string) => void }> = 
         'Father Mobile': '9876543211',
         'Mother Name': 'Meena Patel',
         'Email': 'ananya.patel@gmail.com',
-<<<<<<< HEAD
-        'Branch': '',
-=======
         'Branch': selectedBranch || (branches[0]?.name || branches[0]?.branchName || ''),
->>>>>>> 2c7d0190f1106e317e9965ae947dc2f54d4d3f76
         'Student Type': 'Residential',
         'Status': 'Active'
       }

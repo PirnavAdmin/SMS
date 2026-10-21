@@ -956,11 +956,7 @@ export const RoomTypeMasterView: React.FC = () => {
                           </div>
                           <div>
                             <span className="text-[10px] text-slate-400 font-bold block uppercase">Location</span>
-<<<<<<< HEAD
                             <span className="font-semibold text-slate-800 dark:text-slate-200 truncate block">{selectedBlock.address || '-'}</span>
-=======
-                            <span className="font-semibold text-slate-800 dark:text-slate-200 truncate block">{selectedBlock.address || '—'}</span>
->>>>>>> 2c7d0190f1106e317e9965ae947dc2f54d4d3f76
                           </div>
                         </div>
                       </div>
