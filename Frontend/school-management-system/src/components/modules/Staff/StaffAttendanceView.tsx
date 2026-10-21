@@ -1103,7 +1103,7 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
                     Leave Balance
                   </h3>
                 </div>
-                <span className="text-[10px] font-extrabold text-sky-700 dark:text-sky-300 bg-sky-50 dark:bg-sky-950/40 px-2 py-0.5 rounded-full border border-sky-200/70 dark:border-sky-900/50">
+                <span className="text-[10px] font-extrabold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/40 px-2 py-0.5 rounded-full border border-emerald-200/80 dark:border-emerald-900/60">
                   Active
                 </span>
               </div>
