@@ -35,11 +35,8 @@ import {
 } from "../utils/uniformUtils";
 import { matchesClassName, normalizeClassName, compareClassesAscending } from "../utils/classSorter";
 import { buildTermMonthMap } from "../utils/lateAdmission";
-<<<<<<< HEAD
 import { generateTermsFromAcademicYear } from "../utils/academicYearTermUtils";
-=======
 import { normalizeStudentType, formatStudentType } from "../utils/studentTypeUtils";
->>>>>>> 2c7d0190f1106e317e9965ae947dc2f54d4d3f76
 import {
   createStaffLetterRecord,
   saveStaffLetterRecord,
@@ -238,17 +235,10 @@ export function normalizeToISODate(dateStr?: string | null): string {
 }
 
 export function normalizeAcademicYear(dateOrAy?: string | null): string {
-<<<<<<< HEAD
-  if (!dateOrAy || typeof dateOrAy !== "string") return "2026-2027";
-  const cleaned = dateOrAy.replace(/\s+/g, "");
-  if (!cleaned) return "2026-2027";
-  const match = cleaned.match(/^(\d{4})[-/](\d{2,4})$/);
-=======
   if (!dateOrAy || typeof dateOrAy !== "string") return "";
   const trimmed = dateOrAy.trim();
   if (!trimmed) return "";
   const match = trimmed.match(/^(\d{4})[-/](\d{2,4})$/);
->>>>>>> 2c7d0190f1106e317e9965ae947dc2f54d4d3f76
   if (match) {
     const startYear = parseInt(match[1], 10);
     let endYear = parseInt(match[2], 10);
@@ -258,7 +248,7 @@ export function normalizeAcademicYear(dateOrAy?: string | null): string {
     }
     return `${startYear}-${endYear}`;
   }
-  return cleaned;
+  return trimmed;
 }
 
 export function matchesAcademicYear(ay1?: string | null, ay2?: string | null): boolean {
@@ -1418,13 +1408,7 @@ const initialAlumniRecords: AlumniRecord[] = [];
 const initialSchoolEvents: SchoolEvent[] = [];
 
 const initialWorkshops: WorkshopTraining[] = [];
-<<<<<<< HEAD
 const initialEmployeeAssessments: EmployeeAssessment[] = [];
-=======
-
-const initialEmployeeAssessments: EmployeeAssessment[] = [];
-
->>>>>>> 2c7d0190f1106e317e9965ae947dc2f54d4d3f76
 const initialIssuedCertificates: IssuedCertificate[] = [];
 
 const DataContext = createContext<DataContextType | undefined>(undefined);
@@ -1571,12 +1555,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     if (!localStorage.getItem(versionKey)) {
       const cleaned = deduplicated.filter((p) => {
         if (!p) return false;
-<<<<<<< HEAD
         if (p.receiptNo === "REC-2026-2500" || p.receiptNo === "REC-2026-3209" || p.id === "2" || (p.amountPaid === 5000 && (p.studentId === "2" || p.admissionNo === "ADM-2026-2001"))) return false;
         if (p.studentId === "1204" || p.receiptNo === "REC-2026-3912" || p.id === "3912") return false;
-=======
-        if (p.studentId === "1204" || p.id === "3912") return false;
->>>>>>> 2c7d0190f1106e317e9965ae947dc2f54d4d3f76
         if (!p.studentName || p.studentName.startsWith("Student #")) return false;
         const notesLower = (p.notes || "").toLowerCase();
         const recLower = (p.receiptNo || "").toLowerCase();
@@ -2076,11 +2056,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
             a.studentName ||
             "",
           admissionNo: student?.admissionNo || a.admissionNo || a.studentId || "",
-<<<<<<< HEAD
-          branch: student?.branch || a.branch || "",
-=======
           branch: student?.branch || a.branch || selectedBranch || "",
->>>>>>> 2c7d0190f1106e317e9965ae947dc2f54d4d3f76
           academicYear:
             (student as any)?.academicYear || a.academicYear || selectedAcademicYear || "",
           className: student?.className || a.className || "",
@@ -2287,30 +2263,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const [academicYearFeeSchedules, setAcademicYearFeeSchedules] = useState<
     AcademicYearFeeSchedule[]
-<<<<<<< HEAD
-  >(() => {
-    const stored = getStored<AcademicYearFeeSchedule[]>(
-      "academic_year_fee_schedules",
-      [],
-    );
-    // Sanitize stored schedules: strip out any stale mock schedules with legacy hardcoded 04-15 dates
-    const cleanStored = Array.isArray(stored)
-      ? stored.filter(
-          (s) =>
-            s &&
-            !s.terms?.some(
-              (t) =>
-                t.dueDate?.includes("04-15") ||
-                t.dueDate?.includes("2026-04") ||
-                t.dueDate?.includes("2025-04"),
-            ),
-        )
-      : [];
-    return cleanStored;
-  });
-=======
   >([]);
->>>>>>> 2c7d0190f1106e317e9965ae947dc2f54d4d3f76
 
   // Student Fee Installments State
   const [studentFeeInstallments, setStudentFeeInstallments] = useState<
@@ -4087,13 +4040,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           id: ta.id
             ? String(ta.id)
             : `TA-${Math.floor(100 + Math.random() * 900)}`,
-<<<<<<< HEAD
-          academicYear: ta.academicYear || "2026-2027",
-          branch: ta.branch || "",
-=======
           academicYear: ta.academicYear || selectedAcademicYear || "",
           branch: ta.branch || selectedBranch || "",
->>>>>>> 2c7d0190f1106e317e9965ae947dc2f54d4d3f76
           className: ta.className || "",
           section: ta.section || "A",
           subject: ta.subject || "",
@@ -4146,13 +4094,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
             id: ta.id
               ? String(ta.id)
               : `TA-${Math.floor(100 + Math.random() * 900)}`,
-<<<<<<< HEAD
-            academicYear: ta.academicYear || "2026-2027",
-            branch: ta.branch || "",
-=======
             academicYear: ta.academicYear || selectedAcademicYear || "",
             branch: ta.branch || selectedBranch || "",
->>>>>>> 2c7d0190f1106e317e9965ae947dc2f54d4d3f76
             className: ta.className || "",
             section: ta.section || "A",
             subject: ta.subject || "",
@@ -4513,11 +4456,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
             roomNo: item.roomNo || "",
             academicYear: item.academicYear || selectedAcademicYear || "",
             status: item.status || "Draft",
-<<<<<<< HEAD
-            branch: item.branch || (selectedBranch && selectedBranch !== "All" && selectedBranch !== "All Branches" ? selectedBranch : "") || "",
-=======
             branch: item.branch || selectedBranch || "",
->>>>>>> 2c7d0190f1106e317e9965ae947dc2f54d4d3f76
           };
         });
 
@@ -4980,18 +4919,12 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
                   item.qualifications || existing?.qualifications || [],
                 experienceRecords:
                   item.experienceRecords || existing?.experienceRecords || [],
-<<<<<<< HEAD
                 documents: item.documents || existing?.documents || [],
-                branch: item.branchName || item.branch || existing?.branch || "",
-              };
-            });
-=======
                 avatar: item.avatar || existing?.avatar || "",
                 leaveBalance: existing?.leaveBalance,
                 branch: item.branchName || item.branch || existing?.branch || "",
               } as unknown as Staff);
             }
->>>>>>> 2c7d0190f1106e317e9965ae947dc2f54d4d3f76
             return mappedStaff;
           });
         }
@@ -5348,11 +5281,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
             categoryName: c.categoryName || c.name || '',
             description: c.description || '',
             createdAt: c.createdAt || new Date().toISOString(),
-<<<<<<< HEAD
-            branch: c.branch || (selectedBranch && selectedBranch !== "All" && selectedBranch !== "All Branches" ? selectedBranch : "") || ""
-=======
             branch: c.branch || selectedBranch || ""
->>>>>>> 2c7d0190f1106e317e9965ae947dc2f54d4d3f76
           }));
           setUniformCategories((prev) => {
             const apiIds = new Set(normalizedCats.map((c) => c.id));
@@ -5371,11 +5300,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
             ageGroup: s.ageBracket || s.ageGroup || '',
             gender: s.gender || 'Unisex',
             createdAt: s.createdAt || new Date().toISOString(),
-<<<<<<< HEAD
-            branch: s.branch || (selectedBranch && selectedBranch !== "All" && selectedBranch !== "All Branches" ? selectedBranch : "") || ""
-=======
             branch: s.branch || selectedBranch || ""
->>>>>>> 2c7d0190f1106e317e9965ae947dc2f54d4d3f76
           }));
           setUniformSizes((prev) => {
             const apiIds = new Set(normalizedSizes.map((s) => s.id));
@@ -5396,11 +5321,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
             address: s.address || s.warehouseAddress || '',
             status: s.status || 'Active',
             createdAt: s.createdAt || new Date().toISOString(),
-<<<<<<< HEAD
-            branch: s.branch || (selectedBranch && selectedBranch !== "All" && selectedBranch !== "All Branches" ? selectedBranch : "") || ""
-=======
             branch: s.branch || selectedBranch || ""
->>>>>>> 2c7d0190f1106e317e9965ae947dc2f54d4d3f76
           }));
           setUniformSuppliers((prev) => {
             const apiIds = new Set(normalizedSuppliers.map((s) => s.id));
@@ -5451,13 +5372,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
               ? new Date(d.distributionDate).toISOString().split("T")[0]
               : d.issueDate || new Date().toISOString().split("T")[0],
             status: d.status || "Issued",
-<<<<<<< HEAD
-            academicYear: d.academicYear || "2026-2027",
-            branch: d.branch || (selectedBranch && selectedBranch !== "All" && selectedBranch !== "All Branches" ? selectedBranch : "") || "",
-=======
             academicYear: d.academicYear || selectedAcademicYear || "",
             branch: d.branch || selectedBranch || "",
->>>>>>> 2c7d0190f1106e317e9965ae947dc2f54d4d3f76
             notes: d.notes || d.actionRemarks || "",
             type:
               (d.type === "Base Package" ||
@@ -5661,11 +5577,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           FinanceAPI.fetchFinancialAccountsApi(),
           FinanceAPI.fetchFinancialCategoriesApi(),
           FinanceAPI.fetchFinancialBudgetsApi(selectedBranch, selectedAcademicYear),
-<<<<<<< HEAD
-          FinanceAPI.fetchFeeScheduleConfigApi(normalizeAcademicYear(selectedAcademicYear || "2026-2027")),
-=======
           FinanceAPI.fetchFeeScheduleConfigApi(selectedAcademicYear || ""),
->>>>>>> 2c7d0190f1106e317e9965ae947dc2f54d4d3f76
           FinanceAPI.fetchScholarshipsApi(),
           FinanceAPI.fetchStudentScholarshipsApi(),
           FinanceAPI.fetchDiscountsApi(),
@@ -5733,23 +5645,14 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
             ? feeScheduleRes.value?.data || feeScheduleRes.value
             : null;
         if (apiFeeSchedule && apiFeeSchedule.terms && apiFeeSchedule.terms.length > 0) {
-<<<<<<< HEAD
-          const ay = normalizeAcademicYear(apiFeeSchedule.academicYear || "2026-2027");
-=======
           const ay = apiFeeSchedule.academicYear || selectedAcademicYear || "";
->>>>>>> 2c7d0190f1106e317e9965ae947dc2f54d4d3f76
           const loadedSchedule: AcademicYearFeeSchedule = {
             id: apiFeeSchedule.id || `SCH-${ay}`,
             academicYear: ay,
             numberOfTerms: apiFeeSchedule.numberOfTerms || apiFeeSchedule.terms.length,
             status: apiFeeSchedule.status || "Active",
-<<<<<<< HEAD
-            annualDueDate: apiFeeSchedule.annualDueDate || apiFeeSchedule.terms[0]?.dueDate || "",
-            oneTimeDueDate: apiFeeSchedule.oneTimeDueDate || apiFeeSchedule.terms[0]?.dueDate || "",
-=======
             annualDueDate: apiFeeSchedule.annualDueDate || "",
             oneTimeDueDate: apiFeeSchedule.oneTimeDueDate || "",
->>>>>>> 2c7d0190f1106e317e9965ae947dc2f54d4d3f76
             terms: apiFeeSchedule.terms,
             monthlyConfig: apiFeeSchedule.monthlyConfig,
           };
@@ -6019,13 +5922,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           setFinanceUniformConfigs((prev) => {
             const apiMapped = uniformFees.map((apiItem: any) => ({
               id: String(apiItem.id || `FUC-${Date.now()}`),
-<<<<<<< HEAD
-              academicYear: apiItem.academicYear || "2026-2027",
-              branch: apiItem.branch || "",
-=======
               academicYear: apiItem.academicYear || selectedAcademicYear || "",
               branch: apiItem.branch || selectedBranch || "",
->>>>>>> 2c7d0190f1106e317e9965ae947dc2f54d4d3f76
               className: apiItem.className || "",
               gender: apiItem.gender || "Unisex",
               uniformPackage: apiItem.uniformPackage || "",
@@ -6129,13 +6027,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
               amount: Number(item.amount || 0),
               paymentMode: item.paymentMode || "Bank Transfer",
               account: item.account || "Main Bank Account",
-<<<<<<< HEAD
-              branch: item.branch || "",
-              academicYear: item.academicYear || "2025-2026",
-=======
               branch: item.branch || selectedBranch || "",
               academicYear: item.academicYear || selectedAcademicYear || "",
->>>>>>> 2c7d0190f1106e317e9965ae947dc2f54d4d3f76
               status: item.status || "Completed",
               createdBy: item.createdBy || "Finance Admin",
               approvedBy: item.approvedBy || "Chief Accountant",
@@ -6185,13 +6078,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
             return {
               id: String(item.id || "BDG-" + Date.now()),
               categoryName: bName,
-<<<<<<< HEAD
-              academicYear: item.academicYear || selectedAcademicYear || "2026-27",
-              branch: item.branch || (selectedBranch && selectedBranch !== "All" && selectedBranch !== "All Branches" ? selectedBranch : "") || "",
-=======
               academicYear: item.academicYear || selectedAcademicYear || "",
               branch: item.branch || selectedBranch || "",
->>>>>>> 2c7d0190f1106e317e9965ae947dc2f54d4d3f76
               allocatedAmount: alloc,
               consumedAmount: cons,
               remainingAmount: Math.max(0, alloc - cons),
@@ -6229,11 +6117,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
             type: w.type || "Internal",
             trainerName: w.trainerName || "Trainer",
             organization: w.organization || "EdTech Innovations Institute",
-<<<<<<< HEAD
-            branch: w.branch || "",
-=======
             branch: w.branch || selectedBranch || "",
->>>>>>> 2c7d0190f1106e317e9965ae947dc2f54d4d3f76
             department: w.department || "Academics",
             applicableDesignation: w.applicableDesignation || "All Staff",
             venue: w.venue || "Main Auditorium",
@@ -6287,11 +6171,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
               evaluatorName:
                 a.mainEvaluator || a.evaluatorName || "Academic Director",
               status: a.status || "Scheduled",
-<<<<<<< HEAD
-              branch: a.branchFilter || a.branch || "",
-=======
               branch: a.branchFilter || a.branch || selectedBranch || "",
->>>>>>> 2c7d0190f1106e317e9965ae947dc2f54d4d3f76
               createdAt: a.createdAt
                 ? a.createdAt.split("T")[0]
                 : new Date().toISOString().split("T")[0],
@@ -6643,11 +6523,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       admissionNo,
       section: stData.section || "",
       rollNo: stData.rollNo || "",
-<<<<<<< HEAD
-      branch: stData.branch || (selectedBranch && selectedBranch !== "All" && selectedBranch !== "All Branches" ? selectedBranch : "") || "",
-=======
       branch: stData.branch || selectedBranch || "",
->>>>>>> 2c7d0190f1106e317e9965ae947dc2f54d4d3f76
       studentType: stData.studentType || "Day Scholar",
       promotionHistory: stData.promotionHistory || [],
     };
@@ -6871,11 +6747,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     id: string,
     targetClass: string,
     targetSection = "A",
-<<<<<<< HEAD
-    targetYear = "2026-2027",
-=======
     targetYear = "",
->>>>>>> 2c7d0190f1106e317e9965ae947dc2f54d4d3f76
     targetBranch = "",
   ) => {
     const numericId = parseInt(id, 10);
@@ -7101,11 +6973,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           targetStudent.fatherEmail ||
           targetStudent.guardianEmail,
         parentName: targetStudent.fatherName || targetStudent.parentName,
-<<<<<<< HEAD
-        branch: targetStudent.branch || (selectedBranch && selectedBranch !== "All" && selectedBranch !== "All Branches" ? selectedBranch : "") || "",
-=======
         branch: targetStudent.branch || selectedBranch || "",
->>>>>>> 2c7d0190f1106e317e9965ae947dc2f54d4d3f76
         createdDate: new Date().toISOString().split("T")[0],
       };
       setAlumniRecords((prev) => [newAlumni, ...prev]);
@@ -7194,13 +7062,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           } else {
             next.push({
               id: "TA-" + Math.floor(100 + Math.random() * 900),
-<<<<<<< HEAD
-              academicYear: "2026-2027",
-              branch: teacher.branch || "",
-=======
               academicYear: selectedAcademicYear || "",
               branch: teacher.branch || selectedBranch || "",
->>>>>>> 2c7d0190f1106e317e9965ae947dc2f54d4d3f76
               className,
               section,
               subject: "",
@@ -7231,13 +7094,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
             const taId = "TA-" + Math.floor(100 + Math.random() * 900);
             next.push({
               id: taId,
-<<<<<<< HEAD
-              academicYear: "2026-2027",
-              branch: teacher.branch || "",
-=======
               academicYear: selectedAcademicYear || "",
               branch: teacher.branch || selectedBranch || "",
->>>>>>> 2c7d0190f1106e317e9965ae947dc2f54d4d3f76
               className,
               section,
               subject,
@@ -7374,11 +7232,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       id,
       empId: assignedEmpId,
       status: staffData.status || "Active",
-<<<<<<< HEAD
-      branch: staffData.branch || (selectedBranch && selectedBranch !== "All" && selectedBranch !== "All Branches" ? selectedBranch : "") || "",
-=======
       branch: staffData.branch || selectedBranch || "",
->>>>>>> 2c7d0190f1106e317e9965ae947dc2f54d4d3f76
       profileStatus: staffData.profileStatus || "Incomplete",
     };
 
@@ -8171,13 +8025,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         hostelBlock: normalizeStudentType(appData.studentType) === "Residential" ? (appData.hostelBlock || "") : "",
         hostelRoom: normalizeStudentType(appData.studentType) === "Residential" ? (appData.hostelRoom || "") : "",
         floorLevel: "N/A",
-<<<<<<< HEAD
-        allocatedBedId: appData.studentType === "Hosteller" || appData.studentType === "Residential" ? (appData.hostelBed || "") : "",
-        branch: appData.branch || (selectedBranch && selectedBranch !== "All" && selectedBranch !== "All Branches" ? selectedBranch : "") || "",
-=======
         allocatedBedId: normalizeStudentType(appData.studentType) === "Residential" ? (appData.hostelBed || "") : "",
         branch: appData.branch || selectedBranch || "",
->>>>>>> 2c7d0190f1106e317e9965ae947dc2f54d4d3f76
         status: appData.status || "Enrolled",
         section: (appData as any).section || "A",
         academicYear: (appData as any).academicYear || selectedAcademicYear || "",
@@ -8237,11 +8086,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         floor: appData.floor,
         hostelRoom: appData.hostelRoom,
         hostelBed: appData.hostelBed,
-<<<<<<< HEAD
-        branch: appData.branch || (selectedBranch && selectedBranch !== "All" && selectedBranch !== "All Branches" ? selectedBranch : "") || "",
-=======
         branch: appData.branch || selectedBranch || "",
->>>>>>> 2c7d0190f1106e317e9965ae947dc2f54d4d3f76
         scholarshipId: appData.scholarshipId,
         discountId: appData.discountId,
         selectedOptionalFees: appData.selectedOptionalFees || [],
@@ -8854,13 +8699,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
             studentId: newStudent.id,
             studentName: `${newStudent.firstName} ${newStudent.lastName}`,
             admissionNo: newStudent.admissionNo,
-<<<<<<< HEAD
-            branch: newStudent.branch || (selectedBranch && selectedBranch !== "All" && selectedBranch !== "All Branches" ? selectedBranch : "") || "",
-            academicYear: dfs?.academicYear || "2025-2026",
-=======
             branch: newStudent.branch || selectedBranch || "",
             academicYear: dfs?.academicYear || selectedAcademicYear || "",
->>>>>>> 2c7d0190f1106e317e9965ae947dc2f54d4d3f76
             className: newStudent.className,
             section: newStudent.section,
             feeStructureId: dfs?.id || "DFS-FALLBACK",
@@ -9202,11 +9042,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       ...subjectData,
       id,
       code: subjectData.code || subjectData.subjectId,
-<<<<<<< HEAD
-      branch: (subjectData as any).branch || (selectedBranch && selectedBranch !== "All" && selectedBranch !== "All Branches" ? selectedBranch : "") || "",
-=======
       branch: (subjectData as any).branch || selectedBranch || "",
->>>>>>> 2c7d0190f1106e317e9965ae947dc2f54d4d3f76
     } as any;
     setSubjects((prev) => [...prev, newSub]);
     logActivity(
@@ -9233,11 +9069,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     const newBus: Bus = {
       ...busData,
       id,
-<<<<<<< HEAD
-      branch: (busData as any).branch || (selectedBranch && selectedBranch !== "All" && selectedBranch !== "All Branches" ? selectedBranch : "") || "",
-=======
       branch: (busData as any).branch || selectedBranch || "",
->>>>>>> 2c7d0190f1106e317e9965ae947dc2f54d4d3f76
     } as any;
     setBuses((prev) => [...prev, newBus]);
     logActivity(
@@ -9727,11 +9559,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           : stockVal <= 10
             ? "Low Stock"
             : "In Stock",
-<<<<<<< HEAD
-      branch: (itemData as any).branch || (selectedBranch && selectedBranch !== "All" && selectedBranch !== "All Branches" ? selectedBranch : "") || "",
-=======
       branch: (itemData as any).branch || selectedBranch || "",
->>>>>>> 2c7d0190f1106e317e9965ae947dc2f54d4d3f76
     } as any;
     setUniformInventory((prev) => [...prev, newInvItem]);
 
@@ -9882,11 +9710,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     const newStruct: FeeStructure = {
       ...feeStruct,
       id,
-<<<<<<< HEAD
-      branch: (feeStruct as any).branch || (selectedBranch && selectedBranch !== "All" && selectedBranch !== "All Branches" ? selectedBranch : "") || "",
-=======
       branch: (feeStruct as any).branch || selectedBranch || "",
->>>>>>> 2c7d0190f1106e317e9965ae947dc2f54d4d3f76
     } as any;
     setFeeStructures((prev) => [...prev, newStruct]);
     logActivity(
@@ -10226,11 +10050,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       receiptNo,
       academicYear: paymentData.academicYear || activeAY,
       paymentAllocation: allocations.length > 0 ? allocations : (paymentData.paymentAllocation || []),
-<<<<<<< HEAD
-      branch: (paymentData as any).branch || (selectedBranch && selectedBranch !== "All" && selectedBranch !== "All Branches" ? selectedBranch : "") || "",
-=======
       branch: (paymentData as any).branch || selectedBranch || "",
->>>>>>> 2c7d0190f1106e317e9965ae947dc2f54d4d3f76
     } as any;
 
     setFeePayments((prev) => {
@@ -10357,11 +10177,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       amount: newPayment.amountPaid,
       paymentMode: (newPayment.paymentMode as any) || "Cash",
       account: newPayment.paymentMode === "Cash" ? "Cash" : "Main Bank Account",
-<<<<<<< HEAD
-      branch: (newPayment as any).branch || (selectedBranch && selectedBranch !== "All" && selectedBranch !== "All Branches" ? selectedBranch : "") || "",
-=======
       branch: (newPayment as any).branch || selectedBranch || "",
->>>>>>> 2c7d0190f1106e317e9965ae947dc2f54d4d3f76
       academicYear: activeAY,
       status: "Completed",
       createdBy: "System Auto-Ledger",
@@ -10410,11 +10226,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       ...txnData,
       id,
       transactionId,
-<<<<<<< HEAD
-      branch: txnData.branch || (selectedBranch && selectedBranch !== "All" && selectedBranch !== "All Branches" ? selectedBranch : "") || "",
-=======
       branch: txnData.branch || selectedBranch || "",
->>>>>>> 2c7d0190f1106e317e9965ae947dc2f54d4d3f76
       auditTrail: [
         {
           id: "AUD-" + Date.now(),
@@ -10721,13 +10533,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     const payload = {
       categoryName: budgetData.categoryName,
       department: (budgetData as any).department || budgetData.categoryName,
-<<<<<<< HEAD
-      academicYear: budgetData.academicYear || selectedAcademicYear || "2026-27",
-      branch: budgetData.branch || (selectedBranch && selectedBranch !== "All" && selectedBranch !== "All Branches" ? selectedBranch : "") || "",
-=======
       academicYear: budgetData.academicYear || selectedAcademicYear || "",
       branch: budgetData.branch || selectedBranch || "",
->>>>>>> 2c7d0190f1106e317e9965ae947dc2f54d4d3f76
       allocatedAmount: Number(budgetData.allocatedAmount) || 0,
       status: budgetData.status || "Active",
     };
@@ -10771,13 +10578,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   const updateFinancialBudget = async (id: string, allocatedAmount: number, extra?: Partial<FinancialBudget>) => {
     const target = financialBudgets.find((b) => b.id === id);
     const categoryName = extra?.categoryName || target?.categoryName || "General";
-<<<<<<< HEAD
-    const academicYear = extra?.academicYear || target?.academicYear || selectedAcademicYear || "2026-27";
-    const branch = extra?.branch || target?.branch || (selectedBranch && selectedBranch !== "All" && selectedBranch !== "All Branches" ? selectedBranch : "") || "";
-=======
     const academicYear = extra?.academicYear || target?.academicYear || selectedAcademicYear || "";
     const branch = extra?.branch || target?.branch || selectedBranch || "";
->>>>>>> 2c7d0190f1106e317e9965ae947dc2f54d4d3f76
     const consumed = target ? target.consumedAmount : 0;
     const remaining = Math.max(0, allocatedAmount - consumed);
     const status = consumed > allocatedAmount ? "Exceeded" : (extra?.status || target?.status || "Active");
@@ -11178,11 +10980,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           studentId: st.id,
           studentName: `${st.firstName} ${st.lastName}`,
           admissionNo: st.admissionNo,
-<<<<<<< HEAD
-          branch: st.branch || (selectedBranch && selectedBranch !== "All" && selectedBranch !== "All Branches" ? selectedBranch : "") || "",
-=======
           branch: st.branch || selectedBranch || "",
->>>>>>> 2c7d0190f1106e317e9965ae947dc2f54d4d3f76
           academicYear: dfs.academicYear,
           className: st.className,
           section: st.section,
@@ -11239,11 +11037,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     const newDfs: DynamicFeeStructure = {
       ...dfs,
       id,
-<<<<<<< HEAD
-      branch: dfs.branch || (selectedBranch && selectedBranch !== "All" && selectedBranch !== "All Branches" ? selectedBranch : "") || "",
-=======
       branch: dfs.branch || selectedBranch || "",
->>>>>>> 2c7d0190f1106e317e9965ae947dc2f54d4d3f76
     };
     setDynamicFeeStructures((prev) => {
       const isHostel = newDfs.category === "Hostel";
@@ -11390,11 +11184,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       studentId: st.id,
       studentName: `${st.firstName} ${st.lastName}`,
       admissionNo: st.admissionNo,
-<<<<<<< HEAD
-      branch: st.branch || (selectedBranch && selectedBranch !== "All" && selectedBranch !== "All Branches" ? selectedBranch : "") || "",
-=======
       branch: st.branch || selectedBranch || "",
->>>>>>> 2c7d0190f1106e317e9965ae947dc2f54d4d3f76
       academicYear: dfs.academicYear,
       className: st.className,
       section: st.section,
@@ -11575,11 +11365,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       studentId: st.id,
       studentName: `${st.firstName} ${st.lastName}`,
       admissionNo: st.admissionNo,
-<<<<<<< HEAD
-      branch: st.branch || (selectedBranch && selectedBranch !== "All" && selectedBranch !== "All Branches" ? selectedBranch : "") || "",
-=======
       branch: st.branch || selectedBranch || "",
->>>>>>> 2c7d0190f1106e317e9965ae947dc2f54d4d3f76
       academicYear: dfs.academicYear,
       className: st.className,
       section: st.section,
@@ -11935,11 +11721,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     const newRoute: ERPTransportRoute = {
       ...route,
       id,
-<<<<<<< HEAD
-      branch: (route as any).branch || (selectedBranch && selectedBranch !== "All" && selectedBranch !== "All Branches" ? selectedBranch : "") || "",
-=======
       branch: (route as any).branch || selectedBranch || "",
->>>>>>> 2c7d0190f1106e317e9965ae947dc2f54d4d3f76
     } as any;
     setERPTransportRoutes((prev) => [...prev, newRoute]);
   };
@@ -12008,11 +11790,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         ...st,
         ...backendData,
         id,
-<<<<<<< HEAD
-        branch: (st as any).branch || (selectedBranch && selectedBranch !== "All" && selectedBranch !== "All Branches" ? selectedBranch : "") || "",
-=======
         branch: (st as any).branch || selectedBranch || "",
->>>>>>> 2c7d0190f1106e317e9965ae947dc2f54d4d3f76
       } as any;
       setStudentTransports((prev) => [
         ...prev.filter((t) => t.studentId !== st.studentId),
@@ -12033,11 +11811,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       const newAssignment: StudentTransport = {
         ...st,
         id,
-<<<<<<< HEAD
-        branch: (st as any).branch || (selectedBranch && selectedBranch !== "All" && selectedBranch !== "All Branches" ? selectedBranch : "") || "",
-=======
         branch: (st as any).branch || selectedBranch || "",
->>>>>>> 2c7d0190f1106e317e9965ae947dc2f54d4d3f76
       } as any;
       setStudentTransports((prev) => [
         ...prev.filter((t) => t.studentId !== st.studentId),
@@ -12077,11 +11851,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     const newHostel: HostelMaster = {
       ...h,
       id,
-<<<<<<< HEAD
-      branch: (h as any).branch || (selectedBranch && selectedBranch !== "All" && selectedBranch !== "All Branches" ? selectedBranch : "") || "",
-=======
       branch: (h as any).branch || selectedBranch || "",
->>>>>>> 2c7d0190f1106e317e9965ae947dc2f54d4d3f76
     } as any;
     setHostelMasters((prev) => [...prev, newHostel]);
     logActivity(
@@ -12130,11 +11900,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     const newRm: RoomMaster = {
       ...rmData,
       id,
-<<<<<<< HEAD
-      branch: (rmData as any).branch || (selectedBranch && selectedBranch !== "All" && selectedBranch !== "All Branches" ? selectedBranch : "") || "",
-=======
       branch: (rmData as any).branch || selectedBranch || "",
->>>>>>> 2c7d0190f1106e317e9965ae947dc2f54d4d3f76
     } as any;
     setRoomMasters((prev) => [newRm, ...prev]);
     logActivity(
@@ -12296,11 +12062,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     const newAssignment: StudentHostel = {
       ...sh,
       id,
-<<<<<<< HEAD
-      branch: (sh as any).branch || (selectedBranch && selectedBranch !== "All" && selectedBranch !== "All Branches" ? selectedBranch : "") || "",
-=======
       branch: (sh as any).branch || selectedBranch || "",
->>>>>>> 2c7d0190f1106e317e9965ae947dc2f54d4d3f76
     } as any;
     setStudentHostels((prev) => [
       ...prev.filter((h) => h.studentId !== sh.studentId),
@@ -12330,11 +12092,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       ...r,
       id,
       refundNo,
-<<<<<<< HEAD
-      branch: (r as any).branch || (selectedBranch && selectedBranch !== "All" && selectedBranch !== "All Branches" ? selectedBranch : "") || "",
-=======
       branch: (r as any).branch || selectedBranch || "",
->>>>>>> 2c7d0190f1106e317e9965ae947dc2f54d4d3f76
     } as any;
     setRefunds((prev) => [newRefund, ...prev]);
     logActivity(
@@ -12446,11 +12204,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     const newConfig: FinanceTransportConfig = {
       ...c,
       id,
-<<<<<<< HEAD
-      branch: (c as any).branch || (selectedBranch && selectedBranch !== "All" && selectedBranch !== "All Branches" ? selectedBranch : "") || "",
-=======
       branch: (c as any).branch || selectedBranch || "",
->>>>>>> 2c7d0190f1106e317e9965ae947dc2f54d4d3f76
     } as any;
     setFinanceTransportConfigs((prev) => [...prev, newConfig]);
     logActivity(
@@ -14279,10 +14033,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
               feeAmount: configuredTransportFee > 0 ? configuredTransportFee : dynamicFare,
               effectiveFrom:
                 student?.joiningDate || admApp?.admissionDate || new Date().toISOString().split("T")[0],
-<<<<<<< HEAD
-=======
               status: "Active",
->>>>>>> 2c7d0190f1106e317e9965ae947dc2f54d4d3f76
             };
           }
         }
@@ -16152,11 +15903,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         ratePerKm: r.ratePerKm ?? 100,
         acMinBaseFare: (r as any).acMinBaseFare ?? 1200,
         acRatePerKm: (r as any).acRatePerKm ?? 150,
-<<<<<<< HEAD
-        branch: (r as any).branch || (selectedBranch && selectedBranch !== "All" && selectedBranch !== "All Branches" ? selectedBranch : "") || "",
-=======
         branch: (r as any).branch || selectedBranch || "",
->>>>>>> 2c7d0190f1106e317e9965ae947dc2f54d4d3f76
       } as any;
       setRouteMasters((prev) => [...prev, newRoute]);
       logActivity(
@@ -16186,11 +15933,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         ratePerKm: r.ratePerKm ?? 100,
         acMinBaseFare: (r as any).acMinBaseFare ?? 1200,
         acRatePerKm: (r as any).acRatePerKm ?? 150,
-<<<<<<< HEAD
-        branch: (r as any).branch || (selectedBranch && selectedBranch !== "All" && selectedBranch !== "All Branches" ? selectedBranch : "") || "",
-=======
         branch: (r as any).branch || selectedBranch || "",
->>>>>>> 2c7d0190f1106e317e9965ae947dc2f54d4d3f76
       } as any;
       setRouteMasters((prev) => [...prev, newRoute]);
       logActivity(
@@ -16554,11 +16297,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           p.status === "Active"
             ? "Active"
             : "Inactive",
-<<<<<<< HEAD
-        branch: (p as any).branch || (selectedBranch && selectedBranch !== "All" && selectedBranch !== "All Branches" ? selectedBranch : "") || "",
-=======
         branch: (p as any).branch || selectedBranch || "",
->>>>>>> 2c7d0190f1106e317e9965ae947dc2f54d4d3f76
       } as any;
       setPickupPoints((prev) => {
         const next = [...prev.filter((pt) => pt.id !== newPt.id), newPt];
@@ -16580,11 +16319,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       const newPt: PickupPoint = {
         ...p,
         id,
-<<<<<<< HEAD
-        branch: (p as any).branch || (selectedBranch && selectedBranch !== "All" && selectedBranch !== "All Branches" ? selectedBranch : "") || "",
-=======
         branch: (p as any).branch || selectedBranch || "",
->>>>>>> 2c7d0190f1106e317e9965ae947dc2f54d4d3f76
       } as any;
       setPickupPoints((prev) => {
         const next = [...prev.filter((pt) => pt.id !== newPt.id), newPt];
@@ -16756,11 +16491,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           v.status === "Active"
             ? "Active"
             : "Inactive",
-<<<<<<< HEAD
-        branch: (v as any).branch || (selectedBranch && selectedBranch !== "All" && selectedBranch !== "All Branches" ? selectedBranch : "") || "",
-=======
         branch: (v as any).branch || selectedBranch || "",
->>>>>>> 2c7d0190f1106e317e9965ae947dc2f54d4d3f76
       } as any;
       setVehicleMasters((prev) => [...prev, newVehicle]);
       logActivity(
@@ -16773,11 +16504,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       const newVehicle: VehicleMaster = {
         ...v,
         id,
-<<<<<<< HEAD
-        branch: (v as any).branch || (selectedBranch && selectedBranch !== "All" && selectedBranch !== "All Branches" ? selectedBranch : "") || "",
-=======
         branch: (v as any).branch || selectedBranch || "",
->>>>>>> 2c7d0190f1106e317e9965ae947dc2f54d4d3f76
       } as any;
       setVehicleMasters((prev) => [...prev, newVehicle]);
     }
@@ -17256,11 +16983,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   const assignVehicleRouteDriver = async (
     va: Omit<VehicleAssignment, "id">,
   ) => {
-<<<<<<< HEAD
-    const effectiveBranch = va.branch || (selectedBranch && selectedBranch !== "All" && selectedBranch !== "All Branches" ? selectedBranch : "") || "";
-=======
     const effectiveBranch = va.branch || selectedBranch || "";
->>>>>>> 2c7d0190f1106e317e9965ae947dc2f54d4d3f76
     const effectiveAcademicYear =
       va.academicYear || schoolProfile.academicYear || selectedAcademicYear || "";
     const normalizedAssignment: Omit<VehicleAssignment, "id"> = {
@@ -17398,11 +17121,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       ...(updates as VehicleAssignment),
       id,
       branch:
-<<<<<<< HEAD
-        updates.branch || current?.branch || (selectedBranch && selectedBranch !== "All" && selectedBranch !== "All Branches" ? selectedBranch : "") || "",
-=======
         updates.branch || current?.branch || selectedBranch || "",
->>>>>>> 2c7d0190f1106e317e9965ae947dc2f54d4d3f76
       academicYear:
         updates.academicYear || current?.academicYear || selectedAcademicYear || schoolProfile.academicYear || "",
       status: (updates.status || current?.status || "Active") as
@@ -17588,11 +17307,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         ...vm,
         ...backendData,
         id,
-<<<<<<< HEAD
-        branch: (vm as any).branch || (selectedBranch && selectedBranch !== "All" && selectedBranch !== "All Branches" ? selectedBranch : "") || "",
-=======
         branch: (vm as any).branch || selectedBranch || "",
->>>>>>> 2c7d0190f1106e317e9965ae947dc2f54d4d3f76
       } as any;
       setVehicleMaintenances((prev) => [newMaint, ...prev]);
       logActivity(
@@ -17605,11 +17320,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       const newMaint: VehicleMaintenance = {
         ...vm,
         id,
-<<<<<<< HEAD
-        branch: (vm as any).branch || (selectedBranch && selectedBranch !== "All" && selectedBranch !== "All Branches" ? selectedBranch : "") || "",
-=======
         branch: (vm as any).branch || selectedBranch || "",
->>>>>>> 2c7d0190f1106e317e9965ae947dc2f54d4d3f76
       } as any;
       setVehicleMaintenances((prev) => [newMaint, ...prev]);
     }
@@ -17798,21 +17509,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           email: adm.email || "",
           address: adm.address || "",
           status: "Active",
-<<<<<<< HEAD
-          academicYear: adm.academicYear || "2026-2027",
-          branch: adm.branch || "",
-          transportRequired: Boolean(adm.transportRequired),
-          transportType: adm.transportType || "AC",
-          busRoute: adm.busRoute || (adm as any).routeName || "",
-          pickupPoint: adm.pickupPoint || (adm as any).pickupPointName || (adm as any).pickupName || "",
-          routeId: (adm as any).routeId || "",
-          pickupPointId: (adm as any).pickupPointId || "",
-          registrationNo: adm.registrationNo || (adm as any).registrationNumber || "",
-          applicationNo: adm.applicationNo || (adm as any).applicationId || "",
-=======
           academicYear: adm.academicYear || selectedAcademicYear || "",
           branch: adm.branch || selectedBranch || "",
->>>>>>> 2c7d0190f1106e317e9965ae947dc2f54d4d3f76
         } as unknown as Student;
       })();
     if (!student) return null;
@@ -18864,12 +18562,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
                 !selectedBranch ||
                 selectedBranch === "All" ||
                 selectedBranch === "All Branches"
-<<<<<<< HEAD
-                  ? ""
-                  : selectedBranch,
-=======
                   ? "" : selectedBranch,
->>>>>>> 2c7d0190f1106e317e9965ae947dc2f54d4d3f76
               department: dept,
               records: deptRecords.map((r) => {
                 const sIdStr = String((r as any).staffId || r.entityId || "");
@@ -18936,11 +18629,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     const newExam: ExamSetup = {
       ...examData,
       id,
-<<<<<<< HEAD
-      branch: (examData as any).branch || (selectedBranch && selectedBranch !== "All" && selectedBranch !== "All Branches" ? selectedBranch : "") || "",
-=======
       branch: (examData as any).branch || selectedBranch || "",
->>>>>>> 2c7d0190f1106e317e9965ae947dc2f54d4d3f76
     } as any;
     setExams((prev) => [...prev, newExam]);
     logActivity("Created Examination", `Scheduled ${newExam.name}`);
@@ -18987,12 +18676,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         branch:
           m.branch ||
           exam?.branch ||
-<<<<<<< HEAD
-          student?.branch || (selectedBranch && selectedBranch !== "All" && selectedBranch !== "All Branches" ? selectedBranch : "") || "",
-=======
           student?.branch ||
           selectedBranch || "",
->>>>>>> 2c7d0190f1106e317e9965ae947dc2f54d4d3f76
         className: m.className || student?.className,
         section: m.section || student?.section,
         id: "MRK-" + Math.floor(1000 + Math.random() * 9000),
@@ -19076,12 +18761,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           schoolProfile.academicYear,
         branch:
           scheduleData.branch ||
-<<<<<<< HEAD
-          exam?.branch || (selectedBranch && selectedBranch !== "All" && selectedBranch !== "All Branches" ? selectedBranch : "") || "",
-=======
           exam?.branch ||
           selectedBranch || "",
->>>>>>> 2c7d0190f1106e317e9965ae947dc2f54d4d3f76
       },
     ]);
     logActivity(
@@ -19110,11 +18791,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       ...paperData,
       id,
       academicYear: paperData.academicYear || schoolProfile.academicYear,
-<<<<<<< HEAD
-      branch: paperData.branch || (selectedBranch && selectedBranch !== "All" && selectedBranch !== "All Branches" ? selectedBranch : "") || "",
-=======
       branch: paperData.branch || selectedBranch || "",
->>>>>>> 2c7d0190f1106e317e9965ae947dc2f54d4d3f76
     };
     setQuestionPapers((prev) => [newPaper, ...prev]);
     logActivity(
@@ -19144,11 +18821,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       ...meetingData,
       id,
       academicYear: meetingData.academicYear || schoolProfile.academicYear,
-<<<<<<< HEAD
-      branch: meetingData.branch || (selectedBranch && selectedBranch !== "All" && selectedBranch !== "All Branches" ? selectedBranch : "") || "",
-=======
       branch: meetingData.branch || selectedBranch || "",
->>>>>>> 2c7d0190f1106e317e9965ae947dc2f54d4d3f76
       createdAt: new Date().toISOString().split("T")[0],
     };
     setMeetings((prev) => [newMeeting, ...prev]);
@@ -19981,11 +19654,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       ...hwData,
       id,
       section: cleanSec,
-<<<<<<< HEAD
-      branch: (hwData as any).branch || (selectedBranch && selectedBranch !== "All" && selectedBranch !== "All Branches" ? selectedBranch : "") || "",
-=======
       branch: (hwData as any).branch || selectedBranch || "",
->>>>>>> 2c7d0190f1106e317e9965ae947dc2f54d4d3f76
     } as any;
     setHomework((prev) => [newHw, ...prev]);
     logActivity(
@@ -20192,11 +19861,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       createdAt,
       name: catName,
       categoryName: catName,
-<<<<<<< HEAD
-      branch: (cData as any).branch || (selectedBranch && selectedBranch !== "All" && selectedBranch !== "All Branches" ? selectedBranch : "") || "",
-=======
       branch: (cData as any).branch || selectedBranch || "",
->>>>>>> 2c7d0190f1106e317e9965ae947dc2f54d4d3f76
     };
     setUniformCategories((prev) => [newCat as any, ...prev]);
 
@@ -20321,11 +19986,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       createdAt,
       sizeName: sName,
       sizeCodeName: sName,
-<<<<<<< HEAD
-      branch: (sData as any).branch || (selectedBranch && selectedBranch !== "All" && selectedBranch !== "All Branches" ? selectedBranch : "") || "",
-=======
       branch: (sData as any).branch || selectedBranch || "",
->>>>>>> 2c7d0190f1106e317e9965ae947dc2f54d4d3f76
     };
     setUniformSizes((prev) => [newSize as any, ...prev]);
 
@@ -20405,11 +20066,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       createdAt,
       supplierName: sName,
       companyName: sName,
-<<<<<<< HEAD
-      branch: (sData as any).branch || (selectedBranch && selectedBranch !== "All" && selectedBranch !== "All Branches" ? selectedBranch : "") || "",
-=======
       branch: (sData as any).branch || selectedBranch || "",
->>>>>>> 2c7d0190f1106e317e9965ae947dc2f54d4d3f76
     };
     setUniformSuppliers((prev) => [newSupplier as any, ...prev]);
 
@@ -20487,11 +20144,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         ...iData,
         id,
         createdAt,
-<<<<<<< HEAD
-        branch: (iData as any).branch || (selectedBranch && selectedBranch !== "All" && selectedBranch !== "All Branches" ? selectedBranch : "") || "",
-=======
         branch: (iData as any).branch || selectedBranch || "",
->>>>>>> 2c7d0190f1106e317e9965ae947dc2f54d4d3f76
       } as any,
       ...prev,
     ]);
@@ -21223,11 +20876,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           className: config.className.trim(),
           studentCategory: "All",
           totalAmount: Number(config.feeAmount),
-<<<<<<< HEAD
-          branch: config.branch || "",
-=======
           branch: config.branch || selectedBranch || "",
->>>>>>> 2c7d0190f1106e317e9965ae947dc2f54d4d3f76
           items: [
             {
               id: `FI-UNI-${Date.now()}`,
@@ -21253,13 +20902,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     let assignedId = `FUC-${Date.now()}-${Math.floor(Math.random() * 1000000)}`;
     try {
       const apiRes: any = await FinanceAPI.createUniformFeeConfigApi({
-<<<<<<< HEAD
-        academicYear: cData.academicYear || selectedAcademicYear || "2026-2027",
-        branch: cData.branch || (selectedBranch && selectedBranch !== "All" && selectedBranch !== "All Branches" ? selectedBranch : "") || "",
-=======
         academicYear: cData.academicYear || selectedAcademicYear || "",
         branch: cData.branch || selectedBranch || "",
->>>>>>> 2c7d0190f1106e317e9965ae947dc2f54d4d3f76
         className: cData.className,
         gender: cData.gender,
         uniformPackage: cData.uniformPackage,
@@ -21282,13 +20926,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     const newConfig: FinanceUniformConfig = {
       ...cData,
       id: assignedId,
-<<<<<<< HEAD
-      branch: cData.branch || (selectedBranch && selectedBranch !== "All" && selectedBranch !== "All Branches" ? selectedBranch : "") || "",
-      academicYear: cData.academicYear || selectedAcademicYear || "2026-2027",
-=======
       branch: cData.branch || selectedBranch || "",
       academicYear: cData.academicYear || selectedAcademicYear || "",
->>>>>>> 2c7d0190f1106e317e9965ae947dc2f54d4d3f76
       status: "Active",
     };
 
@@ -21732,11 +21371,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     const newHoliday: Holiday = {
       ...hData,
       id,
-<<<<<<< HEAD
-      branch: hData.branch || (selectedBranch && selectedBranch !== "All" && selectedBranch !== "All Branches" ? selectedBranch : "") || "",
-=======
       branch: hData.branch || selectedBranch || "",
->>>>>>> 2c7d0190f1106e317e9965ae947dc2f54d4d3f76
     };
     setHolidays((prev) => {
       const updated = [newHoliday, ...prev];
@@ -21826,11 +21461,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     const newEvent: SchoolEvent = {
       ...eventData,
       id,
-<<<<<<< HEAD
-      branch: eventData.branch || (selectedBranch && selectedBranch !== "All" && selectedBranch !== "All Branches" ? selectedBranch : "") || "",
-=======
       branch: eventData.branch || selectedBranch || "",
->>>>>>> 2c7d0190f1106e317e9965ae947dc2f54d4d3f76
       status: eventData.status || "Published",
       updatedAt: new Date().toISOString().split("T")[0],
     };
@@ -21943,11 +21574,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     const newWorkshop: WorkshopTraining = {
       ...wData,
       id,
-<<<<<<< HEAD
-      branch: wData.branch || (selectedBranch && selectedBranch !== "All" && selectedBranch !== "All Branches" ? selectedBranch : "") || "",
-=======
       branch: wData.branch || selectedBranch || "",
->>>>>>> 2c7d0190f1106e317e9965ae947dc2f54d4d3f76
       status: wData.status || "Scheduled",
       createdAt: new Date().toISOString().split("T")[0],
     };
@@ -22045,11 +21672,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     const newAssessment: EmployeeAssessment = {
       ...aData,
       id,
-<<<<<<< HEAD
-      branch: aData.branch || (selectedBranch && selectedBranch !== "All" && selectedBranch !== "All Branches" ? selectedBranch : "") || "",
-=======
       branch: aData.branch || selectedBranch || "",
->>>>>>> 2c7d0190f1106e317e9965ae947dc2f54d4d3f76
       status: aData.status || "Scheduled",
       createdAt: new Date().toISOString().split("T")[0],
     };
@@ -22119,11 +21742,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
             employeeName: res.employeeName,
             department: res.department,
             designation: res.designation,
-<<<<<<< HEAD
-            branch: res.branch || (selectedBranch && selectedBranch !== "All" && selectedBranch !== "All Branches" ? selectedBranch : "") || "",
-=======
             branch: res.branch || selectedBranch || "",
->>>>>>> 2c7d0190f1106e317e9965ae947dc2f54d4d3f76
             completionDate: new Date().toISOString().split("T")[0],
             issuedBy:
               targetAssessment.evaluatorName || "Academic Competency Board",
@@ -22425,11 +22044,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     try {
       const response = await createSalaryStructureApi({
         ...structureData,
-<<<<<<< HEAD
-        branch: structureData.branch || (selectedBranch && selectedBranch !== "All" && selectedBranch !== "All Branches" ? selectedBranch : "") || "",
-=======
         branch: structureData.branch || selectedBranch || "",
->>>>>>> 2c7d0190f1106e317e9965ae947dc2f54d4d3f76
       });
       if (response && response.success) {
         addToast(
@@ -23237,11 +22852,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         className: clsName.startsWith("Class") ? clsName : `Class ${clsName}`,
         section: sec,
         rollNo: roll,
-<<<<<<< HEAD
-        branch: targetStudent.branch || (selectedBranch && selectedBranch !== "All" && selectedBranch !== "All Branches" ? selectedBranch : "") || "",
-=======
         branch: targetStudent.branch || selectedBranch || "",
->>>>>>> 2c7d0190f1106e317e9965ae947dc2f54d4d3f76
         status: status,
         promotionStatus: statusRaw,
         remarks: row.remarks || row.Remarks || "Imported historical data",

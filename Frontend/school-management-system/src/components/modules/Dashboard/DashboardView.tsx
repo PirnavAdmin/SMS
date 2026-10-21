@@ -1130,11 +1130,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
                       <div className="text-left min-w-0 flex-1">
                         <p className="font-bold text-slate-850 dark:text-slate-100 text-xs truncate leading-snug">{e.title}</p>
                         <p className="text-[9.5px] text-slate-500 truncate mt-0.5">
-<<<<<<< HEAD
-                          {e.type === 'Holiday' ? 'School Closed' : 'Scheduled Event'}
-=======
                           {e.type === 'Holiday' ? 'School Closed' : '10:00 AM'}
->>>>>>> 2c7d0190f1106e317e9965ae947dc2f54d4d3f76
                         </p>
                       </div>
                     </div>

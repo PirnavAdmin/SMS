@@ -80,13 +80,8 @@ export const AcademicHistoryView: React.FC = () => {
 
       // Branch Filter
       if (filterBranch !== 'All') {
-<<<<<<< HEAD
-        const recordBranch = history.branch || student.branch || '';
-        if (recordBranch && recordBranch.toLowerCase() !== filterBranch.toLowerCase()) return false;
-=======
         const recordBranch = history.branch || student.branch || selectedBranch || '';
         if (recordBranch.toLowerCase() !== filterBranch.toLowerCase()) return false;
->>>>>>> 2c7d0190f1106e317e9965ae947dc2f54d4d3f76
       }
 
       // Search Query

@@ -162,15 +162,7 @@ export const Header: React.FC<HeaderProps> = ({ collapsed, setCollapsed, onOpenS
       .map((b: any) => typeof b === 'string' ? b : (b.name || b.branchName))
       .filter(Boolean);
 
-<<<<<<< HEAD
-    if (fromApi.length > 0) {
-      return Array.from(new Set(fromApi)).sort();
-    }
-
-    return [];
-=======
     return Array.from(new Set(fromApi)).sort();
->>>>>>> 2c7d0190f1106e317e9965ae947dc2f54d4d3f76
   }, [branches]);
 
   const authorizedBranches = useMemo(() => {

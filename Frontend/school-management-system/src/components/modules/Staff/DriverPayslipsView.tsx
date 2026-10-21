@@ -24,10 +24,6 @@ const formatPayMonth = (monthLabel?: string): string => {
 };
 
 export const DriverPayslipsView: React.FC = () => {
-<<<<<<< HEAD
-  const { user, selectedBranch } = useAuth();
-  const { staff = [], driverMasters = [], payslips = [], schoolProfile } = useData();
-=======
   const { user } = useAuth();
   const { staff = [], driverMasters = [], payslips = [], schoolProfile, fetchPayslips } = useData();
 
@@ -36,7 +32,6 @@ export const DriverPayslipsView: React.FC = () => {
       fetchPayslips();
     }
   }, [fetchPayslips]);
->>>>>>> 2c7d0190f1106e317e9965ae947dc2f54d4d3f76
 
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedYear, setSelectedYear] = useState('All');
@@ -91,72 +86,10 @@ export const DriverPayslipsView: React.FC = () => {
       (p.employeeId && p.employeeId.toLowerCase() === driverId) ||
       (p.empId && p.empId.toLowerCase() === driverId) ||
       (p.employeeName && p.employeeName.toLowerCase().includes(driverName))
-<<<<<<< HEAD
-    );
-
-    if (existing.length >= 3) return existing;
-
-    const baseSalary = (matchedDriver as any).salary || 30000;
-    const basic = Math.round(baseSalary * 0.60) || 20000;
-    const hra = Math.round(baseSalary * 0.25) || 6000;
-    const transitAllowance = Math.round(baseSalary * 0.15) || 4000;
-    const pf = Math.round(basic * 0.12) || 1800;
-
-    const pastMonths = [
-      { month: 'July 2026', date: '2026-07-31' },
-      { month: 'June 2026', date: '2026-06-30' },
-      { month: 'May 2026', date: '2026-05-31' },
-      { month: 'April 2026', date: '2026-04-30' },
-      { month: 'March 2026', date: '2026-03-31' },
-      { month: 'February 2026', date: '2026-02-28' },
-      { month: 'January 2026', date: '2026-01-31' },
-      { month: 'December 2025', date: '2025-12-31' },
-    ];
-
-    return pastMonths.map((m, idx) => {
-      const gross = basic + hra + transitAllowance;
-      const totalDeductions = pf + 200; // 200 PT
-      const net = gross - totalDeductions;
-
-      return {
-        id: `PS-DRV-${1000 + idx}`,
-        employeeId: matchedDriver.employeeId || matchedDriver.id || '',
-        employeeName: matchedDriver.driverName || 'Driver',
-        empId: matchedDriver.employeeId || matchedDriver.id || '',
-        branch: matchedDriver.branch || selectedBranch || '',
-        department: 'Transport & Logistics',
-        designation: 'Senior Bus Driver',
-        employeeCategory: 'Non-Teaching Staff',
-        month: m.month,
-        basicSalary: basic,
-        hra: hra,
-        da: transitAllowance,
-        grossSalary: gross,
-        pfDeduction: pf,
-        lopDeduction: 0,
-        otherDeductions: 200,
-        netSalary: net,
-        bankAccount: 'HDFC •••• 9843',
-        disbursedDate: m.date,
-        paymentDate: m.date,
-        status: 'Paid',
-        earnings: [
-          { name: 'Basic Pay', amount: basic },
-          { name: 'House Rent Allowance (HRA)', amount: hra },
-          { name: 'Special Transit Allowance', amount: transitAllowance },
-        ],
-        deductions: [
-          { name: 'Provident Fund (PF)', amount: pf },
-          { name: 'Professional Tax (PT)', amount: 200 },
-        ]
-      };
-    });
-=======
     ).map(p => ({
       ...p,
       month: formatPayMonth(p.month)
     }));
->>>>>>> 2c7d0190f1106e317e9965ae947dc2f54d4d3f76
   }, [payslips, matchedDriver]);
 
   // 3. Filtered & Sorted payslips
@@ -459,18 +392,6 @@ export const DriverPayslipsView: React.FC = () => {
           </style>
         </head>
         <body>
-<<<<<<< HEAD
-          <div class="header">
-            <h1>${schoolProfile?.name || 'School Management System'}</h1>
-            <p>${schoolProfile?.address || ''}</p>
-          </div>
-          <div class="title">Official Salary Payslip - ${p.month}</div>
-          <div class="grid-2">
-            <div class="info-box">
-              <div class="info-row"><span class="label">Employee Name:</span><span class="value">${p.employeeName}</span></div>
-              <div class="info-row"><span class="label">Employee ID:</span><span class="value">${p.empId || p.employeeId}</span></div>
-              <div class="info-row"><span class="label">Department:</span><span class="value">${p.department || 'Transport'}</span></div>
-=======
           <div class="payslip-sheet">
             <div class="school-header">
               ${schoolProfile?.logoUrl ? `<img src="${resolveMediaUrl(schoolProfile.logoUrl)}" class="logo-img" alt="Logo" />` : '<div style="width: 70px;"></div>'}
@@ -484,7 +405,6 @@ export const DriverPayslipsView: React.FC = () => {
               <div style="width: 70px; text-align: right;">
                 <span style="font-size: 9px; font-weight: 800; color: #16a34a; background: #dcfce7; border: 1px solid #86efac; padding: 2px 6px; border-radius: 3px;">PAID</span>
               </div>
->>>>>>> 2c7d0190f1106e317e9965ae947dc2f54d4d3f76
             </div>
 
             <div class="doc-title-bar">

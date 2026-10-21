@@ -1,11 +1,7 @@
 // @ts-nocheck
 import React, { useState, useEffect, useMemo } from "react";
-<<<<<<< HEAD
 import { createAllocation, formatRoomNumber } from "../../../api/hostel";
-=======
-import { createAllocation } from "../../../api/hostel";
 import { downloadFeeSummaryPdf } from "../../../utils/feeSummaryPdf";
->>>>>>> 2c7d0190f1106e317e9965ae947dc2f54d4d3f76
 import {
   GraduationCap,
   Plus,
@@ -324,10 +320,6 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
       .filter((b: any) => b && (typeof b === "string" || b.status !== "Inactive"))
       .map((b: any) => typeof b === "string" ? b : (b.name || b.branchName || b.campusName || ""))
       .filter(Boolean);
-<<<<<<< HEAD
-    return Array.from(new Set(fromApi)).filter(Boolean);
-  }, [branches]);
-=======
     const combined = [
       ...(selectedBranch && selectedBranch !== "All" && selectedBranch !== "All Branches" ? [selectedBranch] : []),
       ...fromApi,
@@ -335,7 +327,6 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
     const unique = Array.from(new Set(combined)).filter(Boolean);
     return unique;
   }, [branches, selectedBranch]);
->>>>>>> 2c7d0190f1106e317e9965ae947dc2f54d4d3f76
 
   const [query, setQuery] = useState("");
   const [filterClass, setFilterClass] = useState("All");
@@ -400,13 +391,9 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
       floor: "",
       hostelRoom: "",
       hostelBed: "",
-<<<<<<< HEAD
       branch: (selectedBranch && selectedBranch !== "All" && selectedBranch !== "All Branches" && dynamicCampuses.includes(selectedBranch))
         ? selectedBranch
         : (dynamicCampuses[0] || ""),
-=======
-      branch: selectedBranch && selectedBranch !== "All" && selectedBranch !== "All Branches" ? selectedBranch : (availableBranches[0] || ""),
->>>>>>> 2c7d0190f1106e317e9965ae947dc2f54d4d3f76
       scholarshipId: "",
       discountId: "",
       selectedOptionalFees: [],
@@ -509,11 +496,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
       "Wright",
       "Class 1",
       "Male",
-<<<<<<< HEAD
       selectedBranch && selectedBranch !== "All" && selectedBranch !== "All Branches" && dynamicCampuses.includes(selectedBranch) ? selectedBranch : (dynamicCampuses[0] || ""),
-=======
-      selectedBranch && selectedBranch !== "All" && selectedBranch !== "All Branches" ? selectedBranch : (availableBranches[0] || ""),
->>>>>>> 2c7d0190f1106e317e9965ae947dc2f54d4d3f76
       "15-08-2018",
       "O+",
       "Christianity",
@@ -651,11 +634,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
 
               const rowStatus = String(row.Status || row.status || "Enrolled").trim();
               const rowClass = String(row.AppliedClass || row.appliedClass || row.Class || row.className || row["Applied Class"] || "Class 1").trim();
-<<<<<<< HEAD
               const defaultActiveBranch = selectedBranch && selectedBranch !== "All Branches" && selectedBranch !== "All" && dynamicCampuses.includes(selectedBranch) ? selectedBranch : (dynamicCampuses[0] || "");
-=======
-              const defaultActiveBranch = selectedBranch && selectedBranch !== "All Branches" && selectedBranch !== "All" ? selectedBranch : (availableBranches[0] || "");
->>>>>>> 2c7d0190f1106e317e9965ae947dc2f54d4d3f76
               let rowBranch = String(row.Campus || row.branch || row.Branch || row.CampusLocation || "").trim();
               if (!rowBranch) {
                 rowBranch = defaultActiveBranch;
@@ -1526,15 +1505,9 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
   const handleOpenEdit = (app: AdmissionApplication) => {
     if (!app) return;
     setEditingApp(app);
-<<<<<<< HEAD
     const parts = String(app.applicantName || "").trim().split(" ");
-    setFirstName(parts[0] || "");
-    setLastName(parts.slice(1).join(" ") || "");
-=======
-    const parts = app.applicantName.split(" ");
     setFirstName(formatTitleCase(parts[0] || ""));
     setLastName(formatTitleCase(parts.slice(1).join(" ") || ""));
->>>>>>> 2c7d0190f1106e317e9965ae947dc2f54d4d3f76
     setAvatar(app.avatar || "");
 
     let formattedDob = String(app.dob || "");
@@ -2000,11 +1973,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
           floor: formData.floor,
           hostelRoom: formData.hostelRoom,
           hostelBed: formData.hostelBed,
-<<<<<<< HEAD
           branch: formData.branch || (selectedBranch && selectedBranch !== "All" && selectedBranch !== "All Branches" && dynamicCampuses.includes(selectedBranch) ? selectedBranch : "") || (dynamicCampuses[0] || ""),
-=======
-          branch: formData.branch || (selectedBranch && selectedBranch !== "All" && selectedBranch !== "All Branches" ? selectedBranch : (availableBranches[0] || "")),
->>>>>>> 2c7d0190f1106e317e9965ae947dc2f54d4d3f76
           scholarshipId: formData.scholarshipId,
           discountId: formData.discountId,
           selectedOptionalFees: formData.selectedOptionalFees || [],
@@ -5078,11 +5047,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                         Campus
                       </p>
                       <p className="text-xs font-bold text-slate-800 dark:text-slate-200">
-<<<<<<< HEAD
-                        {selectedAppForView.branch || "-"}
-=======
                         {selectedAppForView.branch || "—"}
->>>>>>> 2c7d0190f1106e317e9965ae947dc2f54d4d3f76
                       </p>
                     </div>
                   </div>
