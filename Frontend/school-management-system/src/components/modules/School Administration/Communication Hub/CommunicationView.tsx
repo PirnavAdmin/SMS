@@ -79,8 +79,15 @@ export const CommunicationView: React.FC = () => {
   // Form State
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
-  const [broadcastDate, setBroadcastDate] = useState(() => new Date().toISOString().split('T')[0]);
-  const [broadcastTime, setBroadcastTime] = useState(() => new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
+  const [broadcastDate, setBroadcastDate] = useState('');
+  const [broadcastTime, setBroadcastTime] = useState('');
+  const todayDateStr = useMemo(() => {
+    const d = new Date();
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  }, []);
   const [emergencyDate, setEmergencyDate] = useState(() => new Date().toISOString().split('T')[0]);
   const [emergencyTime, setEmergencyTime] = useState(() => new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
   const [customEmergTitle, setCustomEmergTitle] = useState('');
@@ -334,8 +341,6 @@ export const CommunicationView: React.FC = () => {
   // Quick Auto Templates Handler
   const applyTemplate = (tmplKey: 'SPORTS' | 'ACADEMIC' | 'ASSEMBLY' | 'URGENT' | 'EXAM' | 'HOLIDAY' | 'GENERAL') => {
     setCategory(tmplKey);
-    if (!broadcastDate) setBroadcastDate(new Date().toISOString().split('T')[0]);
-    if (!broadcastTime) setBroadcastTime(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
 
     switch (tmplKey) {
       case 'SPORTS':
@@ -389,8 +394,8 @@ export const CommunicationView: React.FC = () => {
       setEditingItem(null);
       setTitle('');
       setContent('');
-      setBroadcastDate(new Date().toISOString().split('T')[0]);
-      setBroadcastTime(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
+      setBroadcastDate('');
+      setBroadcastTime('');
       setCategory('');
       setTarget('');
     }
@@ -408,6 +413,14 @@ export const CommunicationView: React.FC = () => {
     if (!title.trim() || !content.trim()) return;
     if (!broadcastDate.trim()) {
       addToast('warning', 'Validation Error', 'Please select or enter a valid Broadcast Date.');
+      return;
+    }
+    if (broadcastDate < todayDateStr) {
+      addToast('error', 'Validation Error', 'Broadcast Date cannot be earlier than today.');
+      return;
+    }
+    if (!broadcastTime.trim()) {
+      addToast('warning', 'Validation Error', 'Please select or enter a Broadcast Time.');
       return;
     }
     if (!category) {
@@ -1005,6 +1018,7 @@ export const CommunicationView: React.FC = () => {
                   <label className="block font-bold mb-1 text-slate-700 dark:text-slate-300">Broadcast Date <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                   <DateInput
                     required
+                    min={todayDateStr}
                     placeholder="DD-MM-YYYY"
                     value={broadcastDate}
                     onChange={e => setBroadcastDate(e.target.value)}

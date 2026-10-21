@@ -48,6 +48,10 @@ export const DateInput: React.FC<DateInputProps> = ({
         iso = max;
         setTextValue(formatToDDMMYYYY(max, '-'));
       }
+      if (min && iso < min) {
+        iso = min;
+        setTextValue(formatToDDMMYYYY(min, '-'));
+      }
       onChange({ target: { value: iso } });
     }
   };
@@ -57,6 +61,9 @@ export const DateInput: React.FC<DateInputProps> = ({
     if (iso && iso.match(/^\d{4}-\d{2}-\d{2}$/)) {
       if (max && iso > max) {
         iso = max;
+      }
+      if (min && iso < min) {
+        iso = min;
       }
       setTextValue(formatToDDMMYYYY(iso, '-'));
       onChange({ target: { value: iso } });
@@ -70,6 +77,9 @@ export const DateInput: React.FC<DateInputProps> = ({
     if (iso) {
       if (max && iso > max) {
         iso = max;
+      }
+      if (min && iso < min) {
+        iso = min;
       }
       setTextValue(formatToDDMMYYYY(iso, '-'));
       onChange({ target: { value: iso } });

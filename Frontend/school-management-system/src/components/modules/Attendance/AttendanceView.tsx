@@ -356,18 +356,21 @@ export const AttendanceView = () => {
     return `${selectedClass} - Section ${selectedSection}`;
   }, [selectedClass, selectedSection]);
 
-  // Auto-select primary class teacher class for teacher
+  // Validate teacher classes if updated, maintaining Select Class and Select Section initially
   useEffect(() => {
     if (isTeacher && teacherClasses.length > 0) {
+      if (selectedClass === 'Select Class') {
+        return;
+      }
       const isCurrentClassValid = teacherClasses.some(c => matchesClassName(c.className, selectedClass));
-      if (selectedClass === 'Select Class' || !isCurrentClassValid) {
-        setSelectedClass(teacherClasses[0].className);
-        setSelectedSection(teacherClasses[0].section);
+      if (!isCurrentClassValid) {
+        setSelectedClass('Select Class');
+        setSelectedSection('Select Section');
       } else {
         const matchingClassEntries = teacherClasses.filter(c => matchesClassName(c.className, selectedClass));
         const isCurrentSecValid = matchingClassEntries.some(c => c.section.toLowerCase() === selectedSection.toLowerCase());
-        if (!isCurrentSecValid && matchingClassEntries.length > 0) {
-          setSelectedSection(matchingClassEntries[0].section);
+        if (!isCurrentSecValid && selectedSection !== 'Select Section' && matchingClassEntries.length > 0) {
+          setSelectedSection('Select Section');
         }
       }
     }
@@ -375,7 +378,14 @@ export const AttendanceView = () => {
 
   // Dynamic list of period options matching selected Class, Section, Teacher & Day from Timetable
   const dynamicPeriodsList = useMemo(() => {
-    if (!selectedClass || selectedClass === 'Select Class' || selectedClass === 'All Classes' || !selectedSection || selectedSection === 'Select Section' || selectedSection === 'All Sections') {
+    if (
+      !selectedClass ||
+      selectedClass === 'Select Class' ||
+      selectedClass === 'All Classes' ||
+      !selectedSection ||
+      selectedSection === 'Select Section' ||
+      selectedSection === 'All Sections'
+    ) {
       return [];
     }
 
@@ -528,13 +538,13 @@ export const AttendanceView = () => {
     return dynamicPeriodsList.map(p => p.periodLabel);
   }, [dynamicPeriodsList]);
 
-  // Auto-sync section when class changes
+  // Auto-sync section when options change
   useEffect(() => {
-    const validSections = sectionOptions.filter(s => s !== 'Select Section' && s !== 'All Sections');
-    if (validSections.length === 1 && selectedSection !== validSections[0]) {
-      setSelectedSection(validSections[0]);
-    } else if (sectionOptions.length > 0 && !sectionOptions.includes(selectedSection)) {
-      setSelectedSection(sectionOptions[0]);
+    if (
+      selectedSection !== 'Select Section' &&
+      !sectionOptions.includes(selectedSection)
+    ) {
+      setSelectedSection('Select Section');
     }
   }, [sectionOptions, selectedSection]);
 
@@ -583,7 +593,11 @@ export const AttendanceView = () => {
   const [itemsPerPage, setItemsPerPage] = useState(25);
   const [isSearching, setIsSearching] = useState(false);
 
-  const isAggregatedView = selectedClass === 'All Classes' || selectedSection === 'All Sections' || selectedClass === 'Select Class' || selectedSection === 'Select Section';
+  const isAggregatedView =
+    selectedClass === 'All Classes' ||
+    selectedSection === 'All Sections' ||
+    selectedClass === 'Select Class' ||
+    selectedSection === 'Select Section';
   
   const displayClassSummary = useMemo(() => {
     const isClassSelected = selectedClass && selectedClass !== 'Select Class';
@@ -1272,11 +1286,11 @@ export const AttendanceView = () => {
       </div>
 
       {/* Control Filters Row */}
-      <div className="glass-card p-4 rounded-2xl border border-slate-200/60 dark:border-slate-800/60 bg-white dark:bg-slate-900 space-y-4">
-        <div className={`grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 ${dateMode === 'Custom Range' ? 'lg:grid-cols-6' : 'lg:grid-cols-5'} gap-3 items-end`}>
-          <div className="space-y-1">
-            <label className="text-[10px] font-black uppercase text-slate-400">Date Mode</label>
+      <div className="glass-card p-4 rounded-2xl border border-slate-200/60 dark:border-slate-800/60 bg-white dark:bg-slate-900">
+        <div className={`grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 ${dateMode === 'Custom Range' ? 'lg:grid-cols-6' : 'lg:grid-cols-5'} gap-3 items-center`}>
+          <div>
             <select
+              aria-label="Date Mode"
               value={dateMode}
               onChange={e => {
                 const mode = e.target.value as any;
@@ -1294,10 +1308,10 @@ export const AttendanceView = () => {
             </select>
           </div>
 
-          <div className={`space-y-1 ${dateMode === 'Custom Range' ? 'sm:col-span-2 lg:col-span-2' : ''}`}>
-            <label className="text-[10px] font-black uppercase text-slate-400">Date Selection</label>
+          <div className={dateMode === 'Custom Range' ? 'sm:col-span-2 lg:col-span-2' : ''}>
             {(dateMode === 'Daily' || dateMode === 'Select') && (
               <input
+                aria-label="Date Selection"
                 type="date"
                 value={date}
                 max={todayStr}
@@ -1316,6 +1330,7 @@ export const AttendanceView = () => {
             )}
             {dateMode === 'Monthly' && (
               <input
+                aria-label="Date Selection"
                 type="month"
                 value={month}
                 max={currentMonthStr}
@@ -1335,6 +1350,7 @@ export const AttendanceView = () => {
             {dateMode === 'Custom Range' && (
               <div className="flex items-center gap-2">
                 <input
+                  aria-label="Start Date"
                   type="date"
                   value={startDate}
                   max={todayStr}
@@ -1352,6 +1368,7 @@ export const AttendanceView = () => {
                 />
                 <span className="text-slate-400 font-bold">-</span>
                 <input
+                  aria-label="End Date"
                   type="date"
                   value={endDate}
                   max={todayStr}
@@ -1371,9 +1388,9 @@ export const AttendanceView = () => {
             )}
           </div>
 
-          <div className="space-y-1">
-            <label className="text-[10px] font-black uppercase text-slate-400">Class</label>
+          <div>
             <select
+              aria-label="Class"
               value={selectedClass}
               onChange={e => {
                 const newClass = e.target.value;
@@ -1398,14 +1415,10 @@ export const AttendanceView = () => {
                     availableSecs = Array.from(new Set([...academicSections, ...fromStudents])).filter(Boolean);
                   }
                   const cleanSecs = Array.from(new Set(availableSecs)).filter(Boolean);
-                  if (cleanSecs.length === 1) {
-                    setSelectedSection(cleanSecs[0]);
-                  } else if (cleanSecs.length > 0 && selectedSection && selectedSection !== 'Select Section' && cleanSecs.includes(selectedSection)) {
+                  if (cleanSecs.length > 0 && selectedSection && selectedSection !== 'Select Section' && cleanSecs.includes(selectedSection)) {
                     // keep current section if valid
-                  } else if (cleanSecs.length > 0) {
-                    setSelectedSection(cleanSecs[0]);
                   } else {
-                    setSelectedSection('A');
+                    setSelectedSection('Select Section');
                   }
                 }
               }}
@@ -1424,9 +1437,9 @@ export const AttendanceView = () => {
             </select>
           </div>
 
-          <div className="space-y-1">
-            <label className="text-[10px] font-black uppercase text-slate-400">Section</label>
+          <div>
             <select
+              aria-label="Section"
               value={selectedSection}
               onChange={e => setSelectedSection(e.target.value)}
               disabled={!selectedClass || selectedClass === 'Select Class' || selectedClass === 'All Classes'}
@@ -1445,9 +1458,9 @@ export const AttendanceView = () => {
             </select>
           </div>
 
-          <div className="space-y-1">
-            <label className="text-[10px] font-black uppercase text-slate-400">Status</label>
+          <div>
             <select
+              aria-label="Status"
               value={filterStatus || 'All'}
               onChange={e => setFilterStatus(e.target.value as any)}
               className="w-full px-2.5 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none focus:border-brand-500 transition-colors cursor-pointer"
@@ -1475,7 +1488,7 @@ export const AttendanceView = () => {
               {isTeacher && teacherClasses.length === 0
                 ? 'You do not have any classes assigned to your profile yet. Please contact the administrator to assign classes.'
                 : (
-                  <>Please select a specific <strong>Class</strong> and <strong>Section</strong> from the filter bar above to view attendance records and summary metrics.</>
+                  <>Please select a specific {dateMode === 'Select' && <><strong>Date Mode</strong>, </>}<strong>Class</strong> and <strong>Section</strong> from the filter bar above to view attendance records and summary metrics.</>
                 )}
             </p>
           </div>

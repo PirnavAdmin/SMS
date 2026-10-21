@@ -380,6 +380,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
     setAltPhoneError("");
     setDobError(null);
     setAdmissionDateError("");
+    setPinCodeError("");
     setFormData({
       appliedClass: "Select Class",
       gender: "",
@@ -674,12 +675,12 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                 alternatePhone: String(row.AlternateMobile || row.alternatePhone || "").trim(),
                 email: String(row.Email || row.email || "").trim(),
                 addressHouseNo: String(row.HouseNo || row.addressHouseNo || "").trim(),
-                addressStreet: String(row.Street || row.addressStreet || "").trim(),
+                addressStreet: String(row.Street || row.addressStreet || "").trim().slice(0, 60),
                 addressArea: String(row.Area || row.addressArea || "").trim(),
                 addressCity: String(row.City || row.addressCity || "").trim(),
                 addressDistrict: String(row.District || row.addressDistrict || "").trim(),
                 addressState: String(row.State || row.addressState || "").trim(),
-                addressPinCode: String(row.Pincode || row.addressPinCode || "").trim(),
+                addressPinCode: String(row.Pincode || row.addressPinCode || "").replace(/\D/g, "").slice(0, 6),
                 branch: rowBranch,
                 academicYear: rowAcademicYear,
                 status: rowStatus,
@@ -1243,6 +1244,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
   const [dobError, setDobError] = useState("");
   const [admissionDateError, setAdmissionDateError] = useState("");
   const [photoError, setPhotoError] = useState("");
+  const [pinCodeError, setPinCodeError] = useState("");
 
   const maxDobISO = useMemo(() => {
     const yesterday = new Date();
@@ -1475,13 +1477,20 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
     setDobError("");
     setAdmissionDateError("");
     setPhotoError("");
+    setPinCodeError("");
     setIsFormView(true);
   };
 
   const handlePinCodeChange = (pinCode: string) => {
-    const clean = pinCode.trim();
+    // Only accept numeric characters and limit to 6 digits
+    const clean = pinCode.replace(/\D/g, "").slice(0, 6);
+    if (clean && clean.length > 0 && clean.length < 6) {
+      setPinCodeError("PIN Code must be 6 digits.");
+    } else {
+      setPinCodeError("");
+    }
     setFormData((prev) => {
-      const updated = { ...prev, addressPinCode: pinCode };
+      const updated = { ...prev, addressPinCode: clean };
       if (!clean) {
         updated.addressCity = "";
         updated.addressDistrict = "";
@@ -1501,7 +1510,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
       return updated;
     });
 
-    if (clean.replace(/\D/g, "").length >= 4) {
+    if (clean.length >= 4) {
       lookupPostalCode(clean).then((info) => {
         if (info) {
           setFormData((prev) => {
@@ -1655,6 +1664,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
     setDobError("");
     setAdmissionDateError("");
     setPhotoError("");
+    setPinCodeError("");
     setIsFormView(true);
   };
 
@@ -1922,6 +1932,24 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
       setEmailError(emailValidation.error || "Please enter a valid email address.");
       addToast("error", "Email Validation Error", emailValidation.error || "Please enter a valid email address.");
       setIsSubmitting(false);
+      return;
+    }
+
+    if (formData.addressPinCode && formData.addressPinCode.trim()) {
+      const cleanPin = formData.addressPinCode.replace(/\D/g, "");
+      if (cleanPin.length !== 6) {
+        setPinCodeError("PIN Code must be exactly 6 digits.");
+        addToast("error", "PIN Code Error", "PIN Code must be exactly 6 digits.");
+        setIsSubmitting(false);
+        setIsSubmittingForm(false);
+        return;
+      }
+    }
+
+    if (formData.addressStreet && formData.addressStreet.length > 60) {
+      addToast("error", "Validation Error", "Street address cannot exceed 60 characters.");
+      setIsSubmitting(false);
+      setIsSubmittingForm(false);
       return;
     }
 
@@ -3528,11 +3556,12 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                     </label>
                     <input
                       type="text"
+                      maxLength={60}
                       value={formData.addressStreet}
                       onChange={(e) =>
                         setFormData({
                           ...formData,
-                          addressStreet: e.target.value,
+                          addressStreet: e.target.value.slice(0, 60),
                         })
                       }
                       className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none"
@@ -3610,11 +3639,23 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                     </label>
                     <input
                       type="text"
+                      inputMode="numeric"
+                      pattern="[0-9]*"
+                      maxLength={6}
                       placeholder="e.g. 560001"
                       value={formData.addressPinCode}
                       onChange={(e) => handlePinCodeChange(e.target.value)}
-                      className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none font-mono focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20"
+                      className={`w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border text-slate-900 dark:text-white outline-none font-mono focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 ${
+                        pinCodeError
+                          ? "border-rose-500"
+                          : "border-slate-200 dark:border-slate-700"
+                      }`}
                     />
+                    {pinCodeError && (
+                      <p className="text-[10px] text-rose-500 mt-0.5 font-bold">
+                        {pinCodeError}
+                      </p>
+                    )}
                   </div>
                 </div>
               </div>

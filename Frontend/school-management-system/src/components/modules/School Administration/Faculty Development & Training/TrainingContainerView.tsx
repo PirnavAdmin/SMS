@@ -61,7 +61,8 @@ export const TrainingContainerView: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [departmentFilter, setDepartmentFilter] = useState('All');
 
-  // Selected Employee for Profile Professional Development View
+  // Selected Employee & Staff Type Filter for Profile Professional Development View
+  const [profileStaffTypeFilter, setProfileStaffTypeFilter] = useState<'All' | 'Teaching Staff' | 'Non-Teaching Staff'>('All');
   const [selectedStaffId, setSelectedStaffId] = useState<string>(staff[0]?.id || 'STF-101');
 
   // Modals
@@ -544,11 +545,44 @@ export const TrainingContainerView: React.FC = () => {
     }
   };
 
+  // Filter staff by category for Profile View
+  const isTeachingStaffMember = (s: Staff): boolean => {
+    const cat = (s.employeeCategory || '').toLowerCase();
+    const role = (s.role || '').toLowerCase();
+    const desig = (s.designation || '').toLowerCase();
+    return (
+      (cat.includes('teaching') && !cat.includes('non-teaching')) ||
+      cat === 'teacher' ||
+      role === 'teacher' ||
+      role.includes('teacher') ||
+      desig.includes('teacher') ||
+      desig.includes('professor') ||
+      desig.includes('faculty')
+    );
+  };
+
+  const profileStaffList = useMemo(() => {
+    if (profileStaffTypeFilter === 'Teaching Staff') {
+      return staff.filter(isTeachingStaffMember);
+    }
+    if (profileStaffTypeFilter === 'Non-Teaching Staff') {
+      return staff.filter(s => !isTeachingStaffMember(s));
+    }
+    return staff;
+  }, [staff, profileStaffTypeFilter]);
+
+  // Keep selectedStaffId in sync when filter changes or staff list changes
+  useEffect(() => {
+    if (profileStaffList.length > 0 && !profileStaffList.some(s => s.id === selectedStaffId)) {
+      setSelectedStaffId(profileStaffList[0].id);
+    }
+  }, [profileStaffList, selectedStaffId]);
+
   // Active Employee Profile Professional Development Records
-  const selectedStaffObj = staff.find(s => s.id === selectedStaffId) || staff[0];
-  const staffWorkshops = workshops.filter(w => w.participants.some(p => p.employeeId === selectedStaffObj?.id));
-  const staffAssessments = employeeAssessments.filter(a => a.results.some(r => r.employeeId === selectedStaffObj?.id));
-  const staffCertificates = issuedCertificates.filter(c => c.employeeId === selectedStaffObj?.id);
+  const selectedStaffObj = profileStaffList.find(s => s.id === selectedStaffId) || profileStaffList[0];
+  const staffWorkshops = selectedStaffObj ? workshops.filter(w => w.participants.some(p => p.employeeId === selectedStaffObj.id)) : [];
+  const staffAssessments = selectedStaffObj ? employeeAssessments.filter(a => a.results.some(r => r.employeeId === selectedStaffObj.id)) : [];
+  const staffCertificates = selectedStaffObj ? issuedCertificates.filter(c => c.employeeId === selectedStaffObj.id) : [];
 
   return (
     <div className="space-y-6 animate-in fade-in">
@@ -591,59 +625,71 @@ export const TrainingContainerView: React.FC = () => {
       </div>
 
       {/* Sub-Navigation Tabs */}
-      <div className="flex items-center gap-1 p-1.5 rounded-2xl bg-slate-100 dark:bg-slate-800/80 w-full border border-slate-200/60 dark:border-slate-800 overflow-x-auto no-scrollbar">
+      <div className="flex items-center gap-1.5 p-1.5 rounded-2xl bg-white dark:bg-slate-900 w-full border border-sky-300 dark:border-sky-700 shadow-xs overflow-x-auto no-scrollbar">
         <button
           onClick={() => setActiveTab('dashboard')}
           className={`flex-1 py-2 px-3 rounded-xl text-xs font-bold whitespace-nowrap transition-all flex items-center justify-center gap-1.5 ${
-            activeTab === 'dashboard' ? 'bg-white dark:bg-slate-950 text-brand-600 shadow-sm' : 'text-slate-600 dark:text-slate-400'
+            activeTab === 'dashboard'
+              ? 'bg-sky-600 text-white shadow-sm font-extrabold'
+              : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800/60'
           }`}
         >
-          <Layers className="w-3.5 h-3.5" /> Dashboard
+          <Layers className={`w-3.5 h-3.5 ${activeTab === 'dashboard' ? 'text-white' : 'text-sky-500'}`} /> Dashboard
         </button>
 
         <button
           onClick={() => setActiveTab('workshops')}
           className={`flex-1 py-2 px-3 rounded-xl text-xs font-bold whitespace-nowrap transition-all flex items-center justify-center gap-1.5 ${
-            activeTab === 'workshops' ? 'bg-white dark:bg-slate-950 text-brand-600 shadow-sm' : 'text-slate-600 dark:text-slate-400'
+            activeTab === 'workshops'
+              ? 'bg-sky-600 text-white shadow-sm font-extrabold'
+              : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800/60'
           }`}
         >
-          <BookOpen className="w-3.5 h-3.5 text-sky-500" /> Workshops & FDPs ({workshops.length})
+          <BookOpen className={`w-3.5 h-3.5 ${activeTab === 'workshops' ? 'text-white' : 'text-sky-500'}`} /> Workshops & FDPs ({workshops.length})
         </button>
 
         <button
           onClick={() => setActiveTab('assessments')}
           className={`flex-1 py-2 px-3 rounded-xl text-xs font-bold whitespace-nowrap transition-all flex items-center justify-center gap-1.5 ${
-            activeTab === 'assessments' ? 'bg-white dark:bg-slate-950 text-brand-600 shadow-sm' : 'text-slate-600 dark:text-slate-400'
+            activeTab === 'assessments'
+              ? 'bg-sky-600 text-white shadow-sm font-extrabold'
+              : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800/60'
           }`}
         >
-          <FileCheck className="w-3.5 h-3.5 text-sky-500" /> Competency Evaluations ({employeeAssessments.length})
+          <FileCheck className={`w-3.5 h-3.5 ${activeTab === 'assessments' ? 'text-white' : 'text-sky-500'}`} /> Competency Evaluations ({employeeAssessments.length})
         </button>
 
         <button
           onClick={() => setActiveTab('certificates')}
           className={`flex-1 py-2 px-3 rounded-xl text-xs font-bold whitespace-nowrap transition-all flex items-center justify-center gap-1.5 ${
-            activeTab === 'certificates' ? 'bg-white dark:bg-slate-950 text-brand-600 shadow-sm' : 'text-slate-600 dark:text-slate-400'
+            activeTab === 'certificates'
+              ? 'bg-sky-600 text-white shadow-sm font-extrabold'
+              : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800/60'
           }`}
         >
-          <Award className="w-3.5 h-3.5 text-amber-500" /> Earned Certificates ({issuedCertificates.length})
+          <Award className={`w-3.5 h-3.5 ${activeTab === 'certificates' ? 'text-white' : 'text-amber-500'}`} /> Earned Certificates ({issuedCertificates.length})
         </button>
 
         <button
           onClick={() => setActiveTab('reports')}
           className={`flex-1 py-2 px-3 rounded-xl text-xs font-bold whitespace-nowrap transition-all flex items-center justify-center gap-1.5 ${
-            activeTab === 'reports' ? 'bg-white dark:bg-slate-950 text-brand-600 shadow-sm' : 'text-slate-600 dark:text-slate-400'
+            activeTab === 'reports'
+              ? 'bg-sky-600 text-white shadow-sm font-extrabold'
+              : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800/60'
           }`}
         >
-          <BarChart3 className="w-3.5 h-3.5 text-emerald-500" /> Development Reports
+          <BarChart3 className={`w-3.5 h-3.5 ${activeTab === 'reports' ? 'text-white' : 'text-emerald-500'}`} /> Development Reports
         </button>
 
         <button
           onClick={() => setActiveTab('profile-view')}
           className={`flex-1 py-2 px-3 rounded-xl text-xs font-bold whitespace-nowrap transition-all flex items-center justify-center gap-1.5 ${
-            activeTab === 'profile-view' ? 'bg-white dark:bg-slate-950 text-brand-600 shadow-sm' : 'text-slate-600 dark:text-slate-400'
+            activeTab === 'profile-view'
+              ? 'bg-sky-600 text-white shadow-sm font-extrabold'
+              : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800/60'
           }`}
         >
-          <UserCheck className="w-3.5 h-3.5 text-sky-500" /> Staff Profiles
+          <UserCheck className={`w-3.5 h-3.5 ${activeTab === 'profile-view' ? 'text-white' : 'text-sky-500'}`} /> Staff Profiles
         </button>
       </div>
 
@@ -652,31 +698,31 @@ export const TrainingContainerView: React.FC = () => {
         <div className="space-y-6">
           {/* Summary Metric Cards */}
           <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3">
-            <div className="p-3.5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs space-y-1">
+            <div className="p-3.5 rounded-2xl bg-white dark:bg-slate-900 border border-sky-300 dark:border-sky-700 shadow-xs space-y-1">
               <span className="text-[9px] font-black uppercase text-sky-600">Upcoming Workshops</span>
               <p className="text-xl font-black text-slate-900 dark:text-white">{metrics.upcomingWorkshops}</p>
             </div>
-            <div className="p-3.5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs space-y-1">
+            <div className="p-3.5 rounded-2xl bg-white dark:bg-slate-900 border border-sky-300 dark:border-sky-700 shadow-xs space-y-1">
               <span className="text-[9px] font-black uppercase text-sky-600">Upcoming Tests</span>
               <p className="text-xl font-black text-slate-900 dark:text-white">{metrics.upcomingAssessments}</p>
             </div>
-            <div className="p-3.5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs space-y-1">
+            <div className="p-3.5 rounded-2xl bg-white dark:bg-slate-900 border border-sky-300 dark:border-sky-700 shadow-xs space-y-1">
               <span className="text-[9px] font-black uppercase text-sky-600">Ongoing Programs</span>
               <p className="text-xl font-black text-slate-900 dark:text-white">{metrics.ongoingPrograms}</p>
             </div>
-            <div className="p-3.5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs space-y-1">
+            <div className="p-3.5 rounded-2xl bg-white dark:bg-slate-900 border border-sky-300 dark:border-sky-700 shadow-xs space-y-1">
               <span className="text-[9px] font-black uppercase text-emerald-600">Completed FDPs</span>
               <p className="text-xl font-black text-slate-900 dark:text-white">{metrics.completedPrograms}</p>
             </div>
-            <div className="p-3.5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs space-y-1">
+            <div className="p-3.5 rounded-2xl bg-white dark:bg-slate-900 border border-sky-300 dark:border-sky-700 shadow-xs space-y-1">
               <span className="text-[9px] font-black uppercase text-amber-600">Participants</span>
               <p className="text-xl font-black text-slate-900 dark:text-white">{metrics.totalParticipantsCount}</p>
             </div>
-            <div className="p-3.5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs space-y-1">
+            <div className="p-3.5 rounded-2xl bg-white dark:bg-slate-900 border border-sky-300 dark:border-sky-700 shadow-xs space-y-1">
               <span className="text-[9px] font-black uppercase text-rose-600">Certificates Issued</span>
               <p className="text-xl font-black text-slate-900 dark:text-white">{metrics.totalCertificates}</p>
             </div>
-            <div className="p-3.5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs space-y-1">
+            <div className="p-3.5 rounded-2xl bg-white dark:bg-slate-900 border border-sky-300 dark:border-sky-700 shadow-xs space-y-1">
               <span className="text-[9px] font-black uppercase text-teal-600">Avg Score</span>
               <p className="text-xl font-black text-slate-900 dark:text-white">{metrics.avgScore}%</p>
             </div>
@@ -686,8 +732,8 @@ export const TrainingContainerView: React.FC = () => {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             
             {/* Upcoming Training & Workshops Widget */}
-            <div className="p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm space-y-4">
-              <div className="flex justify-between items-center border-b pb-3">
+            <div className="p-6 rounded-3xl bg-white dark:bg-slate-900 border border-sky-300 dark:border-sky-700 shadow-sm space-y-4">
+              <div className="flex justify-between items-center">
                 <h3 className="font-bold text-sm text-slate-900 dark:text-white flex items-center gap-2">
                   <BookOpen className="w-4 h-4 text-sky-500" /> Scheduled Training Programs & FDPs
                 </h3>
@@ -696,7 +742,7 @@ export const TrainingContainerView: React.FC = () => {
 
               <div className="space-y-3">
                 {workshops.map(w => (
-                  <div key={w.id} className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border flex items-center justify-between text-xs">
+                  <div key={w.id} className="p-3.5 rounded-2xl bg-sky-50/50 dark:bg-sky-950/20 border border-sky-100 dark:border-sky-900/40 flex items-center justify-between text-xs">
                     <div>
                       <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase bg-sky-100 text-sky-800 border border-sky-200">
                         {w.category}
@@ -713,8 +759,8 @@ export const TrainingContainerView: React.FC = () => {
             </div>
 
             {/* Competency Assessments Radar */}
-            <div className="p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm space-y-4">
-              <div className="flex justify-between items-center border-b pb-3">
+            <div className="p-6 rounded-3xl bg-white dark:bg-slate-900 border border-sky-300 dark:border-sky-700 shadow-sm space-y-4">
+              <div className="flex justify-between items-center">
                 <h3 className="font-bold text-sm text-slate-900 dark:text-white flex items-center gap-2">
                   <FileCheck className="w-4 h-4 text-sky-500" /> Employee Competency Assessments
                 </h3>
@@ -747,25 +793,17 @@ export const TrainingContainerView: React.FC = () => {
       {/* SUB-TAB 2: WORKSHOPS & TRAINING */}
       {activeTab === 'workshops' && (
         <div className="space-y-4">
-          <div className="flex justify-between items-center bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200 dark:border-slate-800">
+          <div className="flex justify-between items-center bg-white dark:bg-slate-900 p-4 rounded-2xl border border-sky-300 dark:border-sky-700 shadow-sm">
             <div>
               <h3 className="font-bold text-sm text-slate-900 dark:text-white flex items-center gap-2">
                 <BookOpen className="w-4 h-4 text-sky-500" /> Workshops & Training Catalog
               </h3>
             </div>
-            {canManageTraining && (
-              <button
-                onClick={() => setIsAddWorkshopModalOpen(true)}
-                className="px-4 py-2 rounded-xl bg-brand-600 text-white font-bold text-xs flex items-center gap-1.5 shadow-md"
-              >
-                <Plus className="w-4 h-4" /> Create Workshop
-              </button>
-            )}
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {filteredWorkshops.map(w => (
-              <div key={w.id} className="p-5 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm space-y-3">
+              <div key={w.id} className="p-5 rounded-3xl bg-white dark:bg-slate-900 border border-sky-300 dark:border-sky-700 shadow-sm space-y-3">
                 <div className="flex justify-between items-start">
                   <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase bg-sky-100 text-sky-800 border border-sky-200">
                     {w.category}
@@ -793,7 +831,7 @@ export const TrainingContainerView: React.FC = () => {
                   <p className="text-xs text-slate-500 mt-1">{w.description}</p>
                 </div>
 
-                <div className="grid grid-cols-2 gap-2 text-[11px] text-slate-600 dark:text-slate-300 pt-2 border-t">
+                <div className="grid grid-cols-2 gap-2 text-[11px] text-slate-600 dark:text-slate-300 pt-2 border-t border-sky-100 dark:border-sky-900/40">
                   <span>📅 <strong>Dates:</strong> {w.startDate} - {w.endDate}</span>
                   <span>⏰ <strong>Time:</strong> {w.startTime} - {w.endTime}</span>
                   <span>👤 <strong>Trainer:</strong> {w.trainerName} ({w.organization})</span>
@@ -810,7 +848,7 @@ export const TrainingContainerView: React.FC = () => {
       {/* SUB-TAB 3: ASSESSMENTS */}
       {activeTab === 'assessments' && (
         <div className="space-y-4">
-          <div className="flex justify-between items-center bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200 dark:border-slate-800">
+          <div className="flex justify-between items-center bg-white dark:bg-slate-900 p-4 rounded-2xl border border-sky-300 dark:border-sky-700 shadow-sm">
             <div>
               <h3 className="font-bold text-sm text-slate-900 dark:text-white flex items-center gap-2">
                 <FileCheck className="w-4 h-4 text-sky-500" /> Employee Competency Assessments
@@ -828,7 +866,7 @@ export const TrainingContainerView: React.FC = () => {
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {filteredAssessments.map(a => (
-              <div key={a.id} className="p-5 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm space-y-3">
+              <div key={a.id} className="p-5 rounded-3xl bg-white dark:bg-slate-900 border border-sky-300 dark:border-sky-700 shadow-sm space-y-3">
                 <div className="flex justify-between items-start">
                   <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase bg-sky-100 text-sky-800 border border-sky-200">
                     {a.assessmentType}
@@ -862,7 +900,7 @@ export const TrainingContainerView: React.FC = () => {
                   <p className="text-xs text-slate-500 mt-1">{a.instructions}</p>
                 </div>
 
-                <div className="grid grid-cols-2 gap-2 text-[11px] text-slate-600 dark:text-slate-300 pt-2 border-t">
+                <div className="grid grid-cols-2 gap-2 text-[11px] text-slate-600 dark:text-slate-300 pt-2 border-t border-sky-100 dark:border-sky-900/40">
                   <span>📅 <strong>Date:</strong> {a.date} ({a.durationMinutes} min)</span>
                   <span>💯 <strong>Passing Marks:</strong> {a.passingMarks} / {a.totalMarks}</span>
                   <span>👤 <strong>Evaluator:</strong> {a.evaluatorName}</span>
@@ -877,7 +915,7 @@ export const TrainingContainerView: React.FC = () => {
       {/* SUB-TAB 4: CERTIFICATES */}
       {activeTab === 'certificates' && (
         <div className="space-y-4">
-          <div className="flex justify-between items-center bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200 dark:border-slate-800">
+          <div className="flex justify-between items-center bg-white dark:bg-slate-900 p-4 rounded-2xl border border-sky-300 dark:border-sky-700 shadow-sm">
             <div>
               <h3 className="font-bold text-sm text-slate-900 dark:text-white flex items-center gap-2">
                 <Award className="w-4 h-4 text-amber-500" /> Issued Employee Certificates Registry
@@ -885,7 +923,7 @@ export const TrainingContainerView: React.FC = () => {
             </div>
           </div>
 
-          <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden p-4">
+          <div className="bg-white dark:bg-slate-900 rounded-3xl border border-sky-300 dark:border-sky-700 shadow-sm overflow-hidden p-4">
             <div className="overflow-x-auto">
               <table className="w-full text-left text-xs">
                 <thead className="bg-slate-50 dark:bg-slate-800/60 uppercase text-[10px] text-slate-400 font-extrabold">
@@ -932,7 +970,7 @@ export const TrainingContainerView: React.FC = () => {
       {/* SUB-TAB 5: REPORTS */}
       {activeTab === 'reports' && (
         <div className="space-y-6">
-          <div className="flex justify-between items-center bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200 dark:border-slate-800">
+          <div className="flex justify-between items-center bg-white dark:bg-slate-900 p-4 rounded-2xl border border-sky-300 dark:border-sky-700 shadow-sm">
             <div>
               <h3 className="font-bold text-sm text-slate-900 dark:text-white flex items-center gap-2">
                 <BarChart3 className="w-4 h-4 text-emerald-500" /> Executive Training & Competency Reports
@@ -942,7 +980,7 @@ export const TrainingContainerView: React.FC = () => {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="p-5 rounded-3xl bg-white dark:bg-slate-900 border space-y-3">
+            <div className="p-5 rounded-3xl bg-white dark:bg-slate-900 border border-sky-300 dark:border-sky-700 shadow-sm space-y-3">
               <h4 className="font-bold text-sm text-slate-900 dark:text-white">Workshop Participation Summary</h4>
               <div className="space-y-2 text-xs">
                 {workshops.map(w => (
@@ -954,7 +992,7 @@ export const TrainingContainerView: React.FC = () => {
               </div>
             </div>
 
-            <div className="p-5 rounded-3xl bg-white dark:bg-slate-900 border space-y-3">
+            <div className="p-5 rounded-3xl bg-white dark:bg-slate-900 border border-sky-300 dark:border-sky-700 shadow-sm space-y-3">
               <h4 className="font-bold text-sm text-slate-900 dark:text-white">Assessment Pass / Fail Breakdown</h4>
               <div className="space-y-2 text-xs">
                 {employeeAssessments.map(a => {
@@ -975,26 +1013,52 @@ export const TrainingContainerView: React.FC = () => {
       {/* SUB-TAB 6: STAFF PROFILES PROFESSIONAL DEVELOPMENT SHOWCASE */}
       {activeTab === 'profile-view' && (
         <div className="space-y-6">
-          <div className="flex justify-between items-center bg-white dark:bg-slate-900 p-4 rounded-2xl border">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white dark:bg-slate-900 p-4 rounded-2xl border border-sky-300 dark:border-sky-700 shadow-sm">
             <div>
               <h3 className="font-bold text-sm text-slate-900 dark:text-white flex items-center gap-2">
                 <UserCheck className="w-4 h-4 text-sky-500" /> Employee Profile Professional Development View
               </h3>
             </div>
 
-            <select
-              value={selectedStaffId}
-              onChange={e => setSelectedStaffId(e.target.value)}
-              className="px-3 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 border font-bold text-xs"
-            >
-              {staff.map(s => (
-                <option key={s.id} value={s.id}>{s.firstName} {s.lastName} ({s.department || s.role})</option>
-              ))}
-            </select>
+            <div className="flex flex-wrap items-center gap-2.5">
+              <select
+                value={profileStaffTypeFilter}
+                onChange={e => setProfileStaffTypeFilter(e.target.value as any)}
+                className="px-3 py-2 rounded-xl bg-white dark:bg-slate-800 border border-sky-200 dark:border-sky-800 font-bold text-xs text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-sky-500 cursor-pointer"
+                aria-label="Filter staff type"
+              >
+                <option value="All">All Staff</option>
+                <option value="Teaching Staff">Teaching Staff</option>
+                <option value="Non-Teaching Staff">Non-Teaching Staff</option>
+              </select>
+
+              <select
+                value={selectedStaffId}
+                onChange={e => setSelectedStaffId(e.target.value)}
+                className="px-3 py-2 rounded-xl bg-white dark:bg-slate-800 border border-sky-200 dark:border-sky-800 font-bold text-xs text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-sky-500 cursor-pointer min-w-[200px]"
+                aria-label="Select staff member"
+              >
+                {profileStaffList.length === 0 ? (
+                  <option value="">No staff found</option>
+                ) : (
+                  profileStaffList.map(s => (
+                    <option key={s.id} value={s.id}>
+                      {s.firstName} {s.lastName} ({s.department || s.role || s.designation})
+                    </option>
+                  ))
+                )}
+              </select>
+            </div>
           </div>
 
-          <div className="p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm space-y-6">
-            <div className="flex items-center gap-4 pb-4 border-b">
+          {!selectedStaffObj ? (
+            <div className="p-12 text-center text-slate-500 bg-white dark:bg-slate-900 rounded-3xl border border-sky-300 dark:border-sky-700 shadow-sm">
+              <UserCheck className="w-10 h-10 mx-auto text-slate-300 mb-2" />
+              <p className="font-bold text-sm">No staff members found in this category.</p>
+            </div>
+          ) : (
+            <div className="p-6 rounded-3xl bg-white dark:bg-slate-900 border border-sky-300 dark:border-sky-700 shadow-sm space-y-6">
+            <div className="flex items-center gap-4 pb-4 border-b border-sky-100 dark:border-sky-900/40">
               <img src={selectedStaffObj?.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150'} alt="" className="w-14 h-14 rounded-full object-cover border-2 border-brand-500" />
               <div>
                 <h3 className="text-lg font-black text-slate-900 dark:text-white">{selectedStaffObj?.firstName} {selectedStaffObj?.lastName}</h3>
@@ -1051,14 +1115,15 @@ export const TrainingContainerView: React.FC = () => {
 
             </div>
           </div>
-        </div>
-      )}
+        )}
+      </div>
+    )}
 
       {/* CREATE WORKSHOP MODAL */}
       {isAddWorkshopModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm animate-in fade-in">
-          <div className="bg-white dark:bg-slate-900 border border-sky-400 dark:border-sky-500 rounded-3xl max-w-2xl w-full p-6 shadow-2xl space-y-4 max-h-[90vh] flex flex-col text-xs [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
-            <div className="flex justify-between items-center border-b border-slate-100 dark:border-slate-800 pb-3">
+          <div className="bg-white dark:bg-slate-900 border border-sky-300 dark:border-sky-700 rounded-3xl max-w-2xl w-full p-6 shadow-2xl space-y-4 max-h-[90vh] flex flex-col text-xs [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+            <div className="flex justify-between items-center border-b border-sky-100 dark:border-sky-900/40 pb-3">
               <h3 className="font-black text-base text-slate-900 dark:text-white flex items-center gap-2">
                 <GraduationCap className="w-5 h-5 text-sky-600" /> Create Employee Workshop / FDP
               </h3>
@@ -1218,7 +1283,7 @@ export const TrainingContainerView: React.FC = () => {
               </div>
 
             </form>
-            <div className="flex justify-end gap-2 pt-2 border-t">
+            <div className="flex justify-end gap-2 pt-2 border-t border-sky-100 dark:border-sky-900/40">
               <button type="button" onClick={() => setIsAddWorkshopModalOpen(false)} className="px-4 py-2 bg-slate-200 dark:bg-slate-800 rounded-xl font-bold">Cancel</button>
               <button type="submit" onClick={handleAddWorkshopSubmit} className="px-5 py-2 bg-brand-600 text-white font-bold rounded-xl shadow-md">Create & Notify Employees</button>
             </div>
@@ -1229,10 +1294,10 @@ export const TrainingContainerView: React.FC = () => {
       {/* SCHOOL ASSESSMENT SCHEDULER MODAL */}
       {isAddAssessmentModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm animate-in fade-in">
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-3xl w-full p-6 shadow-2xl flex flex-col max-h-[88vh] text-xs">
+          <div className="bg-white dark:bg-slate-900 border border-sky-300 dark:border-sky-700 rounded-3xl max-w-3xl w-full p-6 shadow-2xl flex flex-col max-h-[88vh] text-xs">
             
             {/* Modal Header (Fixed Top) */}
-            <div className="flex justify-between items-center pb-3 shrink-0 border-b border-slate-100 dark:border-slate-800/80 mb-3">
+            <div className="flex justify-between items-center pb-3 shrink-0 border-b border-sky-100 dark:border-sky-900/40 mb-3">
               <div>
                 <h3 className="font-black text-base text-slate-900 dark:text-white flex items-center gap-2">
                   <FileCheck className="w-5 h-5 text-sky-600" /> Faculty Training & Evaluation Scheduler
@@ -1804,15 +1869,15 @@ export const TrainingContainerView: React.FC = () => {
       {/* RECORD ATTENDANCE MODAL */}
       {isAttendanceModalOpen && selectedWorkshopForAttendance && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm animate-in fade-in">
-          <div className="bg-white dark:bg-slate-900 border rounded-3xl max-w-lg w-full p-6 shadow-2xl space-y-4 max-h-[85vh] flex flex-col text-xs">
-            <div className="flex justify-between items-center border-b pb-3">
+          <div className="bg-white dark:bg-slate-900 border border-sky-300 dark:border-sky-700 rounded-3xl max-w-lg w-full p-6 shadow-2xl space-y-4 max-h-[85vh] flex flex-col text-xs">
+            <div className="flex justify-between items-center border-b border-sky-100 dark:border-sky-900/40 pb-3">
               <h3 className="font-bold text-slate-900 dark:text-white">Record Workshop Attendance: {selectedWorkshopForAttendance.workshopName}</h3>
               <button onClick={() => setIsAttendanceModalOpen(false)}><X className="w-4 h-4" /></button>
             </div>
 
             <div className="flex-1 overflow-y-auto space-y-2">
               {selectedWorkshopForAttendance.participants.map(p => (
-                <div key={p.employeeId} className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800 flex justify-between items-center">
+                <div key={p.employeeId} className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800 flex justify-between items-center border border-slate-100 dark:border-slate-700">
                   <div>
                     <p className="font-bold text-slate-900 dark:text-white">{p.employeeName}</p>
                     <p className="text-[10px] text-slate-500">{p.designation} • {p.department}</p>
@@ -1826,7 +1891,7 @@ export const TrainingContainerView: React.FC = () => {
                         participants: selectedWorkshopForAttendance.participants.map(item => item.employeeId === p.employeeId ? { ...item, attendanceStatus: val } : item)
                       });
                     }}
-                    className="px-2.5 py-1 rounded-xl bg-white dark:bg-slate-900 border font-bold text-xs"
+                    className="px-2.5 py-1 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-bold text-xs"
                   >
                     <option value="Present">Present</option>
                     <option value="Absent">Absent</option>
@@ -1837,8 +1902,8 @@ export const TrainingContainerView: React.FC = () => {
               ))}
             </div>
 
-            <div className="flex justify-end gap-2 pt-2 border-t">
-              <button onClick={() => setIsAttendanceModalOpen(false)} className="px-4 py-2 bg-slate-200 rounded-xl font-bold">Cancel</button>
+            <div className="flex justify-end gap-2 pt-2 border-t border-sky-100 dark:border-sky-900/40">
+              <button onClick={() => setIsAttendanceModalOpen(false)} className="px-4 py-2 bg-slate-200 dark:bg-slate-700 rounded-xl font-bold">Cancel</button>
               <button onClick={() => handleSaveAttendance(selectedWorkshopForAttendance.id)} className="px-5 py-2 bg-emerald-600 text-white font-bold rounded-xl shadow-md">Save Attendance</button>
             </div>
           </div>
@@ -1848,8 +1913,8 @@ export const TrainingContainerView: React.FC = () => {
       {/* RECORD EVALUATION MODAL */}
       {isEvaluateModalOpen && selectedAssessmentForEvaluation && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm animate-in fade-in">
-          <div className="bg-white dark:bg-slate-900 border rounded-3xl max-w-xl w-full p-6 shadow-2xl space-y-4 max-h-[85vh] flex flex-col text-xs">
-            <div className="flex justify-between items-center border-b pb-3">
+          <div className="bg-white dark:bg-slate-900 border border-sky-300 dark:border-sky-700 rounded-3xl max-w-xl w-full p-6 shadow-2xl space-y-4 max-h-[85vh] flex flex-col text-xs">
+            <div className="flex justify-between items-center border-b border-sky-100 dark:border-sky-900/40 pb-3">
               <h3 className="font-bold text-slate-900 dark:text-white">Record Evaluation Marks: {selectedAssessmentForEvaluation.assessmentName}</h3>
               <button onClick={() => setIsEvaluateModalOpen(false)}><X className="w-4 h-4" /></button>
             </div>
@@ -1883,7 +1948,7 @@ export const TrainingContainerView: React.FC = () => {
               ))}
             </div>
 
-            <div className="flex justify-end gap-2 pt-2 border-t">
+            <div className="flex justify-end gap-2 pt-2 border-t border-sky-100 dark:border-sky-900/40">
               <button onClick={() => setIsEvaluateModalOpen(false)} className="px-4 py-2 bg-slate-200 rounded-xl font-bold">Cancel</button>
               <button onClick={() => handleSaveEvaluation(selectedAssessmentForEvaluation.id)} className="px-5 py-2 bg-sky-600 text-white font-bold rounded-xl shadow-md">Publish Results & Certificates</button>
             </div>
