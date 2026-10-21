@@ -1101,11 +1101,10 @@ export const MeetingsView: React.FC = () => {
             {/* Quick Auto Fill Meeting Presets Bar */}
             {!editingMeeting && (
               <div className="p-3 bg-sky-50/60 dark:bg-sky-950/40 rounded-2xl border border-sky-100 dark:border-sky-900/60 space-y-2">
-                <div className="flex items-center justify-between">
+                <div>
                   <span className="text-[11px] font-black uppercase tracking-wider text-sky-700 dark:text-sky-300 flex items-center gap-1.5">
                     <Sparkles className="w-3.5 h-3.5 text-sky-500" /> ✨ Quick Meeting Presets:
                   </span>
-                  <span className="text-[10px] text-slate-400 font-bold">1-Click Auto Fill</span>
                 </div>
 
                 <div className="flex flex-wrap gap-1.5">

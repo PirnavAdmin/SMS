@@ -917,12 +917,9 @@ export const CommunicationView: React.FC = () => {
 
             {/* Quick Auto Templates Container */}
             <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200/80 dark:border-slate-700/80 space-y-2">
-              <div className="flex items-center justify-between text-[11px] font-extrabold">
+              <div className="text-[11px] font-extrabold">
                 <span className="text-slate-800 dark:text-slate-200 flex items-center gap-1 uppercase tracking-wide">
                   ✨ Quick Auto Templates:
-                </span>
-                <span className="text-sky-600 dark:text-sky-400 font-bold text-[10px]">
-                  1-Click Auto Fill
                 </span>
               </div>
 
