@@ -339,13 +339,9 @@ namespace SMS.Api.Services.Implementations
                             linkedUser.Email ?? staffMember.Email,
                             linkedUser.MobileNumber ?? staffMember.Phone,
                             staffMember.ProfilePhoto ?? linkedUser.Avatar,
-<<<<<<< HEAD
-                            staffMember.BranchName ?? string.Empty);
-=======
                             staffMember.BranchName ?? "Main Campus",
                             staffMember.EmployeeId,
                             staffMember.StaffId);
->>>>>>> 2c7d0190f1106e317e9965ae947dc2f54d4d3f76
                     }
                 }
                 return null;
