@@ -996,11 +996,11 @@ export const TeacherProfileView: React.FC = () => {
           {/* Card 1: Offer / Appointment Letter */}
           <div className="p-5 rounded-2xl bg-white dark:bg-slate-900/60 border border-sky-300 dark:border-sky-800 flex flex-col justify-between space-y-4 hover:shadow-md hover:border-sky-400 dark:hover:border-sky-700 transition-all">
             <div>
-              <div className="flex items-center justify-between">
-                <div className="w-9 h-9 rounded-xl bg-sky-50 dark:bg-sky-950/60 text-sky-600 dark:text-sky-400 flex items-center justify-center">
+              <div className="flex items-center justify-between min-h-[36px]">
+                <div className="w-9 h-9 rounded-xl bg-sky-50 dark:bg-sky-950/60 text-sky-600 dark:text-sky-400 flex items-center justify-center shrink-0">
                   <FileText className="w-4 h-4" />
                 </div>
-                <span className="px-3 py-0.5 rounded-full text-[11px] font-bold border border-emerald-300 text-emerald-700 bg-emerald-50/50 dark:bg-emerald-950/40 dark:border-emerald-800 dark:text-emerald-300">
+                <span className="h-6 px-3 rounded-full text-[11px] font-bold border border-emerald-300 text-emerald-700 bg-emerald-50/50 dark:bg-emerald-950/40 dark:border-emerald-800 dark:text-emerald-300 inline-flex items-center justify-center shrink-0 leading-none">
                   Official
                 </span>
               </div>
@@ -1026,16 +1026,16 @@ export const TeacherProfileView: React.FC = () => {
           {/* Card 2: Relieving Letter */}
           <div className="p-5 rounded-2xl bg-white dark:bg-slate-900/60 border border-sky-300 dark:border-sky-800 flex flex-col justify-between space-y-4 hover:shadow-md hover:border-sky-400 dark:hover:border-sky-700 transition-all">
             <div>
-              <div className="flex items-center justify-between">
-                <div className="w-9 h-9 rounded-xl bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 flex items-center justify-center">
+              <div className="flex items-center justify-between min-h-[36px]">
+                <div className="w-9 h-9 rounded-xl bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0">
                   <CheckCircle2 className="w-4 h-4" />
                 </div>
                 {staffLetters.some(l => l.letterType === 'relieving') ? (
-                  <span className="px-3 py-0.5 rounded-full text-[11px] font-bold border border-emerald-300 text-emerald-700 bg-emerald-50/50 dark:bg-emerald-950/40 dark:border-emerald-800 dark:text-emerald-300">
+                  <span className="h-6 px-3 rounded-full text-[11px] font-bold border border-emerald-300 text-emerald-700 bg-emerald-50/50 dark:bg-emerald-950/40 dark:border-emerald-800 dark:text-emerald-300 inline-flex items-center justify-center shrink-0 leading-none">
                     Issued
                   </span>
                 ) : (
-                  <span className="px-3 py-0.5 rounded-full text-[11px] font-medium border border-slate-200 text-slate-600 bg-slate-50 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-400">
+                  <span className="h-6 px-3 rounded-full text-[11px] font-bold border border-slate-200 text-slate-600 bg-slate-50 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-400 inline-flex items-center justify-center shrink-0 leading-none">
                     On Separation
                   </span>
                 )}
@@ -1068,16 +1068,16 @@ export const TeacherProfileView: React.FC = () => {
           {/* Card 3: Experience / Service Certificate */}
           <div className="p-5 rounded-2xl bg-white dark:bg-slate-900/60 border border-sky-300 dark:border-sky-800 flex flex-col justify-between space-y-4 hover:shadow-md hover:border-sky-400 dark:hover:border-sky-700 transition-all">
             <div>
-              <div className="flex items-center justify-between">
-                <div className="w-9 h-9 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
+              <div className="flex items-center justify-between min-h-[36px]">
+                <div className="w-9 h-9 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
                   <Award className="w-4 h-4" />
                 </div>
                 {staffLetters.some(l => l.letterType === 'experience') ? (
-                  <span className="px-3 py-0.5 rounded-full text-[11px] font-bold border border-emerald-300 text-emerald-700 bg-emerald-50/50 dark:bg-emerald-950/40 dark:border-emerald-800 dark:text-emerald-300">
+                  <span className="h-6 px-3 rounded-full text-[11px] font-bold border border-emerald-300 text-emerald-700 bg-emerald-50/50 dark:bg-emerald-950/40 dark:border-emerald-800 dark:text-emerald-300 inline-flex items-center justify-center shrink-0 leading-none">
                     Issued
                   </span>
                 ) : (
-                  <span className="px-3 py-0.5 rounded-full text-[11px] font-medium border border-slate-200 text-slate-600 bg-slate-50 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-400">
+                  <span className="h-6 px-3 rounded-full text-[11px] font-bold border border-slate-200 text-slate-600 bg-slate-50 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-400 inline-flex items-center justify-center shrink-0 leading-none">
                     Service Certificate
                   </span>
                 )}

@@ -594,10 +594,11 @@ export const TeacherDashboardView: React.FC<TeacherDashboardViewProps> = ({ onNa
             </div>
           </div>
 
-          <div className="flex items-center justify-between text-xs pt-2 font-bold border-t border-slate-100 dark:border-slate-800/60 text-slate-500">
-            <span>Remaining classes today</span>
-            <span className="font-black text-slate-800 dark:text-white bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-full text-[10px]">
-              {scheduleData.remainingCount} Classes
+          <div className="pt-2.5 border-t border-slate-100 dark:border-slate-800/60 flex items-center justify-between text-xs">
+            <span className="text-slate-500 dark:text-slate-400 font-medium">Remaining classes today ({scheduleData.remainingCount})</span>
+            <span className="text-xs font-bold text-sky-600 dark:text-sky-400 hover:text-sky-700 dark:hover:text-sky-300 flex items-center gap-1 group-hover:translate-x-0.5 transition-all">
+              <span>View Timetable</span>
+              <ArrowRight className="w-3.5 h-3.5" />
             </span>
           </div>
         </div>
@@ -664,25 +665,28 @@ export const TeacherDashboardView: React.FC<TeacherDashboardViewProps> = ({ onNa
             </div>
           </div>
 
-          <div className="pt-2 border-t border-slate-100 dark:border-slate-800/60 flex items-center justify-between text-xs text-slate-400 font-medium">
-            <span>Class teacher dashboard</span>
-            <span className="text-[10px] text-emerald-500 font-bold hover:underline flex items-center gap-0.5">
-              Student List <ArrowRight className="w-3.5 h-3.5" />
+          <div className="pt-2.5 border-t border-slate-100 dark:border-slate-800/60 flex items-center justify-between text-xs">
+            <span className="text-slate-500 dark:text-slate-400 font-medium">Class teacher dashboard</span>
+            <span className="text-xs font-bold text-sky-600 dark:text-sky-400 hover:text-sky-700 dark:hover:text-sky-300 flex items-center gap-1 group-hover:translate-x-0.5 transition-all">
+              <span>Student List</span>
+              <ArrowRight className="w-3.5 h-3.5" />
             </span>
           </div>
         </div>
 
         {/* 4. Academic Tasks Card */}
         <div 
-          className="glass-card p-6 rounded-3xl border border-slate-200/60 dark:border-slate-800/60 flex flex-col justify-between space-y-4"
+          onClick={() => handleCardClick('marks-entry')}
+          className="glass-card p-6 rounded-3xl border border-slate-200/60 dark:border-slate-800/60 hover:-translate-y-1 hover:shadow-lg hover:border-purple-500/20 transition-all duration-300 cursor-pointer flex flex-col justify-between group space-y-4"
         >
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2.5">
-              <div className="p-2 rounded-xl bg-purple-50 text-purple-600 dark:bg-purple-950/40 dark:text-purple-400 border border-purple-100 dark:border-purple-900/40">
+              <div className="p-2 rounded-xl bg-purple-50 text-purple-600 dark:bg-purple-950/40 dark:text-purple-400 border border-purple-100 dark:border-purple-900/40 shrink-0">
                 <GraduationCap className="w-5 h-5" />
               </div>
               <h3 className="font-black text-sm text-slate-900 dark:text-white">Academic Tasks</h3>
             </div>
+            <ExternalLink className="w-4 h-4 text-slate-400 group-hover:text-purple-500 transition-colors shrink-0" />
           </div>
 
           <div className="space-y-2.5 flex-grow pt-2">
@@ -716,12 +720,11 @@ export const TeacherDashboardView: React.FC<TeacherDashboardViewProps> = ({ onNa
             </div>
           </div>
 
-          <div className="pt-2 border-t border-slate-100 dark:border-slate-800/60 flex items-center justify-between text-xs text-slate-400 font-medium">
-            <span>Syllabus & Grading control</span>
-            <span 
-              className="text-[10px] text-purple-500 font-bold flex items-center gap-0.5"
-            >
-              Gradebook
+          <div className="pt-2.5 border-t border-slate-100 dark:border-slate-800/60 flex items-center justify-between text-xs">
+            <span className="text-slate-500 dark:text-slate-400 font-medium">Syllabus & Grading control</span>
+            <span className="text-xs font-bold text-sky-600 dark:text-sky-400 hover:text-sky-700 dark:hover:text-sky-300 flex items-center gap-1 group-hover:translate-x-0.5 transition-all">
+              <span>Gradebook</span>
+              <ArrowRight className="w-3.5 h-3.5" />
             </span>
           </div>
         </div>
@@ -762,17 +765,18 @@ export const TeacherDashboardView: React.FC<TeacherDashboardViewProps> = ({ onNa
             </div>
           </div>
 
-          <div className="pt-2 border-t border-slate-100 dark:border-slate-800/60 flex items-center justify-between text-xs text-slate-400 font-medium">
-            <span>Notice board feed & chat</span>
-            <span className="text-[10px] text-rose-500 font-bold hover:underline flex items-center gap-0.5">
-              Notice Board <ArrowRight className="w-3.5 h-3.5" />
+          <div className="pt-2.5 border-t border-slate-100 dark:border-slate-800/60 flex items-center justify-between text-xs">
+            <span className="text-slate-500 dark:text-slate-400 font-medium">Notice board feed & chat</span>
+            <span className="text-xs font-bold text-sky-600 dark:text-sky-400 hover:text-sky-700 dark:hover:text-sky-300 flex items-center gap-1 group-hover:translate-x-0.5 transition-all">
+              <span>Notice Board</span>
+              <ArrowRight className="w-3.5 h-3.5" />
             </span>
           </div>
         </div>
 
         {/* 6. Quick Actions Card */}
         <div 
-          className="glass-card p-6 rounded-3xl border border-slate-200/60 dark:border-slate-800/60 hover:-translate-y-1 hover:shadow-lg transition-all duration-300 flex flex-col justify-between space-y-4"
+          className="glass-card p-6 rounded-3xl border border-slate-200/60 dark:border-slate-800/60 hover:-translate-y-1 hover:shadow-lg hover:border-amber-500/20 transition-all duration-300 flex flex-col justify-between space-y-4 group"
         >
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2.5">
@@ -817,8 +821,12 @@ export const TeacherDashboardView: React.FC<TeacherDashboardViewProps> = ({ onNa
             </button>
           </div>
 
-          <div className="pt-2 border-t border-slate-100 dark:border-slate-800/60 flex items-center justify-between text-xs text-slate-400 font-medium">
-            <span>Administrative shortcut grid</span>
+          <div className="pt-2.5 border-t border-slate-100 dark:border-slate-800/60 flex items-center justify-between text-xs">
+            <span className="text-slate-500 dark:text-slate-400 font-medium">Administrative shortcut grid</span>
+            <span className="text-xs font-bold text-sky-600 dark:text-sky-400 hover:text-sky-700 dark:hover:text-sky-300 flex items-center gap-1 group-hover:translate-x-0.5 transition-all">
+              <span>Quick Access</span>
+              <ArrowRight className="w-3.5 h-3.5" />
+            </span>
           </div>
         </div>
 
