@@ -57,7 +57,7 @@ export const StudentFormModal: React.FC<StudentFormModalProps> = ({
     joiningDate: new Date().toISOString().split('T')[0],
     isLateAdmission: false,
     feeCalculationMethod: 'Term-wise',
-    branch: studentToEdit?.branch || (selectedBranch && selectedBranch !== 'All' && selectedBranch !== 'All Branches' ? selectedBranch : (dynamicCampuses[0] || '')),
+    branch: studentToEdit?.branch || (selectedBranch && selectedBranch !== 'All' && selectedBranch !== 'All Branches' && dynamicCampuses.includes(selectedBranch) ? selectedBranch : (dynamicCampuses[0] || '')),
     studentType: 'Day Scholar',
     busRoute: '',
     transportType: 'AC',

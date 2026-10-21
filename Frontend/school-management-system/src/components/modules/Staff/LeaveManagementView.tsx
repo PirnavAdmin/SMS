@@ -730,7 +730,6 @@ export const LeaveManagementView: React.FC = () => {
 
     const availableBal = getAvailableBalance(employee, lType.name);
     const empBranch = (employee as any).branch || (employee as any).branchId || selectedBranch || '';
-
     const effectiveDays = applyForm.isHalfDay ? 0.5 : calculateDays(applyForm.fromDate, effectiveToDate, false);
 
     const appData: Omit<LeaveApplication, 'id'> = {
@@ -1744,7 +1743,7 @@ export const LeaveManagementView: React.FC = () => {
                   const used = getEmployeeApprovedUsedLeaves(selectedStaffMember.id, selectedStaffMember.empId);
                   return (
                     <div className="p-2 bg-slate-50 dark:bg-slate-800/40 rounded-xl border border-slate-200 dark:border-slate-700 grid grid-cols-2 gap-x-3 gap-y-0.5 text-[10px]">
-                      <div><span className="text-slate-400">Branch:</span> <span className="font-bold">{(selectedStaffMember as any).branch || '—'}</span></div>
+                      <div><span className="text-slate-400">Branch:</span> <span className="font-bold">{(selectedStaffMember as any).branch || selectedBranch || '-'}</span></div>
                       <div><span className="text-slate-400">Department:</span> <span className="font-bold">{selectedStaffMember.department}</span></div>
                       <div><span className="text-slate-400">Designation:</span> <span className="font-bold">{selectedStaffMember.designation}</span></div>
                       <div className="col-span-2 pt-1 mt-0.5 border-t border-slate-200 dark:border-slate-700 text-brand-700 dark:text-brand-400 font-bold flex gap-3">

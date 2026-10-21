@@ -130,7 +130,7 @@ export const TransactionsMasterLedgerView: React.FC<TransactionsMasterLedgerView
     setBudgetForm({
       categoryName: '',
       allocatedAmount: '',
-      branch: selectedBranch || '',
+      branch: selectedBranch && selectedBranch !== 'All' && selectedBranch !== 'All Branches' ? selectedBranch : '',
       academicYear: selectedAcademicYear || '',
     });
     setIsBudgetModalOpen(true);
@@ -162,7 +162,7 @@ export const TransactionsMasterLedgerView: React.FC<TransactionsMasterLedgerView
     if (editingBudget) {
       await updateFinancialBudget(editingBudget.id, amount, {
         categoryName: budgetForm.categoryName.trim(),
-        branch: budgetForm.branch || selectedBranch || '',
+        branch: budgetForm.branch || (selectedBranch && selectedBranch !== 'All' && selectedBranch !== 'All Branches' ? selectedBranch : '') || '',
         academicYear: budgetForm.academicYear || selectedAcademicYear || '',
       });
       addToast('success', 'Budget Updated', 'Budget allocation updated successfully.');
@@ -170,7 +170,7 @@ export const TransactionsMasterLedgerView: React.FC<TransactionsMasterLedgerView
       await addFinancialBudget({
         categoryName: budgetForm.categoryName.trim(),
         allocatedAmount: amount,
-        branch: budgetForm.branch || selectedBranch || '',
+        branch: budgetForm.branch || (selectedBranch && selectedBranch !== 'All' && selectedBranch !== 'All Branches' ? selectedBranch : '') || '',
         academicYear: budgetForm.academicYear || selectedAcademicYear || '',
         status: 'Active',
       });

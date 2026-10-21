@@ -412,7 +412,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         name: userName,
         email: loginEmail || (emailOrPhone.includes('@') ? emailOrPhone : ''),
         phone: userPhone,
-        branch: response?.branch || savedProfile?.branch || (selectedBranch && selectedBranch !== 'All' && selectedBranch !== 'All Branches' ? selectedBranch : '') || '',
+        branch: userBranch || response?.branch || savedProfile?.branch || (selectedBranch && selectedBranch !== 'All' && selectedBranch !== 'All Branches' ? selectedBranch : '') || '',
         role: mappedRole,
         avatar: userAvatar,
         lastLogin: new Date().toLocaleString(),

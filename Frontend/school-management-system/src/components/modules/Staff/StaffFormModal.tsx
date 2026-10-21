@@ -37,7 +37,6 @@ export const StaffFormModal: React.FC<StaffFormModalProps> = ({
   const defaultBranch = (selectedBranch && selectedBranch !== 'All' && selectedBranch !== 'All Branches' && selectedBranch !== 'All Campuses') ? selectedBranch : (branches[0]?.name || '');
 
   const [form, setForm] = useState<BasicStaffFormState>(() => {
-    const initBranch = (selectedBranch && selectedBranch !== 'All' && selectedBranch !== 'All Branches' && selectedBranch !== 'All Campuses') ? selectedBranch : '';
     return {
       ...defaultBasicStaffFormState(defaultCategory),
       branch: defaultBranch,
@@ -122,7 +121,6 @@ export const StaffFormModal: React.FC<StaffFormModalProps> = ({
         })),
       });
     } else {
-      const initBranch = (selectedBranch && selectedBranch !== 'All' && selectedBranch !== 'All Branches' && selectedBranch !== 'All Campuses') ? selectedBranch : '';
       setForm({
         ...defaultBasicStaffFormState(defaultCategory),
         branch: defaultBranch,
