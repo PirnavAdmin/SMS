@@ -361,7 +361,9 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
     setHasSiblings(false);
     setSiblingsCount(1);
     setSiblingDetails([]);
-    setPhoneError(null);
+    setPhoneError("");
+    setMotherPhoneError("");
+    setAltPhoneError("");
     setDobError(null);
     setFormData({
       appliedClass: "Select Class",
@@ -1291,12 +1293,15 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
     const cleaned = val.replace(/\D/g, "").slice(0, 10);
     setFormData((prev) => ({ ...prev, alternatePhone: cleaned }));
 
-    if (cleaned && cleaned === formData.phone) {
-      setAltPhoneError(
-        "Alternate mobile cannot be identical to Father primary mobile number",
-      );
-    } else if (cleaned && cleaned.length > 0 && cleaned.length !== 10) {
-      setAltPhoneError("Alternate mobile number must be exactly 10 digits");
+    if (cleaned) {
+      if (cleaned === formData.phone) {
+        setAltPhoneError(
+          "Alternate mobile cannot be identical to Father primary mobile number",
+        );
+      } else {
+        const res = validate10DigitPhone(cleaned);
+        setAltPhoneError(res.isValid ? "" : res.error || "Enter a valid 10-digit mobile number.");
+      }
     } else {
       setAltPhoneError("");
     }
@@ -1448,6 +1453,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
       documentsSubmitted: [],
     });
     setPhoneError("");
+    setMotherPhoneError("");
     setAltPhoneError("");
     setEmailError("");
     setDobError("");
@@ -1626,6 +1632,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
         (app.siblingStudentId ? [app.siblingStudentId] : []),
     );
     setPhoneError("");
+    setMotherPhoneError("");
     setAltPhoneError("");
     setEmailError("");
     setDobError("");
@@ -1674,8 +1681,9 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
   const handleMotherPhoneChange = (val: string) => {
     const cleaned = val.replace(/\D/g, "").slice(0, 10);
     setFormData((prev) => ({ ...prev, motherPhone: cleaned }));
-    if (cleaned && cleaned.length > 0 && cleaned.length !== 10) {
-      setMotherPhoneError("Mother mobile number must be exactly 10 digits");
+    if (cleaned) {
+      const res = validate10DigitPhone(cleaned);
+      setMotherPhoneError(res.isValid ? "" : res.error || "Enter a valid 10-digit mobile number.");
     } else {
       setMotherPhoneError("");
     }
@@ -1777,7 +1785,49 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
       setPhoneError(phoneValidation.error || "Invalid 10-digit phone");
       addToast("error", "Phone Validation Error", phoneValidation.error);
       setIsSubmitting(false);
+      setIsSubmittingForm(false);
       return;
+    }
+
+    if (formData.motherPhone && formData.motherPhone.trim()) {
+      const motherPhoneValidation = validate10DigitPhone(formData.motherPhone.trim());
+      if (!motherPhoneValidation.isValid) {
+        setMotherPhoneError(motherPhoneValidation.error || "Invalid Mother mobile number.");
+        addToast(
+          "error",
+          "Mother Phone Validation Error",
+          motherPhoneValidation.error || "Mother mobile number must start with 6, 7, 8, or 9."
+        );
+        setIsSubmitting(false);
+        setIsSubmittingForm(false);
+        return;
+      }
+    }
+
+    if (formData.alternatePhone && formData.alternatePhone.trim()) {
+      if (formData.alternatePhone.trim() === (formData.phone || "").trim()) {
+        setAltPhoneError("Alternate mobile cannot be identical to Father primary mobile number");
+        addToast(
+          "error",
+          "Alternate Phone Error",
+          "Alternate mobile cannot be identical to Father primary mobile number"
+        );
+        setIsSubmitting(false);
+        setIsSubmittingForm(false);
+        return;
+      }
+      const altPhoneValidation = validate10DigitPhone(formData.alternatePhone.trim());
+      if (!altPhoneValidation.isValid) {
+        setAltPhoneError(altPhoneValidation.error || "Invalid Alternate mobile number.");
+        addToast(
+          "error",
+          "Alternate Phone Validation Error",
+          altPhoneValidation.error || "Alternate mobile number must start with 6, 7, 8, or 9."
+        );
+        setIsSubmitting(false);
+        setIsSubmittingForm(false);
+        return;
+      }
     }
 
     if (!formData.email || !formData.email.trim()) {
