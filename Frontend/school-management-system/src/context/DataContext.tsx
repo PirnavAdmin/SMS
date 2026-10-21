@@ -2283,9 +2283,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   const [studentFeeLedgers, setStudentFeeLedgers] = useState<
     StudentFeeLedger[]
   >(() => {
-    const version = localStorage.getItem("edu_db_full_ledgers_v115_strictly_configured_only");
+    const version = localStorage.getItem("edu_db_full_ledgers_v116_no_hardcoded_dues");
     if (!version) {
-      localStorage.setItem("edu_db_full_ledgers_v115_strictly_configured_only", "true");
+      localStorage.setItem("edu_db_full_ledgers_v116_no_hardcoded_dues", "true");
       localStorage.removeItem("student_fee_ledgers");
       localStorage.removeItem("edu_db_student_fee_ledgers");
       localStorage.removeItem("student_fee_installments");
@@ -3902,28 +3902,35 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     );
   }, [studentFeeLedgers]);
 
-  // Synchronize studentFeeLedgers with dynamicFeeStructures from MySQL:
-  // Immediately reset any ledger whose class has no active fee structure and no student assignment
+  // Synchronize studentFeeLedgers with dynamic fee structures & assignments:
+  // Prune any ledger where student has no active assignment, no payments, and no addons
   useEffect(() => {
-    if (!dynamicFeeStructures || dynamicFeeStructures.length === 0) return;
     setStudentFeeLedgers((prev) => {
       let changed = false;
-      const next = prev.map((ledger) => {
+      const next = prev.filter((ledger) => {
         const hasAssign = studentFeeAssignments.some(
-          (a) => a.studentId === ledger.studentId && a.status === "Active",
+          (a) =>
+            (a.studentId === ledger.studentId || (ledger.admissionNo && a.admissionNo === ledger.admissionNo)) &&
+            a.status === "Active",
         );
-        const hasDfs = dynamicFeeStructures.some(
-          (d) => matchesClassName(d.className, ledger.className) && (d.status === "Active" || !d.status),
+        const hasPayments = feePayments.some(
+          (p) => p.studentId === ledger.studentId || (ledger.admissionNo && p.admissionNo === ledger.admissionNo),
         );
-        if (!hasAssign && !hasDfs && (ledger.totalPayable > 0 || ledger.grossAmount > 0 || ledger.feeItems.length > 0)) {
+        const hasTransport = studentTransports.some(
+          (t) => (t.studentId === ledger.studentId || (ledger.admissionNo && t.admissionNo === ledger.admissionNo)) && t.status === "Active",
+        );
+        const hasHostel = studentHostels.some(
+          (h) => (h.studentId === ledger.studentId || (ledger.admissionNo && h.admissionNo === ledger.admissionNo)) && h.status === "Active",
+        );
+        if (!hasAssign && !hasPayments && !hasTransport && !hasHostel) {
           changed = true;
-          return buildStudentFeeLedgerObject(ledger.studentId, undefined, ledger.academicYear);
+          return false;
         }
-        return ledger;
+        return true;
       });
       return changed ? next : prev;
     });
-  }, [dynamicFeeStructures, studentFeeAssignments]);
+  }, [studentFeeAssignments, feePayments, studentTransports, studentHostels]);
 
   useEffect(() => {
     localStorage.setItem(
@@ -4998,7 +5005,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
               firstName,
               middleName: s.middleName || "",
               lastName,
-              email: s.email || "",
+              email: s.email || s.studentEmail || s.emailAddress || s.emailId || s.contactEmail || s.fatherEmail || matchingAdmission?.email || "",
               phone:
                 s.mobileNumber || s.phone || s.contactNumber || parentPhone,
               gender: s.gender || "Male",
@@ -8676,7 +8683,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
               fatherOccupation: (app as any).fatherOccupation || "",
               motherName: app.motherName || (app as any).motherFullName || "",
               motherPhone: (app as any).motherPhone || "",
-              email: app.email || "",
+              email: app.email || (app as any).contactEmail || (app as any).parentEmail || "",
               phone: app.phone || "",
               alternatePhone: app.alternatePhone || "",
               address: fullAddress,
@@ -13803,103 +13810,6 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       });
     }
 
-    if (dfs && dfs.items && dfs.items.length > 0) {
-      dfs.items.forEach((i) => {
-        const exists = ledgerItems.some(
-          (item) =>
-            (item.headId && i.feeHeadId && item.headId === i.feeHeadId) ||
-            (item.headName &&
-              i.feeHeadName &&
-              item.headName.toLowerCase() === i.feeHeadName.toLowerCase()),
-        );
-        if (!exists) {
-          const isUni = isUniformHead(i.feeHeadName);
-          const isSelected = isUni
-            ? isUniformOpted(selectedOptional, i.feeHeadId, i.feeHeadName)
-            : true;
-          const uniFee = isUni
-            ? getUniformFeeForClass(
-                clsName || student?.className || "",
-                student?.gender || "Male",
-                financeUniformConfigs,
-                dynamicFeeStructures,
-              )
-            : 0;
-          const itemAmount = isUni && uniFee > 0 ? uniFee : i.amount;
-
-          ledgerItems.push({
-            headId: i.feeHeadId,
-            headName: i.feeHeadName,
-            category: i.category || i.feeHeadName,
-            originalAmount: itemAmount,
-            scholarshipDeduction: 0,
-            discountDeduction: 0,
-            fineAmount: 0,
-            finalAmount: isSelected ? itemAmount : 0,
-            isApplicable: isSelected,
-            status: "Pending",
-            remarks: isSelected
-              ? undefined
-              : "Optional Fee - Not Selected at Admission",
-          });
-        }
-      });
-    }
-
-    ledgerItems = ledgerItems.filter(
-      (item) =>
-        item.headName !== "ADD EXAM FEE" &&
-        item.headName !== "Fee Head" &&
-        item.headName !== "Fee Head:",
-    );
-
-    if (ledgerItems.length === 0) {
-      if (dfs && dfs.items && dfs.items.length > 0) {
-        dfs.items.forEach((di) => {
-          const isUni = isUniformHead(di.feeHeadName);
-          const isSelected = isUni
-            ? isUniformOpted(selectedOptional, di.feeHeadId, di.feeHeadName)
-            : true;
-          const uniFee = isUni
-            ? getUniformFeeForClass(
-                clsName || student?.className || "",
-                student?.gender || "Male",
-                financeUniformConfigs,
-                dynamicFeeStructures,
-              )
-            : 0;
-          const itemAmount = isUni && uniFee > 0 ? uniFee : di.amount;
-
-          ledgerItems.push({
-            headId: di.feeHeadId,
-            headName: di.feeHeadName,
-            category: di.category || (di.feeHeadName.toLowerCase().includes("tuition") ? "Tuition Fee" : "General Fee"),
-            originalAmount: itemAmount,
-            scholarshipDeduction: 0,
-            discountDeduction: 0,
-            fineAmount: 0,
-            finalAmount: isSelected ? itemAmount : 0,
-            isApplicable: isSelected,
-            status: "Pending",
-            remarks: isSelected ? undefined : "Optional Fee - Not Selected at Admission",
-          });
-        });
-      } else if (dfs && dfs.totalAmount > 0) {
-        ledgerItems.push({
-          headId: "FH-BASE",
-          headName: "Academic & School Fee",
-          category: "Tuition Fee",
-          originalAmount: dfs.totalAmount,
-          scholarshipDeduction: 0,
-          discountDeduction: 0,
-          fineAmount: 0,
-          finalAmount: dfs.totalAmount,
-          isApplicable: true,
-          status: "Pending",
-        });
-      }
-    }
-
     // Ensure Uniform Fee category amount matches config lookup
     ledgerItems = ledgerItems.map((item) => {
       if (item.category === "Uniform Fee") {
@@ -15457,6 +15367,26 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       (l) => l.studentId === studentId || (student && l.studentId === student.id) || (student?.admissionNo && l.admissionNo === student.admissionNo),
     );
 
+    // Filter studentLedgers: only retain ledgers with genuine assignments, payments, or addons
+    studentLedgers = studentLedgers.filter((l) => {
+      const hasAssign = studentFeeAssignments.some(
+        (a) =>
+          (a.studentId === studentId || (student && a.studentId === student.id) || (student?.admissionNo && a.admissionNo === student.admissionNo)) &&
+          (a.academicYear === l.academicYear || (!a.academicYear && l.academicYear === activeAcademicYear)) &&
+          a.status === "Active",
+      );
+      const hasPay = studentPayments.some(
+        (p) => p.academicYear === l.academicYear || (!p.academicYear && l.academicYear === activeAcademicYear),
+      );
+      const hasTrp = l.feeItems?.some(
+        (i) => (i.headId === "FH-TRP" || i.category === "Transport Fee") && i.isApplicable && i.finalAmount > 0,
+      );
+      const hasHst = l.feeItems?.some(
+        (i) => (i.headId === "FH-HST" || i.category === "Hostel Fee") && i.isApplicable && i.finalAmount > 0,
+      );
+      return hasAssign || hasPay || hasTrp || hasHst;
+    });
+
     // If student has a single ledger matching their current class, align its academicYear with activeAcademicYear
     // to prevent treating a current-class ledger as a carried-forward prior year debt.
     if (
@@ -15472,26 +15402,17 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
 
     let ledgersToProcess = [...studentLedgers];
 
-    // If no ledger exists for active academic year and student exists, synthesize active ledger
+    // If no ledger exists for active academic year and student exists, synthesize active ledger ONLY IF assignment or addons/payments exist
     if (
       !ledgersToProcess.some((l) => l.academicYear === activeAcademicYear) &&
       student
     ) {
       const activeAssignment = studentFeeAssignments.find(
-        (a) => a.studentId === studentId && a.status === "Active",
+        (a) =>
+          (a.studentId === studentId || (student && a.studentId === student.id) || (student?.admissionNo && a.admissionNo === student.admissionNo)) &&
+          a.status === "Active",
       );
-      const matchedDfs =
-        dynamicFeeStructures.find(
-          (d) =>
-            matchesClassName(d.className, student.className) &&
-            (d.status === "Active" || !d.status),
-        ) ||
-        dynamicFeeStructures.find((d) =>
-          matchesClassName(d.className, student.className),
-        );
-      const baseFee = activeAssignment
-        ? activeAssignment.baseFeeTotal
-        : matchedDfs?.totalAmount ?? 0;
+      const baseFee = activeAssignment ? activeAssignment.baseFeeTotal : 0;
 
       const isNonResident =
         student.studentType === "Day Scholar" ||
@@ -15642,7 +15563,10 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         previousDue: 0,
       };
 
-      ledgersToProcess.push(synthesizedCurrentLedger);
+      // Only synthesize active ledger if student actually has assigned fee, transport, uniform extras, or payments
+      if (activeAssignment || transportFee > 0 || pendingUniformExtrasSynth > 0 || totalPaidCurrentYear > 0) {
+        ledgersToProcess.push(synthesizedCurrentLedger);
+      }
     }
 
     // Sort ledgers chronologically by academicYear ascending
@@ -15717,20 +15641,11 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       // For the active academic year, dynamically recalculate gross to include active transport/hostel fees
       if (isCurrentYr && student) {
         const activeAssignment = studentFeeAssignments.find(
-          (a) => a.studentId === studentId && a.status === "Active",
+          (a) =>
+            (a.studentId === studentId || (student && a.studentId === student.id) || (student?.admissionNo && a.admissionNo === student.admissionNo)) &&
+            a.status === "Active",
         );
-        const matchedDfs =
-          dynamicFeeStructures.find(
-            (d) =>
-              matchesClassName(d.className, student.className) &&
-              (d.status === "Active" || !d.status),
-          ) ||
-          dynamicFeeStructures.find((d) =>
-            matchesClassName(d.className, student.className),
-          );
-        const baseFee = activeAssignment
-          ? activeAssignment.baseFeeTotal
-          : (matchedDfs?.totalAmount ?? 0);
+        const baseFee = activeAssignment ? activeAssignment.baseFeeTotal : 0;
 
         const isNonResident =
           student.studentType === "Day Scholar" ||
@@ -15786,7 +15701,11 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
 
         const computedBaseGross =
           baseFee + transportFee + hostelFee + pendingUniformExtras;
-        grossOriginal = Math.max(grossOriginal, computedBaseGross);
+        if (activeAssignment || transportFee > 0 || hostelFee > 0 || pendingUniformExtras > 0) {
+          grossOriginal = Math.max(grossOriginal, computedBaseGross);
+        } else if (!studentPayments.some((p) => p.academicYear === l.academicYear)) {
+          grossOriginal = 0;
+        }
       }
 
       // Net payable after subtracting concessions (scholarships & discounts) and adding fine
@@ -15810,20 +15729,22 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       const status: "Paid" | "Partial" | "Pending" =
         due === 0 ? "Paid" : paid > 0 ? "Partial" : "Pending";
 
-      yearWiseOutstanding.push({
-        academicYear: l.academicYear,
-        ledgerId: l.id,
-        className: l.className,
-        gross: netPayable,
-        paid,
-        due,
-        status,
-      });
+      if (netPayable > 0 || paid > 0 || due > 0) {
+        yearWiseOutstanding.push({
+          academicYear: l.academicYear,
+          ledgerId: l.id,
+          className: l.className,
+          gross: netPayable,
+          paid,
+          due,
+          status,
+        });
 
-      if (isCurrentYr) {
-        currentYearDue += due;
-      } else if (l.academicYear < activeAcademicYear) {
-        previousYearsDue += due;
+        if (isCurrentYr) {
+          currentYearDue += due;
+        } else if (l.academicYear < activeAcademicYear) {
+          previousYearsDue += due;
+        }
       }
     });
 
