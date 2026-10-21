@@ -78,7 +78,7 @@ export const CommunicationView: React.FC = () => {
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [broadcastDate, setBroadcastDate] = useState(new Date().toISOString().split('T')[0]);
-  const [broadcastTime, setBroadcastTime] = useState(() => new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
+  const [broadcastTime, setBroadcastTime] = useState('');
   const [emergencyDate, setEmergencyDate] = useState(() => new Date().toISOString().split('T')[0]);
   const [emergencyTime, setEmergencyTime] = useState(() => new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
   const [customEmergTitle, setCustomEmergTitle] = useState('');
@@ -333,7 +333,6 @@ export const CommunicationView: React.FC = () => {
   const applyTemplate = (tmplKey: 'SPORTS' | 'ACADEMIC' | 'ASSEMBLY' | 'URGENT' | 'EXAM' | 'HOLIDAY' | 'GENERAL') => {
     setCategory(tmplKey);
     setBroadcastDate(newDateDate());
-    setBroadcastTime(getCurrentTimeFormatted());
 
     switch (tmplKey) {
       case 'SPORTS':
@@ -384,7 +383,7 @@ export const CommunicationView: React.FC = () => {
       setTitle(itemToEdit.title);
       setContent(itemToEdit.content);
       setBroadcastDate(itemToEdit.date);
-      setBroadcastTime(itemToEdit.time || getCurrentTimeFormatted());
+      setBroadcastTime(itemToEdit.time || '');
       setCategory((itemToEdit.category.toUpperCase() as any) || 'GENERAL');
       setTarget((itemToEdit.targetAudience.toUpperCase() as any) || 'ALL');
     } else {
@@ -392,7 +391,7 @@ export const CommunicationView: React.FC = () => {
       setTitle('');
       setContent('');
       setBroadcastDate(newDateDate());
-      setBroadcastTime(getCurrentTimeFormatted());
+      setBroadcastTime('');
       setCategory('GENERAL');
       setTarget('ALL');
     }
@@ -753,14 +752,17 @@ export const CommunicationView: React.FC = () => {
                 </div>
                 <div>
                   <label className="block text-[10px] font-bold text-slate-600 dark:text-slate-400 mb-0.5">Time</label>
-                  <input
-                    type="text"
-                    required
-                    value={emergencyTime}
-                    onChange={e => setEmergencyTime(e.target.value)}
-                    placeholder="e.g. 10:00 AM"
-                    className="w-full px-3 py-2 rounded-xl bg-white dark:bg-slate-900 border text-slate-900 dark:text-white font-mono font-bold text-xs outline-none"
-                  />
+                  <div className="relative">
+                    <input
+                      type="text"
+                      required
+                      value={emergencyTime}
+                      onChange={e => setEmergencyTime(e.target.value)}
+                      placeholder="e.g. 10:00 AM"
+                      className="w-full pl-3 pr-8 py-2 rounded-xl bg-white dark:bg-slate-900 border text-slate-900 dark:text-white font-mono font-bold text-xs outline-none"
+                    />
+                    <Clock className="w-3.5 h-3.5 text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  </div>
                 </div>
               </div>
             </div>
@@ -1008,14 +1010,17 @@ export const CommunicationView: React.FC = () => {
 
                 <div>
                   <label className="block font-bold mb-1 text-slate-700 dark:text-slate-300">Broadcast Time <span className="text-rose-500 font-bold ml-0.5">*</span></label>
-                  <input
-                    type="text"
-                    required
-                    value={broadcastTime}
-                    onChange={e => setBroadcastTime(e.target.value)}
-                    placeholder="e.g. 10:00 AM"
-                    className="w-full px-2.5 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-slate-900 dark:text-white font-bold outline-none font-mono text-[11px]"
-                  />
+                  <div className="relative">
+                    <input
+                      type="text"
+                      required
+                      value={broadcastTime}
+                      onChange={e => setBroadcastTime(e.target.value)}
+                      placeholder="e.g. 10:00 AM"
+                      className="w-full pl-2.5 pr-8 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-slate-900 dark:text-white font-bold outline-none font-mono text-[11px]"
+                    />
+                    <Clock className="w-4 h-4 text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  </div>
                 </div>
                 <div>
                   <label className="block font-bold mb-1 text-slate-700 dark:text-slate-300">Category Tag <span className="text-rose-500 font-bold ml-0.5">*</span></label>
