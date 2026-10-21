@@ -216,7 +216,7 @@ export const DriverLeaveView: React.FC = () => {
         reason: reason.trim(),
         appliedDate: todayStr,
         status: 'Pending',
-        branch: staffMember?.branch || (staffMember as any)?.branchName || '',
+        branch: staffMember?.branch || (staffMember as any)?.branchName || matchedDriver?.branch || selectedBranch || '',
         isPaid: (selectedType as any)?.isPaid !== false,
         requiresDocument: false
       };

@@ -880,7 +880,7 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
     structureName: '',
     department: 'Administration',
     employeeCategory: 'Teacher',
-    branch: selectedBranch || '',
+    branch: (selectedBranch && selectedBranch !== 'All' && selectedBranch !== 'All Branches' ? selectedBranch : '') || '',
     designation: '',
     employmentType: 'Permanent',
     basicSalary: 30000,
@@ -1012,7 +1012,7 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
   const filteredPayslips = useMemo(() => {
     return payslipRows.filter(row => {
       const matchesMonth = payrollMonth === 'All Months' || row.month === payrollMonth;
-      const matchesBranch = !selectedBranch || selectedBranch === 'All' || selectedBranch === 'All Branches' || row.branch === selectedBranch;
+      const matchesBranch = !selectedBranch || selectedBranch === 'All' || selectedBranch === 'All Branches' || row.branch === selectedBranch || !row.branch || row.branch === 'All Branches';
       return matchesMonth && matchesBranch;
     });
   }, [payrollMonth, payslipRows, selectedBranch]);
@@ -1146,7 +1146,7 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
         structureName: '',
         department: 'Administration',
         employeeCategory: 'Teacher',
-        branch: selectedBranch || '',
+        branch: (selectedBranch && selectedBranch !== 'All' && selectedBranch !== 'All Branches' ? selectedBranch : '') || '',
         designation: '',
         employmentType: 'Permanent',
         basicSalary: 30000,

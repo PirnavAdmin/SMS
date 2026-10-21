@@ -36,7 +36,9 @@ export const PromoteStudentModal: React.FC<PromoteStudentModalProps> = ({
   const [targetClass, setTargetClass] = useState(academicClasses[0]?.name || 'Class 11');
   const [targetSection, setTargetSection] = useState('A');
   const [enableBranchTransfer, setEnableBranchTransfer] = useState(false);
-  const [targetBranch, setTargetBranch] = useState<string>(student?.branch || (selectedBranch && selectedBranch !== 'All' ? selectedBranch : (dynamicCampuses[0] || '')));
+  const [targetBranch, setTargetBranch] = useState<string>(
+    student?.branch || (selectedBranch && selectedBranch !== 'All' && selectedBranch !== 'All Branches' && dynamicCampuses.includes(selectedBranch) ? selectedBranch : (dynamicCampuses[0] || ''))
+  );
 
   if (!isOpen || !student) return null;
 

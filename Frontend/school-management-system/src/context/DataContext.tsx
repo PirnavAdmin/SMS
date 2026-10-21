@@ -235,20 +235,16 @@ export function normalizeToISODate(dateStr?: string | null): string {
 }
 
 export function normalizeAcademicYear(dateOrAy?: string | null): string {
-  if (!dateOrAy || typeof dateOrAy !== "string") return "2026-2027";
-  const cleaned = dateOrAy.replace(/\s+/g, "");
-  if (!cleaned) return "2026-2027";
-  const match = cleaned.match(/^(\d{4})[-/](\d{2,4})$/);
+  if (!dateOrAy || typeof dateOrAy !== "string") return "";
+  const trimmed = dateOrAy.trim();
+  if (!trimmed) return "";
+  if (/^\d{4}-\d{4}$/.test(trimmed)) return trimmed;
+  const match = trimmed.match(/\b(\d{4})\b/);
   if (match) {
     const startYear = parseInt(match[1], 10);
-    let endYear = parseInt(match[2], 10);
-    if (endYear < 100) {
-      const century = Math.floor(startYear / 100) * 100;
-      endYear = century + endYear;
-    }
-    return `${startYear}-${endYear}`;
+    return `${startYear}-${startYear + 1}`;
   }
-  return cleaned;
+  return "";
 }
 
 export function matchesAcademicYear(ay1?: string | null, ay2?: string | null): boolean {
@@ -2056,7 +2052,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
             a.studentName ||
             "",
           admissionNo: student?.admissionNo || a.admissionNo || a.studentId || "",
-          branch: student?.branch || a.branch || "",
+          branch: student?.branch || a.branch || (selectedBranch && selectedBranch !== "All" && selectedBranch !== "All Branches" ? selectedBranch : "") || "",
           academicYear:
             (student as any)?.academicYear || a.academicYear || selectedAcademicYear || "",
           className: student?.className || a.className || "",
@@ -4059,8 +4055,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           id: ta.id
             ? String(ta.id)
             : `TA-${Math.floor(100 + Math.random() * 900)}`,
-          academicYear: ta.academicYear || "2026-2027",
-          branch: ta.branch || "",
+          academicYear: ta.academicYear || selectedAcademicYear || "",
+          branch: ta.branch || (selectedBranch && selectedBranch !== "All" && selectedBranch !== "All Branches" ? selectedBranch : "") || "",
           className: ta.className || "",
           section: ta.section || "A",
           subject: ta.subject || "",
@@ -4113,8 +4109,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
             id: ta.id
               ? String(ta.id)
               : `TA-${Math.floor(100 + Math.random() * 900)}`,
-            academicYear: ta.academicYear || "2026-2027",
-            branch: ta.branch || "",
+            academicYear: ta.academicYear || selectedAcademicYear || "",
+            branch: ta.branch || (selectedBranch && selectedBranch !== "All" && selectedBranch !== "All Branches" ? selectedBranch : "") || "",
             className: ta.className || "",
             section: ta.section || "A",
             subject: ta.subject || "",
@@ -5391,7 +5387,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
               ? new Date(d.distributionDate).toISOString().split("T")[0]
               : d.issueDate || new Date().toISOString().split("T")[0],
             status: d.status || "Issued",
-            academicYear: d.academicYear || "2026-2027",
+            academicYear: d.academicYear || selectedAcademicYear || "",
             branch: d.branch || (selectedBranch && selectedBranch !== "All" && selectedBranch !== "All Branches" ? selectedBranch : "") || "",
             notes: d.notes || d.actionRemarks || "",
             type:
@@ -5596,7 +5592,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           FinanceAPI.fetchFinancialAccountsApi(),
           FinanceAPI.fetchFinancialCategoriesApi(),
           FinanceAPI.fetchFinancialBudgetsApi(selectedBranch, selectedAcademicYear),
-          FinanceAPI.fetchFeeScheduleConfigApi(normalizeAcademicYear(selectedAcademicYear || "2026-2027")),
+          FinanceAPI.fetchFeeScheduleConfigApi(selectedAcademicYear || ""),
           FinanceAPI.fetchScholarshipsApi(),
           FinanceAPI.fetchStudentScholarshipsApi(),
           FinanceAPI.fetchDiscountsApi(),
@@ -5664,7 +5660,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
             ? feeScheduleRes.value?.data || feeScheduleRes.value
             : null;
         if (apiFeeSchedule && apiFeeSchedule.terms && apiFeeSchedule.terms.length > 0) {
-          const ay = normalizeAcademicYear(apiFeeSchedule.academicYear || selectedAcademicYear || "2026-2027");
+          const ay = apiFeeSchedule.academicYear || selectedAcademicYear || "";
           const loadedSchedule: AcademicYearFeeSchedule = {
             id: apiFeeSchedule.id || `SCH-${ay}`,
             academicYear: ay,
@@ -5941,8 +5937,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           setFinanceUniformConfigs((prev) => {
             const apiMapped = uniformFees.map((apiItem: any) => ({
               id: String(apiItem.id || `FUC-${Date.now()}`),
-              academicYear: apiItem.academicYear || "2026-2027",
-              branch: apiItem.branch || "",
+              academicYear: apiItem.academicYear || selectedAcademicYear || "",
+              branch: apiItem.branch || (selectedBranch && selectedBranch !== "All" && selectedBranch !== "All Branches" ? selectedBranch : "") || "",
               className: apiItem.className || "",
               gender: apiItem.gender || "Unisex",
               uniformPackage: apiItem.uniformPackage || "",
@@ -6046,8 +6042,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
               amount: Number(item.amount || 0),
               paymentMode: item.paymentMode || "Bank Transfer",
               account: item.account || "Main Bank Account",
-              branch: item.branch || "",
-              academicYear: item.academicYear || "2025-2026",
+              branch: item.branch || (selectedBranch && selectedBranch !== "All" && selectedBranch !== "All Branches" ? selectedBranch : "") || "",
+              academicYear: item.academicYear || selectedAcademicYear || "",
               status: item.status || "Completed",
               createdBy: item.createdBy || "Finance Admin",
               approvedBy: item.approvedBy || "Chief Accountant",
@@ -6766,7 +6762,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     id: string,
     targetClass: string,
     targetSection = "A",
-    targetYear = "2026-2027",
+    targetYear = "",
     targetBranch = "",
   ) => {
     const numericId = parseInt(id, 10);
@@ -7081,8 +7077,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           } else {
             next.push({
               id: "TA-" + Math.floor(100 + Math.random() * 900),
-              academicYear: "2026-2027",
-              branch: teacher.branch || "",
+              academicYear: selectedAcademicYear || "",
+              branch: teacher.branch || (selectedBranch && selectedBranch !== "All" && selectedBranch !== "All Branches" ? selectedBranch : "") || "",
               className,
               section,
               subject: "",
@@ -7113,8 +7109,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
             const taId = "TA-" + Math.floor(100 + Math.random() * 900);
             next.push({
               id: taId,
-              academicYear: "2026-2027",
-              branch: teacher.branch || "",
+              academicYear: selectedAcademicYear || "",
+              branch: teacher.branch || (selectedBranch && selectedBranch !== "All" && selectedBranch !== "All Branches" ? selectedBranch : "") || "",
               className,
               section,
               subject,
@@ -17528,8 +17524,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           email: adm.email || "",
           address: adm.address || "",
           status: "Active",
-          academicYear: adm.academicYear || "2026-2027",
-          branch: adm.branch || "",
+          academicYear: adm.academicYear || selectedAcademicYear || "",
+          branch: adm.branch || (selectedBranch && selectedBranch !== "All" && selectedBranch !== "All Branches" ? selectedBranch : "") || "",
           transportRequired: Boolean(adm.transportRequired),
           transportType: adm.transportType || "AC",
           busRoute: adm.busRoute || (adm as any).routeName || "",
@@ -18589,8 +18585,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
                 !selectedBranch ||
                 selectedBranch === "All" ||
                 selectedBranch === "All Branches"
-                  ? ""
-                  : selectedBranch,
+                  ? "" : selectedBranch,
               department: dept,
               records: deptRecords.map((r) => {
                 const sIdStr = String((r as any).staffId || r.entityId || "");
@@ -20928,7 +20923,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     let assignedId = `FUC-${Date.now()}-${Math.floor(Math.random() * 1000000)}`;
     try {
       const apiRes: any = await FinanceAPI.createUniformFeeConfigApi({
-        academicYear: cData.academicYear || selectedAcademicYear || "2026-2027",
+        academicYear: cData.academicYear || selectedAcademicYear || "",
         branch: cData.branch || (selectedBranch && selectedBranch !== "All" && selectedBranch !== "All Branches" ? selectedBranch : "") || "",
         className: cData.className,
         gender: cData.gender,
@@ -20953,7 +20948,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       ...cData,
       id: assignedId,
       branch: cData.branch || (selectedBranch && selectedBranch !== "All" && selectedBranch !== "All Branches" ? selectedBranch : "") || "",
-      academicYear: cData.academicYear || selectedAcademicYear || "2026-2027",
+      academicYear: cData.academicYear || selectedAcademicYear || "",
       status: "Active",
     };
 

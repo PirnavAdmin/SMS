@@ -758,11 +758,11 @@ export const StudentHostelAssignmentView: React.FC = () => {
                       const newRoomId = e.target.value;
                       setSelectedRoomId(newRoomId);
                       const targetRm = (availableRooms || []).find(r => String(r.roomId) === String(newRoomId));
-                      const cap = targetRm?.bedCapacity || targetRm?.capacity || 4;
+                      const cap = Number(targetRm?.bedCapacity) || Number(targetRm?.capacity) || 1;
                       const rmNum = targetRm?.roomNumber || newRoomId;
 
                       // Find first available bed for this room
-                      const bedOpts = Array.from({ length: Math.max(4, cap) }, (_, i) => `BED-${i + 1}`);
+                      const bedOpts = Array.from({ length: Math.max(1, cap) }, (_, i) => `BED-${i + 1}`);
                       const firstVacant = bedOpts.find(bVal => !getBedOccupant(newRoomId, rmNum, bVal));
                       setSelectedBedNo(firstVacant || 'BED-1');
                     }} 
@@ -781,7 +781,8 @@ export const StudentHostelAssignmentView: React.FC = () => {
                       .map((rm, idx) => {
                         const rmId = rm.roomId !== undefined && rm.roomId !== null ? String(rm.roomId) : String((rm as any).id || idx);
                         const rmNum = rm.roomNumber || rmId;
-                        const cap = rm.bedCapacity || rm.capacity || 4;
+                        const cap = Number(rm.bedCapacity) || Number(rm.capacity) || 1;
+                        const spec = rm.roomTypeSpecification || 'Room';
                         
                         const rmOccupiedCount = (allocations || []).filter(a => 
                           a && a.status !== 'Vacated' && a.status !== 'Inactive' &&
@@ -792,7 +793,7 @@ export const StudentHostelAssignmentView: React.FC = () => {
 
                         return (
                           <option key={`modal_rm_${rmId}_${idx}`} value={rmId}>
-                            {formatRoomNumber(rmNum)} ({rmOccupiedCount}/{cap} Occupied{isFull ? ' • FULL' : ''})
+                            {formatRoomNumber(rmNum)} • {spec} ({rmOccupiedCount}/{cap} Occupied{isFull ? ' • FULL' : ''})
                           </option>
                         );
                       })}
@@ -802,10 +803,10 @@ export const StudentHostelAssignmentView: React.FC = () => {
                   <label className="block font-semibold mb-1">Bed Number <span className="text-rose-500">*</span></label>
                   {(() => {
                     const currentRm = (availableRooms || []).find(r => String(r.roomId) === String(selectedRoomId));
-                    const cap = currentRm?.bedCapacity || currentRm?.capacity || 4;
+                    const cap = Number(currentRm?.bedCapacity) || Number(currentRm?.capacity) || 1;
                     const rmNum = currentRm?.roomNumber || selectedRoomId;
 
-                    const roomBedOptions = Array.from({ length: Math.max(4, cap) }, (_, i) => {
+                    const roomBedOptions = Array.from({ length: Math.max(1, cap) }, (_, i) => {
                       const bedVal = `BED-${i + 1}`;
                       const occupant = getBedOccupant(selectedRoomId, rmNum, bedVal);
                       return {
@@ -878,8 +879,8 @@ export const StudentHostelAssignmentView: React.FC = () => {
           String(s.id) === String(viewStudentModal.studentId) || 
           String(s.admissionNo) === String(viewStudentModal.admissionNo)
         );
-        const parentName = matchedStudent?.fatherName || (matchedStudent as any)?.parentName || (matchedStudent as any)?.guardianName || (matchedStudent as any)?.motherName || 'Parent / Guardian';
-        const parentPhone = matchedStudent?.fatherPhone || (matchedStudent as any)?.guardianPhone || (matchedStudent as any)?.phone || (matchedStudent as any)?.emergencyContact || (matchedStudent as any)?.parentPhone || 'N/A';
+        const parentName = matchedStudent?.fatherName || matchedStudent?.parentName || (matchedStudent as any)?.guardianName || (matchedStudent as any)?.motherName || 'Parent / Guardian';
+        const parentPhone = matchedStudent?.fatherPhone || matchedStudent?.guardianPhone || matchedStudent?.phone || (matchedStudent as any)?.emergencyContact || (matchedStudent as any)?.parentPhone || 'N/A';
         const matchedBlock = blocks.find(b => 
           String(b.hostelId) === String(viewStudentModal.hostelId) || 
           b.hostelName === viewStudentModal.hostelName

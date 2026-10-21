@@ -363,14 +363,14 @@ export const deleteHostelBlock = async (id: number | string, code?: string, name
 const ROOM_TYPES_STORE_KEY = 'edu_db_room_types';
 
 const DEFAULT_INITIAL_ROOM_TYPES: RoomType[] = [
-  { roomTypeId: 1, roomTypeSpecification: '1-Share (1 Bed) - AC', bedCapacity: 1, acType: 'AC', status: 'Active', description: 'Single bed air-conditioned room with study desk', createdAt: '2026-01-01' },
-  { roomTypeId: 2, roomTypeSpecification: '1-Share (1 Bed) - Non-AC', bedCapacity: 1, acType: 'Non-AC', status: 'Active', description: 'Single bed standard ventilated room', createdAt: '2026-01-01' },
-  { roomTypeId: 3, roomTypeSpecification: '2-Share (2 Beds) - AC', bedCapacity: 2, acType: 'AC', status: 'Active', description: 'Two bed sharing air-conditioned room', createdAt: '2026-01-01' },
-  { roomTypeId: 4, roomTypeSpecification: '2-Share (2 Beds) - Non-AC', bedCapacity: 2, acType: 'Non-AC', status: 'Active', description: 'Two bed sharing ventilated room', createdAt: '2026-01-01' },
-  { roomTypeId: 5, roomTypeSpecification: '3-Share (3 Beds) - AC', bedCapacity: 3, acType: 'AC', status: 'Active', description: 'Three bed air-conditioned room', createdAt: '2026-01-01' },
-  { roomTypeId: 6, roomTypeSpecification: '3-Share (3 Beds) - Non-AC', bedCapacity: 3, acType: 'Non-AC', status: 'Active', description: 'Three bed standard room', createdAt: '2026-01-01' },
-  { roomTypeId: 7, roomTypeSpecification: '4-Share (4 Beds) - AC', bedCapacity: 4, acType: 'AC', status: 'Active', description: 'Four bed air-conditioned room', createdAt: '2026-01-01' },
-  { roomTypeId: 8, roomTypeSpecification: '4-Share (4 Beds) - Non-AC', bedCapacity: 4, acType: 'Non-AC', status: 'Active', description: 'Four bed dormitory style room', createdAt: '2026-01-01' }
+  { roomTypeId: 1, roomTypeSpecification: 'Single Sharing (AC)', bedCapacity: 1, acType: 'AC', status: 'Active', description: 'Single bed air-conditioned room with study desk', createdAt: '2026-01-01' },
+  { roomTypeId: 2, roomTypeSpecification: 'Double Sharing (AC)', bedCapacity: 2, acType: 'AC', status: 'Active', description: 'Two bed sharing air-conditioned room', createdAt: '2026-01-01' },
+  { roomTypeId: 3, roomTypeSpecification: 'Triple Sharing (AC)', bedCapacity: 3, acType: 'AC', status: 'Active', description: 'Three bed air-conditioned room', createdAt: '2026-01-01' },
+  { roomTypeId: 4, roomTypeSpecification: 'Four Sharing (AC)', bedCapacity: 4, acType: 'AC', status: 'Active', description: 'Four bed air-conditioned room', createdAt: '2026-01-01' },
+  { roomTypeId: 5, roomTypeSpecification: 'Single Sharing (Non-AC)', bedCapacity: 1, acType: 'Non-AC', status: 'Active', description: 'Single bed standard ventilated room', createdAt: '2026-01-01' },
+  { roomTypeId: 6, roomTypeSpecification: 'Double Sharing (Non-AC)', bedCapacity: 2, acType: 'Non-AC', status: 'Active', description: 'Two bed sharing ventilated room', createdAt: '2026-01-01' },
+  { roomTypeId: 7, roomTypeSpecification: 'Deluxe Executive Suite (Non-AC)', bedCapacity: 2, acType: 'Non-AC', status: 'Active', description: 'Two bed deluxe suite room', createdAt: '2026-01-01' },
+  { roomTypeId: 8, roomTypeSpecification: 'Four Sharing (Non-AC)', bedCapacity: 4, acType: 'Non-AC', status: 'Active', description: 'Four bed standard ventilated room', createdAt: '2026-01-01' }
 ];
 
 const getStoredRoomTypes = (): RoomType[] => {
@@ -379,7 +379,7 @@ const getStoredRoomTypes = (): RoomType[] => {
   if (stored !== null) {
     try {
       const parsed = JSON.parse(stored);
-      if (Array.isArray(parsed)) return parsed;
+      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
     } catch (e) {}
   }
   localStorage.setItem(ROOM_TYPES_STORE_KEY, JSON.stringify(DEFAULT_INITIAL_ROOM_TYPES));
@@ -398,14 +398,17 @@ export const getRoomTypes = async (): Promise<RoomType[]> => {
   let serverTypes: RoomType[] = [];
   try {
     const res = await hostelApiClient('/api/hostels/room-types');
-    if (Array.isArray(res) && res.length > 0) serverTypes = res;
+    if (Array.isArray(res) && res.length > 0) {
+      serverTypes = res;
+      saveStoredRoomTypes(serverTypes);
+    }
   } catch (e) {}
 
   const localTypes = getStoredRoomTypes();
   const typeMap = new Map<number, RoomType>();
 
-  serverTypes.forEach(rt => typeMap.set(Number(rt.roomTypeId), rt));
   localTypes.forEach(rt => typeMap.set(Number(rt.roomTypeId), rt));
+  serverTypes.forEach(rt => typeMap.set(Number(rt.roomTypeId), rt));
 
   return Array.from(typeMap.values());
 };
@@ -549,7 +552,7 @@ export const getRooms = async (hostelId?: number, floor?: string, roomTypeId?: n
     console.warn('Failed to fetch rooms from server', e);
   }
 
-  const roomTypes = getStoredRoomTypes();
+  const roomTypes = await getRoomTypes();
   const allocations = getStoredAllocations();
   const blocks = getStoredHostelBlocks();
 
@@ -572,12 +575,13 @@ export const getRooms = async (hostelId?: number, floor?: string, roomTypeId?: n
       const matchingBlock = blocks.find(b => Number(b.hostelId) === Number(rawHid));
       const finalHostelId = Number(rawHid) || (matchingBlock ? Number(matchingBlock.hostelId) : 1);
       const matchingRt = roomTypes.find(rt => Number(rt.roomTypeId) === Number(rm.roomTypeId ?? (rm as any).room_type_id));
-      const cap = rm.bedCapacity || rm.capacity || matchingRt?.bedCapacity || 4;
+      const cap = Number(rm.bedCapacity) || Number(rm.capacity) || Number(matchingRt?.bedCapacity) || 1;
 
       const occCount = allocations.filter(a =>
         a && a.status === 'Active' &&
         (Number(a.roomId) === Number(rm.roomId) || (String(a.roomNumber) === String(rm.roomNumber) && Number(a.hostelId ?? (a as any).hostel_id) === finalHostelId))
       ).length;
+      const finalOcc = occCount > 0 ? occCount : (Number(rm.occupiedBeds) || 0);
 
       const rawHostelName = String(rm.hostelName || '').trim();
       const isInvalidHostelName = !rawHostelName || !isNaN(Number(rawHostelName)) || rawHostelName === String(finalHostelId);
@@ -591,11 +595,12 @@ export const getRooms = async (hostelId?: number, floor?: string, roomTypeId?: n
         roomNumber: String(rm.roomNumber ?? (rm as any).roomNo ?? '').trim(),
         hostelId: finalHostelId,
         hostelName: resolvedHostelName,
+        roomTypeId: Number(rm.roomTypeId ?? (rm as any).room_type_id) || Number(matchingRt?.roomTypeId) || 1,
         roomTypeSpecification: rm.roomTypeSpecification || matchingRt?.roomTypeSpecification || 'Standard Room',
         bedCapacity: cap,
         capacity: cap,
-        occupiedBeds: occCount,
-        vacantBeds: Math.max(0, cap - occCount)
+        occupiedBeds: finalOcc,
+        vacantBeds: Math.max(0, cap - finalOcc)
       };
     });
 
@@ -618,7 +623,8 @@ export const createRoom = async (data: Partial<HostelRoom>) => {
 
   const roomTypes = getStoredRoomTypes();
   const matchingRt = roomTypes.find(rt => Number(rt.roomTypeId) === Number(data.roomTypeId));
-  const cap = Number(data.bedCapacity) || Number(matchingRt?.bedCapacity) || 4;
+  const cap = Number(data.bedCapacity) || Number(data.capacity) || Number(matchingRt?.bedCapacity) || 1;
+  const spec = data.roomTypeSpecification || matchingRt?.roomTypeSpecification || 'Standard Room';
 
   const blocks = getStoredHostelBlocks();
   const matchingBlock = blocks.find(b => Number(b.hostelId) === Number(data.hostelId));
@@ -634,8 +640,8 @@ export const createRoom = async (data: Partial<HostelRoom>) => {
     hostelId: Number(data.hostelId) || 1,
     hostelName: resolvedHostelName,
     hostelCode: matchingBlock?.hostelCode || `HST-00${data.hostelId || 1}`,
-    roomTypeId: Number(data.roomTypeId) || 1,
-    roomTypeSpecification: matchingRt?.roomTypeSpecification || 'Standard Room',
+    roomTypeId: Number(data.roomTypeId) || Number(matchingRt?.roomTypeId) || 1,
+    roomTypeSpecification: spec,
     bedCapacity: cap,
     capacity: cap,
     monthlyFee: Number(data.monthlyFee) || 5000,
@@ -653,7 +659,12 @@ export const createRoom = async (data: Partial<HostelRoom>) => {
   try {
     const res = await hostelApiClient('/api/hostels/rooms', {
       method: 'POST',
-      body: JSON.stringify(data)
+      body: JSON.stringify({
+        ...data,
+        roomTypeSpecification: spec,
+        bedCapacity: cap,
+        capacity: cap
+      })
     });
     if (res && res.roomId) return res;
   } catch (e) {}
@@ -664,7 +675,11 @@ export const createRoom = async (data: Partial<HostelRoom>) => {
 export const updateRoom = async (id: number, data: Partial<HostelRoom>) => {
   const current = getStoredRooms();
   const blocks = getStoredHostelBlocks();
+  const roomTypes = getStoredRoomTypes();
 
+  const matchingRt = data.roomTypeId ? roomTypes.find(rt => Number(rt.roomTypeId) === Number(data.roomTypeId)) : undefined;
+
+  let updatedTarget: HostelRoom | undefined;
   const updated = current.map(r => {
     if (Number(r.roomId) === Number(id)) {
       const mergedHostelId = data.hostelId ? Number(data.hostelId) : r.hostelId;
@@ -672,19 +687,41 @@ export const updateRoom = async (id: number, data: Partial<HostelRoom>) => {
       const rawName = String(data.hostelName || '').trim();
       const isInvalid = !rawName || !isNaN(Number(rawName)) || rawName === String(mergedHostelId);
       const hName = !isInvalid ? rawName : (b?.hostelName || (r.hostelName && isNaN(Number(r.hostelName)) ? r.hostelName : `Hostel Block #${mergedHostelId}`));
-      return { ...r, ...data, hostelId: mergedHostelId, hostelName: hName };
+      const rTypeId = data.roomTypeId ? Number(data.roomTypeId) : r.roomTypeId;
+      const rt = roomTypes.find(t => Number(t.roomTypeId) === Number(rTypeId));
+      const cap = Number(data.bedCapacity) || Number(data.capacity) || Number(rt?.bedCapacity) || Number(r.bedCapacity) || 1;
+      const spec = data.roomTypeSpecification || rt?.roomTypeSpecification || r.roomTypeSpecification || 'Standard Room';
+      
+      updatedTarget = {
+        ...r,
+        ...data,
+        hostelId: mergedHostelId,
+        hostelName: hName,
+        roomTypeId: rTypeId,
+        roomTypeSpecification: spec,
+        bedCapacity: cap,
+        capacity: cap
+      };
+      return updatedTarget;
     }
     return r;
   });
   saveStoredRooms(updated);
 
   try {
+    const sendData = {
+      ...data,
+      roomTypeId: updatedTarget?.roomTypeId ?? data.roomTypeId,
+      roomTypeSpecification: updatedTarget?.roomTypeSpecification ?? data.roomTypeSpecification,
+      bedCapacity: updatedTarget?.bedCapacity ?? data.bedCapacity,
+      capacity: updatedTarget?.bedCapacity ?? data.capacity
+    };
     return await hostelApiClient(`/api/hostels/rooms/${id}`, {
       method: 'PUT',
-      body: JSON.stringify(data)
+      body: JSON.stringify(sendData)
     });
   } catch (e) {
-    return updated.find(r => Number(r.roomId) === Number(id)) || data;
+    return updatedTarget || updated.find(r => Number(r.roomId) === Number(id)) || data;
   }
 };
 

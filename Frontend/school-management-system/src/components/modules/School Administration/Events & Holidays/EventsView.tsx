@@ -19,9 +19,12 @@ export const EventsView: React.FC = () => {
     holidays, addHoliday, updateHoliday, deleteHoliday,
     schoolEvents, addSchoolEvent, updateSchoolEvent, deleteSchoolEvent,
     birthdays, students, staff, exams, examSchedules, meetings, admissions, homework,
-    announcements
+    announcements, branches = []
   } = useData();
   const { selectedBranch, selectedAcademicYear } = useAuth();
+  const defaultBranch = selectedBranch && selectedBranch !== 'All' && selectedBranch !== 'All Branches'
+    ? selectedBranch
+    : ((branches?.[0]?.name || (branches?.[0] as any)?.branchName || '') as string);
 
   // Realistic Official Holidays List
   const REALISTIC_HOLIDAYS_2026_2027: Holiday[] = useMemo(() => [], []);
@@ -157,7 +160,7 @@ export const EventsView: React.FC = () => {
       type: h.type,
       startDate: h.startDate,
       endDate: h.endDate || h.startDate,
-      branch: h.branch || selectedBranch || '',
+      branch: h.branch || (selectedBranch && selectedBranch !== 'All' && selectedBranch !== 'All Branches' ? selectedBranch : '') || defaultBranch,
       description: h.description || '',
       status: h.status || 'Active',
       applicableTo: h.applicableTo || 'All'
@@ -177,7 +180,7 @@ export const EventsView: React.FC = () => {
       endDate: evt.endDate || evt.startDate,
       startTime: evt.startTime || '09:00 AM',
       endTime: evt.endTime || '04:00 PM',
-      branch: evt.branch || selectedBranch || '',
+      branch: evt.branch || (selectedBranch && selectedBranch !== 'All' && selectedBranch !== 'All Branches' ? selectedBranch : '') || defaultBranch,
       academicYear: evt.academicYear || selectedAcademicYear || '',
       participants: evt.participants || 'All Students & Staff',
       applicableClasses: evt.applicableClasses || ['All Classes'],
@@ -197,7 +200,7 @@ export const EventsView: React.FC = () => {
       type: 'National',
       startDate: new Date().toISOString().split('T')[0],
       endDate: new Date().toISOString().split('T')[0],
-      branch: selectedBranch || '',
+      branch: (selectedBranch && selectedBranch !== 'All' && selectedBranch !== 'All Branches' ? selectedBranch : '') || defaultBranch,
       description: '',
       status: 'Active',
       applicableTo: 'All'
@@ -217,7 +220,7 @@ export const EventsView: React.FC = () => {
       endDate: new Date().toISOString().split('T')[0],
       startTime: '09:00 AM',
       endTime: '04:00 PM',
-      branch: selectedBranch || '',
+      branch: (selectedBranch && selectedBranch !== 'All' && selectedBranch !== 'All Branches' ? selectedBranch : '') || defaultBranch,
       academicYear: selectedAcademicYear || '',
       participants: 'All Students & Staff',
       applicableClasses: ['All Classes'],
@@ -239,7 +242,7 @@ export const EventsView: React.FC = () => {
     endDate: new Date().toISOString().split('T')[0],
     startTime: '09:00 AM',
     endTime: '04:00 PM',
-    branch: selectedBranch || '',
+    branch: (selectedBranch && selectedBranch !== 'All' && selectedBranch !== 'All Branches' ? selectedBranch : '') || defaultBranch,
     academicYear: selectedAcademicYear || '',
     participants: 'All Students & Staff',
     applicableClasses: ['All Classes'],
@@ -255,7 +258,7 @@ export const EventsView: React.FC = () => {
     type: 'National' as HolidayType,
     startDate: new Date().toISOString().split('T')[0],
     endDate: new Date().toISOString().split('T')[0],
-    branch: selectedBranch || '',
+    branch: (selectedBranch && selectedBranch !== 'All' && selectedBranch !== 'All Branches' ? selectedBranch : '') || defaultBranch,
     description: '',
     status: 'Active' as 'Active' | 'Inactive',
     applicableTo: 'All' as 'All' | 'Students' | 'Teaching Staff' | 'Non-Teaching Staff'
@@ -383,7 +386,7 @@ export const EventsView: React.FC = () => {
         description: `Status: ${adm.status}. Parent: ${adm.parentName}`,
         color: 'teal',
         sourceModule: 'Admissions Module',
-        branch: adm.branch || selectedBranch || '',
+        branch: adm.branch || (selectedBranch && selectedBranch !== 'All' && selectedBranch !== 'All Branches' ? selectedBranch : '') || defaultBranch,
         rawItem: adm
       });
     });
@@ -401,7 +404,7 @@ export const EventsView: React.FC = () => {
         description: ann.content || 'Official Communication Hub Broadcast Circular',
         color: 'purple',
         sourceModule: 'Communication Hub',
-        branch: selectedBranch || '',
+        branch: (ann as any).branch || (selectedBranch && selectedBranch !== 'All' && selectedBranch !== 'All Branches' ? selectedBranch : '') || defaultBranch,
         rawItem: ann
       });
     });
@@ -630,7 +633,7 @@ export const EventsView: React.FC = () => {
       endDate: new Date().toISOString().split('T')[0],
       startTime: '09:00 AM',
       endTime: '04:00 PM',
-      branch: selectedBranch || '',
+      branch: (selectedBranch && selectedBranch !== 'All' && selectedBranch !== 'All Branches' ? selectedBranch : '') || defaultBranch,
       academicYear: selectedAcademicYear || '',
       participants: 'All Students & Staff',
       applicableClasses: ['All Classes'],
@@ -680,7 +683,7 @@ export const EventsView: React.FC = () => {
       type: 'National',
       startDate: new Date().toISOString().split('T')[0],
       endDate: new Date().toISOString().split('T')[0],
-      branch: selectedBranch || '',
+      branch: (selectedBranch && selectedBranch !== 'All' && selectedBranch !== 'All Branches' ? selectedBranch : '') || defaultBranch,
       description: '',
       status: 'Active',
       applicableTo: 'All'
@@ -1534,7 +1537,7 @@ export const EventsView: React.FC = () => {
               )}
               <div className="flex justify-between">
                 <span>🏢 <strong>Branch:</strong></span>
-                <span>{selectedEventForDetail.branch || '—'}</span>
+                <span>{selectedEventForDetail.branch || defaultBranch || 'All Branches'}</span>
               </div>
             </div>
 

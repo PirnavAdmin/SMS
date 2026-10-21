@@ -36,6 +36,7 @@ export const FinanceUniformConfigView: React.FC = () => {
   const [deletingConfig, setDeletingConfig] = useState<FinanceUniformConfig | null>(null);
 
   const [form, setForm] = useState<Partial<FinanceUniformConfig>>({
+    academicYear: selectedAcademicYear || financeSettings.academicYear || '',
     academicYear: selectedAcademicYear || financeSettings.academicYear || '2026-2027',
     branch: selectedBranch || '',
     className: '',
@@ -195,6 +196,7 @@ export const FinanceUniformConfigView: React.FC = () => {
   const handleOpenAdd = () => {
     setEditingConfig(null);
     setForm({
+      academicYear: selectedAcademicYear || financeSettings.academicYear || '',
       academicYear: selectedAcademicYear || financeSettings.academicYear || '2026-2027',
       branch: selectedBranch || '',
       className: '',

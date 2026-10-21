@@ -182,14 +182,27 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const handleSync = async () => {
       try {
         const res: any = await fetchBranchesApi();
-        if (res?.success && Array.isArray(res.data) && res.data.length > 0) {
-          const firstActive = res.data.find((b: any) => b.status !== 'Inactive') || res.data[0];
-          const name = firstActive?.name || firstActive?.branchName;
-          if (name) {
-            setSelectedBranchState(prev => prev || name);
-          }
+        const branchList = (res?.success && Array.isArray(res.data)) ? res.data : (Array.isArray(res) ? res : []);
+        const validBranchNames = branchList
+          .filter((b: any) => b && b.status !== 'Inactive')
+          .map((b: any) => typeof b === 'string' ? b : (b.name || b.branchName))
+          .filter(Boolean);
+
+        const storedBranch = localStorage.getItem('selected_branch');
+        if (storedBranch && (storedBranch === 'All' || storedBranch === 'All Branches' || validBranchNames.includes(storedBranch))) {
+          setSelectedBranchState(storedBranch);
+        } else if (validBranchNames.length > 0) {
+          const first = validBranchNames[0];
+          setSelectedBranchState(first);
+          localStorage.setItem('selected_branch', first);
+        } else {
+          setSelectedBranchState('');
+          localStorage.removeItem('selected_branch');
         }
-      } catch {}
+      } catch {
+        setSelectedBranchState('');
+        localStorage.removeItem('selected_branch');
+      }
 
       try {
         const ayRes: any = await fetchAcademicYearsApi();
@@ -399,7 +412,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         name: userName,
         email: loginEmail || (emailOrPhone.includes('@') ? emailOrPhone : ''),
         phone: userPhone,
-        branch: userBranch,
+        branch: userBranch || response?.branch || savedProfile?.branch || (selectedBranch && selectedBranch !== 'All' && selectedBranch !== 'All Branches' ? selectedBranch : '') || '',
         role: mappedRole,
         avatar: userAvatar,
         lastLogin: new Date().toLocaleString(),

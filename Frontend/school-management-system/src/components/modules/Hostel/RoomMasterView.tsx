@@ -127,10 +127,14 @@ export const RoomMasterView: React.FC<RoomMasterViewProps> = ({ selectedHostelFi
     try {
       setIsSubmitting(true);
       const selectedBlock = (blocks || []).find(b => b && String(b.hostelId) === String(formHostelId));
+      const selectedRt = (roomTypes || []).find(rt => rt && String(rt.roomTypeId) === String(formRoomTypeId));
       const payload = {
         hostelId: Number(formHostelId),
         hostelName: selectedBlock?.hostelName || `Hostel Block #${formHostelId}`,
         roomTypeId: Number(formRoomTypeId),
+        roomTypeSpecification: selectedRt?.roomTypeSpecification || 'Standard Room',
+        bedCapacity: selectedRt?.bedCapacity ? Number(selectedRt.bedCapacity) : 1,
+        capacity: selectedRt?.bedCapacity ? Number(selectedRt.bedCapacity) : 1,
         floorLevel: formFloorLevel,
         roomNumber: formRoomNumber,
         status: formStatus
@@ -358,7 +362,14 @@ export const RoomMasterView: React.FC<RoomMasterViewProps> = ({ selectedHostelFi
       ) : (
         <div className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-            {paginatedRooms.map((rm, idx) => (
+            {paginatedRooms.map((rm, idx) => {
+              const matchingRt = (roomTypes || []).find(rt => String(rt.roomTypeId) === String(rm.roomTypeId ?? (rm as any).room_type_id));
+              const roomCategoryLabel = rm.roomTypeSpecification || matchingRt?.roomTypeSpecification || 'Standard Room';
+              const cap = Number(rm.bedCapacity) || Number(rm.capacity) || Number(matchingRt?.bedCapacity) || 1;
+              const occ = Number(rm.occupiedBeds) || 0;
+              const vac = typeof rm.vacantBeds === 'number' ? rm.vacantBeds : Math.max(0, cap - occ);
+
+              return (
               <div key={`rm-card-${rm.roomId || idx}-${rm.roomNumber || idx}-${idx}`} className="glass-card p-5 rounded-3xl space-y-4 border border-slate-200/80 dark:border-slate-800 relative group hover:border-sky-500/50 transition-all">
                 <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
                   <div>
@@ -366,14 +377,14 @@ export const RoomMasterView: React.FC<RoomMasterViewProps> = ({ selectedHostelFi
                     <h3 className="font-black text-base text-slate-900 dark:text-white">{getBlockDisplayName(rm)}</h3>
                   </div>
                   <span className="px-2.5 py-1 rounded-full text-[11px] font-extrabold bg-sky-100 text-sky-800 dark:bg-sky-950 dark:text-sky-300">
-                    {rm.roomTypeSpecification || 'Standard Room'}
+                    {roomCategoryLabel}
                   </span>
                 </div>
 
                 <div className="space-y-1.5 text-xs">
                   <p className="text-slate-500">Hierarchy: <strong className="text-slate-900 dark:text-white font-bold">{getBlockDisplayName(rm)} → {rm.floorLevel || 'Ground Floor'}</strong></p>
-                  <p className="text-slate-500">Capacity: <strong className="text-emerald-600 font-mono font-bold">{rm.occupiedBeds || 0} / {rm.bedCapacity} Beds Occupied</strong></p>
-                  <p className="text-slate-500">Vacant: <strong className="text-amber-600 font-mono font-bold">{rm.vacantBeds} Beds Vacant</strong></p>
+                  <p className="text-slate-500">Capacity: <strong className="text-emerald-600 font-mono font-bold">{occ} / {cap} Beds Occupied</strong></p>
+                  <p className="text-slate-500">Vacant: <strong className="text-amber-600 font-mono font-bold">{vac} Beds Vacant</strong></p>
                 </div>
 
                 {!isWarden && (
@@ -383,7 +394,8 @@ export const RoomMasterView: React.FC<RoomMasterViewProps> = ({ selectedHostelFi
                   </div>
                 )}
               </div>
-            ))}
+            );
+            })}
           </div>
 
           {totalPages > 1 && (

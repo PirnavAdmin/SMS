@@ -336,6 +336,7 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
           email: adm.email || (adm as any).parentEmail || "",
           address: adm.address || (adm as any).areaLocality || "",
           status: "Active",
+          academicYear: adm.academicYear || selectedAcademicYear || "",
           academicYear: adm.academicYear || selectedAcademicYear || "2026-2027",
           branch: adm.branch || (selectedBranch && selectedBranch !== "All" && selectedBranch !== "All Branches" ? selectedBranch : "") || "",
           selectedOptionalFees: adm.selectedOptionalFees || [],
@@ -2347,6 +2348,7 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
                   </span>{" "}
                   | Branch:{" "}
                   <span className="font-bold text-slate-800 dark:text-slate-200">
+                    {activeStudent.branch || (activeStudent as any).campus || (selectedBranch && selectedBranch !== "All" && selectedBranch !== "All Branches" ? selectedBranch : "-")}
                     {activeStudent.branch || (activeStudent as any).campus || (selectedBranch && selectedBranch !== "All" && selectedBranch !== "All Branches" ? selectedBranch : "—")}
                   </span>
                 </p>
@@ -2428,6 +2430,7 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
                         {st.admissionNo || st.id}
                       </td>
                       <td className="py-3 px-4 text-slate-500">
+                        {st.branch || (selectedBranch && selectedBranch !== "All" && selectedBranch !== "All Branches" ? selectedBranch : "-")}
                         {st.branch || (selectedBranch && selectedBranch !== "All" && selectedBranch !== "All Branches" ? selectedBranch : "—")}
                       </td>
                       <td className="py-3 px-4 text-right">

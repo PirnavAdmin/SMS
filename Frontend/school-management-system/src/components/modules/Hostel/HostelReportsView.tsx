@@ -207,6 +207,7 @@ export const HostelReportsView: React.FC = () => {
           'Warden Name': b.wardenName || 'Unassigned',
           'Primary Mobile': b.primaryMobileNumber || 'N/A',
           'Location': b.address || '-',
+      'Location': b.address || '-',
           'Status': b.status || 'Active'
         }));
       }
@@ -245,16 +246,18 @@ export const HostelReportsView: React.FC = () => {
           const blockObj = blocks.find(b => String(b.hostelId) === String(r.hostelId));
           const blockName = blockObj?.hostelName || (r as any).hostelName || `Block #${r.hostelId}`;
           const occBeds = allocations.filter(a => String(a.roomId) === String(r.roomId) && a.status === 'Active').length;
-          const cap = r.bedCapacity || 4;
+          const cap = Number(r.bedCapacity) || Number(r.capacity) || 1;
           const avail = Math.max(0, cap - occBeds);
           const occStatus = avail === 0 ? 'FULL' : occBeds > 0 ? 'PARTIAL' : 'VACANT';
+          const rSpec = r.roomTypeSpecification || (r as any).roomType || 'Standard Room';
+          const rAc = r.acType || (rSpec.toLowerCase().includes('non-ac') ? 'Non-AC' : rSpec.toLowerCase().includes('ac') ? 'AC' : 'Non-AC');
 
           return {
             'Room Number': formatRoomNumber(r.roomNumber || r.roomId),
             'Hostel Block': blockName,
             'Floor Level': r.floorLevel || 'Ground Floor',
-            'Room Type': r.roomType || 'Standard',
-            'AC Status': r.acType || 'Non-AC',
+            'Room Type': rSpec,
+            'AC Status': rAc,
             'Capacity': cap,
             'Occupied Beds': occBeds,
             'Available Beds': avail,

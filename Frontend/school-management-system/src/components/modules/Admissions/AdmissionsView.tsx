@@ -392,6 +392,9 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
       hostelRoom: "",
       hostelBed: "",
       branch: selectedBranch && selectedBranch !== "All" && selectedBranch !== "All Branches" ? selectedBranch : (dynamicCampuses[0] || ""),
+      branch: (selectedBranch && selectedBranch !== "All" && selectedBranch !== "All Branches" && dynamicCampuses.includes(selectedBranch))
+        ? selectedBranch
+        : (dynamicCampuses[0] || ""),
       scholarshipId: "",
       discountId: "",
       selectedOptionalFees: [],
@@ -495,6 +498,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
       "Class 1",
       "Male",
       selectedBranch && selectedBranch !== "All" && selectedBranch !== "All Branches" ? selectedBranch : (dynamicCampuses[0] || ""),
+      selectedBranch && selectedBranch !== "All" && selectedBranch !== "All Branches" && dynamicCampuses.includes(selectedBranch) ? selectedBranch : (dynamicCampuses[0] || ""),
       "15-08-2018",
       "O+",
       "Christianity",
@@ -632,7 +636,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
 
               const rowStatus = String(row.Status || row.status || "Enrolled").trim();
               const rowClass = String(row.AppliedClass || row.appliedClass || row.Class || row.className || row["Applied Class"] || "Class 1").trim();
-              const defaultActiveBranch = selectedBranch && selectedBranch !== "All Branches" && selectedBranch !== "All" ? selectedBranch : (dynamicCampuses[0] || "");
+              const defaultActiveBranch = selectedBranch && selectedBranch !== "All Branches" && selectedBranch !== "All" && dynamicCampuses.includes(selectedBranch) ? selectedBranch : (dynamicCampuses[0] || "");
               let rowBranch = String(row.Campus || row.branch || row.Branch || row.CampusLocation || "").trim();
               if (!rowBranch) {
                 rowBranch = defaultActiveBranch;
@@ -1972,6 +1976,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
           hostelRoom: formData.hostelRoom,
           hostelBed: formData.hostelBed,
           branch: formData.branch || (selectedBranch && selectedBranch !== "All" && selectedBranch !== "All Branches" ? selectedBranch : (dynamicCampuses[0] || "")),
+          branch: formData.branch || (selectedBranch && selectedBranch !== "All" && selectedBranch !== "All Branches" && dynamicCampuses.includes(selectedBranch) ? selectedBranch : "") || (dynamicCampuses[0] || ""),
           scholarshipId: formData.scholarshipId,
           discountId: formData.discountId,
           selectedOptionalFees: formData.selectedOptionalFees || [],
@@ -5046,6 +5051,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                       </p>
                       <p className="text-xs font-bold text-slate-800 dark:text-slate-200">
                         {selectedAppForView.branch || "—"}
+                        {selectedAppForView.branch || "-"}
                       </p>
                     </div>
                   </div>

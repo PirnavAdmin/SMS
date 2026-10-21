@@ -627,7 +627,7 @@ export const MeetingsView: React.FC = () => {
     const payload: Omit<SchoolMeeting, 'id' | 'createdAt'> = {
       title: title.trim(),
       description: formData.description,
-      academicYear: schoolProfile.academicYear || '',
+      academicYear: schoolProfile.academicYear || selectedAcademicYear || '',
       branch: user?.branch || '',
       meetingAudience,
       participantType: meetingAudience === 'Individual' ? participantType : selectedGroupParticipantTypes[0] || 'Teaching Staff',

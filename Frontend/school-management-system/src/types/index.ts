@@ -257,7 +257,7 @@ export interface Student {
   joiningDate: string;
 
   // Global Multi-branch & Facility Allocation
-  branch?: string;
+  branch?: string; // Branch / Campus identifier or name
   branchId?: number;
   academicYearId?: number;
   classId?: number;

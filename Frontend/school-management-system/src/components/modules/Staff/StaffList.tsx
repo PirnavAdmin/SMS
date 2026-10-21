@@ -104,6 +104,7 @@ export const StaffList: React.FC<{
 
   const {
     staff = [],
+    branches = [],
     addStaff,
     updateStaff,
     deleteStaff,
@@ -527,7 +528,7 @@ export const StaffList: React.FC<{
         "city": "Hyderabad",
         "state": "Telangana",
         "pinCode": "500001",
-        "branch": "",
+        "branch": (selectedBranch && selectedBranch !== 'All' && selectedBranch !== 'All Branches' ? selectedBranch : '') || (branches && (branches[0] as any)?.name) || "",
         "department": activeCategory === "Teaching Staff" ? "Mathematics" : "Administration",
         "designation": activeCategory === "Teaching Staff" ? "PGT Teacher" : "Administrator",
         "employmentType": "Full Time",
@@ -623,7 +624,7 @@ export const StaffList: React.FC<{
                 city: row.city || "",
                 state: row.state || "",
                 pinCode: row.pinCode || "",
-                branch: row.branch || "",
+                branch: row.branch || (selectedBranch && selectedBranch !== 'All' && selectedBranch !== 'All Branches' ? selectedBranch : '') || (branches && (branches[0] as any)?.name) || "",
                 department: row.department || "General",
                 designation: row.designation || (rowCategory === "Teaching Staff" ? "Subject Teacher" : "Administrator"),
                 employmentType: row.employmentType || "Full Time",

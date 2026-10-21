@@ -42,7 +42,7 @@ export const StudentTransportAssignmentView: React.FC = () => {
   const { addToast } = useToast();
 
   const [query, setQuery] = useState('');
-  const activeAY = selectedAcademicYear || '2026-2027';
+  const activeAY = selectedAcademicYear || '';
   const [selectedClass, setSelectedClass] = useState('All');
   const [selectedSection, setSelectedSection] = useState('All');
   const [activeTab, setActiveTab] = useState<'current' | 'history'>('current');
@@ -70,8 +70,8 @@ export const StudentTransportAssignmentView: React.FC = () => {
           studentId: st.studentId || '',
           studentName: st.studentName || student?.name || 'Unknown Student',
           admissionNo: st.admissionNo || student?.admissionNo || '-',
-          academicYear: (st as any).academicYear || selectedAcademicYear || '2026-2027',
-          branch: (st as any).branch || selectedBranch || student?.branch || '',
+          academicYear: (st as any).academicYear || selectedAcademicYear || '',
+          branch: (st as any).branch || (selectedBranch && selectedBranch !== 'All' && selectedBranch !== 'All Branches' ? selectedBranch : '') || student?.branch || '',
           routeName: st.routeName || '-',
           pickupPoint: st.pickupPoint || '-',
           vehicleNumber: st.vehicleNumber || '-',
@@ -229,8 +229,8 @@ export const StudentTransportAssignmentView: React.FC = () => {
       studentId: st.id,
       studentName: `${st.firstName} ${st.lastName}`,
       admissionNo: st.admissionNo,
-      academicYear: selectedAcademicYear || activeAY,
-      branch: st.branch || selectedBranch || '',
+      academicYear: selectedAcademicYear || '',
+      branch: st.branch || (selectedBranch && selectedBranch !== 'All' && selectedBranch !== 'All Branches' ? selectedBranch : '') || '',
       routeName: rt.routeName,
       pickupPoint: pk.pickupName,
       vehicleNumber: autoVehicleNumber,

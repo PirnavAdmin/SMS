@@ -303,8 +303,9 @@ export const RoomTypeMasterView: React.FC = () => {
               floorLevel: fc.floorLabel
             });
 
-            if (newRtRes.success && newRtRes.data) {
-              activeRtId = newRtRes.data.roomTypeId;
+            const parsedId = (newRtRes as any)?.roomTypeId ?? (newRtRes as any)?.data?.roomTypeId ?? (newRtRes as any)?.id;
+            if (parsedId) {
+              activeRtId = Number(parsedId);
             }
           }
 
@@ -315,10 +316,13 @@ export const RoomTypeMasterView: React.FC = () => {
 
             await createRoom({
               hostelId: selectedBlock.hostelId,
+              hostelName: selectedBlock.hostelName,
               roomNumber: roomNumStr,
               floorLevel: fc.floorLabel,
               roomTypeId: activeRtId || 1,
+              roomTypeSpecification: cat.specName,
               bedCapacity: cat.capacity,
+              capacity: cat.capacity,
               occupiedBeds: 0,
               vacantBeds: cat.capacity,
               status: 'Active'
@@ -956,6 +960,7 @@ export const RoomTypeMasterView: React.FC = () => {
                           </div>
                           <div>
                             <span className="text-[10px] text-slate-400 font-bold block uppercase">Location</span>
+                <span className="font-semibold text-slate-800 dark:text-slate-200 truncate block">{selectedBlock.address || '-'}</span>
                             <span className="font-semibold text-slate-800 dark:text-slate-200 truncate block">{selectedBlock.address || '-'}</span>
                           </div>
                         </div>

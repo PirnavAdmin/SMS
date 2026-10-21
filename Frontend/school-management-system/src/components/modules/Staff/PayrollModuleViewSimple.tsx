@@ -822,7 +822,7 @@ const buildStructurePayload = (draft: StructureDraft): Omit<SalaryStructure, 'id
     employeeId: draft.staffId || undefined,
     structureName: draft.structureName.trim(),
     employeeCategory: (draft.employeeCategory || 'Staff') as 'Teacher' | 'Staff',
-    branch: '',
+    branch: (draft as any).branch || '',
     earnings: [
       { name: 'Basic Salary', amount: parseMoney(draft.basicSalary), type: 'Fixed', value: parseMoney(draft.basicSalary) },
       { name: 'HRA', amount: parseMoney(draft.hra), type: 'Fixed', value: parseMoney(draft.hra) },
@@ -1381,6 +1381,8 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
   const [historyDepartment, setHistoryDepartment] = useState('All Departments');
   const [selectedEmployeeIds, setSelectedEmployeeIds] = useState<string[]>([]);
   const [selectedStructureIds, setSelectedStructureIds] = useState<string[]>([]);
+  const [isBulkStructureMenuOpen, setIsBulkStructureMenuOpen] = useState(false);
+  const [isBulkEmployeeMenuOpen, setIsBulkEmployeeMenuOpen] = useState(false);
   const [selectedGenerationIds, setSelectedGenerationIds] = useState<string[]>([]);
   const [selectedHistoryIds, setSelectedHistoryIds] = useState<string[]>([]);
   const [drawerStaff, setDrawerStaff] = useState<Staff | null>(null);
@@ -1971,7 +1973,7 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
       const isSelected = selectedGenerationIds.includes(row.member.id);
       if (!isSelected && row.payrollStatus !== 'Active' && (!row.assignment || row.assignment.status !== 'Active')) return false;
       const staffBranch = row.member.branch || '';
-      const matchesBranch = generationBranch === 'All Branches' || staffBranch === generationBranch;
+      const matchesBranch = generationBranch === 'All Branches' || !generationBranch || staffBranch === generationBranch || !staffBranch;
       const matchesDepartment = generationDepartment === 'All Departments' || row.member.department === generationDepartment;
       const matchesCategory = generationCategory === 'All' || row.category === generationCategory;
       const employeeLabel = `${row.member.firstName} ${row.member.lastName} (${row.member.empId})`.trim();
@@ -2459,6 +2461,21 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
       employeePage * employeePerPage
     );
 
+    const handleBulkUnassignEmployees = () => {
+      setIsBulkEmployeeMenuOpen(false);
+      const count = selectedEmployeeIds.length;
+      if (count <= 1) return;
+      if (!window.confirm(`Are you sure you want to unassign salary structures from ${count} selected employees?`)) return;
+      for (const empId of selectedEmployeeIds) {
+        const existing = employeeSalaryAssignments.find(a => a.employeeId === empId || a.empId === empId);
+        if (existing) {
+          deleteEmployeeSalaryAssignment(existing.id);
+        }
+      }
+      addToast('info', 'Structures Unassigned', `Salary structures unassigned from ${count} employees.`);
+      setSelectedEmployeeIds([]);
+    };
+
     return (
       <div className="space-y-6">
         <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
@@ -2473,12 +2490,50 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
           action={(
             <div className="flex items-center gap-2">
               {selectedEmployeeIds.length > 0 && (
-                <button
-                  type="button"
-                  className="inline-flex h-9 items-center gap-1.5 rounded-xl bg-slate-800 px-4 text-xs font-black text-white shadow-lg shadow-slate-700/20"
-                >
-                  Bulk Actions ({selectedEmployeeIds.length})
-                </button>
+                <div className="relative">
+                  <button
+                    type="button"
+                    disabled={selectedEmployeeIds.length <= 1}
+                    onClick={() => {
+                      if (selectedEmployeeIds.length > 1) {
+                        setIsBulkEmployeeMenuOpen(prev => !prev);
+                      }
+                    }}
+                    className={`inline-flex h-9 items-center gap-1.5 rounded-xl px-4 text-xs font-black shadow-lg transition-all ${
+                      selectedEmployeeIds.length <= 1
+                        ? 'bg-slate-300 dark:bg-slate-800 text-slate-400 dark:text-slate-500 cursor-not-allowed shadow-none'
+                        : 'bg-slate-800 text-white shadow-slate-700/20 hover:bg-slate-700 cursor-pointer'
+                    }`}
+                    title={selectedEmployeeIds.length <= 1 ? "Bulk actions require at least 2 records to be selected" : "Perform bulk actions"}
+                  >
+                    Bulk Actions ({selectedEmployeeIds.length})
+                    <ChevronDown className="h-3 w-3" />
+                  </button>
+                  {isBulkEmployeeMenuOpen && selectedEmployeeIds.length > 1 && (
+                    <>
+                      <div className="fixed inset-0 z-20" onClick={() => setIsBulkEmployeeMenuOpen(false)} />
+                      <div className="absolute right-0 top-full mt-1.5 z-30 w-44 rounded-xl border border-slate-200 bg-white py-1.5 shadow-xl dark:border-slate-800 dark:bg-slate-900 animate-in fade-in">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setIsBulkEmployeeMenuOpen(false);
+                            openAssignmentModal();
+                          }}
+                          className="w-full px-3 py-1.5 text-left text-xs font-bold text-slate-700 hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-slate-800 flex items-center gap-2 cursor-pointer"
+                        >
+                          <Plus className="h-3.5 w-3.5 text-brand-500" /> Assign Structure
+                        </button>
+                        <button
+                          type="button"
+                          onClick={handleBulkUnassignEmployees}
+                          className="w-full px-3 py-1.5 text-left text-xs font-bold text-rose-600 hover:bg-rose-50 dark:text-rose-400 dark:hover:bg-rose-950/40 flex items-center gap-2 cursor-pointer"
+                        >
+                          <Trash2 className="h-3.5 w-3.5 text-rose-500" /> Unassign Structure
+                        </button>
+                      </div>
+                    </>
+                  )}
+                </div>
               )}
               <ExportButton
                 data={filteredEmployeeRows.map(r => ({
@@ -2597,7 +2652,7 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
                         <td className="px-3 py-2 text-center align-middle">
                           <button type="button" onClick={() => setDrawerStaff(row.member)} className="text-center">
                             <div className="text-xs font-black text-slate-900 dark:text-white">{row.member.firstName} {row.member.lastName}</div>
-                            <p className="text-[10px] text-slate-500">{row.member.branch || '—'}</p>
+                            {row.member.branch ? <p className="text-[10px] text-slate-500">{row.member.branch}</p> : null}
                           </button>
                         </td>
                         <td className="px-3 py-2 text-xs font-semibold text-slate-700 dark:text-slate-300 text-center align-middle">{getCategoryLabel(row.category)}</td>
@@ -2669,27 +2724,97 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
     );
   };
 
-  const renderStructureTab = () => (
-    <div className="space-y-6">
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
-        <StatCard label="Active Structures" value={String(activeStructureCount)} icon={BadgeIndianRupee} tone="emerald" />
-        <StatCard label="Total Structures" value={String(salaryStructures.length)} icon={Layers} tone="sky" />
-        <StatCard label="Employees Assigned" value={String(assignedEmployeeCount)} icon={Users} tone="brand" />
-        <StatCard label="Net Salary Preview" value={formatCurrency(totalPreviewNet)} icon={CheckCircle2} tone="amber" />
-      </div>
+  const renderStructureTab = () => {
+    const handleBulkStructureStatus = async (status: 'Active' | 'Inactive') => {
+      setIsBulkStructureMenuOpen(false);
+      const count = selectedStructureIds.length;
+      if (count <= 1) return;
+      for (const id of selectedStructureIds) {
+        const s = salaryStructures.find(str => str.id === id);
+        if (s) {
+          updateSalaryStructure(id, { ...s, status });
+        }
+      }
+      addToast('success', 'Bulk Status Updated', `${count} salary structures marked as ${status}.`);
+      setSelectedStructureIds([]);
+    };
 
-      <Panel
-        title="Salary Structures"
-        action={(
-          <div className="flex items-center gap-2">
-            {selectedStructureIds.length > 0 && (
-              <button
-                type="button"
-                className="inline-flex h-9 items-center gap-1.5 rounded-xl bg-slate-800 px-4 text-xs font-black text-white shadow-lg shadow-slate-700/20"
-              >
-                Bulk Actions ({selectedStructureIds.length})
-              </button>
-            )}
+    const handleBulkStructureDelete = () => {
+      setIsBulkStructureMenuOpen(false);
+      const count = selectedStructureIds.length;
+      if (count <= 1) return;
+      if (!window.confirm(`Are you sure you want to delete ${count} selected salary structures? This action cannot be undone.`)) return;
+      for (const id of selectedStructureIds) {
+        deleteSalaryStructure(id);
+      }
+      addToast('info', 'Structures Deleted', `${count} salary structures deleted.`);
+      setSelectedStructureIds([]);
+    };
+
+    return (
+      <div className="space-y-6">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
+          <StatCard label="Active Structures" value={String(activeStructureCount)} icon={BadgeIndianRupee} tone="emerald" />
+          <StatCard label="Total Structures" value={String(salaryStructures.length)} icon={Layers} tone="sky" />
+          <StatCard label="Employees Assigned" value={String(assignedEmployeeCount)} icon={Users} tone="brand" />
+          <StatCard label="Net Salary Preview" value={formatCurrency(totalPreviewNet)} icon={CheckCircle2} tone="amber" />
+        </div>
+
+        <Panel
+          title="Salary Structures"
+          action={(
+            <div className="flex items-center gap-2">
+              {selectedStructureIds.length > 0 && (
+                <div className="relative">
+                  <button
+                    type="button"
+                    disabled={selectedStructureIds.length <= 1}
+                    onClick={() => {
+                      if (selectedStructureIds.length > 1) {
+                        setIsBulkStructureMenuOpen(prev => !prev);
+                      }
+                    }}
+                    className={`inline-flex h-9 items-center gap-1.5 rounded-xl px-4 text-xs font-black shadow-lg transition-all ${
+                      selectedStructureIds.length <= 1
+                        ? 'bg-slate-300 dark:bg-slate-800 text-slate-400 dark:text-slate-500 cursor-not-allowed shadow-none'
+                        : 'bg-slate-800 text-white shadow-slate-700/20 hover:bg-slate-700 cursor-pointer'
+                    }`}
+                    title={selectedStructureIds.length <= 1 ? "Bulk actions require at least 2 records to be selected" : "Perform bulk actions"}
+                  >
+                    Bulk Actions ({selectedStructureIds.length})
+                    <ChevronDown className="h-3 w-3" />
+                  </button>
+                  {isBulkStructureMenuOpen && selectedStructureIds.length > 1 && (
+                    <>
+                      <div className="fixed inset-0 z-20" onClick={() => setIsBulkStructureMenuOpen(false)} />
+                      <div className="absolute right-0 top-full mt-1.5 z-30 w-44 rounded-xl border border-slate-200 bg-white py-1.5 shadow-xl dark:border-slate-800 dark:bg-slate-900 animate-in fade-in">
+                        <button
+                          type="button"
+                          onClick={() => handleBulkStructureStatus('Active')}
+                          className="w-full px-3 py-1.5 text-left text-xs font-bold text-slate-700 hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-slate-800 flex items-center gap-2 cursor-pointer"
+                        >
+                          <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" /> Mark Active
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleBulkStructureStatus('Inactive')}
+                          className="w-full px-3 py-1.5 text-left text-xs font-bold text-slate-700 hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-slate-800 flex items-center gap-2 cursor-pointer"
+                        >
+                          <AlertCircle className="h-3.5 w-3.5 text-amber-500" /> Mark Inactive
+                        </button>
+                        <div className="my-1 border-t border-slate-100 dark:border-slate-800" />
+                        <button
+                          type="button"
+                          onClick={handleBulkStructureDelete}
+                          className="w-full px-3 py-1.5 text-left text-xs font-bold text-rose-600 hover:bg-rose-50 dark:text-rose-400 dark:hover:bg-rose-950/40 flex items-center gap-2 cursor-pointer"
+                        >
+                          <Trash2 className="h-3.5 w-3.5 text-rose-500" /> Delete Selected
+                        </button>
+                      </div>
+                    </>
+                  )}
+                </div>
+              )}
             <ExportButton
               data={filteredStructureRows.map(r => ({
                 'Structure Name': r.structure.structureName,
@@ -2891,6 +3016,7 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
       </Panel>
     </div>
   );
+};
 
   const renderPayslipGenerationTab = () => {
     const allStaffCount = staff.length;

@@ -347,9 +347,6 @@ export const StaffLettersManagementView: React.FC<StaffLettersManagementViewProp
       if (l?.branch) list.add(l.branch);
     });
     if (schoolProfile?.branchName) list.add(schoolProfile.branchName);
-    if (list.size === 0) {
-      
-    }
     return Array.from(list).filter(Boolean).sort();
   }, [branches, staff, letters, schoolProfile]);
 

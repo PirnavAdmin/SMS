@@ -193,7 +193,7 @@ export const StudentProfileDrawer: React.FC<StudentProfileDrawerProps> = ({
                 </Badge>
               </div>
               <p className="text-xs sm:text-sm text-brand-100">
-                {student.className}-{student.section} • Roll: <strong className="text-white">{student.rollNo}</strong> • Adm: <strong className="text-white">{student.admissionNo}</strong> • <span className="font-bold text-amber-300">{student.branch || '—'}</span>
+                {student.className}-{student.section} • Roll: <strong className="text-white">{student.rollNo}</strong> • Adm: <strong className="text-white">{student.admissionNo}</strong> • <span className="font-bold text-amber-300">{student.branch || '-'}</span>
               </p>
               <div className="flex items-center gap-4 pt-1 text-xs text-white/90 flex-wrap">
                 <span className="flex items-center gap-1.5"><Mail className="w-3.5 h-3.5 opacity-80" /> {student.email}</span>
@@ -239,7 +239,7 @@ export const StudentProfileDrawer: React.FC<StudentProfileDrawerProps> = ({
                 <div><span className="text-slate-400 block font-semibold">Religion:</span> <p className="font-bold text-slate-900 dark:text-white mt-1 text-sm">{student.religion || 'General'}</p></div>
                 <div><span className="text-slate-400 block font-semibold">Caste Category:</span> <p className="font-bold text-slate-900 dark:text-white mt-1 text-sm">{student.casteCategory || 'General'}</p></div>
                 <div><span className="text-slate-400 block font-semibold">Student Type:</span> <p className="font-bold text-brand-600 dark:text-brand-400 mt-1 text-sm">{student.studentType || 'Non-Residential'}</p></div>
-                <div><span className="text-slate-400 block font-semibold">Branch / Campus:</span> <p className="font-bold text-amber-600 dark:text-amber-400 mt-1 text-sm">{student.branch || '—'}</p></div>
+                <div><span className="text-slate-400 block font-semibold">Branch / Campus:</span> <p className="font-bold text-amber-600 dark:text-amber-400 mt-1 text-sm">{student.branch || '-'}</p></div>
                 <div><span className="text-slate-400 block font-semibold">Joining Date:</span> <p className="font-bold text-slate-900 dark:text-white mt-1 text-sm">{student.joiningDate}</p></div>
               </div>
               <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-xs shadow-sm space-y-1">
