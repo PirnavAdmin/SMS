@@ -22244,7 +22244,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   };
 
   const filterByBranch = <T,>(items: T[]): T[] => {
-    if (!items) return [];
+    if (!items || !Array.isArray(items)) return [];
     return items.filter((item) => {
       const anyItem = item as any;
 

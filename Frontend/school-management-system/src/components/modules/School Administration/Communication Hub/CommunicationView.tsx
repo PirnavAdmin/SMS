@@ -84,8 +84,8 @@ export const CommunicationView: React.FC = () => {
   const [emergencyTime, setEmergencyTime] = useState(() => new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
   const [customEmergTitle, setCustomEmergTitle] = useState('');
   const [customEmergContent, setCustomEmergContent] = useState('');
-  const [target, setTarget] = useState<'STUDENTS ONLY' | 'STAFF ONLY' | 'PARENTS ONLY' | 'ALL'>('ALL');
-  const [category, setCategory] = useState<'SPORTS' | 'ACADEMIC' | 'ASSEMBLY' | 'URGENT' | 'EXAM' | 'HOLIDAY' | 'GENERAL'>('GENERAL');
+  const [target, setTarget] = useState<'STUDENTS ONLY' | 'STAFF ONLY' | 'PARENTS ONLY' | 'ALL' | ''>('');
+  const [category, setCategory] = useState<'SPORTS' | 'ACADEMIC' | 'ASSEMBLY' | 'URGENT' | 'EXAM' | 'HOLIDAY' | 'GENERAL' | ''>('');
   const [sendSMS, setSendSMS] = useState(true);
   const [sendEmail, setSendEmail] = useState(true);
   const [sendPush, setSendPush] = useState(true);
@@ -388,8 +388,8 @@ export const CommunicationView: React.FC = () => {
       setContent('');
       setBroadcastDate('');
       setBroadcastTime('');
-      setCategory('GENERAL');
-      setTarget('ALL');
+      setCategory('');
+      setTarget('');
     }
     setIsComposeModalOpen(true);
   };
@@ -405,6 +405,14 @@ export const CommunicationView: React.FC = () => {
     if (!title.trim() || !content.trim()) return;
     if (!broadcastDate.trim()) {
       addToast('warning', 'Validation Error', 'Please select or enter a valid Broadcast Date.');
+      return;
+    }
+    if (!category) {
+      addToast('warning', 'Validation Error', 'Please select a Category Tag.');
+      return;
+    }
+    if (!target) {
+      addToast('warning', 'Validation Error', 'Please select a Target Audience.');
       return;
     }
 
@@ -1022,10 +1030,12 @@ export const CommunicationView: React.FC = () => {
                 <div>
                   <label className="block font-bold mb-1 text-slate-700 dark:text-slate-300">Category Tag <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                   <select
+                    required
                     value={category}
                     onChange={e => setCategory(e.target.value as any)}
                     className="w-full px-2 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-slate-900 dark:text-white font-bold outline-none cursor-pointer text-[11px]"
                   >
+                    <option value="">Select</option>
                     <option value="SPORTS">SPORTS</option>
                     <option value="ACADEMIC">ACADEMIC</option>
                     <option value="ASSEMBLY">ASSEMBLY</option>
@@ -1039,10 +1049,12 @@ export const CommunicationView: React.FC = () => {
                 <div>
                   <label className="block font-bold mb-1 text-slate-700 dark:text-slate-300">Target Audience <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                   <select
+                    required
                     value={target}
                     onChange={e => setTarget(e.target.value as any)}
                     className="w-full px-2 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-slate-900 dark:text-white font-bold outline-none cursor-pointer text-[11px]"
                   >
+                    <option value="">Select</option>
                     <option value="STUDENTS ONLY">STUDENTS ONLY</option>
                     <option value="STAFF ONLY">STAFF ONLY</option>
                     <option value="PARENTS ONLY">PARENTS ONLY</option>
