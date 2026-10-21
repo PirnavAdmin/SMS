@@ -5,6 +5,7 @@ import {
   XCircle, FileText, Check, ShieldAlert, Layers, Calendar, Award, IndianRupee, RefreshCw
 } from 'lucide-react';
 import { useData } from '../../../context/DataContext';
+import { useAuth } from '../../../context/AuthContext';
 import { useToast } from '../../../context/ToastContext';
 import { AcademicYearStatus, AcademicHistoryRecord, DailyAttendance, ExamMark, StudentFeeAssignment } from '../../../types';
 
@@ -50,6 +51,7 @@ export const AcademicHistoryImportModal: React.FC<AcademicHistoryImportModalProp
   } = useData();
 
   const { addToast } = useToast();
+  const { selectedBranch } = useAuth();
   const defaultBranchName = branches[0]?.name || '';
 
   const [activeDomain, setActiveDomain] = useState<ImportDomain>('academic-history');
@@ -87,11 +89,7 @@ export const AcademicHistoryImportModal: React.FC<AcademicHistoryImportModalProp
           'Section': 'A',
           'Roll No': '1001',
           'Class Teacher': 'Rajesh Sharma',
-<<<<<<< HEAD
-          'Branch': defaultBranchName,
-=======
-          'Branch': '',
->>>>>>> 2c7d0190f1106e317e9965ae947dc2f54d4d3f76
+          'Branch': (selectedBranch && selectedBranch !== 'All' && selectedBranch !== 'All Branches' ? selectedBranch : '') || defaultBranchName || '',
           'Status': 'Promoted',
           'Remarks': 'Promoted to Next Class'
         },
@@ -102,11 +100,7 @@ export const AcademicHistoryImportModal: React.FC<AcademicHistoryImportModalProp
           'Section': 'B',
           'Roll No': '1002',
           'Class Teacher': 'Anita Verma',
-<<<<<<< HEAD
-          'Branch': defaultBranchName,
-=======
-          'Branch': '',
->>>>>>> 2c7d0190f1106e317e9965ae947dc2f54d4d3f76
+          'Branch': (selectedBranch && selectedBranch !== 'All' && selectedBranch !== 'All Branches' ? selectedBranch : '') || defaultBranchName || '',
           'Status': 'Retained',
           'Remarks': 'Retained in Class 5'
         }
@@ -438,11 +432,7 @@ export const AcademicHistoryImportModal: React.FC<AcademicHistoryImportModalProp
             className: v.className,
             section: v.section,
             rollNo: v.rollNo,
-<<<<<<< HEAD
-            branch: v.branch || targetStudent.branch || defaultBranchName || '',
-=======
-            branch: v.branch || targetStudent.branch || '',
->>>>>>> 2c7d0190f1106e317e9965ae947dc2f54d4d3f76
+            branch: v.branch || targetStudent.branch || (selectedBranch && selectedBranch !== 'All' && selectedBranch !== 'All Branches' ? selectedBranch : '') || defaultBranchName || '',
             status: v.status as AcademicYearStatus,
             promotionStatus: v.status,
             remarks: v.remarks || 'Imported via Excel Import',

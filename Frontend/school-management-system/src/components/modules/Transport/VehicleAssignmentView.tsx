@@ -123,11 +123,7 @@ export const VehicleAssignmentView: React.FC = () => {
   const [assignmentLogs, setAssignmentLogs] = useState<VehicleAssignmentLogItem[]>(initialAssignmentLogs);
   const [activeTab, setActiveTab] = useState<'current' | 'history'>('current');
   const [form, setForm] = useState<AssignmentFormState>({
-<<<<<<< HEAD
-    branch: defaultBranch,
-=======
-    branch: (selectedBranch && selectedBranch !== 'All Branches' && selectedBranch !== 'All Campuses') ? selectedBranch : '',
->>>>>>> 2c7d0190f1106e317e9965ae947dc2f54d4d3f76
+    branch: (selectedBranch && selectedBranch !== 'All Branches' && selectedBranch !== 'All Campuses' && selectedBranch !== 'All') ? selectedBranch : defaultBranch,
     academicYear: selectedAcademicYear || getCurrentAcademicYear(),
     vehicleId: '',
     routeId: '',
@@ -172,11 +168,7 @@ export const VehicleAssignmentView: React.FC = () => {
           driverName: va.driverName || 'Unassigned',
           attendantName: attendant.name || 'Unassigned',
           routeName: resolvedRouteName,
-<<<<<<< HEAD
-          branch: va.branch || selectedBranch || defaultBranch,
-=======
-          branch: va.branch || selectedBranch || '',
->>>>>>> 2c7d0190f1106e317e9965ae947dc2f54d4d3f76
+          branch: va.branch || (selectedBranch && selectedBranch !== 'All Branches' && selectedBranch !== 'All' ? selectedBranch : '') || defaultBranch,
           academicYear: va.academicYear || selectedAcademicYear || getCurrentAcademicYear(),
           effectiveFrom: (va.effectiveFrom || '').split('T')[0] || new Date().toISOString().split('T')[0],
           effectiveTo: va.effectiveTo ? (va.effectiveTo || '').split('T')[0] : undefined,
@@ -420,11 +412,7 @@ export const VehicleAssignmentView: React.FC = () => {
     setEditingAssignment(null);
     setReassignSource(null);
     setForm({
-<<<<<<< HEAD
-      branch: defaultBranch,
-=======
-      branch: selectedBranch || '',
->>>>>>> 2c7d0190f1106e317e9965ae947dc2f54d4d3f76
+      branch: (selectedBranch && selectedBranch !== 'All Branches' && selectedBranch !== 'All' ? selectedBranch : '') || defaultBranch,
       academicYear: getCurrentAcademicYear(),
       vehicleId: '',
       routeId: '',
@@ -471,11 +459,7 @@ export const VehicleAssignmentView: React.FC = () => {
     );
 
     setForm({
-<<<<<<< HEAD
-      branch: assignment.branch || selectedBranch || defaultBranch,
-=======
-      branch: assignment.branch || selectedBranch || '',
->>>>>>> 2c7d0190f1106e317e9965ae947dc2f54d4d3f76
+      branch: assignment.branch || (selectedBranch && selectedBranch !== 'All Branches' && selectedBranch !== 'All' ? selectedBranch : '') || defaultBranch,
       academicYear: assignment.academicYear || getCurrentAcademicYear(),
       vehicleId: matchedVehicle ? String(matchedVehicle.id) : (assignment.vehicleId ? String(assignment.vehicleId) : ''),
       routeId: matchedRoute ? String(matchedRoute.id) : (assignment.routeId ? String(assignment.routeId) : ''),
@@ -522,11 +506,7 @@ export const VehicleAssignmentView: React.FC = () => {
     );
 
     setForm({
-<<<<<<< HEAD
-      branch: assignment.branch || selectedBranch || defaultBranch,
-=======
-      branch: assignment.branch || selectedBranch || '',
->>>>>>> 2c7d0190f1106e317e9965ae947dc2f54d4d3f76
+      branch: assignment.branch || (selectedBranch && selectedBranch !== 'All Branches' && selectedBranch !== 'All' ? selectedBranch : '') || defaultBranch,
       academicYear: assignment.academicYear || getCurrentAcademicYear(),
       vehicleId: matchedVehicle ? String(matchedVehicle.id) : (assignment.vehicleId ? String(assignment.vehicleId) : ''),
       routeId: matchedRoute ? String(matchedRoute.id) : (assignment.routeId ? String(assignment.routeId) : ''),
@@ -743,11 +723,7 @@ export const VehicleAssignmentView: React.FC = () => {
     }).length;
     const gpsStatus: 'Online' | 'Offline' = vehicle.gpsDeviceId ? 'Online' : 'Offline';
 
-<<<<<<< HEAD
-    const activeBranch = defaultBranch;
-=======
-    const activeBranch = (selectedBranch && selectedBranch !== 'All Branches' && selectedBranch !== 'All Campuses') ? selectedBranch : '';
->>>>>>> 2c7d0190f1106e317e9965ae947dc2f54d4d3f76
+    const activeBranch = (selectedBranch && selectedBranch !== 'All Branches' && selectedBranch !== 'All Campuses' && selectedBranch !== 'All') ? selectedBranch : defaultBranch;
     const activeAY = selectedAcademicYear || getCurrentAcademicYear();
 
     const payload: Omit<VehicleAssignment, 'id'> = {

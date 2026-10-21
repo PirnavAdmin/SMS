@@ -42,11 +42,8 @@ export const StudentTransportAssignmentView: React.FC = () => {
   const { addToast } = useToast();
 
   const [query, setQuery] = useState('');
-<<<<<<< HEAD
-  const activeAY = selectedAcademicYear || '2026-2027';
-=======
   const { selectedAcademicYear, selectedBranch } = useAuth();
->>>>>>> 2c7d0190f1106e317e9965ae947dc2f54d4d3f76
+  const activeAY = selectedAcademicYear || '';
   const [selectedClass, setSelectedClass] = useState('All');
   const [selectedSection, setSelectedSection] = useState('All');
   const [activeTab, setActiveTab] = useState<'current' | 'history'>('current');
@@ -74,13 +71,8 @@ export const StudentTransportAssignmentView: React.FC = () => {
           studentId: st.studentId || '',
           studentName: st.studentName || student?.name || 'Unknown Student',
           admissionNo: st.admissionNo || student?.admissionNo || '-',
-<<<<<<< HEAD
-          academicYear: (st as any).academicYear || '2026-2027',
-          branch: (st as any).branch || student?.branch || '',
-=======
           academicYear: (st as any).academicYear || selectedAcademicYear || '',
-          branch: (st as any).branch || selectedBranch || '',
->>>>>>> 2c7d0190f1106e317e9965ae947dc2f54d4d3f76
+          branch: (st as any).branch || (selectedBranch && selectedBranch !== 'All' && selectedBranch !== 'All Branches' ? selectedBranch : '') || student?.branch || '',
           routeName: st.routeName || '-',
           pickupPoint: st.pickupPoint || '-',
           vehicleNumber: st.vehicleNumber || '-',
@@ -238,13 +230,8 @@ export const StudentTransportAssignmentView: React.FC = () => {
       studentId: st.id,
       studentName: `${st.firstName} ${st.lastName}`,
       admissionNo: st.admissionNo,
-<<<<<<< HEAD
-      academicYear: activeAY,
-      branch: st.branch || '',
-=======
-      academicYear: selectedAcademicYear,
-      branch: st.branch || selectedBranch || '',
->>>>>>> 2c7d0190f1106e317e9965ae947dc2f54d4d3f76
+      academicYear: selectedAcademicYear || '',
+      branch: st.branch || (selectedBranch && selectedBranch !== 'All' && selectedBranch !== 'All Branches' ? selectedBranch : '') || '',
       routeName: rt.routeName,
       pickupPoint: pk.pickupName,
       vehicleNumber: autoVehicleNumber,

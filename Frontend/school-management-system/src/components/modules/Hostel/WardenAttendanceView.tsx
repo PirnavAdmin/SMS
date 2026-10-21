@@ -81,11 +81,7 @@ export const WardenAttendanceView: React.FC = () => {
       email: userEmail,
       designation: matchedStaff?.designation || 'Hostel Warden',
       department: matchedStaff?.department || 'Hostel Management',
-<<<<<<< HEAD
       branch: user?.branch || (matchedStaff as any)?.branch || '',
-=======
-      branch: user?.branch || '',
->>>>>>> 2c7d0190f1106e317e9965ae947dc2f54d4d3f76
       avatar: user?.avatar || 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=150&auto=format&fit=crop&q=80'
     };
   }, [user, staff]);

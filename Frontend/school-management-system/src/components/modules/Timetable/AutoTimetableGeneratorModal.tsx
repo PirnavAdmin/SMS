@@ -937,11 +937,7 @@ export const AutoTimetableGeneratorModal: React.FC<AutoTimetableGeneratorModalPr
       if (backendSlots.length > 0 && bulkAddTimetableSlots) {
         const mappedSlots = backendSlots.map((s, idx) => ({
           id: s.id ? `TT-${s.id}` : `TT-GEN-${Date.now()}-${idx}`,
-<<<<<<< HEAD
-          academicYear: academicYear || selectedAcademicYear || s.academicYear || '2026-2027',
-=======
           academicYear: academicYear || selectedAcademicYear || s.academicYear || '',
->>>>>>> 2c7d0190f1106e317e9965ae947dc2f54d4d3f76
           branch: selectedBranch || (rawClasses && rawClasses[0]?.campusLocation) || '',
           className: s.className || '',
           section: s.sectionName || s.section || 'A',

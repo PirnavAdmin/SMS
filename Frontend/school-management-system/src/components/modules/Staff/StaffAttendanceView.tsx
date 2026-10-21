@@ -2027,11 +2027,7 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
       if (!isTeachingStaff(s) || s.status === "Inactive") return false;
       if (selectedBranch && selectedBranch !== "All" && selectedBranch !== "All Branches" && selectedBranch !== "All Campuses") {
         const staffBranch = (s.branch || "").trim().toLowerCase();
-<<<<<<< HEAD
         if (staffBranch && staffBranch !== selectedBranch.trim().toLowerCase()) return false;
-=======
-        if (staffBranch !== selectedBranch.trim().toLowerCase()) return false;
->>>>>>> 2c7d0190f1106e317e9965ae947dc2f54d4d3f76
       }
       const deptMatch =
         teachingDept === "All" ||
@@ -2062,11 +2058,7 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
       phone: d.mobileNumber || '',
       status: d.status || 'Active',
       employeeCategory: 'Non-Teaching',
-<<<<<<< HEAD
-      branch: (d as any).branch || selectedBranch || ''
-=======
-      branch: (d as any).branch || ''
->>>>>>> 2c7d0190f1106e317e9965ae947dc2f54d4d3f76
+      branch: (d as any).branch || (selectedBranch && selectedBranch !== 'All' && selectedBranch !== 'All Branches' ? selectedBranch : '') || ''
     }));
 
     const combinedStaff = [...staff];
@@ -2086,11 +2078,7 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
       if (isTeachingStaff(s) || s.status === "Inactive") return false;
       if (selectedBranch && selectedBranch !== "All" && selectedBranch !== "All Branches" && selectedBranch !== "All Campuses") {
         const staffBranch = (s.branch || "").trim().toLowerCase();
-<<<<<<< HEAD
         if (staffBranch && staffBranch !== selectedBranch.trim().toLowerCase()) return false;
-=======
-        if (staffBranch !== selectedBranch.trim().toLowerCase()) return false;
->>>>>>> 2c7d0190f1106e317e9965ae947dc2f54d4d3f76
       }
       const deptMatch =
         nonTeachingDept === "All" ||

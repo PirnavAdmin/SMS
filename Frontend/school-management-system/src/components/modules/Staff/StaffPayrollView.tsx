@@ -425,11 +425,7 @@ export const StaffPayrollView: React.FC<StaffPayrollViewProps> = ({ initialTab, 
         id: item.id ? String(item.id) : ('SAL-STR-' + Math.floor(100 + Math.random() * 900)),
         structureName: item.structureName || item.name || 'Unnamed Structure',
         employeeCategory: item.employeeCategory || 'Teacher',
-<<<<<<< HEAD
         branch: item.branch || (item.branchId ? (data.branches?.find(b => String(b.id) === String(item.branchId))?.name || selectedBranch) : selectedBranch) || '',
-=======
-        branch: item.branch || selectedBranch || '',
->>>>>>> 2c7d0190f1106e317e9965ae947dc2f54d4d3f76
         earnings: item.earnings || [
           { name: 'Basic Salary', amount: item.basicSalary || 10000, type: 'Fixed', value: item.basicSalary || 10000 },
           { name: 'House Rent Allowance (HRA)', amount: Math.round((item.basicSalary || 10000) * 0.2), type: 'Percentage', value: 20 },
@@ -1062,11 +1058,7 @@ export const StaffPayrollView: React.FC<StaffPayrollViewProps> = ({ initialTab, 
                 <Input
                   value={editingConfigModal.payrollName}
                   onChange={e => setEditingConfigModal({ ...editingConfigModal, payrollName: e.target.value })}
-<<<<<<< HEAD
-                  placeholder="e.g. Monthly Staff Payroll"
-=======
                   placeholder="e.g. Monthly Payroll"
->>>>>>> 2c7d0190f1106e317e9965ae947dc2f54d4d3f76
                 />
               </Field>
               <div className="grid grid-cols-2 gap-3">
@@ -2834,11 +2826,7 @@ const AssignmentPanel = ({
           employeeName: `${employee.firstName} ${employee.lastName}`,
           empId: employee.empId,
           employeeCategory: employee.employeeCategory || 'Staff',
-<<<<<<< HEAD
           branch: employee.branch || structure.branch || '',
-=======
-          branch: employee.branch || '',
->>>>>>> 2c7d0190f1106e317e9965ae947dc2f54d4d3f76
           department: employee.department || 'General',
           salaryStructureId: structure.id,
           salaryStructureName: structure.structureName,

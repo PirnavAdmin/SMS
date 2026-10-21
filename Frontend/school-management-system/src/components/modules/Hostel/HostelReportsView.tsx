@@ -206,11 +206,7 @@ export const HostelReportsView: React.FC = () => {
           'Total Floors': (b as any).totalFloors || 1,
           'Warden Name': b.wardenName || 'Unassigned',
           'Primary Mobile': b.primaryMobileNumber || 'N/A',
-<<<<<<< HEAD
-          'Location': b.address || '-',
-=======
-          'Location': b.address || '',
->>>>>>> 2c7d0190f1106e317e9965ae947dc2f54d4d3f76
+      'Location': b.address || '-',
           'Status': b.status || 'Active'
         }));
       }
