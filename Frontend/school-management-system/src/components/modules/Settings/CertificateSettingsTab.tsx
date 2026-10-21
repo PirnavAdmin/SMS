@@ -679,7 +679,7 @@ export const CertificateSettingsTab: React.FC = () => {
             onClick={() => setActiveSubSection('types')}
             className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
               activeSubSection === 'types'
-                ? 'bg-white dark:bg-slate-900 text-sky-600 dark:text-sky-400 shadow-sm'
+                ? 'bg-sky-500 text-white shadow-sm'
                 : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
             }`}
           >
@@ -690,7 +690,7 @@ export const CertificateSettingsTab: React.FC = () => {
             onClick={() => setActiveSubSection('templates')}
             className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
               activeSubSection === 'templates'
-                ? 'bg-white dark:bg-slate-900 text-sky-600 dark:text-sky-400 shadow-sm'
+                ? 'bg-sky-500 text-white shadow-sm'
                 : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
             }`}
           >
@@ -701,7 +701,7 @@ export const CertificateSettingsTab: React.FC = () => {
             onClick={() => setActiveSubSection('numbering')}
             className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
               activeSubSection === 'numbering'
-                ? 'bg-white dark:bg-slate-900 text-sky-600 dark:text-sky-400 shadow-sm'
+                ? 'bg-sky-500 text-white shadow-sm'
                 : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
             }`}
           >
@@ -712,7 +712,7 @@ export const CertificateSettingsTab: React.FC = () => {
             onClick={() => setActiveSubSection('fields')}
             className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
               activeSubSection === 'fields'
-                ? 'bg-white dark:bg-slate-900 text-sky-600 dark:text-sky-400 shadow-sm'
+                ? 'bg-sky-500 text-white shadow-sm'
                 : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
             }`}
           >
@@ -723,7 +723,7 @@ export const CertificateSettingsTab: React.FC = () => {
             onClick={() => setActiveSubSection('signatures')}
             className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
               activeSubSection === 'signatures'
-                ? 'bg-white dark:bg-slate-900 text-sky-600 dark:text-sky-400 shadow-sm'
+                ? 'bg-sky-500 text-white shadow-sm'
                 : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
             }`}
           >
