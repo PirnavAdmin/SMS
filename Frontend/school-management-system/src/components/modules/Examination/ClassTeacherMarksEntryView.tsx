@@ -1497,10 +1497,7 @@ export const ClassTeacherMarksEntryView: React.FC<ClassTeacherMarksEntryViewProp
       {/* Control Bar: Exam, Class, Section, Mode & Stats */}
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-4">
         {/* Exam Selector */}
-        <div className="bg-white dark:bg-slate-900 border border-sky-100 dark:border-sky-900/40 p-4 rounded-2xl shadow-xs">
-          <label className="block text-[10px] font-black uppercase tracking-wider text-slate-400 mb-1.5">
-            Select Examination
-          </label>
+        <div className="bg-white dark:bg-slate-900 border border-sky-300 dark:border-sky-700 p-4 rounded-2xl shadow-xs hover:border-sky-400 transition-colors">
           <div className="relative">
             <select
               value={selectedExamId}
@@ -1528,10 +1525,7 @@ export const ClassTeacherMarksEntryView: React.FC<ClassTeacherMarksEntryViewProp
         </div>
 
         {/* Class Selector */}
-        <div className="bg-white dark:bg-slate-900 border border-sky-100 dark:border-sky-900/40 p-4 rounded-2xl shadow-xs">
-          <label className="block text-[10px] font-black uppercase tracking-wider text-slate-400 mb-1.5">
-            Class
-          </label>
+        <div className="bg-white dark:bg-slate-900 border border-sky-300 dark:border-sky-700 p-4 rounded-2xl shadow-xs hover:border-sky-400 transition-colors">
           <div className="relative">
             <select
               value={selectedClass}
@@ -1553,10 +1547,7 @@ export const ClassTeacherMarksEntryView: React.FC<ClassTeacherMarksEntryViewProp
         </div>
 
         {/* Section Selector */}
-        <div className="bg-white dark:bg-slate-900 border border-sky-100 dark:border-sky-900/40 p-4 rounded-2xl shadow-xs">
-          <label className="block text-[10px] font-black uppercase tracking-wider text-slate-400 mb-1.5">
-            Section
-          </label>
+        <div className="bg-white dark:bg-slate-900 border border-sky-300 dark:border-sky-700 p-4 rounded-2xl shadow-xs hover:border-sky-400 transition-colors">
           <div className="relative">
             <select
               value={selectedSection}
@@ -1575,10 +1566,9 @@ export const ClassTeacherMarksEntryView: React.FC<ClassTeacherMarksEntryViewProp
         </div>
 
         {/* Quick Summary Card */}
-        <div className="bg-white dark:bg-slate-900 border border-sky-100 dark:border-sky-900/40 p-4 rounded-2xl shadow-xs flex items-center justify-between">
+        <div className="bg-white dark:bg-slate-900 border border-sky-300 dark:border-sky-700 p-4 rounded-2xl shadow-xs flex items-center justify-between hover:border-sky-400 transition-colors">
           <div>
-            <p className="text-[10px] font-black uppercase tracking-wider text-slate-400">Class Progress</p>
-            <p className="text-xl font-black text-slate-900 dark:text-white mt-0.5">
+            <p className="text-xl font-black text-slate-900 dark:text-white">
               {classStats.completedStudents}/{classStats.totalStudents}
             </p>
             <p className="text-[10px] font-bold text-slate-400 mt-0.5">
@@ -1603,7 +1593,7 @@ export const ClassTeacherMarksEntryView: React.FC<ClassTeacherMarksEntryViewProp
       </div>
 
       {/* Mode Selector & Search */}
-      <div className="flex flex-col sm:flex-row items-start justify-between gap-4 bg-white dark:bg-slate-900 border border-sky-100 dark:border-sky-900/40 p-3 rounded-2xl shadow-xs">
+      <div className="flex flex-col sm:flex-row items-start justify-between gap-4 bg-white dark:bg-slate-900 border border-sky-300 dark:border-sky-700 p-3 rounded-2xl shadow-xs">
         <div className="flex items-center gap-2 shrink-0">
           <button
             type="button"
