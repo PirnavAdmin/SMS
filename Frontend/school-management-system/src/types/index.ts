@@ -255,6 +255,7 @@ export interface Student {
   status: StudentStatus;
   avatar: string;
   joiningDate: string;
+  admissionDate?: string;
 
   // Global Multi-branch & Facility Allocation
   branch?: string; // Branch / Campus identifier or name

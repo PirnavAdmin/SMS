@@ -42,7 +42,7 @@ import {
   saveStaffLetterRecord,
   syncStaffLettersWithStaffList,
 } from "../utils/staffLetterTemplates";
-import { parseAcademicYearRange } from "../utils/dateValidation";
+import { parseAcademicYearRange, validateStudentAge } from "../utils/dateValidation";
 import {
   Student,
   AcademicHistoryRecord,
@@ -533,6 +533,7 @@ export interface AcademicClass {
   status?: string;
   campusLocation?: string;
   branch?: string;
+  minimumAge?: number;
 }
 
 const initialClasses: AcademicClass[] = [];
@@ -6522,6 +6523,18 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     stData: Omit<Student, "id">,
     skipApiCall = false,
   ): Student => {
+    if (!skipApiCall && stData.dob) {
+      const ageRes = validateStudentAge({
+        dateOfBirth: stData.dob,
+        dateOfAdmission: (stData as any).joiningDate || stData.admissionDate || new Date().toISOString().split("T")[0],
+        className: stData.className,
+        academicClasses,
+      });
+      if (!ageRes.isValid) {
+        throw new Error(ageRes.message || "Age eligibility check failed.");
+      }
+    }
+
     const id = (stData as any).id || generateNextStudentId(students);
     const admissionNo = stData.admissionNo || generateNextAdmissionNo(students);
     const newStudent: Student = {
@@ -6629,6 +6642,32 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     const numericId = parseInt(id, 10);
 
     const targetClassName = updates.className || oldStudent?.className || "";
+    if (
+      updates.dob !== undefined ||
+      (updates as any).joiningDate !== undefined ||
+      updates.admissionDate !== undefined ||
+      updates.className !== undefined
+    ) {
+      const targetDob = updates.dob ?? oldStudent?.dob;
+      const targetAdmissionDate =
+        (updates as any).joiningDate ||
+        updates.admissionDate ||
+        (oldStudent as any)?.joiningDate ||
+        oldStudent?.admissionDate ||
+        new Date().toISOString().split("T")[0];
+      if (targetDob) {
+        const ageRes = validateStudentAge({
+          dateOfBirth: targetDob,
+          dateOfAdmission: targetAdmissionDate,
+          className: targetClassName,
+          academicClasses,
+        });
+        if (!ageRes.isValid) {
+          throw new Error(ageRes.message || "Age eligibility check failed.");
+        }
+      }
+    }
+
     const matchedClass = academicClasses.find(
       (c) =>
         c.name?.toLowerCase().trim() === targetClassName.toLowerCase().trim() ||
@@ -7918,6 +7957,22 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     if (signature.length > 5) inFlightAdmissionSubmissions.add(signature);
 
     try {
+      if (appData.dob) {
+        const ageRes = validateStudentAge({
+          dateOfBirth: appData.dob,
+          dateOfAdmission:
+            (appData as any).admissionDate ||
+            (appData as any).joiningDate ||
+            new Date().toISOString().split("T")[0],
+          className: appData.appliedClass,
+          academicClasses,
+        });
+        if (!ageRes.isValid) {
+          inFlightAdmissionSubmissions.delete(signature);
+          throw new Error(ageRes.message || "Age eligibility check failed.");
+        }
+      }
+
       let isoDob = new Date().toISOString();
       if (appData.dob) {
         if ((appData.dob as any) instanceof Date) {
@@ -8166,6 +8221,30 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       const existing = admissions.find((a) => a.id === id);
       if (!existing) return;
       const appData = { ...existing, ...updates };
+
+      if (
+        updates.dob !== undefined ||
+        (updates as any).admissionDate !== undefined ||
+        (updates as any).joiningDate !== undefined ||
+        updates.appliedClass !== undefined
+      ) {
+        if (appData.dob) {
+          const ageRes = validateStudentAge({
+            dateOfBirth: appData.dob,
+            dateOfAdmission:
+              (appData as any).admissionDate ||
+              (appData as any).joiningDate ||
+              (existing as any).admissionDate ||
+              (existing as any).joiningDate ||
+              new Date().toISOString().split("T")[0],
+            className: appData.appliedClass,
+            academicClasses,
+          });
+          if (!ageRes.isValid) {
+            throw new Error(ageRes.message || "Age eligibility check failed.");
+          }
+        }
+      }
 
       let isoDob = new Date().toISOString();
       if (appData.dob) {

@@ -1139,6 +1139,24 @@ public class SchoolService : ISchoolService
 				targetClassId = allClasses.First().ClassId;
 		}
 
+		DateTime? parsedDob = null;
+		if (DateTime.TryParse(dto.DateOfBirth, out var pd)) parsedDob = pd;
+
+		DateTime? parsedAdmDate = null;
+		if (!string.IsNullOrWhiteSpace(dto.AdmissionDate) && DateTime.TryParse(dto.AdmissionDate, out var pad))
+		{
+			parsedAdmDate = pad;
+		}
+
+		string? effectiveClassName = dto.AppliedClass;
+		if (string.IsNullOrWhiteSpace(effectiveClassName) && targetClassId > 0)
+		{
+			var cGrade = await _context.Classes.FindAsync(targetClassId);
+			effectiveClassName = cGrade?.ClassName;
+		}
+
+		ValidateStudentAgeAndAdmissionDate(parsedDob, parsedAdmDate, effectiveClassName);
+
 		// Prevent rapid duplicate submission within same student, parent contact and class
 		if (!string.IsNullOrWhiteSpace(dto.FirstName) && !string.IsNullOrWhiteSpace(dto.FatherContact))
 		{
@@ -1253,7 +1271,7 @@ public class SchoolService : ISchoolService
 			Status = !string.IsNullOrWhiteSpace(dto.Status) ? dto.Status.Trim() : "Pending"
 		};
 
-		if (DateTime.TryParse(dto.DateOfBirth, out var parsedDob)) app.DateOfBirth = parsedDob;
+		if (parsedDob.HasValue) app.DateOfBirth = parsedDob.Value;
 
 		if ((string.Equals(app.Status, "Enrolled", StringComparison.OrdinalIgnoreCase) ||
 		     string.Equals(app.Status, "Admitted", StringComparison.OrdinalIgnoreCase)) &&
@@ -1301,6 +1319,30 @@ public class SchoolService : ISchoolService
 			}
 		}
 		if (targetClassId > 0) app.AppliedClassId = targetClassId;
+
+		DateTime? parsedDob = null;
+		if (DateTime.TryParse(dto.DateOfBirth, out var pd)) parsedDob = pd;
+		else parsedDob = app.DateOfBirth;
+
+		DateTime? parsedAdmDate = null;
+		if (!string.IsNullOrWhiteSpace(dto.AdmissionDate) && DateTime.TryParse(dto.AdmissionDate, out var pad))
+		{
+			parsedAdmDate = pad;
+		}
+		else
+		{
+			parsedAdmDate = app.CreatedAt;
+		}
+
+		string? effectiveClassName = dto.AppliedClass;
+		if (string.IsNullOrWhiteSpace(effectiveClassName) && (targetClassId > 0 || app.AppliedClassId.HasValue))
+		{
+			int cId = targetClassId > 0 ? targetClassId : app.AppliedClassId!.Value;
+			var cGrade = await _context.Classes.FindAsync(cId);
+			effectiveClassName = cGrade?.ClassName;
+		}
+
+		ValidateStudentAgeAndAdmissionDate(parsedDob, parsedAdmDate, effectiveClassName);
 		if (!string.IsNullOrWhiteSpace(dto.BranchName))
 		{
 			app.BranchName = dto.BranchName;
@@ -1337,7 +1379,7 @@ public class SchoolService : ISchoolService
 		app.Scholarship = dto.Scholarship;
 		app.Discount = dto.Discount;
 
-		if (DateTime.TryParse(dto.DateOfBirth, out var parsedDob)) app.DateOfBirth = parsedDob;
+		if (parsedDob.HasValue) app.DateOfBirth = parsedDob.Value;
 
 		await _schoolRepository.SaveChangesAsync();
 		await SyncToAdmissionsTableAsync(app);
@@ -2496,6 +2538,15 @@ public class SchoolService : ISchoolService
 			dto.ClassId,
 			dto.SectionId);
 
+		string? effectiveClassName = null;
+		if (dto.ClassId > 0)
+		{
+			var cGrade = await _context.Classes.FindAsync(dto.ClassId);
+			effectiveClassName = cGrade?.ClassName;
+		}
+
+		ValidateStudentAgeAndAdmissionDate(dto.DateOfBirth, dto.AdmissionDate, effectiveClassName);
+
 		var admissionNumber = dto.AdmissionNumber?.Trim() ?? string.Empty;
 		if (string.IsNullOrWhiteSpace(admissionNumber))
 		{
@@ -2576,6 +2627,15 @@ public class SchoolService : ISchoolService
 			dto.AcademicYearId,
 			dto.ClassId,
 			dto.SectionId);
+
+		string? effectiveClassName = null;
+		if (dto.ClassId > 0)
+		{
+			var cGrade = await _context.Classes.FindAsync(dto.ClassId);
+			effectiveClassName = cGrade?.ClassName;
+		}
+
+		ValidateStudentAgeAndAdmissionDate(dto.DateOfBirth, dto.AdmissionDate ?? student.CreatedAt, effectiveClassName);
 
 		var admissionNumber = dto.AdmissionNumber.Trim();
 		var rollNumber = dto.RollNumber.Trim();
@@ -2711,4 +2771,59 @@ public class SchoolService : ISchoolService
 
 	private static string? Clean(string? value)
 		=> string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+
+	private void ValidateStudentAgeAndAdmissionDate(DateTime? dob, DateTime? admissionDate, string? className)
+	{
+		if (!dob.HasValue) return;
+
+		var effectiveAdmissionDate = admissionDate ?? DateTime.UtcNow.Date;
+		var dobDate = dob.Value.Date;
+		var admDate = effectiveAdmissionDate.Date;
+
+		if (admDate < dobDate)
+		{
+			throw new InvalidOperationException("Date of Admission cannot be earlier than Date of Birth.");
+		}
+
+		if (string.IsNullOrWhiteSpace(className)) return;
+
+		int minAge = GetMinimumAgeForClass(className);
+		if (minAge <= 0) return;
+
+		// Calculate exact completed age at admission date
+		int age = admDate.Year - dobDate.Year;
+		if (admDate.Month < dobDate.Month || (admDate.Month == dobDate.Month && admDate.Day < dobDate.Day))
+		{
+			age--;
+		}
+
+		if (age < minAge)
+		{
+			throw new InvalidOperationException("Student does not meet the minimum age requirement for the selected class.");
+		}
+	}
+
+	private static int GetMinimumAgeForClass(string className)
+	{
+		var lower = (className ?? "").Trim().ToLowerInvariant();
+		if (string.IsNullOrWhiteSpace(lower)) return 0;
+
+		if (lower.Contains("nursery") || lower.Contains("playgroup") || lower.Contains("play"))
+			return 3;
+		if (lower.Contains("lkg") || lower.Contains("pp1") || lower.Contains("pp-1") || lower.Contains("pre-kg"))
+			return 4;
+		if (lower.Contains("ukg") || lower.Contains("pp2") || lower.Contains("pp-2") || lower.Contains("kg"))
+			return 5;
+
+		var match = System.Text.RegularExpressions.Regex.Match(lower, @"\d+");
+		if (match.Success && int.TryParse(match.Value, out int grade))
+		{
+			if (grade >= 1 && grade <= 12)
+			{
+				return grade + 5;
+			}
+		}
+
+		return 0;
+	}
 }

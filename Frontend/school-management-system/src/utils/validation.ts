@@ -63,6 +63,48 @@ export function sanitizePhoneInput(input: string, maxDigits: number = 10): strin
 }
 
 
+const INVALID_DUMMY_DOMAINS = new Set([
+  // Dummy / test / example / placeholder domains
+  'gg.com', 'aa.com', 'bb.com', 'cc.com', 'dd.com', 'ee.com', 'ff.com', 'hh.com',
+  'ii.com', 'jj.com', 'kk.com', 'll.com', 'mm.com', 'nn.com', 'oo.com', 'pp.com',
+  'qq.com', 'rr.com', 'ss.com', 'tt.com', 'uu.com', 'vv.com', 'ww.com', 'xx.com',
+  'yy.com', 'zz.com',
+  'test.com', 'test.in', 'test.org', 'test.net', 'test.co', 'testing.com',
+  'example.com', 'example.org', 'example.net', 'example.edu', 'example.in',
+  'sample.com', 'sample.org', 'sample.net', 'sample.in',
+  'dummy.com', 'dummy.org', 'dummy.net', 'dummy.in',
+  'fake.com', 'fake.org', 'fake.net', 'fake.in',
+  'temp.com', 'temp.org', 'temp.net',
+  'demo.com', 'demo.org', 'demo.net',
+  'placeholder.com', 'notreal.com', 'noemail.com', 'invalid.com', 'none.com', 'null.com',
+  'domain.com', 'xyz.com', 'xyz.in', '123.com', '1234.com', 'abc.com', 'abcd.com',
+  'asdf.com', 'qwerty.com', 'dfdf.com',
+  // Disposable / temporary mail services
+  'mailinator.com', 'yopmail.com', 'tempmail.com', 'temp-mail.org', 'guerrillamail.com',
+  'throwawaymail.com', 'sharklasers.com', 'dispostable.com', '10minutemail.com',
+  'trashmail.com', 'getairmail.com', 'mohmal.com', 'mytemp.email', 'fakemailgenerator.com',
+  'burnermail.io', 'inboxkitten.com', 'generator.email', 'crazymailing.com', 'dropmail.me',
+  'armyspy.com', 'cuvox.de', 'dayrep.com', 'einrot.com', 'fleckens.hu', 'gustr.com',
+  'jourrapide.com', 'rhyta.com', 'superrito.com', 'teleworm.us', 'maildrop.cc'
+]);
+
+const DUMMY_DOMAIN_LABELS = new Set([
+  'example', 'test', 'testing', 'sample', 'dummy', 'fake', 'temp', 'temporary',
+  'demo', 'placeholder', 'notreal', 'noemail', 'invalid', 'none', 'null',
+  'domain', 'mailinator', 'yopmail', 'tempmail', 'guerrillamail', 'trashmail',
+  'throwawaymail', 'dispostable', 'sharklasers', '10minutemail', 'inboxkitten',
+  'fakemail', 'burnermail', 'xyz', '123', '1234', 'abcd'
+]);
+
+const LEGIT_CONSONANT_DOMAINS = new Set(['fb', 'bbc', 'cnn', 'nbc', 'msn', 'tvc', 'pr', 'cr']);
+
+const TWO_LEVEL_CCTLDS = new Set([
+  'co', 'com', 'edu', 'ac', 'gov', 'org', 'net', 'res', 'mil', 'gen', 'nom', 'ind', 'sch'
+]);
+
+const DOMAIN_KEYBOARD_MASH_REGEX =
+  /(qwerty|wertyu|ertyui|rtyuio|tyuiop|asdfgh|sdfghj|dfghjk|fghjkl|zxcvbn|xcvbnm|poiuyt|lkjhgf|mnbvcx|asdf|fdsa|zxcv|vcxz|qwer|rewq|dfdf|fdfd|hjkl|ghjk|jklm|sdsd|jkjk)/i;
+
 /**
  * Validates an email address and its domain format.
  */
@@ -90,47 +132,39 @@ export function validateEmail(email: string, required: boolean = false): { isVal
 
   const [localPart, domain] = parts;
 
-  // Local part formatting checks
-  if (!localPart || localPart.startsWith('.') || localPart.endsWith('.') || localPart.includes('..')) {
-    return { isValid: false, error: 'Enter a valid email address.' };
-  }
-
-  if (!/^[a-zA-Z0-9._%+-]+$/.test(localPart)) {
-    return { isValid: false, error: 'Enter a valid email address.' };
-  }
-
-  // Reject random gibberish / keyboard mashing in localPart (e.g. "vadgvgjhasgdvhshj")
-  if (
-    /([a-zA-Z])\1{3,}/i.test(localPart) ||
-    /([a-zA-Z]{2,3})\1{2,}/i.test(localPart) ||
-    /[bcdfghjklmnpqrstvwxz]{6,}/i.test(localPart) ||
-    /(qwerty|wertyu|ertyui|rtyuio|tyuiop|asdfgh|sdfghj|dfghjk|fghjkl|zxcvbn|xcvbnm)/i.test(localPart)
-  ) {
-    return { isValid: false, error: 'Enter a valid email address.' };
-  }
-
   // 3. Domain formatting checks: consecutive dots or leading/trailing dots or hyphens
   if (!domain || domain.includes('..') || domain.startsWith('.') || domain.endsWith('.')) {
-    return { isValid: false, error: 'Enter a valid email address.' };
+    return { isValid: false, error: 'Please enter a valid email domain.' };
   }
 
   const domainParts = domain.split('.');
   if (domainParts.length < 2) {
-    return { isValid: false, error: 'Enter a valid email address.' };
+    return { isValid: false, error: 'Please enter a valid email domain.' };
   }
 
   // Each domain segment must be valid hostname label
   for (const seg of domainParts) {
     if (!seg || seg.startsWith('-') || seg.endsWith('-') || !/^[a-zA-Z0-9-]+$/.test(seg)) {
-      return { isValid: false, error: 'Enter a valid email address.' };
+      return { isValid: false, error: 'Please enter a valid email domain.' };
     }
   }
+
+  // Extract TLD, compound ccTLD detection, and main domain label
+  const tld = domainParts[domainParts.length - 1];
+  const secondLevel = domainParts[domainParts.length - 2];
+  const isCompoundTld = domainParts.length >= 3 && TWO_LEVEL_CCTLDS.has(secondLevel) && tld.length === 2;
+  const mainDomainLabel = isCompoundTld
+    ? domainParts[domainParts.length - 3]
+    : domainParts[domainParts.length - 2];
+  const rootDomain = isCompoundTld
+    ? domainParts.slice(-3).join('.')
+    : domainParts.slice(-2).join('.');
 
   // 4. Well-known email provider strict domain validation
   // Gmail domain validation
   if (domain === 'gmail' || domain.startsWith('gmail.')) {
     if (domain !== 'gmail.com' && domain !== 'gmail.co.in' && domain !== 'googlemail.com') {
-      return { isValid: false, error: 'Enter a valid email address.' };
+      return { isValid: false, error: 'Please enter a valid email domain.' };
     }
   }
 
@@ -138,39 +172,39 @@ export function validateEmail(email: string, required: boolean = false): { isVal
   if (domain === 'yahoo' || domain.startsWith('yahoo.')) {
     const validYahoo = ['yahoo.com', 'yahoo.co.in', 'yahoo.co.uk', 'yahoo.ca', 'yahoo.fr', 'yahoo.in'];
     if (!validYahoo.includes(domain)) {
-      return { isValid: false, error: 'Enter a valid email address.' };
+      return { isValid: false, error: 'Please enter a valid email domain.' };
     }
   }
 
   // Hotmail / Outlook / Live / iCloud domain validation
   if (domain === 'hotmail' || domain.startsWith('hotmail.')) {
     if (domain !== 'hotmail.com' && domain !== 'hotmail.co.uk' && domain !== 'hotmail.fr' && domain !== 'hotmail.es') {
-      return { isValid: false, error: 'Enter a valid email address.' };
+      return { isValid: false, error: 'Please enter a valid email domain.' };
     }
   }
   if (domain === 'outlook' || domain.startsWith('outlook.')) {
     if (domain !== 'outlook.com' && domain !== 'outlook.co.uk' && domain !== 'outlook.in') {
-      return { isValid: false, error: 'Enter a valid email address.' };
+      return { isValid: false, error: 'Please enter a valid email domain.' };
     }
   }
   if (domain === 'icloud' || domain.startsWith('icloud.')) {
     if (domain !== 'icloud.com') {
-      return { isValid: false, error: 'Enter a valid email address.' };
+      return { isValid: false, error: 'Please enter a valid email domain.' };
     }
   }
 
   // Common provider & domain typos
   const typoDomains: Record<string, string> = {
-    'gmai.com': 'Enter a valid email address.',
-    'gmal.com': 'Enter a valid email address.',
-    'gamil.com': 'Enter a valid email address.',
-    'gmial.com': 'Enter a valid email address.',
-    'yaho.com': 'Enter a valid email address.',
-    'yahooo.com': 'Enter a valid email address.',
-    'hotmial.com': 'Enter a valid email address.',
-    'hotmaill.com': 'Enter a valid email address.',
-    'outlok.com': 'Enter a valid email address.',
-    'outllok.com': 'Enter a valid email address.'
+    'gmai.com': 'Please enter a valid email domain.',
+    'gmal.com': 'Please enter a valid email domain.',
+    'gamil.com': 'Please enter a valid email domain.',
+    'gmial.com': 'Please enter a valid email domain.',
+    'yaho.com': 'Please enter a valid email domain.',
+    'yahooo.com': 'Please enter a valid email domain.',
+    'hotmial.com': 'Please enter a valid email domain.',
+    'hotmaill.com': 'Please enter a valid email domain.',
+    'outlok.com': 'Please enter a valid email domain.',
+    'outllok.com': 'Please enter a valid email domain.'
   };
 
   if (typoDomains[domain]) {
@@ -178,36 +212,35 @@ export function validateEmail(email: string, required: boolean = false): { isVal
   }
 
   // 5. TLD validation
-  const tld = domainParts[domainParts.length - 1];
   if (!tld || tld.length < 2 || !/^[a-zA-Z]+$/.test(tld)) {
-    return { isValid: false, error: 'Enter a valid email address.' };
+    return { isValid: false, error: 'Please enter a valid email domain.' };
   }
 
   // Disallow any character repeated 3 or more times anywhere in TLD (e.g. "commmm", "orggg", "innn")
   if (/(.)\1{2,}/.test(tld)) {
-    return { isValid: false, error: 'Enter a valid email address.' };
+    return { isValid: false, error: 'Please enter a valid email domain.' };
   }
 
   // Disallow repetitive dummy TLDs like "innnnnn", "aaaaaa"
   if (/^(.)\1+$/.test(tld)) {
-    return { isValid: false, error: 'Enter a valid email address.' };
+    return { isValid: false, error: 'Please enter a valid email domain.' };
   }
 
   // Disallow typos/variations of standard TLDs:
   if (/^co+m+$/.test(tld) && tld !== 'com') {
-    return { isValid: false, error: 'Enter a valid email address.' };
+    return { isValid: false, error: 'Please enter a valid email domain.' };
   }
   if (/^or+g+$/.test(tld) && tld !== 'org') {
-    return { isValid: false, error: 'Enter a valid email address.' };
+    return { isValid: false, error: 'Please enter a valid email domain.' };
   }
   if (/^ne+t+$/.test(tld) && tld !== 'net') {
-    return { isValid: false, error: 'Enter a valid email address.' };
+    return { isValid: false, error: 'Please enter a valid email domain.' };
   }
   if (/^ed+u+$/.test(tld) && tld !== 'edu') {
-    return { isValid: false, error: 'Enter a valid email address.' };
+    return { isValid: false, error: 'Please enter a valid email domain.' };
   }
   if (/^go+v+$/.test(tld) && tld !== 'gov') {
-    return { isValid: false, error: 'Enter a valid email address.' };
+    return { isValid: false, error: 'Please enter a valid email domain.' };
   }
 
   const typoTLDs = new Set([
@@ -215,7 +248,7 @@ export function validateEmail(email: string, required: boolean = false): { isVal
     'edus', 'eduu', 'eduuu', 'orgg', 'orggg', 'nett', 'nettt', 'gmai', 'innd'
   ]);
   if (typoTLDs.has(tld)) {
-    return { isValid: false, error: 'Enter a valid email address.' };
+    return { isValid: false, error: 'Please enter a valid email domain.' };
   }
 
   // List of recognized valid standard ICANN gTLDs and ccTLDs
@@ -237,6 +270,77 @@ export function validateEmail(email: string, required: boolean = false): { isVal
   ]);
 
   if (!VALID_TLDS.has(tld)) {
+    return { isValid: false, error: 'Please enter a valid email domain.' };
+  }
+
+  // 6. Potentially invalid / dummy / placeholder / disposable domain validation
+  if (INVALID_DUMMY_DOMAINS.has(domain) || INVALID_DUMMY_DOMAINS.has(rootDomain)) {
+    return { isValid: false, error: 'Please enter a valid email domain.' };
+  }
+
+  if (DUMMY_DOMAIN_LABELS.has(mainDomainLabel)) {
+    return { isValid: false, error: 'Please enter a valid email domain.' };
+  }
+
+  // Check all non-TLD segments for dummy keywords or single repeated characters
+  const nonTldParts = domainParts.slice(0, -(isCompoundTld ? 2 : 1));
+  for (const seg of nonTldParts) {
+    if (DUMMY_DOMAIN_LABELS.has(seg)) {
+      return { isValid: false, error: 'Please enter a valid email domain.' };
+    }
+    if (/^([a-zA-Z0-9])\1+$/i.test(seg) && seg.length >= 2) {
+      return { isValid: false, error: 'Please enter a valid email domain.' };
+    }
+  }
+
+  // Single-character domain label before TLD is invalid (e.g. "a.com")
+  if (mainDomainLabel.length < 2 && mainDomainLabel !== 'x') {
+    return { isValid: false, error: 'Please enter a valid email domain.' };
+  }
+
+  // Single character repeated throughout mainDomainLabel (e.g. "gg", "aa", "bb", "xxx", "zzz")
+  if (/^([a-zA-Z0-9])\1+$/i.test(mainDomainLabel)) {
+    return { isValid: false, error: 'Please enter a valid email domain.' };
+  }
+
+  // 2-3 char repeating patterns (e.g. "dfdf", "fdfd", "abab", "qwqw")
+  if (/^([a-zA-Z0-9]{2,3})\1+$/i.test(mainDomainLabel)) {
+    return { isValid: false, error: 'Please enter a valid email domain.' };
+  }
+
+  // Keyboard mashing in domain label
+  if (DOMAIN_KEYBOARD_MASH_REGEX.test(mainDomainLabel)) {
+    return { isValid: false, error: 'Please enter a valid email domain.' };
+  }
+
+  // Domains with no vowels (consonant-only domains, e.g. "dfdf", "bcdf", "ghjk", "qwert")
+  if (
+    mainDomainLabel.length >= 2 &&
+    !/[0-9]/.test(mainDomainLabel) &&
+    !/[aeiouy]/i.test(mainDomainLabel) &&
+    !LEGIT_CONSONANT_DOMAINS.has(mainDomainLabel)
+  ) {
+    return { isValid: false, error: 'Please enter a valid email domain.' };
+  }
+
+  // 7. Local part formatting and gibberish checks
+  if (!localPart || localPart.startsWith('.') || localPart.endsWith('.') || localPart.includes('..')) {
+    return { isValid: false, error: 'Enter a valid email address.' };
+  }
+
+  if (!/^[a-zA-Z0-9._%+-]+$/.test(localPart)) {
+    return { isValid: false, error: 'Enter a valid email address.' };
+  }
+
+  // Reject random gibberish / keyboard mashing in localPart (e.g. "vadgvgjhasgdvhshj", "dfdf")
+  if (
+    /([a-zA-Z])\1{3,}/i.test(localPart) ||
+    /([a-zA-Z]{2,3})\1{2,}/i.test(localPart) ||
+    (/^([a-zA-Z]{2})\1+$/i.test(localPart) && !/[aeiouy]/i.test(localPart)) ||
+    (!/[aeiouy0-9]/i.test(localPart) && localPart.length >= 4) ||
+    /[bcdfghjklmnpqrstvwxz]{6,}/i.test(localPart) ||
+    /(qwerty|wertyu|ertyui|rtyuio|tyuiop|asdfgh|sdfghj|dfghjk|fghjkl|zxcvbn|xcvbnm|poiuyt|lkjhgf|mnbvcx|asdf|fdsa|zxcv|vcxz)/i.test(localPart)
+  ) {
     return { isValid: false, error: 'Enter a valid email address.' };
   }
 
