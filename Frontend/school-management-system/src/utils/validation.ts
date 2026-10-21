@@ -1,3 +1,5 @@
+import { parseDateOnly, compareDates, formatDateForDisplay } from './dateValidation';
+
 export const BLOOD_GROUPS = ['A+', 'A-', 'B+', 'B-', 'O+', 'O-', 'AB+', 'AB-'] as const;
 export const CASTE_CATEGORIES = ['General', 'OBC', 'SC', 'ST', 'EWS', 'Others'] as const;
 export const BRANCHES: readonly string[] = [];
@@ -899,7 +901,16 @@ function setGlobalInputError(input: HTMLInputElement | HTMLTextAreaElement, erro
     return false;
   })();
 
-  const shouldAbsolute = isIconWrapper || isSearch || isInsideHorizontalLayout;
+  // Form field check: if inside a form, grid, has a label or full width, always use normal block flow
+  const isFormField = Boolean(
+    container.closest('form') ||
+    container.closest('.grid') ||
+    targetParent.querySelector('label') ||
+    container.classList.contains('w-full') ||
+    input.classList.contains('w-full')
+  );
+
+  const shouldAbsolute = isSearch && !isFormField;
 
   const directSibling = (isIconWrapper ? container.nextElementSibling : input.nextElementSibling) as HTMLElement | null;
   let errEl = (container.querySelector(':scope > [data-global-validation-error="true"]') ||
@@ -965,7 +976,8 @@ function setGlobalInputError(input: HTMLInputElement | HTMLTextAreaElement, erro
       anchor.appendChild(errEl);
     }
   } else {
-    errEl.style.position = '';
+    errEl.style.position = 'static';
+    errEl.style.display = 'block';
     errEl.style.left = '';
     errEl.style.top = '';
     errEl.style.zIndex = '';
@@ -977,8 +989,9 @@ function setGlobalInputError(input: HTMLInputElement | HTMLTextAreaElement, erro
     errEl.style.marginTop = '4px';
     errEl.style.lineHeight = '1.2';
 
-    if (errEl.previousElementSibling !== input) {
-      input.insertAdjacentElement('afterend', errEl);
+    const insertTarget = isIconWrapper ? container : input;
+    if (insertTarget.nextElementSibling !== errEl) {
+      insertTarget.insertAdjacentElement('afterend', errEl);
     }
   }
   errEl.textContent = error;
@@ -1007,6 +1020,58 @@ export function validateInputElement(
     if (enforceRequired && input.required) {
       const cap = label.charAt(0).toUpperCase() + label.slice(1);
       return { isValid: false, error: `${cap} is required.` };
+    }
+    return { isValid: true };
+  }
+
+  const isDateField =
+    input.hasAttribute('data-date-input') ||
+    Boolean(input.closest('[data-date-input]')) ||
+    Boolean(input.parentElement?.querySelector('input[type="date"]')) ||
+    label.includes('date') ||
+    label.includes('dob') ||
+    (input.placeholder || '').toLowerCase().includes('dd-mm') ||
+    (input.placeholder || '').toLowerCase().includes('yyyy');
+
+  if (isDateField) {
+    const trimmedDate = val.trim();
+    if (trimmedDate.length >= 8) {
+      const parsed = parseDateOnly(trimmedDate);
+      if (!parsed) {
+        return { isValid: false, error: `Enter a valid ${label || 'date'} (DD-MM-YYYY).` };
+      }
+      const maxAttr = input instanceof HTMLInputElement ? input.max : undefined;
+      if (maxAttr) {
+        const maxParsed = parseDateOnly(maxAttr);
+        if (maxParsed && compareDates(parsed, maxParsed) > 0) {
+          return { isValid: false, error: `Date cannot be after ${formatDateForDisplay(maxAttr)}.` };
+        }
+      }
+      const minAttr = input instanceof HTMLInputElement ? input.min : undefined;
+      if (minAttr) {
+        const minParsed = parseDateOnly(minAttr);
+        if (minParsed && compareDates(parsed, minParsed) < 0) {
+          return { isValid: false, error: `Date cannot be before ${formatDateForDisplay(minAttr)}.` };
+        }
+      }
+    } else if (enforceRequired) {
+      return { isValid: false, error: `Enter a valid ${label || 'date'} (DD-MM-YYYY).` };
+    }
+    return { isValid: true };
+  }
+
+  const isTimeField =
+    label.includes('time') ||
+    (input.placeholder || '').toLowerCase().includes('time') ||
+    (input.placeholder || '').toLowerCase().includes('10:00') ||
+    (input.placeholder || '').toLowerCase().includes('am') ||
+    (input.placeholder || '').toLowerCase().includes('pm');
+
+  if (isTimeField) {
+    const trimmedTime = val.trim();
+    const timePattern = /^([0-1]?[0-9]|2[0-3])(:[0-5][0-9])?(\s*(am|pm))?$/i;
+    if (!timePattern.test(trimmedTime)) {
+      return { isValid: false, error: 'Enter a valid time (e.g. 10:00 AM).' };
     }
     return { isValid: true };
   }
@@ -1066,11 +1131,17 @@ export function validateInputElement(
   }
 
   const isCircularHeadlineField =
+    !isDateField &&
+    !isTimeField &&
+    !label.includes('channel') &&
+    !label.includes('audience') &&
+    !label.includes('category') &&
+    (
     label.includes('headline') ||
     label.includes('circular') ||
     label.includes('broadcast') ||
     label.includes('announcement') ||
-    label.includes('notice');
+    label.includes('notice'));
 
   if (isCircularHeadlineField) {
     return validateCircularHeadline(val, {
@@ -1081,6 +1152,9 @@ export function validateInputElement(
   }
 
   const isStrictNameField =
+    !isDateField &&
+    !isTimeField &&
+    (
     label.includes('name') ||
     label.includes('title') ||
     label.includes('designation') ||
@@ -1099,7 +1173,7 @@ export function validateInputElement(
     label.includes('college') ||
     label.includes('university') ||
     label.includes('company') ||
-    label.includes('employer');
+    label.includes('employer'));
 
   if (isStrictNameField) {
     const isPersonalName =

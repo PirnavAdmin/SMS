@@ -95,11 +95,12 @@ export const DateInput: React.FC<DateInputProps> = ({
   const isoValue = formatToISO(value) || '';
 
   return (
-    <div className="relative inline-flex items-center w-full">
+    <div className="relative inline-flex items-center w-full" data-date-input="true">
       <input
         type="text"
         id={id}
         name={name}
+        data-date-input="true"
         value={textValue}
         onChange={handleTextChange}
         onBlur={handleTextBlur}

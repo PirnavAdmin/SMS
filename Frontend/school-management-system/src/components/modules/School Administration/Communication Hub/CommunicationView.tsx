@@ -11,6 +11,7 @@ import { MeetingsView } from './MeetingsView';
 import { WardenCommunicationHubView } from './WardenCommunicationHubView';
 import { fetchNotificationsApi, createNotificationApi, updateNotificationApi, deleteNotificationApi } from '../../../../api/communication';
 import { DateInput } from '../../../common/DateInput';
+import { TimeInput } from '../../../common/TimeInput';
 
 export interface AnnouncementItem {
   id: string;
@@ -78,8 +79,8 @@ export const CommunicationView: React.FC = () => {
   // Form State
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
-  const [broadcastDate, setBroadcastDate] = useState('');
-  const [broadcastTime, setBroadcastTime] = useState('');
+  const [broadcastDate, setBroadcastDate] = useState(() => new Date().toISOString().split('T')[0]);
+  const [broadcastTime, setBroadcastTime] = useState(() => new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
   const [emergencyDate, setEmergencyDate] = useState(() => new Date().toISOString().split('T')[0]);
   const [emergencyTime, setEmergencyTime] = useState(() => new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
   const [customEmergTitle, setCustomEmergTitle] = useState('');
@@ -333,6 +334,8 @@ export const CommunicationView: React.FC = () => {
   // Quick Auto Templates Handler
   const applyTemplate = (tmplKey: 'SPORTS' | 'ACADEMIC' | 'ASSEMBLY' | 'URGENT' | 'EXAM' | 'HOLIDAY' | 'GENERAL') => {
     setCategory(tmplKey);
+    if (!broadcastDate) setBroadcastDate(new Date().toISOString().split('T')[0]);
+    if (!broadcastTime) setBroadcastTime(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
 
     switch (tmplKey) {
       case 'SPORTS':
@@ -386,8 +389,8 @@ export const CommunicationView: React.FC = () => {
       setEditingItem(null);
       setTitle('');
       setContent('');
-      setBroadcastDate('');
-      setBroadcastTime('');
+      setBroadcastDate(new Date().toISOString().split('T')[0]);
+      setBroadcastTime(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
       setCategory('');
       setTarget('');
     }
@@ -760,17 +763,13 @@ export const CommunicationView: React.FC = () => {
                 </div>
                 <div>
                   <label className="block text-[10px] font-bold text-slate-600 dark:text-slate-400 mb-0.5">Time</label>
-                  <div className="relative">
-                    <input
-                      type="text"
-                      required
-                      value={emergencyTime}
-                      onChange={e => setEmergencyTime(e.target.value)}
-                      placeholder="e.g. 10:00 AM"
-                      className="w-full pl-3 pr-8 py-2 rounded-xl bg-white dark:bg-slate-900 border text-slate-900 dark:text-white font-mono font-bold text-xs outline-none"
-                    />
-                    <Clock className="w-3.5 h-3.5 text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-                  </div>
+                  <TimeInput
+                    required
+                    value={emergencyTime}
+                    onChange={e => setEmergencyTime(e.target.value)}
+                    placeholder="e.g. 10:00 AM"
+                    className="w-full px-3 py-2 rounded-xl bg-white dark:bg-slate-900 border text-slate-900 dark:text-white font-mono font-bold text-xs outline-none"
+                  />
                 </div>
               </div>
             </div>
@@ -988,7 +987,7 @@ export const CommunicationView: React.FC = () => {
               </div>
             </div>
 
-            <form onSubmit={handleBroadcast} className="space-y-3.5 text-xs">
+            <form onSubmit={handleBroadcast} className="space-y-4 text-xs">
               <div>
                 <label className="block font-bold mb-1 text-slate-700 dark:text-slate-300">Circular Headline / Title <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                 <input
@@ -1001,7 +1000,7 @@ export const CommunicationView: React.FC = () => {
                 />
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-4 gap-3.5 pb-2">
                 <div>
                   <label className="block font-bold mb-1 text-slate-700 dark:text-slate-300">Broadcast Date <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                   <DateInput
@@ -1015,17 +1014,13 @@ export const CommunicationView: React.FC = () => {
 
                 <div>
                   <label className="block font-bold mb-1 text-slate-700 dark:text-slate-300">Broadcast Time <span className="text-rose-500 font-bold ml-0.5">*</span></label>
-                  <div className="relative">
-                    <input
-                      type="text"
-                      required
-                      value={broadcastTime}
-                      onChange={e => setBroadcastTime(e.target.value)}
-                      placeholder="e.g. 10:00 AM"
-                      className="w-full pl-2.5 pr-8 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-slate-900 dark:text-white font-bold outline-none font-mono text-[11px]"
-                    />
-                    <Clock className="w-4 h-4 text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-                  </div>
+                  <TimeInput
+                    required
+                    value={broadcastTime}
+                    onChange={e => setBroadcastTime(e.target.value)}
+                    placeholder="e.g. 10:00 AM"
+                    className="w-full px-2.5 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-slate-900 dark:text-white font-bold outline-none font-mono text-[11px]"
+                  />
                 </div>
                 <div>
                   <label className="block font-bold mb-1 text-slate-700 dark:text-slate-300">Category Tag <span className="text-rose-500 font-bold ml-0.5">*</span></label>
@@ -1063,7 +1058,7 @@ export const CommunicationView: React.FC = () => {
                 </div>
               </div>
 
-              <div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-800">
+              <div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-800 mt-2">
                 <label className="block font-bold mb-1.5 text-slate-700 dark:text-slate-300">Notification Delivery Channels</label>
                 <div className="flex flex-wrap items-center gap-6 font-bold text-slate-700 dark:text-slate-300">
                   <label className="flex items-center gap-2 cursor-pointer">
