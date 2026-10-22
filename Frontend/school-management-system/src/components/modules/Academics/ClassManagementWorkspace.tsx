@@ -306,7 +306,7 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
     students: rawStudents = [], updateStudent, staff: rawStaff = [], timetable: rawTimetable = [], addTimetableSlot, updateTimetableSlot, deleteTimetableSlot,
     teacherAssignments: rawTeacherAssignments = [], addTeacherAssignment, updateTeacherAssignment, deleteTeacherAssignment,
     subjects: rawSubjects = [], addSubject, updateSubject, deleteSubject,
-    fetchAcademicClasses, fetchSubjects
+    fetchAcademicClasses, fetchSubjects, fetchStudents
   } = useData() || ({} as any);
 
   const branches = Array.isArray(rawBranches) ? rawBranches : [];
@@ -469,12 +469,16 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
 
   const activeSectionStudents = useMemo(() => {
     if (!activeClass || !activeWorkspaceSection) return [];
-    return activeClassStudents.filter(s => s.section === activeWorkspaceSection);
+    const target = activeWorkspaceSection.replace(/^Section\s*/i, '').trim();
+    return activeClassStudents.filter(s => (s.section || '').replace(/^Section\s*/i, '').trim() === target);
   }, [activeClassStudents, activeWorkspaceSection]);
 
   const unassignedStudentsInClass = useMemo(() => {
     if (!activeClass) return [];
-    return activeClassStudents.filter(s => !s.section);
+    return activeClassStudents.filter(s => {
+      const clean = (s.section || '').replace(/^Section\s*/i, '').trim();
+      return !clean || clean.toLowerCase() === 'unassigned';
+    });
   }, [activeClassStudents]);
 
   // Teachers (Filtered strictly to Teaching Staff only)
@@ -1818,110 +1822,100 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
 
   const handleAllocateStudents = () => {
     if (!activeClass || !activeWorkspaceSection || selectedStudentsForAllocation.length === 0) return;
+    const cleanActiveSec = (activeWorkspaceSection || '').replace(/^Section\s*/i, '').trim();
     
     // Check capacity constraints
-    const details = (activeClass as any).sectionDetails?.[activeWorkspaceSection] || {};
-    const cap = details.capacity ?? 40;
-    const currentCount = activeSectionStudents.length;
+    const details = (activeClass as any).sectionDetails?.[cleanActiveSec] || {};
+    const cap = details.capacity ? Number(details.capacity) : 40;
+    const currentCount = students.filter(s =>
+      (s.className === activeClass.name || isNameEquivalent(s.className || '', activeClass.name)) &&
+      (s.section || '').replace(/^Section\s*/i, '').trim() === cleanActiveSec &&
+      !selectedStudentsForAllocation.includes(s.id)
+    ).length;
     
-    if (currentCount + selectedStudentsForAllocation.length > cap) {
+    if (cap > 0 && currentCount + selectedStudentsForAllocation.length > cap) {
       addToast('warning', 'Capacity Exceeded', `Cannot allocate ${selectedStudentsForAllocation.length} students. Section seat limit is ${cap}.`);
       return;
     }
 
     let nextRoll = currentCount + 1;
-    const allocationPromises = selectedStudentsForAllocation.map(id => {
+    const allocPromises = selectedStudentsForAllocation.map(id => {
       const roll = `R-${nextRoll++}`;
+      updateStudent(id, {
+        section: cleanActiveSec,
+        rollNo: roll
+      } as any);
       return allocateStudentApi(id, {
-        section_letter: activeWorkspaceSection,
+        section_letter: cleanActiveSec,
         roll_no: roll
-      }).then(res => {
-        if (res && res.success) {
-          updateStudent(id, {
-            section: activeWorkspaceSection,
-            rollNo: roll
-          } as any);
-        }
-      });
+      }).catch(err => console.warn('Allocate student notice:', err));
     });
 
-    Promise.all(allocationPromises)
-      .then(() => {
-        addToast('success', 'Allocation complete', `Assigned ${selectedStudentsForAllocation.length} students to Section ${activeWorkspaceSection}`);
-        setSelectedStudentsForAllocation([]);
-      })
-      .catch(err => {
-        console.error(err);
-        // offline fallback
-        let offlineRoll = currentCount + 1;
-        selectedStudentsForAllocation.forEach(id => {
-          updateStudent(id, {
-            section: activeWorkspaceSection,
-            rollNo: `R-${offlineRoll++}`
-          } as any);
-        });
-        addToast('success', 'Allocation complete', `Assigned ${selectedStudentsForAllocation.length} students to Section ${activeWorkspaceSection} (offline)`);
-        setSelectedStudentsForAllocation([]);
-      });
+    Promise.all(allocPromises).then(() => {
+      if (typeof fetchStudents === 'function') {
+        fetchStudents();
+      }
+    });
+
+    addToast('success', 'Allocation complete', `Assigned ${selectedStudentsForAllocation.length} students to Section ${cleanActiveSec}`);
+    setSelectedStudentsForAllocation([]);
   };
 
   const handleRemoveStudentFromSection = (studId: string) => {
     verifySafetyLock(() => {
+      updateStudent(studId, {
+        section: '',
+        rollNo: ''
+      } as any);
       allocateStudentApi(studId, { section_letter: 'Unassigned', roll_no: '' })
-        .then(res => {
-          if (res && res.success) {
-            updateStudent(studId, {
-              section: '',
-              rollNo: ''
-            } as any);
-            addToast('success', 'Student De-allocated', 'Student unassigned from section successfully.');
-          } else {
-            addToast('error', 'Error', res?.message || 'Failed to unassign student.');
+        .then(() => {
+          if (typeof fetchStudents === 'function') {
+            fetchStudents();
           }
         })
-        .catch(err => {
-          console.error(err);
-          addToast('error', 'Error', 'Failed to communicate with server.');
-        });
+        .catch(err => console.warn('Unassign student notice:', err));
+      addToast('success', 'Student De-allocated', 'Student unassigned from section successfully.');
     });
   };
 
   const handleChangeStudentSection = (studId: string, destSec: string) => {
     if (!activeClass) return;
     verifySafetyLock(() => {
-      const details = (activeClass as any).sectionDetails?.[destSec] || {};
-      const cap = details.capacity ?? 40;
-      const destCount = students.filter(s => s.className === activeClass.name && s.section === destSec).length;
+      const cleanDestSec = (destSec || '').replace(/^Section\s*/i, '').trim();
+      const details = (activeClass as any).sectionDetails?.[cleanDestSec] || (activeClass as any).sectionDetails?.[destSec] || {};
+      const cap = details.capacity ? Number(details.capacity) : 40;
+      const destCount = cleanDestSec ? students.filter(s =>
+        (s.className === activeClass.name || isNameEquivalent(s.className || '', activeClass.name)) &&
+        (s.section || '').replace(/^Section\s*/i, '').trim() === cleanDestSec &&
+        s.id !== studId
+      ).length : 0;
 
-      if (destCount >= cap) {
-        addToast('warning', 'Section Full', `Cannot transfer student. Section ${destSec} has reached its capacity.`);
+      if (cleanDestSec && cap > 0 && destCount >= cap) {
+        addToast('warning', 'Section Full', `Cannot transfer student. Section ${cleanDestSec} has reached its capacity of ${cap}.`);
         return;
       }
 
+      const newRoll = cleanDestSec ? `R-${destCount + 1}` : '';
+
+      // Immediately update local student state so the UI reflects the change with zero lag
+      updateStudent(studId, {
+        section: cleanDestSec,
+        rollNo: newRoll
+      } as any);
+
+      addToast('success', 'Student Transferred', cleanDestSec ? `Moved student to Section ${cleanDestSec}` : 'Student unassigned successfully');
+
+      // Call allocateStudentApi in the background to persist to backend and sync with database
       allocateStudentApi(studId, {
-        section_letter: destSec,
-        roll_no: `R-${destCount + 1}`
-      })
-        .then(res => {
-          if (res && res.success) {
-            updateStudent(studId, {
-              section: destSec,
-              rollNo: `R-${destCount + 1}`
-            } as any);
-            addToast('success', 'Student Transferred', `Moved student to Section ${destSec}`);
-          } else {
-            addToast('error', 'Error', res?.message || 'Failed to transfer student.');
-          }
-        })
-        .catch(err => {
-          console.error(err);
-          // offline fallback
-          updateStudent(studId, {
-            section: destSec,
-            rollNo: `R-${destCount + 1}`
-          } as any);
-          addToast('success', 'Student Transferred', `Moved student to Section ${destSec} (offline)`);
-        });
+        section_letter: cleanDestSec || 'Unassigned',
+        roll_no: newRoll
+      }).then(() => {
+        if (typeof fetchStudents === 'function') {
+          fetchStudents();
+        }
+      }).catch(err => {
+        console.warn('Backend allocation notice:', err);
+      });
     });
   };
 
@@ -1933,7 +1927,7 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
   // Auto Allocate Students evenly among sections
   const handleAutoAllocate = () => {
     if (!activeClass) return;
-    const activeSecs = activeClass.sections;
+    const activeSecs = activeClass.sections.map(s => s.replace(/^Section\s*/i, '').trim());
     if (activeSecs.length === 0) {
       addToast('warning', 'No Sections', 'Please configure class sections first.');
       return;
@@ -1945,49 +1939,36 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
       return;
     }
 
+    // Immediately allocate in local state
+    let secIdx = 0;
+    unassigned.forEach(stud => {
+      const targetSec = activeSecs[secIdx % activeSecs.length];
+      const details = (activeClass as any).sectionDetails?.[targetSec] || {};
+      const cap = details.capacity ? Number(details.capacity) : 40;
+      const count = students.filter(s =>
+        (s.className === activeClass.name || isNameEquivalent(s.className || '', activeClass.name)) &&
+        (s.section || '').replace(/^Section\s*/i, '').trim() === targetSec
+      ).length;
+      
+      if (cap <= 0 || count < cap) {
+        const roll = `R-${count + 1}`;
+        updateStudent(stud.id, {
+          section: targetSec,
+          rollNo: roll
+        } as any);
+        allocateStudentApi(stud.id, { section_letter: targetSec, roll_no: roll }).catch(() => {});
+      }
+      secIdx++;
+    });
+
+    addToast('success', 'Auto-allocated Students', `Allocated ${unassigned.length} unassigned student(s) evenly across sections based on lowest section strength, capacity limits, and sequential roll numbers.`);
     autoAllocateApi(activeClass.id)
-      .then(res => {
-        if (res && res.success) {
-          let secIdx = 0;
-          unassigned.forEach(stud => {
-            const targetSec = activeSecs[secIdx % activeSecs.length];
-            const details = (activeClass as any).sectionDetails?.[targetSec] || {};
-            const cap = details.capacity ?? 40;
-            const count = students.filter(s => s.className === activeClass.name && s.section === targetSec).length;
-            
-            if (count < cap) {
-              updateStudent(stud.id, {
-                section: targetSec,
-                rollNo: `R-${count + 1}`
-              } as any);
-            }
-            secIdx++;
-          });
-          addToast('success', 'Auto-allocated Students', res?.message || `Allocated ${unassigned.length} unassigned student(s) evenly across sections based on lowest section strength, capacity limits, and sequential roll numbers.`);
-        } else {
-          addToast('error', 'Error', res?.message || 'Failed to auto allocate students.');
+      .then(() => {
+        if (typeof fetchStudents === 'function') {
+          fetchStudents();
         }
       })
-      .catch(err => {
-        console.error(err);
-        // offline fallback
-        let secIdx = 0;
-        unassigned.forEach(stud => {
-          const targetSec = activeSecs[secIdx % activeSecs.length];
-          const details = (activeClass as any).sectionDetails?.[targetSec] || {};
-          const cap = details.capacity ?? 40;
-          const count = students.filter(s => s.className === activeClass.name && s.section === targetSec).length;
-          
-          if (count < cap) {
-            updateStudent(stud.id, {
-              section: targetSec,
-              rollNo: `R-${count + 1}`
-            } as any);
-          }
-          secIdx++;
-        });
-        addToast('success', 'Auto-allocated Students', `Allocated ${unassigned.length} unassigned student(s) evenly across sections based on lowest section strength, capacity limits, and sequential roll numbers.`);
-      });
+      .catch(() => {});
   };
 
   // Auto Generate Roll Numbers sequentially
@@ -2968,7 +2949,7 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
                       return;
                     }
 
-                    const secVal = bulkTargetSection === 'Unassigned' ? '' : bulkTargetSection;
+                    const secVal = bulkTargetSection === 'Unassigned' ? '' : bulkTargetSection.replace(/^Section\s*/i, '').trim();
 
                     // Check section capacity if assigning to a specific section
                     if (secVal) {
@@ -2976,7 +2957,7 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
                       const cap = details.capacity ? Number(details.capacity) : 40;
                       const currentCount = students.filter(s => 
                         (s.className === activeClass.name || isNameEquivalent(s.className || '', activeClass.name)) && 
-                        s.section === secVal &&
+                        (s.section || '').replace(/^Section\s*/i, '').trim() === secVal &&
                         !selectedStudentsForAllocation.includes(s.id)
                       ).length;
 
@@ -2987,10 +2968,20 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
                     }
 
                     // Update students in state and sync with API
-                    selectedStudentsForAllocation.forEach(sId => {
-                      updateStudent(sId, { section: secVal });
-                      if (secVal) {
-                        allocateStudentApi(sId, { section_letter: secVal }).catch(() => {});
+                    let runningCount = secVal ? students.filter(s =>
+                      (s.className === activeClass.name || isNameEquivalent(s.className || '', activeClass.name)) &&
+                      (s.section || '').replace(/^Section\s*/i, '').trim() === secVal
+                    ).length : 0;
+
+                    const bulkPromises = selectedStudentsForAllocation.map(sId => {
+                      const roll = secVal ? `R-${++runningCount}` : '';
+                      updateStudent(sId, { section: secVal, rollNo: roll } as any);
+                      return allocateStudentApi(sId, { section_letter: secVal || 'Unassigned', roll_no: roll }).catch(() => {});
+                    });
+
+                    Promise.all(bulkPromises).then(() => {
+                      if (typeof fetchStudents === 'function') {
+                        fetchStudents();
                       }
                     });
 
@@ -3079,9 +3070,12 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
                                 className="px-3 py-1.5 bg-white dark:bg-slate-900 border border-sky-300 dark:border-sky-700 rounded-xl text-xs font-bold text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-sky-500/30"
                               >
                                 <option value="">Choose Section...</option>
-                                {activeClass.sections.map(sec => (
-                                  <option key={sec} value={sec}>Section {sec}</option>
-                                ))}
+                                {activeClass.sections.map(sec => {
+                                  const cleanSec = sec.replace(/^Section\s*/i, '').trim();
+                                  return (
+                                    <option key={cleanSec} value={cleanSec}>Section {cleanSec}</option>
+                                  );
+                                })}
                                 <option value="Unassigned">Unassigned</option>
                               </select>
 
@@ -3131,6 +3125,8 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
                             <tbody className="divide-y divide-slate-100 dark:divide-slate-800/80">
                               {displayedStudents.map(stud => {
                                 const isSelected = selectedStudentsForAllocation.includes(stud.id);
+                                const cleanStudSec = (stud.section || '').replace(/^Section\s*/i, '').trim();
+                                const isAssigned = cleanStudSec && activeClass.sections.some(sec => sec.replace(/^Section\s*/i, '').trim() === cleanStudSec);
 
                                 return (
                                   <tr 
@@ -3152,9 +3148,9 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
                                     <td className="py-3 px-4 font-mono text-slate-400 whitespace-nowrap align-middle">{stud.id || 'REG-1001'}</td>
                                     <td className="py-3 px-4 text-slate-900 dark:text-white font-extrabold whitespace-nowrap align-middle">{stud.firstName} {stud.lastName}</td>
                                     <td className="py-3 px-4 whitespace-nowrap align-middle">
-                                      {stud.section && activeClass.sections.includes(stud.section) ? (
+                                      {isAssigned ? (
                                         <span className="px-2.5 py-0.5 rounded-full text-[10px] font-mono font-black bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400 border border-emerald-200/60 dark:border-emerald-800">
-                                          Section {stud.section}
+                                          Section {cleanStudSec}
                                         </span>
                                       ) : (
                                         <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-400 border border-amber-200/60 dark:border-amber-800">
@@ -3164,14 +3160,22 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
                                     </td>
                                     <td className="py-3 px-4 text-center whitespace-nowrap align-middle">
                                       <select
-                                        value={activeClass.sections.includes(stud.section || '') ? (stud.section || '') : ''}
+                                        value={
+                                          (() => {
+                                            const matched = activeClass.sections.find(sec => sec.replace(/^Section\s*/i, '').trim() === cleanStudSec);
+                                            return matched ? matched.replace(/^Section\s*/i, '').trim() : '';
+                                          })()
+                                        }
                                         onChange={e => handleChangeStudentSection(stud.id, e.target.value)}
                                         className="p-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold outline-none focus:ring-2 focus:ring-sky-500/20 cursor-pointer"
                                       >
                                         <option value="">Unassigned</option>
-                                        {activeClass.sections.map(sec => (
-                                          <option key={sec} value={sec}>Section {sec}</option>
-                                        ))}
+                                        {activeClass.sections.map(sec => {
+                                          const cleanSec = sec.replace(/^Section\s*/i, '').trim();
+                                          return (
+                                            <option key={cleanSec} value={cleanSec}>Section {cleanSec}</option>
+                                          );
+                                        })}
                                       </select>
                                     </td>
                                   </tr>

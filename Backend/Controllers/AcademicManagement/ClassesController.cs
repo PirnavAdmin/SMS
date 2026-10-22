@@ -1060,67 +1060,146 @@ namespace SMS.Api.Controllers.AcademicManagement
         [Authorize(Roles = "SuperAdmin,Admin,Principal")]
         public async Task<IActionResult> AllocateStudent(string student_id, [FromBody] StudentAllocateDto dto)
         {
-            // Parse student ID (format is "STD-123" or raw "123")
-            // BUG-006 FIX: Use int not long — Admissions PK is int
-            int dbStudentId = 0;
+            // Parse student ID (format can be "STD-123", raw "123", or admission number "ADM-...")
+            int numericId = 0;
             if (student_id.StartsWith("STD-", StringComparison.OrdinalIgnoreCase))
             {
-                int.TryParse(student_id.Replace("STD-", ""), out dbStudentId);
+                int.TryParse(student_id.Replace("STD-", ""), out numericId);
             }
             else
             {
-                int.TryParse(student_id, out dbStudentId);
+                int.TryParse(student_id, out numericId);
             }
 
-            if (dbStudentId <= 0)
-                return BadRequest(new { success = false, message = "Invalid student ID format." });
+            // 1. Find the student in Students table
+            Student? studentEntity = null;
+            if (numericId > 0)
+            {
+                studentEntity = await _context.Students
+                    .Include(s => s.ClassGrade)
+                    .Include(s => s.ClassSection)
+                    .FirstOrDefaultAsync(s => s.StudentId == numericId);
+            }
+            if (studentEntity == null)
+            {
+                studentEntity = await _context.Students
+                    .Include(s => s.ClassGrade)
+                    .Include(s => s.ClassSection)
+                    .FirstOrDefaultAsync(s => s.AdmissionNumber == student_id);
+            }
 
-            var student = await _context.Admissions.FindAsync(dbStudentId);
-            if (student == null)
+            // 2. Find the admission in Admissions table
+            Admission? admission = null;
+            if (numericId > 0)
+            {
+                admission = await _context.Admissions.FirstOrDefaultAsync(a => a.AdmissionId == numericId);
+            }
+            if (admission == null)
+            {
+                admission = await _context.Admissions.FirstOrDefaultAsync(a => a.ApplicationNo == student_id);
+            }
+            if (admission == null && studentEntity != null && !string.IsNullOrEmpty(studentEntity.AdmissionNumber))
+            {
+                admission = await _context.Admissions.FirstOrDefaultAsync(a => a.ApplicationNo == studentEntity.AdmissionNumber);
+            }
+            if (studentEntity == null && admission != null && !string.IsNullOrEmpty(admission.ApplicationNo))
+            {
+                studentEntity = await _context.Students
+                    .Include(s => s.ClassGrade)
+                    .Include(s => s.ClassSection)
+                    .FirstOrDefaultAsync(s => s.AdmissionNumber == admission.ApplicationNo);
+            }
+
+            if (studentEntity == null && admission == null)
             {
                 return NotFound(new { success = false, message = "Student not found." });
             }
 
-            if (student.ClassId == null)
+            int? targetClassId = studentEntity?.ClassId ?? admission?.ClassId;
+            if (targetClassId == null || targetClassId <= 0)
             {
                 return BadRequest(new { success = false, message = "Student is not assigned to any class yet." });
             }
 
-            if (string.IsNullOrWhiteSpace(dto.SectionLetter) || 
-                dto.SectionLetter.Equals("Unassigned", System.StringComparison.OrdinalIgnoreCase) || 
-                dto.SectionLetter.Equals("None", System.StringComparison.OrdinalIgnoreCase))
+            bool isDeallocation = string.IsNullOrWhiteSpace(dto.SectionLetter) || 
+                                  dto.SectionLetter.Equals("Unassigned", StringComparison.OrdinalIgnoreCase) || 
+                                  dto.SectionLetter.Equals("None", StringComparison.OrdinalIgnoreCase);
+
+            if (isDeallocation)
             {
-                student.SectionLetter = null;
-                student.RollNo = null;
+                if (admission != null)
+                {
+                    admission.SectionLetter = null;
+                    admission.RollNo = null;
+                }
+                if (studentEntity != null)
+                {
+                    studentEntity.RollNumber = "";
+                    studentEntity.UpdatedAt = DateTime.UtcNow;
+                }
                 await _context.SaveChangesAsync();
-                await LogAuditActionAsync("Deallocate Student", $"De-allocated student '{student.StudentName}' (ID {dbStudentId}).");
+                string sName = studentEntity?.StudentName ?? admission?.StudentName ?? "Student";
+                await LogAuditActionAsync("Deallocate Student", $"De-allocated student '{sName}' ({student_id}).");
                 return Ok(new { success = true, message = "Student de-allocated successfully." });
             }
 
-            // Check capacity constraint
+            // Clean section letter (e.g. "Section B" -> "B", "B" -> "B")
+            string cleanLetter = dto.SectionLetter.Trim();
+            if (cleanLetter.StartsWith("Section ", StringComparison.OrdinalIgnoreCase))
+            {
+                cleanLetter = cleanLetter.Substring(8).Trim();
+            }
+
+            // Check capacity constraint against ClassSections
             var section = await _context.ClassSections
-                .FirstOrDefaultAsync(s => s.ClassId == student.ClassId && s.SectionName.ToLower() == dto.SectionLetter.ToLower());
+                .FirstOrDefaultAsync(s => s.ClassId == targetClassId.Value && (
+                    s.SectionName.ToLower() == cleanLetter.ToLower() ||
+                    s.SectionName.ToLower() == $"section {cleanLetter}".ToLower() ||
+                    (cleanLetter.Length == 1 && s.SectionName.Trim().EndsWith(cleanLetter, StringComparison.OrdinalIgnoreCase))
+                ));
 
             if (section == null)
             {
-                return NotFound(new { success = false, message = "Target section not found in this class." });
+                return NotFound(new { success = false, message = $"Target section '{dto.SectionLetter}' not found in this class." });
             }
 
-            var currentCount = await _context.Admissions
-                .CountAsync(s => s.ClassId == student.ClassId && (s.SectionLetter ?? "").ToLower() == (dto.SectionLetter ?? "").ToLower() && !s.IsDeleted);
+            var currentCount = await _context.Students
+                .CountAsync(s => s.ClassId == targetClassId.Value && s.SectionId == section.SectionId && !s.IsDeleted && (studentEntity == null || s.StudentId != studentEntity.StudentId));
 
             if (currentCount >= section.Capacity)
             {
-                return BadRequest(new { success = false, message = $"Cannot allocate student. Section {dto.SectionLetter} seat limit of {section.Capacity} has been reached." });
+                return BadRequest(new { success = false, message = $"Cannot allocate student. Section {cleanLetter} seat limit of {section.Capacity} has been reached." });
             }
 
-            student.SectionLetter = dto.SectionLetter;
-            student.RollNo = dto.RollNo ?? $"R-{currentCount + 1}";
+            string assignedRoll = !string.IsNullOrWhiteSpace(dto.RollNo) ? dto.RollNo : $"R-{currentCount + 1}";
+
+            if (admission != null)
+            {
+                admission.SectionLetter = cleanLetter;
+                admission.RollNo = assignedRoll;
+                admission.ClassId = targetClassId.Value;
+            }
+
+            if (studentEntity != null)
+            {
+                studentEntity.SectionId = section.SectionId;
+                studentEntity.RollNumber = assignedRoll;
+                studentEntity.ClassId = targetClassId.Value;
+                studentEntity.UpdatedAt = DateTime.UtcNow;
+                _context.Entry(studentEntity).State = EntityState.Modified;
+            }
 
             await _context.SaveChangesAsync();
-            await LogAuditActionAsync("Allocate Student", $"Allocated student '{student.StudentName}' (ID {dbStudentId}) to section '{dto.SectionLetter}' with roll no '{student.RollNo}'.");
+            string studentName = studentEntity?.StudentName ?? admission?.StudentName ?? "Student";
+            await LogAuditActionAsync("Allocate Student", $"Allocated student '{studentName}' ({student_id}) to section '{cleanLetter}' with roll no '{assignedRoll}'.");
 
-            return Ok(new { success = true, message = $"Allocated student to Section {dto.SectionLetter} successfully." });
+            return Ok(new { 
+                success = true, 
+                message = $"Allocated student to Section {cleanLetter} successfully.",
+                sectionId = section.SectionId,
+                sectionLetter = cleanLetter,
+                rollNo = assignedRoll
+            });
         }
 
         [HttpPost("{id:int}/auto-allocate")]
@@ -1146,36 +1225,77 @@ namespace SMS.Api.Controllers.AcademicManagement
                 .Where(s => s.ClassId == id && (s.SectionLetter == null || s.SectionLetter == "") && !s.IsDeleted)
                 .ToListAsync();
 
-            if (!unassignedStudents.Any())
-            {
-                return Ok(new { success = true, message = "There are no unassigned students left." });
-            }
+            var allClassStudents = await _context.Students
+                .Where(s => s.ClassId == id && !s.IsDeleted)
+                .ToListAsync();
 
-            // BUG-027 FIX: Pre-fetch section counts once — eliminates N×M DB queries
-            var sectionStudentsCounts = new Dictionary<string, int>();
+            var sectionCounts = new Dictionary<int, int>();
             foreach (var sec in sections)
             {
-                var count = await _context.Admissions
-                    .CountAsync(s => s.ClassId == id && (s.SectionLetter ?? "").ToLower() == (sec.SectionName ?? "").ToLower() && !s.IsDeleted);
-                sectionStudentsCounts[sec.SectionName] = count;
+                sectionCounts[sec.SectionId] = allClassStudents.Count(s => s.SectionId == sec.SectionId);
             }
 
             int allocatedCount = 0;
             foreach (var student in unassignedStudents)
             {
                 var targetSection = sections
-                    .Where(sec => sectionStudentsCounts[sec.SectionName] < sec.Capacity)
-                    .OrderBy(sec => sectionStudentsCounts[sec.SectionName])
+                    .Where(sec => sectionCounts[sec.SectionId] < sec.Capacity)
+                    .OrderBy(sec => sectionCounts[sec.SectionId])
                     .FirstOrDefault();
 
                 if (targetSection == null)
                     break; // All sections full
 
-                var currentSectionCount = sectionStudentsCounts[targetSection.SectionName];
-                student.SectionLetter = targetSection.SectionName;
-                student.RollNo = $"R-{currentSectionCount + 1}";
-                // Update in-memory count so next iteration picks correctly
-                sectionStudentsCounts[targetSection.SectionName]++;
+                var cleanSec = (targetSection.SectionName ?? "").Replace("Section", "", StringComparison.OrdinalIgnoreCase).Trim();
+                var currentCount = sectionCounts[targetSection.SectionId];
+                var roll = $"R-{currentCount + 1}";
+
+                student.SectionLetter = cleanSec;
+                student.RollNo = roll;
+
+                // Sync with Students table
+                var match = allClassStudents.FirstOrDefault(s => 
+                    s.AdmissionNumber == student.ApplicationNo || 
+                    (s.StudentName.ToLower() == (student.StudentName ?? "").ToLower().Trim() && s.FatherMobile == student.FatherMobile));
+                if (match != null)
+                {
+                    match.SectionId = targetSection.SectionId;
+                    match.RollNumber = roll;
+                    match.UpdatedAt = DateTime.UtcNow;
+                }
+
+                sectionCounts[targetSection.SectionId]++;
+                allocatedCount++;
+            }
+
+            // Also check any students in Students table whose section isn't set or invalid
+            var validSecIds = sections.Select(s => s.SectionId).ToHashSet();
+            var unassignedEntities = allClassStudents.Where(s => !validSecIds.Contains(s.SectionId)).ToList();
+            foreach (var st in unassignedEntities)
+            {
+                var targetSection = sections
+                    .Where(sec => sectionCounts[sec.SectionId] < sec.Capacity)
+                    .OrderBy(sec => sectionCounts[sec.SectionId])
+                    .FirstOrDefault();
+
+                if (targetSection == null) break;
+
+                var cleanSec = (targetSection.SectionName ?? "").Replace("Section", "", StringComparison.OrdinalIgnoreCase).Trim();
+                var currentCount = sectionCounts[targetSection.SectionId];
+                var roll = $"R-{currentCount + 1}";
+
+                st.SectionId = targetSection.SectionId;
+                st.RollNumber = roll;
+                st.UpdatedAt = DateTime.UtcNow;
+
+                var matchAdm = await _context.Admissions.FirstOrDefaultAsync(a => a.ApplicationNo == st.AdmissionNumber);
+                if (matchAdm != null)
+                {
+                    matchAdm.SectionLetter = cleanSec;
+                    matchAdm.RollNo = roll;
+                }
+
+                sectionCounts[targetSection.SectionId]++;
                 allocatedCount++;
             }
 
