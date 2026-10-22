@@ -24,7 +24,7 @@ export const StudentFormModal: React.FC<StudentFormModalProps> = ({
   onClose,
   studentToEdit
 }) => {
-  const { addStudent, updateStudent, students, transportRoutes, pickupPoints, routeMasters, hostelBlocks, hostelRooms, hostelBeds, academicClasses, schoolProfile, branches = [] } = useData();
+  const { addStudent, updateStudent, students, admissions = [], transportRoutes, pickupPoints, routeMasters, hostelBlocks, hostelRooms, hostelBeds, academicClasses, schoolProfile, branches = [] } = useData();
   const { addToast } = useToast();
   const { selectedBranch } = useAuth();
 
@@ -244,19 +244,84 @@ export const StudentFormModal: React.FC<StudentFormModalProps> = ({
 
   const availableBeds = hostelBeds.filter(b => b.status === 'Available');
 
+  const matchingAdmission = useMemo(() => {
+    if (!studentToEdit) return null;
+    return (admissions || []).find(a =>
+      (a.admissionNo && a.admissionNo === studentToEdit.admissionNo) ||
+      (a.applicationNo && (a.applicationNo === studentToEdit.admissionNo || (studentToEdit as any).applicationNo === a.applicationNo || (studentToEdit as any).registrationNumber === a.applicationNo)) ||
+      ((a as any).registrationNo && ((a as any).registrationNo === studentToEdit.admissionNo || (studentToEdit as any).registrationNumber === (a as any).registrationNo)) ||
+      (a.applicantName && `${studentToEdit.firstName || ''} ${studentToEdit.lastName || ''}`.trim().toLowerCase() === a.applicantName.trim().toLowerCase())
+    ) || null;
+  }, [admissions, studentToEdit]);
+
   useEffect(() => {
     if (studentToEdit) {
-      const optFees = (studentToEdit as any).selectedOptionalFees || (studentToEdit as any).optionalFees || [];
-      const docsSub = (studentToEdit as any).documentsSubmitted || (studentToEdit as any).documents || [];
+      const optFees = (studentToEdit as any).selectedOptionalFees || (studentToEdit as any).optionalFees || matchingAdmission?.selectedOptionalFees || [];
+      const docsSub = (studentToEdit as any).documentsSubmitted || (studentToEdit as any).documents || matchingAdmission?.documentsSubmitted || [];
+
+      const rawReligion = String(
+        (studentToEdit.religion && studentToEdit.religion !== 'General' ? studentToEdit.religion : '') ||
+        (matchingAdmission?.religion && matchingAdmission.religion !== 'General' ? matchingAdmission.religion : '') ||
+        studentToEdit.religion ||
+        matchingAdmission?.religion ||
+        ''
+      ).trim();
+
+      const religionAliasMap: Record<string, string> = {
+        hindu: 'Hinduism',
+        hinduism: 'Hinduism',
+        muslim: 'Islam',
+        islam: 'Islam',
+        christian: 'Christianity',
+        christianity: 'Christianity',
+        sikh: 'Sikhism',
+        sikhism: 'Sikhism',
+        buddhist: 'Buddhism',
+        buddhism: 'Buddhism',
+        jain: 'Jainism',
+        jainism: 'Jainism',
+        zoroastrian: 'Zoroastrianism',
+        zoroastrianism: 'Zoroastrianism',
+        parsi: 'Zoroastrianism',
+        jewish: 'Judaism',
+        judaism: 'Judaism',
+        other: 'Other',
+        others: 'Other',
+      };
+
+      const resolvedReligion =
+        RELIGIONS.find(r => r.toLowerCase() === rawReligion.toLowerCase()) ||
+        religionAliasMap[rawReligion.toLowerCase()] ||
+        (rawReligion !== 'General' ? rawReligion : '');
+
+      const rawCaste = String(
+        studentToEdit.casteCategory ||
+        matchingAdmission?.casteCategory ||
+        (matchingAdmission as any)?.caste ||
+        (matchingAdmission as any)?.category ||
+        (studentToEdit.category && studentToEdit.category !== 'General' ? studentToEdit.category : '') ||
+        studentToEdit.category ||
+        'General'
+      ).trim();
+
+      const resolvedCasteCategory =
+        CASTE_CATEGORIES.find(c => c.toLowerCase() === rawCaste.toLowerCase()) ||
+        (rawCaste.toLowerCase() === 'other' ? 'Others' : rawCaste) ||
+        'General';
+
       setFormData({
         ...studentToEdit,
-        studentType: normalizeStudentType(studentToEdit.studentType),
-        isLateAdmission: !!studentToEdit.isLateAdmission,
-        feeCalculationMethod: studentToEdit.feeCalculationMethod || 'Term-wise',
-        joiningDate: (studentToEdit as any).joiningDate || studentToEdit.admissionDate || new Date().toISOString().split('T')[0],
+        religion: resolvedReligion,
+        casteCategory: resolvedCasteCategory,
+        category: resolvedCasteCategory,
+        bloodGroup: studentToEdit.bloodGroup || matchingAdmission?.bloodGroup || 'O+',
+        studentType: normalizeStudentType(studentToEdit.studentType || matchingAdmission?.studentType),
+        isLateAdmission: !!(studentToEdit.isLateAdmission ?? matchingAdmission?.isLateAdmission),
+        feeCalculationMethod: studentToEdit.feeCalculationMethod || matchingAdmission?.feeCalculationMethod || 'Term-wise',
+        joiningDate: (studentToEdit as any).joiningDate || studentToEdit.admissionDate || matchingAdmission?.joiningDate || matchingAdmission?.admissionDate || new Date().toISOString().split('T')[0],
         selectedOptionalFees: optFees,
         documentsSubmitted: docsSub,
-        dob: formatToDDMMYYYY(studentToEdit.dob)
+        dob: formatToDDMMYYYY(studentToEdit.dob || matchingAdmission?.dob || '')
       });
       const hasSib = studentToEdit.hasSiblings ?? ((studentToEdit.siblingsCount && studentToEdit.siblingsCount > 0) || !!studentToEdit.siblingStudentId || (studentToEdit.siblingDetails && studentToEdit.siblingDetails.length > 0));
       setHasSiblings(!!hasSib);
@@ -299,7 +364,7 @@ export const StudentFormModal: React.FC<StudentFormModalProps> = ({
     }
     setDobError('');
     setAdmissionDateError('');
-  }, [studentToEdit, isOpen, students]);
+  }, [studentToEdit, isOpen, students, matchingAdmission]);
 
   if (!isOpen) return null;
 
@@ -731,12 +796,15 @@ export const StudentFormModal: React.FC<StudentFormModalProps> = ({
               <div>
                 <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Religion</label>
                 <select
-                  value={formData.religion}
+                  value={formData.religion || ''}
                   onChange={e => setFormData({ ...formData, religion: e.target.value })}
                   className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none"
                 >
                   <option value="">Select</option>
                   {RELIGIONS.map(rel => <option key={rel} value={rel}>{rel}</option>)}
+                  {formData.religion && !RELIGIONS.includes(formData.religion as any) && (
+                    <option value={formData.religion}>{formData.religion}</option>
+                  )}
                 </select>
               </div>
               <div>
@@ -750,9 +818,9 @@ export const StudentFormModal: React.FC<StudentFormModalProps> = ({
                   onChange={e => {
                     const val = e.target.value;
                     if (val === 'Others') {
-                      setFormData({ ...formData, casteCategory: 'Others' });
+                      setFormData({ ...formData, casteCategory: 'Others', category: 'Others' });
                     } else {
-                      setFormData({ ...formData, casteCategory: val });
+                      setFormData({ ...formData, casteCategory: val, category: val });
                     }
                   }}
                   className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none"
@@ -767,7 +835,10 @@ export const StudentFormModal: React.FC<StudentFormModalProps> = ({
                       required
                       placeholder="Specify Caste Category (e.g. Minorities / NT / VJNT)"
                       value={formData.casteCategory === 'Others' || formData.casteCategory === 'Other' ? '' : formData.casteCategory}
-                      onChange={e => setFormData({ ...formData, casteCategory: e.target.value || 'Others' })}
+                      onChange={e => {
+                        const customVal = e.target.value || 'Others';
+                        setFormData({ ...formData, casteCategory: customVal, category: customVal });
+                      }}
                       className="w-full px-3 py-1.5 rounded-xl bg-white dark:bg-slate-900 border border-sky-300 dark:border-sky-700 text-xs font-bold text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-sky-500 shadow-xs"
                     />
                   </div>

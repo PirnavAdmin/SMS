@@ -2,7 +2,7 @@ import { parseDateOnly, compareDates, formatDateForDisplay } from './dateValidat
 import { VALID_INDIAN_STATES } from './postalLookup';
 
 export const BLOOD_GROUPS = ['A+', 'A-', 'B+', 'B-', 'O+', 'O-', 'AB+', 'AB-'] as const;
-export const CASTE_CATEGORIES = ['General', 'OBC', 'SC', 'ST', 'EWS', 'Others'] as const;
+export const CASTE_CATEGORIES = ['General', 'OBC', 'BC', 'SC', 'ST', 'EWS', 'Others'] as const;
 export const BRANCHES: readonly string[] = [];
 export const RELIGIONS = ['Hinduism', 'Islam', 'Christianity', 'Sikhism', 'Buddhism', 'Jainism', 'Zoroastrianism', 'Judaism', 'Other'] as const;
 export const MARITAL_STATUSES = ['Married', 'Unmarried'] as const;
@@ -866,16 +866,22 @@ export function validateCertificateTypeCode(code: string, required: boolean = tr
   return { isValid: true };
 }
 
-export function validateSearchQuery(query: string): { isValid: boolean; error?: string } {
+export function validateSearchQuery(query: string, maxLength: number = 30): { isValid: boolean; error?: string } {
   if (!query || typeof query !== 'string') return { isValid: true };
   if (query.length > 0 && !query.trim()) {
     return { isValid: false, error: 'Enter a valid search term.' };
   }
   const trimmed = query.trim();
   if (!trimmed) return { isValid: true };
-  if (trimmed.length > 50) return { isValid: false, error: 'Maximum 50 characters allowed.' };
+  if (trimmed.length > maxLength) return { isValid: false, error: `Maximum ${maxLength} characters allowed.` };
+  if (/^\d+$/.test(trimmed) && trimmed.length > 10) {
+    return { isValid: false, error: 'Numeric search cannot exceed 10 digits.' };
+  }
+  if (/\d{11,}/.test(trimmed)) {
+    return { isValid: false, error: 'Numeric search cannot exceed 10 digits.' };
+  }
   if (!/^[a-zA-Z0-9\s\-\/\.\_\&\']+$/.test(trimmed)) {
-    return { isValid: false, error: 'Invalid characters not allowed.' };
+    return { isValid: false, error: 'Special characters are not allowed.' };
   }
   if (!/[a-zA-Z0-9]/.test(trimmed) || /[\-\/\.\_\&\']{2,}/.test(trimmed) || /(\d)\1{4,}/.test(trimmed)) {
     return { isValid: false, error: 'Enter a valid search term.' };
