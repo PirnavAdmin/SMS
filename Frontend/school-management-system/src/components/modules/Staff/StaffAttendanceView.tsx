@@ -274,13 +274,79 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
   const [showApplyLeaveModal, setShowApplyLeaveModal] = useState(false);
   const [showCorrectionModal, setShowCorrectionModal] = useState(false);
 
-  // Correction Form state
-  const [correctionDate, setCorrectionDate] = useState(todayStr);
+  // Correction Form state & policy period (last 30 days up to today)
+  const CORRECTION_POLICY_DAYS = 30;
+  const minCorrectionDateStr = useMemo(() => {
+    const d = new Date();
+    d.setDate(d.getDate() - CORRECTION_POLICY_DAYS);
+    return d.toLocaleDateString("en-CA");
+  }, []);
+  const personalAYRange = useMemo(
+    () => parseAcademicYearRange(selectedAcademicYear, academicYears),
+    [selectedAcademicYear, academicYears],
+  );
+
+  const [correctionDate, setCorrectionDate] = useState("");
+  const [correctionDateTouched, setCorrectionDateTouched] = useState(false);
+  const [correctionDateBadInput, setCorrectionDateBadInput] = useState(false);
   const [correctionTime, setCorrectionTime] = useState("");
   const [correctionType, setCorrectionType] = useState<
-    "Missed Check-In" | "Missed Check-Out"
+    "Missed Check-In" | "Missed Check-Out" | "Late Login" | "Late Logout"
   >("Missed Check-In");
   const [correctionReason, setCorrectionReason] = useState("");
+
+  const sanitizeDateInputYear = (e: React.ChangeEvent<HTMLInputElement>): string => {
+    const raw = e.target.value;
+    if (!raw) return "";
+    const cleaned = raw.replace(/^\+/, "");
+    const parts = cleaned.split("-");
+    if (parts.length === 3) {
+      const [rawY, m, d] = parts;
+      const numericYear = parseInt(rawY, 10);
+      const yearStr = !isNaN(numericYear) ? String(numericYear) : rawY;
+      if (yearStr.length > 4 || rawY.length > 4) {
+        const clampedYear = yearStr.slice(0, 4).padStart(4, "0");
+        const clamped = `${clampedYear}-${m}-${d}`;
+        e.target.value = clamped;
+        return clamped;
+      }
+    }
+    return raw;
+  };
+
+  const correctionDateError = useMemo(() => {
+    if (correctionDateBadInput) {
+      return "Invalid date or year entered. Please enter a valid 4-digit year within the attendance correction policy period.";
+    }
+    if (!correctionDate) {
+      return correctionDateTouched ? "Please select a Target Date." : "";
+    }
+    const cleaned = String(correctionDate).trim().replace(/^\+/, "");
+    const parts = cleaned.split("-");
+    const rawYear = parts[0] || "";
+    const yearNum = parseInt(rawYear, 10);
+    const currentYear = new Date().getFullYear();
+    const minPolicyYear = parseInt(minCorrectionDateStr.slice(0, 4), 10) || currentYear - 1;
+    const validYearRangeLabel =
+      minPolicyYear === currentYear ? `${currentYear}` : `${minPolicyYear}–${currentYear}`;
+
+    if (rawYear.length !== 4 || isNaN(yearNum) || yearNum < 1900 || yearNum > 2100) {
+      return `Invalid year (${rawYear || "N/A"}). Please enter a valid 4-digit year (${validYearRangeLabel}).`;
+    }
+    if (yearNum > currentYear) {
+      return `Invalid year (${yearNum}). Future years are not allowed; please select a date in ${validYearRangeLabel}.`;
+    }
+    if (yearNum < minPolicyYear) {
+      return `Invalid year (${yearNum}). Year must be within the attendance correction policy period (${validYearRangeLabel}).`;
+    }
+    if (cleaned > todayStr) {
+      return `Future dates are not allowed. Please select today (${formatToDDMMYYYY(todayStr, "/")}) or an earlier date within the policy period.`;
+    }
+    if (cleaned < minCorrectionDateStr) {
+      return `Selected date is outside the ${CORRECTION_POLICY_DAYS}-day attendance correction policy period (${formatToDDMMYYYY(minCorrectionDateStr, "/")} to ${formatToDDMMYYYY(todayStr, "/")}).`;
+    }
+    return "";
+  }, [correctionDate, correctionDateBadInput, minCorrectionDateStr, todayStr]);
 
   // Leave Application Form state
   const [selectedLeaveTypeId, setSelectedLeaveTypeId] = useState<string>("");
@@ -860,12 +926,24 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
 
   const handleCorrectionSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (correctionDateError) {
+      addToast("error", "Invalid Target Date", correctionDateError);
+      return;
+    }
+    if (!correctionDate || !correctionType || !correctionTime.trim() || !correctionReason.trim()) {
+      addToast(
+        "error",
+        "Required Fields Missing",
+        "Please fill in Target Date, Request Type, Actual Time, and Reason for Correction.",
+      );
+      return;
+    }
     const newReq = {
       id: `REQ-${Math.floor(Math.random() * 1000)}`,
       date: correctionDate,
       type: correctionType,
       status: "Pending",
-      reason: correctionReason,
+      reason: correctionReason.trim(),
     };
     
     setRequests((prev) => [newReq, ...prev]);
@@ -1163,13 +1241,6 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
                   Attendance History
                 </h3>
               </div>
-
-              <button
-                onClick={handleDownloadReport}
-                className="px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700/50 text-[11px] font-bold text-slate-750 dark:text-slate-200 flex items-center gap-1.5 shadow-sm transition-all cursor-pointer"
-              >
-                <Download className="w-3.5 h-3.5" /> Download
-              </button>
             </div>
 
             {/* Filters */}
@@ -1205,8 +1276,10 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
               <div>
                 <input
                   type="date"
+                  min={personalAYRange.startDate}
+                  max={todayStr}
                   value={personalFilterDate}
-                  onChange={(e) => setPersonalFilterDate(e.target.value)}
+                  onChange={(e) => setPersonalFilterDate(sanitizeDateInputYear(e))}
                   aria-label="Filter by Date"
                   className="w-full px-3 py-1.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-855 dark:text-slate-200 outline-none"
                 />
@@ -1276,7 +1349,14 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
               </div>
 
               <button
-                onClick={() => setShowCorrectionModal(true)}
+                onClick={() => {
+                  setCorrectionDate("");
+                  setCorrectionDateTouched(false);
+                  setCorrectionDateBadInput(false);
+                  setCorrectionTime("");
+                  setCorrectionReason("");
+                  setShowCorrectionModal(true);
+                }}
                 className="px-3 py-1.5 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-black text-[11px] shadow-sm transition-all flex items-center gap-1 cursor-pointer active:scale-95"
               >
                 <Plus className="w-3.5 h-3.5" /> Request Correction
@@ -1352,12 +1432,13 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
               <form onSubmit={handleApplyLeaveSubmit} className="space-y-4">
                 <div>
                   <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">
-                    Leave Type
+                    Leave Type <span className="text-rose-500 font-bold ml-0.5">*</span>
                   </label>
                   <select
                     value={selectedLeaveTypeId}
                     onChange={(e) => setSelectedLeaveTypeId(e.target.value)}
                     className="w-full px-3.5 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-855 dark:text-slate-200 outline-none cursor-pointer"
+                    required
                   >
                     {(leaveTypes || []).map((t) => {
                       const c = (t.code || "").toUpperCase();
@@ -1382,24 +1463,28 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">
-                      From Date
+                      From Date <span className="text-rose-500 font-bold ml-0.5">*</span>
                     </label>
                     <input
                       type="date"
+                      min={personalAYRange.startDate}
+                      max={personalAYRange.endDate}
                       value={leaveFromDate}
-                      onChange={(e) => setLeaveFromDate(e.target.value)}
+                      onChange={(e) => setLeaveFromDate(sanitizeDateInputYear(e))}
                       className="w-full px-3.5 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-855 dark:text-slate-200 outline-none"
                       required
                     />
                   </div>
                   <div>
                     <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">
-                      To Date
+                      To Date <span className="text-rose-500 font-bold ml-0.5">*</span>
                     </label>
                     <input
                       type="date"
+                      min={leaveFromDate || personalAYRange.startDate}
+                      max={personalAYRange.endDate}
                       value={leaveToDate}
-                      onChange={(e) => setLeaveToDate(e.target.value)}
+                      onChange={(e) => setLeaveToDate(sanitizeDateInputYear(e))}
                       className="w-full px-3.5 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-855 dark:text-slate-200 outline-none"
                       required
                     />
@@ -1408,7 +1493,7 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
 
                 <div>
                   <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">
-                    Reason for Leave
+                    Reason for Leave <span className="text-rose-500 font-bold ml-0.5">*</span>
                   </label>
                   <textarea
                     value={leaveReason}
@@ -1429,7 +1514,8 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
                   </button>
                   <button
                     type="submit"
-                    className="px-5 py-2 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-xs font-black shadow-md transition-colors"
+                    disabled={!selectedLeaveTypeId || !leaveFromDate || !leaveToDate || !leaveReason.trim()}
+                    className="px-5 py-2 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-xs font-black shadow-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     Submit Application
                   </button>
@@ -1456,39 +1542,78 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
                 </button>
               </div>
 
-              <form onSubmit={handleCorrectionSubmit} className="space-y-4">
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">
-                      Target Date
-                    </label>
-                    <input
-                      type="date"
-                      value={correctionDate}
-                      onChange={(e) => setCorrectionDate(e.target.value)}
-                      className="w-full px-3.5 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-855 dark:text-slate-200 outline-none"
-                      required
-                    />
+              <form onSubmit={handleCorrectionSubmit} className="space-y-4" noValidate>
+                <div className="space-y-1.5">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">
+                        Target Date <span className="text-rose-500 font-bold ml-0.5">*</span>
+                      </label>
+                      <input
+                        type="date"
+                        min={minCorrectionDateStr}
+                        max={todayStr}
+                        value={correctionDate}
+                        placeholder="Select Date"
+                        onChange={(e) => {
+                          setCorrectionDateTouched(true);
+                          setCorrectionDateBadInput(Boolean(e.target.validity?.badInput));
+                          const sanitized = sanitizeDateInputYear(e);
+                          setCorrectionDate(sanitized);
+                        }}
+                        onInput={(e: React.FormEvent<HTMLInputElement>) => {
+                          setCorrectionDateBadInput(Boolean(e.currentTarget.validity?.badInput));
+                        }}
+                        onBlur={() => setCorrectionDateTouched(true)}
+                        className={`w-full px-3.5 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-xs font-bold outline-none transition-colors ${
+                          !correctionDate
+                            ? "text-slate-400 dark:text-slate-500"
+                            : "text-slate-855 dark:text-slate-200"
+                        } ${
+                          correctionDateError
+                            ? "border-rose-500 dark:border-rose-500 focus:ring-2 focus:ring-rose-500/20"
+                            : "border-slate-200 dark:border-slate-700"
+                        }`}
+                        required
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">
+                        Request Type <span className="text-rose-500 font-bold ml-0.5">*</span>
+                      </label>
+                      <select
+                        value={correctionType}
+                        onChange={(e) => setCorrectionType(e.target.value as any)}
+                        className="w-full px-3.5 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-855 dark:text-slate-200 outline-none cursor-pointer"
+                        required
+                      >
+                        <option value="Missed Check-In">Missed Check-In</option>
+                        <option value="Missed Check-Out">Missed Check-Out</option>
+                        <option value="Late Login">Late Login</option>
+                        <option value="Late Logout">Late Logout</option>
+                      </select>
+                    </div>
                   </div>
 
-                  <div>
-                    <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">
-                      Request Type
-                    </label>
-                    <select
-                      value={correctionType}
-                      onChange={(e) => setCorrectionType(e.target.value as any)}
-                      className="w-full px-3.5 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-855 dark:text-slate-200 outline-none cursor-pointer"
+                  {correctionDateError ? (
+                    <div
+                      role="alert"
+                      className="flex items-start gap-1.5 px-2.5 py-1.5 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800/60 text-[11px] font-bold text-rose-600 dark:text-rose-400"
                     >
-                      <option value="Missed Check-In">Missed Check-In</option>
-                      <option value="Missed Check-Out">Missed Check-Out</option>
-                    </select>
-                  </div>
+                      <AlertCircle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+                      <span>{correctionDateError}</span>
+                    </div>
+                  ) : (
+                    <p className="text-[10px] font-semibold text-slate-400 dark:text-slate-500">
+                      Policy period: {formatToDDMMYYYY(minCorrectionDateStr, "/")} – {formatToDDMMYYYY(todayStr, "/")} (Last {CORRECTION_POLICY_DAYS} days, no future dates)
+                    </p>
+                  )}
                 </div>
 
                 <div>
                   <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">
-                    Actual Time
+                    Actual Time <span className="text-rose-500 font-bold ml-0.5">*</span>
                   </label>
                   <input
                     type="text"
@@ -1502,12 +1627,12 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
 
                 <div>
                   <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">
-                    Reason for correction
+                    Reason for correction <span className="text-rose-500 font-bold ml-0.5">*</span>
                   </label>
                   <textarea
                     value={correctionReason}
                     onChange={(e) => setCorrectionReason(e.target.value)}
-                    placeholder="Explain why check-in/checkout was missed..."
+                    placeholder="Explain the reason for missed check-in/check-out or late login/logout..."
                     className="w-full px-3.5 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-855 dark:text-slate-200 outline-none min-h-[80px]"
                     required
                   />
@@ -1523,7 +1648,14 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
                   </button>
                   <button
                     type="submit"
-                    className="px-5 py-2 rounded-xl bg-amber-600 hover:bg-amber-500 text-white text-xs font-black shadow-md transition-colors"
+                    disabled={
+                      !correctionDate ||
+                      Boolean(correctionDateError) ||
+                      !correctionType ||
+                      !correctionTime.trim() ||
+                      !correctionReason.trim()
+                    }
+                    className="px-5 py-2 rounded-xl bg-amber-600 hover:bg-amber-500 text-white text-xs font-black shadow-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     Submit Request
                   </button>

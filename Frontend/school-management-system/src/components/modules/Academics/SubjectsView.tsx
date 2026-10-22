@@ -74,13 +74,13 @@ export const SubjectsView: React.FC = () => {
     departmentCode: string;
     description: string;
     category: 'Teaching' | 'Non-Teaching' | '';
-    status: 'Active' | 'Inactive';
+    status: 'Active' | 'Inactive' | '';
   }>({
     departmentName: '',
     departmentCode: '',
     description: '',
     category: '',
-    status: 'Active'
+    status: ''
   });
 
   // Filtered Subjects
@@ -345,17 +345,17 @@ export const SubjectsView: React.FC = () => {
   const [deletingDesignation, setDeletingDesignation] = useState<DesignationMaster | null>(null);
   const [desigFormData, setDesigFormData] = useState<{
     designationName: string;
-    employeeCategory: 'Teaching' | 'Non-Teaching' | 'Both';
-    status: 'Active' | 'Inactive';
+    employeeCategory: 'Teaching' | 'Non-Teaching' | 'Both' | '';
+    status: 'Active' | 'Inactive' | '';
   }>({
     designationName: '',
-    employeeCategory: 'Teaching',
-    status: 'Active'
+    employeeCategory: '',
+    status: ''
   });
 
   const handleOpenAddDesig = () => {
     setEditingDesignation(null);
-    setDesigFormData({ designationName: '', employeeCategory: 'Teaching', status: 'Active' });
+    setDesigFormData({ designationName: '', employeeCategory: '', status: '' });
     setIsDesigModalOpen(true);
   };
 
@@ -377,6 +377,14 @@ export const SubjectsView: React.FC = () => {
       addToast('warning', 'Validation Error', desigCheck.error || 'Enter a valid designation name.');
       return;
     }
+    if (!desigFormData.employeeCategory) {
+      addToast('warning', 'Validation Error', 'Please select a category.');
+      return;
+    }
+    if (!desigFormData.status) {
+      addToast('warning', 'Validation Error', 'Please select a status.');
+      return;
+    }
     if (editingDesignation && !editingDesignation.id.toString().startsWith('static-')) {
       try {
         const res = await updateDesignationApi(editingDesignation.id, {
@@ -387,7 +395,7 @@ export const SubjectsView: React.FC = () => {
           status: desigFormData.status
         });
         if (res && res.success) {
-          updateDesignation(editingDesignation.id, desigFormData);
+          updateDesignation(editingDesignation.id, desigFormData as any);
           await loadDesignations();
           addToast('success', 'Designation Updated', `Updated designation '${name}'.`);
           setIsDesigModalOpen(false);
@@ -458,7 +466,7 @@ export const SubjectsView: React.FC = () => {
       departmentCode: '',
       description: '',
       category: '',
-      status: 'Active'
+      status: ''
     });
     setIsDeptModalOpen(true);
   };
@@ -487,6 +495,11 @@ export const SubjectsView: React.FC = () => {
 
     if (!deptFormData.category) {
       addToast('warning', 'Validation Error', 'Please select a department type.');
+      return;
+    }
+
+    if (!deptFormData.status) {
+      addToast('warning', 'Validation Error', 'Please select a status.');
       return;
     }
 
@@ -1175,9 +1188,7 @@ export const SubjectsView: React.FC = () => {
                   required
                   value={deptFormData.category}
                   onChange={e => setDeptFormData({ ...deptFormData, category: e.target.value as 'Teaching' | 'Non-Teaching' | '' })}
-                  className={`w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-[#1e293b] border border-slate-200 dark:border-slate-800 font-bold ${
-                    !deptFormData.category ? 'text-slate-400 dark:text-slate-500' : 'text-slate-900 dark:text-white'
-                  }`}
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-[#1e293b] border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white font-bold"
                 >
                   <option value="" disabled>Select Department</option>
                   <option value="Teaching" className="text-slate-900 dark:text-white">Teaching (Academic / Subject Department)</option>
@@ -1191,10 +1202,12 @@ export const SubjectsView: React.FC = () => {
               <div>
                 <label className="block font-bold mb-1 text-slate-700 dark:text-slate-200">Status <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                 <select
+                  required
                   value={deptFormData.status}
-                  onChange={e => setDeptFormData({ ...deptFormData, status: e.target.value as 'Active' | 'Inactive' })}
+                  onChange={e => setDeptFormData({ ...deptFormData, status: e.target.value as 'Active' | 'Inactive' | '' })}
                   className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-[#1e293b] border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white font-bold"
                 >
+                  <option value="" disabled>Select Status</option>
                   <option value="Active">Active</option>
                   <option value="Inactive">Inactive</option>
                 </select>
@@ -1249,13 +1262,15 @@ export const SubjectsView: React.FC = () => {
               <div>
                 <label className="block font-bold mb-1 text-slate-700 dark:text-slate-200">Category <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                 <select required value={desigFormData.employeeCategory} onChange={e => setDesigFormData({ ...desigFormData, employeeCategory: e.target.value as any })} className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-[#1e293b] border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white font-bold">
+                  <option value="" disabled>Select Category</option>
                   <option value="Teaching">Teaching</option>
                   <option value="Non-Teaching">Non-Teaching</option>
                 </select>
               </div>
               <div>
-                <label className="block font-bold mb-1 text-slate-700 dark:text-slate-200">Status</label>
-                <select value={desigFormData.status} onChange={e => setDesigFormData({ ...desigFormData, status: e.target.value as any })} className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-[#1e293b] border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white font-bold">
+                <label className="block font-bold mb-1 text-slate-700 dark:text-slate-200">Status <span className="text-rose-500 font-bold ml-0.5">*</span></label>
+                <select required value={desigFormData.status} onChange={e => setDesigFormData({ ...desigFormData, status: e.target.value as any })} className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-[#1e293b] border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white font-bold">
+                  <option value="" disabled>Select Status</option>
                   <option value="Active">Active</option>
                   <option value="Inactive">Inactive</option>
                 </select>
