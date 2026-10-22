@@ -1183,10 +1183,28 @@ export function validateInputElement(
 
   const ph = (input.placeholder || '').toLowerCase().trim();
 
+  const isExplicitlyNonTime =
+    input.hasAttribute('data-no-time-validation') ||
+    Boolean(input.closest('[data-no-time-validation]')) ||
+    input.getAttribute('data-field-type') === 'duration' ||
+    input.getAttribute('data-field-type') === 'name' ||
+    input.getAttribute('data-field-type') === 'numeric' ||
+    label.includes('name') ||
+    label.includes('route') ||
+    label.includes('est') ||
+    label.includes('duration') ||
+    label.includes('minute') ||
+    label.includes('min') ||
+    label.includes('distance') ||
+    label.includes('km') ||
+    /\b(name|route|est|estimated?|duration|minutes?|mins?|hours?|hrs?|seconds?|secs?|distance|km|kms|fare|rate|price|cost|amount|count|qty)\b/i.test(fullLabelText + ' ' + label + ' ' + ph);
+
   const isNumericOrDuration =
     input.inputMode === 'numeric' ||
     input.inputMode === 'decimal' ||
     (input instanceof HTMLInputElement && input.type === 'number') ||
+    input.getAttribute('data-field-type') === 'duration' ||
+    input.getAttribute('data-field-type') === 'numeric' ||
     /\b(minutes?|mins?|hours?|hrs?|seconds?|secs?|duration|distance|km|kms|miles?|count|quantity|qty|amount|fare|rate|price|cost|capacity)\b/i.test(fullLabelText + ' ' + label) ||
     /\b(est|estimate|estimated)\b/i.test(fullLabelText + ' ' + label);
 
@@ -1195,6 +1213,7 @@ export function validateInputElement(
     /\bhh:mm(\s*(am\/pm|am|pm))?\b/i.test(ph);
 
   const isClockTimeLabel =
+    !isExplicitlyNonTime &&
     !label.includes('name') &&
     !label.includes('route') &&
     !label.includes('title') &&
@@ -1230,13 +1249,14 @@ export function validateInputElement(
     );
 
   const isTimeField =
+    !isExplicitlyNonTime &&
     !isNumericOrDuration &&
     (
       (input instanceof HTMLInputElement && input.type === 'time') ||
       input.hasAttribute('data-time-input') ||
       Boolean(input.closest('[data-time-input]')) ||
       (isClockTimeLabel && (hasTimePlaceholder || ph.includes('time') || !ph)) ||
-      (hasTimePlaceholder && (label.includes('time') || ph.includes('time') || ph.includes('e.g.')))
+      (hasTimePlaceholder && (label.includes('time') || ph.includes('time')))
     );
 
   if (isTimeField) {
@@ -1244,6 +1264,14 @@ export function validateInputElement(
     const timePattern = /^([0-1]?[0-9]|2[0-3])(:[0-5][0-9])?(\s*(am|pm))?(\s*[-–—to]\s*([0-1]?[0-9]|2[0-3])(:[0-5][0-9])?(\s*(am|pm))?)?$/i;
     if (!timePattern.test(trimmedTime)) {
       return { isValid: false, error: 'Enter a valid time (e.g. 10:00 AM).' };
+    }
+    return { isValid: true };
+  }
+
+  if (isNumericOrDuration && (input.inputMode === 'numeric' || input.inputMode === 'decimal' || (input instanceof HTMLInputElement && input.type === 'number'))) {
+    const trimmedNum = val.trim();
+    if (!/^\d+(\.\d+)?$/.test(trimmedNum)) {
+      return { isValid: false, error: `Enter a valid ${label || 'number'}.` };
     }
     return { isValid: true };
   }

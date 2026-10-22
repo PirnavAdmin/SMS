@@ -7,7 +7,7 @@ import {
   Award,
   CheckCircle2,
   Calendar,
-  DollarSign,
+  IndianRupee,
   ShieldCheck,
   Edit3,
   Eye,
@@ -32,6 +32,8 @@ import { PrintableStaffLetter } from './PrintableStaffLetter';
 import {
   calculateSalaryBreakdown,
   getDefaultLetterPayload,
+  getEmptyLetterPayload,
+  getStaffRealAddress,
   saveStaffLetterRecord,
   DEFAULT_OFFER_TERMS
 } from '../../../../utils/staffLetterTemplates';
@@ -42,7 +44,7 @@ import {
 import { validateSearchQuery } from '../../../../utils/validation';
 
 interface StaffLetterModalProps {
-  staff: Staff;
+  staff?: Staff;
   initialType?: StaffLetterType;
   isOpen: boolean;
   onClose: () => void;
@@ -65,11 +67,17 @@ export const StaffLetterModal: React.FC<StaffLetterModalProps> = ({
 
   const effectiveStaffList = useMemo(() => {
     if (allStaff && allStaff.length > 0) return allStaff;
-    return [staff].filter(Boolean);
+    return [staff].filter(Boolean) as Staff[];
   }, [allStaff, staff]);
 
-  const [currentStaff, setCurrentStaff] = useState<Staff>(() => {
-    return staff || (effectiveStaffList.length > 0 ? effectiveStaffList[0] : ({} as Staff));
+  const [currentStaff, setCurrentStaff] = useState<Staff | undefined>(() => {
+    if (staff) return staff;
+    if (existingRecord) {
+      return (allStaff && allStaff.length > 0 ? allStaff : []).find(
+        (s) => s.id === existingRecord.staffId || s.empId === existingRecord.staffEmpId
+      );
+    }
+    return undefined;
   });
   const [staffCategoryFilter, setStaffCategoryFilter] = useState<'all' | 'teaching' | 'non-teaching'>('all');
   const [staffSearchQuery, setStaffSearchQuery] = useState<string>('');
@@ -82,14 +90,8 @@ export const StaffLetterModal: React.FC<StaffLetterModalProps> = ({
       if (staff.id !== currentStaff?.id || staff.empId !== currentStaff?.empId) {
         setCurrentStaff(staff);
       }
-    } else if (effectiveStaffList.length > 0) {
-      const first = effectiveStaffList[0];
-      const hasCurrent = Boolean(currentStaff?.id || currentStaff?.empId || (currentStaff as any)?._id || currentStaff?.name);
-      if (!hasCurrent && first) {
-        setCurrentStaff(first);
-      }
     }
-  }, [staff, effectiveStaffList]);
+  }, [staff]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -167,7 +169,7 @@ export const StaffLetterModal: React.FC<StaffLetterModalProps> = ({
   const [activeType, setActiveType] = useState<StaffLetterType>(
     existingRecord ? existingRecord.letterType : initialType
   );
-  const [activeView, setActiveView] = useState<'preview' | 'edit'>('preview');
+  const [activeView, setActiveView] = useState<'preview' | 'edit'>(existingRecord || readOnly ? 'preview' : 'edit');
 
   const [payload, setPayload] = useState<StaffLetterPayload>(() => {
     const globalSig = getGlobalSignature();
@@ -176,19 +178,34 @@ export const StaffLetterModal: React.FC<StaffLetterModalProps> = ({
       if (!pl.signatureImageUrl && globalSig) pl.signatureImageUrl = globalSig;
       return pl;
     }
-    const defaultPl = getDefaultLetterPayload(initialType, currentStaff || staff, schoolProfile);
-    if (!defaultPl.signatureImageUrl && globalSig) defaultPl.signatureImageUrl = globalSig;
-    return defaultPl;
+    if (currentStaff || staff) {
+      const defaultPl = getDefaultLetterPayload(initialType, currentStaff || staff, schoolProfile);
+      if (!defaultPl.signatureImageUrl && globalSig) defaultPl.signatureImageUrl = globalSig;
+      return defaultPl;
+    }
+    const emptyPl = getEmptyLetterPayload(initialType, schoolProfile);
+    if (!emptyPl.signatureImageUrl && globalSig) emptyPl.signatureImageUrl = globalSig;
+    return emptyPl;
   });
 
   useEffect(() => {
     if (isOpen) {
       if (existingRecord) {
         setActiveType(existingRecord.letterType);
+        setActiveView('preview');
         setPayload({ ...existingRecord.payload });
+        if (staff) {
+          setCurrentStaff(staff);
+        } else {
+          const matched = effectiveStaffList.find(
+            (s) => s.id === existingRecord.staffId || s.empId === existingRecord.staffEmpId
+          );
+          if (matched) setCurrentStaff(matched);
+        }
       } else if (staff) {
         setCurrentStaff(staff);
         setActiveType(initialType);
+        setActiveView('edit');
         const defaultPl = getDefaultLetterPayload(initialType, staff, schoolProfile);
         setPayload(defaultPl);
 
@@ -209,14 +226,50 @@ export const StaffLetterModal: React.FC<StaffLetterModalProps> = ({
             }
           })
           .catch(() => {});
+      } else {
+        // Initial state when opened without specific staff:
+        // Opens in Configure ('edit') tab, initially showing "-- Select Employee --"
+        setCurrentStaff(undefined);
+        setActiveType(initialType);
+        setActiveView('edit');
+        const emptyPl = getEmptyLetterPayload(initialType, schoolProfile);
+        setPayload(emptyPl);
+
+        // Sync fresh global settings from backend database
+        fetchGlobalLetterSettingsApi()
+          .then((res) => {
+            if (res?.data) {
+              const s = res.data;
+              setPayload((prev) => ({
+                ...prev,
+                authorizedSignatoryName: s.signatoryName || prev.authorizedSignatoryName,
+                authorizedSignatoryTitle: s.signatoryTitle || prev.authorizedSignatoryTitle,
+                probationMonths: s.probationMonths || prev.probationMonths,
+                noticePeriodDays: s.noticePeriodDays || prev.noticePeriodDays,
+                signatureImageUrl: s.signatureImageUrl || prev.signatureImageUrl,
+                customTerms: (s.masterTerms && s.masterTerms.length > 0) ? s.masterTerms : prev.customTerms,
+              }));
+            }
+          })
+          .catch(() => {});
       }
     }
-  }, [isOpen, existingRecord, staff, initialType, schoolProfile]);
+  }, [isOpen, existingRecord, staff, initialType, schoolProfile, effectiveStaffList]);
 
   const handleStaffSelect = (selectedId: string) => {
+    if (!selectedId) {
+      setCurrentStaff(undefined);
+      const emptyPl = getEmptyLetterPayload(activeType, schoolProfile);
+      setPayload(emptyPl);
+      return;
+    }
+
     const found = effectiveStaffList.find(
       (s) => String(s.id) === String(selectedId) || String(s.empId) === String(selectedId)
+    ) || allStaff.find(
+      (s) => String(s.id) === String(selectedId) || String(s.empId) === String(selectedId)
     );
+
     if (found) {
       setCurrentStaff(found);
 
@@ -243,24 +296,6 @@ export const StaffLetterModal: React.FC<StaffLetterModalProps> = ({
 
   const handleCategoryFilterChange = (newCat: 'all' | 'teaching' | 'non-teaching') => {
     setStaffCategoryFilter(newCat);
-    if (currentStaff) {
-      const isCurrentTeaching = isTeaching(currentStaff);
-      const matchesCategory =
-        newCat === 'all' ||
-        (newCat === 'teaching' && isCurrentTeaching) ||
-        (newCat === 'non-teaching' && !isCurrentTeaching);
-
-      if (!matchesCategory) {
-        const firstInCat = effectiveStaffList.find((s) => {
-          if (newCat === 'teaching') return isTeaching(s);
-          if (newCat === 'non-teaching') return !isTeaching(s);
-          return true;
-        });
-        if (firstInCat) {
-          handleStaffSelect(firstInCat.id || firstInCat.empId || '');
-        }
-      }
-    }
   };
 
   // When activeType changes and not existing record, recalculate default payload
@@ -506,6 +541,10 @@ export const StaffLetterModal: React.FC<StaffLetterModalProps> = ({
   }, [isOpen, isPrinting, payload, activeType]);
 
   const handleSaveAndIssue = () => {
+    if (!currentStaff && !staff && !payload.candidateName?.trim()) {
+      addToast('error', 'Select Employee', 'Please select an employee before issuing the letter.');
+      return;
+    }
     if (!payload.authorizedSignatoryName?.trim()) {
       addToast('error', 'Mandatory Field Missing', 'Authorized Signatory Name is required.');
       return;
@@ -518,7 +557,7 @@ export const StaffLetterModal: React.FC<StaffLetterModalProps> = ({
       addToast('error', 'Mandatory Field Missing', 'Authorized Signatory Signature / Official Stamp Image is required.');
       return;
     }
-    const targetStaff = currentStaff || staff;
+    const targetStaff = currentStaff || staff || ({ id: '', empId: payload.empId || '' } as Staff);
     const recordId = existingRecord ? existingRecord.id : `LTR-${Date.now()}-${targetStaff.id || targetStaff.empId || '01'}`;
     const newRecord: GeneratedStaffLetterRecord = {
       id: recordId,
@@ -633,17 +672,6 @@ export const StaffLetterModal: React.FC<StaffLetterModalProps> = ({
               <div className="flex items-center bg-slate-100 dark:bg-slate-800 p-1 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold">
                 <button
                   type="button"
-                  onClick={() => setActiveView('preview')}
-                  className={`px-3 py-1 rounded-lg transition-all flex items-center gap-1.5 cursor-pointer ${
-                    activeView === 'preview'
-                      ? 'bg-white dark:bg-slate-900 text-sky-600 dark:text-sky-400 shadow-xs font-black'
-                      : 'text-slate-500 hover:text-slate-900 dark:hover:text-slate-200'
-                  }`}
-                >
-                  <Eye className="w-3.5 h-3.5" /> Preview
-                </button>
-                <button
-                  type="button"
                   onClick={() => setActiveView('edit')}
                   className={`px-3 py-1 rounded-lg transition-all flex items-center gap-1.5 cursor-pointer ${
                     activeView === 'edit'
@@ -652,6 +680,17 @@ export const StaffLetterModal: React.FC<StaffLetterModalProps> = ({
                   }`}
                 >
                   <Edit3 className="w-3.5 h-3.5" /> Configure
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveView('preview')}
+                  className={`px-3 py-1 rounded-lg transition-all flex items-center gap-1.5 cursor-pointer ${
+                    activeView === 'preview'
+                      ? 'bg-white dark:bg-slate-900 text-sky-600 dark:text-sky-400 shadow-xs font-black'
+                      : 'text-slate-500 hover:text-slate-900 dark:hover:text-slate-200'
+                  }`}
+                >
+                  <Eye className="w-3.5 h-3.5" /> Preview
                 </button>
               </div>
             )}
@@ -750,25 +789,45 @@ export const StaffLetterModal: React.FC<StaffLetterModalProps> = ({
                       className={`w-full flex items-center justify-between px-4 py-2.5 rounded-xl bg-white dark:bg-slate-900 border text-xs font-bold transition-all cursor-pointer shadow-2xs ${
                         isEmployeeDropdownOpen
                           ? 'border-sky-500 ring-2 ring-sky-500/20'
+                          : !currentStaff
+                          ? 'border-sky-300 dark:border-sky-700 bg-sky-50/20 dark:bg-sky-950/20'
                           : 'border-slate-300 dark:border-slate-700 hover:border-slate-400 dark:hover:border-slate-600'
                       }`}
                     >
-                      <div className="flex items-center gap-2.5 truncate min-w-0">
-                        <div className="w-7 h-7 rounded-lg bg-sky-50 dark:bg-sky-950/60 border border-sky-200 dark:border-sky-800/60 flex items-center justify-center text-sky-600 dark:text-sky-400 font-black text-xs shrink-0">
-                          {currentStaff?.firstName ? currentStaff.firstName.charAt(0).toUpperCase() : 'U'}
+                      {currentStaff ? (
+                        <div className="flex items-center gap-2.5 truncate min-w-0">
+                          <div className="w-7 h-7 rounded-lg bg-sky-50 dark:bg-sky-950/60 border border-sky-200 dark:border-sky-800/60 flex items-center justify-center text-sky-600 dark:text-sky-400 font-black text-xs shrink-0">
+                            {currentStaff.firstName ? currentStaff.firstName.charAt(0).toUpperCase() : 'U'}
+                          </div>
+                          <div className="flex items-center gap-2 truncate">
+                            <span className="text-slate-900 dark:text-white font-black truncate">
+                              {`${currentStaff.firstName || ''} ${currentStaff.lastName || ''}`.trim() || 'Staff Member'}
+                            </span>
+                            {(currentStaff.empId || currentStaff.id) && (
+                              <span className="font-mono text-[11px] font-bold text-sky-600 dark:text-sky-400 bg-sky-50 dark:bg-sky-950/60 px-1.5 py-0.5 rounded border border-sky-200/60 dark:border-sky-800/60 shrink-0">
+                                {currentStaff.empId || currentStaff.id}
+                              </span>
+                            )}
+                            <span className="text-[11px] text-slate-400 font-normal truncate hidden sm:inline">
+                              • {currentStaff.designation || currentStaff.role || (isTeaching(currentStaff) ? 'Teaching Staff' : 'Non-Teaching Staff')}
+                            </span>
+                          </div>
                         </div>
-                        <div className="flex items-center gap-2 truncate">
-                          <span className="text-slate-900 dark:text-white font-black truncate">
-                            {currentStaff?.firstName ? `${currentStaff.firstName} ${currentStaff.lastName || ''}`.trim() : 'Select Staff Member'}
-                          </span>
-                          <span className="font-mono text-[11px] font-bold text-sky-600 dark:text-sky-400 bg-sky-50 dark:bg-sky-950/60 px-1.5 py-0.5 rounded border border-sky-200/60 dark:border-sky-800/60 shrink-0">
-                            {currentStaff?.empId || currentStaff?.id || 'ID'}
-                          </span>
-                          <span className="text-[11px] text-slate-400 font-normal truncate hidden sm:inline">
-                            • {currentStaff?.designation || currentStaff?.role || (isTeaching(currentStaff) ? 'Teaching Staff' : 'Non-Teaching Staff')}
-                          </span>
+                      ) : (
+                        <div className="flex items-center gap-2.5 truncate min-w-0">
+                          <div className="w-7 h-7 rounded-lg bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex items-center justify-center text-slate-400 dark:text-slate-500 font-bold text-xs shrink-0">
+                            <User className="w-4 h-4" />
+                          </div>
+                          <div className="flex items-center gap-2 truncate">
+                            <span className="text-slate-600 dark:text-slate-300 font-bold truncate">
+                              -- Select Employee --
+                            </span>
+                            <span className="text-[11px] text-slate-400 font-normal truncate hidden sm:inline">
+                              (Choose employee from staff directory)
+                            </span>
+                          </div>
                         </div>
-                      </div>
+                      )}
                       <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform shrink-0 ml-2 ${isEmployeeDropdownOpen ? 'rotate-180 text-sky-600' : ''}`} />
                     </button>
 
@@ -864,6 +923,28 @@ export const StaffLetterModal: React.FC<StaffLetterModalProps> = ({
 
                         {/* Staff List */}
                         <div className="max-h-60 overflow-y-auto no-scrollbar space-y-1">
+                          {/* Option to clear / unselect employee */}
+                          <button
+                            type="button"
+                            onClick={() => {
+                              handleStaffSelect('');
+                              setIsEmployeeDropdownOpen(false);
+                            }}
+                            className={`w-full text-left px-3 py-2 rounded-xl text-xs font-bold transition-all flex items-center justify-between cursor-pointer ${
+                              !currentStaff
+                                ? 'bg-sky-50 dark:bg-sky-950/60 text-sky-700 dark:text-sky-300 font-black border border-sky-200/60 dark:border-sky-800/60'
+                                : 'text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
+                            }`}
+                          >
+                            <div className="flex items-center gap-2.5">
+                              <div className="w-6 h-6 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-400 flex items-center justify-center text-xs">
+                                <User className="w-3.5 h-3.5" />
+                              </div>
+                              <span className="font-semibold">-- Select Employee --</span>
+                            </div>
+                            {!currentStaff && <Check className="w-4 h-4 text-sky-600 dark:text-sky-400 shrink-0 ml-2" />}
+                          </button>
+
                           {filteredStaffList.length === 0 ? (
                             <div className="p-4 text-center text-xs text-slate-400 font-medium">
                               {staffSearchError
@@ -931,9 +1012,10 @@ export const StaffLetterModal: React.FC<StaffLetterModalProps> = ({
                     </label>
                     <input
                       type="text"
+                      placeholder="e.g. OFF/2026/..."
                       value={payload.refNo}
                       onChange={(e) => setPayload({ ...payload, refNo: e.target.value })}
-                      className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-mono text-xs font-bold text-slate-900 dark:text-white outline-none"
+                      className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-mono text-xs font-bold text-slate-900 dark:text-white outline-none placeholder:font-normal placeholder:text-slate-400"
                     />
                   </div>
 
@@ -1024,6 +1106,7 @@ export const StaffLetterModal: React.FC<StaffLetterModalProps> = ({
                     </label>
                     <input
                       type="text"
+                      placeholder="Staff address from staff directory..."
                       value={payload.address || ''}
                       onChange={(e) => setPayload({ ...payload, address: e.target.value })}
                       className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-medium text-slate-900 dark:text-white outline-none"
@@ -1036,7 +1119,7 @@ export const StaffLetterModal: React.FC<StaffLetterModalProps> = ({
               {activeType === 'offer' && (
                 <div className="bg-white dark:bg-slate-850 p-5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xs space-y-4">
                   <h3 className="text-sm font-black text-slate-900 dark:text-white flex items-center gap-2 border-b pb-2 border-slate-100 dark:border-slate-800">
-                    <DollarSign className="w-4 h-4 text-emerald-600" /> Compensation & Appointment Terms
+                    <IndianRupee className="w-4 h-4 text-emerald-600" /> Compensation & Appointment Terms
                   </h3>
 
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">

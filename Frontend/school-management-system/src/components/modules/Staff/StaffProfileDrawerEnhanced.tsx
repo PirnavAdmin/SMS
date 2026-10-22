@@ -286,8 +286,6 @@ export const StaffProfileDrawer: React.FC<StaffProfileDrawerProps> = ({ staff: s
         <InfoLine label="Mother's Name" value={(staff as any).motherName} />
         <InfoLine label="Marital Status" value={(staff as any).maritalStatus} />
         <InfoLine label="Nationality" value={(staff as any).nationality} />
-        <InfoLine label="Religion" value={(staff as any).religion} />
-        <InfoLine label="Category" value={(staff as any).casteCategory} />
         <InfoLine label="Residential Address" value={(staff as any).residentialAddress || staff.address} />
         <InfoLine label="Permanent Address" value={(staff as any).permanentAddress} />
         <InfoLine label="City" value={(staff as any).city} />

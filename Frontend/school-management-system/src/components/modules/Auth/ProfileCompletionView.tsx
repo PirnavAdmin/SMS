@@ -27,7 +27,7 @@ import {
 } from '../Staff/staffFlowOptions';
 import { Staff, StaffDocument, StaffEducationRecord, StaffExperienceRecord, User } from '../../../types';
 import { lookupPostalCode, getOfflinePostalInfo } from '../../../utils/postalLookup';
-import { RELIGIONS, MARITAL_STATUSES } from '../../../utils/validation';
+import { MARITAL_STATUSES } from '../../../utils/validation';
 
 const normalizeMaritalStatus = (status?: string): string => {
   if (!status) return '';
@@ -83,7 +83,6 @@ interface ProfileFormState {
     mobile: string;
     alternateMobile: string;
     nationality: string;
-    religion: string;
     maritalStatus: string;
     fatherName: string;
     motherName: string;
@@ -278,7 +277,6 @@ function buildProfileForm(staff: Staff | undefined | null, category: EmployeeCat
       mobile: staff?.phone || (staff as any)?.mobile || user?.phone || '9876543210',
       alternateMobile: staff?.alternateMobile || '9876543211',
       nationality: staff?.nationality || 'Indian',
-      religion: staff?.religion || 'Hindu',
       maritalStatus: staff?.maritalStatus || 'Married',
       fatherName: staff?.fatherName || 'Rajesh Kumar',
       motherName: staff?.motherName || 'Sunita Kumar'
@@ -710,7 +708,6 @@ export const ProfileCompletionView: React.FC<ProfileCompletionViewProps> = ({ on
       alternateMobile: form.personal.alternateMobile.trim() || undefined,
       bloodGroup: form.personal.bloodGroup || undefined,
       nationality: form.personal.nationality.trim() || undefined,
-      religion: form.personal.religion.trim() || undefined,
       maritalStatus: form.personal.maritalStatus.trim() || undefined,
       fatherName: form.personal.fatherName.trim() || undefined,
       motherName: form.personal.motherName.trim() || undefined,
@@ -905,17 +902,6 @@ export const ProfileCompletionView: React.FC<ProfileCompletionViewProps> = ({ on
                     onChange={e => updatePersonal('nationality', e.target.value)}
                     className={fieldInputClass()}
                   />
-                </div>
-                <div>
-                  <FieldLabel label="Religion" />
-                  <select
-                    value={form.personal.religion}
-                    onChange={e => updatePersonal('religion', e.target.value)}
-                    className={fieldInputClass()}
-                  >
-                    <option value="">Select</option>
-                    {RELIGIONS.map(rel => <option key={rel} value={rel}>{rel}</option>)}
-                  </select>
                 </div>
                 <div>
                   <FieldLabel label="Marital Status" />
