@@ -858,9 +858,7 @@ export const CertificateSettingsTab: React.FC = () => {
                   className={`w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold outline-none cursor-pointer ${
                     templateTypeError ? 'border-rose-500 focus:ring-rose-500' : ''
                   } ${
-                    !selectedTemplateTypeId
-                      ? 'text-slate-400 dark:text-slate-500'
-                      : 'text-slate-900 dark:text-white'
+                    'text-slate-900 dark:text-white'
                   }`}
                 >
                   <option value="" disabled>Select Certificate Type</option>
@@ -904,9 +902,7 @@ export const CertificateSettingsTab: React.FC = () => {
                         ? 'border-rose-500 focus:ring-rose-500'
                         : ''
                     } ${
-                      !templateEditorState.headerStyle
-                        ? 'text-slate-400 dark:text-slate-500'
-                        : 'text-slate-900 dark:text-white'
+                      'text-slate-900 dark:text-white'
                     }`}
                   >
                     <option value="" disabled>Select Header Border Style</option>
@@ -1193,9 +1189,7 @@ export const CertificateSettingsTab: React.FC = () => {
                   value={selectedFieldMatrixTypeId}
                   onChange={e => setSelectedFieldMatrixTypeId(e.target.value)}
                   className={`px-3.5 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-xs font-extrabold outline-none cursor-pointer ${
-                    !selectedFieldMatrixTypeId
-                      ? 'text-slate-400 dark:text-slate-500'
-                      : 'text-slate-900 dark:text-white'
+                    'text-slate-900 dark:text-white'
                   }`}
                 >
                   <option value="" disabled>Select Certificate Type</option>

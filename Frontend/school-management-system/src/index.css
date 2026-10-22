@@ -54,6 +54,26 @@
   :where(.dark, .dark *) select.appearance-none {
     background-image: none !important;
   }
+
+  select option {
+    color: #0f172a;
+    background-color: #ffffff;
+  }
+
+  select option:disabled {
+    color: #64748b;
+  }
+
+  .dark select option,
+  :where(.dark, .dark *) select option {
+    color: #f8fafc;
+    background-color: #0f172a;
+  }
+
+  .dark select option:disabled,
+  :where(.dark, .dark *) select option:disabled {
+    color: #64748b;
+  }
 }
 
 /* Custom Scrollbar */
