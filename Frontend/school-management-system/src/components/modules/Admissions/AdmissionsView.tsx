@@ -369,6 +369,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
     setIsFormView(false);
     setEditingApp(null);
     setIsSubmitting(false);
+    setIsSubmittingForm(false);
 
     // Reset Form Inputs
     setFirstName("");
@@ -612,87 +613,132 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
       reader.onload = async (evt) => {
         try {
           setUploadProgress(30);
-          const bstr = evt.target?.result;
-          const workbook = XLSX.read(bstr, { type: "binary" });
-          const sheetName = workbook.SheetNames[0];
-          const sheet = workbook.Sheets[sheetName];
-          const data = XLSX.utils.sheet_to_json(sheet) as any[];
+          const buffer = evt.target?.result as ArrayBuffer;
+          const workbook = XLSX.read(new Uint8Array(buffer), { type: "array" });
+
+          let targetSheet: any = null;
+          let data: any[] = [];
+          for (const name of workbook.SheetNames) {
+            const s = workbook.Sheets[name];
+            const rows = XLSX.utils.sheet_to_json(s) as any[];
+            if (rows && rows.length > 0) {
+              targetSheet = s;
+              data = rows;
+              break;
+            }
+          }
+
+          if (!targetSheet || data.length === 0) {
+            setIsUploading(false);
+            setUploadProgress(0);
+            addToast("error", "Empty File", "The uploaded file contains no data rows.");
+            return;
+          }
 
           setUploadProgress(50);
+
+          // Helper to get case-insensitive and punctuation-insensitive values from a row
+          const getField = (row: any, ...keys: string[]): string => {
+            const rowKeys = Object.keys(row);
+            for (const key of keys) {
+              const cleanTarget = key.toLowerCase().replace(/[\s_\-]+/g, "");
+              const matchedKey = rowKeys.find(
+                (rk) => rk.toLowerCase().replace(/[\s_\-]+/g, "") === cleanTarget
+              );
+              if (matchedKey && row[matchedKey] !== undefined && row[matchedKey] !== null) {
+                const val = String(row[matchedKey]).trim();
+                if (val.length > 0) return val;
+              }
+            }
+            return "";
+          };
+
+          const parseDateValue = (rawVal: any, defaultDate: string): string => {
+            if (!rawVal) return defaultDate;
+            if (rawVal instanceof Date && !isNaN(rawVal.getTime())) {
+              return rawVal.toISOString().split("T")[0];
+            }
+            if (typeof rawVal === "number") {
+              const utcDays = Math.floor(rawVal - 25569);
+              const d = new Date(utcDays * 86400 * 1000);
+              if (!isNaN(d.getTime())) return d.toISOString().split("T")[0];
+            }
+            const s = String(rawVal).trim();
+            const parts = s.split(/[-/]/);
+            if (parts.length === 3) {
+              if (parts[0].length === 4) {
+                return `${parts[0]}-${parts[1].padStart(2, "0")}-${parts[2].padStart(2, "0")}`;
+              }
+              if (parts[2].length === 4) {
+                return `${parts[2]}-${parts[1].padStart(2, "0")}-${parts[0].padStart(2, "0")}`;
+              }
+            }
+            return s || defaultDate;
+          };
 
           let count = 0;
           for (let i = 0; i < data.length; i++) {
             const row = data[i];
-            const name =
-              row.applicantName ||
-              row["Applicant Name"] ||
-              row["Student Name"] ||
-              row["Full Name"] ||
-              row.Name ||
-              row.name ||
-              `${row.FirstName || row.firstName || ""} ${row.LastName || row.lastName || ""}`.trim();
+            const directName = getField(row, "applicantName", "studentName", "fullName", "name", "candidateName");
+            const fn = getField(row, "firstName", "first");
+            const ln = getField(row, "lastName", "last", "surname");
+            const name = directName || `${fn} ${ln}`.trim() || fn || ln;
 
             if (name) {
-              let rowDob = row.DOB || row.dob || row["Date of Birth"] || row.BirthDate || "2018-08-15";
-              if (rowDob instanceof Date && !isNaN(rowDob.getTime())) {
-                rowDob = rowDob.toISOString().split("T")[0];
-              } else if (typeof rowDob === "number") {
-                const utcDays = Math.floor(rowDob - 25569);
-                const d = new Date(utcDays * 86400 * 1000);
-                if (!isNaN(d.getTime())) rowDob = d.toISOString().split("T")[0];
-              } else {
-                rowDob = String(rowDob).trim();
-              }
+              const dobRawKey = Object.keys(row).find(
+                (rk) => ["dob", "dateofbirth", "birthdate"].includes(rk.toLowerCase().replace(/[\s_\-]+/g, ""))
+              );
+              const rowDob = parseDateValue(dobRawKey ? row[dobRawKey] : null, "2018-08-15");
 
-              let rowAdmDate = row.DateOfAdmission || row.joiningDate || row.admissionDate || row["Admission Date"] || new Date().toISOString().split("T")[0];
-              if (rowAdmDate instanceof Date && !isNaN(rowAdmDate.getTime())) {
-                rowAdmDate = rowAdmDate.toISOString().split("T")[0];
-              } else if (typeof rowAdmDate === "number") {
-                const utcDays = Math.floor(rowAdmDate - 25569);
-                const d = new Date(utcDays * 86400 * 1000);
-                if (!isNaN(d.getTime())) rowAdmDate = d.toISOString().split("T")[0];
-              } else {
-                rowAdmDate = String(rowAdmDate).trim();
-              }
+              const admDateRawKey = Object.keys(row).find(
+                (rk) => ["dateofadmission", "admissiondate", "joiningdate"].includes(rk.toLowerCase().replace(/[\s_\-]+/g, ""))
+              );
+              const rowAdmDate = parseDateValue(admDateRawKey ? row[admDateRawKey] : null, new Date().toISOString().split("T")[0]);
 
-              const rowStatus = String(row.Status || row.status || "Enrolled").trim();
-              const rowClass = String(row.AppliedClass || row.appliedClass || row.Class || row.className || row["Applied Class"] || "Class 1").trim();
+              const rowSection = getField(row, "section", "sec") || "A";
+              const rawStatus = getField(row, "status");
+              const rowStatus = rawStatus ? (rawStatus.charAt(0).toUpperCase() + rawStatus.slice(1).toLowerCase()) : "Enrolled";
+              const rowClass = getField(row, "appliedClass", "class", "className", "grade", "standard") || "Class 1";
+              
               const defaultActiveBranch = selectedBranch && selectedBranch !== "All Branches" && selectedBranch !== "All" && dynamicCampuses.includes(selectedBranch) ? selectedBranch : (dynamicCampuses[0] || "");
-              let rowBranch = String(row.Campus || row.branch || row.Branch || row.CampusLocation || "").trim();
+              let rowBranch = getField(row, "campus", "branch", "campusLocation", "location");
               if (!rowBranch) {
                 rowBranch = defaultActiveBranch;
               }
-              const rowAcademicYear = String(row.AcademicYear || row.academicYear || row["Academic Year"] || selectedAcademicYear || "").trim();
+              const rowAcademicYear = getField(row, "academicYear", "year") || selectedAcademicYear || "";
 
               const newApp = {
                 applicantName: name,
                 appliedClass: rowClass,
                 section: rowSection,
-                gender: String(row.Gender || row.gender || "Male").trim(),
+                gender: getField(row, "gender", "sex") || "Male",
                 dob: rowDob,
-                bloodGroup: String(row.BloodGroup || row.bloodGroup || "O+").trim(),
-                religion: String(row.Religion || row.religion || "General").trim(),
-                casteCategory: String(row.CasteCategory || row.casteCategory || "General").trim(),
-                parentName: String(row.FatherFullName || row.parentName || row.fatherName || row["Father Name"] || "Not Provided").trim(),
-                motherName: String(row.MotherFullName || row.motherName || row["Mother Name"] || "Not Provided").trim(),
-                phone: String(row.FatherMobile || row.phone || row.mobile || row["Mobile Number"] || row["Phone"] || "9876543210").trim(),
-                motherPhone: String(row.MotherMobile || row.motherPhone || "").trim(),
-                alternatePhone: String(row.AlternateMobile || row.alternatePhone || "").trim(),
-                email: String(row.Email || row.email || "").trim(),
-                addressHouseNo: String(row.HouseNo || row.addressHouseNo || "").trim(),
-                addressStreet: String(row.Street || row.addressStreet || "").trim().slice(0, 60),
-                addressArea: String(row.Area || row.addressArea || "").trim(),
-                addressCity: String(row.City || row.addressCity || "").trim(),
-                addressDistrict: String(row.District || row.addressDistrict || "").trim(),
-                addressState: String(row.State || row.addressState || "").trim(),
-                addressPinCode: String(row.Pincode || row.addressPinCode || "").replace(/\D/g, "").slice(0, 6),
+                bloodGroup: getField(row, "bloodGroup", "blood") || "O+",
+                religion: getField(row, "religion") || "General",
+                casteCategory: getField(row, "casteCategory", "caste", "category") || "General",
+                parentName: getField(row, "fatherFullName", "parentName", "fatherName", "father") || "Not Provided",
+                motherName: getField(row, "motherFullName", "motherName", "mother") || "Not Provided",
+                phone: getField(row, "fatherMobile", "phone", "mobile", "contact", "mobileNumber", "fatherContact") || "9876543210",
+                motherPhone: getField(row, "motherMobile", "motherPhone"),
+                alternatePhone: getField(row, "alternateMobile", "alternatePhone", "emergencyContact"),
+                email: getField(row, "email", "parentEmail"),
+                addressHouseNo: getField(row, "houseNo", "doorNo", "flatNo"),
+                addressStreet: getField(row, "street", "address").slice(0, 60),
+                addressArea: getField(row, "area", "locality"),
+                addressCity: getField(row, "city"),
+                addressDistrict: getField(row, "district"),
+                addressState: getField(row, "state"),
+                addressPinCode: getField(row, "pincode", "pinCode", "postalCode", "zip").replace(/\D/g, "").slice(0, 6),
                 branch: rowBranch,
                 academicYear: rowAcademicYear,
                 status: rowStatus,
-                studentType: normalizeStudentType(row.StudentType || row.studentType),
-                transportRequired: Boolean(row.TransportRequired === "Yes" || row.transportRequired === true || String(row.TransportRequired).toLowerCase() === "true"),
-                busRoute: String(row.BusRoute || row.busRoute || "").trim(),
-                pickupPoint: String(row.PickupPoint || row.pickupPoint || "").trim(),
+                studentType: normalizeStudentType(getField(row, "studentType", "type")),
+                transportRequired: Boolean(
+                  getField(row, "transportRequired", "transport").toLowerCase() === "yes" ||
+                  getField(row, "transportRequired", "transport").toLowerCase() === "true"
+                ),
+                busRoute: getField(row, "busRoute", "route"),
+                pickupPoint: getField(row, "pickupPoint", "pickup"),
                 joiningDate: rowAdmDate,
                 admissionDate: rowAdmDate,
                 submissionDate: new Date().toISOString(),
@@ -701,8 +747,12 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                 "id" | "applicationNo"
               >;
 
-              await addAdmission(newApp, { silent: true });
-              count++;
+              try {
+                await addAdmission(newApp, { silent: true });
+                count++;
+              } catch (rowErr) {
+                console.warn(`[BulkUpload] Error registering row ${i + 1} (${name}):`, rowErr);
+              }
             }
             setUploadProgress(50 + Math.round(((i + 1) / data.length) * 45));
           }
@@ -716,14 +766,30 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
           }
           window.dispatchEvent(new Event('storage'));
 
+          // Reset filters so newly added records are immediately visible in the grid
+          setFilterClass("All");
+          setFilterStatus("All");
+          setQuery("");
+          setCurrentPage(1);
+
           setTimeout(() => {
-            addToast(
-              "success",
-              "Bulk Upload Complete",
-              `Successfully registered ${count} admission application(s).`
-            );
             setIsUploading(false);
+            setUploadProgress(0);
             closeBulkModal();
+
+            if (count > 0) {
+              addToast(
+                "success",
+                "Bulk Upload Complete",
+                `Successfully registered ${count} admission application(s).`
+              );
+            } else {
+              addToast(
+                "warning",
+                "Bulk Upload Finished",
+                "No valid admission records could be registered. Please check that column headers match the template."
+              );
+            }
           }, 400);
         } catch (err) {
           console.error(err);
@@ -733,7 +799,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
         }
       };
 
-      reader.readAsBinaryString(selectedFile);
+      reader.readAsArrayBuffer(selectedFile);
     } catch (err) {
       console.error(err);
       setIsUploading(false);
@@ -1837,59 +1903,69 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
     if (isSubmitting || isSubmittingForm) return;
     setIsSubmitting(true);
     setIsSubmittingForm(true);
-    
+
+    try {
     // Validate Student Details Required Fields
     if (!firstName || !firstName.trim()) {
       addToast("error", "Missing Required Field", "Please enter Student First Name.");
       setIsSubmitting(false);
+      setIsSubmittingForm(false);
       return;
     }
 
     if (!lastName || !lastName.trim()) {
       addToast("error", "Missing Required Field", "Please enter Student Last Name.");
       setIsSubmitting(false);
+      setIsSubmittingForm(false);
       return;
     }
 
     if (!formData.appliedClass || formData.appliedClass === "Select Class") {
       addToast("error", "Missing Required Field", "Please select Target Class.");
       setIsSubmitting(false);
+      setIsSubmittingForm(false);
       return;
     }
 
     if (!formData.gender) {
       addToast("error", "Missing Required Field", "Please select Gender.");
       setIsSubmitting(false);
+      setIsSubmittingForm(false);
       return;
     }
 
     if (!formData.branch) {
       addToast("error", "Missing Required Field", "Please select Campus.");
       setIsSubmitting(false);
+      setIsSubmittingForm(false);
       return;
     }
 
     if (!formData.dob) {
       addToast("error", "Missing Required Field", "Please enter Date of Birth.");
       setIsSubmitting(false);
+      setIsSubmittingForm(false);
       return;
     }
 
     if (!formData.bloodGroup) {
       addToast("error", "Missing Required Field", "Please select Blood Group.");
       setIsSubmitting(false);
+      setIsSubmittingForm(false);
       return;
     }
 
     if (!formData.casteCategory) {
       addToast("error", "Missing Required Field", "Please select Caste.");
       setIsSubmitting(false);
+      setIsSubmittingForm(false);
       return;
     }
 
     if (!formData.admissionDate && !formData.joiningDate) {
       addToast("error", "Missing Required Field", "Please select Date of Admission.");
       setIsSubmitting(false);
+      setIsSubmittingForm(false);
       return;
     }
 
@@ -1897,6 +1973,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
     if (!formData.studentType || formData.studentType === ("Select Type" as any)) {
       addToast("error", "Missing Required Field", "Please select Student Type.");
       setIsSubmitting(false);
+      setIsSubmittingForm(false);
       return;
     }
 
@@ -1904,12 +1981,14 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
     if (!formData.parentName || !formData.parentName.trim()) {
       addToast("error", "Missing Required Field", "Please enter Father Full Name.");
       setIsSubmitting(false);
+      setIsSubmittingForm(false);
       return;
     }
 
     if (!formData.phone || !formData.phone.trim()) {
       addToast("error", "Missing Required Field", "Please enter Father Mobile number.");
       setIsSubmitting(false);
+      setIsSubmittingForm(false);
       return;
     }
 
@@ -1967,6 +2046,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
       setEmailError("Please enter parent email address.");
       addToast("error", "Missing Required Field", "Please enter Email Address.");
       setIsSubmitting(false);
+      setIsSubmittingForm(false);
       return;
     }
 
@@ -1975,6 +2055,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
       setEmailError(emailValidation.error || "Please enter a valid email address.");
       addToast("error", "Email Validation Error", emailValidation.error || "Please enter a valid email address.");
       setIsSubmitting(false);
+      setIsSubmittingForm(false);
       return;
     }
 
@@ -2175,8 +2256,6 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
       return;
     }
 
-    setIsSubmittingForm(true);
-    try {
       if (editingApp) {
         await updateAdmission(editingApp.id, {
           ...formData,
@@ -2354,6 +2433,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
         err.message || "An error occurred while saving the application."
       );
     } finally {
+      setIsSubmitting(false);
       setIsSubmittingForm(false);
     }
   };
