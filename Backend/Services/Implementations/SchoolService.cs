@@ -2723,6 +2723,26 @@ public class SchoolService : ISchoolService
 		student.UpdatedAt = DateTime.UtcNow;
 
 		await _schoolRepository.SaveChangesAsync();
+
+		// Keep Admissions table in sync with Students table
+		try
+		{
+			var adm = await Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions.FirstOrDefaultAsync(
+				_context.Admissions, a => a.ApplicationNo == student.AdmissionNumber);
+			if (adm != null)
+			{
+				var secObj = await _context.ClassSections.FindAsync(dto.SectionId);
+				if (secObj != null)
+				{
+					adm.SectionLetter = (secObj.SectionName ?? "").Replace("Section", "", StringComparison.OrdinalIgnoreCase).Trim();
+				}
+				adm.RollNo = rollNumber;
+				adm.ClassId = dto.ClassId;
+				await _context.SaveChangesAsync();
+			}
+		}
+		catch { }
+
 		return await GetStudentByIdAsync(studentId);
 	}
 
