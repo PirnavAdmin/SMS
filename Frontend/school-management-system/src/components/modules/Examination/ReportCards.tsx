@@ -527,7 +527,7 @@ export const ReportCards: React.FC<ReportCardsProps> = ({
                         </button>
                       </th>
                       <th className={tableHeaderClass}>Rank</th>
-                      <th className={tableHeaderClass}>Roll No.</th>
+                      <th className={`${tableHeaderClass} min-w-[5.5rem]`}>Roll No.</th>
                       <th className={tableHeaderClass}>Student Name</th>
                       <th className={tableHeaderClass}>Total Marks</th>
                       <th className={tableHeaderClass}>Percentage</th>
@@ -571,19 +571,19 @@ export const ReportCards: React.FC<ReportCardsProps> = ({
                               </button>
                             </td>
 
-                            <td className={tdClass}>
+                            <td className={`${tdClass} whitespace-nowrap min-w-[5.5rem]`}>
                               <span className="font-mono font-black text-amber-600 dark:text-amber-400 text-xs">
                                 #{res.rank}
                               </span>
                             </td>
 
-                            <td className={tdClass}>
+                            <td className={`${tdClass} whitespace-nowrap min-w-[5.5rem]`}>
                               <span className="font-mono font-bold text-slate-600 dark:text-slate-400">
                                 {res.rollNo || 'N/A'}
                               </span>
                             </td>
 
-                            <td className={tdClass}>
+                            <td className={`${tdClass} whitespace-nowrap min-w-[5.5rem]`}>
                               <div className="text-center">
                                 <span className="font-extrabold text-slate-900 dark:text-white block">
                                   {res.studentName}
@@ -594,25 +594,25 @@ export const ReportCards: React.FC<ReportCardsProps> = ({
                               </div>
                             </td>
 
-                            <td className={tdClass}>
+                            <td className={`${tdClass} whitespace-nowrap min-w-[5.5rem]`}>
                               <span className="font-mono font-bold text-slate-800 dark:text-slate-200">
                                 {res.totalObtainedMarks} / {res.totalMaxMarks}
                               </span>
                             </td>
 
-                            <td className={tdClass}>
+                            <td className={`${tdClass} whitespace-nowrap min-w-[5.5rem]`}>
                               <span className="font-mono font-black text-sky-600 dark:text-sky-400">
                                 {res.percentage.toFixed(1)}%
                               </span>
                             </td>
 
-                            <td className={tdClass}>
+                            <td className={`${tdClass} whitespace-nowrap min-w-[5.5rem]`}>
                               <span className="font-black text-indigo-600 dark:text-indigo-400">
                                 {res.finalGrade}
                               </span>
                             </td>
 
-                            <td className={tdClass}>
+                            <td className={`${tdClass} whitespace-nowrap min-w-[5.5rem]`}>
                               <span
                                 className={`px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase inline-block ${
                                   res.passStatus === 'Pass'

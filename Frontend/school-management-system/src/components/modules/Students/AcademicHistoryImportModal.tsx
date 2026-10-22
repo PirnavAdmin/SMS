@@ -736,7 +736,7 @@ export const AcademicHistoryImportModal: React.FC<AcademicHistoryImportModalProp
                             <th className="p-2.5">Student Name</th>
                             <th className="p-2.5">Academic Year</th>
                             <th className="p-2.5">Class & Sec</th>
-                            <th className="p-2.5">Roll No</th>
+                            <th className="p-2.5 whitespace-nowrap min-w-[5.5rem]">Roll No</th>
                             <th className="p-2.5">Status</th>
                             <th className="p-2.5">Validation Result</th>
                           </tr>
@@ -752,7 +752,7 @@ export const AcademicHistoryImportModal: React.FC<AcademicHistoryImportModalProp
                               <td className="p-2.5 font-bold text-slate-800 dark:text-slate-200">{r.studentName}</td>
                               <td className="p-2.5 font-mono">{r.academicYear}</td>
                               <td className="p-2.5 font-bold">{r.className}-{r.section}</td>
-                              <td className="p-2.5 font-mono">{r.rollNo}</td>
+                              <td className="p-2.5 font-mono whitespace-nowrap min-w-[5.5rem]">{r.rollNo}</td>
                               <td className="p-2.5 font-bold text-sky-700 dark:text-sky-300">{r.status}</td>
                               <td className="p-2.5">
                                 {r.isValid ? (

@@ -739,7 +739,7 @@ export const StudentList: React.FC<{ onNavigate?: (module: string) => void }> = 
                     <th className="py-3.5 px-4 font-black text-center">ADMISSION NO</th>
                     <th className="py-3.5 px-4 font-black text-center">STUDENT NAME</th>
                     <th className="py-3.5 px-4 font-black text-center">CLASS & SECTION</th>
-                    <th className="py-3.5 px-4 font-black text-center">ROLL NO</th>
+                    <th className="py-3.5 px-4 font-black text-center whitespace-nowrap min-w-[5.5rem]">ROLL NO</th>
                     <th className="py-3.5 px-4 font-black text-center">PARENT CONTACT</th>
                     <th className="py-3.5 px-4 font-black text-center">STATUS</th>
                     <th className="py-3.5 px-4 font-black text-center">ACTIONS</th>
@@ -760,7 +760,7 @@ export const StudentList: React.FC<{ onNavigate?: (module: string) => void }> = 
                         <td className="py-3 px-4 text-center font-mono font-bold text-slate-500">
                           {serialNo}
                         </td>
-                        <td className="py-3 px-4 text-center font-mono font-bold text-sky-600 dark:text-sky-400">
+                        <td className="py-3 px-4 text-center font-mono font-bold text-sky-600 dark:text-sky-400 whitespace-nowrap min-w-[5.5rem]">
                           {admNo}
                         </td>
                         <td className="py-3 px-4 text-center font-bold text-slate-900 dark:text-white">
@@ -771,7 +771,7 @@ export const StudentList: React.FC<{ onNavigate?: (module: string) => void }> = 
                             Class {displayClass}-{displaySection}
                           </span>
                         </td>
-                        <td className="py-3 px-4 text-center font-mono font-extrabold text-slate-700 dark:text-slate-300">
+                        <td className="py-3 px-4 text-center font-mono font-extrabold text-slate-700 dark:text-slate-300 whitespace-nowrap min-w-[5.5rem]">
                           #{rollNumber}
                         </td>
                         <td className="py-3 px-4 text-center font-mono font-bold text-slate-700 dark:text-slate-300">
@@ -1181,7 +1181,7 @@ export const StudentList: React.FC<{ onNavigate?: (module: string) => void }> = 
               <thead>
                 <tr className="bg-slate-50 dark:bg-slate-800/60 text-slate-500 font-extrabold uppercase tracking-wider border-b border-slate-100 dark:border-slate-800">
                   <th className="py-3.5 px-4">Adm No</th>
-                  <th className="py-3.5 px-4">Roll No</th>
+                  <th className="py-3.5 px-4 whitespace-nowrap min-w-[5.5rem]">Roll No</th>
                   <th className="py-3.5 px-4">Student Name</th>
                   <th className="py-3.5 px-4">Class & Sec</th>
                   <th className="py-3.5 px-4">Hostel Block & Room</th>
@@ -1215,7 +1215,7 @@ export const StudentList: React.FC<{ onNavigate?: (module: string) => void }> = 
                         <td className="py-3.5 px-4 font-mono font-bold text-slate-900 dark:text-white">
                           {s.admissionNo}
                         </td>
-                        <td className="py-3.5 px-4 font-mono text-slate-600 dark:text-slate-400">
+                        <td className="py-3.5 px-4 font-mono text-slate-600 dark:text-slate-400 whitespace-nowrap min-w-[5.5rem]">
                           {s.rollNo}
                         </td>
                         <td className="py-3.5 px-4">
@@ -1560,7 +1560,7 @@ export const StudentList: React.FC<{ onNavigate?: (module: string) => void }> = 
               <table className="w-full text-left border-collapse text-xs">
                 <thead>
                   <tr className="bg-slate-100/70 dark:bg-slate-800/60 text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider border-b border-slate-200 dark:border-slate-800">
-                    <th className="py-3 px-4 text-center">Roll Number</th>
+                    <th className="py-3 px-4 text-center whitespace-nowrap min-w-[5.5rem]">Roll Number</th>
                     <th className="py-3 px-4 text-center">Admission Number</th>
                     <th className="py-3 px-4 text-center">Photo</th>
                     <th className="py-3 px-4">Student Name</th>
@@ -1588,7 +1588,7 @@ export const StudentList: React.FC<{ onNavigate?: (module: string) => void }> = 
                     paginatedRoster.map(st => (
                       <tr key={st.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 text-slate-900 dark:text-slate-100">
                         {/* 1. Roll Number */}
-                        <td className="py-3 px-4 text-center font-mono font-bold text-sky-600 dark:text-sky-400">
+                        <td className="py-3 px-4 text-center font-mono font-bold text-sky-600 dark:text-sky-400 whitespace-nowrap min-w-[5.5rem]">
                           {st.rollNo}
                         </td>
 

@@ -1709,7 +1709,7 @@ export const ClassTeacherMarksEntryView: React.FC<ClassTeacherMarksEntryViewProp
                 <tr className="border-b border-slate-200 dark:border-slate-800 bg-slate-100/75 dark:bg-slate-950/80">
                   <th
                     rowSpan={2}
-                    className="px-4 py-3 text-[10px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400 w-16 text-center border-r border-slate-200/80 dark:border-slate-800/80 align-middle"
+                    className="px-4 py-3 text-[10px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400 w-24 min-w-[5.5rem] whitespace-nowrap text-center border-r border-slate-200/80 dark:border-slate-800/80 align-middle"
                   >
                     Roll
                   </th>
@@ -1809,7 +1809,7 @@ export const ClassTeacherMarksEntryView: React.FC<ClassTeacherMarksEntryViewProp
 
                     return (
                       <tr key={student.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors">
-                        <td className="px-4 py-3 text-center text-xs font-black text-slate-800 dark:text-white">
+                        <td className="px-4 py-3 text-center text-xs font-black text-slate-800 dark:text-white whitespace-nowrap min-w-[5.5rem]">
                           {student.rollNo || globalIdx + 1}
                         </td>
                         <td className="px-4 py-3">
@@ -1916,7 +1916,7 @@ export const ClassTeacherMarksEntryView: React.FC<ClassTeacherMarksEntryViewProp
             <table className="w-full text-left text-xs border-collapse min-w-[700px]">
               <thead>
                 <tr className="border-b border-slate-200 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-950/60">
-                  <th className="px-4 py-3.5 text-[10px] font-black uppercase tracking-wider text-slate-400 w-16 text-center">
+                  <th className="px-4 py-3.5 text-[10px] font-black uppercase tracking-wider text-slate-400 w-24 min-w-[5.5rem] whitespace-nowrap text-center">
                     Roll
                   </th>
                   <th className="px-4 py-3.5 text-[10px] font-black uppercase tracking-wider text-slate-400 min-w-[180px]">
@@ -1957,7 +1957,7 @@ export const ClassTeacherMarksEntryView: React.FC<ClassTeacherMarksEntryViewProp
 
                     return (
                       <tr key={student.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors">
-                        <td className="px-4 py-3 text-center text-xs font-black text-slate-800 dark:text-white">
+                        <td className="px-4 py-3 text-center text-xs font-black text-slate-800 dark:text-white whitespace-nowrap min-w-[5.5rem]">
                           {student.rollNo || globalIdx + 1}
                         </td>
                         <td className="px-4 py-3">

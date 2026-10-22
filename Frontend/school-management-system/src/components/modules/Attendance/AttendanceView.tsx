@@ -1643,7 +1643,7 @@ export const AttendanceView = () => {
                 <table className="w-full text-left border-collapse text-xs">
                   <thead>
                     <tr className="bg-slate-50 dark:bg-slate-800/40 text-slate-500 font-bold uppercase tracking-wider border-b border-slate-200 dark:border-slate-800">
-                      <th className="py-3 px-4 w-24 whitespace-nowrap text-left">Roll No</th>
+                      <th className="py-3 px-4 w-24 min-w-[5.5rem] whitespace-nowrap text-left">Roll No</th>
                       <th className="py-3 px-4 whitespace-nowrap text-left">Student Name</th>
                       <th className="py-3 px-4 text-center whitespace-nowrap">Attendance Status</th>
                       <th className="py-3 px-4 whitespace-nowrap text-left">Remarks (Optional)</th>
@@ -1659,7 +1659,7 @@ export const AttendanceView = () => {
                         const status = getAttendanceStatus(st);
                         return (
                           <tr key={st.id} className={`hover:bg-slate-50/80 dark:hover:bg-slate-800/30 text-slate-850 dark:text-slate-200 border-b border-slate-100/50 dark:border-slate-800/50 ${idx % 2 === 0 ? 'bg-white dark:bg-slate-900' : 'bg-slate-50/30 dark:bg-slate-800/10'}`}>
-                            <td className="py-3 px-4 font-mono font-bold text-sky-600 dark:text-sky-400">{st.rollNo}</td>
+                            <td className="py-3 px-4 font-mono font-bold text-sky-600 dark:text-sky-400 whitespace-nowrap min-w-[5.5rem]">{st.rollNo}</td>
                             <td className="py-3 px-4">
                               <div className="flex items-center gap-2.5">
                                 {st.avatar ? (

@@ -933,7 +933,7 @@ export const GenerateCertificateModal: React.FC<GenerateCertificateModalProps> =
                                 <th className="p-3">Student Name</th>
                                 <th className="p-3">Admission No.</th>
                                 <th className="p-3">Class & Section</th>
-                                <th className="p-3">Roll No</th>
+                                <th className="p-3 whitespace-nowrap min-w-[5.5rem]">Roll No</th>
                               </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
@@ -960,7 +960,7 @@ export const GenerateCertificateModal: React.FC<GenerateCertificateModalProps> =
                                     <td className="p-3 font-extrabold">{s.firstName} {s.lastName}</td>
                                     <td className="p-3 font-mono text-sky-600 dark:text-sky-400 font-bold">{s.admissionNo}</td>
                                     <td className="p-3">{s.className} - {s.section}</td>
-                                    <td className="p-3 font-mono">{s.rollNo || '—'}</td>
+                                    <td className="p-3 font-mono whitespace-nowrap min-w-[5.5rem]">{s.rollNo || '—'}</td>
                                   </tr>
                                 );
                               })}
