@@ -40,9 +40,9 @@ import {
 } from '../../../../utils/staffLetterTemplates';
 import {
   fetchGlobalLetterSettingsApi,
+  saveGlobalLetterSettingsApi,
   createOrSaveStaffLetterApi,
-  fetchStaffLettersApi,
-  saveGlobalLetterSettingsApi
+  fetchStaffLettersApi
 } from '../../../../api/staffLetters';
 import { validateSearchQuery } from '../../../../utils/validation';
 
@@ -353,14 +353,14 @@ export const StaffLetterModal: React.FC<StaffLetterModalProps> = ({
             const s = res.data;
             setPayload((prev) => ({
               ...prev,
-              authorizedSignatoryName: prev.authorizedSignatoryName || s.signatoryName || '',
-              authorizedSignatoryTitle: prev.authorizedSignatoryTitle || s.signatoryTitle || '',
-              probationMonths: prev.probationMonths || s.probationMonths || 0,
-              noticePeriodDays: prev.noticePeriodDays || s.noticePeriodDays || 0,
+              authorizedSignatoryName: s.signatoryName || prev.authorizedSignatoryName,
+              authorizedSignatoryTitle: s.signatoryTitle || prev.authorizedSignatoryTitle,
+              probationMonths: s.probationMonths || prev.probationMonths,
+              noticePeriodDays: s.noticePeriodDays || prev.noticePeriodDays,
               signatureImageUrl: isCustomSignatureModifiedRef.current
                 ? prev.signatureImageUrl
                 : (prev.signatureImageUrl || s.signatureImageUrl || ''),
-              customTerms: (prev.customTerms && prev.customTerms.length > 0) ? prev.customTerms : (s.masterTerms || []),
+              customTerms: (prev.customTerms && prev.customTerms.length > 0) ? prev.customTerms : (s.masterTerms || prev.customTerms || []),
             }));
           }
         })
@@ -399,6 +399,8 @@ export const StaffLetterModal: React.FC<StaffLetterModalProps> = ({
         .catch(() => {});
     }
   }, [isOpen, existingRecord, staff, initialType]);
+
+
 
   const handleStaffSelect = (selectedId: string) => {
     if (!selectedId) {
