@@ -392,7 +392,7 @@ public class StaffLettersController : ControllerBase
                     success = true,
                     data = new GlobalLetterSettingsDto
                     {
-                        SignatoryName = dynamicPrincipalName,
+                        SignatoryName = string.Empty,
                         SignatoryTitle = !string.IsNullOrWhiteSpace(dynamicPrincipalName) ? "Principal & Authorized Signatory" : string.Empty,
                         ProbationMonths = 6,
                         NoticePeriodDays = 30,
@@ -415,7 +415,7 @@ public class StaffLettersController : ControllerBase
 
             var effectiveSignatory = !string.IsNullOrWhiteSpace(settings.SignatoryName) 
                 ? settings.SignatoryName 
-                : dynamicPrincipalName;
+                : string.Empty;
 
             return Ok(new
             {

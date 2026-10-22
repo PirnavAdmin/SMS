@@ -4608,6 +4608,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
                   item.applicantFullName || item.studentName || existing?.applicantName || "",
                 appliedClass:
                   item.appliedClass || item.appliedClassGrade || existing?.appliedClass || "",
+                section:
+                  item.section || item.sectionLetter || existing?.section || "A",
                 gender: item.gender || existing?.gender || "",
                 dob: item.dob ? item.dob.split("T")[0] : existing?.dob || "",
                 bloodGroup: item.bloodGroup || existing?.bloodGroup || "",
@@ -8155,6 +8157,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         submissionDate: new Date().toISOString().split("T")[0],
         status: resolvedStatus as any,
         documentsSubmitted: appData.documentsSubmitted || [],
+        section: (appData as any).section || json?.data?.section || "A",
       };
 
       savePersistedOptionalFees(
@@ -8325,6 +8328,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         feeCalculationMethod: appData.feeCalculationMethod || "Term-wise",
         selectedOptionalFees: appData.selectedOptionalFees || [],
         documentsSubmitted: appData.documentsSubmitted || [],
+        section: (appData as any).section || (existing as any).section || "A",
       };
 
       await updateAdmissionApi(parseInt(id, 10), payload);
@@ -8361,6 +8365,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
               firstName: appData.applicantName ? appData.applicantName.split(" ")[0] : s.firstName,
               lastName: appData.applicantName ? appData.applicantName.split(" ").slice(1).join(" ") : s.lastName,
               className: appData.appliedClass || s.className,
+              section: (appData as any).section || s.section || "A",
               gender: (appData.gender as any) || s.gender,
               parentName: appData.parentName || s.parentName,
               fatherName: appData.parentName || s.fatherName,
@@ -8733,7 +8738,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
               religion: app.religion || "",
               casteCategory: app.casteCategory || "",
               className: app.appliedClass || (app as any).className || "",
-              section: (app as any).section || "",
+              section: (app as any).section || (app as any).sectionLetter || "A",
               category: app.casteCategory || "",
               status: "Active",
               avatar: app.avatar || "",

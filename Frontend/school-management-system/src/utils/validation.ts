@@ -921,6 +921,9 @@ function inferInputFieldLabel(input: HTMLInputElement | HTMLTextAreaElement): st
 
 function shouldSkipGlobalValidation(input: HTMLInputElement | HTMLTextAreaElement): boolean {
   if (input.disabled || input.readOnly) return true;
+  if (input.hasAttribute('data-skip-global-validation') || Boolean(input.closest('[data-skip-global-validation]'))) {
+    return true;
+  }
   if (input instanceof HTMLInputElement && SKIP_INPUT_TYPES.has((input.type || 'text').toLowerCase())) {
     return true;
   }
@@ -1123,8 +1126,7 @@ export function validateInputElement(
     input.hasAttribute('data-date-input') ||
     Boolean(input.closest('[data-date-input]')) ||
     Boolean(input.parentElement?.querySelector('input[type="date"]')) ||
-    label.includes('date') ||
-    label.includes('dob') ||
+    (/\b(date|dob)\b/i.test(label) && !label.includes('candidate') && !label.includes('validate') && !label.includes('update')) ||
     (input.placeholder || '').toLowerCase().includes('dd-mm') ||
     (input.placeholder || '').toLowerCase().includes('yyyy');
 
@@ -1155,16 +1157,73 @@ export function validateInputElement(
     return { isValid: true };
   }
 
+  const fullLabelText = (() => {
+    const parentDiv = input.closest('div');
+    const labelEl = parentDiv?.querySelector('label') || parentDiv?.parentElement?.querySelector('label');
+    return (labelEl?.textContent || '').toLowerCase();
+  })();
+
+  const ph = (input.placeholder || '').toLowerCase().trim();
+
+  const isNumericOrDuration =
+    input.inputMode === 'numeric' ||
+    input.inputMode === 'decimal' ||
+    (input instanceof HTMLInputElement && input.type === 'number') ||
+    /\b(minutes?|mins?|hours?|hrs?|seconds?|secs?|duration|distance|km|kms|miles?|count|quantity|qty|amount|fare|rate|price|cost|capacity)\b/i.test(fullLabelText + ' ' + label) ||
+    /\b(est|estimate|estimated)\b/i.test(fullLabelText + ' ' + label);
+
+  const hasTimePlaceholder =
+    /\b\d{1,2}:\d{2}\s*(am|pm)?\b/i.test(ph) ||
+    /\bhh:mm(\s*(am\/pm|am|pm))?\b/i.test(ph);
+
+  const isClockTimeLabel =
+    !label.includes('name') &&
+    !label.includes('route') &&
+    !label.includes('title') &&
+    !label.includes('code') &&
+    !label.includes('person') &&
+    !label.includes('manager') &&
+    !label.includes('user') &&
+    !label.includes('student') &&
+    !label.includes('staff') &&
+    !label.includes('driver') &&
+    !label.includes('employee') &&
+    !label.includes('zone') &&
+    !label.includes('area') &&
+    (
+      label === 'time' ||
+      label === 'time:' ||
+      label.includes('start time') ||
+      label.includes('end time') ||
+      label.includes('pickup time') ||
+      label.includes('drop time') ||
+      label.includes('arrival') ||
+      label.includes('departure') ||
+      label.includes('in time') ||
+      label.includes('out time') ||
+      label.includes('clock time') ||
+      label.includes('schedule time') ||
+      label.includes('shift time') ||
+      label.includes('reporting time') ||
+      label.includes('exam time') ||
+      label.includes('meeting time') ||
+      label.includes('opening time') ||
+      label.includes('closing time')
+    );
+
   const isTimeField =
-    label.includes('time') ||
-    (input.placeholder || '').toLowerCase().includes('time') ||
-    (input.placeholder || '').toLowerCase().includes('10:00') ||
-    (input.placeholder || '').toLowerCase().includes('am') ||
-    (input.placeholder || '').toLowerCase().includes('pm');
+    !isNumericOrDuration &&
+    (
+      (input instanceof HTMLInputElement && input.type === 'time') ||
+      input.hasAttribute('data-time-input') ||
+      Boolean(input.closest('[data-time-input]')) ||
+      (isClockTimeLabel && (hasTimePlaceholder || ph.includes('time') || !ph)) ||
+      (hasTimePlaceholder && (label.includes('time') || ph.includes('time') || ph.includes('e.g.')))
+    );
 
   if (isTimeField) {
     const trimmedTime = val.trim();
-    const timePattern = /^([0-1]?[0-9]|2[0-3])(:[0-5][0-9])?(\s*(am|pm))?$/i;
+    const timePattern = /^([0-1]?[0-9]|2[0-3])(:[0-5][0-9])?(\s*(am|pm))?(\s*[-–—to]\s*([0-1]?[0-9]|2[0-3])(:[0-5][0-9])?(\s*(am|pm))?)?$/i;
     if (!timePattern.test(trimmedTime)) {
       return { isValid: false, error: 'Enter a valid time (e.g. 10:00 AM).' };
     }
@@ -1187,9 +1246,8 @@ export function validateInputElement(
   }
 
   const isCityField =
-    label === 'city' ||
-    label.includes('city') ||
-    (input.placeholder || '').toLowerCase().includes('city');
+    (label === 'city' || /\bcity\b/i.test(label) || (input.placeholder || '').toLowerCase().includes('city')) &&
+    !label.includes('capacity');
 
   if (isCityField) {
     return validateCity(val, {

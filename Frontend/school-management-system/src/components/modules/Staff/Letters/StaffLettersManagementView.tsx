@@ -100,6 +100,7 @@ export const StaffLettersManagementView: React.FC<StaffLettersManagementViewProp
   const [existingRecordForView, setExistingRecordForView] = useState<GeneratedStaffLetterRecord | undefined>(undefined);
   const [isReadOnlyModal, setIsReadOnlyModal] = useState(false);
   const [letterToDelete, setLetterToDelete] = useState<GeneratedStaffLetterRecord | null>(null);
+  const [termToDeleteIndex, setTermToDeleteIndex] = useState<number | null>(null);
 
   // Global Template Settings State
   const [globalTerms, setGlobalTerms] = useState<string[]>(() => {
@@ -116,10 +117,10 @@ export const StaffLettersManagementView: React.FC<StaffLettersManagementViewProp
       const saved = localStorage.getItem('edu_db_global_letter_settings');
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (parsed.signatoryName) return parsed.signatoryName;
+        if (parsed.signatoryName && parsed.signatoryName !== 'Dr. Eleanor Vance') return parsed.signatoryName;
       }
     } catch (e) {}
-    return schoolProfile?.principalName || '';
+    return '';
   });
   const [globalSignatoryTitle, setGlobalSignatoryTitle] = useState(() => {
     try {
@@ -204,7 +205,11 @@ export const StaffLettersManagementView: React.FC<StaffLettersManagementViewProp
       .then((res) => {
         if (isMounted && res?.data) {
           const s = res.data;
-          if (s.signatoryName) setGlobalSignatoryName(s.signatoryName);
+          if (s.signatoryName && s.signatoryName !== 'Dr. Eleanor Vance') {
+            setGlobalSignatoryName(s.signatoryName);
+          } else {
+            setGlobalSignatoryName('');
+          }
           if (s.signatoryTitle) setGlobalSignatoryTitle(s.signatoryTitle);
           if (s.probationMonths !== undefined) setGlobalProbationMonths(s.probationMonths);
           if (s.noticePeriodDays !== undefined) setGlobalNoticePeriodDays(s.noticePeriodDays);
@@ -215,7 +220,7 @@ export const StaffLettersManagementView: React.FC<StaffLettersManagementViewProp
             localStorage.setItem(
               'edu_db_global_letter_settings',
               JSON.stringify({
-                signatoryName: s.signatoryName,
+                signatoryName: s.signatoryName && s.signatoryName !== 'Dr. Eleanor Vance' ? s.signatoryName : '',
                 signatoryTitle: s.signatoryTitle,
                 probationMonths: s.probationMonths,
                 noticePeriodDays: s.noticePeriodDays,
@@ -287,7 +292,12 @@ export const StaffLettersManagementView: React.FC<StaffLettersManagementViewProp
   };
 
   const handleRemoveTerm = (index: number) => {
-    setGlobalTerms(globalTerms.filter((_, idx) => idx !== index));
+    const updated = globalTerms.filter((_, idx) => idx !== index);
+    setGlobalTerms(updated);
+    try {
+      localStorage.setItem('edu_db_global_offer_terms', JSON.stringify(updated));
+    } catch (e) {}
+    addToast('success', 'Clause Removed', 'The selected policy/clause has been removed.');
   };
 
   const handleResendToPortal = (letter: GeneratedStaffLetterRecord) => {
@@ -728,6 +738,7 @@ export const StaffLettersManagementView: React.FC<StaffLettersManagementViewProp
                     type="text"
                     value={globalSignatoryName}
                     onChange={(e) => setGlobalSignatoryName(e.target.value)}
+                    placeholder="Enter Authorized Signatory Full Name"
                     className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-850 border border-sky-200 dark:border-sky-800 font-bold text-slate-900 dark:text-white outline-none focus:ring-1 focus:ring-sky-500"
                   />
                 </div>
@@ -740,6 +751,7 @@ export const StaffLettersManagementView: React.FC<StaffLettersManagementViewProp
                     type="text"
                     value={globalSignatoryTitle}
                     onChange={(e) => setGlobalSignatoryTitle(e.target.value)}
+                    placeholder="Enter Signatory Title & Designation"
                     className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-850 border border-sky-200 dark:border-sky-800 font-bold text-slate-900 dark:text-white outline-none focus:ring-1 focus:ring-sky-500"
                   />
                 </div>
@@ -915,7 +927,7 @@ export const StaffLettersManagementView: React.FC<StaffLettersManagementViewProp
                     </p>
                     <button
                       type="button"
-                      onClick={() => handleRemoveTerm(idx)}
+                      onClick={() => setTermToDeleteIndex(idx)}
                       className="text-rose-500 hover:text-rose-700 p-1 shrink-0 cursor-pointer"
                       title="Remove Term"
                     >
@@ -973,6 +985,27 @@ export const StaffLettersManagementView: React.FC<StaffLettersManagementViewProp
           readOnly={isReadOnlyModal}
         />
       )}
+
+      {/* Delete Policy/Clause Confirm Modal */}
+      <ConfirmModal
+        isOpen={termToDeleteIndex !== null}
+        title="Delete Policy Clause"
+        message={
+          termToDeleteIndex !== null && globalTerms[termToDeleteIndex]
+            ? `Are you sure you want to delete this clause?\n\n"${globalTerms[termToDeleteIndex]}"`
+            : 'Are you sure you want to delete this policy clause?'
+        }
+        confirmLabel="Delete"
+        cancelLabel="Cancel"
+        variant="danger"
+        onConfirm={() => {
+          if (termToDeleteIndex !== null) {
+            handleRemoveTerm(termToDeleteIndex);
+            setTermToDeleteIndex(null);
+          }
+        }}
+        onCancel={() => setTermToDeleteIndex(null)}
+      />
 
       {/* Revoke Confirm Modal */}
       <ConfirmModal

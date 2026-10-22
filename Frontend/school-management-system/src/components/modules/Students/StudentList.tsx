@@ -185,7 +185,7 @@ export const StudentList: React.FC<{ onNavigate?: (module: string) => void }> = 
           firstName: app.firstName || nameParts[0] || '',
           lastName: app.lastName || nameParts.slice(1).join(' ') || '',
           className: app.appliedClass || (app as any).applyingForClass || (app as any).className || '',
-          section: (app as any).section || '',
+          section: (app as any).section || (app as any).sectionLetter || 'A',
           rollNo: (app as any).rollNo || (regNo ? regNo.replace(/\D/g, '').slice(-3) : ''),
           admissionNo: regNo,
           fatherName: app.parentName || (app as any).fatherName || '',
@@ -304,9 +304,11 @@ export const StudentList: React.FC<{ onNavigate?: (module: string) => void }> = 
       const allSections = Array.from(new Set([...clsObj.sections, ...existingStudentSections])).sort();
 
       const sectionDetails = allSections.map(secName => {
-        const realSecStudents = realClassStudents.filter(
-          s => s.section.toLowerCase() === secName.toLowerCase()
-        );
+        const cleanSec = secName.replace(/^section\s+/i, '').trim().toLowerCase();
+        const realSecStudents = realClassStudents.filter(s => {
+          const sClean = (s.section || '').replace(/^section\s+/i, '').trim().toLowerCase();
+          return sClean === cleanSec || (s.section || '').trim().toLowerCase() === secName.trim().toLowerCase();
+        });
 
         return {
           sectionName: secName,

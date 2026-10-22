@@ -387,6 +387,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
     setCityError("");
     setFormData({
       appliedClass: "Select Class",
+      section: "A",
       gender: "",
       dob: "",
       bloodGroup: "",
@@ -781,6 +782,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
 
   const [formData, setFormData] = useState<Partial<AdmissionApplication>>({
     appliedClass: "",
+    section: "A",
     gender: "" as any,
     dob: "",
     bloodGroup: "",
@@ -1307,6 +1309,35 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
 
   const classOptions = dynamicClassOptions;
 
+  const availableSections = useMemo(() => {
+    if (!formData.appliedClass || formData.appliedClass === "Select Class") {
+      return ["A", "B"];
+    }
+    const target = formData.appliedClass.trim().toLowerCase();
+    const cleanTarget = target.replace(/^class\s+/i, "").replace(/^grade\s+/i, "");
+
+    const matched = (academicClasses || []).find((c) => {
+      const cName = (c.name || (c as any).className || "").trim().toLowerCase();
+      const cleanCName = cName.replace(/^class\s+/i, "").replace(/^grade\s+/i, "");
+      return cName === target || cleanCName === cleanTarget;
+    });
+
+    if (matched && Array.isArray(matched.sections) && matched.sections.length > 0) {
+      const secs = matched.sections
+        .map((s: any) => {
+          if (typeof s === "string") return s.trim();
+          if (s && typeof s === "object") return (s.sectionName || s.name || "").trim();
+          return "";
+        })
+        .filter(Boolean);
+      if (secs.length > 0) {
+        return Array.from(new Set(secs));
+      }
+    }
+
+    return ["A", "B"];
+  }, [academicClasses, formData.appliedClass]);
+
   const handleEmailChange = (val: string) => {
     setFormData((prev) => ({ ...prev, email: val }));
     const res = validateEmail(val, true);
@@ -1438,6 +1469,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
     setSiblingStudentIds([]);
     setFormData({
       appliedClass: "",
+      section: "A",
       gender: "" as any,
       dob: "",
       bloodGroup: "",
@@ -1600,6 +1632,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
 
     setFormData({
       ...app,
+      section: (app as any).section || (app as any).sectionLetter || "A",
       email: app.email || (app as any).parentEmail || "",
       motherPhone: app.motherPhone || (app as any).motherMobileNumber || "",
       alternatePhone: app.alternatePhone || (app as any).alternateMobileNumber || "",
@@ -2147,6 +2180,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
       if (editingApp) {
         await updateAdmission(editingApp.id, {
           ...formData,
+          section: formData.section || availableSections[0] || "A",
           parentName: formattedParentName,
           motherName: formattedMotherName,
           email: formData.email || "",
@@ -2172,6 +2206,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
           applicantName: fullApplicantName,
           avatar,
           appliedClass: formData.appliedClass!,
+          section: formData.section || availableSections[0] || "A",
           gender: formData.gender,
           dob: finalDob,
           bloodGroup: formData.bloodGroup,
@@ -2250,7 +2285,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
               lastName: lastName.trim(),
               admissionNo: admNo,
               className: formData.appliedClass,
-              section: "A",
+              section: formData.section || availableSections[0] || "A",
               studentType: "Residential",
               isResidential: true,
               phone: formData.phone || "",
@@ -2950,8 +2985,8 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                       </div>
                     </div>
 
-                    {/* Class, Gender, Campus */}
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    {/* Class, Section, Gender, Campus */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                       <div>
                         <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">
                           Class <span className="text-rose-500 font-bold ml-0.5">*</span>
@@ -2962,10 +2997,10 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                             value={formData.appliedClass}
                             onChange={(e) => {
                               const val = e.target.value;
-                              setFormData({
-                                ...formData,
+                              setFormData((prev) => ({
+                                ...prev,
                                 appliedClass: val,
-                              });
+                              }));
                               validateAgeAndDates(undefined, undefined, val);
                             }}
                             className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none appearance-none cursor-pointer pr-10"
@@ -2974,6 +3009,31 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                             {classOptions.map((className) => (
                               <option key={className} value={className}>
                                 {className}
+                              </option>
+                            ))}
+                          </select>
+                          <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                        </div>
+                      </div>
+                      <div>
+                        <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">
+                          Section <span className="text-rose-500 font-bold ml-0.5">*</span>
+                        </label>
+                        <div className="relative">
+                          <select
+                            required
+                            value={formData.section || availableSections[0] || "A"}
+                            onChange={(e) =>
+                              setFormData((prev) => ({
+                                ...prev,
+                                section: e.target.value,
+                              }))
+                            }
+                            className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none appearance-none cursor-pointer pr-10"
+                          >
+                            {availableSections.map((sec) => (
+                              <option key={sec} value={sec}>
+                                {sec.toLowerCase().startsWith("section") ? sec : `Section ${sec}`}
                               </option>
                             ))}
                           </select>
@@ -5026,6 +5086,11 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                     </td>
                     <td className="py-3 px-4 font-bold text-slate-800 dark:text-slate-200">
                       {app.appliedClass}
+                      {app.section ? (
+                        <span className="ml-1 text-xs font-semibold text-slate-500 dark:text-slate-400">
+                          ({app.section.toLowerCase().startsWith("section") ? app.section : `Sec ${app.section}`})
+                        </span>
+                      ) : null}
                     </td>
                     <td className="py-3 px-4">
                       <span className="font-bold text-slate-700 dark:text-slate-300 block">
@@ -5180,6 +5245,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                         <BookOpen className="w-3.5 h-3.5 text-sky-600 dark:text-sky-400" /> Class:{" "}
                         <span className="font-bold text-slate-900 dark:text-white">
                           {selectedAppForView.appliedClass}
+                          {selectedAppForView.section ? ` (${selectedAppForView.section.toLowerCase().startsWith("section") ? selectedAppForView.section : `Sec ${selectedAppForView.section}`})` : ""}
                         </span>
                       </span>
                       {selectedAppForView.branch && (
