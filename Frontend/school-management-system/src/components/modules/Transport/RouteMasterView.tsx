@@ -164,8 +164,9 @@ export const RouteMasterView: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-2">
-          <label className="text-xs font-bold text-slate-500 shrink-0">Filter by Route:</label>
+
           <select
+            aria-label="Filter by route"
             value={selectedRouteFilter}
             onChange={e => handleRouteFilterChange(e.target.value)}
             className="px-3.5 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-xs font-bold text-slate-900 dark:text-white outline-none cursor-pointer"

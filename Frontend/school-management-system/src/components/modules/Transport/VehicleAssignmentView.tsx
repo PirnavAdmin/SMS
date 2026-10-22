@@ -935,8 +935,9 @@ export const VehicleAssignmentView: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-2">
-          <label className="text-xs font-bold text-slate-500 shrink-0">Filter by Route:</label>
+
           <select
+            aria-label="Filter by route"
             value={routeFilter}
             onChange={e => {
               setRouteFilter(e.target.value);
