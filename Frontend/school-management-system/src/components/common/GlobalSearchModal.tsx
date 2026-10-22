@@ -162,7 +162,8 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({ isOpen, on
           <input
             ref={inputRef}
             type="text"
-            placeholder="Search by modules, students, staff, books..."
+            placeholder="Search"
+            title="Search"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             autoFocus
