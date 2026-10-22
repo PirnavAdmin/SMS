@@ -919,7 +919,7 @@ function inferInputFieldLabel(input: HTMLInputElement | HTMLTextAreaElement): st
       .replace(/\(.*?\)/g, '')
       .trim()
       .toLowerCase();
-    if (raw && raw.length <= 35) {
+    if (raw && raw.length <= 50) {
       return raw;
     }
   }
@@ -1282,14 +1282,41 @@ export function validateInputElement(
     return { isValid: true };
   }
 
+  // 1. Content/Textarea/Message check must run BEFORE house number or address checks
+  const isContentField =
+    input instanceof HTMLTextAreaElement ||
+    label.includes('content') ||
+    label.includes('message') ||
+    label.includes('description') ||
+    label.includes('remark') ||
+    label.includes('note') ||
+    label.includes('body') ||
+    label.includes('detail') ||
+    label.includes('reason') ||
+    label.includes('circular text') ||
+    label.includes('broadcast text');
+
+  if (isContentField) {
+    return validateMessageContent(val, {
+      label,
+      required: enforceRequired && input.required,
+    });
+  }
+
+  // 2. House number: Must NOT match textareas or message/content/circular fields
   const isHouseNumberField =
-    label.includes('house') ||
-    label.includes('flat') ||
-    label.includes('door') ||
-    label.includes('plot') ||
-    (input.placeholder || '').toLowerCase().includes('house') ||
-    (input.placeholder || '').toLowerCase().includes('flat') ||
-    (input.placeholder || '').toLowerCase().includes('plot');
+    !isContentField &&
+    !(input instanceof HTMLTextAreaElement) &&
+    !label.includes('content') &&
+    !label.includes('message') &&
+    !label.includes('circular') &&
+    !label.includes('announcement') &&
+    !label.includes('title') &&
+    !label.includes('headline') &&
+    (
+      /\b(house|flat|door|plot)\b/i.test(label) ||
+      (/\b(house|flat|door|plot)\s*(no|num|number)?\b/i.test(input.placeholder || '') && !/\b(inter-house|guest\s*house|open\s*house)\b/i.test(input.placeholder || ''))
+    );
 
   if (isHouseNumberField) {
     return validateHouseNumber(val, {
@@ -1343,25 +1370,9 @@ export function validateInputElement(
     return { isValid: true };
   }
 
-  const isContentField =
-    input instanceof HTMLTextAreaElement ||
-    label.includes('content') ||
-    label.includes('message') ||
-    label.includes('description') ||
-    label.includes('remark') ||
-    label.includes('note') ||
-    label.includes('body') ||
-    label.includes('detail') ||
-    label.includes('reason');
-
-  if (isContentField) {
-    return validateMessageContent(val, {
-      label,
-      required: enforceRequired && input.required,
-    });
-  }
-
   const isCircularHeadlineField =
+    !isContentField &&
+    !(input instanceof HTMLTextAreaElement) &&
     !isDateField &&
     !isTimeField &&
     !label.includes('channel') &&
