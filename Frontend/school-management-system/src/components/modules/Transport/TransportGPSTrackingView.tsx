@@ -348,7 +348,7 @@ export const TransportGPSTrackingView: React.FC<TransportGPSTrackingViewProps> =
 
             <div className="flex items-center justify-between gap-1.5 border-b border-sky-100 dark:border-sky-900/60 pb-2">
               <div className="relative flex-1">
-                <Search className="w-3 h-3 text-slate-400 absolute left-2 top-2" />
+                <Search className="w-3 h-3 text-slate-400 absolute left-2 top-1/2 -translate-y-1/2 pointer-events-none" />
                 <input
                   type="text"
                   placeholder="Search bus..."

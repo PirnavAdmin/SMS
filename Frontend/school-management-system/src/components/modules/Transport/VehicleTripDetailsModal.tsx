@@ -593,7 +593,7 @@ export const VehicleTripDetailsModal: React.FC<VehicleTripDetailsModalProps> = (
             <div className="space-y-4 animate-in fade-in">
               <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
                 <div className="relative w-full sm:w-64">
-                  <Search className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
+                  <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
                   <input
                     type="text"
                     placeholder="Search student, adm no, parent..."
