@@ -7,7 +7,7 @@ import {
   Award,
   CheckCircle2,
   Calendar,
-  DollarSign,
+  IndianRupee,
   ShieldCheck,
   Edit3,
   Eye,
@@ -1012,9 +1012,10 @@ export const StaffLetterModal: React.FC<StaffLetterModalProps> = ({
                     </label>
                     <input
                       type="text"
+                      placeholder="e.g. OFF/2026/..."
                       value={payload.refNo}
                       onChange={(e) => setPayload({ ...payload, refNo: e.target.value })}
-                      className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-mono text-xs font-bold text-slate-900 dark:text-white outline-none"
+                      className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-mono text-xs font-bold text-slate-900 dark:text-white outline-none placeholder:font-normal placeholder:text-slate-400"
                     />
                   </div>
 
@@ -1118,7 +1119,7 @@ export const StaffLetterModal: React.FC<StaffLetterModalProps> = ({
               {activeType === 'offer' && (
                 <div className="bg-white dark:bg-slate-850 p-5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xs space-y-4">
                   <h3 className="text-sm font-black text-slate-900 dark:text-white flex items-center gap-2 border-b pb-2 border-slate-100 dark:border-slate-800">
-                    <DollarSign className="w-4 h-4 text-emerald-600" /> Compensation & Appointment Terms
+                    <IndianRupee className="w-4 h-4 text-emerald-600" /> Compensation & Appointment Terms
                   </h3>
 
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">

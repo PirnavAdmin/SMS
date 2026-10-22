@@ -104,8 +104,8 @@ export const getEmptyLetterPayload = (
   );
 
   return {
-    refNo: generateLetterRefNo(type),
-    issueDate: todayStr,
+    refNo: '',
+    issueDate: '',
     candidateName: '',
     empId: '',
     address: '',
@@ -114,7 +114,7 @@ export const getEmptyLetterPayload = (
     designation: '',
     department: '',
     branch: (schoolProfile?.name || ''),
-    joiningDate: todayStr,
+    joiningDate: '',
     relievingDate: type !== 'offer' ? todayStr : undefined,
     salaryBreakdown: calculateSalaryBreakdown(0),
     probationMonths: 0,
