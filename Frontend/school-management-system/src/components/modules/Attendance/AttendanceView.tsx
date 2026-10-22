@@ -1614,7 +1614,7 @@ export const AttendanceView = () => {
                           </>
                         ) : (
                           <>
-                            Click directly on any cell in the grid to cycle through student attendance statuses (<strong>P</strong> → <strong>HD</strong> → <strong>L</strong> → <strong>A</strong> → <strong>-</strong>). Click <strong>Save Attendance</strong> at the top right when you are finished.
+                            Click directly on any cell in the grid to cycle through student attendance statuses (<strong className="text-emerald-600">P</strong> → <strong className="text-amber-500">HD</strong> → <strong className="text-orange-500">L</strong> → <strong className="text-rose-600">A</strong> → <strong className="text-slate-400">-</strong>). Click <strong>Save Attendance</strong> at the top right when you are finished.
                           </>
                         )}
                       </span>
@@ -1786,8 +1786,8 @@ export const AttendanceView = () => {
                           );
                         })}
                         <th className="py-3 px-2 text-center text-emerald-600">P</th>
-                        <th className="py-3 px-2 text-center text-blue-600">HD</th>
-                        <th className="py-3 px-2 text-center text-amber-600">L</th>
+                        <th className="py-3 px-2 text-center text-amber-500">HD</th>
+                        <th className="py-3 px-2 text-center text-orange-500">L</th>
                         <th className="py-3 px-2 text-center text-rose-600">A</th>
                         <th className="py-3 px-2 text-center text-purple-600">H</th>
                         <th className="py-3 px-2 text-center text-sky-600">%</th>
@@ -1855,8 +1855,8 @@ export const AttendanceView = () => {
                                 );
                               })}
                               <td className="py-2 px-2 text-center font-bold text-emerald-600">{pCount}</td>
-                              <td className="py-2 px-2 text-center font-bold text-blue-600">{hdCount}</td>
-                              <td className="py-2 px-2 text-center font-bold text-amber-600">{lCount}</td>
+                              <td className="py-2 px-2 text-center font-bold text-amber-500">{hdCount}</td>
+                              <td className="py-2 px-2 text-center font-bold text-orange-500">{lCount}</td>
                               <td className="py-2 px-2 text-center font-bold text-rose-600">{aCount}</td>
                               <td className="py-2 px-2 text-center font-bold text-purple-600">{hCount}</td>
                               <td className="py-2 px-2 text-center font-extrabold text-sky-600 bg-sky-50/30 dark:bg-sky-900/10">

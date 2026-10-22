@@ -104,7 +104,7 @@ const ParentPremiumDonutChart: React.FC<{
               cy="40"
               r={radius}
               fill="transparent"
-              stroke="#f59e0b"
+              stroke="#f97316"
               strokeWidth="10"
               strokeDasharray={`${(lateVal / total) * circumference} ${circumference}`}
               strokeDashoffset="0"
@@ -120,7 +120,7 @@ const ParentPremiumDonutChart: React.FC<{
               cy="40"
               r={radius}
               fill="transparent"
-              stroke="#fb923c"
+              stroke="#f59e0b"
               strokeWidth="10"
               strokeDasharray={`${(halfDayVal / total) * circumference} ${circumference}`}
               strokeDashoffset="0"
@@ -153,11 +153,11 @@ const ParentPremiumDonutChart: React.FC<{
               <span>Abs: {absentVal} ({absentPct}%)</span>
             </div>
             <div className="flex items-center gap-1">
-              <div className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+              <div className="w-1.5 h-1.5 rounded-full bg-orange-500" />
               <span>Late: {lateVal} ({latePct}%)</span>
             </div>
             <div className="flex items-center gap-1">
-              <div className="w-1.5 h-1.5 rounded-full bg-orange-400" style={{ backgroundColor: '#fb923c' }} />
+              <div className="w-1.5 h-1.5 rounded-full bg-amber-400" />
               <span>Half: {halfDayVal} ({halfDayPct}%)</span>
             </div>
           </div>
@@ -186,7 +186,7 @@ const ParentPremiumDonutChart: React.FC<{
         </div>
         <div className="flex items-center justify-between text-slate-500 dark:text-slate-400">
           <div className="flex items-center gap-2">
-            <span className="w-2.5 h-2.5 rounded-full bg-amber-500 shrink-0" />
+            <span className="w-2.5 h-2.5 rounded-full bg-orange-500 shrink-0" />
             <span className="font-bold text-slate-700 dark:text-slate-350">Late</span>
           </div>
           <span className="font-extrabold text-slate-900 dark:text-white">
@@ -195,7 +195,7 @@ const ParentPremiumDonutChart: React.FC<{
         </div>
         <div className="flex items-center justify-between text-slate-500 dark:text-slate-400">
           <div className="flex items-center gap-2">
-            <span className="w-2.5 h-2.5 rounded-full bg-orange-400 shrink-0" style={{ backgroundColor: '#fb923c' }} />
+            <span className="w-2.5 h-2.5 rounded-full bg-amber-400 shrink-0" />
             <span className="font-bold text-slate-700 dark:text-slate-350">Half Day</span>
           </div>
           <span className="font-extrabold text-slate-900 dark:text-white">
