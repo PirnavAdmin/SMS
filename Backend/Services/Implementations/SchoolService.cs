@@ -2692,15 +2692,24 @@ public class SchoolService : ISchoolService
 		if (await _schoolRepository.AdmissionNumberExistsAsync(admissionNumber, studentId))
 			throw new InvalidOperationException($"Admission number '{admissionNumber}' already exists.");
 
-		if (await _schoolRepository.RollNumberExistsAsync(
+		if (!string.IsNullOrWhiteSpace(rollNumber) && await _schoolRepository.RollNumberExistsAsync(
 			rollNumber,
 			dto.AcademicYearId,
 			dto.ClassId,
 			dto.SectionId,
 			studentId))
 		{
-			throw new InvalidOperationException(
-				$"Roll number '{rollNumber}' already exists for the selected academic year, class, and section.");
+			int rollSeq = 1;
+			string basePrefix = "R-";
+			var match = System.Text.RegularExpressions.Regex.Match(rollNumber, @"^([A-Za-z]+-?)");
+			if (match.Success) basePrefix = match.Groups[1].Value;
+			string candidateRoll = $"{basePrefix}{rollSeq}";
+			while (await _schoolRepository.RollNumberExistsAsync(candidateRoll, dto.AcademicYearId, dto.ClassId, dto.SectionId, studentId))
+			{
+				rollSeq++;
+				candidateRoll = $"{basePrefix}{rollSeq}";
+			}
+			rollNumber = candidateRoll;
 		}
 
 		student.AdmissionNumber = admissionNumber;

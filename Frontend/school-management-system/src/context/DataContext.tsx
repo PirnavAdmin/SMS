@@ -4987,8 +4987,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
                 : s.dob
                   ? s.dob.split("T")[0]
                   : "",
-              className: s.className || s.class || "",
-              section: (s.sectionName || s.section || "").replace(/^Section\s*/i, "").trim(),
+              className: s.className || s.class || matchingAdmission?.appliedClass || "",
+              section: (s.sectionName || s.section || matchingAdmission?.section || "").replace(/^Section\s*/i, "").trim(),
               academicYear: s.academicYearName || s.academicYear || "",
               branch: s.branchName || s.branch || "",
               branchId: s.branchId || s.branch_id || undefined,

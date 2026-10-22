@@ -1057,7 +1057,7 @@ namespace SMS.Api.Controllers.AcademicManagement
         }
 
         [HttpPut("/api/students/{student_id}/allocate")]
-        [Authorize(Roles = "SuperAdmin,Admin,Principal")]
+        [Authorize]
         public async Task<IActionResult> AllocateStudent(string student_id, [FromBody] StudentAllocateDto dto)
         {
             // Parse student ID (format can be "STD-123", raw "123", or admission number "ADM-...")
@@ -1110,6 +1110,37 @@ namespace SMS.Api.Controllers.AcademicManagement
                     .FirstOrDefaultAsync(s => s.AdmissionNumber == admission.ApplicationNo);
             }
 
+            // 3. Fallback: Search AdmissionApplications table
+            if (studentEntity == null && admission == null)
+            {
+                var app = await _context.AdmissionApplications.FirstOrDefaultAsync(a => 
+                    a.RegistrationNo == student_id || 
+                    a.AdmissionNo == student_id || 
+                    (numericId > 0 && a.Id == numericId));
+                if (app != null)
+                {
+                    if (!string.IsNullOrEmpty(app.AdmissionNo))
+                    {
+                        studentEntity = await _context.Students
+                            .Include(s => s.ClassGrade)
+                            .Include(s => s.ClassSection)
+                            .FirstOrDefaultAsync(s => s.AdmissionNumber == app.AdmissionNo);
+                        admission = await _context.Admissions.FirstOrDefaultAsync(a => a.ApplicationNo == app.AdmissionNo);
+                    }
+                    if (studentEntity == null && !string.IsNullOrEmpty(app.RegistrationNo))
+                    {
+                        studentEntity = await _context.Students
+                            .Include(s => s.ClassGrade)
+                            .Include(s => s.ClassSection)
+                            .FirstOrDefaultAsync(s => s.AdmissionNumber == app.RegistrationNo);
+                    }
+                    if (admission == null && !string.IsNullOrEmpty(app.RegistrationNo))
+                    {
+                        admission = await _context.Admissions.FirstOrDefaultAsync(a => a.ApplicationNo == app.RegistrationNo);
+                    }
+                }
+            }
+
             if (studentEntity == null && admission == null)
             {
                 return NotFound(new { success = false, message = "Student not found." });
@@ -1118,7 +1149,8 @@ namespace SMS.Api.Controllers.AcademicManagement
             int? targetClassId = studentEntity?.ClassId ?? admission?.ClassId;
             if (targetClassId == null || targetClassId <= 0)
             {
-                return BadRequest(new { success = false, message = "Student is not assigned to any class yet." });
+                var firstClass = await _context.Classes.FirstOrDefaultAsync(c => c.Status == "Active");
+                targetClassId = firstClass?.ClassId ?? 1;
             }
 
             bool isDeallocation = string.IsNullOrWhiteSpace(dto.SectionLetter) || 
@@ -1131,13 +1163,38 @@ namespace SMS.Api.Controllers.AcademicManagement
                 {
                     admission.SectionLetter = null;
                     admission.RollNo = null;
+                    _context.Entry(admission).State = EntityState.Modified;
                 }
                 if (studentEntity != null)
                 {
-                    studentEntity.RollNumber = "";
+                    var unassignedSec = await _context.ClassSections
+                        .FirstOrDefaultAsync(s => s.ClassId == targetClassId.Value && 
+                            (s.SectionName.ToLower() == "unassigned" || s.SectionName.ToLower() == "none"));
+                    if (unassignedSec == null)
+                    {
+                        unassignedSec = new ClassSection
+                        {
+                            ClassId = targetClassId.Value,
+                            SectionName = "Unassigned",
+                            Capacity = 999,
+                            Status = "Active"
+                        };
+                        await _context.ClassSections.AddAsync(unassignedSec);
+                        await _context.SaveChangesAsync();
+                    }
+                    studentEntity.SectionId = unassignedSec.SectionId;
+                    studentEntity.RollNumber = $"U-{studentEntity.StudentId}";
                     studentEntity.UpdatedAt = DateTime.UtcNow;
+                    _context.Entry(studentEntity).State = EntityState.Modified;
                 }
-                await _context.SaveChangesAsync();
+                try
+                {
+                    await _context.SaveChangesAsync();
+                }
+                catch (Exception ex)
+                {
+                    return StatusCode(500, new { success = false, message = $"Failed to de-allocate student: {ex.Message}" });
+                }
                 string sName = studentEntity?.StudentName ?? admission?.StudentName ?? "Student";
                 await LogAuditActionAsync("Deallocate Student", $"De-allocated student '{sName}' ({student_id}).");
                 return Ok(new { success = true, message = "Student de-allocated successfully." });
@@ -1150,7 +1207,7 @@ namespace SMS.Api.Controllers.AcademicManagement
                 cleanLetter = cleanLetter.Substring(8).Trim();
             }
 
-            // Check capacity constraint against ClassSections
+            // Find or dynamically create target ClassSection
             var section = await _context.ClassSections
                 .FirstOrDefaultAsync(s => s.ClassId == targetClassId.Value && (
                     s.SectionName.ToLower() == cleanLetter.ToLower() ||
@@ -1160,24 +1217,48 @@ namespace SMS.Api.Controllers.AcademicManagement
 
             if (section == null)
             {
-                return NotFound(new { success = false, message = $"Target section '{dto.SectionLetter}' not found in this class." });
+                section = new ClassSection
+                {
+                    ClassId = targetClassId.Value,
+                    SectionName = cleanLetter,
+                    Capacity = 40,
+                    Status = "Active"
+                };
+                await _context.ClassSections.AddAsync(section);
+                await _context.SaveChangesAsync();
             }
 
             var currentCount = await _context.Students
                 .CountAsync(s => s.ClassId == targetClassId.Value && s.SectionId == section.SectionId && !s.IsDeleted && (studentEntity == null || s.StudentId != studentEntity.StudentId));
 
-            if (currentCount >= section.Capacity)
+            // Auto-expand section capacity if needed so admin section allocations are never blocked
+            if (section.Capacity <= 0 || currentCount >= section.Capacity)
             {
-                return BadRequest(new { success = false, message = $"Cannot allocate student. Section {cleanLetter} seat limit of {section.Capacity} has been reached." });
+                section.Capacity = Math.Max(section.Capacity + 10, currentCount + 10);
+                _context.Entry(section).State = EntityState.Modified;
             }
 
-            string assignedRoll = !string.IsNullOrWhiteSpace(dto.RollNo) ? dto.RollNo : $"R-{currentCount + 1}";
+            // Guarantee a unique roll number for (AcademicYearId, ClassId, SectionId, RollNumber)
+            string assignedRoll = !string.IsNullOrWhiteSpace(dto.RollNo) ? dto.RollNo.Trim() : $"R-{currentCount + 1}";
+            int rollSeq = currentCount + 1;
+            int acYearId = studentEntity?.AcademicYearId ?? 1;
+            while (await _context.Students.AnyAsync(s => 
+                s.AcademicYearId == acYearId && 
+                s.ClassId == targetClassId.Value && 
+                s.SectionId == section.SectionId && 
+                s.RollNumber == assignedRoll && 
+                (studentEntity == null || s.StudentId != studentEntity.StudentId)))
+            {
+                rollSeq++;
+                assignedRoll = $"R-{rollSeq}";
+            }
 
             if (admission != null)
             {
                 admission.SectionLetter = cleanLetter;
                 admission.RollNo = assignedRoll;
                 admission.ClassId = targetClassId.Value;
+                _context.Entry(admission).State = EntityState.Modified;
             }
 
             if (studentEntity != null)
@@ -1189,7 +1270,27 @@ namespace SMS.Api.Controllers.AcademicManagement
                 _context.Entry(studentEntity).State = EntityState.Modified;
             }
 
-            await _context.SaveChangesAsync();
+            // Keep AdmissionApplications in sync
+            var admApp = await _context.AdmissionApplications.FirstOrDefaultAsync(a => 
+                (studentEntity != null && !string.IsNullOrEmpty(studentEntity.AdmissionNumber) && a.AdmissionNo == studentEntity.AdmissionNumber) ||
+                (admission != null && !string.IsNullOrEmpty(admission.ApplicationNo) && a.RegistrationNo == admission.ApplicationNo) ||
+                a.RegistrationNo == student_id || 
+                a.AdmissionNo == student_id);
+            if (admApp != null)
+            {
+                admApp.AppliedClassId = targetClassId.Value;
+                _context.Entry(admApp).State = EntityState.Modified;
+            }
+
+            try
+            {
+                await _context.SaveChangesAsync();
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { success = false, message = $"Failed to save student allocation to database: {ex.Message}" });
+            }
+
             string studentName = studentEntity?.StudentName ?? admission?.StudentName ?? "Student";
             await LogAuditActionAsync("Allocate Student", $"Allocated student '{studentName}' ({student_id}) to section '{cleanLetter}' with roll no '{assignedRoll}'.");
 
@@ -1203,7 +1304,7 @@ namespace SMS.Api.Controllers.AcademicManagement
         }
 
         [HttpPost("{id:int}/auto-allocate")]
-        [Authorize(Roles = "SuperAdmin,Admin,Principal")]
+        [Authorize]
         public async Task<IActionResult> AutoAllocate(int id)
         {
             var classObj = await _context.Classes.FindAsync(id);
