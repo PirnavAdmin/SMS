@@ -1047,8 +1047,8 @@ export const VehicleAssignmentView: React.FC = () => {
                             {assignedStudents}
                           </span>
                         </td>
-                        <td className="py-3 px-4 text-center font-mono text-sky-600 font-bold">{morningTripTime}</td>
-                        <td className="py-3 px-4 text-center font-mono text-amber-600 font-bold">{eveningTripTime}</td>
+                        <td className="py-3 px-4 text-center font-mono text-sky-600 dark:text-sky-400 font-bold">{morningTripTime}</td>
+                        <td className="py-3 px-4 text-center font-mono text-sky-600 dark:text-sky-400 font-bold">{eveningTripTime}</td>
                         <td className="py-3 px-4 text-center">
                           <Badge variant={assignment.status === 'Active' ? 'success' : 'neutral'} size="sm">
                             {assignment.status || 'Active'}
