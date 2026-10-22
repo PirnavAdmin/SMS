@@ -321,7 +321,20 @@ export const AttendanceView = () => {
   // Dynamic list of section options for selected class
   const sectionOptions = useMemo(() => {
     if (!selectedClass || selectedClass === 'Select Class' || selectedClass === 'All Classes') {
-      return ['Select Section'];
+      const allSecs = new Set<string>();
+      (academicClasses || []).forEach(ac => {
+        (ac.sections || []).forEach((s: any) => {
+          const raw = typeof s === 'string' ? s : s.name || s.sectionName || 'A';
+          const clean = raw.replace(/^section\s*/i, '').trim();
+          if (clean) allSecs.add(clean);
+        });
+      });
+      (allStudents || []).forEach(s => {
+        const clean = (s.section || '').replace(/^section\s*/i, '').trim();
+        if (clean) allSecs.add(clean);
+      });
+      const validSections = Array.from(allSecs).sort();
+      return ['Select Section', 'All Sections', ...(validSections.length > 0 ? validSections : ['A', 'B', 'C', 'D'])];
     }
 
     if (isTeacher && teacherClasses.length > 0) {
@@ -1442,8 +1455,7 @@ export const AttendanceView = () => {
               aria-label="Section"
               value={selectedSection}
               onChange={e => setSelectedSection(e.target.value)}
-              disabled={!selectedClass || selectedClass === 'Select Class' || selectedClass === 'All Classes'}
-              className="w-full px-2.5 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none focus:border-brand-500 transition-colors cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
+              className="w-full px-2.5 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none focus:border-brand-500 transition-colors cursor-pointer"
             >
               {sectionOptions.map(sec => {
                 const displayLabel = sec === 'Select Section' || sec === 'All Sections' 
