@@ -52,6 +52,9 @@ namespace SMS.Api.Controllers
             if (dto == null || string.IsNullOrWhiteSpace(dto.AcademicYear))
                 return BadRequest("Academic Year name is required.");
 
+            if (dto.AcademicYear.Trim().Length > 20)
+                return BadRequest("Academic Session Name cannot exceed 20 characters.");
+
             DateTime sDate = DateTime.TryParse(dto.StartDate, out var parsedS) ? parsedS : new DateTime(DateTime.UtcNow.Year, 6, 1);
             DateTime eDate = DateTime.TryParse(dto.EndDate, out var parsedE) ? parsedE : new DateTime(DateTime.UtcNow.Year + 1, 4, 30);
 
@@ -106,7 +109,12 @@ namespace SMS.Api.Controllers
             var ay = await _context.AcademicYears.FirstOrDefaultAsync(x => x.AcademicYearId == numId || x.AcademicYearName.ToLower() == id.ToLower());
             if (ay == null) return NotFound("Academic year not found.");
 
-            if (!string.IsNullOrWhiteSpace(dto.AcademicYear)) ay.AcademicYearName = dto.AcademicYear.Trim();
+            if (!string.IsNullOrWhiteSpace(dto.AcademicYear))
+            {
+                if (dto.AcademicYear.Trim().Length > 20)
+                    return BadRequest("Academic Session Name cannot exceed 20 characters.");
+                ay.AcademicYearName = dto.AcademicYear.Trim();
+            }
             if (DateTime.TryParse(dto.StartDate, out var sDate)) ay.StartDate = sDate;
             if (DateTime.TryParse(dto.EndDate, out var eDate)) ay.EndDate = eDate;
 

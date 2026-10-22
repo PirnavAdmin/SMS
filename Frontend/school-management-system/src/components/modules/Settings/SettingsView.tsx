@@ -48,7 +48,7 @@ import {
 import { PrintableCertificateContainer } from "../Certificates/PrintableCertificateContainer";
 import { formatDateDDMMYYYY } from "../../../utils/dateValidation";
 import { resolveMediaUrl, DEFAULT_USER_AVATAR, createOptimizedAvatarDataUrl } from "../../../utils/mediaUtils";
-import { validateFullName, validateEmail, validate10DigitPhone, validatePhoneNumber, sanitizePhoneInput, sanitizeEmailInput, validateCampusName, validateCampusCode, validateCampusAddress, formatTitleCase } from "../../../utils/validation";
+import { validateFullName, validateEmail, validate10DigitPhone, validatePhoneNumber, sanitizePhoneInput, sanitizeEmailInput, validateCampusName, validateCampusCode, validateCampusAddress, validateAcademicSessionName, formatTitleCase } from "../../../utils/validation";
 import { SchoolLogoUploader } from "./SchoolLogoUploader";
 import { CertificateSettingsTab } from "./CertificateSettingsTab";
 import {
@@ -1160,20 +1160,14 @@ export const SettingsView: React.FC = () => {
       return;
     }
 
-    if (trimmedAY.length < 4 || trimmedAY.length > 30) {
-      const msg = "Academic Session Name must be between 4 and 30 characters (e.g. 2026–27).";
-      setAyErrors((prev) => ({ ...prev, academicYear: msg }));
-      addToast("error", "Invalid Session Name", msg);
+    const valResult = validateAcademicSessionName(trimmedAY, true);
+    if (!valResult.isValid && valResult.error) {
+      setAyErrors((prev) => ({ ...prev, academicYear: valResult.error }));
+      addToast("error", "Invalid Session Name", valResult.error);
       return;
     }
 
-    // Must contain numeric year representation or session/term identifier
-    if (!/\d{2,4}/.test(trimmedAY) && !/(spring|summer|fall|winter|session|term|semester|batch)/i.test(trimmedAY)) {
-      const msg = "Please enter a valid academic session name (e.g. YYYY–YY or YYYY-YYYY).";
-      setAyErrors((prev) => ({ ...prev, academicYear: msg }));
-      addToast("error", "Invalid Session Name", msg);
-      return;
-    }
+
 
     // Case-insensitive duplicate session check
     const isDuplicate = academicYears.some(
@@ -3200,18 +3194,51 @@ export const SettingsView: React.FC = () => {
 
             <form onSubmit={handleSaveAY} className="space-y-3 text-xs">
               <div>
-                <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
-                  Academic Session Name{" "}
-                  <span className="text-rose-500 font-bold ml-0.5">*</span>
-                </label>
+                <div className="flex justify-between items-center mb-1">
+                  <label className="block font-bold text-slate-700 dark:text-slate-300">
+                    Academic Session Name{" "}
+                    <span className="text-rose-500 font-bold ml-0.5">*</span>
+                  </label>
+                  <span className={`text-[10px] font-mono ${ayForm.academicYear.length >= 20 ? "text-amber-500 font-semibold" : "text-slate-400"}`}>
+                    {ayForm.academicYear.length}/20
+                  </span>
+                </div>
                 <input
                   type="text"
                   required
+                  maxLength={20}
                   placeholder="e.g. YYYY–YY or YYYY-YYYY"
                   value={ayForm.academicYear}
                   onChange={(e) => {
-                    setAyForm({ ...ayForm, academicYear: e.target.value });
-                    if (ayErrors.academicYear) setAyErrors((prev) => ({ ...prev, academicYear: undefined }));
+                    const val = e.target.value.slice(0, 20);
+                    setAyForm((prev) => ({ ...prev, academicYear: val }));
+                    if (val.trim()) {
+                      const res = validateAcademicSessionName(val, true);
+                      const isDuplicate = academicYears.some(
+                        (ay) => ay.academicYear.trim().toLowerCase() === val.trim().toLowerCase() && ay.id !== editingAY?.id
+                      );
+                      setAyErrors((prev) => ({
+                        ...prev,
+                        academicYear: isDuplicate ? `Academic session "${val.trim()}" already exists.` : res.error,
+                      }));
+                    } else if (ayErrors.academicYear) {
+                      setAyErrors((prev) => ({ ...prev, academicYear: undefined }));
+                    }
+                  }}
+                  onBlur={() => {
+                    const trimmed = ayForm.academicYear.trim();
+                    if (!trimmed) {
+                      setAyErrors((prev) => ({ ...prev, academicYear: "Academic Session Name is required." }));
+                    } else {
+                      const res = validateAcademicSessionName(trimmed, true);
+                      const isDuplicate = academicYears.some(
+                        (ay) => ay.academicYear.trim().toLowerCase() === trimmed.toLowerCase() && ay.id !== editingAY?.id
+                      );
+                      setAyErrors((prev) => ({
+                        ...prev,
+                        academicYear: isDuplicate ? `Academic session "${trimmed}" already exists.` : res.error,
+                      }));
+                    }
                   }}
                   className={`w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-mono font-bold ${
                     ayErrors.academicYear ? "border-rose-500 focus:ring-rose-500" : ""
@@ -3326,15 +3353,21 @@ export const SettingsView: React.FC = () => {
               </div>
 
               <div>
-                <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
-                  Description / Remarks
-                </label>
+                <div className="flex justify-between items-center mb-1">
+                  <label className="block font-bold text-slate-700 dark:text-slate-300">
+                    Description / Remarks
+                  </label>
+                  <span className={`text-[10px] font-mono ${ayForm.description.length >= 150 ? "text-amber-500 font-semibold" : "text-slate-400"}`}>
+                    {ayForm.description.length}/150
+                  </span>
+                </div>
                 <input
                   type="text"
+                  maxLength={150}
                   placeholder="e.g. Regular Academic Year"
                   value={ayForm.description}
                   onChange={(e) =>
-                    setAyForm({ ...ayForm, description: e.target.value })
+                    setAyForm({ ...ayForm, description: e.target.value.slice(0, 150) })
                   }
                   className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border"
                 />

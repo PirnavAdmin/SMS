@@ -582,6 +582,24 @@ export function validateSubjectName(name: string, required: boolean = true): { i
   return validateTextName(name, { label: 'subject name', required, maxLength: 60 });
 }
 
+export function validateAcademicSessionName(
+  name: string,
+  required: boolean = true
+): { isValid: boolean; error?: string } {
+  if (!name || typeof name !== 'string' || !name.trim()) {
+    return required ? { isValid: false, error: 'Academic Session Name is required.' } : { isValid: true };
+  }
+  const trimmed = name.trim();
+  if (trimmed.length < 4 || trimmed.length > 20) {
+    return { isValid: false, error: 'Academic Session Name must be between 4 and 20 characters (e.g. 2026–27).' };
+  }
+  // Must contain numeric year representation or session/term identifier
+  if (!/\d{2,4}/.test(trimmed) && !/(spring|summer|fall|winter|session|term|semester|batch)/i.test(trimmed)) {
+    return { isValid: false, error: 'Please enter a valid academic session name (e.g. YYYY–YY or YYYY-YYYY).' };
+  }
+  return { isValid: true };
+}
+
 export function validateOrganizationName(name: string, required: boolean = true): { isValid: boolean; error?: string } {
   return validateTextName(name, { label: 'organization name', required, maxLength: 100, allowNumbers: true });
 }
