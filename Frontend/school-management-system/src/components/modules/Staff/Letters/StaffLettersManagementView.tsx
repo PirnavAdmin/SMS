@@ -233,9 +233,7 @@ export const StaffLettersManagementView: React.FC<StaffLettersManagementViewProp
   }, []);
 
   const handleOpenGenerator = (type: StaffLetterType = 'offer', specificStaff?: Staff, record?: GeneratedStaffLetterRecord, readOnlyMode = false) => {
-    const availableStaff = staff.length > 0 ? staff : [getSafeStaffFallback(schoolProfile)];
-    const target = specificStaff || availableStaff[0];
-    setSelectedStaffForGen(target);
+    setSelectedStaffForGen(specificStaff);
     setSelectedTypeForGen(type);
     setExistingRecordForView(record);
     setIsReadOnlyModal(readOnlyMode);
@@ -994,10 +992,11 @@ export const StaffLettersManagementView: React.FC<StaffLettersManagementViewProp
       {/* Generator & Live Preview Modal */}
       {generatorOpen && (
         <StaffLetterModal
-          staff={selectedStaffForGen || (staff.length > 0 ? staff[0] : getSafeStaffFallback(schoolProfile))}
+          staff={selectedStaffForGen}
           isOpen={generatorOpen}
           onClose={() => {
             setGeneratorOpen(false);
+            setSelectedStaffForGen(undefined);
             setExistingRecordForView(undefined);
             setIsReadOnlyModal(false);
             refreshLetters();

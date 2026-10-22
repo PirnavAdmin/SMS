@@ -1,6 +1,6 @@
 import { Staff, SchoolProfile } from '../types';
 import { GeneratedStaffLetterRecord, StaffLetterPayload, StaffLetterSalaryBreakdown, StaffLetterType } from '../types/staffLetter';
-import { createOrSaveStaffLetterApi, deleteStaffLetterApi } from '../api/staffLetters';
+import { createOrSaveStaffLetterApi, deleteStaffLetterApi, fetchStaffLettersApi } from '../api/staffLetters';
 
 export const calculateSalaryBreakdown = (monthlySalary: number): StaffLetterSalaryBreakdown => {
   const grossMonthly = Math.max(0, monthlySalary || 0);
@@ -36,18 +36,118 @@ export const DEFAULT_OFFER_TERMS = [
   'Confidentiality & Non-Disclosure: All curriculum materials, assessment records, student data, and institutional policies are proprietary and must remain confidential.',
 ];
 
-export const getDefaultLetterPayload = (
+/**
+ * Resolves the staff member's complete real address from the Staff Directory.
+ * Checks present/residential/permanent addresses along with city, state, and pin code.
+ */
+export const getStaffRealAddress = (staff?: Partial<Staff> | null): string => {
+  if (!staff) return '';
+
+  // 1. Primary street address candidates from staff directory
+  const street = (
+    staff.presentAddress ||
+    (staff as any).currentAddress ||
+    staff.residentialAddress ||
+    staff.address ||
+    staff.permanentAddress ||
+    ''
+  ).trim();
+
+  // 2. City or district
+  const city = (staff.city || (staff as any).district || '').trim();
+
+  // 3. State
+  const state = (staff.state || '').trim();
+
+  // 4. Pin code
+  const pin = (staff.pinCode || (staff as any).postalCode || (staff as any).zipCode || '').trim();
+
+  // If street already contains city, state, or pinCode, do not repeat
+  if (street) {
+    const streetLower = street.toLowerCase();
+    const parts: string[] = [street];
+
+    if (city && !streetLower.includes(city.toLowerCase())) {
+      parts.push(city);
+    }
+    if (state && !streetLower.includes(state.toLowerCase())) {
+      parts.push(state);
+    }
+    let formatted = parts.join(', ');
+    if (pin && !street.includes(pin)) {
+      formatted += ` - ${pin}`;
+    }
+    return formatted.trim();
+  }
+
+  // If no street address was provided, format from city, state, pinCode
+  const locationParts = [city, state].filter(Boolean);
+  let res = locationParts.join(', ');
+  if (pin) {
+    res = res ? `${res} - ${pin}` : pin;
+  }
+  return res.trim();
+};
+
+export const getEmptyLetterPayload = (
   type: StaffLetterType,
-  staff: Staff,
   schoolProfile?: SchoolProfile
 ): StaffLetterPayload => {
+  const todayStr = new Date().toISOString().split('T')[0];
+  const checkIn = schoolProfile?.staffCheckInTime || '08:30 AM';
+  const checkOut = schoolProfile?.staffCheckOutTime || '05:00 PM';
+  const dynamicWorkingHours = `${checkIn} – ${checkOut}`;
+  const dynamicTerms = DEFAULT_OFFER_TERMS.map((term) =>
+    term.startsWith('Working Hours:')
+      ? `Working Hours: Normal school working hours are ${checkIn} to ${checkOut}, Monday through Saturday (with designated 2nd and 4th Saturday offs as per institutional calendar).`
+      : term
+  );
+
+  return {
+    refNo: generateLetterRefNo(type),
+    issueDate: todayStr,
+    candidateName: '',
+    empId: '',
+    address: '',
+    phone: '',
+    email: '',
+    designation: '',
+    department: '',
+    branch: (schoolProfile?.name || ''),
+    joiningDate: todayStr,
+    relievingDate: type !== 'offer' ? todayStr : undefined,
+    salaryBreakdown: calculateSalaryBreakdown(0),
+    probationMonths: 0,
+    noticePeriodDays: 0,
+    workingHours: dynamicWorkingHours,
+    conductRating: 'Exemplary',
+    noDuesCleared: true,
+    reasonForRelieving: 'Personal reasons & career advancement',
+    authorizedSignatoryName: '',
+    authorizedSignatoryTitle: '',
+    signatureImageUrl: '',
+    sealImageUrl: '',
+    customTerms: dynamicTerms,
+    remarks: 'Approved and issued by Institutional Human Resources.',
+  };
+};
+
+export const getDefaultLetterPayload = (
+  type: StaffLetterType,
+  staff?: Staff | null,
+  schoolProfile?: SchoolProfile
+): StaffLetterPayload => {
+  if (!staff) {
+    return getEmptyLetterPayload(type, schoolProfile);
+  }
+
   const todayStr = new Date().toISOString().split('T')[0];
   const monthlySalary = typeof staff.salary === 'number'
     ? staff.salary
     : parseFloat(String(staff.salary || (staff as any).basicSalary || (staff as any).grossSalary || (staff as any).netSalary || '0')) || 35000;
 
-  const fullName = `${staff.firstName || ''} ${staff.lastName || ''}`.trim() || (staff as any).name || 'Staff Member';
-  
+  const fullName = `${staff.firstName || ''} ${staff.lastName || ''}`.trim() || (staff as any).name || '';
+
   let defaultSignatoryName = '';
   let defaultSignatoryTitle = '';
   let defaultProbationMonths = 0;
@@ -55,7 +155,7 @@ export const getDefaultLetterPayload = (
   let defaultSignatureImageUrl = '';
   let defaultSealImageUrl = '';
 
-  const staffAddress = staff.presentAddress || staff.residentialAddress || staff.permanentAddress || staff.address || (schoolProfile?.address || '');
+  const staffAddress = getStaffRealAddress(staff);
   const staffBranch = staff.branch || (staff as any).campus || (schoolProfile?.name || '');
   const staffDesignation = staff.designation || (staff.role === 'Teacher' ? 'Subject Teacher' : (staff.role || 'Staff Member'));
   const staffDepartment = staff.department || (staff.role === 'Teacher' ? 'Academics' : 'Administration');
@@ -64,7 +164,7 @@ export const getDefaultLetterPayload = (
   const checkIn = schoolProfile?.staffCheckInTime || '08:30 AM';
   const checkOut = schoolProfile?.staffCheckOutTime || '05:00 PM';
   const dynamicWorkingHours = `${checkIn} – ${checkOut}`;
-  const dynamicTerms = DEFAULT_OFFER_TERMS.map(term =>
+  const dynamicTerms = DEFAULT_OFFER_TERMS.map((term) =>
     term.startsWith('Working Hours:')
       ? `Working Hours: Normal school working hours are ${checkIn} to ${checkOut}, Monday through Saturday (with designated 2nd and 4th Saturday offs as per institutional calendar).`
       : term
@@ -99,27 +199,18 @@ export const getDefaultLetterPayload = (
   };
 };
 
-const STORAGE_KEY = 'edu_db_staff_letters';
-const DELETED_KEYS_STORAGE = 'edu_db_deleted_letter_keys';
+// In-memory letter store without localStorage
+let inMemoryLetters: GeneratedStaffLetterRecord[] = [];
+let isFetchedFromApi = false;
+const inMemoryDeletedKeys = new Set<string>();
 
 export const getDeletedLetterKeys = (): Set<string> => {
-  try {
-    const saved = localStorage.getItem(DELETED_KEYS_STORAGE);
-    if (saved) {
-      const parsed = JSON.parse(saved);
-      if (Array.isArray(parsed)) return new Set(parsed);
-    }
-  } catch (e) {}
-  return new Set();
+  return inMemoryDeletedKeys;
 };
 
 export const markLetterAsDeleted = (letterId: string, staffKey?: string) => {
-  try {
-    const current = getDeletedLetterKeys();
-    if (letterId) current.add(letterId);
-    if (staffKey) current.add(staffKey);
-    localStorage.setItem(DELETED_KEYS_STORAGE, JSON.stringify(Array.from(current)));
-  } catch (e) {}
+  if (letterId) inMemoryDeletedKeys.add(letterId);
+  if (staffKey) inMemoryDeletedKeys.add(staffKey);
 };
 
 export const createStaffLetterRecord = (
@@ -151,106 +242,66 @@ export const createStaffLetterRecord = (
 };
 
 export const getStoredStaffLetters = (fallbackStaff?: Staff[], schoolProfile?: SchoolProfile): GeneratedStaffLetterRecord[] => {
-  try {
-    const saved = localStorage.getItem(STORAGE_KEY);
-    if (saved !== null) {
-      const parsed = JSON.parse(saved);
-      if (Array.isArray(parsed)) return parsed;
-    }
-  } catch (e) {
-    console.warn('Failed to load staff letters from storage:', e);
+  if (!isFetchedFromApi) {
+    isFetchedFromApi = true;
+    fetchStaffLettersApi()
+      .then((res) => {
+        if (Array.isArray(res?.data)) {
+          inMemoryLetters = res.data;
+          window.dispatchEvent(new Event('staff_letters_updated'));
+        }
+      })
+      .catch(() => {});
   }
-  return [];
+  return inMemoryLetters;
 };
 
 export const syncStaffLettersWithStaffList = (staffList: Staff[], schoolProfile?: SchoolProfile): GeneratedStaffLetterRecord[] => {
-  try {
-    const currentLetters = getStoredStaffLetters(staffList, schoolProfile);
-    const deletedKeys = getDeletedLetterKeys();
-    const existingStaffMap = new Set(currentLetters.map((l) => `${l.staffId || l.staffEmpId}_${l.letterType}`));
-
-    const newLetters: GeneratedStaffLetterRecord[] = [];
-
-    (staffList || []).forEach((s) => {
-      const idKey = `${s.id || s.empId}_offer`;
-      if (!existingStaffMap.has(idKey) && !deletedKeys.has(idKey) && !deletedKeys.has(s.id) && !deletedKeys.has(s.empId)) {
-        const newOffer = createStaffLetterRecord('offer', s, schoolProfile, s.joiningDate);
-        newLetters.push(newOffer);
-        existingStaffMap.add(idKey);
-      }
-    });
-
-    if (newLetters.length > 0) {
-      const combined = [...newLetters, ...currentLetters];
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(combined));
-      window.dispatchEvent(new Event('staff_letters_updated'));
-      return combined;
-    }
-
-    return currentLetters;
-  } catch (e) {
-    console.warn('Error in syncStaffLettersWithStaffList:', e);
-    return getStoredStaffLetters();
-  }
+  return inMemoryLetters;
 };
 
 export const saveStaffLetterRecord = (record: GeneratedStaffLetterRecord): GeneratedStaffLetterRecord[] => {
-  try {
-    // If it was previously deleted, unmark it so it saves and displays cleanly
-    const deletedKeys = getDeletedLetterKeys();
-    const staffKey = `${record.staffId || record.staffEmpId}_${record.letterType}`;
-    if (deletedKeys.has(record.id) || deletedKeys.has(staffKey)) {
-      deletedKeys.delete(record.id);
-      deletedKeys.delete(staffKey);
-      localStorage.setItem(DELETED_KEYS_STORAGE, JSON.stringify(Array.from(deletedKeys)));
-    }
-
-    const existing = getStoredStaffLetters();
-    const filtered = existing.filter((r) => r.id !== record.id);
-    const updated = [record, ...filtered];
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
-    window.dispatchEvent(new Event('staff_letters_updated'));
-
-    // Asynchronously save to backend database
-    createOrSaveStaffLetterApi(record).catch((err) => {
-      console.warn('Failed to persist staff letter to backend database:', err);
-    });
-
-    return updated;
-  } catch (e) {
-    console.warn('Failed to save staff letter record:', e);
-    return [];
+  const staffKey = `${record.staffId || record.staffEmpId}_${record.letterType}`;
+  if (inMemoryDeletedKeys.has(record.id) || inMemoryDeletedKeys.has(staffKey)) {
+    inMemoryDeletedKeys.delete(record.id);
+    inMemoryDeletedKeys.delete(staffKey);
   }
+
+  const filtered = inMemoryLetters.filter((r) => r.id !== record.id);
+  inMemoryLetters = [record, ...filtered];
+  window.dispatchEvent(new Event('staff_letters_updated'));
+
+  // Asynchronously save to backend database
+  createOrSaveStaffLetterApi(record).catch((err) => {
+    console.warn('Failed to persist staff letter to backend database:', err);
+  });
+
+  return inMemoryLetters;
 };
 
 export const deleteStaffLetterRecord = (id: string): GeneratedStaffLetterRecord[] => {
-  try {
-    const existing = getStoredStaffLetters();
-    const target = existing.find((r) => r.id === id);
-    if (target) {
-      const staffKey = `${target.staffId || target.staffEmpId}_${target.letterType}`;
-      markLetterAsDeleted(id, staffKey);
-    }
-    const updated = existing.filter((r) => r.id !== id);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
-    window.dispatchEvent(new Event('staff_letters_updated'));
-
-    // Asynchronously delete from backend database
-    deleteStaffLetterApi(id).catch((err) => {
-      console.warn('Failed to delete staff letter from backend database:', err);
-    });
-
-    return updated;
-  } catch (e) {
-    console.warn('Failed to delete staff letter record:', e);
-    return [];
+  const target = inMemoryLetters.find((r) => r.id === id);
+  if (target) {
+    const staffKey = `${target.staffId || target.staffEmpId}_${target.letterType}`;
+    markLetterAsDeleted(id, staffKey);
   }
+  inMemoryLetters = inMemoryLetters.filter((r) => r.id !== id);
+  window.dispatchEvent(new Event('staff_letters_updated'));
+
+  // Asynchronously delete from backend database
+  deleteStaffLetterApi(id).catch((err) => {
+    console.warn('Failed to delete staff letter from backend database:', err);
+  });
+
+  return inMemoryLetters;
 };
 
 export const getLettersForStaff = (staffIdOrEmpId: string): GeneratedStaffLetterRecord[] => {
-  const all = getStoredStaffLetters();
+  if (!isFetchedFromApi) {
+    getStoredStaffLetters();
+  }
   const target = String(staffIdOrEmpId || '').toLowerCase().trim();
-  return all.filter(
+  return inMemoryLetters.filter(
     (l) =>
       String(l.staffId || '').toLowerCase().trim() === target ||
       String(l.staffEmpId || '').toLowerCase().trim() === target

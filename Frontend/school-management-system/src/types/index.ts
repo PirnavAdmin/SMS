@@ -437,7 +437,6 @@ export interface Staff {
   dob: string;
   bloodGroup?: BloodGroup | string;
   nationality?: string;
-  religion?: string;
   maritalStatus?: string;
   fatherName?: string;
   motherName?: string;
