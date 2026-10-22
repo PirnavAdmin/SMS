@@ -2056,7 +2056,7 @@ public class SchoolService : ISchoolService
 						AdmissionNo = admissionNo,
 						RouteId = route.RouteId,
 						PickupPointId = pickup.PickupPointId,
-						VehicleAssignmentId = vehicleAssignment.AssignmentId,
+						VehicleAssignmentId = vehicleAssignment?.AssignmentId ?? 0,
 						EffectiveFrom = DateTime.UtcNow,
 						TransportType = !string.IsNullOrWhiteSpace(app.TransportType) ? app.TransportType : "Both",
 						Status = true,
@@ -2068,7 +2068,7 @@ public class SchoolService : ISchoolService
 				{
 					existingAssignment.RouteId = route.RouteId;
 					existingAssignment.PickupPointId = pickup.PickupPointId;
-					existingAssignment.VehicleAssignmentId = vehicleAssignment.AssignmentId;
+					existingAssignment.VehicleAssignmentId = vehicleAssignment?.AssignmentId ?? existingAssignment.VehicleAssignmentId;
 					existingAssignment.TransportType = !string.IsNullOrWhiteSpace(app.TransportType) ? app.TransportType : "Both";
 					existingAssignment.Status = true;
 				}

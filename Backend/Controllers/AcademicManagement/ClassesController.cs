@@ -207,7 +207,7 @@ namespace SMS.Api.Controllers.AcademicManagement
                     return new SectionResponseDto
                     {
                         SectionId = s.SectionId,
-                        SectionName = s.SectionName,
+                        SectionName = s.SectionName ?? string.Empty,
                         ClassTeacherEmpId = classTeacherAssign?.TeacherId,
                         ClassTeacherName = classTeacherAssign?.Teacher != null
                             ? System.Text.RegularExpressions.Regex.Replace($"{classTeacherAssign.Teacher.FirstName} {classTeacherAssign.Teacher.LastName}".Trim(), @"\s*\([^)]*\)$", "").Trim()
@@ -765,13 +765,13 @@ namespace SMS.Api.Controllers.AcademicManagement
             {
                 var lowerTeacherId = cleanTeacherId.ToLower();
                 staff = await _context.Staff.FirstOrDefaultAsync(s =>
-                    (s.FirstName + " " + s.LastName).ToLower() == lowerTeacherId ||
-                    (s.LastName + " " + s.FirstName).ToLower() == lowerTeacherId ||
+                    ((s.FirstName ?? "") + " " + (s.LastName ?? "")).ToLower() == lowerTeacherId ||
+                    ((s.LastName ?? "") + " " + (s.FirstName ?? "")).ToLower() == lowerTeacherId ||
                     (s.DisplayName != null && s.DisplayName.ToLower() == lowerTeacherId) ||
-                    s.FirstName.ToLower() == lowerTeacherId ||
-                    s.LastName.ToLower() == lowerTeacherId ||
-                    (s.FirstName + " " + s.LastName).ToLower().Contains(lowerTeacherId) ||
-                    lowerTeacherId.Contains((s.FirstName + " " + s.LastName).ToLower()));
+                    (s.FirstName != null && s.FirstName.ToLower() == lowerTeacherId) ||
+                    (s.LastName != null && s.LastName.ToLower() == lowerTeacherId) ||
+                    ((s.FirstName ?? "") + " " + (s.LastName ?? "")).ToLower().Contains(lowerTeacherId) ||
+                    lowerTeacherId.Contains(((s.FirstName ?? "") + " " + (s.LastName ?? "")).ToLower()));
             }
 
             if (staff == null)
@@ -817,10 +817,10 @@ namespace SMS.Api.Controllers.AcademicManagement
                     var staffPrimSub = staff.PrimarySubject.Trim().ToLower();
                     var matchedClassSub = await _context.Subjects
                         .Where(s => classSubjectIds.Contains(s.SubjectId) &&
-                                    (s.SubjectName.ToLower() == staffPrimSub ||
-                                     s.SubjectCode.ToLower() == staffPrimSub ||
-                                     s.SubjectName.ToLower().Contains(staffPrimSub) ||
-                                     staffPrimSub.Contains(s.SubjectName.ToLower())))
+                                    ((s.SubjectName != null && s.SubjectName.ToLower() == staffPrimSub) ||
+                                     (s.SubjectCode != null && s.SubjectCode.ToLower() == staffPrimSub) ||
+                                     (s.SubjectName != null && s.SubjectName.ToLower().Contains(staffPrimSub)) ||
+                                     (s.SubjectName != null && staffPrimSub.Contains(s.SubjectName.ToLower()))))
                         .FirstOrDefaultAsync();
 
                     if (matchedClassSub != null)
@@ -834,10 +834,10 @@ namespace SMS.Api.Controllers.AcademicManagement
                     var staffDept = staff.Department.Trim().ToLower();
                     var matchedDeptSub = await _context.Subjects
                         .Where(s => classSubjectIds.Contains(s.SubjectId) &&
-                                    (s.SubjectName.ToLower() == staffDept ||
-                                     s.SubjectCode.ToLower() == staffDept ||
-                                     s.SubjectName.ToLower().Contains(staffDept) ||
-                                     staffDept.Contains(s.SubjectName.ToLower())))
+                                    ((s.SubjectName != null && s.SubjectName.ToLower() == staffDept) ||
+                                     (s.SubjectCode != null && s.SubjectCode.ToLower() == staffDept) ||
+                                     (s.SubjectName != null && s.SubjectName.ToLower().Contains(staffDept)) ||
+                                     (s.SubjectName != null && staffDept.Contains(s.SubjectName.ToLower()))))
                         .FirstOrDefaultAsync();
 
                     if (matchedDeptSub != null)

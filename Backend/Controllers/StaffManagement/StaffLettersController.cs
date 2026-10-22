@@ -381,6 +381,9 @@ public class StaffLettersController : ControllerBase
         {
             await EnsureTablesExistAsync();
 
+            var school = await _context.Schools.FirstOrDefaultAsync();
+            var dynamicPrincipalName = school?.PrincipalName ?? string.Empty;
+
             var settings = await _context.GlobalLetterSettings.FirstOrDefaultAsync(s => s.Id == 1);
             if (settings == null)
             {
@@ -389,7 +392,7 @@ public class StaffLettersController : ControllerBase
                     success = true,
                     data = new GlobalLetterSettingsDto
                     {
-                        SignatoryName = string.Empty,
+                        SignatoryName = dynamicPrincipalName,
                         SignatoryTitle = !string.IsNullOrWhiteSpace(dynamicPrincipalName) ? "Principal & Authorized Signatory" : string.Empty,
                         ProbationMonths = 6,
                         NoticePeriodDays = 30,
@@ -412,7 +415,7 @@ public class StaffLettersController : ControllerBase
 
             var effectiveSignatory = !string.IsNullOrWhiteSpace(settings.SignatoryName) 
                 ? settings.SignatoryName 
-                : string.Empty;
+                : dynamicPrincipalName;
 
             return Ok(new
             {
