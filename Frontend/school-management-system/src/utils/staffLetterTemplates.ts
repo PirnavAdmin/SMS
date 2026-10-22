@@ -48,25 +48,12 @@ export const getDefaultLetterPayload = (
 
   const fullName = `${staff.firstName || ''} ${staff.lastName || ''}`.trim() || (staff as any).name || 'Staff Member';
   
-  let defaultSignatoryName = schoolProfile?.principalName || '';
-  let defaultSignatoryTitle = schoolProfile?.principalName ? 'Principal & Authorized Signatory' : '';
-  let defaultProbationMonths = 6;
-  let defaultNoticePeriodDays = 30;
+  let defaultSignatoryName = '';
+  let defaultSignatoryTitle = '';
+  let defaultProbationMonths = 0;
+  let defaultNoticePeriodDays = 0;
   let defaultSignatureImageUrl = '';
   let defaultSealImageUrl = '';
-
-  try {
-    const savedGlobalSettings = localStorage.getItem('edu_db_global_letter_settings');
-    if (savedGlobalSettings) {
-      const parsed = JSON.parse(savedGlobalSettings);
-      if (parsed.signatoryName) defaultSignatoryName = parsed.signatoryName;
-      if (parsed.signatoryTitle) defaultSignatoryTitle = parsed.signatoryTitle;
-      if (parsed.probationMonths !== undefined) defaultProbationMonths = parsed.probationMonths;
-      if (parsed.noticePeriodDays !== undefined) defaultNoticePeriodDays = parsed.noticePeriodDays;
-      if (parsed.signatureImageUrl) defaultSignatureImageUrl = parsed.signatureImageUrl;
-      if (parsed.sealImageUrl) defaultSealImageUrl = parsed.sealImageUrl;
-    }
-  } catch (e) {}
 
   const staffAddress = staff.presentAddress || staff.residentialAddress || staff.permanentAddress || staff.address || (schoolProfile?.address || '');
   const staffBranch = staff.branch || (staff as any).campus || (schoolProfile?.name || '');
