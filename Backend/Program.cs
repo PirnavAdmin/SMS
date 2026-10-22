@@ -2691,6 +2691,51 @@ using (var scope = app.Services.CreateScope())
                     `CreatedAt` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
                     `UpdatedAt` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+                CREATE TABLE IF NOT EXISTS `financialaccounts` (
+                    `Id` INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+                    `Name` VARCHAR(255) NOT NULL DEFAULT '',
+                    `Type` VARCHAR(50) NOT NULL DEFAULT 'Bank',
+                    `BankName` VARCHAR(255) NOT NULL DEFAULT '',
+                    `AccountNumberMasked` VARCHAR(100) NOT NULL DEFAULT '',
+                    `OpeningBalance` DECIMAL(18,2) NOT NULL DEFAULT 0.00,
+                    `CurrentBalance` DECIMAL(18,2) NOT NULL DEFAULT 0.00,
+                    `Status` VARCHAR(50) NOT NULL DEFAULT 'Active'
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+                CREATE TABLE IF NOT EXISTS `expenses` (
+                    `Id` INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+                    `ExpenseNo` VARCHAR(100) NOT NULL DEFAULT '',
+                    `Date` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                    `Category` VARCHAR(255) NOT NULL DEFAULT '',
+                    `Vendor` VARCHAR(255) NOT NULL DEFAULT '',
+                    `Description` LONGTEXT NULL,
+                    `Amount` DECIMAL(18,2) NOT NULL DEFAULT 0.00,
+                    `FinancialAccountId` INT NULL,
+                    `PaymentMethod` VARCHAR(50) NOT NULL DEFAULT 'Cash',
+                    `ReferenceNo` VARCHAR(100) NOT NULL DEFAULT '',
+                    `Status` VARCHAR(50) NOT NULL DEFAULT 'Approved',
+                    `AcademicYearId` INT NOT NULL DEFAULT 0,
+                    `BranchId` INT NOT NULL DEFAULT 0,
+                    `CreatedAt` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+                CREATE TABLE IF NOT EXISTS `ledgerentries` (
+                    `Id` INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+                    `TransactionDate` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                    `TransactionType` VARCHAR(100) NOT NULL DEFAULT 'Fee Payment',
+                    `ReferenceNo` VARCHAR(100) NOT NULL DEFAULT '',
+                    `FinancialAccountId` INT NULL,
+                    `StudentId` INT NULL,
+                    `AdmissionNo` VARCHAR(100) NOT NULL DEFAULT '',
+                    `Debit` DECIMAL(18,2) NOT NULL DEFAULT 0.00,
+                    `Credit` DECIMAL(18,2) NOT NULL DEFAULT 0.00,
+                    `Balance` DECIMAL(18,2) NOT NULL DEFAULT 0.00,
+                    `Particulars` LONGTEXT NULL,
+                    `Category` VARCHAR(100) NOT NULL DEFAULT 'Income',
+                    `AcademicYearId` INT NOT NULL DEFAULT 0,
+                    `BranchId` INT NOT NULL DEFAULT 0
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
             ");
 
             if (!feeWasOpen) await feeDbConn.OpenAsync();
