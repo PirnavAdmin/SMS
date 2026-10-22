@@ -4121,9 +4121,10 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
                       : "";
                   if (sName) {
                     const cleanSName = sName.replace(/^Section\s*/i, "").trim().toUpperCase();
-                    const letterIndex = cleanSName.length === 1 && cleanSName >= 'A' && cleanSName <= 'Z' ? (cleanSName.charCodeAt(0) - 64) : (idx + 1);
                     const existingSec = secDetails[sName] || secDetails[cleanSName] || {};
-                    const resolvedSecId = isObj ? (s.sectionId || s.id || letterIndex) : (existingSec.id || existingSec.sectionId || letterIndex);
+                    const resolvedSecId = isObj
+                      ? (s.sectionId ?? s.id ?? existingSec.id ?? existingSec.sectionId ?? undefined)
+                      : (existingSec.id ?? existingSec.sectionId ?? undefined);
                     const secInfo = {
                       id: resolvedSecId,
                       sectionId: resolvedSecId,
@@ -6718,7 +6719,31 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         targetSectionId = (oldStudent as any)?.sectionId;
       }
 
-      // If section is explicitly being updated, also invoke allocateStudentApi to keep section and roll number synchronized in DB
+      const onlySectionOrRoll = Object.keys(updates).every((k) =>
+        ["section", "rollNo", "rollNumber"].includes(k)
+      );
+
+      // If only section and/or rollNo are changing, allocateStudentApi is the dedicated endpoint.
+      // Do NOT invoke updateStudentApi, which requires a full profile payload and validates sectionId references.
+      if (onlySectionOrRoll) {
+        allocateStudentApi(id, {
+          section_letter: cleanSecName || "Unassigned",
+          roll_no: fullStudent.rollNo || undefined,
+        })
+          .then((res: any) => {
+            if (res && res.sectionId) {
+              setStudents((prev) =>
+                prev.map((s) =>
+                  s.id === id ? { ...s, sectionId: res.sectionId, section: cleanSecName, rollNo: res.rollNo || fullStudent.rollNo } : s
+                )
+              );
+            }
+          })
+          .catch((err) => console.warn("Allocation API notice:", err));
+        return;
+      }
+
+      // If section is explicitly being updated alongside other profile fields, invoke allocateStudentApi
       if (updates.section !== undefined) {
         allocateStudentApi(id, {
           section_letter: cleanSecName || "Unassigned",
@@ -6886,9 +6911,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     let resolvedSectionId = secDetail?.id || secDetail?.sectionId
       ? Number(String(secDetail.id || secDetail.sectionId).replace(/\D/g, "")) || undefined
       : undefined;
-    if (!resolvedSectionId && cleanSecName.length === 1 && cleanSecName >= "A" && cleanSecName <= "Z") {
-      resolvedSectionId = cleanSecName.charCodeAt(0) - 64;
-    }
+    // Avoid bogus letterIndex fallback
     if (!resolvedSectionId) {
       resolvedSectionId = (targetStudent as any)?.sectionId || 1;
     }

@@ -1208,12 +1208,15 @@ namespace SMS.Api.Controllers.AcademicManagement
             }
 
             // Find or dynamically create target ClassSection
-            var section = await _context.ClassSections
-                .FirstOrDefaultAsync(s => s.ClassId == targetClassId.Value && (
-                    s.SectionName.ToLower() == cleanLetter.ToLower() ||
-                    s.SectionName.ToLower() == $"section {cleanLetter}".ToLower() ||
-                    (cleanLetter.Length == 1 && s.SectionName.Trim().EndsWith(cleanLetter, StringComparison.OrdinalIgnoreCase))
-                ));
+            var classSections = await _context.ClassSections
+                .Where(s => s.ClassId == targetClassId.Value)
+                .ToListAsync();
+
+            var section = classSections.FirstOrDefault(s =>
+                string.Equals(s.SectionName?.Trim(), cleanLetter, StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(s.SectionName?.Trim(), $"Section {cleanLetter}", StringComparison.OrdinalIgnoreCase) ||
+                (cleanLetter.Length == 1 && (s.SectionName ?? "").Trim().EndsWith(cleanLetter, StringComparison.OrdinalIgnoreCase))
+            );
 
             if (section == null)
             {
