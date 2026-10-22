@@ -388,7 +388,7 @@ export interface CertificateTemplateConfig {
   certificateTypeName?: string;
   title: string;
   subTitle?: string;
-  headerStyle: 'Classic Double Border' | 'Modern Minimalist' | 'Royal Gold Crest' | 'Executive Slate';
+  headerStyle: 'Classic Double Border' | 'Modern Minimalist' | 'Royal Gold Crest' | 'Executive Slate' | '';
   themeColor: string;
   showLogo: boolean;
   showSchoolHeader?: boolean;

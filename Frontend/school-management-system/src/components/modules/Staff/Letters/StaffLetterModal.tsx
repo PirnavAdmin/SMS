@@ -41,9 +41,8 @@ import {
 import {
   fetchGlobalLetterSettingsApi,
   createOrSaveStaffLetterApi,
-  fetchStaffLettersApi
-  saveGlobalLetterSettingsApi,
-  createOrSaveStaffLetterApi
+  fetchStaffLettersApi,
+  saveGlobalLetterSettingsApi
 } from '../../../../api/staffLetters';
 import { validateSearchQuery } from '../../../../utils/validation';
 
@@ -305,6 +304,8 @@ export const StaffLetterModal: React.FC<StaffLetterModalProps> = ({
   useEffect(() => {
     if (!isOpen) {
       lastInitKeyRef.current = null;
+      hasInitializedRef.current = false;
+      isCustomSignatureModifiedRef.current = false;
       return;
     }
 
@@ -320,32 +321,6 @@ export const StaffLetterModal: React.FC<StaffLetterModalProps> = ({
     }
 
     lastInitKeyRef.current = currentKey;
-
-    if (existingRecord) {
-      setActiveType(existingRecord.letterType);
-      setActiveView('preview');
-      setPayload({ ...existingRecord.payload });
-      if (staff) {
-        setCurrentStaff(staff);
-      } else {
-        const matched = effectiveStaffList.find(
-          (s) => s.id === existingRecord.staffId || s.empId === existingRecord.staffEmpId
-        );
-        if (matched) setCurrentStaff(matched);
-      }
-    } else if (staff) {
-      setCurrentStaff(staff);
-      setActiveType(initialType);
-      setActiveView('edit');
-      const defaultPl = getDefaultLetterPayload(initialType, staff, schoolProfile);
-      setPayload(defaultPl);
-    if (!isOpen) {
-      hasInitializedRef.current = false;
-      isCustomSignatureModifiedRef.current = false;
-      return;
-    }
-
-    if (hasInitializedRef.current) return;
     hasInitializedRef.current = true;
 
     if (existingRecord) {
@@ -378,31 +353,6 @@ export const StaffLetterModal: React.FC<StaffLetterModalProps> = ({
             const s = res.data;
             setPayload((prev) => ({
               ...prev,
-              authorizedSignatoryName: s.signatoryName || prev.authorizedSignatoryName,
-              authorizedSignatoryTitle: s.signatoryTitle || prev.authorizedSignatoryTitle,
-              probationMonths: s.probationMonths || prev.probationMonths,
-              noticePeriodDays: s.noticePeriodDays || prev.noticePeriodDays,
-              signatureImageUrl: s.signatureImageUrl || prev.signatureImageUrl,
-              customTerms: (s.masterTerms && s.masterTerms.length > 0) ? s.masterTerms : prev.customTerms,
-            }));
-          }
-        })
-        .catch(() => {});
-    } else {
-      // Initial state when opened without specific staff:
-      // Opens in Configure ('edit') tab, initially showing "-- Select Employee --"
-      setCurrentStaff(undefined);
-      setActiveType(initialType);
-      setActiveView('edit');
-      const emptyPl = getEmptyLetterPayload(initialType, schoolProfile);
-      setPayload(emptyPl);
-      // Sync fresh global settings from backend database
-      fetchGlobalLetterSettingsApi()
-        .then((res) => {
-          if (res?.data) {
-            const s = res.data;
-            setPayload((prev) => ({
-              ...prev,
               authorizedSignatoryName: prev.authorizedSignatoryName || s.signatoryName || '',
               authorizedSignatoryTitle: prev.authorizedSignatoryTitle || s.signatoryTitle || '',
               probationMonths: prev.probationMonths || s.probationMonths || 0,
@@ -428,25 +378,6 @@ export const StaffLetterModal: React.FC<StaffLetterModalProps> = ({
       }
       setPayload(emptyPl);
 
-      // Sync fresh global settings from backend database
-      fetchGlobalLetterSettingsApi()
-        .then((res) => {
-          if (res?.data) {
-            const s = res.data;
-            setPayload((prev) => ({
-              ...prev,
-              authorizedSignatoryName: s.signatoryName || prev.authorizedSignatoryName,
-              authorizedSignatoryTitle: s.signatoryTitle || prev.authorizedSignatoryTitle,
-              probationMonths: s.probationMonths || prev.probationMonths,
-              noticePeriodDays: s.noticePeriodDays || prev.noticePeriodDays,
-              signatureImageUrl: s.signatureImageUrl || prev.signatureImageUrl,
-              customTerms: (s.masterTerms && s.masterTerms.length > 0) ? s.masterTerms : prev.customTerms,
-            }));
-          }
-        })
-        .catch(() => {});
-    }
-  }, [isOpen, existingRecord, staff, initialType]);
       // Sync fresh global settings from backend database
       fetchGlobalLetterSettingsApi()
         .then((res) => {

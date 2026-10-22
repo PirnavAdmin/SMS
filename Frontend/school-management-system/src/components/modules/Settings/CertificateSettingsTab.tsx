@@ -216,7 +216,7 @@ export const INITIAL_CERTIFICATE_TEMPLATES: CertificateTemplateConfig[] = [
     certificateTypeId: 'CT-TC',
     certificateTypeName: 'Transfer Certificate',
     title: 'OFFICIAL TRANSFER CERTIFICATE',
-    headerStyle: 'Classic Double Border',
+    headerStyle: '',
     themeColor: '#1e3a8a',
     showLogo: true,
     showSchoolHeader: true,
@@ -235,7 +235,7 @@ export const INITIAL_CERTIFICATE_TEMPLATES: CertificateTemplateConfig[] = [
     certificateTypeId: 'CT-BONAFIDE',
     certificateTypeName: 'Bonafide Certificate',
     title: 'BONAFIDE STUDY CERTIFICATE',
-    headerStyle: 'Modern Minimalist',
+    headerStyle: '',
     themeColor: '#047857',
     showLogo: true,
     showSchoolHeader: true,
@@ -254,7 +254,7 @@ export const INITIAL_CERTIFICATE_TEMPLATES: CertificateTemplateConfig[] = [
     certificateTypeId: 'CT-STUDY',
     certificateTypeName: 'Study Certificate',
     title: 'STUDY & CONDUCT CERTIFICATE',
-    headerStyle: 'Royal Gold Crest',
+    headerStyle: '',
     themeColor: '#b45309',
     showLogo: true,
     showSchoolHeader: true,
@@ -273,7 +273,7 @@ export const INITIAL_CERTIFICATE_TEMPLATES: CertificateTemplateConfig[] = [
     certificateTypeId: 'CT-CHARACTER',
     certificateTypeName: 'Character Certificate',
     title: 'CHARACTER & CONDUCT CERTIFICATE',
-    headerStyle: 'Executive Slate',
+    headerStyle: '',
     themeColor: '#1e293b',
     showLogo: true,
     showSchoolHeader: true,
@@ -344,7 +344,14 @@ export const CertificateSettingsTab: React.FC = () => {
   const [templates, setTemplates] = useState<CertificateTemplateConfig[]>(() => {
     try {
       const saved = localStorage.getItem('edu_db_certificate_templates_v2');
-      if (saved) return JSON.parse(saved);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) {
+          return parsed.map((tpl: CertificateTemplateConfig) =>
+            tpl.updatedAt ? tpl : { ...tpl, headerStyle: '' }
+          );
+        }
+      }
     } catch (e) {}
     return INITIAL_CERTIFICATE_TEMPLATES;
   });
@@ -421,24 +428,43 @@ export const CertificateSettingsTab: React.FC = () => {
   });
 
   // Selected Certificate Type for Required Fields Configuration Matrix
-  const [selectedFieldMatrixTypeId, setSelectedFieldMatrixTypeId] = useState<string>(
-    types[0]?.id || 'CT-TC'
-  );
+  const [selectedFieldMatrixTypeId, setSelectedFieldMatrixTypeId] = useState<string>('');
 
   const currentFieldMatrixType = useMemo(() => {
-    return types.find(t => t.id === selectedFieldMatrixTypeId) || types[0];
+    if (!selectedFieldMatrixTypeId) return undefined;
+    return types.find(t => t.id === selectedFieldMatrixTypeId);
   }, [types, selectedFieldMatrixTypeId]);
 
   // Selected Template for Editing in Templates subtab
-  const [selectedTemplateTypeId, setSelectedTemplateTypeId] = useState<string>(
-    types[0]?.id || 'CT-TC'
-  );
+  const [selectedTemplateTypeId, setSelectedTemplateTypeId] = useState<string>('');
 
   const currentTypeForTemplate = useMemo(() => {
-    return types.find(t => t.id === selectedTemplateTypeId) || types[0];
+    if (!selectedTemplateTypeId) return undefined;
+    return types.find(t => t.id === selectedTemplateTypeId);
   }, [types, selectedTemplateTypeId]);
 
   const activeTemplate = useMemo(() => {
+    if (!selectedTemplateTypeId) {
+      return {
+        id: '',
+        certificateTypeId: '',
+        certificateTypeName: '',
+        title: '',
+        headerStyle: '' as const,
+        themeColor: '#1e3a8a',
+        showLogo: true,
+        showSchoolHeader: true,
+        bodyTemplate: '',
+        footerText: '',
+        signatories: [
+          { id: 'sig-1', title: 'Class Teacher', show: true },
+          { id: 'sig-2', title: 'Accounts Officer', show: true },
+          { id: 'sig-3', title: 'Principal', name: schoolProfile?.principalName || 'Principal', show: true }
+        ],
+        showSeal: true,
+        dateFormat: 'DD/MM/YYYY'
+      };
+    }
     const found = templates.find(t => t.certificateTypeId === selectedTemplateTypeId);
     if (found) return found;
     return {
@@ -446,7 +472,7 @@ export const CertificateSettingsTab: React.FC = () => {
       certificateTypeId: selectedTemplateTypeId,
       certificateTypeName: currentTypeForTemplate?.name || 'Certificate',
       title: (currentTypeForTemplate?.name || 'CERTIFICATE').toUpperCase(),
-      headerStyle: 'Classic Double Border' as const,
+      headerStyle: '' as const,
       themeColor: '#1e3a8a',
       showLogo: true,
       showSchoolHeader: true,
@@ -460,7 +486,7 @@ export const CertificateSettingsTab: React.FC = () => {
       showSeal: true,
       dateFormat: 'DD/MM/YYYY'
     };
-  }, [templates, selectedTemplateTypeId, currentTypeForTemplate]);
+  }, [templates, selectedTemplateTypeId, currentTypeForTemplate, schoolProfile]);
 
   const [templateEditorState, setTemplateEditorState] = useState<CertificateTemplateConfig>(activeTemplate);
 
@@ -568,15 +594,40 @@ export const CertificateSettingsTab: React.FC = () => {
     setIsTypeModalOpen(false);
   };
 
+  const [templateTypeError, setTemplateTypeError] = useState<string | undefined>(undefined);
+  const [headerStyleError, setHeaderStyleError] = useState<string | undefined>(undefined);
+
+  useEffect(() => {
+    setHeaderStyleError(undefined);
+    if (selectedTemplateTypeId) setTemplateTypeError(undefined);
+  }, [selectedTemplateTypeId]);
+
   const handleSaveTemplate = () => {
+    if (!selectedTemplateTypeId) {
+      setTemplateTypeError('Please select a Certificate Type.');
+      addToast('error', 'Certificate Type Required', 'Please select a Certificate Type before saving the template.');
+      return;
+    }
+    if (!templateEditorState.headerStyle) {
+      setHeaderStyleError('Please select a Header Border Style.');
+      addToast('error', 'Header Border Style Required', 'Please select a Header Border Style before saving the template.');
+      return;
+    }
+    setTemplateTypeError(undefined);
+    setHeaderStyleError(undefined);
+    const updatedTemplate: CertificateTemplateConfig = {
+      ...templateEditorState,
+      updatedAt: new Date().toISOString(),
+    };
+    setTemplateEditorState(updatedTemplate);
     setTemplates(prev => {
-      const exists = prev.some(t => t.certificateTypeId === templateEditorState.certificateTypeId);
+      const exists = prev.some(t => t.certificateTypeId === updatedTemplate.certificateTypeId);
       if (exists) {
-        return prev.map(t => t.certificateTypeId === templateEditorState.certificateTypeId ? templateEditorState : t);
+        return prev.map(t => t.certificateTypeId === updatedTemplate.certificateTypeId ? updatedTemplate : t);
       }
-      return [...prev, templateEditorState];
+      return [...prev, updatedTemplate];
     });
-    addToast('success', 'Template Saved', `Saved layout configuration for ${templateEditorState.certificateTypeName}`);
+    addToast('success', 'Template Saved', `Saved layout configuration for ${updatedTemplate.certificateTypeName}`);
   };
 
   const handleInsertPlaceholder = (ph: string) => {
@@ -794,16 +845,34 @@ export const CertificateSettingsTab: React.FC = () => {
 
             <div className="space-y-3 text-xs">
               <div>
-                <label className="block font-bold mb-1 text-slate-700 dark:text-slate-300">Select Certificate Type</label>
+                <label className="block font-bold mb-1 text-slate-700 dark:text-slate-300">
+                  Select Certificate Type <span className="text-rose-500 font-bold ml-0.5">*</span>
+                </label>
                 <select
+                  required
                   value={selectedTemplateTypeId}
-                  onChange={e => setSelectedTemplateTypeId(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold text-slate-900 dark:text-white outline-none cursor-pointer"
+                  onChange={e => {
+                    setSelectedTemplateTypeId(e.target.value);
+                    if (e.target.value) setTemplateTypeError(undefined);
+                  }}
+                  className={`w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold outline-none cursor-pointer ${
+                    templateTypeError ? 'border-rose-500 focus:ring-rose-500' : ''
+                  } ${
+                    !selectedTemplateTypeId
+                      ? 'text-slate-400 dark:text-slate-500'
+                      : 'text-slate-900 dark:text-white'
+                  }`}
                 >
+                  <option value="" disabled>Select Certificate Type</option>
                   {types.map(t => (
                     <option key={t.id} value={t.id}>{t.name} ({t.code})</option>
                   ))}
                 </select>
+                {templateTypeError && (
+                  <p className="text-[11px] text-rose-500 mt-1 font-semibold">
+                    {templateTypeError}
+                  </p>
+                )}
               </div>
 
               <div>
@@ -819,17 +888,38 @@ export const CertificateSettingsTab: React.FC = () => {
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-bold mb-1 text-slate-700 dark:text-slate-300">Header Border Style</label>
+                  <label className="block font-bold mb-1 text-slate-700 dark:text-slate-300">
+                    Header Border Style <span className="text-rose-500 font-bold ml-0.5">*</span>
+                  </label>
                   <select
-                    value={templateEditorState.headerStyle}
-                    onChange={e => setTemplateEditorState(prev => ({ ...prev, headerStyle: e.target.value as any }))}
-                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold text-slate-900 dark:text-white outline-none cursor-pointer"
+                    required
+                    value={templateEditorState.headerStyle || ''}
+                    onChange={e => {
+                      const val = e.target.value as any;
+                      setTemplateEditorState(prev => ({ ...prev, headerStyle: val }));
+                      if (val) setHeaderStyleError(undefined);
+                    }}
+                    className={`w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold outline-none cursor-pointer ${
+                      headerStyleError
+                        ? 'border-rose-500 focus:ring-rose-500'
+                        : ''
+                    } ${
+                      !templateEditorState.headerStyle
+                        ? 'text-slate-400 dark:text-slate-500'
+                        : 'text-slate-900 dark:text-white'
+                    }`}
                   >
+                    <option value="" disabled>Select Header Border Style</option>
                     <option value="Classic Double Border">Classic Double Border</option>
                     <option value="Modern Minimalist">Modern Minimalist</option>
                     <option value="Royal Gold Crest">Royal Gold Crest</option>
                     <option value="Executive Slate">Executive Slate</option>
                   </select>
+                  {headerStyleError && (
+                    <p className="text-[11px] text-rose-500 mt-1 font-semibold">
+                      {headerStyleError}
+                    </p>
+                  )}
                 </div>
 
                 <div>
@@ -1099,17 +1189,29 @@ export const CertificateSettingsTab: React.FC = () => {
 
               <div className="flex items-center gap-3">
                 <select
+                  required
                   value={selectedFieldMatrixTypeId}
                   onChange={e => setSelectedFieldMatrixTypeId(e.target.value)}
-                  className="px-3.5 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-xs font-extrabold text-slate-900 dark:text-white outline-none cursor-pointer"
+                  className={`px-3.5 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-xs font-extrabold outline-none cursor-pointer ${
+                    !selectedFieldMatrixTypeId
+                      ? 'text-slate-400 dark:text-slate-500'
+                      : 'text-slate-900 dark:text-white'
+                  }`}
                 >
+                  <option value="" disabled>Select Certificate Type</option>
                   {types.map(t => (
                     <option key={t.id} value={t.id}>{t.name} ({t.code})</option>
                   ))}
                 </select>
 
                 <button
-                  onClick={() => addToast('success', 'Configuration Saved', `Required fields updated for ${currentFieldMatrixType?.name}`)}
+                  onClick={() => {
+                    if (!currentFieldMatrixType) {
+                      addToast('error', 'Certificate Type Required', 'Please select a Certificate Type first.');
+                      return;
+                    }
+                    addToast('success', 'Configuration Saved', `Required fields updated for ${currentFieldMatrixType.name}`);
+                  }}
                   className="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-md flex items-center gap-1.5 cursor-pointer"
                 >
                   <Save className="w-3.5 h-3.5" /> Save Required Matrix
@@ -1125,7 +1227,13 @@ export const CertificateSettingsTab: React.FC = () => {
                 return (
                   <div
                     key={p.placeholder}
-                    onClick={() => handleToggleRequiredField(currentFieldMatrixType.id, keyName)}
+                    onClick={() => {
+                      if (!currentFieldMatrixType) {
+                        addToast('warning', 'Select Certificate Type', 'Please select a Certificate Type above to configure required fields.');
+                        return;
+                      }
+                      handleToggleRequiredField(currentFieldMatrixType.id, keyName);
+                    }}
                     className={`p-3.5 rounded-2xl border transition-all flex items-center justify-between cursor-pointer ${
                       isRequired
                         ? 'bg-emerald-50/70 dark:bg-emerald-950/40 border-emerald-300 dark:border-emerald-800 text-emerald-950 dark:text-emerald-100 shadow-xs'

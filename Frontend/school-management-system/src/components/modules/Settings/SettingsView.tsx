@@ -2091,7 +2091,18 @@ export const SettingsView: React.FC = () => {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {filteredAcademicYears.map((ay) => (
+            {filteredAcademicYears.map((ay) => {
+              const isPastEnd = Boolean(
+                ay.endDate && new Date(ay.endDate) < new Date(new Date().setHours(0, 0, 0, 0))
+              );
+              const displayStatus =
+                ay.status === "Active"
+                  ? "Active"
+                  : ay.status === "Closed" || isPastEnd
+                    ? "Closed"
+                    : "Upcoming";
+
+              return (
               <div
                 key={ay.id}
                 className="glass-card p-5 rounded-3xl space-y-3 border border-slate-200 dark:border-slate-800 relative"
@@ -2101,17 +2112,24 @@ export const SettingsView: React.FC = () => {
                     {ay.academicYear}
                   </span>
                   <span
-                    className={`px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase ${
-                      ay.status === "Active"
-                        ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300"
-                        : ay.status === "Closed"
-                          ? "bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300"
-                          : ay.status === "Upcoming" || (ay.status as string) === "Inactive"
-                            ? "bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300"
-                            : "bg-slate-200 text-slate-600 dark:bg-slate-800 dark:text-slate-400"
+                    className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase border ${
+                      displayStatus === "Active"
+                        ? "bg-emerald-100 text-emerald-800 border-emerald-300 dark:bg-emerald-950/80 dark:text-emerald-300 dark:border-emerald-800"
+                        : displayStatus === "Closed"
+                          ? "bg-rose-100 text-rose-800 border-rose-300 dark:bg-rose-950/80 dark:text-rose-300 dark:border-rose-800"
+                          : "bg-indigo-100 text-indigo-800 border-indigo-300 dark:bg-indigo-950/80 dark:text-indigo-300 dark:border-indigo-800"
                     }`}
                   >
-                    {ay.status}
+                    <span
+                      className={`w-1.5 h-1.5 rounded-full shrink-0 ${
+                        displayStatus === "Active"
+                          ? "bg-emerald-600 dark:bg-emerald-400"
+                          : displayStatus === "Closed"
+                            ? "bg-rose-600 dark:bg-rose-400"
+                            : "bg-indigo-600 dark:bg-indigo-400"
+                      }`}
+                    />
+                    {displayStatus}
                   </span>
                 </div>
 
@@ -2168,7 +2186,8 @@ export const SettingsView: React.FC = () => {
                   </div>
                 </div>
               </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       )}
