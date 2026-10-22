@@ -1266,8 +1266,23 @@ export function validateInputElement(
     );
 
   if (isTimeField) {
-    const trimmedTime = val.trim();
-    const timePattern = /^([0-1]?[0-9]|2[0-3])(:[0-5][0-9])?(\s*(am|pm))?(\s*[-–—to]\s*([0-1]?[0-9]|2[0-3])(:[0-5][0-9])?(\s*(am|pm))?)?$/i;
+    let trimmedTime = val.trim();
+    const compactMatch = trimmedTime.match(/^(\d{3,4})(\s*(?:am|pm|a|p)?)?$/i);
+    if (compactMatch) {
+      const digits = compactMatch[1];
+      const suffix = compactMatch[2] || '';
+      const firstTwo = parseInt(digits.slice(0, 2), 10);
+      if (digits.length === 3) {
+        trimmedTime = firstTwo > 23
+          ? `0${digits[0]}:${digits.slice(1)}${suffix}`
+          : `${digits.slice(0, 2)}:${digits.slice(2)}${suffix}`;
+      } else if (digits.length === 4) {
+        trimmedTime = `${digits.slice(0, 2)}:${digits.slice(2, 4)}${suffix}`;
+      }
+    }
+    const timePattern = enforceRequired
+      ? /^([0-1]?[0-9]|2[0-3])(:[0-5][0-9])?(\s*(am|pm))?(\s*[-–—to]\s*([0-1]?[0-9]|2[0-3])(:[0-5][0-9])?(\s*(am|pm))?)?$/i
+      : /^([0-1]?[0-9]|2[0-3])(:[0-5][0-9]?|:)?(\s*(a|p|am|pm))?(\s*[-–—to]\s*([0-1]?[0-9]|2[0-3])(:[0-5][0-9]?|:)?(\s*(a|p|am|pm))?)?$/i;
     if (!timePattern.test(trimmedTime)) {
       return { isValid: false, error: 'Enter a valid time (e.g. 10:00 AM).' };
     }
