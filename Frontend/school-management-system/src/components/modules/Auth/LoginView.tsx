@@ -159,12 +159,12 @@ export const LoginView: React.FC<LoginViewProps> = ({ onBack, initialRole }) => 
       const isTimeout = localStorage.getItem('session_timeout_occurred');
       if (isTimeout) {
         localStorage.removeItem('session_timeout_occurred');
-        setError('Your session has expired due to inactivity. Please sign in again to continue.');
+        setError('Your session has expired after 24 hours. Please sign in again to continue.');
       }
     } catch {}
 
     const handleSessionExpired = () => {
-      setError('Your session has expired due to inactivity. Please sign in again to continue.');
+      setError('Your session has expired after 24 hours. Please sign in again to continue.');
     };
     window.addEventListener('session_expired', handleSessionExpired);
     return () => window.removeEventListener('session_expired', handleSessionExpired);

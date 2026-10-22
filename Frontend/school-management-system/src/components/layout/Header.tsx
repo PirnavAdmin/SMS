@@ -815,7 +815,7 @@ export const Header: React.FC<HeaderProps> = ({ collapsed, setCollapsed, onOpenS
               </button>
 
               <button
-                onClick={() => { setShowUserMenu(false); logout(); }}
+                onClick={() => { setShowUserMenu(false); if (onNavigate) onNavigate('dashboard'); logout(); }}
                 className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-lg transition-colors"
               >
                 <LogOut className="w-4 h-4" />

@@ -86,30 +86,62 @@ export const TOKEN_EXPIRATION_MS = 24 * 60 * 60 * 1000; // 24 Hours in ms
 
 export const isTokenValid = (): boolean => {
   const token = localStorage.getItem('auth_token');
-  if (!token || token === 'null' || token === 'undefined') return false;
+  if (!token || token === 'null' || token === 'undefined' || token === 'offline-bypass-dev-token') return false;
 
+  // 1. Check JWT expiration timestamp if token is a standard JWT
+  try {
+    const parts = token.split('.');
+    if (parts.length === 3) {
+      const payload = JSON.parse(atob(parts[1]));
+      if (payload && typeof payload.exp === 'number') {
+        const expMs = payload.exp * 1000;
+        if (Date.now() >= expMs) {
+          return false;
+        }
+      }
+    }
+  } catch {}
+
+  // 2. Check 24-hour token timestamp
   const timestampStr = localStorage.getItem('auth_token_timestamp');
   if (!timestampStr) {
-    localStorage.setItem('auth_token_timestamp', Date.now().toString());
-    return true;
-  }
-
-  const age = Date.now() - Number(timestampStr);
-  if (isNaN(age) || age > TOKEN_EXPIRATION_MS) {
     return false;
   }
+
+  const timestamp = Number(timestampStr);
+  if (isNaN(timestamp)) {
+    return false;
+  }
+
+  const age = Date.now() - timestamp;
+  if (age < 0 || age >= TOKEN_EXPIRATION_MS) {
+    return false;
+  }
+
   return true;
 };
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(() => {
     try {
+      const hadPreviousSession = Boolean(
+        localStorage.getItem('auth_user') ||
+        localStorage.getItem('auth_token') ||
+        localStorage.getItem('auth_token_timestamp')
+      );
+
       if (!isTokenValid()) {
+        if (hadPreviousSession) {
+          localStorage.setItem('session_timeout_occurred', 'true');
+        }
         localStorage.removeItem('auth_user');
+        localStorage.removeItem('user');
         localStorage.removeItem('auth_token');
         localStorage.removeItem('auth_token_timestamp');
         localStorage.removeItem('roles');
-        localStorage.removeItem('active_module');
+        localStorage.removeItem('active_selected_class_id');
+        localStorage.removeItem('active_class_tab');
+        localStorage.setItem('active_module', 'dashboard');
         return null;
       }
       const saved = localStorage.getItem('auth_user');
@@ -287,10 +319,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const logout = () => {
     try {
-      const currentModule = localStorage.getItem('active_module');
-      if (currentModule && currentModule !== 'dashboard') {
-        localStorage.setItem('session_resume_module', currentModule);
-      }
+      localStorage.removeItem('session_resume_module');
+      localStorage.setItem('active_module', 'dashboard');
     } catch {}
     setUser(null);
     setToken(null);
@@ -299,7 +329,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     localStorage.removeItem('auth_token');
     localStorage.removeItem('auth_token_timestamp');
     localStorage.removeItem('roles');
-    localStorage.removeItem('active_module');
     localStorage.removeItem('active_selected_class_id');
     localStorage.removeItem('active_class_tab');
   };
@@ -331,7 +360,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
 
     // Check periodically every 30 seconds and on tab focus/visibility change
-    const interval = setInterval(checkSessionValidity, 30000);
+    const interval = setInterval(checkSessionValidity, 15000);
     window.addEventListener('focus', checkSessionValidity);
     window.addEventListener('visibilitychange', checkSessionValidity);
 
@@ -441,13 +470,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       localStorage.setItem('auth_token', realToken);
       localStorage.setItem('auth_token_timestamp', Date.now().toString());
       localStorage.setItem('roles', JSON.stringify(roles));
-      const resumeModule = localStorage.getItem('session_resume_module');
-      if (resumeModule) {
-        localStorage.removeItem('session_resume_module');
-        localStorage.setItem('active_module', resumeModule);
-      } else {
-        localStorage.setItem('active_module', 'dashboard');
-      }
+      localStorage.removeItem('session_resume_module');
+      localStorage.setItem('active_module', 'dashboard');
 
       return true;
     } catch (err: any) {

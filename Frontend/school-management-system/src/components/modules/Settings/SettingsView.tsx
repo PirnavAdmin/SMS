@@ -1383,7 +1383,7 @@ export const SettingsView: React.FC = () => {
                 onClick={() => setActiveTab(tab.id as any)}
                 className={`px-4 py-2 rounded-xl text-sm font-bold transition-all cursor-pointer whitespace-nowrap shrink-0 text-center ${
                   isActive
-                    ? "bg-sky-50 dark:bg-sky-950/60 text-[#0088cc] dark:text-sky-400 shadow-2xs border border-sky-300 dark:border-sky-800 font-extrabold"
+                    ? "bg-sky-600 dark:bg-sky-500 text-white shadow-xs border border-sky-600 dark:border-sky-500 font-extrabold"
                     : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-50 dark:hover:bg-slate-800/60 font-semibold border border-transparent"
                 }`}
               >
