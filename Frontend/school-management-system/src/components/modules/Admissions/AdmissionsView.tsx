@@ -2120,6 +2120,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
     const fullApplicantName = `${finalFirst} ${finalLast}`.trim();
     const formattedParentName = formatTitleCase((formData.parentName || "").trim());
     const formattedMotherName = formData.motherName ? formatTitleCase(formData.motherName.trim()) : "N/A";
+    const finalDob = formData.dob ? (formatToDDMMYYYY(formData.dob, "/") || formData.dob) : (formData.dob || "");
 
     // Duplicate submission protection
     const isDuplicate = (admissions || []).some(
