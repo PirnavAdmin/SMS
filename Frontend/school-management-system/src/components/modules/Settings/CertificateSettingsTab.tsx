@@ -595,26 +595,50 @@ export const CertificateSettingsTab: React.FC = () => {
   };
 
   const [templateTypeError, setTemplateTypeError] = useState<string | undefined>(undefined);
+  const [titleError, setTitleError] = useState<string | undefined>(undefined);
   const [headerStyleError, setHeaderStyleError] = useState<string | undefined>(undefined);
+  const [themeColorError, setThemeColorError] = useState<string | undefined>(undefined);
+  const [bodyTemplateError, setBodyTemplateError] = useState<string | undefined>(undefined);
 
   useEffect(() => {
+    setTitleError(undefined);
     setHeaderStyleError(undefined);
+    setThemeColorError(undefined);
+    setBodyTemplateError(undefined);
     if (selectedTemplateTypeId) setTemplateTypeError(undefined);
   }, [selectedTemplateTypeId]);
 
   const handleSaveTemplate = () => {
+    let hasError = false;
     if (!selectedTemplateTypeId) {
       setTemplateTypeError('Please select a Certificate Type.');
-      addToast('error', 'Certificate Type Required', 'Please select a Certificate Type before saving the template.');
-      return;
+      hasError = true;
+    }
+    if (!templateEditorState.title?.trim()) {
+      setTitleError('Certificate Display Title is required.');
+      hasError = true;
     }
     if (!templateEditorState.headerStyle) {
       setHeaderStyleError('Please select a Header Border Style.');
-      addToast('error', 'Header Border Style Required', 'Please select a Header Border Style before saving the template.');
+      hasError = true;
+    }
+    if (!templateEditorState.themeColor?.trim()) {
+      setThemeColorError('Accent Theme Color is required.');
+      hasError = true;
+    }
+    if (!templateEditorState.bodyTemplate?.trim()) {
+      setBodyTemplateError('Body Content Template is required.');
+      hasError = true;
+    }
+    if (hasError) {
+      addToast('error', 'Mandatory Fields Missing', 'Please fill in all mandatory (*) fields before saving the template.');
       return;
     }
     setTemplateTypeError(undefined);
+    setTitleError(undefined);
     setHeaderStyleError(undefined);
+    setThemeColorError(undefined);
+    setBodyTemplateError(undefined);
     const updatedTemplate: CertificateTemplateConfig = {
       ...templateEditorState,
       updatedAt: new Date().toISOString(),
@@ -874,23 +898,38 @@ export const CertificateSettingsTab: React.FC = () => {
               </div>
 
               <div>
-                <label className="block font-bold mb-1 text-slate-700 dark:text-slate-300">Certificate Display Title</label>
+                <label className="block font-bold mb-1 text-slate-700 dark:text-slate-300">
+                  Certificate Display Title <span className="text-rose-500 font-bold ml-0.5">*</span>
+                </label>
                 <input
                   type="text"
+                  required
                   value={templateEditorState.title}
-                  onChange={e => setTemplateEditorState(prev => ({ ...prev, title: e.target.value }))}
-                  className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold text-slate-900 dark:text-white outline-none"
+                  onChange={e => {
+                    const val = e.target.value;
+                    setTemplateEditorState(prev => ({ ...prev, title: val }));
+                    if (val.trim()) setTitleError(undefined);
+                  }}
+                  className={`w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold text-slate-900 dark:text-white outline-none ${
+                    titleError ? 'border-rose-500 focus:ring-rose-500' : ''
+                  }`}
                   placeholder="e.g. BONAFIDE STUDY CERTIFICATE"
                 />
+                {titleError && (
+                  <p className="text-[11px] text-rose-500 mt-1 font-semibold">
+                    {titleError}
+                  </p>
+                )}
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block font-bold mb-1 text-slate-700 dark:text-slate-300">
                     Header Border Style <span className="text-rose-500 font-bold ml-0.5">*</span>
                   </label>
                   <select
                     required
+                    title={templateEditorState.headerStyle || 'Select Header Border Style'}
                     value={templateEditorState.headerStyle || ''}
                     onChange={e => {
                       const val = e.target.value as any;
@@ -919,27 +958,46 @@ export const CertificateSettingsTab: React.FC = () => {
                 </div>
 
                 <div>
-                  <label className="block font-bold mb-1 text-slate-700 dark:text-slate-300">Accent Theme Color</label>
+                  <label className="block font-bold mb-1 text-slate-700 dark:text-slate-300">
+                    Accent Theme Color <span className="text-rose-500 font-bold ml-0.5">*</span>
+                  </label>
                   <div className="flex items-center gap-2">
                     <input
                       type="color"
+                      required
                       value={templateEditorState.themeColor || '#1e3a8a'}
-                      onChange={e => setTemplateEditorState(prev => ({ ...prev, themeColor: e.target.value }))}
+                      onChange={e => {
+                        setTemplateEditorState(prev => ({ ...prev, themeColor: e.target.value }));
+                        if (e.target.value) setThemeColorError(undefined);
+                      }}
                       className="w-8 h-8 rounded-lg cursor-pointer border-0"
                     />
                     <input
                       type="text"
+                      required
                       value={templateEditorState.themeColor || '#1e3a8a'}
-                      onChange={e => setTemplateEditorState(prev => ({ ...prev, themeColor: e.target.value }))}
-                      className="w-full px-2.5 py-1.5 rounded-xl bg-slate-50 dark:bg-slate-800 border font-mono text-xs"
+                      onChange={e => {
+                        setTemplateEditorState(prev => ({ ...prev, themeColor: e.target.value }));
+                        if (e.target.value.trim()) setThemeColorError(undefined);
+                      }}
+                      className={`w-full px-2.5 py-1.5 rounded-xl bg-slate-50 dark:bg-slate-800 border font-mono text-xs text-slate-900 dark:text-white ${
+                        themeColorError ? 'border-rose-500 focus:ring-rose-500' : ''
+                      }`}
                     />
                   </div>
+                  {themeColorError && (
+                    <p className="text-[11px] text-rose-500 mt-1 font-semibold">
+                      {themeColorError}
+                    </p>
+                  )}
                 </div>
               </div>
 
               <div>
                 <div className="flex items-center justify-between mb-1">
-                  <label className="block font-bold text-slate-700 dark:text-slate-300">Body Content Template</label>
+                  <label className="block font-bold text-slate-700 dark:text-slate-300">
+                    Body Content Template <span className="text-rose-500 font-bold ml-0.5">*</span>
+                  </label>
                   <button
                     type="button"
                     onClick={() => handleInsertPlaceholder('\n')}
@@ -951,11 +1009,23 @@ export const CertificateSettingsTab: React.FC = () => {
                 </div>
                 <textarea
                   rows={6}
+                  required
                   value={templateEditorState.bodyTemplate}
-                  onChange={e => setTemplateEditorState(prev => ({ ...prev, bodyTemplate: e.target.value }))}
-                  className="w-full p-3 rounded-xl bg-slate-50 dark:bg-slate-800 border font-mono text-xs text-slate-900 dark:text-white outline-none"
+                  onChange={e => {
+                    const val = e.target.value;
+                    setTemplateEditorState(prev => ({ ...prev, bodyTemplate: val }));
+                    if (val.trim()) setBodyTemplateError(undefined);
+                  }}
+                  className={`w-full p-3 rounded-xl bg-slate-50 dark:bg-slate-800 border font-mono text-xs text-slate-900 dark:text-white outline-none ${
+                    bodyTemplateError ? 'border-rose-500 focus:ring-rose-500' : ''
+                  }`}
                   placeholder="Body paragraph content with {{studentName}}, {{admissionNumber}}, {{class}} etc."
                 />
+                {bodyTemplateError && (
+                  <p className="text-[11px] text-rose-500 mt-1 font-semibold">
+                    {bodyTemplateError}
+                  </p>
+                )}
                 <p className="text-[10px] text-slate-400 mt-1 italic">
                   Tip: Press <kbd className="px-1 bg-slate-200 dark:bg-slate-700 rounded font-mono">Enter</kbd> in the text box or click <strong>+ New Line (Enter)</strong> above to start a new paragraph.
                 </p>
@@ -983,7 +1053,7 @@ export const CertificateSettingsTab: React.FC = () => {
               </div>
 
               <div>
-                <label className="block font-bold mb-1 text-slate-700 dark:text-slate-300">Footer Text / Disclaimer</label>
+                <label className="block font-bold mb-1 text-slate-700 dark:text-slate-300">Footer Text / Disclaimer <span className="text-slate-400 font-normal text-[10px] ml-1">(Optional)</span></label>
                 <input
                   type="text"
                   value={templateEditorState.footerText || ''}
