@@ -39,6 +39,7 @@ import {
 } from '../../../../utils/staffLetterTemplates';
 import {
   fetchGlobalLetterSettingsApi,
+  saveGlobalLetterSettingsApi,
   createOrSaveStaffLetterApi
 } from '../../../../api/staffLetters';
 import { validateSearchQuery } from '../../../../utils/validation';
@@ -84,6 +85,8 @@ export const StaffLetterModal: React.FC<StaffLetterModalProps> = ({
   const [staffSearchError, setStaffSearchError] = useState<string | undefined>(undefined);
   const [isEmployeeDropdownOpen, setIsEmployeeDropdownOpen] = useState(false);
   const employeeDropdownRef = useRef<HTMLDivElement>(null);
+  const hasInitializedRef = useRef(false);
+  const isCustomSignatureModifiedRef = useRef(false);
 
   useEffect(() => {
     if (staff) {
@@ -163,6 +166,13 @@ export const StaffLetterModal: React.FC<StaffLetterModalProps> = ({
   }, [effectiveStaffList, staffCategoryFilter, staffSearchQuery, staffSearchError]);
 
   const getGlobalSignature = () => {
+    try {
+      const saved = localStorage.getItem('edu_db_global_letter_settings');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed.signatureImageUrl) return parsed.signatureImageUrl;
+      }
+    } catch (e) {}
     return (schoolProfile as any)?.signature || (schoolProfile as any)?.principalSignature || '';
   };
 
@@ -189,72 +199,91 @@ export const StaffLetterModal: React.FC<StaffLetterModalProps> = ({
   });
 
   useEffect(() => {
-    if (isOpen) {
-      if (existingRecord) {
-        setActiveType(existingRecord.letterType);
-        setActiveView('preview');
-        setPayload({ ...existingRecord.payload });
-        if (staff) {
-          setCurrentStaff(staff);
-        } else {
-          const matched = effectiveStaffList.find(
-            (s) => s.id === existingRecord.staffId || s.empId === existingRecord.staffEmpId
-          );
-          if (matched) setCurrentStaff(matched);
-        }
-      } else if (staff) {
-        setCurrentStaff(staff);
-        setActiveType(initialType);
-        setActiveView('edit');
-        const defaultPl = getDefaultLetterPayload(initialType, staff, schoolProfile);
-        setPayload(defaultPl);
-
-        // Sync fresh global settings from backend database
-        fetchGlobalLetterSettingsApi()
-          .then((res) => {
-            if (res?.data) {
-              const s = res.data;
-              setPayload((prev) => ({
-                ...prev,
-                authorizedSignatoryName: s.signatoryName || prev.authorizedSignatoryName,
-                authorizedSignatoryTitle: s.signatoryTitle || prev.authorizedSignatoryTitle,
-                probationMonths: s.probationMonths || prev.probationMonths,
-                noticePeriodDays: s.noticePeriodDays || prev.noticePeriodDays,
-                signatureImageUrl: s.signatureImageUrl || prev.signatureImageUrl,
-                customTerms: (s.masterTerms && s.masterTerms.length > 0) ? s.masterTerms : prev.customTerms,
-              }));
-            }
-          })
-          .catch(() => {});
-      } else {
-        // Initial state when opened without specific staff:
-        // Opens in Configure ('edit') tab, initially showing "-- Select Employee --"
-        setCurrentStaff(undefined);
-        setActiveType(initialType);
-        setActiveView('edit');
-        const emptyPl = getEmptyLetterPayload(initialType, schoolProfile);
-        setPayload(emptyPl);
-
-        // Sync fresh global settings from backend database
-        fetchGlobalLetterSettingsApi()
-          .then((res) => {
-            if (res?.data) {
-              const s = res.data;
-              setPayload((prev) => ({
-                ...prev,
-                authorizedSignatoryName: s.signatoryName || prev.authorizedSignatoryName,
-                authorizedSignatoryTitle: s.signatoryTitle || prev.authorizedSignatoryTitle,
-                probationMonths: s.probationMonths || prev.probationMonths,
-                noticePeriodDays: s.noticePeriodDays || prev.noticePeriodDays,
-                signatureImageUrl: s.signatureImageUrl || prev.signatureImageUrl,
-                customTerms: (s.masterTerms && s.masterTerms.length > 0) ? s.masterTerms : prev.customTerms,
-              }));
-            }
-          })
-          .catch(() => {});
-      }
+    if (!isOpen) {
+      hasInitializedRef.current = false;
+      isCustomSignatureModifiedRef.current = false;
+      return;
     }
-  }, [isOpen, existingRecord, staff, initialType, schoolProfile, effectiveStaffList]);
+
+    if (hasInitializedRef.current) return;
+    hasInitializedRef.current = true;
+
+    if (existingRecord) {
+      setActiveType(existingRecord.letterType);
+      setActiveView('preview');
+      setPayload({ ...existingRecord.payload });
+      if (staff) {
+        setCurrentStaff(staff);
+      } else {
+        const matched = effectiveStaffList.find(
+          (s) => s.id === existingRecord.staffId || s.empId === existingRecord.staffEmpId
+        );
+        if (matched) setCurrentStaff(matched);
+      }
+    } else if (staff) {
+      setCurrentStaff(staff);
+      setActiveType(initialType);
+      setActiveView('edit');
+      const defaultPl = getDefaultLetterPayload(initialType, staff, schoolProfile);
+      const globalSig = getGlobalSignature();
+      if (!defaultPl.signatureImageUrl && globalSig) {
+        defaultPl.signatureImageUrl = globalSig;
+      }
+      setPayload(defaultPl);
+
+      // Sync fresh global settings from backend database
+      fetchGlobalLetterSettingsApi()
+        .then((res) => {
+          if (res?.data) {
+            const s = res.data;
+            setPayload((prev) => ({
+              ...prev,
+              authorizedSignatoryName: prev.authorizedSignatoryName || s.signatoryName || '',
+              authorizedSignatoryTitle: prev.authorizedSignatoryTitle || s.signatoryTitle || '',
+              probationMonths: prev.probationMonths || s.probationMonths || 0,
+              noticePeriodDays: prev.noticePeriodDays || s.noticePeriodDays || 0,
+              signatureImageUrl: isCustomSignatureModifiedRef.current
+                ? prev.signatureImageUrl
+                : (prev.signatureImageUrl || s.signatureImageUrl || ''),
+              customTerms: (prev.customTerms && prev.customTerms.length > 0) ? prev.customTerms : (s.masterTerms || []),
+            }));
+          }
+        })
+        .catch(() => {});
+    } else {
+      // Initial state when opened without specific staff:
+      // Opens in Configure ('edit') tab, initially showing "-- Select Employee --"
+      setCurrentStaff(undefined);
+      setActiveType(initialType);
+      setActiveView('edit');
+      const emptyPl = getEmptyLetterPayload(initialType, schoolProfile);
+      const globalSig = getGlobalSignature();
+      if (!emptyPl.signatureImageUrl && globalSig) {
+        emptyPl.signatureImageUrl = globalSig;
+      }
+      setPayload(emptyPl);
+
+      // Sync fresh global settings from backend database
+      fetchGlobalLetterSettingsApi()
+        .then((res) => {
+          if (res?.data) {
+            const s = res.data;
+            setPayload((prev) => ({
+              ...prev,
+              authorizedSignatoryName: prev.authorizedSignatoryName || s.signatoryName || '',
+              authorizedSignatoryTitle: prev.authorizedSignatoryTitle || s.signatoryTitle || '',
+              probationMonths: prev.probationMonths || s.probationMonths || 0,
+              noticePeriodDays: prev.noticePeriodDays || s.noticePeriodDays || 0,
+              signatureImageUrl: isCustomSignatureModifiedRef.current
+                ? prev.signatureImageUrl
+                : (prev.signatureImageUrl || s.signatureImageUrl || ''),
+              customTerms: (prev.customTerms && prev.customTerms.length > 0) ? prev.customTerms : (s.masterTerms || []),
+            }));
+          }
+        })
+        .catch(() => {});
+    }
+  }, [isOpen, existingRecord, staff, initialType]);
 
   const handleStaffSelect = (selectedId: string) => {
     if (!selectedId) {
@@ -1282,6 +1311,7 @@ export const StaffLetterModal: React.FC<StaffLetterModalProps> = ({
                     <div className="w-24 h-14 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 flex items-center justify-center p-1.5 shrink-0 overflow-hidden">
                       {payload.signatureImageUrl ? (
                         <img
+                          key={payload.signatureImageUrl}
                           src={payload.signatureImageUrl}
                           alt="Signature Preview"
                           className="w-full h-full object-contain"
@@ -1306,30 +1336,48 @@ export const StaffLetterModal: React.FC<StaffLetterModalProps> = ({
                             type="file"
                             accept="image/png,image/jpeg,image/webp,image/svg+xml"
                             className="hidden"
+                            onClick={(e) => {
+                              (e.target as HTMLInputElement).value = '';
+                            }}
                             onChange={(e) => {
                               const file = e.target.files?.[0];
                               if (!file) return;
                               if (!file.type.startsWith('image/')) {
                                 addToast('error', 'Invalid File', 'Please select an image file (PNG, JPG, WEBP, SVG).');
+                                e.target.value = '';
                                 return;
                               }
                               if (file.size > 5 * 1024 * 1024) {
                                 addToast('error', 'File Too Large', 'Signature image must be under 5MB.');
+                                e.target.value = '';
                                 return;
                               }
                               const reader = new FileReader();
                               reader.onload = (ev) => {
                                 const result = ev.target?.result as string;
                                 if (result) {
+                                  isCustomSignatureModifiedRef.current = true;
                                   setPayload((prev) => ({ ...prev, signatureImageUrl: result }));
                                   try {
-                                    // Signature loaded into local payload
+                                    const savedStr = localStorage.getItem('edu_db_global_letter_settings');
+                                    const savedSettings = savedStr ? JSON.parse(savedStr) : {};
+                                    const newSettings = {
+                                      ...savedSettings,
+                                      signatureImageUrl: result,
+                                      signatoryName: payload.authorizedSignatoryName || savedSettings.signatoryName || '',
+                                      signatoryTitle: payload.authorizedSignatoryTitle || savedSettings.signatoryTitle || '',
+                                      probationMonths: payload.probationMonths ?? savedSettings.probationMonths ?? 0,
+                                      noticePeriodDays: payload.noticePeriodDays ?? savedSettings.noticePeriodDays ?? 30,
+                                    };
+                                    localStorage.setItem('edu_db_global_letter_settings', JSON.stringify(newSettings));
                                     window.dispatchEvent(new CustomEvent('global_signature_updated', { detail: result }));
+                                    saveGlobalLetterSettingsApi(newSettings).catch(() => {});
                                   } catch (err) {}
                                   addToast('success', 'Signature Loaded', 'Signature applied and saved globally.');
                                 }
                               };
                               reader.readAsDataURL(file);
+                              e.target.value = '';
                             }}
                           />
                         </label>
@@ -1338,7 +1386,18 @@ export const StaffLetterModal: React.FC<StaffLetterModalProps> = ({
                           <button
                             type="button"
                             onClick={() => {
+                              isCustomSignatureModifiedRef.current = true;
                               setPayload((prev) => ({ ...prev, signatureImageUrl: '' }));
+                              try {
+                                const savedStr = localStorage.getItem('edu_db_global_letter_settings');
+                                const savedSettings = savedStr ? JSON.parse(savedStr) : {};
+                                const newSettings = {
+                                  ...savedSettings,
+                                  signatureImageUrl: '',
+                                };
+                                localStorage.setItem('edu_db_global_letter_settings', JSON.stringify(newSettings));
+                                window.dispatchEvent(new CustomEvent('global_signature_updated', { detail: '' }));
+                              } catch (err) {}
                               addToast('info', 'Signature Removed', 'Custom signature removed.');
                             }}
                             className="px-2.5 py-1.5 rounded-lg bg-rose-50 dark:bg-rose-950/50 hover:bg-rose-100 text-rose-600 dark:text-rose-400 text-xs font-bold border border-rose-200 dark:border-rose-900 flex items-center gap-1 cursor-pointer"

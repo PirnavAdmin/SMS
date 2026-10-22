@@ -225,9 +225,17 @@ export const StaffLettersManagementView: React.FC<StaffLettersManagementViewProp
         console.warn('Could not fetch global letter settings from backend API:', err);
       });
 
+    const handleGlobalSigUpdated = (e: any) => {
+      const newSig = e.detail;
+      if (typeof newSig === 'string') {
+        setGlobalSignatureImage(newSig);
+      }
+    };
+    window.addEventListener('global_signature_updated', handleGlobalSigUpdated);
     window.addEventListener('staff_letters_updated', refreshLetters);
     return () => {
       isMounted = false;
+      window.removeEventListener('global_signature_updated', handleGlobalSigUpdated);
       window.removeEventListener('staff_letters_updated', refreshLetters);
     };
   }, []);
@@ -847,6 +855,7 @@ export const StaffLettersManagementView: React.FC<StaffLettersManagementViewProp
                     <div className="w-24 h-14 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 flex items-center justify-center p-1.5 shrink-0 overflow-hidden">
                       {globalSignatureImage ? (
                         <img
+                          key={globalSignatureImage}
                           src={globalSignatureImage}
                           alt="Signature Preview"
                           className="w-full h-full object-contain"
@@ -871,15 +880,20 @@ export const StaffLettersManagementView: React.FC<StaffLettersManagementViewProp
                             type="file"
                             accept="image/png,image/jpeg,image/webp,image/svg+xml"
                             className="hidden"
+                            onClick={(e) => {
+                              (e.target as HTMLInputElement).value = '';
+                            }}
                             onChange={(e) => {
                               const file = e.target.files?.[0];
                               if (!file) return;
                               if (!file.type.startsWith('image/')) {
                                 addToast('error', 'Invalid File', 'Please select an image file (PNG, JPG, WEBP, SVG).');
+                                e.target.value = '';
                                 return;
                               }
                               if (file.size > 5 * 1024 * 1024) {
                                 addToast('error', 'File Too Large', 'Signature image must be under 5MB.');
+                                e.target.value = '';
                                 return;
                               }
                               const reader = new FileReader();
@@ -894,6 +908,7 @@ export const StaffLettersManagementView: React.FC<StaffLettersManagementViewProp
                                 }
                               };
                               reader.readAsDataURL(file);
+                              e.target.value = '';
                             }}
                           />
                         </label>
