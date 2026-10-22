@@ -2,7 +2,7 @@ import { parseDateOnly, compareDates, formatDateForDisplay } from './dateValidat
 import { VALID_INDIAN_STATES } from './postalLookup';
 
 export const BLOOD_GROUPS = ['A+', 'A-', 'B+', 'B-', 'O+', 'O-', 'AB+', 'AB-'] as const;
-export const CASTE_CATEGORIES = ['General', 'OBC', 'SC', 'ST', 'EWS', 'Others'] as const;
+export const CASTE_CATEGORIES = ['General', 'OBC', 'BC', 'SC', 'ST', 'EWS', 'Others'] as const;
 export const BRANCHES: readonly string[] = [];
 export const RELIGIONS = ['Hinduism', 'Islam', 'Christianity', 'Sikhism', 'Buddhism', 'Jainism', 'Zoroastrianism', 'Judaism', 'Other'] as const;
 export const MARITAL_STATUSES = ['Married', 'Unmarried'] as const;
@@ -866,16 +866,22 @@ export function validateCertificateTypeCode(code: string, required: boolean = tr
   return { isValid: true };
 }
 
-export function validateSearchQuery(query: string): { isValid: boolean; error?: string } {
+export function validateSearchQuery(query: string, maxLength: number = 30): { isValid: boolean; error?: string } {
   if (!query || typeof query !== 'string') return { isValid: true };
   if (query.length > 0 && !query.trim()) {
     return { isValid: false, error: 'Enter a valid search term.' };
   }
   const trimmed = query.trim();
   if (!trimmed) return { isValid: true };
-  if (trimmed.length > 50) return { isValid: false, error: 'Maximum 50 characters allowed.' };
+  if (trimmed.length > maxLength) return { isValid: false, error: `Maximum ${maxLength} characters allowed.` };
+  if (/^\d+$/.test(trimmed) && trimmed.length > 10) {
+    return { isValid: false, error: 'Numeric search cannot exceed 10 digits.' };
+  }
+  if (/\d{11,}/.test(trimmed)) {
+    return { isValid: false, error: 'Numeric search cannot exceed 10 digits.' };
+  }
   if (!/^[a-zA-Z0-9\s\-\/\.\_\&\']+$/.test(trimmed)) {
-    return { isValid: false, error: 'Invalid characters not allowed.' };
+    return { isValid: false, error: 'Special characters are not allowed.' };
   }
   if (!/[a-zA-Z0-9]/.test(trimmed) || /[\-\/\.\_\&\']{2,}/.test(trimmed) || /(\d)\1{4,}/.test(trimmed)) {
     return { isValid: false, error: 'Enter a valid search term.' };
@@ -913,7 +919,7 @@ function inferInputFieldLabel(input: HTMLInputElement | HTMLTextAreaElement): st
       .replace(/\(.*?\)/g, '')
       .trim()
       .toLowerCase();
-    if (raw && raw.length <= 35) {
+    if (raw && raw.length <= 50) {
       return raw;
     }
   }
@@ -1276,14 +1282,41 @@ export function validateInputElement(
     return { isValid: true };
   }
 
+  // 1. Content/Textarea/Message check must run BEFORE house number or address checks
+  const isContentField =
+    input instanceof HTMLTextAreaElement ||
+    label.includes('content') ||
+    label.includes('message') ||
+    label.includes('description') ||
+    label.includes('remark') ||
+    label.includes('note') ||
+    label.includes('body') ||
+    label.includes('detail') ||
+    label.includes('reason') ||
+    label.includes('circular text') ||
+    label.includes('broadcast text');
+
+  if (isContentField) {
+    return validateMessageContent(val, {
+      label,
+      required: enforceRequired && input.required,
+    });
+  }
+
+  // 2. House number: Must NOT match textareas or message/content/circular fields
   const isHouseNumberField =
-    label.includes('house') ||
-    label.includes('flat') ||
-    label.includes('door') ||
-    label.includes('plot') ||
-    (input.placeholder || '').toLowerCase().includes('house') ||
-    (input.placeholder || '').toLowerCase().includes('flat') ||
-    (input.placeholder || '').toLowerCase().includes('plot');
+    !isContentField &&
+    !(input instanceof HTMLTextAreaElement) &&
+    !label.includes('content') &&
+    !label.includes('message') &&
+    !label.includes('circular') &&
+    !label.includes('announcement') &&
+    !label.includes('title') &&
+    !label.includes('headline') &&
+    (
+      /\b(house|flat|door|plot)\b/i.test(label) ||
+      (/\b(house|flat|door|plot)\s*(no|num|number)?\b/i.test(input.placeholder || '') && !/\b(inter-house|guest\s*house|open\s*house)\b/i.test(input.placeholder || ''))
+    );
 
   if (isHouseNumberField) {
     return validateHouseNumber(val, {
@@ -1337,25 +1370,9 @@ export function validateInputElement(
     return { isValid: true };
   }
 
-  const isContentField =
-    input instanceof HTMLTextAreaElement ||
-    label.includes('content') ||
-    label.includes('message') ||
-    label.includes('description') ||
-    label.includes('remark') ||
-    label.includes('note') ||
-    label.includes('body') ||
-    label.includes('detail') ||
-    label.includes('reason');
-
-  if (isContentField) {
-    return validateMessageContent(val, {
-      label,
-      required: enforceRequired && input.required,
-    });
-  }
-
   const isCircularHeadlineField =
+    !isContentField &&
+    !(input instanceof HTMLTextAreaElement) &&
     !isDateField &&
     !isTimeField &&
     !label.includes('channel') &&

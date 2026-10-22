@@ -5,7 +5,7 @@ export type StudentType = 'Day Scholar' | 'Hosteller' | 'Residential' | 'Non-Res
 
 export type BloodGroup = 'A+' | 'A-' | 'B+' | 'B-' | 'O+' | 'O-' | 'AB+' | 'AB-';
 
-export type CasteCategory = 'General' | 'OBC' | 'SC' | 'ST' | 'EWS' | 'Other';
+export type CasteCategory = 'General' | 'OBC' | 'BC' | 'SC' | 'ST' | 'EWS' | 'Others' | 'Other';
 
 export type FeeTerm = 'Annual' | 'Bi-Annual' | 'Quarterly' | 'Monthly';
 

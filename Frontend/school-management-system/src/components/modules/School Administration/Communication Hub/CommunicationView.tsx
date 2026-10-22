@@ -92,7 +92,7 @@ export const CommunicationView: React.FC = () => {
   const [emergencyTime, setEmergencyTime] = useState(() => new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
   const [customEmergTitle, setCustomEmergTitle] = useState('');
   const [customEmergContent, setCustomEmergContent] = useState('');
-  const [target, setTarget] = useState<'STUDENTS ONLY' | 'STAFF ONLY' | 'PARENTS ONLY' | 'ALL' | ''>('');
+  const [target, setTarget] = useState<'STUDENTS' | 'STAFF' | 'PARENTS' | 'ALL' | string>('');
   const [category, setCategory] = useState<'SPORTS' | 'ACADEMIC' | 'ASSEMBLY' | 'URGENT' | 'EXAM' | 'HOLIDAY' | 'GENERAL' | ''>('');
   const [sendSMS, setSendSMS] = useState(true);
   const [sendEmail, setSendEmail] = useState(true);
@@ -338,45 +338,31 @@ export const CommunicationView: React.FC = () => {
     window.dispatchEvent(new Event('announcements_updated'));
   };
 
-  // Quick Auto Templates Handler
+  // Quick Auto Templates Handler - sets Category and Target Audience without forcing hardcoded content or mock dates
   const applyTemplate = (tmplKey: 'SPORTS' | 'ACADEMIC' | 'ASSEMBLY' | 'URGENT' | 'EXAM' | 'HOLIDAY' | 'GENERAL') => {
     setCategory(tmplKey);
 
     switch (tmplKey) {
       case 'SPORTS':
-        setTitle('Annual Sports Meet Registration Open');
-        setTarget('STUDENTS ONLY');
-        setContent('Submit entries to PE department before August 5th. Inter-house selection trials will be conducted on August 8th in the main sports grounds.');
+        setTarget('STUDENTS');
         break;
       case 'ACADEMIC':
-        setTitle('Mid-Term Review & Pedagogical Standards Alignment');
-        setTarget('STAFF ONLY');
-        setContent('All teachers are requested to update their lesson plans and student progress reports by this Friday. We will have a short alignment briefing during department meetings.');
+        setTarget('STAFF');
         break;
       case 'ASSEMBLY':
-        setTitle('All-School Morning Assembly & Leadership Talk');
         setTarget('ALL');
-    setContent('A special morning assembly will be held tomorrow at 08:30 AM in the Main Auditorium. Attendance is mandatory for all students and faculty members.');
         break;
       case 'URGENT':
-        setTitle('🚨 EMERGENCY ALERT: Heavy Rainfall & Weather Advisory - Unexpected Holiday');
         setTarget('ALL');
-        setContent('Urgent notification regarding Heavy Rainfall & Weather Advisory - Unexpected Holiday. All parents and staff members please note the immediate advisory. Further details will be communicated via official SMS.');
         break;
       case 'EXAM':
-        setTitle('Term Examination Schedule & Hall Tickets Issued');
-        setTarget('STUDENTS ONLY');
-        setContent('Hall tickets for the upcoming Term Examinations are now available for download. Students are requested to verify their subject codes and exam roll numbers.');
+        setTarget('STUDENTS');
         break;
       case 'HOLIDAY':
-        setTitle('Institutional Holiday Notice');
         setTarget('ALL');
-        setContent('The institution will remain closed on account of national holiday. Normal academic operations will resume on the next working day.');
         break;
       case 'GENERAL':
-        setTitle('General Campus Facilities & Library Timings Update');
         setTarget('ALL');
-        setContent('Please note updated library opening hours and sports facility access schedules starting from next week.');
         break;
     }
   };
@@ -389,7 +375,7 @@ export const CommunicationView: React.FC = () => {
       setBroadcastDate(itemToEdit.date);
       setBroadcastTime(itemToEdit.time || '');
       setCategory((itemToEdit.category.toUpperCase() as any) || 'GENERAL');
-      setTarget((itemToEdit.targetAudience.toUpperCase() as any) || 'ALL');
+      setTarget((itemToEdit.targetAudience || 'ALL').toUpperCase().replace(/\s+ONLY$/i, '').trim());
     } else {
       setEditingItem(null);
       setTitle('');
@@ -410,7 +396,10 @@ export const CommunicationView: React.FC = () => {
 
   const handleBroadcast = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!title.trim() || !content.trim()) return;
+    if (!title.trim()) {
+      addToast('warning', 'Validation Error', 'Please enter a Circular Headline / Title.');
+      return;
+    }
     if (!broadcastDate.trim()) {
       addToast('warning', 'Validation Error', 'Please select or enter a valid Broadcast Date.');
       return;
@@ -429,6 +418,10 @@ export const CommunicationView: React.FC = () => {
     }
     if (!target) {
       addToast('warning', 'Validation Error', 'Please select a Target Audience.');
+      return;
+    }
+    if (!content.trim()) {
+      addToast('warning', 'Validation Error', 'Please enter Message Content / Circular Text.');
       return;
     }
 
@@ -597,7 +590,7 @@ export const CommunicationView: React.FC = () => {
                 <div className="flex items-center justify-between gap-2">
                   <div className="flex items-center gap-1.5 flex-wrap">
                     <span className="px-2 py-0.5 rounded-md bg-sky-50 dark:bg-sky-950/60 text-sky-700 dark:text-sky-300 font-bold text-[10px] tracking-wide uppercase border border-sky-200/60 dark:border-sky-800/60">
-                      {a.category} • {a.targetAudience}
+                      {a.category} • {a.targetAudience.replace(/\s+ONLY$/i, '')}
                     </span>
                     {a.isPinned && (
                       <span className="px-1.5 py-0.5 rounded-md bg-amber-100 dark:bg-amber-950 text-amber-800 dark:text-amber-300 text-[10px] font-bold flex items-center gap-1">
@@ -1064,9 +1057,9 @@ export const CommunicationView: React.FC = () => {
                     className="w-full px-2 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-slate-900 dark:text-white font-bold outline-none cursor-pointer text-[11px]"
                   >
                     <option value="">Select</option>
-                    <option value="STUDENTS ONLY">STUDENTS ONLY</option>
-                    <option value="STAFF ONLY">STAFF ONLY</option>
-                    <option value="PARENTS ONLY">PARENTS ONLY</option>
+                    <option value="STUDENTS">STUDENTS</option>
+                    <option value="STAFF">STAFF</option>
+                    <option value="PARENTS">PARENTS</option>
                     <option value="ALL">ALL</option>
                   </select>
                 </div>
@@ -1100,7 +1093,7 @@ export const CommunicationView: React.FC = () => {
                   required
                   value={content}
                   onChange={e => setContent(e.target.value)}
-                  placeholder="Submit entries to PE department before August 5th. Inter-house selection trials will be conducted on August 8th in the main sports grounds."
+                  placeholder="Enter broadcast message or announcement text here..."
                   className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border text-slate-900 dark:text-white font-medium outline-none leading-relaxed"
                 />
               </div>

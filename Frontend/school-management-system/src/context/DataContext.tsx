@@ -4997,9 +4997,23 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
             const matchingAdmission = (admissions || []).find((a) =>
               (a.admissionNo && (a.admissionNo === admNo || a.admissionNo === regNo)) ||
               (a.registrationNo && (a.registrationNo === regNo || a.registrationNo === admNo)) ||
+              (a.applicationNo && (a.applicationNo === admNo || a.applicationNo === regNo)) ||
               (a.id && (a.id === sIdStr)) ||
               (cleanSName && a.applicantName && a.applicantName.trim().toLowerCase() === cleanSName)
             );
+
+            const resolvedReligion =
+              s.religion ||
+              matchingAdmission?.religion ||
+              "";
+            const resolvedCasteCategory =
+              s.casteCategory ||
+              s.caste ||
+              matchingAdmission?.casteCategory ||
+              (matchingAdmission as any)?.caste ||
+              (matchingAdmission as any)?.category ||
+              s.category ||
+              "General";
 
             return {
               id: sIdStr,
@@ -5042,14 +5056,41 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
               address: s.address || "",
               promotionHistory: [],
               rollNo: s.rollNumber || s.rollNo || "",
-              bloodGroup: s.bloodGroup || "O+",
-              category: s.category || "General",
+              bloodGroup: s.bloodGroup || matchingAdmission?.bloodGroup || "O+",
+              religion: resolvedReligion,
+              casteCategory: resolvedCasteCategory,
+              category: resolvedCasteCategory,
               avatar: s.avatar || "",
               joiningDate:
                 s.joiningDate || new Date().toISOString().split("T")[0],
             } as unknown as Student;
           });
-          setStudents(mapped);
+          setStudents((prev) =>
+            mapped.map((st) => {
+              const existing = (prev || []).find(
+                (p) =>
+                  p.id === st.id ||
+                  (st.admissionNo && p.admissionNo === st.admissionNo),
+              );
+              if (!existing) return st;
+              return {
+                ...st,
+                religion: st.religion || existing.religion || "",
+                casteCategory:
+                  (st.casteCategory && st.casteCategory !== "General"
+                    ? st.casteCategory
+                    : existing.casteCategory) ||
+                  st.casteCategory ||
+                  "General",
+                category:
+                  (st.category && st.category !== "General"
+                    ? st.category
+                    : existing.category) ||
+                  st.category ||
+                  "General",
+              };
+            }),
+          );
         }
       } catch (err) {
         console.warn("Failed to fetch students from API", err);
@@ -6753,9 +6794,53 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
 
     setStudents((prev) =>
       prev.map((s) =>
-        s.id === id ? { ...s, ...updates, className: targetClassName } : s,
+        s.id === id
+          ? {
+              ...s,
+              ...updates,
+              className: targetClassName,
+              casteCategory:
+                updates.casteCategory !== undefined
+                  ? updates.casteCategory
+                  : updates.category !== undefined
+                    ? updates.category
+                    : s.casteCategory,
+              category:
+                updates.casteCategory !== undefined
+                  ? updates.casteCategory
+                  : updates.category !== undefined
+                    ? updates.category
+                    : s.category,
+            }
+          : s,
       ),
     );
+
+    if (oldStudent) {
+      const admNo = oldStudent.admissionNo || (updates as any).admissionNo || "";
+      const fullName = `${updates.firstName ?? oldStudent.firstName ?? ""} ${updates.lastName ?? oldStudent.lastName ?? ""}`.trim().toLowerCase();
+      setAdmissions((prev) =>
+        prev.map((a) => {
+          const isMatch =
+            (admNo && (a.admissionNo === admNo || a.applicationNo === admNo || (a as any).registrationNo === admNo)) ||
+            (fullName && a.applicantName && a.applicantName.trim().toLowerCase() === fullName);
+          if (!isMatch) return a;
+          return {
+            ...a,
+            religion: updates.religion !== undefined ? updates.religion : a.religion,
+            casteCategory:
+              updates.casteCategory !== undefined
+                ? updates.casteCategory
+                : updates.category !== undefined
+                  ? updates.category
+                  : a.casteCategory,
+            bloodGroup: updates.bloodGroup !== undefined ? updates.bloodGroup : a.bloodGroup,
+            gender: (updates.gender as any) || a.gender,
+            dob: updates.dob !== undefined ? updates.dob : a.dob,
+          };
+        }),
+      );
+    }
 
     if ((updates as any).feeCalculationMethod || (updates as any).feePolicy) {
       const pol =
@@ -8367,6 +8452,11 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
               className: appData.appliedClass || s.className,
               section: (appData as any).section || s.section || "A",
               gender: (appData.gender as any) || s.gender,
+              dob: appData.dob || s.dob,
+              bloodGroup: appData.bloodGroup || s.bloodGroup,
+              religion: appData.religion || s.religion,
+              casteCategory: appData.casteCategory || s.casteCategory,
+              category: appData.casteCategory || s.category,
               parentName: appData.parentName || s.parentName,
               fatherName: appData.parentName || s.fatherName,
               motherName: appData.motherName || s.motherName,

@@ -7,8 +7,9 @@ import {
   Eye, Building2, ChevronLeft, ChevronRight, User, Users, ArrowLeft,
   Clock, Calendar, BookOpen, BookMarked, MessageSquare, Mail, Phone,
   HeartPulse, FileText, CheckCircle2, ShieldAlert, Award, Check, GraduationCap, School,
-  UserPlus, Sparkles, RotateCcw, Plus, ChevronDown, UserX, Upload, Download, FileSpreadsheet, Home, Layers
+  UserPlus, Sparkles, RotateCcw, Plus, ChevronDown, UserX, Upload, Download, FileSpreadsheet, Home, Layers, X, AlertCircle
 } from 'lucide-react';
+import { validateSearchQuery } from '../../../utils/validation';
 import { Student } from '../../../types';
 import { useData } from '../../../context/DataContext';
 import { useAuth } from '../../../context/AuthContext';
@@ -206,6 +207,9 @@ export const StudentList: React.FC<{ onNavigate?: (module: string) => void }> = 
           gender: (app.gender as any) || '',
           dob: app.dob || '',
           bloodGroup: app.bloodGroup || '',
+          religion: app.religion || '',
+          casteCategory: app.casteCategory || (app as any).category || '',
+          category: app.casteCategory || (app as any).category || 'General',
           studentType: app.studentType || '',
           transportRequired: !!app.transportRequired,
           busRoute: app.transportRequired ? (app.busRoute || '') : '',
@@ -230,18 +234,31 @@ export const StudentList: React.FC<{ onNavigate?: (module: string) => void }> = 
     const allCombined = [...(students || []), ...newAdmissions];
 
     const mapped = allCombined.map((s) => {
-      if (!selectedAcademicYear || selectedAcademicYear === 'All') return s;
-      const historyItem = s.academicHistory?.find((h) => h.academicYear === selectedAcademicYear);
+      const matchedApp = sourceApps.find((a) =>
+        (a.admissionNo && a.admissionNo === s.admissionNo) ||
+        (a.applicationNo && (a.applicationNo === s.admissionNo || (s as any).applicationNo === a.applicationNo || (s as any).registrationNumber === a.applicationNo)) ||
+        ((a as any).registrationNo && ((a as any).registrationNo === s.admissionNo || (s as any).registrationNumber === (a as any).registrationNo)) ||
+        (a.applicantName && `${s.firstName || ''} ${s.lastName || ''}`.trim().toLowerCase() === a.applicantName.trim().toLowerCase())
+      );
+      const enriched: Student = {
+        ...s,
+        religion: s.religion || matchedApp?.religion || '',
+        casteCategory: s.casteCategory || matchedApp?.casteCategory || (matchedApp as any)?.caste || (matchedApp as any)?.category || (s.category && s.category !== 'General' ? s.category : '') || s.category || 'General',
+        category: s.casteCategory || matchedApp?.casteCategory || (matchedApp as any)?.caste || (matchedApp as any)?.category || s.category || 'General',
+        bloodGroup: s.bloodGroup || matchedApp?.bloodGroup || 'O+',
+      };
+      if (!selectedAcademicYear || selectedAcademicYear === 'All') return enriched;
+      const historyItem = enriched.academicHistory?.find((h) => h.academicYear === selectedAcademicYear);
       if (historyItem) {
         return {
-          ...s,
+          ...enriched,
           className: historyItem.className,
           section: historyItem.section,
-          rollNo: historyItem.rollNo || s.rollNo,
+          rollNo: historyItem.rollNo || enriched.rollNo,
           status: historyItem.status as any,
         };
       }
-      return s;
+      return enriched;
     });
 
     if (isWardenRole) {
@@ -465,10 +482,29 @@ export const StudentList: React.FC<{ onNavigate?: (module: string) => void }> = 
 
   // Roster View Filters
   const [searchName, setSearchName] = useState('');
+  const [searchError, setSearchError] = useState<string | undefined>(undefined);
   const [searchAdmNo, setSearchAdmNo] = useState('');
   const [filterStatus, setFilterStatus] = useState('All');
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
+
+  const handleSearchNameChange = (val: string) => {
+    const clamped = val.slice(0, 30);
+    setSearchName(clamped);
+    setCurrentPage(1);
+    if (!clamped.trim()) {
+      setSearchError(undefined);
+    } else {
+      const res = validateSearchQuery(clamped, 30);
+      setSearchError(res.isValid ? undefined : res.error);
+    }
+  };
+
+  const handleClearSearch = () => {
+    setSearchName('');
+    setSearchError(undefined);
+    setCurrentPage(1);
+  };
 
   // Modals state
   const [isEditOpen, setIsEditOpen] = useState(false);
@@ -542,6 +578,7 @@ export const StudentList: React.FC<{ onNavigate?: (module: string) => void }> = 
     setSelectedClass(className);
     setSelectedSection(sectionName);
     setSearchName('');
+    setSearchError(undefined);
     setSearchAdmNo('');
     setFilterStatus('All');
     setCurrentPage(1);
@@ -553,6 +590,7 @@ export const StudentList: React.FC<{ onNavigate?: (module: string) => void }> = 
     setSelectedSection('All');
     setFilterStatus('Inactive');
     setSearchName('');
+    setSearchError(undefined);
     setSearchAdmNo('');
     setCurrentPage(1);
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -562,6 +600,7 @@ export const StudentList: React.FC<{ onNavigate?: (module: string) => void }> = 
     setSelectedClass(null);
     setSelectedSection(null);
     setSearchName('');
+    setSearchError(undefined);
     setSearchAdmNo('');
     setFilterStatus('All');
     setCurrentPage(1);
@@ -600,14 +639,20 @@ export const StudentList: React.FC<{ onNavigate?: (module: string) => void }> = 
 
   // Filtered Roster for Selected Section View
   const filteredRoster = useMemo(() => {
+    if (searchError) return [];
+    const q = searchName.toLowerCase().trim();
     return currentSectionRoster.filter(s => {
       const fullName = `${s.firstName} ${s.lastName}`.toLowerCase();
-      const matchesName = !searchName || fullName.includes(searchName.toLowerCase());
+      const matchesSearch = !q ||
+        fullName.includes(q) ||
+        (s.rollNo || '').toLowerCase().includes(q) ||
+        (s.admissionNo || '').toLowerCase().includes(q) ||
+        (s.fatherPhone || '').toLowerCase().includes(q);
       const matchesAdm = !searchAdmNo || s.admissionNo.toLowerCase().includes(searchAdmNo.toLowerCase()) || s.rollNo.toLowerCase().includes(searchAdmNo.toLowerCase());
       const matchesStatus = filterStatus === 'All' || s.status.toLowerCase() === filterStatus.toLowerCase();
-      return matchesName && matchesAdm && matchesStatus;
+      return matchesSearch && matchesAdm && matchesStatus;
     });
-  }, [currentSectionRoster, searchName, searchAdmNo, filterStatus]);
+  }, [currentSectionRoster, searchName, searchAdmNo, filterStatus, searchError]);
 
   const totalPages = Math.ceil(filteredRoster.length / pageSize) || 1;
   const paginatedRoster = filteredRoster.slice((currentPage - 1) * pageSize, currentPage * pageSize);
@@ -674,16 +719,23 @@ export const StudentList: React.FC<{ onNavigate?: (module: string) => void }> = 
           {/* Quick Filters - Single Line Row */}
           <div className="flex items-center gap-3 flex-wrap md:flex-nowrap">
             <div className="relative w-full sm:w-56">
-              <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+              <Search className={`w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none transition-colors ${
+                searchError ? 'text-rose-500' : 'text-slate-400'
+              }`} />
               <input
                 type="text"
+                maxLength={30}
                 placeholder="Search student or roll no..."
                 value={searchName}
                 onChange={(e) => {
-                  setSearchName(e.target.value);
+                  handleSearchNameChange(e.target.value);
                   setTeacherCurrentPage(1);
                 }}
-                className="w-full pl-9 pr-3.5 py-2 rounded-2xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none focus:border-sky-500"
+                className={`w-full pl-9 pr-3.5 py-2 rounded-2xl bg-slate-50 dark:bg-slate-800 border ${
+                  searchError
+                    ? 'border-rose-500 focus:border-rose-500 ring-1 ring-rose-500/20'
+                    : 'border-slate-200 dark:border-slate-700 focus:border-sky-500'
+                } text-xs font-bold text-slate-900 dark:text-white outline-none`}
               />
             </div>
 
@@ -1400,24 +1452,33 @@ export const StudentList: React.FC<{ onNavigate?: (module: string) => void }> = 
           </div>
 
           {/* CLASS & SECTION OVERVIEW CARD GRID */}
-          <div className="space-y-3">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-              <div>
-                <h2 className="text-base font-black text-slate-900 dark:text-white flex items-center gap-2">
+          <div className="space-y-4">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+              <div className="flex items-center gap-2.5">
+                <h2 className="text-base sm:text-lg font-black text-slate-900 dark:text-white flex items-center gap-2">
                   Classes & Sections Overview
                 </h2>
               </div>
-              <div className="flex items-center gap-4">
-                <div className="relative w-full sm:w-60">
-                  <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
-                  <input
-                    type="text"
-                    placeholder="Search classes..."
-                    value={searchClassQuery}
-                    onChange={e => setSearchClassQuery(e.target.value)}
-                    className="w-full pl-9 pr-3.5 py-1.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-[11px] font-bold text-slate-900 dark:text-white outline-none focus:border-brand-500 transition"
-                  />
-                </div>
+              <div className="relative w-full md:w-[calc((100%-1rem)/2)] lg:w-[calc((100%-2rem)/3)] xl:w-[calc((100%-3rem)/4)] shrink-0">
+                <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                <input
+                  type="text"
+                  maxLength={30}
+                  placeholder="Search classes..."
+                  value={searchClassQuery}
+                  onChange={e => setSearchClassQuery(e.target.value.slice(0, 30))}
+                  className={`w-full pl-10 ${searchClassQuery ? 'pr-9' : 'pr-4'} py-2.5 rounded-2xl bg-white dark:bg-slate-900 border border-brand-400 dark:border-brand-800 text-xs font-bold text-slate-900 dark:text-white shadow-xs outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/15 transition-all`}
+                />
+                {searchClassQuery && (
+                  <button
+                    type="button"
+                    onClick={() => setSearchClassQuery('')}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer"
+                    title="Clear search"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                )}
               </div>
             </div>
 
@@ -1518,21 +1579,46 @@ export const StudentList: React.FC<{ onNavigate?: (module: string) => void }> = 
 
           {/* ROSTER TABLE FILTERS BAR (Hidden in Print) */}
           <div className="glass-card p-3 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 no-print">
-            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
               {/* Search Name */}
-              <div className="relative flex-1">
-                <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-                <input
-                  type="text"
-                  placeholder="Search by student name..."
-                  value={searchName}
-                  onChange={e => setSearchName(e.target.value)}
-                  className="w-full pl-9 pr-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none focus:border-brand-500 transition"
-                />
+              <div className="flex flex-col w-full sm:w-72 md:w-80">
+                <div className="relative w-full">
+                  <Search className={`w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none transition-colors ${
+                    searchError ? 'text-rose-500' : 'text-slate-400'
+                  }`} />
+                  <input
+                    type="text"
+                    maxLength={30}
+                    placeholder="Search by student name..."
+                    value={searchName}
+                    onChange={e => handleSearchNameChange(e.target.value)}
+                    className={`w-full pl-9 ${searchName ? 'pr-8' : 'pr-3'} py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border ${
+                      searchError
+                        ? 'border-rose-500 focus:border-rose-500 ring-1 ring-rose-500/20'
+                        : 'border-slate-200 dark:border-slate-700 focus:border-brand-500'
+                    } text-xs font-bold text-slate-900 dark:text-white outline-none transition`}
+                  />
+                  {searchName && (
+                    <button
+                      type="button"
+                      onClick={handleClearSearch}
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer"
+                      title="Clear search"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                </div>
+                {searchError && (
+                  <p className="text-[11px] font-bold text-rose-500 flex items-center gap-1 mt-1 pl-0.5 animate-in fade-in duration-150">
+                    <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                    <span>{searchError}</span>
+                  </p>
+                )}
               </div>
 
               {/* Download Button */}
-              <div className="shrink-0">
+              <div className="shrink-0 flex items-center justify-end">
                 <ExportButton
                   data={filteredRoster.map(s => ({
                     'Roll Number': s.rollNo || '-',
@@ -1576,6 +1662,16 @@ export const StudentList: React.FC<{ onNavigate?: (module: string) => void }> = 
                     <tr>
                       <td colSpan={9} className="text-center py-8 text-slate-400">
                         <div className="animate-pulse">Loading student records...</div>
+                      </td>
+                    </tr>
+                  ) : searchError ? (
+                    <tr>
+                      <td colSpan={9} className="text-center py-8">
+                        <div className="flex flex-col items-center justify-center gap-1.5 text-rose-500 dark:text-rose-400">
+                          <AlertCircle className="w-5 h-5 text-rose-500" />
+                          <p className="font-bold text-xs">{searchError}</p>
+                          <p className="text-[11px] text-slate-400 font-normal">Please enter a valid search criteria.</p>
+                        </div>
                       </td>
                     </tr>
                   ) : paginatedRoster.length === 0 ? (
