@@ -450,7 +450,7 @@ export const PickupPointsView: React.FC = () => {
                                   </td>
                                   <td className="py-3 px-4 font-bold text-slate-900 dark:text-white text-center">{p.pickupName}</td>
                                   <td className="py-3 px-4 font-mono font-bold text-slate-700 dark:text-slate-300 text-center">{p.distanceFromSchoolKm} KM</td>
-                                  <td className="py-3 px-4 font-semibold text-emerald-600 dark:text-emerald-400 text-center">
+                                  <td className="py-3 px-4 font-semibold font-mono text-sky-600 dark:text-sky-400 text-center">
                                     {p.morningPickupTime || p.arrivalTime ? (
                                       <div className="flex items-center justify-center gap-1">
                                         <Clock className="w-3.5 h-3.5" /> {p.morningPickupTime || p.arrivalTime}
@@ -459,7 +459,7 @@ export const PickupPointsView: React.FC = () => {
                                       <span className="text-slate-400 font-normal">-</span>
                                     )}
                                   </td>
-                                  <td className="py-3 px-4 font-semibold text-sky-600 dark:text-sky-400 text-center">
+                                  <td className="py-3 px-4 font-semibold font-mono text-sky-600 dark:text-sky-400 text-center">
                                     {p.eveningDropTime || <span className="text-slate-400 font-normal">-</span>}
                                   </td>
                                   <td className="py-3 px-4 font-mono font-extrabold text-emerald-600 dark:text-emerald-400 text-center">

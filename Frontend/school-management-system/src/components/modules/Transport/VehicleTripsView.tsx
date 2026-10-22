@@ -443,11 +443,11 @@ export const VehicleTripsView: React.FC<VehicleTripsViewProps> = ({ onOpenGps })
                 </div>
                 <div>
                   <span className="text-[10px] font-extrabold text-slate-400 block uppercase tracking-wider">Morning Trip</span>
-                  <span className="font-mono font-bold text-slate-800 dark:text-slate-200 text-xs">{morningTripTime}</span>
+                  <span className="font-mono font-bold text-sky-600 dark:text-sky-400 text-xs">{morningTripTime}</span>
                 </div>
                 <div>
                   <span className="text-[10px] font-extrabold text-slate-400 block uppercase tracking-wider">Evening Trip</span>
-                  <span className="font-mono font-bold text-slate-800 dark:text-slate-200 text-xs">{eveningTripTime}</span>
+                  <span className="font-mono font-bold text-sky-600 dark:text-sky-400 text-xs">{eveningTripTime}</span>
                 </div>
               </div>
 

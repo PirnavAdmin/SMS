@@ -61,8 +61,6 @@ import {
   fetchAcademicYearsApi,
   fetchIdSequenceSettingsApi,
   updateIdSequenceSettingsApi,
-  addOrUpdateCustomIdFormatApi,
-  deleteCustomIdFormatApi,
   fetchUserProfileApi,
   updateUserProfileApi,
   uploadUserProfileImageApi,
@@ -630,66 +628,7 @@ export const SettingsView: React.FC = () => {
     }
   };
 
-  const handleAddCustomIdSequence = async () => {
-    const newSeq: CustomIdSequence = {
-      id: `custom_${Date.now()}`,
-      name: `Custom Format ${(idForm.customSequences || []).length + 1}`,
-      prefix: "CUST",
-      startNo: 101,
-      padding: 4,
-      includeYear: true,
-      separator: "-",
-      position: "start",
-    };
 
-    const nextForm = {
-      ...idForm,
-      customSequences: [...(idForm.customSequences || []), newSeq],
-    };
-
-    setIdForm(nextForm);
-    saveIdSequenceSettings(nextForm);
-    addToast("success", "Custom Sequence Added", "New custom sequence format added.");
-
-    try {
-      await addOrUpdateCustomIdFormatApi(newSeq);
-      addToast("success", "Custom ID Format Added", `Added format ${newSeq.name}`);
-    } catch (err: any) {
-      console.error(err);
-    }
-  };
-
-  const handleUpdateCustomSequence = (id: string, updates: Partial<CustomIdSequence>) => {
-    const nextSequences = (idForm.customSequences || []).map(seq =>
-      seq.id === id ? { ...seq, ...updates } : seq
-    );
-    const nextForm = {
-      ...idForm,
-      customSequences: nextSequences,
-    };
-    setIdForm(nextForm);
-    saveIdSequenceSettings(nextForm);
-    const updated = nextSequences.find(s => s.id === id);
-    if (updated) {
-      addOrUpdateCustomIdFormatApi(updated).catch(console.error);
-    }
-  };
-
-  const handleDeleteCustomIdSequence = async (id: string) => {
-    const nextSequences = (idForm.customSequences || []).filter(seq => seq.id !== id);
-    const nextForm = {
-      ...idForm,
-      customSequences: nextSequences,
-    };
-    setIdForm(nextForm);
-    saveIdSequenceSettings(nextForm);
-    try {
-      await deleteCustomIdFormatApi(id);
-      addToast("info", "Custom Format Deleted", "Custom ID sequence format removed.");
-    } catch (err: any) {
-      console.error(err);
-    }
-  };
 
   // Academic Year Configuration States
   const [aySearch, setAySearch] = useState("");
@@ -2795,58 +2734,7 @@ export const SettingsView: React.FC = () => {
             </div>
           </div>
 
-          {/* Custom ID Formats List if any exist */}
-          {(idForm.customSequences || []).length > 0 && (
-            <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs space-y-4">
-              <h4 className="font-extrabold text-sm text-slate-900 dark:text-white flex items-center gap-2">
-                <Layers className="w-4 h-4 text-sky-600" /> Custom Module Sequence Formats
-              </h4>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                {(idForm.customSequences || []).map(seq => (
-                  <div key={seq.id} className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 space-y-3 text-xs">
-                    <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-700 pb-2">
-                      <input
-                        type="text"
-                        value={seq.name}
-                        onChange={e => handleUpdateCustomSequence(seq.id, { name: e.target.value })}
-                        className="font-bold text-slate-900 dark:text-white bg-transparent border-b border-dashed border-slate-300 dark:border-slate-600 outline-none focus:border-sky-500"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => handleDeleteCustomIdSequence(seq.id)}
-                        className="p-1 text-slate-400 hover:text-rose-600 transition"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                    <div className="p-2.5 rounded-lg bg-slate-950 text-center font-mono font-bold text-sky-400 text-xs">
-                      {buildPreviewId(seq.prefix, seq.startNo, seq.padding, seq.includeYear, seq.separator, seq.position)}
-                    </div>
-                    <div className="grid grid-cols-2 gap-2">
-                      <div>
-                        <label className="block text-[10px] font-bold text-slate-400">Prefix</label>
-                        <input
-                          type="text"
-                          value={seq.prefix}
-                          onChange={e => handleUpdateCustomSequence(seq.id, { prefix: e.target.value })}
-                          className="w-full px-2 py-1 rounded bg-white dark:bg-slate-900 border font-mono font-bold"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-[10px] font-bold text-slate-400">Start No</label>
-                        <input
-                          type="number"
-                          value={seq.startNo}
-                          onChange={e => handleUpdateCustomSequence(seq.id, { startNo: Number(e.target.value) })}
-                          className="w-full px-2 py-1 rounded bg-white dark:bg-slate-900 border font-mono font-bold"
-                        />
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
+
         </div>
       )}
 

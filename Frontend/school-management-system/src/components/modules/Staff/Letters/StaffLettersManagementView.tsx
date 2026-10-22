@@ -1009,6 +1009,7 @@ export const StaffLettersManagementView: React.FC<StaffLettersManagementViewProp
         <StaffLetterModal
           staff={selectedStaffForGen}
           isOpen={generatorOpen}
+          existingLetters={letters}
           onClose={() => {
             setGeneratorOpen(false);
             setSelectedStaffForGen(undefined);
