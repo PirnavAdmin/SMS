@@ -56,8 +56,8 @@ public class StaffLettersController : ControllerBase
                     `Id` INT NOT NULL,
                     `SignatoryName` VARCHAR(200) NULL,
                     `SignatoryTitle` VARCHAR(200) NULL,
-                    `ProbationMonths` INT NOT NULL DEFAULT 6,
-                    `NoticePeriodDays` INT NOT NULL DEFAULT 30,
+                    `ProbationMonths` INT NOT NULL DEFAULT 0,
+                    `NoticePeriodDays` INT NOT NULL DEFAULT 0,
                     `SignatureImageUrl` LONGTEXT NULL,
                     `SealImageUrl` LONGTEXT NULL,
                     `MasterTermsJson` LONGTEXT NULL,
@@ -381,9 +381,6 @@ public class StaffLettersController : ControllerBase
         {
             await EnsureTablesExistAsync();
 
-            var schoolSettings = await _context.SchoolSettings.FirstOrDefaultAsync();
-            var dynamicPrincipalName = schoolSettings?.PrincipalName ?? string.Empty;
-
             var settings = await _context.GlobalLetterSettings.FirstOrDefaultAsync(s => s.Id == 1);
             if (settings == null)
             {
@@ -392,13 +389,13 @@ public class StaffLettersController : ControllerBase
                     success = true,
                     data = new GlobalLetterSettingsDto
                     {
-                        SignatoryName = dynamicPrincipalName,
-                        SignatoryTitle = !string.IsNullOrWhiteSpace(dynamicPrincipalName) ? "Principal & Authorized Signatory" : string.Empty,
-                        ProbationMonths = 6,
-                        NoticePeriodDays = 30,
+                        SignatoryName = string.Empty,
+                        SignatoryTitle = string.Empty,
+                        ProbationMonths = 0,
+                        NoticePeriodDays = 0,
                         SignatureImageUrl = null,
                         SealImageUrl = null,
-                        MasterTerms = null
+                        MasterTerms = new List<string>()
                     }
                 });
             }
@@ -413,22 +410,18 @@ public class StaffLettersController : ControllerBase
                 catch { }
             }
 
-            var effectiveSignatory = !string.IsNullOrWhiteSpace(settings.SignatoryName) 
-                ? settings.SignatoryName 
-                : dynamicPrincipalName;
-
             return Ok(new
             {
                 success = true,
                 data = new GlobalLetterSettingsDto
                 {
-                    SignatoryName = effectiveSignatory,
-                    SignatoryTitle = settings.SignatoryTitle,
+                    SignatoryName = settings.SignatoryName ?? string.Empty,
+                    SignatoryTitle = settings.SignatoryTitle ?? string.Empty,
                     ProbationMonths = settings.ProbationMonths,
                     NoticePeriodDays = settings.NoticePeriodDays,
                     SignatureImageUrl = settings.SignatureImageUrl,
                     SealImageUrl = settings.SealImageUrl,
-                    MasterTerms = termsList
+                    MasterTerms = termsList ?? new List<string>()
                 }
             });
         }
@@ -463,8 +456,8 @@ public class StaffLettersController : ControllerBase
                 settings = new GlobalLetterSetting
                 {
                     Id = 1,
-                    SignatoryName = dto.SignatoryName ?? string.Empty,
-                    SignatoryTitle = dto.SignatoryTitle ?? string.Empty,
+                    SignatoryName = dto.SignatoryName?.Trim() ?? string.Empty,
+                    SignatoryTitle = dto.SignatoryTitle?.Trim() ?? string.Empty,
                     ProbationMonths = dto.ProbationMonths,
                     NoticePeriodDays = dto.NoticePeriodDays,
                     SignatureImageUrl = dto.SignatureImageUrl,
@@ -476,22 +469,13 @@ public class StaffLettersController : ControllerBase
             }
             else
             {
-                settings.SignatoryName = dto.SignatoryName ?? settings.SignatoryName;
-                settings.SignatoryTitle = dto.SignatoryTitle ?? settings.SignatoryTitle;
+                settings.SignatoryName = dto.SignatoryName?.Trim() ?? string.Empty;
+                settings.SignatoryTitle = dto.SignatoryTitle?.Trim() ?? string.Empty;
                 settings.ProbationMonths = dto.ProbationMonths;
                 settings.NoticePeriodDays = dto.NoticePeriodDays;
-                if (dto.SignatureImageUrl != null)
-                {
-                    settings.SignatureImageUrl = dto.SignatureImageUrl;
-                }
-                if (dto.SealImageUrl != null)
-                {
-                    settings.SealImageUrl = dto.SealImageUrl;
-                }
-                if (masterTermsJson != null)
-                {
-                    settings.MasterTermsJson = masterTermsJson;
-                }
+                settings.SignatureImageUrl = dto.SignatureImageUrl;
+                settings.SealImageUrl = dto.SealImageUrl;
+                settings.MasterTermsJson = masterTermsJson;
                 settings.UpdatedAt = DateTime.UtcNow;
             }
 

@@ -1173,12 +1173,25 @@ export function validateInputElement(
     return { isValid: true };
   }
 
+  const isNotTimeField =
+    label.includes('name') ||
+    label.includes('title') ||
+    label.includes('signatory') ||
+    label.includes('subject') ||
+    label.includes('department') ||
+    label.includes('branch') ||
+    label.includes('campus') ||
+    label.includes('person') ||
+    label.includes('role') ||
+    label.includes('author');
+
   const isTimeField =
-    label.includes('time') ||
-    (input.placeholder || '').toLowerCase().includes('time') ||
-    (input.placeholder || '').toLowerCase().includes('10:00') ||
-    (input.placeholder || '').toLowerCase().includes('am') ||
-    (input.placeholder || '').toLowerCase().includes('pm');
+    !isNotTimeField &&
+    ((input instanceof HTMLInputElement && input.type === 'time') ||
+      /\btime\b/i.test(label) ||
+      /\btime\b/i.test(input.placeholder || '') ||
+      /\b(am|pm)\b/i.test(input.placeholder || '') ||
+      /\b\d{1,2}:\d{2}\b/.test(input.placeholder || ''));
 
   if (isTimeField) {
     const trimmedTime = val.trim();
@@ -1329,6 +1342,7 @@ export function validateInputElement(
       label.includes('teacher name') ||
       label.includes('driver name') ||
       label.includes('holder name') ||
+      label.includes('signatory') ||
       label.includes('contact person');
 
     const disallowNumbers =

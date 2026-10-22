@@ -35,6 +35,10 @@ import {
   saveStaffLetterRecord,
   DEFAULT_OFFER_TERMS
 } from '../../../../utils/staffLetterTemplates';
+import {
+  fetchGlobalLetterSettingsApi,
+  createOrSaveStaffLetterApi
+} from '../../../../api/staffLetters';
 import { validateSearchQuery } from '../../../../utils/validation';
 
 interface StaffLetterModalProps {
@@ -157,15 +161,6 @@ export const StaffLetterModal: React.FC<StaffLetterModalProps> = ({
   }, [effectiveStaffList, staffCategoryFilter, staffSearchQuery, staffSearchError]);
 
   const getGlobalSignature = () => {
-    try {
-      const direct = localStorage.getItem('edu_db_global_signatory_signature');
-      if (direct) return direct;
-      const saved = localStorage.getItem('edu_db_global_letter_settings');
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (parsed.signatureImageUrl) return parsed.signatureImageUrl;
-      }
-    } catch (e) {}
     return (schoolProfile as any)?.signature || (schoolProfile as any)?.principalSignature || '';
   };
 
@@ -188,18 +183,32 @@ export const StaffLetterModal: React.FC<StaffLetterModalProps> = ({
 
   useEffect(() => {
     if (isOpen) {
-      const globalSig = getGlobalSignature();
       if (existingRecord) {
         setActiveType(existingRecord.letterType);
-        const pl = { ...existingRecord.payload };
-        if (!pl.signatureImageUrl && globalSig) pl.signatureImageUrl = globalSig;
-        setPayload(pl);
+        setPayload({ ...existingRecord.payload });
       } else if (staff) {
         setCurrentStaff(staff);
         setActiveType(initialType);
         const defaultPl = getDefaultLetterPayload(initialType, staff, schoolProfile);
-        if (!defaultPl.signatureImageUrl && globalSig) defaultPl.signatureImageUrl = globalSig;
         setPayload(defaultPl);
+
+        // Sync fresh global settings from backend database
+        fetchGlobalLetterSettingsApi()
+          .then((res) => {
+            if (res?.data) {
+              const s = res.data;
+              setPayload((prev) => ({
+                ...prev,
+                authorizedSignatoryName: s.signatoryName || prev.authorizedSignatoryName,
+                authorizedSignatoryTitle: s.signatoryTitle || prev.authorizedSignatoryTitle,
+                probationMonths: s.probationMonths || prev.probationMonths,
+                noticePeriodDays: s.noticePeriodDays || prev.noticePeriodDays,
+                signatureImageUrl: s.signatureImageUrl || prev.signatureImageUrl,
+                customTerms: (s.masterTerms && s.masterTerms.length > 0) ? s.masterTerms : prev.customTerms,
+              }));
+            }
+          })
+          .catch(() => {});
       }
     }
   }, [isOpen, existingRecord, staff, initialType, schoolProfile]);
@@ -221,11 +230,13 @@ export const StaffLetterModal: React.FC<StaffLetterModalProps> = ({
 
       const globalSig = getGlobalSignature();
       const pl = getDefaultLetterPayload(activeType, found, schoolProfile);
-      if (payload.signatureImageUrl) {
-        pl.signatureImageUrl = payload.signatureImageUrl;
-      } else if (globalSig) {
-        pl.signatureImageUrl = globalSig;
-      }
+      if (payload.signatureImageUrl) pl.signatureImageUrl = payload.signatureImageUrl;
+      else if (globalSig) pl.signatureImageUrl = globalSig;
+      if (payload.authorizedSignatoryName) pl.authorizedSignatoryName = payload.authorizedSignatoryName;
+      if (payload.authorizedSignatoryTitle) pl.authorizedSignatoryTitle = payload.authorizedSignatoryTitle;
+      if (payload.probationMonths) pl.probationMonths = payload.probationMonths;
+      if (payload.noticePeriodDays) pl.noticePeriodDays = payload.noticePeriodDays;
+      if (payload.customTerms && payload.customTerms.length > 0) pl.customTerms = payload.customTerms;
       setPayload(pl);
     }
   };
@@ -258,11 +269,13 @@ export const StaffLetterModal: React.FC<StaffLetterModalProps> = ({
     if (!existingRecord) {
       const globalSig = getGlobalSignature();
       const pl = getDefaultLetterPayload(newType, currentStaff, schoolProfile);
-      if (payload.signatureImageUrl) {
-        pl.signatureImageUrl = payload.signatureImageUrl;
-      } else if (globalSig) {
-        pl.signatureImageUrl = globalSig;
-      }
+      if (payload.signatureImageUrl) pl.signatureImageUrl = payload.signatureImageUrl;
+      else if (globalSig) pl.signatureImageUrl = globalSig;
+      if (payload.authorizedSignatoryName) pl.authorizedSignatoryName = payload.authorizedSignatoryName;
+      if (payload.authorizedSignatoryTitle) pl.authorizedSignatoryTitle = payload.authorizedSignatoryTitle;
+      if (payload.probationMonths) pl.probationMonths = payload.probationMonths;
+      if (payload.noticePeriodDays) pl.noticePeriodDays = payload.noticePeriodDays;
+      if (payload.customTerms && payload.customTerms.length > 0) pl.customTerms = payload.customTerms;
       setPayload(pl);
     }
   };
@@ -493,6 +506,18 @@ export const StaffLetterModal: React.FC<StaffLetterModalProps> = ({
   }, [isOpen, isPrinting, payload, activeType]);
 
   const handleSaveAndIssue = () => {
+    if (!payload.authorizedSignatoryName?.trim()) {
+      addToast('error', 'Mandatory Field Missing', 'Authorized Signatory Name is required.');
+      return;
+    }
+    if (!payload.authorizedSignatoryTitle?.trim()) {
+      addToast('error', 'Mandatory Field Missing', 'Authorized Signatory Designation / Title is required.');
+      return;
+    }
+    if (!payload.signatureImageUrl?.trim()) {
+      addToast('error', 'Mandatory Field Missing', 'Authorized Signatory Signature / Official Stamp Image is required.');
+      return;
+    }
     const targetStaff = currentStaff || staff;
     const recordId = existingRecord ? existingRecord.id : `LTR-${Date.now()}-${targetStaff.id || targetStaff.empId || '01'}`;
     const newRecord: GeneratedStaffLetterRecord = {
@@ -512,6 +537,10 @@ export const StaffLetterModal: React.FC<StaffLetterModalProps> = ({
     };
 
     saveStaffLetterRecord(newRecord);
+    createOrSaveStaffLetterApi(newRecord).catch((err) => {
+      console.warn('Backend staff letter sync error:', err);
+    });
+    window.dispatchEvent(new Event('staff_letters_updated'));
 
     // Also link into staff documents array if updateStaff is available
     if (updateStaff && targetStaff.id) {
@@ -895,10 +924,10 @@ export const StaffLetterModal: React.FC<StaffLetterModalProps> = ({
                   <FileText className="w-4 h-4 text-sky-600" /> Reference & Header Details
                 </h3>
 
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                   <div>
                     <label className="block text-[10.5px] font-bold text-slate-400 uppercase mb-1">
-                      Reference Number
+                      Reference Number <span className="text-rose-500 font-bold ml-0.5">*</span>
                     </label>
                     <input
                       type="text"
@@ -910,7 +939,7 @@ export const StaffLetterModal: React.FC<StaffLetterModalProps> = ({
 
                   <div>
                     <label className="block text-[10.5px] font-bold text-slate-400 uppercase mb-1">
-                      Issue Date
+                      Issue Date <span className="text-rose-500 font-bold ml-0.5">*</span>
                     </label>
                     <input
                       type="date"
@@ -922,7 +951,7 @@ export const StaffLetterModal: React.FC<StaffLetterModalProps> = ({
 
                   <div>
                     <label className="block text-[10.5px] font-bold text-slate-400 uppercase mb-1">
-                      Campus / Branch
+                      Campus / Branch <span className="text-rose-500 font-bold ml-0.5">*</span>
                     </label>
                     <input
                       type="text"
@@ -943,7 +972,7 @@ export const StaffLetterModal: React.FC<StaffLetterModalProps> = ({
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
                     <label className="block text-[10.5px] font-bold text-slate-400 uppercase mb-1">
-                      Full Name
+                      Full Name <span className="text-rose-500 font-bold ml-0.5">*</span>
                     </label>
                     <input
                       type="text"
@@ -967,7 +996,7 @@ export const StaffLetterModal: React.FC<StaffLetterModalProps> = ({
 
                   <div>
                     <label className="block text-[10.5px] font-bold text-slate-400 uppercase mb-1">
-                      Designation
+                      Designation <span className="text-rose-500 font-bold ml-0.5">*</span>
                     </label>
                     <input
                       type="text"
@@ -979,7 +1008,7 @@ export const StaffLetterModal: React.FC<StaffLetterModalProps> = ({
 
                   <div>
                     <label className="block text-[10.5px] font-bold text-slate-400 uppercase mb-1">
-                      Department
+                      Department <span className="text-rose-500 font-bold ml-0.5">*</span>
                     </label>
                     <input
                       type="text"
@@ -1025,7 +1054,7 @@ export const StaffLetterModal: React.FC<StaffLetterModalProps> = ({
 
                     <div>
                       <label className="block text-[10.5px] font-bold text-slate-400 uppercase mb-1">
-                        Joining Date
+                        Joining Date <span className="text-rose-500 font-bold ml-0.5">*</span>
                       </label>
                       <input
                         type="date"
@@ -1037,12 +1066,28 @@ export const StaffLetterModal: React.FC<StaffLetterModalProps> = ({
 
                     <div>
                       <label className="block text-[10.5px] font-bold text-slate-400 uppercase mb-1">
-                        Probation Period (Months)
+                        Probation Period (Months) <span className="text-rose-500 font-bold ml-0.5">*</span>
                       </label>
                       <input
                         type="number"
-                        value={payload.probationMonths || 6}
-                        onChange={(e) => setPayload({ ...payload, probationMonths: parseInt(e.target.value, 10) || 6 })}
+                        min="0"
+                        placeholder="e.g. 6"
+                        value={payload.probationMonths || ''}
+                        onChange={(e) => setPayload({ ...payload, probationMonths: e.target.value === '' ? 0 : parseInt(e.target.value, 10) })}
+                        className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-[10.5px] font-bold text-slate-400 uppercase mb-1">
+                        Notice Period (Days) <span className="text-rose-500 font-bold ml-0.5">*</span>
+                      </label>
+                      <input
+                        type="number"
+                        min="0"
+                        placeholder="e.g. 30"
+                        value={payload.noticePeriodDays || ''}
+                        onChange={(e) => setPayload({ ...payload, noticePeriodDays: e.target.value === '' ? 0 : parseInt(e.target.value, 10) })}
                         className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none"
                       />
                     </div>
@@ -1060,7 +1105,7 @@ export const StaffLetterModal: React.FC<StaffLetterModalProps> = ({
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div>
                       <label className="block text-[10.5px] font-bold text-slate-400 uppercase mb-1">
-                        Date of Joining
+                        Date of Joining <span className="text-rose-500 font-bold ml-0.5">*</span>
                       </label>
                       <input
                         type="date"
@@ -1072,7 +1117,7 @@ export const StaffLetterModal: React.FC<StaffLetterModalProps> = ({
 
                     <div>
                       <label className="block text-[10.5px] font-bold text-slate-400 uppercase mb-1">
-                        Relieving Date / Last Working Date
+                        Relieving Date / Last Working Date <span className="text-rose-500 font-bold ml-0.5">*</span>
                       </label>
                       <input
                         type="date"
@@ -1122,7 +1167,7 @@ export const StaffLetterModal: React.FC<StaffLetterModalProps> = ({
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
                     <label className="block text-[10.5px] font-bold text-slate-400 uppercase mb-1">
-                      Signatory Name
+                      Signatory Name <span className="text-rose-500 font-bold ml-0.5">*</span>
                     </label>
                     <input
                       type="text"
@@ -1134,7 +1179,7 @@ export const StaffLetterModal: React.FC<StaffLetterModalProps> = ({
 
                   <div>
                     <label className="block text-[10.5px] font-bold text-slate-400 uppercase mb-1">
-                      Signatory Designation / Title
+                      Signatory Designation / Title <span className="text-rose-500 font-bold ml-0.5">*</span>
                     </label>
                     <input
                       type="text"
@@ -1148,7 +1193,7 @@ export const StaffLetterModal: React.FC<StaffLetterModalProps> = ({
                 {/* Digital Signature / Stamp Upload */}
                 <div>
                   <label className="block text-[10.5px] font-bold text-slate-400 uppercase mb-1.5">
-                    Authorized Signatory Signature / Official Stamp Image
+                    Authorized Signatory Signature / Official Stamp Image <span className="text-rose-500 font-bold ml-0.5">*</span>
                   </label>
                   <div className="p-3 bg-slate-50 dark:bg-slate-800 rounded-xl border border-dashed border-slate-300 dark:border-slate-700 flex flex-col sm:flex-row items-center gap-3">
                     <div className="w-24 h-14 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 flex items-center justify-center p-1.5 shrink-0 overflow-hidden">
@@ -1195,11 +1240,7 @@ export const StaffLetterModal: React.FC<StaffLetterModalProps> = ({
                                 if (result) {
                                   setPayload((prev) => ({ ...prev, signatureImageUrl: result }));
                                   try {
-                                    localStorage.setItem('edu_db_global_signatory_signature', result);
-                                    const currentSettings = localStorage.getItem('edu_db_global_letter_settings');
-                                    const parsed = currentSettings ? JSON.parse(currentSettings) : {};
-                                    parsed.signatureImageUrl = result;
-                                    localStorage.setItem('edu_db_global_letter_settings', JSON.stringify(parsed));
+                                    // Signature loaded into local payload
                                     window.dispatchEvent(new CustomEvent('global_signature_updated', { detail: result }));
                                   } catch (err) {}
                                   addToast('success', 'Signature Loaded', 'Signature applied and saved globally.');

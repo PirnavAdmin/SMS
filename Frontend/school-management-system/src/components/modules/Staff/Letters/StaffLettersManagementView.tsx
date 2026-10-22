@@ -35,13 +35,8 @@ import { useToast } from '../../../../context/ToastContext';
 import { Staff } from '../../../../types';
 import { GeneratedStaffLetterRecord, StaffLetterType, StaffLetterPayload } from '../../../../types/staffLetter';
 import {
-  getStoredStaffLetters,
-  deleteStaffLetterRecord,
-  saveStaffLetterRecord,
   getDefaultLetterPayload,
-  DEFAULT_OFFER_TERMS,
-  syncStaffLettersWithStaffList,
-  generateSeedStaffLetters
+  saveStaffLetterRecord
 } from '../../../../utils/staffLetterTemplates';
 import { validateSearchQuery } from '../../../../utils/validation';
 import {
@@ -50,7 +45,6 @@ import {
   fetchGlobalLetterSettingsApi,
   saveGlobalLetterSettingsApi
 } from '../../../../api/staffLetters';
-import { initialStaff } from '../../../../services/mockData';
 import { StaffLetterModal } from './StaffLetterModal';
 import { Badge } from '../../../common/Badge';
 import { ConfirmModal } from '../../../common/ConfirmModal';
@@ -83,9 +77,8 @@ export const StaffLettersManagementView: React.FC<StaffLettersManagementViewProp
   const { addToast } = useToast();
 
   const [activeTab, setActiveTab] = useState<'registry' | 'templates' | 'quick-generate'>('registry');
-  const [letters, setLetters] = useState<GeneratedStaffLetterRecord[]>(() => {
-    return getStoredStaffLetters(staff, schoolProfile);
-  });
+  const [letters, setLetters] = useState<GeneratedStaffLetterRecord[]>([]);
+  const [isLoadingLetters, setIsLoadingLetters] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchError, setSearchError] = useState<string | undefined>(undefined);
   const [typeFilter, setTypeFilter] = useState<string>('all');
@@ -101,102 +94,52 @@ export const StaffLettersManagementView: React.FC<StaffLettersManagementViewProp
   const [isReadOnlyModal, setIsReadOnlyModal] = useState(false);
   const [letterToDelete, setLetterToDelete] = useState<GeneratedStaffLetterRecord | null>(null);
 
-  // Global Template Settings State
-  const [globalTerms, setGlobalTerms] = useState<string[]>(() => {
-    try {
-      const saved = localStorage.getItem('edu_db_global_offer_terms');
-      if (saved) return JSON.parse(saved);
-    } catch (e) {}
-    return DEFAULT_OFFER_TERMS;
-  });
-
+  // Global Template Settings State - pure database synced, no hardcoded / mock defaults
+  const [globalTerms, setGlobalTerms] = useState<string[]>([]);
   const [newTermInput, setNewTermInput] = useState('');
-  const [globalSignatoryName, setGlobalSignatoryName] = useState(() => {
-    try {
-      const saved = localStorage.getItem('edu_db_global_letter_settings');
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (parsed.signatoryName) return parsed.signatoryName;
-      }
-    } catch (e) {}
-    return schoolProfile?.principalName || '';
-  });
-  const [globalSignatoryTitle, setGlobalSignatoryTitle] = useState(() => {
-    try {
-      const saved = localStorage.getItem('edu_db_global_letter_settings');
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (parsed.signatoryTitle) return parsed.signatoryTitle;
-      }
-    } catch (e) {}
-    return schoolProfile?.principalName ? 'Principal & Authorized Signatory' : '';
-  });
-  const [globalProbationMonths, setGlobalProbationMonths] = useState(() => {
-    try {
-      const saved = localStorage.getItem('edu_db_global_letter_settings');
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (parsed.probationMonths !== undefined) return parsed.probationMonths;
-      }
-    } catch (e) {}
-    return 6;
-  });
-  const [globalNoticePeriodDays, setGlobalNoticePeriodDays] = useState(() => {
-    try {
-      const saved = localStorage.getItem('edu_db_global_letter_settings');
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (parsed.noticePeriodDays !== undefined) return parsed.noticePeriodDays;
-      }
-    } catch (e) {}
-    return 30;
-  });
-  const [globalSignatureImage, setGlobalSignatureImage] = useState<string>(() => {
-    try {
-      const saved = localStorage.getItem('edu_db_global_letter_settings');
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (parsed.signatureImageUrl) return parsed.signatureImageUrl;
-      }
-    } catch (e) {}
-    return '';
-  });
+  const [globalSignatoryName, setGlobalSignatoryName] = useState('');
+  const [globalSignatoryTitle, setGlobalSignatoryTitle] = useState('');
+  const [globalProbationMonths, setGlobalProbationMonths] = useState<number | string>('');
+  const [globalNoticePeriodDays, setGlobalNoticePeriodDays] = useState<number | string>('');
+  const [globalSignatureImage, setGlobalSignatureImage] = useState<string>('');
+
+  const [settingsErrors, setSettingsErrors] = useState<{
+    signatoryName?: string;
+    signatoryTitle?: string;
+    probationMonths?: string;
+    noticePeriodDays?: string;
+    signatureImage?: string;
+  }>({});
+  const [isSavingSettings, setIsSavingSettings] = useState(false);
 
   const refreshLetters = () => {
-    // 1. Check local storage
-    const list = getStoredStaffLetters(staff, schoolProfile);
-    setLetters(list);
-    
-    // 2. Refresh from backend
     fetchStaffLettersApi()
       .then((res) => {
         if (res?.data && Array.isArray(res.data)) {
           setLetters(res.data);
-          try {
-            localStorage.setItem('edu_db_staff_letters', JSON.stringify(res.data));
-          } catch (e) {}
         }
       })
-      .catch(() => {});
+      .catch((err) => {
+        console.warn('Could not fetch letters from backend API:', err);
+      });
   };
 
   useEffect(() => {
     let isMounted = true;
+    setIsLoadingLetters(true);
 
     // 1. Fetch letters from Backend API
     fetchStaffLettersApi()
       .then((res) => {
         if (isMounted && res?.data && Array.isArray(res.data)) {
           setLetters(res.data);
-          try {
-            localStorage.setItem('edu_db_staff_letters', JSON.stringify(res.data));
-          } catch (e) {}
         }
       })
       .catch((err) => {
-        console.warn('Could not fetch letters from backend API, using local storage:', err);
-        const stored = getStoredStaffLetters(staff, schoolProfile);
-        setLetters(stored);
+        console.warn('Could not fetch letters from backend API:', err);
+      })
+      .finally(() => {
+        if (isMounted) setIsLoadingLetters(false);
       });
 
     // 2. Fetch global signatory & terms settings from Backend API
@@ -204,28 +147,14 @@ export const StaffLettersManagementView: React.FC<StaffLettersManagementViewProp
       .then((res) => {
         if (isMounted && res?.data) {
           const s = res.data;
-          if (s.signatoryName) setGlobalSignatoryName(s.signatoryName);
-          if (s.signatoryTitle) setGlobalSignatoryTitle(s.signatoryTitle);
-          if (s.probationMonths !== undefined) setGlobalProbationMonths(s.probationMonths);
-          if (s.noticePeriodDays !== undefined) setGlobalNoticePeriodDays(s.noticePeriodDays);
-          if (s.signatureImageUrl) setGlobalSignatureImage(s.signatureImageUrl);
-          if (s.masterTerms && s.masterTerms.length > 0) setGlobalTerms(s.masterTerms);
-
-          try {
-            localStorage.setItem(
-              'edu_db_global_letter_settings',
-              JSON.stringify({
-                signatoryName: s.signatoryName,
-                signatoryTitle: s.signatoryTitle,
-                probationMonths: s.probationMonths,
-                noticePeriodDays: s.noticePeriodDays,
-                signatureImageUrl: s.signatureImageUrl,
-              })
-            );
-            if (s.masterTerms) {
-              localStorage.setItem('edu_db_global_offer_terms', JSON.stringify(s.masterTerms));
-            }
-          } catch (e) {}
+          setGlobalSignatoryName(s.signatoryName || '');
+          setGlobalSignatoryTitle(s.signatoryTitle || '');
+          setGlobalProbationMonths(s.probationMonths ? s.probationMonths : '');
+          setGlobalNoticePeriodDays(s.noticePeriodDays ? s.noticePeriodDays : '');
+          setGlobalSignatureImage(s.signatureImageUrl || '');
+          if (Array.isArray(s.masterTerms)) {
+            setGlobalTerms(s.masterTerms);
+          }
         }
       })
       .catch((err) => {
@@ -237,7 +166,7 @@ export const StaffLettersManagementView: React.FC<StaffLettersManagementViewProp
       isMounted = false;
       window.removeEventListener('staff_letters_updated', refreshLetters);
     };
-  }, [staff, schoolProfile]);
+  }, []);
 
   const handleOpenGenerator = (type: StaffLetterType = 'offer', specificStaff?: Staff, record?: GeneratedStaffLetterRecord, readOnlyMode = false) => {
     const availableStaff = staff.length > 0 ? staff : [getSafeStaffFallback(schoolProfile)];
@@ -251,32 +180,58 @@ export const StaffLettersManagementView: React.FC<StaffLettersManagementViewProp
 
   const handleSaveGlobalTemplateSettings = async (e: React.FormEvent) => {
     e.preventDefault();
-    try {
-      localStorage.setItem('edu_db_global_offer_terms', JSON.stringify(globalTerms));
-      localStorage.setItem(
-        'edu_db_global_letter_settings',
-        JSON.stringify({
-          signatoryName: globalSignatoryName,
-          signatoryTitle: globalSignatoryTitle,
-          probationMonths: globalProbationMonths,
-          noticePeriodDays: globalNoticePeriodDays,
-          signatureImageUrl: globalSignatureImage,
-        })
-      );
 
-      // Persist to Backend Database
+    const errors: typeof settingsErrors = {};
+
+    const cleanName = globalSignatoryName.trim();
+    if (!cleanName) {
+      errors.signatoryName = 'Authorized Signatory Full Name is required.';
+    }
+
+    const cleanTitle = globalSignatoryTitle.trim();
+    if (!cleanTitle) {
+      errors.signatoryTitle = 'Signatory Title & Designation is required.';
+    }
+
+    const probationNum = Number(globalProbationMonths);
+    if (!globalProbationMonths || isNaN(probationNum) || probationNum <= 0) {
+      errors.probationMonths = 'Standard Probation (Months) is required and must be greater than 0.';
+    }
+
+    const noticeNum = Number(globalNoticePeriodDays);
+    if (!globalNoticePeriodDays || isNaN(noticeNum) || noticeNum <= 0) {
+      errors.noticePeriodDays = 'Standard Notice Period (Days) is required and must be greater than 0.';
+    }
+
+    if (!globalSignatureImage) {
+      errors.signatureImage = 'Authorized Signatory Signature / Official Stamp Image is required.';
+    }
+
+    if (Object.keys(errors).length > 0) {
+      setSettingsErrors(errors);
+      addToast('error', 'Required Fields Missing', 'Please fill in all mandatory fields marked with * and upload the signature image.');
+      return;
+    }
+
+    setSettingsErrors({});
+    setIsSavingSettings(true);
+    try {
+      // Persist directly to Backend Database
       await saveGlobalLetterSettingsApi({
-        signatoryName: globalSignatoryName,
-        signatoryTitle: globalSignatoryTitle,
-        probationMonths: globalProbationMonths,
-        noticePeriodDays: globalNoticePeriodDays,
+        signatoryName: cleanName,
+        signatoryTitle: cleanTitle,
+        probationMonths: probationNum,
+        noticePeriodDays: noticeNum,
         signatureImageUrl: globalSignatureImage,
         masterTerms: globalTerms,
       });
 
       addToast('success', 'Global Templates Saved', 'Institutional letter templates & signatory settings saved to database successfully!');
-    } catch (e) {
-      addToast('success', 'Global Templates Saved', 'Institutional letter templates & default terms updated successfully!');
+    } catch (err: any) {
+      console.error('Failed to save settings to database:', err);
+      addToast('error', 'Save Failed', err?.message || 'Failed to save settings to database.');
+    } finally {
+      setIsSavingSettings(false);
     }
   };
 
@@ -722,60 +677,118 @@ export const StaffLettersManagementView: React.FC<StaffLettersManagementViewProp
               <div className="space-y-3 text-xs">
                 <div>
                   <label className="block font-bold mb-1 text-slate-700 dark:text-slate-300">
-                    Authorized Signatory Full Name
+                    Authorized Signatory Full Name <span className="text-rose-500 font-bold ml-0.5">*</span>
                   </label>
                   <input
                     type="text"
+                    placeholder="Enter authorized signatory full name..."
                     value={globalSignatoryName}
-                    onChange={(e) => setGlobalSignatoryName(e.target.value)}
-                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-850 border border-sky-200 dark:border-sky-800 font-bold text-slate-900 dark:text-white outline-none focus:ring-1 focus:ring-sky-500"
+                    onChange={(e) => {
+                      setGlobalSignatoryName(e.target.value);
+                      if (settingsErrors.signatoryName) {
+                        setSettingsErrors((prev) => ({ ...prev, signatoryName: undefined }));
+                      }
+                    }}
+                    className={`w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-850 border font-bold text-slate-900 dark:text-white outline-none focus:ring-1 focus:ring-sky-500 ${
+                      settingsErrors.signatoryName ? 'border-rose-500 focus:ring-rose-500' : 'border-sky-200 dark:border-sky-800'
+                    }`}
                   />
+                  {settingsErrors.signatoryName && (
+                    <p className="text-xs text-rose-500 mt-1 font-semibold flex items-center gap-1">
+                      <span>⚠️</span> {settingsErrors.signatoryName}
+                    </p>
+                  )}
                 </div>
 
                 <div>
                   <label className="block font-bold mb-1 text-slate-700 dark:text-slate-300">
-                    Signatory Title & Designation
+                    Signatory Title & Designation <span className="text-rose-500 font-bold ml-0.5">*</span>
                   </label>
                   <input
                     type="text"
+                    placeholder="e.g. Principal & Authorized Signatory"
                     value={globalSignatoryTitle}
-                    onChange={(e) => setGlobalSignatoryTitle(e.target.value)}
-                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-850 border border-sky-200 dark:border-sky-800 font-bold text-slate-900 dark:text-white outline-none focus:ring-1 focus:ring-sky-500"
+                    onChange={(e) => {
+                      setGlobalSignatoryTitle(e.target.value);
+                      if (settingsErrors.signatoryTitle) {
+                        setSettingsErrors((prev) => ({ ...prev, signatoryTitle: undefined }));
+                      }
+                    }}
+                    className={`w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-850 border font-bold text-slate-900 dark:text-white outline-none focus:ring-1 focus:ring-sky-500 ${
+                      settingsErrors.signatoryTitle ? 'border-rose-500 focus:ring-rose-500' : 'border-sky-200 dark:border-sky-800'
+                    }`}
                   />
+                  {settingsErrors.signatoryTitle && (
+                    <p className="text-xs text-rose-500 mt-1 font-semibold flex items-center gap-1">
+                      <span>⚠️</span> {settingsErrors.signatoryTitle}
+                    </p>
+                  )}
                 </div>
 
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label className="block font-bold mb-1 text-slate-700 dark:text-slate-300">
-                      Standard Probation (Months)
+                      Standard Probation (Months) <span className="text-rose-500 font-bold ml-0.5">*</span>
                     </label>
                     <input
                       type="number"
+                      min="1"
+                      max="24"
+                      placeholder="e.g. 6"
                       value={globalProbationMonths}
-                      onChange={(e) => setGlobalProbationMonths(Number(e.target.value))}
-                      className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-850 border border-sky-200 dark:border-sky-800 font-bold text-slate-900 dark:text-white outline-none"
+                      onChange={(e) => {
+                        setGlobalProbationMonths(e.target.value === '' ? '' : Number(e.target.value));
+                        if (settingsErrors.probationMonths) {
+                          setSettingsErrors((prev) => ({ ...prev, probationMonths: undefined }));
+                        }
+                      }}
+                      className={`w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-850 border font-bold text-slate-900 dark:text-white outline-none ${
+                        settingsErrors.probationMonths ? 'border-rose-500 focus:ring-rose-500' : 'border-sky-200 dark:border-sky-800'
+                      }`}
                     />
+                    {settingsErrors.probationMonths && (
+                      <p className="text-xs text-rose-500 mt-1 font-semibold flex items-center gap-1">
+                        <span>⚠️</span> {settingsErrors.probationMonths}
+                      </p>
+                    )}
                   </div>
 
                   <div>
                     <label className="block font-bold mb-1 text-slate-700 dark:text-slate-300">
-                      Standard Notice Period (Days)
+                      Standard Notice Period (Days) <span className="text-rose-500 font-bold ml-0.5">*</span>
                     </label>
                     <input
                       type="number"
+                      min="1"
+                      max="180"
+                      placeholder="e.g. 30"
                       value={globalNoticePeriodDays}
-                      onChange={(e) => setGlobalNoticePeriodDays(Number(e.target.value))}
-                      className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-850 border border-sky-200 dark:border-sky-800 font-bold text-slate-900 dark:text-white outline-none"
+                      onChange={(e) => {
+                        setGlobalNoticePeriodDays(e.target.value === '' ? '' : Number(e.target.value));
+                        if (settingsErrors.noticePeriodDays) {
+                          setSettingsErrors((prev) => ({ ...prev, noticePeriodDays: undefined }));
+                        }
+                      }}
+                      className={`w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-850 border font-bold text-slate-900 dark:text-white outline-none ${
+                        settingsErrors.noticePeriodDays ? 'border-rose-500 focus:ring-rose-500' : 'border-sky-200 dark:border-sky-800'
+                      }`}
                     />
+                    {settingsErrors.noticePeriodDays && (
+                      <p className="text-xs text-rose-500 mt-1 font-semibold flex items-center gap-1">
+                        <span>⚠️</span> {settingsErrors.noticePeriodDays}
+                      </p>
+                    )}
                   </div>
                 </div>
 
                 {/* Signatory Signature & Stamp Upload */}
                 <div>
                   <label className="block font-bold mb-1 text-slate-700 dark:text-slate-300">
-                    Authorized Signatory Signature / Official Stamp Image
+                    Authorized Signatory Signature / Official Stamp Image <span className="text-rose-500 font-bold ml-0.5">*</span>
                   </label>
-                  <div className="p-3 bg-slate-50 dark:bg-slate-850 rounded-xl border border-dashed border-sky-300 dark:border-sky-800 flex flex-col sm:flex-row items-center gap-3">
+                  <div className={`p-3 bg-slate-50 dark:bg-slate-850 rounded-xl border border-dashed flex flex-col sm:flex-row items-center gap-3 ${
+                    settingsErrors.signatureImage ? 'border-rose-500 bg-rose-50/20 dark:bg-rose-950/20' : 'border-sky-300 dark:border-sky-800'
+                  }`}>
                     <div className="w-24 h-14 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 flex items-center justify-center p-1.5 shrink-0 overflow-hidden">
                       {globalSignatureImage ? (
                         <img
@@ -793,7 +806,7 @@ export const StaffLettersManagementView: React.FC<StaffLettersManagementViewProp
 
                     <div className="flex-1 space-y-1.5 text-center sm:text-left">
                       <p className="text-[11px] text-slate-500">
-                        Upload authorized digital signature or official seal (PNG, JPG, WEBP, max 5MB). Automatically saved and applied to all generated letter templates.
+                        Upload authorized digital signature or official seal (PNG, JPG, WEBP, max 5MB). Automatically saved to database and applied to all generated letter templates.
                       </p>
                       <div className="flex flex-wrap items-center gap-2 justify-center sm:justify-start">
                         <label className="px-3 py-1.5 rounded-lg bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs flex items-center gap-1.5 cursor-pointer shadow-2xs transition-all">
@@ -819,31 +832,10 @@ export const StaffLettersManagementView: React.FC<StaffLettersManagementViewProp
                                 const result = ev.target?.result as string;
                                 if (result) {
                                   setGlobalSignatureImage(result);
-                                  try {
-                                    const currentSettings = localStorage.getItem('edu_db_global_letter_settings');
-                                    const parsed = currentSettings ? JSON.parse(currentSettings) : {};
-                                    parsed.signatureImageUrl = result;
-                                    parsed.signatoryName = globalSignatoryName;
-                                    parsed.signatoryTitle = globalSignatoryTitle;
-                                    parsed.probationMonths = globalProbationMonths;
-                                    parsed.noticePeriodDays = globalNoticePeriodDays;
-                                    localStorage.setItem('edu_db_global_letter_settings', JSON.stringify(parsed));
-                                    localStorage.setItem('edu_db_global_signatory_signature', result);
-                                    window.dispatchEvent(new CustomEvent('global_signature_updated', { detail: result }));
-
-                                    // Persist to backend database
-                                    saveGlobalLetterSettingsApi({
-                                      signatoryName: globalSignatoryName,
-                                      signatoryTitle: globalSignatoryTitle,
-                                      probationMonths: globalProbationMonths,
-                                      noticePeriodDays: globalNoticePeriodDays,
-                                      signatureImageUrl: result,
-                                      masterTerms: globalTerms,
-                                    }).catch((err) => {
-                                      console.warn('Backend signature sync:', err);
-                                    });
-                                  } catch (err) {}
-                                  addToast('success', 'Signature Saved', 'Signature uploaded and saved globally to backend database.');
+                                  if (settingsErrors.signatureImage) {
+                                    setSettingsErrors((prev) => ({ ...prev, signatureImage: undefined }));
+                                  }
+                                  addToast('success', 'Signature Loaded', 'Signature image selected. Click "Save Global Letter Templates" to persist to database.');
                                 }
                               };
                               reader.readAsDataURL(file);
@@ -856,27 +848,7 @@ export const StaffLettersManagementView: React.FC<StaffLettersManagementViewProp
                             type="button"
                             onClick={() => {
                               setGlobalSignatureImage('');
-                              try {
-                                const currentSettings = localStorage.getItem('edu_db_global_letter_settings');
-                                const parsed = currentSettings ? JSON.parse(currentSettings) : {};
-                                parsed.signatureImageUrl = '';
-                                localStorage.setItem('edu_db_global_letter_settings', JSON.stringify(parsed));
-                                localStorage.removeItem('edu_db_global_signatory_signature');
-                                window.dispatchEvent(new CustomEvent('global_signature_updated', { detail: '' }));
-
-                                // Persist remove to backend database
-                                saveGlobalLetterSettingsApi({
-                                  signatoryName: globalSignatoryName,
-                                  signatoryTitle: globalSignatoryTitle,
-                                  probationMonths: globalProbationMonths,
-                                  noticePeriodDays: globalNoticePeriodDays,
-                                  signatureImageUrl: '',
-                                  masterTerms: globalTerms,
-                                }).catch((err) => {
-                                  console.warn('Backend signature sync:', err);
-                                });
-                              } catch (err) {}
-                              addToast('info', 'Signature Removed', 'Custom signature removed. Default seal will be used.');
+                              addToast('info', 'Signature Removed', 'Signature image removed.');
                             }}
                             className="px-2.5 py-1.5 rounded-lg bg-rose-50 dark:bg-rose-950/50 hover:bg-rose-100 text-rose-600 dark:text-rose-400 text-xs font-bold border border-rose-200 dark:border-rose-900 flex items-center gap-1 cursor-pointer"
                           >
@@ -887,6 +859,11 @@ export const StaffLettersManagementView: React.FC<StaffLettersManagementViewProp
                       </div>
                     </div>
                   </div>
+                  {settingsErrors.signatureImage && (
+                    <p className="text-xs text-rose-500 mt-1 font-semibold flex items-center gap-1">
+                      <span>⚠️</span> {settingsErrors.signatureImage}
+                    </p>
+                  )}
                 </div>
 
                 <div className="p-3 rounded-xl bg-sky-50 dark:bg-sky-950/50 border border-sky-200 dark:border-sky-800 text-[11px] text-sky-800 dark:text-sky-300 leading-relaxed">
@@ -947,10 +924,11 @@ export const StaffLettersManagementView: React.FC<StaffLettersManagementViewProp
           <div className="flex justify-end">
             <button
               type="submit"
-              className="px-5 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs flex items-center gap-2 shadow-xs cursor-pointer"
+              disabled={isSavingSettings}
+              className="px-5 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 disabled:opacity-50 text-white font-bold text-xs flex items-center gap-2 shadow-xs cursor-pointer"
             >
               <Save className="w-4 h-4" />
-              Save Global Letter Templates
+              {isSavingSettings ? 'Saving to Database...' : 'Save Global Letter Templates'}
             </button>
           </div>
         </form>
@@ -959,7 +937,7 @@ export const StaffLettersManagementView: React.FC<StaffLettersManagementViewProp
       {/* Generator & Live Preview Modal */}
       {generatorOpen && (
         <StaffLetterModal
-          staff={selectedStaffForGen || (staff.length > 0 ? staff[0] : (initialStaff.length > 0 ? initialStaff[0] : getSafeStaffFallback(schoolProfile)))}
+          staff={selectedStaffForGen || (staff.length > 0 ? staff[0] : getSafeStaffFallback(schoolProfile))}
           isOpen={generatorOpen}
           onClose={() => {
             setGeneratorOpen(false);
@@ -981,10 +959,18 @@ export const StaffLettersManagementView: React.FC<StaffLettersManagementViewProp
         message={`Are you sure you want to revoke and delete ${letterToDelete?.letterType.toUpperCase()} Letter (Ref: ${letterToDelete?.letterNumber}) for ${letterToDelete?.staffName}?`}
         onConfirm={() => {
           if (letterToDelete) {
-            const remaining = deleteStaffLetterRecord(letterToDelete.id);
-            setLetters(remaining);
-            addToast('success', 'Letter Revoked', 'Issued letter record has been permanently removed.');
-            setLetterToDelete(null);
+            deleteStaffLetterApi(letterToDelete.id)
+              .then(() => {
+                setLetters((prev) => prev.filter((l) => l.id !== letterToDelete.id));
+                addToast('success', 'Letter Revoked', `Official letter record ${letterToDelete.letterNumber} revoked from database.`);
+              })
+              .catch((err) => {
+                console.error('Failed to revoke letter:', err);
+                addToast('error', 'Revoke Failed', 'Could not delete letter from backend database.');
+              })
+              .finally(() => {
+                setLetterToDelete(null);
+              });
           }
         }}
         onCancel={() => setLetterToDelete(null)}

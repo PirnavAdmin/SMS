@@ -25,16 +25,9 @@ export const PrintableStaffLetter: React.FC<PrintableStaffLetterProps> = ({
   const formattedJoiningDate = formatDateDDMMYYYY(payload.joiningDate) || payload.joiningDate;
   const formattedRelievingDate = payload.relievingDate ? formatDateDDMMYYYY(payload.relievingDate) || payload.relievingDate : '';
 
-  // Resolve effective signature image from payload, global settings, or school profile
+  // Resolve effective signature image from payload or school profile
   const effectiveSignature = useMemo(() => {
     if (payload.signatureImageUrl) return payload.signatureImageUrl;
-    try {
-      const saved = localStorage.getItem('edu_db_global_letter_settings');
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (parsed.signatureImageUrl) return parsed.signatureImageUrl;
-      }
-    } catch (e) {}
     return (activeSchoolProfile as any)?.signature || (activeSchoolProfile as any)?.principalSignature || '';
   }, [payload.signatureImageUrl, activeSchoolProfile]);
 
