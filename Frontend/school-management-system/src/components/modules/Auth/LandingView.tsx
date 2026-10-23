@@ -167,22 +167,25 @@ export const LandingView: React.FC<LandingViewProps> = ({ onLoginClick }) => {
     window.addEventListener('school_profile_updated', loadSchoolSettings);
     window.addEventListener('storage', loadSchoolSettings);
 
-    fetchNotificationsApi()
-      .then((res: any) => {
-        if (!isMounted) return;
-        const list = res?.data || (Array.isArray(res) ? res : []);
-        if (Array.isArray(list) && list.length > 0) {
-          const formatted: NoticeItem[] = list.slice(0, 4).map((item: any, index: number) => ({
-            id: item.id || index,
-            date: item.createdAt ? new Date(item.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }).toUpperCase() : 'TODAY',
-            badge: item.type || item.category || 'Notice',
-            title: item.title || item.subject || 'School Notice',
-            desc: item.content || item.message || item.description || 'Log into portal to read full details.',
-          }));
-          setNotices(formatted);
-        }
-      })
-      .catch(() => {});
+    const token = localStorage.getItem('auth_token');
+    if (token && token !== 'null' && token !== 'undefined') {
+      fetchNotificationsApi()
+        .then((res: any) => {
+          if (!isMounted) return;
+          const list = res?.data || (Array.isArray(res) ? res : []);
+          if (Array.isArray(list) && list.length > 0) {
+            const formatted: NoticeItem[] = list.slice(0, 4).map((item: any, index: number) => ({
+              id: item.id || index,
+              date: item.createdAt ? new Date(item.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }).toUpperCase() : 'TODAY',
+              badge: item.type || item.category || 'Notice',
+              title: item.title || item.subject || 'School Notice',
+              desc: item.content || item.message || item.description || 'Log into portal to read full details.',
+            }));
+            setNotices(formatted);
+          }
+        })
+        .catch(() => {});
+    }
 
     return () => {
       isMounted = false;

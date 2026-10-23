@@ -865,12 +865,27 @@ namespace SMS.Api.Controllers.AcademicManagement
                         }
                     }
                 }
+
+                // Fallback to first class subject mapping if available
+                if (subjectId == 0)
+                {
+                    var firstClassSub = await _context.ClassSubjectMappings
+                        .Where(sm => sm.ClassId == id)
+                        .Select(sm => sm.SubjectId)
+                        .FirstOrDefaultAsync();
+                    if (firstClassSub > 0)
+                    {
+                        subjectId = firstClassSub;
+                    }
+                }
             }
 
             if (subjectId == 0 && dto.Role != "Class Teacher")
             {
                 return BadRequest(new { success = false, message = "Subject name is required when assigning a Subject Teacher." });
             }
+
+            int? finalSubjectId = subjectId > 0 ? subjectId : null;
 
             if (dto.Role == "Class Teacher")
             {
@@ -880,7 +895,7 @@ namespace SMS.Api.Controllers.AcademicManagement
                     staff.IsClassTeacherEligible = true;
                 }
 
-                // Unassign any existing Class Teacher for this section
+                // Unassign or update any existing Class Teacher for this section
                 var existingClassTeachers = await _context.TeacherAssignments
                     .Where(a => a.ClassId == id &&
                         (a.SectionLetter.ToLower() == section_letter.ToLower() ||
@@ -889,9 +904,30 @@ namespace SMS.Api.Controllers.AcademicManagement
                         a.Role == "Class Teacher")
                     .ToListAsync();
 
-                if (existingClassTeachers.Any())
+                var existingCt = existingClassTeachers.FirstOrDefault();
+                if (existingCt != null)
                 {
-                    _context.TeacherAssignments.RemoveRange(existingClassTeachers);
+                    existingCt.TeacherId = staff.StaffId;
+                    existingCt.Status = "Active";
+                    existingCt.SubjectId = finalSubjectId;
+                    existingCt.SectionLetter = section_letter;
+
+                    if (existingClassTeachers.Count > 1)
+                    {
+                        _context.TeacherAssignments.RemoveRange(existingClassTeachers.Skip(1));
+                    }
+                }
+                else
+                {
+                    await _context.TeacherAssignments.AddAsync(new TeacherAssignment
+                    {
+                        ClassId = id,
+                        SectionLetter = section_letter,
+                        TeacherId = staff.StaffId,
+                        Role = dto.Role,
+                        Status = "Active",
+                        SubjectId = finalSubjectId
+                    });
                 }
             }
             else
@@ -905,9 +941,30 @@ namespace SMS.Api.Controllers.AcademicManagement
                         a.SubjectId == subjectId)
                     .ToListAsync();
 
-                if (existingAssignments.Any())
+                var existingAssignment = existingAssignments.FirstOrDefault();
+                if (existingAssignment != null)
                 {
-                    _context.TeacherAssignments.RemoveRange(existingAssignments);
+                    existingAssignment.TeacherId = staff.StaffId;
+                    existingAssignment.Role = dto.Role;
+                    existingAssignment.Status = "Active";
+                    existingAssignment.SectionLetter = section_letter;
+
+                    if (existingAssignments.Count > 1)
+                    {
+                        _context.TeacherAssignments.RemoveRange(existingAssignments.Skip(1));
+                    }
+                }
+                else
+                {
+                    await _context.TeacherAssignments.AddAsync(new TeacherAssignment
+                    {
+                        ClassId = id,
+                        SectionLetter = section_letter,
+                        TeacherId = staff.StaffId,
+                        Role = dto.Role,
+                        Status = "Active",
+                        SubjectId = finalSubjectId
+                    });
                 }
             }
 
@@ -947,17 +1004,6 @@ namespace SMS.Api.Controllers.AcademicManagement
                 }
             }
 
-            var assignment = new TeacherAssignment
-            {
-                ClassId = id,
-                SectionLetter = section_letter,
-                TeacherId = staff.StaffId,
-                Role = dto.Role,
-                Status = "Active",
-                SubjectId = subjectId
-            };
-
-            await _context.TeacherAssignments.AddAsync(assignment);
             await _context.SaveChangesAsync();
 
             await LogAuditActionAsync("Assign Teacher", $"Assigned teacher '{staff.FirstName} {staff.LastName}' as {dto.Role} to section '{section_letter}' in class ID {id}.");

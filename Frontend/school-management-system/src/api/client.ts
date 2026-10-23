@@ -102,19 +102,24 @@ export const apiClient = async (endpoint: string, options: RequestInit = {}) => 
 
   if (!response.ok) {
     if (response.status === 401 && !endpoint.includes('/auth/')) {
-      try {
-        localStorage.removeItem('session_resume_module');
-        localStorage.setItem('session_timeout_occurred', 'true');
-      } catch {}
-      localStorage.removeItem('auth_user');
-      localStorage.removeItem('auth_token');
-      localStorage.removeItem('auth_token_timestamp');
-      localStorage.removeItem('roles');
-      localStorage.removeItem('active_module');
-      try {
-        window.dispatchEvent(new CustomEvent('auth_unauthorized'));
-        window.dispatchEvent(new CustomEvent('session_expired'));
-      } catch (e) {}
+      // Only treat 401 as session expiration if the user actually had an active auth_token.
+      // If there was no token, this was an unauthenticated request (e.g. public landing page),
+      // so do not wipe session or redirect to login.
+      if (token && token !== 'null' && token !== 'undefined') {
+        try {
+          localStorage.removeItem('session_resume_module');
+          localStorage.setItem('session_timeout_occurred', 'true');
+        } catch {}
+        localStorage.removeItem('auth_user');
+        localStorage.removeItem('auth_token');
+        localStorage.removeItem('auth_token_timestamp');
+        localStorage.removeItem('roles');
+        localStorage.removeItem('active_module');
+        try {
+          window.dispatchEvent(new CustomEvent('auth_unauthorized'));
+          window.dispatchEvent(new CustomEvent('session_expired'));
+        } catch (e) {}
+      }
     }
     let errorMessage = `HTTP error! status: ${response.status}`;
     if (response.status === 502) {
