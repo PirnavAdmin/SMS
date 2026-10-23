@@ -1652,9 +1652,25 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
     };
 
     try {
+      const teacherSubjects = [
+        t.primarySubject,
+        t.secondarySubject,
+        t.department,
+        t.designation,
+        ...(t.assignedSubjects || [])
+      ].filter(Boolean) as string[];
+
+      const matchedSubject = (activeClass.subjects || []).find(subName => 
+        teacherSubjects.some(tSub => 
+          subName.toLowerCase().includes(tSub.toLowerCase()) || 
+          tSub.toLowerCase().includes(subName.toLowerCase())
+        )
+      ) || (activeClass.subjects && activeClass.subjects.length > 0 ? activeClass.subjects[0] : undefined);
+
       await assignTeacherApi(activeClass.id, activeWorkspaceSection, {
-        teacher_id: teacherId,
-        role: "Class Teacher"
+        teacher_id: t.id || t.empId || teacherId,
+        role: "Class Teacher",
+        ...(matchedSubject ? { subject_name: matchedSubject } : {})
       });
       await updateAcademicClass(activeClass.id, { sectionTeachers: updatedTeachers } as any);
       await fetchAcademicClasses();

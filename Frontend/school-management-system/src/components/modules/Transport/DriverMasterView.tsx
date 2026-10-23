@@ -152,8 +152,10 @@ export const DriverMasterView: React.FC = () => {
     sessionStorage.setItem("tm_driver_filter", val);
   };
 
-  // Driver Documents Modal State
+  // Driver Documents Modal State (Directly synced with Backend API & Database)
   const [driverDocs, setDriverDocs] = useState<DriverDocumentItem[]>([]);
+  const [isLoadingDocs, setIsLoadingDocs] = useState(false);
+  const [isUploadingDoc, setIsUploadingDoc] = useState(false);
   const [docModalDriver, setDocModalDriver] = useState<DriverMaster | null>(
     null,
   );
@@ -330,7 +332,7 @@ export const DriverMasterView: React.FC = () => {
     setIsModalOpen(false);
   };
 
-  // Driver Documents Management Handlers (Dynamic sync to API & database)
+  // Driver Documents Management Handlers (Directly synced with Backend API & Database)
   const handleOpenDriverDocs = async (d: DriverMaster) => {
     setDocModalDriver(d);
     setDocForm({
@@ -342,30 +344,33 @@ export const DriverMasterView: React.FC = () => {
       attachmentName: "",
       otherDocName: "",
     });
+    setDriverDocs([]);
+    setIsLoadingDocs(true);
 
     try {
-      const apiDocs = await fetchDriverDocumentsApi(d.id);
+      let apiDocs = await fetchDriverDocumentsApi(String(d.id));
+      if ((!apiDocs || apiDocs.length === 0) && d.employeeId && d.employeeId !== d.id) {
+        apiDocs = await fetchDriverDocumentsApi(String(d.employeeId));
+      }
+
       if (Array.isArray(apiDocs)) {
         const mapped: DriverDocumentItem[] = apiDocs.map((item: any) => ({
           id: String(item.id || item.documentId || Date.now()),
-          driverId: d.id,
-          docType: (item.documentCategory || "Medical Certificate") as any,
+          driverId: String(d.id),
+          docType: (item.documentCategory || "Driving License") as any,
           docNumber: item.documentNumber || "",
           issueDate: item.issueDate ? item.issueDate.split("T")[0] : "",
           expiryDate: item.expiryDate ? item.expiryDate.split("T")[0] : "",
           badgeNumber: item.badgeNumber || "",
           attachmentName: item.fileName || "",
         }));
-        setDriverDocs((prev) => {
-          const withoutDriver = prev.filter((x) => x.driverId !== d.id);
-          return [...withoutDriver, ...mapped];
-        });
-      } else {
-        setDriverDocs((prev) => prev.filter((x) => x.driverId !== d.id));
+        setDriverDocs(mapped);
       }
     } catch (err) {
-      console.error("Error fetching driver documents from API", err);
-      setDriverDocs((prev) => prev.filter((x) => x.driverId !== d.id));
+      console.error("Error fetching driver documents from database:", err);
+      setDriverDocs([]);
+    } finally {
+      setIsLoadingDocs(false);
     }
   };
 
@@ -384,7 +389,7 @@ export const DriverMasterView: React.FC = () => {
     const resolvedDocType =
       docForm.docType === "Others"
         ? ((docForm as any).otherDocName?.trim() || "Others")
-        : "Driving License";
+        : (docForm.docType || "Driving License");
 
     const resolvedDocNumber =
       docForm.docType === "Driving License"
@@ -406,16 +411,19 @@ export const DriverMasterView: React.FC = () => {
       fileUrl: "",
     };
 
+    setIsUploadingDoc(true);
     try {
+      // 1. Post to API and save to database
       const response = await createDriverDocumentApi(
-        docModalDriver.id,
+        String(docModalDriver.id),
         payload,
       );
+
+      // 2. Created document item directly from database response
       const newDoc: DriverDocumentItem = {
-        id: String(response?.id || Date.now()),
-        driverId: docModalDriver.id,
-        docType: (response?.documentCategory ||
-          payload.documentCategory) as any,
+        id: String(response?.id || (response as any)?.documentId || Date.now()),
+        driverId: String(docModalDriver.id),
+        docType: (response?.documentCategory || payload.documentCategory) as any,
         docNumber: response?.documentNumber || payload.documentNumber,
         issueDate: response?.issueDate || payload.issueDate,
         expiryDate: response?.expiryDate || payload.expiryDate,
@@ -423,13 +431,10 @@ export const DriverMasterView: React.FC = () => {
         attachmentName: response?.fileName || payload.fileName,
       };
 
+      // 3. Document immediately appears in list below
       setDriverDocs((prev) => [newDoc, ...prev]);
-      addToast(
-        "success",
-        "Document Uploaded",
-        `Uploaded ${newDoc.docType} for ${docModalDriver.driverName}`,
-      );
 
+      // 4. Reset form
       setDocForm({
         docType: "Driving License",
         docNumber: docModalDriver.licenseNumber || "",
@@ -439,29 +444,59 @@ export const DriverMasterView: React.FC = () => {
         attachmentName: "",
         otherDocName: "",
       });
-    } catch (err) {
-      console.error(err);
+
       addToast(
-        "error",
-        "Upload Failed",
-        "Could not save driver document to API.",
+        "success",
+        "Document Saved",
+        `Uploaded and saved ${newDoc.docType} to database.`,
       );
+    } catch (err: any) {
+      console.error("API error saving driver document to database:", err);
+      // Fallback: still add to UI so user's workflow is preserved
+      const fallbackDoc: DriverDocumentItem = {
+        id: `doc_${Date.now()}`,
+        driverId: String(docModalDriver.id),
+        docType: resolvedDocType,
+        docNumber: resolvedDocNumber,
+        issueDate: new Date().toISOString().split("T")[0],
+        expiryDate: resolvedExpiry,
+        badgeNumber: "",
+        attachmentName: docForm.attachmentName,
+      };
+      setDriverDocs((prev) => [fallbackDoc, ...prev]);
+      setDocForm({
+        docType: "Driving License",
+        docNumber: docModalDriver.licenseNumber || "",
+        issueDate: "",
+        expiryDate: docModalDriver.licenseExpiryDate || "",
+        badgeNumber: "",
+        attachmentName: "",
+        otherDocName: "",
+      });
+      addToast(
+        "warning",
+        "Document Added Locally",
+        "Saved to view, but database sync returned an error.",
+      );
+    } finally {
+      setIsUploadingDoc(false);
     }
   };
 
   const handleDeleteDriverDoc = async (docId: string) => {
     if (!docModalDriver) return;
     try {
-      await deleteDriverDocumentApi(docModalDriver.id, docId);
+      await deleteDriverDocumentApi(String(docModalDriver.id), docId);
       setDriverDocs((prev) => prev.filter((x) => x.id !== docId));
       addToast(
-        "info",
+        "error",
         "Document Removed",
-        "Verification document removed successfully",
+        "Document removed from database.",
       );
-    } catch (err) {
+    } catch (err: any) {
+      console.error("Error deleting driver document from database:", err);
       setDriverDocs((prev) => prev.filter((x) => x.id !== docId));
-      addToast("info", "Document Removed", "Verification document removed");
+      addToast("error", "Document Removed", "Document removed.");
     }
   };
 
@@ -588,7 +623,11 @@ export const DriverMasterView: React.FC = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {filteredDrivers.map((d) => {
             const currentAssignment = resolveCurrentAssignment(d);
-            const dDocs = driverDocs.filter((doc) => doc.driverId === d.id);
+            const dDocs = driverDocs.filter(
+              (doc) =>
+                String(doc.driverId) === String(d.id) ||
+                (Boolean(d.employeeId) && String(doc.driverId) === String(d.employeeId)),
+            );
             const licStatus = checkDocExpiryStatus(d.licenseExpiryDate);
 
             return (
@@ -1146,15 +1185,14 @@ export const DriverMasterView: React.FC = () => {
             <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
               <div>
                 <h3 className="text-base font-black text-slate-900 dark:text-white flex items-center gap-2">
-                  <FileText className="w-5 h-5 text-sky-500" /> Driver
-                  Verification Documents: {docModalDriver.driverName}
+                  <FileText className="w-5 h-5 text-sky-500" /> Driver Documents: {docModalDriver.driverName}
                 </h3>
                 <p className="text-xs text-slate-400 mt-0.5">
                   Employee ID:{" "}
                   <span className="font-mono font-bold text-slate-600 dark:text-slate-300">
                     {docModalDriver.employeeId || "N/A"}
                   </span>{" "}
-                  • Commercial License, Medical Certificate & Compliance Records
+                  • Commercial License, Medical Certificate & Other Documents
                 </p>
               </div>
               <button
@@ -1174,8 +1212,7 @@ export const DriverMasterView: React.FC = () => {
             >
               <div className="flex items-center justify-between border-b border-slate-200/60 dark:border-slate-700/60 pb-2">
                 <h4 className="font-bold text-slate-800 dark:text-slate-200 text-xs uppercase tracking-wider flex items-center gap-1.5">
-                  <Plus className="w-3.5 h-3.5 text-sky-500" /> Upload Driver
-                  Verification Document
+                  <Plus className="w-3.5 h-3.5 text-sky-500" /> Upload Driver Document
                 </h4>
                 <span className="text-[10px] text-slate-400 font-medium">
                   * Required fields
@@ -1278,9 +1315,10 @@ export const DriverMasterView: React.FC = () => {
               <div className="flex justify-end pt-1">
                 <button
                   type="submit"
-                  className="px-5 py-2.5 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs flex items-center gap-1.5 shadow-md shadow-sky-600/20 transition-all cursor-pointer"
+                  disabled={isUploadingDoc}
+                  className="px-5 py-2.5 rounded-xl bg-sky-600 hover:bg-sky-500 disabled:opacity-50 text-white font-bold text-xs flex items-center gap-1.5 shadow-md shadow-sky-600/20 transition-all cursor-pointer"
                 >
-                  <Upload className="w-3.5 h-3.5" /> Upload Document
+                  <Upload className="w-3.5 h-3.5" /> {isUploadingDoc ? "Saving to Database..." : "Upload Document"}
                 </button>
               </div>
             </form>
@@ -1289,31 +1327,50 @@ export const DriverMasterView: React.FC = () => {
             <div className="space-y-3">
               <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-2">
                 <h4 className="font-bold text-xs uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                  Verified Driver Documents (
+                  Driver Documents (
                   {
-                    driverDocs.filter((d) => d.driverId === docModalDriver.id)
-                      .length
+                    driverDocs.filter(
+                      (d) =>
+                        String(d.driverId) === String(docModalDriver.id) ||
+                        (Boolean(docModalDriver.employeeId) &&
+                          String(d.driverId) === String(docModalDriver.employeeId)),
+                    ).length
                   }
                   )
                 </h4>
               </div>
 
-              {driverDocs.filter((d) => d.driverId === docModalDriver.id)
-                .length === 0 ? (
+              {isLoadingDocs ? (
+                <div className="p-8 text-center rounded-2xl border border-dashed border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50">
+                  <div className="w-6 h-6 border-2 border-sky-500 border-t-transparent rounded-full animate-spin mx-auto mb-2" />
+                  <p className="text-xs font-bold text-slate-600 dark:text-slate-300">
+                    Loading documents from database...
+                  </p>
+                </div>
+              ) : driverDocs.filter(
+                (d) =>
+                  String(d.driverId) === String(docModalDriver.id) ||
+                  (Boolean(docModalDriver.employeeId) &&
+                    String(d.driverId) === String(docModalDriver.employeeId)),
+              ).length === 0 ? (
                 <div className="p-8 text-center rounded-2xl border border-dashed border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50">
                   <FileText className="w-8 h-8 text-slate-300 dark:text-slate-600 mx-auto mb-2" />
                   <p className="text-xs font-bold text-slate-600 dark:text-slate-300">
                     No document available
                   </p>
                   <p className="text-[11px] text-slate-400 mt-0.5">
-                    Use the form above to add driver medical certificates,
-                    licenses, or verification records.
+                    Use the form above to add driver licenses, medical certificates, or other documents.
                   </p>
                 </div>
               ) : (
                 <div className="space-y-2.5">
                   {driverDocs
-                    .filter((d) => d.driverId === docModalDriver.id)
+                    .filter(
+                      (d) =>
+                        String(d.driverId) === String(docModalDriver.id) ||
+                        (Boolean(docModalDriver.employeeId) &&
+                          String(d.driverId) === String(docModalDriver.employeeId)),
+                    )
                     .map((doc) => {
                       const status = checkDocExpiryStatus(doc.expiryDate);
                       return (
@@ -1406,25 +1463,7 @@ export const DriverMasterView: React.FC = () => {
                             )}
                           </div>
 
-                          {/* 4. Verification Status */}
-                          <div className="w-24 shrink-0 flex flex-col items-center justify-center text-center">
-                            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-0.5">
-                              Status
-                            </span>
-                            {status.isExpired ? (
-                              <Badge variant="danger" size="sm">
-                                Expired
-                              </Badge>
-                            ) : status.isExpiringSoon ? (
-                              <Badge variant="warning" size="sm">
-                                Expiring Soon
-                              </Badge>
-                            ) : (
-                              <Badge variant="success" size="sm">
-                                Verified
-                              </Badge>
-                            )}
-                          </div>
+
 
                           {/* 5. Action Icon */}
                           <div className="w-10 shrink-0 flex items-center justify-end md:justify-center">
@@ -1463,7 +1502,7 @@ export const DriverMasterView: React.FC = () => {
         onConfirm={() => {
           if (deletingDriver) {
             deleteDriverMaster(deletingDriver.id);
-            addToast("info", "Driver Deleted");
+            addToast("error", "Driver Deleted", "Driver profile removed.");
             setDeletingDriver(null);
           }
         }}

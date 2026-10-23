@@ -103,10 +103,8 @@ const MainLayout: React.FC = () => {
   }, []);
   const [showLogin, setShowLogin] = useState<boolean>(() => {
     try {
-      const isTimeout = localStorage.getItem("session_timeout_occurred");
-      const showLoginFlag = localStorage.getItem("show_login_view");
-      if (isTimeout === "true" || showLoginFlag === "true") {
-        return true;
+      if (typeof window !== "undefined") {
+        return window.location.hash === "#login";
       }
       return false;
     } catch {
@@ -122,18 +120,36 @@ const MainLayout: React.FC = () => {
       }
     };
     const handleSessionExpired = () => {
+      try {
+        sessionStorage.setItem("show_login_view", "true");
+        window.location.hash = "#login";
+      } catch {}
       setShowLogin(true);
       setActiveModuleState("dashboard");
+    };
+
+    const handleHashChange = () => {
+      const isLoginHash = window.location.hash === "#login";
+      setShowLogin(isLoginHash);
+      if (!isLoginHash) {
+        try {
+          sessionStorage.removeItem("show_login_view");
+          localStorage.removeItem("session_timeout_occurred");
+          localStorage.removeItem("show_login_view");
+        } catch {}
+      }
     };
 
     window.addEventListener('navigate_module', handleModuleNav as EventListener);
     window.addEventListener('session_expired', handleSessionExpired);
     window.addEventListener('auth_unauthorized', handleSessionExpired);
+    window.addEventListener('hashchange', handleHashChange);
 
     return () => {
       window.removeEventListener('navigate_module', handleModuleNav as EventListener);
       window.removeEventListener('session_expired', handleSessionExpired);
       window.removeEventListener('auth_unauthorized', handleSessionExpired);
+      window.removeEventListener('hashchange', handleHashChange);
     };
   }, []);
 
@@ -209,19 +225,28 @@ const MainLayout: React.FC = () => {
 
   useEffect(() => {
     if (!isAuthenticated) {
-      setActiveModuleState("dashboard");
-      try {
-        localStorage.setItem("active_module", "dashboard");
-        localStorage.removeItem("session_resume_module");
-      } catch {}
-      setShowLogin(true);
-    } else {
-      if (!prevAuthenticated.current) {
-        // Fresh login: always reflect dashboard
+      if (prevAuthenticated.current) {
+        // User transitioned from authenticated -> logged out
         setActiveModuleState("dashboard");
         try {
           localStorage.setItem("active_module", "dashboard");
           localStorage.removeItem("session_resume_module");
+          if (window.location.hash !== "#login") {
+            window.location.hash = "#login";
+          }
+        } catch {}
+        setShowLogin(true);
+      }
+    } else {
+      if (!prevAuthenticated.current) {
+        // Fresh login: always reflect dashboard and clean up hash if #login
+        setActiveModuleState("dashboard");
+        try {
+          localStorage.setItem("active_module", "dashboard");
+          localStorage.removeItem("session_resume_module");
+          if (window.location.hash === "#login") {
+            window.history.replaceState(null, "", window.location.pathname + window.location.search);
+          }
         } catch {}
       } else {
         try {
@@ -255,7 +280,17 @@ const MainLayout: React.FC = () => {
     if (showLogin) {
       return (
         <LoginView
-          onBack={() => setShowLogin(false)}
+          onBack={() => {
+            try {
+              sessionStorage.removeItem("show_login_view");
+              localStorage.removeItem("session_timeout_occurred");
+              localStorage.removeItem("show_login_view");
+              if (window.location.hash === "#login") {
+                window.history.replaceState(null, "", window.location.pathname + window.location.search);
+              }
+            } catch {}
+            setShowLogin(false);
+          }}
           initialRole={selectedPortalRole}
         />
       );
@@ -264,6 +299,12 @@ const MainLayout: React.FC = () => {
       <LandingView
         onLoginClick={(role) => {
           setSelectedPortalRole(role);
+          try {
+            sessionStorage.setItem("show_login_view", "true");
+            if (window.location.hash !== "#login") {
+              window.location.hash = "#login";
+            }
+          } catch {}
           setShowLogin(true);
         }}
       />
