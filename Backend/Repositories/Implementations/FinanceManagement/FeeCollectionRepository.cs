@@ -227,7 +227,7 @@ public class FeeCollectionRepository : IFeeCollectionRepository
             .ToListAsync();
 
         var hostelApps = await _context.AdmissionApplications.AsNoTracking()
-            .Where(a => !a.IsDeleted && (a.StudentType == "Residential" || a.HostelBlock != null))
+            .Where(a => !a.IsDeleted && a.StudentType == "Residential" && a.Status != "Rejected" && a.Status != "Deleted" && a.Status != "Withdrawn")
             .ToListAsync();
 
         var allHostelConfigs = await _context.HostelFeeConfigs.AsNoTracking()
@@ -259,7 +259,7 @@ public class FeeCollectionRepository : IFeeCollectionRepository
         {
             var alloc = hostelAllocations.FirstOrDefault(b => b.StudentId == st.StudentId || (st.AdmissionNumber != null && b.RegistrationNo == st.AdmissionNumber));
             var hApp = hostelApps.FirstOrDefault(a => st.AdmissionNumber != null && (a.AdmissionNo == st.AdmissionNumber || a.RegistrationNo == st.AdmissionNumber));
-            bool isHosteller = alloc != null || hApp != null;
+            bool isHosteller = (hApp != null && hApp.StudentType == "Residential") || (alloc != null && (alloc.Status == "Active" || alloc.Status == "Occupied"));
             string stType = isHosteller ? "Hosteller" : "Day Scholar";
 
             if (!string.IsNullOrWhiteSpace(studentType) && !studentType.Equals("ALL", StringComparison.OrdinalIgnoreCase))
@@ -436,7 +436,8 @@ public class FeeCollectionRepository : IFeeCollectionRepository
         {
             isHosteller = await _context.AdmissionApplications.AsNoTracking()
                 .AnyAsync(a => !a.IsDeleted && (a.AdmissionNo == student.AdmissionNumber || a.RegistrationNo == student.AdmissionNumber) &&
-                               (a.StudentType == "Residential" || a.HostelBlock != null));
+                               a.StudentType == "Residential") &&
+            !await _context.AdmissionApplications.AsNoTracking().AnyAsync(a => !a.IsDeleted && (a.AdmissionNo == student.AdmissionNumber || a.RegistrationNo == student.AdmissionNumber || a.Id == student.StudentId) && a.StudentType != "Residential");
         }
 
         var feeStructures = await _context.DynamicFeeStructures.AsNoTracking().ToListAsync();
@@ -958,7 +959,7 @@ public class FeeCollectionRepository : IFeeCollectionRepository
             ? string.Join(", ", request.SelectedItems.Select(i => i.TermName).Where(t => !string.IsNullOrEmpty(t)).Distinct())
             : "";
         string feeHeadName = request.SelectedItems != null && request.SelectedItems.Any()
-            ? string.Join(", ", request.SelectedItems.Select(i => i.HeadName).Where(h => !string.IsNullOrEmpty(h)).Distinct())
+            ? string.Join(", ", request.SelectedItems.Select(i => i.GetEffectiveHeadName()).Where(h => !string.IsNullOrEmpty(h)).Distinct())
             : "Tuition Fee";
         string itemsJson = request.SelectedItems != null && request.SelectedItems.Any()
             ? JsonSerializer.Serialize(request.SelectedItems)
@@ -1375,22 +1376,37 @@ public class FeeCollectionRepository : IFeeCollectionRepository
             .Where(s => studentIdsStr.Contains(s.StudentId.ToString()) || (s.AdmissionNumber != null && studentIdsStr.Contains(s.AdmissionNumber)))
             .ToListAsync();
 
+        var registerAdmissions = await _context.AdmissionApplications.AsNoTracking()
+            .Include(a => a.AppliedClass)
+            .Where(a => studentIdsStr.Contains(a.Id.ToString()) || (a.AdmissionNo != null && studentIdsStr.Contains(a.AdmissionNo)) || (a.RegistrationNo != null && studentIdsStr.Contains(a.RegistrationNo)))
+            .ToListAsync();
+
         var items = new List<FeeReceiptDetailDto>();
         foreach (var p in payments)
         {
             var st = students.FirstOrDefault(s => s.StudentId.ToString() == p.StudentId || s.AdmissionNumber == p.StudentId);
+            var adm = registerAdmissions.FirstOrDefault(a => a.Id.ToString() == p.StudentId || a.AdmissionNo == p.StudentId || a.RegistrationNo == p.StudentId);
+            if (st == null && adm != null)
+            {
+                st = students.FirstOrDefault(s => (adm.AdmissionNo != null && s.AdmissionNumber == adm.AdmissionNo) || (adm.RegistrationNo != null && s.AdmissionNumber == adm.RegistrationNo));
+            }
+
+            string displayName = st?.StudentName ?? (adm != null ? $"{adm.FirstName} {adm.LastName}".Trim() : $"Student #{p.StudentId}");
+            string displayAdm = st?.AdmissionNumber ?? adm?.AdmissionNo ?? adm?.RegistrationNo ?? p.StudentId;
+            string displayClass = st?.ClassGrade?.ClassName ?? adm?.AppliedClass?.ClassName ?? string.Empty;
+
             items.Add(new FeeReceiptDetailDto
             {
                 PaymentId = p.Id,
                 ReceiptNo = !string.IsNullOrEmpty(p.ReceiptNo) ? p.ReceiptNo : $"REC-{p.PaymentDate.Year}-{p.Id:D4}",
                 PaymentDate = p.PaymentDate,
-                StudentId = st != null ? st.StudentId : 0,
-                AdmissionNo = st != null ? (st.AdmissionNumber ?? $"REG-{st.StudentId}") : p.StudentId,
-                StudentName = st != null ? (st.StudentName ?? $"Student #{st.StudentId}") : $"Student #{p.StudentId}",
-                ClassName = st?.ClassGrade?.ClassName ?? string.Empty,
-                Section = st?.ClassSection?.SectionName ?? string.Empty,
+                StudentId = st != null ? st.StudentId : (adm != null ? adm.Id : 0),
+                AdmissionNo = displayAdm,
+                StudentName = displayName,
+                ClassName = displayClass,
+                Section = st?.ClassSection?.SectionName ?? "A",
                 AcademicYear = st?.AcademicYear?.AcademicYearName ?? $"{DateTime.UtcNow.Year}-{(DateTime.UtcNow.Year + 1)}",
-                Branch = st?.Branch?.BranchName ?? string.Empty,
+                Branch = st?.Branch?.BranchName ?? adm?.BranchName ?? string.Empty,
                 AmountPaid = p.Amount,
                 DiscountAmount = p.DiscountAmount,
                 FineAmount = p.FineAmount,
@@ -1425,6 +1441,20 @@ public class FeeCollectionRepository : IFeeCollectionRepository
             .Include(s => s.Branch)
             .Include(s => s.AcademicYear)
             .FirstOrDefaultAsync(s => s.StudentId.ToString() == payment.StudentId || s.AdmissionNumber == payment.StudentId);
+
+        var adm = await _context.AdmissionApplications.AsNoTracking()
+            .Include(a => a.AppliedClass)
+            .FirstOrDefaultAsync(a => a.Id.ToString() == payment.StudentId || a.AdmissionNo == payment.StudentId || a.RegistrationNo == payment.StudentId);
+
+        if (st == null && adm != null)
+        {
+            st = await _context.Students.AsNoTracking()
+                .Include(s => s.ClassGrade)
+                .Include(s => s.ClassSection)
+                .Include(s => s.Branch)
+                .Include(s => s.AcademicYear)
+                .FirstOrDefaultAsync(s => (adm.AdmissionNo != null && s.AdmissionNumber == adm.AdmissionNo) || (adm.RegistrationNo != null && s.AdmissionNumber == adm.RegistrationNo));
+        }
 
         var breakdown = new List<FeeBreakdownItemDto>();
         if (!string.IsNullOrEmpty(payment.PaidItemsJson))
@@ -1591,19 +1621,91 @@ public class FeeCollectionRepository : IFeeCollectionRepository
             }
         }
 
-        // Dedicated payment totals
-        decimal transportCollected = validPayments.Sum(p => p.TransportFee);
+        // Dedicated payment totals (parsed dynamically from individual paid items or payment heads)
+        decimal transportCollected = 0m;
         decimal fineCollected = validPayments.Sum(p => p.FineAmount);
-        
-        decimal hostelCollectedFromPayments = validPayments
-            .Where(p => (!string.IsNullOrEmpty(p.FeeHeadName) && p.FeeHeadName.Contains("Hostel", StringComparison.OrdinalIgnoreCase)) ||
-                        (!string.IsNullOrEmpty(p.Remarks) && p.Remarks.Contains("Hostel", StringComparison.OrdinalIgnoreCase)))
-            .Sum(p => p.Amount);
+        decimal hostelCollectedFromPayments = 0m;
+        decimal uniformCollectedFromPayments = 0m;
+        decimal tuitionCollectedFromPayments = 0m;
 
-        decimal uniformCollectedFromPayments = validPayments
-            .Where(p => (!string.IsNullOrEmpty(p.FeeHeadName) && p.FeeHeadName.Contains("Uniform", StringComparison.OrdinalIgnoreCase)) ||
-                        (!string.IsNullOrEmpty(p.Remarks) && p.Remarks.Contains("Uniform", StringComparison.OrdinalIgnoreCase)))
-            .Sum(p => p.Amount);
+        foreach (var p in validPayments)
+        {
+            bool hasItemBreakdown = false;
+            if (!string.IsNullOrEmpty(p.PaidItemsJson))
+            {
+                try
+                {
+                    using var doc = JsonDocument.Parse(p.PaidItemsJson);
+                    if (doc.RootElement.ValueKind == JsonValueKind.Array)
+                    {
+                        foreach (var elem in doc.RootElement.EnumerateArray())
+                        {
+                            decimal itemAmt = 0m;
+                            if (elem.TryGetProperty("amount", out var amtProp) && amtProp.TryGetDecimal(out decimal aVal))
+                                itemAmt = aVal;
+                            else if (elem.TryGetProperty("Amount", out var amtProp2) && amtProp2.TryGetDecimal(out decimal aVal2))
+                                itemAmt = aVal2;
+
+                            string hName = "";
+                            if (elem.TryGetProperty("feeHeadName", out var hnProp)) hName = hnProp.GetString() ?? "";
+                            else if (elem.TryGetProperty("HeadName", out var hnProp2)) hName = hnProp2.GetString() ?? "";
+                            else if (elem.TryGetProperty("headName", out var hnProp3)) hName = hnProp3.GetString() ?? "";
+
+                            if (itemAmt > 0)
+                            {
+                                hasItemBreakdown = true;
+                                if (hName.Contains("Transport", StringComparison.OrdinalIgnoreCase))
+                                {
+                                    transportCollected += itemAmt;
+                                }
+                                else if (hName.Contains("Hostel", StringComparison.OrdinalIgnoreCase))
+                                {
+                                    hostelCollectedFromPayments += itemAmt;
+                                }
+                                else if (hName.Contains("Uniform", StringComparison.OrdinalIgnoreCase))
+                                {
+                                    uniformCollectedFromPayments += itemAmt;
+                                }
+                                else
+                                {
+                                    tuitionCollectedFromPayments += itemAmt;
+                                }
+                            }
+                        }
+                    }
+                }
+                catch
+                {
+                    hasItemBreakdown = false;
+                }
+            }
+
+            if (!hasItemBreakdown)
+            {
+                if (p.TransportFee > 0)
+                {
+                    transportCollected += p.TransportFee;
+                }
+                string hName = p.FeeHeadName ?? "";
+                string rem = p.Remarks ?? "";
+                if (hName.Contains("Hostel", StringComparison.OrdinalIgnoreCase) || rem.Contains("Hostel", StringComparison.OrdinalIgnoreCase))
+                {
+                    hostelCollectedFromPayments += p.Amount;
+                }
+                else if (hName.Contains("Uniform", StringComparison.OrdinalIgnoreCase) || rem.Contains("Uniform", StringComparison.OrdinalIgnoreCase))
+                {
+                    uniformCollectedFromPayments += p.Amount;
+                }
+                else if (hName.Contains("Transport", StringComparison.OrdinalIgnoreCase) || rem.Contains("Transport", StringComparison.OrdinalIgnoreCase))
+                {
+                    transportCollected += p.Amount;
+                }
+                else
+                {
+                    tuitionCollectedFromPayments += Math.Max(0m, p.Amount - p.TransportFee - p.FineAmount);
+                }
+            }
+        }
 
         // 3. Hostel Module Metrics (100% Dynamic from active bed allocations, residential admissions, and hostel fee configs)
         var activeBedAllocations = await _context.StudentBedAllocations.AsNoTracking()
@@ -1613,9 +1715,14 @@ public class FeeCollectionRepository : IFeeCollectionRepository
             .Where(b => b.Status == "Active" || b.Status == "Occupied" || string.IsNullOrEmpty(b.Status))
             .ToListAsync();
 
-        var hostelAdmissions = await _context.AdmissionApplications.AsNoTracking()
-            .Where(a => !a.IsDeleted && (a.StudentType == "Residential" || a.HostelBlock != null || a.HostelRoom != null))
+        var allActiveAdmissions = await _context.AdmissionApplications.AsNoTracking()
+            .Include(a => a.AppliedClass)
+            .Where(a => !a.IsDeleted && a.Status != "Rejected" && a.Status != "Deleted" && a.Status != "Withdrawn")
             .ToListAsync();
+
+        var hostelAdmissions = allActiveAdmissions
+            .Where(a => a.StudentType == "Residential")
+            .ToList();
 
         var allHostelConfigs = await _context.HostelFeeConfigs.AsNoTracking()
             .Where(h => h.Status == "Active" || string.IsNullOrEmpty(h.Status))
@@ -1650,7 +1757,12 @@ public class FeeCollectionRepository : IFeeCollectionRepository
                 (!string.IsNullOrEmpty(admNo) && (a.AdmissionNo == admNo || a.RegistrationNo == admNo)) ||
                 a.Id == s.StudentId);
 
-            bool isResident = alloc != null || app != null;
+            bool isResident = (app != null && app.StudentType == "Residential") ||
+                              (alloc != null && (alloc.Status == "Active" || alloc.Status == "Occupied"));
+            if (app != null && app.StudentType == "Non-Residential" && (alloc == null || alloc.Status == "Vacated"))
+            {
+                isResident = false;
+            }
             if (isResident)
             {
                 string blockName = alloc?.Hostel?.HostelName ?? app?.HostelBlock ?? "";
@@ -1750,11 +1862,6 @@ public class FeeCollectionRepository : IFeeCollectionRepository
         }
 
         decimal hostelCollected = hostelCollectedFromPayments;
-        if (hostelExpected > 0 && hostelCollected == 0m)
-        {
-            // Fallback estimation if hostel fees are bundled in payments
-            hostelCollected = Math.Min(hostelExpected, validPayments.Sum(p => p.Amount) * 0.15m);
-        }
 
         // 4. Transport Module Metrics
         var activeTransportAssignments = await _context.StudentTransportAssignments.AsNoTracking()
@@ -1763,9 +1870,9 @@ public class FeeCollectionRepository : IFeeCollectionRepository
             .Where(t => t.Status == true && !t.IsDeleted)
             .ToListAsync();
 
-        var transportAdmissions = await _context.AdmissionApplications.AsNoTracking()
-            .Where(a => !a.IsDeleted && a.TransportRequired == true)
-            .ToListAsync();
+        var transportAdmissions = allActiveAdmissions
+            .Where(a => a.TransportRequired == true)
+            .ToList();
 
         var allRoutes = await _context.TransportRoutes.AsNoTracking().ToListAsync();
         var allPickupPoints = await _context.PickupPoints.AsNoTracking().ToListAsync();
@@ -1829,13 +1936,10 @@ public class FeeCollectionRepository : IFeeCollectionRepository
         }
         else if (transportExpected == 0m && transportCollected > 0)
         {
-            transportExpected = transportCollected * 1.2m;
+            transportExpected = transportCollected;
         }
 
-        decimal transportCollectedTotal = Math.Max(transportCollected, validPayments.Where(p => 
-            (!string.IsNullOrEmpty(p.FeeHeadName) && p.FeeHeadName.Contains("Transport", StringComparison.OrdinalIgnoreCase)) ||
-            (!string.IsNullOrEmpty(p.Remarks) && p.Remarks.Contains("Transport", StringComparison.OrdinalIgnoreCase))
-        ).Sum(p => p.Amount));
+        decimal transportCollectedTotal = transportCollected;
 
         // 5. Uniform Module Metrics
         var uniformDistributions = await _context.StudentUniformDistributions.AsNoTracking()
@@ -1853,12 +1957,12 @@ public class FeeCollectionRepository : IFeeCollectionRepository
         // 6. Fines Metrics
         decimal feeChargesFines = 0m;
 
-        decimal finesExpected = Math.Max(fineCollected, feeChargesFines > 0 ? feeChargesFines : fineCollected * 1.2m);
+        decimal finesExpected = Math.Max(fineCollected, feeChargesFines);
         decimal finesCollected = fineCollected;
 
         // 7. Tuition Collected Calculation
-        decimal tuitionCollected = Math.Max(0m, validPayments.Sum(p => p.Amount) - (transportCollectedTotal + hostelCollected + uniformCollected + finesCollected));
-        if (tuitionCollected == 0m && validPayments.Count > 0)
+        decimal tuitionCollected = tuitionCollectedFromPayments;
+        if (tuitionCollected == 0m && validPayments.Count > 0 && (hostelCollected + transportCollectedTotal + uniformCollected + finesCollected) == 0m)
         {
             tuitionCollected = validPayments.Sum(p => p.Amount);
         }
@@ -1925,8 +2029,22 @@ public class FeeCollectionRepository : IFeeCollectionRepository
                 .Where(st => MatchesClassName(GetStudentClassName(st), cName))
                 .ToList();
 
-            var stIds = matchingStudents.Select(s => s.StudentId.ToString()).ToHashSet();
-            var admNos = matchingStudents.Where(s => s.AdmissionNumber != null).Select(s => s.AdmissionNumber!).ToHashSet();
+            var stIds = matchingStudents.Select(s => s.StudentId.ToString()).ToHashSet(StringComparer.OrdinalIgnoreCase);
+            var admNos = matchingStudents.Where(s => s.AdmissionNumber != null).Select(s => s.AdmissionNumber!).ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+            foreach (var st in matchingStudents)
+            {
+                var matchedApps = allActiveAdmissions.Where(a => 
+                    (st.AdmissionNumber != null && (a.AdmissionNo == st.AdmissionNumber || a.RegistrationNo == st.AdmissionNumber)) ||
+                    a.Id == st.StudentId ||
+                    (!string.IsNullOrEmpty(st.StudentName) && $"{a.FirstName} {a.LastName}".Trim().Equals(st.StudentName, StringComparison.OrdinalIgnoreCase)));
+                foreach (var ma in matchedApps)
+                {
+                    stIds.Add(ma.Id.ToString());
+                    if (!string.IsNullOrEmpty(ma.AdmissionNo)) admNos.Add(ma.AdmissionNo);
+                    if (!string.IsNullOrEmpty(ma.RegistrationNo)) admNos.Add(ma.RegistrationNo);
+                }
+            }
 
             decimal classCollected = validPayments
                 .Where(p => stIds.Contains(p.StudentId) || admNos.Contains(p.StudentId))
@@ -2070,18 +2188,59 @@ public class FeeCollectionRepository : IFeeCollectionRepository
             }
         }
 
-        // Calculate collected per Fee Head from validPayments
+        // Calculate collected per Fee Head dynamically from validPayments and PaidItemsJson
         foreach (var p in validPayments)
         {
-            string headName = !string.IsNullOrWhiteSpace(p.FeeHeadName) ? p.FeeHeadName : "Tuition Fee";
-            string normName = NormalizeCategoryName(headName, activeFeeHeadsList);
-
-            if (!catSummaryDict.ContainsKey(normName))
+            bool hasItemBreakdown = false;
+            if (!string.IsNullOrEmpty(p.PaidItemsJson))
             {
-                catSummaryDict[normName] = (normName, 0m, 0m);
+                try
+                {
+                    using var doc = JsonDocument.Parse(p.PaidItemsJson);
+                    if (doc.RootElement.ValueKind == JsonValueKind.Array)
+                    {
+                        foreach (var elem in doc.RootElement.EnumerateArray())
+                        {
+                            decimal itemAmt = 0m;
+                            if (elem.TryGetProperty("amount", out var amtProp) && amtProp.TryGetDecimal(out decimal aVal))
+                                itemAmt = aVal;
+                            else if (elem.TryGetProperty("Amount", out var amtProp2) && amtProp2.TryGetDecimal(out decimal aVal2))
+                                itemAmt = aVal2;
+
+                            string hName = "";
+                            if (elem.TryGetProperty("feeHeadName", out var hnProp)) hName = hnProp.GetString() ?? "";
+                            else if (elem.TryGetProperty("HeadName", out var hnProp2)) hName = hnProp2.GetString() ?? "";
+                            else if (elem.TryGetProperty("headName", out var hnProp3)) hName = hnProp3.GetString() ?? "";
+
+                            if (itemAmt > 0 && !string.IsNullOrWhiteSpace(hName))
+                            {
+                                hasItemBreakdown = true;
+                                string normName = NormalizeCategoryName(hName, activeFeeHeadsList);
+                                if (!catSummaryDict.ContainsKey(normName))
+                                {
+                                    catSummaryDict[normName] = (normName, 0m, 0m);
+                                }
+                                var cur = catSummaryDict[normName];
+                                catSummaryDict[normName] = (cur.Name, cur.Expected, cur.Collected + itemAmt);
+                            }
+                        }
+                    }
+                }
+                catch { hasItemBreakdown = false; }
             }
-            var cur = catSummaryDict[normName];
-            catSummaryDict[normName] = (cur.Name, cur.Expected, cur.Collected + p.Amount);
+
+            if (!hasItemBreakdown)
+            {
+                string headName = !string.IsNullOrWhiteSpace(p.FeeHeadName) ? p.FeeHeadName : "Tuition Fee";
+                string normName = NormalizeCategoryName(headName, activeFeeHeadsList);
+
+                if (!catSummaryDict.ContainsKey(normName))
+                {
+                    catSummaryDict[normName] = (normName, 0m, 0m);
+                }
+                var cur = catSummaryDict[normName];
+                catSummaryDict[normName] = (cur.Name, cur.Expected, cur.Collected + p.Amount);
+            }
         }
 
         // Include active module categories if expected or collected > 0

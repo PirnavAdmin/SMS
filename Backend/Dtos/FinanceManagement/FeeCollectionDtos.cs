@@ -66,6 +66,14 @@ public class FeeLineItemDto
 {
     public string FeeHeadId { get; set; } = string.Empty;
     public string HeadName { get; set; } = string.Empty;
+    public string FeeHeadName { get; set; } = string.Empty;
+
+    public string GetEffectiveHeadName()
+    {
+        if (!string.IsNullOrWhiteSpace(HeadName)) return HeadName;
+        if (!string.IsNullOrWhiteSpace(FeeHeadName)) return FeeHeadName;
+        return string.Empty;
+    }
     public string Frequency { get; set; } = "Term-Wise";
     public string DueDate { get; set; } = string.Empty;
     public decimal TotalAmount { get; set; }
@@ -133,6 +141,30 @@ public class StudentFeeProfileResponseDto
     public decimal TotalConcessions { get; set; }
     public decimal TotalOutstandingBalance { get; set; }
 
+    // Detailed Fee Head Breakdown
+    public decimal TuitionAssessedFee { get; set; }
+    public decimal TuitionPaidAmount { get; set; }
+    public decimal TuitionRemainingDue { get; set; }
+
+    public decimal TransportAssessedFee { get; set; }
+    public decimal TransportPaidAmount { get; set; }
+    public decimal TransportRemainingDue { get; set; }
+    public decimal TransportCreditAmount { get; set; }
+    public string? TransportUsageSummary { get; set; }
+
+    public decimal HostelAssessedFee { get; set; }
+    public decimal HostelPaidAmount { get; set; }
+    public decimal HostelRemainingDue { get; set; }
+    public string? HostelStaySummary { get; set; }
+
+    public decimal SecurityDepositAssessed { get; set; }
+    public decimal SecurityDepositPaid { get; set; }
+    public decimal SecurityDepositRemainingDue { get; set; }
+    public decimal SecurityDepositRefundable { get; set; }
+
+    public string FormattedTransportCredit => $"₹{TransportCreditAmount:N0}";
+    public string FormattedSecurityDepositDue => $"₹{SecurityDepositRemainingDue:N0}";
+
     public string FormattedCurrentDues => $"₹{CurrentYearDues:N0}";
     public string FormattedPreviousArrears => $"₹{PreviousYearsArrears:N0}";
     public string FormattedConcessions => $"₹{TotalConcessions:N0}";
@@ -153,6 +185,14 @@ public class SelectedFeeItemPaymentDto
 {
     public string FeeHeadId { get; set; } = string.Empty;
     public string HeadName { get; set; } = string.Empty;
+    public string FeeHeadName { get; set; } = string.Empty;
+
+    public string GetEffectiveHeadName()
+    {
+        if (!string.IsNullOrWhiteSpace(HeadName)) return HeadName;
+        if (!string.IsNullOrWhiteSpace(FeeHeadName)) return FeeHeadName;
+        return string.Empty;
+    }
     public string TermId { get; set; } = string.Empty;
     public string TermName { get; set; } = string.Empty;
     public decimal Amount { get; set; }
@@ -344,6 +384,14 @@ public class MonthlyCollectionTrendDto
 public class FeeHeadCollectionShareDto
 {
     public string HeadName { get; set; } = string.Empty;
+    public string FeeHeadName { get; set; } = string.Empty;
+
+    public string GetEffectiveHeadName()
+    {
+        if (!string.IsNullOrWhiteSpace(HeadName)) return HeadName;
+        if (!string.IsNullOrWhiteSpace(FeeHeadName)) return FeeHeadName;
+        return string.Empty;
+    }
     public decimal Amount { get; set; }
     public double Percentage { get; set; }
     public string Color { get; set; } = "#3b82f6";
@@ -432,4 +480,63 @@ public class FinanceDashboardStatsDto
     public List<PaymentModeSplitDto> PaymentModeDistribution { get; set; } = new();
     public List<FeeReceiptDetailDto> RecentTransactions { get; set; } = new();
     public List<FeeCategoryCollectionSummaryDto> CategoryBreakdown { get; set; } = new();
+}
+
+// =========================================================================
+// 8. STUDENT CATEGORY TRANSITION & RECONCILIATION DTOs
+// =========================================================================
+
+public class StudentCategoryTransitionRequestDto
+{
+    public int StudentId { get; set; }
+    public string? AdmissionNo { get; set; }
+    public string NewStudentType { get; set; } = "Residential"; // "Residential" or "Non-Residential"
+    public DateTime EffectiveDate { get; set; } = DateTime.UtcNow;
+    public DateTime? TransportEndDate { get; set; }
+    public DateTime? HostelJoiningDate { get; set; }
+    public int? HostelId { get; set; }
+    public int? RoomId { get; set; }
+    public string? BedNumber { get; set; }
+    public bool ApplyTransportCreditToHostel { get; set; } = false;
+    public string? Remarks { get; set; }
+}
+
+public class StudentCategoryTransitionResponseDto
+{
+    public bool Success { get; set; }
+    public string Message { get; set; } = string.Empty;
+    public string PreviousStudentType { get; set; } = string.Empty;
+    public string NewStudentType { get; set; } = string.Empty;
+    public string TransportUsagePeriod { get; set; } = string.Empty;
+    public decimal FinalizedTransportFee { get; set; }
+    public decimal TransportPaid { get; set; }
+    public decimal UnusedTransportCredit { get; set; }
+    public decimal CreditAppliedToHostel { get; set; }
+    public decimal RemainingTransportDue { get; set; }
+    public decimal HostelAccommodationFee { get; set; }
+    public decimal SecurityDepositAmount { get; set; }
+    public decimal NetOutstandingBalance { get; set; }
+    public StudentFeeProfileResponseDto? UpdatedProfile { get; set; }
+}
+
+public class ApplyTransportCreditRequestDto
+{
+    public int StudentId { get; set; }
+    public string? AdmissionNo { get; set; }
+    public decimal Amount { get; set; }
+    public string TargetFeeHead { get; set; } = "Hostel Fee"; // "Hostel Fee", "Hostel Security Deposit", "Tuition Fee"
+    public string? Reason { get; set; }
+    public string? AuthorizedBy { get; set; }
+}
+
+public class ProcessDepositRefundRequestDto
+{
+    public int StudentId { get; set; }
+    public string? AdmissionNo { get; set; }
+    public decimal RefundAmount { get; set; }
+    public decimal DeductionAmount { get; set; } = 0m;
+    public string? DeductionReason { get; set; }
+    public string PaymentMode { get; set; } = "Bank Transfer";
+    public string? Remarks { get; set; }
+    public string? AuthorizedBy { get; set; }
 }

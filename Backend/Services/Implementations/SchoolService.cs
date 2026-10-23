@@ -1406,14 +1406,34 @@ public class SchoolService : ISchoolService
 		app.BusRoute = dto.BusRoute;
 		app.PickupPoint = dto.PickupPoint;
 		app.DropPoint = dto.DropPoint;
-		app.HostelBlock = dto.HostelBlock;
-		app.FloorLevel = dto.FloorLevel;
-		app.HostelRoom = dto.HostelRoom;
-		app.AvailableBed = dto.AvailableBed;
-		app.AllocatedBedId = dto.AllocatedBedId ?? dto.AvailableBed ?? app.AllocatedBedId;
-		if (dto.HostelSecurityDepositPaid.HasValue) app.HostelSecurityDepositPaid = dto.HostelSecurityDepositPaid.Value;
-		if (dto.SecurityDepositAmount.HasValue) app.SecurityDepositAmount = dto.SecurityDepositAmount.Value;
-		if (!string.IsNullOrWhiteSpace(dto.SecurityDepositReceiptNo)) app.SecurityDepositReceiptNo = dto.SecurityDepositReceiptNo;
+		if (!string.Equals(app.StudentType, "Residential", StringComparison.OrdinalIgnoreCase))
+		{
+			app.HostelBlock = null;
+			app.FloorLevel = null;
+			app.HostelRoom = null;
+			app.AvailableBed = null;
+			app.AllocatedBedId = null;
+			app.HostelSecurityDepositPaid = false;
+			app.SecurityDepositAmount = 0m;
+			app.SecurityDepositReceiptNo = null;
+		}
+		else
+		{
+			app.HostelBlock = dto.HostelBlock;
+			app.FloorLevel = dto.FloorLevel;
+			app.HostelRoom = dto.HostelRoom;
+			app.AvailableBed = dto.AvailableBed;
+			app.AllocatedBedId = dto.AllocatedBedId ?? dto.AvailableBed ?? app.AllocatedBedId;
+			if (dto.HostelSecurityDepositPaid.HasValue) app.HostelSecurityDepositPaid = dto.HostelSecurityDepositPaid.Value;
+			if (dto.SecurityDepositAmount.HasValue) app.SecurityDepositAmount = dto.SecurityDepositAmount.Value;
+			if (!string.IsNullOrWhiteSpace(dto.SecurityDepositReceiptNo)) app.SecurityDepositReceiptNo = dto.SecurityDepositReceiptNo;
+
+			app.TransportRequired = false;
+			app.TransportType = null;
+			app.BusRoute = null;
+			app.PickupPoint = null;
+			app.DropPoint = null;
+		}
 		app.Scholarship = dto.Scholarship;
 		app.Discount = dto.Discount;
 
@@ -1479,7 +1499,7 @@ public class SchoolService : ISchoolService
 					BranchId = branchId,
 					ClassId = targetClassId,
 					SectionLetter = !string.IsNullOrWhiteSpace(sectionLetter) ? sectionLetter : "A",
-					AdmissionType = "Regular",
+					AdmissionType = app.StudentType ?? "Non-Residential",
 					Status = app.Status ?? "",
 					IsDeleted = isDeleted,
 					CreatedDate = DateTime.UtcNow
@@ -1498,6 +1518,7 @@ public class SchoolService : ISchoolService
 				existing.Caste = app.Caste;
 				existing.BranchId = branchId;
 				existing.ClassId = targetClassId;
+				existing.AdmissionType = app.StudentType ?? "Non-Residential";
 				if (!string.IsNullOrWhiteSpace(sectionLetter))
 				{
 					existing.SectionLetter = sectionLetter;
@@ -1886,109 +1907,79 @@ public class SchoolService : ISchoolService
 	{
 		try
 		{
-			if (string.Equals(app.StudentType, "Residential", StringComparison.OrdinalIgnoreCase))
+			if (!string.Equals(app.StudentType, "Residential", StringComparison.OrdinalIgnoreCase))
 			{
-				string? rawBed = !string.IsNullOrWhiteSpace(app.AllocatedBedId) && app.AllocatedBedId != "N/A" 
-					? app.AllocatedBedId 
-					: (!string.IsNullOrWhiteSpace(app.AvailableBed) && app.AvailableBed != "N/A" ? app.AvailableBed : null);
+				var existingAllocs = await _context.StudentBedAllocations
+					.Where(a => (a.StudentId == app.Id || (!string.IsNullOrEmpty(app.AdmissionNo) && a.RegistrationNo == app.AdmissionNo) || (!string.IsNullOrEmpty(app.RegistrationNo) && a.RegistrationNo == app.RegistrationNo)) && (a.Status == "Active" || a.Status == "Occupied"))
+					.ToListAsync();
 
-				bool depositRequired = (app.SecurityDepositAmount ?? 0) > 0;
-				bool depositSatisfied = !depositRequired || app.HostelSecurityDepositPaid;
-
-				if (string.IsNullOrWhiteSpace(rawBed) || !depositSatisfied)
+				foreach (var alloc in existingAllocs)
 				{
-					var pendingAlloc = await Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions.FirstOrDefaultAsync(
-						_context.StudentBedAllocations, a => a.StudentId == app.Id && a.Status == "Active");
-					if (pendingAlloc != null)
-					{
-						pendingAlloc.Status = "Inactive";
-						await _context.SaveChangesAsync();
-					}
-					return;
+					alloc.Status = "Vacated";
 				}
-
-				string blockName = !string.IsNullOrWhiteSpace(app.HostelBlock) && app.HostelBlock != "N/A" ? app.HostelBlock : "Main Block";
-				string roomNo = !string.IsNullOrWhiteSpace(app.HostelRoom) && app.HostelRoom != "N/A" ? app.HostelRoom : "Room 101";
-				string bedNo = rawBed!;
-				/*
-				string bedNo = !string.IsNullOrWhiteSpace(app.AllocatedBedId) && app.AllocatedBedId != "N/A" 
-					? app.AllocatedBedId 
-					: (!string.IsNullOrWhiteSpace(app.AvailableBed) && app.AvailableBed != "N/A" ? app.AvailableBed : "Bed-1");
-
-				*/
-				var block = await Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions.FirstOrDefaultAsync(
-					_context.HostelBlocks, b => b.HostelName == blockName && b.Status == "Active");
-
-				if (block == null)
+				if (existingAllocs.Any())
 				{
-					block = new HostelBlock { HostelName = blockName, HostelCode = "HST-01", HostelType = "Boys Hostel", Status = "Active", Address = string.Empty };
-					await _context.HostelBlocks.AddAsync(block);
 					await _context.SaveChangesAsync();
 				}
+				return;
+			}
 
-				var roomType = await Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions.FirstOrDefaultAsync(
-					_context.RoomTypeConfigs, rt => rt.Status == "Active");
+			string? rawBed = !string.IsNullOrWhiteSpace(app.AllocatedBedId) && app.AllocatedBedId != "N/A" 
+				? app.AllocatedBedId 
+				: (!string.IsNullOrWhiteSpace(app.AvailableBed) && app.AvailableBed != "N/A" ? app.AvailableBed : null);
 
-				if (roomType == null)
+			bool depositRequired = (app.SecurityDepositAmount ?? 0) > 0;
+			bool depositSatisfied = !depositRequired || app.HostelSecurityDepositPaid;
+
+			if (string.IsNullOrWhiteSpace(app.HostelBlock) || string.IsNullOrWhiteSpace(app.HostelRoom) || string.IsNullOrWhiteSpace(rawBed) || !depositSatisfied)
+			{
+				var pendingAlloc = await _context.StudentBedAllocations.FirstOrDefaultAsync(
+					a => (a.StudentId == app.Id || (!string.IsNullOrEmpty(app.AdmissionNo) && a.RegistrationNo == app.AdmissionNo)) && a.Status == "Active");
+				if (pendingAlloc != null)
 				{
-					roomType = new RoomTypeConfig { RoomTypeSpecification = "Standard Room", BedCapacity = 4, AcType = "AC", Status = "Active" };
-					await _context.RoomTypeConfigs.AddAsync(roomType);
+					pendingAlloc.Status = "Vacated";
 					await _context.SaveChangesAsync();
 				}
+				return;
+			}
 
-				var room = await Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions.FirstOrDefaultAsync(
-					_context.RoomMasters, r => r.HostelId == block.HostelId && r.RoomNumber == roomNo && r.Status == "Active");
+			var block = await _context.HostelBlocks.FirstOrDefaultAsync(b => b.HostelName == app.HostelBlock && b.Status == "Active");
+			if (block == null) return;
 
-				if (room == null)
+			var room = await _context.RoomMasters.FirstOrDefaultAsync(r => r.HostelId == block.HostelId && r.RoomNumber == app.HostelRoom && r.Status == "Active");
+			if (room == null) return;
+
+			string regNo = app.AdmissionNo ?? app.RegistrationNo ?? string.Empty;
+			string stName = $"{app.FirstName} {app.LastName}".Trim();
+
+			var existingAllocation = await _context.StudentBedAllocations.FirstOrDefaultAsync(
+				a => (a.StudentId == app.Id || (!string.IsNullOrEmpty(regNo) && a.RegistrationNo == regNo)) && a.Status == "Active");
+
+			if (existingAllocation == null)
+			{
+				var allocation = new StudentBedAllocation
 				{
-					room = new RoomMaster { HostelId = block.HostelId, RoomTypeId = roomType.RoomTypeId, RoomNumber = roomNo, FloorLevel = app.FloorLevel ?? "1st Floor", Status = "Active" };
-					await _context.RoomMasters.AddAsync(room);
-					await _context.SaveChangesAsync();
-				}
-
-				string regNo = app.RegistrationNo ?? string.Empty;
-				string stName = $"{app.FirstName} {app.LastName}".Trim();
-
-				var existingAllocation = await Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions.FirstOrDefaultAsync(
-					_context.StudentBedAllocations, a => a.StudentId == app.Id && a.Status == "Active");
-
-				if (existingAllocation == null)
-				{
-					var allocation = new StudentBedAllocation
-					{
-						StudentId = app.Id,
-						RegistrationNo = regNo,
-						StudentName = stName,
-						HostelId = block.HostelId,
-						RoomId = room.RoomId,
-						BedNumber = bedNo,
-						JoiningDate = DateTime.UtcNow,
-						Status = "Active"
-					};
-					await _context.StudentBedAllocations.AddAsync(allocation);
-				}
-				else
-				{
-					existingAllocation.RegistrationNo = regNo;
-					existingAllocation.StudentName = stName;
-					existingAllocation.HostelId = block.HostelId;
-					existingAllocation.RoomId = room.RoomId;
-					existingAllocation.BedNumber = bedNo;
-				}
-
-				await _context.SaveChangesAsync();
+					StudentId = app.Id,
+					RegistrationNo = regNo,
+					StudentName = stName,
+					HostelId = block.HostelId,
+					RoomId = room.RoomId,
+					BedNumber = rawBed!,
+					JoiningDate = DateTime.UtcNow,
+					Status = "Active"
+				};
+				await _context.StudentBedAllocations.AddAsync(allocation);
 			}
 			else
 			{
-				var existingAllocation = await Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions.FirstOrDefaultAsync(
-					_context.StudentBedAllocations, a => a.StudentId == app.Id && a.Status == "Active");
-
-				if (existingAllocation != null)
-				{
-					existingAllocation.Status = "Inactive";
-					await _context.SaveChangesAsync();
-				}
+				existingAllocation.RegistrationNo = regNo;
+				existingAllocation.StudentName = stName;
+				existingAllocation.HostelId = block.HostelId;
+				existingAllocation.RoomId = room.RoomId;
+				existingAllocation.BedNumber = rawBed!;
 			}
+
+			await _context.SaveChangesAsync();
 		}
 		catch (Exception ex)
 		{
