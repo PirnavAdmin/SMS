@@ -25,6 +25,13 @@ public class HostelService : IHostelService
         _context = context;
     }
 
+    public HostelService(IHostelRepository hostelRepo, ISchoolRepository schoolRepo)
+    {
+        _hostelRepo = hostelRepo;
+        _schoolRepo = schoolRepo;
+        _context = null!;
+    }
+
     // --- DASHBOARD METRICS ---
     public async Task<HostelDashboardMetricsDto> GetExecutiveDashboardMetricsAsync()
     {
@@ -696,50 +703,57 @@ public class HostelService : IHostelService
         AdmissionApplication? studentApp = null;
         Student? enrolledStudent = null;
 
-        if (dto.StudentId > 0)
+        if (_context != null)
         {
-            studentApp = await _context.AdmissionApplications.Include(a => a.AppliedClass).FirstOrDefaultAsync(a => a.Id == dto.StudentId);
-            if (studentApp == null)
+            if (dto.StudentId > 0)
             {
-                enrolledStudent = await _context.Students
-                    .Include(s => s.ClassGrade)
-                    .Include(s => s.ClassSection)
-                    .FirstOrDefaultAsync(s => s.StudentId == dto.StudentId);
-                if (enrolledStudent != null)
+                studentApp = await _context.AdmissionApplications.Include(a => a.AppliedClass).FirstOrDefaultAsync(a => a.Id == dto.StudentId);
+                if (studentApp == null)
                 {
-                    studentApp = await _context.AdmissionApplications
-                        .FirstOrDefaultAsync(a => a.AdmissionNo == enrolledStudent.AdmissionNumber);
+                    enrolledStudent = await _context.Students
+                        .Include(s => s.ClassGrade)
+                        .Include(s => s.ClassSection)
+                        .FirstOrDefaultAsync(s => s.StudentId == dto.StudentId);
+                    if (enrolledStudent != null)
+                    {
+                        studentApp = await _context.AdmissionApplications
+                            .FirstOrDefaultAsync(a => a.AdmissionNo == enrolledStudent.AdmissionNumber);
+                    }
+                }
+            }
+
+            if (studentApp == null && !string.IsNullOrWhiteSpace(dto.AdmissionNo))
+            {
+                studentApp = await _context.AdmissionApplications
+                    .Include(a => a.AppliedClass)
+                    .FirstOrDefaultAsync(a => a.AdmissionNo == dto.AdmissionNo.Trim());
+                if (enrolledStudent == null)
+                {
+                    enrolledStudent = await _context.Students
+                        .Include(s => s.ClassGrade)
+                        .Include(s => s.ClassSection)
+                        .FirstOrDefaultAsync(s => s.AdmissionNumber == dto.AdmissionNo.Trim());
+                }
+            }
+
+            if (studentApp == null && !string.IsNullOrWhiteSpace(dto.StudentName))
+            {
+                var trimmedName = dto.StudentName.Trim().ToLowerInvariant();
+                studentApp = await _context.AdmissionApplications
+                    .Include(a => a.AppliedClass)
+                    .FirstOrDefaultAsync(a => (a.FirstName + " " + a.LastName).ToLower() == trimmedName);
+                if (enrolledStudent == null && studentApp != null)
+                {
+                    enrolledStudent = await _context.Students
+                        .Include(s => s.ClassGrade)
+                        .Include(s => s.ClassSection)
+                        .FirstOrDefaultAsync(s => s.AdmissionNumber == studentApp.AdmissionNo);
                 }
             }
         }
-
-        if (studentApp == null && !string.IsNullOrWhiteSpace(dto.AdmissionNo))
+        else if (dto.StudentId > 0 && _schoolRepo != null)
         {
-            studentApp = await _context.AdmissionApplications
-                .Include(a => a.AppliedClass)
-                .FirstOrDefaultAsync(a => a.AdmissionNo == dto.AdmissionNo.Trim());
-            if (enrolledStudent == null)
-            {
-                enrolledStudent = await _context.Students
-                    .Include(s => s.ClassGrade)
-                    .Include(s => s.ClassSection)
-                    .FirstOrDefaultAsync(s => s.AdmissionNumber == dto.AdmissionNo.Trim());
-            }
-        }
-
-        if (studentApp == null && !string.IsNullOrWhiteSpace(dto.StudentName))
-        {
-            var trimmedName = dto.StudentName.Trim().ToLowerInvariant();
-            studentApp = await _context.AdmissionApplications
-                .Include(a => a.AppliedClass)
-                .FirstOrDefaultAsync(a => (a.FirstName + " " + a.LastName).ToLower() == trimmedName);
-            if (enrolledStudent == null && studentApp != null)
-            {
-                enrolledStudent = await _context.Students
-                    .Include(s => s.ClassGrade)
-                    .Include(s => s.ClassSection)
-                    .FirstOrDefaultAsync(s => s.AdmissionNumber == studentApp.AdmissionNo);
-            }
+            studentApp = await _schoolRepo.GetApplicationByIdAsync(dto.StudentId);
         }
 
         if (studentApp == null && enrolledStudent == null)
@@ -751,69 +765,72 @@ public class HostelService : IHostelService
         string regNo = studentApp?.RegistrationNo ?? enrolledStudent?.RollNumber ?? string.Empty;
         string admNo = studentApp?.AdmissionNo ?? enrolledStudent?.AdmissionNumber ?? string.Empty;
 
-        // RULE 1: STUDENT TYPE MUST BE RESIDENTIAL
-        string stType = studentApp?.StudentType ?? "Non-Residential";
-        if (!IsResidentialType(stType))
+        if (_context != null)
         {
-            throw new InvalidOperationException($"Student '{stName}' has student type '{stType}'. Only Residential students are eligible for hostel room and bed allocation.");
-        }
+            // RULE 1: STUDENT TYPE MUST BE RESIDENTIAL
+            string stType = studentApp?.StudentType ?? "Non-Residential";
+            if (!IsResidentialType(stType))
+            {
+                throw new InvalidOperationException($"Student '{stName}' has student type '{stType}'. Only Residential students are eligible for hostel room and bed allocation.");
+            }
 
-        // RULE 2: VERIFY HOSTEL SECURITY DEPOSIT PAYMENT
-        string className = enrolledStudent?.ClassGrade?.ClassName ?? studentApp?.AppliedClass?.ClassName ?? string.Empty;
-        var feeConfigs = await _context.HostelFeeConfigs.Where(c => c.Status == "Active").ToListAsync();
-        decimal requiredDeposit = 0m;
-        var matchedConfig = feeConfigs.FirstOrDefault(c =>
-            (!string.IsNullOrWhiteSpace(c.ApplicableClasses) && !string.IsNullOrWhiteSpace(className) && c.ApplicableClasses.Contains(className)) ||
-            (!string.IsNullOrWhiteSpace(c.StartClass) && !string.IsNullOrWhiteSpace(c.EndClass)) ||
-            (!string.IsNullOrWhiteSpace(c.ClassRange)));
+            // RULE 2: VERIFY HOSTEL SECURITY DEPOSIT PAYMENT
+            string className = enrolledStudent?.ClassGrade?.ClassName ?? studentApp?.AppliedClass?.ClassName ?? string.Empty;
+            var feeConfigs = await _context.HostelFeeConfigs.Where(c => c.Status == "Active").ToListAsync();
+            decimal requiredDeposit = 0m;
+            var matchedConfig = feeConfigs.FirstOrDefault(c =>
+                (!string.IsNullOrWhiteSpace(c.ApplicableClasses) && !string.IsNullOrWhiteSpace(className) && c.ApplicableClasses.Contains(className)) ||
+                (!string.IsNullOrWhiteSpace(c.StartClass) && !string.IsNullOrWhiteSpace(c.EndClass)) ||
+                (!string.IsNullOrWhiteSpace(c.ClassRange)));
 
-        if (matchedConfig != null && matchedConfig.SecurityDeposit > 0)
-        {
-            requiredDeposit = matchedConfig.SecurityDeposit;
-        }
-        else if (studentApp?.SecurityDepositAmount > 0)
-        {
-            requiredDeposit = studentApp.SecurityDepositAmount.Value;
-        }
-        else
-        {
-            requiredDeposit = feeConfigs.FirstOrDefault()?.SecurityDeposit ?? 2000m;
-        }
+            if (matchedConfig != null && matchedConfig.SecurityDeposit > 0)
+            {
+                requiredDeposit = matchedConfig.SecurityDeposit;
+            }
+            else if (studentApp?.SecurityDepositAmount > 0)
+            {
+                requiredDeposit = studentApp.SecurityDepositAmount.Value;
+            }
+            else
+            {
+                requiredDeposit = feeConfigs.FirstOrDefault()?.SecurityDeposit ?? 2000m;
+            }
 
-        var completedPayments = await _context.FeePayments
-            .Where(p => (p.Status == "Completed" || p.Status == "Paid" || string.IsNullOrEmpty(p.Status)) &&
-                        p.Status != "Failed" && p.Status != "Cancelled" && p.Status != "Refunded")
-            .ToListAsync();
+            var completedPayments = await _context.FeePayments
+                .Where(p => (p.Status == "Completed" || p.Status == "Paid" || string.IsNullOrEmpty(p.Status)) &&
+                            p.Status != "Failed" && p.Status != "Cancelled" && p.Status != "Refunded")
+                .ToListAsync();
 
-        string stIdStr = enrolledStudent?.StudentId.ToString() ?? string.Empty;
-        string appIdStr = studentApp?.Id.ToString() ?? string.Empty;
+            string stIdStr = enrolledStudent?.StudentId.ToString() ?? string.Empty;
+            string appIdStr = studentApp?.Id.ToString() ?? string.Empty;
 
-        var studentDepositPayments = completedPayments.Where(p =>
-        {
-            bool matchStudent = (!string.IsNullOrWhiteSpace(stIdStr) && p.StudentId == stIdStr) ||
-                                 p.StudentId == appIdStr ||
-                                 (!string.IsNullOrWhiteSpace(admNo) && p.StudentId.Equals(admNo, StringComparison.OrdinalIgnoreCase)) ||
-                                 (!string.IsNullOrWhiteSpace(studentApp?.SecurityDepositReceiptNo) && p.ReceiptNo.Equals(studentApp.SecurityDepositReceiptNo, StringComparison.OrdinalIgnoreCase));
+            var studentDepositPayments = completedPayments.Where(p =>
+            {
+                bool matchStudent = (!string.IsNullOrWhiteSpace(stIdStr) && p.StudentId == stIdStr) ||
+                                     p.StudentId == appIdStr ||
+                                     (!string.IsNullOrWhiteSpace(admNo) && p.StudentId.Equals(admNo, StringComparison.OrdinalIgnoreCase)) ||
+                                     (!string.IsNullOrWhiteSpace(studentApp?.SecurityDepositReceiptNo) && p.ReceiptNo.Equals(studentApp.SecurityDepositReceiptNo, StringComparison.OrdinalIgnoreCase));
 
-            if (!matchStudent) return false;
+                if (!matchStudent) return false;
 
-            return (p.FeeHeadName?.ToLowerInvariant().Contains("security deposit") == true) ||
-                   (p.Remarks?.ToLowerInvariant().Contains("security deposit") == true) ||
-                   (p.PaidItemsJson?.ToLowerInvariant().Contains("security deposit") == true);
-        }).ToList();
+                return (p.FeeHeadName?.ToLowerInvariant().Contains("security deposit") == true) ||
+                       (p.Remarks?.ToLowerInvariant().Contains("security deposit") == true) ||
+                       (p.PaidItemsJson?.ToLowerInvariant().Contains("security deposit") == true);
+            }).ToList();
 
-        decimal paidDeposit = studentDepositPayments.Sum(p => p.Amount);
-        if (studentApp?.HostelSecurityDepositPaid == true && (studentApp.SecurityDepositAmount ?? 0m) > paidDeposit)
-        {
-            paidDeposit = studentApp.SecurityDepositAmount ?? requiredDeposit;
-        }
+            decimal paidDeposit = studentDepositPayments.Sum(p => p.Amount);
+            if (studentApp?.HostelSecurityDepositPaid == true && (studentApp.SecurityDepositAmount ?? 0m) > paidDeposit)
+            {
+                paidDeposit = studentApp.SecurityDepositAmount ?? requiredDeposit;
+            }
 
-        bool isDepositFullyPaid = (requiredDeposit > 0 && paidDeposit >= requiredDeposit) ||
-                                  (studentApp?.HostelSecurityDepositPaid == true && paidDeposit >= (studentApp.SecurityDepositAmount ?? requiredDeposit));
+            bool isDepositFullyPaid = (requiredDeposit > 0 && paidDeposit >= requiredDeposit) ||
+                                      (studentApp?.HostelSecurityDepositPaid == true && paidDeposit >= (studentApp.SecurityDepositAmount ?? requiredDeposit));
 
-        if (!isDepositFullyPaid)
-        {
-            throw new InvalidOperationException($"Student '{stName}' has not fully paid the required hostel security deposit of {requiredDeposit:C}. Current paid amount: {paidDeposit:C}. Room and bed allocation is locked until security deposit is paid in full.");
+            if (!isDepositFullyPaid)
+            {
+                throw new InvalidOperationException($"Student '{stName}' has not fully paid the required hostel security deposit of {requiredDeposit:C}. Current paid amount: {paidDeposit:C}. Room and bed allocation is locked until security deposit is paid in full.");
+            }
         }
 
         // 3. Find Hostel Block
@@ -873,7 +890,7 @@ public class HostelService : IHostelService
             activeAlloc.JoiningDate = dto.JoiningDate != default ? dto.JoiningDate : DateTime.UtcNow;
             await _hostelRepo.SaveChangesAsync();
 
-            if (studentApp != null)
+            if (studentApp != null && _context != null)
             {
                 studentApp.HostelBlock = hostel.HostelName;
                 studentApp.HostelRoom = room.RoomNumber;
@@ -909,7 +926,7 @@ public class HostelService : IHostelService
 
         await _hostelRepo.AddBedAllocationAsync(allocation);
         await _hostelRepo.SaveChangesAsync();
-        await _context.SaveChangesAsync();
+        if (_context != null) await _context.SaveChangesAsync();
 
         var created = await _hostelRepo.GetBedAllocationByIdAsync(allocation.AllocationId);
         return MapToBedAllocationDto(created ?? allocation);

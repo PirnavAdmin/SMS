@@ -51,10 +51,18 @@ public class StaffService : IStaffService
         }
         catch { }
 
-        var existingIds = await _context.Staff
-            .Where(s => s.EmployeeId != null)
-            .Select(s => s.EmployeeId!)
-            .ToListAsync();
+        List<string> existingIds;
+        try
+        {
+            existingIds = await _schoolRepository.GetAllEmployeeIdsAsync();
+        }
+        catch
+        {
+            existingIds = await _context.Staff
+                .Where(s => s.EmployeeId != null)
+                .Select(s => s.EmployeeId!)
+                .ToListAsync();
+        }
 
         var existingSet = new HashSet<string>(existingIds, StringComparer.OrdinalIgnoreCase);
 
@@ -76,7 +84,7 @@ public class StaffService : IStaffService
             }
         }
 
-        int nextNumber = Math.Max(maxNumber + 1, isTeaching ? 501 : 801);
+        int nextNumber = maxNumber + 1;
         string finalId = $"{prefix}-{DateTime.UtcNow.Year}-{nextNumber:D4}";
         while (existingSet.Contains(finalId))
         {
