@@ -26,7 +26,14 @@ import {
 
 import { DateInput } from '../../common/DateInput';
 import { SearchableSelect } from '../../common/SearchableSelect';
-import { validateEmail, validate10DigitPhone } from '../../../utils/validation';
+import {
+  validateEmail,
+  validate10DigitPhone,
+  validateDrivingLicense,
+  sanitizeDrivingLicenseInput,
+  normalizeDrivingLicense,
+  DRIVING_LICENCE_ERROR_MESSAGE,
+} from '../../../utils/validation';
 import {
   COUNTRY_DIAL_CODES,
   VALID_INDIAN_STATES,
@@ -1511,11 +1518,22 @@ export const BasicStaffFormFields: React.FC<BasicStaffFormFieldsProps> = ({
                     </label>
                     <input
                       type="text"
-                      placeholder="e.g. DL-2026-0073"
+                      maxLength={22}
+                      placeholder="e.g. DL-2026-0073 or MH-12-20200012345"
                       value={value.licenseNumber || ''}
-                      onChange={e => onChange('licenseNumber', e.target.value)}
+                      onChange={e => onChange('licenseNumber', sanitizeDrivingLicenseInput(e.target.value))}
+                      onBlur={() => {
+                        if (value.licenseNumber) {
+                          onChange('licenseNumber', normalizeDrivingLicense(value.licenseNumber));
+                        }
+                      }}
                       className={fieldClass + ' font-mono'}
                     />
+                    {value.licenseNumber && !validateDrivingLicense(value.licenseNumber, false).isValid && (
+                      <p className="text-[11px] font-bold text-rose-500 mt-1 leading-tight">
+                        {DRIVING_LICENCE_ERROR_MESSAGE}
+                      </p>
+                    )}
                   </div>
                   <div>
                     <label className="text-xs font-bold text-slate-700 dark:text-slate-300">

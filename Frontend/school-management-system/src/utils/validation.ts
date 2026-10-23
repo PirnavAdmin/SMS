@@ -866,6 +866,234 @@ export function validateCertificateTypeCode(code: string, required: boolean = tr
   return { isValid: true };
 }
 
+export const VALID_INDIAN_DL_STATE_CODES = new Set([
+  'AN', 'AP', 'AR', 'AS', 'BR', 'CG', 'CH', 'DD', 'DL', 'DN',
+  'GA', 'GJ', 'HP', 'HR', 'JH', 'JK', 'KA', 'KL', 'LA', 'LD',
+  'MH', 'ML', 'MN', 'MP', 'MZ', 'NL', 'OD', 'OR', 'PB', 'PY',
+  'RJ', 'SK', 'TG', 'TN', 'TR', 'TS', 'UA', 'UK', 'UP', 'WB'
+]);
+
+export const DRIVING_LICENCE_ERROR_MESSAGE = 'Enter a valid Indian driving licence number.';
+
+export type DrivingLicenseFormatType =
+  | 'SARATHI_STANDARD'
+  | 'CFST_YEAR_SUFFIX'
+  | 'ORG_LEGACY';
+
+export interface ParsedDrivingLicense {
+  isValid: boolean;
+  format?: DrivingLicenseFormatType;
+  normalized?: string;
+  stateCode?: string;
+  rtoCode?: string;
+  issueYear?: number;
+  serialNumber?: string;
+  error?: string;
+}
+
+export function normalizeDrivingLicense(input: string): string {
+  if (!input || typeof input !== 'string') return '';
+  return input.trim().toUpperCase().replace(/\s+/g, ' ');
+}
+
+export function sanitizeDrivingLicenseInput(input: string): string {
+  if (!input || typeof input !== 'string') return '';
+  return input
+    .toUpperCase()
+    .replace(/[^A-Z0-9\-\/\s]/g, '')
+    .replace(/\s+/g, ' ')
+    .replace(/\-+/g, '-')
+    .replace(/\/+/g, '/')
+    .slice(0, 22);
+}
+
+/**
+ * Parses and validates an Indian Driving Licence number against documented formats:
+ * 1. SARATHI_STANDARD: SS[-/ ]RR[A-Z]?[-/ ]YYYY[-/ ]NNNNNNN (6-7 digit serial, e.g. MH-12-20200012345, MH1220200012345, AP12/2007/0123456)
+ * 2. CFST_YEAR_SUFFIX: SS[-/ ]RRR[-/ ]NNNNNNN[-/ ]YYYY (2-3 digit RTO/CFST unit office code + 5-7 digit serial + 4-digit year at end, e.g. AP13700322492018)
+ * 3. ORG_LEGACY: DL[- ]YYYY[- ]NNNN..NNNNNNN (application legacy format, e.g. DL-2026-0073)
+ *
+ * Note: Format validation verifies structural compliance only and does not prove official issuance.
+ */
+export function parseDrivingLicense(license: string): ParsedDrivingLicense {
+  const normalized = normalizeDrivingLicense(license);
+  if (!normalized) {
+    return { isValid: false, error: DRIVING_LICENCE_ERROR_MESSAGE };
+  }
+
+  // Reject characters outside uppercase alphanumeric, hyphen, slash, or space
+  if (!/^[A-Z0-9\-\/\s]+$/.test(normalized)) {
+    return { isValid: false, error: DRIVING_LICENCE_ERROR_MESSAGE };
+  }
+
+  // Reject leading/trailing separators, consecutive separators, or mixed '-' and '/' separators
+  if (
+    /^[\-\/\s]|[\-\/\s]$/.test(normalized) ||
+    /[\-\/]{2,}|\s[\-\/]|[\-\/]\s/.test(normalized) ||
+    (normalized.includes('-') && normalized.includes('/'))
+  ) {
+    return { isValid: false, error: DRIVING_LICENCE_ERROR_MESSAGE };
+  }
+
+  const maxIssueYear = Math.max(new Date().getFullYear(), 2026);
+  const isValidIssueYear = (yearStr: string): number | null => {
+    if (!/^\d{4}$/.test(yearStr)) return null;
+    const yr = parseInt(yearStr, 10);
+    if (isNaN(yr) || yr < 1970 || yr > maxIssueYear) return null;
+    return yr;
+  };
+
+  const isValidSerial = (serialStr: string, minLen: number, maxLen: number): boolean => {
+    if (serialStr.length < minLen || serialStr.length > maxLen) return false;
+    if (!/^\d+$/.test(serialStr)) return false;
+    if (/^0+$/.test(serialStr)) return false;
+    if (serialStr.length >= 5 && /^(\d)\1+$/.test(serialStr)) return false;
+    return true;
+  };
+
+  const isValidRtoCode = (rtoStr: string): boolean => {
+    if (!/^\d{2,3}[A-Z]?$/.test(rtoStr)) return false;
+    const digits = rtoStr.replace(/[A-Z]/g, '');
+    const num = parseInt(digits, 10);
+    if (isNaN(num) || num < 1) return false;
+    if (digits.length === 2 && (num < 1 || num > 99)) return false;
+    if (digits.length === 3 && /^000$/.test(digits)) return false;
+    return true;
+  };
+
+  // 1. Check Standard Sarathi Parivahan / Slash- or Hyphen-Separated Format:
+  // SS + optional sep + RR[A-Z]? + optional sep + YYYY + optional sep + NNNNNNN (6-7 digits)
+  const sarathiMatch = normalized.match(
+    /^([A-Z]{2})[\-\/\s]?(\d{2}[A-Z]?)[\-\/\s]?(\d{4})[\-\/\s]?(\d{6,7})$/
+  );
+  if (sarathiMatch) {
+    const [, stateCode, rtoCode, yearStr, serialStr] = sarathiMatch;
+    const yr = isValidIssueYear(yearStr);
+    if (
+      VALID_INDIAN_DL_STATE_CODES.has(stateCode) &&
+      isValidRtoCode(rtoCode) &&
+      yr !== null &&
+      isValidSerial(serialStr, 6, 7)
+    ) {
+      return {
+        isValid: true,
+        format: 'SARATHI_STANDARD',
+        normalized,
+        stateCode,
+        rtoCode,
+        issueYear: yr,
+        serialNumber: serialStr,
+      };
+    }
+  }
+
+  // 2. Check CFST / Legacy State Portal Year-Suffix Format (e.g. AP13700322492018, AP12/0123456/2007):
+  // Structure: SS (2 letters) + RRR/RR (2-3 digit RTO/Unit Office code) + NNNNNNN (5-7 digit serial) + YYYY (4-digit issue year at end)
+  const cfstSeparatedMatch = normalized.match(
+    /^([A-Z]{2})[\-\/\s]?(\d{2,3})[\-\/\s](\d{5,7})[\-\/\s](\d{4})$/
+  );
+  if (cfstSeparatedMatch) {
+    const [, stateCode, rtoCode, serialStr, yearStr] = cfstSeparatedMatch;
+    const yr = isValidIssueYear(yearStr);
+    if (
+      VALID_INDIAN_DL_STATE_CODES.has(stateCode) &&
+      isValidRtoCode(rtoCode) &&
+      yr !== null &&
+      isValidSerial(serialStr, 5, 7)
+    ) {
+      return {
+        isValid: true,
+        format: 'CFST_YEAR_SUFFIX',
+        normalized,
+        stateCode,
+        rtoCode,
+        issueYear: yr,
+        serialNumber: serialStr,
+      };
+    }
+  }
+
+  // Contiguous or single-separator CFST Year-Suffix Format (e.g. AP13700322492018, AP-13700322492018)
+  const cfstContiguousMatch = normalized.match(
+    /^([A-Z]{2})[\-\/\s]?(\d{8,10})(\d{4})$/
+  );
+  if (cfstContiguousMatch) {
+    const [, stateCode, middleDigits, yearStr] = cfstContiguousMatch;
+    const yr = isValidIssueYear(yearStr);
+    if (VALID_INDIAN_DL_STATE_CODES.has(stateCode) && yr !== null) {
+      // For 10 middle digits (16 chars total, e.g. AP13700322492018): 3-digit CFST office code + 7-digit serial
+      // For 9 middle digits (15 chars total): 2-digit RTO code + 7-digit serial
+      // For 8 middle digits (14 chars total): 3-digit office code + 5-digit serial (or 2-digit RTO + 6-digit serial)
+      const rtoLen = middleDigits.length === 10 ? 3 : 2;
+      const rtoCode = middleDigits.slice(0, rtoLen);
+      const serialStr = middleDigits.slice(rtoLen);
+
+      // Ensure first 2 digits of a 3-digit contiguous RTO code are not '00' (unless valid '01'..'99' prefix)
+      const validContiguousRto =
+        isValidRtoCode(rtoCode) &&
+        (rtoLen === 2 || !/^00/.test(rtoCode));
+
+      if (validContiguousRto && isValidSerial(serialStr, 5, 7)) {
+        return {
+          isValid: true,
+          format: 'CFST_YEAR_SUFFIX',
+          normalized,
+          stateCode,
+          rtoCode,
+          issueYear: yr,
+          serialNumber: serialStr,
+        };
+      }
+    }
+  }
+
+  // 3. Check Application Legacy / Organizational Format: DL[- ]YYYY[- ]NNNN(NNN) (e.g. DL-2026-0073)
+  const orgMatch = normalized.match(/^(DL)[\-\s](\d{4})[\-\s](\d{4,7})$/);
+  if (orgMatch) {
+    const [, stateCode, yearStr, serialStr] = orgMatch;
+    const yr = isValidIssueYear(yearStr);
+    if (yr !== null && isValidSerial(serialStr, 4, 7)) {
+      return {
+        isValid: true,
+        format: 'ORG_LEGACY',
+        normalized,
+        stateCode,
+        issueYear: yr,
+        serialNumber: serialStr,
+      };
+    }
+  }
+
+  return {
+    isValid: false,
+    error: DRIVING_LICENCE_ERROR_MESSAGE,
+  };
+}
+
+/**
+ * Validates a Driving License Number against documented Indian RTO/Sarathi, CFST, and legacy formats.
+ */
+export function validateDrivingLicense(
+  license: string,
+  required: boolean = true
+): { isValid: boolean; error?: string } {
+  if (!license || typeof license !== 'string' || !license.trim()) {
+    return required
+      ? { isValid: false, error: 'Driving License Number is required.' }
+      : { isValid: true };
+  }
+
+  const parsed = parseDrivingLicense(license);
+  if (!parsed.isValid) {
+    return {
+      isValid: false,
+      error: parsed.error || DRIVING_LICENCE_ERROR_MESSAGE,
+    };
+  }
+
+  return { isValid: true };
+}
+
 export function validateSearchQuery(query: string, maxLength: number = 30): { isValid: boolean; error?: string } {
   if (!query || typeof query !== 'string') return { isValid: true };
   if (query.length > 0 && !query.trim()) {
@@ -938,6 +1166,7 @@ function inferInputFieldLabel(input: HTMLInputElement | HTMLTextAreaElement): st
   if (ph.includes('address')) return 'address';
   if (ph.includes('house') || ph.includes('flat') || ph.includes('plot')) return 'house no';
   if (ph.includes('city')) return 'city';
+  if (ph.includes('license') || ph.includes('licence') || ph.includes('dl-')) return 'driving license number';
   if (ph.includes('name')) return 'name';
 
   return 'value';
@@ -1355,6 +1584,30 @@ export function validateInputElement(
 
   if (label.includes('code')) {
     return validateCampusCode(val, enforceRequired && input.required);
+  }
+
+  if (
+    (label.includes('license') || label.includes('licence')) &&
+    !label.includes('type') &&
+    !label.includes('expiry') &&
+    !label.includes('date')
+  ) {
+    const isActivelyTyping =
+      !enforceRequired &&
+      !input.hasAttribute('data-global-invalid') &&
+      typeof document !== 'undefined' &&
+      document.activeElement === input;
+    const normLic = normalizeDrivingLicense(val);
+    const alphaNumLen = normLic.replace(/[^A-Z0-9]/g, '').length;
+    if (
+      isActivelyTyping &&
+      alphaNumLen < 15 &&
+      /^[A-Z]{1,2}[A-Z0-9\-\/\s]*$/.test(normLic) &&
+      !/[\-\/]{2,}/.test(normLic)
+    ) {
+      return { isValid: true };
+    }
+    return validateDrivingLicense(val, enforceRequired && input.required);
   }
 
   if (

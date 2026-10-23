@@ -94,7 +94,13 @@ export function initSafeStorage() {
           const nonEssentialKeys: { key: string; size: number }[] = [];
           for (let i = 0; i < window.localStorage.length; i++) {
             const k = window.localStorage.key(i);
-            if (k && !essentialKeys.has(k) && k !== key) {
+            if (
+              k &&
+              !essentialKeys.has(k) &&
+              !k.startsWith("driver_profile_") &&
+              !k.startsWith("user_profile_") &&
+              k !== key
+            ) {
               const itemLen = (window.localStorage.getItem(k) || "").length;
               nonEssentialKeys.push({ key: k, size: itemLen });
             }
