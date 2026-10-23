@@ -5988,6 +5988,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
                 roomTypeName: a.roomTypeName || "",
                 bedNo: a.bedNumber || "",
                 allocatedDate: a.joiningDate || new Date().toISOString().split("T")[0],
+                joiningDate: a.joiningDate || a.allocatedDate || new Date().toISOString().split("T")[0],
                 status: "Active" as const,
               }));
             setStudentHostelAssignments(mappedAllocs);

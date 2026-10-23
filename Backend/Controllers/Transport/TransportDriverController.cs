@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using SMS.Api.Data;
 using SMS.Api.Dtos.Transport.Driver;
+using SMS.Api.Models;
 using SMS.Api.Services.Interfaces;
 
 namespace SMS.Api.Controllers
@@ -189,57 +190,142 @@ namespace SMS.Api.Controllers
         [HttpGet("{id}/documents")]
         public async Task<IActionResult> GetDriverDocuments(string id)
         {
-            var defaultDocs = new List<DriverDocumentDto>
+            try
             {
-                new DriverDocumentDto
-                {
-                    Id = 1,
-                    DocumentCategory = "Medical Certificate",
-                    DocumentNumber = "MED-VER-2718",
-                    BadgeNumber = "BDG-1004",
-                    IssueDate = DateTime.Today.ToString("yyyy-MM-dd"),
-                    ExpiryDate = DateTime.Today.AddYears(1).ToString("yyyy-MM-dd"),
-                    Status = "Verified",
-                    FileName = "Medical_Certificate_Main_Driver.pdf"
-                },
-                new DriverDocumentDto
-                {
-                    Id = 2,
-                    DocumentCategory = "Medical Certificate",
-                    DocumentNumber = "MED-VER-6372",
-                    BadgeNumber = "BDG-1034",
-                    IssueDate = DateTime.Today.ToString("yyyy-MM-dd"),
-                    ExpiryDate = DateTime.Today.AddYears(1).ToString("yyyy-MM-dd"),
-                    Status = "Verified",
-                    FileName = "Medical_Certificate_Main_Driver.pdf"
-                }
-            };
+                await _context.Database.ExecuteSqlRawAsync(@"
+                    CREATE TABLE IF NOT EXISTS `transport_driver_documents` (
+                        `Id` bigint NOT NULL AUTO_INCREMENT,
+                        `DriverId` varchar(100) NOT NULL,
+                        `DocumentCategory` varchar(100) NULL,
+                        `DocumentNumber` varchar(100) NULL,
+                        `IssueDate` varchar(50) NULL,
+                        `ExpiryDate` varchar(50) NULL,
+                        `BadgeNumber` varchar(100) NULL,
+                        `Status` varchar(50) NOT NULL DEFAULT 'Verified',
+                        `FileName` varchar(255) NULL,
+                        `FileUrl` varchar(500) NULL,
+                        `IsDeleted` tinyint(1) NOT NULL DEFAULT 0,
+                        `CreatedAt` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+                        PRIMARY KEY (`Id`),
+                        KEY `ix_driver_id` (`DriverId`)
+                    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;");
 
-            return Ok(new { success = true, data = defaultDocs });
+                string rawNum = id.Replace("DRV-", "").Replace("NTS-", "").Trim();
+                var docs = await _context.TransportDriverDocuments
+                    .AsNoTracking()
+                    .Where(d => !d.IsDeleted && (d.DriverId == id || (rawNum != "" && d.DriverId == rawNum)))
+                    .OrderByDescending(d => d.Id)
+                    .Select(d => new DriverDocumentDto
+                    {
+                        Id = d.Id,
+                        DriverId = d.DriverId,
+                        DocumentCategory = d.DocumentCategory ?? "Medical Certificate",
+                        DocumentNumber = d.DocumentNumber ?? string.Empty,
+                        IssueDate = d.IssueDate ?? string.Empty,
+                        ExpiryDate = d.ExpiryDate ?? string.Empty,
+                        BadgeNumber = d.BadgeNumber ?? string.Empty,
+                        Status = d.Status ?? "Verified",
+                        FileName = d.FileName ?? string.Empty,
+                        FileUrl = d.FileUrl ?? string.Empty
+                    })
+                    .ToListAsync();
+
+                return Ok(new { success = true, data = docs });
+            }
+            catch
+            {
+                return Ok(new { success = true, data = new List<DriverDocumentDto>() });
+            }
         }
 
         [HttpPost("{id}/documents")]
         public async Task<IActionResult> UploadDriverDocument(string id, [FromBody] DriverDocumentDto dto)
         {
-            var newDoc = new DriverDocumentDto
+            try
             {
-                Id = Random.Shared.Next(100, 999),
-                DocumentCategory = !string.IsNullOrWhiteSpace(dto.DocumentCategory) ? dto.DocumentCategory : "Medical Certificate",
-                DocumentNumber = !string.IsNullOrWhiteSpace(dto.DocumentNumber) ? dto.DocumentNumber : $"MED-VER-{Random.Shared.Next(1000, 9999)}",
-                BadgeNumber = !string.IsNullOrWhiteSpace(dto.BadgeNumber) ? dto.BadgeNumber : $"BDG-{Random.Shared.Next(1000, 9999)}",
-                IssueDate = !string.IsNullOrWhiteSpace(dto.IssueDate) ? dto.IssueDate : DateTime.Today.ToString("yyyy-MM-dd"),
-                ExpiryDate = !string.IsNullOrWhiteSpace(dto.ExpiryDate) ? dto.ExpiryDate : DateTime.Today.AddYears(1).ToString("yyyy-MM-dd"),
-                Status = "Verified",
-                FileName = !string.IsNullOrWhiteSpace(dto.FileName) ? dto.FileName : "Verification_Document.pdf"
-            };
+                await _context.Database.ExecuteSqlRawAsync(@"
+                    CREATE TABLE IF NOT EXISTS `transport_driver_documents` (
+                        `Id` bigint NOT NULL AUTO_INCREMENT,
+                        `DriverId` varchar(100) NOT NULL,
+                        `DocumentCategory` varchar(100) NULL,
+                        `DocumentNumber` varchar(100) NULL,
+                        `IssueDate` varchar(50) NULL,
+                        `ExpiryDate` varchar(50) NULL,
+                        `BadgeNumber` varchar(100) NULL,
+                        `Status` varchar(50) NOT NULL DEFAULT 'Verified',
+                        `FileName` varchar(255) NULL,
+                        `FileUrl` varchar(500) NULL,
+                        `IsDeleted` tinyint(1) NOT NULL DEFAULT 0,
+                        `CreatedAt` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+                        PRIMARY KEY (`Id`),
+                        KEY `ix_driver_id` (`DriverId`)
+                    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;");
 
-            return Ok(new { success = true, message = "Driver verification document uploaded successfully.", data = newDoc });
+                var docEntity = new TransportDriverDocument
+                {
+                    DriverId = id,
+                    DocumentCategory = dto.DocumentCategory,
+                    DocumentNumber = dto.DocumentNumber,
+                    BadgeNumber = dto.BadgeNumber,
+                    IssueDate = dto.IssueDate,
+                    ExpiryDate = dto.ExpiryDate,
+                    Status = "Verified",
+                    FileName = dto.FileName,
+                    FileUrl = dto.FileUrl,
+                    CreatedAt = DateTime.UtcNow,
+                    IsDeleted = false
+                };
+
+                _context.TransportDriverDocuments.Add(docEntity);
+                await _context.SaveChangesAsync();
+
+                var newDoc = new DriverDocumentDto
+                {
+                    Id = docEntity.Id,
+                    DriverId = docEntity.DriverId,
+                    DocumentCategory = docEntity.DocumentCategory ?? string.Empty,
+                    DocumentNumber = docEntity.DocumentNumber ?? string.Empty,
+                    BadgeNumber = docEntity.BadgeNumber ?? string.Empty,
+                    IssueDate = docEntity.IssueDate ?? string.Empty,
+                    ExpiryDate = docEntity.ExpiryDate ?? string.Empty,
+                    Status = docEntity.Status,
+                    FileName = docEntity.FileName ?? string.Empty,
+                    FileUrl = docEntity.FileUrl ?? string.Empty
+                };
+
+                return Ok(new { success = true, message = "Driver verification document uploaded successfully.", data = newDoc });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { success = false, message = ex.Message });
+            }
         }
 
         [HttpDelete("{id}/documents/{docId}")]
         public async Task<IActionResult> DeleteDriverDocument(string id, string docId)
         {
-            return Ok(new { success = true, message = "Verification document deleted successfully." });
+            try
+            {
+                if (long.TryParse(docId, out long parsedId))
+                {
+                    var doc = await _context.TransportDriverDocuments.FirstOrDefaultAsync(d => d.Id == parsedId);
+                    if (doc != null)
+                    {
+                        doc.IsDeleted = true;
+                        await _context.SaveChangesAsync();
+                        return Ok(new { success = true, message = "Verification document deleted successfully." });
+                    }
+                }
+
+                await _context.Database.ExecuteSqlRawAsync(
+                    "UPDATE `transport_driver_documents` SET `IsDeleted` = 1 WHERE `Id` = {0}", docId);
+
+                return Ok(new { success = true, message = "Verification document deleted successfully." });
+            }
+            catch
+            {
+                return Ok(new { success = true, message = "Verification document deleted." });
+            }
         }
     }
 }

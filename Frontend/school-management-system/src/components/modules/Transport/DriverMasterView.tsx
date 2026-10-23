@@ -20,8 +20,6 @@ export interface DriverDocumentItem {
   attachmentName?: string;
 }
 
-const initialDriverDocs: DriverDocumentItem[] = [];
-
 export const DriverMasterView: React.FC = () => {
   const {
     staff = [],
@@ -98,14 +96,6 @@ export const DriverMasterView: React.FC = () => {
     setSelectedDriverFilter(val);
     sessionStorage.setItem('tm_driver_filter', val);
   };
-
-  // Clean up any legacy mock documents in localStorage
-  useEffect(() => {
-    try {
-      localStorage.removeItem('edu_db_driver_documents');
-      localStorage.removeItem('driver_documents');
-    } catch (e) {}
-  }, []);
 
   // Driver Documents Modal State
   const [driverDocs, setDriverDocs] = useState<DriverDocumentItem[]>([]);
@@ -242,7 +232,7 @@ export const DriverMasterView: React.FC = () => {
     setIsModalOpen(false);
   };
 
-  // Driver Documents Management Handlers (No mock data, pure API & user input)
+  // Driver Documents Management Handlers (Dynamic sync to API & database)
   const handleOpenDriverDocs = async (d: DriverMaster) => {
     setDocModalDriver(d);
     setDocForm({
@@ -256,9 +246,9 @@ export const DriverMasterView: React.FC = () => {
 
     try {
       const apiDocs = await fetchDriverDocumentsApi(d.id);
-      if (apiDocs && apiDocs.length > 0) {
-        const mapped = apiDocs.map(item => ({
-          id: String(item.id || Date.now() + Math.random()),
+      if (Array.isArray(apiDocs)) {
+        const mapped: DriverDocumentItem[] = apiDocs.map((item: any) => ({
+          id: String(item.id || item.documentId || Date.now()),
           driverId: d.id,
           docType: (item.documentCategory || 'Medical Certificate') as any,
           docNumber: item.documentNumber || '',
@@ -275,7 +265,8 @@ export const DriverMasterView: React.FC = () => {
         setDriverDocs(prev => prev.filter(x => x.driverId !== d.id));
       }
     } catch (err) {
-      console.error("Error fetching driver documents", err);
+      console.error("Error fetching driver documents from API", err);
+      setDriverDocs(prev => prev.filter(x => x.driverId !== d.id));
     }
   };
 
@@ -880,7 +871,7 @@ export const DriverMasterView: React.FC = () => {
                   <input
                     type="text"
                     required
-                    placeholder="e.g. MED-88190 or DL-54201"
+                    placeholder="Enter certificate / document number"
                     value={docForm.docNumber || ''}
                     onChange={e => setDocForm({ ...docForm, docNumber: e.target.value })}
                     className="w-full px-3 py-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-mono font-bold text-slate-800 dark:text-slate-200 text-xs outline-none focus:border-sky-500"
@@ -914,7 +905,7 @@ export const DriverMasterView: React.FC = () => {
                   <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Badge Number (Optional)</label>
                   <input
                     type="text"
-                    placeholder="e.g. BDG-9901"
+                    placeholder="Enter badge number (optional)"
                     value={docForm.badgeNumber || ''}
                     onChange={e => setDocForm({ ...docForm, badgeNumber: e.target.value })}
                     className="w-full px-3 py-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-mono text-slate-800 dark:text-slate-200 text-xs outline-none focus:border-sky-500"
@@ -979,7 +970,7 @@ export const DriverMasterView: React.FC = () => {
               {driverDocs.filter(d => d.driverId === docModalDriver.id).length === 0 ? (
                 <div className="p-8 text-center rounded-2xl border border-dashed border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50">
                   <FileText className="w-8 h-8 text-slate-300 dark:text-slate-600 mx-auto mb-2" />
-                  <p className="text-xs font-bold text-slate-600 dark:text-slate-300">No verified documents added yet</p>
+                  <p className="text-xs font-bold text-slate-600 dark:text-slate-300">No document available</p>
                   <p className="text-[11px] text-slate-400 mt-0.5">Use the form above to add driver medical certificates, licenses, or verification records.</p>
                 </div>
               ) : (

@@ -121,6 +121,7 @@ namespace SMS.Api.Data
         public DbSet<TransportVehicle> TransportVehicles => Set<TransportVehicle>();
 
         public DbSet<TransportDriver> TransportDrivers { get; set; } = null!;
+        public DbSet<TransportDriverDocument> TransportDriverDocuments { get; set; } = null!;
 
         public DbSet<TransportVehicleAssignment> TransportVehicleAssignments { get; set; } = null!;
 

@@ -146,7 +146,7 @@ export const HostelDashboardView: React.FC<HostelDashboardViewProps> = ({ onNavi
         (!rmSpec || (c.roomTypeName && c.roomTypeName.toLowerCase().includes(rmSpec.toLowerCase())))
       );
       if (cfg) {
-        const annual = Number(cfg.annualFee || cfg.hostelFee) || (Number(cfg.termFee || 0) * 3) || 0;
+        const annual = Number((cfg as any).annualFee || cfg.hostelFee) || (Number((cfg as any).termFee || 0) * 3) || 0;
         expectedAnnualFromOccupied += annual;
       }
     });
