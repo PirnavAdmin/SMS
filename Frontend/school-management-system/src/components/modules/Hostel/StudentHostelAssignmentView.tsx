@@ -540,9 +540,9 @@ export const StudentHostelAssignmentView: React.FC = () => {
 
         try {
           if (dataContext?.addFeePayment) {
-            dataContext.addFeePayment(paymentPayload);
+            dataContext.addFeePayment(paymentPayload as any);
           }
-          FinanceAPI.createFeePaymentApi(paymentPayload).catch(() => {});
+          FinanceAPI.createFeePaymentApi(paymentPayload as any).catch(() => {});
         } catch (e) {}
       }
       
@@ -558,7 +558,7 @@ export const StudentHostelAssignmentView: React.FC = () => {
           bedNo: selectedBedNo || 'BED-1',
           allocatedDate: joiningDate || new Date().toISOString().split('T')[0],
           status: 'Active',
-        });
+        } as any);
       }
 
       setIsModalOpen(false);
@@ -640,7 +640,7 @@ export const StudentHostelAssignmentView: React.FC = () => {
         const matchesId = (pId && (pId === sId || pId === sAdm)) || (pAdm && (pAdm === sId || pAdm === sAdm)) || (sName && pName && sName === pName);
         const isDepHead =
           String(p.feeHeadName || '').toLowerCase().includes('security deposit') ||
-          String(p.feeType || '').toLowerCase().includes('security deposit') ||
+          String((p as any).feeType || '').toLowerCase().includes('security deposit') ||
           String(p.remarks || '').toLowerCase().includes('security deposit') ||
           String(p.paidItemsJson || '').toLowerCase().includes('security deposit') ||
           (Array.isArray(p.paymentAllocation) && p.paymentAllocation.some(alloc => String(alloc.feeHeadName || '').toLowerCase().includes('security deposit')));

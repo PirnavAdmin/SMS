@@ -814,6 +814,23 @@ using (var scope = app.Services.CreateScope())
                 PRIMARY KEY (`DriverId`)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;",
 
+            @"CREATE TABLE IF NOT EXISTS `transport_driver_documents` (
+                `Id` bigint NOT NULL AUTO_INCREMENT,
+                `DriverId` varchar(100) NOT NULL,
+                `DocumentCategory` varchar(100) NULL,
+                `DocumentNumber` varchar(100) NULL,
+                `IssueDate` varchar(50) NULL,
+                `ExpiryDate` varchar(50) NULL,
+                `BadgeNumber` varchar(100) NULL,
+                `Status` varchar(50) NOT NULL DEFAULT 'Verified',
+                `FileName` varchar(255) NULL,
+                `FileUrl` varchar(500) NULL,
+                `IsDeleted` tinyint(1) NOT NULL DEFAULT 0,
+                `CreatedAt` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+                PRIMARY KEY (`Id`),
+                KEY `ix_driver_id` (`DriverId`)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;",
+
             @"CREATE TABLE IF NOT EXISTS `transport_pickup_points` (
                 `PickupPointId` bigint NOT NULL AUTO_INCREMENT,
                 `RouteId` bigint NOT NULL,

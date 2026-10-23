@@ -1,4 +1,3 @@
-using System;
 using System.Text.Json.Serialization;
 
 namespace SMS.Api.Dtos.Transport.Driver
@@ -6,36 +5,39 @@ namespace SMS.Api.Dtos.Transport.Driver
     public class DriverDocumentDto
     {
         [JsonPropertyName("id")]
-        public long Id { get; set; } = 1;
+        public long Id { get; set; }
 
         [JsonPropertyName("documentId")]
         public long DocumentId => Id;
 
+        [JsonPropertyName("driverId")]
+        public string? DriverId { get; set; }
+
         [JsonPropertyName("documentCategory")]
-        public string DocumentCategory { get; set; } = "Medical Certificate";
+        public string DocumentCategory { get; set; } = string.Empty;
 
         [JsonPropertyName("documentNumber")]
-        public string DocumentNumber { get; set; } = "MED-VER-6372";
+        public string DocumentNumber { get; set; } = string.Empty;
 
         [JsonPropertyName("certificateNo")]
         public string CertificateNo => DocumentNumber;
 
         [JsonPropertyName("issueDate")]
-        public string IssueDate { get; set; } = DateTime.Today.ToString("yyyy-MM-dd");
+        public string IssueDate { get; set; } = string.Empty;
 
         [JsonPropertyName("expiryDate")]
-        public string ExpiryDate { get; set; } = DateTime.Today.AddYears(1).ToString("yyyy-MM-dd");
+        public string ExpiryDate { get; set; } = string.Empty;
 
         [JsonPropertyName("badgeNumber")]
-        public string BadgeNumber { get; set; } = "BDG-1034";
+        public string? BadgeNumber { get; set; }
 
         [JsonPropertyName("status")]
         public string Status { get; set; } = "Verified";
 
         [JsonPropertyName("fileName")]
-        public string FileName { get; set; } = "Certificate_Main_Driver.pdf";
+        public string? FileName { get; set; }
 
         [JsonPropertyName("fileUrl")]
-        public string FileUrl { get; set; } = "#";
+        public string? FileUrl { get; set; }
     }
 }
