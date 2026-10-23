@@ -2119,6 +2119,7 @@ export interface UniformCategory {
   gender?: string;
   status?: string;
   branch?: string;
+  createdAt?: string;
 }
 
 export interface UniformSize {
@@ -2133,6 +2134,7 @@ export interface UniformSize {
   ageGroup?: string;
   gender: 'Male' | 'Female' | 'Unisex';
   branch?: string;
+  createdAt?: string;
 }
 
 export interface UniformSupplier {
@@ -2147,6 +2149,7 @@ export interface UniformSupplier {
   address: string;
   status: 'Active' | 'Inactive';
   branch?: string;
+  createdAt?: string;
 }
 
 export interface UniformInventoryItem {

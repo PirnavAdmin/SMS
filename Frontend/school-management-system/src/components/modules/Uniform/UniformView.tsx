@@ -262,28 +262,52 @@ export const UniformView: React.FC<{tabs?: React.ReactNode}> = ({ tabs }) => {
       {tabs}
 
       <div className="glass-card p-4 rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-4">
-        <div className="relative w-full sm:w-72">
-          <Search className="w-4 h-4 absolute left-3.5 top-2.5 text-slate-400 pointer-events-none" />
-          <input
-            type="text"
-            placeholder="Search uniform package or item..."
-            value={query}
-            onChange={e => { setQuery(e.target.value); setCurrentPage(1); }}
-            className="w-full pl-9 pr-8 py-2 text-xs rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 transition-all font-medium"
-          />
-          {query && (
-            <button
-              type="button"
-              onClick={() => { setQuery(''); setCurrentPage(1); }}
-              className="absolute right-2.5 top-2.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
-            >
-              <X className="w-3.5 h-3.5" />
-            </button>
-          )}
+        <div className="flex flex-col justify-center w-full sm:w-72">
+          <div className="relative w-full">
+            <Search className="w-4 h-4 absolute left-3.5 top-2.5 text-slate-400 pointer-events-none" />
+            <input
+              type="text"
+              placeholder="Search uniform package or item..."
+              value={query}
+              onChange={e => {
+                setQuery(e.target.value);
+                setCurrentPage(1);
+                if (!e.target.value) {
+                  e.target.removeAttribute('data-global-invalid');
+                  e.target.style.borderColor = '';
+                  const wrap = e.target.parentElement;
+                  wrap?.querySelectorAll('[data-global-validation-error="true"]').forEach(el => el.remove());
+                  wrap?.parentElement?.querySelectorAll('[data-global-validation-error="true"]').forEach(el => el.remove());
+                }
+              }}
+              className="w-full pl-9 pr-8 py-2 text-xs rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 transition-all font-medium"
+            />
+            {query && (
+              <button
+                type="button"
+                aria-label="Clear search"
+                onClick={(e) => {
+                  setQuery('');
+                  setCurrentPage(1);
+                  const wrap = e.currentTarget.parentElement;
+                  const inp = wrap?.querySelector('input');
+                  if (inp) {
+                    inp.removeAttribute('data-global-invalid');
+                    inp.style.borderColor = '';
+                  }
+                  wrap?.querySelectorAll('[data-global-validation-error="true"]').forEach(el => el.remove());
+                  wrap?.parentElement?.querySelectorAll('[data-global-validation-error="true"]').forEach(el => el.remove());
+                }}
+                className="absolute right-2.5 top-2.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
         </div>
 
         <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
-          <span className="text-xs font-semibold text-slate-500 flex items-center gap-1"><Filter className="w-3.5 h-3.5" /> Filters:</span>
+          {/* <span className="text-xs font-semibold text-slate-500 flex items-center gap-1"><Filter className="w-3.5 h-3.5" /> Filters:</span> */}
           <select
             value={filterCategory}
             onChange={e => { setFilterCategory(e.target.value); setCurrentPage(1); }}

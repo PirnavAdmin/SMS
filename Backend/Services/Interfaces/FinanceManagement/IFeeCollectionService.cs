@@ -30,4 +30,12 @@ public interface IFeeCollectionService
     Task<bool> CancelReceiptAsync(string receiptNo, string reason);
 
     Task<FinanceDashboardStatsDto> GetDashboardStatsAsync(string? branch = null, string? academicYear = null);
+
+    Task<StudentCategoryTransitionResponseDto> TransitionStudentCategoryAsync(StudentCategoryTransitionRequestDto request);
+
+    Task<bool> ApplyTransportCreditAsync(ApplyTransportCreditRequestDto request);
+
+    Task<bool> ProcessDepositRefundAsync(ProcessDepositRefundRequestDto request);
+
+    Task<StudentFeeProfileResponseDto?> RecalculateStudentFeeProfileAsync(int studentId, string? academicYear);
 }

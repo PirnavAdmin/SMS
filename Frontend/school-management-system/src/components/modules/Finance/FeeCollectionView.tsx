@@ -1,6 +1,7 @@
 // @ts-nocheck
 import React, { useState, useEffect, useRef, useMemo } from "react";
 import { formatCurrency } from "../../../utils/currency";
+import { transitionStudentCategoryApi, applyTransportCreditApi, refundSecurityDepositApi } from "../../../api/finance";
 import {
   getUniformPackageFeeByClass,
   getUniformFeeForClass,

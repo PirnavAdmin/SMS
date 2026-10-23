@@ -62,6 +62,50 @@ public class FeeCollectionController : ControllerBase
         return Ok(response);
     }
 
+    [HttpPost("fee-collection/student-transition")]
+    [Authorize(Roles = "Admin,Staff,SuperAdmin,Accountant")]
+    public async Task<IActionResult> TransitionStudentCategory([FromBody] StudentCategoryTransitionRequestDto request)
+    {
+        if (request == null || request.StudentId <= 0)
+            return BadRequest(new { success = false, message = "Valid student details are required for category transition." });
+
+        var response = await _feeCollectionService.TransitionStudentCategoryAsync(request);
+        return Ok(response);
+    }
+
+    [HttpPost("fee-collection/apply-transport-credit")]
+    [Authorize(Roles = "Admin,Staff,SuperAdmin,Accountant")]
+    public async Task<IActionResult> ApplyTransportCredit([FromBody] ApplyTransportCreditRequestDto request)
+    {
+        if (request == null || request.StudentId <= 0 || request.Amount <= 0)
+            return BadRequest(new { success = false, message = "Valid student ID and positive credit amount are required." });
+
+        var success = await _feeCollectionService.ApplyTransportCreditAsync(request);
+        return Ok(new { success, message = success ? "Transport credit applied successfully." : "Failed to apply transport credit." });
+    }
+
+    [HttpPost("fee-collection/refund-security-deposit")]
+    [Authorize(Roles = "Admin,Staff,SuperAdmin,Accountant")]
+    public async Task<IActionResult> RefundSecurityDeposit([FromBody] ProcessDepositRefundRequestDto request)
+    {
+        if (request == null || request.StudentId <= 0 || request.RefundAmount <= 0)
+            return BadRequest(new { success = false, message = "Valid student ID and refund amount are required." });
+
+        var success = await _feeCollectionService.ProcessDepositRefundAsync(request);
+        return Ok(new { success, message = success ? "Security deposit refund processed successfully." : "Failed to process security deposit refund." });
+    }
+
+    [HttpPost("fee-collection/recalculate-student/{studentId:int}")]
+    [Authorize(Roles = "Admin,Staff,SuperAdmin,Accountant")]
+    public async Task<IActionResult> RecalculateStudentFeeProfile(int studentId, [FromQuery] string? academicYear)
+    {
+        var result = await _feeCollectionService.RecalculateStudentFeeProfileAsync(studentId, academicYear);
+        if (result == null)
+            return NotFound(new { success = false, message = "Student not found." });
+
+        return Ok(new { success = true, data = result });
+    }
+
     // =========================================================================
     // 2. DUE FEES & DEFAULTERS
     // =========================================================================

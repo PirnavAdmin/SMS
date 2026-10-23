@@ -69,4 +69,24 @@ public class FeeCollectionService : IFeeCollectionService
     {
         return _repository.GetDashboardStatsAsync(branch, academicYear);
     }
+
+    public Task<StudentCategoryTransitionResponseDto> TransitionStudentCategoryAsync(StudentCategoryTransitionRequestDto request)
+    {
+        return _repository.TransitionStudentCategoryAsync(request);
+    }
+
+    public Task<bool> ApplyTransportCreditAsync(ApplyTransportCreditRequestDto request)
+    {
+        return _repository.ApplyTransportCreditAsync(request);
+    }
+
+    public Task<bool> ProcessDepositRefundAsync(ProcessDepositRefundRequestDto request)
+    {
+        return _repository.ProcessDepositRefundAsync(request);
+    }
+
+    public Task<StudentFeeProfileResponseDto?> RecalculateStudentFeeProfileAsync(int studentId, string? academicYear)
+    {
+        return _repository.RecalculateStudentFeeProfileAsync(studentId, academicYear);
+    }
 }

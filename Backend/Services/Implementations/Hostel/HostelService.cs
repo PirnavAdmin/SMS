@@ -45,7 +45,31 @@ public class HostelService : IHostelService
             int enrolledHostellers = activeOccupiedBeds;
             int activeWardens = await _hostelRepo.GetActiveWardenCountAsync();
 
-            decimal estMonthlyRevenue = activeOccupiedBeds * 7500m;
+            decimal estMonthlyRevenue = 0m;
+            if (activeOccupiedBeds > 0)
+            {
+                var activeAllocs = await _context.StudentBedAllocations.AsNoTracking()
+                    .Include(b => b.Room)
+                    .ThenInclude(r => r!.RoomType)
+                    .Include(b => b.Hostel)
+                    .Where(b => b.Status == "Active" || b.Status == "Occupied")
+                    .ToListAsync();
+
+                var feeConfigs = await _context.HostelFeeConfigs.AsNoTracking()
+                    .Where(h => h.Status == "Active" || string.IsNullOrEmpty(h.Status))
+                    .ToListAsync();
+
+                decimal defaultMonthly = feeConfigs.FirstOrDefault()?.HostelFee ?? 0m;
+
+                foreach (var alloc in activeAllocs)
+                {
+                    var matchedCfg = feeConfigs.FirstOrDefault(c => 
+                        (c.HostelId == "All" || c.HostelId == alloc.HostelId.ToString() || (alloc.Hostel != null && c.HostelName == alloc.Hostel.HostelName)) &&
+                        (c.RoomNo == "All" || c.RoomNo == "All Rooms" || (alloc.Room != null && c.RoomNo == alloc.Room.RoomNumber)));
+                    
+                    estMonthlyRevenue += matchedCfg?.HostelFee ?? defaultMonthly;
+                }
+            }
             double occupancyPercentage = totalBedCapacity > 0 ? Math.Round((double)activeOccupiedBeds / totalBedCapacity * 100, 1) : 0.0;
 
             return new HostelDashboardMetricsDto
@@ -614,7 +638,7 @@ public class HostelService : IHostelService
             }
             else
             {
-                requiredDeposit = feeConfigs.FirstOrDefault()?.SecurityDeposit ?? 2000m;
+                requiredDeposit = feeConfigs.FirstOrDefault()?.SecurityDeposit ?? 0m;
             }
 
             // Determine verified paid security deposit
@@ -793,7 +817,7 @@ public class HostelService : IHostelService
             }
             else
             {
-                requiredDeposit = feeConfigs.FirstOrDefault()?.SecurityDeposit ?? 2000m;
+                requiredDeposit = feeConfigs.FirstOrDefault()?.SecurityDeposit ?? 0m;
             }
 
             var completedPayments = await _context.FeePayments
@@ -922,6 +946,17 @@ public class HostelService : IHostelService
             studentApp.HostelRoom = room.RoomNumber;
             studentApp.StudentType = "Residential";
             studentApp.AllocatedBedId = bedNo;
+        }
+
+        if (_context != null)
+        {
+            var activeTransport = await _context.StudentTransportAssignments.FirstOrDefaultAsync(t => (t.StudentId == targetStudentId || (!string.IsNullOrEmpty(regNo) && t.AdmissionNo == regNo) || (!string.IsNullOrEmpty(admNo) && t.AdmissionNo == admNo)) && t.Status && !t.IsDeleted);
+            if (activeTransport != null)
+            {
+                activeTransport.EffectiveTo = allocation.JoiningDate ?? DateTime.UtcNow;
+                activeTransport.Status = false;
+                activeTransport.Remarks = $"Ceased on {activeTransport.EffectiveTo:yyyy-MM-dd} due to Hostel Bed Allocation ({hostel.HostelName}, Room {room.RoomNumber}, Bed {bedNo}).";
+            }
         }
 
         await _hostelRepo.AddBedAllocationAsync(allocation);
