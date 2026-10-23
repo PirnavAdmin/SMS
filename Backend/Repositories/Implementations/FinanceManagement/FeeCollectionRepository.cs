@@ -781,7 +781,7 @@ public class FeeCollectionRepository : IFeeCollectionRepository
                 decimal hFee = matchedCfg.HostelFee;
                 decimal sDep = matchedCfg.SecurityDeposit;
                 hostelFrequency = matchedCfg.FeePlan ?? "Annual";
-                if (matchedCfg.FeePlan.Equals("Monthly", StringComparison.OrdinalIgnoreCase))
+                if (string.Equals(matchedCfg.FeePlan, "Monthly", StringComparison.OrdinalIgnoreCase))
                 {
                     annualHostelFee = (hFee * 12m) + sDep;
                 }
@@ -1725,7 +1725,7 @@ public class FeeCollectionRepository : IFeeCollectionRepository
                 {
                     decimal hFee = matchedCfg.HostelFee;
                     decimal sDep = matchedCfg.SecurityDeposit;
-                    if (matchedCfg.FeePlan.Equals("Monthly", StringComparison.OrdinalIgnoreCase))
+                    if (string.Equals(matchedCfg.FeePlan, "Monthly", StringComparison.OrdinalIgnoreCase))
                     {
                         annualHostelFee = (hFee * 12m) + sDep;
                     }
