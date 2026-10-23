@@ -42,7 +42,7 @@ export const PromoteStudentModal: React.FC<PromoteStudentModalProps> = ({
 
   if (!isOpen || !student) return null;
 
-  const highestClass = getHighestClass();
+  const highestClass = typeof getHighestClass === 'function' ? getHighestClass() : 'Class 12';
   const isHighestClass = student.className === highestClass;
 
   const targetClassModel = academicClasses.find(c => c.name === targetClass);

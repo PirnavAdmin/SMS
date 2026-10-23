@@ -24169,10 +24169,30 @@ export const useData = () => {
     /* Ignored when outside HRProvider */
   }
 
-  return {
+  const merged = {
     ...(context || {}),
     ...hostel,
     ...exam,
     ...hr,
   } as unknown as DataContextType;
+
+  if (typeof (merged as any).getHighestClass !== 'function') {
+    (merged as any).getHighestClass = () => {
+      const cls = (merged as any).academicClasses;
+      if (Array.isArray(cls) && cls.length > 0) {
+        const sorted = [...cls]
+          .map((c: any) => ({
+            name: c.name,
+            num: parseInt(String(c.name).replace(/[^0-9]/g, '')) || 0,
+          }))
+          .sort((a: any, b: any) => b.num - a.num);
+        if (sorted[0] && sorted[0].num >= 10) {
+          return sorted[0].name;
+        }
+      }
+      return 'Class 12';
+    };
+  }
+
+  return merged;
 };

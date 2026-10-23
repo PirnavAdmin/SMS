@@ -72,7 +72,26 @@ export const StudentPromotionView: React.FC<StudentPromotionViewProps> = ({ onNa
     }
   }, [fetchBranches, branches]);
 
-  const highestClass = getHighestClass();
+  const highestClass = useMemo(() => {
+    if (typeof getHighestClass === 'function') {
+      try {
+        const val = getHighestClass();
+        if (val) return val;
+      } catch {}
+    }
+    if (Array.isArray(academicClasses) && academicClasses.length > 0) {
+      const sorted = [...academicClasses]
+        .map((c: any) => ({
+          name: c.name,
+          num: parseInt(String(c.name).replace(/[^0-9]/g, '')) || 0,
+        }))
+        .sort((a: any, b: any) => b.num - a.num);
+      if (sorted[0] && sorted[0].num >= 10) {
+        return sorted[0].name;
+      }
+    }
+    return 'Class 12';
+  }, [getHighestClass, academicClasses]);
 
   // Helper: Next class in sequence
   const getNextClassName = (currClass: string) => {
@@ -102,8 +121,8 @@ export const StudentPromotionView: React.FC<StudentPromotionViewProps> = ({ onNa
   };
 
   // Filter States
-  const [currentYear, setCurrentYear] = useState<string>(selectedAcademicYear || (academicYears[0]?.year || ''));
-  const [targetYear, setTargetYear] = useState<string>(() => getTargetYearFromCurrent(selectedAcademicYear || (academicYears[0]?.year || '')));
+  const [currentYear, setCurrentYear] = useState<string>(selectedAcademicYear || (academicYears?.[0]?.year || ''));
+  const [targetYear, setTargetYear] = useState<string>(() => getTargetYearFromCurrent(selectedAcademicYear || (academicYears?.[0]?.year || '')));
   const [branch, setBranch] = useState<string>(selectedBranch && selectedBranch !== 'All' ? selectedBranch : '');
   const [fromClass, setFromClass] = useState<string>('');
   const [selectedExamId, setSelectedExamId] = useState<string>('');

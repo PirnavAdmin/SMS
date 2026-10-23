@@ -1628,10 +1628,10 @@ export const AttendanceView = () => {
                     )}
                     {isDownloading ? 'Downloading...' : 'Download'}
                   </button>
-                  {hasUnsavedChanges ? (
+                  {isEditable ? (
                     <button
                       onClick={handleSaveAttendance}
-                      disabled={!isEditable || isSaving}
+                      disabled={isSaving}
                       className="bg-brand-600 hover:bg-brand-700 text-white rounded-xl shadow-md shadow-brand-500/25 transition-all py-1.5 px-4 flex items-center gap-1.5 text-xs font-black disabled:opacity-50 cursor-pointer whitespace-nowrap active:scale-95"
                     >
                       {isSaving ? (
@@ -1639,7 +1639,7 @@ export const AttendanceView = () => {
                       ) : (
                         <Save className="w-4 h-4" />
                       )}
-                      <span>{isSaving ? 'Saving...' : 'Save Attendance'}</span>
+                      <span>{isSaving ? 'Saving...' : hasUnsavedChanges ? 'Save Attendance' : 'Save & Lock'}</span>
                     </button>
                   ) : (
                     <button
@@ -1647,7 +1647,7 @@ export const AttendanceView = () => {
                       className="bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700/60 rounded-xl py-1.5 px-4 flex items-center gap-1.5 text-xs font-black cursor-default whitespace-nowrap select-none"
                     >
                       <Check className="w-4 h-4 text-emerald-600 dark:text-emerald-400 stroke-[2.5]" />
-                      <span>Saved</span>
+                      <span>Saved & Locked</span>
                     </button>
                   )}
                 </div>
