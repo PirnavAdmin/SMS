@@ -268,19 +268,158 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
   }, [activeTeacherId, todayDateStr, attendance, user]);
 
   const [persWorkingHours, setPersWorkingHours] = useState<string>("0h 0m");
-  const [personalFilterDate, setPersonalFilterDate] = useState("");
+  const [personalFilterDate, setPersonalFilterDate] = useState(todayStr);
   const [personalFilterMonth, setPersonalFilterMonth] = useState("All");
   const [personalSearchQuery, setPersonalSearchQuery] = useState("");
+  const [persDateMode, setPersDateMode] = useState<"Daily" | "Monthly" | "Custom Range">("Monthly");
+  const [persMonthInputVal, setPersMonthInputVal] = useState<string>(() => {
+    const range = parseAcademicYearRange(selectedAcademicYear, academicYears);
+    const d = new Date();
+    const target = getTargetMonthInAY(d.getMonth(), range);
+    return target.monthStr;
+  });
+  const [persRegYear, setPersRegYear] = useState<number>(() => {
+    const range = parseAcademicYearRange(selectedAcademicYear, academicYears);
+    const d = new Date();
+    const target = getTargetMonthInAY(d.getMonth(), range);
+    return target.year;
+  });
+  const [persRegMonth, setPersRegMonth] = useState<number>(() => {
+    const range = parseAcademicYearRange(selectedAcademicYear, academicYears);
+    const d = new Date();
+    const target = getTargetMonthInAY(d.getMonth(), range);
+    return target.month;
+  });
+  const [persFromDate, setPersFromDate] = useState("");
+  const [persToDate, setPersToDate] = useState("");
+  const [persPage, setPersPage] = useState<number>(1);
+  const [persPageSize, setPersPageSize] = useState<number>(10);
+
+  const persMonthNames = [
+    "January", "February", "March", "April", "May", "June",
+    "July", "August", "September", "October", "November", "December",
+  ];
+
+  const handlePersMonthInputChange = (val: string) => {
+    setPersMonthInputVal(val);
+    if (val) {
+      const [yearStr, monthStr] = val.split("-");
+      setPersRegYear(parseInt(yearStr, 10));
+      setPersRegMonth(parseInt(monthStr, 10) - 1);
+      setPersFromDate("");
+      setPersToDate("");
+    }
+  };
+
+  const persRegisterDaysList = useMemo(() => {
+    if (persDateMode === "Custom Range" && persFromDate && persToDate) {
+      const start = new Date(persFromDate);
+      const end = new Date(persToDate);
+      if (!isNaN(start.getTime()) && !isNaN(end.getTime()) && start <= end) {
+        const list: { dateStr: string; dayNum: number; displayHeader: string; dayOfWeek: string }[] = [];
+        const current = new Date(start);
+        const isMultiMonth = start.getMonth() !== end.getMonth() || start.getFullYear() !== end.getFullYear();
+        let guard = 0;
+        while (current <= end && guard < 366) {
+          const y = current.getFullYear();
+          const m = String(current.getMonth() + 1).padStart(2, "0");
+          const d = String(current.getDate()).padStart(2, "0");
+          const dateStr = `${y}-${m}-${d}`;
+          const monthShort = current.toLocaleString("en-US", { month: "short" });
+          const displayHeader = isMultiMonth ? `${d} ${monthShort}` : `${current.getDate()}`;
+          const dayOfWeek = current.toLocaleString("en-US", { weekday: "short" }).toUpperCase();
+          list.push({ dateStr, dayNum: current.getDate(), displayHeader, dayOfWeek });
+          current.setDate(current.getDate() + 1);
+          guard++;
+        }
+        return list;
+      }
+    }
+    const daysCount = new Date(persRegYear, persRegMonth + 1, 0).getDate();
+    const list: { dateStr: string; dayNum: number; displayHeader: string; dayOfWeek: string }[] = [];
+    for (let d = 1; d <= daysCount; d++) {
+      const dateStr = `${persRegYear}-${String(persRegMonth + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+      const dayOfWeek = new Date(persRegYear, persRegMonth, d).toLocaleString("en-US", { weekday: "short" }).toUpperCase();
+      list.push({ dateStr, dayNum: d, displayHeader: `${d}`, dayOfWeek });
+    }
+    return list;
+  }, [persDateMode, persRegYear, persRegMonth, persFromDate, persToDate]);
   const [showApplyLeaveModal, setShowApplyLeaveModal] = useState(false);
   const [showCorrectionModal, setShowCorrectionModal] = useState(false);
 
-  // Correction Form state
-  const [correctionDate, setCorrectionDate] = useState(todayStr);
+  // Correction Form state & policy period (last 30 days up to today)
+  const CORRECTION_POLICY_DAYS = 30;
+  const minCorrectionDateStr = useMemo(() => {
+    const d = new Date();
+    d.setDate(d.getDate() - CORRECTION_POLICY_DAYS);
+    return d.toLocaleDateString("en-CA");
+  }, []);
+  const personalAYRange = useMemo(
+    () => parseAcademicYearRange(selectedAcademicYear, academicYears),
+    [selectedAcademicYear, academicYears],
+  );
+
+  const [correctionDate, setCorrectionDate] = useState("");
+  const [correctionDateTouched, setCorrectionDateTouched] = useState(false);
+  const [correctionDateBadInput, setCorrectionDateBadInput] = useState(false);
   const [correctionTime, setCorrectionTime] = useState("");
   const [correctionType, setCorrectionType] = useState<
-    "Missed Check-In" | "Missed Check-Out"
-  >("Missed Check-In");
+    "Missed Check-In" | "Missed Check-Out" | "Late Login" | "Late Logout" | ""
+  >("");
   const [correctionReason, setCorrectionReason] = useState("");
+
+  const sanitizeDateInputYear = (e: React.ChangeEvent<HTMLInputElement>): string => {
+    const raw = e.target.value;
+    if (!raw) return "";
+    const cleaned = raw.replace(/^\+/, "");
+    const parts = cleaned.split("-");
+    if (parts.length === 3) {
+      const [rawY, m, d] = parts;
+      const numericYear = parseInt(rawY, 10);
+      const yearStr = !isNaN(numericYear) ? String(numericYear) : rawY;
+      if (yearStr.length > 4 || rawY.length > 4) {
+        const clampedYear = yearStr.slice(0, 4).padStart(4, "0");
+        const clamped = `${clampedYear}-${m}-${d}`;
+        e.target.value = clamped;
+        return clamped;
+      }
+    }
+    return raw;
+  };
+
+  const correctionDateError = useMemo(() => {
+    if (correctionDateBadInput) {
+      return "Invalid date or year entered. Please enter a valid 4-digit year within the attendance correction policy period.";
+    }
+    if (!correctionDate) {
+      return correctionDateTouched ? "Please select a Target Date." : "";
+    }
+    const cleaned = String(correctionDate).trim().replace(/^\+/, "");
+    const parts = cleaned.split("-");
+    const rawYear = parts[0] || "";
+    const yearNum = parseInt(rawYear, 10);
+    const currentYear = new Date().getFullYear();
+    const minPolicyYear = parseInt(minCorrectionDateStr.slice(0, 4), 10) || currentYear - 1;
+    const validYearRangeLabel =
+      minPolicyYear === currentYear ? `${currentYear}` : `${minPolicyYear}–${currentYear}`;
+
+    if (rawYear.length !== 4 || isNaN(yearNum) || yearNum < 1900 || yearNum > 2100) {
+      return `Invalid year (${rawYear || "N/A"}). Please enter a valid 4-digit year (${validYearRangeLabel}).`;
+    }
+    if (yearNum > currentYear) {
+      return `Invalid year (${yearNum}). Future years are not allowed; please select a date in ${validYearRangeLabel}.`;
+    }
+    if (yearNum < minPolicyYear) {
+      return `Invalid year (${yearNum}). Year must be within the attendance correction policy period (${validYearRangeLabel}).`;
+    }
+    if (cleaned > todayStr) {
+      return `Future dates are not allowed. Please select today (${formatToDDMMYYYY(todayStr, "/")}) or an earlier date within the policy period.`;
+    }
+    if (cleaned < minCorrectionDateStr) {
+      return `Selected date is outside the ${CORRECTION_POLICY_DAYS}-day attendance correction policy period (${formatToDDMMYYYY(minCorrectionDateStr, "/")} to ${formatToDDMMYYYY(todayStr, "/")}).`;
+    }
+    return "";
+  }, [correctionDate, correctionDateBadInput, minCorrectionDateStr, todayStr]);
 
   // Leave Application Form state
   const [selectedLeaveTypeId, setSelectedLeaveTypeId] = useState<string>("");
@@ -860,12 +999,24 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
 
   const handleCorrectionSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (correctionDateError) {
+      addToast("error", "Invalid Target Date", correctionDateError);
+      return;
+    }
+    if (!correctionDate || !correctionType || !correctionTime.trim() || !correctionReason.trim()) {
+      addToast(
+        "error",
+        "Required Fields Missing",
+        "Please fill in Target Date, Request Type, Actual Time, and Reason for Correction.",
+      );
+      return;
+    }
     const newReq = {
       id: `REQ-${Math.floor(Math.random() * 1000)}`,
       date: correctionDate,
       type: correctionType,
       status: "Pending",
-      reason: correctionReason,
+      reason: correctionReason.trim(),
     };
     
     setRequests((prev) => [newReq, ...prev]);
@@ -876,6 +1027,10 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
       `Attendance correction request for ${correctionDate} is pending approval.`,
     );
     setShowCorrectionModal(false);
+    setCorrectionDate("");
+    setCorrectionDateTouched(false);
+    setCorrectionDateBadInput(false);
+    setCorrectionType("");
     setCorrectionReason("");
     setCorrectionTime("");
 
@@ -1152,185 +1307,433 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
           </div>
         </div>
 
-        {/* 3. Bottom Section: Attendance History & Attendance Requests */}
+        {/* 3. Bottom Section: Admin-Style Attendance Register UI */}
         <div className="space-y-4">
-          {/* Attendance History */}
-          <div className="glass-card p-3.5 sm:p-4 rounded-2xl border border-sky-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 flex flex-col justify-between space-y-3.5 shadow-sm">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-              <div className="space-y-0.5">
-                <h3 className="font-extrabold text-xs sm:text-sm text-slate-900 dark:text-white flex items-center gap-2">
-                  <FileText className="w-4 h-4 text-sky-600 dark:text-sky-400" />{" "}
-                  Attendance History
-                </h3>
-              </div>
-
-              <button
-                onClick={handleDownloadReport}
-                className="px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700/50 text-[11px] font-bold text-slate-750 dark:text-slate-200 flex items-center gap-1.5 shadow-sm transition-all cursor-pointer"
-              >
-                <Download className="w-3.5 h-3.5" /> Download
-              </button>
-            </div>
-
-            {/* Filters */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <div className="relative">
-                <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
-                <input
-                  type="text"
-                  value={personalSearchQuery}
-                  onChange={(e) => setPersonalSearchQuery(e.target.value)}
-                  placeholder="Search status (e.g. Present)..."
-                  aria-label="Search status"
-                  className="w-full pl-8 pr-3 py-1.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-855 dark:text-slate-200 outline-none"
-                />
-              </div>
-
+          {/* Control Filters Row */}
+          <div className="glass-card p-4 rounded-2xl border border-sky-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 space-y-4 shadow-sm">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 items-start">
+              {/* Date Mode */}
               <div>
                 <select
-                  value={personalFilterMonth}
-                  onChange={(e) => setPersonalFilterMonth(e.target.value)}
-                  aria-label="Filter by Month"
-                  className="w-full px-3 py-1.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-855 dark:text-slate-200 outline-none cursor-pointer"
+                  value={persDateMode}
+                  onChange={(e) => {
+                    const nextMode = e.target.value as "Daily" | "Monthly" | "Custom Range";
+                    setPersDateMode(nextMode);
+                    if (nextMode === "Custom Range") {
+                      const y = persRegYear;
+                      const m = String(persRegMonth + 1).padStart(2, "0");
+                      const daysInM = new Date(y, persRegMonth + 1, 0).getDate();
+                      setPersFromDate(`${y}-${m}-01`);
+                      setPersToDate(`${y}-${m}-${String(daysInM).padStart(2, "0")}`);
+                    } else {
+                      setPersFromDate("");
+                      setPersToDate("");
+                    }
+                  }}
+                  className="w-full px-2.5 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none focus:border-brand-500 transition-colors cursor-pointer"
                 >
-                  <option value="All">All Months</option>
-                  {availableMonths.map((m) => (
-                    <option key={m.value} value={m.value}>
-                      {m.label}
-                    </option>
-                  ))}
+                  <option value="Daily">Daily</option>
+                  <option value="Monthly">Monthly</option>
+                  <option value="Custom Range">Custom Range</option>
                 </select>
               </div>
 
-              <div>
-                <input
-                  type="date"
-                  value={personalFilterDate}
-                  onChange={(e) => setPersonalFilterDate(e.target.value)}
-                  aria-label="Filter by Date"
-                  className="w-full px-3 py-1.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-855 dark:text-slate-200 outline-none"
-                />
+              {/* Date / Month Selection */}
+              <div className={persDateMode === "Custom Range" ? "sm:col-span-2 lg:col-span-2" : ""}>
+                {persDateMode === "Daily" && (
+                  <DateInput
+                    value={personalFilterDate || todayStr}
+                    min={personalAYRange.startDate}
+                    max={todayStr}
+                    onChange={(e) => setPersonalFilterDate(e.target.value)}
+                    className="w-full px-2.5 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white"
+                  />
+                )}
+                {persDateMode === "Monthly" && (
+                  <input
+                    type="month"
+                    value={persMonthInputVal}
+                    min={personalAYRange.minMonth}
+                    max={personalAYRange.maxMonth}
+                    onChange={(e) => handlePersMonthInputChange(e.target.value)}
+                    onClick={(e) => e.currentTarget.showPicker?.()}
+                    className="w-full px-2.5 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none focus:border-brand-500 transition-colors cursor-pointer"
+                  />
+                )}
+                {persDateMode === "Custom Range" && (
+                  <div className="flex items-center gap-2">
+                    <DateInput
+                      value={persFromDate}
+                      min={personalAYRange.startDate}
+                      max={personalAYRange.endDate}
+                      onChange={(e) => setPersFromDate(e.target.value)}
+                      placeholder="From"
+                      className="w-full px-2.5 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white"
+                    />
+                    <span className="text-slate-400 font-bold">-</span>
+                    <DateInput
+                      value={persToDate}
+                      min={persFromDate || personalAYRange.startDate}
+                      max={personalAYRange.endDate}
+                      onChange={(e) => setPersToDate(e.target.value)}
+                      placeholder="To"
+                      className="w-full px-2.5 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white"
+                    />
+                  </div>
+                )}
               </div>
-            </div>
-
-            {/* Attendance History Table */}
-            <div className="border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden shadow-xs">
-              <table className="w-full text-left border-collapse text-xs">
-                <thead>
-                  <tr className="bg-slate-50 dark:bg-slate-800/60 text-slate-500 font-extrabold uppercase border-b border-slate-200 dark:border-slate-800 text-[11px]">
-                    <th className="py-2.5 px-4 text-left">Date</th>
-                    <th className="py-2.5 px-4 text-center">Check In</th>
-                    <th className="py-2.5 px-4 text-center">Check Out</th>
-                    <th className="py-2.5 px-4 text-center">Working Hours</th>
-                    <th className="py-2.5 px-4 text-center">Status</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60 font-medium">
-                  {fullHistory.map((item, idx) => (
-                    <tr
-                      key={idx}
-                      className="hover:bg-slate-50/50 dark:hover:bg-slate-800/30 text-slate-855 dark:text-slate-200"
-                    >
-                      <td className="py-2.5 px-4 text-left font-bold whitespace-nowrap">
-                        {formatToDDMMYYYY(item.date, "-")}
-                      </td>
-                      <td className="py-2.5 px-4 text-center font-mono font-bold whitespace-nowrap tabular-nums text-slate-700 dark:text-slate-200">
-                        {item.checkIn}
-                      </td>
-                      <td className="py-2.5 px-4 text-center font-mono font-bold whitespace-nowrap tabular-nums text-slate-700 dark:text-slate-200">
-                        {item.checkOut}
-                      </td>
-                      <td className="py-2.5 px-4 text-center font-mono font-bold whitespace-nowrap tabular-nums text-slate-800 dark:text-slate-100">
-                        {item.workingHours}
-                      </td>
-                      <td className="py-2.5 px-4 text-center whitespace-nowrap">
-                        <span
-                          className={`px-2.5 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider inline-block ${
-                            item.status === "Present"
-                              ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400 border border-emerald-200/50"
-                              : item.status === "Late"
-                                ? "bg-amber-50 text-amber-700 dark:bg-amber-500/10 dark:text-amber-400 border border-amber-200/50"
-                                : item.status === "Leave"
-                                  ? "bg-sky-50 text-sky-700 dark:bg-sky-500/10 dark:text-sky-400 border border-sky-200/50"
-                                  : "bg-rose-50 text-rose-700 dark:bg-rose-500/10 dark:text-rose-400 border border-rose-200/50"
-                          }`}
-                        >
-                          {item.status}
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
             </div>
           </div>
 
-          {/* Attendance Correction Requests */}
-          <div className="glass-card p-3.5 sm:p-4 rounded-2xl border border-sky-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 space-y-3.5 shadow-sm">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-              <div className="space-y-0.5">
-                <h3 className="font-extrabold text-xs sm:text-sm text-slate-900 dark:text-white flex items-center gap-2">
-                  <ShieldAlert className="w-4 h-4 text-sky-600 dark:text-sky-400" />{" "}
-                  Attendance Requests
-                </h3>
-              </div>
-
-              <button
-                onClick={() => setShowCorrectionModal(true)}
-                className="px-3 py-1.5 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-black text-[11px] shadow-sm transition-all flex items-center gap-1 cursor-pointer active:scale-95"
-              >
-                <Plus className="w-3.5 h-3.5" /> Request Correction
-              </button>
-            </div>
-
-            <div className="border border-slate-150 dark:border-slate-800/80 rounded-2xl overflow-hidden">
-              <table className="w-full text-left border-collapse text-xs">
-                <thead>
-                  <tr className="bg-slate-50 dark:bg-slate-800/40 text-slate-505 font-bold uppercase tracking-wider border-b border-slate-200 dark:border-slate-800">
-                      <th className="py-2.5 px-4">Request Date</th>
-                      <th className="py-2.5 px-4">Type</th>
-                      <th className="py-2.5 px-4">Reason</th>
-                      <th className="py-2.5 px-4">Status</th>
+          {persDateMode === "Daily" ? (
+            /* Daily View Table (Admin Style) */
+            <div className="glass-card rounded-3xl overflow-hidden border border-slate-200 dark:border-slate-800 shadow-xl bg-white dark:bg-slate-900">
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse text-xs">
+                  <thead>
+                    <tr className="bg-slate-100/70 dark:bg-slate-800/60 text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider border-b border-slate-200 dark:border-slate-800">
+                      <th className="py-3.5 px-4 sticky left-0 bg-slate-100 dark:bg-slate-800 z-20 w-[160px] min-w-[160px] max-w-[160px] border-r border-slate-200 dark:border-slate-800 whitespace-nowrap text-left">
+                        Employee ID
+                      </th>
+                      <th className="py-3.5 px-4 sticky left-[160px] bg-slate-100 dark:bg-slate-800 z-20 min-w-[200px] max-w-[200px] border-r border-slate-200 dark:border-slate-800 whitespace-nowrap text-left">
+                        Employee Name
+                      </th>
+                      <th className="py-3.5 px-4 whitespace-nowrap text-left">Department</th>
+                      <th className="py-3.5 px-4 whitespace-nowrap text-left">Designation</th>
+                      <th className="py-3.5 px-4 text-center whitespace-nowrap">Date</th>
+                      <th className="py-3.5 px-4 text-center whitespace-nowrap">Attendance Status</th>
+                      <th className="py-3.5 px-4 text-center whitespace-nowrap">In Time</th>
+                      <th className="py-3.5 px-4 text-center whitespace-nowrap">Out Time</th>
+                      <th className="py-3.5 px-4 text-center whitespace-nowrap">Working Hours</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60 font-medium">
-                    {requests.map((req, idx) => (
-                      <tr
-                        key={idx}
-                        className="hover:bg-slate-50/50 dark:hover:bg-slate-800/30 text-slate-855 dark:text-slate-200"
-                      >
-                        <td className="py-2.5 px-4 font-bold">
-                          {formatToDDMMYYYY(req.date, "-")}
-                        </td>
-                        <td className="py-2.5 px-4 font-semibold">
-                          {req.type}
-                        </td>
-                        <td
-                          className="py-2.5 px-4 text-slate-500 max-w-[200px] truncate"
-                          title={req.reason}
-                        >
-                          {req.reason}
-                        </td>
-                        <td className="py-2.5 px-4">
-                          <span
-                            className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider ${
-                              req.status === "Approved"
-                                ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400"
-                                : req.status === "Pending"
-                                  ? "bg-amber-50 text-amber-700 dark:bg-amber-500/10 dark:text-amber-400"
-                                  : "bg-rose-50 text-rose-700 dark:bg-rose-500/10 dark:text-rose-400"
-                            }`}
-                          >
-                            {req.status}
-                          </span>
-                        </td>
-                      </tr>
-                    ))}
+                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800/80 font-medium">
+                    {(() => {
+                      const targetDailyDate = formatToISO(personalFilterDate || todayStr);
+                      const matchedDaily = fullHistory.find((item) => formatToISO(item.date) === targetDailyDate);
+                      const statusVal = matchedDaily?.status || (targetDailyDate === todayStr && persCheckInTime ? todayStatus : "Absent");
+                      const inVal = matchedDaily?.checkIn || (targetDailyDate === todayStr ? formatDisplayTime(persCheckInTime) : "--:--");
+                      const outVal = matchedDaily?.checkOut || (targetDailyDate === todayStr ? formatDisplayTime(persCheckOutTime) : "--:--");
+                      const hrsVal = matchedDaily?.workingHours || (targetDailyDate === todayStr ? persWorkingHours : "0h 0m");
+                      return (
+                        <tr className="group hover:bg-slate-50/80 dark:hover:bg-slate-800/40 text-slate-900 dark:text-slate-100">
+                          <td className="py-3 px-4 font-mono font-bold text-brand-600 dark:text-brand-400 sticky left-0 bg-white dark:bg-slate-900 z-10 w-[160px] min-w-[160px] max-w-[160px] border-r border-slate-200 dark:border-slate-800 whitespace-nowrap">
+                            {teacher.empId || teacher.id}
+                          </td>
+                          <td className="py-3 px-4 sticky left-[160px] bg-white dark:bg-slate-900 z-10 min-w-[200px] max-w-[200px] border-r border-slate-200 dark:border-slate-800">
+                            <p className="font-extrabold text-slate-900 dark:text-white">
+                              {teacher.firstName} {teacher.lastName}
+                            </p>
+                            <p className="text-[10px] text-slate-400">
+                              {dbTeacher?.email || user?.email || ""}
+                            </p>
+                          </td>
+                          <td className="py-3 px-4 whitespace-nowrap font-semibold">{teacher.department}</td>
+                          <td className="py-3 px-4 whitespace-nowrap font-semibold">{teacher.designation}</td>
+                          <td className="py-3 px-4 text-center font-bold whitespace-nowrap">{formatToDDMMYYYY(targetDailyDate, "-")}</td>
+                          <td className="py-3 px-4 text-center whitespace-nowrap">
+                            <span
+                              className={`px-2.5 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider inline-block ${
+                                statusVal === "Present"
+                                  ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400 border border-emerald-200/50"
+                                  : statusVal === "Late"
+                                    ? "bg-amber-50 text-amber-700 dark:bg-amber-500/10 dark:text-amber-400 border border-amber-200/50"
+                                    : statusVal === "Leave"
+                                      ? "bg-sky-50 text-sky-700 dark:bg-sky-500/10 dark:text-sky-400 border border-sky-200/50"
+                                      : "bg-rose-50 text-rose-700 dark:bg-rose-500/10 dark:text-rose-400 border border-rose-200/50"
+                              }`}
+                            >
+                              {statusVal}
+                            </span>
+                          </td>
+                          <td className="py-3 px-4 text-center font-mono font-bold whitespace-nowrap">{inVal}</td>
+                          <td className="py-3 px-4 text-center font-mono font-bold whitespace-nowrap">{outVal}</td>
+                          <td className="py-3 px-4 text-center font-mono font-bold whitespace-nowrap">{hrsVal}</td>
+                        </tr>
+                      );
+                    })()}
                   </tbody>
                 </table>
               </div>
+              <div className="px-6 pb-4">
+                <Pagination
+                  currentPage={persPage}
+                  totalItems={1}
+                  itemsPerPage={persPageSize}
+                  onPageChange={setPersPage}
+                  onItemsPerPageChange={(n) => {
+                    setPersPageSize(n);
+                    setPersPage(1);
+                  }}
+                  label="employees"
+                />
+              </div>
             </div>
-          </div>
+          ) : (
+            /* Monthly & Custom Range Register (Exact Admin Login Style) */
+            <div className="space-y-4">
+              {/* Monthly Register Legend & Controls Bar */}
+              <div className="glass-card py-2.5 px-4 rounded-2xl bg-white dark:bg-slate-900 border border-sky-200/80 dark:border-slate-800 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div className="flex flex-wrap items-center gap-1.5 text-[10px] font-extrabold">
+                  <span className="px-2 py-0.5 rounded-lg bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 border border-emerald-500/20">
+                    P = Present
+                  </span>
+                  <span className="px-2 py-0.5 rounded-lg bg-rose-50 dark:bg-rose-950/30 text-rose-600 border border-rose-500/20">
+                    A = Absent
+                  </span>
+                  <span className="px-2 py-0.5 rounded-lg bg-sky-50 dark:bg-sky-950/30 text-sky-600 border border-sky-500/20">
+                    L = Leave
+                  </span>
+                  <span className="px-2 py-0.5 rounded-lg bg-amber-50 dark:bg-amber-950/30 text-amber-600 border border-amber-500/20">
+                    HD = Half Day
+                  </span>
+                  <span className="px-2 py-0.5 rounded-lg bg-slate-100 dark:bg-slate-850 text-slate-500 border border-slate-200/40">
+                    W = Weekend
+                  </span>
+                  <span className="px-2 py-0.5 rounded-lg bg-amber-100/50 dark:bg-amber-900/30 text-amber-600 border border-amber-500/20">
+                    H = Holiday
+                  </span>
+                  <span className="px-2 py-0.5 rounded-lg bg-slate-100 dark:bg-slate-850 text-slate-650 dark:text-slate-300 border border-slate-200/40">
+                    TL = Total Leaves
+                  </span>
+                  <span className="px-2 py-0.5 rounded-lg bg-sky-100/50 dark:bg-sky-950/20 text-sky-700 border border-sky-200/40">
+                    OL = On Leave
+                  </span>
+                  <span className="px-2 py-0.5 rounded-lg bg-sky-100/50 dark:bg-sky-950/20 text-sky-700 border border-sky-200/40">
+                    UL = Used Leaves
+                  </span>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-3">
+                  <select
+                    value={teacher.id}
+                    disabled
+                    className="px-2.5 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none cursor-default"
+                  >
+                    <option value={teacher.id}>
+                      {teacher.firstName} {teacher.lastName} (1)
+                    </option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Monthly Matrix Table */}
+              <div className="glass-card rounded-3xl overflow-hidden border border-sky-200/80 dark:border-slate-800 shadow-xl bg-white dark:bg-slate-900">
+                <div className="p-4 border-b border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <h3 className="text-sm font-black text-slate-900 dark:text-white flex items-center gap-2">
+                    <FileSpreadsheet className="w-4 h-4 text-sky-600" />
+                    Monthly Register:{" "}
+                    {persDateMode === "Custom Range" && persFromDate && persToDate
+                      ? `Custom Range (${formatToDDMMYYYY(persFromDate, "-")} to ${formatToDDMMYYYY(persToDate, "-")})`
+                      : `${persMonthNames[persRegMonth]} ${persRegYear}`}{" "}
+                    ({teacher.designation || teacher.department || "Staff"})
+                  </h3>
+                </div>
+
+                <div className="overflow-x-auto scrollbar-thin">
+                  <table className="w-full text-left border-collapse text-[11px]">
+                    <thead>
+                      <tr className="bg-slate-100/70 dark:bg-slate-800/60 text-slate-550 dark:text-slate-400 font-bold uppercase border-b border-slate-200 dark:border-slate-800">
+                        <th
+                          className="py-2.5 px-3 sticky left-0 bg-slate-100 dark:bg-slate-800 z-20 w-[160px] min-w-[160px] max-w-[160px] border-r border-slate-200 dark:border-slate-800 whitespace-nowrap text-left"
+                          style={{ width: 160, minWidth: 160, maxWidth: 160 }}
+                        >
+                          Employee ID
+                        </th>
+                        <th
+                          className="py-2.5 px-3 sticky left-[160px] bg-slate-100 dark:bg-slate-800 z-20 w-[180px] min-w-[180px] max-w-[180px] border-r border-slate-200 dark:border-slate-800 whitespace-nowrap text-left"
+                          style={{ left: 160 }}
+                        >
+                          Employee Name
+                        </th>
+                        {persRegisterDaysList.map((item, idx) => (
+                          <th
+                            key={idx}
+                            className="py-2.5 px-1 text-center min-w-[36px] font-mono whitespace-nowrap"
+                          >
+                            <div className="flex flex-col items-center">
+                              <span className="font-extrabold text-[10px] text-slate-800 dark:text-slate-200">
+                                {item.displayHeader}
+                              </span>
+                              <span className="text-[8px] text-slate-400 font-bold mt-0.5">
+                                {item.dayOfWeek}
+                              </span>
+                            </div>
+                          </th>
+                        ))}
+                        <th className="py-2.5 px-2 text-center text-brand-600 cursor-help" title="Present days">P</th>
+                        <th className="py-2.5 px-2 text-center text-rose-600 cursor-help" title="Absent days">A</th>
+                        <th className="py-2.5 px-2 text-center text-sky-600 cursor-help" title="Leave days">L</th>
+                        <th className="py-2.5 px-2 text-center text-amber-600 cursor-help" title="Half Days">HD</th>
+                        <th className="py-2.5 px-2 text-center text-slate-600 cursor-help" title="Total Leaves">TL</th>
+                        <th className="py-2.5 px-2 text-center text-sky-700 cursor-help" title="On Leave">OL</th>
+                        <th className="py-2.5 px-2 text-center text-sky-700 cursor-help" title="Used Leaves">UL</th>
+                        <th className="py-2.5 px-2 text-center text-slate-600">%</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 dark:divide-slate-800/80 font-semibold">
+                      {(() => {
+                        const q = personalSearchQuery.toLowerCase().trim();
+                        const fullName = `${teacher.firstName} ${teacher.lastName}`.toLowerCase();
+                        const empCode = String(teacher.empId || teacher.id || "").toLowerCase();
+                        if (q && !fullName.includes(q) && !empCode.includes(q)) {
+                          return (
+                            <tr>
+                              <td colSpan={persRegisterDaysList.length + 10} className="py-8 text-center text-slate-400 italic">
+                                No employee records match "{personalSearchQuery}".
+                              </td>
+                            </tr>
+                          );
+                        }
+
+                        let pCount = 0;
+                        let aCount = 0;
+                        let lCount = 0;
+                        let hdCount = 0;
+
+                        const teacherId = String(teacher?.id || "").toLowerCase().trim();
+                        const dbId = dbTeacher?.id ? String(dbTeacher.id).toLowerCase().trim() : "";
+                        const dbEmpId = dbTeacher?.empId ? String(dbTeacher.empId).toLowerCase().trim() : "";
+                        const userId = user?.id ? String(user.id).toLowerCase().trim() : "";
+                        const userEmpId = (user as any)?.empId ? String((user as any)?.empId).toLowerCase().trim() : "";
+
+                        const rowCells = persRegisterDaysList.map((item, idx) => {
+                          const rec = (attendance || []).find((r) => {
+                            const isStaff = !r.entityType || r.entityType.toLowerCase() === "staff";
+                            const rEntityId = String(r.entityId || (r as any).staffId || "").toLowerCase().trim();
+                            const isId =
+                              (teacherId && rEntityId === teacherId) ||
+                              (dbId && rEntityId === dbId) ||
+                              (dbEmpId && rEntityId === dbEmpId) ||
+                              (userId && rEntityId === userId) ||
+                              (userEmpId && rEntityId === userEmpId);
+                            const rDate = formatToISO(String(r.date || "").split("T")[0].split(" ")[0]);
+                            return isStaff && isId && rDate === item.dateStr;
+                          });
+
+                          const status =
+                            item.dateStr === todayStr && persCheckInTime
+                              ? todayStatus
+                              : rec?.status;
+
+                          const dayObj = new Date(item.dateStr);
+                          const isWeekend = !isNaN(dayObj.getTime()) && dayObj.getDay() === 0;
+                          const holidayCheck = checkSundayOrHoliday(item.dateStr, holidays);
+                          const isHoliday = holidayCheck.isHoliday && holidayCheck.type === "Holiday";
+
+                          let code = "";
+                          let badgeStyle = "";
+
+                          if (status) {
+                            if (status === "Present" || status === "Late") {
+                              code = "P";
+                              badgeStyle =
+                                "text-emerald-500 bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-500/20";
+                              pCount++;
+                            } else if (status === "Absent") {
+                              code = "A";
+                              badgeStyle =
+                                "text-rose-500 bg-rose-50 dark:bg-rose-950/30 border border-rose-500/20";
+                              aCount++;
+                            } else if (status === "Leave") {
+                              code = "L";
+                              badgeStyle =
+                                "text-sky-500 bg-sky-50 dark:bg-sky-950/30 border border-sky-500/20";
+                              lCount++;
+                            } else if (status === "HalfDay") {
+                              code = "HD";
+                              badgeStyle =
+                                "text-amber-500 bg-amber-50 dark:bg-amber-950/30 border border-amber-500/20";
+                              hdCount++;
+                            }
+                          } else if (isHoliday) {
+                            code = "H";
+                            badgeStyle =
+                              "text-amber-600 bg-amber-100/50 dark:bg-amber-900/30 font-semibold";
+                          } else if (isWeekend) {
+                            code = "W";
+                            badgeStyle =
+                              "text-slate-400 bg-slate-100 dark:bg-slate-800/60 font-semibold";
+                          } else {
+                            code = "";
+                            badgeStyle =
+                              "border border-dashed border-slate-200 dark:border-slate-800 bg-transparent text-transparent";
+                          }
+
+                          return (
+                            <td
+                              key={idx}
+                              className="py-2 px-0.5 text-center font-mono font-bold text-[10px]"
+                            >
+                              <span
+                                className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold mx-auto ${badgeStyle}`}
+                              >
+                                {code}
+                              </span>
+                            </td>
+                          );
+                        });
+
+                        const totalLeaves = lCount + hdCount * 0.5;
+                        const totalRecordedDays = pCount + aCount + lCount + hdCount;
+
+                        return (
+                          <tr className="group hover:bg-slate-50/50 text-slate-800 dark:text-slate-200 border-b border-slate-100 dark:border-slate-800/80">
+                            <td
+                              className="py-2 px-3 font-mono font-bold text-brand-600 dark:text-brand-400 sticky left-0 bg-white dark:bg-slate-900 group-hover:bg-slate-50/50 dark:group-hover:bg-slate-800/50 z-10 w-[160px] min-w-[160px] max-w-[160px] border-r border-slate-200 dark:border-slate-800 whitespace-nowrap text-left"
+                              style={{ width: 160, minWidth: 160, maxWidth: 160 }}
+                            >
+                              {teacher.empId || teacher.id}
+                            </td>
+                            <td
+                              className="py-2 px-3 sticky left-[160px] bg-white dark:bg-slate-900 group-hover:bg-slate-50/50 dark:group-hover:bg-slate-800/50 z-10 w-[180px] min-w-[180px] max-w-[180px] border-r border-slate-200 dark:border-slate-800 whitespace-nowrap text-left"
+                              style={{ left: 160 }}
+                            >
+                              <span className="font-extrabold text-slate-900 dark:text-white block">
+                                {teacher.firstName} {teacher.lastName}
+                              </span>
+                              <span className="text-[10px] text-slate-400 block mt-0.5">
+                                {dbTeacher?.email || user?.email || ""}
+                              </span>
+                            </td>
+                            {rowCells}
+                            <td className="py-2 px-2 text-center font-bold text-emerald-600">{pCount}</td>
+                            <td className="py-2 px-2 text-center font-bold text-rose-600">{aCount}</td>
+                            <td className="py-2 px-2 text-center font-bold text-sky-600">{lCount}</td>
+                            <td className="py-2 px-2 text-center font-bold text-amber-600">{hdCount}</td>
+                            <td className="py-2 px-2 text-center font-bold text-slate-500">{totalLeaves}</td>
+                            <td className="py-2 px-2 text-center font-bold text-sky-700">{lCount}</td>
+                            <td className="py-2 px-2 text-center font-bold text-sky-700">{totalLeaves}</td>
+                            <td className="py-2 px-2 text-center font-extrabold text-slate-700 dark:text-slate-350">
+                              {totalRecordedDays > 0
+                                ? Math.round(((pCount + hdCount * 0.5) / totalRecordedDays) * 100)
+                                : 0}
+                              %
+                            </td>
+                          </tr>
+                        );
+                      })()}
+                    </tbody>
+                  </table>
+                </div>
+
+                <div className="px-6 pb-4">
+                  <Pagination
+                    currentPage={persPage}
+                    totalItems={1}
+                    itemsPerPage={persPageSize}
+                    onPageChange={setPersPage}
+                    onItemsPerPageChange={(n) => {
+                      setPersPageSize(n);
+                      setPersPage(1);
+                    }}
+                    label="employees"
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
 
         {/* 3. Apply Leave Modal */}
         {showApplyLeaveModal && (
@@ -1352,12 +1755,13 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
               <form onSubmit={handleApplyLeaveSubmit} className="space-y-4">
                 <div>
                   <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">
-                    Leave Type
+                    Leave Type <span className="text-rose-500 font-bold ml-0.5">*</span>
                   </label>
                   <select
                     value={selectedLeaveTypeId}
                     onChange={(e) => setSelectedLeaveTypeId(e.target.value)}
                     className="w-full px-3.5 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-855 dark:text-slate-200 outline-none cursor-pointer"
+                    required
                   >
                     {(leaveTypes || []).map((t) => {
                       const c = (t.code || "").toUpperCase();
@@ -1382,24 +1786,28 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">
-                      From Date
+                      From Date <span className="text-rose-500 font-bold ml-0.5">*</span>
                     </label>
                     <input
                       type="date"
+                      min={personalAYRange.startDate}
+                      max={personalAYRange.endDate}
                       value={leaveFromDate}
-                      onChange={(e) => setLeaveFromDate(e.target.value)}
+                      onChange={(e) => setLeaveFromDate(sanitizeDateInputYear(e))}
                       className="w-full px-3.5 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-855 dark:text-slate-200 outline-none"
                       required
                     />
                   </div>
                   <div>
                     <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">
-                      To Date
+                      To Date <span className="text-rose-500 font-bold ml-0.5">*</span>
                     </label>
                     <input
                       type="date"
+                      min={leaveFromDate || personalAYRange.startDate}
+                      max={personalAYRange.endDate}
                       value={leaveToDate}
-                      onChange={(e) => setLeaveToDate(e.target.value)}
+                      onChange={(e) => setLeaveToDate(sanitizeDateInputYear(e))}
                       className="w-full px-3.5 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-855 dark:text-slate-200 outline-none"
                       required
                     />
@@ -1408,7 +1816,7 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
 
                 <div>
                   <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">
-                    Reason for Leave
+                    Reason for Leave <span className="text-rose-500 font-bold ml-0.5">*</span>
                   </label>
                   <textarea
                     value={leaveReason}
@@ -1429,7 +1837,8 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
                   </button>
                   <button
                     type="submit"
-                    className="px-5 py-2 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-xs font-black shadow-md transition-colors"
+                    disabled={!selectedLeaveTypeId || !leaveFromDate || !leaveToDate || !leaveReason.trim()}
+                    className="px-5 py-2 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-xs font-black shadow-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     Submit Application
                   </button>
@@ -1456,44 +1865,110 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
                 </button>
               </div>
 
-              <form onSubmit={handleCorrectionSubmit} className="space-y-4">
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">
-                      Target Date
-                    </label>
-                    <input
-                      type="date"
-                      value={correctionDate}
-                      onChange={(e) => setCorrectionDate(e.target.value)}
-                      className="w-full px-3.5 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-855 dark:text-slate-200 outline-none"
-                      required
-                    />
+              <form onSubmit={handleCorrectionSubmit} className="space-y-4" noValidate>
+                <div className="space-y-1.5">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">
+                        Target Date <span className="text-rose-500 font-bold ml-0.5">*</span>
+                      </label>
+                      <input
+                        type="date"
+                        min={minCorrectionDateStr}
+                        max={todayStr}
+                        value={correctionDate}
+                        placeholder="Select Date"
+                        onChange={(e) => {
+                          setCorrectionDateTouched(true);
+                          setCorrectionDateBadInput(Boolean(e.target.validity?.badInput));
+                          const sanitized = sanitizeDateInputYear(e);
+                          setCorrectionDate(sanitized);
+                        }}
+                        onInput={(e: React.FormEvent<HTMLInputElement>) => {
+                          setCorrectionDateBadInput(Boolean(e.currentTarget.validity?.badInput));
+                        }}
+                        onBlur={() => setCorrectionDateTouched(true)}
+                        className={`w-full px-3.5 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-xs font-bold outline-none transition-colors ${
+                          !correctionDate
+                            ? "text-slate-400 dark:text-slate-500"
+                            : "text-slate-855 dark:text-slate-200"
+                        } ${
+                          correctionDateError
+                            ? "border-rose-500 dark:border-rose-500 focus:ring-2 focus:ring-rose-500/20"
+                            : "border-slate-200 dark:border-slate-700"
+                        }`}
+                        required
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">
+                        Request Type <span className="text-rose-500 font-bold ml-0.5">*</span>
+                      </label>
+                      <select
+                        value={correctionType}
+                        onChange={(e) => setCorrectionType(e.target.value as any)}
+                        className={`w-full px-3.5 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold outline-none cursor-pointer ${
+                          !correctionType
+                            ? "text-slate-400 dark:text-slate-500"
+                            : "text-slate-855 dark:text-slate-200"
+                        }`}
+                        required
+                      >
+                        <option value="" disabled>
+                          Select Request Type
+                        </option>
+                        <option value="Missed Check-In" className="text-slate-900 dark:text-white">Missed Check-In</option>
+                        <option value="Missed Check-Out" className="text-slate-900 dark:text-white">Missed Check-Out</option>
+                        <option value="Late Login" className="text-slate-900 dark:text-white">Late Login</option>
+                        <option value="Late Logout" className="text-slate-900 dark:text-white">Late Logout</option>
+                      </select>
+                    </div>
                   </div>
 
-                  <div>
-                    <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">
-                      Request Type
-                    </label>
-                    <select
-                      value={correctionType}
-                      onChange={(e) => setCorrectionType(e.target.value as any)}
-                      className="w-full px-3.5 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-855 dark:text-slate-200 outline-none cursor-pointer"
+                  {correctionDateError ? (
+                    <div
+                      role="alert"
+                      className="flex items-start gap-1.5 px-2.5 py-1.5 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800/60 text-[11px] font-bold text-rose-600 dark:text-rose-400"
                     >
-                      <option value="Missed Check-In">Missed Check-In</option>
-                      <option value="Missed Check-Out">Missed Check-Out</option>
-                    </select>
-                  </div>
+                      <AlertCircle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+                      <span>{correctionDateError}</span>
+                    </div>
+                  ) : (
+                    <p className="text-[10px] font-semibold text-slate-400 dark:text-slate-500">
+                      Policy period: {formatToDDMMYYYY(minCorrectionDateStr, "/")} – {formatToDDMMYYYY(todayStr, "/")} (Last {CORRECTION_POLICY_DAYS} days, no future dates)
+                    </p>
+                  )}
                 </div>
 
                 <div>
                   <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">
-                    Actual Time
+                    Actual Time <span className="text-rose-500 font-bold ml-0.5">*</span>
                   </label>
                   <input
                     type="text"
                     value={correctionTime}
-                    onChange={(e) => setCorrectionTime(e.target.value)}
+                    onChange={(e) => {
+                      let val = e.target.value;
+                      const isDeleting = val.length < correctionTime.length;
+                      if (!isDeleting) {
+                        const m = val.match(/^(\d{3,4})(\s*(?:[aApP][mM]?)?)?$/);
+                        if (m) {
+                          const digits = m[1];
+                          const suffix = m[2] || "";
+                          const firstTwo = parseInt(digits.slice(0, 2), 10);
+                          if (digits.length === 3) {
+                            val = firstTwo > 23
+                              ? `0${digits[0]}:${digits.slice(1)}${suffix}`
+                              : `${digits.slice(0, 2)}:${digits.slice(2)}${suffix}`;
+                          } else if (digits.length === 4) {
+                            val = `${digits.slice(0, 2)}:${digits.slice(2, 4)}${suffix}`;
+                          }
+                          e.target.value = val;
+                        }
+                      }
+                      setCorrectionTime(val);
+                    }}
                     placeholder="e.g. 08:30 AM"
                     className="w-full px-3.5 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-mono text-xs font-bold text-slate-855 dark:text-slate-200 outline-none"
                     required
@@ -1502,12 +1977,12 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
 
                 <div>
                   <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">
-                    Reason for correction
+                    Reason for correction <span className="text-rose-500 font-bold ml-0.5">*</span>
                   </label>
                   <textarea
                     value={correctionReason}
                     onChange={(e) => setCorrectionReason(e.target.value)}
-                    placeholder="Explain why check-in/checkout was missed..."
+                    placeholder="Explain the reason for missed check-in/check-out or late login/logout..."
                     className="w-full px-3.5 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-855 dark:text-slate-200 outline-none min-h-[80px]"
                     required
                   />
@@ -1523,7 +1998,14 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
                   </button>
                   <button
                     type="submit"
-                    className="px-5 py-2 rounded-xl bg-amber-600 hover:bg-amber-500 text-white text-xs font-black shadow-md transition-colors"
+                    disabled={
+                      !correctionDate ||
+                      Boolean(correctionDateError) ||
+                      !correctionType ||
+                      !correctionTime.trim() ||
+                      !correctionReason.trim()
+                    }
+                    className="px-5 py-2 rounded-xl bg-amber-600 hover:bg-amber-500 text-white text-xs font-black shadow-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     Submit Request
                   </button>
@@ -1538,7 +2020,32 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
 
   // Tab Tab-specific filters and registers below for Admin/HR view...
   // Active Main Module Tab
-  const [activeTab, setActiveTab] = useState<AttendanceTab>("teaching");
+  const [activeTab, setActiveTabState] = useState<AttendanceTab>(() => {
+    try {
+      const saved = localStorage.getItem('staff_attendance_active_tab');
+      if (
+        saved &&
+        [
+          "teaching",
+          "non-teaching",
+          "leave-approvals",
+          "manual-punches",
+          "holiday-calendar",
+          "attendance-rules"
+        ].includes(saved)
+      ) {
+        return saved as AttendanceTab;
+      }
+    } catch {}
+    return "teaching";
+  });
+
+  const setActiveTab = (tab: AttendanceTab) => {
+    setActiveTabState(tab);
+    try {
+      localStorage.setItem('staff_attendance_active_tab', tab);
+    } catch {}
+  };
 
   const activeAYInfo = useMemo(() => {
     return parseAcademicYearRange(selectedAcademicYear, academicYears);
@@ -2931,15 +3438,12 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
         <div className={`grid grid-cols-1 sm:grid-cols-2 ${dateMode === 'Custom Range' ? 'lg:grid-cols-3 xl:grid-cols-6' : 'lg:grid-cols-5'} gap-3 items-start`}>
           {/* Date Mode */}
           <div>
-            <label className="block text-[10px] font-black uppercase text-slate-400 mb-1">
-              Date Mode
-            </label>
             <select
               value={dateMode || ""}
               onChange={(e) => setDateMode(e.target.value as any)}
               className="w-full px-2.5 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none focus:border-brand-500 transition-colors cursor-pointer"
             >
-              <option value="">Select</option>
+              <option value="">Select Mode</option>
               <option value="Daily">Daily</option>
               <option value="Monthly">Monthly</option>
               <option value="Custom Range">Custom Range</option>
@@ -2948,9 +3452,6 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
 
           {/* Date Selection */}
           <div className={dateMode === "Custom Range" ? "sm:col-span-2 lg:col-span-2 xl:col-span-2" : ""}>
-            <label className="block text-[10px] font-black uppercase text-slate-400 mb-1">
-              Date Selection
-            </label>
             {(!dateMode || dateMode === "Select") && (
               <input
                 type="text"
@@ -3022,9 +3523,6 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
 
           {/* Department */}
           <div>
-            <label className="block text-[10px] font-black uppercase text-slate-400 mb-1">
-              Department
-            </label>
             <select
               value={activeTab === "teaching" ? teachingDept : nonTeachingDept}
               onChange={(e) =>
@@ -3045,9 +3543,6 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
 
           {/* Designation */}
           <div>
-            <label className="block text-[10px] font-black uppercase text-slate-400 mb-1">
-              Designation
-            </label>
             <select
               value={activeTab === "teaching" ? teachingDesignation : nonTeachingDesignation}
               onChange={(e) =>
@@ -3068,9 +3563,6 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
 
           {/* Search Staff */}
           <div>
-            <label className="block text-[10px] font-black uppercase text-slate-400 mb-1">
-              Search Staff
-            </label>
             <div className="relative">
               <Search className={`w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 transition-colors ${hasStaffSearchError ? "text-red-500" : "text-slate-400"}`} />
               <input

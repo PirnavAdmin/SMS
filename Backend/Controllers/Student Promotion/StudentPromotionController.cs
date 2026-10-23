@@ -239,7 +239,7 @@ namespace SMS.Api.Controllers
                         destClass = new SMS.Api.Models.AcademicManagement.ClassGrade
                         {
                             ClassName = destClassName,
-                            CampusLocation = !string.IsNullOrWhiteSpace(request.Branch) ? request.Branch : (student?.Branch?.BranchName ?? student?.ClassGrade?.CampusLocation ?? string.Empty),
+                            CampusLocation = !string.IsNullOrWhiteSpace(request.Branch) ? request.Branch : (student.Branch?.BranchName ?? student.ClassGrade?.CampusLocation ?? string.Empty),
                             AcademicYear = request.TargetAcademicYear ?? "",
                             Status = "Active",
                             CreatedAt = DateTime.UtcNow
@@ -263,7 +263,7 @@ namespace SMS.Api.Controllers
 
                     if (destClass != null)
                     {
-                        student.ClassId = destClass.ClassId;
+                        student!.ClassId = destClass.ClassId;
 
                         // Destination Section resolution
                         var destSection = destClass.Sections.FirstOrDefault(s => string.Equals(s.SectionName, cleanSection, StringComparison.OrdinalIgnoreCase))
@@ -293,35 +293,35 @@ namespace SMS.Api.Controllers
                     {
                         if (!string.IsNullOrWhiteSpace(cleanSection))
                         {
-                            var currentClassSections = allClasses.FirstOrDefault(c => c.ClassId == student.ClassId)?.Sections;
+                            var currentClassSections = allClasses.FirstOrDefault(c => c.ClassId == student!.ClassId)?.Sections;
                             var matchedSec = currentClassSections?.FirstOrDefault(s => string.Equals(s.SectionName, cleanSection, StringComparison.OrdinalIgnoreCase));
                             if (matchedSec != null)
                             {
-                                student.SectionId = matchedSec.SectionId;
+                                student!.SectionId = matchedSec.SectionId;
                             }
                         }
                     }
 
                     if (targetYear != null)
                     {
-                        student.AcademicYearId = targetYear.AcademicYearId;
+                        student!.AcademicYearId = targetYear.AcademicYearId;
                     }
 
                     if (!string.IsNullOrWhiteSpace(item.RollNo))
                     {
-                        student.RollNumber = item.RollNo.Trim();
+                        student!.RollNumber = item.RollNo.Trim();
                     }
 
                     if (isGraduated)
                     {
-                        student.Status = "Completed";
+                        student!.Status = "Completed";
                     }
                     else
                     {
-                        student.Status = "Active";
+                        student!.Status = "Active";
                     }
 
-                    student.UpdatedAt = DateTime.UtcNow;
+                    student!.UpdatedAt = DateTime.UtcNow;
                 }
 
                 // Audit history record
@@ -330,12 +330,12 @@ namespace SMS.Api.Controllers
                     StudentId = student?.StudentId ?? (item.StudentId > 0 ? item.StudentId : (int.TryParse(item.Id, out int parsedId) ? parsedId : 0)),
                     AdmissionNo = student?.AdmissionNumber ?? item.AdmissionNo ?? string.Empty,
                     StudentName = studentName,
-                    FromAcademicYear = request.CurrentAcademicYear,
-                    ToAcademicYear = request.TargetAcademicYear,
-                    FromClass = item.CurrentClass,
-                    ToClass = isGraduated ? "Graduated" : (isPromote ? item.NewClass : item.CurrentClass),
-                    FromSection = item.CurrentSection,
-                    ToSection = cleanSection,
+                    FromAcademicYear = request.CurrentAcademicYear ?? string.Empty,
+                    ToAcademicYear = request.TargetAcademicYear ?? string.Empty,
+                    FromClass = item.CurrentClass ?? string.Empty,
+                    ToClass = isGraduated ? "Graduated" : (isPromote ? (item.NewClass ?? string.Empty) : (item.CurrentClass ?? string.Empty)),
+                    FromSection = item.CurrentSection ?? string.Empty,
+                    ToSection = cleanSection ?? string.Empty,
                     OverallPct = item.OverallPct,
                     Grade = item.Grade,
                     FinalResult = item.FinalResult,

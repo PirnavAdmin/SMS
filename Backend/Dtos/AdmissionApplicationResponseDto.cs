@@ -44,6 +44,9 @@ public class AdmissionApplicationResponseDto
     [JsonPropertyName("appliedClass")]
     public string AppliedClass => AppliedClassGrade;
 
+    [JsonPropertyName("section")]
+    public string? Section { get; set; }
+
     public string BranchName { get; set; } = string.Empty;
 
     [JsonPropertyName("branch")]

@@ -321,7 +321,20 @@ export const AttendanceView = () => {
   // Dynamic list of section options for selected class
   const sectionOptions = useMemo(() => {
     if (!selectedClass || selectedClass === 'Select Class' || selectedClass === 'All Classes') {
-      return ['Select Section'];
+      const allSecs = new Set<string>();
+      (academicClasses || []).forEach(ac => {
+        (ac.sections || []).forEach((s: any) => {
+          const raw = typeof s === 'string' ? s : s.name || s.sectionName || 'A';
+          const clean = raw.replace(/^section\s*/i, '').trim();
+          if (clean) allSecs.add(clean);
+        });
+      });
+      (allStudents || []).forEach(s => {
+        const clean = (s.section || '').replace(/^section\s*/i, '').trim();
+        if (clean) allSecs.add(clean);
+      });
+      const validSections = Array.from(allSecs).sort();
+      return ['Select Section', 'All Sections', ...(validSections.length > 0 ? validSections : ['A', 'B', 'C', 'D'])];
     }
 
     if (isTeacher && teacherClasses.length > 0) {
@@ -356,18 +369,21 @@ export const AttendanceView = () => {
     return `${selectedClass} - Section ${selectedSection}`;
   }, [selectedClass, selectedSection]);
 
-  // Auto-select primary class teacher class for teacher
+  // Validate teacher classes if updated, maintaining Select Class and Select Section initially
   useEffect(() => {
     if (isTeacher && teacherClasses.length > 0) {
+      if (selectedClass === 'Select Class') {
+        return;
+      }
       const isCurrentClassValid = teacherClasses.some(c => matchesClassName(c.className, selectedClass));
-      if (selectedClass === 'Select Class' || !isCurrentClassValid) {
-        setSelectedClass(teacherClasses[0].className);
-        setSelectedSection(teacherClasses[0].section);
+      if (!isCurrentClassValid) {
+        setSelectedClass('Select Class');
+        setSelectedSection('Select Section');
       } else {
         const matchingClassEntries = teacherClasses.filter(c => matchesClassName(c.className, selectedClass));
         const isCurrentSecValid = matchingClassEntries.some(c => c.section.toLowerCase() === selectedSection.toLowerCase());
-        if (!isCurrentSecValid && matchingClassEntries.length > 0) {
-          setSelectedSection(matchingClassEntries[0].section);
+        if (!isCurrentSecValid && selectedSection !== 'Select Section' && matchingClassEntries.length > 0) {
+          setSelectedSection('Select Section');
         }
       }
     }
@@ -375,7 +391,14 @@ export const AttendanceView = () => {
 
   // Dynamic list of period options matching selected Class, Section, Teacher & Day from Timetable
   const dynamicPeriodsList = useMemo(() => {
-    if (!selectedClass || selectedClass === 'Select Class' || selectedClass === 'All Classes' || !selectedSection || selectedSection === 'Select Section' || selectedSection === 'All Sections') {
+    if (
+      !selectedClass ||
+      selectedClass === 'Select Class' ||
+      selectedClass === 'All Classes' ||
+      !selectedSection ||
+      selectedSection === 'Select Section' ||
+      selectedSection === 'All Sections'
+    ) {
       return [];
     }
 
@@ -528,13 +551,13 @@ export const AttendanceView = () => {
     return dynamicPeriodsList.map(p => p.periodLabel);
   }, [dynamicPeriodsList]);
 
-  // Auto-sync section when class changes
+  // Auto-sync section when options change
   useEffect(() => {
-    const validSections = sectionOptions.filter(s => s !== 'Select Section' && s !== 'All Sections');
-    if (validSections.length === 1 && selectedSection !== validSections[0]) {
-      setSelectedSection(validSections[0]);
-    } else if (sectionOptions.length > 0 && !sectionOptions.includes(selectedSection)) {
-      setSelectedSection(sectionOptions[0]);
+    if (
+      selectedSection !== 'Select Section' &&
+      !sectionOptions.includes(selectedSection)
+    ) {
+      setSelectedSection('Select Section');
     }
   }, [sectionOptions, selectedSection]);
 
@@ -583,7 +606,11 @@ export const AttendanceView = () => {
   const [itemsPerPage, setItemsPerPage] = useState(25);
   const [isSearching, setIsSearching] = useState(false);
 
-  const isAggregatedView = selectedClass === 'All Classes' || selectedSection === 'All Sections' || selectedClass === 'Select Class' || selectedSection === 'Select Section';
+  const isAggregatedView =
+    selectedClass === 'All Classes' ||
+    selectedSection === 'All Sections' ||
+    selectedClass === 'Select Class' ||
+    selectedSection === 'Select Section';
   
   const displayClassSummary = useMemo(() => {
     const isClassSelected = selectedClass && selectedClass !== 'Select Class';
@@ -1272,11 +1299,11 @@ export const AttendanceView = () => {
       </div>
 
       {/* Control Filters Row */}
-      <div className="glass-card p-4 rounded-2xl border border-slate-200/60 dark:border-slate-800/60 bg-white dark:bg-slate-900 space-y-4">
-        <div className={`grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 ${dateMode === 'Custom Range' ? 'lg:grid-cols-6' : 'lg:grid-cols-5'} gap-3 items-end`}>
-          <div className="space-y-1">
-            <label className="text-[10px] font-black uppercase text-slate-400">Date Mode</label>
+      <div className="glass-card p-4 rounded-2xl border border-slate-200/60 dark:border-slate-800/60 bg-white dark:bg-slate-900">
+        <div className={`grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 ${dateMode === 'Custom Range' ? 'lg:grid-cols-6' : 'lg:grid-cols-5'} gap-3 items-center`}>
+          <div>
             <select
+              aria-label="Date Mode"
               value={dateMode}
               onChange={e => {
                 const mode = e.target.value as any;
@@ -1294,10 +1321,10 @@ export const AttendanceView = () => {
             </select>
           </div>
 
-          <div className={`space-y-1 ${dateMode === 'Custom Range' ? 'sm:col-span-2 lg:col-span-2' : ''}`}>
-            <label className="text-[10px] font-black uppercase text-slate-400">Date Selection</label>
+          <div className={dateMode === 'Custom Range' ? 'sm:col-span-2 lg:col-span-2' : ''}>
             {(dateMode === 'Daily' || dateMode === 'Select') && (
               <input
+                aria-label="Date Selection"
                 type="date"
                 value={date}
                 max={todayStr}
@@ -1316,6 +1343,7 @@ export const AttendanceView = () => {
             )}
             {dateMode === 'Monthly' && (
               <input
+                aria-label="Date Selection"
                 type="month"
                 value={month}
                 max={currentMonthStr}
@@ -1335,6 +1363,7 @@ export const AttendanceView = () => {
             {dateMode === 'Custom Range' && (
               <div className="flex items-center gap-2">
                 <input
+                  aria-label="Start Date"
                   type="date"
                   value={startDate}
                   max={todayStr}
@@ -1352,6 +1381,7 @@ export const AttendanceView = () => {
                 />
                 <span className="text-slate-400 font-bold">-</span>
                 <input
+                  aria-label="End Date"
                   type="date"
                   value={endDate}
                   max={todayStr}
@@ -1371,9 +1401,9 @@ export const AttendanceView = () => {
             )}
           </div>
 
-          <div className="space-y-1">
-            <label className="text-[10px] font-black uppercase text-slate-400">Class</label>
+          <div>
             <select
+              aria-label="Class"
               value={selectedClass}
               onChange={e => {
                 const newClass = e.target.value;
@@ -1398,14 +1428,10 @@ export const AttendanceView = () => {
                     availableSecs = Array.from(new Set([...academicSections, ...fromStudents])).filter(Boolean);
                   }
                   const cleanSecs = Array.from(new Set(availableSecs)).filter(Boolean);
-                  if (cleanSecs.length === 1) {
-                    setSelectedSection(cleanSecs[0]);
-                  } else if (cleanSecs.length > 0 && selectedSection && selectedSection !== 'Select Section' && cleanSecs.includes(selectedSection)) {
+                  if (cleanSecs.length > 0 && selectedSection && selectedSection !== 'Select Section' && cleanSecs.includes(selectedSection)) {
                     // keep current section if valid
-                  } else if (cleanSecs.length > 0) {
-                    setSelectedSection(cleanSecs[0]);
                   } else {
-                    setSelectedSection('A');
+                    setSelectedSection('Select Section');
                   }
                 }
               }}
@@ -1424,13 +1450,12 @@ export const AttendanceView = () => {
             </select>
           </div>
 
-          <div className="space-y-1">
-            <label className="text-[10px] font-black uppercase text-slate-400">Section</label>
+          <div>
             <select
+              aria-label="Section"
               value={selectedSection}
               onChange={e => setSelectedSection(e.target.value)}
-              disabled={!selectedClass || selectedClass === 'Select Class' || selectedClass === 'All Classes'}
-              className="w-full px-2.5 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none focus:border-brand-500 transition-colors cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
+              className="w-full px-2.5 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none focus:border-brand-500 transition-colors cursor-pointer"
             >
               {sectionOptions.map(sec => {
                 const displayLabel = sec === 'Select Section' || sec === 'All Sections' 
@@ -1445,9 +1470,9 @@ export const AttendanceView = () => {
             </select>
           </div>
 
-          <div className="space-y-1">
-            <label className="text-[10px] font-black uppercase text-slate-400">Status</label>
+          <div>
             <select
+              aria-label="Status"
               value={filterStatus || 'All'}
               onChange={e => setFilterStatus(e.target.value as any)}
               className="w-full px-2.5 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none focus:border-brand-500 transition-colors cursor-pointer"
@@ -1475,7 +1500,7 @@ export const AttendanceView = () => {
               {isTeacher && teacherClasses.length === 0
                 ? 'You do not have any classes assigned to your profile yet. Please contact the administrator to assign classes.'
                 : (
-                  <>Please select a specific <strong>Class</strong> and <strong>Section</strong> from the filter bar above to view attendance records and summary metrics.</>
+                  <>Please select a specific {dateMode === 'Select' && <><strong>Date Mode</strong>, </>}<strong>Class</strong> and <strong>Section</strong> from the filter bar above to view attendance records and summary metrics.</>
                 )}
             </p>
           </div>
@@ -1601,7 +1626,7 @@ export const AttendanceView = () => {
                           </>
                         ) : (
                           <>
-                            Click directly on any cell in the grid to cycle through student attendance statuses (<strong>P</strong> → <strong>HD</strong> → <strong>L</strong> → <strong>A</strong> → <strong>-</strong>). Click <strong>Save Attendance</strong> at the top right when you are finished.
+                            Click directly on any cell in the grid to cycle through student attendance statuses (<strong className="text-emerald-600">P</strong> → <strong className="text-amber-500">HD</strong> → <strong className="text-orange-500">L</strong> → <strong className="text-rose-600">A</strong> → <strong className="text-slate-400">-</strong>). Click <strong>Save Attendance</strong> at the top right when you are finished.
                           </>
                         )}
                       </span>
@@ -1630,7 +1655,7 @@ export const AttendanceView = () => {
                 <table className="w-full text-left border-collapse text-xs">
                   <thead>
                     <tr className="bg-slate-50 dark:bg-slate-800/40 text-slate-500 font-bold uppercase tracking-wider border-b border-slate-200 dark:border-slate-800">
-                      <th className="py-3 px-4 w-24 whitespace-nowrap text-left">Roll No</th>
+                      <th className="py-3 px-4 w-24 min-w-[5.5rem] whitespace-nowrap text-left">Roll No</th>
                       <th className="py-3 px-4 whitespace-nowrap text-left">Student Name</th>
                       <th className="py-3 px-4 text-center whitespace-nowrap">Attendance Status</th>
                       <th className="py-3 px-4 whitespace-nowrap text-left">Remarks (Optional)</th>
@@ -1646,7 +1671,7 @@ export const AttendanceView = () => {
                         const status = getAttendanceStatus(st);
                         return (
                           <tr key={st.id} className={`hover:bg-slate-50/80 dark:hover:bg-slate-800/30 text-slate-850 dark:text-slate-200 border-b border-slate-100/50 dark:border-slate-800/50 ${idx % 2 === 0 ? 'bg-white dark:bg-slate-900' : 'bg-slate-50/30 dark:bg-slate-800/10'}`}>
-                            <td className="py-3 px-4 font-mono font-bold text-sky-600 dark:text-sky-400">{st.rollNo}</td>
+                            <td className="py-3 px-4 font-mono font-bold text-sky-600 dark:text-sky-400 whitespace-nowrap min-w-[5.5rem]">{st.rollNo}</td>
                             <td className="py-3 px-4">
                               <div className="flex items-center gap-2.5">
                                 {st.avatar ? (
@@ -1773,8 +1798,8 @@ export const AttendanceView = () => {
                           );
                         })}
                         <th className="py-3 px-2 text-center text-emerald-600">P</th>
-                        <th className="py-3 px-2 text-center text-blue-600">HD</th>
-                        <th className="py-3 px-2 text-center text-amber-600">L</th>
+                        <th className="py-3 px-2 text-center text-amber-500">HD</th>
+                        <th className="py-3 px-2 text-center text-orange-500">L</th>
                         <th className="py-3 px-2 text-center text-rose-600">A</th>
                         <th className="py-3 px-2 text-center text-purple-600">H</th>
                         <th className="py-3 px-2 text-center text-sky-600">%</th>
@@ -1842,8 +1867,8 @@ export const AttendanceView = () => {
                                 );
                               })}
                               <td className="py-2 px-2 text-center font-bold text-emerald-600">{pCount}</td>
-                              <td className="py-2 px-2 text-center font-bold text-blue-600">{hdCount}</td>
-                              <td className="py-2 px-2 text-center font-bold text-amber-600">{lCount}</td>
+                              <td className="py-2 px-2 text-center font-bold text-amber-500">{hdCount}</td>
+                              <td className="py-2 px-2 text-center font-bold text-orange-500">{lCount}</td>
                               <td className="py-2 px-2 text-center font-bold text-rose-600">{aCount}</td>
                               <td className="py-2 px-2 text-center font-bold text-purple-600">{hCount}</td>
                               <td className="py-2 px-2 text-center font-extrabold text-sky-600 bg-sky-50/30 dark:bg-sky-900/10">

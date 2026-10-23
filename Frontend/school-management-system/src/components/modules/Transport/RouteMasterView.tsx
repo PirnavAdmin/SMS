@@ -153,7 +153,7 @@ export const RouteMasterView: React.FC = () => {
 
       <div className="glass-card p-3.5 rounded-2xl flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 border border-slate-200/80 dark:border-slate-800">
         <div className="relative flex-1 sm:max-w-xs">
-          <Search className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
+          <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
           <input
             type="text"
             placeholder="Search by route code or name..."
@@ -164,8 +164,9 @@ export const RouteMasterView: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-2">
-          <label className="text-xs font-bold text-slate-500 shrink-0">Filter by Route:</label>
+
           <select
+            aria-label="Filter by route"
             value={selectedRouteFilter}
             onChange={e => handleRouteFilterChange(e.target.value)}
             className="px-3.5 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-xs font-bold text-slate-900 dark:text-white outline-none cursor-pointer"
@@ -302,7 +303,7 @@ export const RouteMasterView: React.FC = () => {
               <button onClick={() => setIsModalOpen(false)} className="text-slate-400"><X className="w-5 h-5" /></button>
             </div>
  
-            <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0 space-y-4 text-xs">
+            <form onSubmit={handleSubmit} data-no-time-validation="true" className="flex flex-col flex-1 min-h-0 space-y-4 text-xs">
               <div className="flex-1 overflow-y-auto space-y-3 pr-1 pb-4">
                 <div className="grid grid-cols-2 gap-3">
                   <div>
@@ -310,6 +311,7 @@ export const RouteMasterView: React.FC = () => {
                     <input
                       type="text"
                       required
+                      data-no-time-validation="true"
                       placeholder="e.g. R-NORTH-101"
                       value={form.routeCode || ''}
                       onChange={e => setForm({ ...form, routeCode: e.target.value })}
@@ -330,6 +332,8 @@ export const RouteMasterView: React.FC = () => {
                   <input
                     type="text"
                     required
+                    data-field-type="name"
+                    data-no-time-validation="true"
                     placeholder="Enter route name..."
                     value={form.routeName || ''}
                     onChange={e => setForm({ ...form, routeName: e.target.value })}
@@ -342,6 +346,8 @@ export const RouteMasterView: React.FC = () => {
                     <label className="block font-semibold mb-1">Route Start</label>
                     <input
                       type="text"
+                      data-field-type="name"
+                      data-no-time-validation="true"
                       placeholder="Enter route start location..."
                       value={form.routeStart || ''}
                       onChange={e => setForm({ ...form, routeStart: e.target.value })}
@@ -352,6 +358,8 @@ export const RouteMasterView: React.FC = () => {
                     <label className="block font-semibold mb-1">Route End</label>
                     <input
                       type="text"
+                      data-field-type="name"
+                      data-no-time-validation="true"
                       placeholder="Enter route end location..."
                       value={form.routeEnd || ''}
                       onChange={e => setForm({ ...form, routeEnd: e.target.value })}
@@ -366,6 +374,8 @@ export const RouteMasterView: React.FC = () => {
                     <input
                       type="text"
                       inputMode="decimal"
+                      data-field-type="numeric"
+                      data-no-time-validation="true"
                       placeholder="e.g. 18.5"
                       value={form.totalDistanceKm !== undefined && form.totalDistanceKm !== null ? form.totalDistanceKm : ''}
                       onChange={e => {
@@ -382,6 +392,8 @@ export const RouteMasterView: React.FC = () => {
                     <input
                       type="text"
                       inputMode="numeric"
+                      data-field-type="duration"
+                      data-no-time-validation="true"
                       placeholder="e.g. 45"
                       value={form.estimatedTimeMinutes !== undefined && form.estimatedTimeMinutes !== null ? form.estimatedTimeMinutes : ''}
                       onChange={e => {
@@ -489,6 +501,7 @@ export const RouteMasterView: React.FC = () => {
                   <label className="block font-semibold mb-1">Description</label>
                   <input
                     type="text"
+                    data-no-time-validation="true"
                     placeholder="Enter route description..."
                     value={form.description || ''}
                     onChange={e => setForm({ ...form, description: e.target.value })}

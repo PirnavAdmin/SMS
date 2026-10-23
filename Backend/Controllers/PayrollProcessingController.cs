@@ -250,7 +250,7 @@ public class PayrollProcessingController : ControllerBase
             Department = p.Department,
             Designation = p.Designation,
             EmployeeCategory = p.EmployeeCategory ?? "Teaching Staff",
-            Month = (p.Month ?? "").Contains(p.Year.ToString()) ? p.Month : $"{p.Month} {p.Year}".Trim(),
+            Month = !string.IsNullOrEmpty(p.Month) && p.Month.Contains(p.Year.ToString()) ? p.Month : $"{p.Month ?? ""} {p.Year}".Trim(),
             Year = p.Year,
             BasicSalary = p.BasicSalary,
             Hra = p.HouseRentAllowance,
@@ -627,8 +627,8 @@ public class PayrollProcessingController : ControllerBase
                 var fn = nameParts[0];
                 var ln = nameParts.Length > 1 ? nameParts[1] : "";
                 staff = await _context.Staff.FirstOrDefaultAsync(s =>
-                    s.FirstName.ToLower() == fn.ToLower() &&
-                    (string.IsNullOrEmpty(ln) || s.LastName.ToLower() == ln.ToLower()));
+                    (s.FirstName != null && s.FirstName.ToLower() == fn.ToLower()) &&
+                    (string.IsNullOrEmpty(ln) || (s.LastName != null && s.LastName.ToLower() == ln.ToLower())));
             }
         }
 
@@ -1112,7 +1112,7 @@ public class PayrollProcessingController : ControllerBase
             Designation = entity.Designation,
             EmployeeCategory = entity.EmployeeCategory,
             Branch = entity.Branch,
-            Month = (entity.Month ?? "").Contains(entity.Year.ToString()) ? entity.Month : $"{entity.Month} {entity.Year}".Trim(),
+            Month = !string.IsNullOrEmpty(entity.Month) && entity.Month.Contains(entity.Year.ToString()) ? entity.Month : $"{entity.Month ?? ""} {entity.Year}".Trim(),
             Year = entity.Year,
             BasicSalary = entity.BasicSalary,
             Hra = entity.HouseRentAllowance,

@@ -1729,7 +1729,7 @@ export const StudentPromotionView: React.FC<StudentPromotionViewProps> = ({ onNa
                       )}
                     </th>
                     <th className="py-3.5 px-4">Adm No</th>
-                    <th className="py-3.5 px-4">Roll No</th>
+                    <th className="py-3.5 px-4 whitespace-nowrap min-w-[5.5rem]">Roll No</th>
                     <th className="py-3.5 px-4">Student Name</th>
                     <th className="py-3.5 px-4">Current Sec</th>
                     <th className="py-3.5 px-4">Overall %</th>
@@ -1770,7 +1770,7 @@ export const StudentPromotionView: React.FC<StudentPromotionViewProps> = ({ onNa
                           </td>
 
                           {/* Roll No */}
-                          <td className="py-3.5 px-4 font-mono text-slate-600 dark:text-slate-400">
+                          <td className="py-3.5 px-4 font-mono text-slate-600 dark:text-slate-400 whitespace-nowrap min-w-[5.5rem]">
                             {r.rollNo}
                           </td>
 

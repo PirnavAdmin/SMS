@@ -68,7 +68,7 @@ export const MarksEntryTable: React.FC<MarksEntryTableProps> = ({
       <table className="w-full text-left text-xs border-collapse min-w-[780px]">
         <thead>
           <tr>
-            <th className={`${tableHeaderClass} w-24`}>Roll No.</th>
+            <th className={`${tableHeaderClass} w-24 min-w-[5.5rem] whitespace-nowrap`}>Roll No.</th>
             <th className={`${tableHeaderClass} w-48`}>Student Information</th>
             <th className={`${tableHeaderClass} w-36`}>Attendance Status</th>
             <th className={`${tableHeaderClass} w-28`}>Marks (Max: {maxMarks})</th>
@@ -112,7 +112,7 @@ export const MarksEntryTable: React.FC<MarksEntryTableProps> = ({
               return (
                 <tr key={student.id} className="hover:bg-slate-50/60 dark:hover:bg-slate-800/30 transition-colors">
                   {/* Roll No */}
-                  <td className="px-3.5 py-3.5 font-mono font-bold text-slate-700 dark:text-slate-300 text-center">
+                  <td className="px-3.5 py-3.5 font-mono font-bold text-slate-700 dark:text-slate-300 text-center whitespace-nowrap min-w-[5.5rem]">
                     {displayRollNo}
                   </td>
 

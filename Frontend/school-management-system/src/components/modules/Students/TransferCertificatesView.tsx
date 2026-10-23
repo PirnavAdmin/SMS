@@ -287,7 +287,7 @@ export const TransferCertificatesView: React.FC<TransferCertificatesViewProps> =
                   <th className="py-3.5 px-4">Admission No</th>
                   <th className="py-3.5 px-4">Student Name</th>
                   <th className="py-3.5 px-4">Class & Sec</th>
-                  <th className="py-3.5 px-4">Roll No</th>
+                  <th className="py-3.5 px-4 whitespace-nowrap min-w-[5.5rem]">Roll No</th>
                   <th className="py-3.5 px-4">Academic Result</th>
                   <th className="py-3.5 px-4">Clearance Dues</th>
                   <th className="py-3.5 px-4">Status</th>
@@ -344,7 +344,7 @@ export const TransferCertificatesView: React.FC<TransferCertificatesViewProps> =
                         <td className="py-3 px-4 text-slate-600 dark:text-slate-400">{st.className} - {st.section}</td>
 
                         {/* Roll No */}
-                        <td className="py-3 px-4 font-mono text-slate-600 dark:text-slate-400">{st.rollNo}</td>
+                        <td className="py-3 px-4 font-mono text-slate-600 dark:text-slate-400 whitespace-nowrap min-w-[5.5rem]">{st.rollNo}</td>
 
                         {/* Academic Result */}
                         <td className="py-3 px-4">

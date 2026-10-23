@@ -16,9 +16,9 @@ public class GlobalLetterSetting
     [MaxLength(200)]
     public string SignatoryTitle { get; set; } = string.Empty;
 
-    public int ProbationMonths { get; set; } = 6;
+    public int ProbationMonths { get; set; } = 0;
 
-    public int NoticePeriodDays { get; set; } = 30;
+    public int NoticePeriodDays { get; set; } = 0;
 
     [Column(TypeName = "longtext")]
     public string? SignatureImageUrl { get; set; }

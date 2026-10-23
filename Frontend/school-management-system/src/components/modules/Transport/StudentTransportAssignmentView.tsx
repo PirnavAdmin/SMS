@@ -297,8 +297,8 @@ export const StudentTransportAssignmentView: React.FC = () => {
 
       {/* Multi-level Filters: Academic Year, Branch, Class, Section */}
       <div className="glass-card p-4 rounded-2xl flex items-center justify-between gap-4 overflow-x-auto w-full border border-slate-200/80 dark:border-slate-800">
-        <div className="relative w-64 shrink-0 pt-3">
-          <Search className="w-4 h-4 text-slate-400 absolute left-3 top-5" />
+        <div className="w-64 shrink-0 pt-3 relative">
+          <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
           <input
             type="text"
             placeholder="Search student or adm no..."

@@ -318,7 +318,7 @@ export const AcademicHistoryView: React.FC = () => {
                 <th className="px-4 py-3">Student & Adm No</th>
                 <th className="px-4 py-3">Academic Year</th>
                 <th className="px-4 py-3">Class & Section</th>
-                <th className="px-4 py-3">Roll No</th>
+                <th className="px-4 py-3 whitespace-nowrap min-w-[5.5rem]">Roll No</th>
                 <th className="px-4 py-3">Outcome Status</th>
                 <th className="px-4 py-3 text-center">Attendance</th>
                 <th className="px-4 py-3 text-center">Exam Result</th>
@@ -368,7 +368,7 @@ export const AcademicHistoryView: React.FC = () => {
                         </span>
                       </td>
 
-                      <td className="px-4 py-3 font-mono font-bold text-slate-600 dark:text-slate-400">
+                      <td className="px-4 py-3 font-mono font-bold text-slate-600 dark:text-slate-400 whitespace-nowrap min-w-[5.5rem]">
                         {history.rollNo || '-'}
                       </td>
 

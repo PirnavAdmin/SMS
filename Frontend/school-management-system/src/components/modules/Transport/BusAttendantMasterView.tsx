@@ -178,7 +178,7 @@ export const BusAttendantMasterView: React.FC = () => {
       {/* Filter */}
       <div className="glass-card p-3.5 rounded-2xl flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4 border border-slate-200/80 dark:border-slate-800">
         <div className="relative flex-1 sm:max-w-xs">
-          <Search className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
+          <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
           <input
             type="text"
             placeholder="Search by attendant name, ID, or phone..."
@@ -189,7 +189,6 @@ export const BusAttendantMasterView: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-2">
-          <label className="text-xs font-bold text-slate-500 shrink-0">Filter by Attendant:</label>
           <select
             value={selectedAttendantFilter}
             onChange={e => handleAttendantFilterChange(e.target.value)}
@@ -350,7 +349,7 @@ export const BusAttendantMasterView: React.FC = () => {
                     <div className="absolute z-20 top-full left-0 right-0 mt-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl shadow-2xl p-2 space-y-2 animate-in fade-in">
                       {/* Search Bar inside Dropdown */}
                       <div className="relative">
-                        <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-2.5" />
+                        <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
                         <input
                           type="text"
                           autoFocus

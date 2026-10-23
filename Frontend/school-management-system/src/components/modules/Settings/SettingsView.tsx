@@ -48,7 +48,7 @@ import {
 import { PrintableCertificateContainer } from "../Certificates/PrintableCertificateContainer";
 import { formatDateDDMMYYYY } from "../../../utils/dateValidation";
 import { resolveMediaUrl, DEFAULT_USER_AVATAR, createOptimizedAvatarDataUrl } from "../../../utils/mediaUtils";
-import { validateFullName, validateEmail, validate10DigitPhone, validatePhoneNumber, sanitizePhoneInput, sanitizeEmailInput, validateCampusName, validateCampusCode, validateCampusAddress, formatTitleCase } from "../../../utils/validation";
+import { validateFullName, validateEmail, validate10DigitPhone, validatePhoneNumber, sanitizePhoneInput, sanitizeEmailInput, validateCampusName, validateCampusCode, validateCampusAddress, validateAcademicSessionName, formatTitleCase } from "../../../utils/validation";
 import { SchoolLogoUploader } from "./SchoolLogoUploader";
 import { CertificateSettingsTab } from "./CertificateSettingsTab";
 import {
@@ -61,8 +61,6 @@ import {
   fetchAcademicYearsApi,
   fetchIdSequenceSettingsApi,
   updateIdSequenceSettingsApi,
-  addOrUpdateCustomIdFormatApi,
-  deleteCustomIdFormatApi,
   fetchUserProfileApi,
   updateUserProfileApi,
   uploadUserProfileImageApi,
@@ -260,7 +258,7 @@ export const SettingsView: React.FC = () => {
   useEffect(() => {
     setProfileForm(schoolProfile);
   }, [schoolProfile]);
-  const [activeTab, setActiveTab] = useState<
+  const [activeTab, setActiveTabState] = useState<
     | "my-profile"
     | "profile"
     | "campus"
@@ -270,20 +268,39 @@ export const SettingsView: React.FC = () => {
     | "backup"
     | "audit"
   >(() => {
-    const saved = localStorage.getItem("settings_active_tab");
-    if (saved) {
-      localStorage.removeItem("settings_active_tab");
-      return saved as any;
-    }
+    try {
+      const saved = localStorage.getItem("settings_active_tab");
+      if (
+        saved &&
+        [
+          "my-profile",
+          "profile",
+          "campus",
+          "academic-year",
+          "certificates",
+          "automated-ids",
+          "backup",
+          "audit",
+        ].includes(saved)
+      ) {
+        return saved as any;
+      }
+    } catch {}
     return "my-profile";
   });
+
+  const setActiveTab = (tab: any) => {
+    setActiveTabState(tab);
+    try {
+      localStorage.setItem("settings_active_tab", tab);
+    } catch {}
+  };
 
   useEffect(() => {
     const handleTabChange = (e: any) => {
       const targetTab = e?.detail?.tab || localStorage.getItem("settings_active_tab");
       if (targetTab) {
         setActiveTab(targetTab as any);
-        localStorage.removeItem("settings_active_tab");
       }
     };
     window.addEventListener("settings_tab_change", handleTabChange);
@@ -611,66 +628,7 @@ export const SettingsView: React.FC = () => {
     }
   };
 
-  const handleAddCustomIdSequence = async () => {
-    const newSeq: CustomIdSequence = {
-      id: `custom_${Date.now()}`,
-      name: `Custom Format ${(idForm.customSequences || []).length + 1}`,
-      prefix: "CUST",
-      startNo: 101,
-      padding: 4,
-      includeYear: true,
-      separator: "-",
-      position: "start",
-    };
 
-    const nextForm = {
-      ...idForm,
-      customSequences: [...(idForm.customSequences || []), newSeq],
-    };
-
-    setIdForm(nextForm);
-    saveIdSequenceSettings(nextForm);
-    addToast("success", "Custom Sequence Added", "New custom sequence format added.");
-
-    try {
-      await addOrUpdateCustomIdFormatApi(newSeq);
-      addToast("success", "Custom ID Format Added", `Added format ${newSeq.name}`);
-    } catch (err: any) {
-      console.error(err);
-    }
-  };
-
-  const handleUpdateCustomSequence = (id: string, updates: Partial<CustomIdSequence>) => {
-    const nextSequences = (idForm.customSequences || []).map(seq =>
-      seq.id === id ? { ...seq, ...updates } : seq
-    );
-    const nextForm = {
-      ...idForm,
-      customSequences: nextSequences,
-    };
-    setIdForm(nextForm);
-    saveIdSequenceSettings(nextForm);
-    const updated = nextSequences.find(s => s.id === id);
-    if (updated) {
-      addOrUpdateCustomIdFormatApi(updated).catch(console.error);
-    }
-  };
-
-  const handleDeleteCustomIdSequence = async (id: string) => {
-    const nextSequences = (idForm.customSequences || []).filter(seq => seq.id !== id);
-    const nextForm = {
-      ...idForm,
-      customSequences: nextSequences,
-    };
-    setIdForm(nextForm);
-    saveIdSequenceSettings(nextForm);
-    try {
-      await deleteCustomIdFormatApi(id);
-      addToast("info", "Custom Format Deleted", "Custom ID sequence format removed.");
-    } catch (err: any) {
-      console.error(err);
-    }
-  };
 
   // Academic Year Configuration States
   const [aySearch, setAySearch] = useState("");
@@ -1141,20 +1099,14 @@ export const SettingsView: React.FC = () => {
       return;
     }
 
-    if (trimmedAY.length < 4 || trimmedAY.length > 30) {
-      const msg = "Academic Session Name must be between 4 and 30 characters (e.g. 2026–27).";
-      setAyErrors((prev) => ({ ...prev, academicYear: msg }));
-      addToast("error", "Invalid Session Name", msg);
+    const valResult = validateAcademicSessionName(trimmedAY, true);
+    if (!valResult.isValid && valResult.error) {
+      setAyErrors((prev) => ({ ...prev, academicYear: valResult.error }));
+      addToast("error", "Invalid Session Name", valResult.error);
       return;
     }
 
-    // Must contain numeric year representation or session/term identifier
-    if (!/\d{2,4}/.test(trimmedAY) && !/(spring|summer|fall|winter|session|term|semester|batch)/i.test(trimmedAY)) {
-      const msg = "Please enter a valid academic session name (e.g. YYYY–YY or YYYY-YYYY).";
-      setAyErrors((prev) => ({ ...prev, academicYear: msg }));
-      addToast("error", "Invalid Session Name", msg);
-      return;
-    }
+
 
     // Case-insensitive duplicate session check
     const isDuplicate = academicYears.some(
@@ -1364,7 +1316,7 @@ export const SettingsView: React.FC = () => {
                 onClick={() => setActiveTab(tab.id as any)}
                 className={`px-4 py-2 rounded-xl text-sm font-bold transition-all cursor-pointer whitespace-nowrap shrink-0 text-center ${
                   isActive
-                    ? "bg-sky-50 dark:bg-sky-950/60 text-[#0088cc] dark:text-sky-400 shadow-2xs border border-sky-300 dark:border-sky-800 font-extrabold"
+                    ? "bg-sky-600 dark:bg-sky-500 text-white shadow-xs border border-sky-600 dark:border-sky-500 font-extrabold"
                     : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-50 dark:hover:bg-slate-800/60 font-semibold border border-transparent"
                 }`}
               >
@@ -2139,7 +2091,18 @@ export const SettingsView: React.FC = () => {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {filteredAcademicYears.map((ay) => (
+            {filteredAcademicYears.map((ay) => {
+              const isPastEnd = Boolean(
+                ay.endDate && new Date(ay.endDate) < new Date(new Date().setHours(0, 0, 0, 0))
+              );
+              const displayStatus =
+                ay.status === "Active"
+                  ? "Active"
+                  : ay.status === "Closed" || isPastEnd
+                    ? "Closed"
+                    : "Upcoming";
+
+              return (
               <div
                 key={ay.id}
                 className="glass-card p-5 rounded-3xl space-y-3 border border-slate-200 dark:border-slate-800 relative"
@@ -2149,17 +2112,24 @@ export const SettingsView: React.FC = () => {
                     {ay.academicYear}
                   </span>
                   <span
-                    className={`px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase ${
-                      ay.status === "Active"
-                        ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300"
-                        : ay.status === "Closed"
-                          ? "bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300"
-                          : ay.status === "Upcoming" || (ay.status as string) === "Inactive"
-                            ? "bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300"
-                            : "bg-slate-200 text-slate-600 dark:bg-slate-800 dark:text-slate-400"
+                    className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase border ${
+                      displayStatus === "Active"
+                        ? "bg-emerald-100 text-emerald-800 border-emerald-300 dark:bg-emerald-950/80 dark:text-emerald-300 dark:border-emerald-800"
+                        : displayStatus === "Closed"
+                          ? "bg-rose-100 text-rose-800 border-rose-300 dark:bg-rose-950/80 dark:text-rose-300 dark:border-rose-800"
+                          : "bg-indigo-100 text-indigo-800 border-indigo-300 dark:bg-indigo-950/80 dark:text-indigo-300 dark:border-indigo-800"
                     }`}
                   >
-                    {ay.status}
+                    <span
+                      className={`w-1.5 h-1.5 rounded-full shrink-0 ${
+                        displayStatus === "Active"
+                          ? "bg-emerald-600 dark:bg-emerald-400"
+                          : displayStatus === "Closed"
+                            ? "bg-rose-600 dark:bg-rose-400"
+                            : "bg-indigo-600 dark:bg-indigo-400"
+                      }`}
+                    />
+                    {displayStatus}
                   </span>
                 </div>
 
@@ -2216,7 +2186,8 @@ export const SettingsView: React.FC = () => {
                   </div>
                 </div>
               </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       )}
@@ -2782,58 +2753,7 @@ export const SettingsView: React.FC = () => {
             </div>
           </div>
 
-          {/* Custom ID Formats List if any exist */}
-          {(idForm.customSequences || []).length > 0 && (
-            <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs space-y-4">
-              <h4 className="font-extrabold text-sm text-slate-900 dark:text-white flex items-center gap-2">
-                <Layers className="w-4 h-4 text-sky-600" /> Custom Module Sequence Formats
-              </h4>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                {(idForm.customSequences || []).map(seq => (
-                  <div key={seq.id} className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 space-y-3 text-xs">
-                    <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-700 pb-2">
-                      <input
-                        type="text"
-                        value={seq.name}
-                        onChange={e => handleUpdateCustomSequence(seq.id, { name: e.target.value })}
-                        className="font-bold text-slate-900 dark:text-white bg-transparent border-b border-dashed border-slate-300 dark:border-slate-600 outline-none focus:border-sky-500"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => handleDeleteCustomIdSequence(seq.id)}
-                        className="p-1 text-slate-400 hover:text-rose-600 transition"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                    <div className="p-2.5 rounded-lg bg-slate-950 text-center font-mono font-bold text-sky-400 text-xs">
-                      {buildPreviewId(seq.prefix, seq.startNo, seq.padding, seq.includeYear, seq.separator, seq.position)}
-                    </div>
-                    <div className="grid grid-cols-2 gap-2">
-                      <div>
-                        <label className="block text-[10px] font-bold text-slate-400">Prefix</label>
-                        <input
-                          type="text"
-                          value={seq.prefix}
-                          onChange={e => handleUpdateCustomSequence(seq.id, { prefix: e.target.value })}
-                          className="w-full px-2 py-1 rounded bg-white dark:bg-slate-900 border font-mono font-bold"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-[10px] font-bold text-slate-400">Start No</label>
-                        <input
-                          type="number"
-                          value={seq.startNo}
-                          onChange={e => handleUpdateCustomSequence(seq.id, { startNo: Number(e.target.value) })}
-                          className="w-full px-2 py-1 rounded bg-white dark:bg-slate-900 border font-mono font-bold"
-                        />
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
+
         </div>
       )}
 
@@ -3181,18 +3101,51 @@ export const SettingsView: React.FC = () => {
 
             <form onSubmit={handleSaveAY} className="space-y-3 text-xs">
               <div>
-                <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
-                  Academic Session Name{" "}
-                  <span className="text-rose-500 font-bold ml-0.5">*</span>
-                </label>
+                <div className="flex justify-between items-center mb-1">
+                  <label className="block font-bold text-slate-700 dark:text-slate-300">
+                    Academic Session Name{" "}
+                    <span className="text-rose-500 font-bold ml-0.5">*</span>
+                  </label>
+                  <span className={`text-[10px] font-mono ${ayForm.academicYear.length >= 20 ? "text-amber-500 font-semibold" : "text-slate-400"}`}>
+                    {ayForm.academicYear.length}/20
+                  </span>
+                </div>
                 <input
                   type="text"
                   required
+                  maxLength={20}
                   placeholder="e.g. YYYY–YY or YYYY-YYYY"
                   value={ayForm.academicYear}
                   onChange={(e) => {
-                    setAyForm({ ...ayForm, academicYear: e.target.value });
-                    if (ayErrors.academicYear) setAyErrors((prev) => ({ ...prev, academicYear: undefined }));
+                    const val = e.target.value.slice(0, 20);
+                    setAyForm((prev) => ({ ...prev, academicYear: val }));
+                    if (val.trim()) {
+                      const res = validateAcademicSessionName(val, true);
+                      const isDuplicate = academicYears.some(
+                        (ay) => ay.academicYear.trim().toLowerCase() === val.trim().toLowerCase() && ay.id !== editingAY?.id
+                      );
+                      setAyErrors((prev) => ({
+                        ...prev,
+                        academicYear: isDuplicate ? `Academic session "${val.trim()}" already exists.` : res.error,
+                      }));
+                    } else if (ayErrors.academicYear) {
+                      setAyErrors((prev) => ({ ...prev, academicYear: undefined }));
+                    }
+                  }}
+                  onBlur={() => {
+                    const trimmed = ayForm.academicYear.trim();
+                    if (!trimmed) {
+                      setAyErrors((prev) => ({ ...prev, academicYear: "Academic Session Name is required." }));
+                    } else {
+                      const res = validateAcademicSessionName(trimmed, true);
+                      const isDuplicate = academicYears.some(
+                        (ay) => ay.academicYear.trim().toLowerCase() === trimmed.toLowerCase() && ay.id !== editingAY?.id
+                      );
+                      setAyErrors((prev) => ({
+                        ...prev,
+                        academicYear: isDuplicate ? `Academic session "${trimmed}" already exists.` : res.error,
+                      }));
+                    }
                   }}
                   className={`w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-mono font-bold ${
                     ayErrors.academicYear ? "border-rose-500 focus:ring-rose-500" : ""
@@ -3307,15 +3260,21 @@ export const SettingsView: React.FC = () => {
               </div>
 
               <div>
-                <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
-                  Description / Remarks
-                </label>
+                <div className="flex justify-between items-center mb-1">
+                  <label className="block font-bold text-slate-700 dark:text-slate-300">
+                    Description / Remarks
+                  </label>
+                  <span className={`text-[10px] font-mono ${ayForm.description.length >= 150 ? "text-amber-500 font-semibold" : "text-slate-400"}`}>
+                    {ayForm.description.length}/150
+                  </span>
+                </div>
                 <input
                   type="text"
+                  maxLength={150}
                   placeholder="e.g. Regular Academic Year"
                   value={ayForm.description}
                   onChange={(e) =>
-                    setAyForm({ ...ayForm, description: e.target.value })
+                    setAyForm({ ...ayForm, description: e.target.value.slice(0, 150) })
                   }
                   className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border"
                 />

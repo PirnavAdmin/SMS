@@ -1,5 +1,8 @@
+import { parseDateOnly, compareDates, formatDateForDisplay } from './dateValidation';
+import { VALID_INDIAN_STATES } from './postalLookup';
+
 export const BLOOD_GROUPS = ['A+', 'A-', 'B+', 'B-', 'O+', 'O-', 'AB+', 'AB-'] as const;
-export const CASTE_CATEGORIES = ['General', 'OBC', 'SC', 'ST', 'EWS', 'Others'] as const;
+export const CASTE_CATEGORIES = ['General', 'OBC', 'BC', 'SC', 'ST', 'EWS', 'Others'] as const;
 export const BRANCHES: readonly string[] = [];
 export const RELIGIONS = ['Hinduism', 'Islam', 'Christianity', 'Sikhism', 'Buddhism', 'Jainism', 'Zoroastrianism', 'Judaism', 'Other'] as const;
 export const MARITAL_STATUSES = ['Married', 'Unmarried'] as const;
@@ -579,6 +582,24 @@ export function validateSubjectName(name: string, required: boolean = true): { i
   return validateTextName(name, { label: 'subject name', required, maxLength: 60 });
 }
 
+export function validateAcademicSessionName(
+  name: string,
+  required: boolean = true
+): { isValid: boolean; error?: string } {
+  if (!name || typeof name !== 'string' || !name.trim()) {
+    return required ? { isValid: false, error: 'Academic Session Name is required.' } : { isValid: true };
+  }
+  const trimmed = name.trim();
+  if (trimmed.length < 4 || trimmed.length > 20) {
+    return { isValid: false, error: 'Academic Session Name must be between 4 and 20 characters (e.g. 2026–27).' };
+  }
+  // Must contain numeric year representation or session/term identifier
+  if (!/\d{2,4}/.test(trimmed) && !/(spring|summer|fall|winter|session|term|semester|batch)/i.test(trimmed)) {
+    return { isValid: false, error: 'Please enter a valid academic session name (e.g. YYYY–YY or YYYY-YYYY).' };
+  }
+  return { isValid: true };
+}
+
 export function validateOrganizationName(name: string, required: boolean = true): { isValid: boolean; error?: string } {
   return validateTextName(name, { label: 'organization name', required, maxLength: 100, allowNumbers: true });
 }
@@ -624,6 +645,98 @@ export function validateCampusAddress(address: string, required: boolean = true)
  * Validator for circular headlines, notice titles, broadcast titles, and announcement headers.
  * Allows common punctuation (colons, exclamation marks, question marks, quotes, brackets, etc.) and emojis.
  */
+/**
+ * Validates a House Number (e.g. 12, 12-34/A, Flat 402, Plot #15).
+ * Allows alphanumeric characters, spaces, and standard address punctuation (-, /, #, ., ,, :).
+ */
+export function validateHouseNumber(
+  val: string,
+  options: { required?: boolean } = {}
+): { isValid: boolean; error?: string } {
+  const { required = false } = options;
+  if (!val || typeof val !== 'string' || !val.trim()) {
+    return required ? { isValid: false, error: 'House No is required.' } : { isValid: true };
+  }
+
+  const trimmed = val.trim();
+  if (trimmed.length > 35) {
+    return { isValid: false, error: 'House No cannot exceed 35 characters.' };
+  }
+
+  // Must contain only letters, numbers, spaces, and -, /, #, ., ,, :
+  if (!/^[a-zA-Z0-9\s\-\/\#\.\,\:]+$/.test(trimmed)) {
+    return { isValid: false, error: 'Special characters are not allowed (allowed: letters, numbers, -, /, #, ., ,, :).' };
+  }
+
+  // Must contain at least one letter or digit
+  if (!/[a-zA-Z0-9]/.test(trimmed)) {
+    return { isValid: false, error: 'Enter a valid House No (e.g. 12-34, Flat 402, Plot #15).' };
+  }
+
+  // Reject consecutive repeating characters (4+)
+  if (/([a-zA-Z0-9])\1{3,}/i.test(trimmed) || KEYBOARD_MASH_REGEX.test(trimmed)) {
+    return { isValid: false, error: 'Enter a valid House No.' };
+  }
+
+  // Reject 3 or more consecutive symbols (e.g. ---, ///)
+  if (/[\-\/\#\.\,\:]{3,}/.test(trimmed)) {
+    return { isValid: false, error: 'Enter a valid House No.' };
+  }
+
+  return { isValid: true };
+}
+
+/**
+ * Validates a City name.
+ * Allows only alphabetic characters, spaces, hyphens, periods, and apostrophes.
+ * Rejects numbers, special characters, state names, keyboard mash, and gibberish.
+ */
+export function validateCity(
+  val: string,
+  options: { required?: boolean } = {}
+): { isValid: boolean; error?: string } {
+  const { required = false } = options;
+  if (!val || typeof val !== 'string' || !val.trim()) {
+    return required ? { isValid: false, error: 'City is required.' } : { isValid: true };
+  }
+
+  const trimmed = val.trim();
+  if (trimmed.length < 2) {
+    return { isValid: false, error: 'City name must be at least 2 characters.' };
+  }
+  if (trimmed.length > 50) {
+    return { isValid: false, error: 'City name cannot exceed 50 characters.' };
+  }
+
+  if (!/^[a-zA-Z\s\.\-\']+$/.test(trimmed)) {
+    return { isValid: false, error: 'City name must contain only letters.' };
+  }
+
+  // Reject state names entered into city
+  const lowerInput = trimmed.toLowerCase();
+  const matchedState = VALID_INDIAN_STATES.find(s => s.toLowerCase() === lowerInput);
+  if (matchedState) {
+    return {
+      isValid: false,
+      error: `"${trimmed}" is a State name. Please enter a valid City name.`
+    };
+  }
+
+  // Reject 3+ repeating letters or keyboard mash
+  if (/([a-zA-Z])\1{2,}/i.test(trimmed) || KEYBOARD_MASH_REGEX.test(trimmed)) {
+    return { isValid: false, error: 'Enter a valid city name.' };
+  }
+
+  const words = trimmed.split(/[\s\.\-\']+/).filter(Boolean);
+  for (const word of words) {
+    if (isGibberishSegment(word)) {
+      return { isValid: false, error: 'Enter a valid city name.' };
+    }
+  }
+
+  return { isValid: true };
+}
+
 export function validateCircularHeadline(
   val: string,
   options: { label?: string; required?: boolean; minLength?: number; maxLength?: number } = {}
@@ -753,16 +866,22 @@ export function validateCertificateTypeCode(code: string, required: boolean = tr
   return { isValid: true };
 }
 
-export function validateSearchQuery(query: string): { isValid: boolean; error?: string } {
+export function validateSearchQuery(query: string, maxLength: number = 30): { isValid: boolean; error?: string } {
   if (!query || typeof query !== 'string') return { isValid: true };
   if (query.length > 0 && !query.trim()) {
     return { isValid: false, error: 'Enter a valid search term.' };
   }
   const trimmed = query.trim();
   if (!trimmed) return { isValid: true };
-  if (trimmed.length > 50) return { isValid: false, error: 'Maximum 50 characters allowed.' };
+  if (trimmed.length > maxLength) return { isValid: false, error: `Maximum ${maxLength} characters allowed.` };
+  if (/^\d+$/.test(trimmed) && trimmed.length > 10) {
+    return { isValid: false, error: 'Numeric search cannot exceed 10 digits.' };
+  }
+  if (/\d{11,}/.test(trimmed)) {
+    return { isValid: false, error: 'Numeric search cannot exceed 10 digits.' };
+  }
   if (!/^[a-zA-Z0-9\s\-\/\.\_\&\']+$/.test(trimmed)) {
-    return { isValid: false, error: 'Invalid characters not allowed.' };
+    return { isValid: false, error: 'Special characters are not allowed.' };
   }
   if (!/[a-zA-Z0-9]/.test(trimmed) || /[\-\/\.\_\&\']{2,}/.test(trimmed) || /(\d)\1{4,}/.test(trimmed)) {
     return { isValid: false, error: 'Enter a valid search term.' };
@@ -800,7 +919,7 @@ function inferInputFieldLabel(input: HTMLInputElement | HTMLTextAreaElement): st
       .replace(/\(.*?\)/g, '')
       .trim()
       .toLowerCase();
-    if (raw && raw.length <= 35) {
+    if (raw && raw.length <= 50) {
       return raw;
     }
   }
@@ -817,6 +936,8 @@ function inferInputFieldLabel(input: HTMLInputElement | HTMLTextAreaElement): st
   if (ph.includes('company') || ph.includes('employer')) return 'company name';
   if (ph.includes('search')) return 'search term';
   if (ph.includes('address')) return 'address';
+  if (ph.includes('house') || ph.includes('flat') || ph.includes('plot')) return 'house no';
+  if (ph.includes('city')) return 'city';
   if (ph.includes('name')) return 'name';
 
   return 'value';
@@ -824,6 +945,9 @@ function inferInputFieldLabel(input: HTMLInputElement | HTMLTextAreaElement): st
 
 function shouldSkipGlobalValidation(input: HTMLInputElement | HTMLTextAreaElement): boolean {
   if (input.disabled || input.readOnly) return true;
+  if (input.hasAttribute('data-skip-global-validation') || Boolean(input.closest('[data-skip-global-validation]'))) {
+    return true;
+  }
   if (input instanceof HTMLInputElement && SKIP_INPUT_TYPES.has((input.type || 'text').toLowerCase())) {
     return true;
   }
@@ -899,7 +1023,16 @@ function setGlobalInputError(input: HTMLInputElement | HTMLTextAreaElement, erro
     return false;
   })();
 
-  const shouldAbsolute = isIconWrapper || isSearch || isInsideHorizontalLayout;
+  // Form field check: if inside a form, grid, has a label or full width, always use normal block flow
+  const isFormField = Boolean(
+    container.closest('form') ||
+    container.closest('.grid') ||
+    targetParent.querySelector('label') ||
+    container.classList.contains('w-full') ||
+    input.classList.contains('w-full')
+  );
+
+  const shouldAbsolute = isSearch && !isFormField;
 
   const directSibling = (isIconWrapper ? container.nextElementSibling : input.nextElementSibling) as HTMLElement | null;
   let errEl = (container.querySelector(':scope > [data-global-validation-error="true"]') ||
@@ -965,7 +1098,8 @@ function setGlobalInputError(input: HTMLInputElement | HTMLTextAreaElement, erro
       anchor.appendChild(errEl);
     }
   } else {
-    errEl.style.position = '';
+    errEl.style.position = 'static';
+    errEl.style.display = 'block';
     errEl.style.left = '';
     errEl.style.top = '';
     errEl.style.zIndex = '';
@@ -977,8 +1111,9 @@ function setGlobalInputError(input: HTMLInputElement | HTMLTextAreaElement, erro
     errEl.style.marginTop = '4px';
     errEl.style.lineHeight = '1.2';
 
-    if (errEl.previousElementSibling !== input) {
-      input.insertAdjacentElement('afterend', errEl);
+    const insertTarget = isIconWrapper ? container : input;
+    if (insertTarget.nextElementSibling !== errEl) {
+      insertTarget.insertAdjacentElement('afterend', errEl);
     }
   }
   errEl.textContent = error;
@@ -1009,6 +1144,209 @@ export function validateInputElement(
       return { isValid: false, error: `${cap} is required.` };
     }
     return { isValid: true };
+  }
+
+  const isDateField =
+    input.hasAttribute('data-date-input') ||
+    Boolean(input.closest('[data-date-input]')) ||
+    Boolean(input.parentElement?.querySelector('input[type="date"]')) ||
+    (/\b(date|dob)\b/i.test(label) && !label.includes('candidate') && !label.includes('validate') && !label.includes('update')) ||
+    (input.placeholder || '').toLowerCase().includes('dd-mm') ||
+    (input.placeholder || '').toLowerCase().includes('yyyy');
+
+  if (isDateField) {
+    const trimmedDate = val.trim();
+    if (trimmedDate.length >= 8) {
+      const parsed = parseDateOnly(trimmedDate);
+      if (!parsed) {
+        return { isValid: false, error: `Enter a valid ${label || 'date'} (DD-MM-YYYY).` };
+      }
+      const maxAttr = input instanceof HTMLInputElement ? input.max : undefined;
+      if (maxAttr) {
+        const maxParsed = parseDateOnly(maxAttr);
+        if (maxParsed && compareDates(parsed, maxParsed) > 0) {
+          return { isValid: false, error: `Date cannot be after ${formatDateForDisplay(maxAttr)}.` };
+        }
+      }
+      const minAttr = input instanceof HTMLInputElement ? input.min : undefined;
+      if (minAttr) {
+        const minParsed = parseDateOnly(minAttr);
+        if (minParsed && compareDates(parsed, minParsed) < 0) {
+          return { isValid: false, error: `Date cannot be before ${formatDateForDisplay(minAttr)}.` };
+        }
+      }
+    } else if (enforceRequired) {
+      return { isValid: false, error: `Enter a valid ${label || 'date'} (DD-MM-YYYY).` };
+    }
+    return { isValid: true };
+  }
+
+  const fullLabelText = (() => {
+    const parentDiv = input.closest('div');
+    const labelEl = parentDiv?.querySelector('label') || parentDiv?.parentElement?.querySelector('label');
+    return (labelEl?.textContent || '').toLowerCase();
+  })();
+
+  const ph = (input.placeholder || '').toLowerCase().trim();
+
+  const isExplicitlyNonTime =
+    input.hasAttribute('data-no-time-validation') ||
+    Boolean(input.closest('[data-no-time-validation]')) ||
+    input.getAttribute('data-field-type') === 'duration' ||
+    input.getAttribute('data-field-type') === 'name' ||
+    input.getAttribute('data-field-type') === 'numeric' ||
+    label.includes('name') ||
+    label.includes('route') ||
+    label.includes('est') ||
+    label.includes('duration') ||
+    label.includes('minute') ||
+    label.includes('min') ||
+    label.includes('distance') ||
+    label.includes('km') ||
+    /\b(name|route|est|estimated?|duration|minutes?|mins?|hours?|hrs?|seconds?|secs?|distance|km|kms|fare|rate|price|cost|amount|count|qty)\b/i.test(fullLabelText + ' ' + label + ' ' + ph);
+
+  const isNumericOrDuration =
+    input.inputMode === 'numeric' ||
+    input.inputMode === 'decimal' ||
+    (input instanceof HTMLInputElement && input.type === 'number') ||
+    input.getAttribute('data-field-type') === 'duration' ||
+    input.getAttribute('data-field-type') === 'numeric' ||
+    /\b(minutes?|mins?|hours?|hrs?|seconds?|secs?|duration|distance|km|kms|miles?|count|quantity|qty|amount|fare|rate|price|cost|capacity)\b/i.test(fullLabelText + ' ' + label) ||
+    /\b(est|estimate|estimated)\b/i.test(fullLabelText + ' ' + label);
+
+  const hasTimePlaceholder =
+    /\b\d{1,2}:\d{2}\s*(am|pm)?\b/i.test(ph) ||
+    /\bhh:mm(\s*(am\/pm|am|pm))?\b/i.test(ph);
+
+  const isClockTimeLabel =
+    !isExplicitlyNonTime &&
+    !label.includes('name') &&
+    !label.includes('route') &&
+    !label.includes('title') &&
+    !label.includes('code') &&
+    !label.includes('person') &&
+    !label.includes('manager') &&
+    !label.includes('user') &&
+    !label.includes('student') &&
+    !label.includes('staff') &&
+    !label.includes('driver') &&
+    !label.includes('employee') &&
+    !label.includes('zone') &&
+    !label.includes('area') &&
+    (
+      label === 'time' ||
+      label === 'time:' ||
+      label.includes('start time') ||
+      label.includes('end time') ||
+      label.includes('pickup time') ||
+      label.includes('drop time') ||
+      label.includes('arrival') ||
+      label.includes('departure') ||
+      label.includes('in time') ||
+      label.includes('out time') ||
+      label.includes('clock time') ||
+      label.includes('schedule time') ||
+      label.includes('shift time') ||
+      label.includes('reporting time') ||
+      label.includes('exam time') ||
+      label.includes('meeting time') ||
+      label.includes('opening time') ||
+      label.includes('closing time')
+    );
+
+  const isTimeField =
+    !isExplicitlyNonTime &&
+    !isNumericOrDuration &&
+    (
+      (input instanceof HTMLInputElement && input.type === 'time') ||
+      input.hasAttribute('data-time-input') ||
+      Boolean(input.closest('[data-time-input]')) ||
+      (isClockTimeLabel && (hasTimePlaceholder || ph.includes('time') || !ph)) ||
+      (hasTimePlaceholder && (label.includes('time') || ph.includes('time')))
+    );
+
+  if (isTimeField) {
+    let trimmedTime = val.trim();
+    const compactMatch = trimmedTime.match(/^(\d{3,4})(\s*(?:am|pm|a|p)?)?$/i);
+    if (compactMatch) {
+      const digits = compactMatch[1];
+      const suffix = compactMatch[2] || '';
+      const firstTwo = parseInt(digits.slice(0, 2), 10);
+      if (digits.length === 3) {
+        trimmedTime = firstTwo > 23
+          ? `0${digits[0]}:${digits.slice(1)}${suffix}`
+          : `${digits.slice(0, 2)}:${digits.slice(2)}${suffix}`;
+      } else if (digits.length === 4) {
+        trimmedTime = `${digits.slice(0, 2)}:${digits.slice(2, 4)}${suffix}`;
+      }
+    }
+    const timePattern = enforceRequired
+      ? /^([0-1]?[0-9]|2[0-3])(:[0-5][0-9])?(\s*(am|pm))?(\s*[-–—to]\s*([0-1]?[0-9]|2[0-3])(:[0-5][0-9])?(\s*(am|pm))?)?$/i
+      : /^([0-1]?[0-9]|2[0-3])(:[0-5][0-9]?|:)?(\s*(a|p|am|pm))?(\s*[-–—to]\s*([0-1]?[0-9]|2[0-3])(:[0-5][0-9]?|:)?(\s*(a|p|am|pm))?)?$/i;
+    if (!timePattern.test(trimmedTime)) {
+      return { isValid: false, error: 'Enter a valid time (e.g. 10:00 AM).' };
+    }
+    return { isValid: true };
+  }
+
+  if (isNumericOrDuration && (input.inputMode === 'numeric' || input.inputMode === 'decimal' || (input instanceof HTMLInputElement && input.type === 'number'))) {
+    const trimmedNum = val.trim();
+    if (!/^\d+(\.\d+)?$/.test(trimmedNum)) {
+      return { isValid: false, error: `Enter a valid ${label || 'number'}.` };
+    }
+    return { isValid: true };
+  }
+
+  // 1. Content/Textarea/Message check must run BEFORE house number or address checks
+  const isContentField =
+    input instanceof HTMLTextAreaElement ||
+    label.includes('content') ||
+    label.includes('message') ||
+    label.includes('description') ||
+    label.includes('remark') ||
+    label.includes('note') ||
+    label.includes('body') ||
+    label.includes('detail') ||
+    label.includes('reason') ||
+    label.includes('circular text') ||
+    label.includes('broadcast text');
+
+  if (isContentField) {
+    return validateMessageContent(val, {
+      label,
+      required: enforceRequired && input.required,
+    });
+  }
+
+  // 2. House number: Must NOT match textareas or message/content/circular fields
+  const isHouseNumberField =
+    !isContentField &&
+    !(input instanceof HTMLTextAreaElement) &&
+    !label.includes('content') &&
+    !label.includes('message') &&
+    !label.includes('circular') &&
+    !label.includes('announcement') &&
+    !label.includes('title') &&
+    !label.includes('headline') &&
+    (
+      /\b(house|flat|door|plot)\b/i.test(label) ||
+      (/\b(house|flat|door|plot)\s*(no|num|number)?\b/i.test(input.placeholder || '') && !/\b(inter-house|guest\s*house|open\s*house)\b/i.test(input.placeholder || ''))
+    );
+
+  if (isHouseNumberField) {
+    return validateHouseNumber(val, {
+      required: enforceRequired && input.required,
+    });
+  }
+
+  const isCityField =
+    (label === 'city' || /\bcity\b/i.test(label) || (input.placeholder || '').toLowerCase().includes('city')) &&
+    !label.includes('capacity');
+
+  if (isCityField) {
+    return validateCity(val, {
+      required: enforceRequired && input.required,
+    });
   }
 
   if (label.includes('address') && !label.includes('email') && !label.includes('ip') && !label.includes('web')) {
@@ -1047,30 +1385,20 @@ export function validateInputElement(
     return { isValid: true };
   }
 
-  const isContentField =
-    input instanceof HTMLTextAreaElement ||
-    label.includes('content') ||
-    label.includes('message') ||
-    label.includes('description') ||
-    label.includes('remark') ||
-    label.includes('note') ||
-    label.includes('body') ||
-    label.includes('detail') ||
-    label.includes('reason');
-
-  if (isContentField) {
-    return validateMessageContent(val, {
-      label,
-      required: enforceRequired && input.required,
-    });
-  }
-
   const isCircularHeadlineField =
+    !isContentField &&
+    !(input instanceof HTMLTextAreaElement) &&
+    !isDateField &&
+    !isTimeField &&
+    !label.includes('channel') &&
+    !label.includes('audience') &&
+    !label.includes('category') &&
+    (
     label.includes('headline') ||
     label.includes('circular') ||
     label.includes('broadcast') ||
     label.includes('announcement') ||
-    label.includes('notice');
+    label.includes('notice'));
 
   if (isCircularHeadlineField) {
     return validateCircularHeadline(val, {
@@ -1081,6 +1409,9 @@ export function validateInputElement(
   }
 
   const isStrictNameField =
+    !isDateField &&
+    !isTimeField &&
+    (
     label.includes('name') ||
     label.includes('title') ||
     label.includes('designation') ||
@@ -1099,7 +1430,7 @@ export function validateInputElement(
     label.includes('college') ||
     label.includes('university') ||
     label.includes('company') ||
-    label.includes('employer');
+    label.includes('employer'));
 
   if (isStrictNameField) {
     const isPersonalName =
@@ -1116,6 +1447,7 @@ export function validateInputElement(
       label.includes('teacher name') ||
       label.includes('driver name') ||
       label.includes('holder name') ||
+      label.includes('signatory') ||
       label.includes('contact person');
 
     const disallowNumbers =

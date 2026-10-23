@@ -101,7 +101,18 @@ const MainLayout: React.FC = () => {
       return next;
     });
   }, []);
-  const [showLogin, setShowLogin] = useState(false);
+  const [showLogin, setShowLogin] = useState<boolean>(() => {
+    try {
+      const isTimeout = localStorage.getItem("session_timeout_occurred");
+      const showLoginFlag = localStorage.getItem("show_login_view");
+      if (isTimeout === "true" || showLoginFlag === "true") {
+        return true;
+      }
+      return false;
+    } catch {
+      return false;
+    }
+  });
   const [selectedPortalRole, setSelectedPortalRole] = useState<string | undefined>(undefined);
 
   useEffect(() => {
@@ -110,8 +121,20 @@ const MainLayout: React.FC = () => {
         setActiveModule(e.detail);
       }
     };
+    const handleSessionExpired = () => {
+      setShowLogin(true);
+      setActiveModuleState("dashboard");
+    };
+
     window.addEventListener('navigate_module', handleModuleNav as EventListener);
-    return () => window.removeEventListener('navigate_module', handleModuleNav as EventListener);
+    window.addEventListener('session_expired', handleSessionExpired);
+    window.addEventListener('auth_unauthorized', handleSessionExpired);
+
+    return () => {
+      window.removeEventListener('navigate_module', handleModuleNav as EventListener);
+      window.removeEventListener('session_expired', handleSessionExpired);
+      window.removeEventListener('auth_unauthorized', handleSessionExpired);
+    };
   }, []);
 
 
@@ -188,10 +211,25 @@ const MainLayout: React.FC = () => {
     if (!isAuthenticated) {
       setActiveModuleState("dashboard");
       try {
-        localStorage.removeItem("active_module");
+        localStorage.setItem("active_module", "dashboard");
+        localStorage.removeItem("session_resume_module");
       } catch {}
-      if (prevAuthenticated.current) {
-        setShowLogin(true);
+      setShowLogin(true);
+    } else {
+      if (!prevAuthenticated.current) {
+        // Fresh login: always reflect dashboard
+        setActiveModuleState("dashboard");
+        try {
+          localStorage.setItem("active_module", "dashboard");
+          localStorage.removeItem("session_resume_module");
+        } catch {}
+      } else {
+        try {
+          const saved = localStorage.getItem("active_module");
+          if (saved && saved !== activeModule) {
+            setActiveModuleState(saved);
+          }
+        } catch {}
       }
     }
     prevAuthenticated.current = isAuthenticated;

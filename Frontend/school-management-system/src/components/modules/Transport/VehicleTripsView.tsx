@@ -269,7 +269,7 @@ export const VehicleTripsView: React.FC<VehicleTripsViewProps> = ({ onOpenGps })
       {/* Clean Toolbar: Search Bar + Route Filter Dropdown Only */}
       <div className="glass-card p-3.5 rounded-2xl flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 border border-slate-200/80 dark:border-slate-800">
         <div className="relative flex-1 sm:max-w-xs">
-          <Search className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
+          <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
           <input
             type="text"
             placeholder="Search vehicle, route, driver..."
@@ -280,8 +280,9 @@ export const VehicleTripsView: React.FC<VehicleTripsViewProps> = ({ onOpenGps })
         </div>
 
         <div className="flex items-center gap-2">
-          <label className="text-xs font-bold text-slate-500 shrink-0">Filter by Route:</label>
+
           <select
+            aria-label="Filter by route"
             value={filterRoute}
             onChange={e => setFilterRoute(e.target.value)}
             className="px-3.5 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-xs font-bold text-slate-900 dark:text-white outline-none cursor-pointer"
@@ -442,11 +443,11 @@ export const VehicleTripsView: React.FC<VehicleTripsViewProps> = ({ onOpenGps })
                 </div>
                 <div>
                   <span className="text-[10px] font-extrabold text-slate-400 block uppercase tracking-wider">Morning Trip</span>
-                  <span className="font-mono font-bold text-slate-800 dark:text-slate-200 text-xs">{morningTripTime}</span>
+                  <span className="font-mono font-bold text-sky-600 dark:text-sky-400 text-xs">{morningTripTime}</span>
                 </div>
                 <div>
                   <span className="text-[10px] font-extrabold text-slate-400 block uppercase tracking-wider">Evening Trip</span>
-                  <span className="font-mono font-bold text-slate-800 dark:text-slate-200 text-xs">{eveningTripTime}</span>
+                  <span className="font-mono font-bold text-sky-600 dark:text-sky-400 text-xs">{eveningTripTime}</span>
                 </div>
               </div>
 

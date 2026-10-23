@@ -285,11 +285,11 @@ export const VehicleTripDetailsModal: React.FC<VehicleTripDetailsModalProps> = (
               </div>
               <div>
                 <span className="text-white/70 block text-[10px] uppercase font-bold">Morning Trip</span>
-                <span className="font-extrabold text-amber-200 font-mono block">{morningTripTime}</span>
+                <span className="font-extrabold text-sky-200 font-mono block">{morningTripTime}</span>
               </div>
               <div>
                 <span className="text-white/70 block text-[10px] uppercase font-bold">Evening Trip</span>
-                <span className="font-extrabold text-amber-200 font-mono block">{eveningTripTime}</span>
+                <span className="font-extrabold text-sky-200 font-mono block">{eveningTripTime}</span>
               </div>
               <div>
                 <span className="text-white/70 block text-[10px] uppercase font-bold">Capacity</span>
@@ -409,11 +409,11 @@ export const VehicleTripDetailsModal: React.FC<VehicleTripDetailsModalProps> = (
                     </div>
                     <div className="flex justify-between p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800">
                       <span className="text-slate-500">Morning Departure / Arrival:</span>
-                      <span className="font-mono font-bold text-emerald-600">{morningTripTime}</span>
+                      <span className="font-mono font-bold text-sky-600 dark:text-sky-400">{morningTripTime}</span>
                     </div>
                     <div className="flex justify-between p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800">
                       <span className="text-slate-500">Evening Departure / Arrival:</span>
-                      <span className="font-mono font-bold text-amber-600">{eveningTripTime}</span>
+                      <span className="font-mono font-bold text-sky-600 dark:text-sky-400">{eveningTripTime}</span>
                     </div>
                   </div>
                 </div>
@@ -428,7 +428,7 @@ export const VehicleTripDetailsModal: React.FC<VehicleTripDetailsModalProps> = (
                   <h3 className="text-xs font-black uppercase tracking-wider text-slate-400">Morning Pickup Journey Sequence</h3>
                   <p className="text-[11px] text-slate-500">Sequential pickup timeline from origin to school campus arrival</p>
                 </div>
-                <Badge variant="success" size="sm">Morning Departure: {displayStops.length > 0 ? displayStops[0].morningTime : morningTripTime}</Badge>
+                <Badge variant="info" size="sm">Morning Departure: {displayStops.length > 0 ? displayStops[0].morningTime : morningTripTime}</Badge>
               </div>
 
               {displayStops.length === 0 ? (
@@ -443,7 +443,7 @@ export const VehicleTripDetailsModal: React.FC<VehicleTripDetailsModalProps> = (
                     </div>
                     <div className="p-3 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm flex-1">
                       <span className="font-extrabold text-xs text-slate-900 dark:text-white">School Departure / Depot Origin</span>
-                      <span className="text-xs font-mono font-bold text-sky-600 ml-3">{displayStops[0].morningTime}</span>
+                      <span className="text-xs font-mono font-bold text-sky-600 dark:text-sky-400 ml-3">{displayStops[0].morningTime}</span>
                     </div>
                   </div>
 
@@ -460,10 +460,10 @@ export const VehicleTripDetailsModal: React.FC<VehicleTripDetailsModalProps> = (
                             <span className="text-[11px] text-slate-400 ml-2">({stop.distanceKm} KM)</span>
                           </div>
                           <div className="flex items-center gap-3">
-                            <span className="font-mono font-extrabold text-emerald-600 text-xs flex items-center gap-1">
+                            <span className="font-mono font-extrabold text-sky-600 dark:text-sky-400 text-xs flex items-center gap-1">
                               <Clock className="w-3.5 h-3.5" /> {stop.morningTime}
                             </span>
-                            <Badge variant="info" size="sm">{stop.status}</Badge>
+                            <Badge variant={stop.status?.toLowerCase() === 'active' ? 'success' : 'neutral'} size="sm">{stop.status}</Badge>
                           </div>
                         </div>
 
@@ -476,7 +476,7 @@ export const VehicleTripDetailsModal: React.FC<VehicleTripDetailsModalProps> = (
                               {displayStudentsList
                                 .filter(student => student.pickupPoint.toLowerCase().includes(stop.label.toLowerCase()))
                                 .map(student => (
-                                  <div key={student.id} className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border text-xs flex items-center justify-between">
+                                   <div key={student.id} className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border text-xs flex items-center justify-between">
                                     <div>
                                       <p className="font-bold text-slate-900 dark:text-white">{student.studentName}</p>
                                       <p className="text-[10px] text-slate-400">{formatClassSection(student.className, student.section)} • Roll #{student.rollNo}</p>
@@ -497,7 +497,7 @@ export const VehicleTripDetailsModal: React.FC<VehicleTripDetailsModalProps> = (
                     </div>
                     <div className="p-3 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm flex-1 flex items-center justify-between">
                       <span className="font-extrabold text-xs text-slate-900 dark:text-white">School Campus Arrival</span>
-                      <span className="text-xs font-mono font-black text-emerald-600">{displayStops[displayStops.length - 1].morningTime}</span>
+                      <span className="text-xs font-mono font-black text-sky-600 dark:text-sky-400">{displayStops[displayStops.length - 1].morningTime}</span>
                     </div>
                   </div>
                 </div>
@@ -512,7 +512,7 @@ export const VehicleTripDetailsModal: React.FC<VehicleTripDetailsModalProps> = (
                   <h3 className="text-xs font-black uppercase tracking-wider text-slate-400">Evening Return Journey Sequence</h3>
                   <p className="text-[11px] text-slate-500">Reverse drop journey sequence from school campus to student stops</p>
                 </div>
-                <Badge variant="warning" size="sm">Evening Departure: {displayStops.length > 0 ? displayStops[displayStops.length - 1].eveningTime : eveningTripTime}</Badge>
+                <Badge variant="info" size="sm">Evening Departure: {displayStops.length > 0 ? displayStops[displayStops.length - 1].eveningTime : eveningTripTime}</Badge>
               </div>
 
               {displayStops.length === 0 ? (
@@ -520,20 +520,20 @@ export const VehicleTripDetailsModal: React.FC<VehicleTripDetailsModalProps> = (
                   <p className="text-slate-400 text-xs font-bold">No pickup points / stops configured for this route yet.</p>
                 </div>
               ) : (
-                <div className="space-y-4 relative before:absolute before:left-6 before:top-4 before:bottom-4 before:w-0.5 before:bg-amber-200 dark:before:bg-amber-900">
+                <div className="space-y-4 relative before:absolute before:left-6 before:top-4 before:bottom-4 before:w-0.5 before:bg-sky-200 dark:before:bg-sky-900">
                   <div className="flex items-center gap-4 relative z-10">
-                    <div className="w-12 h-12 rounded-full bg-amber-600 text-white font-bold text-xs flex items-center justify-center shadow-md shrink-0">
+                    <div className="w-12 h-12 rounded-full bg-sky-600 text-white font-bold text-xs flex items-center justify-center shadow-md shrink-0">
                       START
                     </div>
                     <div className="p-3 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm flex-1 flex items-center justify-between">
                       <span className="font-extrabold text-xs text-slate-900 dark:text-white">School Campus Departure</span>
-                      <span className="text-xs font-mono font-black text-amber-600">{displayStops[displayStops.length - 1].eveningTime}</span>
+                      <span className="text-xs font-mono font-black text-sky-600 dark:text-sky-400">{displayStops[displayStops.length - 1].eveningTime}</span>
                     </div>
                   </div>
 
                   {[...displayStops].reverse().map((stop, idx) => (
                     <div key={stop.id} className="flex items-start gap-4 relative z-10">
-                      <div className="w-12 h-12 rounded-full bg-white dark:bg-slate-900 border-2 border-amber-500 font-mono font-black text-amber-600 text-xs flex items-center justify-center shadow-md shrink-0 mt-1">
+                      <div className="w-12 h-12 rounded-full bg-white dark:bg-slate-900 border-2 border-sky-500 font-mono font-black text-sky-600 text-xs flex items-center justify-center shadow-md shrink-0 mt-1">
                         #{displayStops.length - idx}
                       </div>
 
@@ -544,10 +544,10 @@ export const VehicleTripDetailsModal: React.FC<VehicleTripDetailsModalProps> = (
                             <span className="text-[11px] text-slate-400 ml-2">({stop.distanceKm} KM)</span>
                           </div>
                           <div className="flex items-center gap-3">
-                            <span className="font-mono font-extrabold text-sky-600 text-xs flex items-center gap-1">
+                            <span className="font-mono font-extrabold text-sky-600 dark:text-sky-400 text-xs flex items-center gap-1">
                               <Clock className="w-3.5 h-3.5" /> {stop.eveningTime}
                             </span>
-                            <Badge variant="warning" size="sm">Drop Stop</Badge>
+                            <Badge variant={stop.status?.toLowerCase() === 'active' ? 'success' : 'neutral'} size="sm">{stop.status || 'Active'}</Badge>
                           </div>
                         </div>
 
@@ -581,7 +581,7 @@ export const VehicleTripDetailsModal: React.FC<VehicleTripDetailsModalProps> = (
                     </div>
                     <div className="p-3 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm flex-1 flex items-center justify-between">
                       <span className="font-extrabold text-xs text-slate-900 dark:text-white">Trip Completed / Depot Arrival</span>
-                      <span className="text-xs font-mono font-black text-emerald-600">{displayStops[0].eveningTime}</span>
+                      <span className="text-xs font-mono font-black text-sky-600 dark:text-sky-400">{displayStops[0].eveningTime}</span>
                     </div>
                   </div>
                 </div>
@@ -593,7 +593,7 @@ export const VehicleTripDetailsModal: React.FC<VehicleTripDetailsModalProps> = (
             <div className="space-y-4 animate-in fade-in">
               <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
                 <div className="relative w-full sm:w-64">
-                  <Search className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
+                  <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
                   <input
                     type="text"
                     placeholder="Search student, adm no, parent..."
@@ -661,8 +661,8 @@ export const VehicleTripDetailsModal: React.FC<VehicleTripDetailsModalProps> = (
                             <td className="py-3 px-4 font-bold text-slate-900 dark:text-white">{student.studentName}</td>
                             <td className="py-3 px-4 font-semibold text-slate-700 dark:text-slate-300">{formatClassSection(student.className, student.section)}</td>
                             <td className="py-3 px-4 font-bold text-sky-600 dark:text-sky-400">{student.pickupPoint}</td>
-                            <td className="py-3 px-4 font-mono text-emerald-600 font-bold">{student.morningTime}</td>
-                            <td className="py-3 px-4 font-mono text-amber-600 font-bold">{student.eveningTime}</td>
+                            <td className="py-3 px-4 font-mono text-sky-600 dark:text-sky-400 font-bold">{student.morningTime}</td>
+                            <td className="py-3 px-4 font-mono text-sky-600 dark:text-sky-400 font-bold">{student.eveningTime}</td>
                             <td className="py-3 px-4 font-semibold text-slate-800 dark:text-slate-200">{student.parentName}</td>
                             <td className="py-3 px-4 text-right font-mono font-bold text-sky-600">{student.parentMobile}</td>
                           </tr>
@@ -712,12 +712,12 @@ export const VehicleTripDetailsModal: React.FC<VehicleTripDetailsModalProps> = (
                             <td className="py-3 px-4 font-bold text-sky-600">{log.route}</td>
                             <td className="py-3 px-4 text-slate-700 dark:text-slate-300">{log.driver}</td>
                             <td className="py-3 px-4 text-slate-700 dark:text-slate-300">{log.att}</td>
-                            <td className="py-3 px-4 font-mono text-emerald-600 font-bold">{log.mStart}</td>
-                            <td className="py-3 px-4 font-mono text-emerald-600">{log.mEnd}</td>
-                            <td className="py-3 px-4 font-mono text-amber-600 font-bold">{log.eStart}</td>
-                            <td className="py-3 px-4 font-mono text-amber-600">{log.eEnd}</td>
+                            <td className="py-3 px-4 font-mono text-sky-600 dark:text-sky-400 font-bold">{log.mStart}</td>
+                            <td className="py-3 px-4 font-mono text-sky-600 dark:text-sky-400">{log.mEnd}</td>
+                            <td className="py-3 px-4 font-mono text-sky-600 dark:text-sky-400 font-bold">{log.eStart}</td>
+                            <td className="py-3 px-4 font-mono text-sky-600 dark:text-sky-400">{log.eEnd}</td>
                             <td className="py-3 px-4 text-right">
-                              <Badge variant="success" size="sm">{log.status}</Badge>
+                              <Badge variant={log.status === 'Active' ? 'success' : 'danger'} size="sm">{log.status}</Badge>
                             </td>
                           </tr>
                         ))}

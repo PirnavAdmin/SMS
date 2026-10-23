@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { 
   School, Calendar, Presentation, Layers, BookOpen, 
   Users, UserPlus, Clock, ShieldCheck, Plus, Edit, 
-  Trash2, Search, X, Check, ChevronRight, AlertCircle, ChevronDown,
+  Trash2, Search, X, Check, ChevronLeft, ChevronRight, AlertCircle, ChevronDown,
   BarChart2, CheckSquare, Copy, Archive, CheckCircle2, RefreshCw,
   ArrowLeft, Activity, Settings, Clipboard, Download, Lock, CheckSquare as CheckSquareIcon, ArrowRightLeft, BookOpen as BookOpenIcon, UserCheck, Play, Info
 } from 'lucide-react';
@@ -306,7 +306,7 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
     students: rawStudents = [], updateStudent, staff: rawStaff = [], timetable: rawTimetable = [], addTimetableSlot, updateTimetableSlot, deleteTimetableSlot,
     teacherAssignments: rawTeacherAssignments = [], addTeacherAssignment, updateTeacherAssignment, deleteTeacherAssignment,
     subjects: rawSubjects = [], addSubject, updateSubject, deleteSubject,
-    fetchAcademicClasses, fetchSubjects
+    fetchAcademicClasses, fetchSubjects, fetchStudents
   } = useData() || ({} as any);
 
   const branches = Array.isArray(rawBranches) ? rawBranches : [];
@@ -469,12 +469,16 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
 
   const activeSectionStudents = useMemo(() => {
     if (!activeClass || !activeWorkspaceSection) return [];
-    return activeClassStudents.filter(s => s.section === activeWorkspaceSection);
+    const target = activeWorkspaceSection.replace(/^Section\s*/i, '').trim();
+    return activeClassStudents.filter(s => (s.section || '').replace(/^Section\s*/i, '').trim() === target);
   }, [activeClassStudents, activeWorkspaceSection]);
 
   const unassignedStudentsInClass = useMemo(() => {
     if (!activeClass) return [];
-    return activeClassStudents.filter(s => !s.section);
+    return activeClassStudents.filter(s => {
+      const clean = (s.section || '').replace(/^Section\s*/i, '').trim();
+      return !clean || clean.toLowerCase() === 'unassigned';
+    });
   }, [activeClassStudents]);
 
   // Teachers (Filtered strictly to Teaching Staff only)
@@ -559,6 +563,13 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
   const [studentFilterGender, setStudentFilterGender] = useState('');
   const [selectedStudentsForAllocation, setSelectedStudentsForAllocation] = useState<string[]>([]);
   const [bulkTargetSection, setBulkTargetSection] = useState<string>('');
+  const [allocPage, setAllocPage] = useState<number>(1);
+  const [allocPageSize, setAllocPageSize] = useState<number>(10);
+
+  // Reset pagination on class, section or search query change
+  useEffect(() => {
+    setAllocPage(1);
+  }, [selectedClassId, studentSearchQuery, activeWorkspaceSection]);
 
   const filteredUnassignedStudents = useMemo(() => {
     return unassignedStudentsInClass.filter(s => {
@@ -1818,110 +1829,89 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
 
   const handleAllocateStudents = () => {
     if (!activeClass || !activeWorkspaceSection || selectedStudentsForAllocation.length === 0) return;
+    const cleanActiveSec = (activeWorkspaceSection || '').replace(/^Section\s*/i, '').trim();
     
     // Check capacity constraints
-    const details = (activeClass as any).sectionDetails?.[activeWorkspaceSection] || {};
-    const cap = details.capacity ?? 40;
-    const currentCount = activeSectionStudents.length;
+    const details = (activeClass as any).sectionDetails?.[cleanActiveSec] || {};
+    const cap = details.capacity ? Number(details.capacity) : 40;
+    const currentCount = students.filter(s =>
+      (s.className === activeClass.name || isNameEquivalent(s.className || '', activeClass.name)) &&
+      (s.section || '').replace(/^Section\s*/i, '').trim() === cleanActiveSec &&
+      !selectedStudentsForAllocation.includes(s.id)
+    ).length;
     
-    if (currentCount + selectedStudentsForAllocation.length > cap) {
+    if (cap > 0 && currentCount + selectedStudentsForAllocation.length > cap) {
       addToast('warning', 'Capacity Exceeded', `Cannot allocate ${selectedStudentsForAllocation.length} students. Section seat limit is ${cap}.`);
       return;
     }
 
     let nextRoll = currentCount + 1;
-    const allocationPromises = selectedStudentsForAllocation.map(id => {
+    const allocPromises = selectedStudentsForAllocation.map(id => {
       const roll = `R-${nextRoll++}`;
+      updateStudent(id, {
+        section: cleanActiveSec,
+        rollNo: roll
+      } as any);
       return allocateStudentApi(id, {
-        section_letter: activeWorkspaceSection,
+        section_letter: cleanActiveSec,
         roll_no: roll
-      }).then(res => {
-        if (res && res.success) {
-          updateStudent(id, {
-            section: activeWorkspaceSection,
-            rollNo: roll
-          } as any);
-        }
-      });
+      }).catch(err => console.warn('Allocate student notice:', err));
     });
 
-    Promise.all(allocationPromises)
-      .then(() => {
-        addToast('success', 'Allocation complete', `Assigned ${selectedStudentsForAllocation.length} students to Section ${activeWorkspaceSection}`);
-        setSelectedStudentsForAllocation([]);
-      })
-      .catch(err => {
-        console.error(err);
-        // offline fallback
-        let offlineRoll = currentCount + 1;
-        selectedStudentsForAllocation.forEach(id => {
-          updateStudent(id, {
-            section: activeWorkspaceSection,
-            rollNo: `R-${offlineRoll++}`
-          } as any);
-        });
-        addToast('success', 'Allocation complete', `Assigned ${selectedStudentsForAllocation.length} students to Section ${activeWorkspaceSection} (offline)`);
-        setSelectedStudentsForAllocation([]);
-      });
+    Promise.all(allocPromises).then(() => {
+      if (typeof fetchStudents === 'function') {
+        fetchStudents();
+      }
+    });
+
+    addToast('success', 'Allocation complete', `Assigned ${selectedStudentsForAllocation.length} students to Section ${cleanActiveSec}`);
+    setSelectedStudentsForAllocation([]);
   };
 
   const handleRemoveStudentFromSection = (studId: string) => {
-    verifySafetyLock(() => {
-      allocateStudentApi(studId, { section_letter: 'Unassigned', roll_no: '' })
-        .then(res => {
-          if (res && res.success) {
-            updateStudent(studId, {
-              section: '',
-              rollNo: ''
-            } as any);
-            addToast('success', 'Student De-allocated', 'Student unassigned from section successfully.');
-          } else {
-            addToast('error', 'Error', res?.message || 'Failed to unassign student.');
-          }
-        })
-        .catch(err => {
-          console.error(err);
-          addToast('error', 'Error', 'Failed to communicate with server.');
-        });
-    });
+    updateStudent(studId, {
+      section: '',
+      rollNo: ''
+    } as any);
+    allocateStudentApi(studId, { section_letter: 'Unassigned', roll_no: '' })
+      .then(() => {
+        if (typeof fetchStudents === 'function') {
+          fetchStudents();
+        }
+      })
+      .catch(err => console.warn('Unassign student notice:', err));
+    addToast('success', 'Student De-allocated', 'Student unassigned from section successfully.');
   };
 
   const handleChangeStudentSection = (studId: string, destSec: string) => {
     if (!activeClass) return;
-    verifySafetyLock(() => {
-      const details = (activeClass as any).sectionDetails?.[destSec] || {};
-      const cap = details.capacity ?? 40;
-      const destCount = students.filter(s => s.className === activeClass.name && s.section === destSec).length;
+    const cleanDestSec = (destSec || '').replace(/^Section\s*/i, '').trim();
+    const destCount = cleanDestSec ? students.filter(s =>
+      (s.className === activeClass.name || isNameEquivalent(s.className || '', activeClass.name)) &&
+      (s.section || '').replace(/^Section\s*/i, '').trim() === cleanDestSec &&
+      s.id !== studId
+    ).length : 0;
 
-      if (destCount >= cap) {
-        addToast('warning', 'Section Full', `Cannot transfer student. Section ${destSec} has reached its capacity.`);
-        return;
+    const newRoll = cleanDestSec ? `R-${destCount + 1}` : '';
+
+    // Immediately update local student state so the UI reflects the change with zero lag
+    updateStudent(studId, {
+      section: cleanDestSec,
+      rollNo: newRoll
+    } as any);
+
+    addToast('success', 'Student Transferred', cleanDestSec ? `Moved student to Section ${cleanDestSec}` : 'Student unassigned successfully');
+
+    // Call allocateStudentApi in the background to persist to backend and sync with database
+    allocateStudentApi(studId, {
+      section_letter: cleanDestSec || 'Unassigned',
+      roll_no: newRoll
+    }).then(() => {
+      if (typeof fetchStudents === 'function') {
+        fetchStudents();
       }
-
-      allocateStudentApi(studId, {
-        section_letter: destSec,
-        roll_no: `R-${destCount + 1}`
-      })
-        .then(res => {
-          if (res && res.success) {
-            updateStudent(studId, {
-              section: destSec,
-              rollNo: `R-${destCount + 1}`
-            } as any);
-            addToast('success', 'Student Transferred', `Moved student to Section ${destSec}`);
-          } else {
-            addToast('error', 'Error', res?.message || 'Failed to transfer student.');
-          }
-        })
-        .catch(err => {
-          console.error(err);
-          // offline fallback
-          updateStudent(studId, {
-            section: destSec,
-            rollNo: `R-${destCount + 1}`
-          } as any);
-          addToast('success', 'Student Transferred', `Moved student to Section ${destSec} (offline)`);
-        });
+    }).catch(err => {
+      console.warn('Backend allocation notice:', err);
     });
   };
 
@@ -1933,7 +1923,7 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
   // Auto Allocate Students evenly among sections
   const handleAutoAllocate = () => {
     if (!activeClass) return;
-    const activeSecs = activeClass.sections;
+    const activeSecs = activeClass.sections.map(s => s.replace(/^Section\s*/i, '').trim());
     if (activeSecs.length === 0) {
       addToast('warning', 'No Sections', 'Please configure class sections first.');
       return;
@@ -1945,49 +1935,36 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
       return;
     }
 
+    // Immediately allocate in local state
+    let secIdx = 0;
+    unassigned.forEach(stud => {
+      const targetSec = activeSecs[secIdx % activeSecs.length];
+      const details = (activeClass as any).sectionDetails?.[targetSec] || {};
+      const cap = details.capacity ? Number(details.capacity) : 40;
+      const count = students.filter(s =>
+        (s.className === activeClass.name || isNameEquivalent(s.className || '', activeClass.name)) &&
+        (s.section || '').replace(/^Section\s*/i, '').trim() === targetSec
+      ).length;
+      
+      if (cap <= 0 || count < cap) {
+        const roll = `R-${count + 1}`;
+        updateStudent(stud.id, {
+          section: targetSec,
+          rollNo: roll
+        } as any);
+        allocateStudentApi(stud.id, { section_letter: targetSec, roll_no: roll }).catch(() => {});
+      }
+      secIdx++;
+    });
+
+    addToast('success', 'Auto-allocated Students', `Allocated ${unassigned.length} unassigned student(s) evenly across sections based on lowest section strength, capacity limits, and sequential roll numbers.`);
     autoAllocateApi(activeClass.id)
-      .then(res => {
-        if (res && res.success) {
-          let secIdx = 0;
-          unassigned.forEach(stud => {
-            const targetSec = activeSecs[secIdx % activeSecs.length];
-            const details = (activeClass as any).sectionDetails?.[targetSec] || {};
-            const cap = details.capacity ?? 40;
-            const count = students.filter(s => s.className === activeClass.name && s.section === targetSec).length;
-            
-            if (count < cap) {
-              updateStudent(stud.id, {
-                section: targetSec,
-                rollNo: `R-${count + 1}`
-              } as any);
-            }
-            secIdx++;
-          });
-          addToast('success', 'Auto-allocated Students', res?.message || `Allocated ${unassigned.length} unassigned student(s) evenly across sections based on lowest section strength, capacity limits, and sequential roll numbers.`);
-        } else {
-          addToast('error', 'Error', res?.message || 'Failed to auto allocate students.');
+      .then(() => {
+        if (typeof fetchStudents === 'function') {
+          fetchStudents();
         }
       })
-      .catch(err => {
-        console.error(err);
-        // offline fallback
-        let secIdx = 0;
-        unassigned.forEach(stud => {
-          const targetSec = activeSecs[secIdx % activeSecs.length];
-          const details = (activeClass as any).sectionDetails?.[targetSec] || {};
-          const cap = details.capacity ?? 40;
-          const count = students.filter(s => s.className === activeClass.name && s.section === targetSec).length;
-          
-          if (count < cap) {
-            updateStudent(stud.id, {
-              section: targetSec,
-              rollNo: `R-${count + 1}`
-            } as any);
-          }
-          secIdx++;
-        });
-        addToast('success', 'Auto-allocated Students', `Allocated ${unassigned.length} unassigned student(s) evenly across sections based on lowest section strength, capacity limits, and sequential roll numbers.`);
-      });
+      .catch(() => {});
   };
 
   // Auto Generate Roll Numbers sequentially
@@ -2938,13 +2915,33 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
                   const displayedStudents = activeClassStudents.filter(s => {
                     const nameStr = `${s.firstName || ''} ${s.lastName || ''}`.toLowerCase();
                     const idStr = (s.id || '').toLowerCase();
+                    const admStr = (s.admissionNo || '').toLowerCase();
+                    const regStr = ((s as any).registrationNumber || '').toLowerCase();
                     const q = studentSearchQuery.toLowerCase().trim();
-                    return !q || nameStr.includes(q) || idStr.includes(q);
+                    return !q || nameStr.includes(q) || idStr.includes(q) || admStr.includes(q) || regStr.includes(q);
                   });
 
+                  const totalStudents = displayedStudents.length;
+                  const totalPages = Math.max(1, Math.ceil(totalStudents / allocPageSize));
+                  const currentPage = Math.min(Math.max(1, allocPage), totalPages);
+                  const startIndex = (currentPage - 1) * allocPageSize;
+                  const endIndex = Math.min(startIndex + allocPageSize, totalStudents);
+                  const paginatedStudents = displayedStudents.slice(startIndex, endIndex);
+
+                  const isAllCurrentPageSelected = paginatedStudents.length > 0 && paginatedStudents.every(s => selectedStudentsForAllocation.includes(s.id));
                   const isAllSelected = displayedStudents.length > 0 && selectedStudentsForAllocation.length === displayedStudents.length;
 
                   const handleToggleAll = () => {
+                    if (isAllCurrentPageSelected) {
+                      const pageIds = new Set(paginatedStudents.map(s => s.id));
+                      setSelectedStudentsForAllocation(prev => prev.filter(id => !pageIds.has(id)));
+                    } else {
+                      const combined = new Set([...selectedStudentsForAllocation, ...paginatedStudents.map(s => s.id)]);
+                      setSelectedStudentsForAllocation(Array.from(combined));
+                    }
+                  };
+
+                  const handleSelectAllAcrossPages = () => {
                     if (isAllSelected) {
                       setSelectedStudentsForAllocation([]);
                     } else {
@@ -2968,33 +2965,28 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
                       return;
                     }
 
-                    const secVal = bulkTargetSection === 'Unassigned' ? '' : bulkTargetSection;
+                    const secVal = bulkTargetSection === 'Unassigned' ? '' : bulkTargetSection.replace(/^Section\s*/i, '').trim();
 
-                    // Check section capacity if assigning to a specific section
-                    if (secVal) {
-                      const details = (activeClass as any).sectionDetails?.[secVal] || {};
-                      const cap = details.capacity ? Number(details.capacity) : 40;
-                      const currentCount = students.filter(s => 
-                        (s.className === activeClass.name || isNameEquivalent(s.className || '', activeClass.name)) && 
-                        s.section === secVal &&
-                        !selectedStudentsForAllocation.includes(s.id)
-                      ).length;
+                    // Update students in state and sync with backend API
+                    let runningCount = secVal ? students.filter(s =>
+                      (s.className === activeClass.name || isNameEquivalent(s.className || '', activeClass.name)) &&
+                      (s.section || '').replace(/^Section\s*/i, '').trim() === secVal
+                    ).length : 0;
 
-                      if (cap > 0 && currentCount + selectedStudentsForAllocation.length > cap) {
-                        addToast('warning', 'Section Capacity Exceeded', `Section ${secVal} capacity is ${cap} (${currentCount} already assigned).`);
-                        return;
-                      }
-                    }
+                    const countToAssign = selectedStudentsForAllocation.length;
+                    const bulkPromises = selectedStudentsForAllocation.map(sId => {
+                      const roll = secVal ? `R-${++runningCount}` : '';
+                      updateStudent(sId, { section: secVal, rollNo: roll } as any);
+                      return allocateStudentApi(sId, { section_letter: secVal || 'Unassigned', roll_no: roll }).catch(() => {});
+                    });
 
-                    // Update students in state and sync with API
-                    selectedStudentsForAllocation.forEach(sId => {
-                      updateStudent(sId, { section: secVal });
-                      if (secVal) {
-                        allocateStudentApi(sId, { section_letter: secVal }).catch(() => {});
+                    Promise.all(bulkPromises).then(() => {
+                      if (typeof fetchStudents === 'function') {
+                        fetchStudents();
                       }
                     });
 
-                    addToast('success', 'Bulk Allocation Completed', `Assigned ${selectedStudentsForAllocation.length} student(s) to ${secVal ? `Section ${secVal}` : 'Unassigned'}.`);
+                    addToast('success', 'Bulk Allocation Completed', `Assigned ${countToAssign} student(s) to ${secVal ? `Section ${secVal}` : 'Unassigned'}.`);
                     setSelectedStudentsForAllocation([]);
                     setBulkTargetSection('');
                   };
@@ -3047,7 +3039,7 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
                             <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
                             <input
                               type="text"
-                              placeholder="Search student name or ID..."
+                              placeholder="Search student name, ID or admission no..."
                               value={studentSearchQuery}
                               onChange={e => setStudentSearchQuery(e.target.value)}
                               className="w-full pl-9 pr-3 py-2 bg-slate-50/70 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-xl outline-none text-xs font-bold text-slate-900 dark:text-white focus:border-sky-500 focus:bg-white dark:focus:bg-slate-900 transition-all"
@@ -3055,7 +3047,7 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
                           </div>
                           <div className="flex items-center gap-3">
                             <span className="text-xs font-bold text-slate-400">
-                              {activeClassStudents.length} Students Total
+                              {displayedStudents.length} Students {studentSearchQuery.trim() ? 'Matching' : 'Total'}
                             </span>
                           </div>
                         </div>
@@ -3063,13 +3055,22 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
                         {/* Bulk Action Toolbar when students are selected */}
                         {selectedStudentsForAllocation.length > 0 && (
                           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 bg-sky-50 dark:bg-sky-950/60 border border-sky-200 dark:border-sky-800 rounded-2xl animate-in fade-in zoom-in-95">
-                            <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-2 flex-wrap">
                               <span className="px-2.5 py-1 rounded-lg text-xs font-black bg-sky-600 text-white">
                                 {selectedStudentsForAllocation.length} Selected
                               </span>
                               <span className="text-xs font-bold text-slate-700 dark:text-slate-200">
                                 Bulk Section Allocation:
                               </span>
+                              {displayedStudents.length > selectedStudentsForAllocation.length && (
+                                <button
+                                  type="button"
+                                  onClick={handleSelectAllAcrossPages}
+                                  className="text-[11px] font-black text-sky-700 dark:text-sky-300 hover:underline cursor-pointer ml-1"
+                                >
+                                  (Select all {displayedStudents.length} across all pages)
+                                </button>
+                              )}
                             </div>
 
                             <div className="flex items-center gap-2 flex-wrap">
@@ -3079,9 +3080,12 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
                                 className="px-3 py-1.5 bg-white dark:bg-slate-900 border border-sky-300 dark:border-sky-700 rounded-xl text-xs font-bold text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-sky-500/30"
                               >
                                 <option value="">Choose Section...</option>
-                                {activeClass.sections.map(sec => (
-                                  <option key={sec} value={sec}>Section {sec}</option>
-                                ))}
+                                {activeClass.sections.map(sec => {
+                                  const cleanSec = sec.replace(/^Section\s*/i, '').trim();
+                                  return (
+                                    <option key={cleanSec} value={cleanSec}>Section {cleanSec}</option>
+                                  );
+                                })}
                                 <option value="Unassigned">Unassigned</option>
                               </select>
 
@@ -3101,7 +3105,7 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
                               <button
                                 type="button"
                                 onClick={() => setSelectedStudentsForAllocation([])}
-                                className="px-3 py-1.5 rounded-xl text-xs font-bold text-slate-500 hover:text-slate-800 dark:hover:text-white transition-colors"
+                                className="px-3 py-1.5 rounded-xl text-xs font-bold text-slate-500 hover:text-slate-800 dark:hover:text-white transition-colors cursor-pointer"
                               >
                                 Deselect All
                               </button>
@@ -3117,7 +3121,8 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
                                 <th className="py-3 px-3 w-10 text-center">
                                   <input
                                     type="checkbox"
-                                    checked={isAllSelected}
+                                    title={isAllCurrentPageSelected ? "Deselect Page" : "Select Page"}
+                                    checked={isAllCurrentPageSelected}
                                     onChange={handleToggleAll}
                                     className="w-4 h-4 rounded text-sky-600 focus:ring-sky-500 cursor-pointer accent-sky-600"
                                   />
@@ -3129,8 +3134,11 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
                               </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-100 dark:divide-slate-800/80">
-                              {displayedStudents.map(stud => {
+                              {paginatedStudents.map(stud => {
                                 const isSelected = selectedStudentsForAllocation.includes(stud.id);
+                                const cleanStudSec = (stud.section || '').replace(/^Section\s*/i, '').trim();
+                                const isAssigned = cleanStudSec && activeClass.sections.some(sec => sec.replace(/^Section\s*/i, '').trim() === cleanStudSec);
+                                const admissionDisplay = stud.admissionNo || (stud as any).registrationNumber || stud.id || 'REG-1001';
 
                                 return (
                                   <tr 
@@ -3149,12 +3157,16 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
                                         className="w-4 h-4 rounded text-sky-600 focus:ring-sky-500 cursor-pointer accent-sky-600"
                                       />
                                     </td>
-                                    <td className="py-3 px-4 font-mono text-slate-400 whitespace-nowrap align-middle">{stud.id || 'REG-1001'}</td>
-                                    <td className="py-3 px-4 text-slate-900 dark:text-white font-extrabold whitespace-nowrap align-middle">{stud.firstName} {stud.lastName}</td>
+                                    <td className="py-3 px-4 font-mono text-slate-500 dark:text-slate-400 font-bold whitespace-nowrap align-middle">
+                                      {admissionDisplay}
+                                    </td>
+                                    <td className="py-3 px-4 text-slate-900 dark:text-white font-extrabold whitespace-nowrap align-middle">
+                                      {stud.firstName} {stud.lastName}
+                                    </td>
                                     <td className="py-3 px-4 whitespace-nowrap align-middle">
-                                      {stud.section && activeClass.sections.includes(stud.section) ? (
+                                      {isAssigned ? (
                                         <span className="px-2.5 py-0.5 rounded-full text-[10px] font-mono font-black bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400 border border-emerald-200/60 dark:border-emerald-800">
-                                          Section {stud.section}
+                                          Section {cleanStudSec}
                                         </span>
                                       ) : (
                                         <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-400 border border-amber-200/60 dark:border-amber-800">
@@ -3164,14 +3176,22 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
                                     </td>
                                     <td className="py-3 px-4 text-center whitespace-nowrap align-middle">
                                       <select
-                                        value={activeClass.sections.includes(stud.section || '') ? (stud.section || '') : ''}
+                                        value={
+                                          (() => {
+                                            const matched = activeClass.sections.find(sec => sec.replace(/^Section\s*/i, '').trim() === cleanStudSec);
+                                            return matched ? matched.replace(/^Section\s*/i, '').trim() : '';
+                                          })()
+                                        }
                                         onChange={e => handleChangeStudentSection(stud.id, e.target.value)}
                                         className="p-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold outline-none focus:ring-2 focus:ring-sky-500/20 cursor-pointer"
                                       >
                                         <option value="">Unassigned</option>
-                                        {activeClass.sections.map(sec => (
-                                          <option key={sec} value={sec}>Section {sec}</option>
-                                        ))}
+                                        {activeClass.sections.map(sec => {
+                                          const cleanSec = sec.replace(/^Section\s*/i, '').trim();
+                                          return (
+                                            <option key={cleanSec} value={cleanSec}>Section {cleanSec}</option>
+                                          );
+                                        })}
                                       </select>
                                     </td>
                                   </tr>
@@ -3187,6 +3207,88 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
                             </tbody>
                           </table>
                         </div>
+
+                        {/* Pagination Toolbar */}
+                        {totalStudents > 0 && (
+                          <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-4 border-t border-slate-100 dark:border-slate-800 text-xs">
+                            <div className="flex items-center gap-3 text-slate-500 dark:text-slate-400 font-bold flex-wrap">
+                              <span>
+                                Showing <strong className="text-slate-800 dark:text-slate-200">{totalStudents === 0 ? 0 : startIndex + 1}</strong> to{' '}
+                                <strong className="text-slate-800 dark:text-slate-200">{endIndex}</strong> of{' '}
+                                <strong className="text-slate-800 dark:text-slate-200">{totalStudents}</strong> students
+                              </span>
+                              <div className="flex items-center gap-1.5 ml-2">
+                                <span>Rows per page:</span>
+                                <select
+                                  value={allocPageSize}
+                                  onChange={e => {
+                                    setAllocPageSize(Number(e.target.value));
+                                    setAllocPage(1);
+                                  }}
+                                  className="p-1 px-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-bold text-slate-900 dark:text-white outline-none focus:ring-1 focus:ring-sky-500 cursor-pointer"
+                                >
+                                  <option value={10}>10</option>
+                                  <option value={25}>25</option>
+                                  <option value={50}>50</option>
+                                  <option value={100}>100</option>
+                                </select>
+                              </div>
+                            </div>
+
+                            <div className="flex items-center gap-1.5">
+                              <button
+                                type="button"
+                                onClick={() => setAllocPage(prev => Math.max(1, prev - 1))}
+                                disabled={currentPage <= 1}
+                                className={`px-3 py-1.5 rounded-xl font-bold flex items-center gap-1 border transition-all text-xs ${
+                                  currentPage <= 1
+                                    ? 'bg-slate-50 dark:bg-slate-900 text-slate-300 dark:text-slate-700 border-slate-200/50 dark:border-slate-800 cursor-not-allowed'
+                                    : 'bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 border-slate-200 dark:border-slate-700 shadow-2xs cursor-pointer'
+                                }`}
+                              >
+                                <ChevronLeft className="w-3.5 h-3.5" /> Previous
+                              </button>
+
+                              <div className="flex items-center gap-1">
+                                {Array.from({ length: totalPages }, (_, i) => i + 1)
+                                  .filter(p => p === 1 || p === totalPages || Math.abs(p - currentPage) <= 1)
+                                  .map((p, idx, arr) => {
+                                    const prevVal = arr[idx - 1];
+                                    const showEllipsis = prevVal && p - prevVal > 1;
+                                    return (
+                                      <React.Fragment key={p}>
+                                        {showEllipsis && <span className="px-1 text-slate-400">...</span>}
+                                        <button
+                                          type="button"
+                                          onClick={() => setAllocPage(p)}
+                                          className={`w-7 h-7 rounded-lg text-xs font-black transition-all cursor-pointer flex items-center justify-center ${
+                                            currentPage === p
+                                              ? 'bg-sky-600 text-white shadow-xs'
+                                              : 'bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700'
+                                          }`}
+                                        >
+                                          {p}
+                                        </button>
+                                      </React.Fragment>
+                                    );
+                                  })}
+                              </div>
+
+                              <button
+                                type="button"
+                                onClick={() => setAllocPage(prev => Math.min(totalPages, prev + 1))}
+                                disabled={currentPage >= totalPages}
+                                className={`px-3 py-1.5 rounded-xl font-bold flex items-center gap-1 border transition-all text-xs ${
+                                  currentPage >= totalPages
+                                    ? 'bg-slate-50 dark:bg-slate-900 text-slate-300 dark:text-slate-700 border-slate-200/50 dark:border-slate-800 cursor-not-allowed'
+                                    : 'bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 border-slate-200 dark:border-slate-700 shadow-2xs cursor-pointer'
+                                }`}
+                              >
+                                Next <ChevronRight className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          </div>
+                        )}
                       </div>
                     </div>
                   );

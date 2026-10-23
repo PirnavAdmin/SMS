@@ -802,6 +802,25 @@ public class SchoolService : ISchoolService
 			.GroupBy(a => a.ApplicationNo!.Trim().ToLowerInvariant())
 			.ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
 
+		foreach (var r in result)
+		{
+			var regKey = (r.RegistrationNo ?? "").Trim().ToLowerInvariant();
+			var admKey = (r.AdmissionNo ?? "").Trim().ToLowerInvariant();
+			Admission? adm = null;
+			if (!string.IsNullOrEmpty(regKey) && admDict.TryGetValue(regKey, out var foundAdm1))
+			{
+				adm = foundAdm1;
+			}
+			else if (!string.IsNullOrEmpty(admKey) && admDict.TryGetValue(admKey, out var foundAdm2))
+			{
+				adm = foundAdm2;
+			}
+			if (adm != null && !string.IsNullOrWhiteSpace(adm.SectionLetter))
+			{
+				r.Section = adm.SectionLetter;
+			}
+		}
+
 		foreach (var s in students)
 		{
 			var regNo = !string.IsNullOrWhiteSpace(s.AdmissionNumber) ? s.AdmissionNumber.Trim() : $"STU-{s.StudentId:D4}";
@@ -840,6 +859,7 @@ public class SchoolService : ISchoolService
 				DateOfBirth = s.DateOfBirth?.ToString("yyyy-MM-ddTHH:mm:ssZ"),
 				Gender = s.Gender ?? adm?.Gender ?? "",
 				AppliedClassGrade = (s.ClassGrade != null && s.ClassGrade.ClassName != null) ? s.ClassGrade.ClassName : (adm?.ClassId != null ? $"Class {adm.ClassId}" : ""),
+				Section = s.ClassSection?.SectionName ?? adm?.SectionLetter ?? "A",
 				BranchName = s.Branch != null ? s.Branch.BranchName : (branch ?? ""),
 				BloodGroup = adm?.BloodGroup ?? "",
 				Religion = "",
@@ -888,7 +908,16 @@ public class SchoolService : ISchoolService
 		var app = await _schoolRepository.GetApplicationByIdAsync(id);
 		if (app != null)
 		{
-			return MapToAdmissionResponseDto(app);
+			var resp = MapToAdmissionResponseDto(app);
+			if (!string.IsNullOrEmpty(app.RegistrationNo))
+			{
+				var adm = await _context.Admissions.AsNoTracking().FirstOrDefaultAsync(a => a.ApplicationNo != null && a.ApplicationNo.ToLower() == app.RegistrationNo.ToLower());
+				if (adm != null && !string.IsNullOrWhiteSpace(adm.SectionLetter))
+				{
+					resp.Section = adm.SectionLetter;
+				}
+			}
+			return resp;
 		}
 
 		int studentId = id > 100000 ? id - 100000 : id;
@@ -918,6 +947,7 @@ public class SchoolService : ISchoolService
 				DateOfBirth = s.DateOfBirth?.ToString("yyyy-MM-ddTHH:mm:ssZ"),
 				Gender = s.Gender ?? adm?.Gender ?? "",
 				AppliedClassGrade = (s.ClassGrade != null && s.ClassGrade.ClassName != null) ? s.ClassGrade.ClassName : (adm?.ClassId != null ? $"Class {adm.ClassId}" : ""),
+				Section = s.ClassSection?.SectionName ?? adm?.SectionLetter ?? "A",
 				BranchName = s.Branch != null ? s.Branch.BranchName : "",
 				BloodGroup = adm?.BloodGroup ?? "",
 				Religion = "",
@@ -1286,11 +1316,13 @@ public class SchoolService : ISchoolService
 		await _schoolRepository.AddApplicationAsync(app);
 		await _schoolRepository.SaveChangesAsync();
 
-		await SyncToAdmissionsTableAsync(app);
+		await SyncToAdmissionsTableAsync(app, sectionLetter: dto.Section);
 		await SyncHostelAllocationAsync(app);
 		await SyncTransportAllocationAsync(app);
 
-		return MapToAdmissionResponseDto(app);
+		var resultDto = MapToAdmissionResponseDto(app);
+		resultDto.Section = !string.IsNullOrWhiteSpace(dto.Section) ? dto.Section : "A";
+		return resultDto;
 	}
 
 	public async Task<AdmissionApplicationResponseDto> UpdateApplicationAsync(int id, SubmitAdmissionDto dto)
@@ -1388,16 +1420,18 @@ public class SchoolService : ISchoolService
 		if (parsedDob.HasValue) app.DateOfBirth = parsedDob.Value;
 
 		await _schoolRepository.SaveChangesAsync();
-		await SyncToAdmissionsTableAsync(app);
+		await SyncToAdmissionsTableAsync(app, sectionLetter: dto.Section);
 		await SyncHostelAllocationAsync(app);
 		await SyncTransportAllocationAsync(app);
 
-		return MapToAdmissionResponseDto(app);
+		var resultDto = MapToAdmissionResponseDto(app);
+		resultDto.Section = !string.IsNullOrWhiteSpace(dto.Section) ? dto.Section : "A";
+		return resultDto;
 	}
 
 
 
-	private async Task<string?> SyncToAdmissionsTableAsync(AdmissionApplication app, bool isDeleted = false)
+	private async Task<string?> SyncToAdmissionsTableAsync(AdmissionApplication app, bool isDeleted = false, string? sectionLetter = null)
 	{
 		try
 		{
@@ -1444,7 +1478,7 @@ public class SchoolService : ISchoolService
 					Caste = app.Caste,
 					BranchId = branchId,
 					ClassId = targetClassId,
-					SectionLetter = null,
+					SectionLetter = !string.IsNullOrWhiteSpace(sectionLetter) ? sectionLetter : "A",
 					AdmissionType = "Regular",
 					Status = app.Status ?? "",
 					IsDeleted = isDeleted,
@@ -1464,6 +1498,10 @@ public class SchoolService : ISchoolService
 				existing.Caste = app.Caste;
 				existing.BranchId = branchId;
 				existing.ClassId = targetClassId;
+				if (!string.IsNullOrWhiteSpace(sectionLetter))
+				{
+					existing.SectionLetter = sectionLetter;
+				}
 				existing.Status = app.Status ?? "";
 				existing.IsDeleted = isDeleted;
 				existing.ModifiedDate = DateTime.UtcNow;
@@ -1502,9 +1540,20 @@ public class SchoolService : ISchoolService
 
 				if (existing != null && existing.ClassId.HasValue)
 				{
-					var sectionLetter = string.IsNullOrEmpty(existing.SectionLetter) ? "A" : existing.SectionLetter;
+					var secLetter = !string.IsNullOrWhiteSpace(sectionLetter)
+						? sectionLetter
+						: (!string.IsNullOrEmpty(existing.SectionLetter) ? existing.SectionLetter : "A");
+					var normSec = secLetter.Trim();
+					if (normSec.StartsWith("Section ", StringComparison.OrdinalIgnoreCase))
+					{
+						normSec = normSec.Substring(8).Trim();
+					}
 					var sectionObj = await Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions.FirstOrDefaultAsync(
-						_context.ClassSections, s => s.ClassId == existing.ClassId.Value && s.SectionName.ToLower() == sectionLetter.ToLower());
+						_context.ClassSections, s => s.ClassId == existing.ClassId.Value && (
+							s.SectionName.ToLower() == secLetter.ToLower() ||
+							s.SectionName.ToLower() == normSec.ToLower() ||
+							s.SectionName.ToLower() == $"section {normSec}".ToLower()
+						));
 
 					if (sectionObj == null)
 					{
@@ -2038,7 +2087,7 @@ public class SchoolService : ISchoolService
 						AdmissionNo = admissionNo,
 						RouteId = route.RouteId,
 						PickupPointId = pickup.PickupPointId,
-						VehicleAssignmentId = vehicleAssignment.AssignmentId,
+						VehicleAssignmentId = vehicleAssignment?.AssignmentId ?? 0,
 						EffectiveFrom = DateTime.UtcNow,
 						TransportType = !string.IsNullOrWhiteSpace(app.TransportType) ? app.TransportType : "Both",
 						Status = true,
@@ -2050,7 +2099,7 @@ public class SchoolService : ISchoolService
 				{
 					existingAssignment.RouteId = route.RouteId;
 					existingAssignment.PickupPointId = pickup.PickupPointId;
-					existingAssignment.VehicleAssignmentId = vehicleAssignment.AssignmentId;
+					existingAssignment.VehicleAssignmentId = vehicleAssignment?.AssignmentId ?? existingAssignment.VehicleAssignmentId;
 					existingAssignment.TransportType = !string.IsNullOrWhiteSpace(app.TransportType) ? app.TransportType : "Both";
 					existingAssignment.Status = true;
 				}
@@ -2674,15 +2723,24 @@ public class SchoolService : ISchoolService
 		if (await _schoolRepository.AdmissionNumberExistsAsync(admissionNumber, studentId))
 			throw new InvalidOperationException($"Admission number '{admissionNumber}' already exists.");
 
-		if (await _schoolRepository.RollNumberExistsAsync(
+		if (!string.IsNullOrWhiteSpace(rollNumber) && await _schoolRepository.RollNumberExistsAsync(
 			rollNumber,
 			dto.AcademicYearId,
 			dto.ClassId,
 			dto.SectionId,
 			studentId))
 		{
-			throw new InvalidOperationException(
-				$"Roll number '{rollNumber}' already exists for the selected academic year, class, and section.");
+			int rollSeq = 1;
+			string basePrefix = "R-";
+			var match = System.Text.RegularExpressions.Regex.Match(rollNumber, @"^([A-Za-z]+-?)");
+			if (match.Success) basePrefix = match.Groups[1].Value;
+			string candidateRoll = $"{basePrefix}{rollSeq}";
+			while (await _schoolRepository.RollNumberExistsAsync(candidateRoll, dto.AcademicYearId, dto.ClassId, dto.SectionId, studentId))
+			{
+				rollSeq++;
+				candidateRoll = $"{basePrefix}{rollSeq}";
+			}
+			rollNumber = candidateRoll;
 		}
 
 		student.AdmissionNumber = admissionNumber;
@@ -2705,6 +2763,26 @@ public class SchoolService : ISchoolService
 		student.UpdatedAt = DateTime.UtcNow;
 
 		await _schoolRepository.SaveChangesAsync();
+
+		// Keep Admissions table in sync with Students table
+		try
+		{
+			var adm = await Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions.FirstOrDefaultAsync(
+				_context.Admissions, a => a.ApplicationNo == student.AdmissionNumber);
+			if (adm != null)
+			{
+				var secObj = await _context.ClassSections.FindAsync(dto.SectionId);
+				if (secObj != null)
+				{
+					adm.SectionLetter = (secObj.SectionName ?? "").Replace("Section", "", StringComparison.OrdinalIgnoreCase).Trim();
+				}
+				adm.RollNo = rollNumber;
+				adm.ClassId = dto.ClassId;
+				await _context.SaveChangesAsync();
+			}
+		}
+		catch { }
+
 		return await GetStudentByIdAsync(studentId);
 	}
 

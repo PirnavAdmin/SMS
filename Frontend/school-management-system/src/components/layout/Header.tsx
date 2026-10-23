@@ -487,10 +487,12 @@ export const Header: React.FC<HeaderProps> = ({ collapsed, setCollapsed, onOpenS
         <div className="flex items-center gap-3 min-w-0">
           <button
             onClick={onOpenSearch}
+            title="Search"
+            aria-label="Search"
             className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-white dark:bg-slate-800 border border-slate-200/80 dark:border-slate-700 text-slate-500 dark:text-slate-400 text-xs font-medium hover:bg-slate-50 dark:hover:bg-slate-700 transition-all w-40 sm:w-60 shrink min-w-0 h-9"
           >
             <Search className="w-4 h-4 shrink-0 text-slate-400" />
-            <span className="truncate">Search by modules, students, staff...</span>
+            <span className="truncate">Search</span>
           </button>
 
         {/* Global Branch Selector with Permissions */}
@@ -808,7 +810,7 @@ export const Header: React.FC<HeaderProps> = ({ collapsed, setCollapsed, onOpenS
               </button>
 
               <button
-                onClick={() => { setShowUserMenu(false); logout(); }}
+                onClick={() => { setShowUserMenu(false); if (onNavigate) onNavigate('dashboard'); logout(); }}
                 className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-lg transition-colors"
               >
                 <LogOut className="w-4 h-4" />

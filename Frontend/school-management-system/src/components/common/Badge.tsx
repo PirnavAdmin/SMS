@@ -9,10 +9,16 @@ interface BadgeProps {
 
 export const Badge: React.FC<BadgeProps> = ({ children, variant = 'neutral', size = 'md', className = '' }) => {
   let resolvedVariant = variant;
-  if ((!variant || variant === 'neutral') && typeof children === 'string') {
+  if (typeof children === 'string') {
     const text = children.trim().toLowerCase();
-    if (text === 'inactive' || text === 'disabled') {
-      resolvedVariant = 'danger';
+    if (text === 'active' || text === 'running' || text === 'enabled' || text === 'approved' || text === 'paid') {
+      if (!variant || variant === 'neutral' || variant === 'info') {
+        resolvedVariant = 'success';
+      }
+    } else if (text === 'inactive' || text === 'disabled' || text === 'deleted' || text === 'unpaid' || text === 'rejected') {
+      if (!variant || variant === 'neutral' || variant === 'success') {
+        resolvedVariant = 'danger';
+      }
     }
   }
 

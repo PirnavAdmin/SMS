@@ -60,6 +60,8 @@ import {
   validate10DigitPhone,
   validateEmail,
   validateSearchQuery,
+  validateHouseNumber,
+  validateCity,
   BLOOD_GROUPS,
   CASTE_CATEGORIES,
   RELIGIONS,
@@ -372,6 +374,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
     setIsFormView(false);
     setEditingApp(null);
     setIsSubmitting(false);
+    setIsSubmittingForm(false);
 
     // Reset Form Inputs
     setFirstName("");
@@ -385,8 +388,12 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
     setAltPhoneError("");
     setDobError(null);
     setAdmissionDateError("");
+    setPinCodeError("");
+    setHouseNoError("");
+    setCityError("");
     setFormData({
       appliedClass: "Select Class",
+      section: "A",
       gender: "",
       dob: "",
       bloodGroup: "",
@@ -619,87 +626,132 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
       reader.onload = async (evt) => {
         try {
           setUploadProgress(30);
-          const bstr = evt.target?.result;
-          const workbook = XLSX.read(bstr, { type: "binary" });
-          const sheetName = workbook.SheetNames[0];
-          const sheet = workbook.Sheets[sheetName];
-          const data = XLSX.utils.sheet_to_json(sheet) as any[];
+          const buffer = evt.target?.result as ArrayBuffer;
+          const workbook = XLSX.read(new Uint8Array(buffer), { type: "array" });
+
+          let targetSheet: any = null;
+          let data: any[] = [];
+          for (const name of workbook.SheetNames) {
+            const s = workbook.Sheets[name];
+            const rows = XLSX.utils.sheet_to_json(s) as any[];
+            if (rows && rows.length > 0) {
+              targetSheet = s;
+              data = rows;
+              break;
+            }
+          }
+
+          if (!targetSheet || data.length === 0) {
+            setIsUploading(false);
+            setUploadProgress(0);
+            addToast("error", "Empty File", "The uploaded file contains no data rows.");
+            return;
+          }
 
           setUploadProgress(50);
+
+          // Helper to get case-insensitive and punctuation-insensitive values from a row
+          const getField = (row: any, ...keys: string[]): string => {
+            const rowKeys = Object.keys(row);
+            for (const key of keys) {
+              const cleanTarget = key.toLowerCase().replace(/[\s_\-]+/g, "");
+              const matchedKey = rowKeys.find(
+                (rk) => rk.toLowerCase().replace(/[\s_\-]+/g, "") === cleanTarget
+              );
+              if (matchedKey && row[matchedKey] !== undefined && row[matchedKey] !== null) {
+                const val = String(row[matchedKey]).trim();
+                if (val.length > 0) return val;
+              }
+            }
+            return "";
+          };
+
+          const parseDateValue = (rawVal: any, defaultDate: string): string => {
+            if (!rawVal) return defaultDate;
+            if (rawVal instanceof Date && !isNaN(rawVal.getTime())) {
+              return rawVal.toISOString().split("T")[0];
+            }
+            if (typeof rawVal === "number") {
+              const utcDays = Math.floor(rawVal - 25569);
+              const d = new Date(utcDays * 86400 * 1000);
+              if (!isNaN(d.getTime())) return d.toISOString().split("T")[0];
+            }
+            const s = String(rawVal).trim();
+            const parts = s.split(/[-/]/);
+            if (parts.length === 3) {
+              if (parts[0].length === 4) {
+                return `${parts[0]}-${parts[1].padStart(2, "0")}-${parts[2].padStart(2, "0")}`;
+              }
+              if (parts[2].length === 4) {
+                return `${parts[2]}-${parts[1].padStart(2, "0")}-${parts[0].padStart(2, "0")}`;
+              }
+            }
+            return s || defaultDate;
+          };
 
           let count = 0;
           for (let i = 0; i < data.length; i++) {
             const row = data[i];
-            const name =
-              row.applicantName ||
-              row["Applicant Name"] ||
-              row["Student Name"] ||
-              row["Full Name"] ||
-              row.Name ||
-              row.name ||
-              `${row.FirstName || row.firstName || ""} ${row.LastName || row.lastName || ""}`.trim();
+            const directName = getField(row, "applicantName", "studentName", "fullName", "name", "candidateName");
+            const fn = getField(row, "firstName", "first");
+            const ln = getField(row, "lastName", "last", "surname");
+            const name = directName || `${fn} ${ln}`.trim() || fn || ln;
 
             if (name) {
-              let rowDob = row.DOB || row.dob || row["Date of Birth"] || row.BirthDate || "2018-08-15";
-              if (rowDob instanceof Date && !isNaN(rowDob.getTime())) {
-                rowDob = rowDob.toISOString().split("T")[0];
-              } else if (typeof rowDob === "number") {
-                const utcDays = Math.floor(rowDob - 25569);
-                const d = new Date(utcDays * 86400 * 1000);
-                if (!isNaN(d.getTime())) rowDob = d.toISOString().split("T")[0];
-              } else {
-                rowDob = String(rowDob).trim();
-              }
+              const dobRawKey = Object.keys(row).find(
+                (rk) => ["dob", "dateofbirth", "birthdate"].includes(rk.toLowerCase().replace(/[\s_\-]+/g, ""))
+              );
+              const rowDob = parseDateValue(dobRawKey ? row[dobRawKey] : null, "2018-08-15");
 
-              let rowAdmDate = row.DateOfAdmission || row.joiningDate || row.admissionDate || row["Admission Date"] || new Date().toISOString().split("T")[0];
-              if (rowAdmDate instanceof Date && !isNaN(rowAdmDate.getTime())) {
-                rowAdmDate = rowAdmDate.toISOString().split("T")[0];
-              } else if (typeof rowAdmDate === "number") {
-                const utcDays = Math.floor(rowAdmDate - 25569);
-                const d = new Date(utcDays * 86400 * 1000);
-                if (!isNaN(d.getTime())) rowAdmDate = d.toISOString().split("T")[0];
-              } else {
-                rowAdmDate = String(rowAdmDate).trim();
-              }
+              const admDateRawKey = Object.keys(row).find(
+                (rk) => ["dateofadmission", "admissiondate", "joiningdate"].includes(rk.toLowerCase().replace(/[\s_\-]+/g, ""))
+              );
+              const rowAdmDate = parseDateValue(admDateRawKey ? row[admDateRawKey] : null, new Date().toISOString().split("T")[0]);
 
-              const rowStatus = String(row.Status || row.status || "Enrolled").trim();
-              const rowClass = String(row.AppliedClass || row.appliedClass || row.Class || row.className || row["Applied Class"] || "Class 1").trim();
+              const rowSection = getField(row, "section", "sec") || "A";
+              const rawStatus = getField(row, "status");
+              const rowStatus = rawStatus ? (rawStatus.charAt(0).toUpperCase() + rawStatus.slice(1).toLowerCase()) : "Enrolled";
+              const rowClass = getField(row, "appliedClass", "class", "className", "grade", "standard") || "Class 1";
+              
               const defaultActiveBranch = selectedBranch && selectedBranch !== "All Branches" && selectedBranch !== "All" && dynamicCampuses.includes(selectedBranch) ? selectedBranch : (dynamicCampuses[0] || "");
-              let rowBranch = String(row.Campus || row.branch || row.Branch || row.CampusLocation || "").trim();
+              let rowBranch = getField(row, "campus", "branch", "campusLocation", "location");
               if (!rowBranch) {
                 rowBranch = defaultActiveBranch;
               }
-              const rowAcademicYear = String(row.AcademicYear || row.academicYear || row["Academic Year"] || selectedAcademicYear || "").trim();
+              const rowAcademicYear = getField(row, "academicYear", "year") || selectedAcademicYear || "";
 
               const newApp = {
                 applicantName: name,
                 appliedClass: rowClass,
                 section: rowSection,
-                gender: String(row.Gender || row.gender || "Male").trim(),
+                gender: getField(row, "gender", "sex") || "Male",
                 dob: rowDob,
-                bloodGroup: String(row.BloodGroup || row.bloodGroup || "O+").trim(),
-                religion: String(row.Religion || row.religion || "General").trim(),
-                casteCategory: String(row.CasteCategory || row.casteCategory || "General").trim(),
-                parentName: String(row.FatherFullName || row.parentName || row.fatherName || row["Father Name"] || "Not Provided").trim(),
-                motherName: String(row.MotherFullName || row.motherName || row["Mother Name"] || "Not Provided").trim(),
-                phone: String(row.FatherMobile || row.phone || row.mobile || row["Mobile Number"] || row["Phone"] || "9876543210").trim(),
-                motherPhone: String(row.MotherMobile || row.motherPhone || "").trim(),
-                alternatePhone: String(row.AlternateMobile || row.alternatePhone || "").trim(),
-                email: String(row.Email || row.email || "").trim(),
-                addressHouseNo: String(row.HouseNo || row.addressHouseNo || "").trim(),
-                addressStreet: String(row.Street || row.addressStreet || "").trim(),
-                addressArea: String(row.Area || row.addressArea || "").trim(),
-                addressCity: String(row.City || row.addressCity || "").trim(),
-                addressDistrict: String(row.District || row.addressDistrict || "").trim(),
-                addressState: String(row.State || row.addressState || "").trim(),
-                addressPinCode: String(row.Pincode || row.addressPinCode || "").trim(),
+                bloodGroup: getField(row, "bloodGroup", "blood") || "O+",
+                religion: getField(row, "religion") || "General",
+                casteCategory: getField(row, "casteCategory", "caste", "category") || "General",
+                parentName: getField(row, "fatherFullName", "parentName", "fatherName", "father") || "Not Provided",
+                motherName: getField(row, "motherFullName", "motherName", "mother") || "Not Provided",
+                phone: getField(row, "fatherMobile", "phone", "mobile", "contact", "mobileNumber", "fatherContact") || "9876543210",
+                motherPhone: getField(row, "motherMobile", "motherPhone"),
+                alternatePhone: getField(row, "alternateMobile", "alternatePhone", "emergencyContact"),
+                email: getField(row, "email", "parentEmail"),
+                addressHouseNo: getField(row, "houseNo", "doorNo", "flatNo"),
+                addressStreet: getField(row, "street", "address").slice(0, 60),
+                addressArea: getField(row, "area", "locality"),
+                addressCity: getField(row, "city"),
+                addressDistrict: getField(row, "district"),
+                addressState: getField(row, "state"),
+                addressPinCode: getField(row, "pincode", "pinCode", "postalCode", "zip").replace(/\D/g, "").slice(0, 6),
                 branch: rowBranch,
                 academicYear: rowAcademicYear,
                 status: rowStatus,
-                studentType: normalizeStudentType(row.StudentType || row.studentType),
-                transportRequired: Boolean(row.TransportRequired === "Yes" || row.transportRequired === true || String(row.TransportRequired).toLowerCase() === "true"),
-                busRoute: String(row.BusRoute || row.busRoute || "").trim(),
-                pickupPoint: String(row.PickupPoint || row.pickupPoint || "").trim(),
+                studentType: normalizeStudentType(getField(row, "studentType", "type")),
+                transportRequired: Boolean(
+                  getField(row, "transportRequired", "transport").toLowerCase() === "yes" ||
+                  getField(row, "transportRequired", "transport").toLowerCase() === "true"
+                ),
+                busRoute: getField(row, "busRoute", "route"),
+                pickupPoint: getField(row, "pickupPoint", "pickup"),
                 joiningDate: rowAdmDate,
                 admissionDate: rowAdmDate,
                 submissionDate: new Date().toISOString(),
@@ -708,8 +760,12 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                 "id" | "applicationNo"
               >;
 
-              await addAdmission(newApp, { silent: true });
-              count++;
+              try {
+                await addAdmission(newApp, { silent: true });
+                count++;
+              } catch (rowErr) {
+                console.warn(`[BulkUpload] Error registering row ${i + 1} (${name}):`, rowErr);
+              }
             }
             setUploadProgress(50 + Math.round(((i + 1) / data.length) * 45));
           }
@@ -723,14 +779,30 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
           }
           window.dispatchEvent(new Event('storage'));
 
+          // Reset filters so newly added records are immediately visible in the grid
+          setFilterClass("All");
+          setFilterStatus("All");
+          setQuery("");
+          setCurrentPage(1);
+
           setTimeout(() => {
-            addToast(
-              "success",
-              "Bulk Upload Complete",
-              `Successfully registered ${count} admission application(s).`
-            );
             setIsUploading(false);
+            setUploadProgress(0);
             closeBulkModal();
+
+            if (count > 0) {
+              addToast(
+                "success",
+                "Bulk Upload Complete",
+                `Successfully registered ${count} admission application(s).`
+              );
+            } else {
+              addToast(
+                "warning",
+                "Bulk Upload Finished",
+                "No valid admission records could be registered. Please check that column headers match the template."
+              );
+            }
           }, 400);
         } catch (err) {
           console.error(err);
@@ -740,7 +812,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
         }
       };
 
-      reader.readAsBinaryString(selectedFile);
+      reader.readAsArrayBuffer(selectedFile);
     } catch (err) {
       console.error(err);
       setIsUploading(false);
@@ -794,6 +866,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
 
   const [formData, setFormData] = useState<Partial<AdmissionApplication>>({
     appliedClass: "",
+    section: "A",
     gender: "" as any,
     dob: "",
     bloodGroup: "",
@@ -1399,6 +1472,9 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
   const [dobError, setDobError] = useState("");
   const [admissionDateError, setAdmissionDateError] = useState("");
   const [photoError, setPhotoError] = useState("");
+  const [pinCodeError, setPinCodeError] = useState("");
+  const [houseNoError, setHouseNoError] = useState("");
+  const [cityError, setCityError] = useState("");
 
   const maxDobISO = useMemo(() => {
     const yesterday = new Date();
@@ -1454,6 +1530,35 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
   }, [academicClasses, unifiedAdmissions, students]);
 
   const classOptions = dynamicClassOptions;
+
+  const availableSections = useMemo(() => {
+    if (!formData.appliedClass || formData.appliedClass === "Select Class") {
+      return ["A", "B"];
+    }
+    const target = formData.appliedClass.trim().toLowerCase();
+    const cleanTarget = target.replace(/^class\s+/i, "").replace(/^grade\s+/i, "");
+
+    const matched = (academicClasses || []).find((c) => {
+      const cName = (c.name || (c as any).className || "").trim().toLowerCase();
+      const cleanCName = cName.replace(/^class\s+/i, "").replace(/^grade\s+/i, "");
+      return cName === target || cleanCName === cleanTarget;
+    });
+
+    if (matched && Array.isArray(matched.sections) && matched.sections.length > 0) {
+      const secs = matched.sections
+        .map((s: any) => {
+          if (typeof s === "string") return s.trim();
+          if (s && typeof s === "object") return (s.sectionName || s.name || "").trim();
+          return "";
+        })
+        .filter(Boolean);
+      if (secs.length > 0) {
+        return Array.from(new Set(secs));
+      }
+    }
+
+    return ["A", "B"];
+  }, [academicClasses, formData.appliedClass]);
 
   const handleEmailChange = (val: string) => {
     setFormData((prev) => ({ ...prev, email: val }));
@@ -1586,6 +1691,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
     setSiblingStudentIds([]);
     setFormData({
       appliedClass: "",
+      section: "A",
       gender: "" as any,
       dob: "",
       bloodGroup: "",
@@ -1637,13 +1743,22 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
     setDobError("");
     setAdmissionDateError("");
     setPhotoError("");
+    setPinCodeError("");
+    setHouseNoError("");
+    setCityError("");
     setIsFormView(true);
   };
 
   const handlePinCodeChange = (pinCode: string) => {
-    const clean = pinCode.trim();
+    // Only accept numeric characters and limit to 6 digits
+    const clean = pinCode.replace(/\D/g, "").slice(0, 6);
+    if (clean && clean.length > 0 && clean.length < 6) {
+      setPinCodeError("PIN Code must be 6 digits.");
+    } else {
+      setPinCodeError("");
+    }
     setFormData((prev) => {
-      const updated = { ...prev, addressPinCode: pinCode };
+      const updated = { ...prev, addressPinCode: clean };
       if (!clean) {
         updated.addressCity = "";
         updated.addressDistrict = "";
@@ -1663,7 +1778,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
       return updated;
     });
 
-    if (clean.replace(/\D/g, "").length >= 4) {
+    if (clean.length >= 4) {
       lookupPostalCode(clean).then((info) => {
         if (info) {
           setFormData((prev) => {
@@ -1779,6 +1894,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
 
     setFormData({
       ...app,
+      section: (app as any).section || (app as any).sectionLetter || "A",
       email: app.email || (app as any).parentEmail || "",
       motherPhone: app.motherPhone || (app as any).motherMobileNumber || "",
       alternatePhone: app.alternatePhone || (app as any).alternateMobileNumber || "",
@@ -1857,6 +1973,9 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
     setDobError("");
     setAdmissionDateError("");
     setPhotoError("");
+    setPinCodeError("");
+    setHouseNoError("");
+    setCityError("");
     setIsFormView(true);
   };
 
@@ -1986,59 +2105,69 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
     if (isSubmitting || isSubmittingForm) return;
     setIsSubmitting(true);
     setIsSubmittingForm(true);
-    
+
+    try {
     // Validate Student Details Required Fields
     if (!firstName || !firstName.trim()) {
       addToast("error", "Missing Required Field", "Please enter Student First Name.");
       setIsSubmitting(false);
+      setIsSubmittingForm(false);
       return;
     }
 
     if (!lastName || !lastName.trim()) {
       addToast("error", "Missing Required Field", "Please enter Student Last Name.");
       setIsSubmitting(false);
+      setIsSubmittingForm(false);
       return;
     }
 
     if (!formData.appliedClass || formData.appliedClass === "Select Class") {
       addToast("error", "Missing Required Field", "Please select Target Class.");
       setIsSubmitting(false);
+      setIsSubmittingForm(false);
       return;
     }
 
     if (!formData.gender) {
       addToast("error", "Missing Required Field", "Please select Gender.");
       setIsSubmitting(false);
+      setIsSubmittingForm(false);
       return;
     }
 
     if (!formData.branch) {
       addToast("error", "Missing Required Field", "Please select Campus.");
       setIsSubmitting(false);
+      setIsSubmittingForm(false);
       return;
     }
 
     if (!formData.dob) {
       addToast("error", "Missing Required Field", "Please enter Date of Birth.");
       setIsSubmitting(false);
+      setIsSubmittingForm(false);
       return;
     }
 
     if (!formData.bloodGroup) {
       addToast("error", "Missing Required Field", "Please select Blood Group.");
       setIsSubmitting(false);
+      setIsSubmittingForm(false);
       return;
     }
 
     if (!formData.casteCategory) {
       addToast("error", "Missing Required Field", "Please select Caste.");
       setIsSubmitting(false);
+      setIsSubmittingForm(false);
       return;
     }
 
     if (!formData.admissionDate && !formData.joiningDate) {
       addToast("error", "Missing Required Field", "Please select Date of Admission.");
       setIsSubmitting(false);
+      setIsSubmittingForm(false);
       return;
     }
 
@@ -2046,6 +2175,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
     if (!formData.studentType || formData.studentType === ("Select Type" as any)) {
       addToast("error", "Missing Required Field", "Please select Student Type.");
       setIsSubmitting(false);
+      setIsSubmittingForm(false);
       return;
     }
 
@@ -2070,12 +2200,14 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
     if (!formData.parentName || !formData.parentName.trim()) {
       addToast("error", "Missing Required Field", "Please enter Father Full Name.");
       setIsSubmitting(false);
+      setIsSubmittingForm(false);
       return;
     }
 
     if (!formData.phone || !formData.phone.trim()) {
       addToast("error", "Missing Required Field", "Please enter Father Mobile number.");
       setIsSubmitting(false);
+      setIsSubmittingForm(false);
       return;
     }
 
@@ -2133,6 +2265,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
       setEmailError("Please enter parent email address.");
       addToast("error", "Missing Required Field", "Please enter Email Address.");
       setIsSubmitting(false);
+      setIsSubmittingForm(false);
       return;
     }
 
@@ -2141,6 +2274,47 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
       setEmailError(emailValidation.error || "Please enter a valid email address.");
       addToast("error", "Email Validation Error", emailValidation.error || "Please enter a valid email address.");
       setIsSubmitting(false);
+      setIsSubmittingForm(false);
+      return;
+    }
+
+    if (formData.addressPinCode && formData.addressPinCode.trim()) {
+      const cleanPin = formData.addressPinCode.replace(/\D/g, "");
+      if (cleanPin.length !== 6) {
+        setPinCodeError("PIN Code must be exactly 6 digits.");
+        addToast("error", "PIN Code Error", "PIN Code must be exactly 6 digits.");
+        setIsSubmitting(false);
+        setIsSubmittingForm(false);
+        return;
+      }
+    }
+
+    if (formData.addressHouseNo && formData.addressHouseNo.trim()) {
+      const houseValidation = validateHouseNumber(formData.addressHouseNo.trim());
+      if (!houseValidation.isValid) {
+        setHouseNoError(houseValidation.error || "Enter a valid House No.");
+        addToast("error", "House No Validation Error", houseValidation.error || "Enter a valid House No.");
+        setIsSubmitting(false);
+        setIsSubmittingForm(false);
+        return;
+      }
+    }
+
+    if (formData.addressCity && formData.addressCity.trim()) {
+      const cityValidation = validateCity(formData.addressCity.trim());
+      if (!cityValidation.isValid) {
+        setCityError(cityValidation.error || "Enter a valid City name.");
+        addToast("error", "City Validation Error", cityValidation.error || "Enter a valid City name.");
+        setIsSubmitting(false);
+        setIsSubmittingForm(false);
+        return;
+      }
+    }
+
+    if (formData.addressStreet && formData.addressStreet.length > 60) {
+      addToast("error", "Validation Error", "Street address cannot exceed 60 characters.");
+      setIsSubmitting(false);
+      setIsSubmittingForm(false);
       return;
     }
 
@@ -2279,6 +2453,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
     const fullApplicantName = `${finalFirst} ${finalLast}`.trim();
     const formattedParentName = formatTitleCase((formData.parentName || "").trim());
     const formattedMotherName = formData.motherName ? formatTitleCase(formData.motherName.trim()) : "N/A";
+    const finalDob = formData.dob ? (formatToDDMMYYYY(formData.dob, "/") || formData.dob) : (formData.dob || "");
 
     // Duplicate submission protection
     const isDuplicate = (admissions || []).some(
@@ -2300,11 +2475,10 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
       return;
     }
 
-    setIsSubmittingForm(true);
-    try {
       if (editingApp) {
         await updateAdmission(editingApp.id, {
           ...formData,
+          section: formData.section || availableSections[0] || "A",
           parentName: formattedParentName,
           motherName: formattedMotherName,
           email: formData.email || "",
@@ -2425,6 +2599,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
           applicantName: fullApplicantName,
           avatar,
           appliedClass: formData.appliedClass!,
+          section: formData.section || availableSections[0] || "A",
           gender: formData.gender,
           dob: finalDob,
           bloodGroup: formData.bloodGroup,
@@ -2509,7 +2684,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
               lastName: lastName.trim(),
               admissionNo: admNo,
               className: formData.appliedClass,
-              section: "A",
+              section: formData.section || availableSections[0] || "A",
               studentType: "Residential",
               isResidential: true,
               phone: formData.phone || "",
@@ -2616,6 +2791,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
         err.message || "An error occurred while saving the application."
       );
     } finally {
+      setIsSubmitting(false);
       setIsSubmittingForm(false);
     }
   };
@@ -3130,8 +3306,8 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                       </div>
                     </div>
 
-                    {/* Class, Gender, Campus */}
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    {/* Class, Section, Gender, Campus */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                       <div>
                         <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">
                           Class <span className="text-rose-500 font-bold ml-0.5">*</span>
@@ -3142,10 +3318,10 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                             value={formData.appliedClass}
                             onChange={(e) => {
                               const val = e.target.value;
-                              setFormData({
-                                ...formData,
+                              setFormData((prev) => ({
+                                ...prev,
                                 appliedClass: val,
-                              });
+                              }));
                               validateAgeAndDates(undefined, undefined, val);
                             }}
                             className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none appearance-none cursor-pointer pr-10"
@@ -3154,6 +3330,31 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                             {classOptions.map((className) => (
                               <option key={className} value={className}>
                                 {className}
+                              </option>
+                            ))}
+                          </select>
+                          <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                        </div>
+                      </div>
+                      <div>
+                        <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">
+                          Section <span className="text-rose-500 font-bold ml-0.5">*</span>
+                        </label>
+                        <div className="relative">
+                          <select
+                            required
+                            value={formData.section || availableSections[0] || "A"}
+                            onChange={(e) =>
+                              setFormData((prev) => ({
+                                ...prev,
+                                section: e.target.value,
+                              }))
+                            }
+                            className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none appearance-none cursor-pointer pr-10"
+                          >
+                            {availableSections.map((sec) => (
+                              <option key={sec} value={sec}>
+                                {sec.toLowerCase().startsWith("section") ? sec : `Section ${sec}`}
                               </option>
                             ))}
                           </select>
@@ -3753,15 +3954,33 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                     </label>
                     <input
                       type="text"
+                      maxLength={35}
+                      placeholder="e.g. 12-34, Flat 402"
                       value={formData.addressHouseNo}
-                      onChange={(e) =>
+                      onChange={(e) => {
+                        const val = e.target.value;
                         setFormData({
                           ...formData,
-                          addressHouseNo: e.target.value,
-                        })
-                      }
-                      className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none"
+                          addressHouseNo: val,
+                        });
+                        if (val.trim()) {
+                          const res = validateHouseNumber(val);
+                          setHouseNoError(res.isValid ? "" : res.error || "");
+                        } else {
+                          setHouseNoError("");
+                        }
+                      }}
+                      className={`w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-brand-500/20 ${
+                        houseNoError
+                          ? "border-rose-500 focus:border-rose-500"
+                          : "border-slate-200 dark:border-slate-700 focus:border-brand-500"
+                      }`}
                     />
+                    {houseNoError && (
+                      <p className="text-[10px] text-rose-500 mt-0.5 font-bold">
+                        {houseNoError}
+                      </p>
+                    )}
                   </div>
                   <div>
                     <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">
@@ -3769,11 +3988,12 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                     </label>
                     <input
                       type="text"
+                      maxLength={60}
                       value={formData.addressStreet}
                       onChange={(e) =>
                         setFormData({
                           ...formData,
-                          addressStreet: e.target.value,
+                          addressStreet: e.target.value.slice(0, 60),
                         })
                       }
                       className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none"
@@ -3801,15 +4021,33 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                     </label>
                     <input
                       type="text"
+                      maxLength={50}
+                      placeholder="e.g. Hyderabad, Vijayawada"
                       value={formData.addressCity}
-                      onChange={(e) =>
+                      onChange={(e) => {
+                        const val = e.target.value;
                         setFormData({
                           ...formData,
-                          addressCity: e.target.value,
-                        })
-                      }
-                      className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none"
+                          addressCity: val,
+                        });
+                        if (val.trim()) {
+                          const res = validateCity(val);
+                          setCityError(res.isValid ? "" : res.error || "");
+                        } else {
+                          setCityError("");
+                        }
+                      }}
+                      className={`w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-brand-500/20 ${
+                        cityError
+                          ? "border-rose-500 focus:border-rose-500"
+                          : "border-slate-200 dark:border-slate-700 focus:border-brand-500"
+                      }`}
                     />
+                    {cityError && (
+                      <p className="text-[10px] text-rose-500 mt-0.5 font-bold">
+                        {cityError}
+                      </p>
+                    )}
                   </div>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -3851,11 +4089,23 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                     </label>
                     <input
                       type="text"
+                      inputMode="numeric"
+                      pattern="[0-9]*"
+                      maxLength={6}
                       placeholder="e.g. 560001"
                       value={formData.addressPinCode}
                       onChange={(e) => handlePinCodeChange(e.target.value)}
-                      className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none font-mono focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20"
+                      className={`w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border text-slate-900 dark:text-white outline-none font-mono focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 ${
+                        pinCodeError
+                          ? "border-rose-500"
+                          : "border-slate-200 dark:border-slate-700"
+                      }`}
                     />
+                    {pinCodeError && (
+                      <p className="text-[10px] text-rose-500 mt-0.5 font-bold">
+                        {pinCodeError}
+                      </p>
+                    )}
                   </div>
                 </div>
               </div>
@@ -5038,6 +5288,11 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                     </td>
                     <td className="py-3 px-4 font-bold text-slate-800 dark:text-slate-200">
                       {app.appliedClass}
+                      {app.section ? (
+                        <span className="ml-1 text-xs font-semibold text-slate-500 dark:text-slate-400">
+                          ({app.section.toLowerCase().startsWith("section") ? app.section : `Sec ${app.section}`})
+                        </span>
+                      ) : null}
                     </td>
                     <td className="py-3 px-4">
                       <span className="font-bold text-slate-700 dark:text-slate-300 block">
@@ -5192,6 +5447,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                         <BookOpen className="w-3.5 h-3.5 text-sky-600 dark:text-sky-400" /> Class:{" "}
                         <span className="font-bold text-slate-900 dark:text-white">
                           {selectedAppForView.appliedClass}
+                          {selectedAppForView.section ? ` (${selectedAppForView.section.toLowerCase().startsWith("section") ? selectedAppForView.section : `Sec ${selectedAppForView.section}`})` : ""}
                         </span>
                       </span>
                       {selectedAppForView.branch && (

@@ -1162,25 +1162,25 @@ export const GlobalReportCardsView: React.FC<GlobalReportCardsViewProps> = ({ on
                       )}
                     </button>
                   </th>
-                  <th className="px-4 py-3.5 text-center text-slate-500 dark:text-slate-400 font-black uppercase text-[10px] tracking-wider border-b border-r border-slate-200/80 dark:border-slate-800 bg-slate-50/90 dark:bg-slate-950/70 whitespace-nowrap">
+                  <th className="px-4 py-3.5 text-center text-slate-500 dark:text-slate-400 font-black uppercase text-[10px] tracking-wider border-b border-r border-slate-200/80 dark:border-slate-800 bg-slate-50/90 dark:bg-slate-950/70 whitespace-nowrap min-w-[5.5rem]">
                     Rank
                   </th>
-                  <th className="px-4 py-3.5 text-center text-slate-500 dark:text-slate-400 font-black uppercase text-[10px] tracking-wider border-b border-r border-slate-200/80 dark:border-slate-800 bg-slate-50/90 dark:bg-slate-950/70 whitespace-nowrap">
+                  <th className="px-4 py-3.5 text-center text-slate-500 dark:text-slate-400 font-black uppercase text-[10px] tracking-wider border-b border-r border-slate-200/80 dark:border-slate-800 bg-slate-50/90 dark:bg-slate-950/70 whitespace-nowrap min-w-[5.5rem]">
                     Roll No
                   </th>
                   <th className="px-4 py-3.5 text-left text-slate-500 dark:text-slate-400 font-black uppercase text-[10px] tracking-wider border-b border-r border-slate-200/80 dark:border-slate-800 bg-slate-50/90 dark:bg-slate-950/70 whitespace-nowrap">
                     Student Details & ID
                   </th>
-                  <th className="px-4 py-3.5 text-center text-slate-500 dark:text-slate-400 font-black uppercase text-[10px] tracking-wider border-b border-r border-slate-200/80 dark:border-slate-800 bg-slate-50/90 dark:bg-slate-950/70 whitespace-nowrap">
+                  <th className="px-4 py-3.5 text-center text-slate-500 dark:text-slate-400 font-black uppercase text-[10px] tracking-wider border-b border-r border-slate-200/80 dark:border-slate-800 bg-slate-50/90 dark:bg-slate-950/70 whitespace-nowrap min-w-[5.5rem]">
                     Marks Obtained
                   </th>
-                  <th className="px-4 py-3.5 text-center text-slate-500 dark:text-slate-400 font-black uppercase text-[10px] tracking-wider border-b border-r border-slate-200/80 dark:border-slate-800 bg-slate-50/90 dark:bg-slate-950/70 whitespace-nowrap">
+                  <th className="px-4 py-3.5 text-center text-slate-500 dark:text-slate-400 font-black uppercase text-[10px] tracking-wider border-b border-r border-slate-200/80 dark:border-slate-800 bg-slate-50/90 dark:bg-slate-950/70 whitespace-nowrap min-w-[5.5rem]">
                     Percentage
                   </th>
-                  <th className="px-4 py-3.5 text-center text-slate-500 dark:text-slate-400 font-black uppercase text-[10px] tracking-wider border-b border-r border-slate-200/80 dark:border-slate-800 bg-slate-50/90 dark:bg-slate-950/70 whitespace-nowrap">
+                  <th className="px-4 py-3.5 text-center text-slate-500 dark:text-slate-400 font-black uppercase text-[10px] tracking-wider border-b border-r border-slate-200/80 dark:border-slate-800 bg-slate-50/90 dark:bg-slate-950/70 whitespace-nowrap min-w-[5.5rem]">
                     Grade
                   </th>
-                  <th className="px-4 py-3.5 text-center text-slate-500 dark:text-slate-400 font-black uppercase text-[10px] tracking-wider border-b border-r border-slate-200/80 dark:border-slate-800 bg-slate-50/90 dark:bg-slate-950/70 whitespace-nowrap">
+                  <th className="px-4 py-3.5 text-center text-slate-500 dark:text-slate-400 font-black uppercase text-[10px] tracking-wider border-b border-r border-slate-200/80 dark:border-slate-800 bg-slate-50/90 dark:bg-slate-950/70 whitespace-nowrap min-w-[5.5rem]">
                     Status
                   </th>
                   <th className="px-4 py-3.5 text-center text-slate-500 dark:text-slate-400 font-black uppercase text-[10px] tracking-wider border-b border-slate-200/80 dark:border-slate-800 bg-slate-50/90 dark:bg-slate-950/70 whitespace-nowrap">
@@ -1212,13 +1212,13 @@ export const GlobalReportCardsView: React.FC<GlobalReportCardsViewProps> = ({ on
                         </button>
                       </td>
 
-                      <td className="px-4 py-3 text-center border-r border-slate-100 dark:border-slate-800/80">
+                      <td className="px-4 py-3 text-center border-r border-slate-100 dark:border-slate-800/80 whitespace-nowrap min-w-[5.5rem]">
                         <span className="font-mono font-black text-amber-600 dark:text-amber-400 text-xs px-2 py-0.5 rounded-lg bg-amber-50 dark:bg-amber-950/50">
                           #{res.rank}
                         </span>
                       </td>
 
-                      <td className="px-4 py-3 text-center border-r border-slate-100 dark:border-slate-800/80">
+                      <td className="px-4 py-3 text-center border-r border-slate-100 dark:border-slate-800/80 whitespace-nowrap min-w-[5.5rem]">
                         <span className="font-mono font-bold text-slate-600 dark:text-slate-400">
                           {res.rollNo || 'N/A'}
                         </span>
@@ -1235,13 +1235,13 @@ export const GlobalReportCardsView: React.FC<GlobalReportCardsViewProps> = ({ on
                         </div>
                       </td>
 
-                      <td className="px-4 py-3 text-center border-r border-slate-100 dark:border-slate-800/80">
+                      <td className="px-4 py-3 text-center border-r border-slate-100 dark:border-slate-800/80 whitespace-nowrap min-w-[5.5rem]">
                         <span className="font-mono font-bold text-slate-800 dark:text-slate-200">
                           {res.totalObtainedMarks} / {res.totalMaxMarks}
                         </span>
                       </td>
 
-                      <td className="px-4 py-3 text-center border-r border-slate-100 dark:border-slate-800/80">
+                      <td className="px-4 py-3 text-center border-r border-slate-100 dark:border-slate-800/80 whitespace-nowrap min-w-[5.5rem]">
                         <div className="inline-flex flex-col items-center">
                           <span className="font-mono font-black text-sky-600 dark:text-sky-400 text-xs">
                             {res.percentage.toFixed(1)}%
@@ -1249,13 +1249,13 @@ export const GlobalReportCardsView: React.FC<GlobalReportCardsViewProps> = ({ on
                         </div>
                       </td>
 
-                      <td className="px-4 py-3 text-center border-r border-slate-100 dark:border-slate-800/80">
+                      <td className="px-4 py-3 text-center border-r border-slate-100 dark:border-slate-800/80 whitespace-nowrap min-w-[5.5rem]">
                         <span className="font-black text-indigo-600 dark:text-indigo-400 text-xs px-2 py-0.5 rounded-md bg-indigo-50 dark:bg-indigo-950/50">
                           {res.finalGrade}
                         </span>
                       </td>
 
-                      <td className="px-4 py-3 text-center border-r border-slate-100 dark:border-slate-800/80">
+                      <td className="px-4 py-3 text-center border-r border-slate-100 dark:border-slate-800/80 whitespace-nowrap min-w-[5.5rem]">
                         <span
                           className={`px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase inline-block ${
                             res.passStatus === 'Pass'

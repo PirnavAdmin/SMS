@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import {
   X,
   Printer,
@@ -7,7 +7,7 @@ import {
   Award,
   CheckCircle2,
   Calendar,
-  DollarSign,
+  IndianRupee,
   ShieldCheck,
   Edit3,
   Eye,
@@ -32,19 +32,29 @@ import { PrintableStaffLetter } from './PrintableStaffLetter';
 import {
   calculateSalaryBreakdown,
   getDefaultLetterPayload,
+  getEmptyLetterPayload,
+  getStaffRealAddress,
   saveStaffLetterRecord,
+  getStoredStaffLetters,
   DEFAULT_OFFER_TERMS
 } from '../../../../utils/staffLetterTemplates';
+import {
+  fetchGlobalLetterSettingsApi,
+  saveGlobalLetterSettingsApi,
+  createOrSaveStaffLetterApi,
+  fetchStaffLettersApi
+} from '../../../../api/staffLetters';
 import { validateSearchQuery } from '../../../../utils/validation';
 
 interface StaffLetterModalProps {
-  staff: Staff;
+  staff?: Staff;
   initialType?: StaffLetterType;
   isOpen: boolean;
   onClose: () => void;
   existingRecord?: GeneratedStaffLetterRecord;
   readOnly?: boolean;
   onNavigate?: (module: string) => void;
+  existingLetters?: GeneratedStaffLetterRecord[];
 }
 
 export const StaffLetterModal: React.FC<StaffLetterModalProps> = ({
@@ -55,37 +65,40 @@ export const StaffLetterModal: React.FC<StaffLetterModalProps> = ({
   existingRecord,
   readOnly = false,
   onNavigate,
+  existingLetters,
 }) => {
   const { staff: allStaff = [], schoolProfile, updateStaff } = useData();
   const { addToast } = useToast();
 
   const effectiveStaffList = useMemo(() => {
     if (allStaff && allStaff.length > 0) return allStaff;
-    return [staff].filter(Boolean);
+    return [staff].filter(Boolean) as Staff[];
   }, [allStaff, staff]);
 
-  const [currentStaff, setCurrentStaff] = useState<Staff>(() => {
-    return staff || (effectiveStaffList.length > 0 ? effectiveStaffList[0] : ({} as Staff));
+  const [currentStaff, setCurrentStaff] = useState<Staff | undefined>(() => {
+    if (staff) return staff;
+    if (existingRecord) {
+      return (allStaff && allStaff.length > 0 ? allStaff : []).find(
+        (s) => s.id === existingRecord.staffId || s.empId === existingRecord.staffEmpId
+      );
+    }
+    return undefined;
   });
   const [staffCategoryFilter, setStaffCategoryFilter] = useState<'all' | 'teaching' | 'non-teaching'>('all');
   const [staffSearchQuery, setStaffSearchQuery] = useState<string>('');
   const [staffSearchError, setStaffSearchError] = useState<string | undefined>(undefined);
   const [isEmployeeDropdownOpen, setIsEmployeeDropdownOpen] = useState(false);
   const employeeDropdownRef = useRef<HTMLDivElement>(null);
+  const hasInitializedRef = useRef(false);
+  const isCustomSignatureModifiedRef = useRef(false);
 
   useEffect(() => {
     if (staff) {
       if (staff.id !== currentStaff?.id || staff.empId !== currentStaff?.empId) {
         setCurrentStaff(staff);
       }
-    } else if (effectiveStaffList.length > 0) {
-      const first = effectiveStaffList[0];
-      const hasCurrent = Boolean(currentStaff?.id || currentStaff?.empId || (currentStaff as any)?._id || currentStaff?.name);
-      if (!hasCurrent && first) {
-        setCurrentStaff(first);
-      }
     }
-  }, [staff, effectiveStaffList]);
+  }, [staff]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -139,27 +152,96 @@ export const StaffLetterModal: React.FC<StaffLetterModalProps> = ({
     );
   };
 
-  const filteredStaffList = useMemo(() => {
-    if (staffSearchError) return [];
-    return effectiveStaffList.filter((s) => {
-      if (staffCategoryFilter === 'teaching' && !isTeaching(s)) return false;
-      if (staffCategoryFilter === 'non-teaching' && isTeaching(s)) return false;
+  const [issuedLetters, setIssuedLetters] = useState<GeneratedStaffLetterRecord[]>(() => {
+    if (existingLetters && existingLetters.length > 0) return existingLetters;
+    return getStoredStaffLetters();
+  });
 
-      if (staffSearchQuery.trim()) {
-        const q = staffSearchQuery.toLowerCase().trim();
-        const fullName = `${s.firstName || ''} ${s.lastName || ''}`.toLowerCase();
-        const empId = (s.empId || s.id || '').toLowerCase();
-        return fullName.includes(q) || empId.includes(q);
+  useEffect(() => {
+    if (existingLetters && existingLetters.length > 0) {
+      setIssuedLetters(existingLetters);
+    }
+  }, [existingLetters]);
+
+  useEffect(() => {
+    let isMounted = true;
+    const handleLettersUpdated = () => {
+      setIssuedLetters(getStoredStaffLetters());
+    };
+    window.addEventListener('staff_letters_updated', handleLettersUpdated);
+
+    fetchStaffLettersApi()
+      .then((res) => {
+        if (isMounted && res?.data && Array.isArray(res.data)) {
+          setIssuedLetters(res.data);
+        }
+      })
+      .catch(() => {});
+
+    return () => {
+      isMounted = false;
+      window.removeEventListener('staff_letters_updated', handleLettersUpdated);
+    };
+  }, []);
+
+  const isLetterReleasedForStaff = useCallback(
+    (s: Staff, type: StaffLetterType) => {
+      // When viewing/editing an existing record, don't filter out its own target staff
+      if (
+        existingRecord &&
+        (String(s.id) === String(existingRecord.staffId) ||
+          String(s.empId) === String(existingRecord.staffEmpId))
+      ) {
+        return false;
       }
 
-      return true;
-    });
-  }, [effectiveStaffList, staffCategoryFilter, staffSearchQuery, staffSearchError]);
+      const sId = String(s.id || '').trim().toLowerCase();
+      const sEmpId = String(s.empId || '').trim().toLowerCase();
+      const sFullName = `${s.firstName || ''} ${s.lastName || ''}`.trim().toLowerCase();
+
+      // Check letters registry
+      const hasRegistryLetter = issuedLetters.some((l) => {
+        const lType = (l.letterType || '').toLowerCase();
+        if (lType !== type.toLowerCase()) return false;
+        const lStatus = (l.status || '').toLowerCase();
+        if (lStatus && lStatus !== 'issued') return false;
+
+        const lStaffId = String(l.staffId || '').trim().toLowerCase();
+        const lStaffEmpId = String(l.staffEmpId || '').trim().toLowerCase();
+        const lStaffName = String(l.staffName || '').trim().toLowerCase();
+
+        const matchesId = sId && (lStaffId === sId || lStaffEmpId === sId);
+        const matchesEmpId = sEmpId && (lStaffId === sEmpId || lStaffEmpId === sEmpId);
+        const matchesName = sFullName && lStaffName && sFullName === lStaffName && sFullName.length > 2;
+
+        return matchesId || matchesEmpId || matchesName;
+      });
+
+      if (hasRegistryLetter) return true;
+
+      // Check staff documents array if present
+      if (s.documents && Array.isArray(s.documents)) {
+        if (type === 'offer') {
+          const hasOfferDoc = s.documents.some((d) =>
+            d.type === 'Appointment Letter' ||
+            (d.title && d.title.toLowerCase().includes('offer'))
+          );
+          if (hasOfferDoc) return true;
+        } else if (type === 'relieving') {
+          const hasRelievingDoc = s.documents.some((d) =>
+            d.title && d.title.toLowerCase().includes('relieving')
+          );
+          if (hasRelievingDoc) return true;
+        }
+      }
+
+      return false;
+    },
+    [issuedLetters, existingRecord]
+  );
 
   const getGlobalSignature = () => {
     try {
-      const direct = localStorage.getItem('edu_db_global_signatory_signature');
-      if (direct) return direct;
       const saved = localStorage.getItem('edu_db_global_letter_settings');
       if (saved) {
         const parsed = JSON.parse(saved);
@@ -172,7 +254,7 @@ export const StaffLetterModal: React.FC<StaffLetterModalProps> = ({
   const [activeType, setActiveType] = useState<StaffLetterType>(
     existingRecord ? existingRecord.letterType : initialType
   );
-  const [activeView, setActiveView] = useState<'preview' | 'edit'>('preview');
+  const [activeView, setActiveView] = useState<'preview' | 'edit'>(existingRecord || readOnly ? 'preview' : 'edit');
 
   const [payload, setPayload] = useState<StaffLetterPayload>(() => {
     const globalSig = getGlobalSignature();
@@ -181,33 +263,162 @@ export const StaffLetterModal: React.FC<StaffLetterModalProps> = ({
       if (!pl.signatureImageUrl && globalSig) pl.signatureImageUrl = globalSig;
       return pl;
     }
-    const defaultPl = getDefaultLetterPayload(initialType, currentStaff || staff, schoolProfile);
-    if (!defaultPl.signatureImageUrl && globalSig) defaultPl.signatureImageUrl = globalSig;
-    return defaultPl;
+    if (currentStaff || staff) {
+      const defaultPl = getDefaultLetterPayload(initialType, currentStaff || staff, schoolProfile);
+      if (!defaultPl.signatureImageUrl && globalSig) defaultPl.signatureImageUrl = globalSig;
+      return defaultPl;
+    }
+    const emptyPl = getEmptyLetterPayload(initialType, schoolProfile);
+    if (!emptyPl.signatureImageUrl && globalSig) emptyPl.signatureImageUrl = globalSig;
+    return emptyPl;
   });
 
-  useEffect(() => {
-    if (isOpen) {
-      const globalSig = getGlobalSignature();
-      if (existingRecord) {
-        setActiveType(existingRecord.letterType);
-        const pl = { ...existingRecord.payload };
-        if (!pl.signatureImageUrl && globalSig) pl.signatureImageUrl = globalSig;
-        setPayload(pl);
-      } else if (staff) {
-        setCurrentStaff(staff);
-        setActiveType(initialType);
-        const defaultPl = getDefaultLetterPayload(initialType, staff, schoolProfile);
-        if (!defaultPl.signatureImageUrl && globalSig) defaultPl.signatureImageUrl = globalSig;
-        setPayload(defaultPl);
+  // Filter out employees who already have a released letter of the currently active type
+  const eligibleStaffList = useMemo(() => {
+    return effectiveStaffList.filter((s) => {
+      if (activeType === 'offer' && isLetterReleasedForStaff(s, 'offer')) return false;
+      if (activeType === 'relieving' && isLetterReleasedForStaff(s, 'relieving')) return false;
+      return true;
+    });
+  }, [effectiveStaffList, activeType, isLetterReleasedForStaff]);
+
+  const filteredStaffList = useMemo(() => {
+    if (staffSearchError) return [];
+    return eligibleStaffList.filter((s) => {
+      if (staffCategoryFilter === 'teaching' && !isTeaching(s)) return false;
+      if (staffCategoryFilter === 'non-teaching' && isTeaching(s)) return false;
+
+      if (staffSearchQuery.trim()) {
+        const q = staffSearchQuery.toLowerCase().trim();
+        const fullName = `${s.firstName || ''} ${s.lastName || ''}`.toLowerCase();
+        const empId = (s.empId || s.id || '').toLowerCase();
+        return fullName.includes(q) || empId.includes(q);
       }
+
+      return true;
+    });
+  }, [eligibleStaffList, staffCategoryFilter, staffSearchQuery, staffSearchError]);
+
+  const lastInitKeyRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!isOpen) {
+      lastInitKeyRef.current = null;
+      hasInitializedRef.current = false;
+      isCustomSignatureModifiedRef.current = false;
+      return;
     }
-  }, [isOpen, existingRecord, staff, initialType, schoolProfile]);
+
+    const currentKey = existingRecord
+      ? `rec_${existingRecord.id}`
+      : staff
+      ? `staff_${staff.id || staff.empId}`
+      : `open_${initialType}`;
+
+    // Guard: Prevent re-initialization from re-renders (e.g. signature changes, toasts) while modal is open
+    if (lastInitKeyRef.current === currentKey) {
+      return;
+    }
+
+    lastInitKeyRef.current = currentKey;
+    hasInitializedRef.current = true;
+
+    if (existingRecord) {
+      setActiveType(existingRecord.letterType);
+      setActiveView('preview');
+      setPayload({ ...existingRecord.payload });
+      if (staff) {
+        setCurrentStaff(staff);
+      } else {
+        const matched = effectiveStaffList.find(
+          (s) => s.id === existingRecord.staffId || s.empId === existingRecord.staffEmpId
+        );
+        if (matched) setCurrentStaff(matched);
+      }
+    } else if (staff) {
+      setCurrentStaff(staff);
+      setActiveType(initialType);
+      setActiveView('edit');
+      const defaultPl = getDefaultLetterPayload(initialType, staff, schoolProfile);
+      const globalSig = getGlobalSignature();
+      if (!defaultPl.signatureImageUrl && globalSig) {
+        defaultPl.signatureImageUrl = globalSig;
+      }
+      setPayload(defaultPl);
+
+      // Sync fresh global settings from backend database
+      fetchGlobalLetterSettingsApi()
+        .then((res) => {
+          if (res?.data) {
+            const s = res.data;
+            setPayload((prev) => ({
+              ...prev,
+              authorizedSignatoryName: s.signatoryName || prev.authorizedSignatoryName,
+              authorizedSignatoryTitle: s.signatoryTitle || prev.authorizedSignatoryTitle,
+              probationMonths: s.probationMonths || prev.probationMonths,
+              noticePeriodDays: s.noticePeriodDays || prev.noticePeriodDays,
+              signatureImageUrl: isCustomSignatureModifiedRef.current
+                ? prev.signatureImageUrl
+                : (prev.signatureImageUrl || s.signatureImageUrl || ''),
+              customTerms: (prev.customTerms && prev.customTerms.length > 0) ? prev.customTerms : (s.masterTerms || prev.customTerms || []),
+            }));
+          }
+        })
+        .catch(() => {});
+    } else {
+      // Initial state when opened without specific staff:
+      // Opens in Configure ('edit') tab, initially showing "-- Select Employee --"
+      setCurrentStaff(undefined);
+      setActiveType(initialType);
+      setActiveView('edit');
+      const emptyPl = getEmptyLetterPayload(initialType, schoolProfile);
+      const globalSig = getGlobalSignature();
+      if (!emptyPl.signatureImageUrl && globalSig) {
+        emptyPl.signatureImageUrl = globalSig;
+      }
+      setPayload(emptyPl);
+
+      // Sync fresh global settings from backend database
+      fetchGlobalLetterSettingsApi()
+        .then((res) => {
+          if (res?.data) {
+            const s = res.data;
+            setPayload((prev) => ({
+              ...prev,
+              authorizedSignatoryName: prev.authorizedSignatoryName || s.signatoryName || '',
+              authorizedSignatoryTitle: prev.authorizedSignatoryTitle || s.signatoryTitle || '',
+              probationMonths: prev.probationMonths || s.probationMonths || 0,
+              noticePeriodDays: prev.noticePeriodDays || s.noticePeriodDays || 0,
+              signatureImageUrl: isCustomSignatureModifiedRef.current
+                ? prev.signatureImageUrl
+                : (prev.signatureImageUrl || s.signatureImageUrl || ''),
+              customTerms: (prev.customTerms && prev.customTerms.length > 0) ? prev.customTerms : (s.masterTerms || []),
+            }));
+          }
+        })
+        .catch(() => {});
+    }
+  }, [isOpen, existingRecord, staff, initialType]);
+
+
 
   const handleStaffSelect = (selectedId: string) => {
+    if (!selectedId) {
+      setCurrentStaff(undefined);
+      const emptyPl = getEmptyLetterPayload(activeType, schoolProfile);
+      if (payload.signatureImageUrl) emptyPl.signatureImageUrl = payload.signatureImageUrl;
+      if (payload.authorizedSignatoryName) emptyPl.authorizedSignatoryName = payload.authorizedSignatoryName;
+      if (payload.authorizedSignatoryTitle) emptyPl.authorizedSignatoryTitle = payload.authorizedSignatoryTitle;
+      setPayload(emptyPl);
+      return;
+    }
+
     const found = effectiveStaffList.find(
       (s) => String(s.id) === String(selectedId) || String(s.empId) === String(selectedId)
+    ) || allStaff.find(
+      (s) => String(s.id) === String(selectedId) || String(s.empId) === String(selectedId)
     );
+
     if (found) {
       setCurrentStaff(found);
 
@@ -221,35 +432,19 @@ export const StaffLetterModal: React.FC<StaffLetterModalProps> = ({
 
       const globalSig = getGlobalSignature();
       const pl = getDefaultLetterPayload(activeType, found, schoolProfile);
-      if (payload.signatureImageUrl) {
-        pl.signatureImageUrl = payload.signatureImageUrl;
-      } else if (globalSig) {
-        pl.signatureImageUrl = globalSig;
-      }
+      if (payload.signatureImageUrl) pl.signatureImageUrl = payload.signatureImageUrl;
+      else if (globalSig) pl.signatureImageUrl = globalSig;
+      if (payload.authorizedSignatoryName) pl.authorizedSignatoryName = payload.authorizedSignatoryName;
+      if (payload.authorizedSignatoryTitle) pl.authorizedSignatoryTitle = payload.authorizedSignatoryTitle;
+      if (payload.probationMonths) pl.probationMonths = payload.probationMonths;
+      if (payload.noticePeriodDays) pl.noticePeriodDays = payload.noticePeriodDays;
+      if (payload.customTerms && payload.customTerms.length > 0) pl.customTerms = payload.customTerms;
       setPayload(pl);
     }
   };
 
   const handleCategoryFilterChange = (newCat: 'all' | 'teaching' | 'non-teaching') => {
     setStaffCategoryFilter(newCat);
-    if (currentStaff) {
-      const isCurrentTeaching = isTeaching(currentStaff);
-      const matchesCategory =
-        newCat === 'all' ||
-        (newCat === 'teaching' && isCurrentTeaching) ||
-        (newCat === 'non-teaching' && !isCurrentTeaching);
-
-      if (!matchesCategory) {
-        const firstInCat = effectiveStaffList.find((s) => {
-          if (newCat === 'teaching') return isTeaching(s);
-          if (newCat === 'non-teaching') return !isTeaching(s);
-          return true;
-        });
-        if (firstInCat) {
-          handleStaffSelect(firstInCat.id || firstInCat.empId || '');
-        }
-      }
-    }
   };
 
   // When activeType changes and not existing record, recalculate default payload
@@ -257,13 +452,33 @@ export const StaffLetterModal: React.FC<StaffLetterModalProps> = ({
     setActiveType(newType);
     if (!existingRecord) {
       const globalSig = getGlobalSignature();
-      const pl = getDefaultLetterPayload(newType, currentStaff, schoolProfile);
-      if (payload.signatureImageUrl) {
-        pl.signatureImageUrl = payload.signatureImageUrl;
-      } else if (globalSig) {
-        pl.signatureImageUrl = globalSig;
+      if (currentStaff && isLetterReleasedForStaff(currentStaff, newType)) {
+        setCurrentStaff(undefined);
+        const emptyPl = getEmptyLetterPayload(newType, schoolProfile);
+        if (payload.signatureImageUrl) emptyPl.signatureImageUrl = payload.signatureImageUrl;
+        else if (globalSig) emptyPl.signatureImageUrl = globalSig;
+        if (payload.authorizedSignatoryName) emptyPl.authorizedSignatoryName = payload.authorizedSignatoryName;
+        if (payload.authorizedSignatoryTitle) emptyPl.authorizedSignatoryTitle = payload.authorizedSignatoryTitle;
+        if (payload.probationMonths) emptyPl.probationMonths = payload.probationMonths;
+        if (payload.noticePeriodDays) emptyPl.noticePeriodDays = payload.noticePeriodDays;
+        if (payload.customTerms && payload.customTerms.length > 0) emptyPl.customTerms = payload.customTerms;
+        setPayload(emptyPl);
+        addToast(
+          'info',
+          'Letter Already Released',
+          `${currentStaff.firstName} ${currentStaff.lastName} already has a released ${newType === 'offer' ? 'Offer' : 'Relieving'} Letter. Please select another employee.`
+        );
+      } else {
+        const pl = getDefaultLetterPayload(newType, currentStaff, schoolProfile);
+        if (payload.signatureImageUrl) pl.signatureImageUrl = payload.signatureImageUrl;
+        else if (globalSig) pl.signatureImageUrl = globalSig;
+        if (payload.authorizedSignatoryName) pl.authorizedSignatoryName = payload.authorizedSignatoryName;
+        if (payload.authorizedSignatoryTitle) pl.authorizedSignatoryTitle = payload.authorizedSignatoryTitle;
+        if (payload.probationMonths) pl.probationMonths = payload.probationMonths;
+        if (payload.noticePeriodDays) pl.noticePeriodDays = payload.noticePeriodDays;
+        if (payload.customTerms && payload.customTerms.length > 0) pl.customTerms = payload.customTerms;
+        setPayload(pl);
       }
-      setPayload(pl);
     }
   };
 
@@ -493,7 +708,23 @@ export const StaffLetterModal: React.FC<StaffLetterModalProps> = ({
   }, [isOpen, isPrinting, payload, activeType]);
 
   const handleSaveAndIssue = () => {
-    const targetStaff = currentStaff || staff;
+    if (!currentStaff && !staff && !payload.candidateName?.trim()) {
+      addToast('error', 'Select Employee', 'Please select an employee before issuing the letter.');
+      return;
+    }
+    if (!payload.authorizedSignatoryName?.trim()) {
+      addToast('error', 'Mandatory Field Missing', 'Authorized Signatory Name is required.');
+      return;
+    }
+    if (!payload.authorizedSignatoryTitle?.trim()) {
+      addToast('error', 'Mandatory Field Missing', 'Authorized Signatory Designation / Title is required.');
+      return;
+    }
+    if (!payload.signatureImageUrl?.trim()) {
+      addToast('error', 'Mandatory Field Missing', 'Authorized Signatory Signature / Official Stamp Image is required.');
+      return;
+    }
+    const targetStaff = currentStaff || staff || ({ id: '', empId: payload.empId || '' } as Staff);
     const recordId = existingRecord ? existingRecord.id : `LTR-${Date.now()}-${targetStaff.id || targetStaff.empId || '01'}`;
     const newRecord: GeneratedStaffLetterRecord = {
       id: recordId,
@@ -512,6 +743,10 @@ export const StaffLetterModal: React.FC<StaffLetterModalProps> = ({
     };
 
     saveStaffLetterRecord(newRecord);
+    createOrSaveStaffLetterApi(newRecord).catch((err) => {
+      console.warn('Backend staff letter sync error:', err);
+    });
+    window.dispatchEvent(new Event('staff_letters_updated'));
 
     // Also link into staff documents array if updateStaff is available
     if (updateStaff && targetStaff.id) {
@@ -604,17 +839,6 @@ export const StaffLetterModal: React.FC<StaffLetterModalProps> = ({
               <div className="flex items-center bg-slate-100 dark:bg-slate-800 p-1 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold">
                 <button
                   type="button"
-                  onClick={() => setActiveView('preview')}
-                  className={`px-3 py-1 rounded-lg transition-all flex items-center gap-1.5 cursor-pointer ${
-                    activeView === 'preview'
-                      ? 'bg-white dark:bg-slate-900 text-sky-600 dark:text-sky-400 shadow-xs font-black'
-                      : 'text-slate-500 hover:text-slate-900 dark:hover:text-slate-200'
-                  }`}
-                >
-                  <Eye className="w-3.5 h-3.5" /> Preview
-                </button>
-                <button
-                  type="button"
                   onClick={() => setActiveView('edit')}
                   className={`px-3 py-1 rounded-lg transition-all flex items-center gap-1.5 cursor-pointer ${
                     activeView === 'edit'
@@ -623,6 +847,17 @@ export const StaffLetterModal: React.FC<StaffLetterModalProps> = ({
                   }`}
                 >
                   <Edit3 className="w-3.5 h-3.5" /> Configure
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveView('preview')}
+                  className={`px-3 py-1 rounded-lg transition-all flex items-center gap-1.5 cursor-pointer ${
+                    activeView === 'preview'
+                      ? 'bg-white dark:bg-slate-900 text-sky-600 dark:text-sky-400 shadow-xs font-black'
+                      : 'text-slate-500 hover:text-slate-900 dark:hover:text-slate-200'
+                  }`}
+                >
+                  <Eye className="w-3.5 h-3.5" /> Preview
                 </button>
               </div>
             )}
@@ -721,25 +956,45 @@ export const StaffLetterModal: React.FC<StaffLetterModalProps> = ({
                       className={`w-full flex items-center justify-between px-4 py-2.5 rounded-xl bg-white dark:bg-slate-900 border text-xs font-bold transition-all cursor-pointer shadow-2xs ${
                         isEmployeeDropdownOpen
                           ? 'border-sky-500 ring-2 ring-sky-500/20'
+                          : !currentStaff
+                          ? 'border-sky-300 dark:border-sky-700 bg-sky-50/20 dark:bg-sky-950/20'
                           : 'border-slate-300 dark:border-slate-700 hover:border-slate-400 dark:hover:border-slate-600'
                       }`}
                     >
-                      <div className="flex items-center gap-2.5 truncate min-w-0">
-                        <div className="w-7 h-7 rounded-lg bg-sky-50 dark:bg-sky-950/60 border border-sky-200 dark:border-sky-800/60 flex items-center justify-center text-sky-600 dark:text-sky-400 font-black text-xs shrink-0">
-                          {currentStaff?.firstName ? currentStaff.firstName.charAt(0).toUpperCase() : 'U'}
+                      {currentStaff ? (
+                        <div className="flex items-center gap-2.5 truncate min-w-0">
+                          <div className="w-7 h-7 rounded-lg bg-sky-50 dark:bg-sky-950/60 border border-sky-200 dark:border-sky-800/60 flex items-center justify-center text-sky-600 dark:text-sky-400 font-black text-xs shrink-0">
+                            {currentStaff.firstName ? currentStaff.firstName.charAt(0).toUpperCase() : 'U'}
+                          </div>
+                          <div className="flex items-center gap-2 truncate">
+                            <span className="text-slate-900 dark:text-white font-black truncate">
+                              {`${currentStaff.firstName || ''} ${currentStaff.lastName || ''}`.trim() || 'Staff Member'}
+                            </span>
+                            {(currentStaff.empId || currentStaff.id) && (
+                              <span className="font-mono text-[11px] font-bold text-sky-600 dark:text-sky-400 bg-sky-50 dark:bg-sky-950/60 px-1.5 py-0.5 rounded border border-sky-200/60 dark:border-sky-800/60 shrink-0">
+                                {currentStaff.empId || currentStaff.id}
+                              </span>
+                            )}
+                            <span className="text-[11px] text-slate-400 font-normal truncate hidden sm:inline">
+                              • {currentStaff.designation || currentStaff.role || (isTeaching(currentStaff) ? 'Teaching Staff' : 'Non-Teaching Staff')}
+                            </span>
+                          </div>
                         </div>
-                        <div className="flex items-center gap-2 truncate">
-                          <span className="text-slate-900 dark:text-white font-black truncate">
-                            {currentStaff?.firstName ? `${currentStaff.firstName} ${currentStaff.lastName || ''}`.trim() : 'Select Staff Member'}
-                          </span>
-                          <span className="font-mono text-[11px] font-bold text-sky-600 dark:text-sky-400 bg-sky-50 dark:bg-sky-950/60 px-1.5 py-0.5 rounded border border-sky-200/60 dark:border-sky-800/60 shrink-0">
-                            {currentStaff?.empId || currentStaff?.id || 'ID'}
-                          </span>
-                          <span className="text-[11px] text-slate-400 font-normal truncate hidden sm:inline">
-                            • {currentStaff?.designation || currentStaff?.role || (isTeaching(currentStaff) ? 'Teaching Staff' : 'Non-Teaching Staff')}
-                          </span>
+                      ) : (
+                        <div className="flex items-center gap-2.5 truncate min-w-0">
+                          <div className="w-7 h-7 rounded-lg bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex items-center justify-center text-slate-400 dark:text-slate-500 font-bold text-xs shrink-0">
+                            <User className="w-4 h-4" />
+                          </div>
+                          <div className="flex items-center gap-2 truncate">
+                            <span className="text-slate-600 dark:text-slate-300 font-bold truncate">
+                              -- Select Employee --
+                            </span>
+                            <span className="text-[11px] text-slate-400 font-normal truncate hidden sm:inline">
+                              (Choose employee from staff directory)
+                            </span>
+                          </div>
                         </div>
-                      </div>
+                      )}
                       <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform shrink-0 ml-2 ${isEmployeeDropdownOpen ? 'rotate-180 text-sky-600' : ''}`} />
                     </button>
 
@@ -757,7 +1012,7 @@ export const StaffLetterModal: React.FC<StaffLetterModalProps> = ({
                                 : 'text-slate-500 hover:text-slate-900 dark:hover:text-slate-200'
                             }`}
                           >
-                            All Staff ({effectiveStaffList.length})
+                            All Staff ({eligibleStaffList.length})
                           </button>
                           <button
                             type="button"
@@ -835,6 +1090,28 @@ export const StaffLetterModal: React.FC<StaffLetterModalProps> = ({
 
                         {/* Staff List */}
                         <div className="max-h-60 overflow-y-auto no-scrollbar space-y-1">
+                          {/* Option to clear / unselect employee */}
+                          <button
+                            type="button"
+                            onClick={() => {
+                              handleStaffSelect('');
+                              setIsEmployeeDropdownOpen(false);
+                            }}
+                            className={`w-full text-left px-3 py-2 rounded-xl text-xs font-bold transition-all flex items-center justify-between cursor-pointer ${
+                              !currentStaff
+                                ? 'bg-sky-50 dark:bg-sky-950/60 text-sky-700 dark:text-sky-300 font-black border border-sky-200/60 dark:border-sky-800/60'
+                                : 'text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
+                            }`}
+                          >
+                            <div className="flex items-center gap-2.5">
+                              <div className="w-6 h-6 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-400 flex items-center justify-center text-xs">
+                                <User className="w-3.5 h-3.5" />
+                              </div>
+                              <span className="font-semibold">-- Select Employee --</span>
+                            </div>
+                            {!currentStaff && <Check className="w-4 h-4 text-sky-600 dark:text-sky-400 shrink-0 ml-2" />}
+                          </button>
+
                           {filteredStaffList.length === 0 ? (
                             <div className="p-4 text-center text-xs text-slate-400 font-medium">
                               {staffSearchError
@@ -895,22 +1172,23 @@ export const StaffLetterModal: React.FC<StaffLetterModalProps> = ({
                   <FileText className="w-4 h-4 text-sky-600" /> Reference & Header Details
                 </h3>
 
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                   <div>
                     <label className="block text-[10.5px] font-bold text-slate-400 uppercase mb-1">
-                      Reference Number
+                      Reference Number <span className="text-rose-500 font-bold ml-0.5">*</span>
                     </label>
                     <input
                       type="text"
+                      placeholder="e.g. OFF/2026/..."
                       value={payload.refNo}
                       onChange={(e) => setPayload({ ...payload, refNo: e.target.value })}
-                      className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-mono text-xs font-bold text-slate-900 dark:text-white outline-none"
+                      className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-mono text-xs font-bold text-slate-900 dark:text-white outline-none placeholder:font-normal placeholder:text-slate-400"
                     />
                   </div>
 
                   <div>
                     <label className="block text-[10.5px] font-bold text-slate-400 uppercase mb-1">
-                      Issue Date
+                      Issue Date <span className="text-rose-500 font-bold ml-0.5">*</span>
                     </label>
                     <input
                       type="date"
@@ -922,7 +1200,7 @@ export const StaffLetterModal: React.FC<StaffLetterModalProps> = ({
 
                   <div>
                     <label className="block text-[10.5px] font-bold text-slate-400 uppercase mb-1">
-                      Campus / Branch
+                      Campus / Branch <span className="text-rose-500 font-bold ml-0.5">*</span>
                     </label>
                     <input
                       type="text"
@@ -943,7 +1221,7 @@ export const StaffLetterModal: React.FC<StaffLetterModalProps> = ({
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
                     <label className="block text-[10.5px] font-bold text-slate-400 uppercase mb-1">
-                      Full Name
+                      Full Name <span className="text-rose-500 font-bold ml-0.5">*</span>
                     </label>
                     <input
                       type="text"
@@ -967,7 +1245,7 @@ export const StaffLetterModal: React.FC<StaffLetterModalProps> = ({
 
                   <div>
                     <label className="block text-[10.5px] font-bold text-slate-400 uppercase mb-1">
-                      Designation
+                      Designation <span className="text-rose-500 font-bold ml-0.5">*</span>
                     </label>
                     <input
                       type="text"
@@ -979,7 +1257,7 @@ export const StaffLetterModal: React.FC<StaffLetterModalProps> = ({
 
                   <div>
                     <label className="block text-[10.5px] font-bold text-slate-400 uppercase mb-1">
-                      Department
+                      Department <span className="text-rose-500 font-bold ml-0.5">*</span>
                     </label>
                     <input
                       type="text"
@@ -995,6 +1273,7 @@ export const StaffLetterModal: React.FC<StaffLetterModalProps> = ({
                     </label>
                     <input
                       type="text"
+                      placeholder="Staff address from staff directory..."
                       value={payload.address || ''}
                       onChange={(e) => setPayload({ ...payload, address: e.target.value })}
                       className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-medium text-slate-900 dark:text-white outline-none"
@@ -1007,7 +1286,7 @@ export const StaffLetterModal: React.FC<StaffLetterModalProps> = ({
               {activeType === 'offer' && (
                 <div className="bg-white dark:bg-slate-850 p-5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xs space-y-4">
                   <h3 className="text-sm font-black text-slate-900 dark:text-white flex items-center gap-2 border-b pb-2 border-slate-100 dark:border-slate-800">
-                    <DollarSign className="w-4 h-4 text-emerald-600" /> Compensation & Appointment Terms
+                    <IndianRupee className="w-4 h-4 text-emerald-600" /> Compensation & Appointment Terms
                   </h3>
 
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -1025,7 +1304,7 @@ export const StaffLetterModal: React.FC<StaffLetterModalProps> = ({
 
                     <div>
                       <label className="block text-[10.5px] font-bold text-slate-400 uppercase mb-1">
-                        Joining Date
+                        Joining Date <span className="text-rose-500 font-bold ml-0.5">*</span>
                       </label>
                       <input
                         type="date"
@@ -1037,12 +1316,28 @@ export const StaffLetterModal: React.FC<StaffLetterModalProps> = ({
 
                     <div>
                       <label className="block text-[10.5px] font-bold text-slate-400 uppercase mb-1">
-                        Probation Period (Months)
+                        Probation Period (Months) <span className="text-rose-500 font-bold ml-0.5">*</span>
                       </label>
                       <input
                         type="number"
-                        value={payload.probationMonths || 6}
-                        onChange={(e) => setPayload({ ...payload, probationMonths: parseInt(e.target.value, 10) || 6 })}
+                        min="0"
+                        placeholder="e.g. 6"
+                        value={payload.probationMonths || ''}
+                        onChange={(e) => setPayload({ ...payload, probationMonths: e.target.value === '' ? 0 : parseInt(e.target.value, 10) })}
+                        className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-[10.5px] font-bold text-slate-400 uppercase mb-1">
+                        Notice Period (Days) <span className="text-rose-500 font-bold ml-0.5">*</span>
+                      </label>
+                      <input
+                        type="number"
+                        min="0"
+                        placeholder="e.g. 30"
+                        value={payload.noticePeriodDays || ''}
+                        onChange={(e) => setPayload({ ...payload, noticePeriodDays: e.target.value === '' ? 0 : parseInt(e.target.value, 10) })}
                         className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none"
                       />
                     </div>
@@ -1060,7 +1355,7 @@ export const StaffLetterModal: React.FC<StaffLetterModalProps> = ({
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div>
                       <label className="block text-[10.5px] font-bold text-slate-400 uppercase mb-1">
-                        Date of Joining
+                        Date of Joining <span className="text-rose-500 font-bold ml-0.5">*</span>
                       </label>
                       <input
                         type="date"
@@ -1072,7 +1367,7 @@ export const StaffLetterModal: React.FC<StaffLetterModalProps> = ({
 
                     <div>
                       <label className="block text-[10.5px] font-bold text-slate-400 uppercase mb-1">
-                        Relieving Date / Last Working Date
+                        Relieving Date / Last Working Date <span className="text-rose-500 font-bold ml-0.5">*</span>
                       </label>
                       <input
                         type="date"
@@ -1122,7 +1417,7 @@ export const StaffLetterModal: React.FC<StaffLetterModalProps> = ({
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
                     <label className="block text-[10.5px] font-bold text-slate-400 uppercase mb-1">
-                      Signatory Name
+                      Signatory Name <span className="text-rose-500 font-bold ml-0.5">*</span>
                     </label>
                     <input
                       type="text"
@@ -1134,7 +1429,7 @@ export const StaffLetterModal: React.FC<StaffLetterModalProps> = ({
 
                   <div>
                     <label className="block text-[10.5px] font-bold text-slate-400 uppercase mb-1">
-                      Signatory Designation / Title
+                      Signatory Designation / Title <span className="text-rose-500 font-bold ml-0.5">*</span>
                     </label>
                     <input
                       type="text"
@@ -1148,12 +1443,13 @@ export const StaffLetterModal: React.FC<StaffLetterModalProps> = ({
                 {/* Digital Signature / Stamp Upload */}
                 <div>
                   <label className="block text-[10.5px] font-bold text-slate-400 uppercase mb-1.5">
-                    Authorized Signatory Signature / Official Stamp Image
+                    Authorized Signatory Signature / Official Stamp Image <span className="text-rose-500 font-bold ml-0.5">*</span>
                   </label>
                   <div className="p-3 bg-slate-50 dark:bg-slate-800 rounded-xl border border-dashed border-slate-300 dark:border-slate-700 flex flex-col sm:flex-row items-center gap-3">
                     <div className="w-24 h-14 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 flex items-center justify-center p-1.5 shrink-0 overflow-hidden">
                       {payload.signatureImageUrl ? (
                         <img
+                          key={payload.signatureImageUrl}
                           src={payload.signatureImageUrl}
                           alt="Signature Preview"
                           className="w-full h-full object-contain"
@@ -1178,34 +1474,50 @@ export const StaffLetterModal: React.FC<StaffLetterModalProps> = ({
                             type="file"
                             accept="image/png,image/jpeg,image/webp,image/svg+xml"
                             className="hidden"
+                            onClick={(e) => {
+                              (e.target as HTMLInputElement).value = '';
+                            }}
                             onChange={(e) => {
                               const file = e.target.files?.[0];
                               if (!file) return;
                               if (!file.type.startsWith('image/')) {
                                 addToast('error', 'Invalid File', 'Please select an image file (PNG, JPG, WEBP, SVG).');
+                                e.target.value = '';
                                 return;
                               }
                               if (file.size > 5 * 1024 * 1024) {
                                 addToast('error', 'File Too Large', 'Signature image must be under 5MB.');
+                                e.target.value = '';
                                 return;
                               }
                               const reader = new FileReader();
                               reader.onload = (ev) => {
                                 const result = ev.target?.result as string;
                                 if (result) {
+                                  isCustomSignatureModifiedRef.current = true;
                                   setPayload((prev) => ({ ...prev, signatureImageUrl: result }));
+                                  addToast('success', 'Signature Loaded', 'Signature applied successfully.');
+                                  e.target.value = '';
                                   try {
-                                    localStorage.setItem('edu_db_global_signatory_signature', result);
-                                    const currentSettings = localStorage.getItem('edu_db_global_letter_settings');
-                                    const parsed = currentSettings ? JSON.parse(currentSettings) : {};
-                                    parsed.signatureImageUrl = result;
-                                    localStorage.setItem('edu_db_global_letter_settings', JSON.stringify(parsed));
+                                    const savedStr = localStorage.getItem('edu_db_global_letter_settings');
+                                    const savedSettings = savedStr ? JSON.parse(savedStr) : {};
+                                    const newSettings = {
+                                      ...savedSettings,
+                                      signatureImageUrl: result,
+                                      signatoryName: payload.authorizedSignatoryName || savedSettings.signatoryName || '',
+                                      signatoryTitle: payload.authorizedSignatoryTitle || savedSettings.signatoryTitle || '',
+                                      probationMonths: payload.probationMonths ?? savedSettings.probationMonths ?? 0,
+                                      noticePeriodDays: payload.noticePeriodDays ?? savedSettings.noticePeriodDays ?? 30,
+                                    };
+                                    localStorage.setItem('edu_db_global_letter_settings', JSON.stringify(newSettings));
                                     window.dispatchEvent(new CustomEvent('global_signature_updated', { detail: result }));
+                                    saveGlobalLetterSettingsApi(newSettings).catch(() => {});
                                   } catch (err) {}
                                   addToast('success', 'Signature Loaded', 'Signature applied and saved globally.');
                                 }
                               };
                               reader.readAsDataURL(file);
+                              e.target.value = '';
                             }}
                           />
                         </label>
@@ -1214,7 +1526,18 @@ export const StaffLetterModal: React.FC<StaffLetterModalProps> = ({
                           <button
                             type="button"
                             onClick={() => {
+                              isCustomSignatureModifiedRef.current = true;
                               setPayload((prev) => ({ ...prev, signatureImageUrl: '' }));
+                              try {
+                                const savedStr = localStorage.getItem('edu_db_global_letter_settings');
+                                const savedSettings = savedStr ? JSON.parse(savedStr) : {};
+                                const newSettings = {
+                                  ...savedSettings,
+                                  signatureImageUrl: '',
+                                };
+                                localStorage.setItem('edu_db_global_letter_settings', JSON.stringify(newSettings));
+                                window.dispatchEvent(new CustomEvent('global_signature_updated', { detail: '' }));
+                              } catch (err) {}
                               addToast('info', 'Signature Removed', 'Custom signature removed.');
                             }}
                             className="px-2.5 py-1.5 rounded-lg bg-rose-50 dark:bg-rose-950/50 hover:bg-rose-100 text-rose-600 dark:text-rose-400 text-xs font-bold border border-rose-200 dark:border-rose-900 flex items-center gap-1 cursor-pointer"

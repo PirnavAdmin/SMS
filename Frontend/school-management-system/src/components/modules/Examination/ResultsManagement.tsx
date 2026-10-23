@@ -282,7 +282,7 @@ export const ResultsManagement: React.FC<ResultsManagementProps> = ({
     }
   };
 
-  const tableHeaderClass = "px-4 py-2 text-slate-500 font-bold uppercase tracking-wider text-[10px] bg-slate-50 dark:bg-slate-805/80 border-b border-slate-100 dark:border-slate-800";
+  const tableHeaderClass = "px-4 py-2 text-slate-500 font-bold uppercase tracking-wider text-[10px] bg-slate-50 dark:bg-slate-805/80 border-b border-slate-100 dark:border-slate-800 whitespace-nowrap";
 
   return (
     <div className="space-y-4 text-left">
@@ -448,7 +448,7 @@ export const ResultsManagement: React.FC<ResultsManagementProps> = ({
                       <thead>
                         <tr className="bg-slate-100 dark:bg-slate-800/60 text-slate-500 font-bold uppercase">
                           <th className={tableHeaderClass}>Rank</th>
-                          <th className={tableHeaderClass}>Roll No.</th>
+                          <th className={`${tableHeaderClass} min-w-[5.5rem]`}>Roll No.</th>
                           <th className={tableHeaderClass}>Student Name</th>
                           <th className={tableHeaderClass}>Percentage</th>
                           <th className={tableHeaderClass}>Overall Grade</th>
@@ -461,7 +461,7 @@ export const ResultsManagement: React.FC<ResultsManagementProps> = ({
                         {visibleResults.map(r => (
                           <tr key={r.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-850/40">
                             <td className="px-4 py-3 font-mono font-black text-amber-600 text-sm">#{r.rank}</td>
-                            <td className="px-4 py-3 font-mono font-bold text-slate-500">{r.rollNo || 'N/A'}</td>
+                            <td className="px-4 py-3 font-mono font-bold text-slate-500 whitespace-nowrap min-w-[5.5rem]">{r.rollNo || 'N/A'}</td>
                             <td className="px-4 py-3 font-extrabold text-slate-900 dark:text-white">{r.studentName}</td>
                             <td className="px-4 py-3 font-mono font-bold text-slate-800 dark:text-slate-200">{r.percentage.toFixed(1)}%</td>
                             <td className="px-4 py-3 font-black text-indigo-600 dark:text-indigo-400">{r.finalGrade}</td>

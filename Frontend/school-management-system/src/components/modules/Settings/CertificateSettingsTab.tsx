@@ -216,7 +216,7 @@ export const INITIAL_CERTIFICATE_TEMPLATES: CertificateTemplateConfig[] = [
     certificateTypeId: 'CT-TC',
     certificateTypeName: 'Transfer Certificate',
     title: 'OFFICIAL TRANSFER CERTIFICATE',
-    headerStyle: 'Classic Double Border',
+    headerStyle: '',
     themeColor: '#1e3a8a',
     showLogo: true,
     showSchoolHeader: true,
@@ -235,7 +235,7 @@ export const INITIAL_CERTIFICATE_TEMPLATES: CertificateTemplateConfig[] = [
     certificateTypeId: 'CT-BONAFIDE',
     certificateTypeName: 'Bonafide Certificate',
     title: 'BONAFIDE STUDY CERTIFICATE',
-    headerStyle: 'Modern Minimalist',
+    headerStyle: '',
     themeColor: '#047857',
     showLogo: true,
     showSchoolHeader: true,
@@ -254,7 +254,7 @@ export const INITIAL_CERTIFICATE_TEMPLATES: CertificateTemplateConfig[] = [
     certificateTypeId: 'CT-STUDY',
     certificateTypeName: 'Study Certificate',
     title: 'STUDY & CONDUCT CERTIFICATE',
-    headerStyle: 'Royal Gold Crest',
+    headerStyle: '',
     themeColor: '#b45309',
     showLogo: true,
     showSchoolHeader: true,
@@ -273,7 +273,7 @@ export const INITIAL_CERTIFICATE_TEMPLATES: CertificateTemplateConfig[] = [
     certificateTypeId: 'CT-CHARACTER',
     certificateTypeName: 'Character Certificate',
     title: 'CHARACTER & CONDUCT CERTIFICATE',
-    headerStyle: 'Executive Slate',
+    headerStyle: '',
     themeColor: '#1e293b',
     showLogo: true,
     showSchoolHeader: true,
@@ -312,9 +312,24 @@ export const CertificateSettingsTab: React.FC = () => {
     return rawMatch ? rawMatch[0] : currentYearStr;
   }, [activeAY, currentYearStr]);
 
-  const [activeSubSection, setActiveSubSection] = useState<
+  const [activeSubSection, setActiveSubSectionState] = useState<
     'types' | 'templates' | 'numbering' | 'fields' | 'signatures'
-  >('types');
+  >(() => {
+    try {
+      const saved = localStorage.getItem('certificate_settings_active_subsection');
+      if (saved && ['types', 'templates', 'numbering', 'fields', 'signatures'].includes(saved)) {
+        return saved as any;
+      }
+    } catch {}
+    return 'types';
+  });
+
+  const setActiveSubSection = (section: 'types' | 'templates' | 'numbering' | 'fields' | 'signatures') => {
+    setActiveSubSectionState(section);
+    try {
+      localStorage.setItem('certificate_settings_active_subsection', section);
+    } catch {}
+  };
 
   // Certificate Types State
   const [types, setTypes] = useState<CertificateTypeConfig[]>(() => {
@@ -329,7 +344,14 @@ export const CertificateSettingsTab: React.FC = () => {
   const [templates, setTemplates] = useState<CertificateTemplateConfig[]>(() => {
     try {
       const saved = localStorage.getItem('edu_db_certificate_templates_v2');
-      if (saved) return JSON.parse(saved);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) {
+          return parsed.map((tpl: CertificateTemplateConfig) =>
+            tpl.updatedAt ? tpl : { ...tpl, headerStyle: '' }
+          );
+        }
+      }
     } catch (e) {}
     return INITIAL_CERTIFICATE_TEMPLATES;
   });
@@ -406,24 +428,43 @@ export const CertificateSettingsTab: React.FC = () => {
   });
 
   // Selected Certificate Type for Required Fields Configuration Matrix
-  const [selectedFieldMatrixTypeId, setSelectedFieldMatrixTypeId] = useState<string>(
-    types[0]?.id || 'CT-TC'
-  );
+  const [selectedFieldMatrixTypeId, setSelectedFieldMatrixTypeId] = useState<string>('');
 
   const currentFieldMatrixType = useMemo(() => {
-    return types.find(t => t.id === selectedFieldMatrixTypeId) || types[0];
+    if (!selectedFieldMatrixTypeId) return undefined;
+    return types.find(t => t.id === selectedFieldMatrixTypeId);
   }, [types, selectedFieldMatrixTypeId]);
 
   // Selected Template for Editing in Templates subtab
-  const [selectedTemplateTypeId, setSelectedTemplateTypeId] = useState<string>(
-    types[0]?.id || 'CT-TC'
-  );
+  const [selectedTemplateTypeId, setSelectedTemplateTypeId] = useState<string>('');
 
   const currentTypeForTemplate = useMemo(() => {
-    return types.find(t => t.id === selectedTemplateTypeId) || types[0];
+    if (!selectedTemplateTypeId) return undefined;
+    return types.find(t => t.id === selectedTemplateTypeId);
   }, [types, selectedTemplateTypeId]);
 
   const activeTemplate = useMemo(() => {
+    if (!selectedTemplateTypeId) {
+      return {
+        id: '',
+        certificateTypeId: '',
+        certificateTypeName: '',
+        title: '',
+        headerStyle: '' as const,
+        themeColor: '#1e3a8a',
+        showLogo: true,
+        showSchoolHeader: true,
+        bodyTemplate: '',
+        footerText: '',
+        signatories: [
+          { id: 'sig-1', title: 'Class Teacher', show: true },
+          { id: 'sig-2', title: 'Accounts Officer', show: true },
+          { id: 'sig-3', title: 'Principal', name: schoolProfile?.principalName || 'Principal', show: true }
+        ],
+        showSeal: true,
+        dateFormat: 'DD/MM/YYYY'
+      };
+    }
     const found = templates.find(t => t.certificateTypeId === selectedTemplateTypeId);
     if (found) return found;
     return {
@@ -431,7 +472,7 @@ export const CertificateSettingsTab: React.FC = () => {
       certificateTypeId: selectedTemplateTypeId,
       certificateTypeName: currentTypeForTemplate?.name || 'Certificate',
       title: (currentTypeForTemplate?.name || 'CERTIFICATE').toUpperCase(),
-      headerStyle: 'Classic Double Border' as const,
+      headerStyle: '' as const,
       themeColor: '#1e3a8a',
       showLogo: true,
       showSchoolHeader: true,
@@ -445,7 +486,7 @@ export const CertificateSettingsTab: React.FC = () => {
       showSeal: true,
       dateFormat: 'DD/MM/YYYY'
     };
-  }, [templates, selectedTemplateTypeId, currentTypeForTemplate]);
+  }, [templates, selectedTemplateTypeId, currentTypeForTemplate, schoolProfile]);
 
   const [templateEditorState, setTemplateEditorState] = useState<CertificateTemplateConfig>(activeTemplate);
 
@@ -553,15 +594,64 @@ export const CertificateSettingsTab: React.FC = () => {
     setIsTypeModalOpen(false);
   };
 
+  const [templateTypeError, setTemplateTypeError] = useState<string | undefined>(undefined);
+  const [titleError, setTitleError] = useState<string | undefined>(undefined);
+  const [headerStyleError, setHeaderStyleError] = useState<string | undefined>(undefined);
+  const [themeColorError, setThemeColorError] = useState<string | undefined>(undefined);
+  const [bodyTemplateError, setBodyTemplateError] = useState<string | undefined>(undefined);
+
+  useEffect(() => {
+    setTitleError(undefined);
+    setHeaderStyleError(undefined);
+    setThemeColorError(undefined);
+    setBodyTemplateError(undefined);
+    if (selectedTemplateTypeId) setTemplateTypeError(undefined);
+  }, [selectedTemplateTypeId]);
+
   const handleSaveTemplate = () => {
+    let hasError = false;
+    if (!selectedTemplateTypeId) {
+      setTemplateTypeError('Please select a Certificate Type.');
+      hasError = true;
+    }
+    if (!templateEditorState.title?.trim()) {
+      setTitleError('Certificate Display Title is required.');
+      hasError = true;
+    }
+    if (!templateEditorState.headerStyle) {
+      setHeaderStyleError('Please select a Header Border Style.');
+      hasError = true;
+    }
+    if (!templateEditorState.themeColor?.trim()) {
+      setThemeColorError('Accent Theme Color is required.');
+      hasError = true;
+    }
+    if (!templateEditorState.bodyTemplate?.trim()) {
+      setBodyTemplateError('Body Content Template is required.');
+      hasError = true;
+    }
+    if (hasError) {
+      addToast('error', 'Mandatory Fields Missing', 'Please fill in all mandatory (*) fields before saving the template.');
+      return;
+    }
+    setTemplateTypeError(undefined);
+    setTitleError(undefined);
+    setHeaderStyleError(undefined);
+    setThemeColorError(undefined);
+    setBodyTemplateError(undefined);
+    const updatedTemplate: CertificateTemplateConfig = {
+      ...templateEditorState,
+      updatedAt: new Date().toISOString(),
+    };
+    setTemplateEditorState(updatedTemplate);
     setTemplates(prev => {
-      const exists = prev.some(t => t.certificateTypeId === templateEditorState.certificateTypeId);
+      const exists = prev.some(t => t.certificateTypeId === updatedTemplate.certificateTypeId);
       if (exists) {
-        return prev.map(t => t.certificateTypeId === templateEditorState.certificateTypeId ? templateEditorState : t);
+        return prev.map(t => t.certificateTypeId === updatedTemplate.certificateTypeId ? updatedTemplate : t);
       }
-      return [...prev, templateEditorState];
+      return [...prev, updatedTemplate];
     });
-    addToast('success', 'Template Saved', `Saved layout configuration for ${templateEditorState.certificateTypeName}`);
+    addToast('success', 'Template Saved', `Saved layout configuration for ${updatedTemplate.certificateTypeName}`);
   };
 
   const handleInsertPlaceholder = (ph: string) => {
@@ -664,7 +754,7 @@ export const CertificateSettingsTab: React.FC = () => {
             onClick={() => setActiveSubSection('types')}
             className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
               activeSubSection === 'types'
-                ? 'bg-white dark:bg-slate-900 text-sky-600 dark:text-sky-400 shadow-sm'
+                ? 'bg-sky-500 text-white shadow-sm'
                 : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
             }`}
           >
@@ -675,7 +765,7 @@ export const CertificateSettingsTab: React.FC = () => {
             onClick={() => setActiveSubSection('templates')}
             className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
               activeSubSection === 'templates'
-                ? 'bg-white dark:bg-slate-900 text-sky-600 dark:text-sky-400 shadow-sm'
+                ? 'bg-sky-500 text-white shadow-sm'
                 : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
             }`}
           >
@@ -686,7 +776,7 @@ export const CertificateSettingsTab: React.FC = () => {
             onClick={() => setActiveSubSection('numbering')}
             className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
               activeSubSection === 'numbering'
-                ? 'bg-white dark:bg-slate-900 text-sky-600 dark:text-sky-400 shadow-sm'
+                ? 'bg-sky-500 text-white shadow-sm'
                 : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
             }`}
           >
@@ -697,7 +787,7 @@ export const CertificateSettingsTab: React.FC = () => {
             onClick={() => setActiveSubSection('fields')}
             className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
               activeSubSection === 'fields'
-                ? 'bg-white dark:bg-slate-900 text-sky-600 dark:text-sky-400 shadow-sm'
+                ? 'bg-sky-500 text-white shadow-sm'
                 : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
             }`}
           >
@@ -708,7 +798,7 @@ export const CertificateSettingsTab: React.FC = () => {
             onClick={() => setActiveSubSection('signatures')}
             className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
               activeSubSection === 'signatures'
-                ? 'bg-white dark:bg-slate-900 text-sky-600 dark:text-sky-400 shadow-sm'
+                ? 'bg-sky-500 text-white shadow-sm'
                 : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
             }`}
           >
@@ -779,66 +869,135 @@ export const CertificateSettingsTab: React.FC = () => {
 
             <div className="space-y-3 text-xs">
               <div>
-                <label className="block font-bold mb-1 text-slate-700 dark:text-slate-300">Select Certificate Type</label>
+                <label className="block font-bold mb-1 text-slate-700 dark:text-slate-300">
+                  Select Certificate Type <span className="text-rose-500 font-bold ml-0.5">*</span>
+                </label>
                 <select
+                  required
                   value={selectedTemplateTypeId}
-                  onChange={e => setSelectedTemplateTypeId(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold text-slate-900 dark:text-white outline-none cursor-pointer"
+                  onChange={e => {
+                    setSelectedTemplateTypeId(e.target.value);
+                    if (e.target.value) setTemplateTypeError(undefined);
+                  }}
+                  className={`w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold outline-none cursor-pointer ${
+                    templateTypeError ? 'border-rose-500 focus:ring-rose-500' : ''
+                  } ${
+                    'text-slate-900 dark:text-white'
+                  }`}
                 >
+                  <option value="" disabled>Select Certificate Type</option>
                   {types.map(t => (
                     <option key={t.id} value={t.id}>{t.name} ({t.code})</option>
                   ))}
                 </select>
+                {templateTypeError && (
+                  <p className="text-[11px] text-rose-500 mt-1 font-semibold">
+                    {templateTypeError}
+                  </p>
+                )}
               </div>
 
               <div>
-                <label className="block font-bold mb-1 text-slate-700 dark:text-slate-300">Certificate Display Title</label>
+                <label className="block font-bold mb-1 text-slate-700 dark:text-slate-300">
+                  Certificate Display Title <span className="text-rose-500 font-bold ml-0.5">*</span>
+                </label>
                 <input
                   type="text"
+                  required
                   value={templateEditorState.title}
-                  onChange={e => setTemplateEditorState(prev => ({ ...prev, title: e.target.value }))}
-                  className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold text-slate-900 dark:text-white outline-none"
+                  onChange={e => {
+                    const val = e.target.value;
+                    setTemplateEditorState(prev => ({ ...prev, title: val }));
+                    if (val.trim()) setTitleError(undefined);
+                  }}
+                  className={`w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold text-slate-900 dark:text-white outline-none ${
+                    titleError ? 'border-rose-500 focus:ring-rose-500' : ''
+                  }`}
                   placeholder="e.g. BONAFIDE STUDY CERTIFICATE"
                 />
+                {titleError && (
+                  <p className="text-[11px] text-rose-500 mt-1 font-semibold">
+                    {titleError}
+                  </p>
+                )}
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-bold mb-1 text-slate-700 dark:text-slate-300">Header Border Style</label>
+                  <label className="block font-bold mb-1 text-slate-700 dark:text-slate-300">
+                    Header Border Style <span className="text-rose-500 font-bold ml-0.5">*</span>
+                  </label>
                   <select
-                    value={templateEditorState.headerStyle}
-                    onChange={e => setTemplateEditorState(prev => ({ ...prev, headerStyle: e.target.value as any }))}
-                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold text-slate-900 dark:text-white outline-none cursor-pointer"
+                    required
+                    title={templateEditorState.headerStyle || 'Select Header Border Style'}
+                    value={templateEditorState.headerStyle || ''}
+                    onChange={e => {
+                      const val = e.target.value as any;
+                      setTemplateEditorState(prev => ({ ...prev, headerStyle: val }));
+                      if (val) setHeaderStyleError(undefined);
+                    }}
+                    className={`w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold outline-none cursor-pointer ${
+                      headerStyleError
+                        ? 'border-rose-500 focus:ring-rose-500'
+                        : ''
+                    } ${
+                      'text-slate-900 dark:text-white'
+                    }`}
                   >
+                    <option value="" disabled>Select Header Border Style</option>
                     <option value="Classic Double Border">Classic Double Border</option>
                     <option value="Modern Minimalist">Modern Minimalist</option>
                     <option value="Royal Gold Crest">Royal Gold Crest</option>
                     <option value="Executive Slate">Executive Slate</option>
                   </select>
+                  {headerStyleError && (
+                    <p className="text-[11px] text-rose-500 mt-1 font-semibold">
+                      {headerStyleError}
+                    </p>
+                  )}
                 </div>
 
                 <div>
-                  <label className="block font-bold mb-1 text-slate-700 dark:text-slate-300">Accent Theme Color</label>
+                  <label className="block font-bold mb-1 text-slate-700 dark:text-slate-300">
+                    Accent Theme Color <span className="text-rose-500 font-bold ml-0.5">*</span>
+                  </label>
                   <div className="flex items-center gap-2">
                     <input
                       type="color"
+                      required
                       value={templateEditorState.themeColor || '#1e3a8a'}
-                      onChange={e => setTemplateEditorState(prev => ({ ...prev, themeColor: e.target.value }))}
+                      onChange={e => {
+                        setTemplateEditorState(prev => ({ ...prev, themeColor: e.target.value }));
+                        if (e.target.value) setThemeColorError(undefined);
+                      }}
                       className="w-8 h-8 rounded-lg cursor-pointer border-0"
                     />
                     <input
                       type="text"
+                      required
                       value={templateEditorState.themeColor || '#1e3a8a'}
-                      onChange={e => setTemplateEditorState(prev => ({ ...prev, themeColor: e.target.value }))}
-                      className="w-full px-2.5 py-1.5 rounded-xl bg-slate-50 dark:bg-slate-800 border font-mono text-xs"
+                      onChange={e => {
+                        setTemplateEditorState(prev => ({ ...prev, themeColor: e.target.value }));
+                        if (e.target.value.trim()) setThemeColorError(undefined);
+                      }}
+                      className={`w-full px-2.5 py-1.5 rounded-xl bg-slate-50 dark:bg-slate-800 border font-mono text-xs text-slate-900 dark:text-white ${
+                        themeColorError ? 'border-rose-500 focus:ring-rose-500' : ''
+                      }`}
                     />
                   </div>
+                  {themeColorError && (
+                    <p className="text-[11px] text-rose-500 mt-1 font-semibold">
+                      {themeColorError}
+                    </p>
+                  )}
                 </div>
               </div>
 
               <div>
                 <div className="flex items-center justify-between mb-1">
-                  <label className="block font-bold text-slate-700 dark:text-slate-300">Body Content Template</label>
+                  <label className="block font-bold text-slate-700 dark:text-slate-300">
+                    Body Content Template <span className="text-rose-500 font-bold ml-0.5">*</span>
+                  </label>
                   <button
                     type="button"
                     onClick={() => handleInsertPlaceholder('\n')}
@@ -850,11 +1009,23 @@ export const CertificateSettingsTab: React.FC = () => {
                 </div>
                 <textarea
                   rows={6}
+                  required
                   value={templateEditorState.bodyTemplate}
-                  onChange={e => setTemplateEditorState(prev => ({ ...prev, bodyTemplate: e.target.value }))}
-                  className="w-full p-3 rounded-xl bg-slate-50 dark:bg-slate-800 border font-mono text-xs text-slate-900 dark:text-white outline-none"
+                  onChange={e => {
+                    const val = e.target.value;
+                    setTemplateEditorState(prev => ({ ...prev, bodyTemplate: val }));
+                    if (val.trim()) setBodyTemplateError(undefined);
+                  }}
+                  className={`w-full p-3 rounded-xl bg-slate-50 dark:bg-slate-800 border font-mono text-xs text-slate-900 dark:text-white outline-none ${
+                    bodyTemplateError ? 'border-rose-500 focus:ring-rose-500' : ''
+                  }`}
                   placeholder="Body paragraph content with {{studentName}}, {{admissionNumber}}, {{class}} etc."
                 />
+                {bodyTemplateError && (
+                  <p className="text-[11px] text-rose-500 mt-1 font-semibold">
+                    {bodyTemplateError}
+                  </p>
+                )}
                 <p className="text-[10px] text-slate-400 mt-1 italic">
                   Tip: Press <kbd className="px-1 bg-slate-200 dark:bg-slate-700 rounded font-mono">Enter</kbd> in the text box or click <strong>+ New Line (Enter)</strong> above to start a new paragraph.
                 </p>
@@ -882,7 +1053,7 @@ export const CertificateSettingsTab: React.FC = () => {
               </div>
 
               <div>
-                <label className="block font-bold mb-1 text-slate-700 dark:text-slate-300">Footer Text / Disclaimer</label>
+                <label className="block font-bold mb-1 text-slate-700 dark:text-slate-300">Footer Text / Disclaimer <span className="text-slate-400 font-normal text-[10px] ml-1">(Optional)</span></label>
                 <input
                   type="text"
                   value={templateEditorState.footerText || ''}
@@ -1084,17 +1255,27 @@ export const CertificateSettingsTab: React.FC = () => {
 
               <div className="flex items-center gap-3">
                 <select
+                  required
                   value={selectedFieldMatrixTypeId}
                   onChange={e => setSelectedFieldMatrixTypeId(e.target.value)}
-                  className="px-3.5 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-xs font-extrabold text-slate-900 dark:text-white outline-none cursor-pointer"
+                  className={`px-3.5 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-xs font-extrabold outline-none cursor-pointer ${
+                    'text-slate-900 dark:text-white'
+                  }`}
                 >
+                  <option value="" disabled>Select Certificate Type</option>
                   {types.map(t => (
                     <option key={t.id} value={t.id}>{t.name} ({t.code})</option>
                   ))}
                 </select>
 
                 <button
-                  onClick={() => addToast('success', 'Configuration Saved', `Required fields updated for ${currentFieldMatrixType?.name}`)}
+                  onClick={() => {
+                    if (!currentFieldMatrixType) {
+                      addToast('error', 'Certificate Type Required', 'Please select a Certificate Type first.');
+                      return;
+                    }
+                    addToast('success', 'Configuration Saved', `Required fields updated for ${currentFieldMatrixType.name}`);
+                  }}
                   className="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-md flex items-center gap-1.5 cursor-pointer"
                 >
                   <Save className="w-3.5 h-3.5" /> Save Required Matrix
@@ -1110,7 +1291,13 @@ export const CertificateSettingsTab: React.FC = () => {
                 return (
                   <div
                     key={p.placeholder}
-                    onClick={() => handleToggleRequiredField(currentFieldMatrixType.id, keyName)}
+                    onClick={() => {
+                      if (!currentFieldMatrixType) {
+                        addToast('warning', 'Select Certificate Type', 'Please select a Certificate Type above to configure required fields.');
+                        return;
+                      }
+                      handleToggleRequiredField(currentFieldMatrixType.id, keyName);
+                    }}
                     className={`p-3.5 rounded-2xl border transition-all flex items-center justify-between cursor-pointer ${
                       isRequired
                         ? 'bg-emerald-50/70 dark:bg-emerald-950/40 border-emerald-300 dark:border-emerald-800 text-emerald-950 dark:text-emerald-100 shadow-xs'

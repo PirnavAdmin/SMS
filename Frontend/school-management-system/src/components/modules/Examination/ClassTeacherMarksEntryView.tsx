@@ -1494,10 +1494,10 @@ export const ClassTeacherMarksEntryView: React.FC<ClassTeacherMarksEntryViewProp
         </div>
       )}
 
-      {/* Control Bar: Exam, Class, Section, Mode & Stats */}
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-4">
-        {/* Exam Selector */}
-        <div className="bg-white dark:bg-slate-900 border border-sky-300 dark:border-sky-700 p-4 rounded-2xl shadow-xs hover:border-sky-400 transition-colors">
+      {/* Control Bar: Exam, Class, Section & Stats in a single container */}
+      <div className="bg-white dark:bg-slate-900 border border-sky-300 dark:border-sky-700 p-4 rounded-2xl shadow-xs">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 items-center">
+          {/* Exam Selector */}
           <div className="relative">
             <select
               value={selectedExamId}
@@ -1511,7 +1511,7 @@ export const ClassTeacherMarksEntryView: React.FC<ClassTeacherMarksEntryViewProp
                   setSelectedSection('');
                 }
               }}
-              className="w-full appearance-none rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2.5 text-xs font-bold text-slate-800 focus:border-sky-500 focus:bg-white focus:outline-none dark:border-slate-800 dark:bg-slate-950 dark:text-white cursor-pointer"
+              className="w-full appearance-none rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2.5 text-xs font-bold text-slate-800 focus:border-sky-500 focus:bg-white focus:outline-none dark:border-slate-800 dark:bg-slate-950 dark:text-white cursor-pointer transition-colors"
             >
               <option value="">Select Examination</option>
               {teacherApplicableExams.map(e => (
@@ -1522,10 +1522,8 @@ export const ClassTeacherMarksEntryView: React.FC<ClassTeacherMarksEntryViewProp
             </select>
             <ChevronDown className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
           </div>
-        </div>
 
-        {/* Class Selector */}
-        <div className="bg-white dark:bg-slate-900 border border-sky-300 dark:border-sky-700 p-4 rounded-2xl shadow-xs hover:border-sky-400 transition-colors">
+          {/* Class Selector */}
           <div className="relative">
             <select
               value={selectedClass}
@@ -1533,7 +1531,7 @@ export const ClassTeacherMarksEntryView: React.FC<ClassTeacherMarksEntryViewProp
                 setSelectedClass(e.target.value);
                 setSelectedSection('');
               }}
-              className="w-full appearance-none rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2.5 text-xs font-bold text-slate-800 focus:border-sky-500 focus:bg-white focus:outline-none dark:border-slate-800 dark:bg-slate-950 dark:text-white cursor-pointer"
+              className="w-full appearance-none rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2.5 text-xs font-bold text-slate-800 focus:border-sky-500 focus:bg-white focus:outline-none dark:border-slate-800 dark:bg-slate-950 dark:text-white cursor-pointer transition-colors"
             >
               <option value="">Select Class</option>
               {availableClasses.map(cls => (
@@ -1544,15 +1542,13 @@ export const ClassTeacherMarksEntryView: React.FC<ClassTeacherMarksEntryViewProp
             </select>
             <ChevronDown className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
           </div>
-        </div>
 
-        {/* Section Selector */}
-        <div className="bg-white dark:bg-slate-900 border border-sky-300 dark:border-sky-700 p-4 rounded-2xl shadow-xs hover:border-sky-400 transition-colors">
+          {/* Section Selector */}
           <div className="relative">
             <select
               value={selectedSection}
               onChange={e => setSelectedSection(e.target.value)}
-              className="w-full appearance-none rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2.5 text-xs font-bold text-slate-800 focus:border-sky-500 focus:bg-white focus:outline-none dark:border-slate-800 dark:bg-slate-950 dark:text-white cursor-pointer"
+              className="w-full appearance-none rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2.5 text-xs font-bold text-slate-800 focus:border-sky-500 focus:bg-white focus:outline-none dark:border-slate-800 dark:bg-slate-950 dark:text-white cursor-pointer transition-colors"
             >
               <option value="">Select Section</option>
               {availableSections.map(sec => (
@@ -1563,19 +1559,17 @@ export const ClassTeacherMarksEntryView: React.FC<ClassTeacherMarksEntryViewProp
             </select>
             <ChevronDown className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
           </div>
-        </div>
 
-        {/* Quick Summary Card */}
-        <div className="bg-white dark:bg-slate-900 border border-sky-300 dark:border-sky-700 p-4 rounded-2xl shadow-xs flex items-center justify-between hover:border-sky-400 transition-colors">
-          <div>
-            <p className="text-xl font-black text-slate-900 dark:text-white">
-              {classStats.completedStudents}/{classStats.totalStudents}
-            </p>
-            <p className="text-[10px] font-bold text-slate-400 mt-0.5">
-              Avg Score: <span className="text-brand-600 dark:text-brand-400">{classStats.avgPercentage}%</span>
-            </p>
-          </div>
-          <div className="flex flex-col items-end gap-1">
+          {/* Quick Summary Pill */}
+          <div className="flex items-center justify-between px-3.5 py-2 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800">
+            <div>
+              <p className="text-sm font-black text-slate-900 dark:text-white leading-tight">
+                {classStats.completedStudents}/{classStats.totalStudents}
+              </p>
+              <p className="text-[10px] font-bold text-slate-400">
+                Avg Score: <span className="text-brand-600 dark:text-brand-400">{classStats.avgPercentage}%</span>
+              </p>
+            </div>
             <button
               type="button"
               onClick={handleQuickMarkAllPresent}
@@ -1583,7 +1577,7 @@ export const ClassTeacherMarksEntryView: React.FC<ClassTeacherMarksEntryViewProp
               className={`text-[10px] font-extrabold px-2.5 py-1.5 rounded-lg border transition ${
                 !selectedExamId || !selectedClass || !selectedSection || classStudents.length === 0
                   ? 'text-slate-400 bg-slate-100 dark:bg-slate-800 border-slate-200 dark:border-slate-700 cursor-not-allowed opacity-60'
-                  : 'text-sky-600 hover:text-sky-700 dark:text-sky-400 bg-sky-50 dark:bg-sky-950/50 border-sky-200/50 dark:border-sky-900 cursor-pointer'
+                  : 'text-sky-600 hover:text-sky-700 dark:text-sky-400 bg-sky-50 dark:bg-sky-950/50 border-sky-200/50 dark:border-sky-900 cursor-pointer shadow-xs'
               }`}
             >
               Mark All Present
@@ -1715,7 +1709,7 @@ export const ClassTeacherMarksEntryView: React.FC<ClassTeacherMarksEntryViewProp
                 <tr className="border-b border-slate-200 dark:border-slate-800 bg-slate-100/75 dark:bg-slate-950/80">
                   <th
                     rowSpan={2}
-                    className="px-4 py-3 text-[10px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400 w-16 text-center border-r border-slate-200/80 dark:border-slate-800/80 align-middle"
+                    className="px-4 py-3 text-[10px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400 w-24 min-w-[5.5rem] whitespace-nowrap text-center border-r border-slate-200/80 dark:border-slate-800/80 align-middle"
                   >
                     Roll
                   </th>
@@ -1815,7 +1809,7 @@ export const ClassTeacherMarksEntryView: React.FC<ClassTeacherMarksEntryViewProp
 
                     return (
                       <tr key={student.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors">
-                        <td className="px-4 py-3 text-center text-xs font-black text-slate-800 dark:text-white">
+                        <td className="px-4 py-3 text-center text-xs font-black text-slate-800 dark:text-white whitespace-nowrap min-w-[5.5rem]">
                           {student.rollNo || globalIdx + 1}
                         </td>
                         <td className="px-4 py-3">
@@ -1922,7 +1916,7 @@ export const ClassTeacherMarksEntryView: React.FC<ClassTeacherMarksEntryViewProp
             <table className="w-full text-left text-xs border-collapse min-w-[700px]">
               <thead>
                 <tr className="border-b border-slate-200 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-950/60">
-                  <th className="px-4 py-3.5 text-[10px] font-black uppercase tracking-wider text-slate-400 w-16 text-center">
+                  <th className="px-4 py-3.5 text-[10px] font-black uppercase tracking-wider text-slate-400 w-24 min-w-[5.5rem] whitespace-nowrap text-center">
                     Roll
                   </th>
                   <th className="px-4 py-3.5 text-[10px] font-black uppercase tracking-wider text-slate-400 min-w-[180px]">
@@ -1963,7 +1957,7 @@ export const ClassTeacherMarksEntryView: React.FC<ClassTeacherMarksEntryViewProp
 
                     return (
                       <tr key={student.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors">
-                        <td className="px-4 py-3 text-center text-xs font-black text-slate-800 dark:text-white">
+                        <td className="px-4 py-3 text-center text-xs font-black text-slate-800 dark:text-white whitespace-nowrap min-w-[5.5rem]">
                           {student.rollNo || globalIdx + 1}
                         </td>
                         <td className="px-4 py-3">

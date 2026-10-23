@@ -6,7 +6,7 @@ import { useData } from '../../../context/DataContext';
 import { useAuth } from '../../../context/AuthContext';
 import { useToast } from '../../../context/ToastContext';
 import { validateDOB, validateStudentAge, formatToDDMMYYYY, formatToISO } from '../../../utils/dateValidation';
-import { validate10DigitPhone, BLOOD_GROUPS, CASTE_CATEGORIES, BRANCHES, RELIGIONS } from '../../../utils/validation';
+import { validate10DigitPhone, validateHouseNumber, validateCity, BLOOD_GROUPS, CASTE_CATEGORIES, BRANCHES, RELIGIONS } from '../../../utils/validation';
 import { normalizeStudentType } from '../../../utils/studentTypeUtils';
 
 import { DateInput } from '../../common/DateInput';
@@ -24,7 +24,7 @@ export const StudentFormModal: React.FC<StudentFormModalProps> = ({
   onClose,
   studentToEdit
 }) => {
-  const { addStudent, updateStudent, students, transportRoutes, pickupPoints, routeMasters, hostelBlocks, hostelRooms, hostelBeds, academicClasses, schoolProfile, branches = [] } = useData();
+  const { addStudent, updateStudent, students, admissions = [], transportRoutes, pickupPoints, routeMasters, hostelBlocks, hostelRooms, hostelBeds, academicClasses, schoolProfile, branches = [] } = useData();
   const { addToast } = useToast();
   const { selectedBranch } = useAuth();
 
@@ -97,6 +97,8 @@ export const StudentFormModal: React.FC<StudentFormModalProps> = ({
   const [dobError, setDobError] = useState<string>('');
   const [admissionDateError, setAdmissionDateError] = useState<string>('');
   const [phoneError, setPhoneError] = useState<string>('');
+  const [houseNoError, setHouseNoError] = useState<string>('');
+  const [cityError, setCityError] = useState<string>('');
   const [isMidYearFeeModalOpen, setIsMidYearFeeModalOpen] = useState(false);
 
   const [hasSiblings, setHasSiblings] = useState<boolean>(false);
@@ -242,19 +244,84 @@ export const StudentFormModal: React.FC<StudentFormModalProps> = ({
 
   const availableBeds = hostelBeds.filter(b => b.status === 'Available');
 
+  const matchingAdmission = useMemo(() => {
+    if (!studentToEdit) return null;
+    return (admissions || []).find(a =>
+      (a.admissionNo && a.admissionNo === studentToEdit.admissionNo) ||
+      (a.applicationNo && (a.applicationNo === studentToEdit.admissionNo || (studentToEdit as any).applicationNo === a.applicationNo || (studentToEdit as any).registrationNumber === a.applicationNo)) ||
+      ((a as any).registrationNo && ((a as any).registrationNo === studentToEdit.admissionNo || (studentToEdit as any).registrationNumber === (a as any).registrationNo)) ||
+      (a.applicantName && `${studentToEdit.firstName || ''} ${studentToEdit.lastName || ''}`.trim().toLowerCase() === a.applicantName.trim().toLowerCase())
+    ) || null;
+  }, [admissions, studentToEdit]);
+
   useEffect(() => {
     if (studentToEdit) {
-      const optFees = (studentToEdit as any).selectedOptionalFees || (studentToEdit as any).optionalFees || [];
-      const docsSub = (studentToEdit as any).documentsSubmitted || (studentToEdit as any).documents || [];
+      const optFees = (studentToEdit as any).selectedOptionalFees || (studentToEdit as any).optionalFees || matchingAdmission?.selectedOptionalFees || [];
+      const docsSub = (studentToEdit as any).documentsSubmitted || (studentToEdit as any).documents || matchingAdmission?.documentsSubmitted || [];
+
+      const rawReligion = String(
+        (studentToEdit.religion && studentToEdit.religion !== 'General' ? studentToEdit.religion : '') ||
+        (matchingAdmission?.religion && matchingAdmission.religion !== 'General' ? matchingAdmission.religion : '') ||
+        studentToEdit.religion ||
+        matchingAdmission?.religion ||
+        ''
+      ).trim();
+
+      const religionAliasMap: Record<string, string> = {
+        hindu: 'Hinduism',
+        hinduism: 'Hinduism',
+        muslim: 'Islam',
+        islam: 'Islam',
+        christian: 'Christianity',
+        christianity: 'Christianity',
+        sikh: 'Sikhism',
+        sikhism: 'Sikhism',
+        buddhist: 'Buddhism',
+        buddhism: 'Buddhism',
+        jain: 'Jainism',
+        jainism: 'Jainism',
+        zoroastrian: 'Zoroastrianism',
+        zoroastrianism: 'Zoroastrianism',
+        parsi: 'Zoroastrianism',
+        jewish: 'Judaism',
+        judaism: 'Judaism',
+        other: 'Other',
+        others: 'Other',
+      };
+
+      const resolvedReligion =
+        RELIGIONS.find(r => r.toLowerCase() === rawReligion.toLowerCase()) ||
+        religionAliasMap[rawReligion.toLowerCase()] ||
+        (rawReligion !== 'General' ? rawReligion : '');
+
+      const rawCaste = String(
+        studentToEdit.casteCategory ||
+        matchingAdmission?.casteCategory ||
+        (matchingAdmission as any)?.caste ||
+        (matchingAdmission as any)?.category ||
+        (studentToEdit.category && studentToEdit.category !== 'General' ? studentToEdit.category : '') ||
+        studentToEdit.category ||
+        'General'
+      ).trim();
+
+      const resolvedCasteCategory =
+        CASTE_CATEGORIES.find(c => c.toLowerCase() === rawCaste.toLowerCase()) ||
+        (rawCaste.toLowerCase() === 'other' ? 'Others' : rawCaste) ||
+        'General';
+
       setFormData({
         ...studentToEdit,
-        studentType: normalizeStudentType(studentToEdit.studentType),
-        isLateAdmission: !!studentToEdit.isLateAdmission,
-        feeCalculationMethod: studentToEdit.feeCalculationMethod || 'Term-wise',
-        joiningDate: (studentToEdit as any).joiningDate || studentToEdit.admissionDate || new Date().toISOString().split('T')[0],
+        religion: resolvedReligion,
+        casteCategory: resolvedCasteCategory,
+        category: resolvedCasteCategory,
+        bloodGroup: studentToEdit.bloodGroup || matchingAdmission?.bloodGroup || 'O+',
+        studentType: normalizeStudentType(studentToEdit.studentType || matchingAdmission?.studentType),
+        isLateAdmission: !!(studentToEdit.isLateAdmission ?? matchingAdmission?.isLateAdmission),
+        feeCalculationMethod: studentToEdit.feeCalculationMethod || matchingAdmission?.feeCalculationMethod || 'Term-wise',
+        joiningDate: (studentToEdit as any).joiningDate || studentToEdit.admissionDate || matchingAdmission?.joiningDate || matchingAdmission?.admissionDate || new Date().toISOString().split('T')[0],
         selectedOptionalFees: optFees,
         documentsSubmitted: docsSub,
-        dob: formatToDDMMYYYY(studentToEdit.dob)
+        dob: formatToDDMMYYYY(studentToEdit.dob || matchingAdmission?.dob || '')
       });
       const hasSib = studentToEdit.hasSiblings ?? ((studentToEdit.siblingsCount && studentToEdit.siblingsCount > 0) || !!studentToEdit.siblingStudentId || (studentToEdit.siblingDetails && studentToEdit.siblingDetails.length > 0));
       setHasSiblings(!!hasSib);
@@ -297,7 +364,7 @@ export const StudentFormModal: React.FC<StudentFormModalProps> = ({
     }
     setDobError('');
     setAdmissionDateError('');
-  }, [studentToEdit, isOpen, students]);
+  }, [studentToEdit, isOpen, students, matchingAdmission]);
 
   if (!isOpen) return null;
 
@@ -460,6 +527,24 @@ export const StudentFormModal: React.FC<StudentFormModalProps> = ({
       setPhoneError(phoneValidation.error || 'Invalid 10-digit phone');
       addToast('error', 'Phone Validation Error', phoneValidation.error);
       return;
+    }
+
+    if (houseNo && houseNo.trim()) {
+      const houseValidation = validateHouseNumber(houseNo.trim());
+      if (!houseValidation.isValid) {
+        setHouseNoError(houseValidation.error || 'Enter a valid House No.');
+        addToast('error', 'House No Validation Error', houseValidation.error || 'Enter a valid House No.');
+        return;
+      }
+    }
+
+    if (city && city.trim()) {
+      const cityValidation = validateCity(city.trim());
+      if (!cityValidation.isValid) {
+        setCityError(cityValidation.error || 'Enter a valid City name.');
+        addToast('error', 'City Validation Error', cityValidation.error || 'Enter a valid City name.');
+        return;
+      }
     }
 
     // Combine address
@@ -711,12 +796,15 @@ export const StudentFormModal: React.FC<StudentFormModalProps> = ({
               <div>
                 <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Religion</label>
                 <select
-                  value={formData.religion}
+                  value={formData.religion || ''}
                   onChange={e => setFormData({ ...formData, religion: e.target.value })}
                   className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none"
                 >
                   <option value="">Select</option>
                   {RELIGIONS.map(rel => <option key={rel} value={rel}>{rel}</option>)}
+                  {formData.religion && !RELIGIONS.includes(formData.religion as any) && (
+                    <option value={formData.religion}>{formData.religion}</option>
+                  )}
                 </select>
               </div>
               <div>
@@ -730,9 +818,9 @@ export const StudentFormModal: React.FC<StudentFormModalProps> = ({
                   onChange={e => {
                     const val = e.target.value;
                     if (val === 'Others') {
-                      setFormData({ ...formData, casteCategory: 'Others' });
+                      setFormData({ ...formData, casteCategory: 'Others', category: 'Others' });
                     } else {
-                      setFormData({ ...formData, casteCategory: val });
+                      setFormData({ ...formData, casteCategory: val, category: val });
                     }
                   }}
                   className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none"
@@ -747,7 +835,10 @@ export const StudentFormModal: React.FC<StudentFormModalProps> = ({
                       required
                       placeholder="Specify Caste Category (e.g. Minorities / NT / VJNT)"
                       value={formData.casteCategory === 'Others' || formData.casteCategory === 'Other' ? '' : formData.casteCategory}
-                      onChange={e => setFormData({ ...formData, casteCategory: e.target.value || 'Others' })}
+                      onChange={e => {
+                        const customVal = e.target.value || 'Others';
+                        setFormData({ ...formData, casteCategory: customVal, category: customVal });
+                      }}
                       className="w-full px-3 py-1.5 rounded-xl bg-white dark:bg-slate-900 border border-sky-300 dark:border-sky-700 text-xs font-bold text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-sky-500 shadow-xs"
                     />
                   </div>
@@ -940,10 +1031,62 @@ export const StudentFormModal: React.FC<StudentFormModalProps> = ({
               <Home className="w-3.5 h-3.5" /> 3. Complete Residential Address
             </h4>
             <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
-              <div><label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">House No</label><input type="text" value={houseNo} onChange={e => setHouseNo(e.target.value)} className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none" /></div>
-              <div><label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Street</label><input type="text" value={street} onChange={e => setStreet(e.target.value)} className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none" /></div>
+              <div>
+                <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">House No</label>
+                <input
+                  type="text"
+                  maxLength={35}
+                  placeholder="e.g. 12-34, Flat 402"
+                  value={houseNo}
+                  onChange={e => {
+                    const val = e.target.value;
+                    setHouseNo(val);
+                    if (val.trim()) {
+                      const res = validateHouseNumber(val);
+                      setHouseNoError(res.isValid ? '' : res.error || '');
+                    } else {
+                      setHouseNoError('');
+                    }
+                  }}
+                  className={`w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-brand-500/20 ${
+                    houseNoError
+                      ? 'border-rose-500 focus:border-rose-500'
+                      : 'border-slate-200 dark:border-slate-700 focus:border-brand-500'
+                  }`}
+                />
+                {houseNoError && (
+                  <p className="text-[10px] text-rose-500 mt-0.5 font-bold">{houseNoError}</p>
+                )}
+              </div>
+              <div><label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Street</label><input type="text" maxLength={60} value={street} onChange={e => setStreet(e.target.value.slice(0, 60))} className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none" /></div>
               <div><label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Area / Locality</label><input type="text" value={area} onChange={e => setArea(e.target.value)} className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none" /></div>
-              <div><label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">City</label><input type="text" value={city} onChange={e => setCity(e.target.value)} className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none" /></div>
+              <div>
+                <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">City</label>
+                <input
+                  type="text"
+                  maxLength={50}
+                  placeholder="e.g. Hyderabad, Vijayawada"
+                  value={city}
+                  onChange={e => {
+                    const val = e.target.value;
+                    setCity(val);
+                    if (val.trim()) {
+                      const res = validateCity(val);
+                      setCityError(res.isValid ? '' : res.error || '');
+                    } else {
+                      setCityError('');
+                    }
+                  }}
+                  className={`w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-brand-500/20 ${
+                    cityError
+                      ? 'border-rose-500 focus:border-rose-500'
+                      : 'border-slate-200 dark:border-slate-700 focus:border-brand-500'
+                  }`}
+                />
+                {cityError && (
+                  <p className="text-[10px] text-rose-500 mt-0.5 font-bold">{cityError}</p>
+                )}
+              </div>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div><label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">District</label><input type="text" value={district} onChange={e => setDistrict(e.target.value)} className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none" /></div>

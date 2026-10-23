@@ -921,7 +921,7 @@ export const VehicleAssignmentView: React.FC = () => {
 
       <div className="glass-card p-3.5 rounded-2xl flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 w-full border border-slate-200/80 dark:border-slate-800">
         <div className="relative flex-1 sm:max-w-xs">
-          <Search className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
+          <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
           <input
             type="text"
             placeholder="Search by vehicle, driver, attendant, or route..."
@@ -935,8 +935,9 @@ export const VehicleAssignmentView: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-2">
-          <label className="text-xs font-bold text-slate-500 shrink-0">Filter by Route:</label>
+
           <select
+            aria-label="Filter by route"
             value={routeFilter}
             onChange={e => {
               setRouteFilter(e.target.value);
@@ -1046,8 +1047,8 @@ export const VehicleAssignmentView: React.FC = () => {
                             {assignedStudents}
                           </span>
                         </td>
-                        <td className="py-3 px-4 text-center font-mono text-sky-600 font-bold">{morningTripTime}</td>
-                        <td className="py-3 px-4 text-center font-mono text-amber-600 font-bold">{eveningTripTime}</td>
+                        <td className="py-3 px-4 text-center font-mono text-sky-600 dark:text-sky-400 font-bold">{morningTripTime}</td>
+                        <td className="py-3 px-4 text-center font-mono text-sky-600 dark:text-sky-400 font-bold">{eveningTripTime}</td>
                         <td className="py-3 px-4 text-center">
                           <Badge variant={assignment.status === 'Active' ? 'success' : 'neutral'} size="sm">
                             {assignment.status || 'Active'}

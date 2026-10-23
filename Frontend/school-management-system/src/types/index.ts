@@ -5,7 +5,7 @@ export type StudentType = 'Day Scholar' | 'Hosteller' | 'Residential' | 'Non-Res
 
 export type BloodGroup = 'A+' | 'A-' | 'B+' | 'B-' | 'O+' | 'O-' | 'AB+' | 'AB-';
 
-export type CasteCategory = 'General' | 'OBC' | 'SC' | 'ST' | 'EWS' | 'Other';
+export type CasteCategory = 'General' | 'OBC' | 'BC' | 'SC' | 'ST' | 'EWS' | 'Others' | 'Other';
 
 export type FeeTerm = 'Annual' | 'Bi-Annual' | 'Quarterly' | 'Monthly';
 
@@ -394,7 +394,7 @@ export interface CertificateTemplateConfig {
   certificateTypeName?: string;
   title: string;
   subTitle?: string;
-  headerStyle: 'Classic Double Border' | 'Modern Minimalist' | 'Royal Gold Crest' | 'Executive Slate';
+  headerStyle: 'Classic Double Border' | 'Modern Minimalist' | 'Royal Gold Crest' | 'Executive Slate' | '';
   themeColor: string;
   showLogo: boolean;
   showSchoolHeader?: boolean;
@@ -443,7 +443,6 @@ export interface Staff {
   dob: string;
   bloodGroup?: BloodGroup | string;
   nationality?: string;
-  religion?: string;
   maritalStatus?: string;
   fatherName?: string;
   motherName?: string;

@@ -210,9 +210,11 @@ export const ParentAttendanceView: React.FC = () => {
       case 'Absent':
         return { color: 'rose', bg: 'bg-rose-50 dark:bg-rose-500/10', text: 'text-rose-700 dark:text-rose-400', icon: AlertCircle };
       case 'Late':
-        return { color: 'amber', bg: 'bg-amber-50 dark:bg-amber-500/10', text: 'text-amber-700 dark:text-amber-400', icon: Clock };
+        return { color: 'orange', bg: 'bg-orange-50 dark:bg-orange-500/10', text: 'text-orange-700 dark:text-orange-400', icon: Clock };
       case 'HalfDay':
-        return { color: 'sky', bg: 'bg-sky-50 dark:bg-sky-500/10', text: 'text-sky-700 dark:text-sky-400', icon: CalendarDays };
+        return { color: 'amber', bg: 'bg-amber-50 dark:bg-amber-500/10', text: 'text-amber-700 dark:text-amber-400', icon: CalendarDays };
+      case 'Holiday':
+        return { color: 'purple', bg: 'bg-purple-50 dark:bg-purple-500/10', text: 'text-purple-700 dark:text-purple-400', icon: CalendarDays };
       case 'Leave':
         return { color: 'sky', bg: 'bg-sky-50 dark:bg-sky-500/10', text: 'text-sky-700 dark:text-sky-400', icon: CalendarCheck };
       default:
@@ -334,12 +336,12 @@ export const ParentAttendanceView: React.FC = () => {
 
         <div className="bg-white dark:bg-slate-800 p-4 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm">
           <h3 className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1">Late</h3>
-          <p className="text-2xl font-black text-amber-600 dark:text-amber-400">{lateDays + leaveDays}</p>
+          <p className="text-2xl font-black text-orange-600 dark:text-orange-400">{lateDays + leaveDays}</p>
         </div>
 
         <div className="bg-white dark:bg-slate-800 p-4 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm">
           <h3 className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1">Half Day</h3>
-          <p className="text-2xl font-black text-sky-600 dark:text-sky-400">{halfDays}</p>
+          <p className="text-2xl font-black text-amber-500 dark:text-amber-400">{halfDays}</p>
         </div>
       </div>
 
