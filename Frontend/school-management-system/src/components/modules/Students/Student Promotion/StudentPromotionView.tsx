@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect, useCallback } from 'react';
+import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { 
   TrendingUp, Search, CheckSquare, Square, ArrowRight, Building2, 
   CheckCircle2, GraduationCap, Award, RefreshCw, Filter, Sparkles, 
@@ -23,6 +23,35 @@ import {
 interface StudentPromotionViewProps {
   onNavigate?: (module: string) => void;
 }
+
+const IndeterminateCheckbox: React.FC<{
+  checked: boolean;
+  indeterminate?: boolean;
+  onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  className?: string;
+  title?: string;
+  id?: string;
+}> = ({ checked, indeterminate = false, onChange, className, title, id }) => {
+  const ref = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (ref.current) {
+      ref.current.indeterminate = indeterminate;
+    }
+  }, [indeterminate]);
+
+  return (
+    <input
+      id={id}
+      type="checkbox"
+      ref={ref}
+      checked={checked}
+      onChange={onChange}
+      title={title}
+      className={className || "rounded border-slate-300 text-brand-600 focus:ring-brand-600 cursor-pointer"}
+    />
+  );
+};
 
 interface PromotionStudentRow {
   id: string;
@@ -49,7 +78,11 @@ export const StudentPromotionView: React.FC<StudentPromotionViewProps> = ({ onNa
     students, 
     academicClasses, 
     academicYears, 
-    feeStructures, 
+    feeStructures = [], 
+    dynamicFeeStructures = [],
+    allDynamicFeeStructures = [],
+    feeSchedules = [],
+    studentFeeAssignments = [],
     updateStudent, 
     addAcademicHistoryRecord, 
     getHighestClass, 
@@ -108,24 +141,152 @@ export const StudentPromotionView: React.FC<StudentPromotionViewProps> = ({ onNa
     return 'Class 2';
   };
 
+  // Helper: Parse academic year into canonical key (YYYY-YYYY) and start year
+  const parseAcademicYearRange = useCallback((yrStr: string): { key: string; startYear: number } => {
+    const cleaned = (yrStr || '').trim().replace(/\s+/g, '');
+    const match = cleaned.match(/^(\d{4})[-–/](\d{2,4})$/);
+    if (match) {
+      const start = parseInt(match[1], 10);
+      let end = parseInt(match[2], 10);
+      if (end < 100) {
+        end = Math.floor(start / 100) * 100 + end;
+      }
+      return { key: `${start}-${end}`, startYear: start };
+    }
+    const startMatch = cleaned.match(/(\d{4})/);
+    const start = startMatch ? parseInt(startMatch[1], 10) : 0;
+    return { key: cleaned, startYear: start };
+  }, []);
+
   // Helper: Auto-calculate Next Academic Year
-  const getTargetYearFromCurrent = (currYear: string) => {
-    const match = currYear.match(/(\d{4})-(\d{4})/);
+  const getTargetYearFromCurrent = useCallback((currYear: string) => {
+    const match = (currYear || '').match(/(\d{4})\s*[-–/]\s*(\d{2,4})/);
     if (match) {
       const start = parseInt(match[1], 10) + 1;
-      const end = parseInt(match[2], 10) + 1;
-      return `${start}-${end}`;
+      let end = parseInt(match[2], 10);
+      if (end < 100) {
+        end = Math.floor(parseInt(match[1], 10) / 100) * 100 + end;
+      }
+      return `${start}-${end + 1}`;
     }
     const curr = new Date().getFullYear();
     return `${curr + 1}-${curr + 2}`;
-  };
+  }, []);
+
+  // Resolve only the current active academic year
+  const currentActiveAcademicYear = useMemo(() => {
+    const list = Array.isArray(academicYears) ? academicYears : [];
+    const getYr = (ay: any) =>
+      typeof ay === 'string'
+        ? ay.trim()
+        : String(ay?.academicYear || ay?.year || ay?.academicYearName || '').trim();
+
+    const explicitCurrent = list.find(
+      (ay: any) =>
+        typeof ay === 'object' &&
+        ay !== null &&
+        Boolean(ay.isCurrentAcademicYear || ay.isCurrent)
+    );
+    if (explicitCurrent && getYr(explicitCurrent)) {
+      return getYr(explicitCurrent);
+    }
+
+    const activeStatusItem = list.find(
+      (ay: any) =>
+        typeof ay === 'object' &&
+        ay !== null &&
+        (String(ay.status || '').toLowerCase() === 'active' || Boolean(ay.isActive))
+    );
+    if (activeStatusItem && getYr(activeStatusItem)) {
+      return getYr(activeStatusItem);
+    }
+
+    if (selectedAcademicYear && selectedAcademicYear.trim()) {
+      return selectedAcademicYear.trim();
+    }
+    return list.length > 0 ? getYr(list[0]) : '';
+  }, [academicYears, selectedAcademicYear]);
+
+  // Target Academic Year options: only Current Active Year and Future Academic Years (deduplicated)
+  const targetAcademicYearOptions = useMemo(() => {
+    const list = Array.isArray(academicYears) ? academicYears : [];
+    const { key: currentKey, startYear: currentStartYear } = parseAcademicYearRange(currentActiveAcademicYear);
+    const nextCalculated = getTargetYearFromCurrent(currentActiveAcademicYear);
+    const { key: nextKey, startYear: nextStartYear } = parseAcademicYearRange(nextCalculated);
+
+    const optionsMap = new Map<string, { value: string; label: string; startYear: number }>();
+
+    // 1. Add current active year and future years from configured academicYears
+    list.forEach((ay: any) => {
+      const rawYr = typeof ay === 'string'
+        ? ay.trim()
+        : String(ay?.academicYear || ay?.year || ay?.academicYearName || '').trim();
+      if (!rawYr) return;
+
+      const { key, startYear } = parseAcademicYearRange(rawYr);
+      if (!startYear || (currentStartYear > 0 && startYear < currentStartYear)) {
+        return; // Exclude past academic years
+      }
+
+      if (!optionsMap.has(key)) {
+        const isCurr = key === currentKey;
+        const isNext = key === nextKey;
+        const suffix = isCurr ? ' (Current)' : isNext ? ' (Next Year)' : '';
+        optionsMap.set(key, {
+          value: rawYr,
+          label: `${rawYr}${suffix}`,
+          startYear
+        });
+      }
+    });
+
+    // 2. Ensure currentActiveAcademicYear is present
+    if (currentActiveAcademicYear && currentKey && !optionsMap.has(currentKey)) {
+      optionsMap.set(currentKey, {
+        value: currentActiveAcademicYear,
+        label: `${currentActiveAcademicYear} (Current)`,
+        startYear: currentStartYear || new Date().getFullYear()
+      });
+    }
+
+    // 3. Ensure nextCalculated academic year is present
+    if (nextCalculated && nextKey && !optionsMap.has(nextKey)) {
+      optionsMap.set(nextKey, {
+        value: nextCalculated,
+        label: `${nextCalculated} (Next Year)`,
+        startYear: nextStartYear || (currentStartYear ? currentStartYear + 1 : new Date().getFullYear() + 1)
+      });
+    }
+
+    return Array.from(optionsMap.values()).sort((a, b) => a.startYear - b.startYear);
+  }, [academicYears, currentActiveAcademicYear, parseAcademicYearRange, getTargetYearFromCurrent]);
 
   // Filter States
-  const [currentYear, setCurrentYear] = useState<string>(selectedAcademicYear || (academicYears?.[0]?.year || ''));
-  const [targetYear, setTargetYear] = useState<string>(() => getTargetYearFromCurrent(selectedAcademicYear || (academicYears?.[0]?.year || '')));
+  const [currentYear, setCurrentYear] = useState<string>(currentActiveAcademicYear);
+  const [targetYear, setTargetYear] = useState<string>(() => getTargetYearFromCurrent(currentActiveAcademicYear));
   const [branch, setBranch] = useState<string>(selectedBranch && selectedBranch !== 'All' ? selectedBranch : '');
   const [fromClass, setFromClass] = useState<string>('');
   const [selectedExamId, setSelectedExamId] = useState<string>('');
+
+  // Keep currentYear synchronized with the current active academic year and targetYear valid
+  useEffect(() => {
+    if (currentActiveAcademicYear && currentYear !== currentActiveAcademicYear) {
+      setCurrentYear(currentActiveAcademicYear);
+    }
+    if (targetAcademicYearOptions.length > 0) {
+      const hasCurrentTarget = targetAcademicYearOptions.some(opt => opt.value === targetYear);
+      if (!hasCurrentTarget) {
+        const nextCalc = getTargetYearFromCurrent(currentActiveAcademicYear);
+        const { key: nextKey } = parseAcademicYearRange(nextCalc);
+        const preferred =
+          targetAcademicYearOptions.find(opt => parseAcademicYearRange(opt.value).key === nextKey) ||
+          targetAcademicYearOptions[0];
+        if (preferred) {
+          setTargetYear(preferred.value);
+        }
+      }
+    }
+  }, [currentActiveAcademicYear, currentYear, targetYear, targetAcademicYearOptions, getTargetYearFromCurrent, parseAcademicYearRange]);
 
   const effectiveBranch = selectedBranch || branch || '';
 
@@ -955,21 +1116,62 @@ export const StudentPromotionView: React.FC<StudentPromotionViewProps> = ({ onNa
     return filteredRows.slice((currentPage - 1) * pageSize, currentPage * pageSize);
   }, [filteredRows, currentPage, pageSize]);
 
-  // Checkbox Selection
-  const isAllSelected = filteredRows.length > 0 && filteredRows.every(r => selectedStudentIds.includes(r.id));
+  // Checkbox Selection (matching Employee Payroll checkbox functionality)
+  const allFilteredStudentIds = useMemo(() => filteredRows.map(r => r.id), [filteredRows]);
+  const isAllSelected = allFilteredStudentIds.length > 0 && allFilteredStudentIds.every(id => selectedStudentIds.includes(id));
+  const isSomeSelected = selectedStudentIds.length > 0 && !isAllSelected;
 
   const handleToggleSelectAll = () => {
-    if (isAllSelected) {
+    if (isSomeSelected || isAllSelected) {
       setSelectedStudentIds([]);
     } else {
-      setSelectedStudentIds(filteredRows.map(r => r.id));
+      setSelectedStudentIds(allFilteredStudentIds);
+      if (bulkTargetSection || bulkStatus) {
+        const calculatedNextClass = isHighestClass ? fromClass : getNextClassName(fromClass);
+        setPromotionRows(prev => prev.map(r => {
+          if (!allFilteredStudentIds.includes(r.id)) return r;
+          const nextSec = bulkTargetSection ? bulkTargetSection : r.newSection;
+          const nextStat = (bulkStatus as 'Promote' | 'Retain') || r.promotionStatus;
+          return {
+            ...r,
+            newSection: nextSec,
+            promotionStatus: nextStat,
+            newClass: nextStat === 'Promote' ? calculatedNextClass : r.currentClass,
+            remarks: bulkTargetSection
+              ? `Assigned to ${bulkTargetSection}`
+              : bulkStatus
+              ? `Bulk updated to ${bulkStatus}`
+              : r.remarks
+          };
+        }));
+      }
     }
   };
 
-  const handleToggleSelectStudent = (id: string) => {
+  const handleToggleSelectStudent = (id: string, checked?: boolean) => {
+    const isSelecting = typeof checked === 'boolean' ? checked : !selectedStudentIds.includes(id);
     setSelectedStudentIds(prev => 
-      prev.includes(id) ? prev.filter(item => item !== id) : [...prev, id]
+      isSelecting ? [...prev.filter(item => item !== id), id] : prev.filter(item => item !== id)
     );
+    if (isSelecting && (bulkTargetSection || bulkStatus)) {
+      const calculatedNextClass = isHighestClass ? fromClass : getNextClassName(fromClass);
+      setPromotionRows(prev => prev.map(r => {
+        if (r.id !== id) return r;
+        const nextSec = bulkTargetSection ? bulkTargetSection : r.newSection;
+        const nextStat = (bulkStatus as 'Promote' | 'Retain') || r.promotionStatus;
+        return {
+          ...r,
+          newSection: nextSec,
+          promotionStatus: nextStat,
+          newClass: nextStat === 'Promote' ? calculatedNextClass : r.currentClass,
+          remarks: bulkTargetSection
+            ? `Assigned to ${bulkTargetSection}`
+            : bulkStatus
+            ? `Bulk updated to ${bulkStatus}`
+            : r.remarks
+        };
+      }));
+    }
   };
 
   // Bulk Actions
@@ -1044,17 +1246,57 @@ export const StudentPromotionView: React.FC<StudentPromotionViewProps> = ({ onNa
     if (!isResultsLoaded || promotionRows.length === 0) return null;
     const sampleTargetClass = promotionRows[0]?.newClass;
     if (!sampleTargetClass) return null;
-    
-    const hasFeeStructure = feeStructures?.some((f: any) => 
-      f.className.toLowerCase() === sampleTargetClass.toLowerCase() && 
-      (f.academicYear === targetYear || !f.academicYear)
-    );
+
+    const targetYearKey = parseAcademicYearRange(targetYear).key;
+    const matchesTargetYear = (ay?: string) => {
+      if (!ay || !String(ay).trim()) return true;
+      return parseAcademicYearRange(String(ay)).key === targetYearKey;
+    };
+
+    const allConfiguredFeeStructures = [
+      ...(Array.isArray(feeStructures) ? feeStructures : []),
+      ...(Array.isArray(dynamicFeeStructures) ? dynamicFeeStructures : []),
+      ...(Array.isArray(allDynamicFeeStructures) ? allDynamicFeeStructures : []),
+      ...(Array.isArray(feeSchedules) ? feeSchedules : []),
+    ];
+
+    const hasFeeStructure =
+      allConfiguredFeeStructures.some((f: any) => {
+        if (!f || f.category === 'Hostel') return false;
+        const fClass = String(f.className || f.class || '').trim();
+        if (!fClass) return false;
+        const classMatches =
+          matchesClassName(fClass, sampleTargetClass) ||
+          fClass.toLowerCase() === sampleTargetClass.toLowerCase();
+        return classMatches && matchesTargetYear(f.academicYear);
+      }) ||
+      (Array.isArray(studentFeeAssignments) &&
+        studentFeeAssignments.some((a: any) => {
+          const aClass = String(a?.className || '').trim();
+          return (
+            aClass &&
+            matchesClassName(aClass, sampleTargetClass) &&
+            matchesTargetYear(a?.academicYear) &&
+            (Number(a?.baseFeeTotal || a?.originalFeeTotal || 0) > 0 ||
+              (Array.isArray(a?.assignedFeeHeads) && a.assignedFeeHeads.length > 0))
+          );
+        }));
 
     if (!hasFeeStructure) {
       return `Notice: Fee structure configuration for ${sampleTargetClass} (${targetYear}) is not yet published. Students will be promoted, and default fee profiles will be auto-assigned once finalized.`;
     }
     return null;
-  }, [isResultsLoaded, promotionRows, feeStructures, targetYear]);
+  }, [
+    isResultsLoaded,
+    promotionRows,
+    feeStructures,
+    dynamicFeeStructures,
+    allDynamicFeeStructures,
+    feeSchedules,
+    studentFeeAssignments,
+    targetYear,
+    parseAcademicYearRange,
+  ]);
 
   // Complete Promotion Action Handler
   const handleCompletePromotion = async () => {
@@ -1353,26 +1595,9 @@ export const StudentPromotionView: React.FC<StudentPromotionViewProps> = ({ onNa
           {/* Current Academic Year */}
           <div>
             <label className="block text-[10px] font-black uppercase tracking-wider text-slate-400 mb-1">Current Academic Year</label>
-            <select
-              value={currentYear}
-              onChange={e => {
-                const newYear = e.target.value;
-                setCurrentYear(newYear);
-                setTargetYear(getTargetYearFromCurrent(newYear));
-                setSelectedExamId('');
-                setPromotionRows([]);
-                setIsResultsLoaded(false);
-                setSelectedStudentIds([]);
-                setBulkTargetSection('');
-                setBulkStatus('');
-              }}
-              className="w-full px-3.5 py-2.5 rounded-2xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-brand-500/20 cursor-pointer"
-            >
-              {academicYears.map((ay: any) => {
-                const yr = typeof ay === "string" ? ay : ay.year || ay.academicYear || "";
-                return <option key={yr} value={yr}>{yr}{yr === selectedAcademicYear ? " (Current)" : ""}</option>;
-              })}
-            </select>
+            <div className="w-full px-3.5 py-2.5 rounded-2xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white select-none">
+              {currentActiveAcademicYear ? `${currentActiveAcademicYear} (Current)` : '—'}
+            </div>
           </div>
 
           {/* Target Academic Year */}
@@ -1388,11 +1613,11 @@ export const StudentPromotionView: React.FC<StudentPromotionViewProps> = ({ onNa
               }}
               className="w-full px-3.5 py-2.5 rounded-2xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-brand-500/20 cursor-pointer"
             >
-              <option value="2027-2028">2027-2028 (Next Year)</option>
-              {academicYears.map((ay: any) => {
-                const yr = typeof ay === "string" ? ay : ay.year || ay.academicYear || "";
-                return <option key={yr} value={yr}>{yr}</option>;
-              })}
+              {targetAcademicYearOptions.map(opt => (
+                <option key={opt.value} value={opt.value}>
+                  {opt.label}
+                </option>
+              ))}
             </select>
           </div>
 
@@ -1512,7 +1737,7 @@ export const StudentPromotionView: React.FC<StudentPromotionViewProps> = ({ onNa
                   <span className="font-extrabold text-slate-900 dark:text-white text-sm">{selectedExam?.name || 'Selected Examination'}</span>
                 </div>
                 <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
-                  Academic Year: <strong className="text-slate-700 dark:text-slate-300">{currentYear}</strong> &bull; Class: <strong className="text-slate-700 dark:text-slate-300">{fromClass}</strong>
+                  Academic Year: <strong className="text-slate-700 dark:text-slate-300">{currentYear}</strong> &bull; Class: <strong className="text-slate-700 dark:text-slate-300">{fromClass.replace(/^class\s+/i, '')}</strong>
                 </p>
               </div>
             </div>
@@ -1522,50 +1747,50 @@ export const StudentPromotionView: React.FC<StudentPromotionViewProps> = ({ onNa
             </div>
           </div>
           {/* DYNAMIC PROMOTION SUMMARY CARDS */}
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-9 gap-3">
-            <div className="glass-card p-3 rounded-2xl border-l-4 border-l-slate-500 bg-white dark:bg-slate-900">
-              <span className="text-[10px] font-black uppercase text-slate-400 block">Total Students</span>
-              <span className="text-lg font-black text-slate-900 dark:text-white mt-1 block">{summary.total}</span>
+          <div className="w-full grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-9 gap-2.5">
+            <div className="glass-card min-w-0 p-3 rounded-2xl border-l-4 border-l-slate-500 bg-white dark:bg-slate-900 flex flex-col justify-between min-h-[74px]">
+              <span className="text-[10px] font-black uppercase text-slate-400 leading-tight whitespace-nowrap truncate block" title="Total Students">Total Students</span>
+              <span className="text-lg font-black text-slate-900 dark:text-white leading-none mt-2 block">{summary.total}</span>
             </div>
 
-            <div className="glass-card p-3 rounded-2xl border-l-4 border-l-emerald-500 bg-white dark:bg-slate-900">
-              <span className="text-[10px] font-black uppercase text-slate-400 block">Passed</span>
-              <span className="text-lg font-black text-emerald-600 dark:text-emerald-400 mt-1 block">{summary.passed}</span>
+            <div className="glass-card min-w-0 p-3 rounded-2xl border-l-4 border-l-emerald-500 bg-white dark:bg-slate-900 flex flex-col justify-between min-h-[74px]">
+              <span className="text-[10px] font-black uppercase text-slate-400 leading-tight whitespace-nowrap truncate block" title="Passed">Passed</span>
+              <span className="text-lg font-black text-emerald-600 dark:text-emerald-400 leading-none mt-2 block">{summary.passed}</span>
             </div>
 
-            <div className="glass-card p-3 rounded-2xl border-l-4 border-l-rose-500 bg-white dark:bg-slate-900">
-              <span className="text-[10px] font-black uppercase text-slate-400 block">Failed</span>
-              <span className="text-lg font-black text-rose-600 dark:text-rose-400 mt-1 block">{summary.failed}</span>
+            <div className="glass-card min-w-0 p-3 rounded-2xl border-l-4 border-l-rose-500 bg-white dark:bg-slate-900 flex flex-col justify-between min-h-[74px]">
+              <span className="text-[10px] font-black uppercase text-slate-400 leading-tight whitespace-nowrap truncate block" title="Failed">Failed</span>
+              <span className="text-lg font-black text-rose-600 dark:text-rose-400 leading-none mt-2 block">{summary.failed}</span>
             </div>
 
-            <div className="glass-card p-3 rounded-2xl border-l-4 border-l-brand-500 bg-white dark:bg-slate-900">
-              <span className="text-[10px] font-black uppercase text-slate-400 block">Promoted</span>
-              <span className="text-lg font-black text-brand-600 dark:text-brand-400 mt-1 block">{summary.promoted}</span>
+            <div className="glass-card min-w-0 p-3 rounded-2xl border-l-4 border-l-brand-500 bg-white dark:bg-slate-900 flex flex-col justify-between min-h-[74px]">
+              <span className="text-[10px] font-black uppercase text-slate-400 leading-tight whitespace-nowrap truncate block" title="Promoted">Promoted</span>
+              <span className="text-lg font-black text-brand-600 dark:text-brand-400 leading-none mt-2 block">{summary.promoted}</span>
             </div>
 
-            <div className="glass-card p-3 rounded-2xl border-l-4 border-l-amber-500 bg-white dark:bg-slate-900">
-              <span className="text-[10px] font-black uppercase text-slate-400 block">Retained</span>
-              <span className="text-lg font-black text-amber-600 dark:text-amber-400 mt-1 block">{summary.retained}</span>
+            <div className="glass-card min-w-0 p-3 rounded-2xl border-l-4 border-l-amber-500 bg-white dark:bg-slate-900 flex flex-col justify-between min-h-[74px]">
+              <span className="text-[10px] font-black uppercase text-slate-400 leading-tight whitespace-nowrap truncate block" title="Retained">Retained</span>
+              <span className="text-lg font-black text-amber-600 dark:text-amber-400 leading-none mt-2 block">{summary.retained}</span>
             </div>
 
-            <div className="glass-card p-3 rounded-2xl border-l-4 border-l-amber-600 bg-amber-50/50 dark:bg-amber-950/30">
-              <span className="text-[10px] font-black uppercase text-amber-700 dark:text-amber-300 block">Pending</span>
-              <span className="text-lg font-black text-amber-800 dark:text-amber-200 mt-1 block">{summary.pending}</span>
+            <div className="glass-card min-w-0 p-3 rounded-2xl border-l-4 border-l-amber-600 bg-amber-50/50 dark:bg-amber-950/30 flex flex-col justify-between min-h-[74px]">
+              <span className="text-[10px] font-black uppercase text-amber-700 dark:text-amber-300 leading-tight whitespace-nowrap truncate block" title="Pending">Pending</span>
+              <span className="text-lg font-black text-amber-800 dark:text-amber-200 leading-none mt-2 block">{summary.pending}</span>
             </div>
 
-            <div className="glass-card p-3 rounded-2xl border-l-4 border-l-sky-500 bg-white dark:bg-slate-900">
-              <span className="text-[10px] font-black uppercase text-slate-400 block">Section A</span>
-              <span className="text-lg font-black text-sky-600 dark:text-sky-400 mt-1 block">{summary.secA}</span>
+            <div className="glass-card min-w-0 p-3 rounded-2xl border-l-4 border-l-sky-500 bg-white dark:bg-slate-900 flex flex-col justify-between min-h-[74px]">
+              <span className="text-[10px] font-black uppercase text-slate-400 leading-tight whitespace-nowrap truncate block" title="Section A">Section A</span>
+              <span className="text-lg font-black text-sky-600 dark:text-sky-400 leading-none mt-2 block">{summary.secA}</span>
             </div>
 
-            <div className="glass-card p-3 rounded-2xl border-l-4 border-l-indigo-500 bg-white dark:bg-slate-900">
-              <span className="text-[10px] font-black uppercase text-slate-400 block">Section B</span>
-              <span className="text-lg font-black text-indigo-600 dark:text-indigo-400 mt-1 block">{summary.secB}</span>
+            <div className="glass-card min-w-0 p-3 rounded-2xl border-l-4 border-l-indigo-500 bg-white dark:bg-slate-900 flex flex-col justify-between min-h-[74px]">
+              <span className="text-[10px] font-black uppercase text-slate-400 leading-tight whitespace-nowrap truncate block" title="Section B">Section B</span>
+              <span className="text-lg font-black text-indigo-600 dark:text-indigo-400 leading-none mt-2 block">{summary.secB}</span>
             </div>
 
-            <div className="glass-card p-3 rounded-2xl border-l-4 border-l-purple-500 bg-white dark:bg-slate-900">
-              <span className="text-[10px] font-black uppercase text-slate-400 block">Section C</span>
-              <span className="text-lg font-black text-purple-600 dark:text-purple-400 mt-1 block">{summary.secC}</span>
+            <div className="glass-card min-w-0 p-3 rounded-2xl border-l-4 border-l-purple-500 bg-white dark:bg-slate-900 flex flex-col justify-between min-h-[74px]">
+              <span className="text-[10px] font-black uppercase text-slate-400 leading-tight whitespace-nowrap truncate block" title="Section C">Section C</span>
+              <span className="text-lg font-black text-purple-600 dark:text-purple-400 leading-none mt-2 block">{summary.secC}</span>
             </div>
           </div>
 
@@ -1635,16 +1860,6 @@ export const StudentPromotionView: React.FC<StudentPromotionViewProps> = ({ onNa
                       <option key={sec} value={sec}>{sec}</option>
                     ))}
                   </select>
-                  {bulkTargetSection && selectedStudentIds.length > 0 && (
-                    <button
-                      type="button"
-                      onClick={() => handleApplyBulkSection(bulkTargetSection)}
-                      className="px-2.5 py-1.5 rounded-xl bg-brand-600 hover:bg-brand-500 text-white text-xs font-bold shadow-xs transition-all active:scale-95 cursor-pointer shrink-0"
-                      title={`Apply ${bulkTargetSection} to ${selectedStudentIds.length} selected student(s)`}
-                    >
-                      Apply
-                    </button>
-                  )}
                 </div>
               )}
 
@@ -1703,16 +1918,6 @@ export const StudentPromotionView: React.FC<StudentPromotionViewProps> = ({ onNa
                   <option value="Promote">Promote</option>
                   <option value="Retain">Retain</option>
                 </select>
-                {bulkStatus && selectedStudentIds.length > 0 && (
-                  <button
-                    type="button"
-                    onClick={() => handleApplyBulkStatus(bulkStatus as 'Promote' | 'Retain')}
-                    className="px-2.5 py-1.5 rounded-xl bg-brand-600 hover:bg-brand-500 text-white text-xs font-bold shadow-xs transition-all active:scale-95 cursor-pointer shrink-0"
-                    title={`Apply ${bulkStatus} to ${selectedStudentIds.length} selected student(s)`}
-                  >
-                    Apply
-                  </button>
-                )}
               </div>
 
               {/* Main Execute Promote CTA Button placed on the far right side */}
@@ -1740,11 +1945,15 @@ export const StudentPromotionView: React.FC<StudentPromotionViewProps> = ({ onNa
               <table className="w-full text-left border-collapse text-xs">
                 <thead>
                   <tr className="bg-slate-50 dark:bg-slate-800/60 text-slate-500 font-extrabold uppercase tracking-wider border-b border-slate-100 dark:border-slate-800">
-                    <th className="py-3.5 px-4 w-10 text-center">
+                    <th className="py-3.5 px-4 w-10 text-center align-middle">
                       {filteredRows.length > 0 && (
-                        <button onClick={handleToggleSelectAll}>
-                          {isAllSelected ? <CheckSquare className="w-4 h-4 text-brand-600" /> : <Square className="w-4 h-4 text-slate-400" />}
-                        </button>
+                        <IndeterminateCheckbox
+                          className="rounded border-slate-300 text-brand-600 focus:ring-brand-600 cursor-pointer"
+                          checked={isAllSelected}
+                          indeterminate={isSomeSelected}
+                          onChange={handleToggleSelectAll}
+                          title="Select all students"
+                        />
                       )}
                     </th>
                     <th className="py-3.5 px-4">Adm No</th>
@@ -1777,10 +1986,13 @@ export const StudentPromotionView: React.FC<StudentPromotionViewProps> = ({ onNa
                           }`}
                         >
                           {/* Checkbox */}
-                          <td className="py-3.5 px-4 text-center">
-                            <button onClick={() => handleToggleSelectStudent(r.id)}>
-                              {isSelected ? <CheckSquare className="w-4 h-4 text-brand-600" /> : <Square className="w-4 h-4 text-slate-400" />}
-                            </button>
+                          <td className="py-3.5 px-4 text-center align-middle">
+                            <input
+                              type="checkbox"
+                              className="rounded border-slate-300 text-brand-600 focus:ring-brand-600 cursor-pointer"
+                              checked={isSelected}
+                              onChange={(e) => handleToggleSelectStudent(r.id, e.target.checked)}
+                            />
                           </td>
 
                           {/* Admission No */}
