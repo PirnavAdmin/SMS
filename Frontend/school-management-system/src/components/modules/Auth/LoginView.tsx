@@ -419,7 +419,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onBack }) => {
       </div>
 
       {/* Top Header Navigation */}
-      <header className="relative z-30 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-5 pb-2 flex items-center justify-between shrink-0">
+      <header className="relative z-30 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-3 sm:pt-4 pb-1 flex items-center justify-between shrink-0">
         {/* Left: Back to Home Button */}
         {onBack ? (
           <button
@@ -435,24 +435,24 @@ export const LoginView: React.FC<LoginViewProps> = ({ onBack }) => {
       </header>
 
       {/* Main Centered Login Portal Card */}
-      <main className="flex-1 w-full max-w-7xl mx-auto flex items-center justify-center px-4 sm:px-6 lg:px-8 py-6 sm:py-10 z-20">
+      <main className="flex-1 w-full max-w-7xl mx-auto flex items-center justify-center px-4 py-3 sm:py-5 z-20">
         
-        <div className="w-full max-w-md mx-auto">
+        <div className="w-full max-w-[23.5rem] mx-auto">
           
           {/* Card in School Theme */}
-          <div className="relative rounded-3xl sm:rounded-[2.25rem] bg-white/95 dark:bg-slate-900/95 backdrop-blur-2xl border border-sky-100 dark:border-slate-800 shadow-[0_20px_60px_-15px_rgba(14,165,233,0.22)] dark:shadow-[0_20px_60px_-15px_rgba(2,132,199,0.25)] overflow-hidden animate-in fade-in zoom-in-95 duration-500">
+          <div className="relative rounded-2xl sm:rounded-3xl bg-white/95 dark:bg-slate-900/95 backdrop-blur-2xl border border-sky-100 dark:border-slate-800 shadow-[0_20px_50px_-15px_rgba(14,165,233,0.2)] dark:shadow-[0_20px_50px_-15px_rgba(2,132,199,0.25)] overflow-hidden animate-in fade-in zoom-in-95 duration-500">
             
             {/* Top School Theme Ribbon (Sky to Blue to Indigo) */}
-            <div className="h-2 w-full bg-gradient-to-r from-sky-400 via-blue-500 to-indigo-600" />
+            <div className="h-1.5 w-full bg-gradient-to-r from-sky-400 via-blue-500 to-indigo-600" />
 
-            <div className="p-6 sm:p-8">
+            <div className="p-5 sm:p-6">
               
               {/* Header: School Logo & Title */}
-              <div className="mb-6 flex flex-col items-center text-center space-y-2.5">
+              <div className="mb-4 flex flex-col items-center text-center space-y-2">
                 
                 {/* School Logo */}
                 {dynamicLogo ? (
-                  <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl bg-white dark:bg-slate-950 p-2 shadow-xl ring-4 ring-sky-500/20 shrink-0 flex items-center justify-center overflow-hidden transition-transform hover:scale-105 duration-300">
+                  <div className="w-13 h-13 sm:w-15 sm:h-15 rounded-2xl bg-white dark:bg-slate-950 p-1.5 shadow-lg ring-3 ring-sky-500/20 shrink-0 flex items-center justify-center overflow-hidden transition-transform hover:scale-105 duration-300">
                     <img
                       src={dynamicLogo}
                       alt={schoolName || 'School Logo'}
@@ -463,14 +463,14 @@ export const LoginView: React.FC<LoginViewProps> = ({ onBack }) => {
                     />
                   </div>
                 ) : (
-                  <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl bg-gradient-to-tr from-sky-500 to-blue-600 p-2 shadow-xl ring-4 ring-sky-500/20 shrink-0 flex items-center justify-center text-white transition-transform hover:scale-105 duration-300">
-                    <GraduationCap className="w-9 h-9" />
+                  <div className="w-13 h-13 sm:w-15 sm:h-15 rounded-2xl bg-gradient-to-tr from-sky-500 to-blue-600 p-1.5 shadow-lg ring-3 ring-sky-500/20 shrink-0 flex items-center justify-center text-white transition-transform hover:scale-105 duration-300">
+                    <GraduationCap className="w-7 h-7" />
                   </div>
                 )}
 
                 {/* School Name */}
                 <div>
-                  <h1 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white tracking-tight leading-snug">
+                  <h1 className="text-lg sm:text-xl font-black text-slate-900 dark:text-white tracking-tight leading-snug">
                     {schoolName}
                   </h1>
                   {mode !== 'login' && (
@@ -493,16 +493,16 @@ export const LoginView: React.FC<LoginViewProps> = ({ onBack }) => {
 
               {/* MODE 1: UNIFIED LOGIN FOR ALL USERS */}
               {mode === 'login' && (
-                <form onSubmit={handleLoginSubmit} noValidate className="space-y-4">
+                <form onSubmit={handleLoginSubmit} noValidate className="space-y-3">
                   
                   {/* Email / Phone Field */}
-                  <div className="space-y-1.5 text-left">
+                  <div className="space-y-1 text-left">
                     <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">
                       Email or Mobile Number <span className="text-rose-500 ml-0.5">*</span>
                     </label>
                     <div className="relative group">
-                      <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400 group-focus-within:text-sky-500 transition-colors">
-                        <Mail className="w-4.5 h-4.5" />
+                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400 group-focus-within:text-sky-500 transition-colors">
+                        <Mail className="w-4 h-4" />
                       </div>
                       <input
                         type="text"
@@ -510,7 +510,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onBack }) => {
                         onChange={e => handleIdentifierChange(e.target.value)}
                         onBlur={() => setIdentifierTouched(true)}
                         placeholder="e.g. user@school.edu or 9876543210"
-                        className={`w-full pl-11 pr-4 py-3.5 rounded-2xl bg-slate-50/70 dark:bg-slate-950/80 border text-slate-900 dark:text-white text-sm placeholder-slate-400 focus:outline-none focus:ring-4 transition-all font-medium ${
+                        className={`w-full pl-9 pr-3.5 py-2.5 rounded-xl bg-slate-50/70 dark:bg-slate-950/80 border text-slate-900 dark:text-white text-xs sm:text-sm placeholder-slate-400 focus:outline-none focus:ring-3 transition-all font-medium ${
                           identifierError
                             ? 'border-rose-500 focus:ring-rose-500/20 focus:border-rose-500 bg-rose-50/20'
                             : 'border-slate-200 dark:border-slate-800 focus:border-sky-500 dark:focus:border-sky-400 focus:ring-sky-500/20 focus:bg-white dark:focus:bg-slate-950'
@@ -518,21 +518,21 @@ export const LoginView: React.FC<LoginViewProps> = ({ onBack }) => {
                       />
                     </div>
                     {identifierError && (
-                      <div className="flex items-center gap-1.5 text-xs text-rose-600 dark:text-rose-400 font-medium mt-1 animate-in fade-in">
-                        <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                      <div className="flex items-center gap-1 text-[11px] text-rose-600 dark:text-rose-400 font-medium mt-0.5 animate-in fade-in">
+                        <AlertCircle className="w-3 h-3 shrink-0" />
                         <span>{identifierError}</span>
                       </div>
                     )}
                   </div>
 
                   {/* Password Field */}
-                  <div className="space-y-1.5 text-left">
+                  <div className="space-y-1 text-left">
                     <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">
                       Password <span className="text-rose-500 ml-0.5">*</span>
                     </label>
                     <div className="relative group">
-                      <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400 group-focus-within:text-sky-500 transition-colors">
-                        <Lock className="w-4.5 h-4.5" />
+                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400 group-focus-within:text-sky-500 transition-colors">
+                        <Lock className="w-4 h-4" />
                       </div>
                       <input
                         type={showPassword ? 'text' : 'password'}
@@ -540,7 +540,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onBack }) => {
                         onChange={e => handlePasswordChange(e.target.value)}
                         onBlur={() => setPasswordTouched(true)}
                         placeholder="Enter your secret password"
-                        className={`w-full pl-11 pr-11 py-3.5 rounded-2xl bg-slate-50/70 dark:bg-slate-950/80 border text-slate-900 dark:text-white text-sm placeholder-slate-400 focus:outline-none focus:ring-4 transition-all font-medium ${
+                        className={`w-full pl-9 pr-9 py-2.5 rounded-xl bg-slate-50/70 dark:bg-slate-950/80 border text-slate-900 dark:text-white text-xs sm:text-sm placeholder-slate-400 focus:outline-none focus:ring-3 transition-all font-medium ${
                           passwordError
                             ? 'border-rose-500 focus:ring-rose-500/20 focus:border-rose-500 bg-rose-50/20'
                             : 'border-slate-200 dark:border-slate-800 focus:border-sky-500 dark:focus:border-sky-400 focus:ring-sky-500/20 focus:bg-white dark:focus:bg-slate-950'
@@ -551,27 +551,27 @@ export const LoginView: React.FC<LoginViewProps> = ({ onBack }) => {
                         onClick={() => setShowPassword(!showPassword)}
                         aria-label={showPassword ? 'Hide password' : 'Show password'}
                         title={showPassword ? 'Hide password' : 'Show password'}
-                        className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-400 hover:text-sky-600 dark:hover:text-sky-300 transition-colors cursor-pointer"
+                        className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-sky-600 dark:hover:text-sky-300 transition-colors cursor-pointer"
                         tabIndex={-1}
                       >
-                        {showPassword ? <Eye className="w-4.5 h-4.5" /> : <EyeOff className="w-4.5 h-4.5" />}
+                        {showPassword ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
                       </button>
                     </div>
                     {passwordError && (
-                      <div className="flex items-center gap-1.5 text-xs text-rose-600 dark:text-rose-400 font-medium mt-1 animate-in fade-in">
-                        <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                      <div className="flex items-center gap-1 text-[11px] text-rose-600 dark:text-rose-400 font-medium mt-0.5 animate-in fade-in">
+                        <AlertCircle className="w-3 h-3 shrink-0" />
                         <span>{passwordError}</span>
                       </div>
                     )}
 
                     {/* Remember Me & Forgot Password Row */}
-                    <div className="flex items-center justify-between pt-1">
-                      <label className="flex items-center gap-2 cursor-pointer select-none group">
+                    <div className="flex items-center justify-between pt-0.5">
+                      <label className="flex items-center gap-1.5 cursor-pointer select-none group">
                         <input
                           type="checkbox"
                           checked={rememberMe}
                           onChange={handleRememberMeChange}
-                          className="w-4 h-4 rounded border-slate-300 dark:border-slate-700 text-sky-600 focus:ring-sky-500 dark:bg-slate-950 accent-sky-600 cursor-pointer"
+                          className="w-3.5 h-3.5 rounded border-slate-300 dark:border-slate-700 text-sky-600 focus:ring-sky-500 dark:bg-slate-950 accent-sky-600 cursor-pointer"
                         />
                         <span className="text-xs font-semibold text-slate-600 dark:text-slate-400 group-hover:text-slate-900 dark:group-hover:text-slate-200 transition-colors">
                           Remember me
@@ -592,14 +592,14 @@ export const LoginView: React.FC<LoginViewProps> = ({ onBack }) => {
                   </div>
 
                   {/* Primary CTA Button in School Theme */}
-                  <div className="pt-2">
+                  <div className="pt-1.5">
                     <button
                       type="submit"
                       disabled={loading}
-                      className="w-full py-4 bg-gradient-to-r from-sky-500 via-blue-600 to-indigo-600 hover:from-sky-400 hover:via-blue-500 hover:to-indigo-500 text-white font-bold rounded-2xl text-sm shadow-xl shadow-sky-500/30 hover:shadow-sky-500/50 active:scale-[0.98] transition-all flex items-center justify-center gap-2.5 disabled:opacity-70 cursor-pointer group"
+                      className="w-full py-2.5 sm:py-3 bg-gradient-to-r from-sky-500 via-blue-600 to-indigo-600 hover:from-sky-400 hover:via-blue-500 hover:to-indigo-500 text-white font-bold rounded-xl text-xs sm:text-sm shadow-lg shadow-sky-500/25 hover:shadow-sky-500/40 active:scale-[0.98] transition-all flex items-center justify-center gap-2 disabled:opacity-70 cursor-pointer group"
                     >
                       {loading ? (
-                        <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                        <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                       ) : (
                         <>
                           <span>Sign In</span>
@@ -632,7 +632,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onBack }) => {
                         }}
                         onBlur={() => setForgotIdentifierTouched(true)}
                         placeholder="Enter registered email or phone"
-                        className={`w-full pl-11 pr-4 py-3.5 rounded-2xl bg-slate-50/70 dark:bg-slate-950/80 border text-slate-900 dark:text-white text-sm placeholder-slate-400 focus:outline-none focus:ring-4 transition-all font-medium ${
+                        className={`w-full pl-11 pr-4 py-2.5 rounded-xl bg-slate-50/70 dark:bg-slate-950/80 border text-slate-900 dark:text-white text-sm placeholder-slate-400 focus:outline-none focus:ring-4 transition-all font-medium ${
                           (!forgotIdentifier.trim() && (forgotIdentifierTouched || forgotSubmitted))
                             ? 'border-rose-500 focus:ring-rose-500/20 focus:border-rose-500 bg-rose-50/20'
                             : 'border-slate-200 dark:border-slate-800 focus:border-sky-500 dark:focus:border-sky-400 focus:ring-sky-500/20 focus:bg-white dark:focus:bg-slate-950'
@@ -651,7 +651,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onBack }) => {
                     <button
                       type="submit"
                       disabled={loading}
-                      className="w-full py-3.5 bg-gradient-to-r from-sky-500 via-blue-600 to-indigo-600 hover:from-sky-400 hover:via-blue-500 hover:to-indigo-500 text-white font-bold rounded-2xl text-sm shadow-xl shadow-sky-500/30 active:scale-[0.98] transition-all flex justify-center items-center gap-2 cursor-pointer"
+                      className="w-full py-2.5 sm:py-3 bg-gradient-to-r from-sky-500 via-blue-600 to-indigo-600 hover:from-sky-400 hover:via-blue-500 hover:to-indigo-500 text-white font-bold rounded-2xl text-sm shadow-xl shadow-sky-500/30 active:scale-[0.98] transition-all flex justify-center items-center gap-2 cursor-pointer"
                     >
                       {loading ? (
                         <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
@@ -668,7 +668,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onBack }) => {
                         setError('');
                         setMode('login');
                       }}
-                      className="w-full py-3 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-750 text-slate-700 dark:text-slate-300 font-bold rounded-2xl text-xs transition-colors cursor-pointer"
+                      className="w-full py-2 sm:py-2.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-750 text-slate-700 dark:text-slate-300 font-bold rounded-2xl text-xs transition-colors cursor-pointer"
                     >
                       Back to Sign In
                     </button>
@@ -717,7 +717,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onBack }) => {
                     <button
                       type="submit"
                       disabled={loading || otp.length < 6}
-                      className="w-full py-3.5 bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-400 hover:to-blue-500 text-white font-bold rounded-2xl text-sm shadow-xl shadow-sky-500/30 active:scale-[0.98] transition-all flex justify-center items-center gap-2 disabled:opacity-70 cursor-pointer"
+                      className="w-full py-2.5 sm:py-3 bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-400 hover:to-blue-500 text-white font-bold rounded-2xl text-sm shadow-xl shadow-sky-500/30 active:scale-[0.98] transition-all flex justify-center items-center gap-2 disabled:opacity-70 cursor-pointer"
                     >
                       {loading ? (
                         <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
@@ -734,7 +734,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onBack }) => {
                         setError('');
                         setMode('login');
                       }}
-                      className="w-full py-3 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-750 text-slate-700 dark:text-slate-300 font-bold rounded-2xl text-xs transition-colors cursor-pointer"
+                      className="w-full py-2 sm:py-2.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-750 text-slate-700 dark:text-slate-300 font-bold rounded-2xl text-xs transition-colors cursor-pointer"
                     >
                       Cancel
                     </button>
@@ -759,7 +759,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onBack }) => {
                         }}
                         onBlur={() => setNewPasswordTouched(true)}
                         placeholder="Min. 6 characters"
-                        className={`w-full px-4 py-3.5 rounded-2xl bg-slate-50/70 dark:bg-slate-950/80 border text-slate-900 dark:text-white text-sm placeholder-slate-400 focus:outline-none focus:ring-4 transition-all font-medium ${
+                        className={`w-full px-4 py-2.5 rounded-xl bg-slate-50/70 dark:bg-slate-950/80 border text-slate-900 dark:text-white text-sm placeholder-slate-400 focus:outline-none focus:ring-4 transition-all font-medium ${
                           (!newPassword && (newPasswordTouched || resetSubmitted))
                             ? 'border-rose-500 focus:ring-rose-500/20 focus:border-rose-500 bg-rose-50/20'
                             : 'border-slate-200 dark:border-slate-800 focus:border-sky-500 dark:focus:border-sky-400 focus:ring-sky-500/20 focus:bg-white dark:focus:bg-slate-950'
@@ -792,7 +792,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onBack }) => {
                         }}
                         onBlur={() => setConfirmNewPasswordTouched(true)}
                         placeholder="Re-type new password"
-                        className={`w-full px-4 py-3.5 rounded-2xl bg-slate-50/70 dark:bg-slate-950/80 border text-slate-900 dark:text-white text-sm placeholder-slate-400 focus:outline-none focus:ring-4 transition-all font-medium ${
+                        className={`w-full px-4 py-2.5 rounded-xl bg-slate-50/70 dark:bg-slate-950/80 border text-slate-900 dark:text-white text-sm placeholder-slate-400 focus:outline-none focus:ring-4 transition-all font-medium ${
                           (!confirmNewPassword && (confirmNewPasswordTouched || resetSubmitted))
                             ? 'border-rose-500 focus:ring-rose-500/20 focus:border-rose-500 bg-rose-50/20'
                             : 'border-slate-200 dark:border-slate-800 focus:border-sky-500 dark:focus:border-sky-400 focus:ring-sky-500/20 focus:bg-white dark:focus:bg-slate-950'
@@ -811,7 +811,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onBack }) => {
                     <button
                       type="submit"
                       disabled={loading || !newPassword || !confirmNewPassword}
-                      className="w-full py-3.5 bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-400 hover:to-blue-500 text-white font-bold rounded-2xl text-sm shadow-xl shadow-sky-500/30 active:scale-[0.98] transition-all flex justify-center items-center gap-2 disabled:opacity-70 cursor-pointer"
+                      className="w-full py-2.5 sm:py-3 bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-400 hover:to-blue-500 text-white font-bold rounded-2xl text-sm shadow-xl shadow-sky-500/30 active:scale-[0.98] transition-all flex justify-center items-center gap-2 disabled:opacity-70 cursor-pointer"
                     >
                       {loading ? (
                         <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
