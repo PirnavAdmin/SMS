@@ -92,9 +92,10 @@ export const UniformView: React.FC<{tabs?: React.ReactNode}> = ({ tabs }) => {
     setEditingUniform(null);
     setPackageName('');
     setFormData({
-      gender: 'Unisex',
-      size: 'All Sizes',
-      className: 'All Wings',
+      gender: '' as any,
+      size: '',
+      className: '',
+      color: '',
       availableStock: undefined,
       isPackage: false
     });
@@ -124,7 +125,14 @@ export const UniformView: React.FC<{tabs?: React.ReactNode}> = ({ tabs }) => {
   const handleOpenEdit = (u: UniformItem) => {
     setEditingUniform(u);
     setPackageName(u.category || u.name || '');
-    setFormData(u);
+    setFormData({
+      ...u,
+      gender: u.gender || ('' as any),
+      className: u.className || '',
+      size: u.size || '',
+      color: u.color === 'Standard' ? '' : (u.color || ''),
+      availableStock: u.availableStock !== undefined ? u.availableStock : undefined
+    });
     if ((u as any).sizeStockBreakdown) {
       setPackageSizeStock((u as any).sizeStockBreakdown);
     }
@@ -196,8 +204,34 @@ export const UniformView: React.FC<{tabs?: React.ReactNode}> = ({ tabs }) => {
       return;
     }
 
+    if (!formData.gender) {
+      addToast('error', 'Validation Error', 'Please select Target Gender');
+      return;
+    }
+
+    if (!formData.className) {
+      addToast('error', 'Validation Error', 'Please select School Wing / Level');
+      return;
+    }
+
+    if (!formData.size) {
+      addToast('error', 'Validation Error', 'Please select Size Specification');
+      return;
+    }
+
     if (formData.availableStock === undefined || formData.availableStock === null || isNaN(Number(formData.availableStock))) {
       addToast('error', 'Validation Error', 'Please enter valid Warehouse Stock (Available Units)');
+      return;
+    }
+
+    const stockStr = String(formData.availableStock).trim();
+    if (stockStr.length > 10 || Number(formData.availableStock) > 9999999999) {
+      addToast('error', 'Validation Error', 'Warehouse Stock cannot exceed 10 digits');
+      return;
+    }
+
+    if (Number(formData.availableStock) < 0) {
+      addToast('error', 'Validation Error', 'Warehouse Stock cannot be negative');
       return;
     }
 
@@ -220,8 +254,9 @@ export const UniformView: React.FC<{tabs?: React.ReactNode}> = ({ tabs }) => {
       category: finalName,
       name: finalName,
       size: finalSize,
-      gender: formData.gender || 'Unisex',
-      className: formData.className || 'All Wings',
+      gender: formData.gender,
+      className: formData.className,
+      color: (formData.color || '').trim(),
       openingStock: computedStock,
       availableStock: computedStock,
       isPackage: isPkg,
@@ -484,13 +519,15 @@ export const UniformView: React.FC<{tabs?: React.ReactNode}> = ({ tabs }) => {
                     
                     const defaultPrice = formData.price || existingItem?.price || 0;
 
-                    let defaultGender: 'Male' | 'Female' | 'Unisex' = formData.gender || 'Unisex';
-                    if (existingItem?.gender) {
-                      defaultGender = existingItem.gender;
-                    } else if (lower.includes('boys')) {
-                      defaultGender = 'Male';
-                    } else if (lower.includes('girls') || lower.includes('skirt')) {
-                      defaultGender = 'Female';
+                    let defaultGender = formData.gender || ('' as any);
+                    if (!defaultGender) {
+                      if (existingItem?.gender) {
+                        defaultGender = existingItem.gender;
+                      } else if (lower.includes('boys')) {
+                        defaultGender = 'Male';
+                      } else if (lower.includes('girls') || lower.includes('skirt')) {
+                        defaultGender = 'Female';
+                      }
                     }
 
                     setFormData({ 
@@ -636,8 +673,16 @@ export const UniformView: React.FC<{tabs?: React.ReactNode}> = ({ tabs }) => {
               {/* Target Gender & Wing */}
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Target Gender *</label>
-                  <select value={formData.gender} onChange={e => setFormData({ ...formData, gender: e.target.value as any })} className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-semibold">
+                  <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                    Target Gender <span className="text-rose-500 font-bold ml-0.5">*</span>
+                  </label>
+                  <select
+                    required
+                    value={formData.gender || ''}
+                    onChange={e => setFormData({ ...formData, gender: e.target.value as any })}
+                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-semibold text-slate-900 dark:text-white outline-none cursor-pointer text-xs"
+                  >
+                    <option value="">Select Target Gender *</option>
                     <option value="Unisex">Unisex (All Students)</option>
                     <option value="Male">Male (Boys Only)</option>
                     <option value="Female">Female (Girls Only)</option>
@@ -645,8 +690,16 @@ export const UniformView: React.FC<{tabs?: React.ReactNode}> = ({ tabs }) => {
                 </div>
 
                 <div>
-                  <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">School Wing / Level *</label>
-                  <select value={formData.className || 'All Wings'} onChange={e => setFormData({ ...formData, className: e.target.value })} className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 cursor-pointer font-semibold">
+                  <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                    School Wing / Level <span className="text-rose-500 font-bold ml-0.5">*</span>
+                  </label>
+                  <select
+                    required
+                    value={formData.className || ''}
+                    onChange={e => setFormData({ ...formData, className: e.target.value })}
+                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 cursor-pointer font-semibold text-slate-900 dark:text-white outline-none text-xs"
+                  >
+                    <option value="">Select School Wing / Level *</option>
                     <option value="All Wings">All Wings (Universal)</option>
                     <option value="Pre-Primary">Pre-Primary (Playgroup - UKG)</option>
                     <option value="Primary Wing">Primary Wing (Class I - V)</option>
@@ -658,8 +711,11 @@ export const UniformView: React.FC<{tabs?: React.ReactNode}> = ({ tabs }) => {
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Size Specification <span className="text-rose-500 font-bold ml-0.5">*</span></label>
+                  <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">
+                    Size Specification <span className="text-rose-500 font-bold ml-0.5">*</span>
+                  </label>
                   <select
+                    required
                     value={formData.size || ''}
                     onChange={e => setFormData({ ...formData, size: e.target.value })}
                     className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-semibold text-slate-900 dark:text-white outline-none cursor-pointer text-xs"
@@ -673,22 +729,45 @@ export const UniformView: React.FC<{tabs?: React.ReactNode}> = ({ tabs }) => {
                 </div>
                 <div>
                   <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Color</label>
-                  <input type="text" placeholder="e.g. Navy Blue" value={formData.color || ''} onChange={e => setFormData({ ...formData, color: e.target.value })} className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-semibold text-slate-900 dark:text-white outline-none text-xs" />
+                  <input
+                    type="text"
+                    placeholder="Enter Color (e.g. Navy Blue)"
+                    value={formData.color || ''}
+                    onChange={e => setFormData({ ...formData, color: e.target.value })}
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-semibold text-slate-900 dark:text-white outline-none text-xs"
+                  />
                 </div>
               </div>
 
               {/* Warehouse Stock (Bottom Positioned) */}
               <div>
-                <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                  Warehouse Stock (Available Units) <span className="text-rose-500 font-bold ml-0.5">*</span>
-                </label>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block font-semibold text-slate-700 dark:text-slate-300">
+                    Warehouse Stock (Available Units) <span className="text-rose-500 font-bold ml-0.5">*</span>
+                  </label>
+                  <span className="text-[10px] text-slate-400 font-medium">Max 10 digits</span>
+                </div>
                 <input
-                  type="number"
+                  type="text"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  maxLength={10}
                   required
                   placeholder="e.g. 50"
-                  value={formData.availableStock ?? ''}
-                  onChange={e => setFormData({ ...formData, availableStock: e.target.value === '' ? undefined : Number(e.target.value) })}
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-semibold text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-sky-500/20"
+                  value={formData.availableStock !== undefined ? String(formData.availableStock) : ''}
+                  onKeyDown={e => {
+                    if (['e', 'E', '+', '-', '.'].includes(e.key)) {
+                      e.preventDefault();
+                    }
+                  }}
+                  onChange={e => {
+                    const raw = e.target.value.replace(/\D/g, '').slice(0, 10);
+                    setFormData({
+                      ...formData,
+                      availableStock: raw === '' ? undefined : Number(raw)
+                    });
+                  }}
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-semibold text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-sky-500/20 text-xs"
                 />
               </div>
 

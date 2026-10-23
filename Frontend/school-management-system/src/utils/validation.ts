@@ -1798,6 +1798,28 @@ export function validateInputElement(
     return { isValid: true };
   }
 
+  const isStockField =
+    label.includes('stock') ||
+    label.includes('warehouse') ||
+    label.includes('available units') ||
+    (input.placeholder || '').toLowerCase().includes('stock');
+
+  if (isStockField) {
+    const trimmedStock = val.trim();
+    if (!trimmedStock && enforceRequired && input.required) {
+      return { isValid: false, error: 'Warehouse stock is required.' };
+    }
+    if (trimmedStock) {
+      if (!/^\d+$/.test(trimmedStock)) {
+        return { isValid: false, error: 'Enter a valid stock number.' };
+      }
+      if (trimmedStock.length > 10) {
+        return { isValid: false, error: 'Warehouse stock cannot exceed 10 digits.' };
+      }
+    }
+    return { isValid: true };
+  }
+
   if (isNumericOrDuration && (input.inputMode === 'numeric' || input.inputMode === 'decimal' || (input instanceof HTMLInputElement && input.type === 'number'))) {
     const trimmedNum = val.trim();
     if (!/^\d+(\.\d+)?$/.test(trimmedNum)) {

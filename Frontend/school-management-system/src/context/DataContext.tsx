@@ -25695,10 +25695,12 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     () => filterByBranch(alumniRecords),
     [alumniRecords, selectedBranch, selectedAcademicYear],
   );
-  const filteredAnnouncements = useMemo(
-    () => filterByBranch(announcements),
-    [announcements, selectedBranch, selectedAcademicYear],
-  );
+  const filteredAnnouncements = useMemo(() => {
+    const todayStr = new Date().toISOString().split("T")[0];
+    return filterByBranch(announcements).filter(
+      (a) => !a.date || a.date >= todayStr,
+    );
+  }, [announcements, selectedBranch, selectedAcademicYear]);
   const filteredMeetings = useMemo(
     () => filterByBranch(meetings),
     [meetings, selectedBranch, selectedAcademicYear],

@@ -562,11 +562,21 @@ export const UniformInventoryView: React.FC<UniformInventoryViewProps> = ({ tabs
                   {actionType === 'Adjust' ? 'New absolute stock level *' : 'Stock Quantity *'}
                 </label>
                 <input
-                  type="number"
+                  type="text"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  maxLength={10}
                   required
-                  min={0}
-                  value={quantity}
-                  onChange={e => setQuantity(Math.max(0, Number(e.target.value)))}
+                  value={quantity === 0 ? '' : quantity}
+                  onKeyDown={e => {
+                    if (['e', 'E', '+', '-', '.'].includes(e.key)) {
+                      e.preventDefault();
+                    }
+                  }}
+                  onChange={e => {
+                    const raw = e.target.value.replace(/\D/g, '').slice(0, 10);
+                    setQuantity(raw === '' ? 0 : Number(raw));
+                  }}
                   className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border"
                 />
               </div>

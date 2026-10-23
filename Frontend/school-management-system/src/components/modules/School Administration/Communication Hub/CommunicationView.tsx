@@ -70,6 +70,8 @@ export const CommunicationView: React.FC = () => {
   // Pagination & Filtering state
   const [currentPage, setCurrentPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(5);
+  // Date filter state: 'active' (default - removes crossed/past dates) | 'past' | 'all'
+  const [dateFilter, setDateFilter] = useState<'active' | 'past' | 'all'>('active');
 
   const isLibrarianRole = userRole.includes('librarian') || userRole.includes('library');
   const isWardenRole = userRole.includes('warden');
@@ -238,6 +240,13 @@ export const CommunicationView: React.FC = () => {
       });
     }
 
+    // 4. Date Crossed filter: by default ('active'), remove notifications whose date has already passed
+    if (dateFilter === 'active') {
+      list = list.filter(a => !a.date || a.date >= todayDateStr);
+    } else if (dateFilter === 'past') {
+      list = list.filter(a => Boolean(a.date && a.date < todayDateStr));
+    }
+
     const seen = new Set<string>();
     const deduplicated: AnnouncementItem[] = [];
     list.forEach(item => {
@@ -250,11 +259,11 @@ export const CommunicationView: React.FC = () => {
       }
     });
     return deduplicated.sort((a, b) => (b.isPinned ? 1 : 0) - (a.isPinned ? 1 : 0));
-  }, [localList, isDriverRole, selectedBranch, selectedAcademicYear]);
+  }, [localList, isDriverRole, selectedBranch, selectedAcademicYear, dateFilter, todayDateStr]);
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [selectedBranch, selectedAcademicYear]);
+  }, [selectedBranch, selectedAcademicYear, dateFilter]);
 
   // Helper to persist list in memory and DataContext
   const updateLocalList = (newList: AnnouncementItem[]) => {
@@ -490,6 +499,7 @@ export const CommunicationView: React.FC = () => {
   };
 
   const handleDeleteCircular = async (id: string, titleStr: string) => {
+    setLocalList(prev => prev.filter(i => String(i.id) !== String(id)));
     const numericId = parseInt(id.replace(/\D/g, ''), 10);
     if (numericId) {
       try {
@@ -541,9 +551,9 @@ export const CommunicationView: React.FC = () => {
         )}
       </div>
 
-      {/* LEVEL 2: Navigation Bar (Tab Switcher) Aligned Cleanly */}
+      {/* LEVEL 2: Navigation Bar (Tab Switcher & Date Filter) */}
       {!(role.toLowerCase() === 'parent' || role.toLowerCase() === 'student' || isDriverRole) && (
-        <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-2.5">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-2.5 gap-2">
           <div className="inline-flex items-center gap-1 p-1 bg-slate-100 dark:bg-slate-800/80 rounded-xl border border-slate-200 dark:border-slate-700">
             <button
               onClick={() => setActiveTab('notifications')}
@@ -570,6 +580,41 @@ export const CommunicationView: React.FC = () => {
               </button>
             )}
           </div>
+
+          {activeTab === 'notifications' && (
+            <div className="inline-flex items-center gap-1 p-1 bg-slate-100 dark:bg-slate-800/80 rounded-xl border border-slate-200 dark:border-slate-700 self-start sm:self-auto">
+              <button
+                onClick={() => setDateFilter('active')}
+                className={`px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                  dateFilter === 'active'
+                    ? 'bg-white dark:bg-slate-900 text-sky-600 dark:text-sky-400 shadow-xs'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                }`}
+              >
+                Active Circulars
+              </button>
+              <button
+                onClick={() => setDateFilter('past')}
+                className={`px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                  dateFilter === 'past'
+                    ? 'bg-white dark:bg-slate-900 text-amber-600 dark:text-amber-400 shadow-xs'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                }`}
+              >
+                Past (Expired)
+              </button>
+              <button
+                onClick={() => setDateFilter('all')}
+                className={`px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                  dateFilter === 'all'
+                    ? 'bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 shadow-xs'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                }`}
+              >
+                All
+              </button>
+            </div>
+          )}
         </div>
       )}
 
@@ -579,7 +624,18 @@ export const CommunicationView: React.FC = () => {
         <div className="space-y-3 max-w-full">
           {/* Main Cards List */}
           <div className="space-y-2.5">
-            {paginatedItems.map((a) => (
+            {paginatedItems.length === 0 ? (
+              <div className="p-8 text-center bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 space-y-2">
+                <Megaphone className="w-8 h-8 text-slate-300 dark:text-slate-600 mx-auto" />
+                <p className="text-sm font-bold text-slate-700 dark:text-slate-300">
+                  {dateFilter === 'active' ? 'No active broadcast notifications' : dateFilter === 'past' ? 'No past expired notifications' : 'No broadcast notifications found'}
+                </p>
+                <p className="text-xs text-slate-400">
+                  {dateFilter === 'active' ? 'All notifications whose date has passed have been removed.' : 'Published circulars will appear here.'}
+                </p>
+              </div>
+            ) : (
+              paginatedItems.map((a) => (
               <div
                 key={a.id}
                 className={`p-3.5 sm:p-4 rounded-xl bg-white dark:bg-slate-900 border ${
@@ -669,7 +725,7 @@ export const CommunicationView: React.FC = () => {
                   )}
                 </div>
               </div>
-            ))}
+            )))}
           </div>
 
           {/* Footer Pagination Control */}

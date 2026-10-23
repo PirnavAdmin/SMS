@@ -377,9 +377,20 @@ export const Header: React.FC<HeaderProps> = ({ collapsed, setCollapsed, onOpenS
   const userNotifications = useMemo(() => {
     const userRole = (role || user?.role || '').toLowerCase().trim();
     const isSuperOrAdmin = userRole.includes('admin') || userRole.includes('principal') || userRole.includes('super');
+    const todayStr = (() => {
+      const d = new Date();
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      return `${y}-${m}-${day}`;
+    })();
     
     const filtered = (announcements || []).filter(item => {
       if (!item) return false;
+      // Date crossed check: If notification date has crossed (strictly in the past), remove from active notifications
+      if (item.date && item.date < todayStr) {
+        return false;
+      }
       if (isSuperOrAdmin) return true;
       const aud = (item.targetAudience || 'ALL').toUpperCase().trim();
       
