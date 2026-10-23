@@ -5,7 +5,7 @@ namespace SMS.Api.Dtos.Transport.Driver
     public class TransportDriverDto
     {
         [JsonPropertyName("id")]
-        public string Id => DriverId > 0 ? DriverId.ToString() : "1";
+        public string Id => DriverId > 0 ? DriverId.ToString() : string.Empty;
 
         [JsonPropertyName("driverId")]
         public long DriverId { get; set; }
@@ -14,7 +14,7 @@ namespace SMS.Api.Dtos.Transport.Driver
         public string DriverName { get; set; } = string.Empty;
 
         [JsonPropertyName("employeeId")]
-        public string EmployeeId { get; set; } = "DRV-1";
+        public string EmployeeId { get; set; } = string.Empty;
 
         [JsonPropertyName("empId")]
         public string EmpId => EmployeeId;
@@ -68,7 +68,7 @@ namespace SMS.Api.Dtos.Transport.Driver
         public string? EmergencyContact => !string.IsNullOrWhiteSpace(EmergencyContactNumber) ? EmergencyContactNumber : EmergencyContactName;
 
         [JsonPropertyName("experienceYears")]
-        public int ExperienceYears { get; set; } = 5;
+        public int ExperienceYears { get; set; } = 0;
 
         [JsonPropertyName("status")]
         public string Status { get; set; } = "Active";

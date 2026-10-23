@@ -19827,6 +19827,10 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       }
       if (updates.status !== undefined)
         payload.status = updates.status === "Active";
+      if (updates.bloodGroup !== undefined)
+        payload.bloodGroup = updates.bloodGroup;
+      if (updates.licenseType !== undefined)
+        payload.licenseType = updates.licenseType;
 
       const applyLocalDriverUpdate = (prev: DriverMaster[]) => {
         let matched = false;
@@ -19848,7 +19852,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
               ...next,
               {
                 id: String(id),
-                driverName: updates.driverName || user?.name || "Driver",
+                driverName: updates.driverName || user?.name || "",
+                bloodGroup: updates.bloodGroup || "",
+                licenseType: updates.licenseType || "",
                 employeeId: updates.employeeId || (user as any)?.empId || "",
                 mobileNumber: updates.mobileNumber || user?.phone || "",
                 email: updates.email || user?.email || "",

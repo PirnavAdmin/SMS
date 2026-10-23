@@ -15,7 +15,7 @@ namespace SMS.Api.Dtos.Transport.Driver
         [JsonPropertyName("employeeId")]
         public string EmployeeId
         {
-            get => !string.IsNullOrWhiteSpace(_employeeId) ? _employeeId : $"DRV-{Random.Shared.Next(1, 99)}";
+            get => _employeeId;
             set => _employeeId = value ?? string.Empty;
         }
 
@@ -29,7 +29,7 @@ namespace SMS.Api.Dtos.Transport.Driver
         [JsonPropertyName("driverName")]
         public string DriverName
         {
-            get => !string.IsNullOrWhiteSpace(_driverName) ? _driverName : "Driver";
+            get => _driverName;
             set
             {
                 if (!string.IsNullOrWhiteSpace(value))
@@ -73,7 +73,7 @@ namespace SMS.Api.Dtos.Transport.Driver
         [JsonPropertyName("mobileNumber")]
         public string MobileNumber
         {
-            get => !string.IsNullOrWhiteSpace(_mobileNumber) ? _mobileNumber : "0000000000";
+            get => _mobileNumber;
             set
             {
                 if (!string.IsNullOrWhiteSpace(value))
@@ -101,7 +101,7 @@ namespace SMS.Api.Dtos.Transport.Driver
         [JsonPropertyName("licenceNumber")]
         public string LicenceNumber
         {
-            get => !string.IsNullOrWhiteSpace(_licenceNumber) ? _licenceNumber : $"LIC-{Random.Shared.Next(1000, 9999)}";
+            get => _licenceNumber;
             set
             {
                 if (!string.IsNullOrWhiteSpace(value))
@@ -162,7 +162,7 @@ namespace SMS.Api.Dtos.Transport.Driver
         }
 
         [JsonPropertyName("experienceYears")]
-        public int ExperienceYears { get; set; } = 5;
+        public int ExperienceYears { get; set; } = 0;
 
         [JsonPropertyName("status")]
         [JsonConverter(typeof(FlexibleBoolConverter))]

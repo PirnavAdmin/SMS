@@ -1914,6 +1914,10 @@ export interface DriverMaster {
   licenseType?: string;
   safetyRecord?: string;
   status: 'Active' | 'Inactive' | 'On Leave';
+  bloodGroup?: string;
+  dateOfJoining?: string;
+  department?: string;
+  designation?: string;
 }
 
 export interface VehicleAssignment {

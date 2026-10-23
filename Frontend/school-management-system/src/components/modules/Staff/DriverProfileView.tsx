@@ -40,6 +40,16 @@ const sanitizeDateInputYear = (val: string): string => {
   return val;
 };
 
+const STANDARD_LICENSE_TYPES = [
+  'Commercial (HMV)',
+  'Heavy Motor Vehicle',
+  'Light Motor Vehicle (LMV)',
+  'Transport Vehicle',
+  'Commercial (LMV)'
+];
+
+const BLOOD_GROUPS = ['A+', 'A-', 'B+', 'B-', 'O+', 'O-', 'AB+', 'AB-'];
+
 export const DriverProfileView: React.FC = () => {
   const { user } = useAuth();
   const {
@@ -106,17 +116,20 @@ export const DriverProfileView: React.FC = () => {
     const resolvedEmpId = fromMaster?.employeeId || fromStaff?.empId || fromStaff?.employeeId || (user as any)?.empId || user?.id || '';
     const resolvedName = (user?.name && user.name.toLowerCase() !== 'user' && user.name.toLowerCase() !== 'administrator')
       ? user.name
-      : (fromMaster?.driverName || (fromStaff ? `${fromStaff.firstName || ''} ${fromStaff.lastName || ''}`.trim() : (user?.name || 'Driver')));
+      : (fromMaster?.driverName || (fromStaff ? `${fromStaff.firstName || ''} ${fromStaff.lastName || ''}`.trim() : (user?.name || '')));
 
     const resolvedLicense = fromMaster?.licenseNumber || (fromStaff as any)?.licenseNumber || '';
-    const resolvedLicenseExpiry = fromMaster?.licenseExpiryDate || (fromStaff as any)?.licenseExpiryDate || '';
+    const resolvedLicenseExpiry = fromMaster?.licenseExpiryDate || (fromStaff as any)?.licenseExpiryDate || (fromMaster as any)?.licenceExpiry || '';
     const resolvedLicenseType = (fromMaster as any)?.licenseType || (fromStaff as any)?.licenseType || '';
-    const resolvedExperience = fromMaster?.experienceYears !== undefined ? fromMaster.experienceYears : ((fromStaff as any)?.experienceYears !== undefined ? (fromStaff as any).experienceYears : 0);
-    const resolvedDept = (fromMaster as any)?.department || fromStaff?.department || 'Transport';
-    const resolvedDesig = (fromMaster as any)?.designation || fromStaff?.designation || 'Driver';
+    const resolvedExperience = (fromMaster?.experienceYears !== undefined && fromMaster.experienceYears !== null)
+      ? fromMaster.experienceYears
+      : ((fromStaff as any)?.experienceYears !== undefined && (fromStaff as any)?.experienceYears !== null ? (fromStaff as any).experienceYears : '');
+    const resolvedDept = (fromMaster as any)?.department || fromStaff?.department || (user as any)?.department || '';
+    const resolvedDesig = (fromMaster as any)?.designation || fromStaff?.designation || (user as any)?.designation || '';
+    const resolvedStatus = fromMaster?.status || fromStaff?.status || (user as any)?.status || '';
 
     return {
-      id: fromMaster?.id || fromStaff?.id || user?.id || '1',
+      id: fromMaster?.id || fromStaff?.id || user?.id || '',
       driverName: resolvedName,
       employeeId: resolvedEmpId,
       mobileNumber: resolvedMobile,
@@ -131,7 +144,8 @@ export const DriverProfileView: React.FC = () => {
       experienceYears: resolvedExperience,
       department: resolvedDept,
       designation: resolvedDesig,
-      status: fromMaster?.status || fromStaff?.status || 'Active'
+      status: resolvedStatus,
+      avatar: (fromMaster as any)?.avatar || fromStaff?.avatar || user?.avatar || ''
     };
   }, [user, driverMasters, staff]);
 
@@ -193,21 +207,44 @@ export const DriverProfileView: React.FC = () => {
     return `${now.getFullYear() + 20}-12-31`;
   }, []);
 
-  // Edit Form State — includes contact and license fields
-  const [formData, setFormData] = useState({
-    mobile: matchedDriver.mobileNumber || user?.phone || '',
-    email: (matchedDriver as any).email || user?.email || '',
-    address: (matchedDriver as any).address || '',
-    emergencyContact: (matchedDriver as any).emergencyContact || '',
-    bloodGroup: (matchedDriver as any).bloodGroup || 'O+',
-    licenseNumber: matchedDriver.licenseNumber || '',
-    licenseType: (matchedDriver as any).licenseType || 'Commercial (HMV)',
-    licenseExpiry: normalizeToISODate((matchedDriver as any).licenseExpiryDate || ''),
-    experienceYears: (matchedDriver.experienceYears !== undefined && matchedDriver.experienceYears !== null) ? matchedDriver.experienceYears : 0,
+  // Helper to extract baseline form data directly from saved matchedDriver
+  const getDriverFormData = (driver: typeof matchedDriver) => ({
+    mobile: driver.mobileNumber || '',
+    email: driver.email || '',
+    address: driver.address || '',
+    emergencyContact: driver.emergencyContact || '',
+    bloodGroup: driver.bloodGroup || '',
+    licenseNumber: driver.licenseNumber || '',
+    licenseType: driver.licenseType || '',
+    licenseExpiry: normalizeToISODate(driver.licenseExpiryDate || ''),
+    experienceYears: (driver.experienceYears !== undefined && driver.experienceYears !== null) ? driver.experienceYears : '',
   });
 
+  // Edit Form State
+  const [formData, setFormData] = useState(() => getDriverFormData(matchedDriver));
   const [licenseError, setLicenseError] = useState<string>('');
   const [licenseExpiryError, setLicenseExpiryError] = useState<string>('');
+
+  // Keep form data synchronized with saved driver data whenever not editing
+  useEffect(() => {
+    if (!isEditing) {
+      setFormData(getDriverFormData(matchedDriver));
+    }
+  }, [matchedDriver, isEditing]);
+
+  const handleStartEdit = () => {
+    setFormData(getDriverFormData(matchedDriver));
+    setLicenseError('');
+    setLicenseExpiryError('');
+    setIsEditing(true);
+  };
+
+  const handleCancelEdit = () => {
+    setFormData(getDriverFormData(matchedDriver));
+    setLicenseError('');
+    setLicenseExpiryError('');
+    setIsEditing(false);
+  };
 
   const validateLicenseExpiryDate = (dateStr: string): { isValid: boolean; error?: string } => {
     if (!dateStr || !dateStr.trim()) {
@@ -239,47 +276,11 @@ export const DriverProfileView: React.FC = () => {
     return { isValid: true };
   };
 
-  // Sync formData whenever matchedDriver or saved profile changes (only when not actively editing)
-  useEffect(() => {
-    if (isEditing) return;
-    try {
-      const key = `driver_profile_${matchedDriver.employeeId || matchedDriver.id || user?.id || 'current'}`;
-      const saved = localStorage.getItem(key);
-      const parsed = saved ? JSON.parse(saved) : null;
-      setFormData({
-        mobile: (parsed?.mobile && String(parsed.mobile).trim()) ? parsed.mobile : (matchedDriver.mobileNumber || user?.phone || ''),
-        email: (parsed?.email && String(parsed.email).trim()) ? parsed.email : ((matchedDriver as any).email || user?.email || ''),
-        address: parsed?.address !== undefined && String(parsed.address).trim() !== '' ? parsed.address : ((matchedDriver as any).address || ''),
-        emergencyContact: parsed?.emergencyContact !== undefined && String(parsed.emergencyContact).trim() !== '' ? parsed.emergencyContact : ((matchedDriver as any).emergencyContact || ''),
-        bloodGroup: parsed?.bloodGroup ? parsed.bloodGroup : ((matchedDriver as any).bloodGroup || 'O+'),
-        licenseNumber: (parsed?.licenseNumber && String(parsed.licenseNumber).trim()) ? String(parsed.licenseNumber).trim().toUpperCase() : (matchedDriver.licenseNumber || ''),
-        licenseType: parsed?.licenseType ? parsed.licenseType : ((matchedDriver as any).licenseType || 'Commercial (HMV)'),
-        licenseExpiry: normalizeToISODate(
-          (parsed?.licenseExpiry && String(parsed.licenseExpiry).trim())
-            ? parsed.licenseExpiry
-            : ((matchedDriver as any).licenseExpiryDate || '')
-        ),
-        experienceYears: parsed?.experienceYears !== undefined && parsed?.experienceYears !== '' ? parsed.experienceYears : (matchedDriver.experienceYears !== undefined ? matchedDriver.experienceYears : 0),
-      });
-    } catch (e) {}
-  }, [matchedDriver, user, isEditing]);
-
-  const persistProfileData = async (normalizedLicense?: string, normalizedExpiry?: string) => {
-    const parsedExp = formData.experienceYears === '' ? 0 : Number(formData.experienceYears) || 0;
-    const finalLicense = normalizedLicense !== undefined ? normalizedLicense : formData.licenseNumber.trim().toUpperCase();
-    const finalExpiry = normalizedExpiry !== undefined ? normalizedExpiry : normalizeToISODate(formData.licenseExpiry);
-
-    const dataToSave = {
-      ...formData,
-      licenseNumber: finalLicense,
-      licenseExpiry: finalExpiry,
-      experienceYears: parsedExp,
-    };
-
-    localStorage.setItem(
-      `driver_profile_${matchedDriver.employeeId || matchedDriver.id || user?.id || 'current'}`,
-      JSON.stringify(dataToSave)
-    );
+  const persistProfileData = async (overrides: Partial<typeof formData> = {}) => {
+    const updatedData = { ...formData, ...overrides };
+    const parsedExp = updatedData.experienceYears === '' ? 0 : Number(updatedData.experienceYears) || 0;
+    const finalLicense = updatedData.licenseNumber ? updatedData.licenseNumber.trim().toUpperCase() : '';
+    const finalExpiry = updatedData.licenseExpiry ? normalizeToISODate(updatedData.licenseExpiry) : '';
 
     if (matchedDriver?.id && updateDriverMaster) {
       await updateDriverMaster(String(matchedDriver.id), {
@@ -287,12 +288,13 @@ export const DriverProfileView: React.FC = () => {
         driverName: matchedDriver.driverName || undefined,
         licenseNumber: finalLicense,
         licenseExpiryDate: finalExpiry,
-        licenseType: formData.licenseType,
+        licenseType: updatedData.licenseType,
         experienceYears: parsedExp,
-        mobileNumber: formData.mobile,
-        email: formData.email,
-        address: formData.address,
-        emergencyContact: formData.emergencyContact,
+        mobileNumber: updatedData.mobile,
+        email: updatedData.email,
+        address: updatedData.address,
+        emergencyContact: updatedData.emergencyContact,
+        bloodGroup: updatedData.bloodGroup,
       });
     }
   };
@@ -338,7 +340,10 @@ export const DriverProfileView: React.FC = () => {
         licenseNumber: cleanLicense,
         licenseExpiry: cleanExpiry,
       }));
-      await persistProfileData(cleanLicense, cleanExpiry);
+      await persistProfileData({
+        licenseNumber: cleanLicense,
+        licenseExpiry: cleanExpiry,
+      });
       addToast('success', 'License Credentials Updated', 'Driving license number and expiry date saved successfully.');
       setIsEditing(false);
     } catch (err) {
@@ -356,10 +361,10 @@ export const DriverProfileView: React.FC = () => {
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div className="flex items-center gap-3">
             <div className="relative">
-              {((matchedDriver as any)?.avatar || user?.avatar) ? (
+              {matchedDriver.avatar ? (
                 <img
-                  key={(matchedDriver as any)?.avatar || user?.avatar}
-                  src={resolveMediaUrl((matchedDriver as any)?.avatar || user?.avatar)}
+                  key={matchedDriver.avatar}
+                  src={resolveMediaUrl(matchedDriver.avatar)}
                   alt={matchedDriver.driverName || 'Driver'}
                   className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl object-cover shadow-md ring-2 ring-sky-500/20"
                   onError={(e) => {
@@ -372,36 +377,38 @@ export const DriverProfileView: React.FC = () => {
               ) : null}
               <div
                 className={`w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-gradient-to-br from-sky-500 to-indigo-600 text-white font-black text-xl items-center justify-center shadow-md ${
-                  ((matchedDriver as any)?.avatar || user?.avatar) ? 'hidden' : 'flex'
+                  matchedDriver.avatar ? 'hidden' : 'flex'
                 }`}
               >
                 {matchedDriver.driverName?.charAt(0) || 'D'}
               </div>
-              <span className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full bg-emerald-500 border-2 border-white dark:border-slate-900" title="Active Staff" />
+              <span className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full bg-emerald-500 border-2 border-white dark:border-slate-900" title="Active" />
             </div>
             <div>
               <div className="flex items-center gap-2 flex-wrap">
                 <h2 className="text-base sm:text-lg font-black text-slate-900 dark:text-white">
-                  {matchedDriver.driverName}
+                  {matchedDriver.driverName || '—'}
                 </h2>
-                <Badge variant="success" size="sm">Active Staff</Badge>
+                {matchedDriver.status ? (
+                  <Badge variant={matchedDriver.status === 'Active' || matchedDriver.status === true ? 'success' : 'neutral'} size="sm">
+                    {typeof matchedDriver.status === 'boolean' ? (matchedDriver.status ? 'Active' : 'Inactive') : matchedDriver.status}
+                  </Badge>
+                ) : null}
               </div>
               <p className="text-xs text-slate-500 dark:text-slate-400 font-mono mt-0.5">
-                ID: {matchedDriver.employeeId || '—'} • Department: {(matchedDriver as any).department || 'Transport'}
+                ID: {matchedDriver.employeeId || '—'} {matchedDriver.department ? `• Department: ${matchedDriver.department}` : ''}
               </p>
-              <p className="text-xs font-bold text-sky-600 dark:text-sky-400 mt-0.5">
-                Designation: {(matchedDriver as any).designation || 'Driver'}
-              </p>
+              {matchedDriver.designation ? (
+                <p className="text-xs font-bold text-sky-600 dark:text-sky-400 mt-0.5">
+                  Designation: {matchedDriver.designation}
+                </p>
+              ) : null}
             </div>
           </div>
 
           <button
             type="button"
-            onClick={() => {
-              setLicenseError('');
-              setLicenseExpiryError('');
-              setIsEditing(!isEditing);
-            }}
+            onClick={isEditing ? handleCancelEdit : handleStartEdit}
             className="px-3.5 py-1.5 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-black text-xs shadow-sm flex items-center gap-1.5 transition-all cursor-pointer self-start sm:self-auto"
           >
             {isEditing ? <X className="w-3.5 h-3.5" /> : <Edit2 className="w-3.5 h-3.5" />}
@@ -412,280 +419,313 @@ export const DriverProfileView: React.FC = () => {
 
       {/* Main Profile Form Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-          {/* Left Column: Personal & Contact Information */}
-          <div className="glass-card p-4 sm:p-5 rounded-2xl border border-sky-200/80 dark:border-sky-800 bg-white dark:bg-slate-900 shadow-sm space-y-4">
-            <h3 className="font-black text-xs sm:text-sm text-slate-900 dark:text-white flex items-center gap-2 pb-2 border-b border-slate-100 dark:border-slate-800">
-              <User className="w-4 h-4 text-sky-600" /> Personal & Contact Details
-            </h3>
+        {/* Left Column: Personal & Contact Information */}
+        <div className="glass-card p-4 sm:p-5 rounded-2xl border border-sky-200/80 dark:border-sky-800 bg-white dark:bg-slate-900 shadow-sm space-y-4">
+          <h3 className="font-black text-xs sm:text-sm text-slate-900 dark:text-white flex items-center gap-2 pb-2 border-b border-slate-100 dark:border-slate-800">
+            <User className="w-4 h-4 text-sky-600" /> Personal & Contact Details
+          </h3>
 
-            {!isEditing ? (
-              <div className="space-y-3 text-xs">
+          {!isEditing ? (
+            <div className="space-y-3 text-xs">
+              <div>
+                <span className="text-[10px] uppercase font-bold text-slate-400 block">Mobile Number</span>
+                <span className="font-bold text-slate-800 dark:text-slate-200">{matchedDriver.mobileNumber || '—'}</span>
+              </div>
+              <div>
+                <span className="text-[10px] uppercase font-bold text-slate-400 block">Official Email</span>
+                <span className="font-bold text-slate-800 dark:text-slate-200">{matchedDriver.email || '—'}</span>
+              </div>
+              <div>
+                <span className="text-[10px] uppercase font-bold text-slate-400 block">Residential Address</span>
+                <span className="font-bold text-slate-800 dark:text-slate-200">{matchedDriver.address || '—'}</span>
+              </div>
+              <div className="grid grid-cols-2 gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
                 <div>
-                  <span className="text-[10px] uppercase font-bold text-slate-400 block">Mobile Number</span>
-                  <span className="font-bold text-slate-800 dark:text-slate-200">{formData.mobile}</span>
+                  <span className="text-[10px] uppercase font-bold text-slate-400 block">Blood Group</span>
+                  <span className="font-black text-rose-600">{matchedDriver.bloodGroup || '—'}</span>
                 </div>
                 <div>
-                  <span className="text-[10px] uppercase font-bold text-slate-400 block">Official Email</span>
-                  <span className="font-bold text-slate-800 dark:text-slate-200">{formData.email}</span>
-                </div>
-                <div>
-                  <span className="text-[10px] uppercase font-bold text-slate-400 block">Residential Address</span>
-                  <span className="font-bold text-slate-800 dark:text-slate-200">{formData.address || '—'}</span>
-                </div>
-                <div className="grid grid-cols-2 gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
-                  <div>
-                    <span className="text-[10px] uppercase font-bold text-slate-400 block">Blood Group</span>
-                    <span className="font-black text-rose-600">{formData.bloodGroup || matchedDriver.bloodGroup || '—'}</span>
-                  </div>
-                  <div>
-                    <span className="text-[10px] uppercase font-bold text-slate-400 block">Emergency Contact</span>
-                    <span className="font-bold text-slate-800 dark:text-slate-200">{formData.emergencyContact || matchedDriver.emergencyContact || '—'}</span>
-                  </div>
-                </div>
-                <div className="pt-2 border-t border-slate-100 dark:border-slate-800">
-                  <span className="text-[10px] uppercase font-bold text-slate-400 block">Date of Joining</span>
-                  <span className="font-bold text-slate-800 dark:text-slate-200 font-mono">
-                    {matchedDriver.dateOfJoining || '—'}
-                  </span>
+                  <span className="text-[10px] uppercase font-bold text-slate-400 block">Emergency Contact</span>
+                  <span className="font-bold text-slate-800 dark:text-slate-200">{matchedDriver.emergencyContact || '—'}</span>
                 </div>
               </div>
-            ) : (
-              <form onSubmit={handleSaveContactDetails} className="space-y-3">
+              <div className="pt-2 border-t border-slate-100 dark:border-slate-800">
+                <span className="text-[10px] uppercase font-bold text-slate-400 block">Date of Joining</span>
+                <span className="font-bold text-slate-800 dark:text-slate-200 font-mono">
+                  {matchedDriver.dateOfJoining || '—'}
+                </span>
+              </div>
+            </div>
+          ) : (
+            <form onSubmit={handleSaveContactDetails} className="space-y-3">
+              <div>
+                <label className="text-[10px] uppercase font-bold text-slate-400 block mb-1">Mobile Number</label>
+                <input
+                  type="text"
+                  value={formData.mobile}
+                  onChange={e => setFormData(prev => ({ ...prev, mobile: e.target.value }))}
+                  className={inputClass}
+                  required
+                />
+              </div>
+              <div>
+                <label className="text-[10px] uppercase font-bold text-slate-400 block mb-1">Email</label>
+                <input
+                  type="email"
+                  value={formData.email}
+                  onChange={e => setFormData(prev => ({ ...prev, email: e.target.value }))}
+                  className={inputClass}
+                  required
+                />
+              </div>
+              <div>
+                <label className="text-[10px] uppercase font-bold text-slate-400 block mb-1">Address</label>
+                <input
+                  type="text"
+                  value={formData.address}
+                  onChange={e => setFormData(prev => ({ ...prev, address: e.target.value }))}
+                  className={inputClass}
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <label className="text-[10px] uppercase font-bold text-slate-400 block mb-1">Mobile Number</label>
+                  <label className="text-[10px] uppercase font-bold text-slate-400 block mb-1">Blood Group</label>
+                  <select
+                    value={formData.bloodGroup}
+                    onChange={e => setFormData(prev => ({ ...prev, bloodGroup: e.target.value }))}
+                    className={inputClass + ' cursor-pointer'}
+                  >
+                    <option value="">Select Blood Group</option>
+                    {BLOOD_GROUPS.map(bg => (
+                      <option key={bg} value={bg}>{bg}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="text-[10px] uppercase font-bold text-slate-400 block mb-1">Emergency Contact</label>
                   <input
                     type="text"
-                    value={formData.mobile}
-                    onChange={e => setFormData(prev => ({ ...prev, mobile: e.target.value }))}
+                    value={formData.emergencyContact}
+                    onChange={e => setFormData(prev => ({ ...prev, emergencyContact: e.target.value }))}
                     className={inputClass}
-                    required
+                    placeholder="e.g. 9876543210"
                   />
                 </div>
-                <div>
-                  <label className="text-[10px] uppercase font-bold text-slate-400 block mb-1">Email</label>
-                  <input
-                    type="email"
-                    value={formData.email}
-                    onChange={e => setFormData(prev => ({ ...prev, email: e.target.value }))}
-                    className={inputClass}
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="text-[10px] uppercase font-bold text-slate-400 block mb-1">Address</label>
-                  <input
-                    type="text"
-                    value={formData.address}
-                    onChange={e => setFormData(prev => ({ ...prev, address: e.target.value }))}
-                    className={inputClass}
-                  />
-                </div>
-                <div className="grid grid-cols-2 gap-2">
-                  <div>
-                    <label className="text-[10px] uppercase font-bold text-slate-400 block mb-1">Blood Group</label>
-                    <select
-                      value={formData.bloodGroup}
-                      onChange={e => setFormData(prev => ({ ...prev, bloodGroup: e.target.value }))}
-                      className={inputClass + ' cursor-pointer'}
-                    >
-                      {['A+', 'A-', 'B+', 'B-', 'O+', 'O-', 'AB+', 'AB-'].map(bg => (
-                        <option key={bg} value={bg}>{bg}</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="text-[10px] uppercase font-bold text-slate-400 block mb-1">Emergency Contact</label>
-                    <input
-                      type="text"
-                      value={formData.emergencyContact}
-                      onChange={e => setFormData(prev => ({ ...prev, emergencyContact: e.target.value }))}
-                      className={inputClass}
-                      placeholder="e.g. 9876543210"
-                    />
-                  </div>
-                </div>
+              </div>
+              <div className="flex items-center gap-2 pt-1">
                 <button
                   type="submit"
-                  className="w-full mt-2 px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-black text-xs shadow-sm flex items-center justify-center gap-1.5 transition-all cursor-pointer"
+                  className="flex-1 px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-black text-xs shadow-sm flex items-center justify-center gap-1.5 transition-all cursor-pointer"
                 >
                   <Save className="w-3.5 h-3.5" />
                   <span>Save Changes</span>
                 </button>
-              </form>
-            )}
-          </div>
+                <button
+                  type="button"
+                  onClick={handleCancelEdit}
+                  className="px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold text-xs shadow-sm flex items-center justify-center gap-1.5 transition-all cursor-pointer"
+                >
+                  <X className="w-3.5 h-3.5" />
+                  <span>Cancel</span>
+                </button>
+              </div>
+            </form>
+          )}
+        </div>
 
-          {/* Middle Column: Driving License & Commercial Credentials */}
-          <div className="glass-card p-4 sm:p-5 rounded-2xl border border-sky-200/80 dark:border-sky-800 bg-white dark:bg-slate-900 shadow-sm space-y-4">
-            <h3 className="font-black text-xs sm:text-sm text-slate-900 dark:text-white flex items-center gap-2 pb-2 border-b border-slate-100 dark:border-slate-800">
-              <ShieldCheck className="w-4 h-4 text-emerald-600" /> License & Safety Credentials
-            </h3>
+        {/* Middle Column: Driving License & Commercial Credentials */}
+        <div className="glass-card p-4 sm:p-5 rounded-2xl border border-sky-200/80 dark:border-sky-800 bg-white dark:bg-slate-900 shadow-sm space-y-4">
+          <h3 className="font-black text-xs sm:text-sm text-slate-900 dark:text-white flex items-center gap-2 pb-2 border-b border-slate-100 dark:border-slate-800">
+            <ShieldCheck className="w-4 h-4 text-emerald-600" /> License & Safety Credentials
+          </h3>
 
-            {!isEditing ? (
-              <div className="space-y-3 text-xs">
-                <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-850/50 border border-slate-200/60 dark:border-slate-800">
-                  <span className="text-[10px] uppercase font-bold text-slate-400 block">Driving License Number</span>
-                  <span className="font-black text-sm text-slate-900 dark:text-white font-mono">
-                    {formData.licenseNumber || matchedDriver.licenseNumber || '—'}
-                  </span>
-                  <div className="flex items-center gap-2 mt-1">
-                    <Badge variant="success" size="sm">Verified {formData.licenseType || 'Commercial (HMV)'}</Badge>
-                    <span className="text-[10px] text-slate-400">Exp: {formData.licenseExpiry || '2030-12-31'}</span>
-                  </div>
-                </div>
-
-                <div className="p-3 rounded-xl bg-sky-50/60 dark:bg-sky-950/30 border border-sky-200/80 dark:border-sky-800">
-                  <span className="text-[10px] uppercase font-bold text-slate-400 block">Experience</span>
-                  <span className="font-black text-sm text-sky-600">{(formData.experienceYears !== undefined && formData.experienceYears !== '') ? formData.experienceYears : (matchedDriver.experienceYears || 0)} Years</span>
+          {!isEditing ? (
+            <div className="space-y-3 text-xs">
+              <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-850/50 border border-slate-200/60 dark:border-slate-800">
+                <span className="text-[10px] uppercase font-bold text-slate-400 block">Driving License Number</span>
+                <span className="font-black text-sm text-slate-900 dark:text-white font-mono">
+                  {matchedDriver.licenseNumber || '—'}
+                </span>
+                <div className="flex items-center gap-2 mt-1">
+                  {matchedDriver.licenseType ? (
+                    <Badge variant="success" size="sm">Verified {matchedDriver.licenseType}</Badge>
+                  ) : matchedDriver.licenseNumber ? (
+                    <Badge variant="success" size="sm">Verified License</Badge>
+                  ) : null}
+                  {matchedDriver.licenseExpiryDate ? (
+                    <span className="text-[10px] text-slate-400">Exp: {normalizeToISODate(matchedDriver.licenseExpiryDate)}</span>
+                  ) : (
+                    <span className="text-[10px] text-slate-400">Exp: —</span>
+                  )}
                 </div>
               </div>
-            ) : (
-              <form onSubmit={handleSaveLicenseDetails} noValidate className="space-y-3 text-xs">
+
+              {(matchedDriver.experienceYears !== undefined && matchedDriver.experienceYears !== null && matchedDriver.experienceYears !== '') ? (
+                <div className="p-3 rounded-xl bg-sky-50/60 dark:bg-sky-950/30 border border-sky-200/80 dark:border-sky-800">
+                  <span className="text-[10px] uppercase font-bold text-slate-400 block">Experience</span>
+                  <span className="font-black text-sm text-sky-600">{matchedDriver.experienceYears} Years</span>
+                </div>
+              ) : null}
+            </div>
+          ) : (
+            <form onSubmit={handleSaveLicenseDetails} noValidate className="space-y-3 text-xs">
+              <div>
+                <label className="text-[10px] uppercase font-bold text-slate-400 block mb-1">
+                  Driving License Number <span className="text-rose-500 font-bold">*</span>
+                </label>
+                <input
+                  type="text"
+                  data-skip-global-validation="true"
+                  value={formData.licenseNumber}
+                  onChange={e => {
+                    const sanitized = sanitizeDrivingLicenseInput(e.target.value);
+                    setFormData(prev => ({ ...prev, licenseNumber: sanitized }));
+                    if (licenseError) {
+                      const res = validateDrivingLicense(sanitized, true);
+                      if (res.isValid) {
+                        setLicenseError('');
+                      }
+                    }
+                  }}
+                  onBlur={() => {
+                    const normalized = normalizeDrivingLicense(formData.licenseNumber);
+                    setFormData(prev => ({ ...prev, licenseNumber: normalized }));
+                    const res = validateDrivingLicense(normalized, true);
+                    setLicenseError(res.isValid ? '' : (res.error || DRIVING_LICENCE_ERROR_MESSAGE));
+                  }}
+                  className={`${inputClass} font-mono ${licenseError ? '!border-rose-500 focus:!ring-rose-500/20' : ''}`}
+                  placeholder="e.g. DL-2026-0073 or MH-12-20200012345"
+                  maxLength={22}
+                  required
+                />
+                {licenseError ? (
+                  <p className="text-[11px] font-bold text-rose-500 mt-1 leading-tight">
+                    {licenseError}
+                  </p>
+                ) : (
+                  <p className="text-[10px] text-slate-400 mt-1 leading-tight">
+                    Format: e.g. MH-12-20200012345, AP13700322492018, or AP12/2007/0123456
+                  </p>
+                )}
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="text-[10px] uppercase font-bold text-slate-400 block mb-1">License Type</label>
+                  <select
+                    value={formData.licenseType}
+                    onChange={e => setFormData(prev => ({ ...prev, licenseType: e.target.value }))}
+                    className={inputClass + ' cursor-pointer'}
+                  >
+                    <option value="">Select License Type</option>
+                    {STANDARD_LICENSE_TYPES.map(type => (
+                      <option key={type} value={type}>{type}</option>
+                    ))}
+                    {formData.licenseType && !STANDARD_LICENSE_TYPES.includes(formData.licenseType) && (
+                      <option value={formData.licenseType}>{formData.licenseType}</option>
+                    )}
+                  </select>
+                </div>
                 <div>
                   <label className="text-[10px] uppercase font-bold text-slate-400 block mb-1">
-                    Driving License Number <span className="text-rose-500 font-bold">*</span>
+                    License Expiry <span className="text-rose-500 font-bold">*</span>
                   </label>
                   <input
-                    type="text"
+                    type="date"
                     data-skip-global-validation="true"
-                    value={formData.licenseNumber}
-                    onChange={e => {
-                      const sanitized = sanitizeDrivingLicenseInput(e.target.value);
-                      setFormData(prev => ({ ...prev, licenseNumber: sanitized }));
-                      if (licenseError) {
-                        const res = validateDrivingLicense(sanitized, true);
-                        if (res.isValid) {
-                          setLicenseError('');
-                        }
+                    min={todayISO}
+                    max={maxExpiryISO}
+                    value={formData.licenseExpiry}
+                    onInput={e => {
+                      const inputEl = e.currentTarget;
+                      const sanitized = sanitizeDateInputYear(inputEl.value);
+                      if (sanitized !== inputEl.value) {
+                        inputEl.value = sanitized;
                       }
                     }}
-                    onBlur={() => {
-                      const normalized = normalizeDrivingLicense(formData.licenseNumber);
-                      setFormData(prev => ({ ...prev, licenseNumber: normalized }));
-                      const res = validateDrivingLicense(normalized, true);
-                      setLicenseError(res.isValid ? '' : (res.error || DRIVING_LICENCE_ERROR_MESSAGE));
+                    onChange={e => {
+                      const sanitized = sanitizeDateInputYear(e.target.value);
+                      setFormData(prev => ({ ...prev, licenseExpiry: sanitized }));
+                      const res = validateLicenseExpiryDate(sanitized);
+                      setLicenseExpiryError(res.isValid ? '' : (res.error || ''));
                     }}
-                    className={`${inputClass} font-mono ${licenseError ? '!border-rose-500 focus:!ring-rose-500/20' : ''}`}
-                    placeholder="e.g. DL-2026-0073 or MH-12-20200012345"
-                    maxLength={22}
+                    onBlur={() => {
+                      const res = validateLicenseExpiryDate(formData.licenseExpiry);
+                      setLicenseExpiryError(res.isValid ? '' : (res.error || ''));
+                    }}
+                    className={`${inputClass} ${licenseExpiryError ? '!border-rose-500 focus:!ring-rose-500/20' : ''}`}
                     required
                   />
-                  {licenseError ? (
+                  {licenseExpiryError && (
                     <p className="text-[11px] font-bold text-rose-500 mt-1 leading-tight">
-                      {licenseError}
-                    </p>
-                  ) : (
-                    <p className="text-[10px] text-slate-400 mt-1 leading-tight">
-                      Format: e.g. MH-12-20200012345, AP13700322492018, or AP12/2007/0123456
+                      {licenseExpiryError}
                     </p>
                   )}
                 </div>
-                <div className="grid grid-cols-2 gap-2">
-                  <div>
-                    <label className="text-[10px] uppercase font-bold text-slate-400 block mb-1">License Type</label>
-                    <select
-                      value={formData.licenseType}
-                      onChange={e => setFormData(prev => ({ ...prev, licenseType: e.target.value }))}
-                      className={inputClass + ' cursor-pointer'}
-                    >
-                      <option value="Commercial (HMV)">Commercial (HMV)</option>
-                      <option value="Heavy Motor Vehicle">Heavy Motor Vehicle</option>
-                      <option value="Light Motor Vehicle">Light Motor Vehicle (LMV)</option>
-                      <option value="Transport Vehicle">Transport Vehicle</option>
-                      <option value="Commercial (LMV)">Commercial (LMV)</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="text-[10px] uppercase font-bold text-slate-400 block mb-1">
-                      License Expiry <span className="text-rose-500 font-bold">*</span>
-                    </label>
-                    <input
-                      type="date"
-                      data-skip-global-validation="true"
-                      min={todayISO}
-                      max={maxExpiryISO}
-                      value={formData.licenseExpiry}
-                      onInput={e => {
-                        const inputEl = e.currentTarget;
-                        const sanitized = sanitizeDateInputYear(inputEl.value);
-                        if (sanitized !== inputEl.value) {
-                          inputEl.value = sanitized;
-                        }
-                      }}
-                      onChange={e => {
-                        const sanitized = sanitizeDateInputYear(e.target.value);
-                        setFormData(prev => ({ ...prev, licenseExpiry: sanitized }));
-                        const res = validateLicenseExpiryDate(sanitized);
-                        setLicenseExpiryError(res.isValid ? '' : (res.error || ''));
-                      }}
-                      onBlur={() => {
-                        const res = validateLicenseExpiryDate(formData.licenseExpiry);
-                        setLicenseExpiryError(res.isValid ? '' : (res.error || ''));
-                      }}
-                      className={`${inputClass} ${licenseExpiryError ? '!border-rose-500 focus:!ring-rose-500/20' : ''}`}
-                      required
-                    />
-                    {licenseExpiryError && (
-                      <p className="text-[11px] font-bold text-rose-500 mt-1 leading-tight">
-                        {licenseExpiryError}
-                      </p>
-                    )}
-                  </div>
-                </div>
-                <div>
-                  <label className="text-[10px] uppercase font-bold text-slate-400 block mb-1">Experience (Years)</label>
-                  <input
-                    type="number"
-                    min={0}
-                    max={50}
-                    value={formData.experienceYears === '' ? '' : formData.experienceYears}
-                    onChange={e => {
-                      const val = e.target.value;
-                      setFormData(prev => ({ ...prev, experienceYears: val === '' ? '' : val }));
-                    }}
-                    className={inputClass}
-                    placeholder="e.g. 5"
-                  />
-                </div>
+              </div>
+              <div>
+                <label className="text-[10px] uppercase font-bold text-slate-400 block mb-1">Experience (Years)</label>
+                <input
+                  type="number"
+                  min={0}
+                  max={50}
+                  value={formData.experienceYears === '' ? '' : formData.experienceYears}
+                  onChange={e => {
+                    const val = e.target.value;
+                    setFormData(prev => ({ ...prev, experienceYears: val === '' ? '' : val }));
+                  }}
+                  className={inputClass}
+                  placeholder="e.g. 5"
+                />
+              </div>
+              <div className="flex items-center gap-2 pt-1">
                 <button
                   type="submit"
-                  className="w-full mt-2 px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-black text-xs shadow-sm flex items-center justify-center gap-1.5 transition-all cursor-pointer"
+                  className="flex-1 px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-black text-xs shadow-sm flex items-center justify-center gap-1.5 transition-all cursor-pointer"
                 >
                   <Save className="w-3.5 h-3.5" />
                   <span>Save License Changes</span>
                 </button>
-              </form>
-            )}
-          </div>
-
-          {/* Right Column: Assigned Fleet Bus & Route */}
-          <div className="glass-card p-4 sm:p-5 rounded-2xl border border-sky-200/80 dark:border-sky-800 bg-white dark:bg-slate-900 shadow-sm space-y-4">
-            <h3 className="font-black text-xs sm:text-sm text-slate-900 dark:text-white flex items-center gap-2 pb-2 border-b border-slate-100 dark:border-slate-800">
-              <Bus className="w-4 h-4 text-sky-600" /> Assigned Vehicle & Transit Route
-            </h3>
-
-            <div className="space-y-3 text-xs">
-              <div className="p-3 rounded-xl bg-sky-50/60 dark:bg-sky-950/30 border border-sky-200/80 dark:border-sky-800 space-y-1">
-                <span className="text-[10px] uppercase font-bold text-sky-700 dark:text-sky-300">Current Fleet Bus</span>
-                <div className="font-black text-base text-slate-900 dark:text-white">
-                  {assignedVehicle?.vehicleNumber || currentAssignment?.vehicleNumber || 'Unassigned'}
-                </div>
+                <button
+                  type="button"
+                  onClick={handleCancelEdit}
+                  className="px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold text-xs shadow-sm flex items-center justify-center gap-1.5 transition-all cursor-pointer"
+                >
+                  <X className="w-3.5 h-3.5" />
+                  <span>Cancel</span>
+                </button>
               </div>
+            </form>
+          )}
+        </div>
 
-              <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-850/50 border border-slate-200/60 dark:border-slate-800 space-y-1">
-                <span className="text-[10px] uppercase font-bold text-slate-400">Assigned Route</span>
-                <div className="font-black text-sm text-slate-900 dark:text-white flex items-center gap-1.5">
-                  <Route className="w-3.5 h-3.5 text-sky-600" />
-                  <span>{assignedRoute?.routeName || currentAssignment?.routeName || 'Unassigned'}</span>
-                </div>
-                <div className="flex items-center justify-between text-[11px] text-slate-500 pt-1 border-t border-slate-200 dark:border-slate-700">
-                  <span>Stops: <span className="font-bold text-slate-700 dark:text-slate-300">{routeStopsCount || 0}</span></span>
-                  <span>Distance: <span className="font-bold text-slate-700 dark:text-slate-300">{assignedRoute?.totalDistanceKm ? `${assignedRoute.totalDistanceKm} km` : 'N/A'}</span></span>
-                </div>
+        {/* Right Column: Assigned Fleet Bus & Route */}
+        <div className="glass-card p-4 sm:p-5 rounded-2xl border border-sky-200/80 dark:border-sky-800 bg-white dark:bg-slate-900 shadow-sm space-y-4">
+          <h3 className="font-black text-xs sm:text-sm text-slate-900 dark:text-white flex items-center gap-2 pb-2 border-b border-slate-100 dark:border-slate-800">
+            <Bus className="w-4 h-4 text-sky-600" /> Assigned Vehicle & Transit Route
+          </h3>
+
+          <div className="space-y-3 text-xs">
+            <div className="p-3 rounded-xl bg-sky-50/60 dark:bg-sky-950/30 border border-sky-200/80 dark:border-sky-800 space-y-1">
+              <span className="text-[10px] uppercase font-bold text-sky-700 dark:text-sky-300">Current Fleet Bus</span>
+              <div className="font-black text-base text-slate-900 dark:text-white">
+                {assignedVehicle?.vehicleNumber || currentAssignment?.vehicleNumber || 'Unassigned'}
+              </div>
+            </div>
+
+            <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-850/50 border border-slate-200/60 dark:border-slate-800 space-y-1">
+              <span className="text-[10px] uppercase font-bold text-slate-400">Assigned Route</span>
+              <div className="font-black text-sm text-slate-900 dark:text-white flex items-center gap-1.5">
+                <Route className="w-3.5 h-3.5 text-sky-600" />
+                <span>{assignedRoute?.routeName || currentAssignment?.routeName || 'Unassigned'}</span>
+              </div>
+              <div className="flex items-center justify-between text-[11px] text-slate-500 pt-1 border-t border-slate-200 dark:border-slate-700">
+                <span>Stops: <span className="font-bold text-slate-700 dark:text-slate-300">{routeStopsCount}</span></span>
+                <span>Distance: <span className="font-bold text-slate-700 dark:text-slate-300">{assignedRoute?.totalDistanceKm ? `${assignedRoute.totalDistanceKm} km` : '—'}</span></span>
               </div>
             </div>
           </div>
         </div>
+      </div>
     </div>
   );
 };
