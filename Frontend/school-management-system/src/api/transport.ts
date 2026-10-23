@@ -1,6 +1,7 @@
 import { apiClient } from './client';
 import { RouteMaster, PickupPoint, VehicleMaster, DriverMaster, VehicleAssignment, StudentTransport, VehicleMaintenance } from '../types';
 import { BusAttendantMaster } from '../components/modules/Transport/transportData';
+import { normalizeDrivingLicense, validateDrivingLicense, DRIVING_LICENCE_ERROR_MESSAGE } from '../utils/validation';
 import {
   initialRouteMasters,
   initialPickupPoints,
@@ -407,10 +408,24 @@ export const fetchDriverByIdApi = async (id: string): Promise<DriverMaster | und
 };
 
 export const createDriverApi = async (data: Partial<DriverMaster>): Promise<DriverMaster> => {
+  const rawLicense = data.licenseNumber || (data as any).licenceNumber || (data as any).commercialLicenseNo || '';
+  const normalizedLicense = normalizeDrivingLicense(rawLicense);
+  if (normalizedLicense) {
+    const check = validateDrivingLicense(normalizedLicense, true);
+    if (!check.isValid) {
+      throw new Error(check.error || DRIVING_LICENCE_ERROR_MESSAGE);
+    }
+  }
+
+  const payload = {
+    ...data,
+    ...(normalizedLicense ? { licenseNumber: normalizedLicense } : {})
+  };
+
   const newDriver = {
     id: data.id || `DRV-${Date.now()}`,
     driverName: data.driverName || '',
-    licenseNumber: data.licenseNumber || '',
+    licenseNumber: normalizedLicense,
     mobileNumber: data.mobileNumber || '',
     licenseExpiryDate: data.licenseExpiryDate || '',
     address: data.address || '',
@@ -424,21 +439,41 @@ export const createDriverApi = async (data: Partial<DriverMaster>): Promise<Driv
 
   return safeTransportApiCall<DriverMaster>(
     '/api/transport/drivers',
-    { method: 'POST', body: JSON.stringify(data) },
+    { method: 'POST', body: JSON.stringify(payload) },
     newDriver
   );
 };
 
 export const updateDriverApi = async (id: string, data: Partial<DriverMaster>): Promise<DriverMaster> => {
+  const rawLicense = data.licenseNumber ?? (data as any).licenceNumber ?? (data as any).commercialLicenseNo;
+  const normalizedLicense = rawLicense !== undefined ? normalizeDrivingLicense(String(rawLicense)) : undefined;
+  if (normalizedLicense) {
+    const check = validateDrivingLicense(normalizedLicense, true);
+    if (!check.isValid) {
+      throw new Error(check.error || DRIVING_LICENCE_ERROR_MESSAGE);
+    }
+  }
+
+  const payload = {
+    ...data,
+    ...(normalizedLicense !== undefined
+      ? {
+          licenseNumber: normalizedLicense,
+          licenceNumber: normalizedLicense,
+          commercialLicenseNo: normalizedLicense,
+        }
+      : {}),
+  };
+
   const idx = localDrivers.findIndex(d => String(d.id) === id);
   if (idx !== -1) {
-    localDrivers[idx] = { ...localDrivers[idx], ...data };
+    localDrivers[idx] = { ...localDrivers[idx], ...payload };
     setStoredMock('driver_masters', localDrivers);
   }
-  const updated = localDrivers[idx] || (data as DriverMaster);
+  const updated = localDrivers[idx] || (payload as DriverMaster);
   return safeTransportApiCall<DriverMaster>(
     `/api/transport/drivers/${id}`,
-    { method: 'PUT', body: JSON.stringify(data) },
+    { method: 'PUT', body: JSON.stringify(payload) },
     updated
   );
 };

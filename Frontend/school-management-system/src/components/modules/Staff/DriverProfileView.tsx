@@ -10,6 +10,35 @@ import { useData } from '../../../context/DataContext';
 import { useToast } from '../../../context/ToastContext';
 import { Badge } from '../../common/Badge';
 import { resolveMediaUrl } from '../../../utils/mediaUtils';
+import {
+  validateDrivingLicense,
+  sanitizeDrivingLicenseInput,
+  normalizeDrivingLicense,
+  DRIVING_LICENCE_ERROR_MESSAGE,
+} from '../../../utils/validation';
+import { parseDateOnly, compareDates, formatToISO } from '../../../utils/dateValidation';
+
+const normalizeToISODate = (raw?: string): string => {
+  if (!raw || typeof raw !== 'string') return '';
+  const clean = raw.trim().split(/[T ]/)[0];
+  if (!clean) return '';
+  if (/^\d{4}-\d{2}-\d{2}$/.test(clean)) return clean;
+  const parsed = parseDateOnly(clean);
+  if (parsed) {
+    return `${String(parsed.year).padStart(4, '0')}-${String(parsed.month).padStart(2, '0')}-${String(parsed.day).padStart(2, '0')}`;
+  }
+  return formatToISO(clean);
+};
+
+const sanitizeDateInputYear = (val: string): string => {
+  if (!val) return '';
+  const parts = val.split('-');
+  if (parts.length === 3 && parts[0].length > 4) {
+    parts[0] = parts[0].slice(0, 4);
+    return parts.join('-');
+  }
+  return val;
+};
 
 export const DriverProfileView: React.FC = () => {
   const { user } = useAuth();
@@ -154,6 +183,16 @@ export const DriverProfileView: React.FC = () => {
     ).length;
   }, [pickupPoints, assignedRoute]);
 
+  const todayISO = useMemo(() => {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+  }, []);
+
+  const maxExpiryISO = useMemo(() => {
+    const now = new Date();
+    return `${now.getFullYear() + 20}-12-31`;
+  }, []);
+
   // Edit Form State — includes contact and license fields
   const [formData, setFormData] = useState({
     mobile: matchedDriver.mobileNumber || user?.phone || '',
@@ -163,57 +202,106 @@ export const DriverProfileView: React.FC = () => {
     bloodGroup: (matchedDriver as any).bloodGroup || 'O+',
     licenseNumber: matchedDriver.licenseNumber || '',
     licenseType: (matchedDriver as any).licenseType || 'Commercial (HMV)',
-    licenseExpiry: (matchedDriver as any).licenseExpiryDate || '',
+    licenseExpiry: normalizeToISODate((matchedDriver as any).licenseExpiryDate || ''),
     experienceYears: (matchedDriver.experienceYears !== undefined && matchedDriver.experienceYears !== null) ? matchedDriver.experienceYears : 0,
   });
 
-  // Sync formData whenever matchedDriver or saved profile changes
+  const [licenseError, setLicenseError] = useState<string>('');
+  const [licenseExpiryError, setLicenseExpiryError] = useState<string>('');
+
+  const validateLicenseExpiryDate = (dateStr: string): { isValid: boolean; error?: string } => {
+    if (!dateStr || !dateStr.trim()) {
+      return { isValid: false, error: 'License expiry date is required.' };
+    }
+    const rawParts = dateStr.trim().split('-');
+    if (rawParts.length !== 3 || rawParts[0].length !== 4) {
+      return { isValid: false, error: 'Please enter a valid 4-digit year.' };
+    }
+    const yearNum = parseInt(rawParts[0], 10);
+    const currentYear = new Date().getFullYear();
+    if (isNaN(yearNum) || yearNum < 1900 || yearNum > currentYear + 20) {
+      return {
+        isValid: false,
+        error: `Please enter a valid year between ${currentYear} and ${currentYear + 20}.`
+      };
+    }
+    const parsed = parseDateOnly(dateStr);
+    if (!parsed) {
+      return { isValid: false, error: 'Please enter a valid license expiry date.' };
+    }
+    const todayParts = parseDateOnly(todayISO);
+    if (todayParts && compareDates(parsed, todayParts) < 0) {
+      return {
+        isValid: false,
+        error: 'License expiry date cannot be in the past. Please enter a valid future expiry date.'
+      };
+    }
+    return { isValid: true };
+  };
+
+  // Sync formData whenever matchedDriver or saved profile changes (only when not actively editing)
   useEffect(() => {
+    if (isEditing) return;
     try {
       const key = `driver_profile_${matchedDriver.employeeId || matchedDriver.id || user?.id || 'current'}`;
       const saved = localStorage.getItem(key);
       const parsed = saved ? JSON.parse(saved) : null;
       setFormData({
-        mobile: parsed?.mobile !== undefined ? parsed.mobile : (matchedDriver.mobileNumber || user?.phone || ''),
-        email: parsed?.email !== undefined ? parsed.email : ((matchedDriver as any).email || user?.email || ''),
-        address: parsed?.address !== undefined ? parsed.address : ((matchedDriver as any).address || ''),
-        emergencyContact: parsed?.emergencyContact !== undefined ? parsed.emergencyContact : ((matchedDriver as any).emergencyContact || ''),
-        bloodGroup: parsed?.bloodGroup !== undefined ? parsed.bloodGroup : ((matchedDriver as any).bloodGroup || 'O+'),
-        licenseNumber: parsed?.licenseNumber !== undefined ? parsed.licenseNumber : (matchedDriver.licenseNumber || ''),
-        licenseType: parsed?.licenseType !== undefined ? parsed.licenseType : ((matchedDriver as any).licenseType || 'Commercial (HMV)'),
-        licenseExpiry: parsed?.licenseExpiry !== undefined ? parsed.licenseExpiry : ((matchedDriver as any).licenseExpiryDate || ''),
-        experienceYears: parsed?.experienceYears !== undefined ? parsed.experienceYears : (matchedDriver.experienceYears !== undefined ? matchedDriver.experienceYears : 0),
+        mobile: (parsed?.mobile && String(parsed.mobile).trim()) ? parsed.mobile : (matchedDriver.mobileNumber || user?.phone || ''),
+        email: (parsed?.email && String(parsed.email).trim()) ? parsed.email : ((matchedDriver as any).email || user?.email || ''),
+        address: parsed?.address !== undefined && String(parsed.address).trim() !== '' ? parsed.address : ((matchedDriver as any).address || ''),
+        emergencyContact: parsed?.emergencyContact !== undefined && String(parsed.emergencyContact).trim() !== '' ? parsed.emergencyContact : ((matchedDriver as any).emergencyContact || ''),
+        bloodGroup: parsed?.bloodGroup ? parsed.bloodGroup : ((matchedDriver as any).bloodGroup || 'O+'),
+        licenseNumber: (parsed?.licenseNumber && String(parsed.licenseNumber).trim()) ? String(parsed.licenseNumber).trim().toUpperCase() : (matchedDriver.licenseNumber || ''),
+        licenseType: parsed?.licenseType ? parsed.licenseType : ((matchedDriver as any).licenseType || 'Commercial (HMV)'),
+        licenseExpiry: normalizeToISODate(
+          (parsed?.licenseExpiry && String(parsed.licenseExpiry).trim())
+            ? parsed.licenseExpiry
+            : ((matchedDriver as any).licenseExpiryDate || '')
+        ),
+        experienceYears: parsed?.experienceYears !== undefined && parsed?.experienceYears !== '' ? parsed.experienceYears : (matchedDriver.experienceYears !== undefined ? matchedDriver.experienceYears : 0),
       });
     } catch (e) {}
-  }, [matchedDriver, user]);
+  }, [matchedDriver, user, isEditing]);
 
-  const handleSaveProfile = async (e: React.FormEvent) => {
+  const persistProfileData = async (normalizedLicense?: string, normalizedExpiry?: string) => {
+    const parsedExp = formData.experienceYears === '' ? 0 : Number(formData.experienceYears) || 0;
+    const finalLicense = normalizedLicense !== undefined ? normalizedLicense : formData.licenseNumber.trim().toUpperCase();
+    const finalExpiry = normalizedExpiry !== undefined ? normalizedExpiry : normalizeToISODate(formData.licenseExpiry);
+
+    const dataToSave = {
+      ...formData,
+      licenseNumber: finalLicense,
+      licenseExpiry: finalExpiry,
+      experienceYears: parsedExp,
+    };
+
+    localStorage.setItem(
+      `driver_profile_${matchedDriver.employeeId || matchedDriver.id || user?.id || 'current'}`,
+      JSON.stringify(dataToSave)
+    );
+
+    if (matchedDriver?.id && updateDriverMaster) {
+      await updateDriverMaster(String(matchedDriver.id), {
+        employeeId: matchedDriver.employeeId || undefined,
+        driverName: matchedDriver.driverName || undefined,
+        licenseNumber: finalLicense,
+        licenseExpiryDate: finalExpiry,
+        licenseType: formData.licenseType,
+        experienceYears: parsedExp,
+        mobileNumber: formData.mobile,
+        email: formData.email,
+        address: formData.address,
+        emergencyContact: formData.emergencyContact,
+      });
+    }
+  };
+
+  const handleSaveContactDetails = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const parsedExp = formData.experienceYears === '' ? 0 : Number(formData.experienceYears) || 0;
-      const dataToSave = {
-        ...formData,
-        experienceYears: parsedExp,
-      };
-
-      // Save contact details + license details to localStorage
-      localStorage.setItem(`driver_profile_${matchedDriver.employeeId || matchedDriver.id || user?.id || 'current'}`, JSON.stringify(dataToSave));
-
-      // Also update DriverMaster via DataContext for persistence
-      if (matchedDriver?.id && updateDriverMaster) {
-        await updateDriverMaster(String(matchedDriver.id), {
-          licenseNumber: formData.licenseNumber,
-          licenseExpiryDate: formData.licenseExpiry,
-          licenseType: formData.licenseType,
-          experienceYears: parsedExp,
-          mobileNumber: formData.mobile,
-          email: formData.email,
-          address: formData.address,
-          emergencyContact: formData.emergencyContact,
-        });
-      }
-
-      addToast('success', 'Profile Updated', 'Driver profile and license details saved successfully.');
+      await persistProfileData();
+      addToast('success', 'Profile Updated', 'Personal and contact details saved successfully.');
       setIsEditing(false);
     } catch (err) {
       console.error(err);
@@ -221,7 +309,45 @@ export const DriverProfileView: React.FC = () => {
     }
   };
 
-  const inputClass = "w-full px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-bold focus:ring-2 focus:ring-sky-500/20 outline-none";
+  const handleSaveLicenseDetails = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    const normalizedLic = normalizeDrivingLicense(formData.licenseNumber);
+    const licCheck = validateDrivingLicense(normalizedLic, true);
+    if (!licCheck.isValid) {
+      setLicenseError(licCheck.error || DRIVING_LICENCE_ERROR_MESSAGE);
+      addToast('error', 'Invalid License Number', licCheck.error || DRIVING_LICENCE_ERROR_MESSAGE);
+      return;
+    }
+
+    const expCheck = validateLicenseExpiryDate(formData.licenseExpiry);
+    if (!expCheck.isValid) {
+      setLicenseExpiryError(expCheck.error || 'Enter a valid license expiry date.');
+      addToast('error', 'Invalid Expiry Date', expCheck.error || 'Please enter a valid license expiry date.');
+      return;
+    }
+
+    setLicenseError('');
+    setLicenseExpiryError('');
+
+    try {
+      const cleanLicense = normalizedLic;
+      const cleanExpiry = normalizeToISODate(formData.licenseExpiry);
+      setFormData(prev => ({
+        ...prev,
+        licenseNumber: cleanLicense,
+        licenseExpiry: cleanExpiry,
+      }));
+      await persistProfileData(cleanLicense, cleanExpiry);
+      addToast('success', 'License Credentials Updated', 'Driving license number and expiry date saved successfully.');
+      setIsEditing(false);
+    } catch (err) {
+      console.error(err);
+      addToast('error', 'Update Failed', 'Could not save license changes.');
+    }
+  };
+
+  const inputClass = "w-full px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white text-xs font-bold focus:ring-2 focus:ring-sky-500/20 outline-none";
 
   return (
     <div className="space-y-4 max-w-7xl mx-auto pb-12 animate-in fade-in">
@@ -270,7 +396,12 @@ export const DriverProfileView: React.FC = () => {
           </div>
 
           <button
-            onClick={() => setIsEditing(!isEditing)}
+            type="button"
+            onClick={() => {
+              setLicenseError('');
+              setLicenseExpiryError('');
+              setIsEditing(!isEditing);
+            }}
             className="px-3.5 py-1.5 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-black text-xs shadow-sm flex items-center gap-1.5 transition-all cursor-pointer self-start sm:self-auto"
           >
             {isEditing ? <X className="w-3.5 h-3.5" /> : <Edit2 className="w-3.5 h-3.5" />}
@@ -280,8 +411,7 @@ export const DriverProfileView: React.FC = () => {
       </div>
 
       {/* Main Profile Form Grid */}
-      <form onSubmit={handleSaveProfile}>
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
           {/* Left Column: Personal & Contact Information */}
           <div className="glass-card p-4 sm:p-5 rounded-2xl border border-sky-200/80 dark:border-sky-800 bg-white dark:bg-slate-900 shadow-sm space-y-4">
             <h3 className="font-black text-xs sm:text-sm text-slate-900 dark:text-white flex items-center gap-2 pb-2 border-b border-slate-100 dark:border-slate-800">
@@ -320,13 +450,13 @@ export const DriverProfileView: React.FC = () => {
                 </div>
               </div>
             ) : (
-              <div className="space-y-3">
+              <form onSubmit={handleSaveContactDetails} className="space-y-3">
                 <div>
                   <label className="text-[10px] uppercase font-bold text-slate-400 block mb-1">Mobile Number</label>
                   <input
                     type="text"
                     value={formData.mobile}
-                    onChange={e => setFormData({ ...formData, mobile: e.target.value })}
+                    onChange={e => setFormData(prev => ({ ...prev, mobile: e.target.value }))}
                     className={inputClass}
                     required
                   />
@@ -336,7 +466,7 @@ export const DriverProfileView: React.FC = () => {
                   <input
                     type="email"
                     value={formData.email}
-                    onChange={e => setFormData({ ...formData, email: e.target.value })}
+                    onChange={e => setFormData(prev => ({ ...prev, email: e.target.value }))}
                     className={inputClass}
                     required
                   />
@@ -346,7 +476,7 @@ export const DriverProfileView: React.FC = () => {
                   <input
                     type="text"
                     value={formData.address}
-                    onChange={e => setFormData({ ...formData, address: e.target.value })}
+                    onChange={e => setFormData(prev => ({ ...prev, address: e.target.value }))}
                     className={inputClass}
                   />
                 </div>
@@ -355,7 +485,7 @@ export const DriverProfileView: React.FC = () => {
                     <label className="text-[10px] uppercase font-bold text-slate-400 block mb-1">Blood Group</label>
                     <select
                       value={formData.bloodGroup}
-                      onChange={e => setFormData({ ...formData, bloodGroup: e.target.value })}
+                      onChange={e => setFormData(prev => ({ ...prev, bloodGroup: e.target.value }))}
                       className={inputClass + ' cursor-pointer'}
                     >
                       {['A+', 'A-', 'B+', 'B-', 'O+', 'O-', 'AB+', 'AB-'].map(bg => (
@@ -368,7 +498,7 @@ export const DriverProfileView: React.FC = () => {
                     <input
                       type="text"
                       value={formData.emergencyContact}
-                      onChange={e => setFormData({ ...formData, emergencyContact: e.target.value })}
+                      onChange={e => setFormData(prev => ({ ...prev, emergencyContact: e.target.value }))}
                       className={inputClass}
                       placeholder="e.g. 9876543210"
                     />
@@ -381,7 +511,7 @@ export const DriverProfileView: React.FC = () => {
                   <Save className="w-3.5 h-3.5" />
                   <span>Save Changes</span>
                 </button>
-              </div>
+              </form>
             )}
           </div>
 
@@ -410,24 +540,52 @@ export const DriverProfileView: React.FC = () => {
                 </div>
               </div>
             ) : (
-              <div className="space-y-3 text-xs">
+              <form onSubmit={handleSaveLicenseDetails} noValidate className="space-y-3 text-xs">
                 <div>
-                  <label className="text-[10px] uppercase font-bold text-slate-400 block mb-1">Driving License Number</label>
+                  <label className="text-[10px] uppercase font-bold text-slate-400 block mb-1">
+                    Driving License Number <span className="text-rose-500 font-bold">*</span>
+                  </label>
                   <input
                     type="text"
+                    data-skip-global-validation="true"
                     value={formData.licenseNumber}
-                    onChange={e => setFormData({ ...formData, licenseNumber: e.target.value })}
-                    className={inputClass + ' font-mono'}
-                    placeholder="e.g. DL-2026-0073"
+                    onChange={e => {
+                      const sanitized = sanitizeDrivingLicenseInput(e.target.value);
+                      setFormData(prev => ({ ...prev, licenseNumber: sanitized }));
+                      if (licenseError) {
+                        const res = validateDrivingLicense(sanitized, true);
+                        if (res.isValid) {
+                          setLicenseError('');
+                        }
+                      }
+                    }}
+                    onBlur={() => {
+                      const normalized = normalizeDrivingLicense(formData.licenseNumber);
+                      setFormData(prev => ({ ...prev, licenseNumber: normalized }));
+                      const res = validateDrivingLicense(normalized, true);
+                      setLicenseError(res.isValid ? '' : (res.error || DRIVING_LICENCE_ERROR_MESSAGE));
+                    }}
+                    className={`${inputClass} font-mono ${licenseError ? '!border-rose-500 focus:!ring-rose-500/20' : ''}`}
+                    placeholder="e.g. DL-2026-0073 or MH-12-20200012345"
+                    maxLength={22}
                     required
                   />
+                  {licenseError ? (
+                    <p className="text-[11px] font-bold text-rose-500 mt-1 leading-tight">
+                      {licenseError}
+                    </p>
+                  ) : (
+                    <p className="text-[10px] text-slate-400 mt-1 leading-tight">
+                      Format: e.g. MH-12-20200012345, AP13700322492018, or AP12/2007/0123456
+                    </p>
+                  )}
                 </div>
                 <div className="grid grid-cols-2 gap-2">
                   <div>
                     <label className="text-[10px] uppercase font-bold text-slate-400 block mb-1">License Type</label>
                     <select
                       value={formData.licenseType}
-                      onChange={e => setFormData({ ...formData, licenseType: e.target.value })}
+                      onChange={e => setFormData(prev => ({ ...prev, licenseType: e.target.value }))}
                       className={inputClass + ' cursor-pointer'}
                     >
                       <option value="Commercial (HMV)">Commercial (HMV)</option>
@@ -438,14 +596,40 @@ export const DriverProfileView: React.FC = () => {
                     </select>
                   </div>
                   <div>
-                    <label className="text-[10px] uppercase font-bold text-slate-400 block mb-1">License Expiry</label>
+                    <label className="text-[10px] uppercase font-bold text-slate-400 block mb-1">
+                      License Expiry <span className="text-rose-500 font-bold">*</span>
+                    </label>
                     <input
                       type="date"
+                      data-skip-global-validation="true"
+                      min={todayISO}
+                      max={maxExpiryISO}
                       value={formData.licenseExpiry}
-                      onChange={e => setFormData({ ...formData, licenseExpiry: e.target.value })}
-                      className={inputClass}
+                      onInput={e => {
+                        const inputEl = e.currentTarget;
+                        const sanitized = sanitizeDateInputYear(inputEl.value);
+                        if (sanitized !== inputEl.value) {
+                          inputEl.value = sanitized;
+                        }
+                      }}
+                      onChange={e => {
+                        const sanitized = sanitizeDateInputYear(e.target.value);
+                        setFormData(prev => ({ ...prev, licenseExpiry: sanitized }));
+                        const res = validateLicenseExpiryDate(sanitized);
+                        setLicenseExpiryError(res.isValid ? '' : (res.error || ''));
+                      }}
+                      onBlur={() => {
+                        const res = validateLicenseExpiryDate(formData.licenseExpiry);
+                        setLicenseExpiryError(res.isValid ? '' : (res.error || ''));
+                      }}
+                      className={`${inputClass} ${licenseExpiryError ? '!border-rose-500 focus:!ring-rose-500/20' : ''}`}
                       required
                     />
+                    {licenseExpiryError && (
+                      <p className="text-[11px] font-bold text-rose-500 mt-1 leading-tight">
+                        {licenseExpiryError}
+                      </p>
+                    )}
                   </div>
                 </div>
                 <div>
@@ -457,7 +641,7 @@ export const DriverProfileView: React.FC = () => {
                     value={formData.experienceYears === '' ? '' : formData.experienceYears}
                     onChange={e => {
                       const val = e.target.value;
-                      setFormData({ ...formData, experienceYears: val === '' ? '' : val });
+                      setFormData(prev => ({ ...prev, experienceYears: val === '' ? '' : val }));
                     }}
                     className={inputClass}
                     placeholder="e.g. 5"
@@ -470,7 +654,7 @@ export const DriverProfileView: React.FC = () => {
                   <Save className="w-3.5 h-3.5" />
                   <span>Save License Changes</span>
                 </button>
-              </div>
+              </form>
             )}
           </div>
 
@@ -502,7 +686,6 @@ export const DriverProfileView: React.FC = () => {
             </div>
           </div>
         </div>
-      </form>
     </div>
   );
 };
