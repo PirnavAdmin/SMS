@@ -393,7 +393,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
     setCityError("");
     setFormData({
       appliedClass: "Select Class",
-      section: "A",
+      section: "Unassigned",
       gender: "",
       dob: "",
       bloodGroup: "",
@@ -866,7 +866,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
 
   const [formData, setFormData] = useState<Partial<AdmissionApplication>>({
     appliedClass: "",
-    section: "A",
+    section: "Unassigned",
     gender: "" as any,
     dob: "",
     bloodGroup: "",
@@ -1691,7 +1691,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
     setSiblingStudentIds([]);
     setFormData({
       appliedClass: "",
-      section: "A",
+      section: "Unassigned",
       gender: "" as any,
       dob: "",
       bloodGroup: "",
@@ -2478,7 +2478,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
       if (editingApp) {
         await updateAdmission(editingApp.id, {
           ...formData,
-          section: formData.section || availableSections[0] || "A",
+          section: formData.section || "Unassigned",
           parentName: formattedParentName,
           motherName: formattedMotherName,
           email: formData.email || "",
@@ -2599,7 +2599,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
           applicantName: fullApplicantName,
           avatar,
           appliedClass: formData.appliedClass!,
-          section: formData.section || availableSections[0] || "A",
+          section: formData.section || "Unassigned",
           gender: formData.gender,
           dob: finalDob,
           bloodGroup: formData.bloodGroup,
@@ -2684,7 +2684,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
               lastName: lastName.trim(),
               admissionNo: admNo,
               className: formData.appliedClass,
-              section: formData.section || availableSections[0] || "A",
+              section: formData.section || "Unassigned",
               studentType: "Residential",
               isResidential: true,
               phone: formData.phone || "",
@@ -3306,8 +3306,8 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                       </div>
                     </div>
 
-                    {/* Class, Section, Gender, Campus */}
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                    {/* Class, Gender, Campus */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                       <div>
                         <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">
                           Class <span className="text-rose-500 font-bold ml-0.5">*</span>
@@ -3330,31 +3330,6 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                             {classOptions.map((className) => (
                               <option key={className} value={className}>
                                 {className}
-                              </option>
-                            ))}
-                          </select>
-                          <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-                        </div>
-                      </div>
-                      <div>
-                        <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">
-                          Section <span className="text-rose-500 font-bold ml-0.5">*</span>
-                        </label>
-                        <div className="relative">
-                          <select
-                            required
-                            value={formData.section || availableSections[0] || "A"}
-                            onChange={(e) =>
-                              setFormData((prev) => ({
-                                ...prev,
-                                section: e.target.value,
-                              }))
-                            }
-                            className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none appearance-none cursor-pointer pr-10"
-                          >
-                            {availableSections.map((sec) => (
-                              <option key={sec} value={sec}>
-                                {sec.toLowerCase().startsWith("section") ? sec : `Section ${sec}`}
                               </option>
                             ))}
                           </select>

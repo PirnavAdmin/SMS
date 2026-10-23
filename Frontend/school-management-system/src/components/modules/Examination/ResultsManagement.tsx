@@ -360,7 +360,7 @@ export const ResultsManagement: React.FC<ResultsManagementProps> = ({
                   >
                     <option value="">-- Select Section --</option>
                     {availableSections.map(sec => (
-                      <option key={sec} value={sec}>{sec.startsWith('Section') ? sec : `Section ${sec}`}</option>
+                      <option key={sec} value={sec}>{sec.toLowerCase() === 'unassigned' ? 'Unassigned' : (sec.startsWith('Section') ? sec : `Section ${sec}`)}</option>
                     ))}
                   </select>
                 </div>

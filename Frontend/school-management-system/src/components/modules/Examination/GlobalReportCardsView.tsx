@@ -913,7 +913,7 @@ export const GlobalReportCardsView: React.FC<GlobalReportCardsViewProps> = ({ on
               <option value="">All Sections</option>
               {availableSections.map(sec => (
                 <option key={sec} value={sec}>
-                  {sec.startsWith('Section') ? sec : `Section ${sec}`}
+                  {sec.toLowerCase() === 'unassigned' ? 'Unassigned' : (sec.startsWith('Section') ? sec : `Section ${sec}`)}
                 </option>
               ))}
             </select>

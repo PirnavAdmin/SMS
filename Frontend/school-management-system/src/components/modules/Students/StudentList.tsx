@@ -767,7 +767,7 @@ export const StudentList: React.FC<{ onNavigate?: (module: string) => void }> = 
                 className="px-4 py-2 rounded-2xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none cursor-pointer focus:border-sky-500"
               >
                 {teacherSectionOptions.map((sec) => (
-                  <option key={sec} value={sec}>{sec === 'All' ? 'All Sections' : `Section ${sec}`}</option>
+                  <option key={sec} value={sec}>{sec === 'All' ? 'All Sections' : sec.toLowerCase() === 'unassigned' ? 'Unassigned' : `Section ${sec}`}</option>
                 ))}
               </select>
             </div>
@@ -1520,9 +1520,9 @@ export const StudentList: React.FC<{ onNavigate?: (module: string) => void }> = 
                             key={sec.sectionName}
                             onClick={() => handleSelectSectionChip(cls.className, sec.sectionName)}
                             className="group/chip inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl border border-slate-200 dark:border-slate-700/80 bg-slate-50 dark:bg-slate-800/60 hover:bg-brand-600 hover:border-brand-600 text-slate-700 dark:text-slate-200 hover:text-white transition-all cursor-pointer shadow-2xs"
-                            title={`View students in ${cls.className} - Section ${sec.sectionName}`}
+                            title={`View students in ${cls.className} - ${sec.sectionName.toLowerCase() === 'unassigned' ? 'Unassigned' : `Section ${sec.sectionName}`}`}
                           >
-                            <span className="text-xs font-bold">Section {sec.sectionName}</span>
+                            <span className="text-xs font-bold">{sec.sectionName.toLowerCase() === 'unassigned' ? 'Unassigned' : `Section ${sec.sectionName}`}</span>
                             <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md bg-white/80 dark:bg-slate-900/80 group-hover/chip:bg-white/20 text-[10px] font-black text-slate-800 dark:text-slate-200 group-hover/chip:text-white">
                               👥 {sec.count}
                             </span>
