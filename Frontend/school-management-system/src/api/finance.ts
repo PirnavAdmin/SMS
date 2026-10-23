@@ -993,9 +993,68 @@ export const deleteUniformFeeConfigApi = async (id: number | string) => {
   });
 };
 
+// =========================================================================
+// STUDENT CATEGORY TRANSITION & TRANSPORT/HOSTEL ADJUSTMENT APIS
+// =========================================================================
 
+export interface StudentCategoryTransitionPayload {
+  studentId: number;
+  admissionNo?: string;
+  newStudentType: 'Residential' | 'Non-Residential';
+  effectiveDate?: string;
+  transportEndDate?: string;
+  hostelJoiningDate?: string;
+  hostelId?: number;
+  roomId?: number;
+  bedNumber?: string;
+  applyTransportCreditToHostel?: boolean;
+  remarks?: string;
+}
 
+export const transitionStudentCategoryApi = async (payload: StudentCategoryTransitionPayload) => {
+  return apiClient('/api/finance/fee-collection/student-transition', {
+    method: 'POST',
+    body: JSON.stringify(payload)
+  });
+};
 
+export interface ApplyTransportCreditPayload {
+  studentId: number;
+  admissionNo?: string;
+  amount: number;
+  targetFeeHead?: string;
+  reason?: string;
+  authorizedBy?: string;
+}
 
+export const applyTransportCreditApi = async (payload: ApplyTransportCreditPayload) => {
+  return apiClient('/api/finance/fee-collection/apply-transport-credit', {
+    method: 'POST',
+    body: JSON.stringify(payload)
+  });
+};
 
+export interface RefundSecurityDepositPayload {
+  studentId: number;
+  admissionNo?: string;
+  refundAmount: number;
+  deductionAmount?: number;
+  deductionReason?: string;
+  paymentMode?: string;
+  remarks?: string;
+  authorizedBy?: string;
+}
 
+export const refundSecurityDepositApi = async (payload: RefundSecurityDepositPayload) => {
+  return apiClient('/api/finance/fee-collection/refund-security-deposit', {
+    method: 'POST',
+    body: JSON.stringify(payload)
+  });
+};
+
+export const recalculateStudentFeeProfileApi = async (studentId: number, academicYear?: string) => {
+  const qs = academicYear ? `?academicYear=${encodeURIComponent(academicYear)}` : '';
+  return apiClient(`/api/finance/fee-collection/recalculate-student/${studentId}${qs}`, {
+    method: 'POST'
+  });
+};

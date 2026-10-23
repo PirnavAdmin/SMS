@@ -428,16 +428,17 @@ public class FeeCollectionRepository : IFeeCollectionRepository
         decimal totalPaid = payments.Sum(p => p.Amount);
         decimal totalDiscounts = payments.Sum(p => p.DiscountAmount);
 
+        // Check residential / hosteller status
         bool isHosteller = await _context.StudentBedAllocations.AsNoTracking()
             .AnyAsync(b => (b.StudentId == student.StudentId || (student.AdmissionNumber != null && b.RegistrationNo == student.AdmissionNumber)) && 
                            (b.Status == "Active" || b.Status == "Occupied" || string.IsNullOrEmpty(b.Status)));
 
-        if (!isHosteller && !string.IsNullOrEmpty(student.AdmissionNumber))
+        var appRecord = await _context.AdmissionApplications.AsNoTracking()
+            .FirstOrDefaultAsync(a => !a.IsDeleted && student.AdmissionNumber != null && (a.AdmissionNo == student.AdmissionNumber || a.RegistrationNo == student.AdmissionNumber));
+
+        if (!isHosteller && appRecord != null)
         {
-            isHosteller = await _context.AdmissionApplications.AsNoTracking()
-                .AnyAsync(a => !a.IsDeleted && (a.AdmissionNo == student.AdmissionNumber || a.RegistrationNo == student.AdmissionNumber) &&
-                               a.StudentType == "Residential") &&
-            !await _context.AdmissionApplications.AsNoTracking().AnyAsync(a => !a.IsDeleted && (a.AdmissionNo == student.AdmissionNumber || a.RegistrationNo == student.AdmissionNumber || a.Id == student.StudentId) && a.StudentType != "Residential");
+            isHosteller = appRecord.StudentType == "Residential";
         }
 
         var feeStructures = await _context.DynamicFeeStructures.AsNoTracking().ToListAsync();
@@ -537,6 +538,12 @@ public class FeeCollectionRepository : IFeeCollectionRepository
             return terms;
         }
 
+        // ==========================================
+        // 1. TUITION & ACADEMIC LINE ITEMS
+        // ==========================================
+        decimal tuitionAssessed = 0m;
+        decimal tuitionPaid = 0m;
+
         if (totalExpectedFee > 0m)
         {
             List<FeeStructureItemDto>? parsedItems = null;
@@ -557,6 +564,9 @@ public class FeeCollectionRepository : IFeeCollectionRepository
                     decimal itemPaid = Math.Min(itemTotal, runningPaid);
                     runningPaid -= itemPaid;
                     decimal itemRemaining = Math.Max(0m, itemTotal - itemPaid);
+
+                    tuitionAssessed += itemTotal;
+                    tuitionPaid += itemPaid;
 
                     var itemTerms = BuildDynamicTerms(itemTotal, itemPaid);
                     bool isOverdue = itemRemaining > 0 && itemTerms.Any(t => t.IsOverdue);
@@ -585,6 +595,9 @@ public class FeeCollectionRepository : IFeeCollectionRepository
                 runningPaid -= itemPaid;
                 decimal itemRemaining = Math.Max(0m, itemTotal - itemPaid);
 
+                tuitionAssessed = itemTotal;
+                tuitionPaid = itemPaid;
+
                 var itemTerms = BuildDynamicTerms(itemTotal, itemPaid);
                 bool isOverdue = itemRemaining > 0 && itemTerms.Any(t => t.IsOverdue);
                 int daysOverdue = isOverdue ? itemTerms.Max(t => t.DaysOverdue) : 0;
@@ -605,88 +618,202 @@ public class FeeCollectionRepository : IFeeCollectionRepository
                 });
             }
         }
+        decimal tuitionRemainingDue = Math.Max(0m, tuitionAssessed - tuitionPaid);
 
-        if (!isHosteller)
+        // ==========================================
+        // 2. PAYMENT BREAKDOWN BY CATEGORY
+        // ==========================================
+        decimal rawTransportPaid = 0m;
+        decimal rawDepositPaid = 0m;
+        decimal rawHostelPaid = 0m;
+
+        foreach (var p in payments)
         {
-            var ta = await _context.StudentTransportAssignments.AsNoTracking()
-                .Include(t => t.Route)
-                .Include(t => t.PickupPoint)
-                .FirstOrDefaultAsync(t => (t.StudentId == student.StudentId || (student.AdmissionNumber != null && t.AdmissionNo == student.AdmissionNumber)) && t.Status && !t.IsDeleted);
-
-            var app = await _context.AdmissionApplications.AsNoTracking()
-                .FirstOrDefaultAsync(a => student.AdmissionNumber != null && (a.AdmissionNo == student.AdmissionNumber || a.RegistrationNo == student.AdmissionNumber) && a.TransportRequired == true);
-
-            bool requiresTransport = ta != null || (app != null && app.TransportRequired == true);
-
-            if (requiresTransport)
+            bool handledInJson = false;
+            if (!string.IsNullOrEmpty(p.PaidItemsJson))
             {
-                var route = ta?.Route;
-                if (route == null && app != null && !string.IsNullOrEmpty(app.BusRoute))
+                try
                 {
-                    route = await _context.TransportRoutes.AsNoTracking()
-                        .FirstOrDefaultAsync(r => r.RouteName == app.BusRoute || r.RouteId.ToString() == app.BusRoute);
-                }
-
-                var pickup = ta?.PickupPoint;
-                if (pickup == null && app != null && !string.IsNullOrEmpty(app.PickupPoint))
-                {
-                    pickup = await _context.PickupPoints.AsNoTracking()
-                        .FirstOrDefaultAsync(p => p.PickupPointName == app.PickupPoint || p.PickupPointId.ToString() == app.PickupPoint);
-                }
-
-                decimal distance = pickup?.DistanceFromStart ?? (route?.DistanceKm ?? 0m);
-                decimal minKm = route?.MinRangeKm ?? 5m;
-                string trpType = ta?.TransportType ?? app?.TransportType ?? "AC";
-                bool isAc = trpType.Contains("AC", StringComparison.OrdinalIgnoreCase);
-                decimal baseFare = isAc ? (route?.AcBaseFare ?? 1200m) : (route?.NonAcBaseFare ?? 1000m);
-                decimal ratePerKm = isAc ? (route?.AcRatePerKm ?? 150m) : (route?.NonAcRatePerKm ?? 100m);
-                decimal monthlyFare = baseFare + Math.Max(0m, distance - minKm) * ratePerKm;
-                decimal annualTransportFare = monthlyFare * 12m;
-
-                if (annualTransportFare > 0m)
-                {
-                    decimal paidTransport = payments.Where(p => 
-                        (p.FeeHeadName != null && p.FeeHeadName.Contains("Transport", StringComparison.OrdinalIgnoreCase)) ||
-                        (p.TermName != null && p.TermName.Contains("Transport", StringComparison.OrdinalIgnoreCase))
-                    ).Sum(p => p.Amount);
-
-                    decimal trpRemaining = Math.Max(0m, annualTransportFare - paidTransport);
-                    var trpTerms = BuildDynamicTerms(annualTransportFare, paidTransport, "trp");
-
-                    bool isTrpOverdue = trpRemaining > 0 && trpTerms.Any(t => t.IsOverdue);
-                    int trpDaysOverdue = isTrpOverdue ? trpTerms.Max(t => t.DaysOverdue) : 0;
-
-                    var transportHead = await _context.FeeHeads.AsNoTracking()
-                        .FirstOrDefaultAsync(h => h.Category.Contains("Transport") || h.Name.Contains("Transport"));
-
-                    string trpHeadId = transportHead?.Code ?? (!string.IsNullOrEmpty(transportHead?.Id.ToString()) ? transportHead.Id.ToString() : "FH-TRP");
-                    string trpFrequency = !string.IsNullOrEmpty(transportHead?.Frequency)
-                        ? transportHead.Frequency
-                        : dynamicFrequency;
-
-                    string rName = route?.RouteName ?? app?.BusRoute ?? "";
-                    string pName = pickup?.PickupPointName ?? app?.PickupPoint ?? "";
-                    string label = !string.IsNullOrEmpty(rName) && !string.IsNullOrEmpty(pName)
-                        ? $"Transport Fee ({rName} - {pName})"
-                        : "Transport Fee";
-
-                    lineItems.Add(new FeeLineItemDto
+                    using var doc = JsonDocument.Parse(p.PaidItemsJson);
+                    if (doc.RootElement.ValueKind == JsonValueKind.Array)
                     {
-                        FeeHeadId = trpHeadId,
-                        HeadName = label,
-                        Frequency = trpFrequency,
-                        DueDate = defaultDueDate,
-                        TotalAmount = annualTransportFare,
-                        PaidAmount = paidTransport,
-                        RemainingAmount = trpRemaining,
-                        Status = trpRemaining == 0 ? "PAID" : (paidTransport > 0 ? "PARTIAL" : (isTrpOverdue ? "OVERDUE" : "PENDING")),
-                        IsOverdue = isTrpOverdue,
-                        DaysOverdue = trpDaysOverdue,
-                        Terms = trpTerms
-                    });
+                        foreach (var elem in doc.RootElement.EnumerateArray())
+                        {
+                            string hn = "";
+                            if (elem.TryGetProperty("headName", out var hnProp)) hn = hnProp.GetString() ?? "";
+                            else if (elem.TryGetProperty("feeHeadName", out var hnProp2)) hn = hnProp2.GetString() ?? "";
+
+                            decimal itmAmt = 0m;
+                            if (elem.TryGetProperty("amount", out var aProp) && aProp.TryGetDecimal(out decimal av)) itmAmt = av;
+
+                            if (hn.Contains("Security Deposit", StringComparison.OrdinalIgnoreCase))
+                            {
+                                rawDepositPaid += itmAmt;
+                                handledInJson = true;
+                            }
+                            else if (hn.Contains("Hostel", StringComparison.OrdinalIgnoreCase))
+                            {
+                                rawHostelPaid += itmAmt;
+                                handledInJson = true;
+                            }
+                            else if (hn.Contains("Transport", StringComparison.OrdinalIgnoreCase))
+                            {
+                                rawTransportPaid += itmAmt;
+                                handledInJson = true;
+                            }
+                        }
+                    }
+                }
+                catch { }
+            }
+
+            if (!handledInJson)
+            {
+                string combinedRef = $"{p.FeeHeadName} {p.TermName} {p.Remarks}".ToLowerInvariant();
+                if (combinedRef.Contains("security deposit"))
+                {
+                    rawDepositPaid += p.Amount;
+                }
+                else if (combinedRef.Contains("hostel"))
+                {
+                    rawHostelPaid += p.Amount;
+                }
+                else if (combinedRef.Contains("transport"))
+                {
+                    rawTransportPaid += p.Amount;
                 }
             }
         }
+
+        // ==========================================
+        // 3. TRANSPORT SERVICE (ACTIVE OR PRORATED USAGE)
+        // ==========================================
+        var ta = await _context.StudentTransportAssignments.AsNoTracking()
+            .Include(t => t.Route)
+            .Include(t => t.PickupPoint)
+            .Where(t => (t.StudentId == student.StudentId || (student.AdmissionNumber != null && t.AdmissionNo == student.AdmissionNumber)) && !t.IsDeleted)
+            .OrderByDescending(t => t.Status)
+            .ThenByDescending(t => t.EffectiveTo ?? t.EffectiveFrom)
+            .FirstOrDefaultAsync();
+
+        bool hasTransportUsage = ta != null || (appRecord != null && (appRecord.TransportRequired == true || !string.IsNullOrEmpty(appRecord.BusRoute))) || rawTransportPaid > 0m;
+
+        decimal transportAssessed = 0m;
+        decimal transportPaidAmount = 0m;
+        decimal transportRemaining = 0m;
+        decimal transportCredit = 0m;
+        string transportUsageSummary = "None";
+        int transportMonthsUsed = 0;
+
+        if (hasTransportUsage)
+        {
+            var route = ta?.Route;
+            if (route == null && appRecord != null && !string.IsNullOrEmpty(appRecord.BusRoute))
+            {
+                route = await _context.TransportRoutes.AsNoTracking()
+                    .FirstOrDefaultAsync(r => r.RouteName == appRecord.BusRoute || r.RouteId.ToString() == appRecord.BusRoute);
+            }
+
+            var pickup = ta?.PickupPoint;
+            if (pickup == null && appRecord != null && !string.IsNullOrEmpty(appRecord.PickupPoint))
+            {
+                pickup = await _context.PickupPoints.AsNoTracking()
+                    .FirstOrDefaultAsync(p => p.PickupPointName == appRecord.PickupPoint || p.PickupPointId.ToString() == appRecord.PickupPoint);
+            }
+
+            decimal distance = pickup?.DistanceFromStart ?? (route?.DistanceKm ?? 0m);
+            decimal minKm = route?.MinRangeKm ?? 5m;
+            string trpType = ta?.TransportType ?? appRecord?.TransportType ?? "AC";
+            bool isAc = trpType.Contains("AC", StringComparison.OrdinalIgnoreCase);
+            decimal baseFare = isAc ? (route?.AcBaseFare ?? 1200m) : (route?.NonAcBaseFare ?? 1000m);
+            decimal ratePerKm = isAc ? (route?.AcRatePerKm ?? 150m) : (route?.NonAcRatePerKm ?? 100m);
+            decimal monthlyFare = baseFare + Math.Max(0m, distance - minKm) * ratePerKm;
+
+            bool isTransportEnded = (ta != null && (!ta.Status || ta.EffectiveTo.HasValue)) || isHosteller;
+
+            if (isTransportEnded)
+            {
+                DateTime startDate = ta?.EffectiveFrom ?? appRecord?.CreatedAt ?? DateTime.UtcNow.AddMonths(-3);
+                DateTime endDate = ta?.EffectiveTo ?? DateTime.UtcNow;
+                if (endDate < startDate) endDate = startDate;
+
+                int daysUsed = (int)(endDate.Date - startDate.Date).TotalDays;
+                transportMonthsUsed = Math.Max(1, (int)Math.Ceiling(Math.Max(0, daysUsed) / 30.4375));
+                if (transportMonthsUsed > 12) transportMonthsUsed = 12;
+
+                transportAssessed = Math.Round(monthlyFare * transportMonthsUsed, 2);
+                transportPaidAmount = Math.Min(transportAssessed, rawTransportPaid);
+                transportRemaining = Math.Max(0m, transportAssessed - rawTransportPaid);
+                transportCredit = Math.Max(0m, rawTransportPaid - transportAssessed);
+
+                transportUsageSummary = $"Used: {startDate:MMM yyyy} to {endDate:MMM yyyy} ({transportMonthsUsed} mo{(transportMonthsUsed > 1 ? "s" : "")}) @ ₹{monthlyFare:N0}/mo";
+
+                var trpTerms = BuildDynamicTerms(transportAssessed, transportPaidAmount, "trp");
+                bool isTrpOverdue = transportRemaining > 0 && trpTerms.Any(t => t.IsOverdue);
+                int trpDaysOverdue = isTrpOverdue ? trpTerms.Max(t => t.DaysOverdue) : 0;
+
+                string rName = route?.RouteName ?? appRecord?.BusRoute ?? "Route";
+                string pName = pickup?.PickupPointName ?? appRecord?.PickupPoint ?? "Stop";
+
+                lineItems.Add(new FeeLineItemDto
+                {
+                    FeeHeadId = "FH-TRP",
+                    HeadName = $"Transport Fee ({rName} - {pName}) [{transportMonthsUsed} mos prorated]",
+                    Frequency = $"{transportMonthsUsed} Months (Prorated)",
+                    DueDate = defaultDueDate,
+                    TotalAmount = transportAssessed,
+                    PaidAmount = transportPaidAmount,
+                    RemainingAmount = transportRemaining,
+                    Status = transportRemaining == 0 ? "PAID" : (transportPaidAmount > 0 ? "PARTIAL" : (isTrpOverdue ? "OVERDUE" : "PENDING")),
+                    IsOverdue = isTrpOverdue,
+                    DaysOverdue = trpDaysOverdue,
+                    Terms = trpTerms
+                });
+            }
+            else
+            {
+                transportMonthsUsed = 12;
+                transportAssessed = Math.Round(monthlyFare * 12m, 2);
+                transportPaidAmount = Math.Min(transportAssessed, rawTransportPaid);
+                transportRemaining = Math.Max(0m, transportAssessed - rawTransportPaid);
+                transportCredit = Math.Max(0m, rawTransportPaid - transportAssessed);
+
+                string rName = route?.RouteName ?? appRecord?.BusRoute ?? "Route";
+                string pName = pickup?.PickupPointName ?? appRecord?.PickupPoint ?? "Stop";
+                transportUsageSummary = $"Active: {rName} - {pName} @ ₹{monthlyFare:N0}/mo";
+
+                var trpTerms = BuildDynamicTerms(transportAssessed, transportPaidAmount, "trp");
+                bool isTrpOverdue = transportRemaining > 0 && trpTerms.Any(t => t.IsOverdue);
+                int trpDaysOverdue = isTrpOverdue ? trpTerms.Max(t => t.DaysOverdue) : 0;
+
+                lineItems.Add(new FeeLineItemDto
+                {
+                    FeeHeadId = "FH-TRP",
+                    HeadName = $"Transport Fee ({rName} - {pName})",
+                    Frequency = dynamicFrequency,
+                    DueDate = defaultDueDate,
+                    TotalAmount = transportAssessed,
+                    PaidAmount = transportPaidAmount,
+                    RemainingAmount = transportRemaining,
+                    Status = transportRemaining == 0 ? "PAID" : (transportPaidAmount > 0 ? "PARTIAL" : (isTrpOverdue ? "OVERDUE" : "PENDING")),
+                    IsOverdue = isTrpOverdue,
+                    DaysOverdue = trpDaysOverdue,
+                    Terms = trpTerms
+                });
+            }
+        }
+
+        // ==========================================
+        // 4. HOSTEL ACCOMMODATION & SECURITY DEPOSIT
+        // ==========================================
+        decimal hostelAccommodationAssessed = 0m;
+        decimal hostelAccommodationPaid = 0m;
+        decimal hostelAccommodationRemaining = 0m;
+        string hostelStaySummary = "None";
+
+        decimal securityDepositAssessed = 0m;
+        decimal securityDepositPaid = 0m;
+        decimal securityDepositRemaining = 0m;
 
         if (isHosteller)
         {
@@ -697,24 +824,21 @@ public class FeeCollectionRepository : IFeeCollectionRepository
                 .FirstOrDefaultAsync(b => (b.StudentId == student.StudentId || (student.AdmissionNumber != null && b.RegistrationNo == student.AdmissionNumber)) &&
                                           (b.Status == "Active" || b.Status == "Occupied" || string.IsNullOrEmpty(b.Status)));
 
-            var app = await _context.AdmissionApplications.AsNoTracking()
-                .FirstOrDefaultAsync(a => !a.IsDeleted && student.AdmissionNumber != null && (a.AdmissionNo == student.AdmissionNumber || a.RegistrationNo == student.AdmissionNumber));
-
-            string blockName = alloc?.Hostel?.HostelName ?? app?.HostelBlock ?? "";
+            string blockName = alloc?.Hostel?.HostelName ?? appRecord?.HostelBlock ?? "";
             string blockId = alloc?.HostelId.ToString() ?? "";
-            string roomNo = alloc?.Room?.RoomNumber ?? app?.HostelRoom ?? "";
+            string roomNo = alloc?.Room?.RoomNumber ?? appRecord?.HostelRoom ?? "";
             string acType = alloc?.Room?.RoomType?.AcType ?? "";
             int bedCap = alloc?.Room?.RoomType?.BedCapacity ?? 0;
             string roomTypeSpec = alloc?.Room?.RoomType?.RoomTypeSpecification ?? "";
 
-            if (alloc == null && app != null && !string.IsNullOrEmpty(app.HostelRoom))
+            if (alloc == null && appRecord != null && !string.IsNullOrEmpty(appRecord.HostelRoom))
             {
                 var matchedRoom = await _context.RoomMasters.AsNoTracking()
                     .Include(r => r.RoomType)
                     .Include(r => r.Hostel)
                     .FirstOrDefaultAsync(r => 
-                        (r.RoomNumber != null && CleanRoomNumber(r.RoomNumber) == CleanRoomNumber(app.HostelRoom)) &&
-                        (string.IsNullOrEmpty(app.HostelBlock) || (r.Hostel != null && r.Hostel.HostelName != null && r.Hostel.HostelName.Equals(app.HostelBlock, StringComparison.OrdinalIgnoreCase))));
+                        (r.RoomNumber != null && CleanRoomNumber(r.RoomNumber) == CleanRoomNumber(appRecord.HostelRoom)) &&
+                        (string.IsNullOrEmpty(appRecord.HostelBlock) || (r.Hostel != null && r.Hostel.HostelName != null && r.Hostel.HostelName.Equals(appRecord.HostelBlock, StringComparison.OrdinalIgnoreCase))));
                 if (matchedRoom != null)
                 {
                     if (string.IsNullOrEmpty(acType) && matchedRoom.RoomType != null) acType = matchedRoom.RoomType.AcType ?? "";
@@ -773,61 +897,78 @@ public class FeeCollectionRepository : IFeeCollectionRepository
             .ThenByDescending(c => (c.AcType != "All" && !string.IsNullOrWhiteSpace(c.AcType)) ? 2 : 0)
             .ToList();
 
-            var matchedCfg = candidateConfigs.FirstOrDefault();
-            decimal annualHostelFee = 0m;
-            string hostelFrequency = "Annual";
+            var matchedCfg = candidateConfigs.FirstOrDefault() ??
+                             allHostelConfigs.FirstOrDefault(c => MatchesClassRange(cName, c, classOrderMap)) ??
+                             allHostelConfigs.FirstOrDefault();
 
             if (matchedCfg != null)
             {
-                decimal hFee = matchedCfg.HostelFee;
-                decimal sDep = matchedCfg.SecurityDeposit;
-                hostelFrequency = matchedCfg.FeePlan ?? "Annual";
+                // Prorate accommodation if joined mid-year / transitioned from transport
+                int hostelMonths = (transportMonthsUsed > 0 && transportMonthsUsed < 12) 
+                    ? Math.Max(1, 12 - transportMonthsUsed) 
+                    : 12;
+
                 if (string.Equals(matchedCfg.FeePlan, "Monthly", StringComparison.OrdinalIgnoreCase))
                 {
-                    annualHostelFee = (hFee * 12m) + sDep;
+                    hostelAccommodationAssessed = matchedCfg.HostelFee * hostelMonths;
                 }
                 else
                 {
-                    annualHostelFee = hFee + sDep;
+                    hostelAccommodationAssessed = (hostelMonths < 12) 
+                        ? Math.Round((matchedCfg.HostelFee / 12m) * hostelMonths, 2) 
+                        : matchedCfg.HostelFee;
                 }
-            }
-            else if (allHostelConfigs.Count > 0)
-            {
-                var classCfg = allHostelConfigs.FirstOrDefault(c => MatchesClassRange(cName, c, classOrderMap)) ?? allHostelConfigs.First();
-                annualHostelFee = classCfg.HostelFee + classCfg.SecurityDeposit;
-                hostelFrequency = classCfg.FeePlan ?? "Annual";
+
+                securityDepositAssessed = matchedCfg.SecurityDeposit;
             }
 
-            if (annualHostelFee > 0m)
+            // Security Deposit line item (Independent obligation)
+            securityDepositPaid = rawDepositPaid;
+            securityDepositRemaining = Math.Max(0m, securityDepositAssessed - securityDepositPaid);
+
+            if (securityDepositAssessed > 0m || securityDepositPaid > 0m)
             {
-                decimal paidHostel = payments.Where(p => 
-                    (p.FeeHeadName != null && p.FeeHeadName.Contains("Hostel", StringComparison.OrdinalIgnoreCase)) ||
-                    (p.TermName != null && p.TermName.Contains("Hostel", StringComparison.OrdinalIgnoreCase)) ||
-                    (p.Remarks != null && p.Remarks.Contains("Hostel", StringComparison.OrdinalIgnoreCase))
-                ).Sum(p => p.Amount);
+                lineItems.Add(new FeeLineItemDto
+                {
+                    FeeHeadId = "FH-HST-DEP",
+                    HeadName = "Hostel Security Deposit (Refundable)",
+                    Frequency = "One Time",
+                    DueDate = defaultDueDate,
+                    TotalAmount = securityDepositAssessed,
+                    PaidAmount = securityDepositPaid,
+                    RemainingAmount = securityDepositRemaining,
+                    Status = securityDepositRemaining == 0 ? "PAID" : (securityDepositPaid > 0 ? "PARTIAL" : "PENDING"),
+                    IsOverdue = false,
+                    DaysOverdue = 0,
+                    Terms = BuildDynamicTerms(securityDepositAssessed, securityDepositPaid, "Hostel Deposit - ")
+                });
+            }
 
-                decimal hstRemaining = Math.Max(0m, annualHostelFee - paidHostel);
+            // Hostel Accommodation line item
+            hostelAccommodationPaid = rawHostelPaid;
+            hostelAccommodationRemaining = Math.Max(0m, hostelAccommodationAssessed - hostelAccommodationPaid);
 
-                var hstTerms = BuildDynamicTerms(annualHostelFee, paidHostel, "Hostel Fee - ");
-                bool isHstOverdue = hstRemaining > 0 && hstTerms.Any(t => t.IsOverdue);
+            if (hostelAccommodationAssessed > 0m || hostelAccommodationPaid > 0m)
+            {
+                var hstTerms = BuildDynamicTerms(hostelAccommodationAssessed, hostelAccommodationPaid, "Hostel Fee - ");
+                bool isHstOverdue = hostelAccommodationRemaining > 0 && hstTerms.Any(t => t.IsOverdue);
                 int hstDaysOverdue = isHstOverdue ? hstTerms.Max(t => t.DaysOverdue) : 0;
 
-                string hstHeadId = "FH-HST";
                 string rNoDisplay = !string.IsNullOrEmpty(roomNo) ? $", Room {roomNo}" : "";
-                string label = !string.IsNullOrEmpty(blockName)
-                    ? $"Hostel Fee ({blockName}{rNoDisplay})"
-                    : "Hostel Accommodation Fee";
+                string blockDisplay = !string.IsNullOrEmpty(blockName) ? blockName : "Hostel Block";
+                int hstMonths = (transportMonthsUsed > 0 && transportMonthsUsed < 12) ? Math.Max(1, 12 - transportMonthsUsed) : 12;
+                hostelStaySummary = $"{blockDisplay}{rNoDisplay} ({hstMonths} mos stay)";
 
                 lineItems.Add(new FeeLineItemDto
                 {
-                    FeeHeadId = hstHeadId,
-                    HeadName = label,
-                    Frequency = hostelFrequency,
+                    FeeHeadId = "FH-HST",
+                    HeadName = $"Hostel Accommodation ({hostelStaySummary})",
+                    Frequency = $"{hstMonths} Months (Prorated)",
                     DueDate = defaultDueDate,
-                    TotalAmount = annualHostelFee,
-                    PaidAmount = paidHostel,
-                    RemainingAmount = hstRemaining,
-                    Status = hstRemaining == 0 ? "PAID" : (paidHostel > 0 ? "PARTIAL" : (isHstOverdue ? "OVERDUE" : "PENDING")),
+                    TotalAmount = hostelAccommodationAssessed,
+                    PaidAmount = hostelAccommodationPaid,
+                    RemainingAmount = hostelAccommodationRemaining,
+                    Status = hostelAccommodationRemaining == 0 ? "PAID" : (hostelAccommodationPaid > 0 ? "PARTIAL" : (isHstOverdue ? "OVERDUE" : "PENDING")),
                     IsOverdue = isHstOverdue,
                     DaysOverdue = hstDaysOverdue,
                     Terms = hstTerms
@@ -888,6 +1029,28 @@ public class FeeCollectionRepository : IFeeCollectionRepository
             PreviousYearsArrears = 0m,
             TotalConcessions = totalDiscounts,
             TotalOutstandingBalance = totalOutstanding,
+
+            // Granular breakdown fields
+            TuitionAssessedFee = tuitionAssessed,
+            TuitionPaidAmount = tuitionPaid,
+            TuitionRemainingDue = tuitionRemainingDue,
+
+            TransportAssessedFee = transportAssessed,
+            TransportPaidAmount = transportPaidAmount,
+            TransportRemainingDue = transportRemaining,
+            TransportCreditAmount = transportCredit,
+            TransportUsageSummary = transportUsageSummary,
+
+            HostelAssessedFee = hostelAccommodationAssessed,
+            HostelPaidAmount = hostelAccommodationPaid,
+            HostelRemainingDue = hostelAccommodationRemaining,
+            HostelStaySummary = hostelStaySummary,
+
+            SecurityDepositAssessed = securityDepositAssessed,
+            SecurityDepositPaid = securityDepositPaid,
+            SecurityDepositRemainingDue = securityDepositRemaining,
+            SecurityDepositRefundable = securityDepositPaid,
+
             FineRule = new LateFineRuleDetailDto
             {
                 RuleName = "Standard Monthly Late Fine Rule",
@@ -1225,7 +1388,7 @@ public class FeeCollectionRepository : IFeeCollectionRepository
             }
             else
             {
-                prevFeeTotal = 12000m;
+                prevFeeTotal = 0m;
             }
 
             var stPayments = payments.Where(p =>
@@ -2388,5 +2551,453 @@ public class FeeCollectionRepository : IFeeCollectionRepository
             RecentTransactions = recentReceipts.Items,
             CategoryBreakdown = categoryBreakdown
         };
+    }
+
+    // =========================================================================
+    // STUDENT CATEGORY TRANSITION & CREDIT ADJUSTMENT IMPLEMENTATION
+    // =========================================================================
+
+    public async Task<StudentCategoryTransitionResponseDto> TransitionStudentCategoryAsync(StudentCategoryTransitionRequestDto request)
+    {
+        if (request == null || request.StudentId <= 0)
+        {
+            return new StudentCategoryTransitionResponseDto
+            {
+                Success = false,
+                Message = "Invalid student ID provided for transition."
+            };
+        }
+
+        int canonicalStudentId = request.StudentId;
+        var student = await _context.Students
+            .Include(s => s.ClassGrade)
+            .Include(s => s.ClassSection)
+            .Include(s => s.Branch)
+            .Include(s => s.AcademicYear)
+            .FirstOrDefaultAsync(s => s.StudentId == request.StudentId);
+
+        AdmissionApplication? app = null;
+        if (student != null && !string.IsNullOrEmpty(student.AdmissionNumber))
+        {
+            app = await _context.AdmissionApplications
+                .FirstOrDefaultAsync(a => !a.IsDeleted && (a.AdmissionNo == student.AdmissionNumber || a.RegistrationNo == student.AdmissionNumber));
+        }
+        else
+        {
+            app = await _context.AdmissionApplications
+                .FirstOrDefaultAsync(a => !a.IsDeleted && a.Id == request.StudentId);
+            if (app != null && !string.IsNullOrEmpty(app.AdmissionNo))
+            {
+                student = await _context.Students
+                    .Include(s => s.ClassGrade)
+                    .Include(s => s.ClassSection)
+                    .Include(s => s.Branch)
+                    .Include(s => s.AcademicYear)
+                    .FirstOrDefaultAsync(s => s.AdmissionNumber == app.AdmissionNo);
+                if (student != null) canonicalStudentId = student.StudentId;
+            }
+        }
+
+        if (student == null && app == null)
+        {
+            return new StudentCategoryTransitionResponseDto
+            {
+                Success = false,
+                Message = $"Student record not found for ID {request.StudentId}."
+            };
+        }
+
+        string admNo = student?.AdmissionNumber ?? app?.AdmissionNo ?? app?.RegistrationNo ?? request.AdmissionNo ?? $"STU-{canonicalStudentId}";
+        string previousType = (app?.StudentType == "Residential" || (app == null && await _context.StudentBedAllocations.AnyAsync(b => (b.StudentId == canonicalStudentId || b.RegistrationNo == admNo) && b.Status == "Active")))
+            ? "Residential" : "Non-Residential";
+
+        DateTime transitionDate = request.EffectiveDate != default ? request.EffectiveDate : DateTime.UtcNow;
+        DateTime transportEndDate = request.TransportEndDate ?? transitionDate;
+        DateTime hostelJoiningDate = request.HostelJoiningDate ?? transitionDate;
+
+        // Locate transport assignment
+        var transportAssignment = await _context.StudentTransportAssignments
+            .Include(t => t.Route)
+            .Include(t => t.PickupPoint)
+            .FirstOrDefaultAsync(t => (t.StudentId == canonicalStudentId || (!string.IsNullOrEmpty(admNo) && t.AdmissionNo == admNo)) && !t.IsDeleted && t.Status);
+
+        if (transportAssignment == null)
+        {
+            transportAssignment = await _context.StudentTransportAssignments
+                .Include(t => t.Route)
+                .Include(t => t.PickupPoint)
+                .OrderByDescending(t => t.EffectiveTo ?? t.EffectiveFrom)
+                .FirstOrDefaultAsync(t => (t.StudentId == canonicalStudentId || (!string.IsNullOrEmpty(admNo) && t.AdmissionNo == admNo)) && !t.IsDeleted);
+        }
+
+        decimal finalizedTransportFee = 0m;
+        string transportUsagePeriod = "None";
+        decimal monthlyFare = 0m;
+
+        if (transportAssignment != null || (app != null && app.TransportRequired == true))
+        {
+            var route = transportAssignment?.Route;
+            if (route == null && app != null && !string.IsNullOrEmpty(app.BusRoute))
+            {
+                route = await _context.TransportRoutes.FirstOrDefaultAsync(r => r.RouteName == app.BusRoute || r.RouteId.ToString() == app.BusRoute);
+            }
+
+            var pickup = transportAssignment?.PickupPoint;
+            if (pickup == null && app != null && !string.IsNullOrEmpty(app.PickupPoint))
+            {
+                pickup = await _context.PickupPoints.FirstOrDefaultAsync(p => p.PickupPointName == app.PickupPoint || p.PickupPointId.ToString() == app.PickupPoint);
+            }
+
+            decimal distance = pickup?.DistanceFromStart ?? (route?.DistanceKm ?? 0m);
+            decimal minKm = route?.MinRangeKm ?? 5m;
+            string trpType = transportAssignment?.TransportType ?? app?.TransportType ?? "AC";
+            bool isAc = trpType.Contains("AC", StringComparison.OrdinalIgnoreCase);
+            decimal baseFare = isAc ? (route?.AcBaseFare ?? 1200m) : (route?.NonAcBaseFare ?? 1000m);
+            decimal ratePerKm = isAc ? (route?.AcRatePerKm ?? 150m) : (route?.NonAcRatePerKm ?? 100m);
+            monthlyFare = baseFare + Math.Max(0m, distance - minKm) * ratePerKm;
+
+            DateTime startDate = transportAssignment?.EffectiveFrom ?? app?.CreatedAt ?? DateTime.UtcNow.AddMonths(-3);
+            if (transportEndDate < startDate) transportEndDate = startDate;
+
+            int daysUsed = (int)(transportEndDate.Date - startDate.Date).TotalDays;
+            int monthsUsed = Math.Max(1, (int)Math.Ceiling(Math.Max(0, daysUsed) / 30.4375));
+            if (monthsUsed > 12) monthsUsed = 12;
+
+            finalizedTransportFee = Math.Round(monthlyFare * monthsUsed, 2);
+            transportUsagePeriod = $"{startDate:yyyy-MM-dd} to {transportEndDate:yyyy-MM-dd} ({monthsUsed} month{(monthsUsed > 1 ? "s" : "")})";
+
+            // Stop transport service
+            if (transportAssignment != null)
+            {
+                transportAssignment.EffectiveTo = transportEndDate;
+                transportAssignment.Status = false;
+                transportAssignment.Remarks = $"Ceased on {transportEndDate:yyyy-MM-dd} due to transition to Residential. Finalized prorated fee: {finalizedTransportFee:C}";
+            }
+        }
+
+        if (app != null)
+        {
+            app.TransportRequired = false;
+            app.StudentType = request.NewStudentType;
+        }
+
+        // Calculate paid transport
+        var allStudentPayments = await _context.FeePayments
+            .Where(p => p.StudentId == canonicalStudentId.ToString() || (!string.IsNullOrEmpty(admNo) && p.StudentId == admNo))
+            .Where(p => (p.Status == "Completed" || p.Status == "Paid" || string.IsNullOrEmpty(p.Status)) && p.Status != "Failed" && p.Status != "Cancelled")
+            .ToListAsync();
+
+        decimal transportPaid = 0m;
+        foreach (var p in allStudentPayments)
+        {
+            if (!string.IsNullOrEmpty(p.PaidItemsJson))
+            {
+                try
+                {
+                    using var doc = JsonDocument.Parse(p.PaidItemsJson);
+                    if (doc.RootElement.ValueKind == JsonValueKind.Array)
+                    {
+                        foreach (var elem in doc.RootElement.EnumerateArray())
+                        {
+                            string hn = "";
+                            if (elem.TryGetProperty("headName", out var hnProp)) hn = hnProp.GetString() ?? "";
+                            else if (elem.TryGetProperty("feeHeadName", out var hnProp2)) hn = hnProp2.GetString() ?? "";
+
+                            decimal itmAmt = 0m;
+                            if (elem.TryGetProperty("amount", out var aProp) && aProp.TryGetDecimal(out decimal av)) itmAmt = av;
+
+                            if (hn.Contains("Transport", StringComparison.OrdinalIgnoreCase)) transportPaid += itmAmt;
+                        }
+                    }
+                }
+                catch { }
+            }
+            else if ((p.FeeHeadName != null && p.FeeHeadName.Contains("Transport", StringComparison.OrdinalIgnoreCase)) ||
+                     (p.TermName != null && p.TermName.Contains("Transport", StringComparison.OrdinalIgnoreCase)))
+            {
+                transportPaid += p.Amount;
+            }
+        }
+
+        decimal unusedTransportCredit = Math.Max(0m, transportPaid - finalizedTransportFee);
+        decimal remainingTransportDue = Math.Max(0m, finalizedTransportFee - transportPaid);
+        decimal creditAppliedToHostel = 0m;
+
+        // Hostel Allocation & Security Deposit
+        decimal hostelAccommodationFee = 0m;
+        decimal securityDepositAmount = 0m;
+
+        string cName = student?.ClassGrade?.ClassName ?? "";
+        var allHostelConfigs = await _context.HostelFeeConfigs.AsNoTracking()
+            .Where(h => h.Status == "Active" || string.IsNullOrEmpty(h.Status))
+            .ToListAsync();
+
+        var allDbClasses = await _context.Classes.AsNoTracking().Where(c => c.Status == "Active").OrderBy(c => c.DisplayOrder ?? c.ClassId).ToListAsync();
+        var classOrderMap = BuildClassOrderMap(allDbClasses);
+
+        HostelBlock? hostelBlock = null;
+        RoomMaster? room = null;
+        if (request.HostelId.HasValue && request.HostelId > 0)
+        {
+            hostelBlock = await _context.HostelBlocks.FirstOrDefaultAsync(h => h.HostelId == request.HostelId.Value);
+        }
+        if (request.RoomId.HasValue && request.RoomId > 0)
+        {
+            room = await _context.RoomMasters.Include(r => r.RoomType).FirstOrDefaultAsync(r => r.RoomId == request.RoomId.Value);
+            if (hostelBlock == null && room != null)
+            {
+                hostelBlock = await _context.HostelBlocks.FirstOrDefaultAsync(h => h.HostelId == room.HostelId);
+            }
+        }
+
+        string blockName = hostelBlock?.HostelName ?? app?.HostelBlock ?? "";
+        string roomNo = room?.RoomNumber ?? app?.HostelRoom ?? "";
+
+        var matchedCfg = allHostelConfigs.FirstOrDefault(c =>
+            MatchesClassRange(cName, c, classOrderMap) &&
+            (string.IsNullOrEmpty(blockName) || c.HostelName == "All" || c.HostelName.Equals(blockName, StringComparison.OrdinalIgnoreCase) || blockName.Contains(c.HostelName, StringComparison.OrdinalIgnoreCase)) &&
+            (string.IsNullOrEmpty(roomNo) || c.RoomNo == "All Rooms" || c.RoomNo == "All" || CleanRoomNumber(c.RoomNo) == CleanRoomNumber(roomNo))
+        ) ?? allHostelConfigs.FirstOrDefault(c => MatchesClassRange(cName, c, classOrderMap)) ?? allHostelConfigs.FirstOrDefault();
+
+        if (matchedCfg != null)
+        {
+            int transportMonths = (transportAssignment != null || finalizedTransportFee > 0) 
+                ? Math.Max(1, (int)Math.Ceiling(Math.Max(0, (transportEndDate.Date - (transportAssignment?.EffectiveFrom ?? DateTime.UtcNow.AddMonths(-3)).Date).TotalDays) / 30.4375)) 
+                : 0;
+            int hostelRemainingMonths = Math.Max(1, 12 - transportMonths);
+
+            if (string.Equals(matchedCfg.FeePlan, "Monthly", StringComparison.OrdinalIgnoreCase))
+            {
+                hostelAccommodationFee = matchedCfg.HostelFee * hostelRemainingMonths;
+            }
+            else
+            {
+                hostelAccommodationFee = Math.Round((matchedCfg.HostelFee / 12m) * hostelRemainingMonths, 2);
+            }
+
+            securityDepositAmount = matchedCfg.SecurityDeposit;
+        }
+
+        // Allocate Bed if requested
+        if (hostelBlock != null && room != null)
+        {
+            var existingAlloc = await _context.StudentBedAllocations
+                .FirstOrDefaultAsync(b => (b.StudentId == canonicalStudentId || (!string.IsNullOrEmpty(admNo) && b.RegistrationNo == admNo)) && (b.Status == "Active" || b.Status == "Occupied"));
+
+            string bedNo = !string.IsNullOrWhiteSpace(request.BedNumber) ? request.BedNumber : "Bed #1";
+
+            if (existingAlloc != null)
+            {
+                existingAlloc.HostelId = hostelBlock.HostelId;
+                existingAlloc.RoomId = room.RoomId;
+                existingAlloc.BedNumber = bedNo;
+                existingAlloc.JoiningDate = hostelJoiningDate;
+                existingAlloc.Status = "Active";
+            }
+            else
+            {
+                var newAlloc = new StudentBedAllocation
+                {
+                    StudentId = canonicalStudentId,
+                    RegistrationNo = admNo,
+                    StudentName = student?.StudentName ?? (app != null ? $"{app.FirstName} {app.LastName}".Trim() : $"Student #{canonicalStudentId}"),
+                    HostelId = hostelBlock.HostelId,
+                    RoomId = room.RoomId,
+                    BedNumber = bedNo,
+                    JoiningDate = hostelJoiningDate,
+                    Status = "Active",
+                    CreatedAt = DateTime.UtcNow
+                };
+                _context.StudentBedAllocations.Add(newAlloc);
+            }
+
+            if (app != null)
+            {
+                app.HostelBlock = hostelBlock.HostelName;
+                app.HostelRoom = room.RoomNumber;
+                app.AllocatedBedId = bedNo;
+                app.SecurityDepositAmount = securityDepositAmount;
+            }
+        }
+
+        // Apply Transport Credit to Hostel if requested
+        if (request.ApplyTransportCreditToHostel && unusedTransportCredit > 0)
+        {
+            creditAppliedToHostel = unusedTransportCredit;
+
+            var ledgerEntry = new LedgerEntry
+            {
+                TransactionDate = DateTime.UtcNow,
+                TransactionType = "Credit Transfer",
+                Category = "Transfer",
+                ReferenceNo = $"ADJ-TRP-HST-{canonicalStudentId}-{DateTime.UtcNow.Ticks % 100000}",
+                StudentId = canonicalStudentId,
+                AdmissionNo = admNo,
+                Debit = unusedTransportCredit,
+                Credit = unusedTransportCredit,
+                Particulars = $"Transfer of unused transport fee credit ({unusedTransportCredit:C}) to Hostel account upon transition to Residential on {transitionDate:yyyy-MM-dd}",
+                AcademicYearId = student?.AcademicYearId ?? 1,
+                BranchId = student?.BranchId ?? 1
+            };
+            _context.LedgerEntries.Add(ledgerEntry);
+
+            var adjPayment = new FeePayment
+            {
+                ReceiptNo = $"CR-TRP-{DateTime.UtcNow:yyyyMMdd}-{Random.Shared.Next(1000, 9999)}",
+                StudentId = canonicalStudentId.ToString(),
+                Amount = unusedTransportCredit,
+                DiscountAmount = 0m,
+                FineAmount = 0m,
+                PaymentDate = DateTime.UtcNow,
+                PaymentMethod = "Credit Adjustment",
+                Status = "Completed",
+                TermName = "Hostel Accommodation",
+                FeeHeadName = "Hostel Accommodation",
+                Remarks = $"Unused transport fee credit applied ({unusedTransportCredit:C}) to Hostel Accommodation fee upon category change",
+                PaidItemsJson = JsonSerializer.Serialize(new[]
+                {
+                    new { headName = "Hostel Accommodation", feeHeadName = "Hostel Accommodation", amount = unusedTransportCredit }
+                })
+            };
+            _context.FeePayments.Add(adjPayment);
+        }
+
+        await _context.SaveChangesAsync();
+
+        var updatedProfile = await GetStudentFeeProfileAsync(canonicalStudentId, student?.AcademicYear?.AcademicYearName);
+
+        return new StudentCategoryTransitionResponseDto
+        {
+            Success = true,
+            Message = $"Student successfully transitioned to {request.NewStudentType}. Transport stopped on {transportEndDate:yyyy-MM-dd}. Hostel allocated effective {hostelJoiningDate:yyyy-MM-dd}.",
+            PreviousStudentType = previousType,
+            NewStudentType = request.NewStudentType,
+            TransportUsagePeriod = transportUsagePeriod,
+            FinalizedTransportFee = finalizedTransportFee,
+            TransportPaid = transportPaid,
+            UnusedTransportCredit = unusedTransportCredit,
+            CreditAppliedToHostel = creditAppliedToHostel,
+            RemainingTransportDue = remainingTransportDue,
+            HostelAccommodationFee = hostelAccommodationFee,
+            SecurityDepositAmount = securityDepositAmount,
+            NetOutstandingBalance = updatedProfile?.TotalOutstandingBalance ?? 0m,
+            UpdatedProfile = updatedProfile
+        };
+    }
+
+    public async Task<bool> ApplyTransportCreditAsync(ApplyTransportCreditRequestDto request)
+    {
+        if (request == null || request.StudentId <= 0 || request.Amount <= 0) return false;
+
+        int canonicalStudentId = request.StudentId;
+        var student = await _context.Students
+            .Include(s => s.AcademicYear)
+            .Include(s => s.Branch)
+            .FirstOrDefaultAsync(s => s.StudentId == request.StudentId);
+        string admNo = student?.AdmissionNumber ?? request.AdmissionNo ?? $"STU-{canonicalStudentId}";
+
+        var profile = await GetStudentFeeProfileAsync(canonicalStudentId, student?.AcademicYear?.AcademicYearName);
+        if (profile == null) return false;
+
+        decimal availableCredit = profile.TransportCreditAmount;
+        if (availableCredit < request.Amount)
+        {
+            throw new InvalidOperationException($"Requested credit application ({request.Amount:C}) exceeds available transport credit ({availableCredit:C}).");
+        }
+
+        string targetHead = !string.IsNullOrWhiteSpace(request.TargetFeeHead) ? request.TargetFeeHead : "Hostel Accommodation";
+
+        var ledger = new LedgerEntry
+        {
+            TransactionDate = DateTime.UtcNow,
+            TransactionType = "Credit Transfer",
+            Category = "Transfer",
+            ReferenceNo = $"ADJ-CR-{canonicalStudentId}-{DateTime.UtcNow.Ticks % 100000}",
+            StudentId = canonicalStudentId,
+            AdmissionNo = admNo,
+            Debit = request.Amount,
+            Credit = request.Amount,
+            Particulars = $"Transport credit reallocated to {targetHead}. Reason: {request.Reason ?? "Manual reallocation"}. Authorized by: {request.AuthorizedBy ?? "Admin"}",
+            AcademicYearId = student?.AcademicYearId ?? 1,
+            BranchId = student?.BranchId ?? 1
+        };
+        _context.LedgerEntries.Add(ledger);
+
+        var payment = new FeePayment
+        {
+            ReceiptNo = $"CR-{DateTime.UtcNow:yyyyMMdd}-{Random.Shared.Next(1000, 9999)}",
+            StudentId = canonicalStudentId.ToString(),
+            Amount = request.Amount,
+            PaymentDate = DateTime.UtcNow,
+            PaymentMethod = "Credit Adjustment",
+            Status = "Completed",
+            TermName = targetHead,
+            FeeHeadName = targetHead,
+            Remarks = $"Credit adjustment transferred from Transport to {targetHead}. {request.Reason ?? ""}",
+            PaidItemsJson = JsonSerializer.Serialize(new[]
+            {
+                new { headName = targetHead, feeHeadName = targetHead, amount = request.Amount }
+            })
+        };
+        _context.FeePayments.Add(payment);
+
+        await _context.SaveChangesAsync();
+        return true;
+    }
+
+    public async Task<bool> ProcessDepositRefundAsync(ProcessDepositRefundRequestDto request)
+    {
+        if (request == null || request.StudentId <= 0 || request.RefundAmount <= 0) return false;
+
+        int canonicalStudentId = request.StudentId;
+        var student = await _context.Students
+            .Include(s => s.AcademicYear)
+            .Include(s => s.Branch)
+            .FirstOrDefaultAsync(s => s.StudentId == request.StudentId);
+        string admNo = student?.AdmissionNumber ?? request.AdmissionNo ?? $"STU-{canonicalStudentId}";
+
+        decimal netRefund = Math.Max(0m, request.RefundAmount - request.DeductionAmount);
+
+        var ledger = new LedgerEntry
+        {
+            TransactionDate = DateTime.UtcNow,
+            TransactionType = "Refund",
+            Category = "Expense",
+            ReferenceNo = $"REF-HST-DEP-{canonicalStudentId}-{DateTime.UtcNow.Ticks % 100000}",
+            StudentId = canonicalStudentId,
+            AdmissionNo = admNo,
+            Debit = netRefund,
+            Credit = 0m,
+            Particulars = $"Refund of Hostel Security Deposit (Gross: {request.RefundAmount:C}, Deductions: {request.DeductionAmount:C} for {request.DeductionReason ?? "None"}). Authorized by: {request.AuthorizedBy ?? "Admin"}",
+            AcademicYearId = student?.AcademicYearId ?? 1,
+            BranchId = student?.BranchId ?? 1
+        };
+        _context.LedgerEntries.Add(ledger);
+
+        var payment = new FeePayment
+        {
+            ReceiptNo = $"REF-{DateTime.UtcNow:yyyyMMdd}-{Random.Shared.Next(1000, 9999)}",
+            StudentId = canonicalStudentId.ToString(),
+            Amount = -netRefund,
+            PaymentDate = DateTime.UtcNow,
+            PaymentMethod = request.PaymentMode ?? "Bank Transfer",
+            Status = "Refunded",
+            TermName = "Hostel Security Deposit",
+            FeeHeadName = "Hostel Security Deposit",
+            Remarks = $"Refund of Security Deposit. Deductions: {request.DeductionAmount:C}. Remarks: {request.Remarks ?? ""}",
+            PaidItemsJson = JsonSerializer.Serialize(new[]
+            {
+                new { headName = "Hostel Security Deposit", feeHeadName = "Hostel Security Deposit", amount = -netRefund }
+            })
+        };
+        _context.FeePayments.Add(payment);
+
+        await _context.SaveChangesAsync();
+        return true;
+    }
+
+    public async Task<StudentFeeProfileResponseDto?> RecalculateStudentFeeProfileAsync(int studentId, string? academicYear)
+    {
+        return await GetStudentFeeProfileAsync(studentId, academicYear);
     }
 }

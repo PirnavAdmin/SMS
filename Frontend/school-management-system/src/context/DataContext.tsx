@@ -15566,129 +15566,136 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
 
     const isNonResident = !isResident;
 
-    // MUTUALLY EXCLUSIVE DECISION:
-    // 1. Resident: Hostel applicable ONLY IF active block & room are assigned. Transport is NEVER applicable.
-    // 2. Non-Resident: Transport applicable ONLY IF transportRequired === true AND pickupPoint is selected. Hostel is NEVER applicable.
-
+    // DYNAMIC TRANSPORT ELIGIBILITY & PRORATION
+    // Support Non-Residential students using transport, AND Residential students who previously used transport.
     let transportApplicable = false;
     let activeTransportAssign: any = undefined;
 
-    if (isNonResident) {
-      activeTransportAssign = studentTransports.find(
-        (t) =>
-          t.status === "Active" &&
-          (t.studentId === studentId ||
-            (admNo && t.admissionNo === admNo) ||
-            (student?.admissionNo && t.admissionNo === student.admissionNo) ||
-            (admApp?.registrationNo &&
-              t.admissionNo === admApp.registrationNo) ||
-            (t.studentName &&
-              stName &&
-              t.studentName.trim().toLowerCase() ===
-                stName.trim().toLowerCase())),
+    // Search for active OR historical transport assignment
+    activeTransportAssign = studentTransports.find(
+      (t) =>
+        (t.studentId === studentId ||
+          (admNo && t.admissionNo === admNo) ||
+          (student?.admissionNo && t.admissionNo === student.admissionNo) ||
+          (admApp?.registrationNo &&
+            t.admissionNo === admApp.registrationNo) ||
+          (t.studentName &&
+            stName &&
+            t.studentName.trim().toLowerCase() ===
+              stName.trim().toLowerCase())),
+    );
+
+    const isTransportRequired =
+      Boolean(activeTransportAssign) ||
+      student?.transportRequired === true ||
+      Boolean(
+        (student as any)?.busRoute ||
+        (student as any)?.pickupPoint ||
+        (student as any)?.routeId,
+      ) ||
+      admApp?.transportRequired === true ||
+      Boolean(
+        (admApp as any)?.busRoute ||
+        (admApp as any)?.pickupPoint ||
+        (admApp as any)?.routeId,
       );
 
-      const isTransportRequired =
-        Boolean(activeTransportAssign) ||
-        student?.transportRequired === true ||
-        Boolean(
-          (student as any)?.busRoute ||
-          (student as any)?.pickupPoint ||
-          (student as any)?.routeId,
-        ) ||
-        admApp?.transportRequired === true ||
-        Boolean(
-          (admApp as any)?.busRoute ||
-          (admApp as any)?.pickupPoint ||
-          (admApp as any)?.routeId,
-        );
+    const hasPickupPoint = Boolean(
+      activeTransportAssign?.pickupPoint ||
+      (student as any)?.pickupPoint ||
+      (admApp as any)?.pickupPoint,
+    );
 
-      const hasPickupPoint = Boolean(
+    if (isTransportRequired && hasPickupPoint) {
+      const routeName =
+        activeTransportAssign?.routeName ||
+        (student as any)?.busRoute ||
+        (admApp as any)?.busRoute ||
+        (admApp as any)?.routeName ||
+        "";
+      const pickupName =
         activeTransportAssign?.pickupPoint ||
         (student as any)?.pickupPoint ||
-        (admApp as any)?.pickupPoint,
-      );
+        (admApp as any)?.pickupPoint ||
+        "";
+      const routeId =
+        activeTransportAssign?.routeId ||
+        (student as any)?.routeId ||
+        (admApp as any)?.routeId ||
+        "";
+      const pickupPointId =
+        (activeTransportAssign as any)?.pickupPointId ||
+        (student as any)?.pickupPointId ||
+        (admApp as any)?.pickupPointId ||
+        "";
+      const transportType =
+        (activeTransportAssign as any)?.transportType ||
+        (student as any)?.transportType ||
+        (admApp as any)?.transportType ||
+        "AC";
 
-      if (isTransportRequired && hasPickupPoint) {
-        const routeName =
-          activeTransportAssign?.routeName ||
-          (student as any)?.busRoute ||
-          (admApp as any)?.busRoute ||
-          (admApp as any)?.routeName ||
-          "";
-        const pickupName =
-          activeTransportAssign?.pickupPoint ||
-          (student as any)?.pickupPoint ||
-          (admApp as any)?.pickupPoint ||
-          "";
-        const routeId =
-          activeTransportAssign?.routeId ||
-          (student as any)?.routeId ||
-          (admApp as any)?.routeId ||
-          "";
-        const pickupPointId =
-          (activeTransportAssign as any)?.pickupPointId ||
-          (student as any)?.pickupPointId ||
-          (admApp as any)?.pickupPointId ||
-          "";
-        const transportType =
-          (activeTransportAssign as any)?.transportType ||
-          (student as any)?.transportType ||
-          (admApp as any)?.transportType ||
-          "AC";
+      const tempAssign = activeTransportAssign || {
+        id: `STRP-AUTO-${studentId}`,
+        studentId,
+        studentName: stName,
+        admissionNo: admNo,
+        routeId,
+        routeName,
+        pickupPointId,
+        pickupPoint: pickupName,
+        transportType,
+        feePlan: "Annual",
+        status: isResident ? "Inactive" : "Active",
+      };
 
-        const tempAssign = activeTransportAssign || {
-          id: `STRP-AUTO-${studentId}`,
-          studentId,
-          studentName: stName,
-          admissionNo: admNo,
-          routeId,
-          routeName,
-          pickupPointId,
-          pickupPoint: pickupName,
-          transportType,
-          feePlan: "Annual",
-          status: "Active",
-        };
+      let dynamicFare = getDynamicTransportFee({
+        ...tempAssign,
+        feePlan: "Annual",
+      });
 
-        let dynamicFare = getDynamicTransportFee({
-          ...tempAssign,
-          feePlan: "Annual",
-        });
+      if (dynamicFare <= 0 && (routeName || pickupName)) {
+        const isAC =
+          String(transportType || "AC")
+            .toUpperCase()
+            .includes("AC") &&
+          !String(transportType || "AC")
+            .toUpperCase()
+            .includes("NON");
+        dynamicFare = (isAC ? 1500 : 1200) * 12;
+      }
 
-        if (dynamicFare <= 0 && (routeName || pickupName)) {
-          const isAC =
-            String(transportType || "AC")
-              .toUpperCase()
-              .includes("AC") &&
-            !String(transportType || "AC")
-              .toUpperCase()
-              .includes("NON");
-          dynamicFare = (isAC ? 1500 : 1200) * 12;
-        }
+      // If resident and transport ended, prorate transport fee based on months used
+      const monthlyRate = Math.round(dynamicFare / 12);
+      let calculatedFare = dynamicFare;
+      if (isResident) {
+        const startDateStr = activeTransportAssign?.effectiveFrom || (admApp as any)?.admissionDate || new Date().toISOString();
+        const endDateStr = activeTransportAssign?.effectiveTo || (student as any)?.hostelJoiningDate || new Date().toISOString();
+        const daysUsed = Math.max(1, Math.round((new Date(endDateStr).getTime() - new Date(startDateStr).getTime()) / (1000 * 60 * 60 * 24)));
+        const monthsUsed = Math.min(12, Math.max(1, Math.ceil(daysUsed / 30.4375)));
+        calculatedFare = Math.round(monthlyRate * monthsUsed);
+      }
 
-        const configuredTransportFee =
-          Number(activeTransportAssign?.feeAmount) ||
-          Number((student as any)?.transportFee) ||
-          Number((admApp as any)?.transportFee) ||
-          dynamicFare;
+      const configuredTransportFee =
+        Number(activeTransportAssign?.feeAmount) ||
+        Number((student as any)?.transportFee) ||
+        Number((admApp as any)?.transportFee) ||
+        calculatedFare;
 
-        if (configuredTransportFee > 0 || dynamicFare > 0) {
-          transportApplicable = true;
-          if (!activeTransportAssign) {
-            activeTransportAssign = {
-              ...tempAssign,
-              feeAmount:
-                configuredTransportFee > 0
-                  ? configuredTransportFee
-                  : dynamicFare,
-              effectiveFrom:
-                student?.joiningDate ||
-                admApp?.admissionDate ||
-                new Date().toISOString().split("T")[0],
-              status: "Active",
-            };
-          }
+      if (configuredTransportFee > 0 || calculatedFare > 0) {
+        transportApplicable = true;
+        if (!activeTransportAssign) {
+          activeTransportAssign = {
+            ...tempAssign,
+            feeAmount:
+              configuredTransportFee > 0
+                ? configuredTransportFee
+                : calculatedFare,
+            effectiveFrom:
+              student?.joiningDate ||
+              admApp?.admissionDate ||
+              new Date().toISOString().split("T")[0],
+            status: isResident ? "Inactive" : "Active",
+          };
         }
       }
     }
@@ -15783,7 +15790,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
 
         if (matchedItem && matchedItem.amount > 0) {
           hostelAccommodationTotal = matchedItem.amount;
-          hostelSecurityDepositTotal = 2000;
+          hostelSecurityDepositTotal = (financeHostelConfigs || []).find(c => c.status === "Active")?.securityDeposit || 0;
           hostelFrequency = "Quarterly";
           hostelApplicable = true;
         }

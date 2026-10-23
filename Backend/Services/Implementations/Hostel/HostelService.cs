@@ -638,7 +638,7 @@ public class HostelService : IHostelService
             }
             else
             {
-                requiredDeposit = feeConfigs.FirstOrDefault()?.SecurityDeposit ?? 2000m;
+                requiredDeposit = feeConfigs.FirstOrDefault()?.SecurityDeposit ?? 0m;
             }
 
             // Determine verified paid security deposit
@@ -817,7 +817,7 @@ public class HostelService : IHostelService
             }
             else
             {
-                requiredDeposit = feeConfigs.FirstOrDefault()?.SecurityDeposit ?? 2000m;
+                requiredDeposit = feeConfigs.FirstOrDefault()?.SecurityDeposit ?? 0m;
             }
 
             var completedPayments = await _context.FeePayments
@@ -946,6 +946,17 @@ public class HostelService : IHostelService
             studentApp.HostelRoom = room.RoomNumber;
             studentApp.StudentType = "Residential";
             studentApp.AllocatedBedId = bedNo;
+        }
+
+        if (_context != null)
+        {
+            var activeTransport = await _context.StudentTransportAssignments.FirstOrDefaultAsync(t => (t.StudentId == targetStudentId || (!string.IsNullOrEmpty(regNo) && t.AdmissionNo == regNo) || (!string.IsNullOrEmpty(admNo) && t.AdmissionNo == admNo)) && t.Status && !t.IsDeleted);
+            if (activeTransport != null)
+            {
+                activeTransport.EffectiveTo = allocation.JoiningDate ?? DateTime.UtcNow;
+                activeTransport.Status = false;
+                activeTransport.Remarks = $"Ceased on {activeTransport.EffectiveTo:yyyy-MM-dd} due to Hostel Bed Allocation ({hostel.HostelName}, Room {room.RoomNumber}, Bed {bedNo}).";
+            }
         }
 
         await _hostelRepo.AddBedAllocationAsync(allocation);

@@ -2106,7 +2106,7 @@ public class SchoolService : ISchoolService
 				if (existingAssignment != null)
 				{
 					existingAssignment.Status = false;
-					existingAssignment.IsDeleted = true;
+					if (!existingAssignment.EffectiveTo.HasValue) existingAssignment.EffectiveTo = DateTime.UtcNow;
 					await _context.SaveChangesAsync();
 				}
 			}
