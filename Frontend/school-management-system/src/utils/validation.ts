@@ -765,7 +765,15 @@ export function validateUniformSize(size: string, required: boolean = true): { i
   return { isValid: true };
 }
 
-export function validateCampusAddress(address: string, required: boolean = true): { isValid: boolean; error?: string } {
+/**
+ * Validates a residential, contact, campus, or general address to ensure completeness.
+ * Rejects incomplete address entries (e.g., single-word identifiers like "RkPridepg",
+ * strings under 10 characters, or inputs lacking street/locality details).
+ */
+export function validateAddress(
+  address: string,
+  required: boolean = false
+): { isValid: boolean; error?: string } {
   if (!address || typeof address !== 'string' || !address.trim()) {
     return required
       ? { isValid: false, error: 'Address is required.' }
