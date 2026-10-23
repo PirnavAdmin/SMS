@@ -1,4 +1,4 @@
-namespace SMS.Api.Controllers.Auth;
+﻿namespace SMS.Api.Controllers.Auth;
 
 using Microsoft.AspNetCore.Mvc;
 using SMS.Api.Dtos;
@@ -160,6 +160,14 @@ public class HostelsController : ControllerBase
     {
         await _hostelService.DeleteWardenAsync(id);
         return NoContent();
+    }
+
+    // --- ELIGIBLE RESIDENTIAL STUDENTS FOR ALLOCATION ---
+    [HttpGet("eligible-students")]
+    public async Task<IActionResult> GetEligibleStudents([FromQuery] string? search)
+    {
+        var students = await _hostelService.GetEligibleStudentsForAllocationAsync(search);
+        return Ok(students);
     }
 
     // --- STUDENT BED ALLOCATIONS ---

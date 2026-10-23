@@ -87,15 +87,14 @@ const setStoredMock = (key: string, data: any) => {
   }
 };
 
-// Persisted Mock Testing Store
-
-let localRoutes: RouteMaster[] = getStoredMock('route_masters', initialRouteMasters);
-let localPickupPoints: PickupPoint[] = getStoredMock('pickup_points', initialPickupPoints);
-let localVehicles: VehicleMaster[] = getStoredMock('vehicle_masters', initialVehicleMasters);
-let localDrivers: DriverMaster[] = getStoredMock('driver_masters', initialDriverMasters);
-let localVehicleAssignments: VehicleAssignment[] = getStoredMock('vehicle_assignments', initialVehicleAssignments);
-let localStudentAssignments: StudentTransport[] = getStoredMock('student_transports', initialStudentTransports);
-let localMaintenance: VehicleMaintenance[] = getStoredMock('vehicle_maintenances', initialVehicleMaintenances);
+// In-memory cache for runtime state
+let localRoutes: RouteMaster[] = [];
+let localPickupPoints: PickupPoint[] = [];
+let localVehicles: VehicleMaster[] = [];
+let localDrivers: DriverMaster[] = [];
+let localVehicleAssignments: VehicleAssignment[] = [];
+let localStudentAssignments: StudentTransport[] = [];
+let localMaintenance: VehicleMaintenance[] = [];
 
 // --- Routes ---
 
@@ -167,59 +166,43 @@ export const deleteRouteApi = async (id: string): Promise<{ success: boolean }> 
 // --- Pickup Points ---
 
 export const fetchPickupPointsApi = async (): Promise<PickupPoint[]> => {
-  const storedLocal = getStoredMock('pickup_points', localPickupPoints);
-  if (Array.isArray(storedLocal) && storedLocal.length > 0) {
-    localPickupPoints = storedLocal;
-  }
-
   let items: any[] = [];
   try {
     const res = await safeTransportApiCall<any>('/api/transport/pickup-points', { method: 'GET' }, null);
-    items = Array.isArray(res) ? res : (res?.items || res?.data || []);
+    if (res !== null && res !== undefined) {
+      items = Array.isArray(res) ? res : (res?.items || res?.data || []);
+    }
     if (items.length === 0) {
       const lookupRes = await safeTransportApiCall<any>('/api/transport/lookups/pickup-points', { method: 'GET' }, null);
-      items = Array.isArray(lookupRes) ? lookupRes : (lookupRes?.items || lookupRes?.data || []);
+      if (lookupRes !== null && lookupRes !== undefined) {
+        items = Array.isArray(lookupRes) ? lookupRes : (lookupRes?.items || lookupRes?.data || []);
+      }
     }
   } catch (e) {
     items = [];
   }
 
-  if (items.length === 0 && localPickupPoints.length > 0) {
-    return localPickupPoints;
-  }
-
-  // Merge items from API with localPickupPoints
-  const mergedMap = new Map<string, PickupPoint>();
-  localPickupPoints.forEach(p => mergedMap.set(String(p.id), p));
-  items.forEach((p: any) => {
+  const normalized: PickupPoint[] = items.map((p: any) => {
     const ptId = (p.id || p.pickupPointId || p.pickupId || '').toString();
     const ptRouteId = (p as any).routeId;
     const isRouteIdValid = ptRouteId !== undefined && ptRouteId !== null && String(ptRouteId) !== '0' && String(ptRouteId) !== '';
-    if (ptId) {
-      const existing = mergedMap.get(ptId);
-      const normalized: PickupPoint = {
-        ...existing,
-        ...p,
-        id: ptId,
-        pickupName: p.pickupName || (p as any).pickupPointName || (p as any).stopName || existing?.pickupName || '',
-        routeId: isRouteIdValid ? String(ptRouteId) : (existing?.routeId || ''),
-        routeName: p.routeName || (p as any).selectRoute || existing?.routeName || '',
-        sequenceNumber: Number(p.sequenceNumber !== undefined ? p.sequenceNumber : ((p as any).sequenceNo !== undefined ? (p as any).sequenceNo : (existing?.sequenceNumber || 1))),
-        distanceFromSchoolKm: Number(p.distanceFromSchoolKm !== undefined ? p.distanceFromSchoolKm : ((p as any).distanceFromStart !== undefined ? (p as any).distanceFromStart : (existing?.distanceFromSchoolKm || 0))),
-        arrivalTime: p.morningPickupTime || p.arrivalTime || (p as any).pickupTime || existing?.arrivalTime || '',
-        morningPickupTime: p.morningPickupTime || p.arrivalTime || (p as any).pickupTime || existing?.morningPickupTime || '',
-        eveningDropTime: p.eveningDropTime || (p as any).dropTime || existing?.eveningDropTime || '',
-        monthlyFee: Number(p.monthlyFee !== undefined ? p.monthlyFee : ((p as any).monthlyFare !== undefined ? (p as any).monthlyFare : (existing?.monthlyFee || 0))),
-        status: ((p.status as any) === true || String(p.status).toLowerCase() === 'true' || p.status === 'Active') ? 'Active' : (existing?.status || 'Inactive')
-      };
-      mergedMap.set(ptId, normalized);
-    }
+    return {
+      id: ptId,
+      pickupName: p.pickupName || (p as any).pickupPointName || (p as any).stopName || '',
+      routeId: isRouteIdValid ? String(ptRouteId) : '',
+      routeName: p.routeName || (p as any).selectRoute || '',
+      sequenceNumber: Number(p.sequenceNumber !== undefined ? p.sequenceNumber : ((p as any).sequenceNo !== undefined ? (p as any).sequenceNo : 1)),
+      distanceFromSchoolKm: Number(p.distanceFromSchoolKm !== undefined ? p.distanceFromSchoolKm : ((p as any).distanceFromStart !== undefined ? (p as any).distanceFromStart : 0)),
+      arrivalTime: p.morningPickupTime || p.arrivalTime || (p as any).pickupTime || '',
+      morningPickupTime: p.morningPickupTime || p.arrivalTime || (p as any).pickupTime || '',
+      eveningDropTime: p.eveningDropTime || (p as any).dropTime || '',
+      monthlyFee: Number(p.monthlyFee !== undefined ? p.monthlyFee : ((p as any).monthlyFare !== undefined ? (p as any).monthlyFare : 0)),
+      status: ((p.status as any) === true || String(p.status).toLowerCase() === 'true' || p.status === 'Active') ? 'Active' : 'Inactive'
+    };
   });
 
-  const finalPoints = Array.from(mergedMap.values());
-  localPickupPoints = finalPoints;
-  setStoredMock('pickup_points', finalPoints);
-  return finalPoints;
+  localPickupPoints = normalized;
+  return normalized;
 };
 
 export const fetchPickupPointByIdApi = async (id: string): Promise<PickupPoint | undefined> => {
@@ -617,8 +600,8 @@ export const deleteVehicleAssignmentApi = async (id: string): Promise<{ success:
 export const fetchStudentAssignmentsApi = async (): Promise<StudentTransport[]> => {
   try {
     const res: any = await apiClient('/api/transport/student-assignments', { method: 'GET' });
-    const items = Array.isArray(res) ? res : (res?.items || res?.data?.items || res?.data || []);
-    if (items.length > 0) {
+    if (res !== null && res !== undefined) {
+      const items = Array.isArray(res) ? res : (res?.items || res?.data?.items || res?.data || []);
       const mapped = items.map((t: any) => ({
         id: String(t.studentTransportAssignmentId || t.id || ''),
         studentId: t.studentId ? String(t.studentId) : '',
@@ -639,12 +622,14 @@ export const fetchStudentAssignmentsApi = async (): Promise<StudentTransport[]> 
         feeAmount: Number(t.feeAmount || 0),
         status: (t.status === true || String(t.status).toLowerCase() === 'true' || t.status === 'Active') ? 'Active' : 'Inactive'
       }));
+
+      localStudentAssignments = mapped;
       return mapped as unknown as StudentTransport[];
     }
   } catch (err) {
     console.error('Failed to fetch student transport assignments from API', err);
   }
-  return safeTransportApiCall<StudentTransport[]>('/api/transport/student-assignments', { method: 'GET' }, localStudentAssignments);
+  return [];
 };
 
 export const fetchStudentAssignmentByIdApi = async (id: string): Promise<StudentTransport | undefined> => {

@@ -2237,7 +2237,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   >(() => getStored("erp_transport_routes", initialERPTransportRoutes));
   const [studentTransports, setStudentTransports] = useState<
     StudentTransport[]
-  >(() => getStored("edu_db_student_transports", []));
+  >([]);
   const [hostelMasters, setHostelMasters] = useState<HostelMaster[]>(() =>
     getStored("hostel_masters", initialHostelMasters),
   );
@@ -2252,12 +2252,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   );
 
   // Transport ERP System States
-  const [routeMasters, setRouteMasters] = useState<RouteMaster[]>(() =>
-    getStored("edu_db_route_masters", getStored("route_masters", [])),
-  );
-  const [pickupPoints, setPickupPoints] = useState<PickupPoint[]>(() =>
-    getStored("edu_db_pickup_points", getStored("pickup_points", [])),
-  );
+  const [routeMasters, setRouteMasters] = useState<RouteMaster[]>([]);
+  const [pickupPoints, setPickupPoints] = useState<PickupPoint[]>([]);
   const [vehicleMasters, setVehicleMasters] = useState<VehicleMaster[]>(() =>
     getStored("edu_db_vehicle_masters", getStored("vehicle_masters", [])),
   );
@@ -2311,9 +2307,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   // Finance -> Transport Pricing Configuration Master State
   const [financeTransportConfigs, setFinanceTransportConfigs] = useState<
     FinanceTransportConfig[]
-  >(() =>
-    getStored("finance_transport_configs", initialFinanceTransportConfigs),
-  );
+  >([]);
 
   const MONTH_NAMES_ACADEMIC = [
     "April",
@@ -3599,91 +3593,28 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
             localStorage.getItem("edu_db_pickup_points") || "[]",
           );
 
-          const mergedMap = new Map<string, PickupPoint>();
+          const activeRoutes = routes || routeMasters || [];
+          const validRouteIds = new Set<string>(activeRoutes.map((r: any) => String(r.id || r.routeId)));
+          const validRouteNames = new Set<string>(activeRoutes.map((r: any) => (r.routeName || '').trim().toLowerCase()));
 
-          localStoredPoints.forEach((pt) => {
-            const key = (
-              pt.id
-                ? String(pt.id)
-                : (pt.pickupName || "") + "_" + (pt.routeId || "")
-            ).toLowerCase();
-            if (
-              !deletedPickupTrack.has(key) &&
-              !deletedPickupTrack.has(String(pt.id))
-            ) {
-              mergedMap.set(key, pt);
-            }
-          });
+          const isValidRouteForPoint = (pt: any) => {
+            const rId = String(pt.routeId || '');
+            const rName = (pt.routeName || '').trim().toLowerCase();
+            return (rId && validRouteIds.has(rId)) || (rName && validRouteNames.has(rName));
+          };
 
-          mappedPoints.forEach((pt: PickupPoint) => {
-            const key = (
-              pt.id
-                ? String(pt.id)
-                : (pt.pickupName || "") + "_" + (pt.routeId || "")
-            ).toLowerCase();
-            if (
-              !deletedPickupTrack.has(key) &&
-              !deletedPickupTrack.has(String(pt.id))
-            ) {
-              const existing =
-                mergedMap.get(key) ||
-                (pt.id
-                  ? mergedMap.get(String(pt.id).toLowerCase())
-                  : undefined);
-              const validRouteId =
-                pt.routeId && pt.routeId !== "0" && String(pt.routeId) !== "0"
-                  ? pt.routeId
-                  : existing?.routeId || "";
-              const validRouteName = pt.routeName || existing?.routeName || "";
-              const validPickupName =
-                pt.pickupName ||
-                (pt as any).pickupPointName ||
-                existing?.pickupName ||
-                "";
+          const validMappedPoints = mappedPoints.filter(isValidRouteForPoint);
 
-              mergedMap.set(key, {
-                ...existing,
-                ...pt,
-                id: pt.id || existing?.id || "",
-                routeId: validRouteId,
-                routeName: validRouteName,
-                pickupName: validPickupName,
-                sequenceNumber:
-                  pt.sequenceNumber || existing?.sequenceNumber || 1,
-                distanceFromSchoolKm:
-                  pt.distanceFromSchoolKm !== undefined &&
-                  !isNaN(Number(pt.distanceFromSchoolKm))
-                    ? pt.distanceFromSchoolKm
-                    : existing?.distanceFromSchoolKm || 0,
-                monthlyFee:
-                  pt.monthlyFee !== undefined && !isNaN(Number(pt.monthlyFee))
-                    ? pt.monthlyFee
-                    : existing?.monthlyFee || 0,
-                morningPickupTime:
-                  pt.morningPickupTime ||
-                  pt.arrivalTime ||
-                  existing?.morningPickupTime ||
-                  "",
-                eveningDropTime:
-                  pt.eveningDropTime ||
-                  (pt as any).dropTime ||
-                  existing?.eveningDropTime ||
-                  "",
-                dropTime:
-                  pt.eveningDropTime ||
-                  (pt as any).dropTime ||
-                  existing?.dropTime ||
-                  "",
-                isDropOptional:
-                  pt.isDropOptional ??
-                  existing?.isDropOptional ??
-                  (!pt.eveningDropTime && !(pt as any).dropTime),
-                status: pt.status || existing?.status || "Active",
-              });
-            }
-          });
+          // If backend provided points, use validMappedPoints directly as source of truth
+          let finalPickupPoints: PickupPoint[];
+          if (validMappedPoints.length > 0) {
+            finalPickupPoints = validMappedPoints;
+          } else {
+            finalPickupPoints = localStoredPoints.filter(
+              (pt) => isValidRouteForPoint(pt) && !deletedPickupTrack.has(String(pt.id))
+            );
+          }
 
-          const finalPickupPoints = Array.from(mergedMap.values());
           setPickupPoints(finalPickupPoints);
           localStorage.setItem(
             "edu_db_pickup_points",
@@ -4139,22 +4070,27 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           const localStoredTransports: StudentTransport[] = JSON.parse(
             localStorage.getItem("edu_db_student_transports") || "[]",
           );
-          const mergedTransportsMap = new Map<string, any>();
-          localStoredTransports.forEach((st: any) => {
-            if (st && st.id) {
-              mergedTransportsMap.set(String(st.id).toLowerCase(), st);
-            }
-          });
-          mappedTransports.forEach((st: any) => {
-            if (st && st.id) {
-              const key = String(st.id).toLowerCase();
-              mergedTransportsMap.set(key, {
-                ...mergedTransportsMap.get(key),
-                ...st,
-              });
-            }
-          });
-          const finalTransports = Array.from(mergedTransportsMap.values());
+
+          const activeRoutes = routes || routeMasters || [];
+          const validRouteIds = new Set<string>(activeRoutes.map((r: any) => String(r.id || r.routeId)));
+          const validRouteNames = new Set<string>(activeRoutes.map((r: any) => (r.routeName || '').trim().toLowerCase()));
+
+          const isValidRouteForTransport = (st: any) => {
+            const rId = String(st.routeId || '');
+            const rName = (st.routeName || '').trim().toLowerCase();
+            return (!rId && !rName) || (rId && validRouteIds.has(rId)) || (rName && validRouteNames.has(rName));
+          };
+
+          const validMappedTransports = mappedTransports.filter(isValidRouteForTransport);
+
+          // If backend provided student transports, use validMappedTransports directly
+          let finalTransports: StudentTransport[];
+          if (validMappedTransports.length > 0) {
+            finalTransports = validMappedTransports;
+          } else {
+            finalTransports = localStoredTransports.filter(isValidRouteForTransport);
+          }
+
           setStudentTransports(finalTransports);
           localStorage.setItem(
             "edu_db_student_transports",
@@ -6692,8 +6628,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
                 joiningDate:
                   a.joiningDate ||
                   a.allocatedDate ||
-                  new Date().toISOString().split("T")[0],
-                status: "Active" as const,
+                  new Date().toISOString().split("T")[0],                status: "Active" as const,
               }));
             setStudentHostelAssignments(mappedAllocs);
             try {

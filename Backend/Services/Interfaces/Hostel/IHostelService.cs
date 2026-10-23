@@ -40,6 +40,7 @@ public interface IHostelService
     Task<List<StaffWardenCandidateDto>> GetStaffCandidatesAsync(string? search);
 
     // Bed Allocations
+    Task<List<EligibleHostelStudentDto>> GetEligibleStudentsForAllocationAsync(string? search);
     Task<List<BedAllocationDto>> GetAllBedAllocationsAsync(int? hostelId, int? roomId, string? search);
     Task<BedAllocationDto> AllocateBedAsync(CreateBedAllocationDto dto);
     Task<bool> VacateBedAsync(int allocationId);

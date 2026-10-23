@@ -1,4 +1,4 @@
-// @ts-nocheck
+﻿// @ts-nocheck
 import React, { useState, useEffect, useMemo } from 'react';
 import { FileSpreadsheet, Printer, FileText, Search } from 'lucide-react';
 import { useData } from '../../../context/DataContext';
@@ -9,6 +9,7 @@ import { Pagination } from '../../common/Pagination';
 import { SchoolPrintHeader } from '../../common/SchoolPrintHeader';
 import { SearchableSelect } from '../../common/SearchableSelect';
 import { getHostelBlocks, getRooms, getAllocations, getWardens, formatRoomNumber, HostelBlock, HostelRoom, BedAllocation, WardenRecord } from '../../../api/hostel';
+import { normalizeStudentType } from '../../../utils/studentTypeUtils';
 
 const ENTERPRISE_HOSTEL_REPORTS = [
   'Block Report',
@@ -297,8 +298,8 @@ export const HostelReportsView: React.FC = () => {
             const sId = String(s.id || '').trim().toLowerCase();
             const sAdm = String(s.admissionNo || s.applicationNo || s.registrationNo || sId).trim().toLowerCase();
             const sName = String(s.applicantName || `${s.firstName || ''} ${s.lastName || ''}`.trim() || s.name || '').trim().toLowerCase();
-            const sType = String(s.studentType || s.residenceType || s.facilityOpted || '').toLowerCase();
-            const isRes = sType.includes('hostel') || sType.includes('residential') || sType.includes('boarder') || s.isHostelRequired === true;
+            const normType = normalizeStudentType(s.studentType || s.residenceType || s.facilityOpted);
+            const isRes = normType === 'Residential' || s.isHostelRequired === true;
 
             const isAllocated =
               (sId && allocatedStudentIds.has(sId)) ||

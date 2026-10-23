@@ -1,4 +1,4 @@
-import { apiClient } from './client';
+﻿import { apiClient } from './client';
 
 const hostelApiClient = async (endpoint: string, options?: RequestInit) => {
   const res = await apiClient(endpoint, options);
@@ -64,6 +64,26 @@ export interface StaffCandidate {
   department: string;
   email: string;
   phone: string;
+}
+
+export interface EligibleHostelStudent {
+  id: string | number;
+  studentId?: number;
+  applicationId?: number;
+  studentName: string;
+  name?: string;
+  admissionNo: string;
+  registrationNo: string;
+  className: string;
+  section: string;
+  studentType: string;
+  requiredSecurityDeposit: number;
+  paidSecurityDeposit: number;
+  isSecurityDepositPaid: boolean;
+  paymentStatus?: string;
+  hostelBlock?: string;
+  hostelRoom?: string;
+  bedNumber?: string;
 }
 
 export interface BedAllocation {
@@ -1099,6 +1119,17 @@ export const vacateStudentAllocation = async (studentId: string | number, admiss
 };
 
 // 5. Student Bed Allocation API
+export const getEligibleStudentsForAllocation = async (search?: string): Promise<EligibleHostelStudent[]> => {
+  try {
+    const query = search ? `?search=${encodeURIComponent(search)}` : '';
+    const res = await hostelApiClient(`/api/hostels/eligible-students${query}`);
+    if (Array.isArray(res)) return res;
+    if (res && Array.isArray(res.data)) return res.data;
+  } catch (e) {
+    console.error('Failed to fetch eligible students for hostel allocation', e);
+  }
+  return [];
+};
 export const getAllocations = async (): Promise<BedAllocation[]> => {
   let serverAllocs: BedAllocation[] = [];
   try {
