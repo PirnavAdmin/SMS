@@ -1261,7 +1261,7 @@ function setGlobalInputError(input: HTMLInputElement | HTMLTextAreaElement, erro
     input.classList.contains('w-full')
   );
 
-  const shouldAbsolute = isSearch && !isFormField;
+  const shouldAbsolute = false;
 
   const directSibling = (isIconWrapper ? container.nextElementSibling : input.nextElementSibling) as HTMLElement | null;
   let errEl = (container.querySelector(':scope > [data-global-validation-error="true"]') ||
@@ -1271,6 +1271,14 @@ function setGlobalInputError(input: HTMLInputElement | HTMLTextAreaElement, erro
   if (!error) {
     input.removeAttribute('data-global-invalid');
     input.style.borderColor = '';
+    if (isIconWrapper) {
+      Array.from(container.querySelectorAll<HTMLElement>(':scope > svg.absolute, :scope > .absolute')).forEach(iconEl => {
+        if (iconEl.hasAttribute('data-locked-icon-top')) {
+          iconEl.style.top = '';
+          iconEl.removeAttribute('data-locked-icon-top');
+        }
+      });
+    }
     if (errEl) {
       errEl.remove();
     }
@@ -1327,8 +1335,30 @@ function setGlobalInputError(input: HTMLInputElement | HTMLTextAreaElement, erro
       anchor.appendChild(errEl);
     }
   } else {
+    // Lock any vertically-centered icon inside container to the input's vertical center before appending error under input
+    if (isIconWrapper && input.offsetHeight > 0) {
+      const inputCenterY = input.offsetTop + input.offsetHeight / 2;
+      Array.from(container.querySelectorAll<HTMLElement>(':scope > svg.absolute, :scope > .absolute')).forEach(iconEl => {
+        if (iconEl !== errEl && iconEl.classList.contains('top-1/2')) {
+          iconEl.style.top = `${inputCenterY}px`;
+          iconEl.setAttribute('data-locked-icon-top', 'true');
+        }
+      });
+    }
+
+    try {
+      const cs = window.getComputedStyle(container);
+      if ((cs.display === 'flex' || cs.display === 'inline-flex') && !cs.flexDirection.startsWith('column')) {
+        container.style.flexWrap = 'wrap';
+      }
+    } catch {
+      // ignore
+    }
+
     errEl.style.position = 'static';
     errEl.style.display = 'block';
+    errEl.style.width = '100%';
+    errEl.style.flexBasis = '100%';
     errEl.style.left = '';
     errEl.style.top = '';
     errEl.style.zIndex = '';
@@ -1340,7 +1370,17 @@ function setGlobalInputError(input: HTMLInputElement | HTMLTextAreaElement, erro
     errEl.style.marginTop = '4px';
     errEl.style.lineHeight = '1.2';
 
-    const insertTarget = isIconWrapper ? container : input;
+    const parentIsFlexRow = (() => {
+      if (!isIconWrapper || !container.parentElement) return false;
+      try {
+        const pcs = window.getComputedStyle(container.parentElement);
+        return (pcs.display === 'flex' || pcs.display === 'inline-flex') && !pcs.flexDirection.startsWith('column');
+      } catch {
+        return false;
+      }
+    })();
+
+    const insertTarget = isIconWrapper && !parentIsFlexRow && !isSearch ? container : input;
     if (insertTarget.nextElementSibling !== errEl) {
       insertTarget.insertAdjacentElement('afterend', errEl);
     }

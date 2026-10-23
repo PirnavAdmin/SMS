@@ -1,8 +1,8 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { 
   Award, Search, Plus, Filter, FileText, Printer, Eye, Download, 
   RefreshCw, CheckCircle2, AlertTriangle, Layers, Calendar, ShieldCheck, 
-  ArrowUpRight, Settings as SettingsIcon, FileCheck, Check
+  ArrowUpRight, Settings as SettingsIcon, FileCheck, Check, ChevronDown
 } from 'lucide-react';
 import { 
   GeneratedCertificateRecord, CertificateTypeConfig, Student 
@@ -18,6 +18,83 @@ import { compareClassesAscending } from '../../../utils/classSorter';
 export interface CertificatesViewProps {
   onNavigateToSettings?: () => void;
 }
+
+interface DownwardSelectOption {
+  value: string;
+  label: string;
+}
+
+const DownwardSelect: React.FC<{
+  value: string;
+  options: DownwardSelectOption[];
+  onChange: (val: string) => void;
+  className?: string;
+}> = ({ value, options, onChange, className }) => {
+  const [open, setOpen] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    };
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setOpen(false);
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [open]);
+
+  const selectedOption = options.find(o => o.value === value) || options[0];
+
+  return (
+    <div ref={containerRef} className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen(prev => !prev)}
+        className={
+          className ||
+          "px-3.5 py-2.5 rounded-2xl bg-slate-50 dark:bg-slate-800 border border-slate-200/80 dark:border-slate-700 text-xs font-bold text-slate-800 dark:text-white outline-none cursor-pointer flex items-center justify-between gap-2.5 whitespace-nowrap"
+        }
+      >
+        <span>{selectedOption?.label || value}</span>
+        <ChevronDown className={`w-3.5 h-3.5 text-slate-500 transition-transform duration-150 ${open ? 'rotate-180' : ''}`} />
+      </button>
+
+      {open && (
+        <div className="absolute top-full left-0 mt-1.5 min-w-full w-max max-h-60 overflow-y-auto z-50 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 shadow-xl py-1.5 animate-in fade-in">
+          {options.map(opt => {
+            const isSelected = opt.value === value;
+            return (
+              <button
+                key={opt.value}
+                type="button"
+                onClick={() => {
+                  onChange(opt.value);
+                  setOpen(false);
+                }}
+                className={`w-full px-3.5 py-2 text-left text-xs font-bold flex items-center justify-between gap-3 transition-colors cursor-pointer ${
+                  isSelected
+                    ? 'bg-sky-50 dark:bg-sky-950/60 text-sky-600 dark:text-sky-400'
+                    : 'text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800'
+                }`}
+              >
+                <span className="whitespace-nowrap">{opt.label}</span>
+                {isSelected && <Check className="w-3.5 h-3.5 text-sky-600 dark:text-sky-400 shrink-0" />}
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+};
 
 export const CertificatesView: React.FC<CertificatesViewProps> = ({ onNavigateToSettings }) => {
   const { students, schoolProfile, academicClasses } = useData();
@@ -235,25 +312,27 @@ export const CertificatesView: React.FC<CertificatesViewProps> = ({ onNavigateTo
         </div>
       </div>
 
-      {/* Main Tab Navigation */}
-      <div className="flex items-center gap-2 border-b border-slate-200 dark:border-slate-800 pb-3">
+      {/* Main Tab Toggle */}
+      <div className="inline-flex items-center p-1 rounded-2xl bg-slate-100 dark:bg-slate-800/90 border border-slate-200/80 dark:border-slate-700 shadow-inner w-fit">
         <button
+          type="button"
           onClick={() => setActiveTab('generate')}
-          className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
+          className={`px-4 py-2 rounded-xl text-xs font-extrabold transition-all flex items-center gap-2 cursor-pointer ${
             activeTab === 'generate'
-              ? 'bg-sky-600 text-white shadow-md'
-              : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+              ? 'bg-sky-600 text-white shadow-sm'
+              : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
           }`}
         >
           <Plus className="w-4 h-4" /> Generate Certificate
         </button>
 
         <button
+          type="button"
           onClick={() => setActiveTab('history')}
-          className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
+          className={`px-4 py-2 rounded-xl text-xs font-extrabold transition-all flex items-center gap-2 cursor-pointer ${
             activeTab === 'history'
-              ? 'bg-sky-600 text-white shadow-md'
-              : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+              ? 'bg-sky-600 text-white shadow-sm'
+              : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
           }`}
         >
           <FileText className="w-4 h-4" /> Certificate History ({historyRecords.length})
@@ -264,10 +343,10 @@ export const CertificatesView: React.FC<CertificatesViewProps> = ({ onNavigateTo
       {activeTab === 'history' && (
         <div className="space-y-4">
           {/* Filters Bar */}
-          <div className="glass-card p-4 rounded-3xl border border-slate-200/80 dark:border-slate-800 flex flex-wrap items-center justify-between gap-3">
-            <div className="flex flex-wrap items-center gap-3 flex-1 min-w-[300px]">
+          <div className="glass-card p-4 rounded-3xl border border-slate-200/80 dark:border-slate-800 flex flex-wrap items-start justify-between gap-3">
+            <div className="flex flex-wrap items-start gap-3 flex-1 min-w-[300px]">
               <div className="relative flex-1 min-w-[200px]">
-                <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                <Search className="w-4 h-4 absolute left-3 top-2.5 text-slate-400" />
                 <input
                   type="text"
                   value={searchQuery}
@@ -277,27 +356,23 @@ export const CertificatesView: React.FC<CertificatesViewProps> = ({ onNavigateTo
                 />
               </div>
 
-              <select
+              <DownwardSelect
                 value={selectedTypeFilter}
-                onChange={e => setSelectedTypeFilter(e.target.value)}
-                className="px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold outline-none cursor-pointer"
-              >
-                <option value="ALL">All Certificate Types</option>
-                {certificateTypes.map(t => (
-                  <option key={t.id} value={t.id}>{t.name}</option>
-                ))}
-              </select>
+                onChange={val => setSelectedTypeFilter(val)}
+                options={[
+                  { value: 'ALL', label: 'All Certificate Types' },
+                  ...certificateTypes.map(t => ({ value: t.id, label: t.name }))
+                ]}
+              />
 
-              <select
+              <DownwardSelect
                 value={selectedClassFilter}
-                onChange={e => setSelectedClassFilter(e.target.value)}
-                className="px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold outline-none cursor-pointer"
-              >
-                <option value="ALL">All Classes</option>
-                {sortedClasses.map(cls => (
-                  <option key={cls} value={cls}>{cls}</option>
-                ))}
-              </select>
+                onChange={val => setSelectedClassFilter(val)}
+                options={[
+                  { value: 'ALL', label: 'All Classes' },
+                  ...sortedClasses.map(cls => ({ value: cls, label: cls }))
+                ]}
+              />
             </div>
 
             <button
@@ -381,10 +456,10 @@ export const CertificatesView: React.FC<CertificatesViewProps> = ({ onNavigateTo
       {activeTab === 'generate' && (
         <div className="space-y-4">
           {/* SEARCH & FILTERS BAR */}
-          <div className="glass-card p-4 rounded-3xl border border-slate-200/80 dark:border-slate-800 flex flex-col md:flex-row md:items-center justify-between gap-3">
+          <div className="glass-card p-4 rounded-3xl border border-slate-200/80 dark:border-slate-800 flex flex-col md:flex-row md:items-start justify-between gap-3">
             {/* Search Student Name & Admission Number */}
             <div className="relative flex-1 min-w-[240px]">
-              <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+              <Search className="w-4 h-4 absolute left-3.5 top-3 text-slate-400" />
               <input
                 type="text"
                 value={genSearchQuery}
@@ -398,31 +473,27 @@ export const CertificatesView: React.FC<CertificatesViewProps> = ({ onNavigateTo
             <div className="flex flex-wrap items-center gap-2">
               <div className="flex items-center gap-1.5">
                 <Filter className="w-3.5 h-3.5 text-slate-400" />
-                <select
+                <DownwardSelect
                   value={genClassFilter}
-                  onChange={e => {
-                    setGenClassFilter(e.target.value);
+                  onChange={val => {
+                    setGenClassFilter(val);
                     setGenSectionFilter('ALL');
                   }}
-                  className="px-3 py-2.5 rounded-2xl bg-slate-50 dark:bg-slate-800 border border-slate-200/80 dark:border-slate-700 text-xs font-bold text-slate-800 dark:text-white outline-none cursor-pointer"
-                >
-                  <option value="ALL">All Classes</option>
-                  {sortedClasses.map(c => (
-                    <option key={c} value={c}>{c}</option>
-                  ))}
-                </select>
+                  options={[
+                    { value: 'ALL', label: 'All Classes' },
+                    ...sortedClasses.map(c => ({ value: c, label: c }))
+                  ]}
+                />
               </div>
 
-              <select
+              <DownwardSelect
                 value={genSectionFilter}
-                onChange={e => setGenSectionFilter(e.target.value)}
-                className="px-3 py-2.5 rounded-2xl bg-slate-50 dark:bg-slate-800 border border-slate-200/80 dark:border-slate-700 text-xs font-bold text-slate-800 dark:text-white outline-none cursor-pointer"
-              >
-                <option value="ALL">All Sections</option>
-                {availableGenSections.map(sec => (
-                  <option key={sec} value={sec}>Section {sec}</option>
-                ))}
-              </select>
+                onChange={val => setGenSectionFilter(val)}
+                options={[
+                  { value: 'ALL', label: 'All Sections' },
+                  ...availableGenSections.map(sec => ({ value: sec, label: `Section ${sec}` }))
+                ]}
+              />
 
               <span className="text-xs font-mono font-bold text-slate-500 dark:text-slate-400 px-3 py-2 bg-slate-100 dark:bg-slate-800 rounded-2xl">
                 {filteredStudentsForGen.length} Students

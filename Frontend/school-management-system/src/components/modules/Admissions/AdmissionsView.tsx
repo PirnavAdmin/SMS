@@ -39,6 +39,7 @@ import {
   FileText,
   AlertCircle,
   ShieldCheck,
+  CreditCard,
 } from "lucide-react";
 import {
   AdmissionApplication,
