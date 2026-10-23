@@ -14,7 +14,10 @@ function checkMobileNumberRules(cleaned: string): { isValid: boolean; error?: st
   if (!/^[6-9]/.test(cleaned)) {
     return { isValid: false, error: 'Mobile number must start with 6, 7, 8, or 9.' };
   }
-  if (cleaned.length !== 10) {
+  if (cleaned.length > 10) {
+    return { isValid: false, error: 'Mobile number cannot exceed 10 digits.' };
+  }
+  if (cleaned.length < 10) {
     return { isValid: false, error: 'Phone number must be exactly 10 digits.' };
   }
   if (/^(\d)\1{9}$/.test(cleaned)) {
@@ -103,6 +106,59 @@ const LEGIT_CONSONANT_DOMAINS = new Set(['fb', 'bbc', 'cnn', 'nbc', 'msn', 'tvc'
 
 const TWO_LEVEL_CCTLDS = new Set([
   'co', 'com', 'edu', 'ac', 'gov', 'org', 'net', 'res', 'mil', 'gen', 'nom', 'ind', 'sch'
+]);
+
+export const TYPO_DOMAINS: Record<string, string> = {
+  'gmai.com': 'Please enter a valid email domain.',
+  'gmal.com': 'Please enter a valid email domain.',
+  'gamal.com': 'Please enter a valid email domain.',
+  'gmaill.com': 'Please enter a valid email domain.',
+  'gmeil.com': 'Please enter a valid email domain.',
+  'gmaul.com': 'Please enter a valid email domain.',
+  'gmaik.com': 'Please enter a valid email domain.',
+  'gamil.com': 'Please enter a valid email domain.',
+  'gmial.com': 'Please enter a valid email domain.',
+  'gmai.co': 'Please enter a valid email domain.',
+  'gmai.in': 'Please enter a valid email domain.',
+  'gmal.in': 'Please enter a valid email domain.',
+  'gmail.co': 'Please enter a valid email domain.',
+  'gmail.cm': 'Please enter a valid email domain.',
+  'gmail.cmo': 'Please enter a valid email domain.',
+  'gmail.con': 'Please enter a valid email domain.',
+  'gmail.xom': 'Please enter a valid email domain.',
+  'yaho.com': 'Please enter a valid email domain.',
+  'yahooo.com': 'Please enter a valid email domain.',
+  'yaho.in': 'Please enter a valid email domain.',
+  'yaho.co.in': 'Please enter a valid email domain.',
+  'yahoomail.com': 'Please enter a valid email domain.',
+  'hotmial.com': 'Please enter a valid email domain.',
+  'hotmaill.com': 'Please enter a valid email domain.',
+  'hotmial.co.uk': 'Please enter a valid email domain.',
+  'outlok.com': 'Please enter a valid email domain.',
+  'outllok.com': 'Please enter a valid email domain.',
+  'outlok.in': 'Please enter a valid email domain.',
+  'redifmail.com': 'Please enter a valid email domain.',
+  'rediffmai.com': 'Please enter a valid email domain.',
+  'iclud.com': 'Please enter a valid email domain.',
+  'icloude.com': 'Please enter a valid email domain.'
+};
+
+export const PERSONAL_EMAIL_DOMAINS = new Set([
+  'gmail.com', 'googlemail.com', 'gmail.co.in',
+  'yahoo.com', 'yahoo.co.in', 'yahoo.co.uk', 'yahoo.ca', 'yahoo.fr', 'yahoo.in', 'ymail.com', 'rocketmail.com',
+  'hotmail.com', 'hotmail.co.uk', 'hotmail.fr', 'hotmail.es', 'hotmail.it',
+  'outlook.com', 'outlook.co.uk', 'outlook.in', 'outlook.fr', 'outlook.es',
+  'live.com', 'live.co.uk', 'live.in', 'msn.com',
+  'icloud.com', 'me.com', 'mac.com',
+  'aol.com', 'aim.com',
+  'zoho.com', 'zohomail.com',
+  'proton.me', 'protonmail.com', 'pm.me',
+  'rediffmail.com', 'rediff.com',
+  'gmx.com', 'gmx.net', 'gmx.de',
+  'mail.com', 'email.com',
+  'yandex.com', 'yandex.ru', 'yandex.kz',
+  'tutanota.com', 'tutamail.com',
+  'fastmail.com', 'hushmail.com', 'lycos.com'
 ]);
 
 const DOMAIN_KEYBOARD_MASH_REGEX =
@@ -197,21 +253,8 @@ export function validateEmail(email: string, required: boolean = false): { isVal
   }
 
   // Common provider & domain typos
-  const typoDomains: Record<string, string> = {
-    'gmai.com': 'Please enter a valid email domain.',
-    'gmal.com': 'Please enter a valid email domain.',
-    'gamil.com': 'Please enter a valid email domain.',
-    'gmial.com': 'Please enter a valid email domain.',
-    'yaho.com': 'Please enter a valid email domain.',
-    'yahooo.com': 'Please enter a valid email domain.',
-    'hotmial.com': 'Please enter a valid email domain.',
-    'hotmaill.com': 'Please enter a valid email domain.',
-    'outlok.com': 'Please enter a valid email domain.',
-    'outllok.com': 'Please enter a valid email domain.'
-  };
-
-  if (typoDomains[domain]) {
-    return { isValid: false, error: typoDomains[domain] };
+  if (TYPO_DOMAINS[domain]) {
+    return { isValid: false, error: TYPO_DOMAINS[domain] };
   }
 
   // 5. TLD validation
@@ -356,6 +399,96 @@ export function validateEmail(email: string, required: boolean = false): { isVal
 export function sanitizeEmailInput(input: string): string {
   if (!input) return '';
   return input.replace(/[^a-zA-Z0-9@._%+-]/g, '');
+}
+
+/**
+ * Checks if an email address or domain belongs to a personal/public consumer email provider.
+ */
+export function isPersonalEmailDomain(domainOrEmail: string): boolean {
+  if (!domainOrEmail || typeof domainOrEmail !== 'string') return false;
+  const raw = domainOrEmail.trim().toLowerCase();
+  const domain = raw.includes('@') ? raw.split('@')[1] : raw;
+  if (!domain) return false;
+
+  if (PERSONAL_EMAIL_DOMAINS.has(domain)) return true;
+  if (TYPO_DOMAINS[domain]) return true;
+
+  const parts = domain.split('.');
+  if (parts.length >= 2) {
+    const mainLabel = parts[0];
+    const personalLabels = new Set([
+      'gmail', 'googlemail', 'yahoo', 'ymail', 'rocketmail',
+      'hotmail', 'outlook', 'live', 'msn', 'icloud', 'aol',
+      'protonmail', 'proton', 'rediffmail', 'rediff', 'gmx',
+      'tutanota', 'tutamail'
+    ]);
+    if (personalLabels.has(mainLabel)) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+/**
+ * Validates that an email is an official organization email address.
+ * Rejects personal/consumer email providers (Gmail, Yahoo, Hotmail, Outlook, etc.) and invalid typo domains.
+ * If allowedDomains list is provided or defaulted, ensures the domain is an official organization domain.
+ */
+export function validateOfficialEmail(
+  email: string,
+  required: boolean = false,
+  allowedDomains?: string[]
+): { isValid: boolean; error?: string } {
+  if (!email || typeof email !== 'string' || !email.trim()) {
+    if (required) {
+      return { isValid: false, error: 'Official email address is required.' };
+    }
+    return { isValid: true };
+  }
+
+  // 1. General email validation
+  const baseRes = validateEmail(email, required);
+  if (!baseRes.isValid) {
+    return baseRes;
+  }
+
+  const trimmed = email.trim().toLowerCase();
+  const domain = trimmed.split('@')[1];
+
+  // 2. Reject personal / consumer email providers & typos
+  if (isPersonalEmailDomain(domain)) {
+    return {
+      isValid: false,
+      error: 'Personal email addresses are not permitted. Please enter an official organization email address (e.g. @pirnavschools.edu).'
+    };
+  }
+
+  // 3. Organization domain validation
+  const defaultAllowed = ['pirnavschools.edu', 'pirnavschools.com', 'pirnavschools.org', 'pirnavschools.edu.in'];
+  const effectiveAllowed = (allowedDomains && allowedDomains.length > 0) ? allowedDomains : defaultAllowed;
+
+  const isExplicitOrgMatch = effectiveAllowed.some(d => {
+    const clean = d.replace(/^@/, '').toLowerCase().trim();
+    return domain === clean || domain.endsWith('.' + clean);
+  });
+
+  const isInstitutionalDomain =
+    domain.endsWith('.edu') ||
+    domain.endsWith('.edu.in') ||
+    domain.endsWith('.ac.in') ||
+    domain.endsWith('.sch.in') ||
+    domain.endsWith('.school');
+
+  if (!isExplicitOrgMatch && !isInstitutionalDomain) {
+    const primaryDomain = effectiveAllowed[0] || 'pirnavschools.edu';
+    return {
+      isValid: false,
+      error: 'Please enter an official organization email address ending with @' + primaryDomain + ' or an institutional domain.'
+    };
+  }
+
+  return { isValid: true };
 }
 
 const KEYBOARD_MASH_REGEX =
@@ -618,27 +751,102 @@ export function validateCampusCode(code: string, required: boolean = true): { is
   return { isValid: true };
 }
 
-export function validateCampusAddress(address: string, required: boolean = true): { isValid: boolean; error?: string } {
+/**
+ * Validates a residential, contact, campus, or general address to ensure completeness.
+ * Rejects incomplete address entries (e.g., single-word identifiers like "RkPridepg",
+ * strings under 10 characters, or inputs lacking street/locality details).
+ */
+export function validateAddress(
+  address: string,
+  required: boolean = false
+): { isValid: boolean; error?: string } {
   if (!address || typeof address !== 'string' || !address.trim()) {
-    return required ? { isValid: false, error: 'Address is required.' } : { isValid: true };
+    return required
+      ? { isValid: false, error: 'Address is required.' }
+      : { isValid: true };
   }
+
   const trimmed = address.trim();
-  if (trimmed.length < 5 || trimmed.length > 150) {
-    return { isValid: false, error: trimmed.length > 150 ? 'Maximum 150 characters allowed.' : 'Enter a valid address.' };
+
+  // 1. Minimum and Maximum Length
+  if (trimmed.length < 10) {
+    return {
+      isValid: false,
+      error: 'Please enter a complete address with street, area, or locality details (minimum 10 characters).'
+    };
   }
-  if (!/^[a-zA-Z0-9\s\,\.\-\/\#\&\(\)\'\:]+$/.test(trimmed) || (trimmed.match(/[a-zA-Z]/g) || []).length < 3) {
-    return { isValid: false, error: 'Enter a valid address.' };
+  if (trimmed.length > 200) {
+    return {
+      isValid: false,
+      error: 'Address cannot exceed 200 characters.'
+    };
   }
-  if (/([a-zA-Z])\1{2,}/i.test(trimmed) || /([a-zA-Z]{2,3})\1{2,}/i.test(trimmed) || KEYBOARD_MASH_REGEX.test(trimmed)) {
-    return { isValid: false, error: 'Enter a valid address.' };
+
+  // 2. Allowed Characters (letters, numbers, spaces, standard address punctuation)
+  if (!/^[a-zA-Z0-9\s\,\.\-\/#\&\(\)\'\:\;]+$/.test(trimmed)) {
+    return {
+      isValid: false,
+      error: 'Address contains invalid special characters.'
+    };
   }
-  const words = trimmed.split(/[\s\,\.\-\/\#\&\(\)\'\:]+/).filter(Boolean);
-  for (const word of words) {
-    if (isGibberishSegment(word)) {
-      return { isValid: false, error: 'Enter a valid address.' };
+
+  // 3. Must contain sufficient alphabetic letters (at least 5 letters)
+  const letterCount = (trimmed.match(/[a-zA-Z]/g) || []).length;
+  if (letterCount < 5) {
+    return {
+      isValid: false,
+      error: 'Address must contain sufficient street and locality information.'
+    };
+  }
+
+  // 4. Must contain at least 2 distinct descriptive tokens/words
+  const tokens = trimmed.split(/[\s\,\.\-\/#\&\(\)\'\:\;]+/).filter(w => w.length >= 2);
+  if (tokens.length < 2) {
+    return {
+      isValid: false,
+      error: 'Incomplete address. Please include street, building, or locality information.'
+    };
+  }
+
+  // 5. Must not consist only of a single generic word + number without area or street details
+  const hasComma = trimmed.includes(',');
+  const hasMultipleTokens = tokens.length >= 3;
+  const addressKeywords = /(flat|plot|house|h\.no|hno|door|road|rd|street|st|lane|avenue|ave|nagar|colony|layout|enclave|phase|sector|block|building|bldg|apt|apartment|apartments|society|towers|tower|residency|heights|cross|main|near|opp|opposite|behind|beside|floor|pg|hostel|city|town|village|district|dist|pin|pincode|po|post|via|kondapur|hyderabad|bangalore|mumbai|delhi|chennai|pune)/i;
+
+  if (!hasComma && !hasMultipleTokens && !addressKeywords.test(trimmed)) {
+    return {
+      isValid: false,
+      error: 'Incomplete address. Please include street, building, or locality information.'
+    };
+  }
+
+  // 6. Check for repetitive characters or keyboard mashing
+  if (
+    /(.)\1{3,}/.test(trimmed) ||
+    /([a-zA-Z]{2,3})\1{2,}/i.test(trimmed) ||
+    KEYBOARD_MASH_REGEX.test(trimmed)
+  ) {
+    return {
+      isValid: false,
+      error: 'Please enter a valid, meaningful address.'
+    };
+  }
+
+  // 7. Check for gibberish words
+  for (const token of tokens) {
+    if (token.length >= 6 && isGibberishSegment(token)) {
+      return {
+        isValid: false,
+        error: 'Address appears to contain invalid or meaningless text.'
+      };
     }
   }
+
   return { isValid: true };
+}
+
+export function validateCampusAddress(address: string, required: boolean = true): { isValid: boolean; error?: string } {
+  return validateAddress(address, required);
 }
 
 /**

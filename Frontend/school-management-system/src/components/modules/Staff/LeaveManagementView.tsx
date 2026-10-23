@@ -98,8 +98,8 @@ export const LeaveManagementView: React.FC = () => {
       id: user?.id || (user as any)?.empId || '',
       firstName: parts[0] || user?.name || '',
       lastName: parts.slice(1).join(' ') || '',
-      department: (user as any)?.department || (isDriver ? 'Transport & Logistics' : ''),
-      designation: (user as any)?.designation || (isDriver ? 'Bus Driver' : ''),
+      department: (user as any)?.department || (isDriver ? 'Transport' : ''),
+      designation: (user as any)?.designation || (isDriver ? 'Driver' : ''),
       employeeCategory: isDriver ? 'Non-Teaching Staff' : 'Teaching Staff',
       empId: (user as any)?.empId || user?.id || '',
       leaveBalance: matched?.leaveBalance
@@ -122,8 +122,8 @@ export const LeaveManagementView: React.FC = () => {
           ...byEmail,
           firstName: isGenericAdminName ? (isWarden ? (user?.name?.split(' ')[0] || byEmail.firstName || 'Warden') : isAccountant ? 'Sardhar' : isDriver ? 'Nag' : (byEmail.firstName || 'Staff')) : (byEmail.firstName || user?.name?.split(' ')[0] || 'Staff'),
           lastName: isGenericAdminName ? (isWarden ? (user?.name?.split(' ').slice(1).join(' ') || '') : isAccountant ? 'Karthi' : isDriver ? 'Sahoo' : (byEmail.lastName || '')) : (byEmail.lastName || user?.name?.split(' ').slice(1).join(' ') || ''),
-          designation: isWarden ? 'Hostel Warden' : isAccountant ? 'Accountant' : isDriver ? 'Bus Driver' : (byEmail.designation || 'Teacher'),
-          department: isWarden ? 'Hostel Management' : isAccountant ? 'Finance & Accounts' : isDriver ? 'Transport & Logistics' : (byEmail.department || 'Academic Dept'),
+          designation: isWarden ? 'Hostel Warden' : isAccountant ? 'Accountant' : isDriver ? 'Driver' : (byEmail.designation || 'Teacher'),
+          department: isWarden ? 'Hostel Management' : isAccountant ? 'Finance & Accounts' : isDriver ? 'Transport' : (byEmail.department || 'Academic Dept'),
           empId: byEmail.empId || byEmail.id || uEmpId || uId || (isWarden ? `WRD-${user?.id || '102'}` : 'STF-2026-0001')
         };
       }
@@ -139,8 +139,8 @@ export const LeaveManagementView: React.FC = () => {
       if (byName) {
         return {
           ...byName,
-          designation: isWarden ? 'Hostel Warden' : isAccountant ? 'Accountant' : isDriver ? 'Bus Driver' : (byName.designation || 'Teacher'),
-          department: isWarden ? 'Hostel Management' : isAccountant ? 'Finance & Accounts' : isDriver ? 'Transport & Logistics' : (byName.department || 'Academic Dept'),
+          designation: isWarden ? 'Hostel Warden' : isAccountant ? 'Accountant' : isDriver ? 'Driver' : (byName.designation || 'Teacher'),
+          department: isWarden ? 'Hostel Management' : isAccountant ? 'Finance & Accounts' : isDriver ? 'Transport' : (byName.department || 'Academic Dept'),
           empId: byName.empId || byName.id || uEmpId || uId || (isWarden ? `WRD-${user?.id || '102'}` : 'STF-2026-0001')
         };
       }
@@ -155,8 +155,8 @@ export const LeaveManagementView: React.FC = () => {
       if (byId) {
         return {
           ...byId,
-          designation: isWarden ? 'Hostel Warden' : isAccountant ? 'Accountant' : isDriver ? 'Bus Driver' : (byId.designation || 'Teacher'),
-          department: isWarden ? 'Hostel Management' : isAccountant ? 'Finance & Accounts' : isDriver ? 'Transport & Logistics' : (byId.department || 'Academic Dept'),
+          designation: isWarden ? 'Hostel Warden' : isAccountant ? 'Accountant' : isDriver ? 'Driver' : (byId.designation || 'Teacher'),
+          department: isWarden ? 'Hostel Management' : isAccountant ? 'Finance & Accounts' : isDriver ? 'Transport' : (byId.department || 'Academic Dept'),
           empId: byId.empId || byId.id || uEmpId || uId || (isWarden ? `WRD-${user?.id || '102'}` : 'STF-2026-0001')
         };
       }
@@ -230,8 +230,8 @@ export const LeaveManagementView: React.FC = () => {
       empId: uEmpId || uId || String(user?.id || ''),
       firstName: parts[0] || (user as any)?.firstName || '',
       lastName: parts.slice(1).join(' ') || (user as any)?.lastName || '',
-      department: (user as any)?.department || (isWarden ? 'Hostel Management' : isAccountant ? 'Finance & Accounts' : isDriver ? 'Transport & Logistics' : isLibrarian ? 'Library Department' : ''),
-      designation: (user as any)?.designation || (isWarden ? 'Hostel Warden' : isAccountant ? 'Accountant' : isDriver ? 'Bus Driver' : isLibrarian ? 'Librarian' : (userRole || 'Staff')),
+      department: (user as any)?.department || (isWarden ? 'Hostel Management' : isAccountant ? 'Finance & Accounts' : isDriver ? 'Transport' : isLibrarian ? 'Library Department' : ''),
+      designation: (user as any)?.designation || (isWarden ? 'Hostel Warden' : isAccountant ? 'Accountant' : isDriver ? 'Driver' : isLibrarian ? 'Librarian' : (userRole || 'Staff')),
       employeeCategory: (isWarden || isAccountant || isDriver || isLibrarian) ? 'Non-Teaching Staff' : 'Teaching Staff',
       leaveBalance: driverStaffMember?.leaveBalance
     } as Staff;

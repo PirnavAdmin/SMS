@@ -72,9 +72,9 @@ export const TeacherPayslipsView: React.FC = () => {
           ...byEmail,
           firstName: (isGenericAdmin && userFirst) ? userFirst : (isAccountant ? (userFirst || 'Sardhar') : (byEmail.firstName || userFirst || 'Faculty')),
           lastName: (isGenericAdmin && userLast) ? userLast : (isAccountant ? (userLast || 'Karthi') : (byEmail.lastName || userLast || 'Member')),
-          designation: isAccountant ? 'Accountant' : isWarden ? 'Hostel Warden' : (byEmail.designation || 'Teacher'),
-          department: isAccountant ? 'Finance & Accounts' : isWarden ? 'Hostel Management' : (byEmail.department || 'Academics'),
-          role: isAccountant ? 'Accountant' : isWarden ? 'Hostel Warden' : (byEmail.role || 'Teacher'),
+          designation: isAccountant ? 'Accountant' : isWarden ? 'Hostel Warden' : isDriver ? 'Driver' : (byEmail.designation || 'Teacher'),
+          department: isAccountant ? 'Finance & Accounts' : isWarden ? 'Hostel Management' : isDriver ? 'Transport' : (byEmail.department || 'Academics'),
+          role: isAccountant ? 'Accountant' : isWarden ? 'Hostel Warden' : isDriver ? 'Driver' : (byEmail.role || 'Teacher'),
           empId: (isGenericAdmin || byEmail.empId === '358' || byEmail.id === '358') ? (user?.id || (user as any)?.empId || (isAccountant ? 'ACT-101' : isWarden ? 'WRD-102' : 'STF-001')) : (byEmail.empId || byEmail.employeeId || byEmail.id || 'STF-001')
         };
       }
@@ -90,9 +90,9 @@ export const TeacherPayslipsView: React.FC = () => {
       if (byId) {
         return {
           ...byId,
-          designation: isAccountant ? 'Accountant' : isWarden ? 'Hostel Warden' : (byId.designation || 'Teacher'),
-          department: isAccountant ? 'Finance & Accounts' : isWarden ? 'Hostel Management' : (byId.department || 'Academics'),
-          role: isAccountant ? 'Accountant' : isWarden ? 'Hostel Warden' : (byId.role || 'Teacher'),
+          designation: isAccountant ? 'Accountant' : isWarden ? 'Hostel Warden' : isDriver ? 'Driver' : (byId.designation || 'Teacher'),
+          department: isAccountant ? 'Finance & Accounts' : isWarden ? 'Hostel Management' : isDriver ? 'Transport' : (byId.department || 'Academics'),
+          role: isAccountant ? 'Accountant' : isWarden ? 'Hostel Warden' : isDriver ? 'Driver' : (byId.role || 'Teacher'),
           empId: isAccountant ? (user?.id || (user as any)?.empId || 'ACT-101') : (byId.empId || byId.id)
         };
       }
@@ -108,9 +108,9 @@ export const TeacherPayslipsView: React.FC = () => {
       if (byName) {
         return {
           ...byName,
-          designation: isAccountant ? 'Accountant' : isWarden ? 'Hostel Warden' : (byName.designation || 'Teacher'),
-          department: isAccountant ? 'Finance & Accounts' : isWarden ? 'Hostel Management' : (byName.department || 'Academics'),
-          role: isAccountant ? 'Accountant' : isWarden ? 'Hostel Warden' : (byName.role || 'Teacher')
+          designation: isAccountant ? 'Accountant' : isWarden ? 'Hostel Warden' : isDriver ? 'Driver' : (byName.designation || 'Teacher'),
+          department: isAccountant ? 'Finance & Accounts' : isWarden ? 'Hostel Management' : isDriver ? 'Transport' : (byName.department || 'Academics'),
+          role: isAccountant ? 'Accountant' : isWarden ? 'Hostel Warden' : isDriver ? 'Driver' : (byName.role || 'Teacher')
         };
       }
     }

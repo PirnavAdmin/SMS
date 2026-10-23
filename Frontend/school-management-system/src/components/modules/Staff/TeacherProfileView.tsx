@@ -15,6 +15,12 @@ import { getLettersForStaff } from '../../../utils/staffLetterTemplates';
 import { StaffLetterType, GeneratedStaffLetterRecord } from '../../../types/staffLetter';
 import { resolveMediaUrl } from '../../../utils/mediaUtils';
 import {
+  validate10DigitPhone,
+  validatePhoneNumber,
+  sanitizePhoneInput,
+  validateAddress,
+} from '../../../utils/validation';
+import {
   getTeacherProfileMe,
   updateTeacherProfileMe,
   getTeacherAssignmentsMe,
@@ -513,6 +519,7 @@ export const TeacherProfileView: React.FC = () => {
 
   // Edit Modal State
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editErrors, setEditErrors] = useState<{ mobile?: string; emergencyContact?: string; address?: string }>({});
   const [submitting, setSubmitting] = useState(false);
 
   const [formData, setFormData] = useState({
@@ -543,11 +550,49 @@ export const TeacherProfileView: React.FC = () => {
       qualification: profile.qualification,
       experience: profile.experience
     });
+
+    const initialErrors: { mobile?: string; emergencyContact?: string; address?: string } = {};
+    if (profile.address?.trim()) {
+      const addrCheck = validateAddress(profile.address.trim(), false);
+      if (!addrCheck.isValid) {
+        initialErrors.address = addrCheck.error;
+      }
+    }
+    setEditErrors(initialErrors);
     setIsEditModalOpen(true);
   };
 
   const handleSaveProfile = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    const cleanMobile = (formData.mobile || '').replace(/\D/g, '');
+    const mobileCheck = validate10DigitPhone(cleanMobile);
+    if (!mobileCheck.isValid) {
+      setEditErrors(prev => ({ ...prev, mobile: mobileCheck.error }));
+      addToast('error', 'Invalid Mobile Number', mobileCheck.error || 'Please enter a valid 10-digit mobile number.');
+      return;
+    }
+
+    if (formData.emergencyContact?.trim()) {
+      const cleanEm = formData.emergencyContact.replace(/\D/g, '');
+      const emCheck = validatePhoneNumber(cleanEm, false);
+      if (!emCheck.isValid) {
+        setEditErrors(prev => ({ ...prev, emergencyContact: emCheck.error }));
+        addToast('error', 'Invalid Emergency Contact', emCheck.error || 'Please enter a valid emergency contact.');
+        return;
+      }
+    }
+
+    if (formData.address?.trim()) {
+      const addrCheck = validateAddress(formData.address.trim(), false);
+      if (!addrCheck.isValid) {
+        setEditErrors(prev => ({ ...prev, address: addrCheck.error }));
+        addToast('error', 'Incomplete Address', addrCheck.error || 'Please enter sufficient address details.');
+        return;
+      }
+    }
+
+    setEditErrors({});
     setSubmitting(true);
 
     try {
@@ -1227,25 +1272,145 @@ export const TeacherProfileView: React.FC = () => {
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-bold mb-1 text-slate-700 dark:text-slate-300">Mobile Number <span className="text-rose-500 font-bold ml-0.5">*</span></label>
+                  <label className="block font-bold mb-1 text-slate-700 dark:text-slate-300">
+                    Mobile Number <span className="text-rose-500 font-bold ml-0.5">*</span>
+                  </label>
                   <input
                     type="tel"
                     required
+                    maxLength={10}
                     value={formData.mobile}
-                    onChange={(e) => setFormData({ ...formData, mobile: e.target.value })}
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border text-slate-900 dark:text-white font-mono font-bold outline-none"
+                    onKeyDown={e => {
+                      if (e.key >= '0' && e.key <= '9' && !e.ctrlKey && !e.metaKey && !e.altKey) {
+                        const input = e.currentTarget;
+                        const selLen = (input.selectionEnd ?? 0) - (input.selectionStart ?? 0);
+                        const digits = (formData.mobile || '').replace(/\D/g, '');
+                        if (digits.length >= 10 && selLen === 0) {
+                          e.preventDefault();
+                          setEditErrors(prev => ({
+                            ...prev,
+                            mobile: 'Mobile number cannot exceed 10 digits.'
+                          }));
+                        }
+                      }
+                    }}
+                    onPaste={e => {
+                      const pasted = e.clipboardData.getData('text') || '';
+                      const digits = pasted.replace(/\D/g, '');
+                      const cur = (formData.mobile || '').replace(/\D/g, '');
+                      if (cur.length + digits.length > 10) {
+                        setEditErrors(prev => ({
+                          ...prev,
+                          mobile: 'Mobile number cannot exceed 10 digits.'
+                        }));
+                      }
+                    }}
+                    onChange={e => {
+                      const raw = e.target.value;
+                      const digits = raw.replace(/\D/g, '');
+                      if (digits.length > 10) {
+                        setFormData({ ...formData, mobile: digits.slice(0, 10) });
+                        setEditErrors(prev => ({
+                          ...prev,
+                          mobile: 'Mobile number cannot exceed 10 digits.'
+                        }));
+                        return;
+                      }
+                      setFormData({ ...formData, mobile: digits });
+                      if (digits.length === 10) {
+                        const res = validate10DigitPhone(digits);
+                        setEditErrors(prev => ({ ...prev, mobile: res.isValid ? undefined : res.error }));
+                      } else if (digits.length > 0 && !/^[6-9]/.test(digits)) {
+                        setEditErrors(prev => ({
+                          ...prev,
+                          mobile: 'Mobile number must start with 6, 7, 8, or 9.'
+                        }));
+                      } else {
+                        setEditErrors(prev => ({ ...prev, mobile: undefined }));
+                      }
+                    }}
+                    placeholder="e.g. 9876543210"
+                    className={`w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border text-slate-900 dark:text-white font-mono font-bold outline-none ${
+                      editErrors.mobile ? 'border-rose-500 ring-1 ring-rose-500' : 'border-slate-200 dark:border-slate-700'
+                    }`}
                   />
+                  {editErrors.mobile && (
+                    <p className="text-[11px] font-bold text-rose-500 mt-1 flex items-center gap-1">
+                      <AlertCircle className="w-3 h-3 shrink-0" />
+                      <span>{editErrors.mobile}</span>
+                    </p>
+                  )}
                 </div>
 
                 <div>
-                  <label className="block font-bold mb-1 text-slate-700 dark:text-slate-300">Emergency Contact <span className="text-rose-500 font-bold ml-0.5">*</span></label>
+                  <label className="block font-bold mb-1 text-slate-700 dark:text-slate-300">
+                    Emergency Contact <span className="text-rose-500 font-bold ml-0.5">*</span>
+                  </label>
                   <input
                     type="tel"
                     required
+                    maxLength={10}
                     value={formData.emergencyContact}
-                    onChange={(e) => setFormData({ ...formData, emergencyContact: e.target.value })}
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border text-slate-900 dark:text-white font-mono font-bold outline-none"
+                    onKeyDown={e => {
+                      if (e.key >= '0' && e.key <= '9' && !e.ctrlKey && !e.metaKey && !e.altKey) {
+                        const input = e.currentTarget;
+                        const selLen = (input.selectionEnd ?? 0) - (input.selectionStart ?? 0);
+                        const digits = (formData.emergencyContact || '').replace(/\D/g, '');
+                        if (digits.length >= 10 && selLen === 0) {
+                          e.preventDefault();
+                          setEditErrors(prev => ({
+                            ...prev,
+                            emergencyContact: 'Emergency contact cannot exceed 10 digits.'
+                          }));
+                        }
+                      }
+                    }}
+                    onPaste={e => {
+                      const pasted = e.clipboardData.getData('text') || '';
+                      const digits = pasted.replace(/\D/g, '');
+                      const cur = (formData.emergencyContact || '').replace(/\D/g, '');
+                      if (cur.length + digits.length > 10) {
+                        setEditErrors(prev => ({
+                          ...prev,
+                          emergencyContact: 'Emergency contact cannot exceed 10 digits.'
+                        }));
+                      }
+                    }}
+                    onChange={e => {
+                      const raw = e.target.value;
+                      const digits = raw.replace(/\D/g, '');
+                      if (digits.length > 10) {
+                        setFormData({ ...formData, emergencyContact: digits.slice(0, 10) });
+                        setEditErrors(prev => ({
+                          ...prev,
+                          emergencyContact: 'Emergency contact cannot exceed 10 digits.'
+                        }));
+                        return;
+                      }
+                      setFormData({ ...formData, emergencyContact: digits });
+                      if (digits.length === 10) {
+                        const res = validatePhoneNumber(digits, false);
+                        setEditErrors(prev => ({ ...prev, emergencyContact: res.isValid ? undefined : res.error }));
+                      } else if (digits.length > 0 && !/^[6-9]/.test(digits)) {
+                        setEditErrors(prev => ({
+                          ...prev,
+                          emergencyContact: 'Mobile number must start with 6, 7, 8, or 9.'
+                        }));
+                      } else {
+                        setEditErrors(prev => ({ ...prev, emergencyContact: undefined }));
+                      }
+                    }}
+                    placeholder="e.g. 9876543210"
+                    className={`w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border text-slate-900 dark:text-white font-mono font-bold outline-none ${
+                      editErrors.emergencyContact ? 'border-rose-500 ring-1 ring-rose-500' : 'border-slate-200 dark:border-slate-700'
+                    }`}
                   />
+                  {editErrors.emergencyContact && (
+                    <p className="text-[11px] font-bold text-rose-500 mt-1 flex items-center gap-1">
+                      <AlertCircle className="w-3 h-3 shrink-0" />
+                      <span>{editErrors.emergencyContact}</span>
+                    </p>
+                  )}
                 </div>
               </div>
 
@@ -1319,9 +1484,36 @@ export const TeacherProfileView: React.FC = () => {
                 <textarea
                   rows={2}
                   value={formData.address}
-                  onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border text-slate-900 dark:text-white font-medium outline-none leading-relaxed"
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setFormData({ ...formData, address: val });
+                    if (val.trim()) {
+                      const res = validateAddress(val.trim(), false);
+                      setEditErrors(prev => ({ ...prev, address: res.isValid ? undefined : res.error }));
+                    } else {
+                      setEditErrors(prev => ({ ...prev, address: undefined }));
+                    }
+                  }}
+                  onBlur={(e) => {
+                    const val = e.target.value.trim();
+                    if (val) {
+                      const res = validateAddress(val, false);
+                      setEditErrors(prev => ({ ...prev, address: res.isValid ? undefined : res.error }));
+                    } else {
+                      setEditErrors(prev => ({ ...prev, address: undefined }));
+                    }
+                  }}
+                  className={`w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border text-slate-900 dark:text-white font-medium outline-none leading-relaxed ${
+                    editErrors.address ? 'border-rose-500 focus:border-rose-500' : 'border-slate-200 dark:border-slate-700'
+                  }`}
+                  placeholder="e.g. Flat 302, Green Valley Apartments, Madhapur"
                 />
+                {editErrors.address && (
+                  <p className="text-[11px] font-bold text-rose-500 mt-1 flex items-center gap-1">
+                    <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                    <span>{editErrors.address}</span>
+                  </p>
+                )}
               </div>
 
               <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100 dark:border-slate-800">
@@ -1334,7 +1526,7 @@ export const TeacherProfileView: React.FC = () => {
                 </button>
                 <button
                   type="submit"
-                  disabled={submitting}
+                  disabled={submitting || Boolean(editErrors.mobile || editErrors.emergencyContact || editErrors.address)}
                   className="px-5 py-2.5 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-extrabold flex items-center gap-1.5 shadow-md cursor-pointer disabled:opacity-50"
                 >
                   <Save className="w-4 h-4" /> Save Profile

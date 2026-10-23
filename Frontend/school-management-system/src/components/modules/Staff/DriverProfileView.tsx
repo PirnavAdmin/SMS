@@ -15,6 +15,12 @@ import {
   sanitizeDrivingLicenseInput,
   normalizeDrivingLicense,
   DRIVING_LICENCE_ERROR_MESSAGE,
+  validate10DigitPhone,
+  validatePhoneNumber,
+  sanitizePhoneInput,
+  sanitizeEmailInput,
+  validateEmail,
+  validateAddress,
 } from '../../../utils/validation';
 import { parseDateOnly, compareDates, formatToISO } from '../../../utils/dateValidation';
 
@@ -59,7 +65,9 @@ export const DriverProfileView: React.FC = () => {
     vehicleMasters = [],
     routeMasters = [],
     pickupPoints = [],
-    updateDriverMaster
+    updateDriverMaster,
+    updateStaff,
+    schoolProfile
   } = useData();
   const { addToast } = useToast();
 
@@ -81,31 +89,77 @@ export const DriverProfileView: React.FC = () => {
       (userName && (d.driverName?.toLowerCase().includes(userName) || userName.includes(d.driverName?.toLowerCase())))
     );
 
-    // Match from staff
-    const fromStaff = staff.find(s => {
-      const sEmpId = (s.empId || (s as any).employeeId || '').toLowerCase();
-      const sId = String(s.id).toLowerCase();
-      const sEmail = (s.email || '').toLowerCase();
-      const sPhone = (s.phone || (s as any).mobileNumber || '').replace(/\D/g, '');
-      const sFullName = `${s.firstName || ''} ${s.lastName || ''}`.trim().toLowerCase();
-      const sName = (s.name || '').trim().toLowerCase();
+    // Match from staff (must accurately resolve to driver/transport staff and match identity)
+    const fromStaff = (() => {
+      // 1. Look for matching staff in Transport department or with Driver designation by user name
+      if (userName && userName !== 'user' && userName !== 'administrator') {
+        const transportDriverByName = staff.find(s => {
+          const sFullName = `${s.firstName || ''} ${s.lastName || ''}`.trim().toLowerCase();
+          const sName = (s.name || '').trim().toLowerCase();
+          const isTransportOrDriver = s.department?.toLowerCase() === 'transport' || s.designation?.toLowerCase().includes('driver') || (s as any).role?.toLowerCase().includes('driver');
+          return isTransportOrDriver && (sFullName === userName || sName === userName || (userName.length >= 3 && (sFullName.includes(userName) || userName.includes(sFullName))));
+        });
+        if (transportDriverByName) return transportDriverByName;
+      }
 
-      const matchesUser = (
-        (userEmpId && (sEmpId === userEmpId || sId === userEmpId)) ||
-        (userEmail && sEmail === userEmail) ||
-        (userPhone && sPhone && sPhone === userPhone.replace(/\D/g, '')) ||
-        (userName && (sFullName === userName || sName === userName || sFullName.includes(userName) || userName.includes(sFullName)))
-      );
+      // 2. Look for matching staff in Transport / Driver by matching fromMaster
+      if (fromMaster) {
+        const masterName = (fromMaster.driverName || '').trim().toLowerCase();
+        const masterEmpId = (fromMaster.employeeId || '').trim().toLowerCase();
+        const masterEmail = (fromMaster.email || '').trim().toLowerCase();
+        const masterPhone = (fromMaster.mobileNumber || '').replace(/\D/g, '');
 
-      const matchesMaster = fromMaster ? (
-        (fromMaster.employeeId && (sEmpId === fromMaster.employeeId.toLowerCase() || sId === fromMaster.employeeId.toLowerCase())) ||
-        (fromMaster.email && sEmail === fromMaster.email.toLowerCase()) ||
-        (fromMaster.mobileNumber && sPhone && sPhone === fromMaster.mobileNumber.replace(/\D/g, '')) ||
-        (fromMaster.driverName && (sFullName === fromMaster.driverName.toLowerCase() || sName === fromMaster.driverName.toLowerCase() || sFullName.includes(fromMaster.driverName.toLowerCase())))
-      ) : false;
+        const byMaster = staff.find(s => {
+          const sEmpId = (s.empId || (s as any).employeeId || '').toLowerCase();
+          const sEmail = (s.email || '').toLowerCase();
+          const sPhone = (s.phone || (s as any).mobileNumber || '').replace(/\D/g, '');
+          const sFullName = `${s.firstName || ''} ${s.lastName || ''}`.trim().toLowerCase();
+          const sName = (s.name || '').trim().toLowerCase();
+          const isTransportOrDriver = s.department?.toLowerCase() === 'transport' || s.designation?.toLowerCase().includes('driver') || (s as any).role?.toLowerCase().includes('driver');
 
-      return matchesUser || matchesMaster;
-    });
+          const nameMatches = masterName && (sFullName === masterName || sName === masterName || sFullName.includes(masterName) || masterName.includes(sFullName));
+          const empMatches = masterEmpId && sEmpId === masterEmpId;
+          const emailMatches = masterEmail && sEmail === masterEmail;
+          const phoneMatches = masterPhone && sPhone && sPhone === masterPhone;
+
+          return isTransportOrDriver && (nameMatches || (empMatches && nameMatches) || emailMatches || phoneMatches);
+        });
+        if (byMaster) return byMaster;
+      }
+
+      // 3. Match Transport staff by user email, phone, or empId
+      const transportStaffByUser = staff.find(s => {
+        const sEmpId = (s.empId || (s as any).employeeId || '').toLowerCase();
+        const sEmail = (s.email || '').toLowerCase();
+        const sPhone = (s.phone || (s as any).mobileNumber || '').replace(/\D/g, '');
+        const sFullName = `${s.firstName || ''} ${s.lastName || ''}`.trim().toLowerCase();
+        const sName = (s.name || '').trim().toLowerCase();
+        const isTransportOrDriver = s.department?.toLowerCase() === 'transport' || s.designation?.toLowerCase().includes('driver') || (s as any).role?.toLowerCase().includes('driver');
+
+        if (!isTransportOrDriver) return false;
+
+        return (
+          (userEmail && sEmail === userEmail) ||
+          (userPhone && sPhone && sPhone === userPhone.replace(/\D/g, '')) ||
+          (userName && (sFullName === userName || sName === userName)) ||
+          (userEmpId && sEmpId === userEmpId && (userName ? (sFullName === userName || sName === userName) : true))
+        );
+      });
+      if (transportStaffByUser) return transportStaffByUser;
+
+      // 4. Name fallback (never match non-transport staff by empId alone to avoid cross-role collision with wardens/teachers)
+      if (userName && userName !== 'user' && userName !== 'administrator') {
+        const byExactName = staff.find(s => {
+          const sFullName = `${s.firstName || ''} ${s.lastName || ''}`.trim().toLowerCase();
+          const sName = (s.name || '').trim().toLowerCase();
+          const isNotUnrelatedRole = s.department?.toLowerCase() !== 'hostel' && !s.designation?.toLowerCase().includes('warden');
+          return isNotUnrelatedRole && (sFullName === userName || sName === userName);
+        });
+        if (byExactName) return byExactName;
+      }
+
+      return null;
+    })();
 
     const resolvedBloodGroup = (fromMaster as any)?.bloodGroup || fromStaff?.bloodGroup || (fromStaff as any)?.blood_group || (user as any)?.bloodGroup || '';
     const resolvedEmergency = (fromMaster as any)?.emergencyContact || (fromStaff as any)?.emergencyContact || (fromStaff as any)?.emergencyContactNumber || (fromStaff as any)?.emergencyPhone || (fromStaff as any)?.fatherPhone || (fromStaff as any)?.guardianPhone || '';
@@ -124,12 +178,33 @@ export const DriverProfileView: React.FC = () => {
     const resolvedExperience = (fromMaster?.experienceYears !== undefined && fromMaster.experienceYears !== null)
       ? fromMaster.experienceYears
       : ((fromStaff as any)?.experienceYears !== undefined && (fromStaff as any)?.experienceYears !== null ? (fromStaff as any).experienceYears : '');
-    const resolvedDept = (fromMaster as any)?.department || fromStaff?.department || (user as any)?.department || '';
-    const resolvedDesig = (fromMaster as any)?.designation || fromStaff?.designation || (user as any)?.designation || '';
-    const resolvedStatus = fromMaster?.status || fromStaff?.status || (user as any)?.status || '';
+    // Dynamically resolve Department for Driver profile:
+    // Prioritizes driver master or transport staff, dynamically defaulting to "Transport"
+    let resolvedDept =
+      (fromMaster as any)?.department ||
+      (fromStaff?.department && fromStaff.department.toLowerCase() !== 'hostel' && fromStaff.department.toLowerCase() !== 'academic' ? fromStaff.department : '') ||
+      (user as any)?.department ||
+      'Transport';
+    if (!resolvedDept || resolvedDept.toLowerCase() === 'hostel' || resolvedDept.toLowerCase() === 'academic' || resolvedDept.toLowerCase() === 'general') {
+      resolvedDept = 'Transport';
+    }
+
+    // Dynamically resolve Designation for Driver profile:
+    // Prioritizes driver master or transport staff, dynamically defaulting to "Driver"
+    let resolvedDesig =
+      (fromMaster as any)?.designation ||
+      (fromStaff?.designation && !fromStaff.designation.toLowerCase().includes('warden') && !fromStaff.designation.toLowerCase().includes('teacher') ? fromStaff.designation : '') ||
+      (user as any)?.designation ||
+      'Driver';
+    if (!resolvedDesig || resolvedDesig.toLowerCase().includes('warden') || resolvedDesig.toLowerCase().includes('teacher') || resolvedDesig.toLowerCase().includes('accountant') || resolvedDesig.toLowerCase() === 'staff') {
+      resolvedDesig = 'Driver';
+    }
+
+    const resolvedStatus = fromMaster?.status || fromStaff?.status || (user as any)?.status || 'Active';
 
     return {
       id: fromMaster?.id || fromStaff?.id || user?.id || '',
+      staffId: fromStaff?.id || '',
       driverName: resolvedName,
       employeeId: resolvedEmpId,
       mobileNumber: resolvedMobile,
@@ -222,6 +297,12 @@ export const DriverProfileView: React.FC = () => {
 
   // Edit Form State
   const [formData, setFormData] = useState(() => getDriverFormData(matchedDriver));
+    const [contactErrors, setContactErrors] = useState<{
+    mobile?: string;
+    email?: string;
+    emergencyContact?: string;
+    address?: string;
+  }>({});
   const [licenseError, setLicenseError] = useState<string>('');
   const [licenseExpiryError, setLicenseExpiryError] = useState<string>('');
 
@@ -233,7 +314,37 @@ export const DriverProfileView: React.FC = () => {
   }, [matchedDriver, isEditing]);
 
   const handleStartEdit = () => {
-    setFormData(getDriverFormData(matchedDriver));
+    const initialData = getDriverFormData(matchedDriver);
+    setFormData(initialData);
+
+    const initialErrors: {
+      mobile?: string;
+      email?: string;
+      emergencyContact?: string;
+      address?: string;
+    } = {};
+
+    if (initialData.address?.trim()) {
+      const addrCheck = validateAddress(initialData.address.trim(), false);
+      if (!addrCheck.isValid) {
+        initialErrors.address = addrCheck.error;
+      }
+    }
+    if (initialData.mobile?.trim()) {
+      const cleanMobile = initialData.mobile.replace(/\D/g, '');
+      const mobileCheck = validate10DigitPhone(cleanMobile);
+      if (!mobileCheck.isValid) {
+        initialErrors.mobile = mobileCheck.error;
+      }
+    }
+    if (initialData.email?.trim()) {
+      const emailCheck = validateEmail(initialData.email.trim(), true);
+      if (!emailCheck.isValid) {
+        initialErrors.email = emailCheck.error;
+      }
+    }
+
+    setContactErrors(initialErrors);
     setLicenseError('');
     setLicenseExpiryError('');
     setIsEditing(true);
@@ -241,6 +352,7 @@ export const DriverProfileView: React.FC = () => {
 
   const handleCancelEdit = () => {
     setFormData(getDriverFormData(matchedDriver));
+    setContactErrors({});
     setLicenseError('');
     setLicenseExpiryError('');
     setIsEditing(false);
@@ -281,6 +393,10 @@ export const DriverProfileView: React.FC = () => {
     const parsedExp = updatedData.experienceYears === '' ? 0 : Number(updatedData.experienceYears) || 0;
     const finalLicense = updatedData.licenseNumber ? updatedData.licenseNumber.trim().toUpperCase() : '';
     const finalExpiry = updatedData.licenseExpiry ? normalizeToISODate(updatedData.licenseExpiry) : '';
+    const finalMobile = updatedData.mobile ? updatedData.mobile.trim() : '';
+    const finalEmail = updatedData.email ? updatedData.email.trim() : '';
+    const finalAddress = updatedData.address ? updatedData.address.trim() : '';
+    const finalEmergency = updatedData.emergencyContact ? updatedData.emergencyContact.trim() : '';
 
     if (matchedDriver?.id && updateDriverMaster) {
       await updateDriverMaster(String(matchedDriver.id), {
@@ -290,19 +406,75 @@ export const DriverProfileView: React.FC = () => {
         licenseExpiryDate: finalExpiry,
         licenseType: updatedData.licenseType,
         experienceYears: parsedExp,
-        mobileNumber: updatedData.mobile,
-        email: updatedData.email,
-        address: updatedData.address,
-        emergencyContact: updatedData.emergencyContact,
+        mobileNumber: finalMobile,
+        email: finalEmail,
+        address: finalAddress,
+        emergencyContact: finalEmergency,
         bloodGroup: updatedData.bloodGroup,
       });
+    }
+
+    // Also sync with staff store if driver exists as a staff record
+    if (matchedDriver?.staffId && updateStaff) {
+      updateStaff(matchedDriver.staffId, {
+        phone: finalMobile,
+        email: finalEmail,
+        address: finalAddress,
+        bloodGroup: updatedData.bloodGroup,
+        emergencyContact: finalEmergency
+      } as any);
     }
   };
 
   const handleSaveContactDetails = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    const errors: { mobile?: string; email?: string; emergencyContact?: string; address?: string } = {};
+
+    const cleanMobile = (formData.mobile || '').replace(/\D/g, '');
+    const mobileCheck = validate10DigitPhone(cleanMobile);
+    if (!mobileCheck.isValid) {
+      errors.mobile = mobileCheck.error;
+    }
+
+    const cleanEmail = (formData.email || '').trim();
+    const emailCheck = validateEmail(cleanEmail, true);
+    if (!emailCheck.isValid) {
+      errors.email = emailCheck.error;
+    }
+
+    if (formData.emergencyContact?.trim()) {
+      const cleanEm = formData.emergencyContact.replace(/\D/g, '');
+      const emCheck = validatePhoneNumber(cleanEm, false);
+      if (!emCheck.isValid) {
+        errors.emergencyContact = emCheck.error;
+      }
+    }
+
+    const cleanAddress = (formData.address || '').trim();
+    if (cleanAddress) {
+      const addressCheck = validateAddress(cleanAddress, false);
+      if (!addressCheck.isValid) {
+        errors.address = addressCheck.error;
+      }
+    }
+
+    if (Object.keys(errors).length > 0) {
+      setContactErrors(errors);
+      const firstError = errors.address || errors.email || errors.mobile || errors.emergencyContact;
+      addToast('error', 'Cannot Save Profile', firstError || 'Please correct the invalid fields before saving.');
+      return;
+    }
+
+    setContactErrors({});
+
     try {
-      await persistProfileData();
+      await persistProfileData({
+        mobile: cleanMobile,
+        email: cleanEmail,
+        address: (formData.address || '').trim(),
+        emergencyContact: (formData.emergencyContact || '').trim(),
+      });
       addToast('success', 'Profile Updated', 'Personal and contact details saved successfully.');
       setIsEditing(false);
     } catch (err) {
@@ -409,9 +581,13 @@ export const DriverProfileView: React.FC = () => {
           <button
             type="button"
             onClick={isEditing ? handleCancelEdit : handleStartEdit}
-            className="px-3.5 py-1.5 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-black text-xs shadow-sm flex items-center gap-1.5 transition-all cursor-pointer self-start sm:self-auto"
+            className={`px-3.5 py-1.5 rounded-xl font-black text-xs shadow-sm flex items-center gap-1.5 transition-all cursor-pointer self-start sm:self-auto border active:scale-95 ${
+              isEditing
+                ? "bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/40 dark:hover:bg-rose-900/60 text-rose-600 dark:text-rose-400 border-rose-200 dark:border-rose-800/80"
+                : "bg-sky-600 hover:bg-sky-500 text-white border-transparent"
+            }`}
           >
-            {isEditing ? <X className="w-3.5 h-3.5" /> : <Edit2 className="w-3.5 h-3.5" />}
+            {isEditing ? <X className="w-3.5 h-3.5 text-rose-600 dark:text-rose-400" /> : <Edit2 className="w-3.5 h-3.5" />}
             <span>{isEditing ? 'Cancel Edit' : 'Edit Profile'}</span>
           </button>
         </div>
@@ -432,7 +608,7 @@ export const DriverProfileView: React.FC = () => {
                 <span className="font-bold text-slate-800 dark:text-slate-200">{matchedDriver.mobileNumber || '—'}</span>
               </div>
               <div>
-                <span className="text-[10px] uppercase font-bold text-slate-400 block">Official Email</span>
+                <span className="text-[10px] uppercase font-bold text-slate-400 block">Email</span>
                 <span className="font-bold text-slate-800 dark:text-slate-200">{matchedDriver.email || '—'}</span>
               </div>
               <div>
@@ -459,34 +635,116 @@ export const DriverProfileView: React.FC = () => {
           ) : (
             <form onSubmit={handleSaveContactDetails} className="space-y-3">
               <div>
-                <label className="text-[10px] uppercase font-bold text-slate-400 block mb-1">Mobile Number</label>
+                <label className="text-[10px] uppercase font-bold text-slate-400 block mb-1">
+                  Mobile Number <span className="text-rose-500">*</span>
+                </label>
                 <input
                   type="text"
                   value={formData.mobile}
-                  onChange={e => setFormData(prev => ({ ...prev, mobile: e.target.value }))}
-                  className={inputClass}
+                  onChange={e => {
+                    const clean = sanitizePhoneInput(e.target.value);
+                    setFormData(prev => ({ ...prev, mobile: clean }));
+                    if (contactErrors.mobile) {
+                      const res = validate10DigitPhone(clean);
+                      if (res.isValid) {
+                        setContactErrors(prev => ({ ...prev, mobile: undefined }));
+                      }
+                    }
+                  }}
+                  onBlur={e => {
+                    const res = validate10DigitPhone(e.target.value);
+                    if (!res.isValid) {
+                      setContactErrors(prev => ({ ...prev, mobile: res.error }));
+                    } else {
+                      setContactErrors(prev => ({ ...prev, mobile: undefined }));
+                    }
+                  }}
+                  maxLength={10}
+                  placeholder="e.g. 9876543210"
+                  className={`${inputClass} ${contactErrors.mobile ? 'border-rose-500 text-rose-700 dark:text-rose-400 focus:border-rose-500 focus:ring-rose-500/20' : ''}`}
                   required
                 />
+                {contactErrors.mobile && (
+                  <p className="text-[10px] font-bold text-rose-500 mt-1 flex items-center gap-1">
+                    <AlertCircle className="w-3 h-3 shrink-0" />
+                    <span>{contactErrors.mobile}</span>
+                  </p>
+                )}
               </div>
+
               <div>
-                <label className="text-[10px] uppercase font-bold text-slate-400 block mb-1">Email</label>
+                <label className="text-[10px] uppercase font-bold text-slate-400 block mb-1">
+                  Email <span className="text-rose-500">*</span>
+                </label>
                 <input
                   type="email"
                   value={formData.email}
-                  onChange={e => setFormData(prev => ({ ...prev, email: e.target.value }))}
-                  className={inputClass}
+                  onChange={e => {
+                    const clean = sanitizeEmailInput(e.target.value);
+                    setFormData(prev => ({ ...prev, email: clean }));
+                    if (contactErrors.email) {
+                      const res = validateEmail(clean, true);
+                      if (res.isValid) {
+                        setContactErrors(prev => ({ ...prev, email: undefined }));
+                      }
+                    }
+                  }}
+                  onBlur={e => {
+                    const clean = e.target.value.trim();
+                    const res = validateEmail(clean, true);
+                    if (!res.isValid) {
+                      setContactErrors(prev => ({ ...prev, email: res.error }));
+                    } else {
+                      setContactErrors(prev => ({ ...prev, email: undefined }));
+                    }
+                  }}
+                  placeholder="e.g. driver@gmail.com"
+                  className={`${inputClass} ${contactErrors.email ? 'border-rose-500 text-rose-700 dark:text-rose-400 focus:border-rose-500 focus:ring-rose-500/20' : ''}`}
                   required
                 />
+                {contactErrors.email && (
+                  <p className="text-[10px] font-bold text-rose-500 mt-1 flex items-center gap-1">
+                    <AlertCircle className="w-3 h-3 shrink-0" />
+                    <span>{contactErrors.email}</span>
+                  </p>
+                )}
               </div>
+
               <div>
                 <label className="text-[10px] uppercase font-bold text-slate-400 block mb-1">Address</label>
                 <input
                   type="text"
                   value={formData.address}
-                  onChange={e => setFormData(prev => ({ ...prev, address: e.target.value }))}
-                  className={inputClass}
+                  onChange={e => {
+                    const val = e.target.value;
+                    setFormData(prev => ({ ...prev, address: val }));
+                    if (val.trim()) {
+                      const res = validateAddress(val.trim(), false);
+                      setContactErrors(prev => ({ ...prev, address: res.isValid ? undefined : res.error }));
+                    } else {
+                      setContactErrors(prev => ({ ...prev, address: undefined }));
+                    }
+                  }}
+                  onBlur={e => {
+                    const val = e.target.value.trim();
+                    if (val) {
+                      const res = validateAddress(val, false);
+                      setContactErrors(prev => ({ ...prev, address: res.isValid ? undefined : res.error }));
+                    } else {
+                      setContactErrors(prev => ({ ...prev, address: undefined }));
+                    }
+                  }}
+                  className={`${inputClass} ${contactErrors.address ? 'border-rose-500 text-rose-700 dark:text-rose-400 focus:border-rose-500 focus:ring-rose-500/20' : ''}`}
+                  placeholder="e.g. Flat 302, Green Valley Apartments, Madhapur"
                 />
+                {contactErrors.address && (
+                  <p className="text-[10px] font-bold text-rose-500 mt-1 flex items-center gap-1">
+                    <AlertCircle className="w-3 h-3 shrink-0" />
+                    <span>{contactErrors.address}</span>
+                  </p>
+                )}
               </div>
+
               <div className="grid grid-cols-2 gap-2">
                 <div>
                   <label className="text-[10px] uppercase font-bold text-slate-400 block mb-1">Blood Group</label>
@@ -501,21 +759,52 @@ export const DriverProfileView: React.FC = () => {
                     ))}
                   </select>
                 </div>
+
                 <div>
                   <label className="text-[10px] uppercase font-bold text-slate-400 block mb-1">Emergency Contact</label>
                   <input
                     type="text"
                     value={formData.emergencyContact}
-                    onChange={e => setFormData(prev => ({ ...prev, emergencyContact: e.target.value }))}
-                    className={inputClass}
+                    onChange={e => {
+                      const clean = sanitizePhoneInput(e.target.value);
+                      setFormData(prev => ({ ...prev, emergencyContact: clean }));
+                      if (contactErrors.emergencyContact) {
+                        const res = validatePhoneNumber(clean, false);
+                        if (res.isValid) {
+                          setContactErrors(prev => ({ ...prev, emergencyContact: undefined }));
+                        }
+                      }
+                    }}
+                    onBlur={e => {
+                      if (e.target.value.trim()) {
+                        const res = validatePhoneNumber(e.target.value.trim(), false);
+                        if (!res.isValid) {
+                          setContactErrors(prev => ({ ...prev, emergencyContact: res.error }));
+                        } else {
+                          setContactErrors(prev => ({ ...prev, emergencyContact: undefined }));
+                        }
+                      } else {
+                        setContactErrors(prev => ({ ...prev, emergencyContact: undefined }));
+                      }
+                    }}
+                    maxLength={10}
+                    className={`${inputClass} ${contactErrors.emergencyContact ? 'border-rose-500 text-rose-700 dark:text-rose-400 focus:border-rose-500 focus:ring-rose-500/20' : ''}`}
                     placeholder="e.g. 9876543210"
                   />
+                  {contactErrors.emergencyContact && (
+                    <p className="text-[10px] font-bold text-rose-500 mt-1 flex items-center gap-1">
+                      <AlertCircle className="w-3 h-3 shrink-0" />
+                      <span>{contactErrors.emergencyContact}</span>
+                    </p>
+                  )}
                 </div>
               </div>
+
               <div className="flex items-center gap-2 pt-1">
                 <button
                   type="submit"
-                  className="flex-1 px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-black text-xs shadow-sm flex items-center justify-center gap-1.5 transition-all cursor-pointer"
+                  disabled={Boolean(contactErrors.mobile || contactErrors.email || contactErrors.emergencyContact || contactErrors.address)}
+                  className="flex-1 px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-sky-600 text-white font-black text-xs shadow-sm flex items-center justify-center gap-1.5 transition-all cursor-pointer"
                 >
                   <Save className="w-3.5 h-3.5" />
                   <span>Save Changes</span>
