@@ -2318,15 +2318,48 @@ export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialS
 
       {/* Filters Bar matching Admissions Register card */}
       <div className="glass-card p-4 sm:p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-3 shadow-sm print:hidden no-print">
-        <div className="relative w-full sm:w-80">
-          <Search className="w-4 h-4 absolute left-3.5 top-3 text-slate-400" />
-          <input
-            type="text"
-            placeholder="Search by student, admission number, uniform item..."
-            value={query}
-            onChange={e => { setQuery(e.target.value); setCurrentPage(1); }}
-            className="w-full pl-10 pr-4 py-2 text-xs rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none"
-          />
+        <div className="flex flex-col justify-center w-full sm:w-80">
+          <div className="relative w-full">
+            <Search className="w-4 h-4 absolute left-3.5 top-2.5 text-slate-400 pointer-events-none" />
+            <input
+              type="text"
+              placeholder="Search by student, admission number, uniform item..."
+              value={query}
+              onChange={e => {
+                setQuery(e.target.value);
+                setCurrentPage(1);
+                if (!e.target.value) {
+                  e.target.removeAttribute('data-global-invalid');
+                  e.target.style.borderColor = '';
+                  const wrap = e.target.parentElement;
+                  wrap?.querySelectorAll('[data-global-validation-error="true"]').forEach(el => el.remove());
+                  wrap?.parentElement?.querySelectorAll('[data-global-validation-error="true"]').forEach(el => el.remove());
+                }
+              }}
+              className="w-full pl-10 pr-8 py-2 text-xs rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 transition-all font-medium"
+            />
+            {query && (
+              <button
+                type="button"
+                aria-label="Clear search"
+                onClick={(e) => {
+                  setQuery('');
+                  setCurrentPage(1);
+                  const wrap = e.currentTarget.parentElement;
+                  const inp = wrap?.querySelector('input');
+                  if (inp) {
+                    inp.removeAttribute('data-global-invalid');
+                    inp.style.borderColor = '';
+                  }
+                  wrap?.querySelectorAll('[data-global-validation-error="true"]').forEach(el => el.remove());
+                  wrap?.parentElement?.querySelectorAll('[data-global-validation-error="true"]').forEach(el => el.remove());
+                }}
+                className="absolute right-2.5 top-2.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
         </div>
 
         <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto justify-start sm:justify-end">

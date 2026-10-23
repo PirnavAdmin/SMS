@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Plus, Search, Edit, Trash2, Layers, Tag, X, Filter } from 'lucide-react';
 import { useData } from '../../../context/DataContext';
 import { useToast } from '../../../context/ToastContext';
@@ -7,8 +7,14 @@ import { ConfirmModal } from '../../common/ConfirmModal';
 import { Pagination } from '../../common/Pagination';
 
 export const UniformCategoryView: React.FC<{tabs?: React.ReactNode}> = ({ tabs }) => {
-  const { uniformCategories = [], addUniformCategory, updateUniformCategory, deleteUniformCategory } = useData();
+  const { uniformCategories = [], addUniformCategory, updateUniformCategory, deleteUniformCategory, fetchUniformData } = useData();
   const { addToast } = useToast();
+
+  useEffect(() => {
+    if (fetchUniformData) {
+      fetchUniformData();
+    }
+  }, []);
 
   const [query, setQuery] = useState('');
   const [filterCategory, setFilterCategory] = useState('All');
@@ -55,19 +61,26 @@ export const UniformCategoryView: React.FC<{tabs?: React.ReactNode}> = ({ tabs }
     setIsModalOpen(true);
   };
 
-  const handleSubmit = (e: React.SyntheticEvent) => {
+  const handleSubmit = async (e: React.SyntheticEvent) => {
     e.preventDefault();
     const catName = form.name?.trim() || (form as any).categoryName?.trim();
-    if (!catName) return;
-
-    if (editingCategory) {
-      updateUniformCategory(editingCategory.id, { ...form, name: catName, categoryName: catName });
-      addToast('success', 'Category Updated', `Updated uniform category ${catName}`);
-    } else {
-      addUniformCategory({ ...form, name: catName, categoryName: catName } as Omit<UniformCategory, 'id'>);
-      addToast('success', 'Category Added', `Added uniform category ${catName}`);
+    if (!catName) {
+      addToast('error', 'Validation Error', 'Category name is required.');
+      return;
     }
-    setIsModalOpen(false);
+
+    try {
+      if (editingCategory) {
+        await updateUniformCategory(editingCategory.id, { ...form, name: catName, categoryName: catName });
+        addToast('success', 'Category Updated', `Updated uniform category ${catName}`);
+      } else {
+        await addUniformCategory({ ...form, name: catName, categoryName: catName } as Omit<UniformCategory, 'id'>);
+        addToast('success', 'Category Added', `Added uniform category ${catName}`);
+      }
+      setIsModalOpen(false);
+    } catch (err: any) {
+      addToast('error', 'Error', err?.message || 'Failed to save uniform category');
+    }
   };
 
   return (
@@ -89,28 +102,50 @@ export const UniformCategoryView: React.FC<{tabs?: React.ReactNode}> = ({ tabs }
       {tabs}
 
       <div className="glass-card p-3.5 sm:p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-sm">
-        <div className="relative w-full sm:w-72">
-          <Search className="w-4 h-4 absolute left-3.5 top-2.5 text-slate-400 pointer-events-none" />
-          <input
-            type="text"
-            placeholder="Search by category name..."
-            value={query}
-            onChange={e => setQuery(e.target.value)}
-            className="w-full pl-9 pr-8 py-2 text-xs rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 transition-all font-medium"
-          />
-          {query && (
-            <button
-              type="button"
-              onClick={() => setQuery('')}
-              className="absolute right-2.5 top-2.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
-            >
-              <X className="w-3.5 h-3.5" />
-            </button>
-          )}
+        <div className="flex flex-col justify-center w-full sm:w-72">
+          <div className="relative w-full">
+            <Search className="w-4 h-4 absolute left-3.5 top-2.5 text-slate-400 pointer-events-none" />
+            <input
+              type="text"
+              placeholder="Search by category name..."
+              value={query}
+              onChange={e => {
+                setQuery(e.target.value);
+                if (!e.target.value) {
+                  e.target.removeAttribute('data-global-invalid');
+                  e.target.style.borderColor = '';
+                  const wrap = e.target.parentElement;
+                  wrap?.querySelectorAll('[data-global-validation-error="true"]').forEach(el => el.remove());
+                  wrap?.parentElement?.querySelectorAll('[data-global-validation-error="true"]').forEach(el => el.remove());
+                }
+              }}
+              className="w-full pl-9 pr-8 py-2 text-xs rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 transition-all font-medium"
+            />
+            {query && (
+              <button
+                type="button"
+                aria-label="Clear search"
+                onClick={(e) => {
+                  setQuery('');
+                  const wrap = e.currentTarget.parentElement;
+                  const inp = wrap?.querySelector('input');
+                  if (inp) {
+                    inp.removeAttribute('data-global-invalid');
+                    inp.style.borderColor = '';
+                  }
+                  wrap?.querySelectorAll('[data-global-validation-error="true"]').forEach(el => el.remove());
+                  wrap?.parentElement?.querySelectorAll('[data-global-validation-error="true"]').forEach(el => el.remove());
+                }}
+                className="absolute right-2.5 top-2.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
         </div>
 
         <div className="flex items-center gap-2 w-full sm:w-auto">
-          <span className="text-xs font-semibold text-slate-500 flex items-center gap-1"><Filter className="w-3.5 h-3.5" /> Filters:</span>
+          {/* <span className="text-xs font-semibold text-slate-500 flex items-center gap-1"><Filter className="w-3.5 h-3.5" /> Filters:</span> */}
           <select
             value={filterCategory}
             onChange={e => setFilterCategory(e.target.value)}
@@ -214,11 +249,15 @@ export const UniformCategoryView: React.FC<{tabs?: React.ReactNode}> = ({ tabs }
         isOpen={!!deletingCategory}
         title="Remove Category"
         message={`Are you sure you want to delete ${deletingCategory?.name || (deletingCategory as any)?.categoryName || 'this category'}? This will invalidate linked sizes.`}
-        onConfirm={() => {
+        onConfirm={async () => {
           if (deletingCategory) {
-            deleteUniformCategory(deletingCategory.id);
-            addToast('success', 'Category Removed');
-            setDeletingCategory(null);
+            try {
+              await deleteUniformCategory(deletingCategory.id);
+              addToast('success', 'Category Removed', `Deleted category ${deletingCategory.name}`);
+              setDeletingCategory(null);
+            } catch (err: any) {
+              addToast('error', 'Delete Failed', err?.message || 'Failed to remove uniform category');
+            }
           }
         }}
         onCancel={() => setDeletingCategory(null)}

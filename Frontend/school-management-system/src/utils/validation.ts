@@ -618,6 +618,20 @@ export function validateCampusCode(code: string, required: boolean = true): { is
   return { isValid: true };
 }
 
+export function validateUniformSize(size: string, required: boolean = true): { isValid: boolean; error?: string } {
+  if (!size || typeof size !== 'string' || !size.trim()) {
+    return required ? { isValid: false, error: 'Size name is required.' } : { isValid: true };
+  }
+  const trimmed = size.trim();
+  if (trimmed.length < 1 || trimmed.length > 30) {
+    return { isValid: false, error: trimmed.length > 30 ? 'Maximum 30 characters allowed.' : 'Size name is required.' };
+  }
+  if (!/^[a-zA-Z0-9\s\.\-\/\–\—\(\)\'\"]+$/.test(trimmed)) {
+    return { isValid: false, error: 'Enter a valid size name.' };
+  }
+  return { isValid: true };
+}
+
 export function validateCampusAddress(address: string, required: boolean = true): { isValid: boolean; error?: string } {
   if (!address || typeof address !== 'string' || !address.trim()) {
     return required ? { isValid: false, error: 'Address is required.' } : { isValid: true };
@@ -1252,16 +1266,23 @@ function setGlobalInputError(input: HTMLInputElement | HTMLTextAreaElement, erro
     return false;
   })();
 
-  // Form field check: if inside a form, grid, has a label or full width, always use normal block flow
-  const isFormField = Boolean(
+  // Form field check: if inside a form, grid, has a label or full width, always use normal block flow (never for search)
+  const isTargetParentCol = Boolean(
+    targetParent &&
+    targetParent !== container &&
+    targetParent.children.length <= 2 &&
+    (targetParent.classList.contains('flex-col') || (targetParent.className || '').includes('flex-col')) &&
+    !((targetParent.className || '').includes('flex-row') || (targetParent.className || '').includes(':flex-row'))
+  );
+
+  const isFormField = !isSearch && Boolean(
     container.closest('form') ||
     container.closest('.grid') ||
     targetParent.querySelector('label') ||
-    container.classList.contains('w-full') ||
-    input.classList.contains('w-full')
+    (!isInsideHorizontalLayout && (container.classList.contains('w-full') || input.classList.contains('w-full')))
   );
 
-  const shouldAbsolute = false;
+  const shouldAbsolute = !isTargetParentCol && (isSearch || (!isFormField && isInsideHorizontalLayout));
 
   const directSibling = (isIconWrapper ? container.nextElementSibling : input.nextElementSibling) as HTMLElement | null;
   let errEl = (container.querySelector(':scope > [data-global-validation-error="true"]') ||
@@ -1271,6 +1292,12 @@ function setGlobalInputError(input: HTMLInputElement | HTMLTextAreaElement, erro
   if (!error) {
     input.removeAttribute('data-global-invalid');
     input.style.borderColor = '';
+    container.style.marginBottom = '';
+    container.style.alignSelf = '';
+    if (container.parentElement) {
+      container.parentElement.style.marginBottom = '';
+      container.parentElement.style.alignSelf = '';
+    }
     if (isIconWrapper) {
       Array.from(container.querySelectorAll<HTMLElement>(':scope > svg.absolute, :scope > .absolute')).forEach(iconEl => {
         if (iconEl.hasAttribute('data-locked-icon-top')) {
@@ -1281,6 +1308,10 @@ function setGlobalInputError(input: HTMLInputElement | HTMLTextAreaElement, erro
     }
     if (errEl) {
       errEl.remove();
+    }
+    container.querySelectorAll(':scope > [data-global-validation-error="true"]').forEach(el => el.remove());
+    if (container.parentElement) {
+      container.parentElement.querySelectorAll(':scope > [data-global-validation-error="true"]').forEach(el => el.remove());
     }
     return;
   }
@@ -1314,15 +1345,13 @@ function setGlobalInputError(input: HTMLInputElement | HTMLTextAreaElement, erro
       anchor.style.position = 'relative';
     }
 
+    anchor.style.marginBottom = '26px';
+    anchor.style.alignSelf = 'flex-start';
+
     errEl.style.position = 'absolute';
-    if (isIconWrapper || anchor.children.length <= 2) {
-      errEl.style.left = '0';
-      errEl.style.top = '100%';
-    } else {
-      errEl.style.left = `${input.offsetLeft}px`;
-      errEl.style.top = `${input.offsetTop + input.offsetHeight}px`;
-    }
-    errEl.style.marginTop = '2px';
+    errEl.style.left = '0';
+    errEl.style.top = '100%';
+    errEl.style.marginTop = '4px';
     errEl.style.fontSize = '11px';
     errEl.style.fontWeight = '700';
     errEl.style.color = '#f43f5e';
@@ -1335,6 +1364,8 @@ function setGlobalInputError(input: HTMLInputElement | HTMLTextAreaElement, erro
       anchor.appendChild(errEl);
     }
   } else {
+    container.style.marginBottom = '';
+    container.style.alignSelf = '';
     // Lock any vertically-centered icon inside container to the input's vertical center before appending error under input
     if (isIconWrapper && input.offsetHeight > 0) {
       const inputCenterY = input.offsetTop + input.offsetHeight / 2;
@@ -1367,7 +1398,8 @@ function setGlobalInputError(input: HTMLInputElement | HTMLTextAreaElement, erro
     errEl.style.color = '#f43f5e';
     errEl.style.fontSize = '11px';
     errEl.style.fontWeight = '700';
-    errEl.style.marginTop = '4px';
+    errEl.style.marginTop = '6px';
+    errEl.style.marginBottom = '4px';
     errEl.style.lineHeight = '1.2';
 
     const parentIsFlexRow = (() => {
@@ -1622,7 +1654,22 @@ export function validateInputElement(
     return validateCampusAddress(val, enforceRequired && input.required);
   }
 
-  if (label.includes('code')) {
+  if (label.includes('size')) {
+    return validateUniformSize(val, enforceRequired && input.required);
+  }
+
+  const isCampusCode =
+    (label === 'campus code' || label === 'campus_code' || label === 'school code' || (label.includes('code') && label.includes('campus'))) &&
+    !label.includes('size') &&
+    !label.includes('postal') &&
+    !label.includes('zip') &&
+    !label.includes('pin') &&
+    !label.includes('bar') &&
+    !label.includes('qr') &&
+    !label.includes('discount') &&
+    !label.includes('subject');
+
+  if (isCampusCode) {
     return validateCampusCode(val, enforceRequired && input.required);
   }
 
@@ -1876,6 +1923,24 @@ export function installGlobalInputValidation(): () => void {
     const ariaLabel = (btn.getAttribute('aria-label') || '').toLowerCase();
     const title = (btn.getAttribute('title') || '').toLowerCase();
 
+    const isClearBtn =
+      Boolean(btn.querySelector('svg.lucide-x') || btn.querySelector('svg.lucide-x-circle')) ||
+      ariaLabel.includes('clear') ||
+      title.includes('clear');
+
+    if (isClearBtn) {
+      const parentWrap = btn.closest('.relative, div');
+      const searchInput = parentWrap?.querySelector('input, textarea') as HTMLInputElement | null;
+      if (searchInput) {
+        setGlobalInputError(searchInput, undefined);
+        searchInput.removeAttribute('data-global-invalid');
+        searchInput.style.borderColor = '';
+      }
+      parentWrap?.querySelectorAll('[data-global-validation-error="true"]').forEach(el => el.remove());
+      parentWrap?.parentElement?.querySelectorAll('[data-global-validation-error="true"]').forEach(el => el.remove());
+      return;
+    }
+
     if (
       btnText === 'cancel' ||
       btnText === 'close' ||
@@ -1888,9 +1953,7 @@ export function installGlobalInputValidation(): () => void {
       btn.dataset.dismiss ||
       btn.dataset.skipValidation ||
       btn.hasAttribute('data-skip-validation') ||
-      /add\s+(range|tier|row|item|field|stop|member|step)/i.test(btnText) ||
-      btn.querySelector('svg.lucide-x') ||
-      btn.querySelector('svg.lucide-x-circle')
+      /add\s+(range|tier|row|item|field|stop|member|step)/i.test(btnText)
     ) {
       return;
     }
