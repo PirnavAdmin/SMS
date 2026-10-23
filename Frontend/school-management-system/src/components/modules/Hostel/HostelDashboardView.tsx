@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+﻿import React, { useState, useEffect, useCallback } from 'react';
 import { Home, Building2, Bed, Users, IndianRupee, Shield, Plus, CheckCircle2, AlertCircle, ArrowUpRight, TrendingUp, PieChart, Layers, Search } from 'lucide-react';
 import { useToast } from '../../../context/ToastContext';
 import { useAuth } from '../../../context/AuthContext';

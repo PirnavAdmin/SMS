@@ -1,4 +1,4 @@
-using Microsoft.AspNetCore.Authorization;
+﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using SMS.Api.Dtos;
 using SMS.Api.Services.Interfaces;
@@ -387,6 +387,21 @@ namespace SMS.Api.Controllers
         }
 
         // =========================================================
+        // 5.5. ELIGIBLE RESIDENTIAL STUDENTS FOR ALLOCATION
+        [HttpGet("eligible-students")]
+        [AllowAnonymous]
+        public async Task<IActionResult> GetEligibleStudents([FromQuery] string? search)
+        {
+            var students = await _hostelService.GetEligibleStudentsForAllocationAsync(search);
+            return Ok(new
+            {
+                success = true,
+                message = "Eligible residential students retrieved successfully.",
+                data = students,
+                totalCount = students.Count
+            });
+        }
+
         // 6. BED ALLOCATIONS (Room Allocation)
         // =========================================================
 

@@ -125,7 +125,7 @@ export const StudentTransportAssignmentView: React.FC = () => {
   // Capacity evaluation for autoVehicleId
   const capacityInfo = checkVehicleCapacity(autoVehicleId);
   const totalCapacity = selectedVehicleObj?.capacity || capacityInfo.totalCapacity || 50;
-  const assignedCount = capacityInfo.assignedCount || 12;
+  const assignedCount = capacityInfo.assignedCount ?? 0;
   const availableSeats = Math.max(0, totalCapacity - assignedCount);
   const isVehicleFull = availableSeats <= 0;
 

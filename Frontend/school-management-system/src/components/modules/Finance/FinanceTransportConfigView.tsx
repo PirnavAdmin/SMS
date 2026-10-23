@@ -25,7 +25,7 @@ import {
   Phone,
   AlertTriangle
 } from 'lucide-react';
-import { FinanceTransportConfig } from '../../../types';
+import { FinanceTransportConfig, PickupPoint } from '../../../types';
 import { useData, matchesAcademicYear } from '../../../context/DataContext';
 import { useAuth } from '../../../context/AuthContext';
 import { useToast } from '../../../context/ToastContext';
@@ -121,18 +121,11 @@ export const FinanceTransportConfigView: React.FC = () => {
       return (prId && String(route.id).includes(prId)) || (prName && route.routeName && route.routeName.toLowerCase().includes(prName));
     }) : undefined);
 
-    if (!route && !stop) {
-      return { monthly: 0, oneTimeAnnual: 0, termWise: 0, isAC: false, distance: 0, minKm: 5, baseFare: 0, ratePerKm: 0 };
+    if (!route) {
+      return { monthly: 0, oneTimeAnnual: 0, termWise: 0, isAC: false, distance: 0, minKm: 0, baseFare: 0, ratePerKm: 0 };
     }
 
-    const effectiveRoute = route || {
-      id: stop?.routeId || '1',
-      minDistanceKm: 5,
-      minBaseFare: 1000,
-      ratePerKm: 100,
-      acMinBaseFare: 1200,
-      acRatePerKm: 150
-    };
+    const effectiveRoute = route;
 
     const assignment = vehicleAssignments.find(va => {
       const vaRouteId = String(va.routeId || '').replace(/^rm-0*/i, '').trim().toLowerCase();
@@ -142,13 +135,13 @@ export const FinanceTransportConfigView: React.FC = () => {
     const vehicle = vehicleMasters.find(v => String(v.id) === String(assignment?.vehicleId));
     const isAC = preferAC !== undefined ? preferAC : (vehicle ? vehicle.isAC === true : false);
 
-    const minKm = effectiveRoute.minDistanceKm ?? 5;
+    const minKm = effectiveRoute.minDistanceKm ?? (effectiveRoute as any).minRangeKm ?? 0;
     const baseFare = isAC
-      ? (effectiveRoute.acMinBaseFare ?? 1200)
-      : (effectiveRoute.minBaseFare ?? 1000);
+      ? (effectiveRoute.acMinBaseFare ?? (effectiveRoute as any).acBaseFare ?? 0)
+      : (effectiveRoute.minBaseFare ?? (effectiveRoute as any).nonAcBaseFare ?? 0);
     const ratePerKm = isAC
-      ? (effectiveRoute.acRatePerKm ?? 150)
-      : (effectiveRoute.ratePerKm ?? 100);
+      ? (effectiveRoute.acRatePerKm ?? (effectiveRoute as any).acRateAddlKm ?? 0)
+      : (effectiveRoute.ratePerKm ?? (effectiveRoute as any).nonAcRateAddlKm ?? (effectiveRoute as any).nonAcRatePerKm ?? 0);
 
     const distance = stop ? Number(stop.distanceFromSchoolKm ?? (stop as any).distanceFromStart ?? 0) : 0;
     const additionalKm = Math.max(0, distance - minKm);
@@ -523,7 +516,7 @@ export const FinanceTransportConfigView: React.FC = () => {
           <div class="meta-grid">
             <div class="meta-item">
               <strong>Transit Route</strong>
-              <span>${route.routeName || 'Standard Route'} (${route.routeCode || '-'})</span>
+              <span>${route.routeName || 'Route'} (${route.routeCode || '-'})</span>
             </div>
             <div class="meta-item">
               <strong>Assigned Bus</strong>
@@ -663,7 +656,7 @@ export const FinanceTransportConfigView: React.FC = () => {
           <div class="meta-grid">
             <div class="meta-item">
               <strong>Transit Route</strong>
-              <span>${route.routeName || 'Standard Route'} (${route.routeCode || '-'})</span>
+              <span>${route.routeName || 'Route'} (${route.routeCode || '-'})</span>
             </div>
             <div class="meta-item">
               <strong>Assigned Bus</strong>
@@ -846,40 +839,96 @@ export const FinanceTransportConfigView: React.FC = () => {
     setIsModalOpen(false);
   };
 
-  // Compile full dynamic pickup matrix
+  // Compile full dynamic pickup matrix strictly driven by valid routeMasters
   const pickupMatrix = useMemo(() => {
-    return pickupPoints
-      .filter(p => {
-        const matchesQuery =
-          (p.pickupName || '').toLowerCase().includes(query.toLowerCase()) ||
-          (p.routeName || '').toLowerCase().includes(query.toLowerCase());
-        const matchesRoute = filterRoute === 'All' || String(p.routeId) === String(filterRoute);
-        return matchesQuery && matchesRoute;
-      })
-      .map(p => {
-        const route = routeMasters.find(r => String(r.id) === String(p.routeId));
-        const assignment = vehicleAssignments.find(va => String(va.routeId) === String(p.routeId));
-        const vehicle = vehicleMasters.find(v => String(v.id) === String(assignment?.vehicleId));
-        const isAC = vehicle ? vehicle.isAC === true : false;
+    const rows: Array<{
+      pickup: PickupPoint;
+      route: any;
+      assignment: any;
+      vehicle: any;
+      isAC: boolean;
+      fees: ReturnType<typeof calculateStopFees>;
+      customConfig: any;
+    }> = [];
 
-        const fees = calculateStopFees(p.routeId, p.id);
-
-        const customConfig = financeTransportConfigs.find(
-          c => String(c.routeId) === String(p.routeId) &&
-               String(c.pickupPointId) === String(p.id) &&
-               c.status === 'Active'
-        );
-
-        return {
-          pickup: p,
-          route,
-          assignment,
-          vehicle,
-          isAC,
-          fees,
-          customConfig
-        };
+    routeMasters.forEach(route => {
+      // Find stops belonging to this route
+      const stopsForRoute = pickupPoints.filter(p => {
+        const matchesRouteId = p.routeId !== undefined && p.routeId !== null && String(p.routeId) === String(route.id);
+        const matchesRouteName = p.routeName && route.routeName &&
+          p.routeName.trim().toLowerCase() === route.routeName.trim().toLowerCase();
+        return matchesRouteId || matchesRouteName;
       });
+
+      const assignment = vehicleAssignments.find(va => String(va.routeId) === String(route.id));
+      const vehicle = vehicleMasters.find(v => String(v.id) === String(assignment?.vehicleId));
+      const isAC = vehicle ? vehicle.isAC === true : false;
+
+      if (stopsForRoute.length > 0) {
+        stopsForRoute.forEach(p => {
+          const matchesQuery =
+            (p.pickupName || '').toLowerCase().includes(query.toLowerCase()) ||
+            (route.routeName || '').toLowerCase().includes(query.toLowerCase()) ||
+            (route.routeCode || '').toLowerCase().includes(query.toLowerCase());
+          const matchesRoute = filterRoute === 'All' || String(route.id) === String(filterRoute);
+
+          if (matchesQuery && matchesRoute) {
+            const fees = calculateStopFees(route.id, p.id);
+            const customConfig = financeTransportConfigs.find(
+              c => String(c.routeId) === String(route.id) &&
+                   String(c.pickupPointId) === String(p.id) &&
+                   c.status === 'Active'
+            );
+            rows.push({
+              pickup: p,
+              route,
+              assignment,
+              vehicle,
+              isAC,
+              fees,
+              customConfig
+            });
+          }
+        });
+      } else {
+        // Route has no pickup points defined yet - display base route row
+        const matchesQuery =
+          (route.routeName || '').toLowerCase().includes(query.toLowerCase()) ||
+          (route.routeCode || '').toLowerCase().includes(query.toLowerCase());
+        const matchesRoute = filterRoute === 'All' || String(route.id) === String(filterRoute);
+
+        if (matchesQuery && matchesRoute) {
+          const fees = calculateStopFees(route.id);
+          const customConfig = financeTransportConfigs.find(
+            c => String(c.routeId) === String(route.id) &&
+                 (!c.pickupPointId || c.pickupPointId === '0') &&
+                 c.status === 'Active'
+          );
+          const syntheticPickup: PickupPoint = {
+            id: `route-base-${route.id}`,
+            routeId: route.id,
+            routeName: route.routeName,
+            pickupName: route.routeEnd ? `${route.routeStart || 'Start'} to ${route.routeEnd}` : 'Direct Route',
+            sequenceNumber: 1,
+            arrivalTime: '',
+            distanceFromSchoolKm: route.totalDistanceKm || (route as any).distanceKm || 0,
+            monthlyFee: fees.monthly,
+            status: 'Active'
+          };
+          rows.push({
+            pickup: syntheticPickup,
+            route,
+            assignment,
+            vehicle,
+            isAC,
+            fees,
+            customConfig
+          });
+        }
+      }
+    });
+
+    return rows;
   }, [pickupPoints, routeMasters, vehicleAssignments, vehicleMasters, financeTransportConfigs, query, filterRoute, scheduleTerms]);
 
   const routeStops = useMemo(() => {
@@ -1036,15 +1085,15 @@ export const FinanceTransportConfigView: React.FC = () => {
                     <tr key={pickup.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40">
                       <td
                         className="py-3 px-4 font-extrabold text-slate-900 dark:text-white cursor-pointer group/rt"
-                        onClick={() => setSelectedRouteForStudents(route || { id: pickup.routeId, routeName: pickup.routeName })}
+                        onClick={() => setSelectedRouteForStudents(route)}
                         title="Click to view students on this route"
                       >
                         <div className="flex items-center gap-1.5 group-hover/rt:text-sky-600 transition-colors">
                           <RouteIcon className="w-3.5 h-3.5 text-sky-500 shrink-0" />
-                          <span className="underline decoration-dotted underline-offset-2">{route?.routeName || pickup.routeName}</span>
+                          <span className="underline decoration-dotted underline-offset-2">{route.routeName}</span>
                         </div>
                         <span className="text-[10px] font-mono text-slate-400 block mt-0.5">
-                          {route?.routeCode || 'Standard Route'}
+                          {route.routeCode || '-'}
                         </span>
                       </td>
 
@@ -1095,14 +1144,14 @@ export const FinanceTransportConfigView: React.FC = () => {
 
                       <td className="py-3 px-4 text-center">
                         {(() => {
-                          const routeStudents = getRouteStudentsList(route || { id: pickup.routeId, routeName: pickup.routeName });
+                          const routeStudents = getRouteStudentsList(route);
                           const count = routeStudents.length;
                           return (
                             <button
                               type="button"
-                              onClick={() => setSelectedRouteForStudents(route || { id: pickup.routeId, routeName: pickup.routeName })}
+                              onClick={() => setSelectedRouteForStudents(route)}
                               className="inline-flex items-center justify-center gap-1.5 px-3 py-1 rounded-full text-xs font-black transition-all bg-sky-50 text-sky-700 hover:bg-sky-600 hover:text-white dark:bg-sky-950 dark:text-sky-300 dark:hover:bg-sky-600 cursor-pointer shadow-xs border border-sky-200 dark:border-sky-800"
-                              title={`View ${count} students assigned to ${route?.routeName || pickup.routeName}`}
+                              title={`View ${count} students assigned to ${route.routeName}`}
                             >
                               <Users className="w-3.5 h-3.5" />
                               <span>{count}</span>
@@ -1207,7 +1256,7 @@ export const FinanceTransportConfigView: React.FC = () => {
                         {fullRouteObj.routeName || 'Transit Route'}
                       </h3>
                       <span className="px-2 py-0.5 rounded-md bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-[10px] font-mono font-bold">
-                        {fullRouteObj.routeCode || 'Standard Route'}
+                        {fullRouteObj.routeCode || '-'}
                       </span>
                     </div>
                     <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 flex flex-wrap items-center gap-2">
