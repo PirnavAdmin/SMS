@@ -35,6 +35,17 @@ const CLASS_NAMES = [
 ];
 const ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
 
+export const normalizeSectionLetter = (sec: string | any): string => {
+  if (!sec) return '';
+  const str = typeof sec === 'string' ? sec : (sec.sectionName || sec.name || '');
+  return str.replace(/^Section\s*/i, '').trim();
+};
+
+export const isValidSection = (sec: string | any): boolean => {
+  const clean = normalizeSectionLetter(sec).toLowerCase();
+  return Boolean(clean && clean !== 'unassigned' && clean !== 'none');
+};
+
 const isNameEquivalent = (n1: string, n2: string): boolean => {
   const norm = (s: string) => s
     .toLowerCase()
@@ -347,8 +358,11 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
   }, []);
 
   useEffect(() => {
-    if (activeClass && !activeClass.sections.includes(activeWorkspaceSection)) {
-      setActiveWorkspaceSection(activeClass.sections[0] || 'A');
+    if (activeClass) {
+      const validSecs = (activeClass.sections || []).filter(isValidSection).map(normalizeSectionLetter);
+      if (validSecs.length > 0 && !validSecs.includes(normalizeSectionLetter(activeWorkspaceSection))) {
+        setActiveWorkspaceSection(validSecs[0]);
+      }
     }
   }, [activeClass, activeWorkspaceSection]);
 
@@ -696,12 +710,14 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
     filteredForKPIs.forEach(cl => {
       const details = (cl as any).sectionDetails || {};
       let clCapacity = 0;
-      if (cl.sections && cl.sections.length > 0) {
-        cl.sections.forEach(sec => {
-          clCapacity += (details[sec]?.capacity ?? 40);
+      const validSecs = (cl.sections || []).filter(isValidSection);
+      if (validSecs.length > 0) {
+        validSecs.forEach(sec => {
+          const cleanSec = normalizeSectionLetter(sec);
+          clCapacity += (details[sec]?.capacity ?? details[cleanSec]?.capacity ?? 40);
         });
       } else {
-        clCapacity = 40;
+        clCapacity = 0;
       }
       totalCapacity += clCapacity;
 
@@ -725,34 +741,36 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
   const sectionKPIs = useMemo(() => {
     if (!activeClass) return null;
     const cl = activeClass;
+    const validSections = (cl.sections || []).filter(isValidSection);
     const clStudents = students.filter(s => s.className === cl.name);
-    const assignedCount = clStudents.filter(s => !!s.section).length;
-    const waitingCount = clStudents.filter(s => !s.section).length;
+    const assignedCount = clStudents.filter(s => !!s.section && isValidSection(s.section)).length;
+    const waitingCount = clStudents.filter(s => !s.section || !isValidSection(s.section)).length;
 
     const details = (cl as any).sectionDetails || {};
     let totalCap = 0;
     let activeSecsCount = 0;
     let inactiveSecsCount = 0;
 
-    cl.sections.forEach(sec => {
-      const secDetail = details[sec] || {};
+    validSections.forEach(sec => {
+      const cleanSec = normalizeSectionLetter(sec);
+      const secDetail = details[sec] || details[cleanSec] || details[`Section ${cleanSec}`] || {};
       const status = secDetail.status || 'Active';
       if (status === 'Active') {
         activeSecsCount++;
-        totalCap += (secDetail.capacity ?? 40);
+        totalCap += (Number(secDetail.capacity) || 40);
       } else {
         inactiveSecsCount++;
       }
     });
 
-    const freeSeats = Math.max(0, totalCap - assignedCount);
+    const freeSeats = validSections.length > 0 ? Math.max(0, totalCap - assignedCount) : 0;
     const avgOccupancy = totalCap > 0 ? Math.round((assignedCount / totalCap) * 100) : 0;
 
     return {
-      totalSections: cl.sections.length,
+      totalSections: validSections.length,
       activeSections: activeSecsCount,
       inactiveSections: inactiveSecsCount,
-      totalCapacity: totalCap,
+      totalCapacity: validSections.length > 0 ? totalCap : 0,
       occupiedSeats: assignedCount,
       remainingSeats: freeSeats,
       averageOccupancy: avgOccupancy,
@@ -764,11 +782,16 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
   const sectionChecklist = useMemo(() => {
     if (!activeClass) return [];
     const details = (activeClass as any).sectionDetails || {};
+    const validSections = (activeClass.sections || []).filter(isValidSection);
 
     return [
-      { id: 1, name: 'At least one section exists', passed: activeClass.sections.length > 0 },
-      { id: 2, name: 'Every section has a unique name letter', passed: new Set(activeClass.sections).size === activeClass.sections.length },
-      { id: 3, name: 'All capacities configured (> 0)', passed: activeClass.sections.every(sec => (details[sec]?.capacity ?? 0) > 0) },
+      { id: 1, name: 'At least one section exists', passed: validSections.length > 0 },
+      { id: 2, name: 'Every section has a unique name letter', passed: new Set(validSections.map(normalizeSectionLetter)).size === validSections.length },
+      { id: 3, name: 'All capacities configured (> 0)', passed: validSections.length > 0 && validSections.every(sec => {
+        const cleanSec = normalizeSectionLetter(sec);
+        const detail = details[sec] || details[cleanSec] || details[`Section ${cleanSec}`] || {};
+        return (Number(detail.capacity) || 0) > 0;
+      }) },
     ] as Array<{ id: number; name: string; passed: boolean; isWarning?: boolean }>;
   }, [activeClass]);
 
@@ -1008,7 +1031,8 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
   const handleOpenAddSection = () => {
     if (!activeClass) return;
     setEditingSectionName(null);
-    const nextLetter = ALPHABET.find(l => !activeClass.sections.includes(l)) || 'A';
+    const existingLetters = (activeClass.sections || []).filter(isValidSection).map(normalizeSectionLetter);
+    const nextLetter = ALPHABET.find(l => !existingLetters.includes(l)) || 'A';
     setSectionForm({
       name: nextLetter,
       capacity: '',
@@ -1021,10 +1045,12 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
 
   const handleOpenEditSection = (secName: string) => {
     if (!activeClass) return;
-    const detail = (activeClass as any).sectionDetails?.[secName] || {};
-    setEditingSectionName(secName);
+    const cleanSec = normalizeSectionLetter(secName);
+    const details = (activeClass as any).sectionDetails || {};
+    const detail = details[cleanSec] || details[secName] || details[`Section ${cleanSec}`] || {};
+    setEditingSectionName(cleanSec);
     setSectionForm({
-      name: secName,
+      name: cleanSec,
       capacity: detail.capacity !== undefined ? detail.capacity : '',
       status: detail.status || 'Active',
       remarks: detail.remarks || '',
@@ -1037,6 +1063,7 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
     e.preventDefault();
     if (!activeClass) return;
     const { name, status, remarks, roomNo } = sectionForm;
+    const cleanName = normalizeSectionLetter(name);
     const capacityNum = Number(sectionForm.capacity);
 
     if (!sectionForm.capacity || isNaN(capacityNum) || capacityNum <= 0) {
@@ -1045,26 +1072,29 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
     }
     const capacity = capacityNum;
 
-    const currentSections = [...activeClass.sections];
+    const currentSections = (activeClass.sections || []).filter(isValidSection).map(normalizeSectionLetter);
     const details = { ...((activeClass as any).sectionDetails || {}) };
 
     if (editingSectionName) {
-      const assignedCount = students.filter(s => s.className === activeClass.name && s.section === editingSectionName).length;
+      const cleanEditing = normalizeSectionLetter(editingSectionName);
+      const assignedCount = students.filter(s => s.className === activeClass.name && normalizeSectionLetter(s.section) === cleanEditing).length;
       if (capacity < assignedCount) {
         addToast('warning', 'Capacity Violation', 'Capacity cannot be less than the number of assigned students.');
         return;
       }
 
       verifySafetyLock(() => {
-        updateSectionApi(activeClass.id, editingSectionName, { capacity, status, remarks })
+        updateSectionApi(activeClass.id, cleanEditing, { capacity, status, remarks })
           .then(res => {
             if (res && res.success) {
-              details[editingSectionName] = { capacity, status, remarks, roomNo };
+              details[cleanEditing] = { capacity, status, remarks, roomNo };
+              details[`Section ${cleanEditing}`] = { capacity, status, remarks, roomNo };
               updateAcademicClass(activeClass.id, {
                 sections: currentSections,
                 sectionDetails: details
               } as any);
-              addToast('success', 'Section configuration saved', `Saved Section ${name}`);
+              addToast('success', 'Section configuration saved', `Saved Section ${cleanName}`);
+              fetchAcademicClasses?.();
               setIsSectionModalOpen(false);
             } else {
               addToast('error', 'Error', res?.message || 'Failed to update section.');
@@ -1073,30 +1103,33 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
           .catch(err => {
             console.error(err);
             // offline fallback
-            details[editingSectionName] = { capacity, status, remarks, roomNo };
+            details[cleanEditing] = { capacity, status, remarks, roomNo };
+            details[`Section ${cleanEditing}`] = { capacity, status, remarks, roomNo };
             updateAcademicClass(activeClass.id, {
               sections: currentSections,
               sectionDetails: details
             } as any);
-            addToast('success', 'Section configuration saved', `Saved Section ${name} (offline)`);
+            addToast('success', 'Section configuration saved', `Saved Section ${cleanName} (offline)`);
             setIsSectionModalOpen(false);
           });
       });
     } else {
-      if (currentSections.includes(name)) {
-        addToast('warning', 'Duplicate Section', `Section ${name} already exists in this class setup.`);
+      if (currentSections.includes(cleanName)) {
+        addToast('warning', 'Duplicate Section', `Section ${cleanName} already exists in this class setup.`);
         return;
       }
-      addSectionApi(activeClass.id, { section_letter: name, capacity, status, remarks })
+      addSectionApi(activeClass.id, { section_letter: cleanName, capacity, status, remarks })
         .then(res => {
           if (res && res.success) {
-            currentSections.push(name);
-            details[name] = { capacity, status, remarks, roomNo };
+            currentSections.push(cleanName);
+            details[cleanName] = { capacity, status, remarks, roomNo };
+            details[`Section ${cleanName}`] = { capacity, status, remarks, roomNo };
             updateAcademicClass(activeClass.id, {
               sections: currentSections,
               sectionDetails: details
             } as any);
-            addToast('success', 'Section configuration saved', `Saved Section ${name}`);
+            addToast('success', 'Section configuration saved', `Saved Section ${cleanName}`);
+            fetchAcademicClasses?.();
             setIsSectionModalOpen(false);
           } else {
             addToast('error', 'Error', res?.message || 'Failed to create section.');
@@ -1105,13 +1138,14 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
         .catch(err => {
           console.error(err);
           // offline fallback
-          currentSections.push(name);
-          details[name] = { capacity, status, remarks, roomNo };
+          currentSections.push(cleanName);
+          details[cleanName] = { capacity, status, remarks, roomNo };
+          details[`Section ${cleanName}`] = { capacity, status, remarks, roomNo };
           updateAcademicClass(activeClass.id, {
             sections: currentSections,
             sectionDetails: details
           } as any);
-          addToast('success', 'Section configuration saved', `Saved Section ${name} (offline)`);
+          addToast('success', 'Section configuration saved', `Saved Section ${cleanName} (offline)`);
           setIsSectionModalOpen(false);
         });
     }
@@ -1120,60 +1154,79 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
   // Section Deletion checks
   const triggerDeleteSectionCheck = (secName: string) => {
     if (!activeClass) return;
+    const cleanSec = normalizeSectionLetter(secName);
     const reasons: string[] = [];
 
-    const clStudents = students.filter(s => s.className === activeClass.name && s.section === secName);
+    const clStudents = students.filter(s => s.className === activeClass.name && normalizeSectionLetter(s.section) === cleanSec);
     if (clStudents.length > 0) {
-      reasons.push(`${clStudents.length} students are allocated to Section ${secName}`);
+      reasons.push(`${clStudents.length} student(s) currently allocated to Section ${cleanSec}`);
     }
 
-    const hasTimetable = timetable.some(t => t.className === activeClass.name && t.section === secName);
+    const hasTimetable = timetable.some(t => t.className === activeClass.name && normalizeSectionLetter(t.section) === cleanSec);
     if (hasTimetable) {
       reasons.push('A weekly timetable period schedule is mapped');
     }
 
     if (reasons.length > 0) {
       setDependencyModalData({
-        title: `Cannot Delete Section ${secName}`,
+        title: `Cannot Delete Section ${cleanSec}`,
         reasons
       });
     } else {
       verifySafetyLock(() => {
-        setSectionToDelete(secName);
+        setSectionToDelete(cleanSec);
       });
     }
   };
 
   const handleConfirmDeleteSection = () => {
     if (!activeClass || !sectionToDelete) return;
-    const currentSections = activeClass.sections.filter(s => s !== sectionToDelete);
+    const cleanDelete = normalizeSectionLetter(sectionToDelete);
+    const currentSections = (activeClass.sections || []).filter(s => {
+      const cleanS = normalizeSectionLetter(s);
+      return cleanS !== cleanDelete && s !== sectionToDelete;
+    });
     const details = { ...((activeClass as any).sectionDetails || {}) };
     delete details[sectionToDelete];
+    delete details[cleanDelete];
+    delete details[`Section ${cleanDelete}`];
 
-    deleteSectionApi(activeClass.id, sectionToDelete)
+    deleteSectionApi(activeClass.id, cleanDelete)
       .then(res => {
         if (res && res.success) {
           updateAcademicClass(activeClass.id, {
             sections: currentSections,
             sectionDetails: details
           } as any);
-          addToast('success', 'Section Removed', `Deleted Section ${sectionToDelete}`);
+          addToast('success', 'Section Removed', `Deleted Section ${cleanDelete}`);
+          fetchAcademicClasses?.();
         } else {
-          addToast('error', 'Error', res?.message || 'Failed to delete section.');
+          addToast('error', 'Cannot Delete Section', res?.message || 'Failed to delete section.');
         }
       })
       .catch(err => {
         console.error(err);
-        // offline fallback
-        updateAcademicClass(activeClass.id, {
-          sections: currentSections,
-          sectionDetails: details
-        } as any);
-        addToast('success', 'Section Removed', `Deleted Section ${sectionToDelete} (offline)`);
+        const errorMsg = err?.message || 'Failed to delete section.';
+        if (
+          err?.status === 400 || 
+          err?.status === 409 || 
+          errorMsg.toLowerCase().includes('active student') || 
+          errorMsg.toLowerCase().includes('cannot delete') || 
+          errorMsg.toLowerCase().includes('referenced')
+        ) {
+          addToast('error', 'Cannot Delete Section', errorMsg);
+        } else {
+          // offline fallback only for genuine network disconnects
+          updateAcademicClass(activeClass.id, {
+            sections: currentSections,
+            sectionDetails: details
+          } as any);
+          addToast('info', 'Section Removed (Offline)', `Deleted Section ${cleanDelete} locally`);
+        }
       })
       .finally(() => {
         setSectionToDelete(null);
-        setSelectedSections(selectedSections.filter(s => s !== sectionToDelete));
+        setSelectedSections(selectedSections.filter(s => normalizeSectionLetter(s) !== cleanDelete));
       });
   };
 
@@ -1428,15 +1481,17 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
   const filteredSectionsList = useMemo(() => {
     if (!activeClass) return [];
     const details = (activeClass as any).sectionDetails || {};
-    return activeClass.sections.filter(sec => {
-      const clean = sec.replace(/^Section\s*/i, '').trim().toLowerCase();
-      if (!clean || clean === 'unassigned' || clean === 'none') return false;
+    return (activeClass.sections || []).filter(sec => {
+      if (!isValidSection(sec)) return false;
+      const cleanSec = normalizeSectionLetter(sec);
 
-      const detail = details[sec] || {};
+      const detail = details[cleanSec] || details[sec] || details[`Section ${cleanSec}`] || {};
       const status = detail.status || 'Active';
-      const cap = detail.capacity ?? 40;
+      const cap = Number(detail.capacity) || 40;
 
-      const matchesSearch = !sectionSearchText || sec.toLowerCase().includes(sectionSearchText.toLowerCase());
+      const matchesSearch = !sectionSearchText || 
+        cleanSec.toLowerCase().includes(sectionSearchText.toLowerCase()) || 
+        (typeof sec === 'string' && sec.toLowerCase().includes(sectionSearchText.toLowerCase()));
       const matchesStatus = !sectionFilterStatus || status === sectionFilterStatus;
       
       let matchesCapacity = true;
@@ -2077,7 +2132,7 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
                       </div>
                       <div className="p-4 bg-white dark:bg-slate-900 border border-brand-400 dark:border-brand-800 rounded-2xl shadow-xs hover:border-brand-500 transition-all">
                         <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block mb-1">Sections</span>
-                        <span className="text-lg font-extrabold text-slate-900 dark:text-white tracking-tight">{activeClass.sections.length}</span>
+                        <span className="text-lg font-extrabold text-slate-900 dark:text-white tracking-tight">{(activeClass.sections || []).filter(isValidSection).length}</span>
                       </div>
                       <div className="p-4 bg-white dark:bg-slate-900 border border-brand-400 dark:border-brand-800 rounded-2xl shadow-xs hover:border-brand-500 transition-all">
                         <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block mb-1">Teachers</span>
@@ -2103,18 +2158,20 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
                         <div>
                           <h4 className="font-black text-slate-900 dark:text-white text-xs uppercase tracking-wider mb-3">Class Teacher</h4>
                           <div className="space-y-2">
-                            {activeClass.sections.filter(s => s.replace(/^Section\s*/i, '').trim().toLowerCase() !== 'unassigned').map(sec => {
-                              const rawClassTeacher = ((activeClass as any).sectionTeachers || {})[sec] || 'Not Assigned';
+                            {(activeClass.sections || []).filter(isValidSection).map(sec => {
+                              const cleanSec = normalizeSectionLetter(sec);
+                              const details = (activeClass as any).sectionTeachers || {};
+                              const rawClassTeacher = details[cleanSec] || details[sec] || details[`Section ${cleanSec}`] || 'Not Assigned';
                               const isAssigned = Boolean(rawClassTeacher && rawClassTeacher !== 'Not Assigned' && rawClassTeacher !== 'Unassigned');
                               const classTeacher = isAssigned ? formatTeacherDisplayName(rawClassTeacher) : 'Not Assigned';
                               return (
-                                <div key={sec} className="flex justify-between items-center text-xs p-2.5 bg-slate-50/90 dark:bg-slate-950 rounded-xl border border-slate-200/60 dark:border-slate-800 gap-2">
-                                  <span className="font-bold text-slate-900 dark:text-white shrink-0 whitespace-nowrap">Section {sec}:</span>
+                                <div key={cleanSec} className="flex justify-between items-center text-xs p-2.5 bg-slate-50/90 dark:bg-slate-950 rounded-xl border border-slate-200/60 dark:border-slate-800 gap-2">
+                                  <span className="font-bold text-slate-900 dark:text-white shrink-0 whitespace-nowrap">Section {cleanSec}:</span>
                                   <span className={!isAssigned ? 'text-rose-500 font-semibold truncate text-right' : 'text-slate-500 dark:text-slate-400 font-medium truncate text-right'} title={isAssigned ? classTeacher : undefined}>{classTeacher}</span>
                                 </div>
                               );
                             })}
-                            {activeClass.sections.filter(s => s.replace(/^Section\s*/i, '').trim().toLowerCase() !== 'unassigned').length === 0 && (
+                            {(activeClass.sections || []).filter(isValidSection).length === 0 && (
                               <p className="text-slate-400 italic text-xs text-center py-2">No sections configured.</p>
                             )}
                           </div>
@@ -2188,7 +2245,7 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
                           <div className="space-y-2 text-xs">
                             <div className="flex justify-between items-center p-2.5 rounded-xl bg-slate-50/90 dark:bg-slate-950 border border-slate-200/60 dark:border-slate-800">
                               <span className="font-bold text-slate-900 dark:text-white">Sections created:</span>
-                              <span className={activeClass.sections.length > 0 ? 'text-emerald-600 dark:text-emerald-400 font-semibold' : 'text-rose-500 font-semibold'}>{activeClass.sections.length > 0 ? '✔ Yes' : '✖ No'}</span>
+                              <span className={(activeClass.sections || []).filter(isValidSection).length > 0 ? 'text-emerald-600 dark:text-emerald-400 font-semibold' : 'text-rose-500 font-semibold'}>{(activeClass.sections || []).filter(isValidSection).length > 0 ? '✔ Yes' : '✖ No'}</span>
                             </div>
                             <div className="flex justify-between items-center p-2.5 rounded-xl bg-slate-50/90 dark:bg-slate-950 border border-slate-200/60 dark:border-slate-800">
                               <span className="font-bold text-slate-900 dark:text-white">Subjects mapped:</span>
@@ -2294,102 +2351,127 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
 
                     {/* Sections Cards Grid */}
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-                      {filteredSectionsList.map(sec => {
-                        const detail = ((activeClass as any).sectionDetails || {})[sec] || {};
-                        const cap = detail.capacity ?? 40;
-                        const assigned = students.filter(s => s.className === activeClass.name && s.section === sec).length;
-                        const free = Math.max(0, cap - assigned);
-                        const percent = Math.min(100, Math.round((assigned / (cap || 1)) * 100));
-
-                        const isSelected = selectedSections.includes(sec);
-                        const status = detail.status || 'Active';
-                        const rawClassTeacher = ((activeClass as any).sectionTeachers || {})[sec] || 'Unassigned';
-                        const isCtAssigned = Boolean(rawClassTeacher && rawClassTeacher !== 'Unassigned' && rawClassTeacher !== 'Not Assigned');
-                        const classTeacher = isCtAssigned ? formatTeacherDisplayName(rawClassTeacher) : 'Unassigned';
-                        const roomNo = detail.roomNo || 'Unassigned';
-
-                        return (
-                          <div 
-                            key={sec} 
-                            className={`p-5 rounded-2xl border text-left flex flex-col justify-between space-y-4 relative transition-all ${
-                              status === 'Archived' 
-                                ? 'opacity-60 bg-slate-50/50 dark:bg-slate-905/30 border-brand-400 dark:border-brand-800'
-                                : isSelected 
-                                  ? 'border-brand-500 bg-sky-50/20 dark:bg-sky-955/10 shadow-md'
-                                  : 'border-brand-400 dark:border-brand-800 bg-white dark:bg-slate-900 hover:border-brand-500 hover:shadow'
-                            }`}
-                          >
-                            {/* Selection checkbox */}
-                            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
-                              <div className="flex items-center gap-2">
-                                <input
-                                  type="checkbox"
-                                  checked={isSelected}
-                                  onChange={() => {
-                                    if (isSelected) setSelectedSections(selectedSections.filter(s => s !== sec));
-                                    else setSelectedSections([...selectedSections, sec]);
-                                  }}
-                                  className="rounded border-slate-300 text-sky-600 dark:bg-slate-855"
-                                />
-                                <span className="text-base font-black text-slate-850 dark:text-white">Section {sec}</span>
-                              </div>
-                              <Badge variant={status === 'Active' ? 'success' : status === 'Archived' ? 'danger' : 'warning'}>
-                                {status}
-                              </Badge>
-                            </div>
-
-                            <div className="space-y-1.5 text-xs text-slate-600 dark:text-slate-350 font-bold">
-                              <div className="flex justify-between"><span className="text-slate-450">Current Enrolled:</span> <span>{assigned} Students</span></div>
-                              <div className="flex justify-between"><span className="text-slate-450">Seats Remaining:</span> <span className="text-sky-600">{free} / {cap} Seats</span></div>
-                              <div className="flex justify-between"><span className="text-slate-450">Room Number:</span> <span className="text-slate-800 dark:text-white">{roomNo}</span></div>
-                              <div className="flex justify-between items-center gap-2"><span className="text-slate-450 shrink-0">Class Teacher:</span> <span className="text-slate-800 dark:text-white truncate text-right" title={isCtAssigned ? classTeacher : undefined}>{classTeacher}</span></div>
-                            </div>
-
-                            {/* Progress occupancy bar */}
-                            <div className="space-y-1 pt-1.5 font-bold">
-                              <div className="flex justify-between items-baseline text-[10px] text-slate-450 uppercase font-mono">
-                                  <span>Occupancy Rate</span>
-                                  <span className={percent > 95 ? 'text-rose-500' : percent > 80 ? 'text-amber-500' : 'text-emerald-500'}>{percent}%</span>
-                              </div>
-                              <div className="h-2 w-full bg-slate-200 dark:bg-slate-800 rounded-full overflow-hidden p-0.5 flex">
-                                <div 
-                                  className={`h-full rounded-full transition-all ${
-                                    percent > 95 ? 'bg-rose-500' : percent > 80 ? 'bg-amber-500' : 'bg-emerald-500'
-                                  }`} 
-                                  style={{ width: `${percent}%` }}
-                                />
-                              </div>
-                            </div>
-
-                            {/* Quick actions controls */}
-                            <div className="flex justify-end items-center gap-1.5 text-xs font-bold pt-1">
-                              {status !== 'Archived' ? (
-                                <>
-                                  <button 
-                                    onClick={() => handleOpenEditSection(sec)} 
-                                    className="p-1.5 rounded-lg hover:bg-sky-50 dark:hover:bg-sky-950/40 text-slate-400 hover:text-sky-600 transition-colors"
-                                    title="Edit Section Setup"
-                                  >
-                                    <Edit className="w-4 h-4" />
-                                  </button>
-                                  <button 
-                                    onClick={() => triggerDeleteSectionCheck(sec)} 
-                                    className="p-1.5 rounded-lg hover:bg-rose-50 dark:hover:bg-rose-950/40 text-slate-400 hover:text-rose-600 transition-colors"
-                                    title="Delete Section"
-                                  >
-                                    <Trash2 className="w-4 h-4" />
-                                  </button>
-                                </>
-                              ) : (
-                                <div className="flex items-center gap-2">
-                                  <span className="text-[10px] text-slate-400 uppercase">Read Only</span>
-                                  <button onClick={() => handleRestoreSection(sec)} className="text-emerald-600 hover:underline">Restore Active</button>
-                                </div>
-                              )}
-                            </div>
+                      {filteredSectionsList.length === 0 ? (
+                        <div className="col-span-full py-12 px-4 text-center bg-slate-50/50 dark:bg-slate-900/50 rounded-2xl border border-dashed border-slate-200 dark:border-slate-800">
+                          <div className="w-12 h-12 mx-auto mb-3 rounded-xl bg-sky-50 dark:bg-sky-950/50 text-sky-600 flex items-center justify-center">
+                            <Layers className="w-6 h-6" />
                           </div>
-                        );
-                      })}
+                          <h3 className="text-sm font-bold text-slate-800 dark:text-slate-200">No Sections Found</h3>
+                          <p className="text-xs text-slate-400 mt-1 max-w-sm mx-auto">
+                            {sectionSearchText || sectionFilterStatus || sectionFilterCapacity
+                              ? "No sections match your active search or filter criteria."
+                              : "No sections are currently configured for this class. Click '+ Add Section' to configure one."}
+                          </p>
+                          {!sectionSearchText && !sectionFilterStatus && !sectionFilterCapacity && (
+                            <button
+                              onClick={handleOpenAddSection}
+                              className="mt-4 px-4 py-2 bg-sky-600 hover:bg-sky-500 text-white text-xs font-bold rounded-xl shadow inline-flex items-center gap-1.5 cursor-pointer"
+                            >
+                              <Plus className="w-4 h-4" /> Add Section
+                            </button>
+                          )}
+                        </div>
+                      ) : (
+                        filteredSectionsList.map(sec => {
+                          const cleanSec = normalizeSectionLetter(sec);
+                          const details = (activeClass as any).sectionDetails || {};
+                          const detail = details[cleanSec] || details[sec] || details[`Section ${cleanSec}`] || {};
+                          const cap = Number(detail.capacity) || 40;
+                          const assigned = students.filter(s => s.className === activeClass.name && normalizeSectionLetter(s.section) === cleanSec).length;
+                          const free = Math.max(0, cap - assigned);
+                          const percent = Math.min(100, Math.round((assigned / (cap || 1)) * 100));
+
+                          const isSelected = selectedSections.includes(cleanSec) || selectedSections.includes(sec);
+                          const status = detail.status || 'Active';
+                          const teachers = (activeClass as any).sectionTeachers || {};
+                          const rawClassTeacher = teachers[cleanSec] || teachers[sec] || teachers[`Section ${cleanSec}`] || 'Unassigned';
+                          const isCtAssigned = Boolean(rawClassTeacher && rawClassTeacher !== 'Unassigned' && rawClassTeacher !== 'Not Assigned');
+                          const classTeacher = isCtAssigned ? formatTeacherDisplayName(rawClassTeacher) : 'Unassigned';
+                          const roomNo = detail.roomNo || 'Unassigned';
+
+                          return (
+                            <div 
+                              key={cleanSec} 
+                              className={`p-5 rounded-2xl border text-left flex flex-col justify-between space-y-4 relative transition-all ${
+                                status === 'Archived' 
+                                  ? 'opacity-60 bg-slate-50/50 dark:bg-slate-905/30 border-brand-400 dark:border-brand-800'
+                                  : isSelected 
+                                    ? 'border-brand-500 bg-sky-50/20 dark:bg-sky-955/10 shadow-md'
+                                    : 'border-brand-400 dark:border-brand-800 bg-white dark:bg-slate-900 hover:border-brand-500 hover:shadow'
+                              }`}
+                            >
+                              {/* Selection checkbox */}
+                              <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
+                                <div className="flex items-center gap-2">
+                                  <input
+                                    type="checkbox"
+                                    checked={isSelected}
+                                    onChange={() => {
+                                      if (isSelected) setSelectedSections(selectedSections.filter(s => normalizeSectionLetter(s) !== cleanSec));
+                                      else setSelectedSections([...selectedSections, cleanSec]);
+                                    }}
+                                    className="rounded border-slate-300 text-sky-600 dark:bg-slate-855"
+                                  />
+                                  <span className="text-base font-black text-slate-850 dark:text-white">Section {cleanSec}</span>
+                                </div>
+                                <Badge variant={status === 'Active' ? 'success' : status === 'Archived' ? 'danger' : 'warning'}>
+                                  {status}
+                                </Badge>
+                              </div>
+
+                              <div className="space-y-1.5 text-xs text-slate-600 dark:text-slate-355 font-bold">
+                                <div className="flex justify-between"><span className="text-slate-455">Current Enrolled:</span> <span>{assigned} Students</span></div>
+                                <div className="flex justify-between"><span className="text-slate-455">Seats Remaining:</span> <span className="text-sky-600">{free} / {cap} Seats</span></div>
+                                <div className="flex justify-between"><span className="text-slate-455">Room Number:</span> <span className="text-slate-800 dark:text-white">{roomNo}</span></div>
+                                <div className="flex justify-between items-center gap-2"><span className="text-slate-455 shrink-0">Class Teacher:</span> <span className="text-slate-800 dark:text-white truncate text-right" title={isCtAssigned ? classTeacher : undefined}>{classTeacher}</span></div>
+                              </div>
+
+                              {/* Progress occupancy bar */}
+                              <div className="space-y-1 pt-1.5 font-bold">
+                                <div className="flex justify-between items-baseline text-[10px] text-slate-450 uppercase font-mono">
+                                    <span>Occupancy Rate</span>
+                                    <span className={percent > 95 ? 'text-rose-500' : percent > 80 ? 'text-amber-500' : 'text-emerald-500'}>{percent}%</span>
+                                </div>
+                                <div className="h-2 w-full bg-slate-200 dark:bg-slate-800 rounded-full overflow-hidden p-0.5 flex">
+                                  <div 
+                                    className={`h-full rounded-full transition-all ${
+                                      percent > 95 ? 'bg-rose-500' : percent > 80 ? 'bg-amber-500' : 'bg-emerald-500'
+                                    }`} 
+                                    style={{ width: `${percent}%` }}
+                                  />
+                                </div>
+                              </div>
+
+                              {/* Quick actions controls */}
+                              <div className="flex justify-end items-center gap-1.5 text-xs font-bold pt-1">
+                                {status !== 'Archived' ? (
+                                  <>
+                                    <button 
+                                      onClick={() => handleOpenEditSection(cleanSec)} 
+                                      className="p-1.5 rounded-lg hover:bg-sky-50 dark:hover:bg-sky-950/40 text-slate-400 hover:text-sky-600 transition-colors"
+                                      title="Edit Section Setup"
+                                    >
+                                      <Edit className="w-4 h-4" />
+                                    </button>
+                                    <button 
+                                      onClick={() => triggerDeleteSectionCheck(cleanSec)} 
+                                      className="p-1.5 rounded-lg hover:bg-rose-50 dark:hover:bg-rose-950/40 text-slate-400 hover:text-rose-600 transition-colors"
+                                      title="Delete Section"
+                                    >
+                                      <Trash2 className="w-4 h-4" />
+                                    </button>
+                                  </>
+                                ) : (
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-[10px] text-slate-400 uppercase">Read Only</span>
+                                    <button onClick={() => handleRestoreSection(cleanSec)} className="text-emerald-600 hover:underline">Restore Active</button>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })
+                      )}
                     </div>
                   </div>
                 )}
@@ -2614,19 +2696,22 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
                             </h4>
                           </div>
                           <div className="flex items-center gap-1.5 p-1 bg-slate-100 dark:bg-slate-950 rounded-2xl border border-slate-200/50 dark:border-slate-800">
-                            {activeClass.sections.filter(s => s.replace(/^Section\s*/i, '').trim().toLowerCase() !== 'unassigned').map(sec => (
-                              <button
-                                key={sec}
-                                onClick={() => setActiveWorkspaceSection(sec)}
-                                className={`px-3 py-1.5 rounded-xl font-black text-[11px] transition-all cursor-pointer ${
-                                  activeWorkspaceSection === sec 
-                                    ? 'bg-sky-600 text-white shadow-xs' 
-                                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-                                }`}
-                              >
-                                Section {sec}
-                              </button>
-                            ))}
+                            {(activeClass.sections || []).filter(isValidSection).map(sec => {
+                              const cleanSec = normalizeSectionLetter(sec);
+                              return (
+                                <button
+                                  key={cleanSec}
+                                  onClick={() => setActiveWorkspaceSection(cleanSec)}
+                                  className={`px-3 py-1.5 rounded-xl font-black text-[11px] transition-all cursor-pointer ${
+                                    normalizeSectionLetter(activeWorkspaceSection) === cleanSec 
+                                      ? 'bg-sky-600 text-white shadow-xs' 
+                                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                                  }`}
+                                >
+                                  Section {cleanSec}
+                                </button>
+                              );
+                            })}
                           </div>
                         </div>
 
@@ -2803,7 +2888,7 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
                             {activeClass.name} - Section Staff Info
                           </h5>
                           <span className="text-[11px] text-slate-400 font-bold">
-                            {activeClass.sections.length} Sections Configured
+                            {(activeClass.sections || []).filter(isValidSection).length} Sections Configured
                           </span>
                         </div>
 
@@ -2819,8 +2904,10 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
                               </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-100 dark:divide-slate-800/80 font-bold">
-                              {activeClass.sections.filter(s => s.replace(/^Section\s*/i, '').trim().toLowerCase() !== 'unassigned').map(sec => {
-                                const classTeacherName = ((activeClass as any).sectionTeachers || {})[sec];
+                              {(activeClass.sections || []).filter(isValidSection).map(sec => {
+                                const cleanSec = normalizeSectionLetter(sec);
+                                const teachers = (activeClass as any).sectionTeachers || {};
+                                const classTeacherName = teachers[cleanSec] || teachers[sec] || teachers[`Section ${cleanSec}`];
                                 const isCTAssigned = Boolean(classTeacherName && classTeacherName !== 'Unassigned');
                                 
                                 const norm = (str?: string) => (str || '').toLowerCase().replace(/\s+/g, '').replace(/class/gi, '').replace(/section/gi, '');
@@ -3443,12 +3530,14 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
                   const ay = (cl as any).academicYear || defaultAcademicYear || '2026-2027';
                   const remarks = (cl as any).remarks || '';
 
+                  const validSecs = (cl.sections || []).filter(isValidSection);
                   const details = (cl as any).sectionDetails || {};
                   let cap = 0;
-                  cl.sections.forEach(s => {
-                    cap += (details[s]?.capacity ?? 40);
+                  validSecs.forEach(s => {
+                    const cleanS = normalizeSectionLetter(s);
+                    cap += (details[s]?.capacity ?? details[cleanS]?.capacity ?? 40);
                   });
-                  if (cap === 0) cap = cl.sections.length * 40;
+                  if (cap === 0 && validSecs.length > 0) cap = validSecs.length * 40;
 
                   const seatsLeft = Math.max(0, cap - count);
                   
@@ -3488,7 +3577,7 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
                       <div className="space-y-1.5 text-xs text-slate-600 dark:text-slate-355 font-bold">
                         <div className="flex justify-between"><span className="text-slate-455">Campus Location:</span> <span className="font-extrabold text-slate-900 dark:text-white">{campus}</span></div>
                         <div className="flex justify-between"><span className="text-slate-455">Session Cycle:</span> <span className="font-bold">{ay}</span></div>
-                        <div className="flex justify-between"><span className="text-slate-455">Total Sections:</span> <span className="font-mono">{cl.sections.length} ({cl.sections.join(', ') || 'None'})</span></div>
+                        <div className="flex justify-between"><span className="text-slate-455">Total Sections:</span> <span className="font-mono">{validSecs.length} ({validSecs.map(normalizeSectionLetter).join(', ') || 'None'})</span></div>
                         <div className="flex justify-between"><span className="text-slate-455">Capacity Status:</span> <span className="font-bold">{count} / {cap} Seats</span></div>
                         <div className="flex justify-between"><span className="text-slate-455">Seats Remaining:</span> <span className="font-extrabold text-sky-655">{seatsLeft} Seats</span></div>
                         {remarks && (
@@ -3765,8 +3854,8 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
                 {activeClass && (
                   <p className="text-slate-500 text-[11px] font-medium mt-0.5">
                     Target Class: <span className="font-bold text-sky-600 dark:text-sky-400">{activeClass.name}</span>
-                    {activeClass.sections.length > 0 && (
-                      <span className="ml-2">(Current: {activeClass.sections.map(s => `Section ${s}`).join(', ')})</span>
+                    {(activeClass.sections || []).filter(isValidSection).length > 0 && (
+                      <span className="ml-2">(Current: {(activeClass.sections || []).filter(isValidSection).map(s => `Section ${normalizeSectionLetter(s)}`).join(', ')})</span>
                     )}
                   </p>
                 )}
@@ -3803,7 +3892,7 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
                   Click to quickly toggle available section letters:
                 </label>
                 <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto p-2 bg-slate-50 dark:bg-slate-800/60 rounded-xl border border-slate-200 dark:border-slate-700">
-                  {ALPHABET.filter(l => !activeClass.sections.includes(l)).slice(0, 12).map(l => {
+                  {ALPHABET.filter(l => !(activeClass.sections || []).filter(isValidSection).map(normalizeSectionLetter).includes(l)).slice(0, 12).map(l => {
                     const currentTokens = bulkAddSectionsList
                       .split(/[,;\s]+/)
                       .map(t => t.trim().toUpperCase().replace(/^SECTION\s*/i, ''))
@@ -3901,7 +3990,7 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
                   className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-202 outline-none font-bold"
                 >
                   {ALPHABET.map(l => (
-                    <option key={l} value={l} disabled={!editingSectionName && activeClass?.sections.includes(l)}>Section {l}</option>
+                    <option key={l} value={l} disabled={!editingSectionName && (activeClass?.sections || []).filter(isValidSection).map(normalizeSectionLetter).includes(l)}>Section {l}</option>
                   ))}
                 </select>
               </div>

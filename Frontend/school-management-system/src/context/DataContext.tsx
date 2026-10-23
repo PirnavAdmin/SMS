@@ -4435,10 +4435,22 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
                   remarks: resolvedRemarks,
                   displayOrder: resolvedDisplayOrder,
                   academicYear: resolvedYear,
-                  sections:
-                    c.sections?.map((s: any) => s.sectionName || s) ||
-                    existing?.sections ||
-                    [],
+                  sections: Array.isArray(c.sections)
+                    ? c.sections
+                        .map((s: any) => {
+                          const val = typeof s === "string" ? s : s?.sectionName || s?.name || "";
+                          return typeof val === "string" ? val.trim() : "";
+                        })
+                        .filter((s: string) => {
+                          if (!s) return false;
+                          const clean = s.replace(/^Section\s*/i, "").trim().toLowerCase();
+                          return clean && clean !== "unassigned" && clean !== "none";
+                        })
+                    : (existing?.sections || []).filter((s: string) => {
+                        if (!s || typeof s !== 'string') return false;
+                        const clean = s.replace(/^Section\s*/i, "").trim().toLowerCase();
+                        return clean && clean !== "unassigned" && clean !== "none";
+                      }),
                   sectionTeachers: sectionTeachersMap,
                   teacher:
                     c.teacher ||
@@ -4456,7 +4468,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
                   branch: resolvedCampus,
                 } as any;
               });
-              mapped.sort((a, b) => compareClassesAscending(a.name, b.name));
+              mapped.sort((a, b) => compareClassesAscending(a, b));
               return mapped;
             });
           }
@@ -25483,7 +25495,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   );
   const filteredClasses = useMemo(() => {
     const list = filterByBranch(academicClasses);
-    return [...list].sort((a, b) => compareClassesAscending(a.name, b.name));
+    return [...list].sort((a, b) => compareClassesAscending(a, b));
   }, [academicClasses, selectedBranch, selectedAcademicYear]);
   const filteredSubjects = useMemo(
     () => filterByBranch(subjects),

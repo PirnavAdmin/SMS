@@ -509,7 +509,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onBack }) => {
                         value={identifier}
                         onChange={e => handleIdentifierChange(e.target.value)}
                         onBlur={() => setIdentifierTouched(true)}
-                        placeholder="e.g. user@school.edu or 9876543210"
+                        placeholder="Enter your email or phone"
                         className={`w-full pl-9 pr-3.5 py-2.5 rounded-xl bg-slate-50/70 dark:bg-slate-950/80 border text-slate-900 dark:text-white text-xs sm:text-sm placeholder-slate-400 focus:outline-none focus:ring-3 transition-all font-medium ${
                           identifierError
                             ? 'border-rose-500 focus:ring-rose-500/20 focus:border-rose-500 bg-rose-50/20'
@@ -539,7 +539,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onBack }) => {
                         value={password}
                         onChange={e => handlePasswordChange(e.target.value)}
                         onBlur={() => setPasswordTouched(true)}
-                        placeholder="Enter your secret password"
+                        placeholder="Enter your password"
                         className={`w-full pl-9 pr-9 py-2.5 rounded-xl bg-slate-50/70 dark:bg-slate-950/80 border text-slate-900 dark:text-white text-xs sm:text-sm placeholder-slate-400 focus:outline-none focus:ring-3 transition-all font-medium ${
                           passwordError
                             ? 'border-rose-500 focus:ring-rose-500/20 focus:border-rose-500 bg-rose-50/20'
