@@ -243,8 +243,40 @@ public class SubmitAdmissionDto
     [JsonPropertyName("availableBed")]
     public string? AvailableBed { get; set; }
 
+    [JsonPropertyName("hostelSecurityDepositPaid")]
+    public bool? HostelSecurityDepositPaid { get; set; }
+
+    [JsonPropertyName("securityDepositAmount")]
+    public decimal? SecurityDepositAmount { get; set; }
+
+    [JsonPropertyName("securityDepositReceiptNo")]
+    public string? SecurityDepositReceiptNo { get; set; }
+
+    [JsonPropertyName("securityDepositPaymentMode")]
+    public string? SecurityDepositPaymentMode { get; set; }
+
+    [JsonPropertyName("securityDepositTxnId")]
+    public string? SecurityDepositTxnId { get; set; }
+
+    [JsonPropertyName("securityDepositDate")]
+    public string? SecurityDepositDate { get; set; }
+
     [JsonPropertyName("allocatedBedId")]
     public string? AllocatedBedId
+    {
+        get => AvailableBed;
+        set => AvailableBed = value;
+    }
+
+    [JsonPropertyName("hostelBedNo")]
+    public string? HostelBedNo
+    {
+        get => AvailableBed;
+        set => AvailableBed = value;
+    }
+
+    [JsonPropertyName("hostelBed")]
+    public string? HostelBed
     {
         get => AvailableBed;
         set => AvailableBed = value;

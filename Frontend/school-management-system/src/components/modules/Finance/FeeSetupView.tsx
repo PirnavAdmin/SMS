@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
-import { Tag, Layers, Calendar, Bus } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Tag, Layers, Calendar, Bus, Building2 } from 'lucide-react';
 import { FeeHeadsView } from './FeeHeadsView';
 import { FeeStructuresView } from './FeeStructuresView';
 import { FeeScheduleView } from './FeeScheduleView';
 import { FinanceTransportConfigView } from './FinanceTransportConfigView';
+import { FinanceHostelConfigView } from './FinanceHostelConfigView';
 import { TransportScrollableTabs } from '../Transport/TransportScrollableTabs';
 
 interface FeeSetupViewProps {
@@ -13,11 +14,18 @@ interface FeeSetupViewProps {
 export const FeeSetupView: React.FC<FeeSetupViewProps> = ({ initialTab = 'heads' }) => {
   const [activeTab, setActiveTab] = useState<string>(initialTab);
 
+  useEffect(() => {
+    if (initialTab) {
+      setActiveTab(initialTab);
+    }
+  }, [initialTab]);
+
   const tabs = [
     { id: 'heads', label: 'Fee Heads', icon: Tag },
     { id: 'structures', label: 'Fee Structures', icon: Layers },
     { id: 'schedule', label: 'Schedule', icon: Calendar },
     { id: 'transport-fee', label: 'Transport Fee', icon: Bus },
+    { id: 'hostel-fee', label: 'Hostel Fee', icon: Building2 },
   ];
 
   const renderContent = () => {
@@ -36,6 +44,10 @@ export const FeeSetupView: React.FC<FeeSetupViewProps> = ({ initialTab = 'heads'
       case 'finance-transport-config':
       case 'transport':
         return <FinanceTransportConfigView />;
+      case 'hostel-fee':
+      case 'finance-hostel-config':
+      case 'hostel':
+        return <FinanceHostelConfigView />;
       default:
         return <FeeHeadsView />;
     }

@@ -78,6 +78,9 @@ public class AdmissionApplication
     public string? HostelRoom { get; set; }
     public string? AvailableBed { get; set; }
     public string? AllocatedBedId { get; set; }
+    public bool HostelSecurityDepositPaid { get; set; } = false;
+    public decimal? SecurityDepositAmount { get; set; }
+    public string? SecurityDepositReceiptNo { get; set; }
 
     // Financial Benefits
     public string? Scholarship { get; set; } = "None";

@@ -279,6 +279,12 @@ export interface Student {
   hostelBlock?: string;
   hostelRoom?: string;
   hostelBed?: string;
+  hostelSecurityDepositPaid?: boolean;
+  securityDepositAmount?: number;
+  securityDepositReceiptNo?: string;
+  securityDepositPaymentMode?: string;
+  securityDepositTxnId?: string;
+  securityDepositDate?: string;
 
   boardType?: 'State Board' | 'CBSE';
 
@@ -552,6 +558,12 @@ export interface AdmissionApplication {
   floor?: string;
   hostelRoom?: string;
   hostelBed?: string;
+  hostelSecurityDepositPaid?: boolean;
+  securityDepositAmount?: number;
+  securityDepositReceiptNo?: string;
+  securityDepositPaymentMode?: string;
+  securityDepositTxnId?: string;
+  securityDepositDate?: string;
   branch?: string;
   scholarshipId?: string;
   discountId?: string;
@@ -2057,13 +2069,23 @@ export interface FinanceHostelConfig {
   roomTypeName: string;
   roomId?: string;
   roomNo?: string;
-  feePlan: 'Monthly' | 'Quarterly' | 'Half Yearly' | 'Annual';
+  acType?: 'AC' | 'Non-AC' | 'All' | string;
+  sharingType?: string; // 'Single' | 'Double' | 'Triple' | '4-Sharing' | 'All'
+  startClass?: string;
+  endClass?: string;
+  classRange?: string; // e.g. "Class 1 - Class 4"
+  applicableClasses?: string[];
+  academicYear?: string;
+  branch?: string;
+  feePlan: 'Monthly' | 'Quarterly' | 'Half Yearly' | 'Annual' | 'Term-wise' | string;
   hostelFee: number;
   securityDeposit: number;
+  applicableTerms?: string[];
   effectiveFrom: string;
   effectiveTo?: string;
   status: 'Active' | 'Inactive';
   messFee?: number;
+  createdAt?: string;
 }
 
 export interface HostelVisitorLog {

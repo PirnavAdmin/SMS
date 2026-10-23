@@ -174,6 +174,7 @@ namespace SMS.Api.Data
         public DbSet<SMS.Api.Models.FinanceManagement.LedgerEntry> LedgerEntries { get; set; } = null!;
         public DbSet<SMS.Api.Models.FinanceManagement.Expense> Expenses { get; set; } = null!;
         public DbSet<SMS.Api.Models.FinanceManagement.FinancialBudget> FinancialBudgets { get; set; } = null!;
+        public DbSet<SMS.Api.Models.FinanceManagement.HostelFeeConfig> HostelFeeConfigs { get; set; } = null!;
 
         //student
         public DbSet<Student> Students { get; set; } = null!;

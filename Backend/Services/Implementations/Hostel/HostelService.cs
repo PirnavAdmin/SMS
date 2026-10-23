@@ -670,6 +670,11 @@ public class HostelService : IHostelService
             CreatedAt = DateTime.UtcNow
         };
 
+        student.HostelBlock = hostel.HostelName;
+        student.HostelRoom = room.RoomNumber;
+        student.StudentType = "Residential";
+        student.AllocatedBedId = bedNo;
+
         await _hostelRepo.AddBedAllocationAsync(allocation);
         await _hostelRepo.SaveChangesAsync();
 
@@ -683,6 +688,18 @@ public class HostelService : IHostelService
             ?? throw new NotFoundException($"Bed Allocation with ID '{allocationId}' not found.");
 
         alloc.Status = "Vacated";
+        if (alloc.StudentId.HasValue)
+        {
+            var studentApp = await _schoolRepo.GetApplicationByIdAsync(alloc.StudentId.Value);
+            if (studentApp != null)
+            {
+                studentApp.StudentType = "Non-Residential";
+                studentApp.HostelBlock = null;
+                studentApp.HostelRoom = null;
+                studentApp.AllocatedBedId = null;
+                studentApp.AvailableBed = null;
+            }
+        }
         await _hostelRepo.SaveChangesAsync();
         return true;
     }
@@ -692,6 +709,18 @@ public class HostelService : IHostelService
         var alloc = await _hostelRepo.GetBedAllocationByIdAsync(allocationId)
             ?? throw new NotFoundException($"Bed Allocation with ID '{allocationId}' not found.");
 
+        if (alloc.StudentId.HasValue)
+        {
+            var studentApp = await _schoolRepo.GetApplicationByIdAsync(alloc.StudentId.Value);
+            if (studentApp != null)
+            {
+                studentApp.StudentType = "Non-Residential";
+                studentApp.HostelBlock = null;
+                studentApp.HostelRoom = null;
+                studentApp.AllocatedBedId = null;
+                studentApp.AvailableBed = null;
+            }
+        }
         _hostelRepo.RemoveBedAllocation(alloc);
         await _hostelRepo.SaveChangesAsync();
         return true;

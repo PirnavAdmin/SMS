@@ -1685,6 +1685,9 @@ using (var scope = app.Services.CreateScope())
         EnsureColumnExists("admission_applications", "AllocatedBedId", "varchar(50) NULL");
         EnsureColumnExists("admission_applications", "IsDeleted", "tinyint(1) NOT NULL DEFAULT 0");
         EnsureColumnExists("admission_applications", "AdmissionNo", "varchar(100) NULL");
+        EnsureColumnExists("admission_applications", "HostelSecurityDepositPaid", "tinyint(1) NOT NULL DEFAULT 0");
+        EnsureColumnExists("admission_applications", "SecurityDepositAmount", "decimal(18,2) NOT NULL DEFAULT 0.00");
+        EnsureColumnExists("admission_applications", "SecurityDepositReceiptNo", "varchar(100) NULL");
         EnsureColumnExists("student_bed_allocations", "RegistrationNo", "varchar(100) NULL");
         EnsureColumnExists("student_bed_allocations", "StudentName", "varchar(150) NULL");
         EnsureColumnExists("student_bed_allocations", "StudentId", "int NULL");
@@ -2691,6 +2694,32 @@ using (var scope = app.Services.CreateScope())
                     `CreatedAt` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
                     `UpdatedAt` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+                CREATE TABLE IF NOT EXISTS `hostel_fee_configs` (
+                    `Id` INT AUTO_INCREMENT PRIMARY KEY,
+                    `HostelId` VARCHAR(50) NOT NULL,
+                    `HostelName` VARCHAR(150) NOT NULL DEFAULT '',
+                    `RoomTypeId` VARCHAR(50) NOT NULL DEFAULT '',
+                    `RoomTypeName` VARCHAR(150) NOT NULL DEFAULT '',
+                    `RoomId` VARCHAR(50) NULL,
+                    `RoomNo` VARCHAR(50) NOT NULL DEFAULT 'All Rooms',
+                    `AcType` VARCHAR(30) NOT NULL DEFAULT 'All',
+                    `SharingType` VARCHAR(50) NOT NULL DEFAULT 'All',
+                    `StartClass` VARCHAR(50) NULL,
+                    `EndClass` VARCHAR(50) NULL,
+                    `ClassRange` VARCHAR(100) NULL,
+                    `ApplicableClasses` TEXT NULL,
+                    `AcademicYear` VARCHAR(50) NOT NULL DEFAULT '2025-2026',
+                    `Branch` VARCHAR(100) NOT NULL DEFAULT '',
+                    `FeePlan` VARCHAR(50) NOT NULL DEFAULT 'Annual',
+                    `HostelFee` DECIMAL(18,2) NOT NULL DEFAULT 0.00,
+                    `SecurityDeposit` DECIMAL(18,2) NOT NULL DEFAULT 0.00,
+                    `ApplicableTermsJson` TEXT NULL,
+                    `EffectiveFrom` VARCHAR(30) NOT NULL DEFAULT '',
+                    `Status` VARCHAR(30) NOT NULL DEFAULT 'Active',
+                    `CreatedAt` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                    `UpdatedAt` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
             ");
 
             if (!feeWasOpen) await feeDbConn.OpenAsync();
@@ -2699,7 +2728,16 @@ using (var scope = app.Services.CreateScope())
             {
                 ("fee_schedules", "DueDateOffsetDays", "INT NOT NULL DEFAULT 45"),
                 ("fee_schedule_terms", "DueDateMode", "VARCHAR(20) NOT NULL DEFAULT 'AUTO'"),
-                ("fee_schedule_terms", "DueDateOffsetDays", "INT NOT NULL DEFAULT 45")
+                ("fee_schedule_terms", "DueDateOffsetDays", "INT NOT NULL DEFAULT 45"),
+                ("hostel_fee_configs", "AcType", "VARCHAR(30) NOT NULL DEFAULT 'All'"),
+                ("hostel_fee_configs", "SharingType", "VARCHAR(50) NOT NULL DEFAULT 'All'"),
+                ("hostel_fee_configs", "StartClass", "VARCHAR(50) NULL"),
+                ("hostel_fee_configs", "EndClass", "VARCHAR(50) NULL"),
+                ("hostel_fee_configs", "ClassRange", "VARCHAR(100) NULL"),
+                ("hostel_fee_configs", "ApplicableClasses", "TEXT NULL"),
+                ("hostel_fee_configs", "ApplicableTermsJson", "TEXT NULL"),
+                ("hostel_fee_configs", "AcademicYear", "VARCHAR(50) NOT NULL DEFAULT '2025-2026'"),
+                ("hostel_fee_configs", "Branch", "VARCHAR(100) NOT NULL DEFAULT ''")
             };
 
             foreach (var (table, colName, colDef) in feeScheduleCols)

@@ -410,14 +410,24 @@ public class FinanceHostelConfigDto
     public string HostelName { get; set; } = string.Empty;
     public string RoomTypeId { get; set; } = string.Empty;
     public string RoomTypeName { get; set; } = string.Empty;
-    public string RoomId { get; set; } = string.Empty;
-    public string RoomNo { get; set; } = "All Rooms";
-    public string FeePlan { get; set; } = "Annual"; // "Monthly", "Quarterly", "Half Yearly", "Annual"
+    public string? RoomId { get; set; }
+    public string? RoomNo { get; set; } = "All Rooms";
+    public string AcType { get; set; } = "All"; // "AC", "Non-AC", "All"
+    public string SharingType { get; set; } = "All"; // "Single", "Double", "Triple", "4-Sharing", "All"
+    public string? StartClass { get; set; }
+    public string? EndClass { get; set; }
+    public string? ClassRange { get; set; }
+    public string? ApplicableClasses { get; set; }
+    public string AcademicYear { get; set; } = "2025-2026";
+    public string? Branch { get; set; } = string.Empty;
+    public string FeePlan { get; set; } = "Annual"; // "Monthly", "Quarterly", "Half Yearly", "Annual", "Term-wise"
     public decimal HostelFee { get; set; } = 40000m;
     public decimal SecurityDeposit { get; set; } = 5000m;
     public decimal TotalFee => HostelFee + SecurityDeposit;
+    public string? ApplicableTerms { get; set; }
     public string EffectiveFrom { get; set; } = "2026-09-02";
     public string Status { get; set; } = "Active"; // "Active", "Inactive"
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 }
 
 public class CreateFinanceHostelConfigDto
@@ -428,9 +438,18 @@ public class CreateFinanceHostelConfigDto
     public string RoomTypeName { get; set; } = string.Empty;
     public string? RoomId { get; set; }
     public string? RoomNo { get; set; } = "All Rooms";
+    public string? AcType { get; set; } = "All";
+    public string? SharingType { get; set; } = "All";
+    public string? StartClass { get; set; }
+    public string? EndClass { get; set; }
+    public string? ClassRange { get; set; }
+    public string? ApplicableClasses { get; set; }
+    public string? AcademicYear { get; set; } = "2025-2026";
+    public string? Branch { get; set; } = string.Empty;
     public string FeePlan { get; set; } = "Annual";
     public decimal HostelFee { get; set; } = 40000m;
     public decimal SecurityDeposit { get; set; } = 5000m;
+    public string? ApplicableTerms { get; set; }
     public string? EffectiveFrom { get; set; }
     public string Status { get; set; } = "Active";
 }

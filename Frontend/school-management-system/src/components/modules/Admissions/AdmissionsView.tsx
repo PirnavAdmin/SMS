@@ -38,6 +38,7 @@ import {
   ChevronDown,
   FileText,
   AlertCircle,
+  ShieldCheck,
 } from "lucide-react";
 import {
   AdmissionApplication,
@@ -48,11 +49,13 @@ import {
 import { useData, normalizeToISODate } from "../../../context/DataContext";
 import { useToast } from "../../../context/ToastContext";
 import { useAuth } from "../../../context/AuthContext";
+import * as FinanceAPI from "../../../api/finance";
 import { ConfirmModal } from "../../common/ConfirmModal";
 import { DateInput } from "../../common/DateInput";
 import { Pagination } from "../../common/Pagination";
 import { SchoolPrintHeader } from "../../common/SchoolPrintHeader";
 import { lookupPostalCode, getOfflinePostalInfo } from "../../../utils/postalLookup";
+import { isClassInRange } from "../../../utils/classSorter";
 import {
   validate10DigitPhone,
   validateEmail,
@@ -305,6 +308,8 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
     branches = [],
     fetchBranches,
     fetchFinanceData,
+    feePayments,
+    addFeePayment,
   } = useData();
   const { addToast } = useToast();
   const { selectedBranch, selectedAcademicYear } = useAuth();
@@ -408,6 +413,12 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
       floor: "",
       hostelRoom: "",
       hostelBed: "",
+    hostelSecurityDepositPaid: false,
+    securityDepositAmount: 0,
+    securityDepositReceiptNo: "",
+    securityDepositPaymentMode: "Cash",
+    securityDepositTxnId: "",
+    securityDepositDate: new Date().toISOString().split("T")[0],
       branch: selectedBranch && selectedBranch !== "All" && selectedBranch !== "All Branches" ? selectedBranch : (dynamicCampuses[0] || ""),
       branch: (selectedBranch && selectedBranch !== "All" && selectedBranch !== "All Branches" && dynamicCampuses.includes(selectedBranch))
         ? selectedBranch
@@ -775,6 +786,11 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
     number | null
   >(null);
   const [siblingSearchQuery, setSiblingSearchQuery] = useState("");
+  const [depositPaymentMode, setDepositPaymentMode] = useState<string>("Cash");
+  const [depositTxnId, setDepositTxnId] = useState<string>("");
+  const [depositDate, setDepositDate] = useState<string>(
+    new Date().toISOString().split("T")[0],
+  );
 
   const [formData, setFormData] = useState<Partial<AdmissionApplication>>({
     appliedClass: "",
@@ -805,6 +821,12 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
     floor: "",
     hostelRoom: "",
     hostelBed: "",
+    hostelSecurityDepositPaid: false,
+    securityDepositAmount: 0,
+    securityDepositReceiptNo: "",
+    securityDepositPaymentMode: "Cash",
+    securityDepositTxnId: "",
+    securityDepositDate: new Date().toISOString().split("T")[0],
     branch: (selectedBranch && selectedBranch !== "All" && selectedBranch !== "All Branches" && dynamicCampuses.includes(selectedBranch))
       ? selectedBranch
       : (dynamicCampuses[0] || ""),
@@ -1012,6 +1034,138 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
     );
     return match || formData.hostelBed;
   }, [formData.hostelBed, availableBedsForSelectedRoom]);
+
+  const isResidentialStudent =
+    formData.studentType === "Residential" ||
+    (formData.studentType as any) === "Hosteller";
+
+  const applicableHostelFeeConfig = useMemo(() => {
+    if (!isResidentialStudent) return null;
+    const studentClass = formData.appliedClass || formData.className || "";
+
+    const userSharing = (
+      formData.hostelSharing ||
+      formData.roomSharing ||
+      formData.sharingType ||
+      "Four Sharing"
+    ).toLowerCase();
+
+    const userAc = (
+      formData.hostelAc ||
+      formData.acType ||
+      "Non-AC"
+    ).toLowerCase();
+
+    const activeConfigs = (financeHostelConfigs || []).filter(
+      (c) => !c.status || c.status === "Active",
+    );
+
+    // 1. Exact match: class in range + sharing + AC
+    let matched = activeConfigs.find((c) => {
+      if (studentClass && !isClassInRange(studentClass, c.startClass, c.endClass, c.classRange, academicClasses)) {
+        return false;
+      }
+      const cShare = (c.sharingType || c.roomTypeName || "").toLowerCase();
+      const shareMatch = !cShare || cShare === "all" || cShare.includes(userSharing) || userSharing.includes(cShare);
+      const cAc = (c.acType || "").toLowerCase();
+      const acMatch = !cAc || cAc === "all" || cAc === userAc || (userAc === "ac" ? cAc.includes("ac") && !cAc.includes("non") : cAc.includes("non"));
+      return shareMatch && acMatch;
+    });
+
+    // 2. Class in range + sharing
+    if (!matched) {
+      matched = activeConfigs.find((c) => {
+        if (studentClass && !isClassInRange(studentClass, c.startClass, c.endClass, c.classRange, academicClasses)) {
+          return false;
+        }
+        const cShare = (c.sharingType || c.roomTypeName || "").toLowerCase();
+        return !cShare || cShare === "all" || cShare.includes(userSharing) || userSharing.includes(cShare);
+      });
+    }
+
+    // 3. Class in range only
+    if (!matched) {
+      matched = activeConfigs.find((c) => {
+        return !studentClass || isClassInRange(studentClass, c.startClass, c.endClass, c.classRange, academicClasses);
+      });
+    }
+
+    // 4. Any active config
+    if (!matched && activeConfigs.length > 0) {
+      matched = activeConfigs[0];
+    }
+
+    return matched || null;
+  }, [
+    isResidentialStudent,
+    formData.appliedClass,
+    formData.className,
+    formData.hostelSharing,
+    formData.roomSharing,
+    formData.sharingType,
+    formData.hostelAc,
+    formData.acType,
+    financeHostelConfigs,
+    academicClasses,
+  ]);
+
+  const applicableSecurityDeposit = useMemo(() => {
+    if (!isResidentialStudent) return 0;
+    const configuredDeposit = Number(applicableHostelFeeConfig?.securityDeposit);
+    if (!isNaN(configuredDeposit) && configuredDeposit > 0) {
+      return configuredDeposit;
+    }
+    return 2000;
+  }, [isResidentialStudent, applicableHostelFeeConfig]);
+
+  const handleConfirmSecurityDepositPayment = () => {
+    if (applicableSecurityDeposit <= 0) return;
+    const genReceiptNo = `REC-SD-${Math.floor(100000 + Math.random() * 900000)}`;
+    setFormData((prev) => ({
+      ...prev,
+      hostelSecurityDepositPaid: true,
+      securityDepositAmount: applicableSecurityDeposit,
+      securityDepositReceiptNo: genReceiptNo,
+      securityDepositPaymentMode: depositPaymentMode,
+      securityDepositTxnId: depositTxnId,
+      securityDepositDate: depositDate || new Date().toISOString().split("T")[0],
+    }));
+    addToast(
+      "success",
+      "Security Deposit Paid",
+      `Security deposit fee of ${formatCurrency(applicableSecurityDeposit)} recorded. Bed allotment is now unlocked.`,
+    );
+  };
+
+  const handlePaySecurityDepositRedirect = () => {
+    if (applicableSecurityDeposit <= 0) return;
+    const applicantFullName =
+      `${formData.firstName || ""} ${formData.lastName || ""}`.trim() ||
+      formData.studentName ||
+      "Student";
+    const studentIdentifier =
+      formData.admissionNo ||
+      formData.registrationNo ||
+      formData.applicationNo ||
+      (editingApp ? String(editingApp.id) : `ADM-${Date.now()}`);
+
+    const targetPayload = {
+      studentId: studentIdentifier,
+      admissionNo: studentIdentifier,
+      studentName: applicantFullName,
+      className: formData.appliedClass || formData.className,
+      feeHead: "Hostel Security Deposit",
+      feeCategory: "Hostel Fee",
+      amount: applicableSecurityDeposit,
+      source: "admission_security_deposit",
+    };
+    sessionStorage.setItem("edu_fee_pay_target", JSON.stringify(targetPayload));
+    if (onNavigate) {
+      onNavigate("fees");
+    } else {
+      window.location.hash = "#/finance/fee-collection";
+    }
+  };
 
   const handleHasSiblingsChange = (val: boolean) => {
     setHasSiblings(val);
@@ -1462,6 +1616,12 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
       floor: "",
       hostelRoom: "",
       hostelBed: "",
+    hostelSecurityDepositPaid: false,
+    securityDepositAmount: 0,
+    securityDepositReceiptNo: "",
+    securityDepositPaymentMode: "Cash",
+    securityDepositTxnId: "",
+    securityDepositDate: new Date().toISOString().split("T")[0],
       branch: "",
       joiningDate: new Date().toISOString().split("T")[0],
       admissionDate: new Date().toISOString().split("T")[0],
@@ -1571,6 +1731,40 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
     }
 
     const docsSub = app.documentsSubmitted || (app as any).documents || [];
+    const isDepositPaidInPayments = (feePayments || []).some((p) => {
+      const pId = String(p.studentId || "");
+      const pAdm = String(p.admissionNo || "");
+      const pName = String(p.studentName || "").toLowerCase().trim();
+      const targetId = String(app.id || "");
+      const targetAdm = String(app.applicationNo || app.admissionNo || (app as any).registrationNo || "");
+      const targetName = String(app.applicantName || "").toLowerCase().trim();
+
+      const matchesId =
+        (pId && (pId === targetId || pId === targetAdm)) ||
+        (pAdm && (pAdm === targetId || pAdm === targetAdm)) ||
+        (targetName && pName && targetName === pName);
+
+      const isDepositHead =
+        String(p.feeHeadName || "").toLowerCase().includes("security deposit") ||
+        String(p.remarks || "").toLowerCase().includes("security deposit") ||
+        String(p.paidItemsJson || "").toLowerCase().includes("security deposit");
+
+      return matchesId && isDepositHead;
+    });
+
+    const isAlreadyPaid = Boolean(
+      app.hostelSecurityDepositPaid ||
+      (app as any).securityDepositPaid ||
+      isDepositPaidInPayments
+    );
+
+    const initialPayMode = app.securityDepositPaymentMode || (app as any).securityDepositPaymentMode || "Cash";
+    const initialTxn = app.securityDepositTxnId || (app as any).securityDepositTxnId || "";
+    const initialDate = app.securityDepositDate || (app as any).securityDepositDate || new Date().toISOString().split("T")[0];
+
+    setDepositPaymentMode(initialPayMode);
+    setDepositTxnId(initialTxn);
+    setDepositDate(initialDate);
     const isTrp = Boolean(app.transportRequired || app.busRoute || app.pickupPoint);
     const sType = normalizeStudentType(app.studentType);
 
@@ -1601,6 +1795,12 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
       hostelBlock: app.hostelBlock || "",
       hostelRoom: app.hostelRoom || "",
       hostelBed: app.hostelBed || "",
+      hostelSecurityDepositPaid: isAlreadyPaid,
+      securityDepositAmount: app.securityDepositAmount || (app as any).securityDepositAmount || 0,
+      securityDepositReceiptNo: app.securityDepositReceiptNo || (app as any).securityDepositReceiptNo || "",
+      securityDepositPaymentMode: initialPayMode,
+      securityDepositTxnId: initialTxn,
+      securityDepositDate: initialDate,
       scholarshipId: app.scholarshipId || "",
       discountId: app.discountId || "",
       selectedOptionalFees: optFees,
@@ -1846,6 +2046,23 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
     if (!formData.studentType || formData.studentType === ("Select Type" as any)) {
       addToast("error", "Missing Required Field", "Please select Student Type.");
       setIsSubmitting(false);
+      return;
+    }
+
+    // Validate Hostel Security Deposit before bed allotment
+    if (
+      (formData.studentType === "Residential" || (formData.studentType as any) === "Hosteller") &&
+      formData.hostelBed &&
+      applicableSecurityDeposit > 0 &&
+      !formData.hostelSecurityDepositPaid
+    ) {
+      addToast(
+        "error",
+        "Security Deposit Required",
+        `Security deposit fee of ${formatCurrency(applicableSecurityDeposit)} must be paid before allotting bed ${formData.hostelBed}.`,
+      );
+      setIsSubmitting(false);
+      setIsSubmittingForm(false);
       return;
     }
 
@@ -2102,7 +2319,102 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
           siblingDetails: hasSiblings ? siblingDetails : [],
           siblingStudentId: selectedStudentIds[0] || "",
           siblingStudentIds: selectedStudentIds,
+          hostelSecurityDepositPaid: Boolean(formData.hostelSecurityDepositPaid),
+          securityDepositAmount: applicableSecurityDeposit,
+          securityDepositReceiptNo: formData.securityDepositReceiptNo || "",
+          securityDepositPaymentMode: formData.securityDepositPaymentMode || depositPaymentMode,
+          securityDepositTxnId: formData.securityDepositTxnId || depositTxnId,
+          securityDepositDate: formData.securityDepositDate || depositDate,
         });
+
+        // Auto-Allocate Hostel Room & Bed in Edit if Residential student opted for block, room & bed
+        // ONLY if security deposit is paid (or applicable deposit <= 0)!
+        const canAllotBedInEdit = applicableSecurityDeposit <= 0 || Boolean(formData.hostelSecurityDepositPaid);
+        if (
+          (formData.studentType === "Residential" || (formData.studentType as any) === "Hosteller") &&
+          formData.hostelBlock &&
+          formData.hostelRoom &&
+          formData.hostelBed &&
+          canAllotBedInEdit
+        ) {
+          const selBlk =
+            dynamicHostelBlocks.find(
+              (b) => String(b.hostelId) === String(formData.hostelBlock),
+            ) ||
+            hostelMasters.find(
+              (h) => String(h.id) === String(formData.hostelBlock),
+            );
+          const selRm =
+            dynamicHostelRooms.find(
+              (r) => String(r.roomId) === String(formData.hostelRoom),
+            ) ||
+            roomMasters.find((r) => String(r.id) === String(formData.hostelRoom));
+
+// Bed allocation handled separately in Hostel Management
+
+          if (formData.hostelSecurityDepositPaid && applicableSecurityDeposit > 0) {
+            const hasExistingDepPayment = (feePayments || []).some((p) => {
+              const pId = String(p.studentId || "");
+              const pAdm = String(p.admissionNo || "");
+              const pName = String(p.studentName || "").toLowerCase().trim();
+              const targetId = String(editingApp.id || "");
+              const targetAdm = String(editingApp.applicationNo || (editingApp as any).admissionNo || "");
+              const targetName = fullApplicantName.toLowerCase().trim();
+
+              const matchesId = (pId && (pId === targetId || pId === targetAdm)) || (pAdm && (pAdm === targetId || pAdm === targetAdm)) || (targetName && pName && targetName === pName);
+              const isDepositHead =
+                String(p.feeHeadName || "").toLowerCase().includes("security deposit") ||
+                String(p.remarks || "").toLowerCase().includes("security deposit") ||
+                String(p.paidItemsJson || "").toLowerCase().includes("security deposit");
+
+              return matchesId && isDepositHead;
+            });
+
+            if (!hasExistingDepPayment) {
+              const secReceipt =
+                formData.securityDepositReceiptNo ||
+                `REC-SD-${Math.floor(100000 + Math.random() * 900000)}`;
+
+              const paymentPayload = {
+                receiptNo: secReceipt,
+                studentId: String(editingApp.id),
+                admissionNo: (editingApp as any).applicationNo || (editingApp as any).admissionNo || `ADM-${editingApp.id}`,
+                studentName: fullApplicantName,
+                className: formData.appliedClass,
+                amountPaid: applicableSecurityDeposit,
+                amount: applicableSecurityDeposit,
+                discount: 0,
+                fine: 0,
+                paymentMode: formData.securityDepositPaymentMode || depositPaymentMode || "Cash",
+                transactionId: formData.securityDepositTxnId || depositTxnId || "",
+                paymentDate: formData.securityDepositDate || depositDate || new Date().toISOString().split("T")[0],
+                academicYear: selectedAcademicYear || "",
+                feeHeadName: "Hostel Security Deposit",
+                remarks: `Hostel Security Deposit for ${fullApplicantName} (Room ${formData.hostelRoom}, Bed ${formData.hostelBed})`,
+                status: "Paid" as const,
+                paymentAllocation: [
+                  {
+                    academicYear: selectedAcademicYear || "",
+                    amount: applicableSecurityDeposit,
+                    feeHeadName: "Hostel Security Deposit",
+                    termName: "One Time",
+                  },
+                ],
+              };
+
+              try {
+                if (addFeePayment) {
+                  addFeePayment(paymentPayload);
+                }
+                FinanceAPI.createFeePaymentApi(paymentPayload).catch(() => {});
+                if (typeof window !== "undefined") {
+                  window.dispatchEvent(new CustomEvent("finance_data_updated"));
+                }
+              } catch (e) {}
+            }
+          }
+        }
+
         addToast(
           "success",
           "Application Updated",
@@ -2147,7 +2459,12 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
           floor: formData.floor,
           hostelRoom: formData.hostelRoom,
           hostelBed: formData.hostelBed,
-          branch: formData.branch || (selectedBranch && selectedBranch !== "All" && selectedBranch !== "All Branches" ? selectedBranch : (dynamicCampuses[0] || "")),
+          hostelSecurityDepositPaid: Boolean(formData.hostelSecurityDepositPaid),
+          securityDepositAmount: applicableSecurityDeposit,
+          securityDepositReceiptNo: formData.securityDepositReceiptNo || "",
+          securityDepositPaymentMode: formData.securityDepositPaymentMode || depositPaymentMode,
+          securityDepositTxnId: formData.securityDepositTxnId || depositTxnId,
+          securityDepositDate: formData.securityDepositDate || depositDate,
           branch: formData.branch || (selectedBranch && selectedBranch !== "All" && selectedBranch !== "All Branches" && dynamicCampuses.includes(selectedBranch) ? selectedBranch : "") || (dynamicCampuses[0] || ""),
           scholarshipId: formData.scholarshipId,
           discountId: formData.discountId,
@@ -2212,12 +2529,15 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
         }
 
         // Auto-Allocate Hostel Room & Bed if Residential student opted for block, room & bed
+        // ONLY if security deposit is paid (or applicable deposit <= 0)!
+        const canAllotBed = applicableSecurityDeposit <= 0 || Boolean(formData.hostelSecurityDepositPaid);
         if (
           (formData.studentType === "Residential" ||
             (formData.studentType as any) === "Hosteller") &&
           formData.hostelBlock &&
           formData.hostelRoom &&
-          formData.hostelBed
+          formData.hostelBed &&
+          canAllotBed
         ) {
           const selBlk =
             dynamicHostelBlocks.find(
@@ -2232,18 +2552,53 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
             ) ||
             roomMasters.find((r) => String(r.id) === String(formData.hostelRoom));
 
-          createAllocation({
-            studentId: generateNextStudentId(students),
-            studentName: fullApplicantName,
-            admissionNo: generateNextAdmissionNo(students),
-            hostelId: Number(formData.hostelBlock) || 1,
-            hostelName: selBlk?.hostelName || "Ramachandra Bhavan Block",
-            roomId: Number(formData.hostelRoom) || 201,
-            roomNumber: selRm?.roomNumber || "101",
-            bedNumber: formData.hostelBed,
-            joiningDate: new Date().toISOString().split("T")[0],
-            status: "Active",
-          }).catch(() => {});
+          const newStId = generateNextStudentId(students);
+          const newAdmNo = generateNextAdmissionNo(students);
+
+// Bed allocation handled separately in Hostel Management
+
+          if (formData.hostelSecurityDepositPaid && applicableSecurityDeposit > 0) {
+            const secReceipt =
+              formData.securityDepositReceiptNo ||
+              `REC-SD-${Math.floor(100000 + Math.random() * 900000)}`;
+
+            const paymentPayload = {
+              receiptNo: secReceipt,
+              studentId: String(newStId),
+              admissionNo: String(newAdmNo),
+              studentName: fullApplicantName,
+              className: formData.appliedClass,
+              amountPaid: applicableSecurityDeposit,
+              amount: applicableSecurityDeposit,
+              discount: 0,
+              fine: 0,
+              paymentMode: formData.securityDepositPaymentMode || depositPaymentMode || "Cash",
+              transactionId: formData.securityDepositTxnId || depositTxnId || "",
+              paymentDate: formData.securityDepositDate || depositDate || new Date().toISOString().split("T")[0],
+              academicYear: selectedAcademicYear || "",
+              feeHeadName: "Hostel Security Deposit",
+              remarks: `Hostel Security Deposit for ${fullApplicantName} (Room ${formData.hostelRoom}, Bed ${formData.hostelBed})`,
+              status: "Paid" as const,
+              paymentAllocation: [
+                {
+                  academicYear: selectedAcademicYear || "",
+                  amount: applicableSecurityDeposit,
+                  feeHeadName: "Hostel Security Deposit",
+                  termName: "One Time",
+                },
+              ],
+            };
+
+            try {
+              if (addFeePayment) {
+                addFeePayment(paymentPayload);
+              }
+              FinanceAPI.createFeePaymentApi(paymentPayload).catch(() => {});
+              if (typeof window !== "undefined") {
+                window.dispatchEvent(new CustomEvent("finance_data_updated"));
+              }
+            } catch (e) {}
+          }
         }
 
         addToast(
@@ -2600,140 +2955,25 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
 
     const isHostelOpted = isResidentForm;
 
-    const hasHostelBlockSelected = Boolean(
-      (formData.hostelBlock && formData.hostelBlock.trim() !== "") ||
-      selectedBlockObj,
-    );
-
-    const hasHostelRoomSelected = Boolean(
-      (formData.hostelRoom && formData.hostelRoom.trim() !== "") ||
-      (formData.hostelBed && formData.hostelBed.trim() !== ""),
-    );
-
-    if (isHostelOpted && hasHostelBlockSelected && hasHostelRoomSelected) {
-      const hObj =
-        selectedBlockObj ||
-        (hostelMasters || []).find(
-          (h) =>
-            h.id === formData.hostelBlock ||
-            h.hostelName === formData.hostelBlock ||
-            String(h.id ?? "") === String(formData.hostelBlock ?? ""),
-        );
-
-      const selectedRoom =
-        (dynamicHostelRooms || []).find(
-          (r) =>
-            String(r.roomId) === String(formData.hostelRoom) ||
-            String(r.roomNumber) === String(formData.hostelRoom),
-        ) ||
-        (roomMasters || []).find(
-          (r) =>
-            String(r.id) === String(formData.hostelRoom) ||
-            String(r.roomNumber) === String(formData.hostelRoom),
-        );
-
-      const targetRoomTypeObj = selectedRoom
-        ? (dynamicRoomTypes || []).find(
-            (rt) =>
-              String(rt.roomTypeId) ===
-              String((selectedRoom as any).roomTypeId),
-          )
-        : null;
-
-      const targetRoomType = targetRoomTypeObj
-        ? targetRoomTypeObj.roomTypeSpecification
-        : (selectedRoom as any)?.roomTypeSpecification ||
-          (selectedRoom as any)?.roomTypeName ||
-          (selectedRoom as any)?.roomType;
-
-      let fhc = financeHostelConfigs.find((c) => {
-        if (c.status !== "Active") return false;
-
-        const blockMatch =
-          (hObj &&
-            c.hostelId &&
-            String(c.hostelId) ===
-              String((hObj as any)?.rawId || (hObj as any)?.id)) ||
-          (hObj &&
-            c.hostelName &&
-            (hObj as any)?.hostelName &&
-            c.hostelName.toLowerCase() ===
-              String((hObj as any)?.hostelName).toLowerCase()) ||
-          (formData.hostelBlock &&
-            c.hostelName &&
-            c.hostelName
-              .toLowerCase()
-              .includes(formData.hostelBlock.toLowerCase())) ||
-          (formData.hostelBlock &&
-            c.hostelName &&
-            formData.hostelBlock
-              .toLowerCase()
-              .includes(c.hostelName.toLowerCase()));
-
-        if (!blockMatch) return false;
-
-        if (!targetRoomType) return true;
-
-        const rtMatch =
-          (c.roomTypeName &&
-            targetRoomType &&
-            c.roomTypeName.toLowerCase().trim() ===
-              targetRoomType.toLowerCase().trim()) ||
-          (c.roomTypeName &&
-            targetRoomType &&
-            c.roomTypeName
-              .toLowerCase()
-              .includes(targetRoomType.toLowerCase())) ||
-          (c.roomTypeName &&
-            targetRoomType &&
-            targetRoomType
-              .toLowerCase()
-              .includes(c.roomTypeName.toLowerCase()));
-
-        return rtMatch;
-      });
-
-      if (!fhc) {
-        fhc =
-          financeHostelConfigs.find(
-            (c) =>
-              c.status === "Active" &&
-              ((hObj &&
-                (c.hostelId === (hObj as any)?.rawId ||
-                  c.hostelId === (hObj as any)?.id)) ||
-                (formData.hostelBlock &&
-                  c.hostelName &&
-                  c.hostelName
-                    .toLowerCase()
-                    .includes(formData.hostelBlock.toLowerCase()))),
-          ) || financeHostelConfigs.find((c) => c.status === "Active");
-      }
-
-      const hstFee = fhc ? fhc.hostelFee : 40000;
-      const secDep = fhc
-        ? fhc.securityDeposit !== undefined
-          ? fhc.securityDeposit
-          : 5000
-        : 5000;
-
-      const blockLabel =
-        (hObj as any)?.hostelName ||
-        (hObj as any)?.name ||
-        formData.hostelBlock;
-      const roomNumStr =
-        (selectedRoom as any)?.roomNumber || formData.hostelRoom;
-      const roomTypeLabel = targetRoomType ? ` - ${targetRoomType}` : "";
-
-      items.push({
-        name: `Hostel Accommodation Fee (${blockLabel}, Room ${roomNumStr}${roomTypeLabel})`,
-        amount: hstFee,
-        isApplicable: true,
-      });
+    if (isHostelOpted) {
+      const chosenShare = formData.sharingType || "Four Sharing";
+      const chosenAc = formData.acType || "AC";
+      const secDep = Number(applicableHostelFeeConfig?.securityDeposit) || 2000;
+      const hstFee = Number(applicableHostelFeeConfig?.hostelFee || applicableHostelFeeConfig?.termFee) || 0;
 
       if (secDep > 0) {
         items.push({
-          name: "Hostel Security Deposit",
+          name: `Hostel Security Deposit (${chosenShare}, ${chosenAc})`,
           amount: secDep,
+          isApplicable: true,
+          remarks: formData.hostelSecurityDepositPaid ? "✓ Paid" : "Must pay before bed allotment",
+        });
+      }
+
+      if (hstFee > 0) {
+        items.push({
+          name: `Hostel Accommodation Fee (${chosenShare}, ${chosenAc})`,
+          amount: hstFee,
           isApplicable: true,
         });
       }
@@ -2742,9 +2982,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
         name: "Hostel Fee & Security Deposit",
         amount: 0,
         isApplicable: false,
-        remarks: isNonResidentForm
-          ? "Not Applicable for Day Scholars"
-          : "Hostel Fee Pending Room Assignment",
+        remarks: "Not Applicable for Day Scholars",
       });
     }
 
@@ -4040,275 +4278,109 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                   </div>
                 )}
 
-                {/* Conditional Rendering for Residential (Available Rooms & Beds Only) */}
+                {/* Residential Accommodation Preferences (Sharing & AC Only) */}
                 {(formData.studentType === "Residential" ||
                   formData.studentType === "Hosteller") && (
-                  <div className="p-4 rounded-2xl bg-sky-50/70 dark:bg-sky-950/40 border border-sky-100 dark:border-sky-900/60 space-y-3 animate-in fade-in">
-                    <h5 className="font-bold text-sky-900 dark:text-sky-200">
-                      Hostel Bed Allocation
-                    </h5>
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <div className="p-4 rounded-2xl bg-sky-50/70 dark:bg-sky-950/40 border border-sky-100 dark:border-sky-900/60 space-y-4 animate-in fade-in">
+                    <div className="flex items-center justify-between">
+                      <h5 className="font-bold text-sky-900 dark:text-sky-200 flex items-center gap-2">
+                        <Home className="w-4 h-4 text-sky-600" />
+                        Hostel Accommodation Preferences
+                      </h5>
+                      <span className="text-[11px] font-bold text-sky-700 dark:text-sky-300 bg-sky-100 dark:bg-sky-900/60 px-2.5 py-1 rounded-full border border-sky-200 dark:border-sky-800">
+                        Bed allotment is handled in Hostel Management
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div>
-                        <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">
-                          Hostel Block
+                        <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300 text-xs">
+                          Room Sharing Preference <span className="text-rose-500">*</span>
                         </label>
-                        {(() => {
-                          const blockMap = new Map<string, any>();
-                          (hostelMasters || []).forEach((h) =>
-                            blockMap.set(String(h.id), {
-                              hostelId: String(h.id),
-                              hostelName: h.hostelName,
-                              hostelType: h.hostelType || "Boys Hostel",
-                            }),
-                          );
-                          (dynamicHostelBlocks || []).forEach((b) =>
-                            blockMap.set(String(b.hostelId), b),
-                          );
-                          const blockOpts = Array.from(blockMap.values()).map(
-                            (b) => ({
-                              value: String(b.hostelId),
-                              label: b.hostelName,
-                              subLabel: b.hostelType,
-                            }),
-                          );
-
-                          return (
-                            <SearchableCombobox
-                              value={formData.hostelBlock || ""}
-                              placeholder="Search or type Hostel Block..."
-                              options={blockOpts}
-                              onChange={(val) => {
-                                setFormData({
-                                  ...formData,
-                                  hostelBlock: val,
-                                  hostelRoom: "",
-                                  hostelBed: "",
-                                });
-                              }}
-                            />
-                          );
-                        })()}
+                        <div className="relative">
+                          <select
+                            value={formData.hostelSharing || formData.roomSharing || formData.sharingType || "Four Sharing"}
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              setFormData({
+                                ...formData,
+                                hostelSharing: val,
+                                roomSharing: val,
+                                sharingType: val,
+                              });
+                            }}
+                            className="w-full px-3.5 py-2.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white text-xs font-semibold focus:ring-2 focus:ring-sky-500 outline-none appearance-none cursor-pointer"
+                          >
+                            <option value="Single">Single Sharing (1 Person)</option>
+                            <option value="Two Sharing">Two Sharing (2 Persons)</option>
+                            <option value="Three Sharing">Three Sharing (3 Persons)</option>
+                            <option value="Four Sharing">Four Sharing (4 Persons)</option>
+                            <option value="Dormitory">Dormitory</option>
+                          </select>
+                          <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                        </div>
                       </div>
+
                       <div>
-                        <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">
-                          Room
+                        <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300 text-xs">
+                          Facility Preference (AC / Non-AC) <span className="text-rose-500">*</span>
                         </label>
-                        {(() => {
-                          const roomMap = new Map<string, any>();
-                          (roomMasters || []).forEach((r) =>
-                            roomMap.set(String(r.id), {
-                              roomId: String(r.id),
-                              hostelId: String(r.hostelId),
-                              roomNumber: r.roomNumber,
-                              bedCapacity: r.bedCapacity || r.capacity || 4,
-                              roomTypeSpecification: r.roomTypeSpecification,
-                            }),
-                          );
-                          (dynamicHostelRooms || []).forEach((r) =>
-                            roomMap.set(String(r.roomId), r),
-                          );
-
-                          const roomOpts = Array.from(roomMap.values())
-                            .filter(
-                              (r) =>
-                                String(r.hostelId) ===
-                                String(formData.hostelBlock),
-                            )
-                            .map((r) => {
-                              const rtObj = dynamicRoomTypes.find(
-                                (rt) => rt.roomTypeId === r.roomTypeId,
-                              );
-                              const rCap = rtObj
-                                ? rtObj.bedCapacity
-                                : r.bedCapacity || 4;
-                              const rName = rtObj
-                                ? rtObj.roomTypeSpecification
-                                : r.roomTypeSpecification || "Standard Room";
-                              const occupied = dynamicAllocations.filter(
-                                (a) =>
-                                  (String(a.roomId) === String(r.roomId) ||
-                                    String(a.roomNumber) ===
-                                      String(r.roomNumber)) &&
-                                  a.status === "Active",
-                              ).length;
-                              const isFull = occupied >= rCap;
-
-                              return {
-                                value: String(r.roomId),
-                                label: `${formatRoomNumber(r.roomNumber)} (${rName})`,
-                                subLabel: `${occupied}/${rCap} Occupied${isFull ? " • FULL" : ""}`,
-                                disabled: isFull,
-                              };
-                            });
-
-                          return (
-                            <SearchableCombobox
-                              disabled={!formData.hostelBlock}
-                              value={formData.hostelRoom || ""}
-                              placeholder={
-                                formData.hostelBlock
-                                  ? "Search or type Room..."
-                                  : "Select Block first"
-                              }
-                              options={roomOpts}
-                              onChange={(val) => {
-                                const selRoomObj = dynamicHostelRooms.find(
-                                  (r) => String(r.roomId) === String(val),
-                                );
-                                const rtObj = selRoomObj
-                                  ? dynamicRoomTypes.find(
-                                      (rt) =>
-                                        rt.roomTypeId === selRoomObj.roomTypeId,
-                                    )
-                                  : null;
-                                const rCap = rtObj
-                                  ? rtObj.bedCapacity
-                                  : selRoomObj?.bedCapacity || 4;
-                                const bedOpts = Array.from(
-                                  { length: rCap },
-                                  (_, idx) => `BED-${idx + 1}`,
-                                );
-
-                                const firstVacantBed = bedOpts.find((bed) => {
-                                  return !dynamicAllocations.some(
-                                    (a) =>
-                                      String(a.roomId) === String(val) &&
-                                      a.bedNumber === bed &&
-                                      a.status === "Active",
-                                  );
-                                });
-
-                                setFormData({
-                                  ...formData,
-                                  hostelRoom: val,
-                                  hostelBed: firstVacantBed || bedOpts[0] || "",
-                                });
-                              }}
-                            />
-                          );
-                        })()}
-                        {(() => {
-                          const selRoom = (dynamicHostelRooms || []).find(
-                            (r: any) =>
-                              String(r.roomId ?? r.id ?? "") ===
-                                String(formData.hostelRoom ?? "") ||
-                              String(r.roomNumber ?? "") ===
-                                String(formData.hostelRoom ?? ""),
-                          );
-                          if (selRoom) {
-                            const rtObj = dynamicRoomTypes.find(
-                              (rt) => rt.roomTypeId === selRoom.roomTypeId,
-                            );
-                            const rCap = rtObj
-                              ? rtObj.bedCapacity
-                              : selRoom.bedCapacity || 4;
-                            const occupied = dynamicAllocations.filter(
-                              (a) =>
-                                (String(a.roomId) === String(selRoom.roomId) ||
-                                  String(a.roomNumber) ===
-                                    String(selRoom.roomNumber)) &&
-                                a.status === "Active",
-                            ).length;
-                            const avail = Math.max(0, rCap - occupied);
-                            return (
-                              <p className="text-[10px] text-slate-400 mt-1 font-bold">
-                                Occupancy:{" "}
-                                <span className="text-sky-600 dark:text-sky-400 font-extrabold">
-                                  {occupied} / {rCap}
-                                </span>{" "}
-                                Beds ({avail} Bed{avail !== 1 ? "s" : ""}{" "}
-                                Available){" "}
-                                {avail === 0 && (
-                                  <span className="text-rose-500 font-black ml-1">
-                                    [Fully Occupied]
-                                  </span>
-                                )}
-                              </p>
-                            );
-                          }
-                          return null;
-                        })()}
+                        <div className="grid grid-cols-2 gap-2 pt-0.5">
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setFormData({
+                                ...formData,
+                                hostelAc: "AC",
+                                acType: "AC",
+                              })
+                            }
+                            className={`py-2 px-3 rounded-xl text-xs font-bold border transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                              (formData.hostelAc === "AC" || formData.acType === "AC")
+                                ? "bg-sky-600 text-white border-sky-600 shadow-sm"
+                                : "bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:border-sky-300"
+                            }`}
+                          >
+                            AC
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setFormData({
+                                ...formData,
+                                hostelAc: "Non-AC",
+                                acType: "Non-AC",
+                              })
+                            }
+                            className={`py-2 px-3 rounded-xl text-xs font-bold border transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                              (formData.hostelAc === "Non-AC" || formData.acType === "Non-AC" || (!formData.hostelAc && !formData.acType))
+                                ? "bg-sky-600 text-white border-sky-600 shadow-sm"
+                                : "bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:border-sky-300"
+                            }`}
+                          >
+                            Non-AC
+                          </button>
+                        </div>
                       </div>
-                      <div>
-                        <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">
-                          Bed
-                        </label>
-                        {(() => {
-                          const selRoom = (dynamicHostelRooms || []).find(
-                            (r: any) =>
-                              String(r.roomId ?? r.id ?? "") ===
-                                String(formData.hostelRoom ?? "") ||
-                              String(r.roomNumber ?? "") ===
-                                String(formData.hostelRoom ?? ""),
-                          );
-                          const rtObj = selRoom
-                            ? dynamicRoomTypes.find(
-                                (rt) => rt.roomTypeId === selRoom.roomTypeId,
-                              )
-                            : null;
-                          const rCap = rtObj
-                            ? rtObj.bedCapacity
-                            : selRoom
-                              ? selRoom.bedCapacity || 4
-                              : 4;
-                          const beds = Array.from(
-                            { length: rCap },
-                            (_, idx) => `BED-${idx + 1}`,
-                          );
+                    </div>
 
-                          const bedOpts = beds.map((bed) => {
-                            const activeAlloc = dynamicAllocations.find(
-                              (a) =>
-                                (String(a.roomId) ===
-                                  String(formData.hostelRoom) ||
-                                  String(a.roomNumber) ===
-                                    String(selRoom?.roomNumber)) &&
-                                a.bedNumber === bed &&
-                                a.status === "Active",
-                            );
-                            const pendingApp = admissions.find(
-                              (app) =>
-                                app.hostelRoom === formData.hostelRoom &&
-                                app.hostelBed === bed &&
-                                app.status === "Pending" &&
-                                app.id !== editingApp?.id,
-                            );
-                            const isTaken = Boolean(activeAlloc || pendingApp);
-                            const occupantName =
-                              activeAlloc?.studentName ||
-                              pendingApp?.applicantName ||
-                              "Student";
-
-                            return {
-                              value: bed,
-                              label: `Bed #${bed.replace(/\D/g, "") || bed}`,
-                              subLabel: isTaken
-                                ? `Occupied by ${occupantName}`
-                                : "Vacant & Available",
-                              disabled: isTaken,
-                            };
-                          });
-
-                          return (
-                            <SearchableCombobox
-                              disabled={!formData.hostelRoom}
-                              value={formData.hostelBed || ""}
-                              placeholder={
-                                formData.hostelRoom
-                                  ? "Search or type Bed..."
-                                  : "Select Room first"
-                              }
-                              options={bedOpts}
-                              onChange={(val) => {
-                                setFormData({
-                                  ...formData,
-                                  hostelBed: val,
-                                });
-                              }}
-                            />
-                          );
-                        })()}
+                    <div className="p-3 bg-white/80 dark:bg-slate-900/80 rounded-xl border border-sky-100 dark:border-sky-900/40 flex items-center justify-between text-xs">
+                      <div className="flex items-center gap-2">
+                        <ShieldCheck className="w-4 h-4 text-sky-600 shrink-0" />
+                        <span className="text-slate-600 dark:text-slate-400">
+                          Security Deposit for Hostel:{" "}
+                          <strong className="text-slate-900 dark:text-white">
+                            {formatCurrency(applicableSecurityDeposit || 2000)}
+                          </strong>
+                        </span>
                       </div>
+                      <span className={`px-2.5 py-0.5 rounded-full font-bold text-[11px] ${
+                        formData.hostelSecurityDepositPaid
+                          ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 border border-emerald-300"
+                          : "bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 border border-amber-300"
+                      }`}>
+                        {formData.hostelSecurityDepositPaid ? "✓ Deposit Paid" : "Payment Pending (Pay via Right Panel)"}
+                      </span>
                     </div>
                   </div>
                 )}
@@ -4690,6 +4762,53 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                         {formatCurrency(liveFee.totalPayable)}
                       </h4>
                     </div>
+
+                    {/* Pay Button & Security Deposit Status on Right Side */}
+                    {isResidentialStudent && applicableSecurityDeposit > 0 && (
+                      <div className="pt-2 space-y-2">
+                        {formData.hostelSecurityDepositPaid ? (
+                          <div className="p-3 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/60 space-y-1">
+                            <div className="flex items-center justify-between">
+                              <span className="font-bold text-emerald-800 dark:text-emerald-300 flex items-center gap-1.5 text-xs">
+                                <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                                Security Deposit Paid
+                              </span>
+                              <span className="px-2 py-0.5 rounded text-[10px] bg-emerald-200 dark:bg-emerald-800 text-emerald-800 dark:text-emerald-200 font-extrabold">
+                                VERIFIED
+                              </span>
+                            </div>
+                            <p className="text-[11px] text-emerald-700 dark:text-emerald-400">
+                              Amount: {formatCurrency(applicableSecurityDeposit)}
+                              {formData.securityDepositReceiptNo ? ` • Receipt: ${formData.securityDepositReceiptNo}` : ""}
+                            </p>
+                            <p className="text-[10px] text-emerald-600 dark:text-emerald-500 font-medium">
+                              ✓ Student will reflect in Hostel Room Allocations for bed assignment.
+                            </p>
+                          </div>
+                        ) : (
+                          <div className="p-3 rounded-2xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/60 space-y-2">
+                            <div className="flex items-center justify-between text-xs font-bold text-amber-900 dark:text-amber-200">
+                              <span className="flex items-center gap-1.5">
+                                <ShieldCheck className="w-4 h-4 text-amber-600" />
+                                Hostel Security Deposit
+                              </span>
+                              <span>{formatCurrency(applicableSecurityDeposit)}</span>
+                            </div>
+                            <p className="text-[11px] text-amber-700 dark:text-amber-300">
+                              Hostel security deposit fee must be paid for the student to reflect in Hostel Management bed allocations.
+                            </p>
+                            <button
+                              type="button"
+                              onClick={handlePaySecurityDepositRedirect}
+                              className="w-full py-2.5 px-3 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-extrabold rounded-xl shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2 cursor-pointer text-xs active:scale-95"
+                            >
+                              <CreditCard className="w-4 h-4" />
+                              Pay Hostel Security Deposit ({formatCurrency(applicableSecurityDeposit)})
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </>
                 )}
               </div>

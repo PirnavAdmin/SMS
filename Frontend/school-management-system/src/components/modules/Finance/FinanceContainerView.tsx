@@ -74,10 +74,13 @@ export const FinanceContainerView: React.FC<FinanceContainerViewProps> = ({ init
       case 'transport':
       case 'transport-fee':
       case 'transport-config':
-      case 'finance-transport-config':
-      case 'uniform-fee':
-      case 'settings':
-        return <FeeSetupView initialTab={activeTab === 'transport-fee' || activeTab === 'transport-config' || activeTab === 'transport' || activeTab === 'finance-transport-config' ? 'transport-fee' : activeTab === 'hostel-fee' || activeTab === 'uniform-fee' ? 'structures' : activeTab} />;
+        const currentTabStr = activeTab as string;
+        const initialTabValue = (currentTabStr === 'transport-fee' || currentTabStr === 'transport-config' || currentTabStr === 'transport')
+          ? 'transport-fee'
+          : currentTabStr === 'hostel-fee'
+          ? 'hostel-fee'
+          : currentTabStr;
+        return <FeeSetupView initialTab={initialTabValue} />;
 
       case 'student-fees':
       case 'student-fee-assignment':

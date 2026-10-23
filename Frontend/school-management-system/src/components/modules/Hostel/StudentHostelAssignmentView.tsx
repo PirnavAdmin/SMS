@@ -1,5 +1,8 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import { UserPlus, Plus, Search, Shield, User, Edit, Trash2, ChevronDown, Building2, Layers, Home } from 'lucide-react';
+import { UserPlus, Plus, Search, Shield, User, Edit, Trash2, ChevronDown, Building2, Layers, Home, CheckCircle2, ShieldCheck } from 'lucide-react';
+import { formatCurrency } from '../../../utils/currency';
+import { isClassInRange } from '../../../utils/classSorter';
+import * as FinanceAPI from '../../../api/finance';
 import { useData } from '../../../context/DataContext';
 import { useToast } from '../../../context/ToastContext';
 import { ConfirmModal } from '../../common/ConfirmModal';
@@ -180,6 +183,9 @@ export const StudentHostelAssignmentView: React.FC = () => {
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [depositPaidOverride, setDepositPaidOverride] = useState(false);
+  const [collectPaymentMode, setCollectPaymentMode] = useState('Cash');
+  const [collectTxnId, setCollectTxnId] = useState('');
 
   const candidateStudents = React.useMemo(() => {
     const rawStudents = Array.isArray(dataContext?.students) ? dataContext.students : [];
@@ -215,7 +221,8 @@ export const StudentHostelAssignmentView: React.FC = () => {
         section: s.section || 'A',
         admissionNo: s.admissionNo || s.registrationNumber || sId,
         isResidential: Boolean(isRes),
-        studentType: isRes ? 'Residential' : (s.studentType || 'Day Scholar')
+        studentType: isRes ? 'Residential' : (s.studentType || 'Day Scholar'),
+        hostelSecurityDepositPaid: Boolean(s.hostelSecurityDepositPaid || (s as any).securityDepositPaid)
       };
 
       const primaryKey = sAdm || `id_${sId}` || `name_${sName}`;
@@ -271,7 +278,8 @@ export const StudentHostelAssignmentView: React.FC = () => {
         section: a.section || 'A',
         admissionNo: a.admissionNo || a.applicationNo || a.registrationNo || aId,
         isResidential: Boolean(isRes),
-        studentType: isRes ? 'Residential' : 'Day Scholar'
+        studentType: isRes ? 'Residential' : 'Day Scholar',
+        hostelSecurityDepositPaid: Boolean(a.hostelSecurityDepositPaid || (a as any).securityDepositPaid)
       };
 
       const key = aAdm || `id_${aId}` || `name_${aName}`;
@@ -373,12 +381,85 @@ export const StudentHostelAssignmentView: React.FC = () => {
     return () => window.removeEventListener('residential_students_updated', handleSync);
   }, [fetchData]);
 
+  const selectedCandidate = useMemo(() => {
+    return candidateStudents.find(s => String(s.id) === String(selectedStudentId));
+  }, [candidateStudents, selectedStudentId]);
+
+  const candidateClass = selectedCandidate?.className || selectedCandidate?.appliedClass || '';
+
+  const applicableHostelFeeConfig = useMemo(() => {
+    if (!selectedStudentId || !selectedRoomId) return null;
+    if (!candidateClass) return null;
+
+    const targetRm = (rooms || []).find(r => String(r.roomId || (r as any).id) === String(selectedRoomId));
+    const targetSpec = targetRm?.roomTypeSpecification || '';
+
+    const configs = dataContext?.financeHostelConfigs || [];
+    let fhc = configs.find(c => {
+      if (c.status !== 'Active') return false;
+      if (!isClassInRange(candidateClass, c.startClass, c.endClass, c.classRange, dataContext?.academicClasses)) return false;
+      const bMatch = !selectedHostelId || String(c.hostelId) === String(selectedHostelId);
+      if (!bMatch) return false;
+      if (!targetSpec) return true;
+      return c.roomTypeName && c.roomTypeName.toLowerCase().includes(targetSpec.toLowerCase());
+    });
+
+    if (!fhc) {
+      fhc = configs.find(c =>
+        c.status === 'Active' &&
+        isClassInRange(candidateClass, c.startClass, c.endClass, c.classRange, dataContext?.academicClasses) &&
+        (!selectedHostelId || String(c.hostelId) === String(selectedHostelId))
+      );
+    }
+
+    if (!fhc) {
+      fhc = configs.find(c =>
+        c.status === 'Active' &&
+        isClassInRange(candidateClass, c.startClass, c.endClass, c.classRange, dataContext?.academicClasses)
+      );
+    }
+
+    return fhc || null;
+  }, [selectedStudentId, selectedRoomId, selectedHostelId, candidateClass, rooms, dataContext?.financeHostelConfigs, dataContext?.academicClasses]);
+
+  const secDepAmount = Number(applicableHostelFeeConfig?.securityDeposit) || 0;
+
+  const isDepositAlreadyPaid = useMemo(() => {
+    if (secDepAmount <= 0) return true;
+    if (depositPaidOverride) return true;
+    if (!selectedStudentId) return false;
+
+    const sId = String(selectedStudentId);
+    const sAdm = String(selectedCandidate?.admissionNo || '');
+    const sName = String(selectedCandidate?.name || '').toLowerCase().trim();
+
+    if ((selectedCandidate as any)?.hostelSecurityDepositPaid) return true;
+
+    const payments = dataContext?.feePayments || [];
+    return payments.some(p => {
+      const pId = String(p.studentId || '');
+      const pAdm = String(p.admissionNo || '');
+      const pName = String(p.studentName || '').toLowerCase().trim();
+
+      const matchesId = (pId && (pId === sId || pId === sAdm)) || (pAdm && (pAdm === sId || pAdm === sAdm)) || (sName && pName && sName === pName);
+      const isDepositHead =
+        String(p.feeHeadName || '').toLowerCase().includes('security deposit') ||
+        String(p.remarks || '').toLowerCase().includes('security deposit') ||
+        String(p.paidItemsJson || '').toLowerCase().includes('security deposit');
+
+      return matchesId && isDepositHead;
+    });
+  }, [secDepAmount, depositPaidOverride, selectedStudentId, selectedCandidate, dataContext?.feePayments]);
+
   const handleOpenAdd = () => {
     setSelectedStudentId('');
     setSelectedHostelId(isWarden && targetBlocks.length > 0 ? String(targetBlocks[0].hostelId) : '');
     setSelectedRoomId('');
     setSelectedBedNo('');
     setJoiningDate(new Date().toISOString().split('T')[0]);
+    setDepositPaidOverride(false);
+    setCollectPaymentMode('Cash');
+    setCollectTxnId('');
     setIsModalOpen(true);
   };
 
@@ -388,6 +469,9 @@ export const StudentHostelAssignmentView: React.FC = () => {
     setSelectedRoomId('');
     setSelectedBedNo('');
     setJoiningDate(new Date().toISOString().split('T')[0]);
+    setDepositPaidOverride(false);
+    setCollectPaymentMode('Cash');
+    setCollectTxnId('');
     setIsModalOpen(true);
   };
 
@@ -395,6 +479,11 @@ export const StudentHostelAssignmentView: React.FC = () => {
     e.preventDefault();
     if (!selectedStudentId || !selectedHostelId || !selectedRoomId) {
       addToast('error', 'Validation Error', 'Please complete all fields');
+      return;
+    }
+
+    if (secDepAmount > 0 && !isDepositAlreadyPaid) {
+      addToast('error', 'Security Deposit Required', `Security deposit fee of ${formatCurrency(secDepAmount)} must be paid before allotting a bed to this student.`);
       return;
     }
 
@@ -419,9 +508,66 @@ export const StudentHostelAssignmentView: React.FC = () => {
 
       await createAllocation(payload);
       addToast('success', 'Allocation Created', 'Room & bed allocated successfully');
+
+      if (depositPaidOverride && secDepAmount > 0) {
+        const secReceipt = `REC-SD-${Math.floor(100000 + Math.random() * 900000)}`;
+        const paymentPayload = {
+          receiptNo: secReceipt,
+          studentId: String(selectedStudentId),
+          admissionNo: selectedSt?.admissionNo || `ADM-${selectedStudentId}`,
+          studentName: selectedSt?.name || 'Student',
+          className: candidateClass,
+          amountPaid: secDepAmount,
+          amount: secDepAmount,
+          discount: 0,
+          fine: 0,
+          paymentMode: collectPaymentMode || 'Cash',
+          transactionId: collectTxnId || '',
+          paymentDate: joiningDate || new Date().toISOString().split('T')[0],
+          academicYear: '',
+          feeHeadName: 'Hostel Security Deposit',
+          remarks: `Hostel Security Deposit for ${selectedSt?.name} (Room ${selectedRm?.roomNumber || '101'}, Bed ${selectedBedNo || 'BED-1'})`,
+          status: 'Paid' as const,
+          paymentAllocation: [
+            {
+              academicYear: '',
+              amount: secDepAmount,
+              feeHeadName: 'Hostel Security Deposit',
+              termName: 'One Time',
+            },
+          ],
+        };
+
+        try {
+          if (dataContext?.addFeePayment) {
+            dataContext.addFeePayment(paymentPayload);
+          }
+          FinanceAPI.createFeePaymentApi(paymentPayload).catch(() => {});
+        } catch (e) {}
+      }
       
+      if (dataContext?.assignStudentHostelRoom) {
+        dataContext.assignStudentHostelRoom({
+          studentId: String(selectedStudentId),
+          studentName: selectedSt?.name || 'Student',
+          admissionNo: selectedSt?.admissionNo || `ADM-${selectedStudentId}`,
+          hostelId: String(selectedHostelId),
+          hostelName: selectedBlk?.hostelName || (selectedBlk as any)?.name || 'Hostel Block',
+          roomNo: selectedRm?.roomNumber || '101',
+          roomTypeName: (selectedRm as any)?.roomTypeName || '',
+          bedNo: selectedBedNo || 'BED-1',
+          allocatedDate: joiningDate || new Date().toISOString().split('T')[0],
+          status: 'Active',
+        });
+      }
+
       setIsModalOpen(false);
       fetchData();
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('finance_data_updated'));
+        window.dispatchEvent(new Event('residential_students_updated'));
+        window.dispatchEvent(new Event('students_updated'));
+      }
     } catch (error: any) {
       addToast('error', 'Allocation Failed', error?.message || 'Failed to allocate room');
     } finally {
@@ -433,8 +579,12 @@ export const StudentHostelAssignmentView: React.FC = () => {
     try {
       await vacateStudentAllocation(a.studentId, a.admissionNo, a.allocationId);
       addToast('success', 'Room Vacated', 'The bed allocation has been vacated.');
+      if (dataContext?.deleteStudentHostelAssignment && a.allocationId) {
+        dataContext.deleteStudentHostelAssignment(String(a.allocationId));
+      }
       fetchData();
       if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('finance_data_updated'));
         window.dispatchEvent(new Event('residential_students_updated'));
         window.dispatchEvent(new Event('students_updated'));
       }
@@ -468,14 +618,43 @@ export const StudentHostelAssignmentView: React.FC = () => {
     return (candidateStudents || []).filter(s => {
       if (!s || !s.isResidential || s.studentType === 'Day Scholar') return false;
 
-      const sId = String(s.id || '').trim().toLowerCase();
-      const sAdm = String(s.admissionNo || '').trim().toLowerCase();
+      // STRICT GATE: Only students who have paid the security deposit fee reflect in Student Room Allocations!
+      const sId = String(s.id || '').trim();
+      const sAdm = String(s.admissionNo || '').trim();
       const sName = String(s.name || '').trim().toLowerCase();
+
+      const candidateApp = (dataContext?.admissions || []).find(a => 
+        String(a.id) === sId || (sAdm && String(a.admissionNo || a.applicationNo || a.registrationNo) === sAdm)
+      );
+      const isDepositFlagPaid = Boolean(
+        s.hostelSecurityDepositPaid || 
+        (s as any).securityDepositPaid || 
+        candidateApp?.hostelSecurityDepositPaid
+      );
+
+      const payments = dataContext?.feePayments || [];
+      const hasDepPayment = payments.some(p => {
+        const pId = String(p.studentId || '');
+        const pAdm = String(p.admissionNo || '');
+        const pName = String(p.studentName || '').toLowerCase().trim();
+        const matchesId = (pId && (pId === sId || pId === sAdm)) || (pAdm && (pAdm === sId || pAdm === sAdm)) || (sName && pName && sName === pName);
+        const isDepHead =
+          String(p.feeHeadName || '').toLowerCase().includes('security deposit') ||
+          String(p.feeType || '').toLowerCase().includes('security deposit') ||
+          String(p.remarks || '').toLowerCase().includes('security deposit') ||
+          String(p.paidItemsJson || '').toLowerCase().includes('security deposit') ||
+          (Array.isArray(p.paymentAllocation) && p.paymentAllocation.some(alloc => String(alloc.feeHeadName || '').toLowerCase().includes('security deposit')));
+        return matchesId && isDepHead;
+      });
+
+      if (!isDepositFlagPaid && !hasDepPayment) {
+        return false;
+      }
 
       // Check if already allocated
       const isAllocated =
-        (sId && allocatedIds.has(sId)) ||
-        (sAdm && allocatedAdmNos.has(sAdm)) ||
+        (sId && allocatedIds.has(sId.toLowerCase())) ||
+        (sAdm && allocatedAdmNos.has(sAdm.toLowerCase())) ||
         (sName && allocatedNames.has(sName));
 
       if (isAllocated) return false;
@@ -833,6 +1012,70 @@ export const StudentHostelAssignmentView: React.FC = () => {
                 )}
               </div>
 
+              {selectedStudentId && selectedRoomId && secDepAmount > 0 && (
+                <div>
+                  {!isDepositAlreadyPaid ? (
+                    <div className="p-3 rounded-2xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/60 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <div className="font-bold text-amber-900 dark:text-amber-200 flex items-center gap-1.5 text-xs">
+                          <ShieldCheck className="w-4 h-4 text-amber-600" />
+                          Hostel Security Deposit: {formatCurrency(secDepAmount)}
+                        </div>
+                        <span className="text-[10px] px-2 py-0.5 rounded font-bold bg-rose-100 text-rose-700 dark:bg-rose-900/60 dark:text-rose-200 border border-rose-300">
+                          PAYMENT PENDING
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-amber-700 dark:text-amber-300">
+                        Bed allocation is locked until security deposit is paid. Select payment mode and record payment to unlock bed:
+                      </p>
+                      <div className="flex items-center gap-2 pt-1">
+                        <select
+                          value={collectPaymentMode}
+                          onChange={e => setCollectPaymentMode(e.target.value)}
+                          className="px-2 py-1.5 rounded-lg border bg-white dark:bg-slate-800 text-xs font-semibold"
+                          disabled={isSubmitting}
+                        >
+                          <option value="Cash">Cash</option>
+                          <option value="UPI">UPI / QR</option>
+                          <option value="Net Banking">Net Banking</option>
+                          <option value="Card">Card</option>
+                          <option value="Cheque">Cheque</option>
+                        </select>
+                        <input
+                          type="text"
+                          placeholder={collectPaymentMode === 'Cash' ? 'Optional Receipt No' : 'Txn / Ref No'}
+                          value={collectTxnId}
+                          onChange={e => setCollectTxnId(e.target.value)}
+                          className="flex-1 px-2.5 py-1.5 rounded-lg border bg-white dark:bg-slate-800 text-xs"
+                          disabled={isSubmitting}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setDepositPaidOverride(true);
+                            addToast('success', 'Security Deposit Recorded', `Security deposit of ${formatCurrency(secDepAmount)} marked as paid via ${collectPaymentMode}. Bed selection unlocked!`);
+                          }}
+                          className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg text-xs flex items-center gap-1 shadow-sm shrink-0 cursor-pointer"
+                        >
+                          <CheckCircle2 className="w-3.5 h-3.5" />
+                          Pay & Unlock
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="p-2.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/60 flex items-center justify-between text-xs">
+                      <span className="font-bold text-emerald-800 dark:text-emerald-300 flex items-center gap-1.5">
+                        <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                        Security Deposit Paid: {formatCurrency(secDepAmount)}
+                      </span>
+                      <span className="text-[11px] text-emerald-600 dark:text-emerald-400 font-semibold">
+                        ✓ Bed Allotment Unlocked
+                      </span>
+                    </div>
+                  )}
+                </div>
+              )}
+
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block font-semibold mb-1">Select Room <span className="text-rose-500">*</span></label>
@@ -907,11 +1150,17 @@ export const StudentHostelAssignmentView: React.FC = () => {
                       <div>
                         <select 
                           value={selectedBedNo} 
-                          onChange={e => setSelectedBedNo(e.target.value)} 
+                          onChange={e => {
+                            if (secDepAmount > 0 && !isDepositAlreadyPaid) {
+                              addToast('error', 'Security Deposit Required', `Security deposit fee of ${formatCurrency(secDepAmount)} must be paid before selecting a bed.`);
+                              return;
+                            }
+                            setSelectedBedNo(e.target.value);
+                          }} 
                           className={`w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold font-mono transition-all ${
                             currentBedOccupant ? 'border-amber-400 text-amber-600 dark:text-amber-400' : 'focus:border-sky-500'
-                          }`}
-                          disabled={isSubmitting}
+                          } ${secDepAmount > 0 && !isDepositAlreadyPaid ? 'opacity-60 cursor-not-allowed bg-slate-100 dark:bg-slate-800/60' : ''}`}
+                          disabled={isSubmitting || (secDepAmount > 0 && !isDepositAlreadyPaid)}
                         >
                           <option value="" disabled>Select Bed Number...</option>
                           {roomBedOptions.map(b => (

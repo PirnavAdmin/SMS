@@ -6,6 +6,7 @@ import { useData } from '../../../context/DataContext';
 import { Pagination } from '../../common/Pagination';
 import { getHostelBlocks, getRooms, getAllocations, formatRoomNumber, HostelBlock, HostelRoom, BedAllocation } from '../../../api/hostel';
 import { formatCurrency } from '../../../utils/currency';
+import { isClassInRange } from '../../../utils/classSorter';
 
 interface HostelDashboardViewProps {
   onNavigate?: (tab: string) => void;
@@ -108,8 +109,105 @@ export const HostelDashboardView: React.FC<HostelDashboardViewProps> = ({ onNavi
   // Hostellers count matching active occupied beds
   const enrolledHostellers = occupiedBeds;
 
-  // Monthly Revenue estimation from active rooms
-  const estMonthlyRevenue = activeBlockRooms.reduce((acc, r) => acc + (Number(r.monthlyFee) || 0), 0);
+  // Dynamic Hostel Revenue calculation from feePayments and active hostel fee configs
+  const dynamicHostelRevenue = React.useMemo(() => {
+    const payments = Array.isArray(dataContext?.feePayments) ? dataContext.feePayments : [];
+
+    // 1. Total payments for hostel (hostel fee, security deposit, room fee)
+    const totalCollected = payments.reduce((sum, p) => {
+      const pAny = p as any;
+      if (typeof pAny.hostelFee === 'number' && pAny.hostelFee > 0) return sum + pAny.hostelFee;
+      if (Array.isArray(p.paymentAllocation) && p.paymentAllocation.length > 0) {
+        const alloc = p.paymentAllocation
+          .filter(a => (a.feeHeadName || '').toLowerCase().includes('hostel') || (a.termName || '').toLowerCase().includes('hostel'))
+          .reduce((s, a) => s + (Number(a.amount) || 0), 0);
+        if (alloc > 0) return sum + alloc;
+      }
+      const isHst =
+        pAny.feeHeadId === 'FH-HST' ||
+        (pAny.feeHeadName || '').toLowerCase().includes('hostel') ||
+        (pAny.feeHeadName || '').toLowerCase().includes('security deposit') ||
+        (pAny.category || '').toLowerCase().includes('hostel') ||
+        (pAny.remarks || '').toLowerCase().includes('hostel');
+      return sum + (isHst ? Number(p.amountPaid ?? pAny.amount ?? 0) : 0);
+    }, 0);
+
+    // 2. Expected monthly revenue from room configs or occupied beds
+    const configs = dataContext?.financeHostelConfigs || [];
+    let expectedAnnualFromOccupied = 0;
+    validAllocations.forEach(a => {
+      const rm = rooms.find(r => Number(r.roomId) === Number(a.roomId) || r.roomNumber === a.roomNumber);
+      const rmSpec = rm?.roomTypeSpecification || '';
+      const st = students.find(s => String(s.id) === String(a.studentId) || (s.admissionNo && s.admissionNo === a.admissionNo));
+      const stClass = st?.className || '';
+      const cfg = configs.find(c =>
+        c.status === 'Active' &&
+        (!stClass || isClassInRange(stClass, c.startClass, c.endClass, c.classRange, dataContext?.academicClasses)) &&
+        (!rmSpec || (c.roomTypeName && c.roomTypeName.toLowerCase().includes(rmSpec.toLowerCase())))
+      );
+      if (cfg) {
+        const annual = Number(cfg.annualFee || cfg.hostelFee) || (Number(cfg.termFee || 0) * 3) || 0;
+        expectedAnnualFromOccupied += annual;
+      }
+    });
+
+    const expectedMonthly = Math.round(expectedAnnualFromOccupied / 12);
+    const totalExpected = expectedAnnualFromOccupied > 0 ? expectedAnnualFromOccupied : totalCollected;
+    const totalPendingDues = Math.max(0, totalExpected - totalCollected);
+    const displayRevenue = totalCollected > 0 ? totalCollected : expectedMonthly;
+
+    const hostellersFeeStatus = validAllocations.map((a) => {
+      const st = students.find((s) => String(s.id) === String(a.studentId) || (s.admissionNo && s.admissionNo === a.admissionNo));
+      const stId = String(a.studentId || '');
+      const stAdm = String(a.admissionNo || '');
+      const stPayments = payments.filter((p) => {
+        const pid = String(p.studentId || '');
+        const padm = String(p.admissionNo || '');
+        const pname = String(p.studentName || '').toLowerCase().trim();
+        const matchesId = (stId && (pid === stId || padm === stId)) || (stAdm && (pid === stAdm || padm === stAdm)) || (pname && pname === String(a.studentName || '').toLowerCase().trim());
+        const isHst = (p as any).feeHeadId === 'FH-HST' || (p as any).feeHeadId === 'FH-HST-DEP' || (p.feeHeadName || '').toLowerCase().includes('hostel') || (p.feeHeadName || '').toLowerCase().includes('security deposit') || (p.remarks || '').toLowerCase().includes('hostel') || (p.remarks || '').toLowerCase().includes('security deposit');
+        return matchesId && isHst;
+      });
+      const paid = stPayments.reduce((sum, p) => sum + Number(p.amountPaid ?? (p as any).amount ?? 0), 0);
+      const ledger = dataContext?.getStudentFeeLedger ? dataContext.getStudentFeeLedger(stId, st) : null;
+      let expected = 0;
+      if (ledger?.feeItems) {
+        expected = ledger.feeItems
+          .filter((i) => i.isApplicable && (i.headId === 'FH-HST' || i.headId === 'FH-HST-DEP' || (i.category || '').toLowerCase().includes('hostel') || (i.headName || '').toLowerCase().includes('security deposit')))
+          .reduce((sum, i) => sum + (i.finalAmount || i.originalAmount || 0), 0);
+      }
+      if (expected === 0) {
+        const cfg = (dataContext?.financeHostelConfigs || []).find((c) => c.status === 'Active');
+        expected = Number(cfg?.hostelFee || 40000) + Number(cfg?.securityDeposit || 2000);
+      }
+      const due = Math.max(0, expected - paid);
+      const isDepPaid = Boolean(st?.hostelSecurityDepositPaid || stPayments.some((p) => (p.feeHeadName || '').toLowerCase().includes('security deposit') || (p.remarks || '').toLowerCase().includes('security deposit')));
+      return {
+        allocationId: a.allocationId,
+        studentName: a.studentName || 'Student',
+        admissionNo: a.admissionNo || 'ADM',
+        hostelName: a.hostelName || 'Hostel',
+        roomNumber: a.roomNumber || '101',
+        bedNumber: a.bedNumber || 'BED-1',
+        isDepositPaid: isDepPaid,
+        expected,
+        paid,
+        due,
+        status: due === 0 ? 'Paid' : (paid > 0 ? 'Partial' : 'Due')
+      };
+    });
+
+    return {
+      totalCollected,
+      totalExpected,
+      totalPendingDues,
+      expectedMonthly,
+      displayRevenue,
+      hostellersFeeStatus
+    };
+  }, [dataContext?.feePayments, dataContext?.financeHostelConfigs, dataContext?.academicClasses, dataContext?.getStudentFeeLedger, validAllocations, rooms, students]);
+
+  const estMonthlyRevenue = dynamicHostelRevenue.displayRevenue;
 
   // Unique Active Wardens count (excluding 'Unassigned' and 'N/A')
   const activeWardensCount = new Set(
@@ -250,17 +348,21 @@ export const HostelDashboardView: React.FC<HostelDashboardViewProps> = ({ onNavi
               </div>
             </div>
 
-            {/* Card 7: Est. Monthly Revenue */}
+            {/* Card 7: Dynamic Hostel Fee Revenue & Collections */}
             <div className="glass-card p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 space-y-2 shadow-sm hover:shadow-md transition-all">
               <div className="flex items-center justify-between">
-                <span className="text-[10px] font-extrabold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">Monthly Revenue</span>
+                <span className="text-[10px] font-extrabold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">Hostel Revenue</span>
                 <div className="p-2 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600">
                   <IndianRupee className="w-4 h-4" />
                 </div>
               </div>
               <div className="flex items-baseline justify-between">
-                <p className="text-xl font-black text-emerald-600 dark:text-emerald-400 font-mono">{formatCurrency(estMonthlyRevenue)}</p>
-                <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 dark:bg-emerald-950/60 px-1.5 py-0.5 rounded-md">Billed</span>
+                <p className="text-xl font-black text-emerald-600 dark:text-emerald-400 font-mono">{formatCurrency(dynamicHostelRevenue.totalCollected)}</p>
+                <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 dark:bg-emerald-950/60 px-1.5 py-0.5 rounded-md">Collected</span>
+              </div>
+              <div className="text-[10px] text-slate-500 flex justify-between font-medium pt-0.5 border-t border-slate-100 dark:border-slate-800">
+                <span>Due Balance:</span>
+                <span className="font-mono text-rose-500 font-bold">{formatCurrency(dynamicHostelRevenue.totalPendingDues)}</span>
               </div>
             </div>
 
@@ -348,7 +450,7 @@ export const HostelDashboardView: React.FC<HostelDashboardViewProps> = ({ onNavi
                       .filter(b => b != null)
                       .map((b, idx) => {
                         const rawName = b.hostelName || (b as any).name || (b as any).blockName || '';
-                        const title = rawName && isNaN(Number(rawName)) ? rawName : (rawName === '1' ? 'Boys Residence - Block A' : (rawName === '2' ? 'Bhanu Block' : 'Boys Residence - Block A'));
+                        const title = rawName && isNaN(Number(rawName)) ? rawName : `Hostel Block #${b.hostelId || idx + 1}`;
                         const idKey = b.hostelId !== undefined && b.hostelId !== null ? String(b.hostelId) : `dash_blk_${idx}`;
                         return (
                           <option key={`dash_opt_${idKey}_${idx}`} value={title}>
@@ -374,15 +476,17 @@ export const HostelDashboardView: React.FC<HostelDashboardViewProps> = ({ onNavi
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {paginatedBlocks.map(b => {
                   const rawName = b.hostelName || (b as any).name || (b as any).blockName || '';
-                  const blockTitle = rawName && isNaN(Number(rawName)) ? rawName : (rawName === '1' ? 'Boys Residence - Block A' : (rawName === '2' ? 'Bhanu Block' : 'Boys Residence - Block A'));
-                  const codeVal = b.hostelCode || (b as any).code || 'HST-01';
-                  const wardenVal = b.wardenName || (b as any).warden || 'Dr. Eleanor Vance';
-                  const phoneVal = b.primaryMobileNumber || '+91 98765 43210';
-                  const addressVal = b.address || 'Sector 4, North Campus';
-                  const roomsVal = b.totalRooms || 2;
-                  const occBedsVal = b.occupiedBeds || 1;
-                  const capVal = b.totalCapacity || 8;
-                  const blockOccupancy = Math.round((occBedsVal / Math.max(1, capVal)) * 100);
+                  const blockTitle = rawName && isNaN(Number(rawName)) ? rawName : `Hostel Block #${b.hostelId || ''}`;
+                  const codeVal = b.hostelCode || (b as any).code || `HST-${b.hostelId || '01'}`;
+                  const wardenVal = b.wardenName || (b as any).warden || 'Not Assigned';
+                  const phoneVal = b.primaryMobileNumber || (b as any).contactNumber || 'N/A';
+                  const addressVal = b.address || 'Main Campus';
+                  const blockRooms = rooms.filter(r => String(r.hostelId) === String(b.hostelId));
+                  const roomsVal = blockRooms.length > 0 ? blockRooms.length : (Number(b.totalRooms) || 0);
+                  const occBedsVal = validAllocations.filter(a => String(a.hostelId) === String(b.hostelId)).length;
+                  const roomsCap = blockRooms.reduce((sum, r) => sum + (Number(r.bedCapacity) || Number(r.capacity) || 0), 0);
+                  const capVal = roomsCap > 0 ? roomsCap : (Number(b.totalCapacity) || 0);
+                  const blockOccupancy = capVal > 0 ? Math.round((occBedsVal / capVal) * 100) : 0;
 
                   return (
                     <div key={b.hostelId} className="p-4 rounded-2xl bg-slate-50/60 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/80 space-y-3 shadow-xs hover:border-sky-300 dark:hover:border-sky-700 transition-all">
@@ -449,6 +553,96 @@ export const HostelDashboardView: React.FC<HostelDashboardViewProps> = ({ onNavi
                 onPageChange={setBlockPage}
               />
             )}
+          </div>
+
+          {/* DYNAMIC HOSTEL FEE COLLECTIONS & DUE BALANCE REGISTER */}
+          <div className="glass-card p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 space-y-4 shadow-sm">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b border-slate-100 dark:border-slate-800 pb-3">
+              <div>
+                <h3 className="text-sm font-black text-slate-900 dark:text-white flex items-center gap-2">
+                  <IndianRupee className="w-4 h-4 text-emerald-500" /> Hosteller Fee Payment & Due Balance Register
+                </h3>
+                <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                  Live dynamic billing, security deposit tracking, and remaining balance for admitted hostellers.
+                </p>
+              </div>
+              <div className="flex items-center gap-2 text-xs font-mono">
+                <span className="px-2.5 py-1 rounded-xl bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300 font-bold">
+                  Collected: {formatCurrency(dynamicHostelRevenue.totalCollected)}
+                </span>
+                <span className="px-2.5 py-1 rounded-xl bg-rose-50 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300 font-bold">
+                  Remaining Due: {formatCurrency(dynamicHostelRevenue.totalPendingDues)}
+                </span>
+              </div>
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse text-xs">
+                <thead>
+                  <tr className="border-b border-slate-200 dark:border-slate-700 text-[10px] font-extrabold uppercase text-slate-400">
+                    <th className="py-2.5 px-3">Student</th>
+                    <th className="py-2.5 px-3">Room & Bed</th>
+                    <th className="py-2.5 px-3">Security Deposit</th>
+                    <th className="py-2.5 px-3">Expected Fee</th>
+                    <th className="py-2.5 px-3">Amount Paid</th>
+                    <th className="py-2.5 px-3">Remaining Due</th>
+                    <th className="py-2.5 px-3">Status</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-medium">
+                  {(dynamicHostelRevenue.hostellersFeeStatus || []).length === 0 ? (
+                    <tr>
+                      <td colSpan={7} className="py-6 text-center text-slate-400 font-semibold italic text-xs">
+                        No active bed allocations or hosteller records found.
+                      </td>
+                    </tr>
+                  ) : (
+                    dynamicHostelRevenue.hostellersFeeStatus.map((h, i) => (
+                      <tr key={h.allocationId || i} className="hover:bg-slate-50/60 dark:hover:bg-slate-800/40 transition-colors">
+                        <td className="py-2.5 px-3">
+                          <span className="font-bold text-slate-900 dark:text-white block">{h.studentName}</span>
+                          <span className="text-[10px] text-slate-400 font-mono">{h.admissionNo}</span>
+                        </td>
+                        <td className="py-2.5 px-3 font-mono text-[11px]">
+                          {formatRoomNumber(h.roomNumber)} • {h.bedNumber}
+                        </td>
+                        <td className="py-2.5 px-3">
+                          {h.isDepositPaid ? (
+                            <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
+                              ✓ Paid
+                            </span>
+                          ) : (
+                            <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300">
+                              Pending
+                            </span>
+                          )}
+                        </td>
+                        <td className="py-2.5 px-3 font-mono font-semibold text-slate-700 dark:text-slate-300">
+                          {formatCurrency(h.expected)}
+                        </td>
+                        <td className="py-2.5 px-3 font-mono font-bold text-emerald-600 dark:text-emerald-400">
+                          {formatCurrency(h.paid)}
+                        </td>
+                        <td className="py-2.5 px-3 font-mono font-bold text-rose-600 dark:text-rose-400">
+                          {formatCurrency(h.due)}
+                        </td>
+                        <td className="py-2.5 px-3">
+                          <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold ${ 
+                            h.status === 'Paid'
+                              ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300'
+                              : h.status === 'Partial'
+                              ? 'bg-sky-100 text-sky-800 dark:bg-sky-950 dark:text-sky-300'
+                              : 'bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300'
+                          }`}>
+                            {h.status}
+                          </span>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
           </div>
 
           {/* RECENT ACTIVITY SUMMARY TABLES */}

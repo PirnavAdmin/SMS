@@ -124,6 +124,15 @@ public class AdmissionApplicationResponseDto
     public string? HostelRoom { get; set; }
     public string? AvailableBed { get; set; }
 
+    [JsonPropertyName("hostelSecurityDepositPaid")]
+    public bool HostelSecurityDepositPaid { get; set; }
+
+    [JsonPropertyName("securityDepositAmount")]
+    public decimal? SecurityDepositAmount { get; set; }
+
+    [JsonPropertyName("securityDepositReceiptNo")]
+    public string? SecurityDepositReceiptNo { get; set; }
+
     [JsonPropertyName("allocatedBedId")]
     public string? AllocatedBedId => AvailableBed;
 

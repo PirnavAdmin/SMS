@@ -27,26 +27,22 @@ public class FeeCollectionRepository : IFeeCollectionRepository
         if (string.IsNullOrWhiteSpace(name)) return string.Empty;
         string lower = name.Trim().ToLowerInvariant();
 
-        if (lower.Contains("playgroup") || lower.Contains("play group") || lower.Contains("pg")) return "playgroup";
-        if (lower.Contains("nursery") || lower.Contains("nurs")) return "nursery";
-        if (lower.Contains("lkg") || lower.Contains("l.k.g")) return "lkg";
-        if (lower.Contains("ukg") || lower.Contains("u.k.g")) return "ukg";
-        if (lower.Contains("prep")) return "prep";
-
-        var match = System.Text.RegularExpressions.Regex.Match(lower, @"(?:class|grade)?\s*(\d+)");
+        var match = System.Text.RegularExpressions.Regex.Match(lower, @"^(?:class|grade|std|standard)?\s*(\d+)(?:st|nd|rd|th)?(?:[-\s]+[a-z0-9]+)?$");
         if (match.Success)
         {
             return match.Groups[1].Value;
         }
 
-        string clean = System.Text.RegularExpressions.Regex.Replace(lower, @"^class\s+", "");
-        clean = System.Text.RegularExpressions.Regex.Replace(clean, @"[-\s][a-z]$", "");
+        string clean = System.Text.RegularExpressions.Regex.Replace(lower, @"^(class|grade|std|standard)\s+", "");
+        clean = System.Text.RegularExpressions.Regex.Replace(clean, @"[-\s]+[a-z]$", "");
         clean = System.Text.RegularExpressions.Regex.Replace(clean, @"(st|nd|rd|th)$", "");
         return clean.Trim();
     }
 
     private static bool MatchesClassName(string? classA, string? classB)
     {
+        if (string.IsNullOrWhiteSpace(classA) || string.IsNullOrWhiteSpace(classB)) return false;
+        if (classA.Trim().Equals(classB.Trim(), StringComparison.OrdinalIgnoreCase)) return true;
         string gA = NormalizeGrade(classA);
         string gB = NormalizeGrade(classB);
         if (string.IsNullOrEmpty(gA) || string.IsNullOrEmpty(gB)) return false;
@@ -61,6 +57,93 @@ public class FeeCollectionRepository : IFeeCollectionRepository
             return true;
         if (string.IsNullOrWhiteSpace(studentSec)) return true;
         return s.Equals(studentSec.Trim().ToLowerInvariant(), StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static Dictionary<string, int> BuildClassOrderMap(IEnumerable<SMS.Api.Models.AcademicManagement.ClassGrade>? dbClasses)
+    {
+        var map = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        if (dbClasses == null) return map;
+
+        int seq = 1;
+        foreach (var c in dbClasses)
+        {
+            if (string.IsNullOrWhiteSpace(c.ClassName)) continue;
+            int order = c.DisplayOrder ?? seq++;
+            string cName = c.ClassName.Trim();
+            map[cName] = order;
+
+            string norm = NormalizeGrade(cName);
+            if (!string.IsNullOrEmpty(norm) && !map.ContainsKey(norm))
+            {
+                map[norm] = order;
+            }
+        }
+        return map;
+    }
+
+    private static int GetClassOrder(string? className, Dictionary<string, int>? classOrderMap = null)
+    {
+        if (string.IsNullOrWhiteSpace(className)) return 999;
+        string trimmed = className.Trim();
+
+        if (classOrderMap != null)
+        {
+            if (classOrderMap.TryGetValue(trimmed, out int ord)) return ord;
+            string norm = NormalizeGrade(trimmed);
+            if (!string.IsNullOrEmpty(norm) && classOrderMap.TryGetValue(norm, out int normOrd)) return normOrd;
+        }
+
+        var match = System.Text.RegularExpressions.Regex.Match(trimmed, @"\d+");
+        if (match.Success && int.TryParse(match.Value, out int gradeNum))
+        {
+            return 100 + gradeNum;
+        }
+        return 999;
+    }
+
+    private static string CleanRoomNumber(string? r) => (r ?? "").ToLower().Replace("room", "").Trim();
+
+    private static bool MatchesClassRange(
+        string? studentClass, 
+        SMS.Api.Models.FinanceManagement.HostelFeeConfig cfg,
+        Dictionary<string, int>? classOrderMap = null)
+    {
+        if (string.IsNullOrWhiteSpace(studentClass)) return true;
+        if (string.IsNullOrWhiteSpace(cfg.StartClass) && string.IsNullOrWhiteSpace(cfg.EndClass) && 
+            (string.IsNullOrWhiteSpace(cfg.ClassRange) || cfg.ClassRange == "All Classes" || cfg.ClassRange == "All"))
+            return true;
+
+        if (!string.IsNullOrWhiteSpace(cfg.ApplicableClasses))
+        {
+            var classes = cfg.ApplicableClasses.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+            if (classes.Any(c => MatchesClassName(c, studentClass)))
+                return true;
+        }
+
+        string sClass = cfg.StartClass ?? "";
+        string eClass = cfg.EndClass ?? "";
+        if (string.IsNullOrWhiteSpace(sClass) && !string.IsNullOrWhiteSpace(cfg.ClassRange) && cfg.ClassRange.Contains('-'))
+        {
+            var parts = cfg.ClassRange.Split('-');
+            sClass = parts[0].Trim();
+            eClass = parts[1].Trim();
+        }
+
+        if (!string.IsNullOrWhiteSpace(sClass) && !string.IsNullOrWhiteSpace(eClass))
+        {
+            int stOrder = GetClassOrder(studentClass, classOrderMap);
+            int startOrder = GetClassOrder(sClass, classOrderMap);
+            int endOrder = GetClassOrder(eClass, classOrderMap);
+            int minOrder = Math.Min(startOrder, endOrder);
+            int maxOrder = Math.Max(startOrder, endOrder);
+            return stOrder >= minOrder && stOrder <= maxOrder;
+        }
+        else if (!string.IsNullOrWhiteSpace(sClass))
+        {
+            return MatchesClassName(sClass, studentClass);
+        }
+
+        return false;
     }
 
     public async Task<FeeCollectionStudentRosterResponseDto> GetStudentRosterAsync(
@@ -137,9 +220,25 @@ public class FeeCollectionRepository : IFeeCollectionRepository
 
         var studentIntIds = students.Select(s => s.StudentId).ToList();
         var hostelAllocations = await _context.StudentBedAllocations.AsNoTracking()
-            .Where(b => b.StudentId.HasValue && studentIntIds.Contains(b.StudentId.Value) && b.Status == "Occupied")
-            .Select(b => b.StudentId!.Value)
+            .Include(b => b.Room)
+            .ThenInclude(r => r!.RoomType)
+            .Include(b => b.Hostel)
+            .Where(b => b.StudentId.HasValue && studentIntIds.Contains(b.StudentId.Value) && (b.Status == "Active" || b.Status == "Occupied" || string.IsNullOrEmpty(b.Status)))
             .ToListAsync();
+
+        var hostelApps = await _context.AdmissionApplications.AsNoTracking()
+            .Where(a => !a.IsDeleted && (a.StudentType == "Residential" || a.HostelBlock != null))
+            .ToListAsync();
+
+        var allHostelConfigs = await _context.HostelFeeConfigs.AsNoTracking()
+            .Where(h => h.Status == "Active" || string.IsNullOrEmpty(h.Status))
+            .ToListAsync();
+
+        var allDbClasses = await _context.Classes.AsNoTracking()
+            .Where(c => c.Status == "Active")
+            .OrderBy(c => c.DisplayOrder ?? c.ClassId)
+            .ToListAsync();
+        var classOrderMap = BuildClassOrderMap(allDbClasses);
 
         var transportAssignments = await _context.StudentTransportAssignments.AsNoTracking()
             .Include(t => t.Route)
@@ -158,7 +257,9 @@ public class FeeCollectionRepository : IFeeCollectionRepository
 
         foreach (var st in students)
         {
-            bool isHosteller = hostelAllocations.Contains(st.StudentId);
+            var alloc = hostelAllocations.FirstOrDefault(b => b.StudentId == st.StudentId || (st.AdmissionNumber != null && b.RegistrationNo == st.AdmissionNumber));
+            var hApp = hostelApps.FirstOrDefault(a => st.AdmissionNumber != null && (a.AdmissionNo == st.AdmissionNumber || a.RegistrationNo == st.AdmissionNumber));
+            bool isHosteller = alloc != null || hApp != null;
             string stType = isHosteller ? "Hosteller" : "Day Scholar";
 
             if (!string.IsNullOrWhiteSpace(studentType) && !studentType.Equals("ALL", StringComparison.OrdinalIgnoreCase))
@@ -201,12 +302,32 @@ public class FeeCollectionRepository : IFeeCollectionRepository
                 }
             }
 
+            decimal hostelFee = 0m;
+            if (isHosteller)
+            {
+                string bName = alloc?.Hostel?.HostelName ?? hApp?.HostelBlock ?? "";
+                string rNo = alloc?.Room?.RoomNumber ?? hApp?.HostelRoom ?? "";
+                string acType = alloc?.Room?.RoomType?.AcType ?? "";
+                int bedCap = alloc?.Room?.RoomType?.BedCapacity ?? 0;
+
+                var matchedCfg = allHostelConfigs.FirstOrDefault(c => 
+                    MatchesClassRange(cName, c, classOrderMap) &&
+                    (string.IsNullOrEmpty(bName) || c.HostelName == "All" || c.HostelName.Equals(bName, StringComparison.OrdinalIgnoreCase) || bName.Contains(c.HostelName, StringComparison.OrdinalIgnoreCase)) &&
+                    (string.IsNullOrEmpty(rNo) || c.RoomNo == "All Rooms" || c.RoomNo == "All" || CleanRoomNumber(c.RoomNo) == CleanRoomNumber(rNo))
+                ) ?? allHostelConfigs.FirstOrDefault(c => MatchesClassRange(cName, c, classOrderMap)) ?? allHostelConfigs.FirstOrDefault();
+
+                if (matchedCfg != null)
+                {
+                    hostelFee = matchedCfg.HostelFee + matchedCfg.SecurityDeposit;
+                }
+            }
+
             var stPayments = payments.Where(p => p.StudentId == st.StudentId.ToString() || p.StudentId == st.AdmissionNumber).ToList();
             decimal paidAmt = stPayments.Sum(p => p.Amount);
             decimal discountAmt = stPayments.Sum(p => p.DiscountAmount);
             decimal fineAmt = stPayments.Sum(p => p.FineAmount);
 
-            decimal totalStudentFee = baseClassFee + transportFee;
+            decimal totalStudentFee = baseClassFee + transportFee + hostelFee;
             decimal outstanding = Math.Max(0m, totalStudentFee - paidAmt - discountAmt + fineAmt);
 
             items.Add(new FeeCollectionStudentSummaryDto
@@ -308,7 +429,15 @@ public class FeeCollectionRepository : IFeeCollectionRepository
         decimal totalDiscounts = payments.Sum(p => p.DiscountAmount);
 
         bool isHosteller = await _context.StudentBedAllocations.AsNoTracking()
-            .AnyAsync(b => b.StudentId == student.StudentId && b.Status == "Occupied");
+            .AnyAsync(b => (b.StudentId == student.StudentId || (student.AdmissionNumber != null && b.RegistrationNo == student.AdmissionNumber)) && 
+                           (b.Status == "Active" || b.Status == "Occupied" || string.IsNullOrEmpty(b.Status)));
+
+        if (!isHosteller && !string.IsNullOrEmpty(student.AdmissionNumber))
+        {
+            isHosteller = await _context.AdmissionApplications.AsNoTracking()
+                .AnyAsync(a => !a.IsDeleted && (a.AdmissionNo == student.AdmissionNumber || a.RegistrationNo == student.AdmissionNumber) &&
+                               (a.StudentType == "Residential" || a.HostelBlock != null));
+        }
 
         var feeStructures = await _context.DynamicFeeStructures.AsNoTracking().ToListAsync();
         var matchedStructure = feeStructures.FirstOrDefault(f => 
@@ -555,6 +684,153 @@ public class FeeCollectionRepository : IFeeCollectionRepository
                         Terms = trpTerms
                     });
                 }
+            }
+        }
+
+        if (isHosteller)
+        {
+            var alloc = await _context.StudentBedAllocations.AsNoTracking()
+                .Include(b => b.Room)
+                .ThenInclude(r => r!.RoomType)
+                .Include(b => b.Hostel)
+                .FirstOrDefaultAsync(b => (b.StudentId == student.StudentId || (student.AdmissionNumber != null && b.RegistrationNo == student.AdmissionNumber)) &&
+                                          (b.Status == "Active" || b.Status == "Occupied" || string.IsNullOrEmpty(b.Status)));
+
+            var app = await _context.AdmissionApplications.AsNoTracking()
+                .FirstOrDefaultAsync(a => !a.IsDeleted && student.AdmissionNumber != null && (a.AdmissionNo == student.AdmissionNumber || a.RegistrationNo == student.AdmissionNumber));
+
+            string blockName = alloc?.Hostel?.HostelName ?? app?.HostelBlock ?? "";
+            string blockId = alloc?.HostelId.ToString() ?? "";
+            string roomNo = alloc?.Room?.RoomNumber ?? app?.HostelRoom ?? "";
+            string acType = alloc?.Room?.RoomType?.AcType ?? "";
+            int bedCap = alloc?.Room?.RoomType?.BedCapacity ?? 0;
+            string roomTypeSpec = alloc?.Room?.RoomType?.RoomTypeSpecification ?? "";
+
+            if (alloc == null && app != null && !string.IsNullOrEmpty(app.HostelRoom))
+            {
+                var matchedRoom = await _context.RoomMasters.AsNoTracking()
+                    .Include(r => r.RoomType)
+                    .Include(r => r.Hostel)
+                    .FirstOrDefaultAsync(r => 
+                        (r.RoomNumber != null && CleanRoomNumber(r.RoomNumber) == CleanRoomNumber(app.HostelRoom)) &&
+                        (string.IsNullOrEmpty(app.HostelBlock) || (r.Hostel != null && r.Hostel.HostelName != null && r.Hostel.HostelName.Equals(app.HostelBlock, StringComparison.OrdinalIgnoreCase))));
+                if (matchedRoom != null)
+                {
+                    if (string.IsNullOrEmpty(acType) && matchedRoom.RoomType != null) acType = matchedRoom.RoomType.AcType ?? "";
+                    if (bedCap == 0 && matchedRoom.RoomType != null) bedCap = matchedRoom.RoomType.BedCapacity;
+                    if (string.IsNullOrEmpty(roomTypeSpec) && matchedRoom.RoomType != null) roomTypeSpec = matchedRoom.RoomType.RoomTypeSpecification ?? "";
+                }
+            }
+
+            var allHostelConfigs = await _context.HostelFeeConfigs.AsNoTracking()
+                .Where(h => h.Status == "Active" || string.IsNullOrEmpty(h.Status))
+                .ToListAsync();
+
+            var allDbClasses = await _context.Classes.AsNoTracking()
+                .Where(c => c.Status == "Active")
+                .OrderBy(c => c.DisplayOrder ?? c.ClassId)
+                .ToListAsync();
+            var classOrderMap = BuildClassOrderMap(allDbClasses);
+
+            var candidateConfigs = allHostelConfigs.Where(c => 
+            {
+                if (!MatchesClassRange(cName, c, classOrderMap)) return false;
+                if (!string.IsNullOrEmpty(blockName) || !string.IsNullOrEmpty(blockId))
+                {
+                    bool bMatch = (c.HostelId == "All" || c.HostelName == "All" || string.IsNullOrWhiteSpace(c.HostelName) ||
+                                   (!string.IsNullOrEmpty(blockId) && c.HostelId == blockId) ||
+                                   (!string.IsNullOrEmpty(blockName) && c.HostelName.Equals(blockName, StringComparison.OrdinalIgnoreCase)) ||
+                                   (!string.IsNullOrEmpty(blockName) && blockName.Contains(c.HostelName, StringComparison.OrdinalIgnoreCase)) ||
+                                   (!string.IsNullOrEmpty(blockName) && c.HostelName.Contains(blockName, StringComparison.OrdinalIgnoreCase)));
+                    if (!bMatch) return false;
+                }
+                if (!string.IsNullOrEmpty(roomNo) && c.RoomNo != "All Rooms" && c.RoomNo != "All" && !string.IsNullOrWhiteSpace(c.RoomNo))
+                {
+                    bool rMatch = (CleanRoomNumber(c.RoomNo) == CleanRoomNumber(roomNo)) ||
+                                  (!string.IsNullOrEmpty(c.RoomId) && alloc != null && c.RoomId == alloc.RoomId.ToString());
+                    if (!rMatch) return false;
+                }
+                if (!string.IsNullOrEmpty(acType) && c.AcType != "All" && !string.IsNullOrWhiteSpace(c.AcType))
+                {
+                    bool isAcStudent = acType.Contains("AC", StringComparison.OrdinalIgnoreCase) && !acType.Contains("Non", StringComparison.OrdinalIgnoreCase);
+                    bool isAcConfig = c.AcType.Contains("AC", StringComparison.OrdinalIgnoreCase) && !c.AcType.Contains("Non", StringComparison.OrdinalIgnoreCase);
+                    if (isAcStudent != isAcConfig) return false;
+                }
+                if (bedCap > 0 && c.SharingType != "All" && !string.IsNullOrWhiteSpace(c.SharingType))
+                {
+                    bool capMatch = c.SharingType.Contains(bedCap.ToString()) ||
+                                    (bedCap == 1 && c.SharingType.Contains("single", StringComparison.OrdinalIgnoreCase)) ||
+                                    (bedCap == 2 && c.SharingType.Contains("double", StringComparison.OrdinalIgnoreCase)) ||
+                                    (bedCap == 3 && c.SharingType.Contains("triple", StringComparison.OrdinalIgnoreCase)) ||
+                                    (bedCap == 4 && c.SharingType.Contains("4", StringComparison.OrdinalIgnoreCase));
+                    if (!capMatch) return false;
+                }
+                return true;
+            })
+            .OrderByDescending(c => (c.RoomNo != "All Rooms" && c.RoomNo != "All" && !string.IsNullOrWhiteSpace(c.RoomNo)) ? 10 : 0)
+            .ThenByDescending(c => (c.RoomTypeName != "All Room Types" && !string.IsNullOrWhiteSpace(c.RoomTypeName)) ? 5 : 0)
+            .ThenByDescending(c => (c.AcType != "All" && !string.IsNullOrWhiteSpace(c.AcType)) ? 2 : 0)
+            .ToList();
+
+            var matchedCfg = candidateConfigs.FirstOrDefault();
+            decimal annualHostelFee = 0m;
+            string hostelFrequency = "Annual";
+
+            if (matchedCfg != null)
+            {
+                decimal hFee = matchedCfg.HostelFee;
+                decimal sDep = matchedCfg.SecurityDeposit;
+                hostelFrequency = matchedCfg.FeePlan ?? "Annual";
+                if (matchedCfg.FeePlan.Equals("Monthly", StringComparison.OrdinalIgnoreCase))
+                {
+                    annualHostelFee = (hFee * 12m) + sDep;
+                }
+                else
+                {
+                    annualHostelFee = hFee + sDep;
+                }
+            }
+            else if (allHostelConfigs.Count > 0)
+            {
+                var classCfg = allHostelConfigs.FirstOrDefault(c => MatchesClassRange(cName, c, classOrderMap)) ?? allHostelConfigs.First();
+                annualHostelFee = classCfg.HostelFee + classCfg.SecurityDeposit;
+                hostelFrequency = classCfg.FeePlan ?? "Annual";
+            }
+
+            if (annualHostelFee > 0m)
+            {
+                decimal paidHostel = payments.Where(p => 
+                    (p.FeeHeadName != null && p.FeeHeadName.Contains("Hostel", StringComparison.OrdinalIgnoreCase)) ||
+                    (p.TermName != null && p.TermName.Contains("Hostel", StringComparison.OrdinalIgnoreCase)) ||
+                    (p.Remarks != null && p.Remarks.Contains("Hostel", StringComparison.OrdinalIgnoreCase))
+                ).Sum(p => p.Amount);
+
+                decimal hstRemaining = Math.Max(0m, annualHostelFee - paidHostel);
+
+                var hstTerms = BuildDynamicTerms(annualHostelFee, paidHostel, "Hostel Fee - ");
+                bool isHstOverdue = hstRemaining > 0 && hstTerms.Any(t => t.IsOverdue);
+                int hstDaysOverdue = isHstOverdue ? hstTerms.Max(t => t.DaysOverdue) : 0;
+
+                string hstHeadId = "FH-HST";
+                string rNoDisplay = !string.IsNullOrEmpty(roomNo) ? $", Room {roomNo}" : "";
+                string label = !string.IsNullOrEmpty(blockName)
+                    ? $"Hostel Fee ({blockName}{rNoDisplay})"
+                    : "Hostel Accommodation Fee";
+
+                lineItems.Add(new FeeLineItemDto
+                {
+                    FeeHeadId = hstHeadId,
+                    HeadName = label,
+                    Frequency = hostelFrequency,
+                    DueDate = defaultDueDate,
+                    TotalAmount = annualHostelFee,
+                    PaidAmount = paidHostel,
+                    RemainingAmount = hstRemaining,
+                    Status = hstRemaining == 0 ? "PAID" : (paidHostel > 0 ? "PARTIAL" : (isHstOverdue ? "OVERDUE" : "PENDING")),
+                    IsOverdue = isHstOverdue,
+                    DaysOverdue = hstDaysOverdue,
+                    Terms = hstTerms
+                });
             }
         }
 
@@ -922,6 +1198,10 @@ public class FeeCollectionRepository : IFeeCollectionRepository
             .ToListAsync();
 
         var feeStructures = await _context.DynamicFeeStructures.AsNoTracking().ToListAsync();
+        var allDbClasses = await _context.Classes.AsNoTracking()
+            .Where(c => c.Status == "Active")
+            .OrderBy(c => c.DisplayOrder ?? c.ClassId)
+            .ToListAsync();
 
         var resultList = new List<PromotedDueStudentDto>();
 
@@ -929,7 +1209,7 @@ public class FeeCollectionRepository : IFeeCollectionRepository
         {
             string cName = st.ClassGrade?.ClassName ?? string.Empty;
             string sName = st.ClassSection?.SectionName ?? string.Empty;
-            string prevClass = GetPreviousClassName(cName);
+            string prevClass = GetPreviousClassName(cName, allDbClasses);
             string defaultPrevAY = $"{(DateTime.UtcNow.Year - 1)}-{DateTime.UtcNow.Year}";
             var prevYears = new List<string> { string.IsNullOrWhiteSpace(previousAcademicYear) || previousAcademicYear.Equals("ALL", StringComparison.OrdinalIgnoreCase) ? defaultPrevAY : previousAcademicYear };
 
@@ -1047,21 +1327,16 @@ public class FeeCollectionRepository : IFeeCollectionRepository
         return resultList;
     }
 
-    private static string GetPreviousClassName(string currentClass)
+    private static string GetPreviousClassName(string currentClass, List<SMS.Api.Models.AcademicManagement.ClassGrade>? orderedClasses)
     {
-        string norm = NormalizeGrade(currentClass);
-        if (norm == "10") return "Class 9";
-        if (norm == "9") return "Class 8";
-        if (norm == "8") return "Class 7";
-        if (norm == "7") return "Class 6";
-        if (norm == "6") return "Class 5";
-        if (norm == "5") return "Class 4";
-        if (norm == "4") return "Class 3";
-        if (norm == "3") return "Class 2";
-        if (norm == "2") return "Class 1";
-        if (norm == "1") return "UKG";
-        if (norm == "ukg") return "LKG";
-        if (norm == "lkg") return "Nursery";
+        if (string.IsNullOrWhiteSpace(currentClass) || orderedClasses == null || orderedClasses.Count == 0)
+            return string.Empty;
+
+        int idx = orderedClasses.FindIndex(c => MatchesClassName(c.ClassName, currentClass));
+        if (idx > 0)
+        {
+            return orderedClasses[idx - 1].ClassName ?? string.Empty;
+        }
         return string.Empty;
     }
 
@@ -1254,6 +1529,21 @@ public class FeeCollectionRepository : IFeeCollectionRepository
         var studentIdsSet = activeStudents.Select(s => s.StudentId.ToString()).ToHashSet();
         var admNosSet = activeStudents.Where(s => s.AdmissionNumber != null).Select(s => s.AdmissionNumber!).ToHashSet();
 
+        var activeClassesList = await _context.Classes.AsNoTracking()
+            .Where(c => c.Status == "Active" || string.IsNullOrEmpty(c.Status))
+            .ToListAsync();
+
+        var classIdToNameDict = activeClassesList.ToDictionary(c => c.ClassId, c => c.ClassName, EqualityComparer<int>.Default);
+
+        string GetStudentClassName(SMS.Api.Models.Student st)
+        {
+            if (st.ClassGrade != null && !string.IsNullOrWhiteSpace(st.ClassGrade.ClassName))
+                return st.ClassGrade.ClassName;
+            if (classIdToNameDict.TryGetValue(st.ClassId, out var name) && !string.IsNullOrWhiteSpace(name))
+                return name;
+            return string.Empty;
+        }
+
         // 2. Tuition / Academic Fees Calculation
         var assignments = await _context.StudentFeeAssignments.AsNoTracking().ToListAsync();
         var dynamicStructures = await _context.DynamicFeeStructures.AsNoTracking().Where(d => d.Status == "Active" || string.IsNullOrEmpty(d.Status)).ToListAsync();
@@ -1315,16 +1605,149 @@ public class FeeCollectionRepository : IFeeCollectionRepository
                         (!string.IsNullOrEmpty(p.Remarks) && p.Remarks.Contains("Uniform", StringComparison.OrdinalIgnoreCase)))
             .Sum(p => p.Amount);
 
-        // 3. Hostel Module Metrics
+        // 3. Hostel Module Metrics (100% Dynamic from active bed allocations, residential admissions, and hostel fee configs)
         var activeBedAllocations = await _context.StudentBedAllocations.AsNoTracking()
             .Include(b => b.Room)
             .ThenInclude(r => r!.RoomType)
-            .Where(b => b.Status == "Active" || string.IsNullOrEmpty(b.Status))
+            .Include(b => b.Hostel)
+            .Where(b => b.Status == "Active" || b.Status == "Occupied" || string.IsNullOrEmpty(b.Status))
             .ToListAsync();
 
-        decimal hostelExpected = activeBedAllocations.Count > 0 
-            ? activeBedAllocations.Count * 24000m
-            : 0m;
+        var hostelAdmissions = await _context.AdmissionApplications.AsNoTracking()
+            .Where(a => !a.IsDeleted && (a.StudentType == "Residential" || a.HostelBlock != null || a.HostelRoom != null))
+            .ToListAsync();
+
+        var allHostelConfigs = await _context.HostelFeeConfigs.AsNoTracking()
+            .Where(h => h.Status == "Active" || string.IsNullOrEmpty(h.Status))
+            .ToListAsync();
+
+        var allDbClasses = await _context.Classes.AsNoTracking()
+            .Where(c => c.Status == "Active")
+            .OrderBy(c => c.DisplayOrder ?? c.ClassId)
+            .ToListAsync();
+        var classOrderMap = BuildClassOrderMap(allDbClasses);
+
+        var allHostelBlocks = await _context.HostelBlocks.AsNoTracking().ToListAsync();
+        var allHostelRooms = await _context.RoomMasters.AsNoTracking()
+            .Include(r => r.RoomType)
+            .Include(r => r.Hostel)
+            .ToListAsync();
+
+        decimal hostelExpected = 0m;
+        var studentHostelMap = new Dictionary<string, decimal>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var s in activeStudents)
+        {
+            string sIdStr = s.StudentId.ToString();
+            string admNo = s.AdmissionNumber ?? "";
+            string stClassName = GetStudentClassName(s);
+
+            var alloc = activeBedAllocations.FirstOrDefault(b => 
+                (b.StudentId.HasValue && b.StudentId.Value == s.StudentId) ||
+                (!string.IsNullOrEmpty(admNo) && (b.RegistrationNo == admNo || b.StudentName == s.StudentName)));
+
+            var app = hostelAdmissions.FirstOrDefault(a => 
+                (!string.IsNullOrEmpty(admNo) && (a.AdmissionNo == admNo || a.RegistrationNo == admNo)) ||
+                a.Id == s.StudentId);
+
+            bool isResident = alloc != null || app != null;
+            if (isResident)
+            {
+                string blockName = alloc?.Hostel?.HostelName ?? app?.HostelBlock ?? "";
+                string blockId = alloc?.HostelId.ToString() ?? "";
+                string roomNo = alloc?.Room?.RoomNumber ?? app?.HostelRoom ?? "";
+                string acType = alloc?.Room?.RoomType?.AcType ?? "";
+                int bedCap = alloc?.Room?.RoomType?.BedCapacity ?? 0;
+                string roomTypeSpec = alloc?.Room?.RoomType?.RoomTypeSpecification ?? "";
+
+                if (alloc == null && app != null && !string.IsNullOrEmpty(app.HostelRoom))
+                {
+                    var matchedRoom = allHostelRooms.FirstOrDefault(r => 
+                        CleanRoomNumber(r.RoomNumber) == CleanRoomNumber(app.HostelRoom) &&
+                        (string.IsNullOrEmpty(app.HostelBlock) || (r.Hostel != null && r.Hostel.HostelName != null && r.Hostel.HostelName.Equals(app.HostelBlock, StringComparison.OrdinalIgnoreCase))));
+                    if (matchedRoom != null)
+                    {
+                        if (string.IsNullOrEmpty(acType) && matchedRoom.RoomType != null) acType = matchedRoom.RoomType.AcType ?? "";
+                        if (bedCap == 0 && matchedRoom.RoomType != null) bedCap = matchedRoom.RoomType.BedCapacity;
+                        if (string.IsNullOrEmpty(roomTypeSpec) && matchedRoom.RoomType != null) roomTypeSpec = matchedRoom.RoomType.RoomTypeSpecification ?? "";
+                    }
+                }
+
+                var candidateConfigs = allHostelConfigs.Where(c => 
+                {
+                    if (!MatchesClassRange(stClassName, c, classOrderMap)) return false;
+
+                    if (!string.IsNullOrEmpty(blockName) || !string.IsNullOrEmpty(blockId))
+                    {
+                        bool bMatch = (c.HostelId == "All" || c.HostelName == "All" || string.IsNullOrWhiteSpace(c.HostelName) ||
+                                       (!string.IsNullOrEmpty(blockId) && c.HostelId == blockId) ||
+                                       (!string.IsNullOrEmpty(blockName) && c.HostelName.Equals(blockName, StringComparison.OrdinalIgnoreCase)) ||
+                                       (!string.IsNullOrEmpty(blockName) && blockName.Contains(c.HostelName, StringComparison.OrdinalIgnoreCase)) ||
+                                       (!string.IsNullOrEmpty(blockName) && c.HostelName.Contains(blockName, StringComparison.OrdinalIgnoreCase)));
+                        if (!bMatch) return false;
+                    }
+
+                    if (!string.IsNullOrEmpty(roomNo) && c.RoomNo != "All Rooms" && c.RoomNo != "All" && !string.IsNullOrWhiteSpace(c.RoomNo))
+                    {
+                        bool rMatch = CleanRoomNumber(c.RoomNo) == CleanRoomNumber(roomNo) ||
+                                      (!string.IsNullOrEmpty(c.RoomId) && alloc != null && c.RoomId == alloc.RoomId.ToString());
+                        if (!rMatch) return false;
+                    }
+
+                    if (!string.IsNullOrEmpty(acType) && c.AcType != "All" && !string.IsNullOrWhiteSpace(c.AcType))
+                    {
+                        bool isAcStudent = acType.Contains("AC", StringComparison.OrdinalIgnoreCase) && !acType.Contains("Non", StringComparison.OrdinalIgnoreCase);
+                        bool isAcConfig = c.AcType.Contains("AC", StringComparison.OrdinalIgnoreCase) && !c.AcType.Contains("Non", StringComparison.OrdinalIgnoreCase);
+                        if (isAcStudent != isAcConfig) return false;
+                    }
+
+                    if (bedCap > 0 && c.SharingType != "All" && !string.IsNullOrWhiteSpace(c.SharingType))
+                    {
+                        bool capMatch = c.SharingType.Contains(bedCap.ToString()) ||
+                                        (bedCap == 1 && c.SharingType.Contains("single", StringComparison.OrdinalIgnoreCase)) ||
+                                        (bedCap == 2 && c.SharingType.Contains("double", StringComparison.OrdinalIgnoreCase)) ||
+                                        (bedCap == 3 && c.SharingType.Contains("triple", StringComparison.OrdinalIgnoreCase)) ||
+                                        (bedCap == 4 && c.SharingType.Contains("4", StringComparison.OrdinalIgnoreCase));
+                        if (!capMatch) return false;
+                    }
+
+                    return true;
+                })
+                .OrderByDescending(c => (c.RoomNo != "All Rooms" && c.RoomNo != "All" && !string.IsNullOrWhiteSpace(c.RoomNo)) ? 10 : 0)
+                .ThenByDescending(c => (c.RoomTypeName != "All Room Types" && !string.IsNullOrWhiteSpace(c.RoomTypeName)) ? 5 : 0)
+                .ThenByDescending(c => (c.AcType != "All" && !string.IsNullOrWhiteSpace(c.AcType)) ? 2 : 0)
+                .ToList();
+
+                var matchedCfg = candidateConfigs.FirstOrDefault();
+                decimal annualHostelFee = 0m;
+
+                if (matchedCfg != null)
+                {
+                    decimal hFee = matchedCfg.HostelFee;
+                    decimal sDep = matchedCfg.SecurityDeposit;
+                    if (matchedCfg.FeePlan.Equals("Monthly", StringComparison.OrdinalIgnoreCase))
+                    {
+                        annualHostelFee = (hFee * 12m) + sDep;
+                    }
+                    else
+                    {
+                        annualHostelFee = hFee + sDep;
+                    }
+                }
+                else if (allHostelConfigs.Count > 0)
+                {
+                    var classCfg = allHostelConfigs.FirstOrDefault(c => MatchesClassRange(stClassName, c, classOrderMap)) ?? allHostelConfigs.First();
+                    annualHostelFee = classCfg.HostelFee + classCfg.SecurityDeposit;
+                }
+
+                if (annualHostelFee > 0m)
+                {
+                    studentHostelMap[sIdStr] = annualHostelFee;
+                    if (!string.IsNullOrEmpty(admNo)) studentHostelMap[admNo] = annualHostelFee;
+                    hostelExpected += annualHostelFee;
+                }
+            }
+        }
 
         decimal hostelCollected = hostelCollectedFromPayments;
         if (hostelExpected > 0 && hostelCollected == 0m)
@@ -1471,36 +1894,6 @@ public class FeeCollectionRepository : IFeeCollectionRepository
         double efficiency = totalExpected > 0 ? Math.Round((double)(totalCollected / totalExpected) * 100, 1) : (totalCollected > 0 ? 100.0 : 0.0);
 
         // 9. Class-wise Revenue Breakdown
-        int GetClassOrder(string className)
-        {
-            if (string.IsNullOrWhiteSpace(className)) return 999;
-            string lower = className.ToLower().Trim();
-            if (lower.Contains("nursery") || lower.Contains("play")) return 1;
-            if (lower.Contains("lkg") || lower.Contains("pp1") || lower.Contains("kg1")) return 2;
-            if (lower.Contains("ukg") || lower.Contains("pp2") || lower.Contains("kg2")) return 3;
-            var match = System.Text.RegularExpressions.Regex.Match(className, @"\d+");
-            if (match.Success && int.TryParse(match.Value, out int gradeNum))
-            {
-                return 10 + gradeNum;
-            }
-            return 100;
-        }
-
-        var activeClassesList = await _context.Classes.AsNoTracking()
-            .Where(c => c.Status == "Active" || string.IsNullOrEmpty(c.Status))
-            .ToListAsync();
-
-        var classIdToNameDict = activeClassesList.ToDictionary(c => c.ClassId, c => c.ClassName, EqualityComparer<int>.Default);
-
-        string GetStudentClassName(SMS.Api.Models.Student st)
-        {
-            if (st.ClassGrade != null && !string.IsNullOrWhiteSpace(st.ClassGrade.ClassName))
-                return st.ClassGrade.ClassName;
-            if (classIdToNameDict.TryGetValue(st.ClassId, out var name) && !string.IsNullOrWhiteSpace(name))
-                return name;
-            return string.Empty;
-        }
-
         var dbClassNames = activeClassesList
             .Select(c => c.ClassName)
             .Where(n => !string.IsNullOrWhiteSpace(n))
@@ -1577,7 +1970,17 @@ public class FeeCollectionRepository : IFeeCollectionRepository
                         stTransport = tAmt2;
                     }
 
-                    classExpected += (stTuition + stTransport);
+                    decimal stHostel = 0m;
+                    if (studentHostelMap.TryGetValue(stIdStr, out decimal hAmt))
+                    {
+                        stHostel = hAmt;
+                    }
+                    else if (!string.IsNullOrEmpty(stAdmNo) && studentHostelMap.TryGetValue(stAdmNo, out decimal hAmt2))
+                    {
+                        stHostel = hAmt2;
+                    }
+
+                    classExpected += (stTuition + stTransport + stHostel);
                 }
             }
             else
@@ -1685,25 +2088,57 @@ public class FeeCollectionRepository : IFeeCollectionRepository
         if (hostelExpected > 0 || hostelCollected > 0)
         {
             string hKey = "Hostel Accommodation";
-            if (!catSummaryDict.ContainsKey(hKey)) catSummaryDict[hKey] = (hKey, hostelExpected, hostelCollected);
+            if (!catSummaryDict.ContainsKey(hKey))
+            {
+                catSummaryDict[hKey] = (hKey, hostelExpected, hostelCollected);
+            }
+            else
+            {
+                var cur = catSummaryDict[hKey];
+                catSummaryDict[hKey] = (cur.Name, Math.Max(cur.Expected, hostelExpected), Math.Max(cur.Collected, hostelCollected));
+            }
         }
 
         if (transportExpected > 0 || transportCollectedTotal > 0)
         {
             string tKey = "Transport & Conveyance";
-            if (!catSummaryDict.ContainsKey(tKey)) catSummaryDict[tKey] = (tKey, transportExpected, transportCollectedTotal);
+            if (!catSummaryDict.ContainsKey(tKey))
+            {
+                catSummaryDict[tKey] = (tKey, transportExpected, transportCollectedTotal);
+            }
+            else
+            {
+                var cur = catSummaryDict[tKey];
+                catSummaryDict[tKey] = (cur.Name, Math.Max(cur.Expected, transportExpected), Math.Max(cur.Collected, transportCollectedTotal));
+            }
         }
 
         if (uniformExpected > 0 || uniformCollected > 0)
         {
             string uKey = "Uniform & Merchandise";
-            if (!catSummaryDict.ContainsKey(uKey)) catSummaryDict[uKey] = (uKey, uniformExpected, uniformCollected);
+            if (!catSummaryDict.ContainsKey(uKey))
+            {
+                catSummaryDict[uKey] = (uKey, uniformExpected, uniformCollected);
+            }
+            else
+            {
+                var cur = catSummaryDict[uKey];
+                catSummaryDict[uKey] = (cur.Name, Math.Max(cur.Expected, uniformExpected), Math.Max(cur.Collected, uniformCollected));
+            }
         }
 
         if (finesExpected > 0 || finesCollected > 0)
         {
             string fKey = "Late Fines & Penalties";
-            if (!catSummaryDict.ContainsKey(fKey)) catSummaryDict[fKey] = (fKey, finesExpected, finesCollected);
+            if (!catSummaryDict.ContainsKey(fKey))
+            {
+                catSummaryDict[fKey] = (fKey, finesExpected, finesCollected);
+            }
+            else
+            {
+                var cur = catSummaryDict[fKey];
+                catSummaryDict[fKey] = (cur.Name, Math.Max(cur.Expected, finesExpected), Math.Max(cur.Collected, finesCollected));
+            }
         }
 
         var categoryBreakdown = new List<FeeCategoryCollectionSummaryDto>();

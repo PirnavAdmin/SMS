@@ -81,6 +81,8 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
     removeScholarshipFromStudent,
     applyDiscountToStudent,
     removeDiscountFromStudent,
+    updateAdmission,
+    updateStudent,
   } = useData();
   const { selectedAcademicYear, selectedBranch } = useAuth();
   const { addToast } = useToast();
@@ -301,7 +303,7 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
 
     // 1. Primary source for enrolled students: Enrolled admissions (e.g. REG-2044)
     (admissions || [])
-      .filter((adm) => adm && (adm.status === "Enrolled" || adm.status === "Approved"))
+      .filter((adm) => adm && adm.status !== "Rejected")
       .forEach((adm) => {
         const admId = adm.id || adm.applicationNo || adm.registrationNo;
         const admNo = (adm as any).admissionNo || (adm as any).admissionNumber || adm.registrationNo || adm.applicationNo || adm.id;
@@ -349,6 +351,9 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
           pickupPointId: (adm as any).pickupPointId || "",
           registrationNo: adm.registrationNo || (adm as any).registrationNumber || "",
           applicationNo: adm.applicationNo || (adm as any).applicationId || "",
+          hostelSharing: (adm as any).hostelSharing || (adm as any).roomSharing || (adm as any).roomType || "",
+          hostelAc: (adm as any).hostelAc || (adm as any).acType || "",
+          hostelSecurityDepositPaid: Boolean((adm as any).hostelSecurityDepositPaid),
         } as unknown as Student);
       });
 
@@ -584,6 +589,25 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
     } else if (!initialStudent) {
       lastInitialStudentIdRef.current = null;
     }
+
+    // Auto-select student when navigated via edu_fee_pay_target (e.g. from Admissions 'Pay Hostel Security Deposit')
+    try {
+      const storedPayTarget = sessionStorage.getItem('edu_fee_pay_target');
+      if (storedPayTarget) {
+        const parsed = JSON.parse(storedPayTarget);
+        const sKey = String(parsed.studentId || parsed.admissionNo || '').trim().toLowerCase();
+        const sName = String(parsed.studentName || '').trim().toLowerCase();
+        const matched = allEnrolledStudents.find((s) => {
+          const sid = String(s.id || '').trim().toLowerCase();
+          const adm = String(s.admissionNo || '').trim().toLowerCase();
+          const name = `${s.firstName || ''} ${s.lastName || ''}`.trim().toLowerCase();
+          return (sKey && (sid === sKey || adm === sKey)) || (sName && (name === sName || name.includes(sName)));
+        });
+        if (matched) {
+          handleSelectStudent(matched);
+        }
+      }
+    } catch (e) {}
   }, [initialStudent, allEnrolledStudents]);
 
   const handleApplyScholarship = (scholarshipId: string) => {
@@ -901,6 +925,62 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
       }
     } catch {
       // ignore
+    }
+
+    // Check if Hostel Security Deposit was paid in this transaction
+    const isSecurityDepositCollected =
+      selectedInstallments.some((id) => id === "FH-HST-DEP" || id.includes("FH-HST-DEP")) ||
+      paymentAllocations.some((a) => (a.feeHeadName || "").toLowerCase().includes("security deposit")) ||
+      (remarks && remarks.toLowerCase().includes("security deposit"));
+
+    if (isSecurityDepositCollected) {
+      try {
+        const targetAdm = (admissions || []).find((a) =>
+          String(a.id) === String(selectedStudent.id) ||
+          (selectedStudent.admissionNo && (String(a.admissionNo) === String(selectedStudent.admissionNo) || String(a.applicationNo) === String(selectedStudent.admissionNo) || String(a.registrationNo) === String(selectedStudent.admissionNo)))
+        );
+        if (targetAdm && updateAdmission) {
+          updateAdmission(targetAdm.id, { hostelSecurityDepositPaid: true } as any);
+        }
+
+        const rawAdmStr = localStorage.getItem("edu_db_admissions");
+        if (rawAdmStr) {
+          const rawAdms = JSON.parse(rawAdmStr);
+          const updatedRawAdms = rawAdms.map((a: any) => {
+            const matchesAdm =
+              String(a.id) === String(selectedStudent.id) ||
+              (selectedStudent.admissionNo && (String(a.admissionNo) === String(selectedStudent.admissionNo) || String(a.applicationNo) === String(selectedStudent.admissionNo) || String(a.registrationNo) === String(selectedStudent.admissionNo)));
+            return matchesAdm ? { ...a, hostelSecurityDepositPaid: true } : a;
+          });
+          localStorage.setItem("edu_db_admissions", JSON.stringify(updatedRawAdms));
+        }
+
+        const rawStStr = localStorage.getItem("edu_db_students");
+        if (rawStStr) {
+          const rawSts = JSON.parse(rawStStr);
+          const updatedRawSts = rawSts.map((s: any) => {
+            const matchesSt =
+              String(s.id) === String(selectedStudent.id) ||
+              (selectedStudent.admissionNo && String(s.admissionNo) === String(selectedStudent.admissionNo));
+            return matchesSt ? { ...s, hostelSecurityDepositPaid: true } : s;
+          });
+          localStorage.setItem("edu_db_students", JSON.stringify(updatedRawSts));
+        }
+
+        setSelectedStudent((prev: any) => (prev ? { ...prev, hostelSecurityDepositPaid: true } : prev));
+        sessionStorage.removeItem("edu_fee_pay_target");
+
+        if (typeof window !== "undefined") {
+          window.dispatchEvent(new CustomEvent("residential_students_updated"));
+        }
+        addToast(
+          "success",
+          "Hostel Security Deposit Settled",
+          "Security deposit received! Student is now eligible for room & bed allocation in Hostel Management.",
+        );
+      } catch (err) {
+        console.warn("Failed to set hostelSecurityDepositPaid flag", err);
+      }
     }
 
     addToast(
@@ -1916,10 +1996,28 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
       if (sKey && lastAutoSelectedStudentIdRef.current !== sKey) {
         lastAutoSelectedStudentIdRef.current = sKey;
         if (pendingInsts.length > 0) {
-          const pendingIds = pendingInsts.map((i) => i.id);
-          setSelectedInstallments(pendingIds);
+          let targetInsts = pendingInsts;
+          try {
+            const storedTarget = sessionStorage.getItem('edu_fee_pay_target');
+            if (storedTarget) {
+              const parsed = JSON.parse(storedTarget);
+              if (parsed?.feeHead === "Hostel Security Deposit") {
+                const depInsts = pendingInsts.filter(i =>
+                  i.feeHeadId === "FH-HST-DEP" ||
+                  (i.feeHeadName || '').toLowerCase().includes("security deposit") ||
+                  (i.termName || '').toLowerCase().includes("security deposit")
+                );
+                if (depInsts.length > 0) {
+                  targetInsts = depInsts;
+                }
+              }
+            }
+          } catch (e) {}
+
+          const targetIds = targetInsts.map((i) => i.id);
+          setSelectedInstallments(targetIds);
           const initialCustom: Record<string, string> = {};
-          pendingInsts.forEach((inst) => {
+          targetInsts.forEach((inst) => {
             initialCustom[inst.id] = String(inst.dueAmount);
           });
           setCustomCollectionAmounts(initialCustom);

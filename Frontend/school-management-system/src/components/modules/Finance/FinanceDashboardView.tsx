@@ -221,10 +221,19 @@ export const FinanceDashboardView: React.FC<FinanceDashboardViewProps> = ({ onNa
     (students || []).forEach((st) => {
       const ledger = getStudentFeeLedger ? getStudentFeeLedger(st.id, st, selectedAcademicYear) : null;
       if (ledger?.feeItems) {
-        const hItem = ledger.feeItems.find(
-          (i) => i.isApplicable && (i.headId === "FH-HST" || (i.category || "").toLowerCase().includes("hostel") || (i.headName || "").toLowerCase().includes("hostel"))
-        );
-        if (hItem) sum += Number(hItem.finalAmount || hItem.originalAmount || 0);
+        ledger.feeItems
+          .filter(
+            (i) => i.isApplicable && (
+              i.headId === "FH-HST" ||
+              i.headId === "FH-HST-DEP" ||
+              (i.category || "").toLowerCase().includes("hostel") ||
+              (i.headName || "").toLowerCase().includes("hostel") ||
+              (i.headName || "").toLowerCase().includes("security deposit")
+            )
+          )
+          .forEach((i) => {
+            sum += Number(i.finalAmount || i.originalAmount || 0);
+          });
       }
     });
     return sum;
@@ -250,10 +259,14 @@ export const FinanceDashboardView: React.FC<FinanceDashboardViewProps> = ({ onNa
       }
       const isHostel =
         pAny.feeHeadId === "FH-HST" ||
+        pAny.feeHeadId === "FH-HST-DEP" ||
         (pAny.feeHeadName || "").toLowerCase().includes("hostel") ||
+        (pAny.feeHeadName || "").toLowerCase().includes("security deposit") ||
         (pAny.category || "").toLowerCase().includes("hostel") ||
         (pAny.termName || "").toLowerCase().includes("hostel") ||
-        (pAny.feeType || "").toLowerCase().includes("hostel");
+        (pAny.feeType || "").toLowerCase().includes("hostel") ||
+        (pAny.remarks || "").toLowerCase().includes("hostel") ||
+        (pAny.remarks || "").toLowerCase().includes("security deposit");
       return sum + (isHostel ? Number(p.amountPaid ?? pAny.amount ?? 0) : 0);
     }, 0);
   }, [apiStats, feePayments]);

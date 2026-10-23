@@ -1261,6 +1261,9 @@ export function installGlobalInputValidation(): () => void {
       title.includes('close') ||
       title.includes('cancel') ||
       btn.dataset.dismiss ||
+      btn.dataset.skipValidation ||
+      btn.hasAttribute('data-skip-validation') ||
+      /add\s+(range|tier|row|item|field|stop|member|step)/i.test(btnText) ||
       btn.querySelector('svg.lucide-x') ||
       btn.querySelector('svg.lucide-x-circle')
     ) {

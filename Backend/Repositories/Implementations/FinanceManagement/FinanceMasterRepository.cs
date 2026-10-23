@@ -1727,105 +1727,244 @@ public class FinanceMasterRepository : IFinanceMasterRepository
 
     public async Task<List<FinanceHostelConfigDto>> GetHostelFeeConfigsAsync(string? search, string? hostelId, string? status)
     {
-        var dbFeeHeads = await _context.FeeHeads.AsNoTracking().Where(f => f.Category == "Hostel").ToListAsync();
-        var list = new List<FinanceHostelConfigDto>();
-        foreach (var fh in dbFeeHeads)
+        var query = _context.HostelFeeConfigs.AsNoTracking().AsQueryable();
+
+        if (!string.IsNullOrWhiteSpace(hostelId) && hostelId != "All")
         {
-            list.Add(new FinanceHostelConfigDto
-            {
-                Id = fh.Id,
-                HostelId = "HOS-01",
-                HostelName = fh.Name ?? string.Empty,
-                RoomTypeId = "RT-01",
-                RoomTypeName = "Double Occupancy Non-AC",
-                RoomId = "RM-101",
-                RoomNo = "101",
-                FeePlan = fh.Frequency ?? "Term Wise",
-                HostelFee = fh.DefaultAmount,
-                SecurityDeposit = 5000m,
-                EffectiveFrom = "2026-06-01",
-                Status = "Active"
-            });
+            query = query.Where(h => h.HostelId == hostelId);
         }
 
-        return list;
+        if (!string.IsNullOrWhiteSpace(status) && status != "All")
+        {
+            query = query.Where(h => h.Status == status);
+        }
+
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            var s = search.Trim().ToLower();
+            query = query.Where(h =>
+                (h.HostelName != null && h.HostelName.ToLower().Contains(s)) ||
+                (h.RoomTypeName != null && h.RoomTypeName.ToLower().Contains(s)) ||
+                (h.ClassRange != null && h.ClassRange.ToLower().Contains(s)) ||
+                (h.RoomNo != null && h.RoomNo.ToLower().Contains(s)) ||
+                (h.AcType != null && h.AcType.ToLower().Contains(s)) ||
+                (h.SharingType != null && h.SharingType.ToLower().Contains(s)));
+        }
+
+        var entities = await query.OrderByDescending(h => h.Id).ToListAsync();
+
+        return entities.Select(e => new FinanceHostelConfigDto
+        {
+            Id = e.Id,
+            HostelId = e.HostelId,
+            HostelName = e.HostelName,
+            RoomTypeId = e.RoomTypeId,
+            RoomTypeName = e.RoomTypeName,
+            RoomId = e.RoomId,
+            RoomNo = string.IsNullOrWhiteSpace(e.RoomNo) ? "All Rooms" : e.RoomNo,
+            AcType = string.IsNullOrWhiteSpace(e.AcType) ? "All" : e.AcType,
+            SharingType = string.IsNullOrWhiteSpace(e.SharingType) ? "All" : e.SharingType,
+            StartClass = e.StartClass,
+            EndClass = e.EndClass,
+            ClassRange = e.ClassRange ?? (!string.IsNullOrWhiteSpace(e.StartClass) && !string.IsNullOrWhiteSpace(e.EndClass) ? $"{e.StartClass} - {e.EndClass}" : "All Classes"),
+            ApplicableClasses = e.ApplicableClasses,
+            AcademicYear = e.AcademicYear,
+            Branch = e.Branch,
+            FeePlan = e.FeePlan,
+            HostelFee = e.HostelFee,
+            SecurityDeposit = e.SecurityDeposit,
+            ApplicableTerms = e.ApplicableTermsJson,
+            EffectiveFrom = e.EffectiveFrom,
+            Status = e.Status,
+            CreatedAt = e.CreatedAt
+        }).ToList();
     }
 
     public async Task<FinanceHostelConfigDto?> GetHostelFeeConfigByIdAsync(int id)
     {
-        var list = await GetHostelFeeConfigsAsync(null, null, null);
-        return list.FirstOrDefault(h => h.Id == id);
+        var e = await _context.HostelFeeConfigs.AsNoTracking().FirstOrDefaultAsync(h => h.Id == id);
+        if (e == null) return null;
+
+        return new FinanceHostelConfigDto
+        {
+            Id = e.Id,
+            HostelId = e.HostelId,
+            HostelName = e.HostelName,
+            RoomTypeId = e.RoomTypeId,
+            RoomTypeName = e.RoomTypeName,
+            RoomId = e.RoomId,
+            RoomNo = string.IsNullOrWhiteSpace(e.RoomNo) ? "All Rooms" : e.RoomNo,
+            AcType = string.IsNullOrWhiteSpace(e.AcType) ? "All" : e.AcType,
+            SharingType = string.IsNullOrWhiteSpace(e.SharingType) ? "All" : e.SharingType,
+            StartClass = e.StartClass,
+            EndClass = e.EndClass,
+            ClassRange = e.ClassRange ?? (!string.IsNullOrWhiteSpace(e.StartClass) && !string.IsNullOrWhiteSpace(e.EndClass) ? $"{e.StartClass} - {e.EndClass}" : "All Classes"),
+            ApplicableClasses = e.ApplicableClasses,
+            AcademicYear = e.AcademicYear,
+            Branch = e.Branch,
+            FeePlan = e.FeePlan,
+            HostelFee = e.HostelFee,
+            SecurityDeposit = e.SecurityDeposit,
+            ApplicableTerms = e.ApplicableTermsJson,
+            EffectiveFrom = e.EffectiveFrom,
+            Status = e.Status,
+            CreatedAt = e.CreatedAt
+        };
     }
 
     public async Task<FinanceHostelConfigDto> CreateHostelFeeConfigAsync(CreateFinanceHostelConfigDto dto)
     {
-        var feeHead = new FeeHead
+        var classRange = dto.ClassRange;
+        if (string.IsNullOrWhiteSpace(classRange) && !string.IsNullOrWhiteSpace(dto.StartClass) && !string.IsNullOrWhiteSpace(dto.EndClass))
         {
-            Name = $"{dto.HostelName} - {dto.RoomTypeName}",
-            Category = "Hostel",
-            Frequency = dto.FeePlan ?? "Annual",
-            Mandatory = false,
-            DefaultAmount = dto.HostelFee,
-            Status = "Active"
+            classRange = dto.StartClass == dto.EndClass ? dto.StartClass : $"{dto.StartClass} - {dto.EndClass}";
+        }
+
+        var entity = new SMS.Api.Models.FinanceManagement.HostelFeeConfig
+        {
+            HostelId = dto.HostelId,
+            HostelName = dto.HostelName ?? string.Empty,
+            RoomTypeId = dto.RoomTypeId ?? string.Empty,
+            RoomTypeName = dto.RoomTypeName ?? string.Empty,
+            RoomId = dto.RoomId,
+            RoomNo = string.IsNullOrWhiteSpace(dto.RoomNo) ? "All Rooms" : dto.RoomNo,
+            AcType = string.IsNullOrWhiteSpace(dto.AcType) ? "All" : dto.AcType,
+            SharingType = string.IsNullOrWhiteSpace(dto.SharingType) ? "All" : dto.SharingType,
+            StartClass = dto.StartClass,
+            EndClass = dto.EndClass,
+            ClassRange = classRange,
+            ApplicableClasses = dto.ApplicableClasses,
+            AcademicYear = string.IsNullOrWhiteSpace(dto.AcademicYear) ? "2025-2026" : dto.AcademicYear,
+            Branch = dto.Branch ?? string.Empty,
+            FeePlan = string.IsNullOrWhiteSpace(dto.FeePlan) ? "Annual" : dto.FeePlan,
+            HostelFee = dto.HostelFee,
+            SecurityDeposit = dto.SecurityDeposit,
+            ApplicableTermsJson = dto.ApplicableTerms,
+            EffectiveFrom = dto.EffectiveFrom ?? DateTime.UtcNow.ToString("yyyy-MM-dd"),
+            Status = string.IsNullOrWhiteSpace(dto.Status) ? "Active" : dto.Status,
+            CreatedAt = DateTime.UtcNow,
+            UpdatedAt = DateTime.UtcNow
         };
-        _context.FeeHeads.Add(feeHead);
+
+        _context.HostelFeeConfigs.Add(entity);
         await _context.SaveChangesAsync();
+
+        // Also ensure a corresponding FeeHead with Category='Hostel' exists so standard fee reports recognize Hostel fees
+        var headName = $"{entity.HostelName} Fee";
+        var existingHead = await _context.FeeHeads.FirstOrDefaultAsync(f => f.Category == "Hostel" && f.Name == headName);
+        if (existingHead == null)
+        {
+            _context.FeeHeads.Add(new FeeHead
+            {
+                Name = headName,
+                Code = $"HST-{entity.HostelId}",
+                Category = "Hostel",
+                Frequency = entity.FeePlan,
+                DefaultAmount = entity.HostelFee,
+                Status = "Active"
+            });
+            await _context.SaveChangesAsync();
+        }
 
         return new FinanceHostelConfigDto
         {
-            Id = feeHead.Id,
-            HostelId = dto.HostelId,
-            HostelName = dto.HostelName,
-            RoomTypeId = dto.RoomTypeId,
-            RoomTypeName = dto.RoomTypeName,
-            RoomId = dto.RoomId ?? "",
-            RoomNo = dto.RoomNo ?? "All Rooms",
-            FeePlan = dto.FeePlan ?? "",
-            HostelFee = dto.HostelFee,
-            SecurityDeposit = dto.SecurityDeposit,
-            EffectiveFrom = dto.EffectiveFrom ?? DateTime.Now.ToString("yyyy-MM-dd"),
-            Status = dto.Status
+            Id = entity.Id,
+            HostelId = entity.HostelId,
+            HostelName = entity.HostelName,
+            RoomTypeId = entity.RoomTypeId,
+            RoomTypeName = entity.RoomTypeName,
+            RoomId = entity.RoomId,
+            RoomNo = entity.RoomNo,
+            AcType = entity.AcType,
+            SharingType = entity.SharingType,
+            StartClass = entity.StartClass,
+            EndClass = entity.EndClass,
+            ClassRange = entity.ClassRange,
+            ApplicableClasses = entity.ApplicableClasses,
+            AcademicYear = entity.AcademicYear,
+            Branch = entity.Branch,
+            FeePlan = entity.FeePlan,
+            HostelFee = entity.HostelFee,
+            SecurityDeposit = entity.SecurityDeposit,
+            ApplicableTerms = entity.ApplicableTermsJson,
+            EffectiveFrom = entity.EffectiveFrom,
+            Status = entity.Status,
+            CreatedAt = entity.CreatedAt
         };
     }
 
     public async Task<FinanceHostelConfigDto?> UpdateHostelFeeConfigAsync(int id, CreateFinanceHostelConfigDto dto)
     {
-        var feeHead = await _context.FeeHeads.FirstOrDefaultAsync(f => f.Id == id && f.Category == "Hostel");
-        if (feeHead != null)
+        var entity = await _context.HostelFeeConfigs.FirstOrDefaultAsync(h => h.Id == id);
+        if (entity == null) return null;
+
+        var classRange = dto.ClassRange;
+        if (string.IsNullOrWhiteSpace(classRange) && !string.IsNullOrWhiteSpace(dto.StartClass) && !string.IsNullOrWhiteSpace(dto.EndClass))
         {
-            feeHead.Name = $"{dto.HostelName} - {dto.RoomTypeName}";
-            feeHead.DefaultAmount = dto.HostelFee;
-            feeHead.Frequency = dto.FeePlan ?? feeHead.Frequency;
-            await _context.SaveChangesAsync();
+            classRange = dto.StartClass == dto.EndClass ? dto.StartClass : $"{dto.StartClass} - {dto.EndClass}";
         }
+
+        entity.HostelId = dto.HostelId;
+        entity.HostelName = dto.HostelName ?? entity.HostelName;
+        entity.RoomTypeId = dto.RoomTypeId ?? entity.RoomTypeId;
+        entity.RoomTypeName = dto.RoomTypeName ?? entity.RoomTypeName;
+        entity.RoomId = dto.RoomId;
+        entity.RoomNo = string.IsNullOrWhiteSpace(dto.RoomNo) ? "All Rooms" : dto.RoomNo;
+        entity.AcType = string.IsNullOrWhiteSpace(dto.AcType) ? entity.AcType : dto.AcType;
+        entity.SharingType = string.IsNullOrWhiteSpace(dto.SharingType) ? entity.SharingType : dto.SharingType;
+        entity.StartClass = dto.StartClass;
+        entity.EndClass = dto.EndClass;
+        entity.ClassRange = classRange;
+        entity.ApplicableClasses = dto.ApplicableClasses;
+        entity.AcademicYear = string.IsNullOrWhiteSpace(dto.AcademicYear) ? entity.AcademicYear : dto.AcademicYear;
+        entity.Branch = dto.Branch ?? entity.Branch;
+        entity.FeePlan = string.IsNullOrWhiteSpace(dto.FeePlan) ? entity.FeePlan : dto.FeePlan;
+        entity.HostelFee = dto.HostelFee;
+        entity.SecurityDeposit = dto.SecurityDeposit;
+        entity.ApplicableTermsJson = dto.ApplicableTerms;
+        entity.EffectiveFrom = dto.EffectiveFrom ?? entity.EffectiveFrom;
+        entity.Status = string.IsNullOrWhiteSpace(dto.Status) ? entity.Status : dto.Status;
+        entity.UpdatedAt = DateTime.UtcNow;
+
+        await _context.SaveChangesAsync();
 
         return new FinanceHostelConfigDto
         {
-            Id = id,
-            HostelId = dto.HostelId,
-            HostelName = dto.HostelName,
-            RoomTypeId = dto.RoomTypeId,
-            RoomTypeName = dto.RoomTypeName,
-            RoomId = dto.RoomId ?? "",
-            RoomNo = dto.RoomNo ?? "All Rooms",
-            FeePlan = dto.FeePlan ?? "",
-            HostelFee = dto.HostelFee,
-            SecurityDeposit = dto.SecurityDeposit,
-            EffectiveFrom = dto.EffectiveFrom ?? DateTime.Now.ToString("yyyy-MM-dd"),
-            Status = dto.Status
+            Id = entity.Id,
+            HostelId = entity.HostelId,
+            HostelName = entity.HostelName,
+            RoomTypeId = entity.RoomTypeId,
+            RoomTypeName = entity.RoomTypeName,
+            RoomId = entity.RoomId,
+            RoomNo = entity.RoomNo,
+            AcType = entity.AcType,
+            SharingType = entity.SharingType,
+            StartClass = entity.StartClass,
+            EndClass = entity.EndClass,
+            ClassRange = entity.ClassRange,
+            ApplicableClasses = entity.ApplicableClasses,
+            AcademicYear = entity.AcademicYear,
+            Branch = entity.Branch,
+            FeePlan = entity.FeePlan,
+            HostelFee = entity.HostelFee,
+            SecurityDeposit = entity.SecurityDeposit,
+            ApplicableTerms = entity.ApplicableTermsJson,
+            EffectiveFrom = entity.EffectiveFrom,
+            Status = entity.Status,
+            CreatedAt = entity.CreatedAt
         };
     }
 
     public async Task<bool> DeleteHostelFeeConfigAsync(int id)
     {
-        var feeHead = await _context.FeeHeads.FirstOrDefaultAsync(f => f.Id == id && f.Category == "Hostel");
-        if (feeHead != null)
+        var entity = await _context.HostelFeeConfigs.FirstOrDefaultAsync(h => h.Id == id);
+        if (entity != null)
         {
-            _context.FeeHeads.Remove(feeHead);
+            _context.HostelFeeConfigs.Remove(entity);
             await _context.SaveChangesAsync();
             return true;
         }
-        return true;
+        return false;
     }
 
     // =========================================================================

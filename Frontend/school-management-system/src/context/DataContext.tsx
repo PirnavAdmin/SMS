@@ -33,7 +33,7 @@ import {
   getUniformFeeForClass,
   getItemFeeFromFinanceConfig,
 } from "../utils/uniformUtils";
-import { matchesClassName, normalizeClassName, compareClassesAscending } from "../utils/classSorter";
+import { matchesClassName, normalizeClassName, compareClassesAscending, isClassInRange } from "../utils/classSorter";
 import { buildTermMonthMap } from "../utils/lateAdmission";
 import { generateTermsFromAcademicYear } from "../utils/academicYearTermUtils";
 import { normalizeStudentType, formatStudentType } from "../utils/studentTypeUtils";
@@ -238,7 +238,8 @@ export function normalizeAcademicYear(dateOrAy?: string | null): string {
   if (!dateOrAy || typeof dateOrAy !== "string") return "";
   const trimmed = dateOrAy.trim();
   if (!trimmed) return "";
-  const match = trimmed.match(/^(\d{4})[-/](\d{2,4})$/);
+  const cleaned = trimmed.replace(/\s+/g, "");
+  const match = cleaned.match(/^(\d{4})[-/](\d{2,4})$/);
   if (match) {
     const startYear = parseInt(match[1], 10);
     let endYear = parseInt(match[2], 10);
@@ -248,7 +249,7 @@ export function normalizeAcademicYear(dateOrAy?: string | null): string {
     }
     return `${startYear}-${endYear}`;
   }
-  return trimmed;
+  return cleaned;
 }
 
 export function matchesAcademicYear(ay1?: string | null, ay2?: string | null): boolean {
@@ -360,7 +361,7 @@ import {
 } from "../api/admission";
 import * as TransportAPI from "../api/transport";
 import * as FinanceAPI from "../api/finance";
-import { getHostelBlocks, getRooms, formatRoomNumber } from "../api/hostel";
+import { getHostelBlocks, getRooms, getAllocations, formatRoomNumber } from "../api/hostel";
 import {
   BusAttendantMaster,
   initialBusAttendants,
@@ -4732,6 +4733,12 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
                   item.documents ||
                   existing?.documentsSubmitted ||
                   [],
+                hostelSecurityDepositPaid: item.hostelSecurityDepositPaid ?? existing?.hostelSecurityDepositPaid ?? false,
+                securityDepositAmount: item.securityDepositAmount ?? existing?.securityDepositAmount ?? 0,
+                securityDepositReceiptNo: item.securityDepositReceiptNo || existing?.securityDepositReceiptNo || "",
+                securityDepositPaymentMode: item.securityDepositPaymentMode || existing?.securityDepositPaymentMode || "",
+                securityDepositTxnId: item.securityDepositTxnId || existing?.securityDepositTxnId || "",
+                securityDepositDate: item.securityDepositDate || existing?.securityDepositDate || "",
               };
             },
           );
@@ -5891,29 +5898,43 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           } catch (e) {}
         }
 
-        setFinanceHostelConfigs(
-          hostelFees.map((apiItem: any) => ({
-            id: String(apiItem.id || `FHC-${Date.now()}`),
-            hostelId: String(apiItem.hostelId || ""),
-            hostelName: apiItem.hostelName || "",
-            roomTypeId: String(apiItem.roomTypeId || ""),
-            roomTypeName: apiItem.roomTypeName || "",
-            roomId: apiItem.roomId || "",
-            roomNo: apiItem.roomNo || "All Rooms",
-            feePlan: apiItem.feePlan || "Annual",
-            hostelFee: Number(apiItem.hostelFee || 0),
-            securityDeposit: Number(apiItem.securityDeposit || 0),
-            effectiveFrom:
-              apiItem.effectiveFrom || new Date().toISOString().split("T")[0],
-            status: apiItem.status || "Active",
-          })),
-        );
+        const mappedHostelFees: FinanceHostelConfig[] = (hostelFees || []).map((apiItem: any) => ({
+          id: String(apiItem.id || `FHC-${Date.now()}`),
+          hostelId: String(apiItem.hostelId || ""),
+          hostelName: apiItem.hostelName || "",
+          roomTypeId: String(apiItem.roomTypeId || ""),
+          roomTypeName: apiItem.roomTypeName || "",
+          roomId: apiItem.roomId || "",
+          roomNo: apiItem.roomNo || "All Rooms",
+          acType: apiItem.acType || "All",
+          sharingType: apiItem.sharingType || "All",
+          startClass: apiItem.startClass || "",
+          endClass: apiItem.endClass || "",
+          classRange: apiItem.classRange || (apiItem.startClass && apiItem.endClass ? `${apiItem.startClass} - ${apiItem.endClass}` : "All Classes"),
+          applicableClasses: Array.isArray(apiItem.applicableClasses) ? apiItem.applicableClasses : (apiItem.applicableClasses ? apiItem.applicableClasses.split(",") : []),
+          academicYear: apiItem.academicYear || "2025-2026",
+          branch: apiItem.branch || "",
+          feePlan: apiItem.feePlan || "Annual",
+          hostelFee: Number(apiItem.hostelFee || 0),
+          securityDeposit: Number(apiItem.securityDeposit || 0),
+          applicableTerms: Array.isArray(apiItem.applicableTerms) ? apiItem.applicableTerms : (apiItem.applicableTerms ? JSON.parse(apiItem.applicableTerms) : []),
+          effectiveFrom:
+            apiItem.effectiveFrom || new Date().toISOString().split("T")[0],
+          status: apiItem.status || "Active",
+          createdAt: apiItem.createdAt,
+        }));
+        setFinanceHostelConfigs(mappedHostelFees);
+        try {
+          localStorage.setItem("finance_hostel_configs", JSON.stringify(mappedHostelFees));
+          localStorage.setItem("edu_db_finance_hostel_configs", JSON.stringify(mappedHostelFees));
+        } catch (e) {}
 
         // Sync active Hostel Facilities & Rooms from existing Hostel Management module
         try {
-          const [blocksRes, roomsRes] = await Promise.allSettled([
+          const [blocksRes, roomsRes, allocsRes] = await Promise.allSettled([
             getHostelBlocks(),
             getRooms(),
+            getAllocations(),
           ]);
           if (blocksRes.status === "fulfilled" && Array.isArray(blocksRes.value) && blocksRes.value.length > 0) {
             const mappedBlocks: HostelBlock[] = blocksRes.value.map((b: any) => ({
@@ -5941,6 +5962,28 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
             setHostelRooms(mappedRooms);
             try {
               localStorage.setItem("hostel", JSON.stringify(mappedRooms));
+            } catch (e) {}
+          }
+          if (allocsRes.status === "fulfilled" && Array.isArray(allocsRes.value)) {
+            const mappedAllocs: StudentHostelAssignment[] = allocsRes.value
+              .filter((a: any) => a && (a.status === "Active" || !a.status))
+              .map((a: any) => ({
+                id: String(a.allocationId || `SHA-${a.studentId}`),
+                studentId: String(a.studentId),
+                studentName: a.studentName || "",
+                admissionNo: a.admissionNo || a.registrationNo || "",
+                hostelId: String(a.hostelId || ""),
+                hostelName: a.hostelName || "",
+                roomNo: String(a.roomNumber || a.roomId || ""),
+                roomTypeName: a.roomTypeName || "",
+                bedNo: a.bedNumber || "",
+                allocatedDate: a.joiningDate || new Date().toISOString().split("T")[0],
+                status: "Active" as const,
+              }));
+            setStudentHostelAssignments(mappedAllocs);
+            try {
+              localStorage.setItem("student_hostel_assignments", JSON.stringify(mappedAllocs));
+              localStorage.setItem("edu_db_student_hostel_assignments", JSON.stringify(mappedAllocs));
             } catch (e) {}
           }
         } catch (e) {}
@@ -8107,6 +8150,12 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         hostelRoom: normalizeStudentType(appData.studentType) === "Residential" ? (appData.hostelRoom || "") : "",
         floorLevel: "N/A",
         allocatedBedId: normalizeStudentType(appData.studentType) === "Residential" ? (appData.hostelBed || "") : "",
+        hostelSecurityDepositPaid: Boolean(appData.hostelSecurityDepositPaid),
+        securityDepositAmount: Number(appData.securityDepositAmount) || 0,
+        securityDepositReceiptNo: appData.securityDepositReceiptNo || "",
+        securityDepositPaymentMode: appData.securityDepositPaymentMode || "",
+        securityDepositTxnId: appData.securityDepositTxnId || "",
+        securityDepositDate: appData.securityDepositDate || "",
         branch: appData.branch || selectedBranch || "",
         status: appData.status || "Enrolled",
         section: (appData as any).section || "A",
@@ -8167,6 +8216,12 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         floor: appData.floor,
         hostelRoom: appData.hostelRoom,
         hostelBed: appData.hostelBed,
+        hostelSecurityDepositPaid: Boolean(appData.hostelSecurityDepositPaid),
+        securityDepositAmount: Number(appData.securityDepositAmount) || 0,
+        securityDepositReceiptNo: appData.securityDepositReceiptNo || "",
+        securityDepositPaymentMode: appData.securityDepositPaymentMode || "",
+        securityDepositTxnId: appData.securityDepositTxnId || "",
+        securityDepositDate: appData.securityDepositDate || "",
         branch: appData.branch || selectedBranch || "",
         scholarshipId: appData.scholarshipId,
         discountId: appData.discountId,
@@ -8332,6 +8387,12 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         hostelRoom: normalizeStudentType(appData.studentType) === "Residential" ? (appData.hostelRoom || "") : "",
         floorLevel: "N/A",
         availableBed: normalizeStudentType(appData.studentType) === "Residential" ? (appData.hostelBed || "") : "",
+        hostelSecurityDepositPaid: Boolean(appData.hostelSecurityDepositPaid),
+        securityDepositAmount: Number(appData.securityDepositAmount) || 0,
+        securityDepositReceiptNo: appData.securityDepositReceiptNo || "",
+        securityDepositPaymentMode: appData.securityDepositPaymentMode || "",
+        securityDepositTxnId: appData.securityDepositTxnId || "",
+        securityDepositDate: appData.securityDepositDate || "",
         scholarship:
           (appData as any).scholarship || appData.scholarshipId || "None",
         discount: (appData as any).discount || appData.discountId || "None",
@@ -12115,13 +12176,22 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     FinanceAPI.createHostelFeeConfigApi({
       hostelId: String(newC.hostelId),
       hostelName: newC.hostelName,
-      roomTypeId: String(newC.roomTypeId),
-      roomTypeName: newC.roomTypeName,
+      roomTypeId: String(newC.roomTypeId || ""),
+      roomTypeName: newC.roomTypeName || "",
       roomId: newC.roomId || "",
       roomNo: newC.roomNo || "All Rooms",
+      acType: newC.acType || "All",
+      sharingType: newC.sharingType || "All",
+      startClass: newC.startClass || "",
+      endClass: newC.endClass || "",
+      classRange: newC.classRange || (newC.startClass && newC.endClass ? `${newC.startClass} - ${newC.endClass}` : "All Classes"),
+      applicableClasses: Array.isArray(newC.applicableClasses) ? newC.applicableClasses.join(",") : (newC.applicableClasses || ""),
+      academicYear: newC.academicYear || "2025-2026",
+      branch: newC.branch || "",
       feePlan: newC.feePlan,
       hostelFee: newC.hostelFee,
       securityDeposit: newC.securityDeposit,
+      applicableTerms: Array.isArray(newC.applicableTerms) ? JSON.stringify(newC.applicableTerms) : (newC.applicableTerms || ""),
       effectiveFrom: newC.effectiveFrom,
       status: newC.status,
     })
@@ -12148,7 +12218,14 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       prev.map((c) => (c.id === id ? { ...c, ...updates } : c)),
     );
 
-    FinanceAPI.updateHostelFeeConfigApi(id, updates).catch((err) => {
+    const apiPayload: any = {
+      ...updates,
+      hostelId: updates.hostelId ? String(updates.hostelId) : undefined,
+      applicableClasses: Array.isArray(updates.applicableClasses) ? updates.applicableClasses.join(",") : updates.applicableClasses,
+      applicableTerms: Array.isArray(updates.applicableTerms) ? JSON.stringify(updates.applicableTerms) : updates.applicableTerms,
+    };
+
+    FinanceAPI.updateHostelFeeConfigApi(id, apiPayload).catch((err) => {
       console.warn("Failed to update hostel fee config in API:", err);
     });
   };
@@ -14055,6 +14132,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     let combinedHostelTotal = 0;
     let hostelFrequency = "Annual";
 
+    let hostelSecurityDepositTotal = 0;
+    let hostelAccommodationTotal = 0;
+
     if (isResident) {
       activeHostelAssign =
         studentHostelAssignments.find(
@@ -14080,128 +14160,103 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         (admApp as any)?.hostelBed ||
         "";
 
-      const hasHostelBlock = Boolean(
-        hstBlockName && hstBlockName.trim() !== "",
-      );
-      const hasHostelRoom = Boolean(hstRoomName && hstRoomName.trim() !== "");
+      const preferredSharing =
+        (admApp as any)?.hostelSharing ||
+        (student as any)?.hostelSharing ||
+        (admApp as any)?.roomSharing ||
+        (admApp as any)?.roomType ||
+        (student as any)?.roomType ||
+        "Four Sharing";
 
-      if (hasHostelBlock && hasHostelRoom) {
-        const roomType =
-          (activeHostelAssign as any)?.roomTypeName ||
-          (student as any)?.roomType ||
-          (admApp as any)?.roomType || "";
+      const preferredAc =
+        (admApp as any)?.hostelAc ||
+        (student as any)?.hostelAc ||
+        (admApp as any)?.acType ||
+        (student as any)?.acType ||
+        "Non-AC";
 
-        // First check matching Room in hostelRooms for block, acType, capacity
-        const matchedRoomObj = (hostelRooms || []).find((r: any) =>
-          (String(r.roomNo).toLowerCase() === String(hstRoomName).toLowerCase() ||
-           String(r.id) === String((activeHostelAssign as any)?.roomId)) &&
-          (String(r.blockId) === String((activeHostelAssign as any)?.blockId) ||
-           !r.blockId ||
-           !hstBlockName)
-        );
+      const isRoomAc =
+        String(preferredAc).toUpperCase().includes("AC") &&
+        !String(preferredAc).toUpperCase().includes("NON");
+      const acTypeStr = isRoomAc ? "AC" : "Non-AC";
 
-        const isRoomAc = (matchedRoomObj as any)?.acType === 'AC' ||
-          (matchedRoomObj as any)?.isAc === true ||
-          (String(roomType).toUpperCase().includes('AC') && !String(roomType).toUpperCase().includes('NON'));
-        const acTypeStr = isRoomAc ? 'AC' : 'Non-AC';
+      // 1. Check DynamicFeeStructure for Hostel if present
+      const activeHostelStruct = (dynamicFeeStructures || []).find((s) => {
+        if (s.category !== "Hostel" && s.feeCategory !== "Hostel") return false;
+        if (s.status === "Inactive") return false;
+        if (s.academicYear && selectedAcademicYear && s.academicYear !== selectedAcademicYear) return false;
+        return true;
+      });
 
-        const parsedCapMatch = roomType.match(/\d+/);
-        const roomCap = matchedRoomObj?.capacity ||
-          (activeHostelAssign as any)?.capacity ||
-          (parsedCapMatch ? parseInt(parsedCapMatch[0], 10) : undefined);
-        const sharingStr = roomCap ? `${roomCap}-bed sharing` : "";
+      if (activeHostelStruct && activeHostelStruct.hostelConfig) {
+        const configs = activeHostelStruct.hostelConfig.configurations || [];
+        const matchedItem = configs.find((c) => {
+          if (c.acType !== acTypeStr) return false;
+          if (c.acType === "Non-AC" && c.applyToAllNonAc) return true;
+          return (
+            (preferredSharing && c.sharingType.toLowerCase().includes(preferredSharing.toLowerCase().replace(" sharing", ""))) ||
+            (preferredSharing && preferredSharing.toLowerCase().includes(c.sharingType.toLowerCase()))
+          );
+        }) || configs.find((c) => c.acType === acTypeStr);
 
-        // Check if there is an active DynamicFeeStructure for Hostel
-        const activeHostelStruct = (dynamicFeeStructures || []).find((s) => {
-          if (s.category !== 'Hostel' && s.feeCategory !== 'Hostel') return false;
-          if (s.status === 'Inactive') return false;
-          if (s.academicYear && selectedAcademicYear && s.academicYear !== selectedAcademicYear) return false;
-          const config = s.hostelConfig;
-          if (!config) return false;
-
-          const hostelMatches = !config.hostelName || !hstBlockName ||
-            config.hostelName.toLowerCase().includes(hstBlockName.toLowerCase()) ||
-            hstBlockName.toLowerCase().includes(config.hostelName.toLowerCase()) ||
-            (config.selectedBlockNames && config.selectedBlockNames.some(b => b.toLowerCase().includes(hstBlockName.toLowerCase()) || hstBlockName.toLowerCase().includes(b.toLowerCase())));
-          return hostelMatches;
-        });
-
-        let matchedDynamicHostelFee = 0;
-        if (activeHostelStruct && activeHostelStruct.hostelConfig) {
-          const configs = activeHostelStruct.hostelConfig.configurations || [];
-          const matchedItem = configs.find(c => {
-            if (c.acType !== acTypeStr) return false;
-            if (c.acType === 'Non-AC' && c.applyToAllNonAc) return true;
-            return (roomCap && c.sharingType.toLowerCase().includes(String(roomCap))) ||
-                   (sharingStr && c.sharingType.toLowerCase().includes(sharingStr.toLowerCase().replace(' sharing', ''))) ||
-                   (roomType && roomType.toLowerCase().includes(c.sharingType.toLowerCase()));
-          }) || configs.find(c => c.acType === acTypeStr);
-
-          if (matchedItem && matchedItem.amount > 0) {
-            matchedDynamicHostelFee = matchedItem.amount;
-            combinedHostelTotal = matchedItem.amount;
-            const hostelFeeHead = (feeHeads || []).find(h => h.id === activeHostelStruct.feeHeadId || h.category === 'Hostel');
-            hostelFrequency = hostelFeeHead?.frequency ||
-              (activeHostelStruct.paymentEligibility === 'One-Time Only' ? 'One Time' : 'Quarterly');
-            hostelApplicable = true;
-          }
-        }
-
-        if (!matchedDynamicHostelFee) {
-          let fhc = financeHostelConfigs.find((c) => {
-            if (c.status !== "Active") return false;
-            const blockMatch =
-              (c.hostelId && String(c.hostelId) === String(hstBlockName)) ||
-              (c.hostelName &&
-                c.hostelName.toLowerCase() === hstBlockName.toLowerCase()) ||
-              (c.hostelName &&
-                c.hostelName
-                  .toLowerCase()
-                  .includes(hstBlockName.toLowerCase())) ||
-              (c.hostelName &&
-                hstBlockName.toLowerCase().includes(c.hostelName.toLowerCase()));
-
-            if (!blockMatch) return false;
-            if (!roomType) return true;
-
-            return (
-              (c.roomTypeName &&
-                c.roomTypeName.toLowerCase().trim() ===
-                  String(roomType).toLowerCase().trim()) ||
-              (c.roomTypeName &&
-                c.roomTypeName
-                  .toLowerCase()
-                  .includes(String(roomType).toLowerCase())) ||
-              (c.roomTypeName &&
-                String(roomType)
-                  .toLowerCase()
-                  .includes(c.roomTypeName.toLowerCase()))
-            );
-          });
-
-          if (!fhc) {
-            fhc =
-              financeHostelConfigs.find(
-                (c) =>
-                  c.status === "Active" &&
-                  ((c.hostelId && String(c.hostelId) === String(hstBlockName)) ||
-                    (c.hostelName &&
-                      c.hostelName
-                        .toLowerCase()
-                        .includes(hstBlockName.toLowerCase()))),
-              ) || financeHostelConfigs.find((c) => c.status === "Active");
-          }
-
-          if (fhc) {
-            const hstFee = fhc.hostelFee;
-            const secDep =
-              fhc.securityDeposit !== undefined ? fhc.securityDeposit : 0;
-            combinedHostelTotal = hstFee + secDep;
-            hostelFrequency = fhc.feePlan || (fhc as any).frequency || "Annual";
-            hostelApplicable = true;
-          }
+        if (matchedItem && matchedItem.amount > 0) {
+          hostelAccommodationTotal = matchedItem.amount;
+          hostelSecurityDepositTotal = 2000;
+          hostelFrequency = "Quarterly";
+          hostelApplicable = true;
         }
       }
+
+      // 2. Check financeHostelConfigs
+      if (!hostelApplicable) {
+        const candidateConfigs = (financeHostelConfigs || []).filter((c) => {
+          if (c.status !== "Active") return false;
+          if (c.academicYear && selectedAcademicYear && !matchesAcademicYear(c.academicYear, selectedAcademicYear)) {
+            return false;
+          }
+          if (hstBlockName) {
+            const blockMatch =
+              !c.hostelName ||
+              c.hostelName === "All" ||
+              (c.hostelId && String(c.hostelId) === String(hstBlockName)) ||
+              (c.hostelName && hstBlockName && c.hostelName.toLowerCase() === hstBlockName.toLowerCase()) ||
+              (c.hostelName && hstBlockName && c.hostelName.toLowerCase().includes(hstBlockName.toLowerCase())) ||
+              (c.hostelName && hstBlockName && hstBlockName.toLowerCase().includes(c.hostelName.toLowerCase()));
+            if (!blockMatch) return false;
+          }
+          if (!isClassInRange(clsName, c.startClass, c.endClass, c.classRange, academicClasses)) {
+            return false;
+          }
+          if (c.acType && c.acType !== "All") {
+            const cAc = c.acType.toUpperCase().includes("NON") ? "Non-AC" : "AC";
+            if (cAc !== acTypeStr) return false;
+          }
+          if (c.sharingType && c.sharingType !== "All") {
+            const clean = (s: string) => String(s || "").toLowerCase().replace(/[^a-z0-9]/g, "");
+            const prefClean = clean(preferredSharing);
+            const confClean = clean(c.sharingType);
+            const numPref = prefClean.match(/\d+/)?.[0];
+            const numConf = confClean.match(/\d+/)?.[0];
+            if (numPref && numConf && numPref !== numConf) return false;
+            if (!numPref && !numConf && !prefClean.includes(confClean) && !confClean.includes(prefClean)) return false;
+          }
+          return true;
+        });
+
+        const fhc =
+          candidateConfigs[0] ||
+          (financeHostelConfigs || []).find((c) => c.status === "Active" && isClassInRange(clsName, c.startClass, c.endClass, c.classRange, academicClasses)) ||
+          (financeHostelConfigs || []).find((c) => c.status === "Active");
+
+        if (fhc) {
+          hostelAccommodationTotal = Number(fhc.hostelFee) || 0;
+          hostelSecurityDepositTotal = Number(fhc.securityDeposit) || 0;
+          hostelFrequency = fhc.feePlan || "Quarterly";
+          hostelApplicable = true;
+        }
+      }
+
+      combinedHostelTotal = hostelAccommodationTotal + hostelSecurityDepositTotal;
     }
 
     // Process Transport Fee Item in ledgerItems
@@ -14270,24 +14325,53 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       }
     }
 
-    // Process Hostel Fee Item in ledgerItems
-    const existingHstIdx = ledgerItems.findIndex(
-      (item) =>
-        item.category === "Hostel Fee" ||
-        item.headName.toLowerCase().includes("hostel"),
+    // Process Hostel Security Deposit Item in ledgerItems
+    const existingDepIdx = ledgerItems.findIndex(
+      (item) => item.headId === "FH-HST-DEP" || (item.headName || "").toLowerCase().includes("security deposit"),
     );
 
-    if (hostelApplicable && combinedHostelTotal > 0) {
-      const roomLabel = hstRoomName ? `, Room ${hstRoomName}` : "";
-      const hstItem: LedgerFeeItem = {
-        headId: "FH-HST",
-        headName: `Hostel Fee (${hstBlockName}${roomLabel})`,
+    if (hostelApplicable && hostelSecurityDepositTotal > 0) {
+      const depItem: LedgerFeeItem = {
+        headId: "FH-HST-DEP",
+        headName: "Hostel Security Deposit",
         category: "Hostel Fee",
-        originalAmount: combinedHostelTotal,
+        originalAmount: hostelSecurityDepositTotal,
         scholarshipDeduction: 0,
         discountDeduction: 0,
         fineAmount: 0,
-        finalAmount: combinedHostelTotal,
+        finalAmount: hostelSecurityDepositTotal,
+        isApplicable: true,
+        status: "Pending",
+        frequency: "One Time",
+      } as any;
+
+      if (existingDepIdx >= 0) {
+        ledgerItems[existingDepIdx] = depItem;
+      } else {
+        ledgerItems.push(depItem);
+      }
+    } else if (existingDepIdx >= 0) {
+      ledgerItems.splice(existingDepIdx, 1);
+    }
+
+    // Process Hostel Fee Item in ledgerItems
+    const existingHstIdx = ledgerItems.findIndex(
+      (item) =>
+        (item.headId === "FH-HST" || (item.category === "Hostel Fee" && item.headId !== "FH-HST-DEP") || (item.headName || "").toLowerCase().includes("hostel")) &&
+        !(item.headName || "").toLowerCase().includes("security deposit"),
+    );
+
+    if (hostelApplicable && hostelAccommodationTotal > 0) {
+      const roomLabel = hstRoomName ? `, Room ${hstRoomName}` : "";
+      const hstItem: LedgerFeeItem = {
+        headId: "FH-HST",
+        headName: `Hostel Fee (${hstBlockName || "Hostel"}${roomLabel})`,
+        category: "Hostel Fee",
+        originalAmount: hostelAccommodationTotal,
+        scholarshipDeduction: 0,
+        discountDeduction: 0,
+        fineAmount: 0,
+        finalAmount: hostelAccommodationTotal,
         isApplicable: true,
         status: "Pending",
         frequency: hostelFrequency,
@@ -14298,34 +14382,16 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       } else {
         ledgerItems.push(hstItem);
       }
-    } else {
-      const remarksText = isNonResident
-        ? "Not Applicable for Day Scholars"
-        : "Hostel Fee Pending Room Assignment";
-
-      if (existingHstIdx >= 0) {
-        ledgerItems[existingHstIdx] = {
-          ...ledgerItems[existingHstIdx],
-          originalAmount: 0,
-          finalAmount: 0,
-          isApplicable: false,
-          remarks: remarksText,
-        };
-      } else {
-        ledgerItems.push({
-          headId: "FH-HST",
-          headName: "Hostel Fee & Mess Charges",
-          category: "Hostel Fee",
-          originalAmount: 0,
-          scholarshipDeduction: 0,
-          discountDeduction: 0,
-          fineAmount: 0,
-          finalAmount: 0,
-          isApplicable: false,
-          status: "Pending",
-          remarks: remarksText,
-        });
-      }
+    } else if (existingHstIdx >= 0) {
+      ledgerItems[existingHstIdx] = {
+        ...ledgerItems[existingHstIdx],
+        originalAmount: 0,
+        finalAmount: 0,
+        isApplicable: false,
+        remarks: isNonResident
+          ? "Not Applicable for Day Scholars"
+          : "Hostel Fee Not Configured for Student's Class",
+      };
     }
 
     // 3. Deductions: Scholarships & Discounts
@@ -15164,6 +15230,190 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           remarks: isResidentStudent
             ? "Not Applicable for Residential Students"
             : "Transport Not Opted",
+        };
+      }
+
+      // Inject / Reconcile Hostel Fee directly into feeItems for existing ledger
+      const existingHstIdx = itemsToReturn.findIndex(
+        (i) => i.headId === "FH-HST" || i.category === "Hostel Fee" || (i.headName || "").toLowerCase().includes("hostel"),
+      );
+
+      if (isResidentStudent) {
+        const activeHostelAssign =
+          studentHostelAssignments.find(
+            (h) => (h.studentId === studentId || (existing.admissionNo && h.admissionNo === existing.admissionNo) || (student?.admissionNo && h.admissionNo === student.admissionNo)) && h.status === "Active",
+          ) ||
+          studentHostels.find(
+            (h) => (h.studentId === studentId || (existing.admissionNo && (h as any).admissionNo === existing.admissionNo) || (student?.admissionNo && (h as any).admissionNo === student.admissionNo)) && h.status === "Active",
+          );
+
+        const hstBlockName =
+          (activeHostelAssign as any)?.hostelName ||
+          (activeHostelAssign as any)?.hostelId ||
+          student?.hostelBlock ||
+          (admApp as any)?.hostelBlock ||
+          "";
+
+        const hstRoomName =
+          (activeHostelAssign as any)?.roomNumber ||
+          (activeHostelAssign as any)?.roomNo ||
+          (activeHostelAssign as any)?.roomTypeName ||
+          student?.hostelRoom ||
+          student?.hostelBed ||
+          (admApp as any)?.hostelRoom ||
+          (admApp as any)?.hostelBed ||
+          "";
+
+        const cleanRoom = (str?: string) => String(str || "").toLowerCase().replace(/^room\s*/i, "").trim();
+
+        const roomType =
+          (activeHostelAssign as any)?.roomTypeName ||
+          (student as any)?.roomType ||
+          (admApp as any)?.roomType || "";
+
+        const matchedRoomObj = (hostelRooms || []).find((r: any) =>
+          (cleanRoom(r.roomNo) === cleanRoom(hstRoomName) ||
+           String(r.id) === String((activeHostelAssign as any)?.roomId)) &&
+          (String(r.blockId) === String((activeHostelAssign as any)?.blockId) ||
+           !r.blockId ||
+           !hstBlockName)
+        );
+
+        const isRoomAc = (matchedRoomObj as any)?.acType === 'AC' ||
+          (matchedRoomObj as any)?.isAc === true ||
+          (String(roomType).toUpperCase().includes('AC') && !String(roomType).toUpperCase().includes('NON'));
+        const acTypeStr = isRoomAc ? 'AC' : 'Non-AC';
+
+        const parsedCapMatch = roomType.match(/\d+/);
+        const roomCap = matchedRoomObj?.capacity ||
+          (activeHostelAssign as any)?.capacity ||
+          (parsedCapMatch ? parseInt(parsedCapMatch[0], 10) : undefined);
+
+        const studentClass = student?.className || (admApp as any)?.appliedClass || (admApp as any)?.className || "Nursery";
+
+        const candidateConfigs = (financeHostelConfigs || []).filter((c) => {
+          if (c.status !== "Active") return false;
+          if (c.academicYear && selectedAcademicYear && !matchesAcademicYear(c.academicYear, selectedAcademicYear)) return false;
+
+          const blockMatch = !c.hostelName || c.hostelName === "All" || !hstBlockName ||
+            (c.hostelId && String(c.hostelId) === String(hstBlockName)) ||
+            (c.hostelName && hstBlockName && c.hostelName.toLowerCase() === hstBlockName.toLowerCase()) ||
+            (c.hostelName && hstBlockName && c.hostelName.toLowerCase().includes(hstBlockName.toLowerCase())) ||
+            (c.hostelName && hstBlockName && hstBlockName.toLowerCase().includes(c.hostelName.toLowerCase()));
+          if (!blockMatch) return false;
+
+          if (!isClassInRange(studentClass, c.startClass, c.endClass, c.classRange, academicClasses)) return false;
+
+          if (c.roomNo && c.roomNo !== "All Rooms" && c.roomNo !== "All" && hstRoomName) {
+            if (cleanRoom(c.roomNo) !== cleanRoom(hstRoomName)) return false;
+          }
+
+          if (c.acType && c.acType !== "All") {
+            const cAc = c.acType.toUpperCase().includes("NON") ? "Non-AC" : "AC";
+            if (cAc !== acTypeStr) return false;
+          }
+
+          if (c.sharingType && c.sharingType !== "All" && roomCap) {
+            const capMatch =
+              (c.sharingType.toLowerCase().includes("single") && roomCap === 1) ||
+              (c.sharingType.toLowerCase().includes("double") && roomCap === 2) ||
+              (c.sharingType.toLowerCase().includes("triple") && roomCap === 3) ||
+              (c.sharingType.toLowerCase().includes("4") && roomCap === 4) ||
+              c.sharingType.includes(String(roomCap));
+            if (!capMatch) return false;
+          }
+
+          return true;
+        });
+
+        candidateConfigs.sort((a, b) => {
+          const aSpecificRoom = a.roomNo && a.roomNo !== "All Rooms" ? 10 : 0;
+          const bSpecificRoom = b.roomNo && b.roomNo !== "All Rooms" ? 10 : 0;
+          const aSpecificRt = a.roomTypeName && a.roomTypeName !== "All Room Types" ? 5 : 0;
+          const bSpecificRt = b.roomTypeName && b.roomTypeName !== "All Room Types" ? 5 : 0;
+          const aSpecificAc = a.acType && a.acType !== "All" ? 2 : 0;
+          const bSpecificAc = b.acType && b.acType !== "All" ? 2 : 0;
+          return (bSpecificRoom + bSpecificRt + bSpecificAc) - (aSpecificRoom + aSpecificRt + aSpecificAc);
+        });
+
+        const fhc =
+          candidateConfigs[0] ||
+          (financeHostelConfigs || []).find((c) => c.status === "Active" && isClassInRange(studentClass, c.startClass, c.endClass, c.classRange, academicClasses)) ||
+          (financeHostelConfigs || []).find((c) => c.status === "Active");
+
+        let hostelFeeTotal = 0;
+        let hostelDepTotal = 0;
+        let hostelFrequency = "Quarterly";
+
+        if (fhc) {
+          hostelFeeTotal = Number(fhc.hostelFee) || 0;
+          hostelDepTotal = Number(fhc.securityDeposit) || 0;
+          hostelFrequency = fhc.feePlan || "Quarterly";
+        }
+
+        // Process Hostel Security Deposit Item in itemsToReturn
+        const existingDepIdx = itemsToReturn.findIndex(
+          (i) => i.headId === "FH-HST-DEP" || (i.headName || "").toLowerCase().includes("security deposit"),
+        );
+        if (hostelDepTotal > 0) {
+          const depItem: LedgerFeeItem = {
+            headId: "FH-HST-DEP",
+            headName: "Hostel Security Deposit",
+            category: "Hostel Fee",
+            originalAmount: hostelDepTotal,
+            scholarshipDeduction: 0,
+            discountDeduction: 0,
+            fineAmount: 0,
+            finalAmount: hostelDepTotal,
+            isApplicable: true,
+            status: "Pending",
+            frequency: "One Time",
+          } as any;
+          if (existingDepIdx >= 0) {
+            itemsToReturn[existingDepIdx] = depItem;
+          } else {
+            itemsToReturn.push(depItem);
+          }
+        } else if (existingDepIdx >= 0) {
+          itemsToReturn.splice(existingDepIdx, 1);
+        }
+
+        // Process Hostel Fee Item in itemsToReturn
+        const existingHstItemIdx = itemsToReturn.findIndex(
+          (i) =>
+            (i.headId === "FH-HST" || (i.category === "Hostel Fee" && i.headId !== "FH-HST-DEP") || (i.headName || "").toLowerCase().includes("hostel")) &&
+            !(i.headName || "").toLowerCase().includes("security deposit"),
+        );
+
+        if (hostelFeeTotal > 0) {
+          const roomLabel = hstRoomName ? `, Room ${hstRoomName}` : "";
+          const hstItem: LedgerFeeItem = {
+            headId: "FH-HST",
+            headName: `Hostel Fee (${hstBlockName || "Hostel"}${roomLabel})`,
+            category: "Hostel Fee",
+            originalAmount: hostelFeeTotal,
+            scholarshipDeduction: 0,
+            discountDeduction: 0,
+            fineAmount: 0,
+            finalAmount: hostelFeeTotal,
+            isApplicable: true,
+            status: "Pending",
+            frequency: hostelFrequency,
+          } as any;
+
+          if (existingHstItemIdx >= 0) {
+            itemsToReturn[existingHstItemIdx] = hstItem;
+          } else {
+            itemsToReturn.push(hstItem);
+          }
+        }
+      } else if (existingHstIdx >= 0) {
+        itemsToReturn[existingHstIdx] = {
+          ...itemsToReturn[existingHstIdx],
+          originalAmount: 0,
+          finalAmount: 0,
+          isApplicable: false,
+          remarks: "Not Applicable for Day Scholar Students",
         };
       }
 
@@ -17603,12 +17853,24 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     const hostelAssign = studentHostels.find(
       (h) => h.studentId === studentId && h.status === "Active",
     );
-    const hostelFee =
+    let hostelFee =
       (student.studentType === "Hosteller" ||
         student.studentType === "Residential") &&
       hostelAssign
         ? hostelAssign.feeAmount
         : 0;
+
+    const ledgerHstItems = ledger?.feeItems?.filter(
+      (i) =>
+        i.isApplicable &&
+        (i.headId === "FH-HST" ||
+          i.headId === "FH-HST-DEP" ||
+          (i.category || "").toLowerCase().includes("hostel") ||
+          (i.headName || "").toLowerCase().includes("hostel")),
+    ) || [];
+    if (ledgerHstItems.length > 0) {
+      hostelFee = ledgerHstItems.reduce((sum, item) => sum + (item.finalAmount || item.originalAmount || 0), 0);
+    }
 
     const previousDue = Math.max(0, student.dueFee || 0);
 

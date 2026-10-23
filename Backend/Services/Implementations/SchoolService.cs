@@ -1266,6 +1266,9 @@ public class SchoolService : ISchoolService
 			HostelRoom = dto.HostelRoom,
 			AvailableBed = dto.AvailableBed,
 			AllocatedBedId = dto.AllocatedBedId ?? dto.AvailableBed,
+			HostelSecurityDepositPaid = dto.HostelSecurityDepositPaid ?? false,
+			SecurityDepositAmount = dto.SecurityDepositAmount,
+			SecurityDepositReceiptNo = dto.SecurityDepositReceiptNo,
 			Scholarship = dto.Scholarship,
 			Discount = dto.Discount,
 			Status = !string.IsNullOrWhiteSpace(dto.Status) ? dto.Status.Trim() : "Pending"
@@ -1376,6 +1379,9 @@ public class SchoolService : ISchoolService
 		app.HostelRoom = dto.HostelRoom;
 		app.AvailableBed = dto.AvailableBed;
 		app.AllocatedBedId = dto.AllocatedBedId ?? dto.AvailableBed ?? app.AllocatedBedId;
+		if (dto.HostelSecurityDepositPaid.HasValue) app.HostelSecurityDepositPaid = dto.HostelSecurityDepositPaid.Value;
+		if (dto.SecurityDepositAmount.HasValue) app.SecurityDepositAmount = dto.SecurityDepositAmount.Value;
+		if (!string.IsNullOrWhiteSpace(dto.SecurityDepositReceiptNo)) app.SecurityDepositReceiptNo = dto.SecurityDepositReceiptNo;
 		app.Scholarship = dto.Scholarship;
 		app.Discount = dto.Discount;
 
@@ -1818,6 +1824,9 @@ public class SchoolService : ISchoolService
 		FloorLevel = a.FloorLevel,
 		HostelRoom = a.HostelRoom,
 		AvailableBed = a.AvailableBed,
+		HostelSecurityDepositPaid = a.HostelSecurityDepositPaid,
+		SecurityDepositAmount = a.SecurityDepositAmount,
+		SecurityDepositReceiptNo = a.SecurityDepositReceiptNo,
 		Scholarship = a.Scholarship,
 		Discount = a.Discount,
 		Status = a.Status ?? "",
@@ -1830,12 +1839,34 @@ public class SchoolService : ISchoolService
 		{
 			if (string.Equals(app.StudentType, "Residential", StringComparison.OrdinalIgnoreCase))
 			{
+				string? rawBed = !string.IsNullOrWhiteSpace(app.AllocatedBedId) && app.AllocatedBedId != "N/A" 
+					? app.AllocatedBedId 
+					: (!string.IsNullOrWhiteSpace(app.AvailableBed) && app.AvailableBed != "N/A" ? app.AvailableBed : null);
+
+				bool depositRequired = (app.SecurityDepositAmount ?? 0) > 0;
+				bool depositSatisfied = !depositRequired || app.HostelSecurityDepositPaid;
+
+				if (string.IsNullOrWhiteSpace(rawBed) || !depositSatisfied)
+				{
+					var pendingAlloc = await Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions.FirstOrDefaultAsync(
+						_context.StudentBedAllocations, a => a.StudentId == app.Id && a.Status == "Active");
+					if (pendingAlloc != null)
+					{
+						pendingAlloc.Status = "Inactive";
+						await _context.SaveChangesAsync();
+					}
+					return;
+				}
+
 				string blockName = !string.IsNullOrWhiteSpace(app.HostelBlock) && app.HostelBlock != "N/A" ? app.HostelBlock : "Main Block";
 				string roomNo = !string.IsNullOrWhiteSpace(app.HostelRoom) && app.HostelRoom != "N/A" ? app.HostelRoom : "Room 101";
+				string bedNo = rawBed!;
+				/*
 				string bedNo = !string.IsNullOrWhiteSpace(app.AllocatedBedId) && app.AllocatedBedId != "N/A" 
 					? app.AllocatedBedId 
 					: (!string.IsNullOrWhiteSpace(app.AvailableBed) && app.AvailableBed != "N/A" ? app.AvailableBed : "Bed-1");
 
+				*/
 				var block = await Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions.FirstOrDefaultAsync(
 					_context.HostelBlocks, b => b.HostelName == blockName && b.Status == "Active");
 
