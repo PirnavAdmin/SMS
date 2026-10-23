@@ -201,7 +201,7 @@ namespace SMS.Api.Controllers
                         `IssueDate` varchar(50) NULL,
                         `ExpiryDate` varchar(50) NULL,
                         `BadgeNumber` varchar(100) NULL,
-                        `Status` varchar(50) NOT NULL DEFAULT 'Verified',
+                        `Status` varchar(50) NOT NULL DEFAULT 'Active',
                         `FileName` varchar(255) NULL,
                         `FileUrl` varchar(500) NULL,
                         `IsDeleted` tinyint(1) NOT NULL DEFAULT 0,
@@ -211,20 +211,41 @@ namespace SMS.Api.Controllers
                     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;");
 
                 string rawNum = id.Replace("DRV-", "").Replace("NTS-", "").Trim();
+                long.TryParse(rawNum, out long parsedNum);
+
+                string dbDriverId = string.Empty;
+                string dbEmpId = string.Empty;
+                try
+                {
+                    var driver = await _service.GetByIdOrNumberAsync(id);
+                    if (driver != null)
+                    {
+                        dbDriverId = driver.DriverId.ToString();
+                        dbEmpId = driver.EmployeeId?.Trim() ?? string.Empty;
+                    }
+                }
+                catch { }
+
                 var docs = await _context.TransportDriverDocuments
                     .AsNoTracking()
-                    .Where(d => !d.IsDeleted && (d.DriverId == id || (rawNum != "" && d.DriverId == rawNum)))
+                    .Where(d => !d.IsDeleted && (
+                        d.DriverId == id ||
+                        (rawNum != "" && d.DriverId == rawNum) ||
+                        (parsedNum > 0 && d.DriverId == parsedNum.ToString()) ||
+                        (dbDriverId != "" && d.DriverId == dbDriverId) ||
+                        (dbEmpId != "" && d.DriverId == dbEmpId)
+                    ))
                     .OrderByDescending(d => d.Id)
                     .Select(d => new DriverDocumentDto
                     {
                         Id = d.Id,
                         DriverId = d.DriverId,
-                        DocumentCategory = d.DocumentCategory ?? "Medical Certificate",
+                        DocumentCategory = d.DocumentCategory ?? "Driving License",
                         DocumentNumber = d.DocumentNumber ?? string.Empty,
                         IssueDate = d.IssueDate ?? string.Empty,
                         ExpiryDate = d.ExpiryDate ?? string.Empty,
                         BadgeNumber = d.BadgeNumber ?? string.Empty,
-                        Status = d.Status ?? "Verified",
+                        Status = d.Status ?? "Active",
                         FileName = d.FileName ?? string.Empty,
                         FileUrl = d.FileUrl ?? string.Empty
                     })
@@ -252,7 +273,7 @@ namespace SMS.Api.Controllers
                         `IssueDate` varchar(50) NULL,
                         `ExpiryDate` varchar(50) NULL,
                         `BadgeNumber` varchar(100) NULL,
-                        `Status` varchar(50) NOT NULL DEFAULT 'Verified',
+                        `Status` varchar(50) NOT NULL DEFAULT 'Active',
                         `FileName` varchar(255) NULL,
                         `FileUrl` varchar(500) NULL,
                         `IsDeleted` tinyint(1) NOT NULL DEFAULT 0,
@@ -261,15 +282,26 @@ namespace SMS.Api.Controllers
                         KEY `ix_driver_id` (`DriverId`)
                     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;");
 
+                string targetDriverId = id;
+                try
+                {
+                    var driver = await _service.GetByIdOrNumberAsync(id);
+                    if (driver != null)
+                    {
+                        targetDriverId = driver.DriverId.ToString();
+                    }
+                }
+                catch { }
+
                 var docEntity = new TransportDriverDocument
                 {
-                    DriverId = id,
+                    DriverId = targetDriverId,
                     DocumentCategory = dto.DocumentCategory,
                     DocumentNumber = dto.DocumentNumber,
                     BadgeNumber = dto.BadgeNumber,
                     IssueDate = dto.IssueDate,
                     ExpiryDate = dto.ExpiryDate,
-                    Status = "Verified",
+                    Status = "Active",
                     FileName = dto.FileName,
                     FileUrl = dto.FileUrl,
                     CreatedAt = DateTime.UtcNow,
@@ -293,7 +325,7 @@ namespace SMS.Api.Controllers
                     FileUrl = docEntity.FileUrl ?? string.Empty
                 };
 
-                return Ok(new { success = true, message = "Driver verification document uploaded successfully.", data = newDoc });
+                return Ok(new { success = true, message = "Driver document uploaded successfully.", data = newDoc });
             }
             catch (Exception ex)
             {
@@ -313,18 +345,18 @@ namespace SMS.Api.Controllers
                     {
                         doc.IsDeleted = true;
                         await _context.SaveChangesAsync();
-                        return Ok(new { success = true, message = "Verification document deleted successfully." });
+                        return Ok(new { success = true, message = "Driver document deleted successfully." });
                     }
                 }
 
                 await _context.Database.ExecuteSqlRawAsync(
                     "UPDATE `transport_driver_documents` SET `IsDeleted` = 1 WHERE `Id` = {0}", docId);
 
-                return Ok(new { success = true, message = "Verification document deleted successfully." });
+                return Ok(new { success = true, message = "Driver document deleted successfully." });
             }
             catch
             {
-                return Ok(new { success = true, message = "Verification document deleted." });
+                return Ok(new { success = true, message = "Driver document deleted." });
             }
         }
     }
