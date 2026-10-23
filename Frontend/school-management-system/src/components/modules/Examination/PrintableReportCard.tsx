@@ -365,7 +365,7 @@ export const PrintableReportCard: React.FC<PrintableReportCardProps> = ({
         </div>
         <div>
           <span className="block text-[10px] uppercase font-bold text-slate-400">Class & Section</span>
-          <p className="font-bold text-slate-800 dark:text-slate-200 text-xs mt-0.5">{activeStudent.className}{activeStudent.section ? ` (Section ${activeStudent.section})` : ''}</p>
+          <p className="font-bold text-slate-800 dark:text-slate-200 text-xs mt-0.5">{activeStudent.className}{activeStudent.section ? (activeStudent.section.toLowerCase() === 'unassigned' ? ' (Unassigned)' : ` (Section ${activeStudent.section})`) : ''}</p>
         </div>
         <div>
           <span className="block text-[10px] uppercase font-bold text-slate-400">Father / Guardian Name</span>

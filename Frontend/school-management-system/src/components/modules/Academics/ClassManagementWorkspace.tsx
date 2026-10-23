@@ -1429,6 +1429,9 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
     if (!activeClass) return [];
     const details = (activeClass as any).sectionDetails || {};
     return activeClass.sections.filter(sec => {
+      const clean = sec.replace(/^Section\s*/i, '').trim().toLowerCase();
+      if (!clean || clean === 'unassigned' || clean === 'none') return false;
+
       const detail = details[sec] || {};
       const status = detail.status || 'Active';
       const cap = detail.capacity ?? 40;
@@ -1885,7 +1888,8 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
 
   const handleChangeStudentSection = (studId: string, destSec: string) => {
     if (!activeClass) return;
-    const cleanDestSec = (destSec || '').replace(/^Section\s*/i, '').trim();
+    const rawClean = (destSec || '').replace(/^Section\s*/i, '').trim();
+    const cleanDestSec = (!rawClean || rawClean.toLowerCase() === 'unassigned') ? '' : rawClean;
     const destCount = cleanDestSec ? students.filter(s =>
       (s.className === activeClass.name || isNameEquivalent(s.className || '', activeClass.name)) &&
       (s.section || '').replace(/^Section\s*/i, '').trim() === cleanDestSec &&
@@ -1896,7 +1900,7 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
 
     // Immediately update local student state so the UI reflects the change with zero lag
     updateStudent(studId, {
-      section: cleanDestSec,
+      section: cleanDestSec ? cleanDestSec : 'Unassigned',
       rollNo: newRoll
     } as any);
 
@@ -1923,7 +1927,9 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
   // Auto Allocate Students evenly among sections
   const handleAutoAllocate = () => {
     if (!activeClass) return;
-    const activeSecs = activeClass.sections.map(s => s.replace(/^Section\s*/i, '').trim());
+    const activeSecs = activeClass.sections
+      .map(s => s.replace(/^Section\s*/i, '').trim())
+      .filter(s => s && s.toLowerCase() !== 'unassigned' && s.toLowerCase() !== 'none');
     if (activeSecs.length === 0) {
       addToast('warning', 'No Sections', 'Please configure class sections first.');
       return;
@@ -2081,7 +2087,7 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
                         <div>
                           <h4 className="font-black text-slate-900 dark:text-white text-xs uppercase tracking-wider mb-3">Class Teacher</h4>
                           <div className="space-y-2">
-                            {activeClass.sections.map(sec => {
+                            {activeClass.sections.filter(s => s.replace(/^Section\s*/i, '').trim().toLowerCase() !== 'unassigned').map(sec => {
                               const rawClassTeacher = ((activeClass as any).sectionTeachers || {})[sec] || 'Not Assigned';
                               const isAssigned = Boolean(rawClassTeacher && rawClassTeacher !== 'Not Assigned' && rawClassTeacher !== 'Unassigned');
                               const classTeacher = isAssigned ? formatTeacherDisplayName(rawClassTeacher) : 'Not Assigned';
@@ -2092,7 +2098,7 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
                                 </div>
                               );
                             })}
-                            {activeClass.sections.length === 0 && (
+                            {activeClass.sections.filter(s => s.replace(/^Section\s*/i, '').trim().toLowerCase() !== 'unassigned').length === 0 && (
                               <p className="text-slate-400 italic text-xs text-center py-2">No sections configured.</p>
                             )}
                           </div>
@@ -2592,7 +2598,7 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
                             </h4>
                           </div>
                           <div className="flex items-center gap-1.5 p-1 bg-slate-100 dark:bg-slate-950 rounded-2xl border border-slate-200/50 dark:border-slate-800">
-                            {activeClass.sections.map(sec => (
+                            {activeClass.sections.filter(s => s.replace(/^Section\s*/i, '').trim().toLowerCase() !== 'unassigned').map(sec => (
                               <button
                                 key={sec}
                                 onClick={() => setActiveWorkspaceSection(sec)}
@@ -2797,7 +2803,7 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
                               </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-100 dark:divide-slate-800/80 font-bold">
-                              {activeClass.sections.map(sec => {
+                              {activeClass.sections.filter(s => s.replace(/^Section\s*/i, '').trim().toLowerCase() !== 'unassigned').map(sec => {
                                 const classTeacherName = ((activeClass as any).sectionTeachers || {})[sec];
                                 const isCTAssigned = Boolean(classTeacherName && classTeacherName !== 'Unassigned');
                                 
@@ -3074,20 +3080,25 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
                             </div>
 
                             <div className="flex items-center gap-2 flex-wrap">
-                              <select
-                                value={bulkTargetSection}
-                                onChange={e => setBulkTargetSection(e.target.value)}
-                                className="px-3 py-1.5 bg-white dark:bg-slate-900 border border-sky-300 dark:border-sky-700 rounded-xl text-xs font-bold text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-sky-500/30"
-                              >
-                                <option value="">Choose Section...</option>
-                                {activeClass.sections.map(sec => {
-                                  const cleanSec = sec.replace(/^Section\s*/i, '').trim();
-                                  return (
-                                    <option key={cleanSec} value={cleanSec}>Section {cleanSec}</option>
-                                  );
-                                })}
-                                <option value="Unassigned">Unassigned</option>
-                              </select>
+                              {(() => {
+                                const availableClassSections = (activeClass.sections || [])
+                                  .map(sec => sec.replace(/^Section\s*/i, '').trim())
+                                  .filter(sec => sec && sec.toLowerCase() !== 'unassigned' && sec.toLowerCase() !== 'none');
+
+                                return (
+                                  <select
+                                    value={bulkTargetSection}
+                                    onChange={e => setBulkTargetSection(e.target.value)}
+                                    className="px-3 py-1.5 bg-white dark:bg-slate-900 border border-sky-300 dark:border-sky-700 rounded-xl text-xs font-bold text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-sky-500/30"
+                                  >
+                                    <option value="">Choose Section...</option>
+                                    {availableClassSections.map(cleanSec => (
+                                      <option key={cleanSec} value={cleanSec}>Section {cleanSec}</option>
+                                    ))}
+                                    <option value="Unassigned">Unassigned</option>
+                                  </select>
+                                );
+                              })()}
 
                               <button
                                 type="button"
@@ -3134,69 +3145,74 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
                               </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-100 dark:divide-slate-800/80">
-                              {paginatedStudents.map(stud => {
-                                const isSelected = selectedStudentsForAllocation.includes(stud.id);
-                                const cleanStudSec = (stud.section || '').replace(/^Section\s*/i, '').trim();
-                                const isAssigned = cleanStudSec && activeClass.sections.some(sec => sec.replace(/^Section\s*/i, '').trim() === cleanStudSec);
-                                const admissionDisplay = stud.admissionNo || (stud as any).registrationNumber || stud.id || 'REG-1001';
+                              {(() => {
+                                const availableClassSections = (activeClass.sections || [])
+                                  .map(sec => sec.replace(/^Section\s*/i, '').trim())
+                                  .filter(sec => sec && sec.toLowerCase() !== 'unassigned' && sec.toLowerCase() !== 'none');
 
-                                return (
-                                  <tr 
-                                    key={stud.id} 
-                                    className={`transition-colors ${
-                                      isSelected 
-                                        ? 'bg-sky-50/70 dark:bg-sky-950/30' 
-                                        : 'hover:bg-slate-50/50 dark:hover:bg-slate-900/50'
-                                    }`}
-                                  >
-                                    <td className="py-3 px-3 text-center align-middle">
-                                      <input
-                                        type="checkbox"
-                                        checked={isSelected}
-                                        onChange={() => handleToggleStudent(stud.id)}
-                                        className="w-4 h-4 rounded text-sky-600 focus:ring-sky-500 cursor-pointer accent-sky-600"
-                                      />
-                                    </td>
-                                    <td className="py-3 px-4 font-mono text-slate-500 dark:text-slate-400 font-bold whitespace-nowrap align-middle">
-                                      {admissionDisplay}
-                                    </td>
-                                    <td className="py-3 px-4 text-slate-900 dark:text-white font-extrabold whitespace-nowrap align-middle">
-                                      {stud.firstName} {stud.lastName}
-                                    </td>
-                                    <td className="py-3 px-4 whitespace-nowrap align-middle">
-                                      {isAssigned ? (
-                                        <span className="px-2.5 py-0.5 rounded-full text-[10px] font-mono font-black bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400 border border-emerald-200/60 dark:border-emerald-800">
-                                          Section {cleanStudSec}
-                                        </span>
-                                      ) : (
-                                        <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-400 border border-amber-200/60 dark:border-amber-800">
-                                          Unassigned
-                                        </span>
-                                      )}
-                                    </td>
-                                    <td className="py-3 px-4 text-center whitespace-nowrap align-middle">
-                                      <select
-                                        value={
-                                          (() => {
-                                            const matched = activeClass.sections.find(sec => sec.replace(/^Section\s*/i, '').trim() === cleanStudSec);
-                                            return matched ? matched.replace(/^Section\s*/i, '').trim() : '';
-                                          })()
-                                        }
-                                        onChange={e => handleChangeStudentSection(stud.id, e.target.value)}
-                                        className="p-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold outline-none focus:ring-2 focus:ring-sky-500/20 cursor-pointer"
-                                      >
-                                        <option value="">Unassigned</option>
-                                        {activeClass.sections.map(sec => {
-                                          const cleanSec = sec.replace(/^Section\s*/i, '').trim();
-                                          return (
+                                return paginatedStudents.map(stud => {
+                                  const isSelected = selectedStudentsForAllocation.includes(stud.id);
+                                  const cleanStudSec = (stud.section || '').replace(/^Section\s*/i, '').trim();
+                                  const isUnassigned = !cleanStudSec || cleanStudSec.toLowerCase() === 'unassigned' || cleanStudSec.toLowerCase() === 'none';
+                                  const isAssigned = !isUnassigned && availableClassSections.some(sec => sec.toLowerCase() === cleanStudSec.toLowerCase());
+                                  const admissionDisplay = stud.admissionNo || (stud as any).registrationNumber || stud.id || 'REG-1001';
+
+                                  return (
+                                    <tr 
+                                      key={stud.id} 
+                                      className={`transition-colors ${
+                                        isSelected 
+                                          ? 'bg-sky-50/70 dark:bg-sky-950/30' 
+                                          : 'hover:bg-slate-50/50 dark:hover:bg-slate-900/50'
+                                      }`}
+                                    >
+                                      <td className="py-3 px-3 text-center align-middle">
+                                        <input
+                                          type="checkbox"
+                                          checked={isSelected}
+                                          onChange={() => handleToggleStudent(stud.id)}
+                                          className="w-4 h-4 rounded text-sky-600 focus:ring-sky-500 cursor-pointer accent-sky-600"
+                                        />
+                                      </td>
+                                      <td className="py-3 px-4 font-mono text-slate-500 dark:text-slate-400 font-bold whitespace-nowrap align-middle">
+                                        {admissionDisplay}
+                                      </td>
+                                      <td className="py-3 px-4 text-slate-900 dark:text-white font-extrabold whitespace-nowrap align-middle">
+                                        {stud.firstName} {stud.lastName}
+                                      </td>
+                                      <td className="py-3 px-4 whitespace-nowrap align-middle">
+                                        {isAssigned ? (
+                                          <span className="px-2.5 py-0.5 rounded-full text-[10px] font-mono font-black bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400 border border-emerald-200/60 dark:border-emerald-800">
+                                            Section {cleanStudSec}
+                                          </span>
+                                        ) : (
+                                          <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 border border-amber-300 dark:border-amber-700 shadow-2xs">
+                                            Unassigned
+                                          </span>
+                                        )}
+                                      </td>
+                                      <td className="py-3 px-4 text-center whitespace-nowrap align-middle">
+                                        <select
+                                          value={
+                                            (() => {
+                                              if (isUnassigned) return '';
+                                              const matched = availableClassSections.find(sec => sec.toLowerCase() === cleanStudSec.toLowerCase());
+                                              return matched || '';
+                                            })()
+                                          }
+                                          onChange={e => handleChangeStudentSection(stud.id, e.target.value)}
+                                          className="p-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold outline-none focus:ring-2 focus:ring-sky-500/20 cursor-pointer"
+                                        >
+                                          <option value="">Unassigned</option>
+                                          {availableClassSections.map(cleanSec => (
                                             <option key={cleanSec} value={cleanSec}>Section {cleanSec}</option>
-                                          );
-                                        })}
-                                      </select>
-                                    </td>
-                                  </tr>
-                                );
-                              })}
+                                          ))}
+                                        </select>
+                                      </td>
+                                    </tr>
+                                  );
+                                });
+                              })()}
                               {displayedStudents.length === 0 && (
                                 <tr>
                                   <td colSpan={5} className="p-8 text-center text-slate-400 italic">

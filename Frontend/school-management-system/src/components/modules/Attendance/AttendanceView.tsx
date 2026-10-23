@@ -1501,7 +1501,7 @@ export const AttendanceView = () => {
               {sectionOptions.map(sec => {
                 const displayLabel = sec === 'Select Section' || sec === 'All Sections' 
                   ? sec 
-                  : (sec.toLowerCase().startsWith('section') ? sec : `Section ${sec}`);
+                  : (sec.toLowerCase() === 'unassigned' ? 'Unassigned' : (sec.toLowerCase().startsWith('section') ? sec : `Section ${sec}`));
                 return (
                   <option key={sec} value={sec}>
                     {displayLabel}
