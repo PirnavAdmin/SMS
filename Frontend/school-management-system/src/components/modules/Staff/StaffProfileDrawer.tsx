@@ -229,7 +229,7 @@ export const StaffProfileDrawer: React.FC<StaffProfileDrawerProps> = ({ staff: s
                 </div>
                 <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border space-y-1">
                   <span className="text-[10px] font-bold text-slate-400 uppercase">Phone</span>
-                  <p className="font-bold text-slate-900 dark:text-white">{staff.phone}</p>
+                  <p className="font-bold text-slate-900 dark:text-white">{staff.phone || (staff as any).mobileNumber || (staff as any).mobile}</p>
                 </div>
                 <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border space-y-1">
                   <span className="text-[10px] font-bold text-slate-400 uppercase">Joining Date</span>

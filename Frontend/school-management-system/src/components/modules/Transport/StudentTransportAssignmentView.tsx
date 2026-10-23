@@ -32,6 +32,28 @@ export interface StudentTransportHistoryItem {
 
 const initialStudentHistory: StudentTransportHistoryItem[] = [];
 
+const formatTime12 = (timeStr?: string): string => {
+  if (!timeStr) return '';
+  const trimmed = timeStr.trim();
+  const match12h = trimmed.match(/^(\d{1,2}):(\d{2})(?::\d{2})?\s*(AM|PM)$/i);
+  if (match12h) {
+    const hours = parseInt(match12h[1], 10);
+    const minutes = match12h[2];
+    const ampm = match12h[3].toUpperCase();
+    return `${hours.toString().padStart(2, '0')}:${minutes} ${ampm}`;
+  }
+  const match24h = trimmed.match(/^(\d{1,2}):(\d{2})(?::\d{2})?$/);
+  if (match24h) {
+    let hours = parseInt(match24h[1], 10);
+    const minutes = match24h[2];
+    const ampm = hours >= 12 ? 'PM' : 'AM';
+    hours = hours % 12;
+    if (hours === 0) hours = 12;
+    return `${hours.toString().padStart(2, '0')}:${minutes} ${ampm}`;
+  }
+  return timeStr;
+};
+
 export const StudentTransportAssignmentView: React.FC = () => {
   const {
     students, studentTransports, routeMasters, pickupPoints, vehicleAssignments,
@@ -676,11 +698,19 @@ export const StudentTransportAssignmentView: React.FC = () => {
                     )}
                     <div className="flex justify-between p-2 rounded-xl bg-white dark:bg-slate-900 border">
                       <span className="text-slate-500 flex items-center gap-1"><Clock className="w-3.5 h-3.5 text-emerald-500" /> Morning Pickup:</span>
-                      <span className="font-mono font-black text-emerald-600">{pickupObj?.morningPickupTime || pickupObj?.arrivalTime || '-'}</span>
+                      <span className="font-mono font-black text-emerald-600">
+                        {pickupObj?.morningPickupTime || pickupObj?.arrivalTime ? formatTime12(pickupObj.morningPickupTime || pickupObj.arrivalTime) : '-'}
+                      </span>
                     </div>
                     <div className="flex justify-between p-2 rounded-xl bg-white dark:bg-slate-900 border">
                       <span className="text-slate-500 flex items-center gap-1"><Clock className="w-3.5 h-3.5 text-sky-500" /> Evening Drop:</span>
-                      <span className="font-mono font-black text-sky-600">{pickupObj?.eveningDropTime || '-'}</span>
+                      <span className="font-mono font-black text-sky-600">
+                        {pickupObj?.eveningDropTime || (pickupObj as any)?.dropTime ? (
+                          formatTime12(pickupObj.eveningDropTime || (pickupObj as any).dropTime)
+                        ) : (
+                          <span className="text-xs text-slate-400 font-medium">Optional • Not Set</span>
+                        )}
+                      </span>
                     </div>
                   </div>
                 </div>

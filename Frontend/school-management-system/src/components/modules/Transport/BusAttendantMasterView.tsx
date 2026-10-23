@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { UserCheck, Plus, Search, Edit, Trash2, Phone, ShieldCheck, Bus, ChevronDown } from 'lucide-react';
+import { UserCheck, Plus, Search, Edit, Trash2, Phone, ShieldCheck, Bus, ChevronDown, AlertCircle } from 'lucide-react';
 import { useData } from '../../../context/DataContext';
 import { useAuth } from '../../../context/AuthContext';
 import { useToast } from '../../../context/ToastContext';
@@ -7,13 +7,22 @@ import { Badge } from '../../common/Badge';
 import { ExportButton } from '../../common/ExportButton';
 import { ConfirmModal } from '../../common/ConfirmModal';
 import { BusAttendantMaster, initialBusAttendants } from './transportData';
+import { validatePhoneNumber, sanitizePhoneInput } from '../../../utils/validation';
 export type { BusAttendantMaster };      // re-export type for backward compat
 export { initialBusAttendants };          // re-export value for backward compat
 
 // BusAttendantMaster type and initialBusAttendants are now in transportData.ts
 
 export const BusAttendantMasterView: React.FC = () => {
-  const { staff = [], vehicleAssignments = [], busAttendants: attendants = [], addBusAttendant, updateBusAttendant, deleteBusAttendant } = useData();
+  const {
+    staff = [],
+    vehicleAssignments = [],
+    busAttendants: attendants = [],
+    addBusAttendant,
+    updateBusAttendant,
+    deleteBusAttendant,
+    updateStaff
+  } = useData();
   const { selectedBranch } = useAuth();
   const { addToast } = useToast();
 
@@ -97,6 +106,13 @@ export const BusAttendantMasterView: React.FC = () => {
     status: 'Active'
   });
 
+  const [formErrors, setFormErrors] = useState<{
+    attendantName?: string;
+    employeeId?: string;
+    mobileNumber?: string;
+    gender?: string;
+  }>({});
+
   const filteredAttendants = uniqueAttendants.filter(a => {
     const matchesQuery = a.attendantName.toLowerCase().includes(query.toLowerCase()) ||
                          a.employeeId.toLowerCase().includes(query.toLowerCase()) ||
@@ -109,8 +125,30 @@ export const BusAttendantMasterView: React.FC = () => {
     vehicleAssignments.find(assignment => assignment.attendantId === attendant.id && assignment.status === 'Active') ||
     vehicleAssignments.find(assignment => assignment.attendantName === attendant.attendantName && assignment.status === 'Active');
 
+  const validateForm = (): typeof formErrors => {
+    const errs: typeof formErrors = {};
+
+    if (!form.attendantName?.trim()) {
+      errs.attendantName = 'Attendant full name is required.';
+    }
+    if (!form.employeeId?.trim()) {
+      errs.employeeId = 'Employee ID is required.';
+    }
+    if (!form.gender) {
+      errs.gender = 'Please select a gender.';
+    }
+
+    const phoneCheck = validatePhoneNumber(form.mobileNumber || '', true);
+    if (!phoneCheck.isValid) {
+      errs.mobileNumber = phoneCheck.error || 'Enter a valid 10-digit mobile number.';
+    }
+
+    return errs;
+  };
+
   const handleOpenAdd = () => {
     setEditingAttendant(null);
+    setFormErrors({});
     setForm({
       employeeId: '',
       attendantName: '',
@@ -124,23 +162,46 @@ export const BusAttendantMasterView: React.FC = () => {
 
   const handleOpenEdit = (a: BusAttendantMaster) => {
     setEditingAttendant(a);
+    setFormErrors({});
     setForm(a);
     setIsModalOpen(true);
   };
 
   const handleSubmit = (e: React.SyntheticEvent) => {
     e.preventDefault();
-    if (!form.attendantName || !form.employeeId || !form.mobileNumber) {
-      addToast('warning', 'Validation Error', 'Please select a non-teaching staff member or provide employee details.');
-      return;
-    }
-    if (!form.gender) {
-      addToast('warning', 'Validation Error', 'Please select a gender.');
+    const errs = validateForm();
+    if (Object.keys(errs).length > 0) {
+      setFormErrors(errs);
+      addToast('error', 'Validation Error', errs.mobileNumber || 'Please correct the highlighted fields.');
       return;
     }
 
     if (editingAttendant) {
       updateBusAttendant(editingAttendant.id, form);
+
+      // Direct sync to Faculty & Staff Directory
+      const targetEmpId = (form.employeeId || editingAttendant.employeeId || '').trim().toLowerCase();
+      const targetName = (form.attendantName || editingAttendant.attendantName || '').trim().toLowerCase();
+      const matched = staff.find(s => {
+        const sEmp = (s.empId || (s as any).employeeId || '').trim().toLowerCase();
+        if (targetEmpId && sEmp && sEmp === targetEmpId) return true;
+        if (s.id && String(s.id) === String(editingAttendant.id)) return true;
+        const sName = `${s.firstName || ''} ${s.lastName || ''}`.trim().toLowerCase();
+        if (targetName && sName && sName === targetName) return true;
+        return false;
+      });
+
+      if (matched && updateStaff) {
+        const parts = (form.attendantName || '').trim().split(/\s+/);
+        updateStaff(matched.id, {
+          phone: form.mobileNumber,
+          mobileNumber: form.mobileNumber,
+          gender: form.gender,
+          ...(parts[0] ? { firstName: parts[0], lastName: parts.slice(1).join(' ') || '' } : {}),
+          status: form.status === 'Active' ? 'Active' : 'Inactive'
+        } as any);
+      }
+
       addToast('success', 'Bus Attendant Updated', `Updated details for ${form.attendantName}`);
     } else {
       addBusAttendant(form as Omit<BusAttendantMaster, 'id'>);
@@ -252,7 +313,13 @@ export const BusAttendantMasterView: React.FC = () => {
                 </div>
 
                 <div className="space-y-1.5 text-xs text-slate-600 dark:text-slate-300">
-                  <div className="flex justify-between"><span className="text-slate-400">Mobile Number:</span><span className="font-bold text-sky-600 flex items-center gap-1"><Phone className="w-3 h-3" /> {a.mobileNumber}</span></div>
+                  <div className="flex justify-between items-center gap-2">
+                    <span className="text-slate-400 flex-shrink-0">Mobile Number:</span>
+                    <span className="font-bold text-sky-600 flex items-center gap-1 font-mono truncate max-w-[13rem]" title={a.mobileNumber}>
+                      <Phone className="w-3 h-3 flex-shrink-0" />
+                      <span className="truncate">{a.mobileNumber}</span>
+                    </span>
+                  </div>
                   <div className="flex justify-between"><span className="text-slate-400">Gender:</span><span className="font-semibold text-slate-800 dark:text-slate-200">{a.gender}</span></div>
                   <div className="flex justify-between"><span className="text-slate-400">Branch:</span><span className="font-bold text-amber-600 dark:text-amber-400">{a.branch}</span></div>
                   <div className="p-2 rounded-xl bg-slate-50 dark:bg-slate-800/60 border space-y-1">
@@ -375,14 +442,17 @@ export const BusAttendantMasterView: React.FC = () => {
                               <div
                                 key={s.id}
                                 onClick={() => {
+                                  const rawPhone = s.phone || (s as any).mobileNumber || '';
+                                  const sanitizedPhone = sanitizePhoneInput(rawPhone);
                                   setForm(prev => ({
                                     ...prev,
                                     employeeId: s.empId || (s as any).employeeId || '',
                                     attendantName: `${s.firstName} ${s.lastName || ''}`.trim(),
-                                    mobileNumber: s.phone || (s as any).mobileNumber || '',
+                                    mobileNumber: sanitizedPhone,
                                     gender: (s.gender as any) || prev.gender,
                                     branch: s.branch || (s as any).branchName || prev.branch || selectedBranch || ''
                                   }));
+                                  setFormErrors({});
                                   setIsStaffDropdownOpen(false);
                                   setStaffSearchQuery('');
                                 }}
@@ -424,12 +494,36 @@ export const BusAttendantMasterView: React.FC = () => {
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-semibold mb-1">Employee ID <span className="text-rose-500 font-bold ml-0.5">*</span></label>
-                  <input type="text" required value={form.employeeId} onChange={e => setForm({ ...form, employeeId: e.target.value })} className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-mono" />
+                  <label className="block font-semibold mb-1">
+                    Employee ID <span className="text-rose-500 font-bold ml-0.5">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. EMP-ATT-101"
+                    value={form.employeeId || ''}
+                    onChange={e => {
+                      setForm({ ...form, employeeId: e.target.value });
+                      if (formErrors.employeeId) setFormErrors(prev => ({ ...prev, employeeId: undefined }));
+                    }}
+                    className={`w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-mono font-bold text-slate-900 dark:text-white outline-none ${
+                      formErrors.employeeId ? 'border-rose-500 focus:border-rose-500 bg-rose-50/20' : ''
+                    }`}
+                  />
+                  {formErrors.employeeId && (
+                    <p className="text-[10px] text-rose-500 font-bold mt-1 flex items-center gap-1">
+                      <AlertCircle className="w-3 h-3 flex-shrink-0" />
+                      <span>{formErrors.employeeId}</span>
+                    </p>
+                  )}
                 </div>
                 <div>
                   <label className="block font-semibold mb-1">Status</label>
-                  <select value={form.status} onChange={e => setForm({ ...form, status: e.target.value as any })} className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold">
+                  <select
+                    value={form.status}
+                    onChange={e => setForm({ ...form, status: e.target.value as any })}
+                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold text-slate-900 dark:text-white outline-none cursor-pointer"
+                  >
                     <option value="Active">Active</option>
                     <option value="On Leave">On Leave</option>
                     <option value="Inactive">Inactive</option>
@@ -438,20 +532,93 @@ export const BusAttendantMasterView: React.FC = () => {
               </div>
 
               <div>
-                <label className="block font-semibold mb-1">Attendant Full Name <span className="text-rose-500 font-bold ml-0.5">*</span></label>
-                <input type="text" required value={form.attendantName} onChange={e => setForm({ ...form, attendantName: e.target.value })} className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold" />
+                <label className="block font-semibold mb-1">
+                  Attendant Full Name <span className="text-rose-500 font-bold ml-0.5">*</span>
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Sunita Devi"
+                  value={form.attendantName || ''}
+                  onChange={e => {
+                    setForm({ ...form, attendantName: e.target.value });
+                    if (formErrors.attendantName) setFormErrors(prev => ({ ...prev, attendantName: undefined }));
+                  }}
+                  className={`w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold text-slate-900 dark:text-white outline-none ${
+                    formErrors.attendantName ? 'border-rose-500 focus:border-rose-500 bg-rose-50/20' : ''
+                  }`}
+                />
+                {formErrors.attendantName && (
+                  <p className="text-[10px] text-rose-500 font-bold mt-1 flex items-center gap-1">
+                    <AlertCircle className="w-3 h-3 flex-shrink-0" />
+                    <span>{formErrors.attendantName}</span>
+                  </p>
+                )}
               </div>
 
               <div className="grid grid-cols-2 gap-3">
-                <div><label className="block font-semibold mb-1">Mobile Number <span className="text-rose-500 font-bold ml-0.5">*</span></label><input type="text" required value={form.mobileNumber} onChange={e => setForm({ ...form, mobileNumber: e.target.value })} className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-mono" /></div>
                 <div>
-                  <label className="block font-semibold mb-1">Gender <span className="text-rose-500 font-bold ml-0.5">*</span></label>
-                  <select value={form.gender || ''} onChange={e => setForm({ ...form, gender: e.target.value as any })} className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border outline-none cursor-pointer">
+                  <label className="block font-semibold mb-1">
+                    Mobile Number <span className="text-rose-500 font-bold ml-0.5">*</span>
+                  </label>
+                  <input
+                    type="tel"
+                    inputMode="numeric"
+                    maxLength={10}
+                    required
+                    placeholder="10-digit mobile number"
+                    value={form.mobileNumber || ''}
+                    onChange={e => {
+                      const sanitized = sanitizePhoneInput(e.target.value);
+                      setForm({ ...form, mobileNumber: sanitized });
+                      if (formErrors.mobileNumber) {
+                        setFormErrors(prev => ({ ...prev, mobileNumber: undefined }));
+                      }
+                    }}
+                    onBlur={() => {
+                      if (form.mobileNumber) {
+                        const check = validatePhoneNumber(form.mobileNumber, true);
+                        if (!check.isValid) {
+                          setFormErrors(prev => ({ ...prev, mobileNumber: check.error }));
+                        }
+                      }
+                    }}
+                    className={`w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-mono font-bold text-slate-900 dark:text-white outline-none ${
+                      formErrors.mobileNumber ? 'border-rose-500 focus:border-rose-500 bg-rose-50/20' : ''
+                    }`}
+                  />
+                  {formErrors.mobileNumber && (
+                    <p className="text-[10px] text-rose-500 font-bold mt-1 flex items-center gap-1">
+                      <AlertCircle className="w-3 h-3 flex-shrink-0" />
+                      <span>{formErrors.mobileNumber}</span>
+                    </p>
+                  )}
+                </div>
+                <div>
+                  <label className="block font-semibold mb-1">
+                    Gender <span className="text-rose-500 font-bold ml-0.5">*</span>
+                  </label>
+                  <select
+                    value={form.gender || ''}
+                    onChange={e => {
+                      setForm({ ...form, gender: e.target.value as any });
+                      if (formErrors.gender) setFormErrors(prev => ({ ...prev, gender: undefined }));
+                    }}
+                    className={`w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border outline-none cursor-pointer font-bold text-slate-900 dark:text-white ${
+                      formErrors.gender ? 'border-rose-500 focus:border-rose-500 bg-rose-50/20' : ''
+                    }`}
+                  >
                     <option value="">Select Gender</option>
                     <option value="Female">Female</option>
                     <option value="Male">Male</option>
                     <option value="Other">Other</option>
                   </select>
+                  {formErrors.gender && (
+                    <p className="text-[10px] text-rose-500 font-bold mt-1 flex items-center gap-1">
+                      <AlertCircle className="w-3 h-3 flex-shrink-0" />
+                      <span>{formErrors.gender}</span>
+                    </p>
+                  )}
                 </div>
               </div>
 

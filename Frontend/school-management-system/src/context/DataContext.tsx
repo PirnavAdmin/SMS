@@ -3381,6 +3381,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
             morningPickupTime:
               p.morningPickupTime || p.arrivalTime || p.pickupTime || "",
             eveningDropTime: p.eveningDropTime || p.dropTime || "",
+            dropTime: p.eveningDropTime || p.dropTime || "",
+            isDropOptional: p.isDropOptional ?? (!p.eveningDropTime && !p.dropTime),
             distanceFromSchoolKm: Number(
               p.distanceFromSchoolKm !== undefined
                 ? p.distanceFromSchoolKm
@@ -3445,7 +3447,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
                 distanceFromSchoolKm: pt.distanceFromSchoolKm !== undefined && !isNaN(Number(pt.distanceFromSchoolKm)) ? pt.distanceFromSchoolKm : (existing?.distanceFromSchoolKm || 0),
                 monthlyFee: pt.monthlyFee !== undefined && !isNaN(Number(pt.monthlyFee)) ? pt.monthlyFee : (existing?.monthlyFee || 0),
                 morningPickupTime: pt.morningPickupTime || pt.arrivalTime || existing?.morningPickupTime || "",
-                eveningDropTime: pt.eveningDropTime || existing?.eveningDropTime || "",
+                eveningDropTime: pt.eveningDropTime || (pt as any).dropTime || existing?.eveningDropTime || "",
+                dropTime: pt.eveningDropTime || (pt as any).dropTime || existing?.dropTime || "",
+                isDropOptional: pt.isDropOptional ?? existing?.isDropOptional ?? (!pt.eveningDropTime && !(pt as any).dropTime),
                 status: pt.status || existing?.status || "Active",
               });
             }
@@ -7692,6 +7696,56 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       }
       return nextStaff;
     });
+
+    // Synchronize updates to Transport Driver and Bus Attendant records if this staff member is a Driver or Attendant
+    const existingStaffMember = staff.find((s) => s.id === id);
+    const targetEmpId = (updates.empId || existingStaffMember?.empId || (existingStaffMember as any)?.employeeId || "").trim().toLowerCase();
+    const targetFullName = `${updates.firstName || existingStaffMember?.firstName || ""} ${updates.lastName || existingStaffMember?.lastName || ""}`.trim();
+    const newPhone = updates.phone || (updates as any).mobileNumber;
+
+    if (newPhone || updates.firstName || updates.lastName || updates.status || updates.presentAddress) {
+      setDriverMasters((prevDrivers) =>
+        prevDrivers.map((d) => {
+          const dEmp = (d.employeeId || "").trim().toLowerCase();
+          const match =
+            (targetEmpId && dEmp && dEmp === targetEmpId) ||
+            String(d.id) === String(id) ||
+            (targetFullName && d.driverName.trim().toLowerCase() === targetFullName.toLowerCase());
+
+          if (match) {
+            return {
+              ...d,
+              ...(newPhone ? { mobileNumber: newPhone } : {}),
+              ...(targetFullName ? { driverName: targetFullName } : {}),
+              ...(updates.presentAddress ? { address: updates.presentAddress } : {}),
+              ...(updates.status ? { status: updates.status === "Active" ? "Active" : "Inactive" } : {}),
+            };
+          }
+          return d;
+        }),
+      );
+
+      setBusAttendants((prevAttendants) =>
+        prevAttendants.map((a) => {
+          const aEmp = (a.employeeId || "").trim().toLowerCase();
+          const match =
+            (targetEmpId && aEmp && aEmp === targetEmpId) ||
+            String(a.id) === String(id) ||
+            (targetFullName && a.attendantName.trim().toLowerCase() === targetFullName.toLowerCase());
+
+          if (match) {
+            return {
+              ...a,
+              ...(newPhone ? { mobileNumber: newPhone } : {}),
+              ...(targetFullName ? { attendantName: targetFullName } : {}),
+              ...(updates.gender ? { gender: updates.gender as any } : {}),
+              ...(updates.status ? { status: updates.status === "Active" ? "Active" : "Inactive" } : {}),
+            };
+          }
+          return a;
+        }),
+      );
+    }
     logActivity("Updated Staff Record", `Updated details for staff ID ${id}`);
   };
 
@@ -16595,10 +16649,17 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const toTimeSpanString = (timeStr: string): string => {
     if (!timeStr || !timeStr.trim()) return "";
-    if (/^\d{2}:\d{2}:\d{2}$/.test(timeStr)) return timeStr;
-    if (/^\d{2}:\d{2}$/.test(timeStr)) return timeStr + ":00";
+    const trimmed = timeStr.trim();
+    if (/^\d{1,2}:\d{2}:\d{2}$/.test(trimmed)) {
+      const parts = trimmed.split(":");
+      return `${parts[0].padStart(2, "0")}:${parts[1]}:${parts[2]}`;
+    }
+    if (/^\d{1,2}:\d{2}$/.test(trimmed)) {
+      const parts = trimmed.split(":");
+      return `${parts[0].padStart(2, "0")}:${parts[1]}:00`;
+    }
 
-    const match = timeStr.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+    const match = trimmed.match(/^(\d{1,2}):(\d{2})(?::\d{2})?\s*(AM|PM)$/i);
     if (!match) return timeStr;
 
     let hours = parseInt(match[1], 10);
@@ -16654,7 +16715,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         pickupName: p.pickupName || backendData.pickupPointName || backendData.pickupName || "",
         sequenceNumber: Number(p.sequenceNumber) || Number(backendData.sequenceNo) || 1,
         morningPickupTime: p.morningPickupTime || p.arrivalTime || backendData.pickupTime || "",
-        eveningDropTime: p.eveningDropTime || backendData.dropTime || "",
+        eveningDropTime: p.eveningDropTime || (p as any).dropTime || backendData.dropTime || "",
+        dropTime: p.eveningDropTime || (p as any).dropTime || backendData.dropTime || "",
+        isDropOptional: p.isDropOptional ?? backendData.isDropOptional ?? (!p.eveningDropTime && !(p as any).dropTime),
         distanceFromSchoolKm: Number(p.distanceFromSchoolKm) || Number(backendData.distanceFromStart) || 0,
         monthlyFee: Number(p.monthlyFee) || Number(backendData.monthlyFare) || 0,
         status:
@@ -16732,10 +16795,14 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         payload.arrivalTime = tsVal;
         payload.morningPickupTime = tsVal;
       }
-      if (updates.eveningDropTime !== undefined) {
-        const tsVal = toTimeSpanString(updates.eveningDropTime);
+      if (updates.eveningDropTime !== undefined || (updates as any).dropTime !== undefined) {
+        const val = updates.eveningDropTime || (updates as any).dropTime || "";
+        const tsVal = toTimeSpanString(val);
         payload.dropTime = tsVal;
         payload.eveningDropTime = tsVal;
+      }
+      if (updates.isDropOptional !== undefined) {
+        payload.isDropOptional = updates.isDropOptional;
       }
       if (updates.distanceFromSchoolKm !== undefined) {
         payload.distanceFromStart = Number(updates.distanceFromSchoolKm) || 0;
@@ -16983,6 +17050,206 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   };
 
+  const syncDriverToStaffAndAssignments = (
+    id: string,
+    updates: Partial<DriverMaster>,
+  ) => {
+    const currentDriver = driverMasters.find((d) => String(d.id) === String(id));
+    const targetEmpId = (updates.employeeId || currentDriver?.employeeId || "").trim();
+    const targetName = (updates.driverName || currentDriver?.driverName || "").trim();
+    const targetMobile = updates.mobileNumber !== undefined ? updates.mobileNumber : currentDriver?.mobileNumber;
+    const targetAddress = updates.address !== undefined ? updates.address : currentDriver?.address;
+    const targetEmail = updates.email !== undefined ? updates.email : currentDriver?.email;
+    const targetStatus = updates.status !== undefined ? updates.status : currentDriver?.status;
+
+    let matchedStaffNumericId: number | null = null;
+
+    setStaff((prevStaff) => {
+      const sIdx = prevStaff.findIndex((s) => {
+        const sEmp = (s.empId || (s as any).employeeId || "").trim().toLowerCase();
+        const tEmp = targetEmpId.toLowerCase();
+        if (tEmp && sEmp && sEmp === tEmp) return true;
+        if (s.id && (String(s.id) === String(id) || (currentDriver?.id && String(s.id) === String(currentDriver.id)))) return true;
+        const staffName = `${s.firstName || ""} ${s.lastName || ""}`.trim().toLowerCase();
+        if (targetName && staffName && staffName === targetName.toLowerCase()) return true;
+        return false;
+      });
+
+      if (sIdx !== -1) {
+        const existingStaff = prevStaff[sIdx];
+        const nId = parseInt(String(existingStaff.id), 10);
+        if (!isNaN(nId)) matchedStaffNumericId = nId;
+
+        const parts = targetName ? targetName.split(/\s+/) : [];
+        const firstName = parts[0] || existingStaff.firstName;
+        const lastName = parts.length > 1 ? parts.slice(1).join(" ") : (parts.length === 1 ? "" : existingStaff.lastName);
+
+        const updatedStaffMember: Staff = {
+          ...existingStaff,
+          ...(targetMobile !== undefined ? ({ phone: targetMobile, mobileNumber: targetMobile } as any) : {}),
+          ...(targetEmail !== undefined ? { email: targetEmail } : {}),
+          ...(targetAddress !== undefined ? { address: targetAddress, presentAddress: targetAddress } : {}),
+          ...(targetName ? { firstName, lastName } : {}),
+          ...(targetStatus !== undefined ? { status: targetStatus === "Active" ? "Active" : "Inactive" } : {}),
+        };
+
+        const nextStaff = [...prevStaff];
+        nextStaff[sIdx] = updatedStaffMember;
+        return nextStaff;
+      }
+
+      if (targetEmpId || targetName) {
+        const parts = targetName ? targetName.split(/\s+/) : [];
+        const newStaffMember: Staff = {
+          id: targetEmpId || `staff-drv-${id}`,
+          empId: targetEmpId || `NTS-${id}`,
+          firstName: parts[0] || targetName || "Driver",
+          lastName: parts.length > 1 ? parts.slice(1).join(" ") : "",
+          phone: targetMobile || "",
+          email: targetEmail || "",
+          designation: "Driver",
+          department: "Transport",
+          role: "Non-Teaching Staff",
+          employeeCategory: "Non-Teaching Staff",
+          status: targetStatus === "Active" ? "Active" : "Inactive",
+          joiningDate: new Date().toISOString().split("T")[0],
+          employmentType: "Full-time",
+          address: targetAddress || "",
+          presentAddress: targetAddress || "",
+        } as any;
+        return [...prevStaff, newStaffMember];
+      }
+
+      return prevStaff;
+    });
+
+    if (matchedStaffNumericId && targetMobile !== undefined) {
+      try {
+        updateStaffApi(matchedStaffNumericId, {
+          phone: targetMobile,
+          ...(targetEmail !== undefined ? { email: targetEmail } : {}),
+          ...(targetAddress !== undefined ? { presentAddress: targetAddress } : {}),
+        }).catch((e) => console.warn("Background staff API update note:", e));
+      } catch (e) {}
+    }
+
+    setVehicleAssignments((prevAssignments) =>
+      prevAssignments.map((a) => {
+        const matches =
+          String(a.driverId) === String(id) ||
+          (targetEmpId && a.driverEmployeeId && a.driverEmployeeId.trim().toLowerCase() === targetEmpId.toLowerCase()) ||
+          (currentDriver?.driverName && a.driverName && a.driverName.toLowerCase() === currentDriver.driverName.toLowerCase());
+
+        if (matches) {
+          return {
+            ...a,
+            ...(targetName ? { driverName: targetName } : {}),
+            ...(targetEmpId ? { driverEmployeeId: targetEmpId } : {}),
+          };
+        }
+        return a;
+      }),
+    );
+  };
+
+  const syncAttendantToStaffAndAssignments = (
+    id: string,
+    updates: Partial<BusAttendantMaster>,
+  ) => {
+    const currentAttendant = busAttendants.find((a) => String(a.id) === String(id));
+    const targetEmpId = (updates.employeeId || currentAttendant?.employeeId || "").trim();
+    const targetName = (updates.attendantName || currentAttendant?.attendantName || "").trim();
+    const targetMobile = updates.mobileNumber !== undefined ? updates.mobileNumber : currentAttendant?.mobileNumber;
+    const targetGender = updates.gender !== undefined ? updates.gender : currentAttendant?.gender;
+    const targetStatus = updates.status !== undefined ? updates.status : currentAttendant?.status;
+
+    let matchedStaffNumericId: number | null = null;
+
+    setStaff((prevStaff) => {
+      const sIdx = prevStaff.findIndex((s) => {
+        const sEmp = (s.empId || (s as any).employeeId || "").trim().toLowerCase();
+        const tEmp = targetEmpId.toLowerCase();
+        if (tEmp && sEmp && sEmp === tEmp) return true;
+        if (s.id && (String(s.id) === String(id) || (currentAttendant?.id && String(s.id) === String(currentAttendant.id)))) return true;
+        const staffName = `${s.firstName || ""} ${s.lastName || ""}`.trim().toLowerCase();
+        if (targetName && staffName && staffName === targetName.toLowerCase()) return true;
+        return false;
+      });
+
+      if (sIdx !== -1) {
+        const existingStaff = prevStaff[sIdx];
+        const nId = parseInt(String(existingStaff.id), 10);
+        if (!isNaN(nId)) matchedStaffNumericId = nId;
+
+        const parts = targetName ? targetName.split(/\s+/) : [];
+        const firstName = parts[0] || existingStaff.firstName;
+        const lastName = parts.length > 1 ? parts.slice(1).join(" ") : (parts.length === 1 ? "" : existingStaff.lastName);
+
+        const updatedStaffMember: Staff = {
+          ...existingStaff,
+          ...(targetMobile !== undefined ? ({ phone: targetMobile, mobileNumber: targetMobile } as any) : {}),
+          ...(targetGender !== undefined ? { gender: targetGender as any } : {}),
+          ...(targetName ? { firstName, lastName } : {}),
+          ...(targetStatus !== undefined ? { status: targetStatus === "Active" ? "Active" : "Inactive" } : {}),
+        };
+
+        const nextStaff = [...prevStaff];
+        nextStaff[sIdx] = updatedStaffMember;
+        return nextStaff;
+      }
+
+      if (targetEmpId || targetName) {
+        const parts = targetName ? targetName.split(/\s+/) : [];
+        const newStaffMember: Staff = {
+          id: targetEmpId || `staff-att-${id}`,
+          empId: targetEmpId || `NTS-${id}`,
+          firstName: parts[0] || targetName || "Attendant",
+          lastName: parts.length > 1 ? parts.slice(1).join(" ") : "",
+          phone: targetMobile || "",
+          gender: targetGender || "Male",
+          designation: "Bus Attendant",
+          department: "Transport",
+          role: "Non-Teaching Staff",
+          employeeCategory: "Non-Teaching Staff",
+          status: targetStatus === "Active" ? "Active" : "Inactive",
+          joiningDate: new Date().toISOString().split("T")[0],
+          employmentType: "Full-time",
+        } as any;
+        return [...prevStaff, newStaffMember];
+      }
+
+      return prevStaff;
+    });
+
+    if (matchedStaffNumericId && targetMobile !== undefined) {
+      try {
+        updateStaffApi(matchedStaffNumericId, {
+          phone: targetMobile,
+          ...(targetGender !== undefined ? { gender: targetGender } : {}),
+        }).catch((e) => console.warn("Background staff API update note:", e));
+      } catch (e) {}
+    }
+
+    setVehicleAssignments((prevAssignments) =>
+      prevAssignments.map((a) => {
+        const matches =
+          String(a.attendantId) === String(id) ||
+          (targetEmpId && a.attendantEmployeeId && a.attendantEmployeeId.trim().toLowerCase() === targetEmpId.toLowerCase()) ||
+          (currentAttendant?.attendantName && a.attendantName && a.attendantName.toLowerCase() === currentAttendant.attendantName.toLowerCase());
+
+        if (matches) {
+          return {
+            ...a,
+            ...(targetMobile !== undefined ? { attendantMobile: targetMobile } : {}),
+            ...(targetName ? { attendantName: targetName } : {}),
+            ...(targetEmpId ? { attendantEmployeeId: targetEmpId } : {}),
+          };
+        }
+        return a;
+      }),
+    );
+  };
+
   const addDriverMaster = async (d: Omit<DriverMaster, "id">) => {
     try {
       const payload = {
@@ -17060,6 +17327,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         return [...prev, newDriver];
       });
 
+      syncDriverToStaffAndAssignments(newDriver.id, newDriver);
+
       logActivity(
         "Added Transport Driver",
         `Registered driver ${newDriver.driverName}`,
@@ -17073,6 +17342,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         branch: (d as any).branch || selectedBranch || "",
       } as any;
       setDriverMasters((prev) => [...prev, newDriver]);
+      syncDriverToStaffAndAssignments(newDriver.id, newDriver);
     }
   };
 
@@ -17125,11 +17395,13 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       setDriverMasters((prev) =>
         prev.map((d) => (d.id === id ? { ...d, ...updates } : d)),
       );
+      syncDriverToStaffAndAssignments(id, updates);
     } catch (err) {
       addToast("error", "API Sync Failed", "Operating in local fallback mode");
       setDriverMasters((prev) =>
         prev.map((d) => (d.id === id ? { ...d, ...updates } : d)),
       );
+      syncDriverToStaffAndAssignments(id, updates);
     }
   };
 
@@ -17251,6 +17523,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         return [...prev, newAttendant];
       });
 
+      syncAttendantToStaffAndAssignments(newAttendant.id, newAttendant);
+
       logActivity(
         "Registered Bus Attendant",
         `Added attendant ${newAttendant.attendantName}`,
@@ -17264,6 +17538,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         branch: (a as any).branch || selectedBranch || "",
       } as any;
       setBusAttendants((prev) => [...prev, newAttendant]);
+      syncAttendantToStaffAndAssignments(newAttendant.id, newAttendant);
     }
   };
 
@@ -17295,11 +17570,13 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       setBusAttendants((prev) =>
         prev.map((a) => (a.id === id ? { ...a, ...updates } : a)),
       );
+      syncAttendantToStaffAndAssignments(id, updates);
     } catch (err) {
       addToast("error", "API Sync Failed", "Operating in local fallback mode");
       setBusAttendants((prev) =>
         prev.map((a) => (a.id === id ? { ...a, ...updates } : a)),
       );
+      syncAttendantToStaffAndAssignments(id, updates);
     }
   };
 

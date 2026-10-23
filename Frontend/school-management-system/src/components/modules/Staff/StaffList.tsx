@@ -1024,7 +1024,7 @@ export const StaffList: React.FC<{
                         {st.designation || "N/A"}
                       </td>
                       <td className="py-3 px-4 text-center">{st.email || "N/A"}</td>
-                      <td className="py-3 px-4 text-center whitespace-nowrap">{formatMobileNeatly(st.phone)}</td>
+                      <td className="py-3 px-4 text-center whitespace-nowrap">{formatMobileNeatly(st.phone || (st as any).mobileNumber || (st as any).mobile || '')}</td>
                       <td className="py-3 px-4 text-center">
                         <div className="inline-flex justify-center w-full">
                           <Badge

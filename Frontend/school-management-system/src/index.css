@@ -24,6 +24,39 @@
 }
 
 @layer base {
+  html.dark,
+  :root.dark,
+  .dark {
+    color-scheme: dark;
+  }
+
+  html:not(.dark) {
+    color-scheme: light;
+  }
+
+  /* Date & Time picker native indicator visibility for dark theme */
+  .dark input[type="time"]::-webkit-calendar-picker-indicator,
+  .dark input[type="date"]::-webkit-calendar-picker-indicator,
+  .dark input[type="datetime-local"]::-webkit-calendar-picker-indicator,
+  :where(.dark, .dark *) input[type="time"]::-webkit-calendar-picker-indicator,
+  :where(.dark, .dark *) input[type="date"]::-webkit-calendar-picker-indicator,
+  :where(.dark, .dark *) input[type="datetime-local"]::-webkit-calendar-picker-indicator {
+    cursor: pointer;
+    filter: brightness(0) invert(1);
+    opacity: 0.85;
+    transition: opacity 0.15s ease, transform 0.15s ease;
+  }
+
+  .dark input[type="time"]::-webkit-calendar-picker-indicator:hover,
+  .dark input[type="date"]::-webkit-calendar-picker-indicator:hover,
+  .dark input[type="datetime-local"]::-webkit-calendar-picker-indicator:hover,
+  :where(.dark, .dark *) input[type="time"]::-webkit-calendar-picker-indicator:hover,
+  :where(.dark, .dark *) input[type="date"]::-webkit-calendar-picker-indicator:hover,
+  :where(.dark, .dark *) input[type="datetime-local"]::-webkit-calendar-picker-indicator:hover {
+    opacity: 1;
+    transform: scale(1.1);
+  }
+
   body {
     font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
     @apply bg-brand-50 text-slate-900 antialiased dark:bg-slate-950 dark:text-slate-100 transition-colors duration-200;

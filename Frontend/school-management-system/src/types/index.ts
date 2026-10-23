@@ -1790,6 +1790,8 @@ export interface PickupPoint {
   arrivalTime: string;
   morningPickupTime?: string;
   eveningDropTime?: string;
+  dropTime?: string;
+  isDropOptional?: boolean;
   distanceFromSchoolKm: number;
   monthlyFee?: number;
   quarterlyFee?: number;

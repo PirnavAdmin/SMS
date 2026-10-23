@@ -1,12 +1,13 @@
-import React, { useState } from 'react';
-import { Users, Plus, Search, Edit, Trash2, Phone, ShieldCheck, Award, FileText, AlertCircle, Mail, Bus, ChevronDown } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Users, Plus, Search, Edit, Trash2, Phone, ShieldCheck, Award, FileText, AlertCircle, Mail, Bus, ChevronDown, Upload, X, FileCheck } from 'lucide-react';
 import { DriverMaster } from '../../../types';
 import { useData } from '../../../context/DataContext';
 import { useToast } from '../../../context/ToastContext';
 import { Badge } from '../../common/Badge';
 import { ExportButton } from '../../common/ExportButton';
 import { ConfirmModal } from '../../common/ConfirmModal';
-import { fetchDriverDocumentsApi, createDriverDocumentApi, deleteDriverDocumentApi } from '../../../api/transport';
+import { fetchDriverDocumentsApi, createDriverDocumentApi, deleteDriverDocumentApi, DriverDocumentDto } from '../../../api/transport';
+import { validatePhoneNumber, sanitizePhoneInput } from '../../../utils/validation';
 
 export interface DriverDocumentItem {
   id: string;
@@ -22,7 +23,15 @@ export interface DriverDocumentItem {
 const initialDriverDocs: DriverDocumentItem[] = [];
 
 export const DriverMasterView: React.FC = () => {
-  const { staff = [], driverMasters = [], vehicleAssignments = [], addDriverMaster, updateDriverMaster, deleteDriverMaster } = useData();
+  const {
+    staff = [],
+    driverMasters = [],
+    vehicleAssignments = [],
+    addDriverMaster,
+    updateDriverMaster,
+    deleteDriverMaster,
+    updateStaff
+  } = useData();
   const { addToast } = useToast();
 
   // Deduplicate drivers to guarantee no duplicate entries are displayed
@@ -90,6 +99,14 @@ export const DriverMasterView: React.FC = () => {
     sessionStorage.setItem('tm_driver_filter', val);
   };
 
+  // Clean up any legacy mock documents in localStorage
+  useEffect(() => {
+    try {
+      localStorage.removeItem('edu_db_driver_documents');
+      localStorage.removeItem('driver_documents');
+    } catch (e) {}
+  }, []);
+
   // Driver Documents Modal State
   const [driverDocs, setDriverDocs] = useState<DriverDocumentItem[]>([]);
   const [docModalDriver, setDocModalDriver] = useState<DriverMaster | null>(null);
@@ -113,6 +130,14 @@ export const DriverMasterView: React.FC = () => {
     status: 'Active'
   });
 
+  const [formErrors, setFormErrors] = useState<{
+    driverName?: string;
+    employeeId?: string;
+    mobileNumber?: string;
+    email?: string;
+    licenseNumber?: string;
+  }>({});
+
   const filteredDrivers = uniqueDrivers.filter(d => {
     const matchesQuery = d.driverName.toLowerCase().includes(query.toLowerCase()) ||
                          d.mobileNumber.toLowerCase().includes(query.toLowerCase()) ||
@@ -122,8 +147,36 @@ export const DriverMasterView: React.FC = () => {
     return matchesQuery && matchesDriver;
   });
 
+  const validateForm = (): typeof formErrors => {
+    const errs: typeof formErrors = {};
+
+    if (!form.driverName?.trim()) {
+      errs.driverName = 'Driver full name is required.';
+    }
+    if (!form.employeeId?.trim()) {
+      errs.employeeId = 'Employee ID is required.';
+    }
+    if (!form.licenseNumber?.trim()) {
+      errs.licenseNumber = 'Commercial license number is required.';
+    }
+
+    const phoneCheck = validatePhoneNumber(form.mobileNumber || '', true);
+    if (!phoneCheck.isValid) {
+      errs.mobileNumber = phoneCheck.error || 'Enter a valid 10-digit mobile number.';
+    }
+
+    if (form.email?.trim()) {
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())) {
+        errs.email = 'Please enter a valid email address.';
+      }
+    }
+
+    return errs;
+  };
+
   const handleOpenAdd = () => {
     setEditingDriver(null);
+    setFormErrors({});
     setForm({
       employeeId: '',
       driverName: '',
@@ -139,16 +192,48 @@ export const DriverMasterView: React.FC = () => {
 
   const handleOpenEdit = (d: DriverMaster) => {
     setEditingDriver(d);
+    setFormErrors({});
     setForm(d);
     setIsModalOpen(true);
   };
 
   const handleSubmit = (e: React.SyntheticEvent) => {
     e.preventDefault();
-    if (!form.driverName || !form.mobileNumber || !form.licenseNumber) return;
+    const errs = validateForm();
+    if (Object.keys(errs).length > 0) {
+      setFormErrors(errs);
+      addToast('error', 'Validation Error', errs.mobileNumber || 'Please correct the highlighted fields.');
+      return;
+    }
 
     if (editingDriver) {
       updateDriverMaster(editingDriver.id, form);
+
+      // Direct sync to Faculty & Staff Directory
+      const targetEmpId = (form.employeeId || editingDriver.employeeId || '').trim().toLowerCase();
+      const targetName = (form.driverName || editingDriver.driverName || '').trim().toLowerCase();
+      const matched = staff.find(s => {
+        const sEmp = (s.empId || (s as any).employeeId || '').trim().toLowerCase();
+        if (targetEmpId && sEmp && sEmp === targetEmpId) return true;
+        if (s.id && String(s.id) === String(editingDriver.id)) return true;
+        const sName = `${s.firstName || ''} ${s.lastName || ''}`.trim().toLowerCase();
+        if (targetName && sName && sName === targetName) return true;
+        return false;
+      });
+
+      if (matched && updateStaff) {
+        const parts = (form.driverName || '').trim().split(/\s+/);
+        updateStaff(matched.id, {
+          phone: form.mobileNumber,
+          mobileNumber: form.mobileNumber,
+          email: form.email,
+          presentAddress: form.address,
+          address: form.address,
+          ...(parts[0] ? { firstName: parts[0], lastName: parts.slice(1).join(' ') || '' } : {}),
+          status: form.status === 'Active' ? 'Active' : 'Inactive'
+        } as any);
+      }
+
       addToast('success', 'Driver Details Updated', `Updated ${form.driverName}`);
     } else {
       addDriverMaster(form as Omit<DriverMaster, 'id'>);
@@ -157,15 +242,15 @@ export const DriverMasterView: React.FC = () => {
     setIsModalOpen(false);
   };
 
-  // Driver Documents Management Handlers
+  // Driver Documents Management Handlers (No mock data, pure API & user input)
   const handleOpenDriverDocs = async (d: DriverMaster) => {
     setDocModalDriver(d);
     setDocForm({
       docType: 'Medical Certificate',
-      docNumber: `MED-VER-${Math.floor(1000 + Math.random() * 9000)}`,
-      issueDate: new Date().toISOString().split('T')[0],
-      expiryDate: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-      badgeNumber: 'BDG-1004',
+      docNumber: '',
+      issueDate: '',
+      expiryDate: '',
+      badgeNumber: '',
       attachmentName: ''
     });
 
@@ -173,23 +258,21 @@ export const DriverMasterView: React.FC = () => {
       const apiDocs = await fetchDriverDocumentsApi(d.id);
       if (apiDocs && apiDocs.length > 0) {
         const mapped = apiDocs.map(item => ({
-          id: String(item.id),
+          id: String(item.id || Date.now() + Math.random()),
           driverId: d.id,
-          docType: item.documentCategory as any,
-          docNumber: item.documentNumber,
-          issueDate: item.issueDate ? item.issueDate.split('T')[0] : "",
-          expiryDate: item.expiryDate ? item.expiryDate.split('T')[0] : "",
-          badgeNumber: item.badgeNumber,
-          attachmentName: item.fileName || "Document.pdf"
+          docType: (item.documentCategory || 'Medical Certificate') as any,
+          docNumber: item.documentNumber || '',
+          issueDate: item.issueDate ? item.issueDate.split('T')[0] : '',
+          expiryDate: item.expiryDate ? item.expiryDate.split('T')[0] : '',
+          badgeNumber: item.badgeNumber || '',
+          attachmentName: item.fileName || ''
         }));
         setDriverDocs(prev => {
           const withoutDriver = prev.filter(x => x.driverId !== d.id);
           return [...withoutDriver, ...mapped];
         });
       } else {
-        if (d.id !== 'dm-01') {
-          setDriverDocs(prev => prev.filter(x => x.driverId !== d.id));
-        }
+        setDriverDocs(prev => prev.filter(x => x.driverId !== d.id));
       }
     } catch (err) {
       console.error("Error fetching driver documents", err);
@@ -198,16 +281,24 @@ export const DriverMasterView: React.FC = () => {
 
   const handleAddDriverDoc = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!docModalDriver || !docForm.docNumber) return;
+    if (!docModalDriver) return;
+    if (!docForm.docNumber?.trim()) {
+      addToast('error', 'Validation Error', 'Document / Certificate number is required.');
+      return;
+    }
+    if (!docForm.expiryDate) {
+      addToast('error', 'Validation Error', 'Expiry date is required.');
+      return;
+    }
 
-    const payload = {
+    const payload: DriverDocumentDto = {
       documentCategory: docForm.docType || 'Medical Certificate',
-      documentNumber: docForm.docNumber || '',
-      issueDate: docForm.issueDate || new Date().toISOString().split('T')[0],
-      expiryDate: docForm.expiryDate || '2027-01-01',
-      badgeNumber: docForm.badgeNumber || '',
-      fileName: docForm.attachmentName || `${docForm.docType}_${docModalDriver.driverName.replace(/\s+/g, '_')}.pdf`,
-      fileUrl: ""
+      documentNumber: docForm.docNumber.trim(),
+      issueDate: docForm.issueDate || '',
+      expiryDate: docForm.expiryDate,
+      badgeNumber: docForm.badgeNumber?.trim() || '',
+      fileName: docForm.attachmentName || '',
+      fileUrl: ''
     };
 
     try {
@@ -224,30 +315,31 @@ export const DriverMasterView: React.FC = () => {
       };
 
       setDriverDocs(prev => [newDoc, ...prev]);
-      addToast('success', 'Driver Document Uploaded', `Added ${newDoc.docType} for ${docModalDriver.driverName}`);
-      
+      addToast('success', 'Document Saved', `Saved ${newDoc.docType} for ${docModalDriver.driverName}`);
+
       setDocForm({
         docType: 'Medical Certificate',
-        docNumber: `MED-VER-${Math.floor(1000 + Math.random() * 9000)}`,
-        issueDate: new Date().toISOString().split('T')[0],
-        expiryDate: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-        badgeNumber: 'BDG-1004',
+        docNumber: '',
+        issueDate: '',
+        expiryDate: '',
+        badgeNumber: '',
         attachmentName: ''
       });
     } catch (err) {
       console.error(err);
-      addToast('error', 'Upload Failed', 'Operating in local fallback mode');
-      const newDoc: DriverDocumentItem = {
-        id: 'dd-' + Date.now(),
-        driverId: docModalDriver.id,
-        docType: (docForm.docType || 'Medical Certificate') as any,
-        docNumber: docForm.docNumber || '',
-        issueDate: docForm.issueDate || new Date().toISOString().split('T')[0],
-        expiryDate: docForm.expiryDate || '2027-01-01',
-        badgeNumber: docForm.badgeNumber || '',
-        attachmentName: docForm.attachmentName || `${docForm.docType}_${docModalDriver.driverName.replace(/\s+/g, '_')}.pdf`
-      };
-      setDriverDocs(prev => [newDoc, ...prev]);
+      addToast('error', 'Upload Failed', 'Could not save driver document to API.');
+    }
+  };
+
+  const handleDeleteDriverDoc = async (docId: string) => {
+    if (!docModalDriver) return;
+    try {
+      await deleteDriverDocumentApi(docModalDriver.id, docId);
+      setDriverDocs(prev => prev.filter(x => x.id !== docId));
+      addToast('info', 'Document Removed', 'Verification document removed successfully');
+    } catch (err) {
+      setDriverDocs(prev => prev.filter(x => x.id !== docId));
+      addToast('info', 'Document Removed', 'Verification document removed');
     }
   };
 
@@ -372,7 +464,13 @@ export const DriverMasterView: React.FC = () => {
 
                 <div className="space-y-1.5 text-xs text-slate-600 dark:text-slate-300">
                   <div className="flex justify-between"><span className="text-slate-400">Employee ID:</span><span className="font-mono font-bold text-sky-600 dark:text-sky-400">{d.employeeId || d.id}</span></div>
-                  <div className="flex justify-between"><span className="text-slate-400">Mobile Number:</span><span className="font-bold text-slate-900 dark:text-white flex items-center gap-1"><Phone className="w-3 h-3 text-sky-500" /> {d.mobileNumber}</span></div>
+                  <div className="flex justify-between items-center gap-2">
+                    <span className="text-slate-400 flex-shrink-0">Mobile Number:</span>
+                    <span className="font-bold text-slate-900 dark:text-white flex items-center gap-1 font-mono truncate max-w-[13rem]" title={d.mobileNumber}>
+                      <Phone className="w-3 h-3 text-sky-500 flex-shrink-0" />
+                      <span className="truncate">{d.mobileNumber}</span>
+                    </span>
+                  </div>
                   <div className="flex justify-between">
                     <span className="text-slate-400">Email:</span>
                     <span className="font-semibold text-slate-800 dark:text-slate-200 flex items-center gap-1">
@@ -404,7 +502,7 @@ export const DriverMasterView: React.FC = () => {
                   onClick={() => handleOpenDriverDocs(d)}
                   className="text-xs font-bold text-sky-600 hover:text-sky-500 flex items-center gap-1"
                 >
-                  <FileText className="w-3.5 h-3.5" /> Driver Documents ({dDocs.length > 0 ? dDocs.length : 3})
+                  <FileText className="w-3.5 h-3.5" /> Driver Documents ({dDocs.length})
                 </button>
                 <div className="flex items-center gap-1">
                   <button onClick={() => handleOpenEdit(d)} className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-sky-600"><Edit className="w-3.5 h-3.5" /></button>
@@ -507,14 +605,17 @@ export const DriverMasterView: React.FC = () => {
                               <div
                                 key={s.id}
                                 onClick={() => {
+                                  const rawPhone = s.phone || (s as any).mobileNumber || '';
+                                  const sanitizedPhone = sanitizePhoneInput(rawPhone);
                                   setForm(prev => ({
                                     ...prev,
                                     employeeId: s.empId || prev.employeeId,
                                     driverName: `${s.firstName} ${s.lastName || ''}`.trim(),
-                                    mobileNumber: s.phone || (s as any).mobileNumber || prev.mobileNumber,
+                                    mobileNumber: sanitizedPhone || prev.mobileNumber,
                                     email: s.email || prev.email,
                                     address: s.address || (s as any).presentAddress || prev.address
                                   }));
+                                  setFormErrors({});
                                   setIsStaffDropdownOpen(false);
                                   setStaffSearchQuery('');
                                 }}
@@ -556,23 +657,149 @@ export const DriverMasterView: React.FC = () => {
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-semibold mb-1">Driver Full Name <span className="text-rose-500 font-bold ml-0.5">*</span></label>
-                  <input type="text" required value={form.driverName} onChange={e => setForm({ ...form, driverName: e.target.value })} className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold" />
+                  <label className="block font-semibold mb-1">
+                    Driver Full Name <span className="text-rose-500 font-bold ml-0.5">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. Ramesh Kumar"
+                    value={form.driverName || ''}
+                    onChange={e => {
+                      setForm({ ...form, driverName: e.target.value });
+                      if (formErrors.driverName) setFormErrors(prev => ({ ...prev, driverName: undefined }));
+                    }}
+                    className={`w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold text-slate-900 dark:text-white outline-none ${
+                      formErrors.driverName ? 'border-rose-500 focus:border-rose-500 bg-rose-50/20' : ''
+                    }`}
+                  />
+                  {formErrors.driverName && (
+                    <p className="text-[10px] text-rose-500 font-bold mt-1 flex items-center gap-1">
+                      <AlertCircle className="w-3 h-3 flex-shrink-0" />
+                      <span>{formErrors.driverName}</span>
+                    </p>
+                  )}
                 </div>
                 <div>
-                  <label className="block font-semibold mb-1">Employee ID <span className="text-rose-500 font-bold ml-0.5">*</span></label>
-                  <input type="text" placeholder="e.g. EMP-DRV-101" value={form.employeeId || ''} onChange={e => setForm({ ...form, employeeId: e.target.value })} className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-mono font-bold" />
+                  <label className="block font-semibold mb-1">
+                    Employee ID <span className="text-rose-500 font-bold ml-0.5">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="e.g. EMP-DRV-101"
+                    value={form.employeeId || ''}
+                    onChange={e => {
+                      setForm({ ...form, employeeId: e.target.value });
+                      if (formErrors.employeeId) setFormErrors(prev => ({ ...prev, employeeId: undefined }));
+                    }}
+                    className={`w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-mono font-bold text-slate-900 dark:text-white outline-none ${
+                      formErrors.employeeId ? 'border-rose-500 focus:border-rose-500 bg-rose-50/20' : ''
+                    }`}
+                  />
+                  {formErrors.employeeId && (
+                    <p className="text-[10px] text-rose-500 font-bold mt-1 flex items-center gap-1">
+                      <AlertCircle className="w-3 h-3 flex-shrink-0" />
+                      <span>{formErrors.employeeId}</span>
+                    </p>
+                  )}
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
-                <div><label className="block font-semibold mb-1">Mobile Number <span className="text-rose-500 font-bold ml-0.5">*</span></label><input type="text" required value={form.mobileNumber} onChange={e => setForm({ ...form, mobileNumber: e.target.value })} className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-mono" /></div>
-                <div><label className="block font-semibold mb-1">Email</label><input type="email" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-mono" /></div>
+                <div>
+                  <label className="block font-semibold mb-1">
+                    Mobile Number <span className="text-rose-500 font-bold ml-0.5">*</span>
+                  </label>
+                  <input
+                    type="tel"
+                    inputMode="numeric"
+                    maxLength={10}
+                    required
+                    placeholder="10-digit mobile number"
+                    value={form.mobileNumber || ''}
+                    onChange={e => {
+                      const sanitized = sanitizePhoneInput(e.target.value);
+                      setForm({ ...form, mobileNumber: sanitized });
+                      if (formErrors.mobileNumber) {
+                        setFormErrors(prev => ({ ...prev, mobileNumber: undefined }));
+                      }
+                    }}
+                    onBlur={() => {
+                      if (form.mobileNumber) {
+                        const check = validatePhoneNumber(form.mobileNumber, true);
+                        if (!check.isValid) {
+                          setFormErrors(prev => ({ ...prev, mobileNumber: check.error }));
+                        }
+                      }
+                    }}
+                    className={`w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-mono font-bold text-slate-900 dark:text-white outline-none ${
+                      formErrors.mobileNumber ? 'border-rose-500 focus:border-rose-500 bg-rose-50/20' : ''
+                    }`}
+                  />
+                  {formErrors.mobileNumber && (
+                    <p className="text-[10px] text-rose-500 font-bold mt-1 flex items-center gap-1">
+                      <AlertCircle className="w-3 h-3 flex-shrink-0" />
+                      <span>{formErrors.mobileNumber}</span>
+                    </p>
+                  )}
+                </div>
+                <div>
+                  <label className="block font-semibold mb-1">Email</label>
+                  <input
+                    type="email"
+                    placeholder="e.g. driver@school.edu"
+                    value={form.email || ''}
+                    onChange={e => {
+                      setForm({ ...form, email: e.target.value });
+                      if (formErrors.email) setFormErrors(prev => ({ ...prev, email: undefined }));
+                    }}
+                    className={`w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-mono text-slate-900 dark:text-white outline-none ${
+                      formErrors.email ? 'border-rose-500 focus:border-rose-500 bg-rose-50/20' : ''
+                    }`}
+                  />
+                  {formErrors.email && (
+                    <p className="text-[10px] text-rose-500 font-bold mt-1 flex items-center gap-1">
+                      <AlertCircle className="w-3 h-3 flex-shrink-0" />
+                      <span>{formErrors.email}</span>
+                    </p>
+                  )}
+                </div>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
-                <div><label className="block font-semibold mb-1">Commercial License No <span className="text-rose-500 font-bold ml-0.5">*</span></label><input type="text" required value={form.licenseNumber} onChange={e => setForm({ ...form, licenseNumber: e.target.value })} className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-mono" /></div>
-                <div><label className="block font-semibold mb-1">License Expiry Date</label><input type="date" value={form.licenseExpiryDate?.split('T')[0] || ''} onChange={e => setForm({ ...form, licenseExpiryDate: e.target.value })} className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border" /></div>
+                <div>
+                  <label className="block font-semibold mb-1">
+                    Commercial License No <span className="text-rose-500 font-bold ml-0.5">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. DL-1420110012345"
+                    value={form.licenseNumber || ''}
+                    onChange={e => {
+                      setForm({ ...form, licenseNumber: e.target.value });
+                      if (formErrors.licenseNumber) setFormErrors(prev => ({ ...prev, licenseNumber: undefined }));
+                    }}
+                    className={`w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-mono font-bold text-slate-900 dark:text-white outline-none ${
+                      formErrors.licenseNumber ? 'border-rose-500 focus:border-rose-500 bg-rose-50/20' : ''
+                    }`}
+                  />
+                  {formErrors.licenseNumber && (
+                    <p className="text-[10px] text-rose-500 font-bold mt-1 flex items-center gap-1">
+                      <AlertCircle className="w-3 h-3 flex-shrink-0" />
+                      <span>{formErrors.licenseNumber}</span>
+                    </p>
+                  )}
+                </div>
+                <div>
+                  <label className="block font-semibold mb-1">License Expiry Date</label>
+                  <input
+                    type="date"
+                    value={form.licenseExpiryDate?.split('T')[0] || ''}
+                    onChange={e => setForm({ ...form, licenseExpiryDate: e.target.value })}
+                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-slate-900 dark:text-white outline-none cursor-pointer"
+                  />
+                </div>
               </div>
 
               <div>
@@ -601,27 +828,44 @@ export const DriverMasterView: React.FC = () => {
       {/* DRIVER DOCUMENTS MODAL */}
       {docModalDriver && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm animate-in fade-in">
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-xl w-full p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-4xl w-full p-6 shadow-2xl space-y-5 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
               <div>
                 <h3 className="text-base font-black text-slate-900 dark:text-white flex items-center gap-2">
                   <FileText className="w-5 h-5 text-sky-500" /> Driver Verification Documents: {docModalDriver.driverName}
                 </h3>
-                <p className="text-[11px] text-slate-400">License, Medical Certificate, Police Verification, and Badge Number</p>
+                <p className="text-xs text-slate-400 mt-0.5">
+                  Employee ID: <span className="font-mono font-bold text-slate-600 dark:text-slate-300">{docModalDriver.employeeId || 'N/A'}</span> • Commercial License, Medical Certificate & Compliance Records
+                </p>
               </div>
-              <button onClick={() => setDocModalDriver(null)} className="text-slate-400">✕</button>
+              <button
+                type="button"
+                onClick={() => setDocModalDriver(null)}
+                className="w-8 h-8 rounded-xl flex items-center justify-center hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-colors"
+                title="Close"
+              >
+                <X className="w-4 h-4" />
+              </button>
             </div>
 
             {/* Upload New Document Form */}
-            <form onSubmit={handleAddDriverDoc} className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700 space-y-3 text-xs">
-              <h4 className="font-bold text-slate-800 dark:text-slate-200 text-xs">Upload Driver Verification Document</h4>
-              <div className="grid grid-cols-2 gap-3">
+            <form onSubmit={handleAddDriverDoc} className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200/80 dark:border-slate-700/80 space-y-3.5 text-xs">
+              <div className="flex items-center justify-between border-b border-slate-200/60 dark:border-slate-700/60 pb-2">
+                <h4 className="font-bold text-slate-800 dark:text-slate-200 text-xs uppercase tracking-wider flex items-center gap-1.5">
+                  <Plus className="w-3.5 h-3.5 text-sky-500" /> Upload Driver Verification Document
+                </h4>
+                <span className="text-[10px] text-slate-400 font-medium">* Required fields</span>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-semibold mb-1">Document Category <span className="text-rose-500 font-bold ml-0.5">*</span></label>
+                  <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">
+                    Document Category <span className="text-rose-500 font-bold ml-0.5">*</span>
+                  </label>
                   <select
-                    value={docForm.docType}
+                    value={docForm.docType || 'Medical Certificate'}
                     onChange={e => setDocForm({ ...docForm, docType: e.target.value as any })}
-                    className="w-full px-3 py-2 rounded-xl bg-white dark:bg-slate-900 border font-bold"
+                    className="w-full px-3 py-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-semibold text-slate-800 dark:text-slate-200 text-xs outline-none focus:border-sky-500"
                   >
                     <option value="Driving License">Driving License</option>
                     <option value="Medical Certificate">Medical Certificate</option>
@@ -630,112 +874,211 @@ export const DriverMasterView: React.FC = () => {
                   </select>
                 </div>
                 <div>
-                  <label className="block font-semibold mb-1">Document / Certificate No <span className="text-rose-500 font-bold ml-0.5">*</span></label>
+                  <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">
+                    Document / Certificate No <span className="text-rose-500 font-bold ml-0.5">*</span>
+                  </label>
                   <input
                     type="text"
                     required
-                    placeholder="e.g. MED-88190"
-                    value={docForm.docNumber}
+                    placeholder="e.g. MED-88190 or DL-54201"
+                    value={docForm.docNumber || ''}
                     onChange={e => setDocForm({ ...docForm, docNumber: e.target.value })}
-                    className="w-full px-3 py-2 rounded-xl bg-white dark:bg-slate-900 border font-mono font-bold"
+                    className="w-full px-3 py-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-mono font-bold text-slate-800 dark:text-slate-200 text-xs outline-none focus:border-sky-500"
                   />
                 </div>
               </div>
 
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div>
-                  <label className="block font-semibold mb-1">Issue Date</label>
+                  <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Issue Date</label>
                   <input
                     type="date"
-                    value={docForm.issueDate}
+                    value={docForm.issueDate || ''}
                     onChange={e => setDocForm({ ...docForm, issueDate: e.target.value })}
-                    className="w-full px-3 py-2 rounded-xl bg-white dark:bg-slate-900 border font-bold"
+                    className="w-full px-3 py-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-medium text-slate-800 dark:text-slate-200 text-xs outline-none focus:border-sky-500"
                   />
                 </div>
                 <div>
-                  <label className="block font-semibold mb-1">Expiry Date <span className="text-rose-500 font-bold ml-0.5">*</span></label>
+                  <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">
+                    Expiry Date <span className="text-rose-500 font-bold ml-0.5">*</span>
+                  </label>
                   <input
                     type="date"
                     required
-                    value={docForm.expiryDate}
+                    value={docForm.expiryDate || ''}
                     onChange={e => setDocForm({ ...docForm, expiryDate: e.target.value })}
-                    className="w-full px-3 py-2 rounded-xl bg-white dark:bg-slate-900 border font-bold"
+                    className="w-full px-3 py-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-medium text-slate-800 dark:text-slate-200 text-xs outline-none focus:border-sky-500"
                   />
                 </div>
                 <div>
-                  <label className="block font-semibold mb-1">Badge Number (Optional)</label>
+                  <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Badge Number (Optional)</label>
                   <input
                     type="text"
                     placeholder="e.g. BDG-9901"
-                    value={docForm.badgeNumber}
+                    value={docForm.badgeNumber || ''}
                     onChange={e => setDocForm({ ...docForm, badgeNumber: e.target.value })}
-                    className="w-full px-3 py-2 rounded-xl bg-white dark:bg-slate-900 border font-mono"
+                    className="w-full px-3 py-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-mono text-slate-800 dark:text-slate-200 text-xs outline-none focus:border-sky-500"
                   />
                 </div>
               </div>
 
-              <div className="flex justify-end pt-1">
-                <button type="submit" className="px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs flex items-center gap-1 shadow-md">
-                  <Plus className="w-3.5 h-3.5" /> Save Verification Document
-                </button>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 items-end pt-1">
+                <div>
+                  <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Document Attachment</label>
+                  <div className="flex items-center gap-2">
+                    <label className="px-3 py-2 rounded-xl bg-white dark:bg-slate-900 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 text-xs font-bold cursor-pointer inline-flex items-center gap-1.5 transition-colors shrink-0">
+                      <Upload className="w-3.5 h-3.5 text-sky-500" />
+                      Choose File
+                      <input
+                        type="file"
+                        accept=".pdf,.png,.jpg,.jpeg"
+                        className="hidden"
+                        onChange={e => {
+                          const file = e.target.files?.[0];
+                          if (file) {
+                            setDocForm(prev => ({ ...prev, attachmentName: file.name }));
+                          }
+                        }}
+                      />
+                    </label>
+                    <span className="text-xs text-slate-500 dark:text-slate-400 truncate max-w-[220px]">
+                      {docForm.attachmentName || 'No file chosen'}
+                    </span>
+                    {docForm.attachmentName && (
+                      <button
+                        type="button"
+                        onClick={() => setDocForm(prev => ({ ...prev, attachmentName: '' }))}
+                        className="text-slate-400 hover:text-rose-500 p-1 text-xs shrink-0"
+                        title="Remove file"
+                      >
+                        ✕
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                <div className="flex justify-end">
+                  <button
+                    type="submit"
+                    className="px-5 py-2.5 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs flex items-center gap-1.5 shadow-md shadow-sky-600/20 transition-all"
+                  >
+                    <Plus className="w-3.5 h-3.5" /> Save Verification Document
+                  </button>
+                </div>
               </div>
             </form>
 
             {/* List of Documents */}
-            <div className="space-y-2">
-              <h4 className="font-bold text-xs uppercase tracking-wider text-slate-400">Verified Driver Documents</h4>
-              <div className="space-y-2">
-                {driverDocs.filter(d => d.driverId === docModalDriver.id).map(doc => {
-                  const status = checkDocExpiryStatus(doc.expiryDate);
-                  return (
-                    <div key={doc.id} className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-800 flex items-center justify-between text-xs">
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <span className="font-bold text-slate-900 dark:text-white text-sm">{doc.docType}</span>
-                          <span className="font-mono text-[11px] text-slate-500">({doc.docNumber})</span>
-                          {doc.badgeNumber && <span className="font-mono font-bold text-[10px] text-sky-600 bg-sky-50 px-2 py-0.5 rounded">Badge: {doc.badgeNumber}</span>}
-                        </div>
-                        <p className="text-[11px] text-slate-500 mt-0.5">
-                          Issue: {doc.issueDate} • Expiry: <strong className={status.isExpiringSoon || status.isExpired ? 'text-rose-600 font-bold' : 'text-slate-700 dark:text-slate-300'}>{doc.expiryDate}</strong>
-                        </p>
-                      </div>
+            <div className="space-y-3">
+              <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-2">
+                <h4 className="font-bold text-xs uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                  Verified Driver Documents ({driverDocs.filter(d => d.driverId === docModalDriver.id).length})
+                </h4>
+              </div>
 
-                      <div className="flex items-center gap-3">
-                        <div className="text-right space-y-1">
+              {driverDocs.filter(d => d.driverId === docModalDriver.id).length === 0 ? (
+                <div className="p-8 text-center rounded-2xl border border-dashed border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50">
+                  <FileText className="w-8 h-8 text-slate-300 dark:text-slate-600 mx-auto mb-2" />
+                  <p className="text-xs font-bold text-slate-600 dark:text-slate-300">No verified documents added yet</p>
+                  <p className="text-[11px] text-slate-400 mt-0.5">Use the form above to add driver medical certificates, licenses, or verification records.</p>
+                </div>
+              ) : (
+                <div className="space-y-2.5">
+                  {driverDocs.filter(d => d.driverId === docModalDriver.id).map(doc => {
+                    const status = checkDocExpiryStatus(doc.expiryDate);
+                    return (
+                      <div
+                        key={doc.id}
+                        className="p-3.5 rounded-2xl bg-white dark:bg-slate-900/90 border border-slate-200 dark:border-slate-800 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4 text-xs hover:border-slate-300 dark:hover:border-slate-700 transition-all"
+                      >
+                        {/* 1. Category & Document Details */}
+                        <div className="flex items-center gap-3 min-w-[200px] flex-1">
+                          <div className="w-9 h-9 rounded-xl bg-sky-50 dark:bg-sky-950/60 border border-sky-100 dark:border-sky-900/50 text-sky-600 dark:text-sky-400 flex items-center justify-center shrink-0">
+                            <FileCheck className="w-4 h-4" />
+                          </div>
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="font-bold text-slate-900 dark:text-white text-xs whitespace-nowrap">
+                                {doc.docType}
+                              </span>
+                              <span className="font-mono text-[11px] font-semibold text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-md border border-slate-200 dark:border-slate-700">
+                                {doc.docNumber}
+                              </span>
+                            </div>
+                            <p className="text-[11px] text-slate-400 mt-0.5">
+                              Issue: <span className="text-slate-600 dark:text-slate-300 font-medium">{doc.issueDate || 'N/A'}</span> • Expiry:{' '}
+                              <strong className={status.isExpiringSoon || status.isExpired ? 'text-rose-600 dark:text-rose-400 font-bold' : 'text-slate-700 dark:text-slate-300 font-medium'}>
+                                {doc.expiryDate}
+                              </strong>
+                            </p>
+                          </div>
+                        </div>
+
+                        {/* 2. Badge Details */}
+                        <div className="w-28 shrink-0 flex flex-col items-start justify-center">
+                          <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Badge No</span>
+                          {doc.badgeNumber ? (
+                            <span className="inline-flex items-center gap-1 font-mono font-bold text-[11px] text-sky-700 dark:text-sky-300 bg-sky-50 dark:bg-sky-950/70 border border-sky-200 dark:border-sky-800/60 px-2 py-0.5 rounded-md mt-0.5">
+                              <Award className="w-3 h-3 text-sky-500 shrink-0" />
+                              {doc.badgeNumber}
+                            </span>
+                          ) : (
+                            <span className="text-[11px] text-slate-400 italic mt-0.5">None</span>
+                          )}
+                        </div>
+
+                        {/* 3. Attachment Link */}
+                        <div className="w-48 shrink-0 flex flex-col items-start justify-center">
+                          <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Attachment</span>
+                          {doc.attachmentName ? (
+                            <span
+                              className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-sky-600 dark:text-sky-400 hover:text-sky-700 hover:underline truncate max-w-full mt-0.5"
+                              title={doc.attachmentName}
+                            >
+                              <FileText className="w-3.5 h-3.5 text-sky-500 shrink-0" />
+                              <span className="truncate">{doc.attachmentName}</span>
+                            </span>
+                          ) : (
+                            <span className="text-[11px] text-slate-400 italic mt-0.5">No file attached</span>
+                          )}
+                        </div>
+
+                        {/* 4. Verification Status */}
+                        <div className="w-24 shrink-0 flex flex-col items-center justify-center text-center">
+                          <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-0.5">Status</span>
                           {status.isExpired ? (
-                            <Badge variant="danger" size="sm">EXPIRED</Badge>
+                            <Badge variant="danger" size="sm">Expired</Badge>
                           ) : status.isExpiringSoon ? (
-                            <Badge variant="warning" size="sm">Expiring in {status.daysLeft}d</Badge>
+                            <Badge variant="warning" size="sm">Expiring Soon</Badge>
                           ) : (
                             <Badge variant="success" size="sm">Verified</Badge>
                           )}
-                          <p className="text-[10px] text-sky-600 font-bold flex items-center justify-end gap-1"><FileText className="w-3 h-3" /> {doc.attachmentName || 'Document.pdf'}</p>
                         </div>
-                        <button
-                          type="button"
-                          onClick={async () => {
-                            try {
-                              await deleteDriverDocumentApi(docModalDriver.id, doc.id);
-                              setDriverDocs(prev => prev.filter(x => x.id !== doc.id));
-                              addToast('info', 'Document Deleted', 'Driver document removed successfully');
-                            } catch (err) {
-                              setDriverDocs(prev => prev.filter(x => x.id !== doc.id));
-                            }
-                          }}
-                          className="p-1.5 rounded-lg hover:bg-rose-50 dark:hover:bg-rose-950 text-rose-600 transition-colors"
-                          title="Delete Document"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
+
+                        {/* 5. Action Icon */}
+                        <div className="w-10 shrink-0 flex items-center justify-end md:justify-center">
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteDriverDoc(doc.id)}
+                            className="p-1.5 rounded-xl hover:bg-rose-50 dark:hover:bg-rose-950/60 text-slate-400 hover:text-rose-600 transition-colors"
+                            title="Delete Document"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
                       </div>
-                    </div>
-                  );
-                })}
-              </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
 
             <div className="flex justify-end pt-3 border-t border-slate-100 dark:border-slate-800">
-              <button onClick={() => setDocModalDriver(null)} className="px-5 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 font-bold text-xs">
+              <button
+                type="button"
+                onClick={() => setDocModalDriver(null)}
+                className="px-5 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 font-bold text-xs text-slate-700 dark:text-slate-200 transition-colors"
+              >
                 Close
               </button>
             </div>

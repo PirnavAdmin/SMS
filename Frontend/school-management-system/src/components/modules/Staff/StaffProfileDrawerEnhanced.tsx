@@ -273,7 +273,7 @@ export const StaffProfileDrawer: React.FC<StaffProfileDrawerProps> = ({ staff: s
         <InfoLine label="Gender" value={staff.gender} />
         <InfoLine label="Date of Birth" value={staff.dob} />
         <InfoLine label="Blood Group" value={(staff as any).bloodGroup} />
-        <InfoLine label="Mobile Number" value={staff.phone} />
+        <InfoLine label="Mobile Number" value={staff.phone || (staff as any).mobileNumber || (staff as any).mobile} />
         <InfoLine label="Alternate Mobile" value={(() => {
           const raw = (staff as any).alternateMobile || (staff as any).alternateMobileNumber || (staff as any).alternatePhone;
           if (!raw) return undefined;
@@ -936,22 +936,18 @@ export const StaffProfileDrawer: React.FC<StaffProfileDrawerProps> = ({ staff: s
                     {((staff.firstName?.[0] || '') + (staff.lastName?.[0] || '')).toUpperCase() || <UserRound className="w-5 h-5 text-slate-400" />}
                   </div>
                 )}
-                <div className="absolute -bottom-1 -right-1">
-                  <Badge
-                    variant={
-                      (staff.status || '').toLowerCase() === 'active'
-                        ? 'success'
-                        : (staff.status || '').toLowerCase() === 'inactive'
-                          ? 'warning'
-                          : (staff.status || '').toLowerCase() === 'resigned'
-                            ? 'danger'
-                            : 'neutral'
-                    }
-                    size="sm"
-                  >
-                    {staff.status}
-                  </Badge>
-                </div>
+                <span
+                  className={`absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full ring-2 ring-white dark:ring-slate-900 shadow-sm ${
+                    (staff.status || 'Active').toLowerCase() === 'active'
+                      ? 'bg-emerald-500'
+                      : (staff.status || '').toLowerCase() === 'inactive'
+                        ? 'bg-amber-500'
+                        : (staff.status || '').toLowerCase() === 'resigned'
+                          ? 'bg-rose-500'
+                          : 'bg-slate-400'
+                  }`}
+                  title={`Status: ${staff.status || 'Active'}`}
+                />
               </div>
 
               <div className="min-w-0">
