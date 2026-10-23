@@ -1189,7 +1189,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
     if (!isNaN(configuredDeposit) && configuredDeposit > 0) {
       return configuredDeposit;
     }
-    return 2000;
+    return 0;
   }, [isResidentialStudent, applicableHostelFeeConfig]);
 
   const handleConfirmSecurityDepositPayment = () => {
@@ -4347,12 +4347,39 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                       <select
                         required
                         value={formData.studentType || ""}
-                        onChange={(e) =>
-                          setFormData({
-                            ...formData,
-                            studentType: e.target.value as StudentType,
-                          })
-                        }
+                        onChange={(e) => {
+                          const val = e.target.value as StudentType;
+                          if (val === "Non-Residential") {
+                            setFormData((prev: any) => ({
+                              ...prev,
+                              studentType: val,
+                              hostelBlock: "",
+                              hostelRoom: "",
+                              hostelBed: "",
+                              floor: "",
+                              hostelSharing: "",
+                              roomSharing: "",
+                              hostelAcPreference: "",
+                              hostelSecurityDepositPaid: false,
+                              securityDepositReceiptNo: "",
+                            }));
+                          } else if (val === "Residential") {
+                            setFormData((prev: any) => ({
+                              ...prev,
+                              studentType: val,
+                              transportRequired: false,
+                              transportType: "",
+                              busRoute: "",
+                              pickupPoint: "",
+                              dropPoint: "",
+                            }));
+                          } else {
+                            setFormData((prev: any) => ({
+                              ...prev,
+                              studentType: val,
+                            }));
+                          }
+                        }}
                         className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none appearance-none cursor-pointer pr-10"
                       >
                         <option value="">Select Type</option>
@@ -4596,7 +4623,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                         <span className="text-slate-600 dark:text-slate-400">
                           Security Deposit for Hostel:{" "}
                           <strong className="text-slate-900 dark:text-white">
-                            {formatCurrency(applicableSecurityDeposit || 2000)}
+                            {formatCurrency(applicableSecurityDeposit || 0)}
                           </strong>
                         </span>
                       </div>
@@ -4605,7 +4632,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                           ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 border border-emerald-300"
                           : "bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 border border-amber-300"
                       }`}>
-                        {formData.hostelSecurityDepositPaid ? "✓ Deposit Paid" : "Payment Pending (Pay via Right Panel)"}
+                        {applicableSecurityDeposit <= 0 ? "No Deposit Configured" : formData.hostelSecurityDepositPaid ? "✓ Deposit Paid" : "Payment Pending (Pay via Right Panel)"}
                       </span>
                     </div>
                   </div>

@@ -4,3 +4,8 @@ obj/
 /Backend/Controllers/PayrollConfigurationController.cs
 /Backend/Controllers/SalaryStructureController.cs
 /Backend/wwwroot/uploads/branding
+
+*.env
+.env
+.env.*
+!.env.example
