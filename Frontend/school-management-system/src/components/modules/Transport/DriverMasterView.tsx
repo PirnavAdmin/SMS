@@ -45,9 +45,11 @@ export interface DriverDocumentItem {
   driverId: string;
   docType:
     | "Driving License"
+    | "Others"
     | "Medical Certificate"
     | "Police Verification"
-    | "Badge Certificate";
+    | "Badge Certificate"
+    | string;
   docNumber: string;
   issueDate: string;
   expiryDate: string;
@@ -155,13 +157,14 @@ export const DriverMasterView: React.FC = () => {
   const [docModalDriver, setDocModalDriver] = useState<DriverMaster | null>(
     null,
   );
-  const [docForm, setDocForm] = useState<Partial<DriverDocumentItem>>({
-    docType: "Medical Certificate",
+  const [docForm, setDocForm] = useState<Partial<DriverDocumentItem> & { otherDocName?: string }>({
+    docType: "Driving License",
     docNumber: "",
     issueDate: "",
     expiryDate: "",
     badgeNumber: "",
     attachmentName: "",
+    otherDocName: "",
   });
 
   const [form, setForm] = useState<Partial<DriverMaster>>({
@@ -263,7 +266,7 @@ export const DriverMasterView: React.FC = () => {
       return;
     }
 
-    const normalizedLicense = normalizeDrivingLicense(form.licenseNumber);
+    const normalizedLicense = normalizeDrivingLicense(form.licenseNumber || "");
     const licCheck = validateDrivingLicense(normalizedLicense, true);
     if (!licCheck.isValid) {
       setLicenseError(licCheck.error || DRIVING_LICENCE_ERROR_MESSAGE);
@@ -331,12 +334,13 @@ export const DriverMasterView: React.FC = () => {
   const handleOpenDriverDocs = async (d: DriverMaster) => {
     setDocModalDriver(d);
     setDocForm({
-      docType: "Medical Certificate",
-      docNumber: "",
+      docType: "Driving License",
+      docNumber: d.licenseNumber || "",
       issueDate: "",
-      expiryDate: "",
+      expiryDate: d.licenseExpiryDate || "",
       badgeNumber: "",
       attachmentName: "",
+      otherDocName: "",
     });
 
     try {
@@ -368,25 +372,36 @@ export const DriverMasterView: React.FC = () => {
   const handleAddDriverDoc = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!docModalDriver) return;
-    if (!docForm.docNumber?.trim()) {
+    if (!docForm.attachmentName) {
       addToast(
         "error",
-        "Validation Error",
-        "Document / Certificate number is required.",
+        "File Required",
+        "Please choose a document file to upload.",
       );
       return;
     }
-    if (!docForm.expiryDate) {
-      addToast("error", "Validation Error", "Expiry date is required.");
-      return;
-    }
+
+    const resolvedDocType =
+      docForm.docType === "Others"
+        ? ((docForm as any).otherDocName?.trim() || "Others")
+        : "Driving License";
+
+    const resolvedDocNumber =
+      docForm.docType === "Driving License"
+        ? (docModalDriver.licenseNumber || "DL")
+        : ((docForm as any).otherDocName?.trim() || "DOC");
+
+    const resolvedExpiry =
+      docForm.docType === "Driving License"
+        ? (docModalDriver.licenseExpiryDate || "")
+        : "";
 
     const payload: DriverDocumentDto = {
-      documentCategory: docForm.docType || "Medical Certificate",
-      documentNumber: docForm.docNumber.trim(),
-      issueDate: docForm.issueDate || "",
-      expiryDate: docForm.expiryDate,
-      badgeNumber: docForm.badgeNumber?.trim() || "",
+      documentCategory: resolvedDocType,
+      documentNumber: resolvedDocNumber,
+      issueDate: new Date().toISOString().split("T")[0],
+      expiryDate: resolvedExpiry,
+      badgeNumber: "",
       fileName: docForm.attachmentName || "",
       fileUrl: "",
     };
@@ -411,17 +426,18 @@ export const DriverMasterView: React.FC = () => {
       setDriverDocs((prev) => [newDoc, ...prev]);
       addToast(
         "success",
-        "Document Saved",
-        `Saved ${newDoc.docType} for ${docModalDriver.driverName}`,
+        "Document Uploaded",
+        `Uploaded ${newDoc.docType} for ${docModalDriver.driverName}`,
       );
 
       setDocForm({
-        docType: "Medical Certificate",
-        docNumber: "",
+        docType: "Driving License",
+        docNumber: docModalDriver.licenseNumber || "",
         issueDate: "",
-        expiryDate: "",
+        expiryDate: docModalDriver.licenseExpiryDate || "",
         badgeNumber: "",
         attachmentName: "",
+        otherDocName: "",
       });
     } catch (err) {
       console.error(err);
@@ -1166,104 +1182,38 @@ export const DriverMasterView: React.FC = () => {
                 </span>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-end">
+                {/* 1. Document Category Dropdown */}
                 <div>
                   <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">
                     Document Category{" "}
                     <span className="text-rose-500 font-bold ml-0.5">*</span>
                   </label>
                   <select
-                    value={docForm.docType || "Medical Certificate"}
+                    value={docForm.docType || "Driving License"}
                     onChange={(e) =>
                       setDocForm({ ...docForm, docType: e.target.value as any })
                     }
-                    className="w-full px-3 py-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-semibold text-slate-800 dark:text-slate-200 text-xs outline-none focus:border-sky-500"
+                    className="w-full px-3 py-2.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-semibold text-slate-800 dark:text-slate-200 text-xs outline-none focus:border-sky-500 cursor-pointer"
                   >
                     <option value="Driving License">Driving License</option>
-                    <option value="Medical Certificate">
-                      Medical Certificate
-                    </option>
-                    <option value="Police Verification">
-                      Police Verification
-                    </option>
-                    <option value="Badge Certificate">Badge Certificate</option>
+                    <option value="Others">Others</option>
                   </select>
                 </div>
-                <div>
-                  <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">
-                    Document / Certificate No{" "}
-                    <span className="text-rose-500 font-bold ml-0.5">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="Enter certificate / document number"
-                    value={docForm.docNumber || ""}
-                    onChange={(e) =>
-                      setDocForm({ ...docForm, docNumber: e.target.value })
-                    }
-                    className="w-full px-3 py-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-mono font-bold text-slate-800 dark:text-slate-200 text-xs outline-none focus:border-sky-500"
-                  />
-                </div>
-              </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                {/* 2. Upload Document */}
                 <div>
                   <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">
-                    Issue Date
-                  </label>
-                  <input
-                    type="date"
-                    value={docForm.issueDate || ""}
-                    onChange={(e) =>
-                      setDocForm({ ...docForm, issueDate: e.target.value })
-                    }
-                    className="w-full px-3 py-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-medium text-slate-800 dark:text-slate-200 text-xs outline-none focus:border-sky-500"
-                  />
-                </div>
-                <div>
-                  <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">
-                    Expiry Date{" "}
+                    Upload Document{" "}
                     <span className="text-rose-500 font-bold ml-0.5">*</span>
-                  </label>
-                  <input
-                    type="date"
-                    required
-                    value={docForm.expiryDate || ""}
-                    onChange={(e) =>
-                      setDocForm({ ...docForm, expiryDate: e.target.value })
-                    }
-                    className="w-full px-3 py-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-medium text-slate-800 dark:text-slate-200 text-xs outline-none focus:border-sky-500"
-                  />
-                </div>
-                <div>
-                  <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">
-                    Badge Number (Optional)
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="Enter badge number (optional)"
-                    value={docForm.badgeNumber || ""}
-                    onChange={(e) =>
-                      setDocForm({ ...docForm, badgeNumber: e.target.value })
-                    }
-                    className="w-full px-3 py-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-mono text-slate-800 dark:text-slate-200 text-xs outline-none focus:border-sky-500"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 items-end pt-1">
-                <div>
-                  <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">
-                    Document Attachment
                   </label>
                   <div className="flex items-center gap-2">
-                    <label className="px-3 py-2 rounded-xl bg-white dark:bg-slate-900 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 text-xs font-bold cursor-pointer inline-flex items-center gap-1.5 transition-colors shrink-0">
+                    <label className="px-3.5 py-2.5 rounded-xl bg-white dark:bg-slate-900 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 text-xs font-bold cursor-pointer inline-flex items-center gap-1.5 transition-colors shrink-0 shadow-2xs">
                       <Upload className="w-3.5 h-3.5 text-sky-500" />
                       Choose File
                       <input
                         type="file"
-                        accept=".pdf,.png,.jpg,.jpeg"
+                        accept=".pdf,.png,.jpg,.jpeg,.doc,.docx"
                         className="hidden"
                         onChange={(e) => {
                           const file = e.target.files?.[0];
@@ -1276,7 +1226,10 @@ export const DriverMasterView: React.FC = () => {
                         }}
                       />
                     </label>
-                    <span className="text-xs text-slate-500 dark:text-slate-400 truncate max-w-[220px]">
+                    <span
+                      className="text-xs text-slate-500 dark:text-slate-400 truncate max-w-[200px]"
+                      title={docForm.attachmentName || undefined}
+                    >
                       {docForm.attachmentName || "No file chosen"}
                     </span>
                     {docForm.attachmentName && (
@@ -1288,7 +1241,7 @@ export const DriverMasterView: React.FC = () => {
                             attachmentName: "",
                           }))
                         }
-                        className="text-slate-400 hover:text-rose-500 p-1 text-xs shrink-0"
+                        className="text-slate-400 hover:text-rose-500 p-1 text-xs shrink-0 cursor-pointer"
                         title="Remove file"
                       >
                         ✕
@@ -1296,15 +1249,39 @@ export const DriverMasterView: React.FC = () => {
                     )}
                   </div>
                 </div>
+              </div>
 
-                <div className="flex justify-end">
-                  <button
-                    type="submit"
-                    className="px-5 py-2.5 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs flex items-center gap-1.5 shadow-md shadow-sky-600/20 transition-all"
-                  >
-                    <Plus className="w-3.5 h-3.5" /> Save Verification Document
-                  </button>
+              {/* If Others is selected, optionally allow custom document name */}
+              {docForm.docType === "Others" && (
+                <div className="pt-1">
+                  <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">
+                    Document Name (Optional)
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="e.g. Medical Certificate, Police Verification, ID Proof"
+                    value={(docForm as any).otherDocName || ""}
+                    onChange={(e) =>
+                      setDocForm(
+                        (prev) =>
+                          ({
+                            ...prev,
+                            otherDocName: e.target.value,
+                          }) as any,
+                      )
+                    }
+                    className="w-full px-3 py-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-medium text-slate-800 dark:text-slate-200 text-xs outline-none focus:border-sky-500"
+                  />
                 </div>
+              )}
+
+              <div className="flex justify-end pt-1">
+                <button
+                  type="submit"
+                  className="px-5 py-2.5 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs flex items-center gap-1.5 shadow-md shadow-sky-600/20 transition-all cursor-pointer"
+                >
+                  <Upload className="w-3.5 h-3.5" /> Upload Document
+                </button>
               </div>
             </form>
 
@@ -1354,26 +1331,39 @@ export const DriverMasterView: React.FC = () => {
                                 <span className="font-bold text-slate-900 dark:text-white text-xs whitespace-nowrap">
                                   {doc.docType}
                                 </span>
-                                <span className="font-mono text-[11px] font-semibold text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-md border border-slate-200 dark:border-slate-700">
-                                  {doc.docNumber}
-                                </span>
+                                {doc.docNumber && (
+                                  <span className="font-mono text-[11px] font-semibold text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-md border border-slate-200 dark:border-slate-700">
+                                    {doc.docNumber}
+                                  </span>
+                                )}
                               </div>
-                              <p className="text-[11px] text-slate-400 mt-0.5">
-                                Issue:{" "}
-                                <span className="text-slate-600 dark:text-slate-300 font-medium">
-                                  {doc.issueDate || "N/A"}
-                                </span>{" "}
-                                • Expiry:{" "}
-                                <strong
-                                  className={
-                                    status.isExpiringSoon || status.isExpired
-                                      ? "text-rose-600 dark:text-rose-400 font-bold"
-                                      : "text-slate-700 dark:text-slate-300 font-medium"
-                                  }
-                                >
-                                  {doc.expiryDate}
-                                </strong>
-                              </p>
+                              {(doc.issueDate || doc.expiryDate) && (
+                                <p className="text-[11px] text-slate-400 mt-0.5">
+                                  {doc.issueDate && (
+                                    <>
+                                      Issue:{" "}
+                                      <span className="text-slate-600 dark:text-slate-300 font-medium">
+                                        {doc.issueDate}
+                                      </span>
+                                    </>
+                                  )}
+                                  {doc.issueDate && doc.expiryDate && <> • </>}
+                                  {doc.expiryDate && (
+                                    <>
+                                      Expiry:{" "}
+                                      <strong
+                                        className={
+                                          status.isExpiringSoon || status.isExpired
+                                            ? "text-rose-600 dark:text-rose-400 font-bold"
+                                            : "text-slate-700 dark:text-slate-300 font-medium"
+                                        }
+                                      >
+                                        {doc.expiryDate}
+                                      </strong>
+                                    </>
+                                  )}
+                                </p>
+                              )}
                             </div>
                           </div>
 
