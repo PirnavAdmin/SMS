@@ -127,8 +127,33 @@ namespace SMS.Api.Repositories.Implementations
         public async Task<long> CreateAsync(CreateTransportAttendantDto dto, long? userId)
         {
             var empId = dto.EmployeeId?.Trim();
+            if (empId != null && empId.Length > 100) empId = empId.Substring(0, 100);
+
             var attName = dto.AttendantName?.Trim();
+            if (attName != null && attName.Length > 255) attName = attName.Substring(0, 255);
+
             var phone = dto.MobileNumber?.Trim();
+            if (phone != null && phone.Length > 100) phone = phone.Substring(0, 100);
+
+            var altPhone = dto.AlternateMobileNumber?.Trim();
+            if (altPhone != null && altPhone.Length > 100) altPhone = altPhone.Substring(0, 100);
+
+            var gender = dto.Gender?.Trim();
+            if (gender != null && gender.Length > 50) gender = gender.Substring(0, 50);
+
+            var branch = dto.BranchCampus?.Trim();
+            if (branch != null && branch.Length > 255) branch = branch.Substring(0, 255);
+
+            var bloodGroup = dto.BloodGroup?.Trim();
+            if (bloodGroup != null && bloodGroup.Length > 20) bloodGroup = bloodGroup.Substring(0, 20);
+
+            var emContactName = dto.EmergencyContactName?.Trim();
+            if (emContactName != null && emContactName.Length > 255) emContactName = emContactName.Substring(0, 255);
+
+            var emContactNumber = dto.EmergencyContactNumber?.Trim();
+            if (emContactNumber != null && emContactNumber.Length > 100) emContactNumber = emContactNumber.Substring(0, 100);
+
+            var address = dto.Address?.Trim();
 
             var existing = await _context.TransportAttendants
                 .FirstOrDefaultAsync(x => !x.IsDeleted && (
@@ -141,13 +166,13 @@ namespace SMS.Api.Repositories.Implementations
                 if (!string.IsNullOrWhiteSpace(empId)) existing.EmployeeId = empId;
                 if (!string.IsNullOrWhiteSpace(attName)) existing.AttendantName = attName;
                 if (!string.IsNullOrWhiteSpace(phone)) existing.MobileNumber = phone;
-                if (!string.IsNullOrWhiteSpace(dto.Gender)) existing.Gender = dto.Gender.Trim();
-                if (!string.IsNullOrWhiteSpace(dto.BranchCampus)) existing.BranchName = dto.BranchCampus.Trim();
-                if (dto.AlternateMobileNumber != null) existing.AlternateMobileNumber = dto.AlternateMobileNumber.Trim();
-                if (dto.Address != null) existing.Address = dto.Address.Trim();
-                if (dto.BloodGroup != null) existing.BloodGroup = dto.BloodGroup.Trim();
-                if (dto.EmergencyContactName != null) existing.EmergencyContactName = dto.EmergencyContactName.Trim();
-                if (dto.EmergencyContactNumber != null) existing.EmergencyContactNumber = dto.EmergencyContactNumber.Trim();
+                if (!string.IsNullOrWhiteSpace(gender)) existing.Gender = gender;
+                if (!string.IsNullOrWhiteSpace(branch)) existing.BranchName = branch;
+                if (altPhone != null) existing.AlternateMobileNumber = altPhone;
+                if (address != null) existing.Address = address;
+                if (bloodGroup != null) existing.BloodGroup = bloodGroup;
+                if (emContactName != null) existing.EmergencyContactName = emContactName;
+                if (emContactNumber != null) existing.EmergencyContactNumber = emContactNumber;
                 if (dto.AssignedVehicleId.HasValue) existing.AssignedVehicleId = dto.AssignedVehicleId > 0 ? dto.AssignedVehicleId : null;
                 existing.Status = dto.Status;
                 existing.UpdatedBy = userId;
@@ -162,13 +187,13 @@ namespace SMS.Api.Repositories.Implementations
                 EmployeeId = empId,
                 AttendantName = attName ?? string.Empty,
                 MobileNumber = phone ?? string.Empty,
-                Gender = dto.Gender?.Trim(),
-                BranchName = dto.BranchCampus?.Trim(),
-                AlternateMobileNumber = dto.AlternateMobileNumber?.Trim(),
-                Address = dto.Address?.Trim(),
-                BloodGroup = dto.BloodGroup?.Trim(),
-                EmergencyContactName = dto.EmergencyContactName?.Trim(),
-                EmergencyContactNumber = dto.EmergencyContactNumber?.Trim(),
+                Gender = gender,
+                BranchName = branch,
+                AlternateMobileNumber = altPhone,
+                Address = address,
+                BloodGroup = bloodGroup,
+                EmergencyContactName = emContactName,
+                EmergencyContactNumber = emContactNumber,
                 AssignedVehicleId = dto.AssignedVehicleId > 0 ? dto.AssignedVehicleId : null,
                 Status = dto.Status,
                 IsDeleted = false,
@@ -189,16 +214,52 @@ namespace SMS.Api.Repositories.Implementations
 
             if (attendant == null) return false;
 
-            if (dto.EmployeeId != null) attendant.EmployeeId = dto.EmployeeId.Trim();
-            if (!string.IsNullOrWhiteSpace(dto.AttendantName)) attendant.AttendantName = dto.AttendantName.Trim();
-            if (!string.IsNullOrWhiteSpace(dto.MobileNumber)) attendant.MobileNumber = dto.MobileNumber.Trim();
-            if (dto.Gender != null) attendant.Gender = dto.Gender.Trim();
-            if (dto.BranchCampus != null) attendant.BranchName = dto.BranchCampus.Trim();
-            if (dto.AlternateMobileNumber != null) attendant.AlternateMobileNumber = dto.AlternateMobileNumber.Trim();
+            if (dto.EmployeeId != null)
+            {
+                var empId = dto.EmployeeId.Trim();
+                attendant.EmployeeId = empId.Length > 100 ? empId.Substring(0, 100) : empId;
+            }
+            if (!string.IsNullOrWhiteSpace(dto.AttendantName))
+            {
+                var attName = dto.AttendantName.Trim();
+                attendant.AttendantName = attName.Length > 255 ? attName.Substring(0, 255) : attName;
+            }
+            if (!string.IsNullOrWhiteSpace(dto.MobileNumber))
+            {
+                var phone = dto.MobileNumber.Trim();
+                attendant.MobileNumber = phone.Length > 100 ? phone.Substring(0, 100) : phone;
+            }
+            if (dto.Gender != null)
+            {
+                var gender = dto.Gender.Trim();
+                attendant.Gender = gender.Length > 50 ? gender.Substring(0, 50) : gender;
+            }
+            if (dto.BranchCampus != null)
+            {
+                var branch = dto.BranchCampus.Trim();
+                attendant.BranchName = branch.Length > 255 ? branch.Substring(0, 255) : branch;
+            }
+            if (dto.AlternateMobileNumber != null)
+            {
+                var alt = dto.AlternateMobileNumber.Trim();
+                attendant.AlternateMobileNumber = alt.Length > 100 ? alt.Substring(0, 100) : alt;
+            }
             if (dto.Address != null) attendant.Address = dto.Address.Trim();
-            if (dto.BloodGroup != null) attendant.BloodGroup = dto.BloodGroup.Trim();
-            if (dto.EmergencyContactName != null) attendant.EmergencyContactName = dto.EmergencyContactName.Trim();
-            if (dto.EmergencyContactNumber != null) attendant.EmergencyContactNumber = dto.EmergencyContactNumber.Trim();
+            if (dto.BloodGroup != null)
+            {
+                var bg = dto.BloodGroup.Trim();
+                attendant.BloodGroup = bg.Length > 20 ? bg.Substring(0, 20) : bg;
+            }
+            if (dto.EmergencyContactName != null)
+            {
+                var eName = dto.EmergencyContactName.Trim();
+                attendant.EmergencyContactName = eName.Length > 255 ? eName.Substring(0, 255) : eName;
+            }
+            if (dto.EmergencyContactNumber != null)
+            {
+                var eNum = dto.EmergencyContactNumber.Trim();
+                attendant.EmergencyContactNumber = eNum.Length > 100 ? eNum.Substring(0, 100) : eNum;
+            }
             if (dto.AssignedVehicleId.HasValue) attendant.AssignedVehicleId = dto.AssignedVehicleId > 0 ? dto.AssignedVehicleId : null;
             attendant.Status = dto.Status;
             attendant.UpdatedBy = userId;

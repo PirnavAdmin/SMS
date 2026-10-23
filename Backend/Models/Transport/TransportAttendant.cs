@@ -8,18 +8,33 @@ public class TransportAttendant
     [Key]
     public long AttendantId { get; set; }
 
+    [MaxLength(255)]
     public string? AttendantName { get; set; }
 
+    [MaxLength(100)]
     public string? MobileNumber { get; set; }
 
+    [MaxLength(100)]
     public string? EmployeeId { get; set; }
+
+    [MaxLength(50)]
     public string? Gender { get; set; }
+
+    [MaxLength(255)]
     public string? BranchName { get; set; }
 
+    [MaxLength(100)]
     public string? AlternateMobileNumber { get; set; }
+
     public string? Address { get; set; }
+
+    [MaxLength(20)]
     public string? BloodGroup { get; set; }
+
+    [MaxLength(255)]
     public string? EmergencyContactName { get; set; }
+
+    [MaxLength(100)]
     public string? EmergencyContactNumber { get; set; }
 
     public long? AssignedVehicleId { get; set; }

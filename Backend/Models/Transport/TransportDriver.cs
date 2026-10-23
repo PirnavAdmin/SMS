@@ -8,10 +8,13 @@ public class TransportDriver
     [Key]
     public long DriverId { get; set; }
 
+    [MaxLength(255)]
     public string? DriverName { get; set; }
 
+    [MaxLength(100)]
     public string? EmployeeId { get; set; }
 
+    [MaxLength(100)]
     public string? LicenceNumber { get; set; }
 
     public DateTime? LicenceExpiry { get; set; }
@@ -23,6 +26,7 @@ public class TransportDriver
         set => LicenceNumber = value;
     }
 
+    [MaxLength(100)]
     public string? MobileNumber { get; set; }
 
     [System.ComponentModel.DataAnnotations.Schema.NotMapped]
@@ -32,11 +36,16 @@ public class TransportDriver
         set => MobileNumber = value;
     }
 
+    [MaxLength(100)]
     public string? AlternateMobileNumber { get; set; }
+    [MaxLength(150)]
     public string? Email { get; set; }
     public string? Address { get; set; }
+    [MaxLength(20)]
     public string? BloodGroup { get; set; }
+    [MaxLength(255)]
     public string? EmergencyContactName { get; set; }
+    [MaxLength(100)]
     public string? EmergencyContactNumber { get; set; }
 
     public bool Status { get; set; } = true;

@@ -158,9 +158,16 @@ namespace SMS.Api.Repositories.Implementations
             long? userId)
         {
             var empId = !string.IsNullOrWhiteSpace(dto.EmployeeId) && !dto.EmployeeId.Equals("string", StringComparison.OrdinalIgnoreCase) ? dto.EmployeeId.Trim() : string.Empty;
+            if (empId.Length > 100) empId = empId.Substring(0, 100);
+
             var licNum = !string.IsNullOrWhiteSpace(dto.LicenceNumber) && !dto.LicenceNumber.Equals("string", StringComparison.OrdinalIgnoreCase) ? dto.LicenceNumber.Trim() : string.Empty;
+            if (licNum.Length > 100) licNum = licNum.Substring(0, 100);
+
             var mobNum = !string.IsNullOrWhiteSpace(dto.MobileNumber) && !dto.MobileNumber.Equals("string", StringComparison.OrdinalIgnoreCase) ? dto.MobileNumber.Trim() : string.Empty;
+            if (mobNum.Length > 100) mobNum = mobNum.Substring(0, 100);
+
             var drvName = !string.IsNullOrWhiteSpace(dto.DriverName) && !dto.DriverName.Equals("string", StringComparison.OrdinalIgnoreCase) ? dto.DriverName.Trim() : string.Empty;
+            if (drvName.Length > 255) drvName = drvName.Substring(0, 255);
 
             var existing = await _context.TransportDrivers
                 .FirstOrDefaultAsync(x => !x.IsDeleted && (
@@ -227,17 +234,45 @@ namespace SMS.Api.Repositories.Implementations
             if (entity == null)
                 return false;
 
-            if (!string.IsNullOrWhiteSpace(dto.DriverName)) entity.DriverName = dto.DriverName.Trim();
-            if (!string.IsNullOrWhiteSpace(dto.EmployeeId)) entity.EmployeeId = dto.EmployeeId.Trim();
-            if (!string.IsNullOrWhiteSpace(dto.MobileNumber)) entity.MobileNumber = dto.MobileNumber.Trim();
-            entity.AlternateMobileNumber = dto.AlternateMobileNumber?.Trim() ?? string.Empty;
+            if (!string.IsNullOrWhiteSpace(dto.DriverName))
+            {
+                var dName = dto.DriverName.Trim();
+                entity.DriverName = dName.Length > 255 ? dName.Substring(0, 255) : dName;
+            }
+            if (!string.IsNullOrWhiteSpace(dto.EmployeeId))
+            {
+                var eId = dto.EmployeeId.Trim();
+                entity.EmployeeId = eId.Length > 100 ? eId.Substring(0, 100) : eId;
+            }
+            if (!string.IsNullOrWhiteSpace(dto.MobileNumber))
+            {
+                var mNum = dto.MobileNumber.Trim();
+                entity.MobileNumber = mNum.Length > 100 ? mNum.Substring(0, 100) : mNum;
+            }
+            if (dto.AlternateMobileNumber != null)
+            {
+                var alt = dto.AlternateMobileNumber.Trim();
+                entity.AlternateMobileNumber = alt.Length > 100 ? alt.Substring(0, 100) : alt;
+            }
             if (dto.Email != null) entity.Email = dto.Email.Trim();
-            if (!string.IsNullOrWhiteSpace(dto.LicenceNumber)) entity.LicenceNumber = dto.LicenceNumber.Trim();
+            if (!string.IsNullOrWhiteSpace(dto.LicenceNumber))
+            {
+                var lNum = dto.LicenceNumber.Trim();
+                entity.LicenceNumber = lNum.Length > 100 ? lNum.Substring(0, 100) : lNum;
+            }
             entity.LicenceExpiry = dto.LicenceExpiry;
             entity.Address = dto.Address?.Trim() ?? string.Empty;
             entity.BloodGroup = dto.BloodGroup?.Trim() ?? string.Empty;
-            entity.EmergencyContactName = dto.EmergencyContactName?.Trim() ?? string.Empty;
-            entity.EmergencyContactNumber = dto.EmergencyContactNumber?.Trim() ?? string.Empty;
+            if (dto.EmergencyContactName != null)
+            {
+                var ecName = dto.EmergencyContactName.Trim();
+                entity.EmergencyContactName = ecName.Length > 255 ? ecName.Substring(0, 255) : ecName;
+            }
+            if (dto.EmergencyContactNumber != null)
+            {
+                var ecNum = dto.EmergencyContactNumber.Trim();
+                entity.EmergencyContactNumber = ecNum.Length > 100 ? ecNum.Substring(0, 100) : ecNum;
+            }
             entity.Status = dto.Status;
             entity.UpdatedBy = userId;
             entity.UpdatedAt = DateTime.UtcNow;

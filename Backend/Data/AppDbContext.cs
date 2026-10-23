@@ -207,6 +207,7 @@ namespace SMS.Api.Data
             ConfigurePickupPoint(modelBuilder);
             ConfigureTransportVehicle(modelBuilder);
             ConfigureTransportDriver(modelBuilder);
+            ConfigureTransportAttendant(modelBuilder);
             ConfigureTransportVehicleAssignment(modelBuilder);
             ConfigureStudentTransportAssignment(modelBuilder);
             ConfigureVehicleMaintenance(modelBuilder);
@@ -887,49 +888,68 @@ namespace SMS.Api.Data
 
                 entity.Property(x => x.DriverName)
                     .IsRequired(false)
-                    .HasMaxLength(100);
+                    .HasMaxLength(255);
 
                 entity.Property(x => x.MobileNumber)
                     .IsRequired(false)
-                    .HasMaxLength(20);
+                    .HasMaxLength(100);
 
                 entity.Property(x => x.LicenceNumber)
                     .IsRequired(false)
-                    .HasMaxLength(50);
+                    .HasMaxLength(100);
 
                 entity.Property(x => x.EmployeeId)
                     .IsRequired(false)
-                    .HasMaxLength(50);
+                    .HasMaxLength(100);
 
                 entity.Property(x => x.AlternateMobileNumber)
                     .IsRequired(false)
-                    .HasMaxLength(20);
+                    .HasMaxLength(100);
 
                 entity.Property(x => x.Email)
                     .IsRequired(false)
                     .HasMaxLength(150);
 
                 entity.Property(x => x.Address)
-                    .IsRequired(false)
-                    .HasMaxLength(255);
+                    .IsRequired(false);
 
                 entity.Property(x => x.BloodGroup)
                     .IsRequired(false)
-                    .HasMaxLength(10);
+                    .HasMaxLength(20);
 
                 entity.Property(x => x.EmergencyContactName)
                     .IsRequired(false)
-                    .HasMaxLength(100);
+                    .HasMaxLength(255);
 
                 entity.Property(x => x.EmergencyContactNumber)
                     .IsRequired(false)
-                    .HasMaxLength(20);
+                    .HasMaxLength(100);
 
                 entity.Property(x => x.Status)
                     .HasDefaultValue(true);
 
                 entity.Property(x => x.IsDeleted)
                     .HasDefaultValue(false);
+            });
+        }
+
+        private static void ConfigureTransportAttendant(ModelBuilder modelBuilder)
+        {
+            modelBuilder.Entity<TransportAttendant>(entity =>
+            {
+                entity.ToTable("transport_attendants");
+                entity.HasKey(x => x.AttendantId);
+                entity.Property(x => x.AttendantName).HasMaxLength(255);
+                entity.Property(x => x.MobileNumber).HasMaxLength(100);
+                entity.Property(x => x.EmployeeId).HasMaxLength(100);
+                entity.Property(x => x.Gender).HasMaxLength(50);
+                entity.Property(x => x.BranchName).HasMaxLength(255);
+                entity.Property(x => x.AlternateMobileNumber).HasMaxLength(100);
+                entity.Property(x => x.BloodGroup).HasMaxLength(20);
+                entity.Property(x => x.EmergencyContactName).HasMaxLength(255);
+                entity.Property(x => x.EmergencyContactNumber).HasMaxLength(100);
+                entity.Property(x => x.Status).HasDefaultValue(true);
+                entity.Property(x => x.IsDeleted).HasDefaultValue(false);
             });
         }
 

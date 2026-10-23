@@ -1538,6 +1538,29 @@ using (var scope = app.Services.CreateScope())
             catch { }
         }
 
+                void EnsureColumnWidened(string table, string column, string columnDef)
+        {
+            try
+            {
+                var conn = context.Database.GetDbConnection();
+                bool closeConn = false;
+                if (conn.State != System.Data.ConnectionState.Open)
+                {
+                    conn.Open();
+                    closeConn = true;
+                }
+
+                using (var cmd = conn.CreateCommand())
+                {
+                    cmd.CommandText = $"ALTER TABLE {table} MODIFY COLUMN {column} {columnDef};";
+                    cmd.ExecuteNonQuery();
+                }
+
+                if (closeConn) conn.Close();
+            }
+            catch { }
+        }
+
         EnsureColumnExists("payroll_configs", "LeaveRulesJson", "LONGTEXT NULL");
         EnsureColumnExists("payroll_configs", "AttendanceRulesJson", "LONGTEXT NULL");
         EnsureColumnExists("payroll_configs", "DeductionRulesJson", "LONGTEXT NULL");
@@ -1671,15 +1694,30 @@ using (var scope = app.Services.CreateScope())
 // FINANCE MANAGEMENT
 // =========================================================
 
-        EnsureColumnExists("transport_attendants", "EmployeeId", "varchar(50) NULL");
-        EnsureColumnExists("transport_attendants", "Gender", "varchar(20) NULL");
-        EnsureColumnExists("transport_attendants", "BranchName", "varchar(100) NULL");
-        EnsureColumnExists("transport_attendants", "AlternateMobileNumber", "varchar(30) NULL");
-        EnsureColumnExists("transport_attendants", "Address", "varchar(255) NULL");
-        EnsureColumnExists("transport_attendants", "BloodGroup", "varchar(10) NULL");
-        EnsureColumnExists("transport_attendants", "EmergencyContactName", "varchar(150) NULL");
-        EnsureColumnExists("transport_attendants", "EmergencyContactNumber", "varchar(30) NULL");
+        EnsureColumnExists("transport_attendants", "EmployeeId", "varchar(100) NULL");
+        EnsureColumnExists("transport_attendants", "Gender", "varchar(50) NULL");
+        EnsureColumnExists("transport_attendants", "BranchName", "varchar(255) NULL");
+        EnsureColumnExists("transport_attendants", "AlternateMobileNumber", "varchar(100) NULL");
+        EnsureColumnExists("transport_attendants", "Address", "text NULL");
+        EnsureColumnExists("transport_attendants", "BloodGroup", "varchar(20) NULL");
+        EnsureColumnExists("transport_attendants", "EmergencyContactName", "varchar(255) NULL");
+        EnsureColumnExists("transport_attendants", "EmergencyContactNumber", "varchar(100) NULL");
         EnsureColumnExists("transport_attendants", "AssignedVehicleId", "bigint NULL");
+
+        EnsureColumnWidened("transport_attendants", "MobileNumber", "varchar(100) NOT NULL");
+        EnsureColumnWidened("transport_attendants", "AlternateMobileNumber", "varchar(100) NULL");
+        EnsureColumnWidened("transport_attendants", "EmergencyContactNumber", "varchar(100) NULL");
+        EnsureColumnWidened("transport_attendants", "Address", "text NULL");
+        EnsureColumnWidened("transport_attendants", "AttendantName", "varchar(255) NOT NULL");
+        EnsureColumnWidened("transport_attendants", "BranchName", "varchar(255) NULL");
+        EnsureColumnWidened("transport_attendants", "EmployeeId", "varchar(100) NULL");
+        EnsureColumnWidened("transport_attendants", "EmergencyContactName", "varchar(255) NULL");
+
+        EnsureColumnWidened("transport_drivers", "MobileNumber", "varchar(100) NULL");
+        EnsureColumnWidened("transport_drivers", "AlternateMobileNumber", "varchar(100) NULL");
+        EnsureColumnWidened("transport_drivers", "EmergencyContactNumber", "varchar(100) NULL");
+        EnsureColumnWidened("transport_drivers", "DriverName", "varchar(255) NULL");
+        EnsureColumnWidened("transport_drivers", "EmployeeId", "varchar(100) NULL");
         EnsureColumnExists("transport_pickup_points", "DropTime", "time(6) NOT NULL DEFAULT '16:15:00'");
         EnsureColumnExists("transport_pickup_points", "PickupTime", "time(6) NOT NULL DEFAULT '07:30:00'");
         EnsureColumnExists("transport_pickup_points", "Landmark", "varchar(250) NULL");
