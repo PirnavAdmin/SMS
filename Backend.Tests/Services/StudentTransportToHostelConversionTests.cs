@@ -30,7 +30,7 @@ public class StudentTransportToHostelConversionTests
 
         // 1. Arrange Branch, AcademicYear, Class
         var branch = new Branch { BranchId = 1, BranchName = "Main Campus", Status = "Active" };
-        var ay = new AcademicYear { AcademicYearId = 1, AcademicYearName = "2026-2027", StartDate = DateTime.UtcNow.AddMonths(-3), EndDate = DateTime.UtcNow.AddMonths(9), Status = "Active" };
+        var ay = new AcademicYear { AcademicYearId = 1, AcademicYearName = "2026-2027", StartDate = DateTime.UtcNow.AddMonths(-3), EndDate = DateTime.UtcNow.AddMonths(9), IsActive = true };
         var cls = new ClassGrade { ClassId = 1, ClassName = "Class 10", Status = "Active", DisplayOrder = 10 };
         var sec = new ClassSection { SectionId = 1, SectionName = "A", ClassId = 1, Status = "Active" };
 
@@ -75,6 +75,7 @@ public class StudentTransportToHostelConversionTests
         var route = new TransportRoute
         {
             RouteId = 1,
+            RouteCode = "RT-01",
             RouteName = "Route 1",
             DistanceKm = 10m,
             MinRangeKm = 5m,
@@ -111,10 +112,10 @@ public class StudentTransportToHostelConversionTests
 
         // 4. Arrange Hostel Block, Room, and Fee Config
         var hostel = new HostelBlock { HostelId = 1, HostelName = "Vidyarthi Nilayam", HostelCode = "VN-01", HostelType = "Boys Hostel", Status = "Active" };
-        var roomType = new RoomType { RoomTypeId = 1, RoomTypeName = "Double Sharing Non-AC", AcType = "Non-AC", BedCapacity = 2 };
+        var roomType = new RoomTypeConfig { RoomTypeId = 1, RoomTypeSpecification = "Double Sharing Non-AC", AcType = "Non-AC", BedCapacity = 2, Status = "Active" };
         var room = new RoomMaster { RoomId = 1, HostelId = 1, RoomNumber = "101", RoomTypeId = 1, Status = "Active", RoomType = roomType, Hostel = hostel };
         db.HostelBlocks.Add(hostel);
-        db.RoomTypes.Add(roomType);
+        db.RoomTypeConfigs.Add(roomType);
         db.RoomMasters.Add(room);
 
         var hostelConfig = new HostelFeeConfig
@@ -207,7 +208,7 @@ public class StudentTransportToHostelConversionTests
         Assert.Equal(3900m, profile.TransportPaidAmount);
         Assert.Equal(0m, profile.TransportRemainingDue);
         Assert.Equal(5000m, profile.SecurityDepositAssessed);
-        Assert.True(profile.CurrentAcademicYearFees.Any(f => f.FeeHeadId == "FH-HST-DEP"));
+        Assert.Contains(profile.CurrentAcademicYearFees, f => f.FeeHeadId == "FH-HST-DEP");
     }
 
     [Fact]
@@ -215,8 +216,42 @@ public class StudentTransportToHostelConversionTests
     {
         using var db = GetInMemoryDbContext();
 
-        var student = new Student { StudentId = 102, AdmissionNumber = "ADM-102", RollNumber = "102", StudentName = "Priya Rao", AcademicYearId = 1, BranchId = 1 };
+        var branch = new Branch { BranchId = 1, BranchName = "Main Campus", Status = "Active" };
+        var ay = new AcademicYear { AcademicYearId = 1, AcademicYearName = "2026-2027", StartDate = DateTime.UtcNow.AddMonths(-6), EndDate = DateTime.UtcNow.AddMonths(6), IsActive = true };
+        var cls = new ClassGrade { ClassId = 1, ClassName = "Class 10", Status = "Active", DisplayOrder = 10 };
+        var sec = new ClassSection { SectionId = 1, SectionName = "A", ClassId = 1, Status = "Active" };
+        db.Branches.Add(branch);
+        db.AcademicYears.Add(ay);
+        db.Classes.Add(cls);
+        db.ClassSections.Add(sec);
+
+        var student = new Student
+        {
+            StudentId = 102,
+            AdmissionNumber = "ADM-102",
+            RollNumber = "102",
+            StudentName = "Priya Rao",
+            BranchId = 1,
+            AcademicYearId = 1,
+            ClassId = 1,
+            SectionId = 1,
+            Status = "Active"
+        };
         db.Students.Add(student);
+
+        var admission = new AdmissionApplication
+        {
+            Id = 102,
+            AdmissionNo = "ADM-102",
+            RegistrationNo = "ADM-102",
+            FirstName = "Priya",
+            LastName = "Rao",
+            StudentType = "Residential",
+            TransportRequired = false,
+            BusRoute = "Route 1",
+            PickupPoint = "Stop 1"
+        };
+        db.AdmissionApplications.Add(admission);
 
         // Transport paid 10,000 but only used 4,000 (available credit = 6,000)
         var ta = new StudentTransportAssignment
@@ -226,13 +261,14 @@ public class StudentTransportToHostelConversionTests
             AdmissionNo = "ADM-102",
             RouteId = 1,
             PickupPointId = 1,
+            TransportType = "Non-AC",
             EffectiveFrom = DateTime.UtcNow.AddMonths(-4),
             EffectiveTo = DateTime.UtcNow,
             Status = false
         };
         db.StudentTransportAssignments.Add(ta);
 
-        var route = new TransportRoute { RouteId = 1, RouteName = "Route 1", NonAcBaseFare = 1000m, MinRangeKm = 10m, DistanceKm = 5m };
+        var route = new TransportRoute { RouteId = 1, RouteCode = "RT-02", RouteName = "Route 1", NonAcBaseFare = 1000m, MinRangeKm = 10m, DistanceKm = 5m };
         var pickup = new PickupPoint { PickupPointId = 1, PickupPointName = "Stop 1", RouteId = 1 };
         db.TransportRoutes.Add(route);
         db.PickupPoints.Add(pickup);
@@ -285,7 +321,12 @@ public class StudentTransportToHostelConversionTests
     {
         using var db = GetInMemoryDbContext();
 
-        var student = new Student { StudentId = 103, AdmissionNumber = "ADM-103", RollNumber = "103", StudentName = "Rohan Verma", AcademicYearId = 1, BranchId = 1 };
+        var branch = new Branch { BranchId = 1, BranchName = "Main Campus", Status = "Active" };
+        var ay = new AcademicYear { AcademicYearId = 1, AcademicYearName = "2026-2027", StartDate = DateTime.UtcNow.AddMonths(-6), EndDate = DateTime.UtcNow.AddMonths(6), IsActive = true };
+        db.Branches.Add(branch);
+        db.AcademicYears.Add(ay);
+
+        var student = new Student { StudentId = 103, AdmissionNumber = "ADM-103", RollNumber = "103", StudentName = "Rohan Verma", AcademicYearId = 1, BranchId = 1, Status = "Active" };
         db.Students.Add(student);
         await db.SaveChangesAsync();
 

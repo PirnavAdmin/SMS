@@ -1,7 +1,13 @@
 // @ts-nocheck
 import React, { useState, useEffect, useRef, useMemo } from "react";
 import { formatCurrency } from "../../../utils/currency";
-import { transitionStudentCategoryApi, applyTransportCreditApi, refundSecurityDepositApi } from "../../../api/finance";
+import {
+  transitionStudentCategoryApi,
+  applyTransportCreditApi,
+  refundSecurityDepositApi,
+  recalculateStudentFeeProfileApi,
+  fetchStudentFeeProfileApi,
+} from "../../../api/finance";
 import {
   getUniformPackageFeeByClass,
   getUniformFeeForClass,
@@ -103,6 +109,39 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
   const [discountAmountInput, setDiscountAmountInput] = useState<string>("0");
   const [customAmountReceived, setCustomAmountReceived] = useState<string>("");
   const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({});
+
+  // Dynamic Backend Fee Profile & Transition States
+  const [backendFeeProfile, setBackendFeeProfile] = useState<any | null>(null);
+  const [isLoadingProfile, setIsLoadingProfile] = useState(false);
+
+  // Category Transition Modal State
+  const [showTransitionModal, setShowTransitionModal] = useState(false);
+  const [transitionTargetType, setTransitionTargetType] = useState<"Residential" | "Non-Residential">("Residential");
+  const [transitionDate, setTransitionDate] = useState<string>(() => new Date().toISOString().split("T")[0]);
+  const [transportEndDate, setTransportEndDate] = useState<string>(() => new Date().toISOString().split("T")[0]);
+  const [hostelJoiningDate, setHostelJoiningDate] = useState<string>(() => new Date().toISOString().split("T")[0]);
+  const [selectedBlockId, setSelectedBlockId] = useState<string>("");
+  const [selectedRoomId, setSelectedRoomId] = useState<string>("");
+  const [selectedBedNumber, setSelectedBedNumber] = useState<string>("");
+  const [applyCreditOnTransition, setApplyCreditOnTransition] = useState<boolean>(true);
+  const [transitionNotes, setTransitionNotes] = useState<string>("");
+  const [isSubmittingTransition, setIsSubmittingTransition] = useState<boolean>(false);
+
+  // Apply Transport Credit Modal State
+  const [showApplyCreditModal, setShowApplyCreditModal] = useState(false);
+  const [creditAmountToApply, setCreditAmountToApply] = useState<string>("");
+  const [creditTargetHead, setCreditTargetHead] = useState<string>("Hostel Accommodation");
+  const [creditReason, setCreditReason] = useState<string>("Apply unused transport balance to hostel charges");
+  const [isSubmittingCredit, setIsSubmittingCredit] = useState<boolean>(false);
+
+  // Refund Security Deposit Modal State
+  const [showRefundDepositModal, setShowRefundDepositModal] = useState(false);
+  const [refundAmountInput, setRefundAmountInput] = useState<string>("");
+  const [deductionAmountInput, setDeductionAmountInput] = useState<string>("0");
+  const [deductionReasonInput, setDeductionReasonInput] = useState<string>("");
+  const [refundPaymentMode, setRefundPaymentMode] = useState<string>("Bank Transfer");
+  const [refundRemarks, setRefundRemarks] = useState<string>("");
+  const [isSubmittingRefund, setIsSubmittingRefund] = useState<boolean>(false);
 
   const toggleGroupExpansion = (headName: string) => {
     setExpandedGroups((prev) => ({

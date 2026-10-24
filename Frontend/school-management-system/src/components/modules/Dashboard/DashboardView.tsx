@@ -232,6 +232,14 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
   const fetchStaff = (useData() as any).fetchStaff || (async () => {});
 
   const userRole = user?.role?.toLowerCase() || '';
+  const hasRoleSpecificDashboard =
+    userRole === 'student' ||
+    userRole === 'parent' ||
+    ['teacher', 'class-teacher'].includes(userRole) ||
+    ['librarian', 'library'].includes(userRole) ||
+    userRole.includes('warden') ||
+    ['driver', 'bus driver', 'chauffeur'].includes(userRole) ||
+    ['accountant', 'accounts', 'finance'].includes(userRole);
   const [loading, setLoading] = useState<boolean>(() => {
     return (students || []).length === 0 && (staff || []).length === 0 && (academicClasses || []).length === 0;
   });
@@ -297,14 +305,6 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
     return () => { isMounted = false; };
   }, [userRole, selectedAcademicYear, selectedBranch]);
 
-  if (userRole === 'student') return <StudentDashboardView onNavigate={onNavigate} />;
-  if (userRole === 'parent') return <ParentDashboardView onNavigate={onNavigate} />;
-  if (['teacher', 'class-teacher'].includes(userRole)) return <TeacherDashboardView onNavigate={onNavigate} />;
-  if (['librarian', 'library'].includes(userRole)) return <LibrarianDashboardView onNavigate={onNavigate} />;
-  if (userRole.includes('warden') || userRole === 'hostel warden') return <WardenDashboardView onNavigate={onNavigate} />;
-  if (['driver', 'bus driver', 'chauffeur'].includes(userRole)) return <DriverDashboardView onNavigate={onNavigate} />;
-  if (['accountant', 'accounts', 'finance'].includes(userRole)) return <FinanceDashboardView />;
-
   const formatAcademicYearDisplay = (ay?: string) => {
     if (!ay) return '';
     const parts = ay.split(/[-–]/);
@@ -355,6 +355,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
   }, [selectedBranch]);
 
   useEffect(() => {
+    if (hasRoleSpecificDashboard) return;
+
     const handleLiveSync = () => {
       if (typeof fetchStudents === 'function') fetchStudents();
       if (typeof fetchAdmissions === 'function') fetchAdmissions();
@@ -368,7 +370,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
       window.removeEventListener('students_updated', handleLiveSync);
       window.removeEventListener('admissions_updated', handleLiveSync);
     };
-  }, [selectedBranch, selectedAcademicYear]);
+  }, [hasRoleSpecificDashboard, selectedBranch, selectedAcademicYear]);
 
   const displayTotalStudents = useMemo(() => {
     if (summaryData?.totalStudents !== undefined) {
@@ -779,6 +781,14 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
     results.sort((a, b) => a.daysUntil - b.daysUntil);
     return results;
   }, [staff, isBranchMatch]);
+
+  if (userRole === 'student') return <StudentDashboardView onNavigate={onNavigate} />;
+  if (userRole === 'parent') return <ParentDashboardView onNavigate={onNavigate} />;
+  if (['teacher', 'class-teacher'].includes(userRole)) return <TeacherDashboardView onNavigate={onNavigate} />;
+  if (['librarian', 'library'].includes(userRole)) return <LibrarianDashboardView onNavigate={onNavigate} />;
+  if (userRole.includes('warden') || userRole === 'hostel warden') return <WardenDashboardView onNavigate={onNavigate} />;
+  if (['driver', 'bus driver', 'chauffeur'].includes(userRole)) return <DriverDashboardView onNavigate={onNavigate} />;
+  if (['accountant', 'accounts', 'finance'].includes(userRole)) return <FinanceDashboardView />;
 
   if (loading) {
     return <DashboardShimmer />;

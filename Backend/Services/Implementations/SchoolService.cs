@@ -710,8 +710,8 @@ public class SchoolService : ISchoolService
 		var list = await _schoolRepository.GetAllApplicationsAsync(search, branch, classId, status);
 		var result = list.Select(a => MapToAdmissionResponseDto(a)).ToList();
 
-		var enrolledAppsMissingAdmNo = result.Where(r => r.Status == "Enrolled" && string.IsNullOrWhiteSpace(r.AdmissionNo)).ToList();
-		if (enrolledAppsMissingAdmNo.Any())
+		var appsMissingAdmNo = result.Where(r => string.IsNullOrWhiteSpace(r.AdmissionNo) || r.AdmissionNo.StartsWith("REG-", StringComparison.OrdinalIgnoreCase)).ToList();
+		if (appsMissingAdmNo.Any())
 		{
 			var activeStudents = await _context.Students
 				.AsNoTracking()
@@ -719,7 +719,7 @@ public class SchoolService : ISchoolService
 				.Select(s => new { s.AdmissionNumber, s.StudentName, s.FatherMobile, s.Email })
 				.ToListAsync();
 
-			foreach (var r in enrolledAppsMissingAdmNo)
+			foreach (var r in appsMissingAdmNo)
 			{
 				var matchedSt = activeStudents.FirstOrDefault(s =>
 					(!string.IsNullOrWhiteSpace(s.FatherMobile) && s.FatherMobile == r.FatherContact && s.StudentName.Equals(r.ApplicantFullName, StringComparison.OrdinalIgnoreCase)) ||
@@ -727,6 +727,10 @@ public class SchoolService : ISchoolService
 				if (matchedSt != null)
 				{
 					r.AdmissionNo = matchedSt.AdmissionNumber;
+				}
+				else if (string.IsNullOrWhiteSpace(r.AdmissionNo) || r.AdmissionNo.StartsWith("REG-", StringComparison.OrdinalIgnoreCase))
+				{
+					r.AdmissionNo = $"ADM-{DateTime.UtcNow.Year}-{r.Id:D4}";
 				}
 			}
 		}
@@ -1306,9 +1310,7 @@ public class SchoolService : ISchoolService
 
 		if (parsedDob.HasValue) app.DateOfBirth = parsedDob.Value;
 
-		if ((string.Equals(app.Status, "Enrolled", StringComparison.OrdinalIgnoreCase) ||
-		     string.Equals(app.Status, "Admitted", StringComparison.OrdinalIgnoreCase)) &&
-		    (string.IsNullOrWhiteSpace(app.AdmissionNo) || app.AdmissionNo.StartsWith("REG-", StringComparison.OrdinalIgnoreCase)))
+		if (string.IsNullOrWhiteSpace(app.AdmissionNo) || app.AdmissionNo.StartsWith("REG-", StringComparison.OrdinalIgnoreCase))
 		{
 			app.AdmissionNo = await GenerateSequentialAdmissionNoAsync();
 		}

@@ -294,7 +294,7 @@ public class FeeCollectionRepository : IFeeCollectionRepository
                     decimal distance = p?.DistanceFromStart ?? (r?.DistanceKm ?? 0m);
                     decimal minKm = r?.MinRangeKm ?? 5m;
                     string trpType = ta?.TransportType ?? app?.TransportType ?? "AC";
-                    bool isAc = trpType.Contains("AC", StringComparison.OrdinalIgnoreCase);
+                    bool isAc = trpType.Contains("AC", StringComparison.OrdinalIgnoreCase) && !trpType.Contains("Non", StringComparison.OrdinalIgnoreCase);
                     decimal baseFare = isAc ? (r?.AcBaseFare ?? 1200m) : (r?.NonAcBaseFare ?? 1000m);
                     decimal ratePerKm = isAc ? (r?.AcRatePerKm ?? 150m) : (r?.NonAcRatePerKm ?? 100m);
                     decimal monthlyFare = baseFare + Math.Max(0m, distance - minKm) * ratePerKm;
@@ -724,7 +724,7 @@ public class FeeCollectionRepository : IFeeCollectionRepository
             decimal distance = pickup?.DistanceFromStart ?? (route?.DistanceKm ?? 0m);
             decimal minKm = route?.MinRangeKm ?? 5m;
             string trpType = ta?.TransportType ?? appRecord?.TransportType ?? "AC";
-            bool isAc = trpType.Contains("AC", StringComparison.OrdinalIgnoreCase);
+            bool isAc = trpType.Contains("AC", StringComparison.OrdinalIgnoreCase) && !trpType.Contains("Non", StringComparison.OrdinalIgnoreCase);
             decimal baseFare = isAc ? (route?.AcBaseFare ?? 1200m) : (route?.NonAcBaseFare ?? 1000m);
             decimal ratePerKm = isAc ? (route?.AcRatePerKm ?? 150m) : (route?.NonAcRatePerKm ?? 100m);
             decimal monthlyFare = baseFare + Math.Max(0m, distance - minKm) * ratePerKm;
@@ -738,7 +738,7 @@ public class FeeCollectionRepository : IFeeCollectionRepository
                 if (endDate < startDate) endDate = startDate;
 
                 int daysUsed = (int)(endDate.Date - startDate.Date).TotalDays;
-                transportMonthsUsed = Math.Max(1, (int)Math.Ceiling(Math.Max(0, daysUsed) / 30.4375));
+                transportMonthsUsed = Math.Max(1, (int)Math.Round((double)Math.Max(0, daysUsed) / 30.4375, MidpointRounding.AwayFromZero));
                 if (transportMonthsUsed > 12) transportMonthsUsed = 12;
 
                 transportAssessed = Math.Round(monthlyFare * transportMonthsUsed, 2);
@@ -2075,7 +2075,7 @@ public class FeeCollectionRepository : IFeeCollectionRepository
                 decimal distance = pickup?.DistanceFromStart ?? (route?.DistanceKm ?? 0m);
                 decimal minKm = route?.MinRangeKm ?? 5m;
                 string trpType = ta?.TransportType ?? app?.TransportType ?? "AC";
-                bool isAc = trpType.Contains("AC", StringComparison.OrdinalIgnoreCase);
+                bool isAc = trpType.Contains("AC", StringComparison.OrdinalIgnoreCase) && !trpType.Contains("Non", StringComparison.OrdinalIgnoreCase);
                 decimal baseFare = isAc ? (route?.AcBaseFare ?? 1200m) : (route?.NonAcBaseFare ?? 1000m);
                 decimal ratePerKm = isAc ? (route?.AcRatePerKm ?? 150m) : (route?.NonAcRatePerKm ?? 100m);
                 decimal monthlyFare = baseFare + Math.Max(0m, distance - minKm) * ratePerKm;
@@ -2651,7 +2651,7 @@ public class FeeCollectionRepository : IFeeCollectionRepository
             decimal distance = pickup?.DistanceFromStart ?? (route?.DistanceKm ?? 0m);
             decimal minKm = route?.MinRangeKm ?? 5m;
             string trpType = transportAssignment?.TransportType ?? app?.TransportType ?? "AC";
-            bool isAc = trpType.Contains("AC", StringComparison.OrdinalIgnoreCase);
+            bool isAc = trpType.Contains("AC", StringComparison.OrdinalIgnoreCase) && !trpType.Contains("Non", StringComparison.OrdinalIgnoreCase);
             decimal baseFare = isAc ? (route?.AcBaseFare ?? 1200m) : (route?.NonAcBaseFare ?? 1000m);
             decimal ratePerKm = isAc ? (route?.AcRatePerKm ?? 150m) : (route?.NonAcRatePerKm ?? 100m);
             monthlyFare = baseFare + Math.Max(0m, distance - minKm) * ratePerKm;
@@ -2660,7 +2660,7 @@ public class FeeCollectionRepository : IFeeCollectionRepository
             if (transportEndDate < startDate) transportEndDate = startDate;
 
             int daysUsed = (int)(transportEndDate.Date - startDate.Date).TotalDays;
-            int monthsUsed = Math.Max(1, (int)Math.Ceiling(Math.Max(0, daysUsed) / 30.4375));
+            int monthsUsed = Math.Max(1, (int)Math.Round((double)Math.Max(0, daysUsed) / 30.4375, MidpointRounding.AwayFromZero));
             if (monthsUsed > 12) monthsUsed = 12;
 
             finalizedTransportFee = Math.Round(monthlyFare * monthsUsed, 2);

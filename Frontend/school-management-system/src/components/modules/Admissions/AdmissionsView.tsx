@@ -3247,7 +3247,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
               <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white flex items-center gap-2">
                 <GraduationCap className="w-6 h-6 text-brand-600 dark:text-brand-400" />
                 {editingApp
-                  ? `Edit Application #${editingApp.applicationNo}`
+                  ? `Edit Application #${(editingApp as any).admissionNo || editingApp.applicationNo}`
                   : "New Student Registration"}
               </h2>
             </div>
@@ -5108,7 +5108,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
               <Search className={`w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none transition-colors ${searchError ? "text-rose-500" : "text-slate-400"}`} />
               <input
                 type="text"
-                placeholder="Search by applicant, reg no, or father name..."
+                placeholder="Search by applicant, admission no, or father name..."
                 value={query}
                 onChange={(e) => handleQueryChange(e.target.value)}
                 className={`w-full h-9 pl-9 ${query ? "pr-8" : "pr-4"} rounded-xl bg-slate-50 dark:bg-slate-800 border text-xs text-slate-900 dark:text-white outline-none transition ${
@@ -5225,7 +5225,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
           <table className="w-full text-left border-collapse text-xs border border-slate-200 dark:border-slate-800 [&_th]:border [&_th]:border-slate-200 dark:[&_th]:border-slate-800 [&_td]:border [&_td]:border-slate-200 dark:[&_td]:border-slate-800 rounded-xl overflow-hidden">
             <thead>
               <tr className="bg-slate-100/70 dark:bg-slate-800/60 text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider">
-                <th className="py-3.5 px-4">Admission / Reg No</th>
+                <th className="py-3.5 px-4">Admission No</th>
                 <th className="py-3.5 px-4">Applicant Student</th>
                 <th className="py-3.5 px-4">Applied Class</th>
                 <th className="py-3.5 px-4">Student Type</th>
@@ -5252,22 +5252,12 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                     className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 text-slate-900 dark:text-slate-100"
                   >
                     <td className="py-3 px-4 font-mono font-bold text-slate-900 dark:text-white">
-                      {(app.status === "Enrolled" || app.status === "Active" || app.status === "Admitted") && ((app as any).admissionNo || (app.applicationNo && !app.applicationNo.startsWith("REG-"))) ? (
-                        <div>
-                          <span className="text-sky-700 dark:text-sky-400 font-extrabold block">
-                            {(app as any).admissionNo || app.applicationNo}
-                          </span>
-                          {(app.registrationNo || (app.applicationNo && app.applicationNo.startsWith("REG-"))) && (
-                            <span className="block text-[10px] text-slate-400 dark:text-slate-500 font-normal">
-                              Reg: {app.registrationNo || app.applicationNo}
-                            </span>
-                          )}
-                        </div>
-                      ) : (
-                        <span className="text-slate-800 dark:text-slate-200">
-                          {app.registrationNo || app.applicationNo}
-                        </span>
-                      )}
+                      <span className="text-sky-700 dark:text-sky-400 font-extrabold block">
+                        {(app as any).admissionNo ||
+                          (app.applicationNo && !app.applicationNo.startsWith("REG-")
+                            ? app.applicationNo
+                            : (app as any).admissionNo || "—")}
+                      </span>
                     </td>
                     <td className="py-3 px-4">
                       <div className="flex items-center gap-3">
@@ -5441,9 +5431,9 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
 
                     <div className="flex flex-wrap items-center gap-2 mt-2 text-xs text-slate-600 dark:text-slate-400 font-medium">
                       <span className="px-2.5 py-1 rounded-lg bg-white dark:bg-slate-900 border border-sky-200 dark:border-sky-800 flex items-center gap-1.5 text-slate-700 dark:text-slate-300 shadow-2xs">
-                        <FileText className="w-3.5 h-3.5 text-sky-600 dark:text-sky-400" /> App No:{" "}
+                        <FileText className="w-3.5 h-3.5 text-sky-600 dark:text-sky-400" /> Adm No:{" "}
                         <span className="font-bold font-mono text-slate-900 dark:text-white">
-                          {selectedAppForView.applicationNo}
+                          {(selectedAppForView as any).admissionNo || selectedAppForView.applicationNo}
                         </span>
                       </span>
                       <span className="px-2.5 py-1 rounded-lg bg-white dark:bg-slate-900 border border-sky-200 dark:border-sky-800 flex items-center gap-1.5 text-slate-700 dark:text-slate-300 shadow-2xs">

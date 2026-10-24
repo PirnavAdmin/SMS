@@ -1078,8 +1078,9 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
     }
   };
 
+  let personalView: React.ReactNode = null;
   if (isPersonalView) {
-    return (
+    personalView = (
       <div className="space-y-4 animate-in fade-in duration-300 text-xs pb-12 max-w-7xl mx-auto">
         {/* 1. Header Section */}
         <div className="glass-card p-3 sm:p-4 rounded-2xl border border-sky-200/90 dark:border-sky-850 bg-gradient-to-r from-sky-50/90 via-sky-50/40 to-white dark:from-slate-900 dark:via-slate-900 dark:to-slate-850 flex flex-col md:flex-row md:items-center justify-between gap-3 shadow-sm">
@@ -3381,6 +3382,8 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
       }
     }, 150);
   };
+
+  if (isPersonalView) return personalView;
 
   return (
     <div className="space-y-6 animate-in fade-in text-xs pb-12">

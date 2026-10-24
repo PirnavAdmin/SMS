@@ -30,7 +30,7 @@ namespace SMS.Api.Common
             {
                 if (reader.TryGetInt64(out long unixTime))
                 {
-                    return DateTimeOffset.FromUnixTimeSeconds(unixTime).UtcDateTime;
+                    try { return DateTimeOffset.FromUnixTimeSeconds(unixTime).UtcDateTime; } catch (ArgumentOutOfRangeException) { return null; }
                 }
             }
 

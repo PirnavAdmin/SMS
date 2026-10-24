@@ -17,6 +17,7 @@ export const StudentDashboardView: React.FC<StudentDashboardViewProps> = ({ onNa
     homework = [], 
     announcements = [], 
     holidays = [], 
+    admissions = [],
     studentHostels = [], 
     hostelMasters = [], 
     roomMasters = [], 
@@ -100,8 +101,7 @@ export const StudentDashboardView: React.FC<StudentDashboardViewProps> = ({ onNa
     }
 
     // 2. Check in Admissions array
-    const admissionsList = useData().admissions || [];
-    const matchedAdmission = admissionsList.find((a: any) => {
+    const matchedAdmission = admissions.find((a: any) => {
       if (!a || a.status === 'Rejected' || a.status === 'Cancelled') return false;
       const aId = String(a.id || '').trim().toLowerCase();
       const aReg = String(a.registrationNo || (a as any).applicationNo || '').trim().toLowerCase();

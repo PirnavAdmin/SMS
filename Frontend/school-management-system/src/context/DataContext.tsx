@@ -4744,20 +4744,12 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
                   existing?.admissionNo ||
                   "",
                 applicationNo:
-                  item.status === "Enrolled" ||
-                  item.status === "Active" ||
-                  item.status === "Approved"
-                    ? item.admissionNo ||
-                      item.admissionNumber ||
-                      item.registrationNo ||
-                      item.registrationNumber ||
-                      existing?.applicationNo ||
-                      ""
-                    : item.registrationNo ||
-                      item.registrationNumber ||
-                      item.admissionNo ||
-                      existing?.applicationNo ||
-                      "",
+                  item.admissionNo ||
+                  item.admissionNumber ||
+                  item.registrationNo ||
+                  item.registrationNumber ||
+                  existing?.applicationNo ||
+                  "",
                 registrationNo:
                   item.registrationNo ||
                   item.registrationNumber ||
@@ -9076,9 +9068,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         (appData as any).admissionNo ||
         "";
       const effectiveAppNo =
-        resolvedStatus === "Enrolled" && assignedAdmNo
-          ? assignedAdmNo
-          : assignedRegNo || "ADM-" + Date.now();
+        assignedAdmNo ||
+        assignedRegNo ||
+        "ADM-" + Date.now();
 
       const createdApp: AdmissionApplication = {
         id:

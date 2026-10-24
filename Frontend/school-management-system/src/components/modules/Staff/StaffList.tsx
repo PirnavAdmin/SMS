@@ -98,10 +98,6 @@ export const StaffList: React.FC<{
 }> = ({ initialCategory, onNavigate }) => {
   const { role, selectedBranch } = useAuth();
 
-  if (role && role.toLowerCase() === "teacher") {
-    return <TeacherProfileView />;
-  }
-
   const {
     staff = [],
     branches = [],
@@ -665,6 +661,10 @@ export const StaffList: React.FC<{
       addToast("error", "Error", "Failed to load excel parser.");
     }
   };
+
+  if (role && role.toLowerCase() === "teacher") {
+    return <TeacherProfileView />;
+  }
 
   return (
     <div className="space-y-6 animate-in fade-in">

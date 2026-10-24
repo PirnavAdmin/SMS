@@ -79,7 +79,7 @@ const StudentInlineCombobox: React.FC<{
             setIsOpen(true);
             if (!e.target.value) onChange('', undefined);
           }}
-          placeholder="Search eligible residential students (by name, adm no, reg no)..."
+          placeholder="Search eligible residential students (by name, admission no)..."
           className="w-full pl-3.5 pr-8 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-bold text-xs text-slate-900 dark:text-white outline-none focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20 cursor-pointer"
         />
         <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 cursor-pointer" />
