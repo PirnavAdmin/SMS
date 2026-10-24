@@ -658,6 +658,7 @@ export const StudentList: React.FC<{ onNavigate?: (module: string) => void }> = 
   const paginatedRoster = filteredRoster.slice((currentPage - 1) * pageSize, currentPage * pageSize);
 
   // Teacher portal view (full interactive student directory)
+  let teacherView: React.ReactNode = null;
   if (isTeacherRole) {
     // Filter students for teacher
     const myStudents = (displayStudents || []).filter(s => {
@@ -702,7 +703,7 @@ export const StudentList: React.FC<{ onNavigate?: (module: string) => void }> = 
       teacherCurrentPage * teacherPageSize
     );
 
-    return (
+    teacherView = (
       <div className="space-y-6 animate-in fade-in duration-300 text-xs pb-12">
         {/* Header Cockpit Card */}
         <div className="glass-card py-4 px-6 rounded-3xl border border-slate-200/60 dark:border-slate-800/60 bg-white dark:bg-slate-900 flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-sm">
@@ -1123,6 +1124,8 @@ export const StudentList: React.FC<{ onNavigate?: (module: string) => void }> = 
     const list = Array.from(classesSet).sort((a, b) => getClassOrderRank(a) - getClassOrderRank(b));
     return ['All Classes', ...list];
   }, [apiStudents]);
+
+  if (isTeacherRole) return teacherView;
 
   if (isWardenRole) {
     return (

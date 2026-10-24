@@ -30,14 +30,6 @@ export const ParentHomeworkView: React.FC = () => {
 
 
 
-  if (parentWards.length === 0) {
-    return (
-      <div className="p-8 text-center text-slate-500 font-bold">
-        No active student record found for this account.
-      </div>
-    );
-  }
-
   const currentWard = parentWards[selectedChildIdx] || parentWards[0];
   
   const [homeworkVersion, setHomeworkVersion] = useState(0);
@@ -128,6 +120,14 @@ export const ParentHomeworkView: React.FC = () => {
   const [activeSubmittingHw, setActiveSubmittingHw] = useState<any | null>(null);
   const [submissionNote, setSubmissionNote] = useState('');
   const [submissionFile, setSubmissionFile] = useState<string | null>(null);
+
+  if (parentWards.length === 0) {
+    return (
+      <div className="p-8 text-center text-slate-500 font-bold">
+        No active student record found for this account.
+      </div>
+    );
+  }
 
   const handleSaveSubmission = (hwId: string) => {
     const updated = {
