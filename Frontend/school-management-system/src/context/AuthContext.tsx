@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { User, UserRole } from '../types';
-import { loginApi, sendOtpApi, verifyOtpApi, resetPasswordWithOtpApi } from '../api/login';
+import { loginApi, sendOtpApi, verifyOtpApi, resetPasswordWithOtpApi, changePasswordApi } from '../api/login';
 import { fetchUserProfileApi, getLocalUserProfile, saveLocalUserProfile, getActiveUserKey } from '../api/profile';
 import { DEFAULT_USER_AVATAR } from '../utils/mediaUtils';
 import { fetchBranchesApi, fetchAcademicYearsApi } from '../api/settings';
@@ -480,8 +480,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const changePassword = async (_oldPass: string, _newPass: string): Promise<boolean> => {
-    await new Promise(resolve => setTimeout(resolve, 600));
+  const changePassword = async (oldPass: string, newPass: string): Promise<boolean> => {
+    const candidateIdentifier = user?.email || user?.phone || user?.name || '';
+    await changePasswordApi({
+      oldPassword: oldPass,
+      newPassword: newPass,
+      confirmPassword: newPass,
+      emailOrPhone: candidateIdentifier,
+    });
     return true;
   };
 

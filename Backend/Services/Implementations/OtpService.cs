@@ -181,12 +181,26 @@ public class OtpService : IOtpService
         if (!string.IsNullOrWhiteSpace(dto.OldPassword))
         {
             var hash = user != null ? user.PasswordHash : admin!.PasswordHash;
-            isAuthorized = BCrypt.Net.BCrypt.Verify(dto.OldPassword, hash);
-            if (!isAuthorized)
+            bool isOldMatch = false;
+            if (!string.IsNullOrEmpty(hash))
+            {
+                try
+                {
+                    if (hash.StartsWith("$2") && BCrypt.Net.BCrypt.Verify(dto.OldPassword, hash))
+                        isOldMatch = true;
+                }
+                catch { }
+
+                if (hash == dto.OldPassword)
+                    isOldMatch = true;
+            }
+
+            if (!isOldMatch)
             {
                 Console.WriteLine($"[RESET FAILED] Incorrect old password for: {dto.EmailOrPhone}");
                 throw new Exception("Incorrect old password.");
             }
+            isAuthorized = true;
         }
         // Option B: OTP Verification
         else if (!string.IsNullOrWhiteSpace(dto.OtpCode))

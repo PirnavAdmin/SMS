@@ -667,31 +667,32 @@ export const Header: React.FC<HeaderProps> = ({ collapsed, setCollapsed, onOpenS
             <Bell className="w-5 h-5" />
             {unreadCount > 0 && (
               <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-rose-500 text-white text-[10px] font-black leading-none flex items-center justify-center ring-2 ring-white dark:ring-slate-900 shadow-sm animate-in zoom-in-75">
-                {unreadCount > 99 ? '99+' : unreadCount}
+                {unreadCount > 9 ? '9+' : unreadCount}
               </span>
             )}
           </button>
 
           {showNotifMenu && (
-            <div className="absolute right-0 mt-2 w-80 sm:w-96 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl z-50 p-4 animate-in fade-in zoom-in-95">
-              <div className="flex items-center justify-between mb-3 border-b border-slate-100 dark:border-slate-800 pb-2.5">
+            <div className="absolute right-0 mt-2 w-80 sm:w-[350px] rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 shadow-xl z-50 overflow-hidden animate-in fade-in zoom-in-95">
+              {/* Header */}
+              <div className="flex items-center justify-between px-3.5 py-2.5 border-b border-slate-100 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-900/60">
                 <div className="flex items-center gap-2">
-                  <div className="p-1.5 rounded-lg bg-sky-50 dark:bg-sky-950/60 text-sky-600 dark:text-sky-400">
-                    <Megaphone className="w-4 h-4" />
+                  <div className="w-6 h-6 rounded-md bg-sky-100 dark:bg-sky-950/70 text-sky-600 dark:text-sky-400 flex items-center justify-center shrink-0">
+                    <Megaphone className="w-3.5 h-3.5" />
                   </div>
-                  <h3 className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-wider">
+                  <h3 className="text-xs font-bold text-slate-900 dark:text-white uppercase tracking-wider">
                     Notifications
                   </h3>
                   {unreadCount > 0 && (
-                    <span className="px-1.5 py-0.5 text-[10px] font-bold rounded-full bg-rose-100 text-rose-600 dark:bg-rose-950/60 dark:text-rose-400">
-                      {unreadCount} new
+                    <span className="px-1.5 py-0.5 text-[10px] font-semibold rounded-full bg-rose-100 text-rose-600 dark:bg-rose-950/60 dark:text-rose-400">
+                      {unreadCount > 9 ? '9+' : unreadCount} new
                     </span>
                   )}
                 </div>
                 {unreadCount > 0 && (
                   <button
                     onClick={markAllAsRead}
-                    className="text-[11px] font-semibold text-sky-600 dark:text-sky-400 hover:text-sky-700 dark:hover:text-sky-300 hover:underline flex items-center gap-1 cursor-pointer"
+                    className="text-[11px] font-medium text-sky-600 dark:text-sky-400 hover:text-sky-700 dark:hover:text-sky-300 hover:underline flex items-center gap-1 cursor-pointer transition-colors"
                   >
                     <CheckCircle2 className="w-3.5 h-3.5" />
                     Mark all read
@@ -699,11 +700,12 @@ export const Header: React.FC<HeaderProps> = ({ collapsed, setCollapsed, onOpenS
                 )}
               </div>
 
-              <div className="max-h-72 overflow-y-auto space-y-2 no-scrollbar">
+              {/* Notification List */}
+              <div className="max-h-72 overflow-y-auto p-2 space-y-1.5 no-scrollbar">
                 {userNotifications.length === 0 ? (
-                  <div className="text-center py-6">
-                    <Bell className="w-8 h-8 text-slate-300 dark:text-slate-600 mx-auto mb-2 opacity-50" />
-                    <p className="text-xs font-semibold text-slate-500 dark:text-slate-400">No notifications yet</p>
+                  <div className="text-center py-6 px-4">
+                    <Bell className="w-7 h-7 text-slate-300 dark:text-slate-600 mx-auto mb-1.5 opacity-60" />
+                    <p className="text-xs font-semibold text-slate-600 dark:text-slate-300">No notifications yet</p>
                     <p className="text-[11px] text-slate-400 dark:text-slate-500">You're all caught up!</p>
                   </div>
                 ) : (
@@ -719,31 +721,33 @@ export const Header: React.FC<HeaderProps> = ({ collapsed, setCollapsed, onOpenS
                             onNavigate('communication');
                           }
                         }}
-                        className={`p-3 rounded-xl border transition-all cursor-pointer ${
+                        className={`p-2.5 rounded-xl border transition-all cursor-pointer ${
                           isUnread
-                            ? 'bg-sky-50/70 dark:bg-sky-950/30 border-sky-200 dark:border-sky-800 hover:border-sky-300 shadow-xs'
-                            : 'bg-slate-50/70 dark:bg-slate-800/40 border-slate-100 dark:border-slate-800 hover:bg-slate-100/80 dark:hover:bg-slate-800/70'
+                            ? 'bg-sky-50/70 dark:bg-sky-950/30 border-sky-200/80 dark:border-sky-800/80 hover:bg-sky-100/60 dark:hover:bg-sky-900/40 hover:border-sky-300 dark:hover:border-sky-700 shadow-2xs'
+                            : 'bg-slate-50/50 dark:bg-slate-800/30 border-slate-100 dark:border-slate-800/60 hover:bg-slate-100/70 dark:hover:bg-slate-800/60 hover:border-slate-200 dark:hover:border-slate-700'
                         }`}
                       >
-                        <div className="flex items-start justify-between gap-2 mb-1">
+                        <div className="flex items-center justify-between gap-1.5 mb-1">
                           <div className="flex items-center gap-1.5 min-w-0">
                             {isUnread && (
-                              <span className="w-2 h-2 rounded-full bg-sky-500 shrink-0" />
+                              <span className="w-1.5 h-1.5 rounded-full bg-sky-500 shrink-0" />
                             )}
-                            <span className="text-xs font-bold text-slate-900 dark:text-white truncate">
+                            <span className={`text-xs truncate ${isUnread ? 'font-bold text-slate-900 dark:text-white' : 'font-medium text-slate-700 dark:text-slate-300'}`}>
                               {ann.title}
                             </span>
                           </div>
                           {ann.category && (
-                            <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-md bg-slate-200/70 dark:bg-slate-700 text-slate-600 dark:text-slate-300 shrink-0">
+                            <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded-md bg-slate-200/80 dark:bg-slate-800 text-slate-600 dark:text-slate-300 shrink-0 tracking-wide uppercase">
                               {ann.category}
                             </span>
                           )}
                         </div>
-                        <p className="text-xs text-slate-600 dark:text-slate-300 line-clamp-2 mb-1.5 leading-relaxed">
-                          {ann.content}
-                        </p>
-                        <div className="flex items-center justify-between text-[10px] text-slate-400 dark:text-slate-500 pt-1 border-t border-slate-100/80 dark:border-slate-800/60">
+                        {ann.content && (
+                          <p className="text-[11px] text-slate-600 dark:text-slate-300 line-clamp-2 leading-relaxed mb-1.5">
+                            {ann.content}
+                          </p>
+                        )}
+                        <div className="flex items-center justify-between text-[10px] text-slate-400 dark:text-slate-500">
                           {ann.author ? <span>{ann.author}</span> : <span />}
                           <span>{ann.date}</span>
                         </div>
@@ -753,16 +757,18 @@ export const Header: React.FC<HeaderProps> = ({ collapsed, setCollapsed, onOpenS
                 )}
               </div>
 
+              {/* Footer */}
               {userNotifications.length > 0 && onNavigate && (
-                <div className="mt-3 pt-2 border-t border-slate-100 dark:border-slate-800 text-center">
+                <div className="px-3 py-2 border-t border-slate-100 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-900/60 text-center">
                   <button
                     onClick={() => {
                       setShowNotifMenu(false);
                       onNavigate('communication');
                     }}
-                    className="text-xs font-bold text-sky-600 dark:text-sky-400 hover:underline cursor-pointer"
+                    className="w-full py-1 text-xs font-semibold text-sky-600 dark:text-sky-400 hover:text-sky-700 dark:hover:text-sky-300 hover:bg-sky-100/50 dark:hover:bg-sky-950/50 rounded-lg transition-colors cursor-pointer flex items-center justify-center gap-1"
                   >
-                    View All in Communication Hub →
+                    <span>View All in Communication Hub</span>
+                    <span>→</span>
                   </button>
                 </div>
               )}

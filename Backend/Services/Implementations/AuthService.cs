@@ -732,5 +732,137 @@ namespace SMS.Api.Services.Implementations
 
             return new JwtSecurityTokenHandler().WriteToken(token);
         }
+
+        public async Task<bool> ChangePasswordAsync(ChangePasswordRequestDto dto, string? userEmailFromToken = null, string? userIdFromToken = null, string? userNameFromToken = null)
+        {
+            if (dto == null)
+                throw new AppException("Invalid request payload.", HttpStatusCode.BadRequest);
+
+            if (string.IsNullOrWhiteSpace(dto.OldPassword))
+                throw new AppException("Current password is required.", HttpStatusCode.BadRequest);
+
+            if (string.IsNullOrWhiteSpace(dto.NewPassword))
+                throw new AppException("New password is required.", HttpStatusCode.BadRequest);
+
+            if (dto.NewPassword.Length < 6)
+                throw new AppException("New password must be at least 6 characters long.", HttpStatusCode.BadRequest);
+
+            if (dto.NewPassword != dto.ConfirmPassword)
+                throw new AppException("New password and confirmation password do not match.", HttpStatusCode.BadRequest);
+
+            bool VerifyPass(string? hash, string plainPassword)
+            {
+                if (string.IsNullOrEmpty(hash)) return false;
+                try
+                {
+                    if (hash.StartsWith("$2") && BCrypt.Net.BCrypt.Verify(plainPassword, hash))
+                        return true;
+                }
+                catch { }
+
+                return hash == plainPassword;
+            }
+
+            // Gather candidate identifiers from explicit input or JWT claims
+            var candidates = new List<string>();
+            if (!string.IsNullOrWhiteSpace(dto.EmailOrPhone)) candidates.Add(dto.EmailOrPhone.Trim());
+            if (!string.IsNullOrWhiteSpace(userEmailFromToken)) candidates.Add(userEmailFromToken.Trim());
+            if (!string.IsNullOrWhiteSpace(userNameFromToken)) candidates.Add(userNameFromToken.Trim());
+
+            Admin? admin = null;
+            User? user = null;
+
+            // 1. If we have a user/admin ID claim from the JWT token, check it first
+            if (int.TryParse(userIdFromToken, out int parsedId) && parsedId > 0)
+            {
+                admin = await _dbContext.Admins.FirstOrDefaultAsync(a => a.AdminId == parsedId);
+                if (admin == null)
+                {
+                    user = await _dbContext.Users.FirstOrDefaultAsync(u => u.UserId == parsedId);
+                }
+            }
+
+            // 2. If not found by ID, look up by candidate identifiers (email, mobile, fullname)
+            if (admin == null && user == null)
+            {
+                foreach (var candidate in candidates.Distinct(StringComparer.OrdinalIgnoreCase))
+                {
+                    var lower = candidate.ToLowerInvariant();
+
+                    admin = await _dbContext.Admins.FirstOrDefaultAsync(a =>
+                        (a.Email != null && a.Email.ToLower() == lower) ||
+                        a.MobileNumber == candidate ||
+                        (a.FullName != null && a.FullName.ToLower() == lower));
+
+                    if (admin != null) break;
+
+                    user = await _dbContext.Users.FirstOrDefaultAsync(u =>
+                        (u.Email != null && u.Email.ToLower() == lower) ||
+                        u.MobileNumber == candidate ||
+                        (u.FullName != null && u.FullName.ToLower() == lower));
+
+                    if (user != null) break;
+
+                    // Also check Staff
+                    var staff = await _dbContext.Staff.AsNoTracking().FirstOrDefaultAsync(s =>
+                        (s.Email != null && s.Email.ToLower() == lower) ||
+                        s.Phone == candidate ||
+                        (s.EmployeeId != null && s.EmployeeId.ToLower() == lower));
+
+                    if (staff != null)
+                    {
+                        user = await _dbContext.Users.FirstOrDefaultAsync(u =>
+                            (u.Email != null && staff.Email != null && u.Email.ToLower() == staff.Email.ToLower()) ||
+                            (u.MobileNumber != null && staff.Phone != null && u.MobileNumber == staff.Phone) ||
+                            (u.FullName != null && u.FullName.ToLower() == $"{staff.FirstName} {staff.LastName}".Trim().ToLower()));
+                        if (user != null) break;
+                    }
+
+                    // Also check Student
+                    var student = await _dbContext.Students.AsNoTracking().FirstOrDefaultAsync(s =>
+                        (s.Email != null && s.Email.ToLower() == lower) ||
+                        s.MobileNumber == candidate ||
+                        (s.AdmissionNumber != null && s.AdmissionNumber.ToLower() == lower) ||
+                        (s.RollNumber != null && s.RollNumber.ToLower() == lower));
+
+                    if (student != null)
+                    {
+                        user = await _dbContext.Users.FirstOrDefaultAsync(u =>
+                            (u.Email != null && student.Email != null && u.Email.ToLower() == student.Email.ToLower()) ||
+                            (u.MobileNumber != null && student.MobileNumber != null && u.MobileNumber == student.MobileNumber));
+                        if (user != null) break;
+                    }
+                }
+            }
+
+            if (admin == null && user == null)
+            {
+                throw new AppException("User account not found. Please log in again.", HttpStatusCode.NotFound);
+            }
+
+            // Verify current password
+            var currentHash = admin != null ? admin.PasswordHash : user!.PasswordHash;
+            if (!VerifyPass(currentHash, dto.OldPassword))
+            {
+                throw new AppException("Incorrect current password. Please try again.", HttpStatusCode.BadRequest);
+            }
+
+            // Hash new password and persist to database
+            var newPasswordHash = BCrypt.Net.BCrypt.HashPassword(dto.NewPassword);
+            if (admin != null)
+            {
+                admin.PasswordHash = newPasswordHash;
+                await _adminRepository.UpdatePasswordAsync(admin.AdminId, newPasswordHash);
+                await _dbContext.SaveChangesAsync();
+            }
+            else if (user != null)
+            {
+                user.PasswordHash = newPasswordHash;
+                await _userRepository.UpdatePasswordAsync(user.UserId, newPasswordHash);
+                await _dbContext.SaveChangesAsync();
+            }
+
+            return true;
+        }
     }
 }

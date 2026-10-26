@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using SMS.Api.Dtos.Auth;
 using SMS.Api.Services.Interfaces;
+using System.Security.Claims;
 using System.Threading.Tasks;
 
 [ApiController]  
@@ -31,5 +32,15 @@ public class AuthController : ControllerBase
     {
         var result = await _authService.LoginAsync(dto);
         return Ok(result);
+    }
+
+    [HttpPost("change-password")]
+    public async Task<IActionResult> ChangePassword([FromBody] ChangePasswordRequestDto dto)
+    {
+        var emailClaim = User.FindFirst(ClaimTypes.Email)?.Value;
+        var idClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        var nameClaim = User.FindFirst(ClaimTypes.Name)?.Value;
+        await _authService.ChangePasswordAsync(dto, emailClaim, idClaim, nameClaim);
+        return Ok(new { message = "Password updated successfully." });
     }
 }

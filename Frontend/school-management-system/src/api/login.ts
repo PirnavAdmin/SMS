@@ -1,4 +1,5 @@
 import { apiClient } from './client';
+
 export const loginApi = async (emailOrPhone: string, password?: string, portal?: string) => {
   return apiClient('/api/auth/login', {
     method: 'POST',
@@ -24,5 +25,17 @@ export const resetPasswordWithOtpApi = async (emailOrPhone: string, otpCode: str
   return apiClient('/api/auth/otp/reset-password', {
     method: 'POST',
     body: JSON.stringify({ emailOrPhone, oldPassword: "", otpCode, newPassword, confirmPassword: newPassword })
+  });
+};
+
+export const changePasswordApi = async (data: {
+  oldPassword: string;
+  newPassword: string;
+  confirmPassword: string;
+  emailOrPhone?: string;
+}) => {
+  return apiClient('/api/auth/change-password', {
+    method: 'POST',
+    body: JSON.stringify(data),
   });
 };
