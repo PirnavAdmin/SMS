@@ -940,7 +940,22 @@ public class FeeCollectionRepository : IFeeCollectionRepository
                     Status = securityDepositRemaining == 0 ? "PAID" : (securityDepositPaid > 0 ? "PARTIAL" : "PENDING"),
                     IsOverdue = false,
                     DaysOverdue = 0,
-                    Terms = BuildDynamicTerms(securityDepositAssessed, securityDepositPaid, "Hostel Deposit - ")
+                    Terms = new List<FeeTermItemDto>
+                    {
+                        new FeeTermItemDto
+                        {
+                            TermId = "deposit-onetime",
+                            TermNumber = 1,
+                            TermName = "One Time",
+                            DueDate = defaultDueDate,
+                            Amount = securityDepositAssessed,
+                            PaidAmount = securityDepositPaid,
+                            RemainingAmount = securityDepositRemaining,
+                            Status = securityDepositRemaining == 0 ? "PAID" : (securityDepositPaid > 0 ? "PARTIAL" : "PENDING"),
+                            IsOverdue = false,
+                            DaysOverdue = 0
+                        }
+                    }
                 });
             }
 

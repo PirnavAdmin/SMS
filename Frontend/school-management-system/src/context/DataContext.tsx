@@ -13801,6 +13801,16 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         frequency = "Half-Yearly";
       }
 
+      const isSecurityDepositItem =
+        item.headId === "FH-HST-DEP" ||
+        nameLower.includes("security deposit") ||
+        catLower.includes("security deposit");
+
+      if (isSecurityDepositItem) {
+        rawFrequency = "One Time";
+        frequency = "One Time";
+      }
+
       const isTransportItem =
         catLower.includes("transport") ||
         nameLower.includes("transport") ||
@@ -13828,7 +13838,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       const catApplicableTerms: string[] =
         (item as any).applicableTerms || feeHead?.applicableTerms || [];
 
-      if (!isTransportItem) {
+      if (isSecurityDepositItem) {
+        frequency = "One Time";
+      } else if (!isTransportItem) {
         if (isFullAnnual) {
           frequency = "One Time";
         } else if (isTermWise) {
@@ -13850,7 +13862,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
 
       // ENFORCE ADMIN SELECTION FOR LATE ADMISSION METHOD:
       // If isLateAdmission is active, honor admin's choice (Term-wise vs Monthly) for recurring fee heads
-      if (isLateAdmission) {
+      if (isLateAdmission && !isSecurityDepositItem) {
         if (feeCalculationMethod === "Monthly") {
           if (
             frequency !== "One Time" &&
@@ -13890,7 +13902,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
             ? "Full Annual Fee"
             : isTransportItem
               ? "Annual Transport Fee"
-              : "Annual / One-Time",
+              : isSecurityDepositItem
+                ? "One Time"
+                : "Annual / One-Time",
           dueDate: resolvedOneTimeDueDate,
           amount: finalAmount,
           paidAmount: 0,
@@ -15833,6 +15847,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         isApplicable: true,
         status: "Pending",
         frequency: "One Time",
+        paymentEligibility: "One-Time Only",
       } as any;
 
       if (existingDepIdx >= 0) {
@@ -17215,6 +17230,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
             isApplicable: true,
             status: "Pending",
             frequency: "One Time",
+            paymentEligibility: "One-Time Only",
           } as any;
           if (existingDepIdx >= 0) {
             itemsToReturn[existingDepIdx] = depItem;

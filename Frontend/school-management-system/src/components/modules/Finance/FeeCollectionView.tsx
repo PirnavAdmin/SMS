@@ -2194,6 +2194,51 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
       }
     }
 
+    // 4. Ensure Hostel Security Deposit is strictly One Time and NEVER split into terms
+    const depInstallments = combined.filter(
+      (c) =>
+        c.feeHeadId === "FH-HST-DEP" ||
+        (c.feeHeadName || "").toLowerCase().includes("security deposit") ||
+        (c.termName || "").toLowerCase().includes("security deposit"),
+    );
+
+    if (depInstallments.length > 1) {
+      const totalDepAmt = depInstallments.reduce((sum, d) => sum + (d.amount || 0), 0);
+      const totalDepPaid = depInstallments.reduce((sum, d) => sum + (d.paidAmount || 0), 0);
+      const totalDepDue = Math.max(0, totalDepAmt - totalDepPaid);
+      const firstDep = depInstallments[0];
+
+      // Remove all multi-term security deposit entries
+      for (let i = combined.length - 1; i >= 0; i--) {
+        const c = combined[i];
+        if (
+          c.feeHeadId === "FH-HST-DEP" ||
+          (c.feeHeadName || "").toLowerCase().includes("security deposit") ||
+          (c.termName || "").toLowerCase().includes("security deposit")
+        ) {
+          combined.splice(i, 1);
+        }
+      }
+
+      // Add a single consolidated One-Time installment
+      combined.push({
+        ...firstDep,
+        id: `INST-${selectedStudent.id}-${currentYear}-FH-HST-DEP-onetime`,
+        feeHeadId: "FH-HST-DEP",
+        feeHeadName: "Hostel Security Deposit (Refundable)",
+        frequency: "One Time",
+        termId: "ONETIME",
+        termName: "One Time",
+        amount: totalDepAmt,
+        paidAmount: totalDepPaid,
+        dueAmount: totalDepDue,
+        status: totalDepDue === 0 ? "Paid" : totalDepPaid > 0 ? "Partial" : "Pending",
+      });
+    } else if (depInstallments.length === 1) {
+      depInstallments[0].frequency = "One Time";
+      depInstallments[0].termName = "One Time";
+    }
+
     return combined;
   }, [
     selectedStudent,

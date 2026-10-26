@@ -1172,7 +1172,7 @@ export const FinanceHostelConfigView: React.FC = () => {
                   />
                 </div>
 
-                {/* 2. Room & Room Category Selection */}
+                {/* 2. Room & Sharing Type Selection */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700">
                   <div>
                     <label className="block font-bold mb-1 text-slate-700 dark:text-slate-300 flex items-center justify-between">
@@ -1188,6 +1188,9 @@ export const FinanceHostelConfigView: React.FC = () => {
                             ...prev,
                             roomId: "",
                             roomNo: "All Rooms",
+                            roomTypeId: "",
+                            roomTypeName: "All Room Types",
+                            acType: "All",
                           }));
                           return;
                         }
@@ -1196,7 +1199,10 @@ export const FinanceHostelConfigView: React.FC = () => {
                         );
                         if (rm) {
                           const rTypeObj = activeRoomTypes.find((rt) => String(rt.id) === String(rm.roomTypeId));
-                          const isAc = (rm as any).acType === "AC" || rTypeObj?.acType === "AC";
+                          const isAc =
+                            (rm as any).acType === "AC" ||
+                            rTypeObj?.acType === "AC" ||
+                            (rm.roomTypeSpecification || "").toUpperCase().includes("AC");
                           const cap = rm.bedCapacity || rTypeObj?.capacity || 1;
                           const sharingName =
                             cap === 1 ? "Single" : cap === 2 ? "Double" : cap === 3 ? "Triple" : `${cap}-Sharing`;
@@ -1225,72 +1231,12 @@ export const FinanceHostelConfigView: React.FC = () => {
 
                   <div>
                     <label className="block font-bold mb-1 text-slate-700 dark:text-slate-300">
-                      Room Category
-                    </label>
-                    <SearchableCombobox
-                      value={form.roomTypeId || ""}
-                      placeholder="All Room Types in Block..."
-                      options={[
-                        { value: "", label: "All Room Types in Block" },
-                        ...activeRoomTypes.map((rt) => ({
-                          value: String(rt.id),
-                          label: rt.roomTypeName,
-                          subLabel: `${rt.capacity} Bed${rt.capacity > 1 ? "s" : ""} • ${rt.acType || "Non-AC"}`,
-                        })),
-                      ]}
-                      onChange={(val) => {
-                        if (!val) {
-                          setForm((prev) => ({
-                            ...prev,
-                            roomTypeId: "",
-                            roomTypeName: "All Room Types",
-                          }));
-                          return;
-                        }
-                        const rtObj = activeRoomTypes.find((rt) => String(rt.id) === String(val));
-                        if (rtObj) {
-                          const isAc = rtObj.acType === "AC";
-                          const cap = rtObj.capacity || 1;
-                          const sharingName =
-                            cap === 1 ? "Single" : cap === 2 ? "Double" : cap === 3 ? "Triple" : `${cap}-Sharing`;
-                          setForm((prev) => ({
-                            ...prev,
-                            roomTypeId: val,
-                            roomTypeName: rtObj.roomTypeName,
-                            acType: isAc ? "AC" : "Non-AC",
-                            sharingType: sharingName,
-                          }));
-                        }
-                      }}
-                    />
-                  </div>
-                </div>
-
-                {/* 3. AC & Sharing Options */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div>
-                    <label className="block font-bold mb-1 text-slate-700 dark:text-slate-300">
-                      AC Specification <span className="text-rose-500">*</span>
-                    </label>
-                    <select
-                      value={form.acType}
-                      onChange={(e) => setForm({ ...form, acType: e.target.value as any })}
-                      className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-xs font-bold text-slate-900 dark:text-white outline-none"
-                    >
-                      <option value="All">All Room Types (AC & Non-AC)</option>
-                      <option value="AC">AC</option>
-                      <option value="Non-AC">Non-AC</option>
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block font-bold mb-1 text-slate-700 dark:text-slate-300">
                       Sharing Type
                     </label>
                     <select
                       value={form.sharingType}
                       onChange={(e) => setForm({ ...form, sharingType: e.target.value })}
-                      className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-xs font-bold text-slate-900 dark:text-white outline-none"
+                      className="w-full px-3 py-2 rounded-xl bg-white dark:bg-slate-900 border text-xs font-bold text-slate-900 dark:text-white outline-none"
                     >
                       <option value="All">All Sharing Types</option>
                       <option value="Single">Single</option>
