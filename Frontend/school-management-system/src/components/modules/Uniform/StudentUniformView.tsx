@@ -2880,7 +2880,7 @@ export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialS
                                             });
                                           }
 
-                                          addToast('info', 'Record Removed', `Removed uniform records for ${stdName || 'Student'}.`);
+                                          addToast('error', 'Record Removed', `Removed uniform records for ${stdName || 'Student'}.`);
                                         }}
                                         className="p-1.5 bg-rose-50/80 hover:bg-rose-100 text-rose-800 dark:bg-rose-950/40 dark:hover:bg-rose-900/60 dark:text-rose-300 rounded-lg border border-rose-200/80 dark:border-rose-800/60 shadow-2xs transition-all cursor-pointer inline-flex items-center justify-center"
                                         title="Delete Issue Record & Restore Stock"

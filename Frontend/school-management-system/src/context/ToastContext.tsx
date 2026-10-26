@@ -1,6 +1,6 @@
 // @refresh reset
 import React, { createContext, useContext, useState, useCallback, useMemo } from 'react';
-import { CheckCircle2, AlertTriangle, Info, XCircle, X } from 'lucide-react';
+import { CheckCircle2, AlertTriangle, Info, XCircle, X, Trash2 } from 'lucide-react';
 
 export type ToastType = 'success' | 'error' | 'warning' | 'info';
 
@@ -52,6 +52,16 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
     if (message && message.trim().toLowerCase() === title.trim().toLowerCase()) {
       message = undefined;
+    }
+
+    const isDeleteOrRemove = (
+      title.toLowerCase().includes('delete') ||
+      title.toLowerCase().includes('remov') ||
+      (message && (message.toLowerCase().includes('deleted') || message.toLowerCase().includes('removed')))
+    ) && type !== 'warning';
+
+    if (isDeleteOrRemove && (type === 'info' || type === 'success')) {
+      type = 'error';
     }
 
     setToasts(prev => {
@@ -122,7 +132,12 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           };
 
           const cfg = typeConfigs[toast.type] || typeConfigs.info;
-          const IconComponent = Icons[toast.type] || Info;
+          const isToastDelete = (
+            toast.title.toLowerCase().includes('delete') ||
+            toast.title.toLowerCase().includes('remov') ||
+            Boolean(toast.message && (toast.message.toLowerCase().includes('deleted') || toast.message.toLowerCase().includes('removed')))
+          );
+          const IconComponent = (toast.type === 'error' && isToastDelete) ? Trash2 : (Icons[toast.type] || Info);
 
           return (
             <div

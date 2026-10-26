@@ -200,7 +200,25 @@ namespace SMS.Api.Services.Implementations
             await _repository.AddAssessmentAsync(assessment);
             await _repository.SaveChangesAsync();
 
-            return MapToAssessmentResponse(assessment);
+            if (dto.CandidateStaffIds != null && dto.CandidateStaffIds.Count > 0)
+            {
+                assessment.CandidatesCount = dto.CandidateStaffIds.Count;
+                foreach (var staffId in dto.CandidateStaffIds)
+                {
+                    var candidate = new EmployeeAssessmentCandidate
+                    {
+                        AssessmentId = assessment.AssessmentId,
+                        StaffId = staffId,
+                        Status = "Assigned",
+                        CertificateIssued = false
+                    };
+                    await _repository.AddCandidateAsync(candidate);
+                }
+                await _repository.SaveChangesAsync();
+            }
+
+            var reloaded = await _repository.GetAssessmentByIdAsync(assessment.AssessmentId);
+            return MapToAssessmentResponse(reloaded ?? assessment);
         }
 
         public async Task<AssessmentResponseDto> UpdateAssessmentAsync(int id, UpdateAssessmentDto dto)

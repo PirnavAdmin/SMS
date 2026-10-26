@@ -2021,6 +2021,30 @@ using (var scope = app.Services.CreateScope())
                       `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
                     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+                    CREATE TABLE IF NOT EXISTS `faculty_training_participations` (
+                      `id` INT AUTO_INCREMENT PRIMARY KEY,
+                      `workshop_id` INT NOT NULL,
+                      `staff_id` INT NOT NULL,
+                      `registration_status` VARCHAR(20) NOT NULL DEFAULT 'Registered',
+                      `assessment_score` DECIMAL(5,2) NULL,
+                      `certificate_issued` TINYINT(1) NOT NULL DEFAULT 0,
+                      `certificate_number` VARCHAR(100) NULL,
+                      `issued_date` DATETIME NULL
+                    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+                    CREATE TABLE IF NOT EXISTS `employee_assessment_candidates` (
+                      `id` INT AUTO_INCREMENT PRIMARY KEY,
+                      `assessment_id` INT NOT NULL,
+                      `staff_id` INT NOT NULL,
+                      `status` VARCHAR(20) NOT NULL DEFAULT 'Assigned',
+                      `score` DECIMAL(5,2) NULL,
+                      `grade` VARCHAR(10) NULL,
+                      `remarks` TEXT NULL,
+                      `certificate_issued` TINYINT(1) NOT NULL DEFAULT 0,
+                      `certificate_number` VARCHAR(100) NULL,
+                      `issued_date` DATETIME NULL
+                    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
                     CREATE TABLE IF NOT EXISTS `feepayments` (
                       `id` INT AUTO_INCREMENT PRIMARY KEY,
                       `receipt_no` VARCHAR(50) NULL,
