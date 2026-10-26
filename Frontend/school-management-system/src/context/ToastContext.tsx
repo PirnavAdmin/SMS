@@ -70,7 +70,7 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   return (
     <ToastContext.Provider value={value}>
       {children}
-      <div className="fixed top-5 right-5 sm:top-6 sm:right-6 z-[99999] flex flex-col gap-2 max-w-[340px] sm:max-w-sm w-full pointer-events-none no-print print:hidden">
+      <div className="fixed top-5 right-5 sm:top-6 sm:right-6 z-[99999] flex flex-col gap-2.5 max-w-sm w-full pointer-events-none no-print print:hidden">
         {toasts.map(toast => {
           const typeConfigs: Record<ToastType, {
             container: string;

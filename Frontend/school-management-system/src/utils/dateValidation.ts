@@ -693,3 +693,102 @@ export function getTargetMonthInAY(
   return { year: ayInfo.startYear, month: ayInfo.startMonth, monthStr: ayInfo.minMonth };
 }
 
+
+
+export interface AcademicTermValidationResult {
+  isValid: boolean;
+  message?: string;
+  isPastYear?: boolean;
+}
+
+/**
+ * Validates that an Academic Term does not reference a past/expired academic year.
+ * Only the current active academic year and valid future academic years are allowed.
+ */
+export function validateAcademicTerm(
+  term?: string | null,
+  activeYearInput?: string | null,
+  academicYears: any[] = []
+): AcademicTermValidationResult {
+  if (!term || !term.trim()) {
+    return { isValid: false, message: 'Academic Term is required.' };
+  }
+
+  const cleanTerm = term.trim();
+
+  // 1. Determine active academic year start year
+  let activeStartYear = new Date().getFullYear();
+
+  // Find active academic year from list
+  const activeAY = (academicYears || []).find(
+    (ay) => ay && (ay.isCurrent || ay.isCurrentAcademicYear || ay.status === 'Active' || ay.isActive)
+  );
+
+  const activeStr = activeAY?.academicYear || activeAY?.year || activeAY?.academicYearName || activeYearInput || '';
+  if (activeStr) {
+    const range = parseAcademicYearRange(activeStr, academicYears);
+    if (range && range.startYear) {
+      activeStartYear = range.startYear;
+    }
+  }
+
+  // 2. Check for academic year pattern in term string (e.g. "2024-23", "2023-2024", "2024-25", "2026-27")
+  const rangeMatch = cleanTerm.match(/\b(19\d{2}|20\d{2})\s*[-/–]\s*(\d{2,4})\b/);
+  if (rangeMatch) {
+    const startY = parseInt(rangeMatch[1], 10);
+    const endStr = rangeMatch[2];
+    const endY = endStr.length === 2 ? parseInt(`${String(startY).slice(0, 2)}${endStr}`, 10) : parseInt(endStr, 10);
+
+    // If inverted year e.g. "2024-23" where end year is less than start year
+    if (endY < startY) {
+      return {
+        isValid: false,
+        isPastYear: true,
+        message: `Academic term contains an invalid/past academic year range "${rangeMatch[0]}". The ending year cannot precede the starting year, and past academic years are not permitted.`,
+      };
+    }
+
+    // If start or end year is before the active academic year
+    if (startY < activeStartYear || endY < activeStartYear) {
+      return {
+        isValid: false,
+        isPastYear: true,
+        message: `Academic term cannot belong to a past academic year "${rangeMatch[0]}". Only the current active (${activeStr || activeStartYear}) or future academic years are allowed.`,
+      };
+    }
+  }
+
+  // 3. Check for standalone 4-digit years (e.g. "Term 1 (2024)", "2023 Term", "2022")
+  const yearMatches = cleanTerm.match(/\b(19\d{2}|20\d{2})\b/g);
+  if (yearMatches) {
+    for (const yrStr of yearMatches) {
+      const yr = parseInt(yrStr, 10);
+      if (yr < activeStartYear) {
+        return {
+          isValid: false,
+          isPastYear: true,
+          message: `Academic term references a past academic year "${yr}". Only the current active (${activeStr || activeStartYear}) or future academic years are allowed.`,
+        };
+      }
+    }
+  }
+
+  // 4. Check against specific past academic years in master list (e.g. status === 'Past' / 'Closed' / 'Archived')
+  const matchedPastAY = (academicYears || []).find((ay) => {
+    if (!ay) return false;
+    const name = String(ay.academicYear || ay.academicYearName || ay.year || '').trim();
+    if (!name) return false;
+    const isPast = ay.status === 'Past' || ay.status === 'Closed' || ay.status === 'Archived';
+    return isPast && cleanTerm.toLowerCase().includes(name.toLowerCase());
+  });
+
+  if (matchedPastAY) {
+    return {
+      isValid: false,
+      isPastYear: true,
+      message: `The academic year "${matchedPastAY.academicYear || matchedPastAY.academicYearName || matchedPastAY.year}" is closed/expired. Only current active or future academic years are allowed.`,
+    };
+  }
+
+  return { isValid: true };
+}

@@ -20,6 +20,7 @@ import {
 } from '../../../api/examination';
 
 // Subcomponents
+import { validateAcademicTerm } from '../../../utils/dateValidation';
 import { ExamSetup } from './ExamSetup';
 import { ExamSchedule } from './ExamSchedule';
 import { MarksEntry } from './MarksEntry';
@@ -31,7 +32,7 @@ interface ExaminationViewProps {
 }
 
 export const ExaminationView: React.FC<ExaminationViewProps> = ({ initialTab = 'setup' }) => {
-  const { academicClasses, subjects, staff, students, gradeConfigurations, refreshExamData } = useData() as any;
+  const { academicClasses, subjects, staff, students, gradeConfigurations, academicYears = [], refreshExamData } = useData() as any;
   const { selectedAcademicYear, selectedBranch } = useAuth();
   const { addToast } = useToast();
   
@@ -266,6 +267,17 @@ export const ExaminationView: React.FC<ExaminationViewProps> = ({ initialTab = '
         applicableClasses: updatedFields.applicableClasses || activeExam?.applicableClasses || []
       };
       
+      if (payload.academicTerm) {
+        const termValidation = validateAcademicTerm(payload.academicTerm, selectedAcademicYear, academicYears);
+        if (!termValidation.isValid) {
+          addToast(
+            'warning',
+            'Invalid Academic Term',
+            termValidation.message || 'Academic term cannot belong to a past or expired academic year. Please select or enter the current active or a future academic year.'
+          );
+          return;
+        }
+      }
       const response = await saveExamDetailsApi(payload);
       if (response && response.success) {
         if (showToast) {
