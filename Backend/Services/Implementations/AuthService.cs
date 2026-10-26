@@ -733,7 +733,7 @@ namespace SMS.Api.Services.Implementations
             return new JwtSecurityTokenHandler().WriteToken(token);
         }
 
-        public async Task<bool> ChangePasswordAsync(ChangePasswordRequestDto dto, string? userEmailFromToken = null, string? userIdFromToken = null, string? userNameFromToken = null)
+        public async Task<bool> ChangePasswordAsync(ChangePasswordRequestDto dto, string? userEmailFromToken = null, string? userIdFromToken = null, string? userNameFromToken = null, string? userRoleFromToken = null)
         {
             if (dto == null)
                 throw new AppException("Invalid request payload.", HttpStatusCode.BadRequest);
@@ -749,6 +749,9 @@ namespace SMS.Api.Services.Implementations
 
             if (dto.NewPassword != dto.ConfirmPassword)
                 throw new AppException("New password and confirmation password do not match.", HttpStatusCode.BadRequest);
+
+            if (dto.NewPassword == dto.OldPassword)
+                throw new AppException("New password cannot be the same as the old password.", HttpStatusCode.BadRequest);
 
             bool VerifyPass(string? hash, string plainPassword)
             {
@@ -772,13 +775,36 @@ namespace SMS.Api.Services.Implementations
             Admin? admin = null;
             User? user = null;
 
-            // 1. If we have a user/admin ID claim from the JWT token, check it first
+            // 1. If we have a user/admin ID claim from the JWT token, check it first based on role
             if (int.TryParse(userIdFromToken, out int parsedId) && parsedId > 0)
             {
-                admin = await _dbContext.Admins.FirstOrDefaultAsync(a => a.AdminId == parsedId);
-                if (admin == null)
+                bool isAdminRole = !string.IsNullOrEmpty(userRoleFromToken) &&
+                    (userRoleFromToken.Equals("Admin", StringComparison.OrdinalIgnoreCase) ||
+                     userRoleFromToken.Equals("SuperAdmin", StringComparison.OrdinalIgnoreCase));
+
+                if (isAdminRole)
+                {
+                    admin = await _dbContext.Admins.FirstOrDefaultAsync(a => a.AdminId == parsedId);
+                    if (admin == null)
+                    {
+                        user = await _dbContext.Users.FirstOrDefaultAsync(u => u.UserId == parsedId);
+                    }
+                }
+                else if (!string.IsNullOrEmpty(userRoleFromToken))
                 {
                     user = await _dbContext.Users.FirstOrDefaultAsync(u => u.UserId == parsedId);
+                    if (user == null)
+                    {
+                        admin = await _dbContext.Admins.FirstOrDefaultAsync(a => a.AdminId == parsedId);
+                    }
+                }
+                else
+                {
+                    admin = await _dbContext.Admins.FirstOrDefaultAsync(a => a.AdminId == parsedId);
+                    if (admin == null)
+                    {
+                        user = await _dbContext.Users.FirstOrDefaultAsync(u => u.UserId == parsedId);
+                    }
                 }
             }
 
@@ -840,27 +866,60 @@ namespace SMS.Api.Services.Implementations
                 throw new AppException("User account not found. Please log in again.", HttpStatusCode.NotFound);
             }
 
-            // Verify current password
-            var currentHash = admin != null ? admin.PasswordHash : user!.PasswordHash;
-            if (!VerifyPass(currentHash, dto.OldPassword))
+            // Verify current password against matched account
+            bool oldPasswordValid = false;
+            if (admin != null && VerifyPass(admin.PasswordHash, dto.OldPassword))
+            {
+                oldPasswordValid = true;
+            }
+            else if (user != null && VerifyPass(user.PasswordHash, dto.OldPassword))
+            {
+                oldPasswordValid = true;
+            }
+
+            if (!oldPasswordValid)
             {
                 throw new AppException("Incorrect current password. Please try again.", HttpStatusCode.BadRequest);
             }
 
-            // Hash new password and persist to database
+            // Hash new password and update all matching accounts across both admins and users tables
             var newPasswordHash = BCrypt.Net.BCrypt.HashPassword(dto.NewPassword);
-            if (admin != null)
+
+            var emailsToSync = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            var phonesToSync = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+            if (!string.IsNullOrWhiteSpace(admin?.Email)) emailsToSync.Add(admin.Email.Trim());
+            if (!string.IsNullOrWhiteSpace(user?.Email)) emailsToSync.Add(user.Email.Trim());
+            if (!string.IsNullOrWhiteSpace(userEmailFromToken)) emailsToSync.Add(userEmailFromToken.Trim());
+            if (!string.IsNullOrWhiteSpace(dto.EmailOrPhone) && dto.EmailOrPhone.Contains('@')) emailsToSync.Add(dto.EmailOrPhone.Trim());
+
+            if (!string.IsNullOrWhiteSpace(admin?.MobileNumber)) phonesToSync.Add(admin.MobileNumber.Trim());
+            if (!string.IsNullOrWhiteSpace(user?.MobileNumber)) phonesToSync.Add(user.MobileNumber.Trim());
+            if (!string.IsNullOrWhiteSpace(dto.EmailOrPhone) && !dto.EmailOrPhone.Contains('@')) phonesToSync.Add(dto.EmailOrPhone.Trim());
+
+            var matchedAdmins = await _dbContext.Admins.Where(a =>
+                (admin != null && a.AdminId == admin.AdminId) ||
+                (a.Email != null && emailsToSync.Contains(a.Email)) ||
+                phonesToSync.Contains(a.MobileNumber)
+            ).ToListAsync();
+
+            foreach (var a in matchedAdmins)
             {
-                admin.PasswordHash = newPasswordHash;
-                await _adminRepository.UpdatePasswordAsync(admin.AdminId, newPasswordHash);
-                await _dbContext.SaveChangesAsync();
+                a.PasswordHash = newPasswordHash;
             }
-            else if (user != null)
+
+            var matchedUsers = await _dbContext.Users.Where(u =>
+                (user != null && u.UserId == user.UserId) ||
+                (u.Email != null && emailsToSync.Contains(u.Email)) ||
+                phonesToSync.Contains(u.MobileNumber)
+            ).ToListAsync();
+
+            foreach (var u in matchedUsers)
             {
-                user.PasswordHash = newPasswordHash;
-                await _userRepository.UpdatePasswordAsync(user.UserId, newPasswordHash);
-                await _dbContext.SaveChangesAsync();
+                u.PasswordHash = newPasswordHash;
             }
+
+            await _dbContext.SaveChangesAsync();
 
             return true;
         }

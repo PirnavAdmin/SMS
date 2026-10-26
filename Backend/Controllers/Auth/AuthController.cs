@@ -40,7 +40,8 @@ public class AuthController : ControllerBase
         var emailClaim = User.FindFirst(ClaimTypes.Email)?.Value;
         var idClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
         var nameClaim = User.FindFirst(ClaimTypes.Name)?.Value;
-        await _authService.ChangePasswordAsync(dto, emailClaim, idClaim, nameClaim);
+        var roleClaim = User.FindFirst(ClaimTypes.Role)?.Value;
+        await _authService.ChangePasswordAsync(dto, emailClaim, idClaim, nameClaim, roleClaim);
         return Ok(new { message = "Password updated successfully." });
     }
 }

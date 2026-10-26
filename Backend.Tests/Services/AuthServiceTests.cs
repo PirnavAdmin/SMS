@@ -165,5 +165,102 @@ namespace Backend.Tests.Services
             Assert.False(string.IsNullOrEmpty(response.Token));
             Assert.Contains("Teacher", response.Roles);
         }
+        [Fact]
+        public async Task ChangePasswordAsync_WhenAdminAndUserExist_UpdatesBothTablesAndInvalidatesOldPassword()
+        {
+            var oldPassword = "oldPassword123";
+            var newPassword = "newPassword456";
+
+            var admin = new Admin
+            {
+                AdminId = 10,
+                FullName = "Dr. Eleanor Vance",
+                Email = "admin@pirnavschools.com",
+                MobileNumber = "9876543210",
+                Role = "Admin",
+                PasswordHash = BCrypt.Net.BCrypt.HashPassword(oldPassword)
+            };
+            _dbContext.Admins.Add(admin);
+
+            var user = new User
+            {
+                UserId = 779,
+                FullName = "Dr. Eleanor Vance",
+                Email = "admin@pirnavschools.com",
+                MobileNumber = "9876543210",
+                Role = "Admin",
+                PasswordHash = BCrypt.Net.BCrypt.HashPassword(oldPassword)
+            };
+            _dbContext.Users.Add(user);
+            await _dbContext.SaveChangesAsync();
+
+            var dto = new ChangePasswordRequestDto
+            {
+                EmailOrPhone = "admin@pirnavschools.com",
+                OldPassword = oldPassword,
+                NewPassword = newPassword,
+                ConfirmPassword = newPassword
+            };
+
+            var result = await _service.ChangePasswordAsync(
+                dto,
+                userEmailFromToken: "admin@pirnavschools.com",
+                userIdFromToken: "10",
+                userNameFromToken: "Dr. Eleanor Vance",
+                userRoleFromToken: "Admin"
+            );
+
+            Assert.True(result);
+
+            // Re-fetch both from dbContext
+            var updatedAdmin = await _dbContext.Admins.FindAsync(10);
+            var updatedUser = await _dbContext.Users.FindAsync(779);
+
+            Assert.NotNull(updatedAdmin);
+            Assert.NotNull(updatedUser);
+
+            // 1. Old password MUST FAIL on both
+            Assert.False(BCrypt.Net.BCrypt.Verify(oldPassword, updatedAdmin.PasswordHash));
+            Assert.False(BCrypt.Net.BCrypt.Verify(oldPassword, updatedUser.PasswordHash));
+
+            // 2. New password MUST SUCCEED on both
+            Assert.True(BCrypt.Net.BCrypt.Verify(newPassword, updatedAdmin.PasswordHash));
+            Assert.True(BCrypt.Net.BCrypt.Verify(newPassword, updatedUser.PasswordHash));
+        }
+
+        [Fact]
+        public async Task ChangePasswordAsync_WithWrongCurrentPassword_ThrowsBadRequest()
+        {
+            var admin = new Admin
+            {
+                AdminId = 20,
+                FullName = "Admin Two",
+                Email = "admin2@pirnavschools.com",
+                MobileNumber = "9876543211",
+                Role = "Admin",
+                PasswordHash = BCrypt.Net.BCrypt.HashPassword("validOldPass")
+            };
+            _dbContext.Admins.Add(admin);
+            await _dbContext.SaveChangesAsync();
+
+            var dto = new ChangePasswordRequestDto
+            {
+                EmailOrPhone = "admin2@pirnavschools.com",
+                OldPassword = "wrongOldPassword",
+                NewPassword = "newSecretPassword",
+                ConfirmPassword = "newSecretPassword"
+            };
+
+            var ex = await Assert.ThrowsAsync<AppException>(() => _service.ChangePasswordAsync(
+                dto,
+                userEmailFromToken: "admin2@pirnavschools.com",
+                userIdFromToken: "20",
+                userNameFromToken: "Admin Two",
+                userRoleFromToken: "Admin"
+            ));
+
+            Assert.Equal(HttpStatusCode.BadRequest, ex.StatusCode);
+            Assert.Contains("Incorrect current password", ex.Message);
+        }
     }
 }

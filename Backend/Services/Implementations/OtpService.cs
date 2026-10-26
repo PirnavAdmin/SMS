@@ -163,11 +163,7 @@ public class OtpService : IOtpService
     public async Task<bool> ResetPasswordAsync(ResetPasswordDto dto)
     {
         User? user = await _userRepository.GetByIdentifierAsync(dto.EmailOrPhone);
-        Admin? admin = null;
-        if (user == null)
-        {
-            admin = await _adminRepository.GetByIdentifierAsync(dto.EmailOrPhone);
-        }
+        Admin? admin = await _adminRepository.GetByIdentifierAsync(dto.EmailOrPhone);
 
         if (user == null && admin == null)
         {
@@ -234,8 +230,8 @@ public class OtpService : IOtpService
         var newPasswordHash = BCrypt.Net.BCrypt.HashPassword(dto.NewPassword);
         if (user != null)
             await _userRepository.UpdatePasswordAsync(user.UserId, newPasswordHash);
-        else
-            await _adminRepository.UpdatePasswordAsync(admin!.AdminId, newPasswordHash);
+        if (admin != null)
+            await _adminRepository.UpdatePasswordAsync(admin.AdminId, newPasswordHash);
 
         Console.WriteLine($"[RESET SUCCESS] Password updated in DB for: {dto.EmailOrPhone}");
         return true;

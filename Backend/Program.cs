@@ -2073,7 +2073,7 @@ using (var scope = app.Services.CreateScope())
                 System.Console.WriteLine($"[Database Migration Warning] {ex.Message}");
             }
 
-            context.Database.ExecuteSqlRaw("DELETE FROM `users` WHERE `Role` = 'Admin';");
+
         }
         catch (System.Exception ex)
         {
@@ -2181,7 +2181,10 @@ using (var scope = app.Services.CreateScope())
             adminUser.FullName = "Dr. Eleanor Vance";
             adminUser.Email = adminEmail;
             adminUser.MobileNumber = adminMobile;
-            adminUser.PasswordHash = BCrypt.Net.BCrypt.HashPassword("admin1234");
+            if (string.IsNullOrWhiteSpace(adminUser.PasswordHash))
+            {
+                adminUser.PasswordHash = BCrypt.Net.BCrypt.HashPassword("admin1234");
+            }
             adminUser.Role = "Admin";
             adminUser.IsEmailVerified = true;
             adminUser.IsMobileVerified = true;

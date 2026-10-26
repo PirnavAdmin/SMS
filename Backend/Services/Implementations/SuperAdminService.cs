@@ -369,8 +369,27 @@ public class SuperAdminService : ISuperAdminService
         var admin = await _saRepository.GetAdminByIdAsync(adminId)
             ?? throw new NotFoundException($"Admin with ID '{adminId}' not found.");
 
-        admin.PasswordHash = BCrypt.Net.BCrypt.HashPassword(newPassword);
+        var newPasswordHash = BCrypt.Net.BCrypt.HashPassword(newPassword);
+        admin.PasswordHash = newPasswordHash;
         await _saRepository.SaveChangesAsync();
+
+        if (!string.IsNullOrEmpty(admin.Email))
+        {
+            var userByEmail = await _userRepository.GetByIdentifierAsync(admin.Email);
+            if (userByEmail != null)
+            {
+                await _userRepository.UpdatePasswordAsync(userByEmail.UserId, newPasswordHash);
+            }
+        }
+
+        if (!string.IsNullOrEmpty(admin.MobileNumber))
+        {
+            var userByPhone = await _userRepository.GetByIdentifierAsync(admin.MobileNumber);
+            if (userByPhone != null)
+            {
+                await _userRepository.UpdatePasswordAsync(userByPhone.UserId, newPasswordHash);
+            }
+        }
 
         var saUser = await _userRepository.GetByIdAsync(requestedByUserId);
         await LogActivityAsync(requestedByUserId, saUser?.FullName ?? "SuperAdmin", "SuperAdmin", "Reset Admin Password", $"Reset password for admin user: {admin.FullName}");
