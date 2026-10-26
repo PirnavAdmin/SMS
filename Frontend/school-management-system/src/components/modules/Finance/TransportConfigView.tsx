@@ -19,17 +19,17 @@ export const TransportConfigView: React.FC = () => {
   const [formData, setFormData] = useState<Partial<TransportRoute>>({
     routeName: '',
     routeCode: '',
-    vehicleNumber: 'NY-99-AB-1001',
-    vehicleName: 'School Bus AC',
+    vehicleNumber: '',
+    vehicleName: '',
     driverName: '',
     driverMobile: '',
     pickupPoint: '',
-    dropPoint: 'School Gate',
-    distanceKm: 10,
-    monthlyFee: 1500,
-    quarterlyFee: 4200,
-    halfYearlyFee: 8000,
-    annualFee: 15000,
+    dropPoint: '',
+    distanceKm: 0,
+    monthlyFee: 0,
+    quarterlyFee: 0,
+    halfYearlyFee: 0,
+    annualFee: 0,
     status: 'Active'
   });
 
@@ -41,18 +41,18 @@ export const TransportConfigView: React.FC = () => {
     setEditingRoute(null);
     setFormData({
       routeName: '',
-      routeCode: 'R-' + Math.floor(100 + Math.random() * 900),
-      vehicleNumber: 'NY-99-AB-' + Math.floor(1000 + Math.random() * 9000),
-      vehicleName: 'Tata Starbus AC 40-Seater',
+      routeCode: '',
+      vehicleNumber: '',
+      vehicleName: '',
       driverName: '',
       driverMobile: '',
-      pickupPoint: 'City Center Stop',
-      dropPoint: 'Academy Gate 1',
-      distanceKm: 10,
-      monthlyFee: 1500,
-      quarterlyFee: 4200,
-      halfYearlyFee: 8000,
-      annualFee: 15000,
+      pickupPoint: '',
+      dropPoint: '',
+      distanceKm: 0,
+      monthlyFee: 0,
+      quarterlyFee: 0,
+      halfYearlyFee: 0,
+      annualFee: 0,
       status: 'Active'
     });
     setIsModalOpen(true);
