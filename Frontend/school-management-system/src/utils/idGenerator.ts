@@ -325,3 +325,28 @@ export function generateNextCustomId(sequenceId: string, existingIds: string[] =
     existingIds
   );
 }
+
+/**
+ * Format or display a Student Admission Number using configured Automated ID Settings
+ */
+export function formatConfiguredStudentAdmissionNo(admissionNo?: string, studentId?: string | number): string {
+  if (admissionNo && admissionNo.trim()) return admissionNo.trim();
+  const config = getIdSequenceSettings();
+  const prefix = config.admissionNoPrefix || config.studentIdPrefix || 'STU';
+  const sep = config.admissionNoSeparator || '-';
+  const yearStr = config.admissionNoIncludeYear ? `${new Date().getFullYear()}` : '';
+  const padding = config.admissionNoPadding || 4;
+  
+  if (studentId != null && String(studentId).trim()) {
+    const rawIdStr = String(studentId).trim();
+    if (rawIdStr.toUpperCase().startsWith(prefix.toUpperCase())) {
+      return rawIdStr;
+    }
+    const num = parseInt(rawIdStr.replace(/\D/g, ''), 10);
+    const padded = !isNaN(num) ? String(num).padStart(padding, '0') : rawIdStr;
+    const parts = [prefix, yearStr, padded].filter(Boolean);
+    return parts.join(sep);
+  }
+  
+  return '—';
+}

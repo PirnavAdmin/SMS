@@ -10,6 +10,7 @@ import { formatCurrency } from '../../../utils/currency';
 import { getCategorySizes, getUniformPackageFeeByClass, getUniformFeeForClass, getItemFeeFromFinanceConfig, getItemPriceFromConfig, normalizeUniformCategoryName, calculateClothOrItemPrice } from '../../../utils/uniformUtils';
 import { Pagination } from '../../common/Pagination';
 import { resolveMediaUrl } from '../../../utils/mediaUtils';
+import { formatConfiguredStudentAdmissionNo } from '../../../utils/idGenerator';
 
 interface StudentUniformViewProps {
   initialStatusFilter?: string;
@@ -1205,7 +1206,7 @@ export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialS
         id: form.studentId || `ST-${Date.now().toString().slice(-4)}`,
         firstName: fName,
         lastName: lName,
-        admissionNo: form.studentId ? `ADM-${form.studentId}` : `ADM-${Date.now().toString().slice(-4)}`,
+        admissionNo: formatConfiguredStudentAdmissionNo(undefined, form.studentId || Date.now().toString().slice(-4)),
         className: 'Class 1',
         section: 'A',
         gender: 'Male',

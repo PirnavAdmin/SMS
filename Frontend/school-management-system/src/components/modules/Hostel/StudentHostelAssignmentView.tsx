@@ -11,6 +11,7 @@ import { SearchableSelect } from '../../common/SearchableSelect';
 import { useAuth } from '../../../context/AuthContext';
 import { getAllocations, createAllocation, vacateAllocation, vacateStudentAllocation, getRooms, getHostelBlocks, formatRoomNumber, getEligibleStudentsForAllocation, BedAllocation, HostelRoom, HostelBlock, EligibleHostelStudent } from '../../../api/hostel';
 import { normalizeStudentType } from '../../../utils/studentTypeUtils';
+import { formatConfiguredStudentAdmissionNo } from '../../../utils/idGenerator';
 
 const StudentInlineCombobox: React.FC<{
   students: any[];
@@ -553,7 +554,7 @@ export const StudentHostelAssignmentView: React.FC = () => {
         dataContext.assignStudentHostelRoom({
           studentId: String(selectedStudentId),
           studentName: (selectedSt as any)?.studentName || selectedSt?.name || 'Student',
-          admissionNo: selectedSt?.admissionNo || `ADM-${selectedStudentId}`,
+          admissionNo: selectedSt?.admissionNo || formatConfiguredStudentAdmissionNo(selectedSt?.admissionNo, selectedStudentId),
           hostelId: String(selectedHostelId),
           hostelName: selectedBlk?.hostelName || (selectedBlk as any)?.name || 'Hostel Block',
           roomNo: selectedRm?.roomNumber || '101',
@@ -676,10 +677,10 @@ export const StudentHostelAssignmentView: React.FC = () => {
     const rawList = [
       ...safeAllocations.map(a => ({ ...a, isPendingAdmitted: false })),
       ...unallocatedAdmittedHostellers.map(s => ({
-        allocationId: `ADM-PENDING-${s.id}`,
+        allocationId: `ALLOC-PENDING-${s.id}`,
         studentId: parseInt(String(s.id || '').replace(/\D/g, ''), 10) || 1001,
         studentName: s.name || (s.firstName ? `${s.firstName} ${s.lastName || ''}`.trim() : 'Student'),
-        admissionNo: s.admissionNo || `ADM-${s.id}`,
+        admissionNo: s.admissionNo || formatConfiguredStudentAdmissionNo(s.admissionNo, s.id),
         hostelId: 0,
         hostelName: 'Opted during Admission',
         roomId: 0,

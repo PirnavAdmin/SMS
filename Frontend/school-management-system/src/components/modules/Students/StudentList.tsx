@@ -27,6 +27,7 @@ import { fetchAdmissionsApi } from '../../../api/admission';
 import { getAllocations, getHostelBlocks, formatRoomNumber, BedAllocation } from '../../../api/hostel';
 import { Pagination } from '../../common/Pagination';
 import { hasModuleAccess } from '../../../utils/rbac';
+import { formatConfiguredStudentAdmissionNo } from '../../../utils/idGenerator';
 
 export const StudentList: React.FC<{ onNavigate?: (module: string) => void }> = ({ onNavigate }) => {
   const { students = [], updateStudent, deleteStudent, academicClasses = [], staff = [], fetchStudents, admissions = [], applications = [], teacherAssignments = [], timetable = [] } = useData();
@@ -180,7 +181,7 @@ export const StudentList: React.FC<{ onNavigate?: (module: string) => void }> = 
       .map(app => {
         const fullName = (app.applicantName || (app as any).studentName || `${app.firstName || ''} ${app.lastName || ''}`).trim();
         const nameParts = fullName ? fullName.split(' ') : [];
-        const regNo = app.applicationNo || (app as any).registrationNo || (app as any).applicationNumber || (app as any).admissionNo || (app.id ? `ADM-${app.id}` : '');
+        const regNo = app.applicationNo || (app as any).registrationNo || (app as any).applicationNumber || (app as any).admissionNo || (app.id ? formatConfiguredStudentAdmissionNo(undefined, app.id) : '');
         return {
           id: String(app.id || ''),
           firstName: app.firstName || nameParts[0] || '',
