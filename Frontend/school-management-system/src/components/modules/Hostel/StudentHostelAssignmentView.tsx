@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { UserPlus, Plus, Search, Shield, User, Edit, Trash2, ChevronDown, Building2, Layers, Home, CheckCircle2, ShieldCheck } from 'lucide-react';
 import { formatCurrency } from '../../../utils/currency';
 import { isClassInRange } from '../../../utils/classSorter';
@@ -11,6 +11,7 @@ import { SearchableSelect } from '../../common/SearchableSelect';
 import { useAuth } from '../../../context/AuthContext';
 import { getAllocations, createAllocation, vacateAllocation, vacateStudentAllocation, getRooms, getHostelBlocks, formatRoomNumber, getEligibleStudentsForAllocation, BedAllocation, HostelRoom, HostelBlock, EligibleHostelStudent } from '../../../api/hostel';
 import { normalizeStudentType } from '../../../utils/studentTypeUtils';
+import { formatConfiguredStudentAdmissionNo } from '../../../utils/idGenerator';
 
 const StudentInlineCombobox: React.FC<{
   students: any[];
@@ -35,7 +36,7 @@ const StudentInlineCombobox: React.FC<{
       const cls = selectedStudent.className || '';
       const sec = selectedStudent.section ? `-${selectedStudent.section}` : '';
       const adm = selectedStudent.admissionNo || '';
-      setSearchText(`${name} (${cls}${sec} â€¢ ${adm})`);
+      setSearchText(`${name} (${cls}${sec} • ${adm})`);
     } else if (!value) {
       setSearchText('');
     }
@@ -54,7 +55,7 @@ const StudentInlineCombobox: React.FC<{
   const filteredStudents = useMemo(() => {
     if (!searchText.trim()) return students;
     if (selectedStudent) {
-      const selectedLabel = `${selectedStudent.studentName || selectedStudent.name} (${selectedStudent.className}${selectedStudent.section ? `-${selectedStudent.section}` : ''} â€¢ ${selectedStudent.admissionNo})`;
+      const selectedLabel = `${selectedStudent.studentName || selectedStudent.name} (${selectedStudent.className}${selectedStudent.section ? `-${selectedStudent.section}` : ''} • ${selectedStudent.admissionNo})`;
       if (searchText === selectedLabel) return students;
     }
     const q = searchText.toLowerCase().trim();
@@ -112,7 +113,7 @@ const StudentInlineCombobox: React.FC<{
                   onClick={(e) => {
                     e.stopPropagation();
                     onChange(stId, st);
-                    setSearchText(`${name} (${cls}${sec} â€¢ ${adm})`);
+                    setSearchText(`${name} (${cls}${sec} • ${adm})`);
                     setIsOpen(false);
                   }}
                   className={`w-full text-left px-3 py-2 rounded-xl text-xs flex items-center justify-between transition-all ${
@@ -124,15 +125,15 @@ const StudentInlineCombobox: React.FC<{
                   <div className="truncate">
                     <div className="font-bold flex items-center gap-1.5">
                       <span>{name}</span>
-                      <span className="font-mono text-[10px] text-slate-400">({cls}${sec} â€¢ ${adm})</span>
+                      <span className="font-mono text-[10px] text-slate-400">({cls}{sec} • {adm})</span>
                     </div>
                     <div className="text-[10px] font-semibold text-emerald-600 dark:text-emerald-400 flex items-center gap-1 mt-0.5">
                       <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block"></span>
-                      <span>Available for Allocation â€¢ Deposit Paid ({depositAmount > 0 ? `â‚¹${depositAmount.toLocaleString('en-IN')}` : 'Verified'})</span>
+                      <span>Available for Allocation • Deposit Paid ({depositAmount > 0 ? `₹${depositAmount.toLocaleString('en-IN')}` : 'Verified'})</span>
                     </div>
                   </div>
                   <span className="text-[10px] font-extrabold text-sky-600 bg-sky-100 dark:bg-sky-950 px-2 py-0.5 rounded-full shrink-0 ml-1">
-                    â˜… Residential
+                    ★ Residential
                   </span>
                 </button>
               );
@@ -553,7 +554,7 @@ export const StudentHostelAssignmentView: React.FC = () => {
         dataContext.assignStudentHostelRoom({
           studentId: String(selectedStudentId),
           studentName: (selectedSt as any)?.studentName || selectedSt?.name || 'Student',
-          admissionNo: selectedSt?.admissionNo || `ADM-${selectedStudentId}`,
+          admissionNo: selectedSt?.admissionNo || formatConfiguredStudentAdmissionNo(selectedSt?.admissionNo, selectedStudentId),
           hostelId: String(selectedHostelId),
           hostelName: selectedBlk?.hostelName || (selectedBlk as any)?.name || 'Hostel Block',
           roomNo: selectedRm?.roomNumber || '101',
@@ -676,16 +677,16 @@ export const StudentHostelAssignmentView: React.FC = () => {
     const rawList = [
       ...safeAllocations.map(a => ({ ...a, isPendingAdmitted: false })),
       ...unallocatedAdmittedHostellers.map(s => ({
-        allocationId: `ADM-PENDING-${s.id}`,
+        allocationId: `ALLOC-PENDING-${s.id}`,
         studentId: parseInt(String(s.id || '').replace(/\D/g, ''), 10) || 1001,
         studentName: s.name || (s.firstName ? `${s.firstName} ${s.lastName || ''}`.trim() : 'Student'),
-        admissionNo: s.admissionNo || `REG-${s.id}`,
+        admissionNo: s.admissionNo || formatConfiguredStudentAdmissionNo(s.admissionNo, s.id),
         hostelId: 0,
         hostelName: 'Opted during Admission',
         roomId: 0,
         roomNumber: 'N/A',
         bedNumber: 'Unassigned',
-        joiningDate: 'Opted at Registration',
+        joiningDate: 'Opted at Admission',
         status: 'Pending Allocation',
         isPendingAdmitted: true,
         rawStudentId: s.id

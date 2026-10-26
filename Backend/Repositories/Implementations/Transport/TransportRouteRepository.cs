@@ -59,6 +59,12 @@ namespace SMS.Api.Repositories.Implementations
                 .GroupBy(p => p.RouteId)
                 .ToDictionaryAsync(g => g.Key, g => g.Count());
 
+            Dictionary<long, int> studentCounts = await _context.StudentTransportAssignments
+                .AsNoTracking()
+                .Where(s => routeIds.Contains(s.RouteId) && !s.IsDeleted && s.Status)
+                .GroupBy(s => s.RouteId)
+                .ToDictionaryAsync(g => g.Key, g => g.Count());
+
             List<TransportVehicleAssignment> assignments = await _context.TransportVehicleAssignments
                 .AsNoTracking()
                 .Include(a => a.Vehicle)
@@ -70,6 +76,7 @@ namespace SMS.Api.Repositories.Implementations
             {
                 var assignment = assignments.FirstOrDefault(a => a.RouteId == x.RouteId);
                 var pickupCount = pickupCounts.TryGetValue(x.RouteId, out int count) ? count : 0;
+                var studentCount = studentCounts.TryGetValue(x.RouteId, out int sc) ? sc : 0;
                 var assignedBus = assignment?.Vehicle?.VehicleNumber ?? x.Vehicle?.VehicleNumber ?? "Unassigned";
                 var assignedDriver = assignment?.Driver?.DriverName ?? "Unassigned";
 
@@ -85,6 +92,7 @@ namespace SMS.Api.Repositories.Implementations
                     EstimatedDurationText = FormatDuration(x.EstimatedDurationMinutes),
                     Description = x.Description,
                     TotalPickupPoints = pickupCount,
+                    AssignedStudentsCount = studentCount,
                     AssignedBus = assignedBus,
                     AssignedDriver = assignedDriver,
                     MinRangeKm = x.MinRangeKm > 0 ? x.MinRangeKm : 5,
@@ -121,6 +129,10 @@ namespace SMS.Api.Repositories.Implementations
                 .AsNoTracking()
                 .CountAsync(p => p.RouteId == routeId && !p.IsDeleted);
 
+            var studentCount = await _context.StudentTransportAssignments
+                .AsNoTracking()
+                .CountAsync(s => s.RouteId == routeId && !s.IsDeleted && s.Status);
+
             var assignment = await _context.TransportVehicleAssignments
                 .AsNoTracking()
                 .Include(a => a.Vehicle)
@@ -142,6 +154,7 @@ namespace SMS.Api.Repositories.Implementations
                 EstimatedDurationText = FormatDuration(x.EstimatedDurationMinutes),
                 Description = x.Description,
                 TotalPickupPoints = pickupCount,
+                AssignedStudentsCount = studentCount,
                 AssignedBus = assignedBus,
                 AssignedDriver = assignedDriver,
                 MinRangeKm = x.MinRangeKm > 0 ? x.MinRangeKm : 5,
@@ -288,6 +301,18 @@ namespace SMS.Api.Repositories.Implementations
                     a.Status = false;
                     a.UpdatedBy = userId;
                     a.UpdatedAt = DateTime.UtcNow;
+                }
+
+                // Soft delete associated student transport assignments
+                var studentAssignments = await _context.StudentTransportAssignments
+                    .Where(s => s.RouteId == r.RouteId && !s.IsDeleted)
+                    .ToListAsync();
+                foreach (var s in studentAssignments)
+                {
+                    s.IsDeleted = true;
+                    s.Status = false;
+                    s.UpdatedBy = userId;
+                    s.UpdatedAt = DateTime.UtcNow;
                 }
             }
 

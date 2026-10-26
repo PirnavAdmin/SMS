@@ -10,6 +10,7 @@ import { formatCurrency } from '../../../utils/currency';
 import { getCategorySizes, getUniformPackageFeeByClass, getUniformFeeForClass, getItemFeeFromFinanceConfig, getItemPriceFromConfig, normalizeUniformCategoryName, calculateClothOrItemPrice } from '../../../utils/uniformUtils';
 import { Pagination } from '../../common/Pagination';
 import { resolveMediaUrl } from '../../../utils/mediaUtils';
+import { formatConfiguredStudentAdmissionNo } from '../../../utils/idGenerator';
 
 interface StudentUniformViewProps {
   initialStatusFilter?: string;
@@ -1127,7 +1128,7 @@ export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialS
       window.dispatchEvent(new Event('uniform_issues_updated'));
       window.dispatchEvent(new Event('storage'));
 
-      addToast('success', 'Uniform Fee Collected', `Payment of ${formatCurrency(payAmount)} received for ${stdName}. Status updated to Fees Paid.`);
+      addToast('success', 'Fee Collected', `Received ${formatCurrency(payAmount)} for ${stdName}.`);
       setIsPayFeeModalOpen(false);
     } catch (err) {
       console.error('Error paying uniform fee:', err);
@@ -1150,11 +1151,12 @@ export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialS
   const [form, setForm] = useState({
     studentId: '',
     itemId: '',
-    quantity: 1,
-    size: 'M',
+    quantity: '' as any,
+    size: '',
     type: 'Issue' as 'Issue' | 'Additional Purchase',
     paymentMode: 'Cash' as 'Cash' | 'Online' | 'Card' | 'Cheque',
-    notes: ''
+    notes: '',
+    dressCode: ''
   });
 
   const [exchangeReason, setExchangeReason] = useState('Wrong Size / Fitting Issue');
@@ -1204,7 +1206,7 @@ export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialS
         id: form.studentId || `ST-${Date.now().toString().slice(-4)}`,
         firstName: fName,
         lastName: lName,
-        admissionNo: `REG-${Math.floor(1000 + Math.random() * 9000)}`,
+        admissionNo: formatConfiguredStudentAdmissionNo(undefined, form.studentId || Date.now().toString().slice(-4)),
         className: 'Class 1',
         section: 'A',
         gender: 'Male',
@@ -1371,7 +1373,7 @@ export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialS
       });
     }
 
-    addToast('success', 'Uniform Fee Collected & Kit Issued!', `Successfully collected ${formatCurrency(feeAmount)} via ${payMode} and issued ${itemObj.category} to ${studentObj.firstName}. Receipt #${receiptNo}`);
+    addToast('success', 'Kit Issued', `Issued ${itemObj.category} to ${studentObj.firstName} (${formatCurrency(feeAmount)}).`);
     setIsModalOpen(false);
   };
 
@@ -1389,7 +1391,7 @@ export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialS
       }
       return 'Custom Tailored';
     }
-    return 'M';
+    return form.size || '';
   };
 
   const [studentSearchTerm, setStudentSearchTerm] = useState('');
@@ -1400,8 +1402,8 @@ export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialS
     setForm({
       studentId: '',
       itemId: '',
-      quantity: 1,
-      size: 'M',
+      quantity: '' as any,
+      size: '',
       type: '',
       paymentMode: 'Cash',
       notes: '',
@@ -1430,8 +1432,8 @@ export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialS
     setForm({
       studentId: String(stdId),
       itemId: '',
-      quantity: 1,
-      size: 'M',
+      quantity: '' as any,
+      size: '',
       type: 'Base Package',
       paymentMode: 'Cash',
       notes: '',
@@ -1453,7 +1455,7 @@ export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialS
       studentId: issue.studentId,
       itemId: issue.itemId,
       quantity: issue.quantity,
-      size: issue.size,
+      size: '',
       type: 'Issue',
       paymentMode: 'Cash',
       notes: issue.notes || '',
@@ -1852,8 +1854,27 @@ export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialS
         addToast('warning', 'Validation Error', 'Please select a Transaction Type.');
         return;
       }
-      if (form.type !== 'Additional Purchase' && !form.itemId) {
-        addToast('warning', 'Validation Error', 'Please select a Base Package / Main Item.');
+      if (form.type !== 'Additional Purchase') {
+        if (!form.itemId) {
+          addToast('warning', 'Validation Error', 'Please select a Base Package / Main Item.');
+          return;
+        }
+        if (!form.size || form.size.trim() === '') {
+          addToast('warning', 'Validation Error', 'Please select a Size Specification.');
+          return;
+        }
+        if (!form.quantity || Number(form.quantity) < 1) {
+          addToast('warning', 'Validation Error', 'Please enter a valid Quantity.');
+          return;
+        }
+      }
+    } else if (modalType === 'Replace') {
+      if (!form.size || form.size.trim() === '') {
+        addToast('warning', 'Validation Error', 'Please select the New Size Specification for exchange.');
+        return;
+      }
+      if (selectedIssue && form.size.trim().toLowerCase() === (selectedIssue.size || '').trim().toLowerCase()) {
+        addToast('warning', 'Same Size Selected', 'Please select a different size to exchange.');
         return;
       }
     }
@@ -1948,7 +1969,8 @@ export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialS
           setStudentFeeInstallments(prev => [...prev, feeInstallment]);
         }
 
-        addToast('success', 'Extra Uniform Items Issued', `Issued ${checkedEntries.length} item type(s) (${summaryNames.join(', ')}). Total ${formatCurrency(totalGrandSale)} added as pending fee charge to ${studentObj.firstName}'s account. Collect from Finance & Fees > Fee Collection.`);
+        const itemSummaryStr = summaryNames.length <= 2 ? summaryNames.join(', ') : `${checkedEntries.length} items`;
+        addToast('success', 'Uniform Items Issued', `Issued ${itemSummaryStr} to ${studentObj.firstName} (${formatCurrency(totalGrandSale)}).`);
         setIsModalOpen(false);
         return;
       }
@@ -2135,7 +2157,7 @@ export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialS
           });
         }
 
-        addToast('success', 'Uniform Kit Issued', `Issued ${qty}x ${itemDisplayName} (${finalSize}) for ${studentObj.firstName}.`);
+        addToast('success', 'Kit Issued', `Issued ${qty}x ${itemDisplayName} (${finalSize}) to ${studentObj.firstName}.`);
       } else {
         // Additional non-package item (e.g., Shoes, Socks, Tracksuit)
         addStudentUniformIssue({
@@ -2176,7 +2198,7 @@ export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialS
           updatedAt: new Date().toISOString(),
         }]);
 
-        addToast('success', 'Extra Item Issued — Added to Fee Account', `${qty}x ${itemDisplayName} issued and ${formatCurrency(totalSale)} added as pending fee to ${studentObj.firstName}'s account. Collect from Finance & Fees > Fee Collection.`);
+        addToast('success', 'Item Issued', `Issued ${qty}x ${itemDisplayName} to ${studentObj.firstName} (${formatCurrency(totalSale)}).`);
       }
     } else if (modalType === 'Replace' && selectedIssue) {
       const todayStr = new Date().toISOString().split('T')[0];
@@ -2263,7 +2285,7 @@ export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialS
         }
       }
 
-      addToast('success', 'Item Exchanged', `Successfully completed item exchange for ${selectedIssue.itemName} to size ${finalSize} (${exchangeReason}).`);
+      addToast('success', 'Item Exchanged', `Exchanged ${selectedIssue.itemName} to size ${finalSize}.`);
     }
 
     setQuery('');
@@ -2870,7 +2892,7 @@ export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialS
                                             });
                                           }
 
-                                          addToast('info', 'Record Removed & Stock Restored', `Removed uniform distribution records for ${stdName || 'Student'} and restored inventory stock.`);
+                                          addToast('info', 'Record Removed', `Removed uniform records for ${stdName || 'Student'}.`);
                                         }}
                                         className="px-2 py-1 bg-rose-50/80 hover:bg-rose-100 text-rose-800 dark:bg-rose-950/40 dark:hover:bg-rose-900/60 dark:text-rose-300 font-semibold rounded-lg text-[10px] flex items-center gap-1 border border-rose-200/80 dark:border-rose-800/60 shadow-2xs transition-all cursor-pointer"
                                         title="Delete Issue Record & Restore Stock"
@@ -3526,38 +3548,44 @@ export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialS
                 />
               </div>
 
-              <div className={`grid ${form.type === 'Additional Purchase' ? 'grid-cols-1' : 'grid-cols-2'} gap-3`}>
-                <div>
-                  <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Size Specification <span className="text-rose-500 font-bold ml-0.5">*</span></label>
-                  <select
-                    value={form.size || ''}
-                    onChange={e => setForm({ ...form, size: e.target.value })}
-                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border cursor-pointer font-semibold"
-                  >
-                    <option value="">Select Size *</option>
-                    {(() => {
-                      const selUniform = uniforms.find(u => u.id === form.itemId);
-                      let targetCategoryOrName = selUniform ? (selUniform.category || selUniform.name) : '';
-                      if (!targetCategoryOrName && form.itemId.startsWith('cat_')) {
-                        const catId2 = form.itemId.replace('cat_', '');
-                        const cat = (uniformCategories || []).find(c => c.id === catId2);
-                        targetCategoryOrName = cat ? cat.name : '';
-                      }
-                      return getCategorySizes(targetCategoryOrName, uniformSizes).map((s, idx) => (
-                        <option key={`${s.value}-${idx}`} value={s.value}>{s.label}</option>
-                      ));
-                    })()}
-                  </select>
-                </div>
-                {form.type !== 'Additional Purchase' && (
+              {/* Size Specification & Quantity for Issue modal: shown once an item/package is selected */}
+              {modalType === 'Issue' && form.type !== 'Additional Purchase' && Boolean(form.itemId) && (
+                <div className="grid grid-cols-2 gap-3 animate-in fade-in">
                   <div>
-                    <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Quantity <span className="text-rose-500 font-bold ml-0.5">*</span></label>
+                    <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">
+                      Size Specification <span className="text-rose-500 font-bold ml-0.5">*</span>
+                    </label>
+                    <select
+                      value={form.size || ''}
+                      onChange={e => setForm({ ...form, size: e.target.value })}
+                      className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border cursor-pointer font-semibold"
+                    >
+                      <option value="">-- Select Size * --</option>
+                      {(() => {
+                        const selUniform = uniforms.find(u => u.id === form.itemId);
+                        let targetCategoryOrName = selUniform ? (selUniform.category || selUniform.name) : '';
+                        if (!targetCategoryOrName && form.itemId.startsWith('cat_')) {
+                          const catId2 = form.itemId.replace('cat_', '');
+                          const cat = (uniformCategories || []).find(c => c.id === catId2);
+                          targetCategoryOrName = cat ? cat.name : '';
+                        }
+                        return getCategorySizes(targetCategoryOrName, uniformSizes).map((s, idx) => (
+                          <option key={`${s.value}-${idx}`} value={s.value}>{s.label}</option>
+                        ));
+                      })()}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">
+                      Quantity <span className="text-rose-500 font-bold ml-0.5">*</span>
+                    </label>
                     <div className="flex items-center gap-1">
                       <button
                         type="button"
-                        disabled={modalType === 'Replace' || Number(form.quantity) <= 1}
+                        disabled={!form.quantity || Number(form.quantity) <= 1}
                         onClick={() => {
-                          const newQ = Math.max(1, (Number(form.quantity) || 1) - 1);
+                          const cur = Number(form.quantity) || 1;
+                          const newQ = Math.max(1, cur - 1);
                           setForm(prev => ({ ...prev, quantity: newQ }));
                         }}
                         className="px-2.5 py-2 rounded-xl bg-slate-200 dark:bg-slate-700 text-slate-800 dark:text-slate-200 font-bold hover:bg-slate-300 dark:hover:bg-slate-600 disabled:opacity-40 transition-all cursor-pointer text-xs"
@@ -3565,12 +3593,11 @@ export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialS
                         -
                       </button>
                       <input
-                        disabled={modalType === 'Replace'}
                         type="number"
                         required
                         min={1}
                         placeholder="e.g. 1"
-                        value={form.quantity === ('' as any) ? '' : form.quantity}
+                        value={form.quantity === ('' as any) || form.quantity === undefined ? '' : form.quantity}
                         onChange={e => {
                           const val = e.target.value;
                           const newQ = val === '' ? ('' as any) : Math.max(1, Number(val) || 1);
@@ -3580,19 +3607,58 @@ export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialS
                       />
                       <button
                         type="button"
-                        disabled={modalType === 'Replace'}
                         onClick={() => {
-                          const newQ = (Number(form.quantity) || 0) + 1;
+                          const cur = form.quantity === '' || form.quantity === undefined ? 0 : (Number(form.quantity) || 0);
+                          const newQ = cur + 1;
                           setForm(prev => ({ ...prev, quantity: newQ }));
                         }}
-                        className="px-2.5 py-2 rounded-xl bg-slate-200 dark:bg-slate-700 text-slate-800 dark:text-slate-200 font-bold hover:bg-slate-300 dark:hover:bg-slate-600 disabled:opacity-40 transition-all cursor-pointer text-xs"
+                        className="px-2.5 py-2 rounded-xl bg-slate-200 dark:bg-slate-700 text-slate-800 dark:text-slate-200 font-bold hover:bg-slate-300 dark:hover:bg-slate-600 transition-all cursor-pointer text-xs"
                       >
                         +
                       </button>
                     </div>
                   </div>
-                )}
-              </div>
+                </div>
+              )}
+
+              {/* Size Specification & Quantity for Exchange (Replace) modal */}
+              {modalType === 'Replace' && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 animate-in fade-in">
+                  <div>
+                    <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">
+                      New Size Specification <span className="text-rose-500 font-bold ml-0.5">*</span>
+                    </label>
+                    <select
+                      value={form.size || ''}
+                      onChange={e => setForm({ ...form, size: e.target.value })}
+                      className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border cursor-pointer font-semibold"
+                    >
+                      <option value="">-- Select New Size * --</option>
+                      {(() => {
+                        const selUniform = uniforms.find(u => u.id === form.itemId);
+                        let targetCategoryOrName = selUniform ? (selUniform.category || selUniform.name) : (selectedIssue?.itemName || selectedIssue?.itemCategory || '');
+                        if (!targetCategoryOrName && form.itemId?.startsWith('cat_')) {
+                          const catId2 = form.itemId.replace('cat_', '');
+                          const cat = (uniformCategories || []).find(c => c.id === catId2);
+                          targetCategoryOrName = cat ? cat.name : '';
+                        }
+                        return getCategorySizes(targetCategoryOrName, uniformSizes).map((s, idx) => (
+                          <option key={`${s.value}-${idx}`} value={s.value}>{s.label}</option>
+                        ));
+                      })()}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">
+                      Current Size & Exchange Qty
+                    </label>
+                    <div className="px-3 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-700 dark:text-slate-300 flex items-center justify-between h-[38px]">
+                      <span>Original Size: <strong className="text-sky-600 dark:text-sky-400">{selectedIssue?.size || 'N/A'}</strong></span>
+                      <span className="px-2 py-0.5 rounded-md bg-slate-200 dark:bg-slate-700 text-[11px] font-bold">Qty: {selectedIssue?.quantity || 1}</span>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {(() => {
                 const selectedItemObj = uniforms.find(u => u.id === form.itemId);

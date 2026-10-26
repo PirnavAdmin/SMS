@@ -6,6 +6,7 @@ import { ExamSetup as ExamSetupType, SubjectItem } from '../../../types';
 import { Panel } from './components/SharedUI';
 import { useData } from '../../../context/DataContext';
 import { fetchExamSubjectsApi, saveExamSubjectsApi } from '../../../api/examination';
+import { validateAcademicTerm } from '../../../utils/dateValidation';
 
 interface ExamSetupProps {
   exam: ExamSetupType | null;
@@ -40,7 +41,7 @@ export const ExamSetup: React.FC<ExamSetupProps> = ({
   addToast,
   options
 }) => {
-  const { academicClasses } = useData();
+  const { academicClasses, academicYears = [] } = useData();
   const [activeSubTab, setActiveSubTab] = useState<'general' | 'subjects'>('general');
   const [loadingSubjects, setLoadingSubjects] = useState(false);
   const [originalSubjects, setOriginalSubjects] = useState<Record<string, any[]>>({});
@@ -500,6 +501,15 @@ export const ExamSetup: React.FC<ExamSetupProps> = ({
     }
     if (!formData.term?.trim()) {
       addToast('warning', 'Validation Warning', 'Please enter an academic term (e.g. Term 1, Mid-Term, Annual).');
+      return;
+    }
+    const termValidation = validateAcademicTerm(formData.term, selectedAcademicYear, academicYears);
+    if (!termValidation.isValid) {
+      addToast(
+        'warning',
+        'Invalid Academic Term',
+        termValidation.message || 'Academic term cannot belong to a past or expired academic year. Please select or enter the current active or a future academic year.'
+      );
       return;
     }
     if (!formData.applicableClasses || formData.applicableClasses.length === 0) {

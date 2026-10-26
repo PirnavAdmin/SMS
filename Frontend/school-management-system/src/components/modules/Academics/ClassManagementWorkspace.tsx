@@ -26,6 +26,7 @@ import {
   autoAllocateApi 
 } from '../../../api/academic';
 import { formatTitleCase } from '../../../utils/validation';
+import { formatConfiguredStudentAdmissionNo } from '../../../utils/idGenerator';
 
 const CLASS_NAMES = [
   'Nursery', 'LKG', 'UKG', 
@@ -3258,7 +3259,7 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
                                   const cleanStudSec = (stud.section || '').replace(/^Section\s*/i, '').trim();
                                   const isUnassigned = !cleanStudSec || cleanStudSec.toLowerCase() === 'unassigned' || cleanStudSec.toLowerCase() === 'none';
                                   const isAssigned = !isUnassigned && availableClassSections.some(sec => sec.toLowerCase() === cleanStudSec.toLowerCase());
-                                  const admissionDisplay = stud.admissionNo || (stud as any).registrationNumber || stud.id || 'REG-1001';
+                                  const admissionDisplay = formatConfiguredStudentAdmissionNo(stud.admissionNo || (stud as any).admissionNumber, stud.id || (stud as any).studentId);
 
                                   return (
                                     <tr 

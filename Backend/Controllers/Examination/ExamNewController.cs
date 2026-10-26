@@ -67,6 +67,14 @@ public class ExamNewController : ControllerBase
         {
             if (request == null || string.IsNullOrWhiteSpace(request.ExamName))
                 return BadRequest(new { success = false, message = "Examination Name is required." });
+            if (!string.IsNullOrWhiteSpace(request.AcademicTerm))
+            {
+                var (isValidTerm, termError) = ValidateAcademicTerm(request.AcademicTerm);
+                if (!isValidTerm)
+                {
+                    return BadRequest(new { success = false, message = termError });
+                }
+            }
 
             var result = await _service.SaveExamDetailsAsync(request);
             return Ok(new { 
@@ -93,6 +101,14 @@ public class ExamNewController : ControllerBase
         {
             if (request == null || string.IsNullOrWhiteSpace(request.ExamName))
                 return BadRequest(new { success = false, message = "Examination Name is required." });
+            if (!string.IsNullOrWhiteSpace(request.AcademicTerm))
+            {
+                var (isValidTerm, termError) = ValidateAcademicTerm(request.AcademicTerm);
+                if (!isValidTerm)
+                {
+                    return BadRequest(new { success = false, message = termError });
+                }
+            }
 
             request.ExamId = id;
             var result = await _service.SaveExamDetailsAsync(request);
@@ -199,5 +215,41 @@ public class ExamNewController : ControllerBase
             return StatusCode(500, new { success = false, message = "Failed to delete exam.", error = ex.Message });
         }
     }
-}
 
+    private static (bool isValid, string message) ValidateAcademicTerm(string term)
+    {
+        if (string.IsNullOrWhiteSpace(term)) return (true, "");
+
+        int currentYear = DateTime.UtcNow.Year;
+
+        var rangeMatch = System.Text.RegularExpressions.Regex.Match(term, @"\b(19\d{2}|20\d{2})\s*[-/–]\s*(\d{2,4})\b");
+        if (rangeMatch.Success)
+        {
+            int startYear = int.Parse(rangeMatch.Groups[1].Value);
+            string endStr = rangeMatch.Groups[2].Value;
+            int endYear = endStr.Length == 2 ? int.Parse(startYear.ToString().Substring(0, 2) + endStr) : int.Parse(endStr);
+
+            if (endYear < startYear)
+            {
+                return (false, $"Academic Term contains an invalid or past academic year range '{rangeMatch.Value}'. The ending year cannot precede the starting year, and past academic years are not allowed.");
+            }
+
+            if (startYear < currentYear || endYear < currentYear)
+            {
+                return (false, $"Academic Term cannot reference a past academic year '{rangeMatch.Value}'. Only current active or future academic years are allowed.");
+            }
+        }
+
+        var yearMatches = System.Text.RegularExpressions.Regex.Matches(term, @"\b(19\d{2}|20\d{2})\b");
+        foreach (System.Text.RegularExpressions.Match ym in yearMatches)
+        {
+            int yr = int.Parse(ym.Value);
+            if (yr < currentYear)
+            {
+                return (false, $"Academic Term references a past academic year '{yr}'. Only current active or future academic years are allowed.");
+            }
+        }
+
+        return (true, "");
+    }
+}

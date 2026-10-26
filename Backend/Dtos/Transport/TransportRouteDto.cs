@@ -52,6 +52,9 @@ namespace SMS.Api.Dtos.Transport
         [JsonPropertyName("pickupPointCount")]
         public int PickupPointCount => TotalPickupPoints;
 
+        [JsonPropertyName("assignedStudentsCount")]
+        public int AssignedStudentsCount { get; set; } = 0;
+
         [JsonPropertyName("assignedBus")]
         public string AssignedBus { get; set; } = "Unassigned";
 

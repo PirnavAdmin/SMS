@@ -16031,16 +16031,26 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       } else {
         ledgerItems.push(hstItem);
       }
-    } else if (existingHstIdx >= 0) {
-      ledgerItems[existingHstIdx] = {
-        ...ledgerItems[existingHstIdx],
-        originalAmount: 0,
-        finalAmount: 0,
-        isApplicable: false,
-        remarks: isNonResident
-          ? "Not Applicable for Day Scholars"
-          : "Hostel Fee Not Configured for Student's Class",
-      };
+    } else {
+      ledgerItems.forEach((item, idx) => {
+        const isHostelItem =
+          item.headId === "FH-HST" ||
+          item.headId === "FH-HST-DEP" ||
+          item.category === "Hostel Fee" ||
+          (item.headName || "").toLowerCase().includes("hostel") ||
+          (item.headName || "").toLowerCase().includes("security deposit");
+        if (isHostelItem) {
+          ledgerItems[idx] = {
+            ...item,
+            originalAmount: 0,
+            finalAmount: 0,
+            isApplicable: false,
+            remarks: isNonResident
+              ? "Not Applicable for Non-Residential Students"
+              : "Hostel Fee Not Configured for Student's Class",
+          };
+        }
+      });
     }
 
     // 3. Deductions: Scholarships & Discounts
@@ -17403,14 +17413,24 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
             itemsToReturn.push(hstItem);
           }
         }
-      } else if (existingHstIdx >= 0) {
-        itemsToReturn[existingHstIdx] = {
-          ...itemsToReturn[existingHstIdx],
-          originalAmount: 0,
-          finalAmount: 0,
-          isApplicable: false,
-          remarks: "Not Applicable for Day Scholar Students",
-        };
+      } else {
+        itemsToReturn.forEach((item, idx) => {
+          const isHostelItem =
+            item.headId === "FH-HST" ||
+            item.headId === "FH-HST-DEP" ||
+            item.category === "Hostel Fee" ||
+            (item.headName || "").toLowerCase().includes("hostel") ||
+            (item.headName || "").toLowerCase().includes("security deposit");
+          if (isHostelItem) {
+            itemsToReturn[idx] = {
+              ...item,
+              originalAmount: 0,
+              finalAmount: 0,
+              isApplicable: false,
+              remarks: "Not Applicable for Non-Residential Students",
+            };
+          }
+        });
       }
 
       let finalSchAmount =

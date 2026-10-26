@@ -149,6 +149,7 @@ namespace SMS.Api.Controllers
             try
             {
                 var existing = await _service.GetByIdOrCodeAsync(routeIdOrCode);
+                int assignedCount = existing?.AssignedStudentsCount ?? 0;
 
                 if (existing != null)
                 {
@@ -159,10 +160,15 @@ namespace SMS.Api.Controllers
                     await _service.DeleteAsync(parsedId, userId: null);
                 }
 
+                string msg = assignedCount > 0
+                    ? $"Transport route deleted successfully. Warning: {assignedCount} student(s) were assigned to this route and have been unassigned."
+                    : "Transport route deleted successfully.";
+
                 return Ok(new
                 {
                     success = true,
-                    message = "Transport route deleted successfully."
+                    message = msg,
+                    assignedStudentsAffected = assignedCount
                 });
             }
             catch (Exception ex)

@@ -2502,6 +2502,75 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
           securityDepositDate: formData.securityDepositDate || depositDate,
         });
 
+        // Sync or remove student from residential list on Edit
+        const isResidentialInEdit =
+          formData.studentType === "Residential" ||
+          (formData.studentType as any) === "Hosteller";
+        try {
+          const STORE_KEY = "edu_db_residential_students";
+          const stored = localStorage.getItem(STORE_KEY);
+          let list = stored ? JSON.parse(stored) : [];
+          if (Array.isArray(list)) {
+            const targetName = fullApplicantName.toLowerCase().trim();
+            const targetAdm = String(
+              editingApp.applicationNo ||
+                (editingApp as any).admissionNo ||
+                "",
+            )
+              .toLowerCase()
+              .trim();
+            if (isResidentialInEdit) {
+              const match = list.find(
+                (r: any) =>
+                  (r.name && r.name.toLowerCase().trim() === targetName) ||
+                  (targetAdm &&
+                    r.admissionNo &&
+                    r.admissionNo.toLowerCase().trim() === targetAdm),
+              );
+              if (match) {
+                match.studentType = "Residential";
+                match.isResidential = true;
+                match.hostelBlock = formData.hostelBlock || "";
+                match.hostelBed = formData.hostelBed || "";
+              } else {
+                list.push({
+                  id: generateNextStudentId(students),
+                  name: fullApplicantName,
+                  firstName: firstName.trim(),
+                  lastName: lastName.trim(),
+                  admissionNo:
+                    editingApp.applicationNo ||
+                    generateNextAdmissionNo(students),
+                  className: formData.appliedClass,
+                  section: formData.section || "Unassigned",
+                  studentType: "Residential",
+                  isResidential: true,
+                  phone: formData.phone || "",
+                  email: formData.email || "",
+                  parentName: formData.parentName || "",
+                  hostelBlock: formData.hostelBlock || "",
+                  hostelBed: formData.hostelBed || "",
+                  status: "Active",
+                });
+              }
+            } else {
+              list = list.filter(
+                (r: any) =>
+                  (!r.name || r.name.toLowerCase().trim() !== targetName) &&
+                  (!targetAdm ||
+                    !r.admissionNo ||
+                    r.admissionNo.toLowerCase().trim() !== targetAdm),
+              );
+            }
+            localStorage.setItem(STORE_KEY, JSON.stringify(list));
+            if (typeof window !== "undefined") {
+              window.dispatchEvent(new Event("residential_students_updated"));
+              window.dispatchEvent(new Event("hostel_allocations_updated"));
+              window.dispatchEvent(new Event("hostel_students_updated"));
+            }
+          }
+        } catch (e) {}
+
         // Auto-Allocate Hostel Room & Bed in Edit if Residential student opted for block, room & bed
         // ONLY if security deposit is paid (or applicable deposit <= 0)!
         const canAllotBedInEdit = applicableSecurityDeposit <= 0 || Boolean(formData.hostelSecurityDepositPaid);
@@ -2663,12 +2732,10 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
         await addAdmission(admissionPayload);
 
         // Sync Residential / Hosteller student across all Hostel & Finance pages
-        if (
+        const isResidentialOpted =
           formData.studentType === "Residential" ||
-          (formData.studentType as any) === "Hosteller" ||
-          formData.hostelBlock ||
-          formData.hostelBed
-        ) {
+          (formData.studentType as any) === "Hosteller";
+        if (isResidentialOpted) {
           try {
             const STORE_KEY = "edu_db_residential_students";
             const stored = localStorage.getItem(STORE_KEY);

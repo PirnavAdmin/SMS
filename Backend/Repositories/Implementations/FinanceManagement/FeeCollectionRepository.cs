@@ -1758,9 +1758,35 @@ public class FeeCollectionRepository : IFeeCollectionRepository
             .Include(s => s.AcademicYear)
             .Where(s => !s.IsDeleted && (s.Status == "Active" || string.IsNullOrEmpty(s.Status)));
 
+        var allBranches = await _context.Branches.AsNoTracking().ToListAsync();
+        List<int> matchedBranchIds = new();
+
         if (!string.IsNullOrWhiteSpace(branch) && !branch.Equals("All", StringComparison.OrdinalIgnoreCase) && !branch.Equals("All Branches", StringComparison.OrdinalIgnoreCase))
         {
-            studentQuery = studentQuery.Where(s => (s.Branch != null && s.Branch.BranchName.ToLower() == branch.ToLower()) || s.BranchId.ToString() == branch);
+            string bClean = branch.Trim().ToLower();
+            string bKeyword = System.Text.RegularExpressions.Regex.Replace(bClean, @"\b(branch|campus|school)\b", "").Trim();
+
+            matchedBranchIds = allBranches
+                .Where(b => b.BranchId.ToString() == branch ||
+                            b.BranchName.ToLower() == bClean ||
+                            b.BranchName.ToLower().Contains(bClean) ||
+                            bClean.Contains(b.BranchName.ToLower()) ||
+                            (!string.IsNullOrEmpty(bKeyword) && (b.BranchName.ToLower().Contains(bKeyword) || bKeyword.Contains(b.BranchName.ToLower()))) ||
+                            (!string.IsNullOrEmpty(bKeyword) && b.Address != null && (b.Address.ToLower().Contains(bKeyword) || bKeyword.Contains(b.Address.ToLower()))) ||
+                            (!string.IsNullOrEmpty(b.BranchCode) && b.BranchCode.ToLower() == bClean))
+                .Select(b => b.BranchId)
+                .Distinct()
+                .ToList();
+
+            if (matchedBranchIds.Count > 0)
+            {
+                studentQuery = studentQuery.Where(s => matchedBranchIds.Contains(s.BranchId));
+            }
+            else if (allBranches.Count == 1)
+            {
+                matchedBranchIds.Add(allBranches[0].BranchId);
+                studentQuery = studentQuery.Where(s => s.BranchId == allBranches[0].BranchId);
+            }
         }
 
         if (!string.IsNullOrWhiteSpace(academicYear) && !academicYear.Equals("All", StringComparison.OrdinalIgnoreCase))
@@ -1775,8 +1801,41 @@ public class FeeCollectionRepository : IFeeCollectionRepository
         }
 
         var activeStudents = await studentQuery.ToListAsync();
-        var studentIdsSet = activeStudents.Select(s => s.StudentId.ToString()).ToHashSet();
-        var admNosSet = activeStudents.Where(s => s.AdmissionNumber != null).Select(s => s.AdmissionNumber!).ToHashSet();
+        var studentIdsSet = activeStudents.Select(s => s.StudentId.ToString()).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var admNosSet = activeStudents.Where(s => s.AdmissionNumber != null).Select(s => s.AdmissionNumber!).ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        var allActiveAdmissions = await _context.AdmissionApplications.AsNoTracking()
+            .Include(a => a.AppliedClass)
+            .Where(a => !a.IsDeleted && a.Status != "Rejected" && a.Status != "Deleted" && a.Status != "Withdrawn")
+            .ToListAsync();
+
+        foreach (var s in activeStudents)
+        {
+            var matchedApps = allActiveAdmissions.Where(a => 
+                (s.AdmissionNumber != null && (a.AdmissionNo == s.AdmissionNumber || a.RegistrationNo == s.AdmissionNumber)) ||
+                a.Id == s.StudentId ||
+                (!string.IsNullOrEmpty(s.StudentName) && $"{a.FirstName} {a.LastName}".Trim().Equals(s.StudentName, StringComparison.OrdinalIgnoreCase)));
+            foreach (var ma in matchedApps)
+            {
+                studentIdsSet.Add(ma.Id.ToString());
+                if (!string.IsNullOrEmpty(ma.AdmissionNo)) admNosSet.Add(ma.AdmissionNo);
+                if (!string.IsNullOrEmpty(ma.RegistrationNo)) admNosSet.Add(ma.RegistrationNo);
+            }
+        }
+
+        if (!string.IsNullOrWhiteSpace(branch) && !branch.Equals("All", StringComparison.OrdinalIgnoreCase) && !branch.Equals("All Branches", StringComparison.OrdinalIgnoreCase))
+        {
+            if (activeStudents.Count > 0)
+            {
+                validPayments = validPayments
+                    .Where(p => studentIdsSet.Contains(p.StudentId) || admNosSet.Contains(p.StudentId))
+                    .ToList();
+            }
+            else
+            {
+                validPayments = new List<SMS.Api.Models.FinanceManagement.FeePayment>();
+            }
+        }
 
         var activeClassesList = await _context.Classes.AsNoTracking()
             .Where(c => c.Status == "Active" || string.IsNullOrEmpty(c.Status))
@@ -1932,11 +1991,6 @@ public class FeeCollectionRepository : IFeeCollectionRepository
             .ThenInclude(r => r!.RoomType)
             .Include(b => b.Hostel)
             .Where(b => b.Status == "Active" || b.Status == "Occupied" || string.IsNullOrEmpty(b.Status))
-            .ToListAsync();
-
-        var allActiveAdmissions = await _context.AdmissionApplications.AsNoTracking()
-            .Include(a => a.AppliedClass)
-            .Where(a => !a.IsDeleted && a.Status != "Rejected" && a.Status != "Deleted" && a.Status != "Withdrawn")
             .ToListAsync();
 
         var hostelAdmissions = allActiveAdmissions
@@ -2119,20 +2173,26 @@ public class FeeCollectionRepository : IFeeCollectionRepository
                 var route = ta?.Route;
                 if (route == null && app != null && !string.IsNullOrEmpty(app.BusRoute))
                 {
-                    route = allRoutes.FirstOrDefault(r => r.RouteName == app.BusRoute || r.RouteId.ToString() == app.BusRoute);
+                    string cleanAppRoute = System.Text.RegularExpressions.Regex.Replace(app.BusRoute.Trim().ToLower(), @"\s+", " ");
+                    route = allRoutes.FirstOrDefault(r => 
+                        System.Text.RegularExpressions.Regex.Replace((r.RouteName ?? "").Trim().ToLower(), @"\s+", " ") == cleanAppRoute || 
+                        r.RouteId.ToString() == app.BusRoute);
                 }
 
                 var pickup = ta?.PickupPoint;
                 if (pickup == null && app != null && !string.IsNullOrEmpty(app.PickupPoint))
                 {
-                    pickup = allPickupPoints.FirstOrDefault(p => p.PickupPointName == app.PickupPoint || p.PickupPointId.ToString() == app.PickupPoint);
+                    string cleanAppPickup = System.Text.RegularExpressions.Regex.Replace(app.PickupPoint.Trim().ToLower(), @"\s+", " ");
+                    pickup = allPickupPoints.FirstOrDefault(p => 
+                        System.Text.RegularExpressions.Regex.Replace((p.PickupPointName ?? "").Trim().ToLower(), @"\s+", " ") == cleanAppPickup || 
+                        p.PickupPointId.ToString() == app.PickupPoint);
                 }
 
                 decimal distance = pickup?.DistanceFromStart ?? (route?.DistanceKm ?? 0m);
-                decimal minKm = route?.MinRangeKm ?? 5m;
+                decimal minKm = route?.MinRangeKm ?? 35m;
                 string trpType = ta?.TransportType ?? app?.TransportType ?? "AC";
                 bool isAc = trpType.Contains("AC", StringComparison.OrdinalIgnoreCase) && !trpType.Contains("Non", StringComparison.OrdinalIgnoreCase);
-                decimal baseFare = isAc ? (route?.AcBaseFare ?? 1200m) : (route?.NonAcBaseFare ?? 1000m);
+                decimal baseFare = isAc ? (route?.AcBaseFare ?? 1500m) : (route?.NonAcBaseFare ?? 1200m);
                 decimal ratePerKm = isAc ? (route?.AcRatePerKm ?? 150m) : (route?.NonAcRatePerKm ?? 100m);
                 decimal monthlyFare = baseFare + Math.Max(0m, distance - minKm) * ratePerKm;
                 decimal annualTransportFare = monthlyFare * 12m;

@@ -1671,6 +1671,8 @@ export const AttendanceView = () => {
                 <div className={`p-3 rounded-2xl border text-[11px] font-semibold flex items-start sm:items-center gap-2.5 transition-all ${
                   isEditable
                     ? 'bg-amber-50/50 dark:bg-amber-955/15 border-amber-250/70 dark:border-amber-900/40 text-amber-800 dark:text-amber-300'
+                    : isSaved
+                    ? 'bg-emerald-50/80 dark:bg-emerald-955/20 border-emerald-250/80 dark:border-emerald-800/60 text-emerald-800 dark:text-emerald-300'
                     : 'bg-slate-50/60 dark:bg-slate-800/30 border-slate-200/60 dark:border-slate-750/50 text-slate-650 dark:text-slate-400'
                 }`}>
                   {isEditable ? (
@@ -1694,6 +1696,16 @@ export const AttendanceView = () => {
                             Click directly on any cell in the grid to cycle through student attendance statuses (<strong className="text-emerald-600">P</strong> → <strong className="text-amber-500">HD</strong> → <strong className="text-orange-500">L</strong> → <strong className="text-rose-600">A</strong> → <strong className="text-slate-400">-</strong>). Click <strong>Save Attendance</strong> at the top right when you are finished.
                           </>
                         )}
+                      </span>
+                    </>
+                  ) : isSaved ? (
+                    <>
+                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5 sm:mt-0" />
+                      <span>
+                        <strong className="font-extrabold text-emerald-900 dark:text-emerald-200">Attendance Register Saved:</strong>{' '}
+                        All attendance entries have been recorded and saved successfully. Click{' '}
+                        <span className="mx-1 px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-900/60 border border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-300 font-bold text-[9px]">Unlock Editing</span>{' '}
+                        in the header if you need to modify attendance entries.
                       </span>
                     </>
                   ) : (

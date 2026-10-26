@@ -103,300 +103,95 @@ export const FinanceDashboardView: React.FC<FinanceDashboardViewProps> = ({ onNa
     };
   }, [loadDashboardData]);
 
-  // Dashboard total expected revenue (takes maximum of backend aggregated total and live student fee ledgers)
+  // Dashboard financial metrics sourced directly and dynamically from the backend API stats
   const computedExpected = React.useMemo(() => {
-    let apiExp = 0;
-    if (apiStats && typeof apiStats.totalExpectedRevenue === 'number' && apiStats.totalExpectedRevenue > 0) {
-      apiExp = Number(apiStats.totalExpectedRevenue);
+    if (apiStats && typeof apiStats.totalExpectedRevenue === 'number') {
+      return Number(apiStats.totalExpectedRevenue);
     }
-    if (!students || students.length === 0) {
-      return apiExp;
-    }
-    let clientExp = 0;
-    students.forEach((st) => {
-      const ledger = getStudentFeeLedger ? getStudentFeeLedger(st.id, st, selectedAcademicYear) : null;
-      if (ledger && typeof ledger.totalPayable === "number" && ledger.totalPayable > 0) {
-        clientExp += ledger.totalPayable;
-      } else {
-        const assignment = (studentFeeAssignments || []).find(
-          (a) => (String(a.studentId) === String(st.id) || (st.admissionNo && String(a.studentId) === String(st.admissionNo))) && (a.status === 'Active' || !a.status)
-        );
-        if (assignment) {
-          const assignStructId = assignment.feeStructureId || (assignment as any).dynamicFeeStructureId;
-          const validStructure = (dynamicFeeStructures || []).some(
-            (d) => String(d.id) === String(assignStructId)
-          );
-          if (validStructure || !assignStructId) {
-            clientExp += Number(assignment.baseFeeTotal || (assignment as any).totalAmount || 0);
-          }
-        } else {
-          const dfs = (dynamicFeeStructures || []).find(
-            (d) => matchesClassName(d.className, st.className) && (d.status === 'Active' || !d.status)
-          );
-          if (dfs) {
-            clientExp += Number(dfs.totalAmount || 0);
-          }
-        }
-      }
-    });
-    return Math.max(apiExp, clientExp);
-  }, [apiStats, students, studentFeeAssignments, dynamicFeeStructures, getStudentFeeLedger, selectedAcademicYear]);
+    return 0;
+  }, [apiStats]);
 
   const computedCollected = React.useMemo(() => {
     if (apiStats && typeof apiStats.totalCollectedRevenue === 'number') {
       return Number(apiStats.totalCollectedRevenue);
     }
-    return (feePayments || []).reduce(
-      (sum, p) => sum + (Number(p.amountPaid ?? (p as any).amount) || 0),
-      0
-    );
-  }, [apiStats, feePayments]);
+    return 0;
+  }, [apiStats]);
 
   const computedClassWiseRevenue = React.useMemo(() => {
-    if (apiStats?.classWiseRevenue && apiStats.classWiseRevenue.length > 0) {
+    if (apiStats?.classWiseRevenue && Array.isArray(apiStats.classWiseRevenue)) {
       return apiStats.classWiseRevenue;
     }
-    if (!academicClasses || academicClasses.length === 0) return [];
-
-    return academicClasses.map((c) => {
-      const classStudents = (students || []).filter((s) => matchesClassName(s.className, c.name));
-      let expected = 0;
-      let collected = 0;
-
-      classStudents.forEach((st) => {
-        const ledger = getStudentFeeLedger ? getStudentFeeLedger(st.id, st, selectedAcademicYear) : null;
-        if (ledger && typeof ledger.totalPayable === "number" && ledger.totalPayable > 0) {
-          expected += ledger.totalPayable;
-        } else {
-          const assignment = (studentFeeAssignments || []).find(
-            (a) => (String(a.studentId) === String(st.id) || (st.admissionNo && String(a.studentId) === String(st.admissionNo))) && (a.status === 'Active' || !a.status)
-          );
-          if (assignment) {
-            const assignStructId = assignment.feeStructureId || (assignment as any).dynamicFeeStructureId;
-            const validStructure = (dynamicFeeStructures || []).some(
-              (d) => String(d.id) === String(assignStructId)
-            );
-            if (validStructure || !assignStructId) {
-              expected += Number(assignment.baseFeeTotal || (assignment as any).totalAmount || 0);
-            }
-          } else {
-            const dfs = (dynamicFeeStructures || []).find(
-              (d) => matchesClassName(d.className, st.className) && (d.status === 'Active' || !d.status)
-            );
-            if (dfs) {
-              expected += Number(dfs.totalAmount || 0);
-            }
-          }
-        }
-      });
-
-      classStudents.forEach((st) => {
-        const studentPayments = (feePayments || []).filter(
-          (p) => String(p.studentId) === String(st.id) || (st.admissionNo && String(p.studentId) === String(st.admissionNo))
-        );
-        studentPayments.forEach((p) => {
-          collected += Number((p.amountPaid ?? (p as any).amount) || 0);
-        });
-      });
-
-      return {
-        className: c.name,
-        expectedAmount: expected,
-        collectedAmount: collected,
-      };
-    });
-  }, [apiStats, academicClasses, students, studentFeeAssignments, dynamicFeeStructures, feePayments, getStudentFeeLedger, selectedAcademicYear]);
+    return [];
+  }, [apiStats]);
 
   const totalCollected = computedCollected;
   const totalExpected = computedExpected;
   const totalPending = Math.max(0, totalExpected - totalCollected);
   const todaysCollection = Number(apiStats?.todayCollectionAmount || 0);
 
-  // Module Specific Expected, Collected, Pending Amounts computed dynamically from live ledgers & payments
+  // Module Specific Expected, Collected, Pending Amounts sourced directly from backend API
   const hostelExpected = React.useMemo(() => {
-    if (apiStats && typeof apiStats.hostelExpected === 'number' && apiStats.hostelExpected > 0) {
+    if (apiStats && typeof apiStats.hostelExpected === 'number') {
       return Number(apiStats.hostelExpected);
     }
-    let sum = 0;
-    (students || []).forEach((st) => {
-      const ledger = getStudentFeeLedger ? getStudentFeeLedger(st.id, st, selectedAcademicYear) : null;
-      if (ledger?.feeItems) {
-        ledger.feeItems
-          .filter(
-            (i) => i.isApplicable && (
-              i.headId === "FH-HST" ||
-              i.headId === "FH-HST-DEP" ||
-              (i.category || "").toLowerCase().includes("hostel") ||
-              (i.headName || "").toLowerCase().includes("hostel") ||
-              (i.headName || "").toLowerCase().includes("security deposit")
-            )
-          )
-          .forEach((i) => {
-            sum += Number(i.finalAmount || i.originalAmount || 0);
-          });
-      }
-    });
-    return sum;
-  }, [apiStats, students, getStudentFeeLedger, selectedAcademicYear]);
+    return 0;
+  }, [apiStats]);
 
   const hostelCollected = React.useMemo(() => {
-    if (apiStats && typeof apiStats.hostelCollected === 'number' && apiStats.hostelCollected > 0) {
+    if (apiStats && typeof apiStats.hostelCollected === 'number') {
       return Number(apiStats.hostelCollected);
     }
-    return (feePayments || []).reduce((sum, p) => {
-      const pAny = p as any;
-      if (typeof pAny.hostelFee === 'number' && pAny.hostelFee > 0) {
-        return sum + pAny.hostelFee;
-      }
-      if (Array.isArray(p.paymentAllocation) && p.paymentAllocation.length > 0) {
-        const allocAmt = p.paymentAllocation
-          .filter((a) =>
-            (a.feeHeadName || '').toLowerCase().includes('hostel') ||
-            (a.termName || '').toLowerCase().includes('hostel')
-          )
-          .reduce((s, a) => s + (Number(a.amount) || 0), 0);
-        if (allocAmt > 0) return sum + allocAmt;
-      }
-      const isHostel =
-        pAny.feeHeadId === "FH-HST" ||
-        pAny.feeHeadId === "FH-HST-DEP" ||
-        (pAny.feeHeadName || "").toLowerCase().includes("hostel") ||
-        (pAny.feeHeadName || "").toLowerCase().includes("security deposit") ||
-        (pAny.category || "").toLowerCase().includes("hostel") ||
-        (pAny.termName || "").toLowerCase().includes("hostel") ||
-        (pAny.feeType || "").toLowerCase().includes("hostel") ||
-        (pAny.remarks || "").toLowerCase().includes("hostel") ||
-        (pAny.remarks || "").toLowerCase().includes("security deposit");
-      return sum + (isHostel ? Number(p.amountPaid ?? pAny.amount ?? 0) : 0);
-    }, 0);
-  }, [apiStats, feePayments]);
+    return 0;
+  }, [apiStats]);
 
   const hostelPending = Math.max(0, hostelExpected - hostelCollected);
 
   const transportExpected = React.useMemo(() => {
-    if (apiStats && typeof apiStats.transportExpected === 'number' && apiStats.transportExpected > 0) {
+    if (apiStats && typeof apiStats.transportExpected === 'number') {
       return Number(apiStats.transportExpected);
     }
-    let sum = 0;
-    (students || []).forEach((st) => {
-      const ledger = getStudentFeeLedger ? getStudentFeeLedger(st.id, st, selectedAcademicYear) : null;
-      if (ledger?.feeItems) {
-        const trItem = ledger.feeItems.find(
-          (i) => i.isApplicable && (i.headId === "FH-TRP" || (i.category || "").toLowerCase().includes("transport") || (i.headName || "").toLowerCase().includes("transport"))
-        );
-        if (trItem) sum += Number(trItem.finalAmount || trItem.originalAmount || 0);
-      }
-    });
-    return sum;
-  }, [apiStats, students, getStudentFeeLedger, selectedAcademicYear]);
+    return 0;
+  }, [apiStats]);
 
   const transportCollected = React.useMemo(() => {
-    if (apiStats && typeof apiStats.transportCollected === 'number' && apiStats.transportCollected > 0) {
+    if (apiStats && typeof apiStats.transportCollected === 'number') {
       return Number(apiStats.transportCollected);
     }
-    return (feePayments || []).reduce((sum, p) => {
-      const pAny = p as any;
-      if (typeof p.transportFee === 'number' && p.transportFee > 0) {
-        return sum + p.transportFee;
-      }
-      if (Array.isArray(p.paymentAllocation) && p.paymentAllocation.length > 0) {
-        const allocAmt = p.paymentAllocation
-          .filter((a) =>
-            (a.feeHeadName || '').toLowerCase().includes('transport') ||
-            (a.termName || '').toLowerCase().includes('transport')
-          )
-          .reduce((s, a) => s + (Number(a.amount) || 0), 0);
-        if (allocAmt > 0) return sum + allocAmt;
-      }
-      const isTransport =
-        pAny.feeHeadId === "FH-TRP" ||
-        (pAny.feeHeadName || "").toLowerCase().includes("transport") ||
-        (pAny.category || "").toLowerCase().includes("transport") ||
-        (pAny.termName || "").toLowerCase().includes("transport") ||
-        (pAny.feeType || "").toLowerCase().includes("transport");
-      return sum + (isTransport ? Number(p.amountPaid ?? pAny.amount ?? 0) : 0);
-    }, 0);
-  }, [apiStats, feePayments]);
+    return 0;
+  }, [apiStats]);
 
   const transportPending = Math.max(0, transportExpected - transportCollected);
 
   const uniformExpected = React.useMemo(() => {
-    if (apiStats && typeof apiStats.uniformExpected === 'number' && apiStats.uniformExpected > 0) {
+    if (apiStats && typeof apiStats.uniformExpected === 'number') {
       return Number(apiStats.uniformExpected);
     }
-    let sum = 0;
-    (students || []).forEach((st) => {
-      const ledger = getStudentFeeLedger ? getStudentFeeLedger(st.id, st, selectedAcademicYear) : null;
-      if (ledger?.feeItems) {
-        const uItem = ledger.feeItems.find(
-          (i) => i.isApplicable && (i.headId === "FH-UNI" || (i.category || "").toLowerCase().includes("uniform") || (i.headName || "").toLowerCase().includes("uniform"))
-        );
-        if (uItem) sum += Number(uItem.finalAmount || uItem.originalAmount || 0);
-      }
-    });
-    return sum;
-  }, [apiStats, students, getStudentFeeLedger, selectedAcademicYear]);
+    return 0;
+  }, [apiStats]);
 
   const uniformCollected = React.useMemo(() => {
-    if (apiStats && typeof apiStats.uniformCollected === 'number' && apiStats.uniformCollected > 0) {
+    if (apiStats && typeof apiStats.uniformCollected === 'number') {
       return Number(apiStats.uniformCollected);
     }
-    return (feePayments || []).reduce((sum, p) => {
-      const pAny = p as any;
-      if (typeof pAny.uniformFee === 'number' && pAny.uniformFee > 0) {
-        return sum + pAny.uniformFee;
-      }
-      if (Array.isArray(p.paymentAllocation) && p.paymentAllocation.length > 0) {
-        const allocAmt = p.paymentAllocation
-          .filter((a) =>
-            (a.feeHeadName || '').toLowerCase().includes('uniform') ||
-            (a.termName || '').toLowerCase().includes('uniform')
-          )
-          .reduce((s, a) => s + (Number(a.amount) || 0), 0);
-        if (allocAmt > 0) return sum + allocAmt;
-      }
-      const isUniform =
-        pAny.feeHeadId === "FH-UNI" ||
-        (pAny.feeHeadName || "").toLowerCase().includes("uniform") ||
-        (pAny.category || "").toLowerCase().includes("uniform") ||
-        (pAny.termName || "").toLowerCase().includes("uniform") ||
-        (pAny.feeType || "").toLowerCase().includes("uniform");
-      return sum + (isUniform ? Number(p.amountPaid ?? pAny.amount ?? 0) : 0);
-    }, 0);
-  }, [apiStats, feePayments]);
+    return 0;
+  }, [apiStats]);
 
   const uniformPending = Math.max(0, uniformExpected - uniformCollected);
 
   const finesExpected = React.useMemo(() => {
-    if (apiStats && typeof apiStats.finesExpected === 'number' && apiStats.finesExpected > 0) {
+    if (apiStats && typeof apiStats.finesExpected === 'number') {
       return Number(apiStats.finesExpected);
     }
-    let sum = 0;
-    (students || []).forEach((st) => {
-      const ledger = getStudentFeeLedger ? getStudentFeeLedger(st.id, st, selectedAcademicYear) : null;
-      if (ledger && typeof ledger.fineAmount === "number") {
-        sum += Number(ledger.fineAmount || 0);
-      }
-    });
-    return sum;
-  }, [apiStats, students, getStudentFeeLedger, selectedAcademicYear]);
+    return 0;
+  }, [apiStats]);
 
   const finesCollected = React.useMemo(() => {
-    if (apiStats && typeof apiStats.finesCollected === 'number' && apiStats.finesCollected > 0) {
+    if (apiStats && typeof apiStats.finesCollected === 'number') {
       return Number(apiStats.finesCollected);
     }
-    return (feePayments || []).reduce((sum, p) => {
-      const pAny = p as any;
-      if (typeof p.fine === 'number' && p.fine > 0) {
-        return sum + p.fine;
-      }
-      const isFine =
-        (pAny.feeHeadName || "").toLowerCase().includes("fine") ||
-        (pAny.category || "").toLowerCase().includes("fine") ||
-        (pAny.feeType || "").toLowerCase().includes("fine");
-      return sum + (isFine ? Number(p.amountPaid ?? pAny.amount ?? 0) : 0);
-    }, 0);
-  }, [apiStats, feePayments]);
+    return 0;
+  }, [apiStats]);
 
   const finesPending = Math.max(0, finesExpected - finesCollected);
 

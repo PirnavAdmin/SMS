@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { formatCurrency } from '../../../utils/currency';
-import { Route, Plus, Search, Edit, Trash2, Bus } from 'lucide-react';
+import { Route, Plus, Search, Edit, Trash2, Bus, AlertTriangle } from 'lucide-react';
 import { TransportRoute } from '../../../types';
 import { useData } from '../../../context/DataContext';
 import { useToast } from '../../../context/ToastContext';
@@ -8,7 +8,7 @@ import { ExportButton } from '../../common/ExportButton';
 import { ConfirmModal } from '../../common/ConfirmModal';
 
 export const TransportConfigView: React.FC = () => {
-  const { erpTransportRoutes, addERPTransportRoute, updateERPTransportRoute, deleteERPTransportRoute } = useData();
+  const { erpTransportRoutes, studentTransports = [], students = [], admissions = [], addERPTransportRoute, updateERPTransportRoute, deleteERPTransportRoute } = useData();
   const { addToast } = useToast();
 
   const [query, setQuery] = useState('');
@@ -16,20 +16,111 @@ export const TransportConfigView: React.FC = () => {
   const [editingRoute, setEditingRoute] = useState<TransportRoute | null>(null);
   const [deletingRoute, setDeletingRoute] = useState<TransportRoute | null>(null);
 
+  const getAssignedStudentsForRoute = (route: TransportRoute | null) => {
+    if (!route) return [];
+    const routeIdStr = String(route.id || '').trim();
+    const routeNameStr = (route.routeName || '').trim().toLowerCase();
+    const routeCodeStr = (route.routeCode || '').trim().toLowerCase();
+
+    const assignedMap = new Map<string, { studentId: string; studentName: string; admissionNo: string }>();
+
+    (studentTransports || []).forEach(st => {
+      const isActive = st.status === 'Active' || (st.status as any) === true || String(st.status).toLowerCase() === 'true';
+      if (!isActive) return;
+
+      const stRouteId = String(st.routeId || '').trim();
+      const stRouteName = (st.routeName || '').trim().toLowerCase();
+
+      const matches = (routeIdStr && stRouteId && stRouteId === routeIdStr) ||
+                      (routeNameStr && stRouteName && stRouteName === routeNameStr) ||
+                      (routeCodeStr && stRouteName && stRouteName === routeCodeStr);
+
+      if (matches) {
+        const student = (students || []).find(s => s.id === st.studentId || s.admissionNo === st.admissionNo || s.name === st.studentName);
+        const admNo = st.admissionNo || student?.admissionNo || '-';
+        const sName = st.studentName || student?.name || 'Student';
+        const key = admNo !== '-' ? admNo : (st.studentId || sName);
+        if (key && !assignedMap.has(key)) {
+          assignedMap.set(key, {
+            studentId: st.studentId || student?.id || '',
+            studentName: sName,
+            admissionNo: admNo
+          });
+        }
+      }
+    });
+
+    (admissions || []).forEach(a => {
+      const aAny = a as any;
+      if (aAny.isDeleted || a.status === 'Rejected' || a.studentType === 'Residential' || a.transportRequired === false) return;
+      const aBusRoute = (aAny.busRoute || '').trim().toLowerCase();
+      if (!aBusRoute) return;
+
+      const matches = (routeNameStr && aBusRoute === routeNameStr) ||
+                      (routeCodeStr && aBusRoute === routeCodeStr) ||
+                      (routeIdStr && aBusRoute === routeIdStr);
+
+      if (matches) {
+        const admNo = aAny.admissionNo || a.applicationNo || String(a.id);
+        const sName = a.applicantName || aAny.studentName || 'Student';
+        const key = admNo || sName;
+        if (key && !assignedMap.has(key)) {
+          assignedMap.set(key, {
+            studentId: String(a.id),
+            studentName: sName,
+            admissionNo: admNo
+          });
+        }
+      }
+    });
+
+    (students || []).forEach(s => {
+      const sAny = s as any;
+      if (sAny.isDeleted || s.status === 'Inactive') return;
+      const sRoute = (sAny.busRoute || '').trim().toLowerCase();
+      const sRouteId = String(sAny.routeId || '').trim();
+
+      const matches = (routeIdStr && sRouteId && sRouteId === routeIdStr) ||
+                      (routeNameStr && sRoute && sRoute === routeNameStr) ||
+                      (routeCodeStr && sRoute && sRoute === routeCodeStr);
+
+      if (matches) {
+        const admNo = s.admissionNo || '-';
+        const sName = s.name || `${s.firstName || ''} ${s.lastName || ''}`.trim() || 'Student';
+        const key = admNo !== '-' ? admNo : (s.id || sName);
+        if (key && !assignedMap.has(key)) {
+          assignedMap.set(key, {
+            studentId: s.id,
+            studentName: sName,
+            admissionNo: admNo
+          });
+        }
+      }
+    });
+
+    return Array.from(assignedMap.values());
+  };
+
+  const assignedStudentsForDeletingRoute = useMemo(() => {
+    return getAssignedStudentsForRoute(deletingRoute);
+  }, [deletingRoute, studentTransports, admissions, students]);
+
+  const hasAssignedStudents = assignedStudentsForDeletingRoute.length > 0;
+
   const [formData, setFormData] = useState<Partial<TransportRoute>>({
     routeName: '',
     routeCode: '',
-    vehicleNumber: 'NY-99-AB-1001',
-    vehicleName: 'School Bus AC',
+    vehicleNumber: '',
+    vehicleName: '',
     driverName: '',
     driverMobile: '',
     pickupPoint: '',
-    dropPoint: 'School Gate',
-    distanceKm: 10,
-    monthlyFee: 1500,
-    quarterlyFee: 4200,
-    halfYearlyFee: 8000,
-    annualFee: 15000,
+    dropPoint: '',
+    distanceKm: 0,
+    monthlyFee: 0,
+    quarterlyFee: 0,
+    halfYearlyFee: 0,
+    annualFee: 0,
     status: 'Active'
   });
 
@@ -41,18 +132,18 @@ export const TransportConfigView: React.FC = () => {
     setEditingRoute(null);
     setFormData({
       routeName: '',
-      routeCode: 'R-' + Math.floor(100 + Math.random() * 900),
-      vehicleNumber: 'NY-99-AB-' + Math.floor(1000 + Math.random() * 9000),
-      vehicleName: 'Tata Starbus AC 40-Seater',
+      routeCode: '',
+      vehicleNumber: '',
+      vehicleName: '',
       driverName: '',
       driverMobile: '',
-      pickupPoint: 'City Center Stop',
-      dropPoint: 'Academy Gate 1',
-      distanceKm: 10,
-      monthlyFee: 1500,
-      quarterlyFee: 4200,
-      halfYearlyFee: 8000,
-      annualFee: 15000,
+      pickupPoint: '',
+      dropPoint: '',
+      distanceKm: 0,
+      monthlyFee: 0,
+      quarterlyFee: 0,
+      halfYearlyFee: 0,
+      annualFee: 0,
       status: 'Active'
     });
     setIsModalOpen(true);
@@ -222,17 +313,52 @@ export const TransportConfigView: React.FC = () => {
 
       <ConfirmModal
         isOpen={!!deletingRoute}
-        title="Delete Route"
-        message={`Are you sure you want to delete ${deletingRoute?.routeName}?`}
+        title={hasAssignedStudents ? "Warning: Students Assigned to Route" : "Delete Route"}
+        subtitle={hasAssignedStudents ? `Attention Required: ${assignedStudentsForDeletingRoute.length} active student(s) assigned` : "Please review this action carefully"}
+        variant={hasAssignedStudents ? "warning" : "danger"}
+        confirmLabel={hasAssignedStudents ? "Proceed & Delete Route" : "Confirm Delete"}
         onConfirm={() => {
           if (deletingRoute) {
+            const count = assignedStudentsForDeletingRoute.length;
+            const rName = deletingRoute.routeName;
             deleteERPTransportRoute(deletingRoute.id);
-            addToast('success', 'Route Removed');
+            if (count > 0) {
+              addToast('warning', 'Route Removed with Assigned Students', `Route "${rName}" removed. ${count} student(s) affected.`);
+            } else {
+              addToast('success', 'Route Removed', `Route "${rName}" removed.`);
+            }
             setDeletingRoute(null);
           }
         }}
         onCancel={() => setDeletingRoute(null)}
-      />
+      >
+        {hasAssignedStudents ? (
+          <div className="space-y-3 pt-1">
+            <div className="p-3 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/60 text-amber-900 dark:text-amber-200 text-xs space-y-1.5">
+              <div className="flex items-center gap-1.5 font-bold text-amber-800 dark:text-amber-300">
+                <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
+                <span>Warning: Students are assigned to this route</span>
+              </div>
+              <p>
+                There are <strong className="font-extrabold">{assignedStudentsForDeletingRoute.length} student(s)</strong> assigned to <strong className="font-extrabold">{deletingRoute?.routeName}</strong> ({deletingRoute?.routeCode}). Deleting this route will unassign these students.
+              </p>
+            </div>
+            <div className="max-h-36 overflow-y-auto space-y-1 text-xs">
+              {assignedStudentsForDeletingRoute.map((st, idx) => (
+                <div key={idx} className="flex items-center justify-between p-1.5 rounded bg-slate-50 dark:bg-slate-800 border text-xs">
+                  <span className="font-mono text-[10px] font-bold px-1.5 py-0.5 rounded bg-sky-100 dark:bg-sky-950 text-sky-800 dark:text-sky-300">{st.admissionNo}</span>
+                  <span className="font-semibold text-slate-800 dark:text-slate-200">{st.studentName}</span>
+                </div>
+              ))}
+            </div>
+            <p className="text-xs text-rose-600 dark:text-rose-400 font-medium">Are you sure you want to proceed?</p>
+          </div>
+        ) : (
+          <p className="text-sm text-slate-600 dark:text-slate-300 leading-relaxed">
+            Are you sure you want to delete {deletingRoute?.routeName}?
+          </p>
+        )}
+      </ConfirmModal>
     </div>
   );
 };

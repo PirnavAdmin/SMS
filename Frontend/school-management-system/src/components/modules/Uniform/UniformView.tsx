@@ -476,15 +476,20 @@ export const UniformView: React.FC<{tabs?: React.ReactNode}> = ({ tabs }) => {
         )}
       </div>
 
-      <Pagination
-        currentPage={currentPage}
-        totalItems={filtered.length}
-        itemsPerPage={itemsPerPage}
-        onPageChange={setCurrentPage}
-        onItemsPerPageChange={(n) => { setItemsPerPage(n); setCurrentPage(1); }}
-        itemsPerPageOptions={[12, 24, 36, 48, 100]}
-        label="uniform items"
-      />
+      {filtered.length > 0 && (
+        <div className="glass-card px-5 py-3.5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm">
+          <Pagination
+            currentPage={currentPage}
+            totalItems={filtered.length}
+            itemsPerPage={itemsPerPage}
+            onPageChange={setCurrentPage}
+            onItemsPerPageChange={(n) => { setItemsPerPage(n); setCurrentPage(1); }}
+            itemsPerPageOptions={[12, 24, 36, 48, 100]}
+            label="uniform items"
+            className="border-t-0 pt-0 pb-0"
+          />
+        </div>
+      )}
 
       {/* Package / Uniform Type Creation & Configuration Modal */}
       {isFormOpen && (

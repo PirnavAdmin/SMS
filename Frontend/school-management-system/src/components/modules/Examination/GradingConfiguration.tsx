@@ -185,7 +185,7 @@ export const GradingConfiguration: React.FC<GradingConfigurationProps> = ({
     if (!isTemp && numericId > 0) {
       try {
         await deleteGradingScaleRuleApi(numericId);
-        addToast('info', 'Row Removed', 'Scale rule deleted.');
+        addToast('error', 'Row Removed', 'Scale rule deleted.');
       } catch (err: any) {
         console.warn('API direct delete note:', err);
       }
