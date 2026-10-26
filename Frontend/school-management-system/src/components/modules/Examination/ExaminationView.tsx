@@ -250,7 +250,7 @@ export const ExaminationView: React.FC<ExaminationViewProps> = ({ initialTab = '
     setSelectedExamId('');
     setActiveExam(null);
     setShowDeleteConfirm(false);
-    addToast('info', 'Examination Removed', 'Successfully removed the examination setup.');
+    addToast('error', 'Examination Removed', 'Successfully removed the examination setup.');
   };
 
   const handleSaveSetup = async (updatedFields: any, showToast = true) => {

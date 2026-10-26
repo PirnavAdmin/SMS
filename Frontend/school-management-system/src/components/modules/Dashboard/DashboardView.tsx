@@ -1247,7 +1247,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
           <div className="lg:col-span-4 bg-white dark:bg-slate-900 border border-sky-300 dark:border-sky-800 shadow-xs hover:shadow-md hover:border-sky-400 dark:hover:border-sky-600 transition-all duration-300 p-4.5 sm:p-5 rounded-2xl flex flex-col justify-between h-[255px]">
             <div className="flex items-center gap-2 shrink-0">
               <Cake className="w-4.5 h-4.5 text-rose-500" />
-              <h3 className="text-base font-bold text-slate-900 dark:text-white">Faculty & Staff Birthdays</h3>
+              <h3 className="text-base font-bold text-slate-900 dark:text-white">Faculty & Staff Birthday's</h3>
             </div>
             <div className="flex-1 overflow-y-auto space-y-2 pr-1 scrollbar-thin max-h-[180px] pt-1">
               {upcomingBirthdays.length === 0 ? (
