@@ -15176,11 +15176,33 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         ? (optStudent as unknown as AdmissionApplication)
         : undefined);
 
+    const isPayTargetResident = (() => {
+      try {
+        const stored = typeof window !== "undefined" ? window.sessionStorage?.getItem("edu_fee_pay_target") : null;
+        if (stored) {
+          const p = JSON.parse(stored);
+          const sKey = String(p.studentId || p.admissionNo || "").trim().toLowerCase();
+          const curId = String(studentId || "").trim().toLowerCase();
+          const curAdm = String(student?.admissionNo || (optStudent as any)?.admissionNo || "").trim().toLowerCase();
+          if (sKey && (sKey === curId || sKey === curAdm)) {
+            return p.studentType === "Residential" || p.residentialStatus === "Residential" || p.feeHead === "Hostel Security Deposit" || p.source === "admission_security_deposit";
+          }
+        }
+      } catch {}
+      return false;
+    })();
+
     const stType: "Day Scholar" | "Hosteller" =
       admApp?.residentialStatus === "Residential" ||
       admApp?.studentType === "Residential" ||
       student?.studentType === "Hosteller" ||
-      student?.studentType === "Residential"
+      student?.studentType === "Residential" ||
+      (student as any)?.residentialStatus === "Residential" ||
+      (optStudent as any)?.studentType === "Residential" ||
+      (optStudent as any)?.studentType === "Hosteller" ||
+      (optStudent as any)?.residentialStatus === "Residential" ||
+      (optStudent as any)?.residentialStatus === "Resident" ||
+      isPayTargetResident
         ? "Hosteller"
         : "Day Scholar";
     const clsName =
@@ -15425,7 +15447,12 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       admApp?.residentialStatus === "Residential" ||
       admApp?.residentialStatus === "Resident" ||
       admApp?.studentType === "Residential" ||
-      admApp?.studentType === "Hosteller";
+      admApp?.studentType === "Hosteller" ||
+      (optStudent as any)?.studentType === "Residential" ||
+      (optStudent as any)?.studentType === "Hosteller" ||
+      (optStudent as any)?.residentialStatus === "Residential" ||
+      (optStudent as any)?.residentialStatus === "Resident" ||
+      isPayTargetResident;
 
     const isNonResident = !isResident;
 

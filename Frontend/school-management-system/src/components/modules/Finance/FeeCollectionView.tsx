@@ -318,13 +318,31 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
     if (backendFeeProfile?.hostelStaySummary && backendFeeProfile.hostelStaySummary !== "None") return true;
     if (backendFeeProfile?.hostelAssessedFee > 0 || backendFeeProfile?.hostelPaidAmount > 0) return true;
     const sType = (selectedStudent as any)?.studentType || (selectedStudent as any)?.type;
-    if (sType === "Residential") return true;
-    const adm = (admissions || []).find((a: any) =>
-      a.id === selectedStudent.id ||
-      a.applicationNo === selectedStudent.admissionNo ||
-      a.registrationNo === selectedStudent.admissionNo
-    );
-    return adm?.studentType === "Residential";
+    const rStatus = (selectedStudent as any)?.residentialStatus;
+    if (sType === "Residential" || sType === "Hosteller" || rStatus === "Residential" || rStatus === "Resident") return true;
+
+    // Check if target is stored from Admissions
+    try {
+      const stored = sessionStorage.getItem('edu_fee_pay_target');
+      if (stored) {
+        const p = JSON.parse(stored);
+        const sKey = String(p.studentId || p.admissionNo || '').trim().toLowerCase();
+        const curId = String(selectedStudent.id || '').trim().toLowerCase();
+        const curAdm = String(selectedStudent.admissionNo || '').trim().toLowerCase();
+        if (sKey && (sKey === curId || sKey === curAdm)) {
+          if (p.feeHead === "Hostel Security Deposit" || p.studentType === "Residential" || p.source === "admission_security_deposit") return true;
+        }
+      }
+    } catch {}
+
+    const adm = (admissions || []).find((a: any) => {
+      const aId = String(a.id || '').trim().toLowerCase();
+      const aAdm = String(a.admissionNo || a.applicationNo || a.registrationNo || '').trim().toLowerCase();
+      const curId = String(selectedStudent.id || '').trim().toLowerCase();
+      const curAdm = String(selectedStudent.admissionNo || '').trim().toLowerCase();
+      return (curId && (aId === curId || aAdm === curId)) || (curAdm && (aId === curAdm || aAdm === curAdm));
+    });
+    return adm?.studentType === "Residential" || adm?.residentialStatus === "Residential" || adm?.residentialStatus === "Resident";
   }, [selectedStudent, backendFeeProfile, admissions]);
 
 
@@ -829,7 +847,31 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
           return (sKey && (sid === sKey || adm === sKey)) || (sName && (name === sName || name.includes(sName)));
         });
         if (matched) {
-          handleSelectStudent(matched);
+          const isHostelTarget =
+            parsed.feeHead === "Hostel Security Deposit" ||
+            parsed.feeCategory === "Hostel Fee" ||
+            parsed.source === "admission_security_deposit" ||
+            parsed.studentType === "Residential";
+
+          const studentWithResidential = isHostelTarget
+            ? {
+                ...matched,
+                studentType: "Hosteller",
+                residentialStatus: "Residential",
+                hostelSharing: parsed.hostelSharing || (matched as any).hostelSharing,
+                hostelAc: parsed.hostelAc || (matched as any).hostelAc,
+                hostelBlock: parsed.hostelBlock || (matched as any).hostelBlock,
+              }
+            : matched;
+
+          handleSelectStudent(studentWithResidential as any);
+
+          if (isHostelTarget && updateStudent && matched.id) {
+            updateStudent(matched.id, {
+              studentType: "Hosteller",
+              residentialStatus: "Residential",
+            } as any);
+          }
         }
       }
     } catch (e) {}
@@ -1168,6 +1210,14 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
           updateAdmission(targetAdm.id, { hostelSecurityDepositPaid: true } as any);
         }
 
+        if (selectedStudent.id && updateStudent) {
+          updateStudent(selectedStudent.id, {
+            hostelSecurityDepositPaid: true,
+            studentType: "Hosteller",
+            residentialStatus: "Residential",
+          } as any);
+        }
+
         const rawAdmStr = localStorage.getItem("edu_db_admissions");
         if (rawAdmStr) {
           const rawAdms = JSON.parse(rawAdmStr);
@@ -1175,7 +1225,7 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
             const matchesAdm =
               String(a.id) === String(selectedStudent.id) ||
               (selectedStudent.admissionNo && (String(a.admissionNo) === String(selectedStudent.admissionNo) || String(a.applicationNo) === String(selectedStudent.admissionNo) || String(a.registrationNo) === String(selectedStudent.admissionNo)));
-            return matchesAdm ? { ...a, hostelSecurityDepositPaid: true } : a;
+            return matchesAdm ? { ...a, hostelSecurityDepositPaid: true, studentType: "Residential", residentialStatus: "Residential" } : a;
           });
           localStorage.setItem("edu_db_admissions", JSON.stringify(updatedRawAdms));
         }
@@ -1187,16 +1237,20 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
             const matchesSt =
               String(s.id) === String(selectedStudent.id) ||
               (selectedStudent.admissionNo && String(s.admissionNo) === String(selectedStudent.admissionNo));
-            return matchesSt ? { ...s, hostelSecurityDepositPaid: true } : s;
+            return matchesSt ? { ...s, hostelSecurityDepositPaid: true, studentType: "Hosteller", residentialStatus: "Residential" } : s;
           });
           localStorage.setItem("edu_db_students", JSON.stringify(updatedRawSts));
         }
 
-        setSelectedStudent((prev: any) => (prev ? { ...prev, hostelSecurityDepositPaid: true } : prev));
+        setSelectedStudent((prev: any) => (prev ? { ...prev, hostelSecurityDepositPaid: true, studentType: "Hosteller", residentialStatus: "Residential" } : prev));
         sessionStorage.removeItem("edu_fee_pay_target");
 
         if (typeof window !== "undefined") {
           window.dispatchEvent(new CustomEvent("residential_students_updated"));
+          window.dispatchEvent(new CustomEvent("hostel_allocations_updated"));
+          window.dispatchEvent(new CustomEvent("hostel_students_updated"));
+          window.dispatchEvent(new CustomEvent("students_updated"));
+          window.dispatchEvent(new CustomEvent("finance_data_updated"));
         }
         addToast(
           "success",
@@ -1335,14 +1389,6 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
         });
     }
 
-    const isResidentStudent =
-      selectedStudent?.studentType === "Hosteller" ||
-      (selectedStudent as any)?.studentType === "Residential" ||
-      (selectedStudent as any)?.residentialStatus === "Residential" ||
-      (selectedStudent as any)?.residentialStatus === "Resident";
-
-    const isNonResidentStudent = !isResidentStudent;
-
     const admRecord = (admissions || []).find((a) => {
       if (!a) return false;
       const sId = selectedStudent.id != null ? String(selectedStudent.id).toLowerCase().trim() : '';
@@ -1364,6 +1410,18 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
       if (sName && sName !== 'student' && aName && (sName === aName || sName.includes(aName) || aName.includes(sName))) return true;
       return false;
     });
+
+    const isResidentStudent =
+      isHostellerStudent ||
+      selectedStudent?.studentType === "Hosteller" ||
+      (selectedStudent as any)?.studentType === "Residential" ||
+      (selectedStudent as any)?.residentialStatus === "Residential" ||
+      (selectedStudent as any)?.residentialStatus === "Resident" ||
+      admRecord?.studentType === "Residential" ||
+      admRecord?.residentialStatus === "Residential" ||
+      admRecord?.residentialStatus === "Resident";
+
+    const isNonResidentStudent = !isResidentStudent;
 
     const optList = admRecord ? admRecord.selectedOptionalFees : (selectedStudent as any)?.selectedOptionalFees;
 
@@ -1396,9 +1454,14 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
 
         const isHostel =
           inst.feeHeadId === "FH-HST" ||
+          inst.feeHeadId === "FH-HST-DEP" ||
           catLower.includes("hostel") ||
           headLower.includes("hostel") ||
-          termLower.includes("hostel");
+          headLower.includes("security deposit") ||
+          headLower.includes("bhanu block") ||
+          termLower.includes("hostel") ||
+          termLower.includes("bhanu block") ||
+          termLower.includes("security deposit");
 
         const isTransport =
           inst.feeHeadId === "FH-TRP" ||
@@ -2194,13 +2257,66 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
       }
     }
 
-    // 4. Ensure Hostel Security Deposit is strictly One Time and NEVER split into terms
-    const depInstallments = combined.filter(
+    // 4. Ensure Hostel Security Deposit is strictly One Time, NEVER split into terms, and always displayed for Residential students
+    let depInstallments = combined.filter(
       (c) =>
         c.feeHeadId === "FH-HST-DEP" ||
         (c.feeHeadName || "").toLowerCase().includes("security deposit") ||
         (c.termName || "").toLowerCase().includes("security deposit"),
     );
+
+    let hostelDepositAmount = 5000;
+    try {
+      const stored = sessionStorage.getItem("edu_fee_pay_target");
+      if (stored) {
+        const p = JSON.parse(stored);
+        if (p.amount && Number(p.amount) > 0) hostelDepositAmount = Number(p.amount);
+      }
+    } catch {}
+
+    if (hostelDepositAmount === 5000) {
+      const fhc = (financeHostelConfigs || []).find((c) => c.status === "Active" && Number(c.securityDeposit) > 0);
+      if (fhc && Number(fhc.securityDeposit) > 0) {
+        hostelDepositAmount = Number(fhc.securityDeposit);
+      } else if (admRecord?.hostelSecurityDeposit) {
+        hostelDepositAmount = Number(admRecord.hostelSecurityDeposit);
+      }
+    }
+
+    if (depInstallments.length === 0 && isResidentStudent && hostelDepositAmount > 0) {
+      const isDepositPaid = (feePayments || []).some((p) => {
+        const isStudentMatch =
+          p.studentId === selectedStudent.id ||
+          (selectedStudent.admissionNo && p.studentId === selectedStudent.admissionNo);
+        if (!isStudentMatch || !p.amountPaid || p.amountPaid <= 0) return false;
+        return (
+          p.selectedInstallmentIds?.some((id) => id.includes("FH-HST-DEP")) ||
+          p.paymentAllocation?.some((a) => (a.feeHeadName || "").toLowerCase().includes("security deposit")) ||
+          (p.remarks || "").toLowerCase().includes("security deposit")
+        );
+      }) || Boolean(selectedStudent.hostelSecurityDepositPaid || admRecord?.hostelSecurityDepositPaid);
+
+      combined.unshift({
+        id: `INST-${selectedStudent.id}-${currentYear}-FH-HST-DEP-onetime`,
+        studentId: selectedStudent.id,
+        academicYear: currentYear,
+        feeAssignmentId: `FA-HST-DEP-${selectedStudent.id}`,
+        feeHeadId: "FH-HST-DEP",
+        feeHeadName: "Hostel Security Deposit (Refundable)",
+        frequency: "One Time",
+        termId: "ONETIME",
+        termName: "One Time",
+        dueDate: new Date().toISOString().split("T")[0],
+        amount: hostelDepositAmount,
+        paidAmount: isDepositPaid ? hostelDepositAmount : 0,
+        dueAmount: isDepositPaid ? 0 : hostelDepositAmount,
+        status: isDepositPaid ? "Paid" : "Pending",
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      });
+
+      depInstallments = [combined[0]];
+    }
 
     if (depInstallments.length > 1) {
       const totalDepAmt = depInstallments.reduce((sum, d) => sum + (d.amount || 0), 0);
@@ -2220,8 +2336,8 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
         }
       }
 
-      // Add a single consolidated One-Time installment
-      combined.push({
+      // Add a single consolidated One-Time installment at index 0
+      combined.unshift({
         ...firstDep,
         id: `INST-${selectedStudent.id}-${currentYear}-FH-HST-DEP-onetime`,
         feeHeadId: "FH-HST-DEP",
@@ -2239,9 +2355,25 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
       depInstallments[0].termName = "One Time";
     }
 
+    // Ensure Hostel Security Deposit is sorted to the VERY TOP (Row 1)
+    combined.sort((a, b) => {
+      const aIsDep =
+        a.feeHeadId === "FH-HST-DEP" ||
+        (a.feeHeadName || "").toLowerCase().includes("security deposit") ||
+        (a.termName || "").toLowerCase().includes("security deposit");
+      const bIsDep =
+        b.feeHeadId === "FH-HST-DEP" ||
+        (b.feeHeadName || "").toLowerCase().includes("security deposit") ||
+        (b.termName || "").toLowerCase().includes("security deposit");
+      if (aIsDep && !bIsDep) return -1;
+      if (!aIsDep && bIsDep) return 1;
+      return 0;
+    });
+
     return combined;
   }, [
     selectedStudent,
+    isHostellerStudent,
     feePayments,
     studentFeeLedgers,
     studentFeeInstallments,
@@ -2443,6 +2575,53 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
 
   const isFormValid = isAmountValid && isModeSelected && isModeFieldsValid;
 
+  const handleGlobalCustomAmountChange = (valStr: string) => {
+    if (isFullyPaid || computedNetPayable <= 0) {
+      setCustomAmountReceived("");
+      return;
+    }
+    const numVal = Number(valStr);
+    const validVal =
+      valStr !== "" && !isNaN(numVal) && numVal > computedNetPayable
+        ? String(computedNetPayable)
+        : valStr;
+    setCustomAmountReceived(validVal);
+
+    let activeSelected = selectedInstallments;
+    if (activeSelected.length === 0 && allInstallments.some((i) => i.dueAmount > 0)) {
+      const pendingInsts = currentYearInstallments.filter((i) => i.dueAmount > 0);
+      activeSelected = pendingInsts.map((i) => i.id);
+      setSelectedInstallments(activeSelected);
+    }
+
+    if (validVal === "") {
+      const resetMap: Record<string, string> = {};
+      activeSelected.forEach((id) => {
+        const inst = allInstallments.find((i: any) => i.id === id);
+        if (inst) {
+          resetMap[id] = String(inst.dueAmount);
+        }
+      });
+      setCustomCollectionAmounts(resetMap);
+      return;
+    }
+
+    const totalToDistribute = Math.max(0, Number(validVal) || 0);
+    let remaining = totalToDistribute;
+
+    const newCustoms: Record<string, string> = {};
+    const selectedInstObjs = allInstallments.filter((i: any) => activeSelected.includes(i.id));
+
+    // Distribute sequentially (Deposit is strictly at index 0, followed by subsequent terms)
+    selectedInstObjs.forEach((inst: any) => {
+      const alloc = Math.min(inst.dueAmount, remaining);
+      newCustoms[inst.id] = String(alloc);
+      remaining = Math.max(0, remaining - alloc);
+    });
+
+    setCustomCollectionAmounts(newCustoms);
+  };
+
   const toggleInstallmentSelection = (id: string) => {
     const targetIdx = allInstallments.findIndex((i: any) => i.id === id);
     if (targetIdx === -1) return;
@@ -2459,7 +2638,20 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
           toRemoveIds.forEach((remId) => delete copy[remId]);
           return copy;
         });
-        return prev.filter((x) => !toRemoveIds.has(x));
+        const nextIds = prev.filter((x) => !toRemoveIds.has(x));
+        if (customAmountReceived && Number(customAmountReceived) > 0) {
+          const totalToDist = Number(customAmountReceived);
+          let rem = totalToDist;
+          const newCustoms: Record<string, string> = {};
+          const selectedObjs = allInstallments.filter((i: any) => nextIds.includes(i.id));
+          selectedObjs.forEach((inst: any) => {
+            const alloc = Math.min(inst.dueAmount, rem);
+            newCustoms[inst.id] = String(alloc);
+            rem = Math.max(0, rem - alloc);
+          });
+          setCustomCollectionAmounts(newCustoms);
+        }
+        return nextIds;
       } else {
         // Select target and all prior pending installments (with dueAmount > 0)
         const toAddInsts: any[] = [];
@@ -2479,7 +2671,20 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
           return copy;
         });
         const toAddIds = toAddInsts.map((inst) => inst.id);
-        return Array.from(new Set([...prev, ...toAddIds]));
+        const nextIds = Array.from(new Set([...prev, ...toAddIds]));
+        if (customAmountReceived && Number(customAmountReceived) > 0) {
+          const totalToDist = Number(customAmountReceived);
+          let rem = totalToDist;
+          const newCustoms: Record<string, string> = {};
+          const selectedObjs = allInstallments.filter((i: any) => nextIds.includes(i.id));
+          selectedObjs.forEach((inst: any) => {
+            const alloc = Math.min(inst.dueAmount, rem);
+            newCustoms[inst.id] = String(alloc);
+            rem = Math.max(0, rem - alloc);
+          });
+          setCustomCollectionAmounts(newCustoms);
+        }
+        return nextIds;
       }
     });
   };
@@ -3044,6 +3249,11 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
                                     (incl. {formatCurrency(priorArrears)} prior arrears)
                                   </span>
                                 )}
+                                {isSelected && customAmtVal !== "" && Number(customAmtVal) < inst.dueAmount && (
+                                  <span className="text-[9px] font-sans text-amber-600 dark:text-amber-400 block font-bold">
+                                    Remaining: {formatCurrency(Math.max(0, inst.dueAmount - Number(customAmtVal)))}
+                                  </span>
+                                )}
                               </div>
                             )}
                           </td>
@@ -3232,16 +3442,7 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
                   max={computedNetPayable > 0 ? computedNetPayable : 0}
                   disabled={isFullyPaid || computedNetPayable <= 0 || selectedInstallments.length === 0}
                   value={computedNetPayable > 0 ? (customAmountReceived !== "" ? customAmountReceived : amountPaying) : 0}
-                  onChange={(e) => {
-                    if (isFullyPaid || computedNetPayable <= 0) return;
-                    const val = e.target.value;
-                    const numVal = Number(val);
-                    if (val !== "" && !isNaN(numVal) && numVal > computedNetPayable) {
-                      setCustomAmountReceived(String(computedNetPayable));
-                    } else {
-                      setCustomAmountReceived(val);
-                    }
-                  }}
+                  onChange={(e) => handleGlobalCustomAmountChange(e.target.value)}
                   placeholder={String(computedNetPayable)}
                   className="w-full p-2 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-bold font-mono bg-white dark:bg-slate-900 text-blue-600 dark:text-blue-400 disabled:opacity-50 disabled:bg-slate-100 dark:disabled:bg-slate-900 disabled:cursor-not-allowed"
                 />
@@ -3308,7 +3509,7 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
                   {customAmountReceived ? (
                     <button
                       type="button"
-                      onClick={() => setCustomAmountReceived("")}
+                      onClick={() => handleGlobalCustomAmountChange("")}
                       className="text-[10px] font-bold text-blue-600 dark:text-blue-400 hover:underline cursor-pointer"
                     >
                       Reset to Full
@@ -3323,22 +3524,7 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
                     max={computedNetPayable > 0 ? computedNetPayable : 0}
                     disabled={isFullyPaid || computedNetPayable <= 0 || selectedInstallments.length === 0}
                     value={customAmountReceived}
-                    onChange={(e) => {
-                      if (isFullyPaid || computedNetPayable <= 0) {
-                        setCustomAmountReceived("");
-                        return;
-                      }
-                      const val = e.target.value;
-                      const numVal = Number(val);
-                      if (val !== "" && !isNaN(numVal) && numVal > computedNetPayable) {
-                        setCustomAmountReceived(String(computedNetPayable));
-                      } else {
-                        setCustomAmountReceived(val);
-                      }
-                      if (selectedInstallments.length === 0 && allInstallments.some(i => i.dueAmount > 0)) {
-                        handleSelectAllCurrentYear();
-                      }
-                    }}
+                    onChange={(e) => handleGlobalCustomAmountChange(e.target.value)}
                     placeholder={String(computedNetPayable)}
                     className="w-full pl-7 pr-3 py-1.5 border border-slate-300 dark:border-slate-700 rounded-lg text-xs font-mono font-bold bg-white dark:bg-slate-950 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:bg-slate-100 dark:disabled:bg-slate-900 disabled:cursor-not-allowed"
                   />

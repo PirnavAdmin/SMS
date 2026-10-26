@@ -46,6 +46,21 @@ export const HostelDashboardView: React.FC<HostelDashboardViewProps> = ({ onNavi
 
   useEffect(() => {
     loadData();
+    const handleSync = () => {
+      loadData();
+    };
+    window.addEventListener('residential_students_updated', handleSync);
+    window.addEventListener('hostel_allocations_updated', handleSync);
+    window.addEventListener('hostel_students_updated', handleSync);
+    window.addEventListener('students_updated', handleSync);
+    window.addEventListener('finance_data_updated', handleSync);
+    return () => {
+      window.removeEventListener('residential_students_updated', handleSync);
+      window.removeEventListener('hostel_allocations_updated', handleSync);
+      window.removeEventListener('hostel_students_updated', handleSync);
+      window.removeEventListener('students_updated', handleSync);
+      window.removeEventListener('finance_data_updated', handleSync);
+    };
   }, [loadData]);
 
   const { user, role } = useAuth();
@@ -91,8 +106,21 @@ export const HostelDashboardView: React.FC<HostelDashboardViewProps> = ({ onNavi
   const blocksCapacitySum = displayBlocks.reduce((acc, b) => acc + (Number(b.totalCapacity) || 0), 0);
   const totalCapacity = roomsCapacitySum > 0 ? roomsCapacitySum : blocksCapacitySum;
 
+  // Merge live context allocations and local allocations
+  const allRawAllocations = React.useMemo(() => {
+    const list = [...(allocations || [])];
+    const ctxAllocs = Array.isArray(dataContext?.studentHostelAssignments) ? dataContext.studentHostelAssignments : [];
+    ctxAllocs.forEach((ca: any) => {
+      const caId = String(ca.allocationId || ca.id || '');
+      if (ca && !list.some(a => String(a.allocationId || (a as any).id || '') === caId)) {
+        list.push(ca as any);
+      }
+    });
+    return list;
+  }, [allocations, dataContext?.studentHostelAssignments]);
+
   // Active bed allocations belonging strictly to active blocks
-  const validAllocations = allocations.filter(a =>
+  const validAllocations = allRawAllocations.filter(a =>
     a && (a.status === 'Active' || !a.isPendingAdmitted) &&
     (activeBlockIds.has(String(a.hostelId)) || activeBlockRooms.some(r => Number(r.roomId) === Number(a.roomId)))
   );
@@ -119,16 +147,22 @@ export const HostelDashboardView: React.FC<HostelDashboardViewProps> = ({ onNavi
       if (typeof pAny.hostelFee === 'number' && pAny.hostelFee > 0) return sum + pAny.hostelFee;
       if (Array.isArray(p.paymentAllocation) && p.paymentAllocation.length > 0) {
         const alloc = p.paymentAllocation
-          .filter(a => (a.feeHeadName || '').toLowerCase().includes('hostel') || (a.termName || '').toLowerCase().includes('hostel'))
+          .filter(a => {
+            const h = (a.feeHeadName || '').toLowerCase();
+            const t = (a.termName || '').toLowerCase();
+            return h.includes('hostel') || t.includes('hostel') || h.includes('security deposit') || t.includes('security deposit');
+          })
           .reduce((s, a) => s + (Number(a.amount) || 0), 0);
         if (alloc > 0) return sum + alloc;
       }
       const isHst =
         pAny.feeHeadId === 'FH-HST' ||
+        pAny.feeHeadId === 'FH-HST-DEP' ||
         (pAny.feeHeadName || '').toLowerCase().includes('hostel') ||
         (pAny.feeHeadName || '').toLowerCase().includes('security deposit') ||
         (pAny.category || '').toLowerCase().includes('hostel') ||
-        (pAny.remarks || '').toLowerCase().includes('hostel');
+        (pAny.remarks || '').toLowerCase().includes('hostel') ||
+        (pAny.remarks || '').toLowerCase().includes('security deposit');
       return sum + (isHst ? Number(p.amountPaid ?? pAny.amount ?? 0) : 0);
     }, 0);
 

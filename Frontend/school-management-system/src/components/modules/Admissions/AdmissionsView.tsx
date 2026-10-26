@@ -1290,12 +1290,28 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
       admissionNo: studentIdentifier,
       studentName: applicantFullName,
       className: formData.appliedClass || formData.className,
+      studentType: "Residential",
+      residentialStatus: "Residential",
+      hostelSharing: formData.roomSharing || (formData as any).hostelSharing || "Four Sharing",
+      hostelAc: formData.facilityPreference || (formData as any).hostelAc || "Non-AC",
+      hostelBlock: formData.hostelBlock || "",
       feeHead: "Hostel Security Deposit",
       feeCategory: "Hostel Fee",
       amount: applicableSecurityDeposit,
       source: "admission_security_deposit",
     };
     sessionStorage.setItem("edu_fee_pay_target", JSON.stringify(targetPayload));
+
+    // Update active admission with Residential and preferences
+    if (editingApp && updateAdmission) {
+      updateAdmission(editingApp.id, {
+        studentType: "Residential",
+        residentialStatus: "Residential",
+        hostelSharing: targetPayload.hostelSharing,
+        hostelAc: targetPayload.hostelAc,
+      } as any);
+    }
+
     if (onNavigate) {
       onNavigate("fees");
     } else {

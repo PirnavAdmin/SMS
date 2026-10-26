@@ -241,6 +241,18 @@ export const StudentHostelAssignmentView: React.FC = () => {
       const normalizedType = normalizeStudentType(rawType);
       const isRes = normalizedType === 'Residential' || s.isHostelRequired === true || s.optedResidential === true;
 
+      const hasDepPayment = (dataContext?.feePayments || []).some(p => {
+        const pId = normalize(p.studentId);
+        const pAdm = normalize(p.admissionNo);
+        const isMatch = (sAdm && (pAdm === sAdm || pId === sAdm)) || (sId && (pId === sId || pAdm === sId));
+        if (!isMatch) return false;
+        return (
+          p.selectedInstallmentIds?.some(id => id.includes("FH-HST-DEP")) ||
+          p.paymentAllocation?.some(alloc => (alloc.feeHeadName || '').toLowerCase().includes("security deposit")) ||
+          (p.remarks || '').toLowerCase().includes("security deposit")
+        );
+      });
+
       const studentObj = {
         id: sId || sAdm,
         name: `${s.firstName || ''} ${s.lastName || ''}`.trim() || s.name || `Student #${sId}`,
@@ -249,7 +261,7 @@ export const StudentHostelAssignmentView: React.FC = () => {
         admissionNo: s.admissionNo || s.registrationNumber || sId,
         isResidential: Boolean(isRes),
         studentType: isRes ? 'Residential' : 'Non-Residential',
-        hostelSecurityDepositPaid: Boolean(s.hostelSecurityDepositPaid || (s as any).securityDepositPaid)
+        hostelSecurityDepositPaid: Boolean(s.hostelSecurityDepositPaid || (s as any).securityDepositPaid || hasDepPayment)
       };
 
       const primaryKey = sAdm || `id_${sId}` || `name_${sName}`;
@@ -273,6 +285,18 @@ export const StudentHostelAssignmentView: React.FC = () => {
       const normalizedType = normalizeStudentType(rawType);
       const isRes = normalizedType === 'Residential' || a.isHostelRequired === true || a.optedResidential === true;
 
+      const hasDepPayment = (dataContext?.feePayments || []).some(p => {
+        const pId = normalize(p.studentId);
+        const pAdm = normalize(p.admissionNo);
+        const isMatch = (aAdm && (pAdm === aAdm || pId === aAdm)) || (aId && (pId === aId || pAdm === aId));
+        if (!isMatch) return false;
+        return (
+          p.selectedInstallmentIds?.some(id => id.includes("FH-HST-DEP")) ||
+          p.paymentAllocation?.some(alloc => (alloc.feeHeadName || '').toLowerCase().includes("security deposit")) ||
+          (p.remarks || '').toLowerCase().includes("security deposit")
+        );
+      });
+
       // Check if this applicant is already in map by admissionNo or Name
       const isAlreadyAdded = (aAdm && seenAdmNos.has(aAdm)) || (aName && seenNames.has(aName));
 
@@ -289,6 +313,9 @@ export const StudentHostelAssignmentView: React.FC = () => {
               existing.isResidential = false;
               existing.studentType = 'Non-Residential';
             }
+            if (a.hostelSecurityDepositPaid || (a as any).securityDepositPaid || hasDepPayment) {
+              existing.hostelSecurityDepositPaid = true;
+            }
             break;
           }
         }
@@ -303,7 +330,7 @@ export const StudentHostelAssignmentView: React.FC = () => {
         admissionNo: a.admissionNo || a.applicationNo || a.registrationNo || aId,
         isResidential: Boolean(isRes),
         studentType: isRes ? 'Residential' : 'Non-Residential',
-        hostelSecurityDepositPaid: Boolean(a.hostelSecurityDepositPaid || (a as any).securityDepositPaid)
+        hostelSecurityDepositPaid: Boolean(a.hostelSecurityDepositPaid || (a as any).securityDepositPaid || hasDepPayment)
       };
 
       const key = aAdm || `id_${aId}` || `name_${aName}`;
