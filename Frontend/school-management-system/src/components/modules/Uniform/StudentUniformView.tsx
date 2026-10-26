@@ -49,8 +49,15 @@ export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialS
     feeStructures = [],
     studentFeeAssignments = [],
     branches = [],
-    addFeePayment
+    addFeePayment,
+    fetchUniformData
   } = useData() as any;
+
+  React.useEffect(() => {
+    if (fetchUniformData) {
+      fetchUniformData();
+    }
+  }, []);
 
   const defaultBranch = (branches?.[0]?.name || (branches?.[0] as any)?.branchName || '') as string;
   const { addToast } = useToast();
@@ -68,8 +75,8 @@ export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialS
     const classBasedFee = getUniformPackageFeeByClass(targetClass);
     if (classBasedFee && classBasedFee > 0) return classBasedFee;
 
-    // 3. Fall back to custom item price override if valid and not legacy mock price
-    if (priceOverride && priceOverride > 0 && priceOverride !== 85 && priceOverride !== 4400 && priceOverride !== 4444) return priceOverride;
+    // 3. Fall back to custom item price override if valid
+    if (priceOverride && priceOverride > 0) return priceOverride;
 
     return getUniformPackageFeeByClass(targetClass);
   };
@@ -1067,9 +1074,6 @@ export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialS
             });
           }
 
-          try {
-            localStorage.setItem('edu_db_student_uniform_issues', JSON.stringify(updated));
-          } catch (e) {}
           return updated;
         });
       }
@@ -1815,10 +1819,6 @@ export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialS
           });
         }
 
-        try {
-          localStorage.setItem('edu_db_student_uniform_issues', JSON.stringify(updated));
-          localStorage.setItem('student_uniform_issues', JSON.stringify(updated));
-        } catch (err) {}
         return updated;
       });
 
@@ -1863,7 +1863,7 @@ export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialS
           addToast('warning', 'Validation Error', 'Please select a Size Specification.');
           return;
         }
-        if (!form.quantity || Number(form.quantity) < 1) {
+        if (form.quantity && Number(form.quantity) < 1) {
           addToast('warning', 'Validation Error', 'Please enter a valid Quantity.');
           return;
         }
@@ -2235,18 +2235,6 @@ export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialS
           notes: exchangedNote
         });
 
-        // Direct localStorage backup — ensures exchange data persists across module navigation
-        // even if other useEffects trigger setStudentUniformIssues with stale closures
-        try {
-          const stored = JSON.parse(localStorage.getItem('edu_db_student_uniform_issues') || '[]');
-          const backupUpdated = stored.map((item: any) =>
-            item.id === selectedIssue.id
-              ? { ...item, status: 'Issued', size: finalSize, price: newUnitPrice, replacementDate: todayStr, notes: exchangedNote }
-              : item
-          );
-          localStorage.setItem('edu_db_student_uniform_issues', JSON.stringify(backupUpdated));
-          localStorage.setItem('student_uniform_issues', JSON.stringify(backupUpdated));
-        } catch (e) {}
       }
 
       // Also update the linked fee installment in Finance & Fees if the price changed
@@ -2605,10 +2593,10 @@ export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialS
                               <td className="py-3.5 px-4 text-center whitespace-nowrap">
                                 <button
                                   onClick={() => setSelectedStudentForItemsModal(g)}
-                                  className="px-2.5 py-1 bg-purple-50/80 hover:bg-purple-100 text-purple-800 dark:bg-purple-950/40 dark:hover:bg-purple-900/60 dark:text-purple-300 font-semibold rounded-lg text-[10px] flex items-center gap-1 border border-purple-200/80 dark:border-purple-800/60 shadow-2xs transition-all cursor-pointer mx-auto"
+                                  className="p-1.5 bg-purple-50/80 hover:bg-purple-100 text-purple-800 dark:bg-purple-950/40 dark:hover:bg-purple-900/60 dark:text-purple-300 rounded-lg border border-purple-200/80 dark:border-purple-800/60 shadow-2xs transition-all cursor-pointer inline-flex items-center justify-center mx-auto"
                                   title="View Returned Itemized Breakdown"
                                 >
-                                  <ShoppingBag className="w-3 h-3 text-purple-600 dark:text-purple-400" /> View All
+                                  <ShoppingBag className="w-3.5 h-3.5 text-purple-600 dark:text-purple-400" />
                                 </button>
                               </td>
                             </>
@@ -2642,10 +2630,10 @@ export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialS
                               <td className="py-3.5 px-4 text-center whitespace-nowrap">
                                 <button
                                   onClick={() => setSelectedStudentForItemsModal(g)}
-                                  className="px-2.5 py-1 bg-purple-50/80 hover:bg-purple-100 text-purple-800 dark:bg-purple-950/40 dark:hover:bg-purple-900/60 dark:text-purple-300 font-semibold rounded-lg text-[10px] flex items-center gap-1 border border-purple-200/80 dark:border-purple-800/60 shadow-2xs transition-all cursor-pointer mx-auto"
+                                  className="p-1.5 bg-purple-50/80 hover:bg-purple-100 text-purple-800 dark:bg-purple-950/40 dark:hover:bg-purple-900/60 dark:text-purple-300 rounded-lg border border-purple-200/80 dark:border-purple-800/60 shadow-2xs transition-all cursor-pointer inline-flex items-center justify-center mx-auto"
                                   title="View Exchanged Itemized Breakdown"
                                 >
-                                  <ShoppingBag className="w-3 h-3 text-purple-600 dark:text-purple-400" /> View All
+                                  <ShoppingBag className="w-3.5 h-3.5 text-purple-600 dark:text-purple-400" />
                                 </button>
                               </td>
                             </>
@@ -2778,20 +2766,20 @@ export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialS
                                     <button
                                       type="button"
                                       onClick={() => handleOpenIssueForStudent(g)}
-                                      className="px-2.5 py-1 bg-sky-600 hover:bg-sky-500 text-white font-semibold rounded-lg text-[10px] flex items-center gap-1 shadow-2xs transition-all cursor-pointer"
+                                      className="p-1.5 bg-sky-600 hover:bg-sky-500 text-white rounded-lg shadow-2xs transition-all cursor-pointer inline-flex items-center justify-center"
                                       title="Issue Uniform Package"
                                     >
-                                      <Plus className="w-3 h-3" /> Issue Uniform
+                                      <Plus className="w-3.5 h-3.5" />
                                     </button>
                                   ) : (
                                     <>
                                       {isFilterFeePaid || isFilterFeePending ? (
                                         <button
                                           onClick={() => setSelectedStudentForItemsModal(g)}
-                                          className="px-2.5 py-1 bg-purple-50/80 hover:bg-purple-100 text-purple-800 dark:bg-purple-950/40 dark:hover:bg-purple-900/60 dark:text-purple-300 font-semibold rounded-lg text-[10px] flex items-center gap-1 border border-purple-200/80 dark:border-purple-800/60 shadow-2xs transition-all cursor-pointer"
+                                          className="p-1.5 bg-purple-50/80 hover:bg-purple-100 text-purple-800 dark:bg-purple-950/40 dark:hover:bg-purple-900/60 dark:text-purple-300 rounded-lg border border-purple-200/80 dark:border-purple-800/60 shadow-2xs transition-all cursor-pointer inline-flex items-center justify-center"
                                           title="View Itemized Breakdown"
                                         >
-                                          <ShoppingBag className="w-3 h-3 text-purple-600 dark:text-purple-400" /> View All
+                                          <ShoppingBag className="w-3.5 h-3.5 text-purple-600 dark:text-purple-400" />
                                         </button>
                                       ) : (
                                     <>
@@ -2809,10 +2797,10 @@ export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialS
                                             addToast('warning', 'No Active Items', `All items for ${g.studentName} have already been returned.`);
                                           }
                                         }}
-                                        className="px-2.5 py-1 bg-amber-50/80 hover:bg-amber-100 text-amber-800 dark:bg-amber-950/40 dark:hover:bg-amber-900/60 dark:text-amber-300 font-semibold rounded-lg text-[10px] flex items-center gap-1 border border-amber-200/80 dark:border-amber-800/60 shadow-2xs transition-all cursor-pointer"
+                                        className="p-1.5 bg-amber-50/80 hover:bg-amber-100 text-amber-800 dark:bg-amber-950/40 dark:hover:bg-amber-900/60 dark:text-amber-300 rounded-lg border border-amber-200/80 dark:border-amber-800/60 shadow-2xs transition-all cursor-pointer inline-flex items-center justify-center"
                                         title="Return Item & Restore Stock"
                                       >
-                                        <Undo2 className="w-3 h-3 text-amber-600 dark:text-amber-400" /> Return
+                                        <Undo2 className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
                                       </button>
 
                                       <button
@@ -2829,10 +2817,10 @@ export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialS
                                             addToast('warning', 'No Active Items', `No active items available for exchange for ${g.studentName}.`);
                                           }
                                         }}
-                                        className="px-2.5 py-1 bg-sky-50/80 hover:bg-sky-100 text-sky-800 dark:bg-sky-950/40 dark:hover:bg-sky-900/60 dark:text-sky-300 font-semibold rounded-lg text-[10px] flex items-center gap-1 border border-sky-200/80 dark:border-sky-800/60 shadow-2xs transition-all cursor-pointer"
+                                        className="p-1.5 bg-sky-50/80 hover:bg-sky-100 text-sky-800 dark:bg-sky-950/40 dark:hover:bg-sky-900/60 dark:text-sky-300 rounded-lg border border-sky-200/80 dark:border-sky-800/60 shadow-2xs transition-all cursor-pointer inline-flex items-center justify-center"
                                         title="Exchange Size"
                                       >
-                                        <RefreshCw className="w-3 h-3 text-sky-600 dark:text-sky-400" /> Exchange
+                                        <RefreshCw className="w-3.5 h-3.5 text-sky-600 dark:text-sky-400" />
                                       </button>
 
                                       <button
@@ -2894,18 +2882,18 @@ export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialS
 
                                           addToast('info', 'Record Removed', `Removed uniform records for ${stdName || 'Student'}.`);
                                         }}
-                                        className="px-2 py-1 bg-rose-50/80 hover:bg-rose-100 text-rose-800 dark:bg-rose-950/40 dark:hover:bg-rose-900/60 dark:text-rose-300 font-semibold rounded-lg text-[10px] flex items-center gap-1 border border-rose-200/80 dark:border-rose-800/60 shadow-2xs transition-all cursor-pointer"
+                                        className="p-1.5 bg-rose-50/80 hover:bg-rose-100 text-rose-800 dark:bg-rose-950/40 dark:hover:bg-rose-900/60 dark:text-rose-300 rounded-lg border border-rose-200/80 dark:border-rose-800/60 shadow-2xs transition-all cursor-pointer inline-flex items-center justify-center"
                                         title="Delete Issue Record & Restore Stock"
                                       >
-                                        <Trash2 className="w-3 h-3 text-rose-600 dark:text-rose-400" /> Delete
+                                        <Trash2 className="w-3.5 h-3.5 text-rose-600 dark:text-rose-400" />
                                       </button>
 
                                       <button
                                         onClick={() => setSelectedStudentForItemsModal(g)}
-                                        className="px-2.5 py-1 bg-purple-50/80 hover:bg-purple-100 text-purple-800 dark:bg-purple-950/40 dark:hover:bg-purple-900/60 dark:text-purple-300 font-semibold rounded-lg text-[10px] flex items-center gap-1 border border-purple-200/80 dark:border-purple-800/60 shadow-2xs transition-all cursor-pointer"
+                                        className="p-1.5 bg-purple-50/80 hover:bg-purple-100 text-purple-800 dark:bg-purple-950/40 dark:hover:bg-purple-900/60 dark:text-purple-300 rounded-lg border border-purple-200/80 dark:border-purple-800/60 shadow-2xs transition-all cursor-pointer inline-flex items-center justify-center"
                                         title="View Itemized Breakdown"
                                       >
-                                        <ShoppingBag className="w-3 h-3 text-purple-600 dark:text-purple-400" /> View All
+                                        <ShoppingBag className="w-3.5 h-3.5 text-purple-600 dark:text-purple-400" />
                                       </button>
                                     </>
                                   )}
@@ -3306,7 +3294,20 @@ export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialS
                           <>
                             <select
                               value={form.itemId || ''}
-                              onChange={e => setForm({ ...form, itemId: e.target.value })}
+                              onChange={e => {
+                                const newItemId = e.target.value;
+                                setForm(prev => {
+                                  const selUniform = uniforms.find(u => u.id === newItemId);
+                                  let targetCat = selUniform ? (selUniform.category || selUniform.name || '') : '';
+                                  if (!targetCat && newItemId?.startsWith('cat_')) {
+                                    const catObj = (uniformCategories || []).find(c => c.id === newItemId.replace('cat_', ''));
+                                    targetCat = catObj ? catObj.name : '';
+                                  }
+                                  const validSizes = getCategorySizes(targetCat, uniformSizes).map(s => s.value);
+                                  const keepSize = prev.size && validSizes.includes(prev.size) ? prev.size : '';
+                                  return { ...prev, itemId: newItemId, size: keepSize };
+                                });
+                              }}
                               className="w-full px-3 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 cursor-pointer text-xs font-bold text-slate-900 dark:text-white shadow-xs focus:ring-2 focus:ring-sky-500"
                             >
                               <option value="">
@@ -3361,8 +3362,8 @@ export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialS
                                     });
                                   });
 
-                                  return deduplicatedPkgs.map(u => (
-                                    <option key={u.id} value={u.id}>
+                                  return deduplicatedPkgs.map((u, idx) => (
+                                    <option key={`${u.id || u.category}-${idx}`} value={u.id}>
                                       {u.category || u.name}
                                     </option>
                                   ));
@@ -3548,8 +3549,8 @@ export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialS
                 />
               </div>
 
-              {/* Size Specification & Quantity for Issue modal: shown once an item/package is selected */}
-              {modalType === 'Issue' && form.type !== 'Additional Purchase' && Boolean(form.itemId) && (
+              {/* Size Specification & Quantity for Issue modal */}
+              {modalType === 'Issue' && form.type !== 'Additional Purchase' && (
                 <div className="grid grid-cols-2 gap-3 animate-in fade-in">
                   <div>
                     <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">
@@ -3564,7 +3565,7 @@ export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialS
                       {(() => {
                         const selUniform = uniforms.find(u => u.id === form.itemId);
                         let targetCategoryOrName = selUniform ? (selUniform.category || selUniform.name) : '';
-                        if (!targetCategoryOrName && form.itemId.startsWith('cat_')) {
+                        if (!targetCategoryOrName && form.itemId?.startsWith('cat_')) {
                           const catId2 = form.itemId.replace('cat_', '');
                           const cat = (uniformCategories || []).find(c => c.id === catId2);
                           targetCategoryOrName = cat ? cat.name : '';
@@ -3608,7 +3609,7 @@ export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialS
                       <button
                         type="button"
                         onClick={() => {
-                          const cur = form.quantity === '' || form.quantity === undefined ? 0 : (Number(form.quantity) || 0);
+                          const cur = !form.quantity || Number(form.quantity) < 1 ? 1 : Number(form.quantity);
                           const newQ = cur + 1;
                           setForm(prev => ({ ...prev, quantity: newQ }));
                         }}

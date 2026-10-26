@@ -440,16 +440,16 @@ export const FinanceUniformConfigView: React.FC = () => {
                   <option value="">-- Select Package / Item --</option>
 
                   <optgroup label="Base Package">
-                    {uniformItemsList.basePackages.map(pkg => (
-                      <option key={pkg.name} value={pkg.name}>
+                    {uniformItemsList.basePackages.map((pkg, idx) => (
+                      <option key={`${pkg.name}-${idx}`} value={pkg.name}>
                         {pkg.name}
                       </option>
                     ))}
                   </optgroup>
 
                   <optgroup label="Additional Purchase">
-                    {uniformItemsList.additionalItems.map(item => (
-                      <option key={item.name} value={item.name}>
+                    {uniformItemsList.additionalItems.map((item, idx) => (
+                      <option key={`${item.name}-${idx}`} value={item.name}>
                         {item.name}
                       </option>
                     ))}

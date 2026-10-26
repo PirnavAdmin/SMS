@@ -12,8 +12,14 @@ interface UniformInventoryViewProps {
 }
 
 export const UniformInventoryView: React.FC<UniformInventoryViewProps> = ({ tabs, initialStatusFilter }) => {
-  const { uniformInventory, updateUniformInventory, uniforms } = useData();
+  const { uniformInventory, updateUniformInventory, uniforms, fetchUniformData } = useData();
   const { addToast } = useToast();
+
+  React.useEffect(() => {
+    if (fetchUniformData) {
+      fetchUniformData();
+    }
+  }, []);
 
   const [query, setQuery] = useState('');
   const [filterStatus, setFilterStatus] = useState(initialStatusFilter || '');
@@ -529,9 +535,9 @@ export const UniformInventoryView: React.FC<UniformInventoryViewProps> = ({ tabs
                       </td>
                       <td className="py-3.5 px-4 text-center">
                         <div className="flex items-center justify-center gap-1.5">
-                          <button onClick={() => handleOpenAction(i, 'In')} className="px-2.5 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:hover:bg-emerald-900/60 dark:text-emerald-300 font-bold rounded-lg text-[10px] flex items-center gap-0.5 transition-all cursor-pointer shadow-2xs" title="Add Restock Stock"><Plus className="w-2.5 h-2.5" /> Restock</button>
-                          <button onClick={() => handleOpenAction(i, 'Out')} className="px-2 py-1 bg-rose-50 hover:bg-rose-100 text-rose-700 dark:bg-rose-950/40 dark:hover:bg-rose-900/60 dark:text-rose-300 font-bold rounded-lg text-[10px] flex items-center gap-0.5 transition-all cursor-pointer shadow-2xs" title="Deduct Issue"><Minus className="w-2.5 h-2.5" /> Out</button>
-                          <button onClick={() => handleOpenAction(i, 'Adjust')} className="px-2 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-300 font-bold rounded-lg text-[10px] flex items-center gap-0.5 transition-all cursor-pointer shadow-2xs" title="Adjust Balance"><Settings2 className="w-2.5 h-2.5" /> Adj</button>
+                          <button onClick={() => handleOpenAction(i, 'In')} className="p-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:hover:bg-emerald-900/60 dark:text-emerald-300 rounded-lg border border-emerald-200/80 dark:border-emerald-800/60 shadow-2xs transition-all cursor-pointer inline-flex items-center justify-center" title="Restock Stock (In)"><Plus className="w-3.5 h-3.5" /></button>
+                          <button onClick={() => handleOpenAction(i, 'Out')} className="p-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 dark:bg-rose-950/40 dark:hover:bg-rose-900/60 dark:text-rose-300 rounded-lg border border-rose-200/80 dark:border-rose-800/60 shadow-2xs transition-all cursor-pointer inline-flex items-center justify-center" title="Deduct / Issue Out"><Minus className="w-3.5 h-3.5" /></button>
+                          <button onClick={() => handleOpenAction(i, 'Adjust')} className="p-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-300 rounded-lg border border-slate-200 dark:border-slate-700 shadow-2xs transition-all cursor-pointer inline-flex items-center justify-center" title="Adjust Stock Balance"><Settings2 className="w-3.5 h-3.5" /></button>
                         </div>
                       </td>
                     </tr>

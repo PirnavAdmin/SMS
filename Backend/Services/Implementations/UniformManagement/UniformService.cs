@@ -32,11 +32,13 @@ namespace SMS.Api.Services.Implementations
 
             int outOfStockCount = types.Count(t => t.AvailableStock == 0);
 
-            var categoryStock = types.Select(t => new UniformCategoryStockLevelDto
-            {
-                CategoryName = t.ItemName,
-                TotalUnits = t.AvailableStock
-            }).ToList();
+            var categoryStock = types
+                .GroupBy(t => string.IsNullOrWhiteSpace(t.CategoryName) ? (t.ItemName ?? "General") : t.CategoryName)
+                .Select(g => new UniformCategoryStockLevelDto
+                {
+                    CategoryName = g.Key,
+                    TotalUnits = g.Sum(t => t.AvailableStock)
+                }).ToList();
 
             var lowStockAlerts = types.Where(t => t.AvailableStock <= t.MinThreshold || t.AvailableStock <= 5).Select(t => new UniformLowStockAlertDto
             {

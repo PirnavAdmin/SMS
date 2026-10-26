@@ -317,7 +317,6 @@ import {
   initialHostelRooms,
   initialHostelBeds,
   initialBuses,
-  initialUniforms,
   initialCustomRoles,
   initialInventory,
   initialAnnouncements,
@@ -355,11 +354,6 @@ import {
   initialHostelVisitorLogs,
   initialHostelAttendanceLogs,
   initialFinanceHostelConfigs,
-  initialUniformCategories,
-  initialUniformSizes,
-  initialUniformSuppliers,
-  initialUniformInventory,
-  initialStudentUniformIssues,
   initialFinanceUniformConfigs,
   initialLeaveTypes,
   initialLeaveApplications,
@@ -1863,83 +1857,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   const [uniformSizes, setUniformSizes] = useState<UniformSize[]>([]);
   const [uniformSuppliers, setUniformSuppliers] = useState<UniformSupplier[]>([]);
   const [uniformInventory, setUniformInventory] = useState<UniformInventoryItem[]>([]);
-
-  const [studentUniformIssues, setStudentUniformIssues] = useState<
-    StudentUniformIssue[]
-  >(() => {
-    const versionKey = "edu_db_student_uniform_issues_wipe_v100004_split_qty";
-    if (!localStorage.getItem(versionKey)) {
-      localStorage.setItem(versionKey, "true");
-
-      try {
-        const saved =
-          localStorage.getItem("edu_db_student_uniform_issues") ||
-          localStorage.getItem("student_uniform_issues");
-        if (saved) {
-          const parsed = JSON.parse(saved);
-          if (Array.isArray(parsed)) {
-            const splitData: StudentUniformIssue[] = [];
-            parsed.forEach((issue) => {
-              const qty = issue.quantity || 1;
-              const nameLower = (
-                issue.itemName ||
-                issue.itemCategory ||
-                ""
-              ).toLowerCase();
-              const isCloth =
-                nameLower.includes("cloth") ||
-                nameLower.includes("fabric") ||
-                nameLower.includes("unstitched");
-              if (!isCloth && qty > 1) {
-                for (let i = 0; i < qty; i++) {
-                  splitData.push({
-                    ...issue,
-                    status: issue.status === "Paid" ? "Partial" : issue.status,
-                    id: `${issue.id}-P${i + 1}`,
-                    itemName: `${issue.itemName} (#${i + 1})`,
-                    quantity: 1,
-                    totalAmount: issue.price || 0,
-                  });
-                }
-              } else {
-                splitData.push(issue);
-              }
-            });
-            localStorage.setItem(
-              "edu_db_student_uniform_issues",
-              JSON.stringify(splitData),
-            );
-            localStorage.setItem(
-              "student_uniform_issues",
-              JSON.stringify(splitData),
-            );
-            return splitData;
-          }
-        }
-      } catch (e) {}
-
-      localStorage.setItem("edu_db_student_uniform_issues", JSON.stringify([]));
-      localStorage.setItem("student_uniform_issues", JSON.stringify([]));
-      return [];
-    }
-    try {
-      const saved =
-        localStorage.getItem("edu_db_student_uniform_issues") ||
-        localStorage.getItem("student_uniform_issues");
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed)) {
-          return parsed;
-        }
-      }
-    } catch (e) {
-      console.warn(
-        "Failed to load student_uniform_issues from localStorage",
-        e,
-      );
-    }
-    return [];
-  });
+  const [studentUniformIssues, setStudentUniformIssues] = useState<StudentUniformIssue[]>([]);
   const [financeUniformConfigs, setFinanceUniformConfigs] = useState<
     FinanceUniformConfig[]
   >(() => {
@@ -2925,86 +2843,13 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     localStorage.setItem("edu_db_designations", JSON.stringify(designations));
   }, [designations]);
 
-  // Uniform ERP Effects (API & Database driven - no local storage caching)
-  useEffect(() => {
-    localStorage.setItem(
-      "edu_db_student_uniform_issues",
-      JSON.stringify(studentUniformIssues),
-    );
-    localStorage.setItem(
-      "student_uniform_issues",
-      JSON.stringify(studentUniformIssues),
-    );
-  }, [studentUniformIssues]);
+  // Uniform ERP Effects (API & Database driven - dynamic data sync)
   useEffect(() => {
     localStorage.setItem(
       "edu_db_finance_uniform_configs",
       JSON.stringify(financeUniformConfigs),
     );
   }, [financeUniformConfigs]);
-
-  // Persist Uniform ERP State
-  useEffect(() => {
-    setUniformInventory((prevInv) => {
-      if (!prevInv) return [];
-      const seen = new Set<string>();
-      const deduplicated: UniformInventoryItem[] = [];
-
-      for (const item of prevInv) {
-        if (!item) continue;
-        const normName = (item.itemName || item.category || "")
-          .toLowerCase()
-          .trim();
-        if (
-          !normName ||
-          normName.includes("polo") ||
-          normName === "winter blazer"
-        )
-          continue;
-
-        const key = `${normName}_${(item.size || "m").toLowerCase()}`;
-        if (!seen.has(key)) {
-          seen.add(key);
-          deduplicated.push(item);
-        }
-      }
-      return deduplicated;
-    });
-
-    setUniforms((prevU) => {
-      if (!prevU) return [];
-      const seen = new Set<string>();
-      const deduplicated: UniformItem[] = [];
-
-      for (const u of prevU) {
-        if (!u) continue;
-        const normName = (u.name || u.category || "").toLowerCase().trim();
-        if (
-          !normName ||
-          normName.includes("polo") ||
-          normName === "winter blazer"
-        )
-          continue;
-
-        const key = `${normName}_${(u.size || "m").toLowerCase()}`;
-        if (!seen.has(key)) {
-          seen.add(key);
-          deduplicated.push(u);
-        }
-      }
-      return deduplicated;
-    });
-
-    setStudentUniformIssues((prev) => {
-      if (!prev) return [];
-      const filtered = prev.filter(
-        (iss) =>
-          !iss.studentName?.toLowerCase().includes("dattu") &&
-          !iss.notes?.toLowerCase().includes("dattu"),
-      );
-      return filtered.length !== prev.length ? filtered : prev;
-    });
-  }, []);
 
   // Auto-sync uniformCategories with uniforms catalog & inventory (Strict 1-to-1 count & deduplication)
   useEffect(() => {
@@ -3082,15 +2927,12 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         const normKey = `${(inv.itemName || inv.category || "").toLowerCase().trim()}_${(inv.size || (inv as any).meterRange || "").toLowerCase().trim()}_${inv.itemId || inv.id}`;
         if (!seenNorms.has(normKey)) {
           seenNorms.add(normKey);
-          const openingCap = Math.min(100, inv.openingStock || 100);
-          const cappedStock = Math.min(
-            openingCap,
-            inv.currentStock !== undefined ? inv.currentStock : openingCap,
-          );
+          const opStock = inv.openingStock !== undefined ? inv.openingStock : 100;
+          const curStock = inv.currentStock !== undefined ? inv.currentStock : opStock;
           deduplicated.push({
             ...inv,
-            openingStock: openingCap,
-            currentStock: cappedStock,
+            openingStock: opStock,
+            currentStock: curStock,
           });
         }
       }
@@ -3120,12 +2962,6 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       });
 
       if (deduplicated.length !== (prevInv || []).length) {
-        try {
-          localStorage.setItem(
-            "edu_db_uniform_inventory",
-            JSON.stringify(deduplicated),
-          );
-        } catch (e) {}
         return deduplicated;
       }
       return prevInv;
@@ -4094,17 +3930,6 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       JSON.stringify(studentAttendance),
     );
   }, [studentAttendance]);
-
-  useEffect(() => {
-    localStorage.setItem(
-      "edu_db_student_uniform_issues",
-      JSON.stringify(studentUniformIssues),
-    );
-    localStorage.setItem(
-      "student_uniform_issues",
-      JSON.stringify(studentUniformIssues),
-    );
-  }, [studentUniformIssues]);
 
   useEffect(() => {
     localStorage.setItem(
@@ -5605,7 +5430,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     [],
   );
 
-  const fetchUniformData = async () => {
+  const fetchUniformData = useCallback(async () => {
     if (activeRequests.current["uniform-data"]) {
       return activeRequests.current["uniform-data"];
     }
@@ -5677,28 +5502,37 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         }
         if (typeRes.status === "fulfilled") {
           const normalizedInventory: UniformInventoryItem[] = types.map(
-            (t: any) => ({
-              id: String(t.id || t.uniformTypeId || ""),
-              itemId: String(t.id || t.uniformTypeId || ""),
-              itemName: t.itemName || t.name || "",
-              category: t.category || t.categoryName || "Uniform Item",
-              size: t.sizeSpec || t.size || "M",
-              color: t.color || "Standard",
-              openingStock: Number(t.openingStock ?? t.stockQuantity ?? 100),
-              currentStock: Number(t.currentStock ?? t.stockQuantity ?? 0),
-              minimumStock: Number(t.minimumStock ?? t.minStockAlert ?? 10),
-              reorderPoint: Number(t.reorderPoint ?? 15),
-              unitPrice: Number(t.unitPrice || t.price || 0),
-              supplier: t.supplier || t.supplierName || "Main Warehouse",
-              lastUpdated:
-                t.lastUpdated || new Date().toISOString().split("T")[0],
-              status:
-                t.status ||
-                (Number(t.currentStock ?? t.stockQuantity ?? 0) <=
-                Number(t.minimumStock ?? 10)
-                  ? "Low Stock"
-                  : "In Stock"),
-            }),
+            (t: any) => {
+              const currentStockVal = Number(t.availableStock ?? t.currentStock ?? t.stockQuantity ?? 0);
+              const openingStockVal = Number(t.openingStock ?? t.availableStock ?? t.currentStock ?? currentStockVal);
+              const minStockVal = Number(t.minimumStock ?? t.minThreshold ?? t.minStockAlert ?? 10);
+              const reorderVal = Number(t.reorderPoint ?? 15);
+              const cleanSize = (t.sizeSpec || t.size || "M").replace(/^Size\s+/i, "");
+
+              return {
+                id: String(t.id || t.uniformTypeId || ""),
+                itemId: String(t.id || t.uniformTypeId || ""),
+                itemName: t.itemName || t.name || "",
+                category: t.category || t.categoryName || "Uniform Item",
+                size: cleanSize || "M",
+                color: t.color || "Standard",
+                openingStock: openingStockVal,
+                currentStock: currentStockVal,
+                minimumStock: minStockVal,
+                reorderPoint: reorderVal,
+                unitPrice: Number(t.unitPrice || t.price || 0),
+                supplier: t.supplier || t.supplierName || "Main Warehouse",
+                lastUpdated:
+                  t.lastUpdated || new Date().toISOString().split("T")[0],
+                status:
+                  t.status ||
+                  (currentStockVal === 0
+                    ? "Out of Stock"
+                    : currentStockVal <= minStockVal
+                      ? "Low Stock"
+                      : "In Stock"),
+              };
+            },
           );
           setUniformInventory(normalizedInventory);
 
@@ -5707,11 +5541,11 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
             name: t.itemName || t.name || "",
             category: t.category || t.categoryName || "Uniform Item",
             gender: t.gender || "Unisex",
-            size: t.sizeSpec || t.size || "All Sizes",
+            size: (t.sizeSpec || t.size || "All Sizes").replace(/^Size\s+/i, ""),
             color: t.color || "",
-            availableStock: Number(t.currentStock ?? t.stockQuantity ?? 0),
+            availableStock: Number(t.availableStock ?? t.currentStock ?? t.stockQuantity ?? 0),
             price: Number(t.unitPrice || t.price || 0),
-            className: t.className || "All Wings",
+            className: t.className || t.schoolWing || "All Wings",
             isPackage: Boolean(t.isPackage),
             packageComponents: t.packageComponents || [],
             createdAt: t.createdAt || new Date().toISOString(),
@@ -5772,7 +5606,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     })();
     activeRequests.current["uniform-data"] = promise;
     return promise;
-  };
+  }, [selectedBranch, selectedAcademicYear]);
 
   const fetchSchoolEventsData = useCallback(async () => {
     try {
@@ -10704,16 +10538,6 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
               description: `${catName} uniform category`,
             };
             const updatedCats = [...prevCats, newCat];
-            try {
-              localStorage.setItem(
-                "edu_db_uniform_categories",
-                JSON.stringify(updatedCats),
-              );
-              localStorage.setItem(
-                "uniform_categories",
-                JSON.stringify(updatedCats),
-              );
-            } catch (e) {}
             return updatedCats;
           }
           return prevCats;
@@ -10763,6 +10587,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           prev.map((u) => (u.id === id ? { ...u, id: realId } : u)),
         );
       }
+      await fetchUniformData();
     } catch (err) {
       console.warn("Failed to create uniform type on backend:", err);
     }
@@ -10815,6 +10640,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           price: updates.price || 0,
           className: updates.className || "All Wings",
         });
+        await fetchUniformData();
       } catch (err) {
         console.warn("Failed to update uniform type on backend:", err);
       }
@@ -10864,6 +10690,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     if (id && !id.startsWith("UNI-")) {
       try {
         await deleteUniformTypeApi(id);
+        await fetchUniformData();
       } catch (err) {
         console.warn("Failed to delete uniform type on backend:", err);
       }
@@ -23255,6 +23082,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
             ? `Stock updated on ${updates.lastUpdated}`
             : "Manual inventory adjustment",
         });
+        await fetchUniformData();
       } catch (err) {
         console.warn("Failed to adjust uniform stock on backend:", err);
       }
@@ -23360,11 +23188,10 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       if (idx !== -1) {
         updatedInv = prevInv.map((item, index) => {
           if (index === idx) {
-            const maxCap = Math.min(100, item.openingStock || 100);
             const newStock =
               action === "issue"
                 ? Math.max(0, item.currentStock - qty)
-                : Math.min(maxCap, item.currentStock + qty);
+                : item.currentStock + qty;
 
             const newStatus =
               newStock === 0
@@ -23435,13 +23262,12 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
 
       const updatedU = prevU.map((u, index) => {
         if (index === idx) {
-          const maxCap = Math.min(100, u.openingStock || 100);
           const curAvail =
-            u.availableStock !== undefined ? u.availableStock : maxCap;
+            u.availableStock !== undefined ? u.availableStock : 100;
           const nextAvail =
             action === "issue"
               ? Math.max(0, curAvail - qty)
-              : Math.min(maxCap, curAvail + qty);
+              : curAvail + qty;
           return { ...u, availableStock: nextAvail };
         }
         return u;
@@ -23481,17 +23307,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           : issueData.branch || "",
     };
 
-    setStudentUniformIssues((prev) => {
-      const updated = [newIssue, ...prev];
-      try {
-        localStorage.setItem(
-          "edu_db_student_uniform_issues",
-          JSON.stringify(updated),
-        );
-        localStorage.setItem("student_uniform_issues", JSON.stringify(updated));
-      } catch (e) {}
-      return updated;
-    });
+    setStudentUniformIssues((prev) => [newIssue, ...prev]);
 
     try {
       const res: any = await issueUniformApi({
@@ -23512,23 +23328,11 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       });
       if (res?.success && res?.data) {
         const serverId = String(res.data.distributionId || res.data.id);
-        setStudentUniformIssues((prev) => {
-          const updated = prev.map((i) =>
-            i.id === newIssue.id ? { ...i, id: serverId } : i,
-          );
-          try {
-            localStorage.setItem(
-              "edu_db_student_uniform_issues",
-              JSON.stringify(updated),
-            );
-            localStorage.setItem(
-              "student_uniform_issues",
-              JSON.stringify(updated),
-            );
-          } catch (e) {}
-          return updated;
-        });
+        setStudentUniformIssues((prev) =>
+          prev.map((i) => (i.id === newIssue.id ? { ...i, id: serverId } : i)),
+        );
       }
+      await fetchUniformData();
     } catch (err) {
       console.warn("Failed to issue uniform on backend:", err);
     }
@@ -23550,22 +23354,11 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       );
     }
     if (!issueToUpdate) {
-      setStudentUniformIssues((prev) => {
-        const updated = prev.map((issue) =>
+      setStudentUniformIssues((prev) =>
+        prev.map((issue) =>
           issue.id === id ? { ...issue, ...updates } : issue,
-        );
-        try {
-          localStorage.setItem(
-            "edu_db_student_uniform_issues",
-            JSON.stringify(updated),
-          );
-          localStorage.setItem(
-            "student_uniform_issues",
-            JSON.stringify(updated),
-          );
-        } catch (e) {}
-        return updated;
-      });
+        ),
+      );
       return;
     }
 
@@ -23658,19 +23451,11 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       }
     }
 
-    setStudentUniformIssues((prev) => {
-      const updated = prev.map((issue) =>
+    setStudentUniformIssues((prev) =>
+      prev.map((issue) =>
         issue.id === id ? { ...issue, ...updates } : issue,
-      );
-      try {
-        localStorage.setItem(
-          "edu_db_student_uniform_issues",
-          JSON.stringify(updated),
-        );
-        localStorage.setItem("student_uniform_issues", JSON.stringify(updated));
-      } catch (e) {}
-      return updated;
-    });
+      ),
+    );
 
     if (id && !id.startsWith("UIS-")) {
       try {
@@ -23690,6 +23475,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
             remarks: updates.actionRemarks || "Size exchanged",
           });
         }
+        await fetchUniformData();
       } catch (err) {
         console.warn("Failed to update uniform distribution on backend:", err);
       }
@@ -23722,18 +23508,6 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     if (idsToRemove.size === 0) {
       idsToRemove.add(idOrQuery);
     }
-
-    // Track deleted IDs in localStorage so API refetches don't re-add them
-    try {
-      const deletedTrack = JSON.parse(
-        localStorage.getItem("edu_db_deleted_uniform_issue_ids") || "[]",
-      );
-      idsToRemove.forEach((id) => deletedTrack.push(id));
-      localStorage.setItem(
-        "edu_db_deleted_uniform_issue_ids",
-        JSON.stringify(deletedTrack),
-      );
-    } catch (e) {}
 
     // Restore inventory stock for each matching issue
     issuesToDelete.forEach((issueToDelete) => {
@@ -23835,20 +23609,13 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         return true;
       });
 
-      try {
-        localStorage.setItem(
-          "edu_db_student_uniform_issues",
-          JSON.stringify(updated),
-        );
-        localStorage.setItem("student_uniform_issues", JSON.stringify(updated));
-      } catch (e) {}
-
       return updated;
     });
 
     if (idOrQuery && !idOrQuery.startsWith("UIS-")) {
       try {
         await deleteUniformDistributionApi(idOrQuery);
+        await fetchUniformData();
       } catch (err) {
         console.warn("Failed to delete uniform distribution on backend:", err);
       }

@@ -127,22 +127,24 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           return (
             <div
               key={toast.id}
-              className={`pointer-events-auto flex items-start gap-3 p-4 rounded-2xl shadow-xl transition-all duration-300 animate-in slide-in-from-top-4 fade-in backdrop-blur-md ${cfg.container}`}
+              className={`pointer-events-auto flex items-start gap-2.5 p-3 sm:p-3.5 rounded-2xl shadow-xl transition-all duration-300 animate-in slide-in-from-top-4 fade-in backdrop-blur-md ${cfg.container}`}
             >
               <div className={`p-1.5 rounded-xl shrink-0 ${cfg.iconBg}`}>
-                <IconComponent className={`w-5 h-5 stroke-[2.5] ${cfg.iconColor}`} />
+                <IconComponent className={`w-4 h-4 stroke-[2.5] ${cfg.iconColor}`} />
               </div>
-              <div className="flex-1 text-sm">
+              <div className="flex-1 min-w-0 text-xs">
                 <p className={`font-bold leading-snug ${cfg.titleColor}`}>{toast.title}</p>
-                {toast.message && <p className={`text-xs mt-1 leading-relaxed ${cfg.messageColor}`}>{toast.message}</p>}
+                {toast.message && (
+                  <p className={`text-[11px] mt-0.5 leading-snug ${cfg.messageColor}`}>{toast.message}</p>
+                )}
               </div>
               <button
                 type="button"
                 onClick={() => removeToast(toast.id)}
-                className={`shrink-0 p-1 rounded-lg transition-colors cursor-pointer ${cfg.closeBtn}`}
+                className={`shrink-0 p-1 rounded-lg transition-colors cursor-pointer -mr-1 -mt-1 ${cfg.closeBtn}`}
                 aria-label="Dismiss notification"
               >
-                <X className="w-4 h-4" />
+                <X className="w-3.5 h-3.5" />
               </button>
             </div>
           );
