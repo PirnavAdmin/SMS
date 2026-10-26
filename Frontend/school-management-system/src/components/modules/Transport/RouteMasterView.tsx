@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Route as RouteIcon, Plus, Search, Edit, Trash2, X, MapPin, Clock, ChevronRight } from 'lucide-react';
+import React, { useState, useMemo } from 'react';
+import { Route as RouteIcon, Plus, Search, Edit, Trash2, X, MapPin, Clock, ChevronRight, AlertTriangle, Users } from 'lucide-react';
 import { RouteMaster } from '../../../types';
 import { useData } from '../../../context/DataContext';
 import { useToast } from '../../../context/ToastContext';
@@ -24,7 +24,17 @@ type RouteSequenceItem = {
 };
 
 export const RouteMasterView: React.FC = () => {
-  const { routeMasters = [], pickupPoints = [], vehicleAssignments = [], addRouteMaster, updateRouteMaster, deleteRouteMaster } = useData();
+  const {
+    routeMasters = [],
+    pickupPoints = [],
+    vehicleAssignments = [],
+    studentTransports = [],
+    students = [],
+    admissions = [],
+    addRouteMaster,
+    updateRouteMaster,
+    deleteRouteMaster
+  } = useData();
   const { addToast } = useToast();
 
   const [query, setQuery] = useState('');
@@ -32,6 +42,103 @@ export const RouteMasterView: React.FC = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingRoute, setEditingRoute] = useState<RouteMaster | null>(null);
   const [deletingRoute, setDeletingRoute] = useState<RouteMaster | null>(null);
+
+  const getAssignedStudentsForRoute = (route: RouteMaster | null) => {
+    if (!route) return [];
+    const routeIdStr = String(route.id || '').trim();
+    const routeNameStr = (route.routeName || '').trim().toLowerCase();
+    const routeCodeStr = (route.routeCode || '').trim().toLowerCase();
+
+    const assignedMap = new Map<string, { studentId: string; studentName: string; admissionNo: string; pickupPoint?: string }>();
+
+    // 1. From studentTransports
+    (studentTransports || []).forEach(st => {
+      const isActive = st.status === 'Active' || (st.status as any) === true || String(st.status).toLowerCase() === 'true';
+      if (!isActive) return;
+
+      const stRouteId = String(st.routeId || '').trim();
+      const stRouteName = (st.routeName || '').trim().toLowerCase();
+
+      const matches = (routeIdStr && stRouteId && stRouteId === routeIdStr) ||
+                      (routeNameStr && stRouteName && stRouteName === routeNameStr) ||
+                      (routeCodeStr && stRouteName && stRouteName === routeCodeStr);
+
+      if (matches) {
+        const student = (students || []).find(s => s.id === st.studentId || s.admissionNo === st.admissionNo || s.name === st.studentName);
+        const admNo = st.admissionNo || student?.admissionNo || '-';
+        const sName = st.studentName || student?.name || 'Student';
+        const key = admNo !== '-' ? admNo : (st.studentId || sName);
+        if (key && !assignedMap.has(key)) {
+          assignedMap.set(key, {
+            studentId: st.studentId || student?.id || '',
+            studentName: sName,
+            admissionNo: admNo,
+            pickupPoint: st.pickupPoint || '-'
+          });
+        }
+      }
+    });
+
+    // 2. From admissions (transportRequired = true, not Residential, not Rejected, not isDeleted)
+    (admissions || []).forEach(a => {
+      const aAny = a as any;
+      if (aAny.isDeleted || a.status === 'Rejected' || a.studentType === 'Residential' || a.transportRequired === false) return;
+      const aBusRoute = (aAny.busRoute || '').trim().toLowerCase();
+      if (!aBusRoute) return;
+
+      const matches = (routeNameStr && aBusRoute === routeNameStr) ||
+                      (routeCodeStr && aBusRoute === routeCodeStr) ||
+                      (routeIdStr && aBusRoute === routeIdStr);
+
+      if (matches) {
+        const admNo = aAny.admissionNo || a.applicationNo || String(a.id);
+        const sName = a.applicantName || aAny.studentName || 'Student';
+        const key = admNo || sName;
+        if (key && !assignedMap.has(key)) {
+          assignedMap.set(key, {
+            studentId: String(a.id),
+            studentName: sName,
+            admissionNo: admNo,
+            pickupPoint: aAny.pickupPoint || '-'
+          });
+        }
+      }
+    });
+
+    // 3. From students
+    (students || []).forEach(s => {
+      const sAny = s as any;
+      if (sAny.isDeleted || s.status === 'Inactive') return;
+      const sRoute = (sAny.busRoute || '').trim().toLowerCase();
+      const sRouteId = String(sAny.routeId || '').trim();
+
+      const matches = (routeIdStr && sRouteId && sRouteId === routeIdStr) ||
+                      (routeNameStr && sRoute && sRoute === routeNameStr) ||
+                      (routeCodeStr && sRoute && sRoute === routeCodeStr);
+
+      if (matches) {
+        const admNo = s.admissionNo || '-';
+        const sName = s.name || `${s.firstName || ''} ${s.lastName || ''}`.trim() || 'Student';
+        const key = admNo !== '-' ? admNo : (s.id || sName);
+        if (key && !assignedMap.has(key)) {
+          assignedMap.set(key, {
+            studentId: s.id,
+            studentName: sName,
+            admissionNo: admNo,
+            pickupPoint: sAny.pickupPoint || '-'
+          });
+        }
+      }
+    });
+
+    return Array.from(assignedMap.values());
+  };
+
+  const assignedStudentsForDeletingRoute = useMemo(() => {
+    return getAssignedStudentsForRoute(deletingRoute);
+  }, [deletingRoute, studentTransports, admissions, students]);
+
+  const hasAssignedStudents = assignedStudentsForDeletingRoute.length > 0;
 
   const handleRouteFilterChange = (val: string) => {
     setSelectedRouteFilter(val);
@@ -222,6 +329,7 @@ export const RouteMasterView: React.FC = () => {
             );
             const assignedBus = activeAssignment?.vehicleNumber || 'Unassigned';
             const assignedDriver = activeAssignment?.driverName || 'Unassigned';
+            const routeAssignedStudents = getAssignedStudentsForRoute(r);
             const previewStops: RouteSequenceItem[] = routePickupPoints.map(p => ({
               id: p.id,
               sequenceNumber: p.sequenceNumber,
@@ -262,6 +370,14 @@ export const RouteMasterView: React.FC = () => {
                     <div className="flex items-center justify-between"><span className="text-slate-400">Total Pickup Points:</span> <span className="font-bold text-sky-600 dark:text-sky-400">{routePickupPoints.length}</span></div>
                     <div className="flex items-center justify-between"><span className="text-slate-400">Assigned Bus:</span> <span className="font-mono font-bold text-slate-800 dark:text-slate-200">{assignedBus}</span></div>
                     <div className="flex items-center justify-between"><span className="text-slate-400">Assigned Driver:</span> <span className="font-bold text-slate-800 dark:text-slate-200">{assignedDriver}</span></div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-slate-400 flex items-center gap-1">
+                        <Users className="w-3 h-3 text-sky-500" /> Assigned Students:
+                      </span>
+                      <span className={`font-bold ${routeAssignedStudents.length > 0 ? 'text-amber-600 dark:text-amber-400' : 'text-slate-500'}`}>
+                        {routeAssignedStudents.length} Students
+                      </span>
+                    </div>
                   </div>
 
                   <div className="pt-2">
@@ -522,16 +638,74 @@ export const RouteMasterView: React.FC = () => {
       <ConfirmModal
         isOpen={!!deletingRoute}
         onCancel={() => setDeletingRoute(null)}
-        onConfirm={() => {
+        onConfirm={async () => {
           if (deletingRoute) {
-            deleteRouteMaster(deletingRoute.id);
-            addToast('info', 'Route Deleted');
+            const count = assignedStudentsForDeletingRoute.length;
+            const rName = deletingRoute.routeName;
+            await deleteRouteMaster(deletingRoute.id);
+            if (count > 0) {
+              addToast('warning', 'Route Deleted with Assigned Students', `Route "${rName}" was deleted. ${count} assigned student(s) have been unassigned.`);
+            } else {
+              addToast('info', 'Route Deleted', `Route "${rName}" deleted.`);
+            }
             setDeletingRoute(null);
           }
         }}
-        title="Delete Route Master"
-        message={`Are you sure you want to delete ${deletingRoute?.routeName}?`}
-      />
+        title={hasAssignedStudents ? "Warning: Students Assigned to Route" : "Delete Route Master"}
+        subtitle={hasAssignedStudents ? `Attention Required: ${assignedStudentsForDeletingRoute.length} active student(s) assigned` : "Please review this action carefully"}
+        variant={hasAssignedStudents ? "warning" : "danger"}
+        confirmLabel={hasAssignedStudents ? "Proceed & Delete Route" : "Confirm Delete"}
+      >
+        {hasAssignedStudents ? (
+          <div className="space-y-3 pt-1">
+            <div className="p-3.5 rounded-2xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/60 text-amber-900 dark:text-amber-200 text-xs space-y-2">
+              <div className="flex items-center gap-2 font-bold text-sm text-amber-800 dark:text-amber-300">
+                <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
+                <span>Warning: Students are currently assigned to this route!</span>
+              </div>
+              <p className="leading-relaxed">
+                There are <strong className="font-extrabold text-amber-700 dark:text-amber-300">{assignedStudentsForDeletingRoute.length} student(s)</strong> assigned to{' '}
+                <strong className="font-extrabold">{deletingRoute?.routeName}</strong> ({deletingRoute?.routeCode}).
+                Deleting this route will remove it from the system and automatically unassign these students from their transport facility.
+              </p>
+            </div>
+
+            <div>
+              <div className="flex items-center justify-between mb-1.5">
+                <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                  Assigned Students ({assignedStudentsForDeletingRoute.length})
+                </span>
+                <span className="text-[10px] text-amber-600 dark:text-amber-400 font-semibold">
+                  Will be unassigned
+                </span>
+              </div>
+              <div className="max-h-40 overflow-y-auto space-y-1.5 p-2 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/70 dark:border-slate-700/60 text-xs">
+                {assignedStudentsForDeletingRoute.map((st, idx) => (
+                  <div key={idx} className="flex items-center justify-between p-2 rounded-lg bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span className="font-mono text-[10px] font-bold px-1.5 py-0.5 rounded bg-sky-100 dark:bg-sky-950 text-sky-800 dark:text-sky-300 shrink-0">
+                        {st.admissionNo || '-'}
+                      </span>
+                      <span className="font-bold text-slate-800 dark:text-slate-200 truncate">{st.studentName}</span>
+                    </div>
+                    <span className="text-[11px] text-slate-500 dark:text-slate-400 shrink-0 ml-2">
+                      Stop: <span className="font-medium text-slate-700 dark:text-slate-300">{st.pickupPoint || 'General'}</span>
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <p className="text-xs text-rose-600 dark:text-rose-400 font-medium pt-1">
+              Are you sure you want to proceed with deleting this route?
+            </p>
+          </div>
+        ) : (
+          <p className="text-sm text-slate-600 dark:text-slate-300 leading-relaxed">
+            Are you sure you want to delete <span className="font-bold text-slate-900 dark:text-white">{deletingRoute?.routeName}</span> ({deletingRoute?.routeCode})? This action cannot be undone.
+          </p>
+        )}
+      </ConfirmModal>
     </div>
   );
 };

@@ -4,7 +4,8 @@ interface ConfirmModalProps {
   isOpen: boolean;
   title: string;
   subtitle?: string;
-  message: string;
+  message?: React.ReactNode;
+  children?: React.ReactNode;
   confirmLabel?: string;
   cancelLabel?: string;
   variant?: 'danger' | 'warning' | 'info' | 'success' | 'primary';
@@ -19,6 +20,7 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({
   title,
   subtitle,
   message,
+  children,
   confirmLabel = 'Confirm',
   cancelLabel = 'Cancel',
   variant = 'danger',
@@ -104,7 +106,14 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({
           </button>
         </div>
 
-        <p className="text-sm text-slate-600 dark:text-slate-300 leading-relaxed">{message}</p>
+        {message && (
+          typeof message === 'string' ? (
+            <p className="text-sm text-slate-600 dark:text-slate-300 leading-relaxed">{message}</p>
+          ) : (
+            <div className="text-sm text-slate-600 dark:text-slate-300 leading-relaxed">{message}</div>
+          )
+        )}
+        {children}
 
         <div className="flex items-center justify-end gap-3 pt-2">
           <button
