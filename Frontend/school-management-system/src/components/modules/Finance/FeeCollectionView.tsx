@@ -32,6 +32,12 @@ import {
   ChevronUp,
   Users,
   Filter,
+  ArrowRightLeft,
+  Bed,
+  Bus,
+  ShieldCheck,
+  RefreshCw,
+  Sparkles,
 } from "lucide-react";
 import {
   Student,
@@ -90,6 +96,9 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
     removeDiscountFromStudent,
     updateAdmission,
     updateStudent,
+    hostelBlocks = [],
+    hostelRooms = [],
+    hostelBeds = [],
   } = useData();
   const { selectedAcademicYear, selectedBranch } = useAuth();
   const { addToast } = useToast();
@@ -142,6 +151,182 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
   const [refundPaymentMode, setRefundPaymentMode] = useState<string>("Bank Transfer");
   const [refundRemarks, setRefundRemarks] = useState<string>("");
   const [isSubmittingRefund, setIsSubmittingRefund] = useState<boolean>(false);
+
+  // Fetch dynamic backend fee profile whenever selectedStudent changes
+  useEffect(() => {
+    if (!selectedStudent) {
+      setBackendFeeProfile(null);
+      return;
+    }
+
+    const sId = selectedStudent.id || (selectedStudent as any).studentId;
+    if (sId) {
+      setIsLoadingProfile(true);
+      fetchStudentFeeProfileApi(sId, selectedAcademicYear)
+        .then((res: any) => {
+          const profileData = res?.data || res;
+          if (profileData && (profileData.studentId || profileData.admissionNo)) {
+            setBackendFeeProfile(profileData);
+          }
+        })
+        .catch((err) => {
+          console.warn("Could not fetch backend fee profile:", err);
+        })
+        .finally(() => {
+          setIsLoadingProfile(false);
+        });
+    }
+  }, [selectedStudent, selectedAcademicYear]);
+
+  const refreshStudentProfile = async () => {
+    if (!selectedStudent) return;
+    const sId = selectedStudent.id || (selectedStudent as any).studentId;
+    if (!sId) return;
+    try {
+      setIsLoadingProfile(true);
+      const res: any = await recalculateStudentFeeProfileApi(Number(sId), selectedAcademicYear);
+      const prof = res?.data || res;
+      if (prof && (prof.studentId || prof.admissionNo)) {
+        setBackendFeeProfile(prof);
+      }
+      if (fetchFinanceData) await fetchFinanceData();
+      const freshLedger = getStudentFeeLedger(selectedStudent.id, selectedStudent, currentYear);
+      updateCalculation(selectedStudent.id, calculateStudentPayableFee(selectedStudent.id), freshLedger);
+      addToast("success", "Profile Recalculated", "Student fee profile, transport usage, and balances recalculated.");
+    } catch (err: any) {
+      console.error("Error recalculating student profile:", err);
+      addToast("error", "Recalculation Failed", "Could not recalculate student fee profile.");
+    } finally {
+      setIsLoadingProfile(false);
+    }
+  };
+
+  const handleExecuteTransition = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedStudent) return;
+    try {
+      setIsSubmittingTransition(true);
+      const sId = Number(selectedStudent.id || (selectedStudent as any).studentId);
+      const payload = {
+        studentId: sId,
+        admissionNo: selectedStudent.admissionNo || String(sId),
+        fromCategory: transitionTargetType === "Residential" ? "Non-Residential" : "Residential",
+        toCategory: transitionTargetType,
+        effectiveDate: transitionDate,
+        transportEndDate: transitionTargetType === "Residential" ? transportEndDate : undefined,
+        hostelJoiningDate: transitionTargetType === "Residential" ? hostelJoiningDate : undefined,
+        hostelBlockId: selectedBlockId ? Number(selectedBlockId) : undefined,
+        hostelRoomId: selectedRoomId ? Number(selectedRoomId) : undefined,
+        bedNumber: selectedBedNumber || undefined,
+        applyCreditToHostel: applyCreditOnTransition,
+        notes: transitionNotes || `Transitioned student to ${transitionTargetType}`
+      };
+
+      const res: any = await transitionStudentCategoryApi(payload);
+      addToast(
+        "success",
+        "Category Transition Complete",
+        res?.message || `Successfully transitioned student to ${transitionTargetType}. Charges and credits recalculated.`
+      );
+      setShowTransitionModal(false);
+      await refreshStudentProfile();
+    } catch (err: any) {
+      console.error("Transition error:", err);
+      addToast("error", "Transition Failed", err?.message || "Failed to complete category transition.");
+    } finally {
+      setIsSubmittingTransition(false);
+    }
+  };
+
+  const handleApplyCredit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedStudent) return;
+    const amt = Number(creditAmountToApply);
+    if (!amt || amt <= 0) {
+      addToast("error", "Invalid Amount", "Please enter a valid credit amount to apply.");
+      return;
+    }
+    try {
+      setIsSubmittingCredit(true);
+      const sId = Number(selectedStudent.id || (selectedStudent as any).studentId);
+      const payload = {
+        studentId: sId,
+        admissionNo: selectedStudent.admissionNo || String(sId),
+        amount: amt,
+        targetFeeHead: creditTargetHead,
+        reason: creditReason
+      };
+      const res: any = await applyTransportCreditApi(payload);
+      addToast(
+        "success",
+        "Credit Applied",
+        res?.message || `Successfully applied ₹${amt} credit towards ${creditTargetHead}.`
+      );
+      setShowApplyCreditModal(false);
+      await refreshStudentProfile();
+    } catch (err: any) {
+      console.error("Apply credit error:", err);
+      addToast("error", "Credit Application Failed", err?.message || "Failed to apply transport credit.");
+    } finally {
+      setIsSubmittingCredit(false);
+    }
+  };
+
+  const handleRefundDeposit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedStudent) return;
+    const refAmt = Number(refundAmountInput);
+    const dedAmt = Number(deductionAmountInput) || 0;
+    if (!refAmt || refAmt <= 0) {
+      addToast("error", "Invalid Amount", "Please enter a valid refund amount.");
+      return;
+    }
+    if (dedAmt > refAmt) {
+      addToast("error", "Invalid Deduction", "Deduction cannot exceed the total refundable amount.");
+      return;
+    }
+    try {
+      setIsSubmittingRefund(true);
+      const sId = Number(selectedStudent.id || (selectedStudent as any).studentId);
+      const payload = {
+        studentId: sId,
+        admissionNo: selectedStudent.admissionNo || String(sId),
+        refundAmount: refAmt,
+        deductionAmount: dedAmt,
+        deductionReason: deductionReasonInput || undefined,
+        paymentMode: refundPaymentMode,
+        remarks: refundRemarks || "Hostel security deposit refund"
+      };
+      const res: any = await refundSecurityDepositApi(payload);
+      addToast(
+        "success",
+        "Deposit Refund Processed",
+        res?.message || `Processed refund of ₹${refAmt - dedAmt} successfully.`
+      );
+      setShowRefundDepositModal(false);
+      await refreshStudentProfile();
+    } catch (err: any) {
+      console.error("Refund error:", err);
+      addToast("error", "Refund Failed", err?.message || "Failed to process deposit refund.");
+    } finally {
+      setIsSubmittingRefund(false);
+    }
+  };
+
+  const isHostellerStudent = useMemo(() => {
+    if (!selectedStudent) return false;
+    if (backendFeeProfile?.hostelStaySummary && backendFeeProfile.hostelStaySummary !== "None") return true;
+    if (backendFeeProfile?.hostelAssessedFee > 0 || backendFeeProfile?.hostelPaidAmount > 0) return true;
+    const sType = (selectedStudent as any)?.studentType || (selectedStudent as any)?.type;
+    if (sType === "Residential") return true;
+    const adm = (admissions || []).find((a: any) =>
+      a.id === selectedStudent.id ||
+      a.applicationNo === selectedStudent.admissionNo ||
+      a.registrationNo === selectedStudent.admissionNo
+    );
+    return adm?.studentType === "Residential";
+  }, [selectedStudent, backendFeeProfile, admissions]);
+
 
   const toggleGroupExpansion = (headName: string) => {
     setExpandedGroups((prev) => ({
@@ -2462,8 +2647,9 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
         </div>
 
         {activeStudent && (
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between p-4 bg-slate-50/80 dark:bg-slate-900/60 rounded-xl border border-slate-200/60 dark:border-slate-800 gap-4">
-            <div className="flex items-center gap-4">
+          <div className="flex flex-col p-4 bg-slate-50/80 dark:bg-slate-900/60 rounded-xl border border-slate-200/60 dark:border-slate-800 gap-3">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div className="flex items-center gap-4">
               <div className="w-14 h-14 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 text-white font-black text-lg flex items-center justify-center shadow-md shrink-0">
                 {activeStudent.firstName?.[0] || "A"}
               </div>
@@ -2493,8 +2679,8 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
               </div>
             </div>
 
-            <div className="flex items-center gap-4">
-              <div className="text-right">
+            <div className="flex flex-wrap items-center gap-3">
+              <div className="text-right pr-2">
                 <span className="text-[10px] uppercase font-bold text-slate-400 block">
                   Current Due
                 </span>
@@ -2504,10 +2690,29 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
               </div>
               <button
                 type="button"
-                onClick={() => setShowPaymentHistoryModal(true)}
-                className="px-4 py-2 rounded-xl border border-blue-600 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-950/40 text-xs font-bold transition-all cursor-pointer"
+                onClick={() => {
+                  setTransitionTargetType(isHostellerStudent ? "Non-Residential" : "Residential");
+                  setShowTransitionModal(true);
+                }}
+                className="px-3.5 py-2 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white text-xs font-bold shadow-md shadow-indigo-500/20 flex items-center gap-1.5 transition-all cursor-pointer"
               >
-                View Student Ledger
+                <ArrowRightLeft className="w-3.5 h-3.5" />
+                Category Transition
+              </button>
+              <button
+                type="button"
+                onClick={refreshStudentProfile}
+                title="Recalculate & Sync Fee Profile"
+                className="p-2 rounded-xl border border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 transition-colors cursor-pointer"
+              >
+                <RefreshCw className={`w-4 h-4 ${isLoadingProfile ? "animate-spin text-blue-600" : ""}`} />
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowPaymentHistoryModal(true)}
+                className="px-3 py-2 rounded-xl border border-blue-600 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-950/40 text-xs font-bold transition-all cursor-pointer"
+              >
+                View Ledger
               </button>
               <button
                 type="button"
@@ -2518,8 +2723,116 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
               </button>
             </div>
           </div>
-        )}
+
+          {/* Student Status & Sub-Service Badges */}
+          <div className="flex flex-wrap items-center gap-2 mt-2 pt-2 border-t border-slate-200/60 dark:border-slate-800/60">
+            {isHostellerStudent ? (
+              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-purple-100 text-purple-800 dark:bg-purple-950/70 dark:text-purple-300 border border-purple-200 dark:border-purple-800">
+                <Bed className="w-3 h-3" /> Residential (Hosteller)
+              </span>
+            ) : (
+              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-blue-100 text-blue-800 dark:bg-blue-950/70 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
+                <Bus className="w-3 h-3" /> Non-Residential (Day Scholar)
+              </span>
+            )}
+            {backendFeeProfile?.transportUsageSummary && backendFeeProfile.transportUsageSummary !== "None" && (
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-medium bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
+                {backendFeeProfile.transportUsageSummary}
+              </span>
+            )}
+            {backendFeeProfile?.hostelStaySummary && backendFeeProfile.hostelStaySummary !== "None" && (
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-medium bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
+                {backendFeeProfile.hostelStaySummary}
+              </span>
+            )}
+          </div>
+        </div>
+      )}
       </div>
+
+
+        {/* Dynamic Banners for Credit & Security Deposit */}
+        {activeStudent && (backendFeeProfile?.transportCreditAmount > 0 || (calcResult as any)?.transportCreditAmount > 0) && (
+          <div className="p-4 rounded-2xl bg-gradient-to-r from-emerald-500/10 via-teal-500/10 to-emerald-500/5 border border-emerald-500/30 dark:border-emerald-500/20 flex flex-col sm:flex-row sm:items-center justify-between gap-4 animate-in fade-in">
+            <div className="flex items-start gap-3">
+              <div className="w-10 h-10 rounded-xl bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
+                <Sparkles className="w-5 h-5" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <h4 className="text-sm font-extrabold text-emerald-900 dark:text-emerald-200">
+                    Unused Transport Credit Available
+                  </h4>
+                  <span className="px-2 py-0.5 rounded-full text-xs font-black bg-emerald-500 text-white shadow-xs">
+                    {formatCurrency(backendFeeProfile?.transportCreditAmount ?? (calcResult as any)?.transportCreditAmount ?? 0)}
+                  </span>
+                </div>
+                <p className="text-xs text-emerald-800/80 dark:text-emerald-300/80 mt-0.5">
+                  {backendFeeProfile?.transportUsageSummary || "The student has excess transport payments that can be reallocated towards hostel accommodation, security deposit, or tuition dues."}
+                </p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                setCreditAmountToApply(String(backendFeeProfile?.transportCreditAmount ?? (calcResult as any)?.transportCreditAmount ?? ""));
+                setShowApplyCreditModal(true);
+              }}
+              className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-md shadow-emerald-600/20 transition-all shrink-0 cursor-pointer"
+            >
+              Apply Credit to Dues →
+            </button>
+          </div>
+        )}
+
+        {activeStudent && (backendFeeProfile?.securityDepositRefundable > 0 || (calcResult as any)?.securityDepositRefundable > 0) && (
+          <div className="p-4 rounded-2xl bg-gradient-to-r from-indigo-500/10 via-purple-500/10 to-indigo-500/5 border border-indigo-500/30 dark:border-indigo-500/20 flex flex-col sm:flex-row sm:items-center justify-between gap-4 animate-in fade-in">
+            <div className="flex items-start gap-3">
+              <div className="w-10 h-10 rounded-xl bg-indigo-500/20 text-indigo-600 dark:text-indigo-400 flex items-center justify-center shrink-0">
+                <ShieldCheck className="w-5 h-5" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <h4 className="text-sm font-extrabold text-indigo-900 dark:text-indigo-200">
+                    Refundable Hostel Security Deposit
+                  </h4>
+                  <span className="px-2 py-0.5 rounded-full text-xs font-black bg-indigo-600 text-white shadow-xs">
+                    {formatCurrency(backendFeeProfile?.securityDepositRefundable ?? (calcResult as any)?.securityDepositRefundable ?? 0)}
+                  </span>
+                </div>
+                <p className="text-xs text-indigo-800/80 dark:text-indigo-300/80 mt-0.5">
+                  Hostel security deposit is held as an independent obligation. Upon vacating or leaving the hostel, this deposit can be refunded after any damage deductions.
+                </p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                setRefundAmountInput(String(backendFeeProfile?.securityDepositRefundable ?? (calcResult as any)?.securityDepositRefundable ?? ""));
+                setDeductionAmountInput("0");
+                setDeductionReasonInput("");
+                setShowRefundDepositModal(true);
+              }}
+              className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs shadow-md shadow-indigo-600/20 transition-all shrink-0 cursor-pointer"
+            >
+              Process Deposit Refund →
+            </button>
+          </div>
+        )}
+
+        {activeStudent && backendFeeProfile?.securityDepositRemainingDue > 0 && (
+          <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 dark:border-amber-500/20 flex items-center justify-between gap-3 text-xs text-amber-900 dark:text-amber-200 animate-in fade-in">
+            <div className="flex items-center gap-2 font-medium">
+              <AlertCircle className="w-4 h-4 text-amber-600 shrink-0" />
+              <span>
+                Hostel Security Deposit Outstanding: <strong className="font-extrabold">{formatCurrency(backendFeeProfile.securityDepositRemainingDue)}</strong> (Tracked independently as head FH-HST-DEP).
+              </span>
+            </div>
+            <span className="text-[11px] font-semibold text-amber-700 dark:text-amber-300">
+              Eligible for refund upon checkout
+            </span>
+          </div>
+        )}
 
       {!activeStudent && (
         <div className="glass-card p-5 rounded-2xl border border-slate-200/80 dark:border-slate-800 space-y-4">
@@ -3254,6 +3567,467 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
           </div>
         </div>
       )}
+
+      {/* Category Transition Modal */}
+      {showTransitionModal && activeStudent && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in">
+          <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 max-w-xl w-full max-h-[90vh] overflow-y-auto border border-slate-200 dark:border-slate-800 shadow-2xl space-y-4">
+            <div className="flex justify-between items-center border-b border-slate-200 dark:border-slate-800 pb-3">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-lg bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 flex items-center justify-center">
+                  <ArrowRightLeft className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="text-base font-black text-slate-900 dark:text-white">
+                    Student Category Transition
+                  </h3>
+                  <p className="text-[11px] text-slate-500">
+                    {activeStudent.firstName} {activeStudent.lastName} ({activeStudent.admissionNo || activeStudent.id})
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowTransitionModal(false)}
+                className="p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleExecuteTransition} className="space-y-4 text-xs">
+              <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/60 space-y-1">
+                <p className="font-bold text-slate-700 dark:text-slate-300">
+                  Current Classification:{" "}
+                  <span className="font-black text-blue-600 dark:text-blue-400">
+                    {isHostellerStudent ? "Residential (Hosteller)" : "Non-Residential (Day Scholar)"}
+                  </span>
+                </p>
+                <p className="text-[11px] text-slate-500">
+                  Transitioning will prorate used transport, stop future charges, assess hostel & deposit fees, and preserve any excess payment as credit.
+                </p>
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
+                  Target Student Category
+                </label>
+                <select
+                  value={transitionTargetType}
+                  onChange={(e) => setTransitionTargetType(e.target.value as any)}
+                  className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white font-bold"
+                >
+                  <option value="Residential">Residential (Join Hostel)</option>
+                  <option value="Non-Residential">Non-Residential (Day Scholar / Transport)</option>
+                </select>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
+                    Effective Transition Date
+                  </label>
+                  <input
+                    type="date"
+                    value={transitionDate}
+                    onChange={(e) => setTransitionDate(e.target.value)}
+                    required
+                    className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white"
+                  />
+                </div>
+
+                {transitionTargetType === "Residential" ? (
+                  <div>
+                    <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
+                      Last Day of Transport Usage
+                    </label>
+                    <input
+                      type="date"
+                      value={transportEndDate}
+                      onChange={(e) => setTransportEndDate(e.target.value)}
+                      required
+                      className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white"
+                    />
+                  </div>
+                ) : (
+                  <div>
+                    <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
+                      Hostel Vacate Date
+                    </label>
+                    <input
+                      type="date"
+                      value={transportEndDate}
+                      onChange={(e) => setTransportEndDate(e.target.value)}
+                      required
+                      className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white"
+                    />
+                  </div>
+                )}
+              </div>
+
+              {transitionTargetType === "Residential" && (
+                <div className="p-3.5 rounded-xl border border-indigo-200/80 dark:border-indigo-900/60 bg-indigo-50/40 dark:bg-indigo-950/20 space-y-3">
+                  <h4 className="font-extrabold text-indigo-900 dark:text-indigo-200 flex items-center gap-1.5 text-xs">
+                    <Bed className="w-3.5 h-3.5" /> Hostel Room & Bed Allocation
+                  </h4>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-400 mb-1">
+                        Hostel Joining Date
+                      </label>
+                      <input
+                        type="date"
+                        value={hostelJoiningDate}
+                        onChange={(e) => setHostelJoiningDate(e.target.value)}
+                        required
+                        className="w-full px-2.5 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-400 mb-1">
+                        Hostel Block
+                      </label>
+                      <select
+                        value={selectedBlockId}
+                        onChange={(e) => {
+                          setSelectedBlockId(e.target.value);
+                          setSelectedRoomId("");
+                        }}
+                        className="w-full px-2.5 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs"
+                      >
+                        <option value="">-- Select Block --</option>
+                        {hostelBlocks.map((b: any) => (
+                          <option key={b.id || b.blockId} value={b.id || b.blockId}>
+                            {b.blockName || b.name || `Block ${b.id}`}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-400 mb-1">
+                        Room
+                      </label>
+                      <select
+                        value={selectedRoomId}
+                        onChange={(e) => setSelectedRoomId(e.target.value)}
+                        className="w-full px-2.5 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs"
+                      >
+                        <option value="">-- Select Room --</option>
+                        {hostelRooms
+                          .filter((r: any) => !selectedBlockId || String(r.blockId) === String(selectedBlockId) || String(r.hostelBlockId) === String(selectedBlockId))
+                          .map((r: any) => (
+                            <option key={r.id || r.roomId} value={r.id || r.roomId}>
+                              Room {r.roomNumber || r.roomNo || r.id} ({r.roomType || "Standard"})
+                            </option>
+                          ))}
+                      </select>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-400 mb-1">
+                      Bed Number / Identifier (Optional)
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="e.g. Bed-1 or B1"
+                      value={selectedBedNumber}
+                      onChange={(e) => setSelectedBedNumber(e.target.value)}
+                      className="w-full px-2.5 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs"
+                    />
+                  </div>
+
+                  <label className="flex items-center gap-2 cursor-pointer pt-1">
+                    <input
+                      type="checkbox"
+                      checked={applyCreditOnTransition}
+                      onChange={(e) => setApplyCreditOnTransition(e.target.checked)}
+                      className="rounded text-indigo-600 focus:ring-indigo-500 w-4 h-4"
+                    />
+                    <span className="font-bold text-slate-700 dark:text-slate-300 text-xs">
+                      Automatically apply any excess transport payment credit to hostel charges
+                    </span>
+                  </label>
+                </div>
+              )}
+
+              <div>
+                <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
+                  Reason & Administrative Remarks
+                </label>
+                <textarea
+                  rows={2}
+                  value={transitionNotes}
+                  onChange={(e) => setTransitionNotes(e.target.value)}
+                  placeholder="e.g. Parent requested transition from Day Scholar to Boarder as per application."
+                  className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white"
+                />
+              </div>
+
+              <div className="pt-3 border-t border-slate-200 dark:border-slate-800 flex justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setShowTransitionModal(false)}
+                  className="px-4 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold hover:bg-slate-200 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSubmittingTransition}
+                  className="px-5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold shadow-md shadow-indigo-600/20 disabled:opacity-50 transition-all flex items-center gap-1.5"
+                >
+                  {isSubmittingTransition ? "Processing..." : "Confirm & Transition Category"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Apply Transport Credit Modal */}
+      {showApplyCreditModal && activeStudent && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in">
+          <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 max-w-md w-full border border-slate-200 dark:border-slate-800 shadow-2xl space-y-4">
+            <div className="flex justify-between items-center border-b border-slate-200 dark:border-slate-800 pb-3">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
+                  <Sparkles className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="text-base font-black text-slate-900 dark:text-white">
+                    Apply Transport Credit
+                  </h3>
+                  <p className="text-[11px] text-slate-500">
+                    Reallocate unused transport balance to outstanding dues
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowApplyCreditModal(false)}
+                className="p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleApplyCredit} className="space-y-4 text-xs">
+              <div className="p-3 rounded-xl bg-emerald-50/50 dark:bg-emerald-950/20 border border-emerald-200/60 dark:border-emerald-800/50 flex justify-between items-center">
+                <span className="font-bold text-emerald-900 dark:text-emerald-300">
+                  Total Available Credit:
+                </span>
+                <span className="text-sm font-black text-emerald-600 dark:text-emerald-400">
+                  {formatCurrency(backendFeeProfile?.transportCreditAmount ?? 0)}
+                </span>
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
+                  Amount to Apply (₹)
+                </label>
+                <input
+                  type="number"
+                  min="1"
+                  max={backendFeeProfile?.transportCreditAmount ?? 999999}
+                  value={creditAmountToApply}
+                  onChange={(e) => setCreditAmountToApply(e.target.value)}
+                  required
+                  className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white font-mono font-bold"
+                />
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
+                  Target Fee Head
+                </label>
+                <select
+                  value={creditTargetHead}
+                  onChange={(e) => setCreditTargetHead(e.target.value)}
+                  className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white font-bold"
+                >
+                  <option value="Hostel Accommodation">Hostel Accommodation</option>
+                  <option value="Hostel Security Deposit">Hostel Security Deposit</option>
+                  <option value="Tuition Fee">Tuition Fee</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
+                  Reason / Notes
+                </label>
+                <input
+                  type="text"
+                  value={creditReason}
+                  onChange={(e) => setCreditReason(e.target.value)}
+                  className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white"
+                />
+              </div>
+
+              <div className="pt-3 border-t border-slate-200 dark:border-slate-800 flex justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setShowApplyCreditModal(false)}
+                  className="px-4 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold hover:bg-slate-200 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSubmittingCredit}
+                  className="px-5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold shadow-md shadow-emerald-600/20 disabled:opacity-50 transition-all"
+                >
+                  {isSubmittingCredit ? "Applying..." : "Apply Credit"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Refund Security Deposit Modal */}
+      {showRefundDepositModal && activeStudent && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in">
+          <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 max-w-md w-full border border-slate-200 dark:border-slate-800 shadow-2xl space-y-4">
+            <div className="flex justify-between items-center border-b border-slate-200 dark:border-slate-800 pb-3">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-lg bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 flex items-center justify-center">
+                  <ShieldCheck className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="text-base font-black text-slate-900 dark:text-white">
+                    Process Deposit Refund
+                  </h3>
+                  <p className="text-[11px] text-slate-500">
+                    Hostel Security Deposit Refund & Damage Settlement
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowRefundDepositModal(false)}
+                className="p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleRefundDeposit} className="space-y-4 text-xs">
+              <div className="p-3 rounded-xl bg-indigo-50/50 dark:bg-indigo-950/20 border border-indigo-200/60 dark:border-indigo-800/50 flex justify-between items-center">
+                <span className="font-bold text-indigo-900 dark:text-indigo-300">
+                  Total Refundable Deposit:
+                </span>
+                <span className="text-sm font-black text-indigo-600 dark:text-indigo-400">
+                  {formatCurrency(backendFeeProfile?.securityDepositRefundable ?? 0)}
+                </span>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
+                    Refund Amount (₹)
+                  </label>
+                  <input
+                    type="number"
+                    min="1"
+                    max={backendFeeProfile?.securityDepositRefundable ?? 999999}
+                    value={refundAmountInput}
+                    onChange={(e) => setRefundAmountInput(e.target.value)}
+                    required
+                    className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white font-mono font-bold"
+                  />
+                </div>
+                <div>
+                  <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
+                    Damage Deduction (₹)
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    max={refundAmountInput || 0}
+                    value={deductionAmountInput}
+                    onChange={(e) => setDeductionAmountInput(e.target.value)}
+                    className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white font-mono"
+                  />
+                </div>
+              </div>
+
+              {Number(deductionAmountInput) > 0 && (
+                <div>
+                  <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
+                    Deduction Reason (Damage / Maintenance)
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. Room lock replacement, wall damage"
+                    value={deductionReasonInput}
+                    onChange={(e) => setDeductionReasonInput(e.target.value)}
+                    className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white"
+                  />
+                </div>
+              )}
+
+              <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 flex justify-between items-center">
+                <span className="font-bold text-slate-600 dark:text-slate-400">
+                  Net Payable to Student/Parent:
+                </span>
+                <span className="text-base font-black text-emerald-600 dark:text-emerald-400 font-mono">
+                  {formatCurrency(Math.max(0, (Number(refundAmountInput) || 0) - (Number(deductionAmountInput) || 0)))}
+                </span>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
+                    Payment Mode
+                  </label>
+                  <select
+                    value={refundPaymentMode}
+                    onChange={(e) => setRefundPaymentMode(e.target.value)}
+                    className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white font-bold"
+                  >
+                    <option value="Bank Transfer">Bank Transfer (NEFT/RTGS)</option>
+                    <option value="Cash">Cash</option>
+                    <option value="Cheque">Cheque</option>
+                    <option value="UPI">UPI</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
+                    Remarks
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="Settlement notes"
+                    value={refundRemarks}
+                    onChange={(e) => setRefundRemarks(e.target.value)}
+                    className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white"
+                  />
+                </div>
+              </div>
+
+              <div className="pt-3 border-t border-slate-200 dark:border-slate-800 flex justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setShowRefundDepositModal(false)}
+                  className="px-4 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold hover:bg-slate-200 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSubmittingRefund}
+                  className="px-5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold shadow-md shadow-indigo-600/20 disabled:opacity-50 transition-all"
+                >
+                  {isSubmittingRefund ? "Processing..." : "Disburse Refund"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 };
