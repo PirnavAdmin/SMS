@@ -11,6 +11,7 @@ import { MeetingsView } from './MeetingsView';
 import { WardenCommunicationHubView } from './WardenCommunicationHubView';
 import { fetchNotificationsApi, createNotificationApi, updateNotificationApi, deleteNotificationApi } from '../../../../api/communication';
 import { DateInput } from '../../../common/DateInput';
+import { isAnnouncementAudienceMatch } from '../../../../utils/rbac';
 import { TimeInput } from '../../../common/TimeInput';
 
 export interface AnnouncementItem {
@@ -101,7 +102,40 @@ export const CommunicationView: React.FC = () => {
   const [sendPush, setSendPush] = useState(true);
 
   // Dynamic list state loaded purely from API and DataContext
-  const [localList, setLocalList] = useState<AnnouncementItem[]>([]);
+  const [localList, setLocalList] = useState<AnnouncementItem[]>(() => {
+    if (contextAnnouncements && Array.isArray(contextAnnouncements)) {
+      const seen = new Set<string>();
+      const initialMapped: AnnouncementItem[] = [];
+      contextAnnouncements.forEach(a => {
+        const id = a.id;
+        const title = (a.title || '').trim();
+        const date = a.date || new Date().toISOString().split('T')[0];
+        const target = (a.targetAudience || 'ALL').trim();
+        const contentKey = `${title.toLowerCase()}_${date}_${target.toLowerCase()}`;
+        if (!seen.has(id) && !seen.has(contentKey)) {
+          seen.add(id);
+          seen.add(contentKey);
+          initialMapped.push({
+            id,
+            title,
+            content: a.content || '',
+            targetAudience: target,
+            category: (a.category || 'GENERAL').toUpperCase(),
+            date,
+            time: (a as any).time || '',
+            author: a.author || '',
+            isPinned: (a as any).isPinned || false,
+            recipientsCount: (a as any).recipientsCount || 0,
+            deliveryChannels: (a as any).deliveryChannels || '',
+            branch: (a as any).branch || (a as any).branchId || '',
+            academicYear: (a as any).academicYear || ''
+          });
+        }
+      });
+      return initialMapped;
+    }
+    return [];
+  });
 
   // Fetch backend broadcast notifications on mount
   const loadBackendNotifications = async () => {
@@ -145,7 +179,21 @@ export const CommunicationView: React.FC = () => {
           }
         });
 
-        setLocalList(mapped);
+        setLocalList(prev => {
+          const combined = [...mapped, ...prev];
+          const s = new Set<string>();
+          const deduped: AnnouncementItem[] = [];
+          combined.forEach(it => {
+            const kId = String(it.id);
+            const kContent = `${(it.title || '').trim().toLowerCase()}_${it.date}_${(it.targetAudience || '').trim().toLowerCase()}`;
+            if (!s.has(kId) && !s.has(kContent)) {
+              s.add(kId);
+              s.add(kContent);
+              deduped.push(it);
+            }
+          });
+          return deduped;
+        });
       }
     } catch (err) {
       console.warn("Backend notifications load notice:", err);
@@ -187,7 +235,21 @@ export const CommunicationView: React.FC = () => {
           });
         }
       });
-      setLocalList(contextMapped);
+      setLocalList(prev => {
+        const combined = [...contextMapped, ...prev];
+        const s = new Set<string>();
+        const deduped: AnnouncementItem[] = [];
+        combined.forEach(it => {
+          const kId = String(it.id);
+          const kContent = `${(it.title || '').trim().toLowerCase()}_${it.date}_${(it.targetAudience || '').trim().toLowerCase()}`;
+          if (!s.has(kId) && !s.has(kContent)) {
+            s.add(kId);
+            s.add(kContent);
+            deduped.push(it);
+          }
+        });
+        return deduped;
+      });
     }
   }, [contextAnnouncements]);
 
@@ -207,38 +269,23 @@ export const CommunicationView: React.FC = () => {
     }
 
     // 2. Academic Year filter
-    if (selectedAcademicYear && selectedAcademicYear !== 'All') {
+    if (selectedAcademicYear && selectedAcademicYear !== 'All' && selectedAcademicYear !== 'ALL') {
       const cleanAY = selectedAcademicYear.replace(/[^0-9]/g, '');
       if (cleanAY) {
         const selStart = parseInt(cleanAY.slice(0, 4), 10);
         list = list.filter(a => {
-          if (a.academicYear && a.academicYear !== 'All') {
-            const itemAYClean = String(a.academicYear).replace(/[^0-9]/g, '');
-            if (itemAYClean) {
-              return parseInt(itemAYClean.slice(0, 4), 10) === selStart;
-            }
+          if (!a.academicYear || a.academicYear === 'All' || a.academicYear === 'ALL') return true;
+          const itemAYClean = String(a.academicYear).replace(/[^0-9]/g, '');
+          if (itemAYClean) {
+            return parseInt(itemAYClean.slice(0, 4), 10) === selStart;
           }
-          if (a.date) {
-            const d = new Date(a.date);
-            if (!isNaN(d.getTime())) {
-              const y = d.getFullYear();
-              const mo = d.getMonth() + 1;
-              const ayStart = mo >= 4 ? y : y - 1;
-              return ayStart === selStart;
-            }
-          }
-          return true;
+          return a.academicYear === selectedAcademicYear;
         });
       }
     }
 
-    // 3. Driver role audience filter if applicable
-    if (isDriverRole) {
-      list = list.filter(a => {
-        const target = (a.targetAudience || 'ALL').toUpperCase();
-        return target === 'ALL' || target === 'STAFF ONLY' || target === 'STAFF' || a.category === 'URGENT' || a.category === 'HOLIDAY';
-      });
-    }
+    // 3. Audience & Role filter matching Header.tsx notifications logic
+    list = list.filter(a => isAnnouncementAudienceMatch(a.targetAudience, a.category, userRole));
 
     // 4. Date Crossed filter: by default ('active'), remove notifications whose date has already passed
     if (dateFilter === 'active') {
@@ -259,7 +306,7 @@ export const CommunicationView: React.FC = () => {
       }
     });
     return deduplicated.sort((a, b) => (b.isPinned ? 1 : 0) - (a.isPinned ? 1 : 0));
-  }, [localList, isDriverRole, selectedBranch, selectedAcademicYear, dateFilter, todayDateStr]);
+  }, [localList, userRole, selectedBranch, selectedAcademicYear, dateFilter, todayDateStr]);
 
   useEffect(() => {
     setCurrentPage(1);
@@ -552,71 +599,69 @@ export const CommunicationView: React.FC = () => {
       </div>
 
       {/* LEVEL 2: Navigation Bar (Tab Switcher & Date Filter) */}
-      {!(role.toLowerCase() === 'parent' || role.toLowerCase() === 'student' || isDriverRole) && (
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-2.5 gap-2">
-          <div className="inline-flex items-center gap-1 p-1 bg-slate-100 dark:bg-slate-800/80 rounded-xl border border-slate-200 dark:border-slate-700">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-2.5 gap-2">
+        <div className="inline-flex items-center gap-1 p-1 bg-slate-100 dark:bg-slate-800/80 rounded-xl border border-slate-200 dark:border-slate-700">
+          <button
+            onClick={() => setActiveTab('notifications')}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+              activeTab === 'notifications'
+                ? 'bg-white dark:bg-slate-900 text-sky-600 dark:text-sky-400 shadow-xs border border-slate-200/60 dark:border-slate-700'
+                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+            }`}
+          >
+            <Megaphone className="w-3.5 h-3.5" />
+            Broadcast Notifications
+          </button>
+          {!(role.toLowerCase() === 'parent' || role.toLowerCase() === 'student' || isWardenRole || isDriverRole) && (
             <button
-              onClick={() => setActiveTab('notifications')}
+              onClick={() => setActiveTab('meetings')}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                activeTab === 'notifications'
+                activeTab === 'meetings'
                   ? 'bg-white dark:bg-slate-900 text-sky-600 dark:text-sky-400 shadow-xs border border-slate-200/60 dark:border-slate-700'
                   : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
               }`}
             >
-              <Megaphone className="w-3.5 h-3.5" />
-              Broadcast Notifications
+              <Calendar className="w-3.5 h-3.5" />
+              Meetings & Schedules
             </button>
-            {!isWardenRole && (
-              <button
-                onClick={() => setActiveTab('meetings')}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                  activeTab === 'meetings'
-                    ? 'bg-white dark:bg-slate-900 text-sky-600 dark:text-sky-400 shadow-xs border border-slate-200/60 dark:border-slate-700'
-                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-                }`}
-              >
-                <Calendar className="w-3.5 h-3.5" />
-                Meetings & Schedules
-              </button>
-            )}
-          </div>
-
-          {activeTab === 'notifications' && (
-            <div className="inline-flex items-center gap-1 p-1 bg-slate-100 dark:bg-slate-800/80 rounded-xl border border-slate-200 dark:border-slate-700 self-start sm:self-auto">
-              <button
-                onClick={() => setDateFilter('active')}
-                className={`px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                  dateFilter === 'active'
-                    ? 'bg-white dark:bg-slate-900 text-sky-600 dark:text-sky-400 shadow-xs'
-                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-                }`}
-              >
-                Active Circulars
-              </button>
-              <button
-                onClick={() => setDateFilter('past')}
-                className={`px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                  dateFilter === 'past'
-                    ? 'bg-white dark:bg-slate-900 text-amber-600 dark:text-amber-400 shadow-xs'
-                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-                }`}
-              >
-                Past (Expired)
-              </button>
-              <button
-                onClick={() => setDateFilter('all')}
-                className={`px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                  dateFilter === 'all'
-                    ? 'bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 shadow-xs'
-                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-                }`}
-              >
-                All
-              </button>
-            </div>
           )}
         </div>
-      )}
+
+        {activeTab === 'notifications' && (
+          <div className="inline-flex items-center gap-1 p-1 bg-slate-100 dark:bg-slate-800/80 rounded-xl border border-slate-200 dark:border-slate-700 self-start sm:self-auto">
+            <button
+              onClick={() => setDateFilter('active')}
+              className={`px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                dateFilter === 'active'
+                  ? 'bg-white dark:bg-slate-900 text-sky-600 dark:text-sky-400 shadow-xs'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+              }`}
+            >
+              Active Circulars
+            </button>
+            <button
+              onClick={() => setDateFilter('past')}
+              className={`px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                dateFilter === 'past'
+                  ? 'bg-white dark:bg-slate-900 text-amber-600 dark:text-amber-400 shadow-xs'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+              }`}
+            >
+              Past (Expired)
+            </button>
+            <button
+              onClick={() => setDateFilter('all')}
+              className={`px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                dateFilter === 'all'
+                  ? 'bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 shadow-xs'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+              }`}
+            >
+              All
+            </button>
+          </div>
+        )}
+      </div>
 
       {activeTab === 'meetings' && !(role.toLowerCase() === 'parent' || role.toLowerCase() === 'student' || isWardenRole || isDriverRole) ? (
         <MeetingsView />

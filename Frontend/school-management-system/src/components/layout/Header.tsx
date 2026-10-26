@@ -10,6 +10,7 @@ import { UserRole } from '../../types';
 import { ConfirmModal } from '../common/ConfirmModal';
 import { resolveMediaUrl, DEFAULT_USER_AVATAR, getInitialsAvatar } from '../../utils/mediaUtils';
 import { fetchBranchesApi, createBranchApi, updateBranchApi, deleteBranchApi } from '../../api/settings';
+import { isAnnouncementAudienceMatch } from '../../utils/rbac';
 
 interface HeaderProps {
   collapsed: boolean;
@@ -376,7 +377,6 @@ export const Header: React.FC<HeaderProps> = ({ collapsed, setCollapsed, onOpenS
 
   const userNotifications = useMemo(() => {
     const userRole = (role || user?.role || '').toLowerCase().trim();
-    const isSuperOrAdmin = userRole.includes('admin') || userRole.includes('principal') || userRole.includes('super');
     const todayStr = (() => {
       const d = new Date();
       const y = d.getFullYear();
@@ -391,43 +391,7 @@ export const Header: React.FC<HeaderProps> = ({ collapsed, setCollapsed, onOpenS
       if (item.date && item.date < todayStr) {
         return false;
       }
-      if (isSuperOrAdmin) return true;
-      const aud = (item.targetAudience || 'ALL').toUpperCase().trim();
-      
-      // Universal broadcast announcements
-      if (aud === 'ALL' || aud === 'ALL AUDIENCES' || aud === '' || aud === 'GENERAL' || aud === 'EVERYONE') {
-        return true;
-      }
-
-      // Teaching & Non-Teaching Staff / Faculty / Officers
-      const isStaffMember = userRole.includes('teacher') || 
-                            userRole.includes('staff') || 
-                            userRole.includes('faculty') || 
-                            userRole.includes('warden') || 
-                            userRole.includes('librarian') || 
-                            userRole.includes('accountant') || 
-                            userRole.includes('driver') || 
-                            userRole.includes('receptionist') ||
-                            userRole.includes('employee') ||
-                            userRole.includes('hr') ||
-                            userRole.includes('transport');
-
-      if (isStaffMember) {
-        // Staff see staff announcements, student announcements, and general announcements
-        return true;
-      }
-
-      // Student Logins
-      if (userRole.includes('student')) {
-        return aud.includes('STUDENT') || aud === 'STUDENTS ONLY' || aud.includes('ALL');
-      }
-
-      // Parent Logins
-      if (userRole.includes('parent')) {
-        return aud.includes('PARENT') || aud.includes('STUDENT') || aud === 'PARENTS ONLY' || aud === 'STUDENTS ONLY' || aud.includes('ALL');
-      }
-
-      return true;
+      return isAnnouncementAudienceMatch(item.targetAudience, item.category, userRole);
     });
 
     const seen = new Set<string>();

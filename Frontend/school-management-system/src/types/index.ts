@@ -1125,7 +1125,9 @@ export interface Announcement {
   id: string;
   title: string;
   content: string;
-  targetAudience: 'All' | 'Students' | 'Staff' | 'Parents';
+  targetAudience: 'All' | 'Students' | 'Staff' | 'Parents' | string;
+  branch?: string;
+  academicYear?: string;
   date: string;
   author: string;
   category?: string;

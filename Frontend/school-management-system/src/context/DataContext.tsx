@@ -5843,6 +5843,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
               category: (item.category || "GENERAL").toUpperCase(),
               targetClass: item.targetClass || "",
               targetSection: item.targetSection || "",
+              branch: item.branch || item.branchId || item.campus || "",
+              academicYear: item.academicYear || item.academicYearName || "",
             });
           }
         });

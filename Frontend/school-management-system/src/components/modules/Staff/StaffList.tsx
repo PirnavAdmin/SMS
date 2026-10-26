@@ -989,16 +989,16 @@ export const StaffList: React.FC<{
                   return (
                     <tr
                       key={st.id}
-                      className="group hover:bg-slate-50/80 dark:hover:bg-slate-800/40"
+                      className="group hover:bg-slate-50 dark:hover:bg-slate-800/60"
                     >
                       <td
-                        className="sticky left-0 bg-white dark:bg-slate-900 group-hover:bg-slate-50/80 dark:group-hover:bg-slate-800/40 z-10 transition-colors py-3 px-4 font-bold text-brand-600 dark:text-brand-400 text-center whitespace-nowrap"
-                        style={{ width: 160, minWidth: 160, maxWidth: 160 }}
+                        className="sticky left-0 bg-white dark:bg-slate-900 group-hover:bg-slate-50 dark:group-hover:bg-slate-800 z-10 transition-colors py-3 px-4 font-bold text-brand-600 dark:text-brand-400 text-center whitespace-nowrap"
+                        style={{ left: 0, width: 160, minWidth: 160, maxWidth: 160 }}
                       >
                         {st.empId}
                       </td>
                       <td
-                        className="sticky left-[160px] bg-white dark:bg-slate-900 group-hover:bg-slate-50/80 dark:group-hover:bg-slate-800/40 z-10 transition-colors py-3 px-4 border-r border-slate-200/80 dark:border-slate-800 shadow-[2px_0_5px_rgba(0,0,0,0.02)] dark:shadow-none text-center"
+                        className="sticky left-[160px] bg-white dark:bg-slate-900 group-hover:bg-slate-50 dark:group-hover:bg-slate-800 z-10 transition-colors py-3 px-4 border-r border-slate-200/80 dark:border-slate-800 shadow-[2px_0_5px_rgba(0,0,0,0.02)] dark:shadow-none text-center"
                         style={{ left: 160 }}
                       >
                         <button

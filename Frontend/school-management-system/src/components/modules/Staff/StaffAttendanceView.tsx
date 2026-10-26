@@ -1532,18 +1532,18 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
                 </div>
 
                 <div className="overflow-x-auto scrollbar-thin">
-                  <table className="w-full text-left border-collapse text-[11px]">
+                  <table className="w-full text-left border-separate border-spacing-0 text-[11px]">
                     <thead>
-                      <tr className="bg-slate-100/70 dark:bg-slate-800/60 text-slate-550 dark:text-slate-400 font-bold uppercase border-b border-slate-200 dark:border-slate-800">
+                      <tr className="bg-slate-100 dark:bg-slate-800 text-slate-550 dark:text-slate-400 font-bold uppercase">
                         <th
-                          className="py-2.5 px-3 sticky left-0 bg-slate-100 dark:bg-slate-800 z-20 w-[160px] min-w-[160px] max-w-[160px] border-r border-slate-200 dark:border-slate-800 whitespace-nowrap text-left"
-                          style={{ width: 160, minWidth: 160, maxWidth: 160 }}
+                          className="py-2.5 px-3 sticky left-0 bg-slate-100 dark:bg-slate-800 z-20 w-[160px] min-w-[160px] max-w-[160px] border-b border-r border-slate-200 dark:border-slate-800 whitespace-nowrap text-left"
+                          style={{ left: 0, width: 160, minWidth: 160, maxWidth: 160 }}
                         >
                           Employee ID
                         </th>
                         <th
-                          className="py-2.5 px-3 sticky left-[160px] bg-slate-100 dark:bg-slate-800 z-20 w-[180px] min-w-[180px] max-w-[180px] border-r border-slate-200 dark:border-slate-800 whitespace-nowrap text-left"
-                          style={{ left: 160 }}
+                          className="py-2.5 px-3 sticky left-[160px] bg-slate-100 dark:bg-slate-800 z-20 w-[180px] min-w-[180px] max-w-[180px] border-b border-r border-slate-200 dark:border-slate-800 whitespace-nowrap text-left shadow-[2px_0_4px_rgba(0,0,0,0.04)] dark:shadow-[2px_0_4px_rgba(0,0,0,0.2)]"
+                          style={{ left: 160, width: 180, minWidth: 180, maxWidth: 180 }}
                         >
                           Employee Name
                         </th>
@@ -1679,16 +1679,16 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
                         const totalRecordedDays = pCount + aCount + lCount + hdCount;
 
                         return (
-                          <tr className="group hover:bg-slate-50/50 text-slate-800 dark:text-slate-200 border-b border-slate-100 dark:border-slate-800/80">
+                          <tr className="group hover:bg-slate-50 dark:hover:bg-slate-800/60 text-slate-800 dark:text-slate-200">
                             <td
-                              className="py-2 px-3 font-mono font-bold text-brand-600 dark:text-brand-400 sticky left-0 bg-white dark:bg-slate-900 group-hover:bg-slate-50/50 dark:group-hover:bg-slate-800/50 z-10 w-[160px] min-w-[160px] max-w-[160px] border-r border-slate-200 dark:border-slate-800 whitespace-nowrap text-left"
-                              style={{ width: 160, minWidth: 160, maxWidth: 160 }}
+                              className="py-2 px-3 font-mono font-bold text-brand-600 dark:text-brand-400 sticky left-0 bg-white dark:bg-slate-900 group-hover:bg-slate-50 dark:group-hover:bg-slate-800 z-10 w-[160px] min-w-[160px] max-w-[160px] border-b border-r border-slate-200 dark:border-slate-800 whitespace-nowrap text-left"
+                              style={{ left: 0, width: 160, minWidth: 160, maxWidth: 160 }}
                             >
                               {teacher.empId || teacher.id}
                             </td>
                             <td
-                              className="py-2 px-3 sticky left-[160px] bg-white dark:bg-slate-900 group-hover:bg-slate-50/50 dark:group-hover:bg-slate-800/50 z-10 w-[180px] min-w-[180px] max-w-[180px] border-r border-slate-200 dark:border-slate-800 whitespace-nowrap text-left"
-                              style={{ left: 160 }}
+                              className="py-2 px-3 sticky left-[160px] bg-white dark:bg-slate-900 group-hover:bg-slate-50 dark:group-hover:bg-slate-800 z-10 w-[180px] min-w-[180px] max-w-[180px] border-b border-r border-slate-200 dark:border-slate-800 whitespace-nowrap text-left shadow-[2px_0_4px_rgba(0,0,0,0.04)] dark:shadow-[2px_0_4px_rgba(0,0,0,0.2)]"
+                              style={{ left: 160, width: 180, minWidth: 180, maxWidth: 180 }}
                             >
                               <span className="font-extrabold text-slate-900 dark:text-white block">
                                 {teacher.firstName} {teacher.lastName}
@@ -3763,18 +3763,18 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
             {/* Attendance Grid Table */}
             <div className="glass-card rounded-3xl overflow-hidden border border-slate-200 dark:border-slate-800 shadow-xl bg-white dark:bg-slate-900">
               <div className="overflow-x-auto">
-                <table className="w-full text-left border-collapse text-xs">
+                <table className="w-full text-left border-separate border-spacing-0 text-xs">
                   <thead>
-                    <tr className="bg-slate-100/70 dark:bg-slate-800/60 text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider border-b border-slate-200 dark:border-slate-800">
+                    <tr className="bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider">
                       <th
-                        className="py-3.5 px-4 sticky left-0 bg-slate-100 dark:bg-slate-800 z-20 w-[160px] min-w-[160px] max-w-[160px] border-r border-slate-200 dark:border-slate-800 whitespace-nowrap text-left"
-                        style={{ width: 160, minWidth: 160, maxWidth: 160 }}
+                        className="py-3.5 px-4 sticky left-0 bg-slate-100 dark:bg-slate-800 z-20 w-[160px] min-w-[160px] max-w-[160px] border-b border-r border-slate-200 dark:border-slate-800 whitespace-nowrap text-left"
+                        style={{ left: 0, width: 160, minWidth: 160, maxWidth: 160 }}
                       >
                         Employee ID
                       </th>
                       <th
-                        className="py-3.5 px-4 sticky left-[160px] bg-slate-100 dark:bg-slate-800 z-20 min-w-[200px] max-w-[200px] border-r border-slate-200 dark:border-slate-800 whitespace-nowrap text-left"
-                        style={{ left: 160 }}
+                        className="py-3.5 px-4 sticky left-[160px] bg-slate-100 dark:bg-slate-800 z-20 min-w-[200px] max-w-[200px] border-b border-r border-slate-200 dark:border-slate-800 whitespace-nowrap text-left shadow-[2px_0_4px_rgba(0,0,0,0.04)] dark:shadow-[2px_0_4px_rgba(0,0,0,0.2)]"
+                        style={{ left: 160, width: 200, minWidth: 200, maxWidth: 200 }}
                       >
                         Employee Name
                       </th>
@@ -3817,20 +3817,20 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
                         return (
                           <tr
                             key={s.id}
-                            className="group hover:bg-slate-50/80 dark:hover:bg-slate-800/40 text-slate-900 dark:text-slate-100"
+                            className="group hover:bg-slate-50 dark:hover:bg-slate-800/60 text-slate-900 dark:text-slate-100"
                           >
                             {/* Emp ID */}
                             <td
-                              className="py-3 px-4 font-mono font-bold text-brand-600 dark:text-brand-400 sticky left-0 bg-white dark:bg-slate-900 group-hover:bg-slate-50/80 dark:group-hover:bg-slate-800/40 z-10 w-[160px] min-w-[160px] max-w-[160px] border-r border-slate-200 dark:border-slate-800 whitespace-nowrap text-left"
-                              style={{ width: 160, minWidth: 160, maxWidth: 160 }}
+                              className="py-3 px-4 font-mono font-bold text-brand-600 dark:text-brand-400 sticky left-0 bg-white dark:bg-slate-900 group-hover:bg-slate-50 dark:group-hover:bg-slate-800 z-10 w-[160px] min-w-[160px] max-w-[160px] border-b border-r border-slate-200 dark:border-slate-800 whitespace-nowrap text-left"
+                              style={{ left: 0, width: 160, minWidth: 160, maxWidth: 160 }}
                             >
                               {s.empId || s.id}
                             </td>
 
                             {/* Employee Name */}
                             <td
-                              className="py-3 px-4 sticky left-[160px] bg-white dark:bg-slate-900 group-hover:bg-slate-50/80 dark:group-hover:bg-slate-800/40 z-10 w-[200px] min-w-[200px] max-w-[200px] border-r border-slate-200 dark:border-slate-800"
-                              style={{ left: 160 }}
+                              className="py-3 px-4 sticky left-[160px] bg-white dark:bg-slate-900 group-hover:bg-slate-50 dark:group-hover:bg-slate-800 z-10 w-[200px] min-w-[200px] max-w-[200px] border-b border-r border-slate-200 dark:border-slate-800 shadow-[2px_0_4px_rgba(0,0,0,0.04)] dark:shadow-[2px_0_4px_rgba(0,0,0,0.2)]"
+                              style={{ left: 160, width: 200, minWidth: 200, maxWidth: 200 }}
                             >
                               <div>
                                 <p className="font-extrabold text-slate-900 dark:text-white">
@@ -4173,18 +4173,18 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
               </div>
 
               <div className="overflow-x-auto scrollbar-thin">
-                <table className="w-full text-left border-collapse text-[11px]">
+                <table className="w-full text-left border-separate border-spacing-0 text-[11px]">
                   <thead>
-                    <tr className="bg-slate-100/70 dark:bg-slate-800/60 text-slate-550 dark:text-slate-400 font-bold uppercase border-b border-slate-200 dark:border-slate-800">
+                    <tr className="bg-slate-100 dark:bg-slate-800 text-slate-550 dark:text-slate-400 font-bold uppercase">
                       <th
-                        className="py-2.5 px-3 sticky left-0 bg-slate-100 dark:bg-slate-800 z-20 w-[160px] min-w-[160px] max-w-[160px] border-r border-slate-200 dark:border-slate-800 whitespace-nowrap text-left"
-                        style={{ width: 160, minWidth: 160, maxWidth: 160 }}
+                        className="py-2.5 px-3 sticky left-0 bg-slate-100 dark:bg-slate-800 z-20 w-[160px] min-w-[160px] max-w-[160px] border-b border-r border-slate-200 dark:border-slate-800 whitespace-nowrap text-left"
+                        style={{ left: 0, width: 160, minWidth: 160, maxWidth: 160 }}
                       >
                         Employee ID
                       </th>
                       <th
-                        className="py-2.5 px-3 sticky left-[160px] bg-slate-100 dark:bg-slate-800 z-20 w-[180px] min-w-[180px] max-w-[180px] border-r border-slate-200 dark:border-slate-800 whitespace-nowrap text-left"
-                        style={{ left: 160 }}
+                        className="py-2.5 px-3 sticky left-[160px] bg-slate-100 dark:bg-slate-800 z-20 w-[180px] min-w-[180px] max-w-[180px] border-b border-r border-slate-200 dark:border-slate-800 whitespace-nowrap text-left shadow-[2px_0_4px_rgba(0,0,0,0.04)] dark:shadow-[2px_0_4px_rgba(0,0,0,0.2)]"
+                        style={{ left: 160, width: 180, minWidth: 180, maxWidth: 180 }}
                       >
                         Employee Name
                       </th>
@@ -4339,20 +4339,20 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
                         return (
                           <tr
                             key={s.id}
-                            className="group hover:bg-slate-50/50 text-slate-800 dark:text-slate-200 border-b border-slate-100 dark:border-slate-800/80"
+                            className="group hover:bg-slate-50 dark:hover:bg-slate-800/60 text-slate-800 dark:text-slate-200"
                           >
                             {/* Employee ID */}
                             <td
-                              className="py-2 px-3 font-mono font-bold text-brand-600 dark:text-brand-400 sticky left-0 bg-white dark:bg-slate-900 group-hover:bg-slate-50/50 dark:group-hover:bg-slate-800/50 z-10 w-[160px] min-w-[160px] max-w-[160px] border-r border-slate-200 dark:border-slate-800 whitespace-nowrap text-left"
-                              style={{ width: 160, minWidth: 160, maxWidth: 160 }}
+                              className="py-2 px-3 font-mono font-bold text-brand-600 dark:text-brand-400 sticky left-0 bg-white dark:bg-slate-900 group-hover:bg-slate-50 dark:group-hover:bg-slate-800 z-10 w-[160px] min-w-[160px] max-w-[160px] border-b border-r border-slate-200 dark:border-slate-800 whitespace-nowrap text-left"
+                              style={{ left: 0, width: 160, minWidth: 160, maxWidth: 160 }}
                             >
                               {s.empId || s.id}
                             </td>
 
                             {/* Employee Name */}
                             <td
-                              className="py-2 px-3 sticky left-[160px] bg-white dark:bg-slate-900 group-hover:bg-slate-50/50 dark:group-hover:bg-slate-800/50 z-10 w-[180px] min-w-[180px] max-w-[180px] border-r border-slate-200 dark:border-slate-800 whitespace-nowrap text-left"
-                              style={{ left: 160 }}
+                              className="py-2 px-3 sticky left-[160px] bg-white dark:bg-slate-900 group-hover:bg-slate-50 dark:group-hover:bg-slate-800 z-10 w-[180px] min-w-[180px] max-w-[180px] border-b border-r border-slate-200 dark:border-slate-800 whitespace-nowrap text-left shadow-[2px_0_4px_rgba(0,0,0,0.04)] dark:shadow-[2px_0_4px_rgba(0,0,0,0.2)]"
+                              style={{ left: 160, width: 180, minWidth: 180, maxWidth: 180 }}
                             >
                               <span className="font-extrabold text-slate-900 dark:text-white block">
                                 {s.firstName} {s.lastName}

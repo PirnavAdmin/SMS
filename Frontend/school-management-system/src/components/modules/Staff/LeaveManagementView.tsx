@@ -680,6 +680,13 @@ export const LeaveManagementView: React.FC = () => {
     : Boolean(applyForm.fromDate && applyForm.toDate && applyForm.toDate >= applyForm.fromDate);
   const isInvalidDateRange = Boolean(!applyForm.isHalfDay && applyForm.fromDate && applyForm.toDate && applyForm.toDate < applyForm.fromDate);
 
+  const formatLeaveDateRange = (from?: string, to?: string) => {
+    if (!from && !to) return '-';
+    if (!to) return from || '-';
+    if (!from) return to || '-';
+    return `${from} to ${to}`;
+  };
+
   const getAvailableBalance = (s: Staff, typeName: string) => {
     const rem = getEmployeeRemainingBalances(s);
     const name = typeName.toLowerCase();
@@ -1086,22 +1093,17 @@ export const LeaveManagementView: React.FC = () => {
               <div class="card"><div class="label">Department</div><div class="value">${app.department}</div></div>
               <div class="card"><div class="label">Designation</div><div class="value">${app.designation || 'Faculty Member'}</div></div>
               <div class="card"><div class="label">Leave Type</div><div class="value">${app.leaveTypeName}</div></div>
-              <div class="card"><div class="label">Leave Duration</div><div class="value">${app.numberOfDays} ${Number(app.numberOfDays) === 1 ? 'Day' : 'Days'} (${app.fromDate} to ${app.toDate})</div></div>
+              <div class="card"><div class="label">Leave Duration</div><div class="value">${app.numberOfDays} ${Number(app.numberOfDays) === 1 ? 'Day' : 'Days'} (${formatLeaveDateRange(app.fromDate, app.toDate)})</div></div>
               <div class="card"><div class="label">Applied Date</div><div class="value">${app.appliedDate}</div></div>
               <div class="card"><div class="label">Application Status</div><div class="value" style="color: ${app.status === 'Approved' ? '#16a34a' : (app.status === 'Pending' ? '#d97706' : '#dc2626')}">${app.status.toUpperCase()}</div></div>
+              <div class="card" style="grid-column: span 2;"><div class="label">Reason for Leave</div><div class="value" style="font-weight: 500; margin-top: 4px; line-height: 1.5;">${app.reason || 'None provided'}</div></div>
+              ${app.approverRemarks ? `
+                <div class="card" style="grid-column: span 2; border-color: #fecaca; background: #fff5f5;">
+                  <div class="label" style="color: #991b1b;">Approver Comments</div>
+                  <div class="value" style="font-weight: 500; margin-top: 4px; line-height: 1.5; color: #991b1b;">${app.approverRemarks}</div>
+                </div>
+              ` : ''}
             </div>
-
-            <div class="reason-box">
-              <div class="label">Reason for Leave</div>
-              <p style="margin-top: 5px; font-style: italic;">"${app.reason}"</p>
-            </div>
-
-            ${app.approverRemarks ? `
-              <div class="reason-box" style="border-color: #fecaca; background: #fff5f5;">
-                <div class="label" style="color: #991b1b;">Approver Comments</div>
-                <p style="margin-top: 5px;">${app.approverRemarks}</p>
-              </div>
-            ` : ''}
 
             <div class="footer-sign">
               <div>__________________________________<br/>Employee Signature</div>
@@ -1369,7 +1371,7 @@ export const LeaveManagementView: React.FC = () => {
                           {app.isHalfDay && <span className="block text-[9px] text-amber-600 font-semibold">{app.halfDayPeriod ? `Half Day (${app.halfDayPeriod})` : 'Half Day'}</span>}
                         </td>
                         <td className="py-3.5 px-4 text-center whitespace-nowrap font-mono text-slate-700 dark:text-slate-300">
-                          {app.fromDate} <span className="text-slate-400 font-sans mx-0.5">to</span> {app.toDate}
+                          {formatLeaveDateRange(app.fromDate, app.toDate)}
                         </td>
                         <td className="py-3.5 px-4 font-bold text-slate-900 dark:text-white text-center whitespace-nowrap">{app.numberOfDays} {Number(app.numberOfDays) === 1 ? 'Day' : 'Days'}</td>
                         <td className="py-3.5 px-4 text-center whitespace-nowrap font-mono text-slate-500">{app.appliedDate}</td>
@@ -1380,7 +1382,7 @@ export const LeaveManagementView: React.FC = () => {
                         </td>
                         <td className="py-3.5 px-4 text-center whitespace-nowrap">
                           <div className="flex items-center justify-center gap-1.5">
-                            <button onClick={() => setViewingApplication(app)} className="p-1.5 rounded hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 hover:text-slate-700 transition-colors" title="View Details & Print">
+                            <button onClick={() => setViewingApplication(app)} className="p-1.5 rounded hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 hover:text-slate-700 transition-colors" title="View Leave Application">
                               <Eye className="w-4 h-4" />
                             </button>
                             {app.status === 'Pending' && (
@@ -1601,7 +1603,7 @@ export const LeaveManagementView: React.FC = () => {
                         </td>
                         <td className="py-3 px-4 font-semibold text-sky-600 text-center">{app.leaveTypeName}</td>
                         <td className="py-3 px-4 text-center">{app.appliedDate}</td>
-                        <td className="py-3 px-4 text-center">{app.fromDate} to {app.toDate}</td>
+                        <td className="py-3 px-4 text-center font-mono text-slate-700 dark:text-slate-300 whitespace-nowrap">{formatLeaveDateRange(app.fromDate, app.toDate)}</td>
                         {(() => {
                           const reqDays = Number(app.numberOfDays || (app as any).daysCount || 1);
                           return (
@@ -1991,16 +1993,13 @@ export const LeaveManagementView: React.FC = () => {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm animate-in fade-in">
           <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-lg w-full p-6 shadow-2xl space-y-4">
             
-            {/* School Logo & Header */}
-            <div className="flex items-center justify-between border-b pb-4">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-sky-500 to-violet-600 flex items-center justify-center text-white font-black text-lg shadow-md shrink-0">
-                  <GraduationCap className="w-5 h-5" />
+            {/* Modal Header */}
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl bg-sky-50 dark:bg-sky-950/60 border border-sky-100 dark:border-sky-800 flex items-center justify-center text-sky-600 dark:text-sky-400 shrink-0">
+                  <FileText className="w-4.5 h-4.5" />
                 </div>
-                <div>
-                  <h3 className="text-sm font-black text-slate-900 dark:text-white tracking-tight uppercase">PIRNAV EDUCATIONAL INSTITUTION</h3>
-                  <p className="text-[10px] font-bold text-sky-600 uppercase tracking-wide">Leave Application Slip Preview</p>
-                </div>
+                <h3 className="text-base font-bold text-slate-900 dark:text-white">Leave Application</h3>
               </div>
               <button 
                 type="button"
@@ -2045,35 +2044,37 @@ export const LeaveManagementView: React.FC = () => {
                 </div>
                 <div>
                   <span className="text-[10px] uppercase font-bold text-slate-400">Leave Period</span>
-                  <p className="font-semibold text-slate-700 dark:text-slate-300 mt-0.5">{viewingApplication.fromDate} to {viewingApplication.toDate}</p>
+                  <p className="font-semibold text-slate-700 dark:text-slate-300 mt-0.5">{formatLeaveDateRange(viewingApplication.fromDate, viewingApplication.toDate)}</p>
                 </div>
                 <div>
                   <span className="text-[10px] uppercase font-bold text-slate-400">Total Duration</span>
                   <p className="font-black text-slate-900 dark:text-white mt-0.5">{viewingApplication.numberOfDays} {Number(viewingApplication.numberOfDays) === 1 ? 'Day' : 'Days'} {viewingApplication.isHalfDay ? `(Half Day - ${viewingApplication.halfDayPeriod})` : ''}</p>
                 </div>
-              </div>
 
-              <div>
-                <span className="text-[10px] uppercase font-bold text-slate-400">Reason for Leave</span>
-                <p className="p-3 bg-slate-50 dark:bg-slate-800/40 border rounded-xl italic text-slate-700 dark:text-slate-300 mt-1">{viewingApplication.reason}</p>
-              </div>
-
-              {viewingApplication.approverRemarks && (
-                <div>
-                  <span className="text-[10px] uppercase font-bold text-rose-500">Approver Remarks</span>
-                  <p className="p-3 bg-rose-50/50 dark:bg-rose-950/20 border border-rose-100 dark:border-rose-900 rounded-xl text-rose-800 dark:text-rose-300 mt-1">{viewingApplication.approverRemarks}</p>
+                {/* Reason for Leave integrated consistently in the details card */}
+                <div className="col-span-2 pt-2.5 mt-0.5 border-t border-slate-200/70 dark:border-slate-700/70">
+                  <span className="text-[10px] uppercase font-bold text-slate-400">Reason for Leave</span>
+                  <p className="font-medium text-slate-800 dark:text-slate-200 mt-0.5 leading-relaxed break-words">{viewingApplication.reason || 'None provided'}</p>
                 </div>
-              )}
+
+                {viewingApplication.approverRemarks && (
+                  <div className="col-span-2 pt-2.5 border-t border-rose-200/60 dark:border-rose-900/40">
+                    <span className="text-[10px] uppercase font-bold text-rose-500">Approver Remarks</span>
+                    <p className="font-medium text-rose-800 dark:text-rose-300 mt-0.5 leading-relaxed break-words">{viewingApplication.approverRemarks}</p>
+                  </div>
+                )}
+              </div>
             </div>
 
-            <div className="flex items-center justify-between pt-3 border-t">
+            <div className="flex items-center justify-between pt-3 border-t border-slate-100 dark:border-slate-800">
               <span className="text-[10px] text-slate-400 font-mono">Applied on: {viewingApplication.appliedDate}</span>
-              <div className="flex gap-2">
-                <button onClick={() => handlePrintApplication(viewingApplication)} className="px-4 py-2 text-xs bg-brand-600 hover:bg-brand-500 text-white font-bold rounded-xl flex items-center gap-1.5 shadow-md shadow-brand-500/20 transition-all cursor-pointer">
-                  <Printer className="w-4 h-4" /> Print Slip
-                </button>
-                <button onClick={() => setViewingApplication(null)} className="px-4 py-2 text-xs bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-semibold rounded-xl cursor-pointer">Close</button>
-              </div>
+              <button 
+                type="button"
+                onClick={() => setViewingApplication(null)} 
+                className="px-4 py-2 text-xs font-semibold bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-xl transition-colors cursor-pointer"
+              >
+                Close
+              </button>
             </div>
           </div>
         </div>

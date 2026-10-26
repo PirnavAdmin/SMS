@@ -190,3 +190,89 @@ export const hasModuleAccess = (
     allowedModules.includes(moduleId as ModuleId)
   );
 };
+
+/**
+ * Checks whether an announcement/circular is visible to a user based on their role,
+ * the announcement's target audience, and the category.
+ * Used identically across Header (notification bell & dropdown) and CommunicationView (circulars list)
+ * to prevent any count or visibility mismatch.
+ */
+export const isAnnouncementAudienceMatch = (
+  targetAudience: string | undefined,
+  category: string | undefined,
+  userRole: string | undefined
+): boolean => {
+  if (!userRole) return true;
+  const role = userRole.toLowerCase().trim();
+  const aud = (targetAudience || 'ALL').toUpperCase().trim();
+  const cat = (category || 'GENERAL').toUpperCase().trim();
+
+  // 1. Super Admin, Admin, and Principal can see all circulars
+  if (role.includes('admin') || role.includes('principal') || role.includes('super')) {
+    return true;
+  }
+
+  // 2. Universal circulars, Urgent emergency advisories, and Holiday announcements are visible to everyone
+  if (
+    aud === 'ALL' ||
+    aud === 'ALL AUDIENCES' ||
+    aud === '' ||
+    aud === 'GENERAL' ||
+    aud === 'EVERYONE' ||
+    cat === 'URGENT' ||
+    cat === 'HOLIDAY'
+  ) {
+    return true;
+  }
+
+  // 3. Staff members (Teachers, Support Staff, Driver, Warden, Librarian, Accountant, Receptionist, HR, Transport, etc.)
+  const isStaff =
+    role.includes('teacher') ||
+    role.includes('faculty') ||
+    role.includes('staff') ||
+    role.includes('warden') ||
+    role.includes('librarian') ||
+    role.includes('accountant') ||
+    role.includes('driver') ||
+    role.includes('receptionist') ||
+    role.includes('employee') ||
+    role.includes('hr') ||
+    role.includes('transport') ||
+    role.includes('bus');
+
+  if (isStaff) {
+    // Staff notices are visible to all staff
+    if (aud.includes('STAFF') || aud === 'STAFF ONLY') {
+      return true;
+    }
+    // School-wide broadcast circulars directed to students (academics, assemblies, sports, exams) are visible to staff
+    if (aud.includes('STUDENT') || aud === 'STUDENTS ONLY') {
+      return true;
+    }
+    // Only exclude strictly private parent-only circulars
+    if (aud === 'PARENTS ONLY' || aud === 'PARENTS') {
+      return false;
+    }
+    return true;
+  }
+
+  // 4. Student logins
+  if (role.includes('student')) {
+    // Students see circulars targeted to students or all
+    return aud.includes('STUDENT') || aud === 'STUDENTS ONLY' || aud.includes('ALL');
+  }
+
+  // 5. Parent logins
+  if (role.includes('parent')) {
+    // Parents see parent circulars, student circulars, or all
+    return (
+      aud.includes('PARENT') ||
+      aud.includes('STUDENT') ||
+      aud === 'PARENTS ONLY' ||
+      aud === 'STUDENTS ONLY' ||
+      aud.includes('ALL')
+    );
+  }
+
+  return true;
+};

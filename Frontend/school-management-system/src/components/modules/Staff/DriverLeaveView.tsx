@@ -162,6 +162,12 @@ export const DriverLeaveView: React.FC = () => {
     }
   }, [leaveTypes, leaveTypeId]);
 
+  const formatLeaveDateRange = (from?: string, to?: string) => {
+    if (!from && !to) return '-';
+    if (!to || from === to) return from || '-';
+    return `${from} to ${to}`;
+  };
+
   // Calculate days
   const durationDays = useMemo(() => {
     if (!fromDate || !toDate) return 0;
@@ -376,7 +382,7 @@ export const DriverLeaveView: React.FC = () => {
                       {app.leaveTypeName || 'Casual Leave'}
                     </td>
                     <td className="py-2.5 px-3 font-mono text-slate-600 dark:text-slate-300 text-[11px]">
-                      {app.fromDate || app.startDate} to {app.toDate || app.endDate}
+                      {formatLeaveDateRange(app.fromDate || app.startDate, app.toDate || app.endDate)}
                     </td>
                     <td className="py-2.5 px-3 font-bold text-sky-600 dark:text-sky-400">
                       {app.daysCount || 1} {Number(app.daysCount || 1) === 1 ? 'Day' : 'Days'}
