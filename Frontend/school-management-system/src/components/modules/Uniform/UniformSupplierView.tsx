@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Search, Edit, Trash2, Users, Building2, X, Filter } from 'lucide-react';
+import { Plus, Search, Edit, Trash2, Users, X, Filter } from 'lucide-react';
 import { useData } from '../../../context/DataContext';
 import { useToast } from '../../../context/ToastContext';
 import { UniformSupplier } from '../../../types';
 import { Badge } from '../../common/Badge';
 import { ConfirmModal } from '../../common/ConfirmModal';
 import { Pagination } from '../../common/Pagination';
+import { validateEmail, validatePhoneNumber, validateGSTNumber } from '../../../utils/validation';
 
 export const UniformSupplierView: React.FC<{tabs?: React.ReactNode}> = ({ tabs }) => {
   const { uniformSuppliers = [], addUniformSupplier, updateUniformSupplier, deleteUniformSupplier, fetchUniformData } = useData();
@@ -35,8 +36,113 @@ export const UniformSupplierView: React.FC<{tabs?: React.ReactNode}> = ({ tabs }
     status: 'Active'
   });
 
-  const filtered = (uniformSuppliers || []).filter(s => {
-    if (!s) return false;
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [touched, setTouched] = useState<Record<string, boolean>>({});
+  const [submitted, setSubmitted] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+
+  const validateField = (field: string, value: any): string => {
+    let err = '';
+    const strVal = (value ?? '').toString().trim();
+
+    if (field === 'supplierName') {
+      if (!strVal) {
+        err = 'Supplier / Company Name is required.';
+      } else if (strVal.length < 2) {
+        err = 'Supplier name must be at least 2 characters.';
+      }
+    } else if (field === 'contactPerson') {
+      if (!strVal) {
+        err = 'Contact person is required.';
+      } else if (strVal.length < 2) {
+        err = 'Contact person name must be at least 2 characters.';
+      }
+    } else if (field === 'mobile') {
+      const res = validatePhoneNumber(strVal, true);
+      if (!res.isValid) {
+        err = res.error || 'Enter a valid 10-digit mobile number.';
+      }
+    } else if (field === 'email') {
+      if (strVal) {
+        const res = validateEmail(strVal, false);
+        if (!res.isValid) {
+          err = res.error || 'Please enter a valid email address.';
+        }
+      }
+    } else if (field === 'gstNumber') {
+      if (strVal) {
+        const res = validateGSTNumber(strVal, false);
+        if (!res.isValid) {
+          err = res.error || 'Invalid GST registration number format.';
+        }
+      }
+    } else if (field === 'status') {
+      if (!strVal) {
+        err = 'Supplier status is required.';
+      }
+    }
+
+    setErrors(prev => {
+      const updated = { ...prev };
+      if (err) {
+        updated[field] = err;
+      } else {
+        delete updated[field];
+      }
+      return updated;
+    });
+
+    return err;
+  };
+
+  const validateAll = (): boolean => {
+    const newErrors: Record<string, string> = {};
+
+    const sName = (form.supplierName || (form as any).companyName || '').trim();
+    if (!sName) {
+      newErrors.supplierName = 'Supplier / Company Name is required.';
+    } else if (sName.length < 2) {
+      newErrors.supplierName = 'Supplier name must be at least 2 characters.';
+    }
+
+    const cPerson = (form.contactPerson || (form as any).contactRepresentative || '').trim();
+    if (!cPerson) {
+      newErrors.contactPerson = 'Contact person is required.';
+    } else if (cPerson.length < 2) {
+      newErrors.contactPerson = 'Contact person name must be at least 2 characters.';
+    }
+
+    const mobileVal = (form.mobile || form.phone || '').trim();
+    const mobRes = validatePhoneNumber(mobileVal, true);
+    if (!mobRes.isValid) {
+      newErrors.mobile = mobRes.error || 'Enter a valid 10-digit mobile number.';
+    }
+
+    const emailVal = (form.email || '').trim();
+    if (emailVal) {
+      const emRes = validateEmail(emailVal, false);
+      if (!emRes.isValid) {
+        newErrors.email = emRes.error || 'Please enter a valid email address.';
+      }
+    }
+
+    const gstVal = (form.gstNumber || '').trim();
+    if (gstVal) {
+      const gstRes = validateGSTNumber(gstVal, false);
+      if (!gstRes.isValid) {
+        newErrors.gstNumber = gstRes.error || 'Invalid GST registration number format.';
+      }
+    }
+
+    if (!form.status) {
+      newErrors.status = 'Supplier status is required.';
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  const filtered = uniformSuppliers.filter(s => {
     const name = (s.supplierName || (s as any).companyName || '').toLowerCase();
     const contact = (s.contactPerson || (s as any).contactRepresentative || '').toLowerCase();
     const gst = (s.gstNumber || (s as any).gstRegistrationNo || '').toLowerCase();
@@ -51,6 +157,9 @@ export const UniformSupplierView: React.FC<{tabs?: React.ReactNode}> = ({ tabs }
   const handleOpenAdd = () => {
     setEditingSupplier(null);
     setForm({ supplierName: '', contactPerson: '', mobile: '', email: '', gstNumber: '', address: '', status: 'Active' });
+    setErrors({});
+    setTouched({});
+    setSubmitted(false);
     setIsModalOpen(true);
   };
 
@@ -66,27 +175,45 @@ export const UniformSupplierView: React.FC<{tabs?: React.ReactNode}> = ({ tabs }
       address: s.address || (s as any).warehouseAddress || '',
       status: s.status || 'Active'
     });
+    setErrors({});
+    setTouched({});
+    setSubmitted(false);
     setIsModalOpen(true);
   };
 
   const handleSubmit = async (e: React.SyntheticEvent) => {
     e.preventDefault();
-    const sName = form.supplierName?.trim() || (form as any).companyName?.trim();
-    if (!sName || !form.contactPerson || !form.mobile) {
-      addToast('error', 'Validation Error', 'Supplier name, contact person and mobile are required.');
+    setSubmitted(true);
+
+    if (!validateAll()) {
+      setTouched({
+        supplierName: true,
+        contactPerson: true,
+        mobile: true,
+        email: true,
+        gstNumber: true,
+        status: true
+      });
+      addToast('error', 'Validation Error', 'Please correct the highlighted errors before saving.');
       return;
     }
 
+    const sName = (form.supplierName || (form as any).companyName || '').trim();
     const payload = {
       ...form,
       supplierName: sName,
       companyName: sName,
-      mobile: form.mobile,
-      phone: form.mobile,
+      contactPerson: (form.contactPerson || '').trim(),
+      mobile: (form.mobile || '').trim(),
+      phone: (form.mobile || '').trim(),
+      email: (form.email || '').trim(),
+      gstNumber: (form.gstNumber || '').trim().toUpperCase(),
+      address: (form.address || '').trim(),
       status: form.status || 'Active'
     };
 
     try {
+      setIsSaving(true);
       if (editingSupplier) {
         await updateUniformSupplier(editingSupplier.id, payload);
         addToast('success', 'Supplier Updated', `Updated supplier ${sName}`);
@@ -97,12 +224,14 @@ export const UniformSupplierView: React.FC<{tabs?: React.ReactNode}> = ({ tabs }
       setIsModalOpen(false);
     } catch (err: any) {
       addToast('error', 'Update Failed', err?.message || 'Failed to save supplier');
+    } finally {
+      setIsSaving(false);
     }
   };
 
   return (
     <div className="space-y-6">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white flex items-center gap-2">
             <Users className="w-6 h-6 text-sky-600" /> Corporate Suppliers
@@ -110,7 +239,7 @@ export const UniformSupplierView: React.FC<{tabs?: React.ReactNode}> = ({ tabs }
         </div>
         <button
           onClick={handleOpenAdd}
-          className="px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs shadow-lg shadow-sky-500/20 flex items-center gap-1.5 transition-all"
+          className="px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs shadow-lg shadow-sky-500/20 flex items-center gap-1.5 transition-all cursor-pointer"
         >
           <Plus className="w-4 h-4" /> Add Supplier
         </button>
@@ -162,7 +291,6 @@ export const UniformSupplierView: React.FC<{tabs?: React.ReactNode}> = ({ tabs }
         </div>
 
         <div className="flex items-center gap-2 w-full sm:w-auto">
-          {/* <span className="text-xs font-semibold text-slate-500 flex items-center gap-1"><Filter className="w-3.5 h-3.5" /> Filters:</span> */}
           <select
             value={filterStatus}
             onChange={e => setFilterStatus(e.target.value)}
@@ -208,8 +336,8 @@ export const UniformSupplierView: React.FC<{tabs?: React.ReactNode}> = ({ tabs }
                     </td>
                     <td className="py-3 px-4 text-center">
                       <div className="flex items-center justify-center gap-1.5">
-                        <button onClick={() => handleOpenEdit(s)} className="p-1 rounded hover:bg-slate-100 dark:hover:bg-slate-800 text-sky-600"><Edit className="w-3.5 h-3.5" /></button>
-                        <button onClick={() => setDeletingSupplier(s)} className="p-1 rounded hover:bg-rose-50 text-rose-600"><Trash2 className="w-3.5 h-3.5" /></button>
+                        <button onClick={() => handleOpenEdit(s)} className="p-1 rounded hover:bg-slate-100 dark:hover:bg-slate-800 text-sky-600 cursor-pointer"><Edit className="w-3.5 h-3.5" /></button>
+                        <button onClick={() => setDeletingSupplier(s)} className="p-1 rounded hover:bg-rose-50 text-rose-600 cursor-pointer"><Trash2 className="w-3.5 h-3.5" /></button>
                       </div>
                     </td>
                   </tr>
@@ -233,95 +361,240 @@ export const UniformSupplierView: React.FC<{tabs?: React.ReactNode}> = ({ tabs }
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in">
           <div className="glass-card w-full max-w-md p-6 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl shadow-2xl space-y-4">
-            <h3 className="text-base font-extrabold text-slate-900 dark:text-white">Add Supplier</h3>
-            <form onSubmit={handleSubmit} className="space-y-4 text-xs">
+            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
+              <h3 className="text-base font-extrabold text-slate-900 dark:text-white">
+                {editingSupplier ? 'Edit Supplier' : 'Add Supplier'}
+              </h3>
+              <button
+                type="button"
+                onClick={() => setIsModalOpen(false)}
+                className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-white cursor-pointer rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSubmit} noValidate className="space-y-4 text-xs">
+              {/* Supplier / Company Name */}
               <div>
-                <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Supplier / Company Name <span className="text-rose-500 font-bold ml-0.5">*</span></label>
+                <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">
+                  Supplier / Company Name <span className="text-rose-500 font-bold ml-0.5">*</span>
+                </label>
                 <input
                   type="text"
-                  required
                   placeholder="e.g. Apex Uniform Mills Ltd"
-                  value={form.supplierName}
-                  onChange={e => setForm({ ...form, supplierName: e.target.value })}
-                  className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border"
+                  value={form.supplierName || ''}
+                  onChange={e => {
+                    setForm({ ...form, supplierName: e.target.value });
+                    if (touched.supplierName || submitted) {
+                      validateField('supplierName', e.target.value);
+                    }
+                  }}
+                  onBlur={() => {
+                    setTouched(prev => ({ ...prev, supplierName: true }));
+                    validateField('supplierName', form.supplierName);
+                  }}
+                  className={`w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-xs text-slate-900 dark:text-white outline-none transition-colors ${
+                    (touched.supplierName || submitted) && errors.supplierName
+                      ? 'border-rose-500 focus:border-rose-500 ring-1 ring-rose-500/20'
+                      : 'border-slate-200 dark:border-slate-700 focus:border-sky-500'
+                  }`}
                 />
+                {(touched.supplierName || submitted) && errors.supplierName && (
+                  <p className="text-[11px] text-rose-500 font-medium mt-1">{errors.supplierName}</p>
+                )}
               </div>
 
+              {/* Contact Person & Mobile */}
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Contact Person <span className="text-rose-500 font-bold ml-0.5">*</span></label>
+                  <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">
+                    Contact Person <span className="text-rose-500 font-bold ml-0.5">*</span>
+                  </label>
                   <input
                     type="text"
-                    required
                     placeholder="e.g. Rahul Sharma"
-                    value={form.contactPerson}
-                    onChange={e => setForm({ ...form, contactPerson: e.target.value })}
-                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border"
+                    value={form.contactPerson || ''}
+                    onChange={e => {
+                      setForm({ ...form, contactPerson: e.target.value });
+                      if (touched.contactPerson || submitted) {
+                        validateField('contactPerson', e.target.value);
+                      }
+                    }}
+                    onBlur={() => {
+                      setTouched(prev => ({ ...prev, contactPerson: true }));
+                      validateField('contactPerson', form.contactPerson);
+                    }}
+                    className={`w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-xs text-slate-900 dark:text-white outline-none transition-colors ${
+                      (touched.contactPerson || submitted) && errors.contactPerson
+                        ? 'border-rose-500 focus:border-rose-500 ring-1 ring-rose-500/20'
+                        : 'border-slate-200 dark:border-slate-700 focus:border-sky-500'
+                    }`}
                   />
+                  {(touched.contactPerson || submitted) && errors.contactPerson && (
+                    <p className="text-[11px] text-rose-500 font-medium mt-1">{errors.contactPerson}</p>
+                  )}
                 </div>
+
                 <div>
-                  <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Mobile Number <span className="text-rose-500 font-bold ml-0.5">*</span></label>
+                  <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">
+                    Mobile Number <span className="text-rose-500 font-bold ml-0.5">*</span>
+                  </label>
                   <input
-                    type="text"
-                    required
+                    type="tel"
                     placeholder="10-digit mobile"
-                    value={form.mobile}
-                    onChange={e => setForm({ ...form, mobile: e.target.value.replace(/\D/g, '').slice(0, 10) })}
-                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border"
+                    maxLength={10}
+                    value={form.mobile || ''}
+                    onChange={e => {
+                      const val = e.target.value.replace(/\D/g, '').slice(0, 10);
+                      setForm({ ...form, mobile: val });
+                      if (touched.mobile || submitted) {
+                        validateField('mobile', val);
+                      }
+                    }}
+                    onBlur={() => {
+                      setTouched(prev => ({ ...prev, mobile: true }));
+                      validateField('mobile', form.mobile);
+                    }}
+                    className={`w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-xs text-slate-900 dark:text-white outline-none font-mono transition-colors ${
+                      (touched.mobile || submitted) && errors.mobile
+                        ? 'border-rose-500 focus:border-rose-500 ring-1 ring-rose-500/20'
+                        : 'border-slate-200 dark:border-slate-700 focus:border-sky-500'
+                    }`}
                   />
+                  {(touched.mobile || submitted) && errors.mobile && (
+                    <p className="text-[11px] text-rose-500 font-medium mt-1">{errors.mobile}</p>
+                  )}
                 </div>
               </div>
 
+              {/* Email & GST */}
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Email Address</label>
+                  <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">
+                    Email Address
+                  </label>
                   <input
                     type="email"
                     placeholder="supplier@company.com"
                     value={form.email || ''}
-                    onChange={e => setForm({ ...form, email: e.target.value })}
-                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border"
+                    onChange={e => {
+                      setForm({ ...form, email: e.target.value });
+                      if (touched.email || submitted) {
+                        validateField('email', e.target.value);
+                      }
+                    }}
+                    onBlur={() => {
+                      setTouched(prev => ({ ...prev, email: true }));
+                      validateField('email', form.email);
+                    }}
+                    className={`w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-xs text-slate-900 dark:text-white outline-none transition-colors ${
+                      (touched.email || submitted) && errors.email
+                        ? 'border-rose-500 focus:border-rose-500 ring-1 ring-rose-500/20'
+                        : 'border-slate-200 dark:border-slate-700 focus:border-sky-500'
+                    }`}
                   />
+                  {(touched.email || submitted) && errors.email && (
+                    <p className="text-[11px] text-rose-500 font-medium mt-1">{errors.email}</p>
+                  )}
                 </div>
+
                 <div>
-                  <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">GST Registration No</label>
+                  <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">
+                    GST Registration No
+                  </label>
                   <input
                     type="text"
                     placeholder="22AAAAA0000A1Z5"
+                    maxLength={15}
                     value={form.gstNumber || ''}
-                    onChange={e => setForm({ ...form, gstNumber: e.target.value })}
-                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-mono uppercase"
+                    onChange={e => {
+                      const val = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 15);
+                      setForm({ ...form, gstNumber: val });
+                      if (touched.gstNumber || submitted) {
+                        validateField('gstNumber', val);
+                      }
+                    }}
+                    onBlur={() => {
+                      setTouched(prev => ({ ...prev, gstNumber: true }));
+                      validateField('gstNumber', form.gstNumber);
+                    }}
+                    className={`w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-mono uppercase text-xs text-slate-900 dark:text-white outline-none transition-colors ${
+                      (touched.gstNumber || submitted) && errors.gstNumber
+                        ? 'border-rose-500 focus:border-rose-500 ring-1 ring-rose-500/20'
+                        : 'border-slate-200 dark:border-slate-700 focus:border-sky-500'
+                    }`}
                   />
+                  {(touched.gstNumber || submitted) && errors.gstNumber && (
+                    <p className="text-[11px] text-rose-500 font-medium mt-1">{errors.gstNumber}</p>
+                  )}
                 </div>
               </div>
 
+              {/* Status & Address */}
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Supplier Status <span className="text-rose-500 font-bold ml-0.5">*</span></label>
+                  <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">
+                    Supplier Status <span className="text-rose-500 font-bold ml-0.5">*</span>
+                  </label>
                   <select
-                    value={form.status}
-                    onChange={e => setForm({ ...form, status: e.target.value as any })}
-                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border cursor-pointer"
+                    value={form.status || ''}
+                    onChange={e => {
+                      setForm({ ...form, status: e.target.value as any });
+                      if (touched.status || submitted) {
+                        validateField('status', e.target.value);
+                      }
+                    }}
+                    onBlur={() => {
+                      setTouched(prev => ({ ...prev, status: true }));
+                      validateField('status', form.status);
+                    }}
+                    className={`w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-xs text-slate-900 dark:text-white outline-none cursor-pointer transition-colors ${
+                      (touched.status || submitted) && errors.status
+                        ? 'border-rose-500 focus:border-rose-500 ring-1 ring-rose-500/20'
+                        : 'border-slate-200 dark:border-slate-700 focus:border-sky-500'
+                    }`}
                   >
                     <option value="">Select Status *</option>
                     <option value="Active">Active</option>
                     <option value="Inactive">Inactive</option>
                   </select>
+                  {(touched.status || submitted) && errors.status && (
+                    <p className="text-[11px] text-rose-500 font-medium mt-1">{errors.status}</p>
+                  )}
                 </div>
+
                 <div>
-                  <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Warehouse Address</label>
+                  <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">
+                    Warehouse Address
+                  </label>
                   <input
                     type="text"
+                    placeholder="e.g. Sector 5, Industrial Area"
                     value={form.address || ''}
                     onChange={e => setForm({ ...form, address: e.target.value })}
-                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border"
+                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs text-slate-900 dark:text-white outline-none focus:border-sky-500"
                   />
                 </div>
               </div>
 
+              {/* Actions */}
               <div className="flex items-center justify-end gap-3 pt-2">
-                <button type="button" onClick={() => setIsModalOpen(false)} className="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition-all">Cancel</button>
-                <button type="submit" className="px-5 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white text-xs font-bold transition-all">Save</button>
+                <button
+                  type="button"
+                  onClick={() => setIsModalOpen(false)}
+                  disabled={isSaving}
+                  className="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs font-bold transition-all cursor-pointer disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSaving}
+                  className="px-5 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white text-xs font-bold transition-all shadow-md shadow-sky-500/20 cursor-pointer disabled:opacity-70 disabled:cursor-not-allowed"
+                >
+                  {isSaving ? 'Saving...' : 'Save'}
+                </button>
               </div>
             </form>
           </div>
@@ -348,4 +621,3 @@ export const UniformSupplierView: React.FC<{tabs?: React.ReactNode}> = ({ tabs }
     </div>
   );
 };
-export default UniformSupplierView;

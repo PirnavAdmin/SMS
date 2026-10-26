@@ -68,6 +68,38 @@ export function sanitizePhoneInput(input: string, maxDigits: number = 10): strin
   return digitsOnly.slice(0, maxDigits);
 }
 
+/**
+ * Validates an Indian GST Registration Number (GSTIN).
+ * Expected format: 15 alphanumeric characters (e.g. 22AAAAA0000A1Z5)
+ */
+export function validateGSTNumber(gst: string, required: boolean = false): { isValid: boolean; error?: string } {
+  if (!gst || typeof gst !== 'string' || !gst.trim()) {
+    if (required) {
+      return { isValid: false, error: 'GST registration number is required.' };
+    }
+    return { isValid: true };
+  }
+
+  const cleaned = gst.trim().toUpperCase();
+
+  if (cleaned.length !== 15) {
+    return {
+      isValid: false,
+      error: `GST number must be exactly 15 characters (currently ${cleaned.length}).`,
+    };
+  }
+
+  const gstRegex = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/;
+  if (!gstRegex.test(cleaned)) {
+    return {
+      isValid: false,
+      error: 'Invalid GST format. Expected 15-char GSTIN (e.g. 22AAAAA0000A1Z5).',
+    };
+  }
+
+  return { isValid: true };
+}
+
 
 const INVALID_DUMMY_DOMAINS = new Set([
   // Dummy / test / example / placeholder domains
@@ -1655,6 +1687,12 @@ export function validateInputElement(
     return { isValid: true };
   }
 
+  const ph = (input.placeholder || '').toLowerCase().trim();
+
+  if (label.includes('gst') || ph.includes('gst')) {
+    return validateGSTNumber(val, enforceRequired && input.required);
+  }
+
   const isDateField =
     input.hasAttribute('data-date-input') ||
     Boolean(input.closest('[data-date-input]')) ||
@@ -1695,8 +1733,6 @@ export function validateInputElement(
     const labelEl = parentDiv?.querySelector('label') || parentDiv?.parentElement?.querySelector('label');
     return (labelEl?.textContent || '').toLowerCase();
   })();
-
-  const ph = (input.placeholder || '').toLowerCase().trim();
 
   const isExplicitlyNonTime =
     input.hasAttribute('data-no-time-validation') ||
