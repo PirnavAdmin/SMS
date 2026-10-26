@@ -1292,8 +1292,14 @@ public class FeeCollectionRepository : IFeeCollectionRepository
             return !string.IsNullOrWhiteSpace(alias.Name) ? alias.Name.Trim() : clean;
         }
 
-        // 7. Tuition canonical detection
-        if (lower.Contains("tuition") || lower.Contains("term") || lower.Contains("admission"))
+        // 7. Admission detection
+        if (lower.Contains("admission") || lower.Contains("registration") || lower.Contains("application"))
+        {
+            return "Admission Fee";
+        }
+
+        // 8. Tuition canonical detection
+        if (lower.Contains("tuition") || lower.Contains("term") || lower.Contains("academic"))
         {
             return "Tuition Fee";
         }
@@ -1854,7 +1860,37 @@ public class FeeCollectionRepository : IFeeCollectionRepository
 
         // 2. Tuition / Academic Fees Calculation
         var assignments = await _context.StudentFeeAssignments.AsNoTracking().ToListAsync();
-        var dynamicStructures = await _context.DynamicFeeStructures.AsNoTracking().Where(d => d.Status == "Active" || string.IsNullOrEmpty(d.Status)).ToListAsync();
+        var dynamicStructuresQuery = _context.DynamicFeeStructures.AsNoTracking()
+            .Where(d => d.Status == "Active" || string.IsNullOrEmpty(d.Status));
+
+        if (!string.IsNullOrWhiteSpace(branch) && !branch.Equals("All", StringComparison.OrdinalIgnoreCase) && !branch.Equals("All Branches", StringComparison.OrdinalIgnoreCase))
+        {
+            string bClean = branch.Trim().ToLower();
+            string bKeyword = System.Text.RegularExpressions.Regex.Replace(bClean, @"\b(branch|campus|school)\b", "").Trim();
+
+            dynamicStructuresQuery = dynamicStructuresQuery.Where(d =>
+                string.IsNullOrEmpty(d.Branch) ||
+                d.Branch.Equals("All", StringComparison.OrdinalIgnoreCase) ||
+                d.Branch.Equals("All Branches", StringComparison.OrdinalIgnoreCase) ||
+                d.Branch.ToLower() == bClean ||
+                d.Branch.ToLower().Contains(bClean) ||
+                bClean.Contains(d.Branch.ToLower()) ||
+                (!string.IsNullOrEmpty(bKeyword) && (d.Branch.ToLower().Contains(bKeyword) || bKeyword.Contains(d.Branch.ToLower()))));
+        }
+
+        if (!string.IsNullOrWhiteSpace(academicYear) && !academicYear.Equals("All", StringComparison.OrdinalIgnoreCase))
+        {
+            var matchYear = System.Text.RegularExpressions.Regex.Match(academicYear, @"\d{4}");
+            string yearSub = matchYear.Success ? matchYear.Value : academicYear;
+
+            dynamicStructuresQuery = dynamicStructuresQuery.Where(d =>
+                string.IsNullOrEmpty(d.AcademicYear) ||
+                d.AcademicYear.Equals("All", StringComparison.OrdinalIgnoreCase) ||
+                d.AcademicYear.Contains(academicYear) ||
+                d.AcademicYear.Contains(yearSub));
+        }
+
+        var dynamicStructures = await dynamicStructuresQuery.ToListAsync();
         var validStructureIds = dynamicStructures.Select(d => d.Id).ToHashSet();
         var validStructuresDict = dynamicStructures.ToDictionary(d => d.Id);
 
@@ -1978,7 +2014,7 @@ public class FeeCollectionRepository : IFeeCollectionRepository
                 {
                     transportCollected += p.Amount;
                 }
-                else
+                else if (hName.Contains("Tuition", StringComparison.OrdinalIgnoreCase) || rem.Contains("Tuition", StringComparison.OrdinalIgnoreCase) || (tuitionExpected > 0 && !hName.Contains("Admission", StringComparison.OrdinalIgnoreCase) && !rem.Contains("Admission", StringComparison.OrdinalIgnoreCase)))
                 {
                     tuitionCollectedFromPayments += Math.Max(0m, p.Amount - p.TransportFee - p.FineAmount);
                 }
@@ -2273,7 +2309,7 @@ public class FeeCollectionRepository : IFeeCollectionRepository
 
         // 7. Tuition Collected Calculation
         decimal tuitionCollected = tuitionCollectedFromPayments;
-        if (tuitionCollected == 0m && validPayments.Count > 0 && (hostelCollected + transportCollectedTotal + uniformCollected + finesCollected) == 0m)
+        if (tuitionCollected == 0m && tuitionExpected > 0 && validPayments.Count > 0 && (hostelCollected + transportCollectedTotal + uniformCollected + finesCollected) == 0m)
         {
             tuitionCollected = validPayments.Sum(p => p.Amount);
         }
@@ -2332,7 +2368,6 @@ public class FeeCollectionRepository : IFeeCollectionRepository
             .ThenBy(c => c)
             .ToList();
 
-        var defaultStructureAmount = dynamicStructures.FirstOrDefault()?.TotalAmount ?? 0m;
 
         var classWiseList = new List<ClassWiseCollectionShareDto>();
 
@@ -2387,7 +2422,7 @@ public class FeeCollectionRepository : IFeeCollectionRepository
                         }
                         else
                         {
-                            stTuition = defaultStructureAmount;
+                            stTuition = 0m;
                         }
                     }
 
@@ -2484,10 +2519,6 @@ public class FeeCollectionRepository : IFeeCollectionRepository
             {
                 studentItems.Add(("Tuition Fee", matchedDfs.TotalAmount));
             }
-            else if (studentItems.Count == 0)
-            {
-                studentItems.Add(("Tuition Fee", defaultStructureAmount));
-            }
 
             foreach (var sItem in studentItems)
             {
@@ -2544,7 +2575,7 @@ public class FeeCollectionRepository : IFeeCollectionRepository
 
             if (!hasItemBreakdown)
             {
-                string headName = !string.IsNullOrWhiteSpace(p.FeeHeadName) ? p.FeeHeadName : "Tuition Fee";
+                string headName = !string.IsNullOrWhiteSpace(p.FeeHeadName) ? p.FeeHeadName : (!string.IsNullOrWhiteSpace(p.Remarks) ? p.Remarks : (tuitionExpected > 0 ? "Tuition Fee" : "General Fee"));
                 string normName = NormalizeCategoryName(headName, activeFeeHeadsList);
 
                 if (!catSummaryDict.ContainsKey(normName))

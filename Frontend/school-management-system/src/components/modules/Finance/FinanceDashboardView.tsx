@@ -229,7 +229,9 @@ export const FinanceDashboardView: React.FC<FinanceDashboardViewProps> = ({ onNa
         name = "Uniform Fee";
       } else if (lower.includes("fine") || lower.includes("penalty")) {
         name = "Late Fines & Penalties";
-      } else if (lower.includes("tuition") || lower.includes("academic") || lower.includes("admission")) {
+      } else if (lower.includes("admission") || lower.includes("registration") || lower.includes("application")) {
+        name = "Admission Fee";
+      } else if (lower.includes("tuition") || lower.includes("academic") || lower.includes("term")) {
         name = "Tuition Fee";
       }
 

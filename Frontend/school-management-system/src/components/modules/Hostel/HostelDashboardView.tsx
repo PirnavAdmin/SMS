@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Home, Building2, Bed, Users, IndianRupee, Shield, Plus, CheckCircle2, AlertCircle, ArrowUpRight, TrendingUp, PieChart, Layers, Search } from 'lucide-react';
 import { useToast } from '../../../context/ToastContext';
 import { useAuth } from '../../../context/AuthContext';
@@ -178,7 +178,7 @@ export const HostelDashboardView: React.FC<HostelDashboardViewProps> = ({ onNavi
       }
       if (expected === 0) {
         const cfg = (dataContext?.financeHostelConfigs || []).find((c) => c.status === 'Active');
-        expected = Number(cfg?.hostelFee || 40000) + Number(cfg?.securityDeposit || 2000);
+        expected = Number(cfg?.hostelFee || 0) + Number(cfg?.securityDeposit || 0);
       }
       const due = Math.max(0, expected - paid);
       const isDepPaid = Boolean(st?.hostelSecurityDepositPaid || stPayments.some((p) => (p.feeHeadName || '').toLowerCase().includes('security deposit') || (p.remarks || '').toLowerCase().includes('security deposit')));

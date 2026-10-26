@@ -9765,7 +9765,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
                     c.hostelName === hObj?.hostelName) &&
                   c.status === "Active",
               ) || financeHostelConfigs[0];
-            const hstFee = fhc ? fhc.hostelFee : 40000;
+            const hstFee = fhc ? fhc.hostelFee : 0;
 
             const hostelBlockId = hObj?.id || "HM-01";
             const hostelBlockName = hObj?.hostelName || "Boys Hostel";

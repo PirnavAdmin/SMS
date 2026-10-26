@@ -47,7 +47,7 @@ import {
   Student,
   SiblingDetail,
 } from "../../../types";
-import { useData, normalizeToISODate } from "../../../context/DataContext";
+import { useData, normalizeToISODate, matchesAcademicYear } from "../../../context/DataContext";
 import { useToast } from "../../../context/ToastContext";
 import { useAuth } from "../../../context/AuthContext";
 import * as FinanceAPI from "../../../api/finance";
@@ -1127,46 +1127,103 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
     const userAc = (
       formData.hostelAc ||
       formData.acType ||
+      formData.hostelAcPreference ||
       "Non-AC"
     ).toLowerCase();
+
+    const studentBranch = (formData.branch || selectedBranch || "").trim().toLowerCase();
+    const studentAY = (formData.academicYear || selectedAcademicYear || "").trim();
 
     const activeConfigs = (financeHostelConfigs || []).filter(
       (c) => !c.status || c.status === "Active",
     );
 
-    // 1. Exact match: class in range + sharing + AC
-    let matched = activeConfigs.find((c) => {
-      if (studentClass && !isClassInRange(studentClass, c.startClass, c.endClass, c.classRange, academicClasses)) {
-        return false;
-      }
-      const cShare = (c.sharingType || c.roomTypeName || "").toLowerCase();
-      const shareMatch = !cShare || cShare === "all" || cShare.includes(userSharing) || userSharing.includes(cShare);
-      const cAc = (c.acType || "").toLowerCase();
-      const acMatch = !cAc || cAc === "all" || cAc === userAc || (userAc === "ac" ? cAc.includes("ac") && !cAc.includes("non") : cAc.includes("non"));
-      return shareMatch && acMatch;
-    });
+    const matchesSharing = (cfgShare?: string) => {
+      if (!cfgShare || cfgShare.toLowerCase() === "all" || cfgShare.toLowerCase() === "all sharing types") return true;
+      const c = cfgShare.toLowerCase().replace(/[^a-z0-9]/g, "");
+      const u = userSharing.replace(/[^a-z0-9]/g, "");
+      if (c === u || c.includes(u) || u.includes(c)) return true;
+      const getNum = (str: string) => {
+        if (str.includes("1") || str.includes("single")) return 1;
+        if (str.includes("2") || str.includes("two") || str.includes("double")) return 2;
+        if (str.includes("3") || str.includes("three") || str.includes("triple")) return 3;
+        if (str.includes("4") || str.includes("four")) return 4;
+        return null;
+      };
+      const cNum = getNum(c);
+      const uNum = getNum(u);
+      return cNum !== null && uNum !== null && cNum === uNum;
+    };
 
-    // 2. Class in range + sharing
+    const matchesAc = (cfgAc?: string) => {
+      if (!cfgAc || cfgAc.toLowerCase() === "all") return true;
+      const isUserAc = userAc === "ac" || (userAc.includes("ac") && !userAc.includes("non"));
+      const isConfigAc = cfgAc.toLowerCase() === "ac" || (cfgAc.toLowerCase().includes("ac") && !cfgAc.toLowerCase().includes("non"));
+      return isUserAc === isConfigAc;
+    };
+
+    const matchesBranch = (cfgBranch?: string) => {
+      if (!cfgBranch || !studentBranch) return true;
+      const cb = cfgBranch.trim().toLowerCase();
+      if (cb === "all" || cb === "all branches" || cb === "") return true;
+      return cb === studentBranch || cb.includes(studentBranch) || studentBranch.includes(cb);
+    };
+
+    const matchesAy = (cfgAy?: string) => {
+      if (!cfgAy || !studentAY) return true;
+      if (cfgAy === "All" || cfgAy === "") return true;
+      return matchesAcademicYear(cfgAy, studentAY);
+    };
+
+    const isClassMatch = (c: any) => {
+      return !studentClass || isClassInRange(studentClass, c.startClass, c.endClass, c.classRange, academicClasses);
+    };
+
+    // 1. Exact match: Branch + AY + Class + Sharing + AC
+    let matched = activeConfigs.find(
+      (c) => matchesBranch(c.branch) && matchesAy(c.academicYear) && isClassMatch(c) && matchesSharing(c.sharingType || c.roomTypeName) && matchesAc(c.acType)
+    );
+
+    // 2. Branch + AY + Class + Sharing
     if (!matched) {
-      matched = activeConfigs.find((c) => {
-        if (studentClass && !isClassInRange(studentClass, c.startClass, c.endClass, c.classRange, academicClasses)) {
-          return false;
-        }
-        const cShare = (c.sharingType || c.roomTypeName || "").toLowerCase();
-        return !cShare || cShare === "all" || cShare.includes(userSharing) || userSharing.includes(cShare);
-      });
+      matched = activeConfigs.find(
+        (c) => matchesBranch(c.branch) && matchesAy(c.academicYear) && isClassMatch(c) && matchesSharing(c.sharingType || c.roomTypeName)
+      );
     }
 
-    // 3. Class in range only
+    // 3. Branch + AY + Class + AC
     if (!matched) {
-      matched = activeConfigs.find((c) => {
-        return !studentClass || isClassInRange(studentClass, c.startClass, c.endClass, c.classRange, academicClasses);
-      });
+      matched = activeConfigs.find(
+        (c) => matchesBranch(c.branch) && matchesAy(c.academicYear) && isClassMatch(c) && matchesAc(c.acType)
+      );
     }
 
-    // 4. Any active config
-    if (!matched && activeConfigs.length > 0) {
-      matched = activeConfigs[0];
+    // 4. Branch + AY + Class
+    if (!matched) {
+      matched = activeConfigs.find(
+        (c) => matchesBranch(c.branch) && matchesAy(c.academicYear) && isClassMatch(c)
+      );
+    }
+
+    // 5. Any Branch/AY: Class + Sharing + AC
+    if (!matched) {
+      matched = activeConfigs.find(
+        (c) => isClassMatch(c) && matchesSharing(c.sharingType || c.roomTypeName) && matchesAc(c.acType)
+      );
+    }
+
+    // 6. Any Branch/AY: Class + Sharing
+    if (!matched) {
+      matched = activeConfigs.find(
+        (c) => isClassMatch(c) && matchesSharing(c.sharingType || c.roomTypeName)
+      );
+    }
+
+    // 7. Any Branch/AY: Class
+    if (!matched) {
+      matched = activeConfigs.find(
+        (c) => isClassMatch(c)
+      );
     }
 
     return matched || null;
@@ -1179,6 +1236,11 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
     formData.sharingType,
     formData.hostelAc,
     formData.acType,
+    formData.hostelAcPreference,
+    formData.branch,
+    formData.academicYear,
+    selectedBranch,
+    selectedAcademicYear,
     financeHostelConfigs,
     academicClasses,
   ]);
@@ -3200,17 +3262,38 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
     const isHostelOpted = isResidentForm;
 
     if (isHostelOpted) {
-      const chosenShare = formData.sharingType || "Four Sharing";
-      const chosenAc = formData.acType || "AC";
-      const secDep = Number(applicableHostelFeeConfig?.securityDeposit) || 2000;
-      const hstFee = Number(applicableHostelFeeConfig?.hostelFee || applicableHostelFeeConfig?.termFee) || 0;
+      const chosenShare =
+        formData.hostelSharing ||
+        formData.roomSharing ||
+        formData.sharingType ||
+        "Four Sharing";
+      const chosenAc =
+        formData.hostelAc ||
+        formData.acType ||
+        formData.hostelAcPreference ||
+        "Non-AC";
+      const secDep = applicableSecurityDeposit;
+      const hstFee =
+        Number(
+          applicableHostelFeeConfig?.hostelFee ||
+          applicableHostelFeeConfig?.termFee,
+        ) || 0;
 
       if (secDep > 0) {
         items.push({
           name: `Hostel Security Deposit (${chosenShare}, ${chosenAc})`,
           amount: secDep,
           isApplicable: true,
-          remarks: formData.hostelSecurityDepositPaid ? "✓ Paid" : "Must pay before bed allotment",
+          remarks: formData.hostelSecurityDepositPaid
+            ? "✓ Paid"
+            : "Must pay before bed allotment",
+        });
+      } else {
+        items.push({
+          name: `Hostel Security Deposit (${chosenShare}, ${chosenAc})`,
+          amount: 0,
+          isApplicable: false,
+          remarks: "No Deposit Configured in Fee Setup",
         });
       }
 
@@ -3219,6 +3302,13 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
           name: `Hostel Accommodation Fee (${chosenShare}, ${chosenAc})`,
           amount: hstFee,
           isApplicable: true,
+        });
+      } else {
+        items.push({
+          name: `Hostel Accommodation Fee (${chosenShare}, ${chosenAc})`,
+          amount: 0,
+          isApplicable: false,
+          remarks: "No Hostel Fee Configured in Fee Setup",
         });
       }
     } else {
@@ -3237,7 +3327,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
         const tuitionFeeAmount =
           baseItems.find(
             (i) => i.feeHeadId === "FH-01" || i.feeHeadName === "Tuition Fee",
-          )?.amount || 25000;
+          )?.amount || 0;
         const sVal =
           sObj.discountType === "Percentage"
             ? sObj.percentage || 0
@@ -3256,7 +3346,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
         const tuitionFeeAmount =
           baseItems.find(
             (i) => i.feeHeadId === "FH-01" || i.feeHeadName === "Tuition Fee",
-          )?.amount || 25000;
+          )?.amount || 0;
         discountAmount =
           dObj.mode === "Percentage"
             ? (tuitionFeeAmount * dObj.value) / 100
