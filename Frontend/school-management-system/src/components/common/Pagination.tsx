@@ -11,6 +11,7 @@ export interface PaginationProps {
   itemsPerPageOptions?: number[];
   label?: string;
   className?: string;
+  showBorder?: boolean;
 }
 
 export const Pagination: React.FC<PaginationProps> = ({
@@ -23,6 +24,7 @@ export const Pagination: React.FC<PaginationProps> = ({
   itemsPerPageOptions = [10, 25, 50, 100],
   label = 'records',
   className = '',
+  showBorder = true,
 }) => {
   const calculatedTotalPages = Math.max(1, Math.ceil((propTotalItems ?? 0) / itemsPerPage));
   const totalPages = propTotalPages !== undefined ? propTotalPages : calculatedTotalPages;
@@ -57,9 +59,12 @@ export const Pagination: React.FC<PaginationProps> = ({
   };
 
   const effectiveOptions = Array.from(new Set([itemsPerPage, ...itemsPerPageOptions])).sort((a, b) => a - b);
+  const hasBorder = showBorder && !className.includes('border-t-0') && !className.includes('border-none');
+  const hasPt = !className.includes('pt-0');
+  const hasPb = !className.includes('pb-0');
 
   return (
-    <div className={`flex flex-col sm:flex-row items-center justify-between gap-3 pt-3.5 pb-1 select-none border-t border-slate-200/80 dark:border-slate-800/80 no-print print:hidden flex-wrap ${className}`}>
+    <div className={`flex flex-col sm:flex-row items-center justify-between gap-3 ${hasPt ? 'pt-3.5' : ''} ${hasPb ? 'pb-1' : ''} select-none ${hasBorder ? 'border-t border-slate-200/80 dark:border-slate-800/80' : ''} no-print print:hidden flex-wrap ${className}`}>
       {/* Left side: Showing X to Y of Z records */}
       <div className="text-xs font-semibold text-slate-500 dark:text-slate-400 shrink-0">
         Showing <span className="font-black text-slate-800 dark:text-slate-200">{startItem}</span> to{' '}

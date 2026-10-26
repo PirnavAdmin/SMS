@@ -469,18 +469,18 @@ export const UniformInventoryView: React.FC<UniformInventoryViewProps> = ({ tabs
         /* Table */
         <div className="glass-card rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 overflow-hidden shadow-sm">
           <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs text-slate-700 dark:text-slate-300">
-              <thead className="bg-slate-50 dark:bg-slate-800/80 uppercase font-extrabold text-[10px] tracking-wider text-slate-500 border-b border-slate-200 dark:border-slate-800">
+            <table className="w-full text-center text-xs text-slate-700 dark:text-slate-300">
+              <thead className="bg-slate-50/80 dark:bg-slate-800/80 uppercase font-extrabold text-[10px] tracking-wider text-slate-500 border-b border-slate-200 dark:border-slate-800">
                 <tr>
-                  <th className="py-3 px-4">Item Name</th>
-                  <th className="py-3 px-4">Category</th>
-                  <th className="py-3 px-4 text-center">Size</th>
-                  <th className="py-3 px-4 text-right">Opening Stock</th>
-                  <th className="py-3 px-4 text-right">Current Stock</th>
-                  <th className="py-3 px-4 text-right">Min Threshold</th>
-                  <th className="py-3 px-4 text-right">Reorder Point</th>
-                  <th className="py-3 px-4 text-center">Status</th>
-                  <th className="py-3 px-4 text-center">Stock Actions</th>
+                  <th className="py-3.5 px-4 text-center">Item Name</th>
+                  <th className="py-3.5 px-4 text-center">Category</th>
+                  <th className="py-3.5 px-4 text-center">Size</th>
+                  <th className="py-3.5 px-4 text-center">Opening Stock</th>
+                  <th className="py-3.5 px-4 text-center">Current Stock</th>
+                  <th className="py-3.5 px-4 text-center">Min Threshold</th>
+                  <th className="py-3.5 px-4 text-center">Reorder Point</th>
+                  <th className="py-3.5 px-4 text-center">Status</th>
+                  <th className="py-3.5 px-4 text-center">Stock Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-medium">
@@ -507,21 +507,31 @@ export const UniformInventoryView: React.FC<UniformInventoryViewProps> = ({ tabs
                 ) : (
                   paginatedTable.map(i => (
                     <tr key={i.id} className={`hover:bg-slate-50/50 dark:hover:bg-slate-800/50 transition-colors ${i.currentStock <= i.minimumStock ? 'bg-amber-50/30 dark:bg-amber-950/10' : ''}`}>
-                      <td className="py-3 px-4 font-bold text-slate-900 dark:text-white">{i.itemName}</td>
-                      <td className="py-3 px-4 text-slate-500">{i.category}</td>
-                      <td className="py-3 px-4 text-center font-bold text-sky-600 dark:text-sky-400">{i.size}</td>
-                      <td className="py-3 px-4 text-right">{i.openingStock} Units</td>
-                      <td className="py-3 px-4 text-right font-extrabold text-slate-900 dark:text-white">{i.currentStock} Units</td>
-                      <td className="py-3 px-4 text-right text-rose-500">{i.minimumStock} Units</td>
-                      <td className="py-3 px-4 text-right text-amber-600">{i.reorderLevel} Units</td>
-                      <td className="py-3 px-4 text-center">
-                        <Badge variant={i.status === 'In Stock' ? 'success' : (i.status === 'Low Stock' ? 'warning' : 'danger')}>{i.status}</Badge>
+                      <td className="py-3.5 px-4 text-center font-bold text-slate-900 dark:text-white">{i.itemName}</td>
+                      <td className="py-3.5 px-4 text-center text-slate-500">{i.category}</td>
+                      <td className="py-3.5 px-4 text-center font-bold text-sky-600 dark:text-sky-400">
+                        <span className="inline-block px-2.5 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200 font-extrabold text-xs">
+                          {i.size}
+                        </span>
                       </td>
-                      <td className="py-3 px-4 text-center">
-                        <div className="flex items-center justify-center gap-1">
-                          <button onClick={() => handleOpenAction(i, 'In')} className="px-2.5 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-bold rounded-lg text-[10px] flex items-center gap-0.5 transition-all" title="Add Restock Stock"><Plus className="w-2.5 h-2.5" /> Restock</button>
-                          <button onClick={() => handleOpenAction(i, 'Out')} className="px-2 py-1 bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold rounded-lg text-[10px] flex items-center gap-0.5 transition-all" title="Deduct Issue"><Minus className="w-2.5 h-2.5" /> Out</button>
-                          <button onClick={() => handleOpenAction(i, 'Adjust')} className="px-2 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-lg text-[10px] flex items-center gap-0.5 transition-all" title="Adjust Balance"><Settings2 className="w-2.5 h-2.5" /> Adj</button>
+                      <td className="py-3.5 px-4 text-center text-slate-600 dark:text-slate-400 font-medium">{i.openingStock} Units</td>
+                      <td className="py-3.5 px-4 text-center font-extrabold text-slate-900 dark:text-white">
+                        <span className="inline-block px-2.5 py-0.5 rounded-lg bg-slate-100/80 dark:bg-slate-800/80 font-bold">
+                          {i.currentStock} Units
+                        </span>
+                      </td>
+                      <td className="py-3.5 px-4 text-center text-rose-500 font-semibold">{i.minimumStock} Units</td>
+                      <td className="py-3.5 px-4 text-center text-amber-600 font-semibold">{(i.reorderPoint ?? i.reorderLevel ?? 15)} Units</td>
+                      <td className="py-3.5 px-4 text-center">
+                        <div className="flex items-center justify-center">
+                          <Badge variant={i.status === 'In Stock' ? 'success' : (i.status === 'Low Stock' ? 'warning' : 'danger')}>{i.status}</Badge>
+                        </div>
+                      </td>
+                      <td className="py-3.5 px-4 text-center">
+                        <div className="flex items-center justify-center gap-1.5">
+                          <button onClick={() => handleOpenAction(i, 'In')} className="px-2.5 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:hover:bg-emerald-900/60 dark:text-emerald-300 font-bold rounded-lg text-[10px] flex items-center gap-0.5 transition-all cursor-pointer shadow-2xs" title="Add Restock Stock"><Plus className="w-2.5 h-2.5" /> Restock</button>
+                          <button onClick={() => handleOpenAction(i, 'Out')} className="px-2 py-1 bg-rose-50 hover:bg-rose-100 text-rose-700 dark:bg-rose-950/40 dark:hover:bg-rose-900/60 dark:text-rose-300 font-bold rounded-lg text-[10px] flex items-center gap-0.5 transition-all cursor-pointer shadow-2xs" title="Deduct Issue"><Minus className="w-2.5 h-2.5" /> Out</button>
+                          <button onClick={() => handleOpenAction(i, 'Adjust')} className="px-2 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-300 font-bold rounded-lg text-[10px] flex items-center gap-0.5 transition-all cursor-pointer shadow-2xs" title="Adjust Balance"><Settings2 className="w-2.5 h-2.5" /> Adj</button>
                         </div>
                       </td>
                     </tr>
@@ -530,18 +540,39 @@ export const UniformInventoryView: React.FC<UniformInventoryViewProps> = ({ tabs
               </tbody>
             </table>
           </div>
+
+          {/* Card Footer with Neat Integrated Pagination */}
+          {filtered.length > 0 && (
+            <div className="px-5 py-3.5 bg-slate-50/70 dark:bg-slate-800/60 border-t border-slate-200 dark:border-slate-800">
+              <Pagination
+                currentPage={currentPage}
+                totalItems={filtered.length}
+                itemsPerPage={itemsPerPage}
+                onPageChange={setCurrentPage}
+                onItemsPerPageChange={(n) => { setItemsPerPage(n); setCurrentPage(1); }}
+                itemsPerPageOptions={[10, 25, 50, 100]}
+                label="inventory items"
+                className="border-t-0 pt-0 pb-0"
+              />
+            </div>
+          )}
         </div>
       )}
 
-      <Pagination
-        currentPage={currentPage}
-        totalItems={viewMode === 'matrix' ? filteredGroupedItems.length : filtered.length}
-        itemsPerPage={itemsPerPage}
-        onPageChange={setCurrentPage}
-        onItemsPerPageChange={(n) => { setItemsPerPage(n); setCurrentPage(1); }}
-        itemsPerPageOptions={[10, 25, 50, 100]}
-        label="inventory items"
-      />
+      {viewMode === 'matrix' && filteredGroupedItems.length > 0 && (
+        <div className="glass-card px-5 py-3.5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm">
+          <Pagination
+            currentPage={currentPage}
+            totalItems={filteredGroupedItems.length}
+            itemsPerPage={itemsPerPage}
+            onPageChange={setCurrentPage}
+            onItemsPerPageChange={(n) => { setItemsPerPage(n); setCurrentPage(1); }}
+            itemsPerPageOptions={[10, 25, 50, 100]}
+            label="inventory groups"
+            className="border-t-0 pt-0 pb-0"
+          />
+        </div>
+      )}
 
       {/* Action Modal */}
       {isModalOpen && selectedItem && (

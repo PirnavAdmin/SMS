@@ -70,7 +70,7 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   return (
     <ToastContext.Provider value={value}>
       {children}
-      <div className="fixed top-5 right-5 sm:top-6 sm:right-6 z-[99999] flex flex-col gap-2.5 max-w-sm w-full pointer-events-none no-print print:hidden">
+      <div className="fixed top-5 right-5 sm:top-6 sm:right-6 z-[99999] flex flex-col gap-2 max-w-[340px] sm:max-w-sm w-full pointer-events-none no-print print:hidden">
         {toasts.map(toast => {
           const bgColors: Record<ToastType, string> = {
             success: 'bg-emerald-600 text-white shadow-2xl shadow-emerald-600/30 border border-emerald-400/50',
@@ -92,21 +92,21 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             <div
               key={toast.id}
               style={isSuccess ? { backgroundColor: '#059669', color: '#ffffff' } : undefined}
-              className={`pointer-events-auto flex items-start gap-3 p-4 rounded-2xl shadow-2xl transition-all duration-300 animate-in slide-in-from-top-4 fade-in ${bgStyle}`}
+              className={`pointer-events-auto flex items-start gap-2.5 p-3 sm:p-3.5 rounded-2xl shadow-xl transition-all duration-300 animate-in slide-in-from-top-4 fade-in ${bgStyle}`}
             >
-              <div className="p-1 rounded-xl bg-white/20 shrink-0 text-white">
-                <IconComponent className="w-5 h-5 text-white stroke-[2.5]" />
+              <div className="p-1 rounded-xl bg-white/20 shrink-0 text-white mt-0.5">
+                <IconComponent className="w-4 h-4 text-white stroke-[2.5]" />
               </div>
-              <div className="flex-1 text-sm text-white">
-                <p className="font-bold leading-snug text-white">{toast.title}</p>
-                {toast.message && <p className="text-xs text-white/95 mt-1 leading-relaxed">{toast.message}</p>}
+              <div className="flex-1 min-w-0 text-xs text-white">
+                <p className="font-bold leading-tight text-white">{toast.title}</p>
+                {toast.message && <p className="text-[11px] text-white/95 mt-0.5 leading-snug">{toast.message}</p>}
               </div>
               <button
                 type="button"
                 onClick={() => removeToast(toast.id)}
-                className="shrink-0 p-1 text-white hover:bg-white/25 rounded-lg transition-colors cursor-pointer"
+                className="shrink-0 p-1 text-white hover:bg-white/25 rounded-lg transition-colors cursor-pointer -mr-1 -mt-1"
               >
-                <X className="w-4 h-4 text-white" />
+                <X className="w-3.5 h-3.5 text-white" />
               </button>
             </div>
           );

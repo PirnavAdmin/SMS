@@ -306,16 +306,16 @@ export const UniformSupplierView: React.FC<{tabs?: React.ReactNode}> = ({ tabs }
 
       <div className="glass-card rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 overflow-hidden shadow-sm">
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs text-slate-700 dark:text-slate-300">
-            <thead className="bg-slate-50 dark:bg-slate-800/80 uppercase font-extrabold text-[10px] tracking-wider text-slate-500 border-b border-slate-200 dark:border-slate-800">
+          <table className="w-full text-center text-xs text-slate-700 dark:text-slate-300">
+            <thead className="bg-slate-50/80 dark:bg-slate-800/80 uppercase font-extrabold text-[10px] tracking-wider text-slate-500 border-b border-slate-200 dark:border-slate-800">
               <tr>
-                <th className="py-3 px-4">Supplier Name</th>
-                <th className="py-3 px-4">Contact Representative</th>
-                <th className="py-3 px-4">Mobile Number</th>
-                <th className="py-3 px-4">Email</th>
-                <th className="py-3 px-4 font-mono">GST Number</th>
-                <th className="py-3 px-4">Status</th>
-                <th className="py-3 px-4 text-center">Actions</th>
+                <th className="py-3.5 px-4 text-center">Supplier Name</th>
+                <th className="py-3.5 px-4 text-center">Contact Representative</th>
+                <th className="py-3.5 px-4 text-center">Mobile Number</th>
+                <th className="py-3.5 px-4 text-center">Email</th>
+                <th className="py-3.5 px-4 text-center font-mono">GST Number</th>
+                <th className="py-3.5 px-4 text-center">Status</th>
+                <th className="py-3.5 px-4 text-center">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-medium">
@@ -326,18 +326,20 @@ export const UniformSupplierView: React.FC<{tabs?: React.ReactNode}> = ({ tabs }
               ) : (
                 paginated.map(s => (
                   <tr key={s.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/50 transition-colors">
-                    <td className="py-3 px-4 font-bold text-slate-900 dark:text-white">{s.supplierName}</td>
-                    <td className="py-3 px-4 font-semibold text-slate-800 dark:text-slate-200">{s.contactPerson}</td>
-                    <td className="py-3 px-4 font-mono">{s.mobile}</td>
-                    <td className="py-3 px-4">{s.email || 'N/A'}</td>
-                    <td className="py-3 px-4 font-mono text-sky-600 dark:text-sky-400">{s.gstNumber || 'N/A'}</td>
-                    <td className="py-3 px-4">
-                      <Badge variant={s.status === 'Active' ? 'success' : 'neutral'}>{s.status}</Badge>
+                    <td className="py-3.5 px-4 text-center font-bold text-slate-900 dark:text-white">{s.supplierName}</td>
+                    <td className="py-3.5 px-4 text-center font-semibold text-slate-800 dark:text-slate-200">{s.contactPerson}</td>
+                    <td className="py-3.5 px-4 text-center font-mono">{s.mobile}</td>
+                    <td className="py-3.5 px-4 text-center">{s.email || 'N/A'}</td>
+                    <td className="py-3.5 px-4 text-center font-mono font-bold text-sky-600 dark:text-sky-400">{s.gstNumber || 'N/A'}</td>
+                    <td className="py-3.5 px-4 text-center">
+                      <div className="flex items-center justify-center">
+                        <Badge variant={s.status === 'Active' ? 'success' : 'neutral'}>{s.status}</Badge>
+                      </div>
                     </td>
-                    <td className="py-3 px-4 text-center">
+                    <td className="py-3.5 px-4 text-center">
                       <div className="flex items-center justify-center gap-1.5">
-                        <button onClick={() => handleOpenEdit(s)} className="p-1 rounded hover:bg-slate-100 dark:hover:bg-slate-800 text-sky-600 cursor-pointer"><Edit className="w-3.5 h-3.5" /></button>
-                        <button onClick={() => setDeletingSupplier(s)} className="p-1 rounded hover:bg-rose-50 text-rose-600 cursor-pointer"><Trash2 className="w-3.5 h-3.5" /></button>
+                        <button onClick={() => handleOpenEdit(s)} className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-sky-600 transition-all cursor-pointer" title="Edit Supplier"><Edit className="w-3.5 h-3.5" /></button>
+                        <button onClick={() => setDeletingSupplier(s)} className="p-1.5 rounded-lg hover:bg-rose-50 dark:hover:bg-rose-950/40 text-rose-600 transition-all cursor-pointer" title="Delete Supplier"><Trash2 className="w-3.5 h-3.5" /></button>
                       </div>
                     </td>
                   </tr>
@@ -346,17 +348,23 @@ export const UniformSupplierView: React.FC<{tabs?: React.ReactNode}> = ({ tabs }
             </tbody>
           </table>
         </div>
-      </div>
 
-      <Pagination
-        currentPage={currentPage}
-        totalItems={filtered.length}
-        itemsPerPage={itemsPerPage}
-        onPageChange={setCurrentPage}
-        onItemsPerPageChange={(n) => { setItemsPerPage(n); setCurrentPage(1); }}
-        itemsPerPageOptions={[10, 25, 50, 100]}
-        label="suppliers"
-      />
+        {/* Card Footer with Neat Integrated Pagination */}
+        {filtered.length > 0 && (
+          <div className="px-5 py-3.5 bg-slate-50/70 dark:bg-slate-800/60 border-t border-slate-200 dark:border-slate-800">
+            <Pagination
+              currentPage={currentPage}
+              totalItems={filtered.length}
+              itemsPerPage={itemsPerPage}
+              onPageChange={setCurrentPage}
+              onItemsPerPageChange={(n) => { setItemsPerPage(n); setCurrentPage(1); }}
+              itemsPerPageOptions={[10, 25, 50, 100]}
+              label="suppliers"
+              className="border-t-0 pt-0 pb-0"
+            />
+          </div>
+        )}
+      </div>
 
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in">
