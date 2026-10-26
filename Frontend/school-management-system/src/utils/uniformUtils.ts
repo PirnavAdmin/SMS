@@ -431,7 +431,7 @@ export const getItemFeeFromFinanceConfig = (
     }
   }
 
-  if (fallbackPrice && fallbackPrice > 0 && fallbackPrice !== 85 && fallbackPrice !== 35) {
+  if (fallbackPrice && fallbackPrice > 0) {
     return fallbackPrice;
   }
 
@@ -523,13 +523,13 @@ export const calculateClothOrItemPrice = (
   // 2. Exact price configured in Finance & Fees Setup for non-cloth items
   if (Array.isArray(financeConfigs) && financeConfigs.length > 0 && cleanItemName) {
     const configuredFee = getItemFeeFromFinanceConfig(className, cleanItemName, gender, financeConfigs);
-    if (configuredFee > 0 && configuredFee !== 35 && configuredFee !== 85) {
+    if (configuredFee > 0) {
       return configuredFee;
     }
   }
 
   // 3. If explicit unit price was saved on transaction/item, use it
-  if (currentUnitPrice && currentUnitPrice > 0 && currentUnitPrice !== 35 && currentUnitPrice !== 85) {
+  if (currentUnitPrice && currentUnitPrice > 0) {
     return currentUnitPrice;
   }
   // 3. Fall back to uniform categories/catalog configuration
@@ -540,11 +540,11 @@ export const calculateClothOrItemPrice = (
     });
     if (match && (match.price || match.unitPrice || match.feeAmount)) {
       const p = Number(match.price || match.unitPrice || match.feeAmount);
-      if (p > 0 && p !== 35 && p !== 85) return p;
+      if (p > 0) return p;
     }
   }
 
-  return currentUnitPrice && currentUnitPrice > 0 && currentUnitPrice !== 35 && currentUnitPrice !== 85 ? currentUnitPrice : 0;
+  return currentUnitPrice && currentUnitPrice > 0 ? currentUnitPrice : 0;
 };
 
 export const getStudentUniformFeeStatus = (

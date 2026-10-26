@@ -1566,7 +1566,7 @@ export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialS
     const studentGender = issue.gender || 'Male';
 
     // Use the stored price first — most accurate. Strip (#N) suffix for finance config lookup.
-    let unitPrice = (issue.price && issue.price > 0 && issue.price !== 35 && issue.price !== 85) ? issue.price : 0;
+    let unitPrice = (issue.price && issue.price > 0) ? issue.price : 0;
     if (unitPrice <= 0) {
       if (isPkg) {
         unitPrice = getPackageFeeForStudent(studentClass, issue.price, studentGender) || 0;

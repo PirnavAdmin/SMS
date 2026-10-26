@@ -90,11 +90,11 @@ namespace SMS.Api.Services.Implementations
             {
                 ItemName = dto.ItemName.Trim(),
                 Gender = !string.IsNullOrWhiteSpace(dto.Gender) ? dto.Gender.Trim() : "Unisex",
-                SchoolWing = !string.IsNullOrWhiteSpace(dto.SchoolWing) ? dto.SchoolWing.Trim() : "Class 10",
+                SchoolWing = !string.IsNullOrWhiteSpace(dto.SchoolWing) ? dto.SchoolWing.Trim() : "",
                 Size = !string.IsNullOrWhiteSpace(dto.Size) ? dto.Size.Trim() : "M",
                 Color = !string.IsNullOrWhiteSpace(dto.Color) ? dto.Color.Trim() : "Navy Blue",
-                UnitPrice = dto.UnitPrice > 0 ? dto.UnitPrice : 35.00m,
-                AvailableStock = dto.AvailableStock >= 0 ? dto.AvailableStock : 50,
+                UnitPrice = dto.UnitPrice >= 0 ? dto.UnitPrice : 0m,
+                AvailableStock = dto.AvailableStock >= 0 ? dto.AvailableStock : 0,
                 Status = !string.IsNullOrWhiteSpace(dto.Status) ? dto.Status.Trim() : "Active",
                 CreatedAt = DateTime.UtcNow
             };
@@ -357,17 +357,17 @@ namespace SMS.Api.Services.Implementations
                 item = await _uniformRepo.GetUniformTypeByIdAsync(dto.UniformTypeId.Value);
             }
 
-            string itemName = item?.ItemName ?? dto.ItemName?.Trim() ?? "Summer Polo Shirt";
-            decimal price = item?.UnitPrice ?? (dto.TotalAmount > 0 ? dto.TotalAmount : 35.00m);
+            string itemName = !string.IsNullOrWhiteSpace(dto.ItemName) ? dto.ItemName.Trim() : (item?.ItemName ?? "Uniform Item");
+            decimal price = dto.TotalAmount > 0 ? dto.TotalAmount : (item?.UnitPrice ?? 0m);
             int qty = dto.Quantity > 0 ? dto.Quantity : 1;
             decimal total = dto.TotalAmount > 0 ? dto.TotalAmount : (price * qty);
 
             var dist = new StudentUniformDistribution
             {
                 StudentId = dto.StudentId,
-                AdmissionNo = dto.AdmissionNo?.Trim() ?? "REG-1010",
-                StudentName = dto.StudentName?.Trim() ?? "Mahesh kamati",
-                ClassName = !string.IsNullOrWhiteSpace(dto.ClassName) ? dto.ClassName.Trim() : "Class 10-A",
+                AdmissionNo = !string.IsNullOrWhiteSpace(dto.AdmissionNo) ? dto.AdmissionNo.Trim() : null,
+                StudentName = !string.IsNullOrWhiteSpace(dto.StudentName) ? dto.StudentName.Trim() : null,
+                ClassName = !string.IsNullOrWhiteSpace(dto.ClassName) ? dto.ClassName.Trim() : null,
                 TransactionType = !string.IsNullOrWhiteSpace(dto.TransactionType) ? dto.TransactionType.Trim() : "Baseline Distribution (Admission Kit)",
                 UniformTypeId = item?.UniformTypeId,
                 ItemName = itemName,

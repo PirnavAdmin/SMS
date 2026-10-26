@@ -2209,7 +2209,7 @@ public class FeeCollectionRepository : IFeeCollectionRepository
             }
         }
 
-        if (transportExpected == 0m && activeTransportAssignments.Count > 0)
+        if (transportExpected == 0m && (string.IsNullOrWhiteSpace(branch) || branch.Equals("All", StringComparison.OrdinalIgnoreCase) || branch.Equals("All Branches", StringComparison.OrdinalIgnoreCase)) && activeTransportAssignments.Count > 0)
         {
             transportExpected = activeTransportAssignments.Sum(t => (t.PickupPoint?.MonthlyFee ?? 1200m) * 12m);
         }
@@ -2220,10 +2220,42 @@ public class FeeCollectionRepository : IFeeCollectionRepository
 
         decimal transportCollectedTotal = transportCollected;
 
-        // 5. Uniform Module Metrics
-        var uniformDistributions = await _context.StudentUniformDistributions.AsNoTracking()
-            .Where(u => u.Status != "Cancelled")
-            .ToListAsync();
+        // 5. Uniform Module Metrics (100% Dynamic from active students in selected branch & academic year)
+        var uniformDistributionsQuery = _context.StudentUniformDistributions.AsNoTracking()
+            .Where(u => u.Status != "Cancelled");
+
+        List<SMS.Api.Models.StudentUniformDistribution> uniformDistributions;
+        if (!string.IsNullOrWhiteSpace(branch) && !branch.Equals("All", StringComparison.OrdinalIgnoreCase) && !branch.Equals("All Branches", StringComparison.OrdinalIgnoreCase))
+        {
+            if (activeStudents.Count > 0)
+            {
+                var activeStudentIds = activeStudents.Select(s => (int?)s.StudentId).Where(id => id.HasValue).ToHashSet();
+                uniformDistributions = await uniformDistributionsQuery
+                    .Where(u => (u.StudentId.HasValue && activeStudentIds.Contains(u.StudentId)) ||
+                                (!string.IsNullOrEmpty(u.AdmissionNo) && admNosSet.Contains(u.AdmissionNo)))
+                    .ToListAsync();
+            }
+            else
+            {
+                uniformDistributions = new List<SMS.Api.Models.StudentUniformDistribution>();
+            }
+        }
+        else
+        {
+            // If All Branches, only count distributions belonging to actual valid non-deleted students
+            var allValidStudents = await _context.Students.AsNoTracking()
+                .Where(s => !s.IsDeleted && (s.Status == "Active" || string.IsNullOrEmpty(s.Status)))
+                .Select(s => new { s.StudentId, s.AdmissionNumber })
+                .ToListAsync();
+
+            var validStudentIdsSet = allValidStudents.Select(s => s.StudentId).ToHashSet();
+            var validAdmNosSet = allValidStudents.Where(s => !string.IsNullOrEmpty(s.AdmissionNumber)).Select(s => s.AdmissionNumber!).ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+            uniformDistributions = await uniformDistributionsQuery
+                .Where(u => (u.StudentId.HasValue && validStudentIdsSet.Contains(u.StudentId.Value)) ||
+                            (!string.IsNullOrEmpty(u.AdmissionNo) && validAdmNosSet.Contains(u.AdmissionNo)))
+                .ToListAsync();
+        }
 
         decimal uniformExpected = uniformDistributions.Count > 0
             ? uniformDistributions.Sum(u => u.TotalAmount)
@@ -2264,8 +2296,10 @@ public class FeeCollectionRepository : IFeeCollectionRepository
         decimal totalDiscounts = validPayments.Sum(p => p.DiscountAmount);
 
         DateTime today = DateTime.UtcNow.Date;
+        DateTime todayUtc = today;
+        DateTime todayIst = DateTime.UtcNow.AddHours(5.5).Date;
         decimal todayCollection = validPayments
-            .Where(p => p.PaymentDate.Date == today)
+            .Where(p => p.PaymentDate.Date == todayUtc || p.PaymentDate.Date == todayIst || p.PaymentDate.AddHours(5.5).Date == todayIst)
             .Sum(p => p.Amount);
 
         DateTime monthStart = new DateTime(today.Year, today.Month, 1);

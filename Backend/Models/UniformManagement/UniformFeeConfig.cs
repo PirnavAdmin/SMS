@@ -26,7 +26,7 @@ namespace SMS.Api.Models
         public string AcademicYear { get; set; } = "2025-2026";
 
         [Column(TypeName = "decimal(18,2)")]
-        public decimal FeeAmount { get; set; } = 3500.00m;
+        public decimal FeeAmount { get; set; } = 0m;
 
         [MaxLength(50)]
         public string Status { get; set; } = "Active";

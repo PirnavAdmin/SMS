@@ -172,11 +172,11 @@ public class UniformFeeController : ControllerBase
     {
         var entity = new UniformFeeConfig
         {
-            ClassName = !string.IsNullOrWhiteSpace(dto.ClassName) ? dto.ClassName.Trim() : "Class 10",
-            PackageOrItemName = !string.IsNullOrWhiteSpace(dto.PackageOrItemName) ? dto.PackageOrItemName.Trim() : "Full Kit",
+            ClassName = !string.IsNullOrWhiteSpace(dto.ClassName) ? dto.ClassName.Trim() : "All Classes",
+            PackageOrItemName = !string.IsNullOrWhiteSpace(dto.PackageOrItemName) ? dto.PackageOrItemName.Trim() : "Uniform Package",
             Gender = !string.IsNullOrWhiteSpace(dto.Gender) ? dto.Gender.Trim() : "Unisex",
-            AcademicYear = !string.IsNullOrWhiteSpace(dto.AcademicYear) ? dto.AcademicYear.Trim() : "2025-2026",
-            FeeAmount = dto.FeeAmount > 0 ? dto.FeeAmount : 3500.00m,
+            AcademicYear = !string.IsNullOrWhiteSpace(dto.AcademicYear) ? dto.AcademicYear.Trim() : "",
+            FeeAmount = dto.FeeAmount >= 0 ? dto.FeeAmount : 0m,
             Status = !string.IsNullOrWhiteSpace(dto.Status) ? dto.Status.Trim() : "Active",
             CreatedAt = DateTime.UtcNow
         };

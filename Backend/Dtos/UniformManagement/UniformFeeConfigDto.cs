@@ -30,7 +30,7 @@ namespace SMS.Api.Dtos
 
         [JsonPropertyName("feeAmount")]
         [JsonConverter(typeof(FlexibleDecimalConverter))]
-        public decimal FeeAmount { get; set; } = 3500.00m;
+        public decimal FeeAmount { get; set; } = 0m;
 
         [JsonPropertyName("status")]
         public string Status { get; set; } = "Active";
@@ -71,7 +71,7 @@ namespace SMS.Api.Dtos
 
         [JsonPropertyName("feeAmount")]
         [JsonConverter(typeof(FlexibleDecimalConverter))]
-        public decimal FeeAmount { get; set; } = 3500.00m;
+        public decimal FeeAmount { get; set; } = 0m;
 
         [JsonPropertyName("status")]
         public string Status { get; set; } = "Active";
