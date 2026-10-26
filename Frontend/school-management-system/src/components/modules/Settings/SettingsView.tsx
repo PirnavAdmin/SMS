@@ -267,38 +267,18 @@ export const SettingsView: React.FC = () => {
     | "automated-ids"
     | "backup"
     | "audit"
-  >(() => {
-    try {
-      const saved = localStorage.getItem("settings_active_tab");
-      if (
-        saved &&
-        [
-          "my-profile",
-          "profile",
-          "campus",
-          "academic-year",
-          "certificates",
-          "automated-ids",
-          "backup",
-          "audit",
-        ].includes(saved)
-      ) {
-        return saved as any;
-      }
-    } catch {}
-    return "my-profile";
-  });
+  >("my-profile");
 
   const setActiveTab = (tab: any) => {
     setActiveTabState(tab);
-    try {
-      localStorage.setItem("settings_active_tab", tab);
-    } catch {}
   };
 
   useEffect(() => {
+    try {
+      localStorage.removeItem("settings_active_tab");
+    } catch {}
     const handleTabChange = (e: any) => {
-      const targetTab = e?.detail?.tab || localStorage.getItem("settings_active_tab");
+      const targetTab = e?.detail?.tab;
       if (targetTab) {
         setActiveTab(targetTab as any);
       }
@@ -1263,7 +1243,7 @@ export const SettingsView: React.FC = () => {
       </div>
 
       {/* Settings Navigation Tabs */}
-      <div className="p-1 bg-white dark:bg-slate-900 rounded-2xl flex items-center gap-1 overflow-x-auto no-scrollbar border border-sky-200/90 dark:border-sky-850/80 shadow-xs">
+      <div className="p-1 bg-white dark:bg-slate-900 rounded-2xl flex items-center gap-1 overflow-x-auto no-scrollbar border border-sky-300 dark:border-sky-700 shadow-xs">
         {[
           {
             id: "my-profile",
@@ -1330,7 +1310,7 @@ export const SettingsView: React.FC = () => {
       {activeTab === "my-profile" && (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
           {/* Main Basic Details Form Card */}
-          <div className="lg:col-span-2 glass-card p-4 sm:p-5 rounded-2xl space-y-3 border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xs">
+          <div className="lg:col-span-2 glass-card p-4 sm:p-5 rounded-2xl space-y-3 border border-sky-300 dark:border-sky-700 bg-white dark:bg-slate-900 shadow-xs">
             <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-2.5">
               <div>
                 <h3 className="font-extrabold text-lg text-slate-900 dark:text-white flex items-center gap-2">
@@ -1583,7 +1563,7 @@ export const SettingsView: React.FC = () => {
 
           {/* Right Column: Password & Account Security Card */}
           <div className="space-y-6">
-            <div className="glass-card p-4 sm:p-5 rounded-2xl space-y-3 border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xs">
+            <div className="glass-card p-4 sm:p-5 rounded-2xl space-y-3 border border-sky-300 dark:border-sky-700 bg-white dark:bg-slate-900 shadow-xs">
               <div className="flex items-center gap-2.5 border-b border-slate-100 dark:border-slate-800 pb-2.5">
                 <div className="w-10 h-10 rounded-xl bg-amber-50 dark:bg-amber-950 text-amber-600 flex items-center justify-center border border-amber-100 dark:border-amber-900">
                   <Key className="w-5 h-5" />

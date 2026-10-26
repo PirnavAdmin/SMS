@@ -490,7 +490,6 @@ export const Header: React.FC<HeaderProps> = ({ collapsed, setCollapsed, onOpenS
                   <button
                     onClick={() => {
                       setShowBranchMenu(false);
-                      localStorage.setItem('settings_active_tab', 'campus');
                       window.dispatchEvent(new CustomEvent('settings_tab_change', { detail: { tab: 'campus' } }));
                       if (onNavigate) {
                         onNavigate('settings');

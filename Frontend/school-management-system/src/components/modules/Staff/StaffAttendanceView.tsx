@@ -2021,32 +2021,13 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
 
   // Tab Tab-specific filters and registers below for Admin/HR view...
   // Active Main Module Tab
-  const [activeTab, setActiveTabState] = useState<AttendanceTab>(() => {
-    try {
-      const saved = localStorage.getItem('staff_attendance_active_tab');
-      if (
-        saved &&
-        [
-          "teaching",
-          "non-teaching",
-          "leave-approvals",
-          "manual-punches",
-          "holiday-calendar",
-          "attendance-rules"
-        ].includes(saved)
-      ) {
-        return saved as AttendanceTab;
-      }
-    } catch {}
-    return "teaching";
-  });
+  const [activeTab, setActiveTab] = useState<AttendanceTab>("teaching");
 
-  const setActiveTab = (tab: AttendanceTab) => {
-    setActiveTabState(tab);
+  useEffect(() => {
     try {
-      localStorage.setItem('staff_attendance_active_tab', tab);
+      localStorage.removeItem('staff_attendance_active_tab');
     } catch {}
-  };
+  }, []);
 
   const activeAYInfo = useMemo(() => {
     return parseAcademicYearRange(selectedAcademicYear, academicYears);

@@ -142,6 +142,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         localStorage.removeItem('active_selected_class_id');
         localStorage.removeItem('active_class_tab');
     localStorage.removeItem('training_active_tab');
+    localStorage.removeItem('settings_active_tab');
+    localStorage.removeItem('certificates_view_active_tab');
+    localStorage.removeItem('staff_attendance_active_tab');
         localStorage.setItem('active_module', 'dashboard');
         return null;
       }
@@ -333,6 +336,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     localStorage.removeItem('active_selected_class_id');
     localStorage.removeItem('active_class_tab');
     localStorage.removeItem('training_active_tab');
+    localStorage.removeItem('settings_active_tab');
+    localStorage.removeItem('certificates_view_active_tab');
+    localStorage.removeItem('staff_attendance_active_tab');
   };
 
   useEffect(() => {

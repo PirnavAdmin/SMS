@@ -10,7 +10,9 @@ import { useData } from '../../../../context/DataContext';
 import { useToast } from '../../../../context/ToastContext';
 import { useAuth } from '../../../../context/AuthContext';
 import { ConfirmModal } from '../../../common/ConfirmModal';
+import { Pagination } from '../../../common/Pagination';
 import { exportToExcel } from '../../../../utils/excelExport';
+import { getInitialsAvatar, resolveMediaUrl } from '../../../../utils/mediaUtils';
 import {
   WorkshopTraining, EmployeeAssessment, IssuedCertificate,
   TrainingCategory, AssessmentType, AssessmentCategory, AssessmentMode, TrainingParticipant, AssessmentResult, Staff
@@ -55,7 +57,11 @@ export const TrainingContainerView: React.FC = () => {
 
   // Selected Employee & Staff Type Filter for Profile Professional Development View
   const [profileStaffTypeFilter, setProfileStaffTypeFilter] = useState<'All' | 'Teaching Staff' | 'Non-Teaching Staff'>('All');
-  const [selectedStaffId, setSelectedStaffId] = useState<string>(staff[0]?.id || 'STF-101');
+  const [profileSearchQuery, setProfileSearchQuery] = useState('');
+  const [profileDepartmentFilter, setProfileDepartmentFilter] = useState('All');
+  const [profileCurrentPage, setProfileCurrentPage] = useState(1);
+  const [profilePageSize, setProfilePageSize] = useState(10);
+  const [selectedStaffForPortfolio, setSelectedStaffForPortfolio] = useState<Staff | null>(null);
 
   // Modals
   const [isAddWorkshopModalOpen, setIsAddWorkshopModalOpen] = useState(false);
@@ -664,28 +670,68 @@ export const TrainingContainerView: React.FC = () => {
     );
   };
 
+  const staffDepartments = useMemo(() => {
+    const set = new Set<string>();
+    staff.forEach(s => {
+      if (s.department && s.department.trim()) set.add(s.department.trim());
+    });
+    return Array.from(set).sort();
+  }, [staff]);
+
   const profileStaffList = useMemo(() => {
+    let list = staff;
+    if (selectedBranch && selectedBranch !== 'All' && selectedBranch !== 'All Branches') {
+      list = list.filter(s => !s.branch || s.branch === selectedBranch || s.branch === 'All');
+    }
     if (profileStaffTypeFilter === 'Teaching Staff') {
-      return staff.filter(isTeachingStaffMember);
+      list = list.filter(isTeachingStaffMember);
+    } else if (profileStaffTypeFilter === 'Non-Teaching Staff') {
+      list = list.filter(s => !isTeachingStaffMember(s));
     }
-    if (profileStaffTypeFilter === 'Non-Teaching Staff') {
-      return staff.filter(s => !isTeachingStaffMember(s));
+    if (profileDepartmentFilter !== 'All') {
+      list = list.filter(s => s.department === profileDepartmentFilter);
     }
-    return staff;
-  }, [staff, profileStaffTypeFilter]);
+    if (profileSearchQuery.trim()) {
+      const q = profileSearchQuery.toLowerCase();
+      list = list.filter(s =>
+        `${s.firstName || ''} ${s.lastName || ''}`.toLowerCase().includes(q) ||
+        (s.name && s.name.toLowerCase().includes(q)) ||
+        (s.empId && s.empId.toLowerCase().includes(q)) ||
+        (s.designation && s.designation.toLowerCase().includes(q)) ||
+        (s.department && s.department.toLowerCase().includes(q))
+      );
+    }
+    return list;
+  }, [staff, selectedBranch, profileStaffTypeFilter, profileDepartmentFilter, profileSearchQuery]);
 
-  // Keep selectedStaffId in sync when filter changes or staff list changes
-  useEffect(() => {
-    if (profileStaffList.length > 0 && !profileStaffList.some(s => s.id === selectedStaffId)) {
-      setSelectedStaffId(profileStaffList[0].id);
-    }
-  }, [profileStaffList, selectedStaffId]);
+  const paginatedStaffList = useMemo(() => {
+    const start = (profileCurrentPage - 1) * profilePageSize;
+    return profileStaffList.slice(start, start + profilePageSize);
+  }, [profileStaffList, profileCurrentPage, profilePageSize]);
 
-  // Active Employee Profile Professional Development Records
-  const selectedStaffObj = profileStaffList.find(s => s.id === selectedStaffId) || profileStaffList[0];
-  const staffWorkshops = selectedStaffObj ? workshops.filter(w => w.participants.some(p => p.employeeId === selectedStaffObj.id)) : [];
-  const staffAssessments = selectedStaffObj ? employeeAssessments.filter(a => a.results.some(r => r.employeeId === selectedStaffObj.id)) : [];
-  const staffCertificates = selectedStaffObj ? issuedCertificates.filter(c => c.employeeId === selectedStaffObj.id) : [];
+  const getStaffDevelopmentSummary = (staffId: string) => {
+    const memberWorkshops = workshops.filter(w => w.participants && w.participants.some(p => p.employeeId === staffId));
+    const memberAssessments = employeeAssessments.filter(a => a.results && a.results.some(r => r.employeeId === staffId));
+    const memberCertificates = issuedCertificates.filter(c => c.employeeId === staffId);
+    
+    let totalScore = 0;
+    let scoreCount = 0;
+    memberAssessments.forEach(a => {
+      const res = a.results.find(r => r.employeeId === staffId);
+      if (res && typeof res.percentage === 'number') {
+        totalScore += res.percentage;
+        scoreCount++;
+      }
+    });
+    const avgScore = scoreCount > 0 ? Math.round(totalScore / scoreCount) : null;
+
+    return {
+      workshops: memberWorkshops,
+      assessments: memberAssessments,
+      certificates: memberCertificates,
+      avgScore
+    };
+  };
 
   return (
     <div className="space-y-6 animate-in fade-in">
@@ -1117,7 +1163,8 @@ export const TrainingContainerView: React.FC = () => {
       {/* SUB-TAB 6: STAFF PROFILES PROFESSIONAL DEVELOPMENT SHOWCASE */}
       {activeTab === 'profile-view' && (
         <div className="space-y-6">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white dark:bg-slate-900 p-4 rounded-2xl border border-sky-300 dark:border-sky-700 shadow-sm">
+          {/* Header & Filter Controls Bar */}
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 bg-white dark:bg-slate-900 p-4 rounded-2xl border border-sky-300 dark:border-sky-700 shadow-sm">
             <div>
               <h3 className="font-bold text-sm text-slate-900 dark:text-white flex items-center gap-2">
                 <UserCheck className="w-4 h-4 text-sky-500" /> Employee Profile Professional Development View
@@ -1125,103 +1172,328 @@ export const TrainingContainerView: React.FC = () => {
             </div>
 
             <div className="flex flex-wrap items-center gap-2.5">
+              {/* Search */}
+              <div className="relative min-w-[200px]">
+                <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                <input
+                  type="text"
+                  placeholder="Search staff..."
+                  value={profileSearchQuery}
+                  onChange={e => { setProfileSearchQuery(e.target.value); setProfileCurrentPage(1); }}
+                  className="w-full pl-8 pr-3 py-1.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-sky-200 dark:border-sky-800 text-xs font-semibold text-slate-800 dark:text-slate-100 placeholder-slate-400 outline-none focus:ring-2 focus:ring-sky-500/20"
+                />
+              </div>
+
+              {/* Staff Type */}
               <select
                 value={profileStaffTypeFilter}
-                onChange={e => setProfileStaffTypeFilter(e.target.value as any)}
-                className="px-3 py-2 rounded-xl bg-white dark:bg-slate-800 border border-sky-200 dark:border-sky-800 font-bold text-xs text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-sky-500 cursor-pointer"
+                onChange={e => { setProfileStaffTypeFilter(e.target.value as any); setProfileCurrentPage(1); }}
+                className="px-3 py-1.5 rounded-xl bg-white dark:bg-slate-800 border border-sky-200 dark:border-sky-800 font-bold text-xs text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-sky-500 cursor-pointer"
                 aria-label="Filter staff type"
               >
-                <option value="All">All Staff</option>
+                <option value="All">All Staff Types</option>
                 <option value="Teaching Staff">Teaching Staff</option>
                 <option value="Non-Teaching Staff">Non-Teaching Staff</option>
               </select>
 
-              <select
-                value={selectedStaffId}
-                onChange={e => setSelectedStaffId(e.target.value)}
-                className="px-3 py-2 rounded-xl bg-white dark:bg-slate-800 border border-sky-200 dark:border-sky-800 font-bold text-xs text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-sky-500 cursor-pointer min-w-[200px]"
-                aria-label="Select staff member"
-              >
-                {profileStaffList.length === 0 ? (
-                  <option value="">No staff found</option>
-                ) : (
-                  profileStaffList.map(s => (
-                    <option key={s.id} value={s.id}>
-                      {s.firstName} {s.lastName} ({s.department || s.role || s.designation})
-                    </option>
-                  ))
-                )}
-              </select>
+              {/* Department */}
+              {staffDepartments.length > 0 && (
+                <select
+                  value={profileDepartmentFilter}
+                  onChange={e => { setProfileDepartmentFilter(e.target.value); setProfileCurrentPage(1); }}
+                  className="px-3 py-1.5 rounded-xl bg-white dark:bg-slate-800 border border-sky-200 dark:border-sky-800 font-bold text-xs text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-sky-500 cursor-pointer"
+                  aria-label="Filter department"
+                >
+                  <option value="All">All Departments</option>
+                  {staffDepartments.map(dept => (
+                    <option key={dept} value={dept}>{dept}</option>
+                  ))}
+                </select>
+              )}
+
+              <span className="px-2.5 py-1 rounded-xl bg-sky-50 dark:bg-sky-950 text-sky-700 dark:text-sky-300 font-black text-xs border border-sky-200 dark:border-sky-800 shrink-0">
+                {profileStaffList.length} Staff
+              </span>
             </div>
           </div>
 
-          {!selectedStaffObj ? (
-            <div className="p-12 text-center text-slate-500 bg-white dark:bg-slate-900 rounded-3xl border border-sky-300 dark:border-sky-700 shadow-sm">
-              <UserCheck className="w-10 h-10 mx-auto text-slate-300 mb-2" />
-              <p className="font-bold text-sm">No staff members found in this category.</p>
+          {/* Table View */}
+          {profileStaffList.length === 0 ? (
+            <div className="p-12 text-center text-slate-500 bg-white dark:bg-slate-900 rounded-3xl border border-sky-300 dark:border-sky-700 shadow-sm space-y-2">
+              <UserCheck className="w-10 h-10 mx-auto text-slate-300" />
+              <p className="font-bold text-sm">No staff members found matching your search or filters.</p>
+              <button
+                type="button"
+                onClick={() => { setProfileSearchQuery(''); setProfileStaffTypeFilter('All'); setProfileDepartmentFilter('All'); setProfileCurrentPage(1); }}
+                className="text-xs font-bold text-sky-600 hover:underline cursor-pointer"
+              >
+                Reset Filters
+              </button>
             </div>
           ) : (
-            <div className="p-6 rounded-3xl bg-white dark:bg-slate-900 border border-sky-300 dark:border-sky-700 shadow-sm space-y-6">
-            <div className="flex items-center gap-4 pb-4 border-b border-sky-100 dark:border-sky-900/40">
-              <img src={selectedStaffObj?.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150'} alt="" className="w-14 h-14 rounded-full object-cover border-2 border-brand-500" />
-              <div>
-                <h3 className="text-lg font-black text-slate-900 dark:text-white">{selectedStaffObj?.firstName} {selectedStaffObj?.lastName}</h3>
-                <p className="text-xs text-slate-500">{selectedStaffObj?.designation} • {selectedStaffObj?.department} Department ({selectedStaffObj?.branch})</p>
+            <div className="bg-white dark:bg-slate-900 rounded-3xl border border-sky-300 dark:border-sky-700 shadow-sm overflow-hidden p-4">
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs">
+                  <thead className="bg-slate-50 dark:bg-slate-800/60 uppercase text-[10px] text-slate-400 font-extrabold border-b border-slate-200 dark:border-slate-800">
+                    <tr>
+                      <th className="p-3">Staff / Employee</th>
+                      <th className="p-3">Designation</th>
+                      <th className="p-3">Department</th>
+                      <th className="p-3 text-center">Workshops</th>
+                      <th className="p-3 text-center">Evaluations</th>
+                      <th className="p-3 text-center">Certificates</th>
+                      <th className="p-3 text-center">Avg Score</th>
+                      <th className="p-3 text-right">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                    {paginatedStaffList.map(s => {
+                      const summary = getStaffDevelopmentSummary(s.id);
+                      const fullName = `${s.firstName || ''} ${s.lastName || ''}`.trim() || s.name || 'Staff Member';
+
+                      return (
+                        <tr key={s.id} className="hover:bg-sky-50/40 dark:hover:bg-sky-950/20 transition-colors">
+                          <td className="p-3">
+                            <div>
+                              <div className="font-bold text-sm text-slate-900 dark:text-white truncate max-w-[200px]" title={fullName}>
+                                {fullName}
+                              </div>
+                              <div className="text-xs font-normal text-slate-500 dark:text-slate-400 mt-0.5">
+                                {s.empId || s.id}
+                              </div>
+                            </div>
+                          </td>
+                          <td className="p-3">
+                            <div className="font-bold text-xs text-slate-800 dark:text-slate-200">
+                              {s.designation || s.role || 'Faculty'}
+                            </div>
+                          </td>
+                          <td className="p-3">
+                            {s.department ? (
+                              <span className="inline-block text-[10px] font-bold px-2.5 py-1 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
+                                {s.department}
+                              </span>
+                            ) : (
+                              <span className="text-slate-400 text-xs">—</span>
+                            )}
+                          </td>
+                          <td className="p-3 text-center">
+                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-sky-50 dark:bg-sky-950/60 text-sky-700 dark:text-sky-300 font-extrabold text-xs border border-sky-200/80 dark:border-sky-800/80">
+                              <BookOpen className="w-3.5 h-3.5 text-sky-500" />
+                              {summary.workshops.length}
+                            </span>
+                          </td>
+                          <td className="p-3 text-center">
+                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-purple-50 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300 font-extrabold text-xs border border-purple-200/80 dark:border-purple-800/80">
+                              <CheckCircle2 className="w-3.5 h-3.5 text-purple-500" />
+                              {summary.assessments.length}
+                            </span>
+                          </td>
+                          <td className="p-3 text-center">
+                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 font-extrabold text-xs border border-amber-200/80 dark:border-amber-800/80">
+                              <Award className="w-3.5 h-3.5 text-amber-500" />
+                              {summary.certificates.length}
+                            </span>
+                          </td>
+                          <td className="p-3 text-center">
+                            {summary.avgScore !== null ? (
+                              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 font-black text-xs border border-emerald-200/80 dark:border-emerald-800/80">
+                                <Award className="w-3.5 h-3.5 text-emerald-500" />
+                                {summary.avgScore}%
+                              </span>
+                            ) : (
+                              <span className="text-[11px] text-slate-400 italic">No score</span>
+                            )}
+                          </td>
+                          <td className="p-3 text-right">
+                            <button
+                              type="button"
+                              onClick={() => setSelectedStaffForPortfolio(s)}
+                              title="View Portfolio"
+                              aria-label={`View Portfolio of ${fullName}`}
+                              className="p-2 rounded-xl bg-sky-50 hover:bg-sky-100 dark:bg-sky-950/60 dark:hover:bg-sky-900 text-sky-600 dark:text-sky-300 hover:text-sky-700 border border-sky-200 dark:border-sky-800 transition-colors cursor-pointer shadow-2xs hover:shadow-xs inline-flex items-center justify-center"
+                            >
+                              <Eye className="w-4 h-4" />
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Neat Pagination */}
+              <div className="pt-2 border-t border-slate-100 dark:border-slate-800 mt-2">
+                <Pagination
+                  currentPage={profileCurrentPage}
+                  totalItems={profileStaffList.length}
+                  itemsPerPage={profilePageSize}
+                  onPageChange={setProfileCurrentPage}
+                  onItemsPerPageChange={(n) => { setProfilePageSize(n); setProfileCurrentPage(1); }}
+                  itemsPerPageOptions={[10, 20, 50]}
+                  label="staff members"
+                />
               </div>
             </div>
+          )}
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              
-              {/* Workshops Completed */}
-              <div className="space-y-3">
-                <h4 className="font-extrabold text-xs uppercase tracking-wider text-slate-400">Workshops Attended</h4>
-                <div className="space-y-2">
-                  {staffWorkshops.map(w => (
-                    <div key={w.id} className="p-3 rounded-2xl bg-sky-50/60 dark:bg-sky-950/30 border border-sky-200 dark:border-sky-800 text-xs">
-                      <p className="font-bold text-slate-900 dark:text-white">{w.workshopName}</p>
-                      <p className="text-[10px] text-sky-600 font-bold mt-1">Status: Completed • {w.startDate}</p>
-                    </div>
-                  ))}
-                </div>
-              </div>
+          {/* Detailed Portfolio Modal for Selected Staff */}
+          {selectedStaffForPortfolio && (() => {
+            const summary = getStaffDevelopmentSummary(selectedStaffForPortfolio.id);
+            const fullName = `${selectedStaffForPortfolio.firstName || ''} ${selectedStaffForPortfolio.lastName || ''}`.trim() || selectedStaffForPortfolio.name || 'Staff Member';
+            const avatarUrl = resolveMediaUrl(selectedStaffForPortfolio.avatar) || getInitialsAvatar(fullName, selectedStaffForPortfolio.email);
 
-              {/* Competency Assessments */}
-              <div className="space-y-3">
-                <h4 className="font-extrabold text-xs uppercase tracking-wider text-slate-400">Competency Assessments</h4>
-                <div className="space-y-2">
-                  {staffAssessments.map(a => {
-                    const res = a.results.find(r => r.employeeId === selectedStaffObj?.id);
-                    return (
-                      <div key={a.id} className="p-3 rounded-2xl bg-sky-50/60 dark:bg-sky-950/30 border border-sky-200 dark:border-sky-800 text-xs">
-                        <p className="font-bold text-slate-900 dark:text-white">{a.assessmentName}</p>
-                        <p className="text-[10px] font-bold text-sky-600 mt-1">Score: {res?.percentage || 0}% • {res?.result}</p>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* Earned Certificates */}
-              <div className="space-y-3">
-                <h4 className="font-extrabold text-xs uppercase tracking-wider text-slate-400">Earned Certificates</h4>
-                <div className="space-y-2">
-                  {staffCertificates.map(c => (
-                    <div key={c.id} className="p-3 rounded-2xl bg-amber-50/60 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 text-xs flex justify-between items-center">
+            return (
+              <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm animate-in fade-in">
+                <div className="bg-white dark:bg-slate-900 border border-sky-300 dark:border-sky-700 rounded-3xl max-w-3xl w-full p-6 shadow-2xl space-y-5 max-h-[90vh] flex flex-col text-xs [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+                  {/* Modal Header */}
+                  <div className="flex justify-between items-start border-b border-sky-100 dark:border-sky-900/40 pb-4">
+                    <div className="flex items-center gap-4">
+                      <img
+                        src={avatarUrl}
+                        alt={fullName}
+                        className="w-16 h-16 rounded-full object-cover border-2 border-brand-500 shadow-sm shrink-0"
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).src = getInitialsAvatar(fullName, selectedStaffForPortfolio.email);
+                        }}
+                      />
                       <div>
-                        <p className="font-bold text-slate-900 dark:text-white">{c.programName}</p>
-                        <p className="text-[10px] font-mono text-amber-600">{c.certificateNumber}</p>
+                        <div className="flex items-center gap-2">
+                          <h3 className="text-lg font-black text-slate-900 dark:text-white">{fullName}</h3>
+                          <span className="font-mono text-[10px] font-bold text-sky-700 dark:text-sky-300 bg-sky-50 dark:bg-sky-950 px-2 py-0.5 rounded border border-sky-200 dark:border-sky-800">
+                            {selectedStaffForPortfolio.empId || selectedStaffForPortfolio.id}
+                          </span>
+                        </div>
+                        <p className="text-xs text-slate-500 mt-0.5">
+                          {selectedStaffForPortfolio.designation} • {selectedStaffForPortfolio.department} Department ({selectedStaffForPortfolio.branch || defaultBranch})
+                        </p>
+                        <p className="text-[11px] text-slate-400 mt-0.5">
+                          Email: {selectedStaffForPortfolio.email || 'N/A'} • Phone: {selectedStaffForPortfolio.phone || 'N/A'}
+                        </p>
                       </div>
-                      <button onClick={() => setSelectedCertificateForPreview(c)} className="px-2 py-1 bg-amber-600 text-white rounded text-[9px] font-bold">Download</button>
                     </div>
-                  ))}
+                    <button
+                      type="button"
+                      onClick={() => setSelectedStaffForPortfolio(null)}
+                      className="p-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
+                    >
+                      <X className="w-5 h-5" />
+                    </button>
+                  </div>
+
+                  {/* 3 Detail Columns in Modal */}
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-5 overflow-y-auto pr-1">
+                    {/* Workshops Attended */}
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        <h4 className="font-extrabold text-xs uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
+                          <BookOpen className="w-3.5 h-3.5 text-sky-500" /> Workshops ({summary.workshops.length})
+                        </h4>
+                      </div>
+                      <div className="space-y-2">
+                        {summary.workshops.length === 0 ? (
+                          <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200/60 dark:border-slate-800 text-center text-slate-400 text-xs italic">
+                            No workshops attended yet.
+                          </div>
+                        ) : (
+                          summary.workshops.map(w => (
+                            <div key={w.id} className="p-3 rounded-2xl bg-sky-50/60 dark:bg-sky-950/30 border border-sky-200 dark:border-sky-800 text-xs space-y-1">
+                              <p className="font-bold text-slate-900 dark:text-white">{w.workshopName}</p>
+                              <span className="inline-block px-1.5 py-0.2 rounded text-[9px] font-black uppercase bg-sky-100 text-sky-800">
+                                {w.category}
+                              </span>
+                              <p className="text-[10px] text-slate-500">Venue: {w.venue || 'Campus'}</p>
+                              <p className="text-[10px] text-sky-600 font-bold">Completed • {w.startDate}</p>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Competency Assessments */}
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        <h4 className="font-extrabold text-xs uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
+                          <FileCheck className="w-3.5 h-3.5 text-purple-500" /> Evaluations ({summary.assessments.length})
+                        </h4>
+                      </div>
+                      <div className="space-y-2">
+                        {summary.assessments.length === 0 ? (
+                          <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200/60 dark:border-slate-800 text-center text-slate-400 text-xs italic">
+                            No assessments completed.
+                          </div>
+                        ) : (
+                          summary.assessments.map(a => {
+                            const res = a.results.find(r => r.employeeId === selectedStaffForPortfolio.id);
+                            return (
+                              <div key={a.id} className="p-3 rounded-2xl bg-purple-50/60 dark:bg-purple-950/30 border border-purple-200 dark:border-purple-800 text-xs space-y-1">
+                                <p className="font-bold text-slate-900 dark:text-white">{a.assessmentName}</p>
+                                <div className="flex items-center justify-between text-[11px] font-bold text-purple-700 dark:text-purple-300">
+                                  <span>Score: {res?.marksObtained ?? 0} / {a.totalMarks}</span>
+                                  <span className="px-1.5 py-0.5 rounded bg-purple-100 dark:bg-purple-900/60 text-[10px] font-black">
+                                    {res?.percentage || 0}%
+                                  </span>
+                                </div>
+                                <p className="text-[10px] text-slate-500">Evaluator: {a.evaluatorName || 'Main'}</p>
+                                {res?.evaluatorRemarks && <p className="text-[10px] text-slate-400 italic font-mono">Remarks: {res.evaluatorRemarks}</p>}
+                              </div>
+                            );
+                          })
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Earned Certificates */}
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        <h4 className="font-extrabold text-xs uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
+                          <Award className="w-3.5 h-3.5 text-amber-500" /> Certificates ({summary.certificates.length})
+                        </h4>
+                      </div>
+                      <div className="space-y-2">
+                        {summary.certificates.length === 0 ? (
+                          <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200/60 dark:border-slate-800 text-center text-slate-400 text-xs italic">
+                            No certificates issued yet.
+                          </div>
+                        ) : (
+                          summary.certificates.map(c => (
+                            <div key={c.id} className="p-3 rounded-2xl bg-amber-50/60 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 text-xs space-y-2">
+                              <div>
+                                <p className="font-bold text-slate-900 dark:text-white">{c.programName}</p>
+                                <p className="text-[10px] font-mono text-amber-700 dark:text-amber-400 font-bold">{c.certificateNumber}</p>
+                                <p className="text-[10px] text-slate-400">Issued: {c.completionDate}</p>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => setSelectedCertificateForPreview(c)}
+                                className="w-full py-1.5 px-2 bg-amber-600 hover:bg-amber-500 text-white rounded-xl text-[10px] font-black flex items-center justify-center gap-1 transition-colors cursor-pointer"
+                              >
+                                <Download className="w-3 h-3" /> Preview & Download
+                              </button>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Modal Footer */}
+                  <div className="pt-3 border-t border-sky-100 dark:border-sky-900/40 flex justify-end">
+                    <button
+                      type="button"
+                      onClick={() => setSelectedStaffForPortfolio(null)}
+                      className="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold text-xs transition-colors cursor-pointer"
+                    >
+                      Close Portfolio
+                    </button>
+                  </div>
                 </div>
               </div>
-
-            </div>
-          </div>
-        )}
-      </div>
-    )}
+            );
+          })()}
+        </div>
+      )}
 
       {/* CREATE WORKSHOP MODAL */}
       {isAddWorkshopModalOpen && (

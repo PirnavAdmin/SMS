@@ -102,20 +102,13 @@ export const CertificatesView: React.FC<CertificatesViewProps> = ({ onNavigateTo
   const { addToast } = useToast();
   const activeAY = selectedAcademicYear || '2026–2027';
 
-  const [activeTab, setActiveTabState] = useState<'generate' | 'history'>(() => {
-    try {
-      const saved = localStorage.getItem('certificates_view_active_tab');
-      if (saved === 'generate' || saved === 'history') return saved;
-    } catch {}
-    return 'generate';
-  });
+  const [activeTab, setActiveTab] = useState<'generate' | 'history'>('generate');
 
-  const setActiveTab = (tab: 'generate' | 'history') => {
-    setActiveTabState(tab);
+  useEffect(() => {
     try {
-      localStorage.setItem('certificates_view_active_tab', tab);
+      localStorage.removeItem('certificates_view_active_tab');
     } catch {}
-  };
+  }, []);
 
   // Load Certificate Types from localStorage or fallback
   const certificateTypes = useMemo<CertificateTypeConfig[]>(() => {

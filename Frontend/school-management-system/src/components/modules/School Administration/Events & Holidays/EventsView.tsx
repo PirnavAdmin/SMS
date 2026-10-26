@@ -197,14 +197,29 @@ export const EventsView: React.FC = () => {
     setEditingHoliday(null);
     setHolidayForm({
       name: '',
-      type: 'National',
-      startDate: new Date().toISOString().split('T')[0],
-      endDate: new Date().toISOString().split('T')[0],
+      type: '' as unknown as HolidayType,
+      startDate: '',
+      endDate: '',
       branch: (selectedBranch && selectedBranch !== 'All' && selectedBranch !== 'All Branches' ? selectedBranch : '') || defaultBranch,
       description: '',
       status: 'Active',
-      applicableTo: 'All'
+      applicableTo: '' as unknown as ('All' | 'Students' | 'Teaching Staff' | 'Non-Teaching Staff')
     });
+  };
+
+  const handleOpenAddHolidayModal = () => {
+    setEditingHoliday(null);
+    setHolidayForm({
+      name: '',
+      type: '' as unknown as HolidayType,
+      startDate: '',
+      endDate: '',
+      branch: (selectedBranch && selectedBranch !== 'All' && selectedBranch !== 'All Branches' ? selectedBranch : '') || defaultBranch,
+      description: '',
+      status: 'Active',
+      applicableTo: '' as unknown as ('All' | 'Students' | 'Teaching Staff' | 'Non-Teaching Staff')
+    });
+    setIsAddHolidayModalOpen(true);
   };
 
   const handleCloseEventModal = () => {
@@ -212,12 +227,12 @@ export const EventsView: React.FC = () => {
     setEditingEvent(null);
     setEventForm({
       title: '',
-      category: 'Sports Day',
+      category: '' as unknown as EventCategory,
       description: '',
       organizer: '',
       venue: '',
-      startDate: new Date().toISOString().split('T')[0],
-      endDate: new Date().toISOString().split('T')[0],
+      startDate: '',
+      endDate: '',
       startTime: '09:00 AM',
       endTime: '04:00 PM',
       branch: (selectedBranch && selectedBranch !== 'All' && selectedBranch !== 'All Branches' ? selectedBranch : '') || defaultBranch,
@@ -231,15 +246,39 @@ export const EventsView: React.FC = () => {
     });
   };
 
+  const handleOpenAddEventModal = () => {
+    setEditingEvent(null);
+    setEventForm({
+      title: '',
+      category: '' as unknown as EventCategory,
+      description: '',
+      organizer: '',
+      venue: '',
+      startDate: '',
+      endDate: '',
+      startTime: '09:00 AM',
+      endTime: '04:00 PM',
+      branch: (selectedBranch && selectedBranch !== 'All' && selectedBranch !== 'All Branches' ? selectedBranch : '') || defaultBranch,
+      academicYear: selectedAcademicYear || '',
+      participants: 'All Students & Staff',
+      applicableClasses: ['All Classes'],
+      status: 'Published',
+      attachmentName: '',
+      targetClass: 'Class 10',
+      targetSection: 'A'
+    });
+    setIsAddEventModalOpen(true);
+  };
+
   // Add Event Form State
   const [eventForm, setEventForm] = useState({
     title: '',
-    category: 'Sports Day' as EventCategory,
+    category: '' as unknown as EventCategory,
     description: '',
     organizer: '',
     venue: '',
-    startDate: new Date().toISOString().split('T')[0],
-    endDate: new Date().toISOString().split('T')[0],
+    startDate: '',
+    endDate: '',
     startTime: '09:00 AM',
     endTime: '04:00 PM',
     branch: (selectedBranch && selectedBranch !== 'All' && selectedBranch !== 'All Branches' ? selectedBranch : '') || defaultBranch,
@@ -255,13 +294,13 @@ export const EventsView: React.FC = () => {
   // Add Holiday Form State
   const [holidayForm, setHolidayForm] = useState({
     name: '',
-    type: 'National' as HolidayType,
-    startDate: new Date().toISOString().split('T')[0],
-    endDate: new Date().toISOString().split('T')[0],
+    type: '' as unknown as HolidayType,
+    startDate: '',
+    endDate: '',
     branch: (selectedBranch && selectedBranch !== 'All' && selectedBranch !== 'All Branches' ? selectedBranch : '') || defaultBranch,
     description: '',
     status: 'Active' as 'Active' | 'Inactive',
-    applicableTo: 'All' as 'All' | 'Students' | 'Teaching Staff' | 'Non-Teaching Staff'
+    applicableTo: '' as unknown as ('All' | 'Students' | 'Teaching Staff' | 'Non-Teaching Staff')
   });
 
   // Today's formatted ISO date string
@@ -576,8 +615,8 @@ export const EventsView: React.FC = () => {
   // Submit Handlers
   const handleAddEventSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!eventForm.title.trim() || !eventForm.startDate) {
-      addToast('warning', 'Validation Error', 'Please enter event title and start date.');
+    if (!eventForm.title.trim() || !eventForm.category || !eventForm.startDate) {
+      addToast('warning', 'Validation Error', 'Please enter event title, select an event category, and choose a start date.');
       return;
     }
 
@@ -625,12 +664,12 @@ export const EventsView: React.FC = () => {
     setIsAddEventModalOpen(false);
     setEventForm({
       title: '',
-      category: 'Sports Day',
+      category: '' as unknown as EventCategory,
       description: '',
       organizer: '',
       venue: '',
-      startDate: new Date().toISOString().split('T')[0],
-      endDate: new Date().toISOString().split('T')[0],
+      startDate: '',
+      endDate: '',
       startTime: '09:00 AM',
       endTime: '04:00 PM',
       branch: (selectedBranch && selectedBranch !== 'All' && selectedBranch !== 'All Branches' ? selectedBranch : '') || defaultBranch,
@@ -646,8 +685,8 @@ export const EventsView: React.FC = () => {
 
   const handleAddHolidaySubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!holidayForm.name.trim() || !holidayForm.startDate) {
-      addToast('warning', 'Validation Error', 'Please provide holiday name and start date.');
+    if (!holidayForm.name.trim() || !holidayForm.type || !holidayForm.applicableTo || !holidayForm.startDate) {
+      addToast('warning', 'Validation Error', 'Please provide holiday name, select holiday type and applicable audience, and choose a start date.');
       return;
     }
 
@@ -680,13 +719,13 @@ export const EventsView: React.FC = () => {
     setIsAddHolidayModalOpen(false);
     setHolidayForm({
       name: '',
-      type: 'National',
-      startDate: new Date().toISOString().split('T')[0],
-      endDate: new Date().toISOString().split('T')[0],
+      type: '' as unknown as HolidayType,
+      startDate: '',
+      endDate: '',
       branch: (selectedBranch && selectedBranch !== 'All' && selectedBranch !== 'All Branches' ? selectedBranch : '') || defaultBranch,
       description: '',
       status: 'Active',
-      applicableTo: 'All'
+      applicableTo: '' as unknown as ('All' | 'Students' | 'Teaching Staff' | 'Non-Teaching Staff')
     });
   };
 
@@ -819,7 +858,7 @@ export const EventsView: React.FC = () => {
                   </button>
                   <button
                     type="button"
-                    onClick={() => setIsAddHolidayModalOpen(true)}
+                    onClick={handleOpenAddHolidayModal}
                     className="px-3.5 py-1.5 rounded-xl bg-sky-600  hover:bg-sky-500 text-white text-xs font-extrabold shadow-sm shadow-sky-600/30 flex items-center gap-1.5 transition cursor-pointer h-[34px]"
                   >
                     <Plus className="w-3.5 h-3.5" /> Add Holiday
@@ -830,7 +869,7 @@ export const EventsView: React.FC = () => {
               {activeTab === 'school-events' && (
                 <button
                   type="button"
-                  onClick={() => setIsAddEventModalOpen(true)}
+                  onClick={handleOpenAddEventModal}
                   className="px-3.5 py-1.5 rounded-xl bg-sky-600 hover:bg-sky-500 text-white text-xs font-extrabold shadow-sm shadow-sky-600/30 flex items-center gap-1.5 transition cursor-pointer h-[34px]"
                 >
                   <Plus className="w-3.5 h-3.5" /> Add School Event
@@ -1591,10 +1630,12 @@ export const EventsView: React.FC = () => {
                 <div>
                   <label className="block font-bold mb-1 text-slate-700 dark:text-slate-300">Event Category <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                   <select
+                    required
                     value={eventForm.category}
                     onChange={e => setEventForm({ ...eventForm, category: e.target.value as any })}
                     className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-semibold outline-none"
                   >
+                    <option value="" disabled>Select Event Category</option>
                     <option value="Sports Day">Sports Day</option>
                     <option value="Annual Day">Annual Day</option>
                     <option value="Science Exhibition">Science Exhibition</option>
@@ -1708,10 +1749,12 @@ export const EventsView: React.FC = () => {
               <div>
                 <label className="block font-bold mb-1 text-slate-700 dark:text-slate-300">Holiday Type <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                 <select
+                  required
                   value={holidayForm.type}
                   onChange={e => setHolidayForm({ ...holidayForm, type: e.target.value as any })}
                   className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-semibold outline-none"
                 >
+                  <option value="" disabled>Select Holiday Type</option>
                   <option value="National">National Holiday</option>
                   <option value="Gazetted">Gazetted Holiday</option>
                   <option value="Festival">Festival Holiday</option>
@@ -1723,10 +1766,12 @@ export const EventsView: React.FC = () => {
               <div>
                 <label className="block font-bold mb-1 text-slate-700 dark:text-slate-300">Applicable To <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                 <select
-                  value={holidayForm.applicableTo || 'All'}
+                  required
+                  value={holidayForm.applicableTo}
                   onChange={e => setHolidayForm({ ...holidayForm, applicableTo: e.target.value as any })}
                   className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-semibold outline-none"
                 >
+                  <option value="" disabled>Select Applicable Audience</option>
                   <option value="All">All Students & Staff</option>
                   <option value="Students">Students (Enrolled)</option>
                   <option value="Teaching Staff">Teaching Staff</option>
