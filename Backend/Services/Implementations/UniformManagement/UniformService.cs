@@ -25,7 +25,7 @@ namespace SMS.Api.Services.Implementations
 
             int totalItems = types.Count;
             int availStock = types.Sum(t => t.AvailableStock);
-            int lowStockCount = types.Count(t => t.AvailableStock <= t.MinThreshold || t.AvailableStock <= 5);
+            int lowStockCount = types.Count(t => (t.MinThreshold > 0 && t.AvailableStock <= t.MinThreshold) || (t.MinThreshold == 0 && t.AvailableStock <= 5));
             int issuedUnits = distributions.Where(d => d.Status == "Issued").Sum(d => d.Quantity);
             int returnedUnits = distributions.Where(d => d.Status == "Returned" || d.Status == "Returned Items").Sum(d => d.Quantity);
             decimal totalSales = distributions.Where(d => d.Status == "Issued" && (string.IsNullOrEmpty(d.ItemName) || !d.ItemName.ToLower().Contains("package") || (!string.IsNullOrEmpty(d.TransactionType) && d.TransactionType.ToLower().Contains("additional")))).Sum(d => d.TotalAmount);
@@ -40,7 +40,7 @@ namespace SMS.Api.Services.Implementations
                     TotalUnits = g.Sum(t => t.AvailableStock)
                 }).ToList();
 
-            var lowStockAlerts = types.Where(t => t.AvailableStock <= t.MinThreshold || t.AvailableStock <= 5).Select(t => new UniformLowStockAlertDto
+            var lowStockAlerts = types.Where(t => (t.MinThreshold > 0 && t.AvailableStock <= t.MinThreshold) || (t.MinThreshold == 0 && t.AvailableStock <= 5)).Select(t => new UniformLowStockAlertDto
             {
                 ItemName = t.ItemName,
                 Category = t.CategoryName,
@@ -89,12 +89,16 @@ namespace SMS.Api.Services.Implementations
             var item = new UniformType
             {
                 ItemName = dto.ItemName.Trim(),
+                CategoryName = !string.IsNullOrWhiteSpace(dto.CategoryName) ? dto.CategoryName.Trim() : (!string.IsNullOrWhiteSpace(dto.ItemName) ? dto.ItemName.Trim() : "General"),
                 Gender = !string.IsNullOrWhiteSpace(dto.Gender) ? dto.Gender.Trim() : "Unisex",
                 SchoolWing = !string.IsNullOrWhiteSpace(dto.SchoolWing) ? dto.SchoolWing.Trim() : "",
-                Size = !string.IsNullOrWhiteSpace(dto.Size) ? dto.Size.Trim() : "M",
-                Color = !string.IsNullOrWhiteSpace(dto.Color) ? dto.Color.Trim() : "Navy Blue",
+                Size = !string.IsNullOrWhiteSpace(dto.Size) ? dto.Size.Trim() : "",
+                Color = !string.IsNullOrWhiteSpace(dto.Color) ? dto.Color.Trim() : "",
                 UnitPrice = dto.UnitPrice >= 0 ? dto.UnitPrice : 0m,
-                AvailableStock = dto.AvailableStock >= 0 ? dto.AvailableStock : 0,
+                OpeningStock = dto.OpeningStock >= 0 ? dto.OpeningStock : 0,
+                AvailableStock = dto.AvailableStock >= 0 ? dto.AvailableStock : (dto.OpeningStock >= 0 ? dto.OpeningStock : 0),
+                MinThreshold = dto.MinThreshold >= 0 ? dto.MinThreshold : 0,
+                ReorderPoint = dto.ReorderPoint >= 0 ? dto.ReorderPoint : 0,
                 Status = !string.IsNullOrWhiteSpace(dto.Status) ? dto.Status.Trim() : "Active",
                 CreatedAt = DateTime.UtcNow
             };
@@ -116,12 +120,16 @@ namespace SMS.Api.Services.Implementations
                 ?? throw new NotFoundException($"Uniform Type with ID '{id}' not found.");
 
             item.ItemName = dto.ItemName.Trim();
+            if (!string.IsNullOrWhiteSpace(dto.CategoryName)) item.CategoryName = dto.CategoryName.Trim();
             if (!string.IsNullOrWhiteSpace(dto.Gender)) item.Gender = dto.Gender.Trim();
             if (!string.IsNullOrWhiteSpace(dto.SchoolWing)) item.SchoolWing = dto.SchoolWing.Trim();
             if (!string.IsNullOrWhiteSpace(dto.Size)) item.Size = dto.Size.Trim();
             if (!string.IsNullOrWhiteSpace(dto.Color)) item.Color = dto.Color.Trim();
-            if (dto.UnitPrice > 0) item.UnitPrice = dto.UnitPrice;
+            if (dto.UnitPrice >= 0) item.UnitPrice = dto.UnitPrice;
+            if (dto.OpeningStock >= 0) item.OpeningStock = dto.OpeningStock;
             if (dto.AvailableStock >= 0) item.AvailableStock = dto.AvailableStock;
+            if (dto.MinThreshold >= 0) item.MinThreshold = dto.MinThreshold;
+            if (dto.ReorderPoint >= 0) item.ReorderPoint = dto.ReorderPoint;
             if (!string.IsNullOrWhiteSpace(dto.Status)) item.Status = dto.Status.Trim();
             if (dto.IncludedItems != null)
             {
@@ -298,7 +306,7 @@ namespace SMS.Api.Services.Implementations
                 ContactPerson = dto.ContactPerson?.Trim(),
                 Phone = dto.Phone?.Trim(),
                 Email = dto.Email?.Trim(),
-                GstNumber = !string.IsNullOrWhiteSpace(dto.GstNumber) ? dto.GstNumber.Trim() : "29AAAAA1111A1Z1",
+                GstNumber = !string.IsNullOrWhiteSpace(dto.GstNumber) ? dto.GstNumber.Trim() : "",
                 Address = dto.Address?.Trim(),
                 Status = !string.IsNullOrWhiteSpace(dto.Status) ? dto.Status.Trim() : "Active",
                 CreatedAt = DateTime.UtcNow
@@ -318,7 +326,7 @@ namespace SMS.Api.Services.Implementations
             sp.ContactPerson = dto.ContactPerson?.Trim();
             sp.Phone = dto.Phone?.Trim();
             sp.Email = dto.Email?.Trim();
-            if (!string.IsNullOrWhiteSpace(dto.GstNumber)) sp.GstNumber = dto.GstNumber.Trim();
+            sp.GstNumber = dto.GstNumber != null ? dto.GstNumber.Trim() : "";
             sp.Address = dto.Address?.Trim();
             if (!string.IsNullOrWhiteSpace(dto.Status)) sp.Status = dto.Status.Trim();
 
@@ -368,10 +376,10 @@ namespace SMS.Api.Services.Implementations
                 AdmissionNo = !string.IsNullOrWhiteSpace(dto.AdmissionNo) ? dto.AdmissionNo.Trim() : null,
                 StudentName = !string.IsNullOrWhiteSpace(dto.StudentName) ? dto.StudentName.Trim() : null,
                 ClassName = !string.IsNullOrWhiteSpace(dto.ClassName) ? dto.ClassName.Trim() : null,
-                TransactionType = !string.IsNullOrWhiteSpace(dto.TransactionType) ? dto.TransactionType.Trim() : "Baseline Distribution (Admission Kit)",
+                TransactionType = !string.IsNullOrWhiteSpace(dto.TransactionType) ? dto.TransactionType.Trim() : "Issue",
                 UniformTypeId = item?.UniformTypeId,
                 ItemName = itemName,
-                SizeSpec = !string.IsNullOrWhiteSpace(dto.SizeSpec) ? dto.SizeSpec.Trim() : "M",
+                SizeSpec = !string.IsNullOrWhiteSpace(dto.SizeSpec) ? dto.SizeSpec.Trim() : "",
                 Quantity = qty,
                 TotalAmount = total,
                 DistributionDate = dto.DistributionDate ?? DateTime.UtcNow,
@@ -450,7 +458,7 @@ namespace SMS.Api.Services.Implementations
             string reportType = filter.ReportType?.ToLower() ?? "current stock";
             if (reportType.Contains("low stock"))
             {
-                types = types.Where(t => t.AvailableStock <= t.MinThreshold || t.AvailableStock <= 5).ToList();
+                types = types.Where(t => (t.MinThreshold > 0 && t.AvailableStock <= t.MinThreshold) || (t.MinThreshold == 0 && t.AvailableStock <= 5)).ToList();
             }
 
             return types.Select(t =>
@@ -461,16 +469,16 @@ namespace SMS.Api.Services.Implementations
                 {
                     Id = t.UniformTypeId,
                     ItemName = t.ItemName,
-                    CategoryName = t.ItemName,
+                    CategoryName = !string.IsNullOrWhiteSpace(t.CategoryName) ? t.CategoryName : (!string.IsNullOrWhiteSpace(t.ItemName) ? t.ItemName : "General"),
                     Gender = t.Gender,
                     Size = t.Size,
                     Color = t.Color,
                     UnitPrice = t.UnitPrice,
                     OpeningStock = t.OpeningStock,
                     AvailableStock = t.AvailableStock,
-                    ReorderLevel = t.ReorderPoint > 0 ? t.ReorderPoint : 15,
+                    ReorderLevel = t.ReorderPoint,
                     IssuedUnits = issued,
-                    Status = t.AvailableStock == 0 ? "Out of Stock" : (t.AvailableStock <= t.MinThreshold ? "Low Stock" : "In Stock")
+                    Status = t.AvailableStock == 0 ? "Out of Stock" : (t.MinThreshold > 0 && t.AvailableStock <= t.MinThreshold ? "Low Stock" : "In Stock")
                 };
             }).ToList();
         }
@@ -482,16 +490,16 @@ namespace SMS.Api.Services.Implementations
             {
                 UniformTypeId = u.UniformTypeId,
                 ItemName = u.ItemName ?? "",
-                CategoryName = u.CategoryName ?? ((u.ItemName != null && u.ItemName.Contains("Shirt")) ? "Shirt" : "Blazer"),
+                CategoryName = !string.IsNullOrWhiteSpace(u.CategoryName) ? u.CategoryName : (!string.IsNullOrWhiteSpace(u.ItemName) ? u.ItemName : "General"),
                 Gender = u.Gender ?? "Unisex",
                 SchoolWing = u.SchoolWing ?? "",
-                Size = u.Size ?? "M",
+                Size = u.Size ?? "",
                 Color = u.Color ?? "",
                 UnitPrice = u.UnitPrice,
-                OpeningStock = u.OpeningStock > 0 ? u.OpeningStock : 200,
+                OpeningStock = u.OpeningStock,
                 AvailableStock = u.AvailableStock,
-                MinThreshold = u.MinThreshold > 0 ? u.MinThreshold : 30,
-                ReorderPoint = u.ReorderPoint > 0 ? u.ReorderPoint : 50,
+                MinThreshold = u.MinThreshold,
+                ReorderPoint = u.ReorderPoint,
                 Status = u.Status ?? "Active",
                 CreatedAt = u.CreatedAt ?? DateTime.UtcNow
             };
@@ -537,7 +545,7 @@ namespace SMS.Api.Services.Implementations
             ContactPerson = sp.ContactPerson ?? "",
             Phone = sp.Phone ?? "",
             Email = sp.Email ?? "",
-            GstNumber = sp.GstNumber ?? "29AAAAA1111A1Z1",
+            GstNumber = sp.GstNumber ?? "",
             Address = sp.Address ?? "",
             Status = sp.Status ?? "Active",
             CreatedAt = sp.CreatedAt ?? DateTime.UtcNow
@@ -550,10 +558,10 @@ namespace SMS.Api.Services.Implementations
             AdmissionNo = d.AdmissionNo ?? "",
             StudentName = d.StudentName ?? "",
             ClassName = d.ClassName ?? "",
-            TransactionType = d.TransactionType ?? "Baseline Distribution (Admission Kit)",
+            TransactionType = d.TransactionType ?? "Issue",
             UniformTypeId = d.UniformTypeId,
             ItemName = d.ItemName ?? d.UniformType?.ItemName ?? "",
-            SizeSpec = d.SizeSpec ?? "M",
+            SizeSpec = d.SizeSpec ?? "",
             Quantity = d.Quantity,
             TotalAmount = d.TotalAmount,
             DistributionDate = d.DistributionDate ?? DateTime.UtcNow,

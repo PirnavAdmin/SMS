@@ -5,10 +5,10 @@ namespace SMS.Api.Dtos
     public class UniformDashboardMetricsDto
     {
         [JsonPropertyName("totalItems")]
-        public int TotalItems { get; set; } = 2;
+        public int TotalItems { get; set; } = 0;
 
         [JsonPropertyName("availableStock")]
-        public int AvailableStock { get; set; } = 165;
+        public int AvailableStock { get; set; } = 0;
 
         [JsonPropertyName("availableStockString")]
         public string AvailableStockString => $"{AvailableStock} Units";
@@ -26,7 +26,7 @@ namespace SMS.Api.Dtos
         public string IssuedUnitsString => $"{IssuedUnits} Items";
 
         [JsonPropertyName("returnedItems")]
-        public int ReturnedItems { get; set; } = 1;
+        public int ReturnedItems { get; set; } = 0;
 
         [JsonPropertyName("returnedItemsString")]
         public string ReturnedItemsString => $"{ReturnedItems} Items";

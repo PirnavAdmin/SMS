@@ -116,7 +116,7 @@ export const UniformDashboardView: React.FC<UniformDashboardViewProps> = ({ onNa
     if (dashboardMetrics?.lowStock !== undefined && dashboardMetrics?.lowStock !== null) {
       return Number(dashboardMetrics.lowStock);
     }
-    return (uniformInventory || []).filter(x => Number(x.currentStock) <= Number(x.minimumStock || 10)).length;
+    return (uniformInventory || []).filter(x => (Number(x.minimumStock) > 0 && Number(x.currentStock) <= Number(x.minimumStock)) || (Number(x.minimumStock) === 0 && Number(x.currentStock) <= 5)).length;
   }, [dashboardMetrics, uniformInventory]);
 
   // Dynamic Low Stock Alerts
@@ -125,20 +125,20 @@ export const UniformDashboardView: React.FC<UniformDashboardViewProps> = ({ onNa
       return dashboardMetrics.lowStockAlerts.map((alert: any, idx: number) => ({
         id: `alert-${idx}`,
         itemName: alert.itemName || alert.category || 'Item',
-        size: alert.size || 'Standard',
+        size: alert.size || '',
         currentStock: Number(alert.currentStock || 0),
-        minimumStock: Number(alert.minThreshold || alert.minimumStock || 10),
+        minimumStock: Number(alert.minThreshold || alert.minimumStock || 0),
         status: alert.status || 'Low Stock'
       }));
     }
     return (uniformInventory || [])
-      .filter(x => Number(x.currentStock) <= Number(x.minimumStock || 10))
+      .filter(x => (Number(x.minimumStock) > 0 && Number(x.currentStock) <= Number(x.minimumStock)) || (Number(x.minimumStock) === 0 && Number(x.currentStock) <= 5))
       .map(item => ({
         id: item.id,
         itemName: item.itemName,
-        size: item.size || 'M',
+        size: item.size || '',
         currentStock: Number(item.currentStock) || 0,
-        minimumStock: Number(item.minimumStock || 10),
+        minimumStock: Number(item.minimumStock || 0),
         status: item.status || 'Low Stock'
       }));
   }, [dashboardMetrics, uniformInventory]);
@@ -241,10 +241,10 @@ export const UniformDashboardView: React.FC<UniformDashboardViewProps> = ({ onNa
         map.set(normKey, {
           id: issue.id,
           studentName: issue.studentName || 'Student',
-          className: issue.className || 'Class 10',
-          section: issue.section || 'A',
+          className: issue.className || '',
+          section: issue.section || '',
           itemsList: isReturned ? [] : [cleanItemName],
-          sizesList: issue.size ? [issue.size] : ['M'],
+          sizesList: issue.size ? [issue.size] : [],
           totalQuantity: isReturned ? 0 : (issue.quantity || 1),
           date: issue.issueDate || new Date().toISOString().split('T')[0],
           status: issue.status || 'Issued'

@@ -25,10 +25,10 @@ namespace SMS.Api.Dtos
         public string ClassName { get; set; } = string.Empty;
 
         [JsonPropertyName("class")]
-        public string Class => !string.IsNullOrWhiteSpace(ClassName) ? ClassName : "Class 10-A";
+        public string Class => ClassName;
 
         [JsonPropertyName("transactionType")]
-        public string TransactionType { get; set; } = "Baseline Distribution (Admission Kit)";
+        public string TransactionType { get; set; } = "Issue";
 
         [JsonPropertyName("uniformTypeId")]
         public int? UniformTypeId { get; set; }
@@ -43,13 +43,13 @@ namespace SMS.Api.Dtos
         public string IssuedItem => ItemName;
 
         [JsonPropertyName("basePackage")]
-        public string BasePackage => !string.IsNullOrWhiteSpace(ItemName) ? ItemName : "Boys Package";
+        public string BasePackage => ItemName;
 
         [JsonPropertyName("additionalPurchases")]
         public string AdditionalPurchases => TransactionType != null && TransactionType.Contains("Additional") ? ItemName : "--";
 
         [JsonPropertyName("sizeSpec")]
-        public string SizeSpec { get; set; } = "M";
+        public string SizeSpec { get; set; } = string.Empty;
 
         [JsonPropertyName("size")]
         public string Size => SizeSpec;
@@ -120,7 +120,7 @@ namespace SMS.Api.Dtos
         }
 
         [JsonPropertyName("transactionType")]
-        public string? TransactionType { get; set; } = "Baseline Distribution (Admission Kit)";
+        public string? TransactionType { get; set; } = "Issue";
 
         [JsonPropertyName("uniformTypeId")]
         public int? UniformTypeId { get; set; }
@@ -143,7 +143,7 @@ namespace SMS.Api.Dtos
         }
 
         [JsonPropertyName("sizeSpec")]
-        public string? SizeSpec { get; set; } = "M";
+        public string? SizeSpec { get; set; } = string.Empty;
 
         [JsonPropertyName("size")]
         public string? SizeAlias
@@ -236,7 +236,7 @@ namespace SMS.Api.Dtos
         }
 
         [JsonPropertyName("sizeSpec")]
-        public string? SizeSpec { get; set; } = "M";
+        public string? SizeSpec { get; set; } = string.Empty;
 
         [JsonPropertyName("size")]
         public string? SizeAlias

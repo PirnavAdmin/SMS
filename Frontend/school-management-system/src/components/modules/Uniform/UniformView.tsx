@@ -25,8 +25,8 @@ export const UniformView: React.FC<{tabs?: React.ReactNode}> = ({ tabs }) => {
   const [packageName, setPackageName] = useState('');
   const [formData, setFormData] = useState<Partial<UniformItem>>({
     gender: 'Unisex' as any,
-    size: 'M',
-    className: 'All Wings',
+    size: '',
+    className: '',
     availableStock: undefined,
     isPackage: true
   });

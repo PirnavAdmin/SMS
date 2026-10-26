@@ -5499,30 +5499,30 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
             (t: any) => {
               const currentStockVal = Number(t.availableStock ?? t.currentStock ?? t.stockQuantity ?? 0);
               const openingStockVal = Number(t.openingStock ?? t.availableStock ?? t.currentStock ?? currentStockVal);
-              const minStockVal = Number(t.minimumStock ?? t.minThreshold ?? t.minStockAlert ?? 10);
-              const reorderVal = Number(t.reorderPoint ?? 15);
-              const cleanSize = (t.sizeSpec || t.size || "M").replace(/^Size\s+/i, "");
+              const minStockVal = Number(t.minimumStock ?? t.minThreshold ?? t.minStockAlert ?? 0);
+              const reorderVal = Number(t.reorderPoint ?? 0);
+              const cleanSize = (t.sizeSpec || t.size || "").replace(/^Size\s+/i, "");
 
               return {
                 id: String(t.id || t.uniformTypeId || ""),
                 itemId: String(t.id || t.uniformTypeId || ""),
                 itemName: t.itemName || t.name || "",
                 category: t.category || t.categoryName || "Uniform Item",
-                size: cleanSize || "M",
-                color: t.color || "Standard",
+                size: cleanSize || "",
+                color: t.color || "",
                 openingStock: openingStockVal,
                 currentStock: currentStockVal,
                 minimumStock: minStockVal,
                 reorderPoint: reorderVal,
                 unitPrice: Number(t.unitPrice || t.price || 0),
-                supplier: t.supplier || t.supplierName || "Main Warehouse",
+                supplier: t.supplier || t.supplierName || "",
                 lastUpdated:
                   t.lastUpdated || new Date().toISOString().split("T")[0],
                 status:
                   t.status ||
                   (currentStockVal === 0
                     ? "Out of Stock"
-                    : currentStockVal <= minStockVal
+                    : minStockVal > 0 && currentStockVal <= minStockVal
                       ? "Low Stock"
                       : "In Stock"),
               };
@@ -5535,11 +5535,11 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
             name: t.itemName || t.name || "",
             category: t.category || t.categoryName || "Uniform Item",
             gender: t.gender || "Unisex",
-            size: (t.sizeSpec || t.size || "All Sizes").replace(/^Size\s+/i, ""),
+            size: (t.sizeSpec || t.size || "").replace(/^Size\s+/i, ""),
             color: t.color || "",
             availableStock: Number(t.availableStock ?? t.currentStock ?? t.stockQuantity ?? 0),
             price: Number(t.unitPrice || t.price || 0),
-            className: t.className || t.schoolWing || "All Wings",
+            className: t.className || t.schoolWing || "",
             isPackage: Boolean(t.isPackage),
             packageComponents: t.packageComponents || [],
             createdAt: t.createdAt || new Date().toISOString(),
@@ -5561,7 +5561,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
             section: d.section || "",
             itemId: String(d.uniformTypeId || d.itemId || ""),
             itemName: d.itemName || d.issuedItem || d.clothingItem || "",
-            size: d.sizeSpec || d.size || "M",
+            size: d.sizeSpec || d.size || "",
             quantity: Number(d.quantity || d.qty || 1),
             issueDate: d.distributionDate
               ? new Date(d.distributionDate).toISOString().split("T")[0]

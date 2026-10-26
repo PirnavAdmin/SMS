@@ -19,7 +19,7 @@ namespace SMS.Api.Dtos
         public string CategoryName { get; set; } = string.Empty;
 
         [JsonPropertyName("category")]
-        public string Category => !string.IsNullOrWhiteSpace(CategoryName) ? CategoryName : (ItemName.Contains("Shirt") ? "Shirt" : "Blazer");
+        public string Category => !string.IsNullOrWhiteSpace(CategoryName) ? CategoryName : (!string.IsNullOrWhiteSpace(ItemName) ? ItemName : "General");
 
         [JsonPropertyName("uniformCategory")]
         public string UniformCategory => ItemName;
@@ -34,10 +34,10 @@ namespace SMS.Api.Dtos
         public string Level => SchoolWing;
 
         [JsonPropertyName("size")]
-        public string Size { get; set; } = "Size M";
+        public string Size { get; set; } = string.Empty;
 
         [JsonPropertyName("badgeText")]
-        public string BadgeText => $"{Gender} • {(Size.StartsWith("Size ") ? Size : $"Size {Size}")}";
+        public string BadgeText => !string.IsNullOrWhiteSpace(Size) ? $"{Gender} • {(Size.StartsWith("Size ") ? Size : $"Size {Size}")}" : Gender;
 
         [JsonPropertyName("packageType")]
         public string PackageType => ItemName.ToLower().Contains("package") || ItemName.ToLower().Contains("kit") ? "Uniform Package" : "Uniform Item";
@@ -58,7 +58,7 @@ namespace SMS.Api.Dtos
         public string UnitPriceString => $"₹{UnitPrice:N0}";
 
         [JsonPropertyName("openingStock")]
-        public int OpeningStock { get; set; } = 200;
+        public int OpeningStock { get; set; } = 0;
 
         [JsonPropertyName("openingStockString")]
         public string OpeningStockString => $"{OpeningStock} Units";
@@ -76,19 +76,19 @@ namespace SMS.Api.Dtos
         public string StockAvailable => $"{AvailableStock} Units";
 
         [JsonPropertyName("minThreshold")]
-        public int MinThreshold { get; set; } = 30;
+        public int MinThreshold { get; set; } = 0;
 
         [JsonPropertyName("minThresholdString")]
         public string MinThresholdString => $"{MinThreshold} Units";
 
         [JsonPropertyName("reorderPoint")]
-        public int ReorderPoint { get; set; } = 50;
+        public int ReorderPoint { get; set; } = 0;
 
         [JsonPropertyName("reorderPointString")]
         public string ReorderPointString => $"{ReorderPoint} Units";
 
         [JsonPropertyName("stockStatus")]
-        public string StockStatus => AvailableStock == 0 ? "Out of Stock" : (AvailableStock <= MinThreshold ? "Low Stock" : "In Stock");
+        public string StockStatus => AvailableStock == 0 ? "Out of Stock" : (MinThreshold > 0 && AvailableStock <= MinThreshold ? "Low Stock" : "In Stock");
 
         [JsonPropertyName("status")]
         public string Status { get; set; } = "Active";
@@ -100,8 +100,8 @@ namespace SMS.Api.Dtos
     public class CreateUniformTypeDto
     {
         private string _itemName = string.Empty;
-        private string _categoryName = "General";
-        private string _schoolWing = "Class 10";
+        private string _categoryName = string.Empty;
+        private string _schoolWing = string.Empty;
         private decimal _unitPrice;
 
         [JsonPropertyName("itemName")]
@@ -157,10 +157,10 @@ namespace SMS.Api.Dtos
         }
 
         [JsonPropertyName("size")]
-        public string Size { get; set; } = "M";
+        public string Size { get; set; } = string.Empty;
 
         [JsonPropertyName("color")]
-        public string Color { get; set; } = "Navy Blue";
+        public string Color { get; set; } = string.Empty;
 
         [JsonPropertyName("colorSpec")]
         public string? ColorSpecAlias
@@ -187,19 +187,19 @@ namespace SMS.Api.Dtos
 
         [JsonPropertyName("openingStock")]
         [JsonConverter(typeof(FlexibleIntConverter))]
-        public int OpeningStock { get; set; } = 200;
+        public int OpeningStock { get; set; } = 0;
 
         [JsonPropertyName("availableStock")]
         [JsonConverter(typeof(FlexibleIntConverter))]
-        public int AvailableStock { get; set; } = 120;
+        public int AvailableStock { get; set; } = 0;
 
         [JsonPropertyName("minThreshold")]
         [JsonConverter(typeof(FlexibleIntConverter))]
-        public int MinThreshold { get; set; } = 30;
+        public int MinThreshold { get; set; } = 0;
 
         [JsonPropertyName("reorderPoint")]
         [JsonConverter(typeof(FlexibleIntConverter))]
-        public int ReorderPoint { get; set; } = 50;
+        public int ReorderPoint { get; set; } = 0;
 
         [JsonPropertyName("status")]
         public string Status { get; set; } = "Active";

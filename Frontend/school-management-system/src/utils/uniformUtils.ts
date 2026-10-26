@@ -7,19 +7,7 @@ export interface UniformSizeOption {
 
 export const normalizeUniformCategoryName = (rawName: string = ''): string => {
   if (!rawName) return '';
-  const trimmed = rawName.trim();
-  const lower = trimmed.toLowerCase();
-
-  if (lower.includes('cloth') || lower.includes('fabric') || lower.includes('unstitched')) {
-    return 'Cloth';
-  }
-  if (lower.includes('boys') && (lower.includes('base') || lower.includes('package') || lower.includes('admission'))) {
-    return 'Boys Base Package(Admission kit)';
-  }
-  if (lower.includes('girls') && (lower.includes('base') || lower.includes('package') || lower.includes('admission'))) {
-    return 'Girls Base Package(Admission kit)';
-  }
-  return trimmed;
+  return rawName.trim();
 };
 
 export const getCategorySizes = (
@@ -578,13 +566,9 @@ export const getStudentUniformFeeStatus = (
   const baseNotesLower = (baseIssue?.notes || '').toLowerCase();
   const isExplicitlyNotOptedInNotes = baseNotesLower.includes('not opted') || baseNotesLower.includes('billed to finance');
 
-  const admNameLower = ((admMatch as any)?.studentName || (admMatch as any)?.fullName || (admMatch as any)?.firstName || '').toLowerCase();
-  const isNameOpted = admNameLower.includes('viswaksen') || admNameLower.includes('vishwaksen') || admNameLower.includes('vikram') || admNameLower.includes('prakash') || admNameLower.includes('subbaiah') || admNameLower.includes('chiru vishwa') || admNameLower.includes('walter');
-
   const isOptedAtAdmission = isExplicitlyNotOptedInNotes
     ? false
     : Boolean(
-        isNameOpted ||
         (optList && Array.isArray(optList) && optList.some(id => id === 'FH-04' || id === 'FH-004' || String(id).toLowerCase().includes('uniform') || String(id).toLowerCase().includes('kit'))) ||
         (admMatch as any)?.isUniformOpted === true
       );
@@ -625,9 +609,9 @@ export const getStudentUniformFeeStatus = (
       isPaid: true,
       status: 'Paid' as const,
       amount: configAmount,
-      receiptNo: baseUniformPayment?.receiptNo || 'REC-PAID',
-      paymentDate: baseUniformPayment?.paymentDate || new Date().toISOString().split('T')[0],
-      paymentMode: baseUniformPayment?.paymentMode || 'Cash',
+      receiptNo: baseUniformPayment?.receiptNo || '',
+      paymentDate: baseUniformPayment?.paymentDate || '',
+      paymentMode: baseUniformPayment?.paymentMode || '',
       source: 'Fees Paid Already in Finance'
     };
   }

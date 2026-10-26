@@ -504,7 +504,7 @@ export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialS
         const nameParts = fullName.split(' ');
         const fName = adm.firstName || nameParts[0] || 'Student';
         const lName = adm.lastName || nameParts.slice(1).join(' ') || '';
-        const targetCls = adm.appliedClass || adm.className || adm.targetClass || 'Class 1';
+        const targetCls = adm.appliedClass || adm.className || adm.targetClass || '';
 
         map.set(nameKey, {
           id: String(admId),
@@ -512,8 +512,8 @@ export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialS
           lastName: lName,
           admissionNo: admNo,
           className: targetCls,
-          section: adm.section || 'A',
-          gender: adm.gender || 'Male',
+          section: adm.section || '',
+          gender: adm.gender || 'Unisex',
           studentType: (adm.residentialStatus === 'Residential' || adm.studentType === 'Residential') ? 'Hosteller' : 'Day Scholar',
           joiningDate: adm.admissionDate || new Date().toISOString().split('T')[0],
           dueFee: 0,
@@ -532,11 +532,9 @@ export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialS
         } as unknown as Student);
       });
 
-    // 2. Master enrolled students list, skipping legacy mock ADM-2026-2020 or students already added
+    // 2. Master enrolled students list
     (students || []).forEach((st) => {
       if (!st) return;
-      const admNoUpper = (st.admissionNo || st.id || '').toUpperCase();
-      if (admNoUpper === 'ADM-2026-2020') return;
 
       const fName = st.firstName || '';
       const lName = st.lastName || '';
@@ -553,8 +551,8 @@ export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialS
         firstName: fName || fullName.split(' ')[0] || 'Student',
         lastName: lName || fullName.split(' ').slice(1).join(' ') || '',
         admissionNo: cleanAdm,
-        className: st.className || 'Class 1',
-        section: st.section || 'A'
+        className: st.className || '',
+        section: st.section || ''
       });
     });
 
@@ -592,8 +590,8 @@ export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialS
     const stdId = (stMatch?.id || issue.studentId || '').trim();
 
     // Standardize Class & Section
-    let rawClass = stMatch?.className || issue.className || 'Class 1';
-    let rawSec = stMatch?.section || issue.section || 'A';
+    let rawClass = stMatch?.className || issue.className || '';
+    let rawSec = stMatch?.section || issue.section || '';
     if (rawClass.includes('-')) {
       const parts = rawClass.split('-');
       rawClass = parts[0].trim();
@@ -699,8 +697,8 @@ export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialS
     }
 
     if (!existing) {
-      let rawClass = st.className || 'Class 1';
-      let rawSec = st.section || 'A';
+      let rawClass = st.className || '';
+      let rawSec = st.section || '';
       if (rawClass.includes('-')) {
         const parts = rawClass.split('-');
         rawClass = parts[0].trim();
@@ -1211,9 +1209,9 @@ export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialS
         firstName: fName,
         lastName: lName,
         admissionNo: formatConfiguredStudentAdmissionNo(undefined, form.studentId || Date.now().toString().slice(-4)),
-        className: 'Class 1',
-        section: 'A',
-        gender: 'Male',
+        className: '',
+        section: '',
+        gender: 'Unisex',
         branch: (selectedBranch && selectedBranch !== 'All' && selectedBranch !== 'All Branches' ? selectedBranch : '') || defaultBranch
       } as unknown as Student;
     }
@@ -1246,11 +1244,7 @@ export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialS
       if (!seen.has(key)) {
         seen.add(key);
 
-        let fallbackPrice = 350;
-        if (key.includes('blazer')) fallbackPrice = 1500;
-        else if (key.includes('sweater')) fallbackPrice = 800;
-        else if (key.includes('pant') || key.includes('trouser') || key.includes('skirt') || key.includes('shoes') || key.includes('tracksuit')) fallbackPrice = 500;
-        else if (key.includes('tie') || key.includes('belt') || key.includes('cap')) fallbackPrice = 150;
+        let fallbackPrice = 0;
 
         const catalog = (uniforms || []).find(u => (u.category || u.name || '').toLowerCase().trim() === key);
         if (catalog?.price) fallbackPrice = catalog.price;
@@ -1264,14 +1258,14 @@ export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialS
         );
 
         const inv = uniformInventory.find(x => x.itemName.toLowerCase().trim() === key || x.category.toLowerCase().trim() === key);
-        const stock = inv ? inv.currentStock : (catalog?.availableStock ?? 100);
+        const stock = inv ? inv.currentStock : (catalog?.availableStock ?? 0);
 
         items.push({
           id: catalog ? catalog.id : `cat_${c.id}`,
           name: cName,
           unitPrice: configuredPrice,
           stock: stock,
-          size: key.includes('tie') || key.includes('belt') || key.includes('ribbon') ? 'Free Size' : 'M'
+          size: key.includes('tie') || key.includes('belt') || key.includes('ribbon') ? 'Free Size' : ''
         });
       }
     });
@@ -1293,14 +1287,14 @@ export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialS
         );
 
         const inv = uniformInventory.find(x => x.itemId === u.id || x.itemName.toLowerCase().trim() === key);
-        const stock = inv ? inv.currentStock : (u.availableStock ?? 100);
+        const stock = inv ? inv.currentStock : (u.availableStock ?? 0);
 
         items.push({
           id: u.id,
           name: uName,
           unitPrice: configuredPrice,
           stock: stock,
-          size: key.includes('tie') || key.includes('belt') || key.includes('ribbon') ? 'Free Size' : 'M'
+          size: key.includes('tie') || key.includes('belt') || key.includes('ribbon') ? 'Free Size' : ''
         });
       }
     });
@@ -1316,7 +1310,7 @@ export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialS
     const itemObj = uniforms.find(u => u.id === form.itemId) || 
       (form.itemId?.startsWith('cat_') ? {
         id: form.itemId,
-        category: (uniformCategories || []).find(c => c.id === form.itemId.replace('cat_', ''))?.name || 'Boys Uniform Package (Admission Kit)',
+        category: (uniformCategories || []).find(c => c.id === form.itemId.replace('cat_', ''))?.name || 'Uniform Item',
         price: feeAmount,
         availableStock: (uniformInventory || []).find(i => i.itemId === form.itemId)?.currentStock || 0
       } : null);
@@ -1352,9 +1346,9 @@ export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialS
     addStudentUniformIssue({
       studentId: studentObj.id,
       studentName: `${studentObj.firstName} ${studentObj.lastName}`,
-      admissionNo: studentObj.admissionNo || 'ADM2026-000',
-      className: studentObj.className || 'Class 1',
-      section: studentObj.section || 'A',
+      admissionNo: studentObj.admissionNo || studentObj.id || '',
+      className: studentObj.className || '',
+      section: studentObj.section || '',
       itemId: form.itemId,
       itemName: itemObj.category,
       size: finalSize,
@@ -1430,7 +1424,7 @@ export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialS
     const stdId = studMatch?.id || g.studentId || g.id || '';
     const admNo = studMatch?.admissionNo || g.admissionNo || '';
     const stdName = studMatch ? `${studMatch.firstName} ${studMatch.lastName}`.trim() : g.studentName;
-    const stdClass = studMatch?.className || g.className || 'Class 1';
+    const stdClass = studMatch?.className || g.className || '';
 
     setIssueModalClass(stdClass);
     setForm({
@@ -1468,7 +1462,7 @@ export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialS
     setExtraItemsState({});
     const foundStud = (allEnrolledStudents || []).find(s => s.id === issue.studentId || (issue.admissionNo && s.admissionNo === issue.admissionNo));
     if (foundStud) {
-      setStudentSearchTerm(`${foundStud.firstName} ${foundStud.lastName} (${foundStud.admissionNo || foundStud.id} - ${foundStud.className || 'Class 10'})`);
+      setStudentSearchTerm(`${foundStud.firstName} ${foundStud.lastName} (${foundStud.admissionNo || foundStud.id}${foundStud.className ? ` - ${foundStud.className}` : ''})`);
     } else {
       setStudentSearchTerm(issue.studentName || '');
     }
@@ -1496,7 +1490,7 @@ export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialS
       }
 
       if (isIdMatch || (isNameMatch && isSizeMatch)) {
-        const curStock = u.availableStock !== undefined ? Number(u.availableStock) : (u.openingStock !== undefined ? Number(u.openingStock) : 100);
+        const curStock = u.availableStock !== undefined ? Number(u.availableStock) : (u.openingStock !== undefined ? Number(u.openingStock) : 0);
         return {
           ...u,
           availableStock: curStock + qtyToRestore
@@ -1541,9 +1535,9 @@ export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialS
         admissionNo: issue.admissionNo,
         className: issue.className,
         section: issue.section,
-        itemId: issue.itemId || 'cat_cat_boys_kit',
-        itemName: issue.itemName || 'Boys Package',
-        size: issue.size || 'M',
+        itemId: issue.itemId || '',
+        itemName: issue.itemName || '',
+        size: issue.size || '',
         quantity: 1,
         issueDate: todayStr,
         returnDate: todayStr,
@@ -1911,9 +1905,9 @@ export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialS
           addStudentUniformIssue({
             studentId: form.studentId,
             studentName: `${studentObj.firstName} ${studentObj.lastName}`,
-            admissionNo: studentObj.admissionNo || 'ADM2026-000',
-            className: studentObj.className || 'Class 10',
-            section: studentObj.section || 'A',
+            admissionNo: studentObj.admissionNo || studentObj.id || '',
+            className: studentObj.className || '',
+            section: studentObj.section || '',
             itemId: itemEntry.id,
             itemName: itemDisplayName,
             size: finalSize,
@@ -1976,7 +1970,7 @@ export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialS
       }
     }
 
-    const effectiveItemId = form.itemId || (uniforms && uniforms[0] ? uniforms[0].id : 'cat_cat_boys_kit');
+    const effectiveItemId = form.itemId || (uniforms && uniforms[0] ? uniforms[0].id : '');
 
     // Resolve item from either uniforms list OR uniformCategories (cat_ prefix)
     const isCategoryItem = effectiveItemId.startsWith('cat_');
@@ -1987,24 +1981,24 @@ export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialS
     if (!itemObj && uniformCategories) {
       const catMatch = uniformCategories.find(c => c.id === catId || c.name === catId || (c as any).categoryName === catId);
       if (catMatch) {
+        const invMatch = uniformInventory.find(x => x.itemId === form.itemId || x.itemName.toLowerCase() === (catMatch.name || '').toLowerCase());
         itemObj = {
           id: form.itemId,
           category: catMatch.name || (catMatch as any).categoryName || 'Uniform Package',
           name: catMatch.name || (catMatch as any).categoryName || 'Uniform Package',
           price: (catMatch as any).price || 0,
-          availableStock: 9999
+          availableStock: invMatch ? invMatch.currentStock : 0
         };
       }
     }
 
     if (!itemObj) {
-      const packageFallbackName = form.itemId.includes('Girls') ? 'Girls Base Package' : 'Boys Base Package';
       itemObj = {
         id: form.itemId,
-        category: packageFallbackName,
-        name: packageFallbackName,
+        category: form.itemId || 'Uniform Item',
+        name: form.itemId || 'Uniform Item',
         price: 0,
-        availableStock: 9999
+        availableStock: 0
       };
     }
 
@@ -2023,10 +2017,10 @@ export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialS
       }
     }
 
-    // Check inventory stock (packages always have stock available; individual items check inventory)
+    // Check inventory stock (packages and individual items check inventory)
     const isPkgItem = itemObj.category.includes('Package') || (itemObj.name && itemObj.name.includes('Package')) || form.itemId.includes('Package');
     const inv = uniformInventory.find(x => x.itemId === form.itemId || x.itemName.toLowerCase() === itemObj.category.toLowerCase());
-    const currentStockAvailable = isPkgItem ? 9999 : (inv ? inv.currentStock : (itemObj.availableStock !== undefined ? itemObj.availableStock : 9999));
+    const currentStockAvailable = inv ? inv.currentStock : (itemObj.availableStock !== undefined ? itemObj.availableStock : 0);
 
     if (currentStockAvailable < qty) {
       addToast('error', 'Insufficient Stock', `Insufficient stock for ${itemObj.category}. Only ${currentStockAvailable} units available in stock.`);
@@ -2103,9 +2097,9 @@ export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialS
         addStudentUniformIssue({
           studentId: form.studentId,
           studentName: `${studentObj.firstName} ${studentObj.lastName}`,
-          admissionNo: studentObj.admissionNo || 'ADM2026-000',
-          className: studentObj.className || 'Class 10',
-          section: studentObj.section || 'A',
+          admissionNo: studentObj.admissionNo || studentObj.id || '',
+          className: studentObj.className || '',
+          section: studentObj.section || '',
           itemId: exactItemId,
           itemName: itemDisplayName,
           size: finalSize,
@@ -2163,9 +2157,9 @@ export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialS
         addStudentUniformIssue({
           studentId: form.studentId,
           studentName: `${studentObj.firstName} ${studentObj.lastName}`,
-          admissionNo: studentObj.admissionNo || 'ADM2026-000',
-          className: studentObj.className || 'Class 10',
-          section: studentObj.section || 'A',
+          admissionNo: studentObj.admissionNo || studentObj.id || '',
+          className: studentObj.className || '',
+          section: studentObj.section || '',
           itemId: form.itemId,
           itemName: itemDisplayName,
           size: finalSize,
@@ -2214,8 +2208,8 @@ export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialS
           admissionNo: selectedIssue.admissionNo,
           className: selectedIssue.className,
           section: selectedIssue.section,
-          itemId: selectedIssue.itemId || 'cat_cat_boys_kit',
-          itemName: selectedIssue.itemName || 'Boys Package',
+          itemId: selectedIssue.itemId || '',
+          itemName: selectedIssue.itemName || '',
           size: finalSize,
           quantity: selectedIssue.quantity || 1,
           issueDate: selectedIssue.issueDate || todayStr,
@@ -3082,7 +3076,7 @@ export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialS
                                       {s.firstName} {s.lastName}
                                     </span>
                                     <span className={`text-[10px] font-mono font-medium ${isSelected ? 'text-sky-600 dark:text-sky-400' : 'text-slate-400 dark:text-slate-500'}`}>
-                                      {s.admissionNo || s.id} • {s.className || 'Class 10'} ({s.section || 'A'})
+                                      {s.admissionNo || s.id}{s.className ? ` • ${s.className}` : ''}{s.section ? ` (${s.section})` : ''}
                                     </span>
                                   </div>
                                   {isSelected ? (
@@ -3672,7 +3666,7 @@ export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialS
                 );
 
                 if (modalType === 'Issue' && isPkg && Number(form.quantity) >= 1) {
-                  const pkgFee = getPackageFeeForStudent(selectedStudentObj?.className || 'Class 10', selectedItemObj?.price, selectedStudentObj?.gender || 'Male');
+                  const pkgFee = getPackageFeeForStudent(selectedStudentObj?.className || '', selectedItemObj?.price, selectedStudentObj?.gender || '');
                   const qtyNum = Number(form.quantity);
 
                   if (alreadyHasBasePkg) {
@@ -3859,7 +3853,7 @@ export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialS
                     const baseFeeStat = getStudentUniformFeeStatus(selStudentObj?.id || '', selStudentObj?.admissionNo || '', selStudentObj?.className || '', selStudentObj?.gender);
                     const isPaidOrOptedAtAdmission = baseFeeStat.isPaid || baseFeeStat.isOptedAtAdmission;
 
-                    const pkgFee = getPackageFeeForStudent(selStudentObj?.className || 'Class 1', selectedUniformObj?.price, selStudentObj?.gender);
+                    const pkgFee = getPackageFeeForStudent(selStudentObj?.className || '', selectedUniformObj?.price, selStudentObj?.gender);
                     const qtyVal = Number(form.quantity) || 1;
                     const isAddPurchase = form.type === 'Additional Purchase';
                     const isPkg = (selectedUniformObj?.category || '').includes('Package') || (selectedUniformObj?.name || '').includes('Package');

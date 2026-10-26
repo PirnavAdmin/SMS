@@ -23,7 +23,7 @@ namespace SMS.Api.Models
         public string? ClassName { get; set; }
 
         [MaxLength(100)]
-        public string? TransactionType { get; set; } = "Baseline Distribution (Admission Kit)";
+        public string? TransactionType { get; set; }
 
         public int? UniformTypeId { get; set; }
 
@@ -34,7 +34,7 @@ namespace SMS.Api.Models
         public string? ItemName { get; set; }
 
         [MaxLength(50)]
-        public string? SizeSpec { get; set; } = "M";
+        public string? SizeSpec { get; set; }
 
         public int Quantity { get; set; } = 1;
 

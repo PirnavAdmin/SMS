@@ -33,13 +33,13 @@ namespace SMS.Api.Models
         [Column(TypeName = "decimal(18,2)")]
         public decimal UnitPrice { get; set; }
 
-        public int OpeningStock { get; set; } = 200;
+        public int OpeningStock { get; set; } = 0;
 
-        public int AvailableStock { get; set; } = 120;
+        public int AvailableStock { get; set; } = 0;
 
-        public int MinThreshold { get; set; } = 30;
+        public int MinThreshold { get; set; } = 0;
 
-        public int ReorderPoint { get; set; } = 50;
+        public int ReorderPoint { get; set; } = 0;
 
         [MaxLength(50)]
         public string? Status { get; set; } = "Active";

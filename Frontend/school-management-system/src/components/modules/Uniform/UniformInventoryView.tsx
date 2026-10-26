@@ -59,12 +59,14 @@ export const UniformInventoryView: React.FC<UniformInventoryViewProps> = ({ tabs
       const catName = u.category || u.name || '';
       if (!catName) return;
       const isCloth = catName.toLowerCase().includes('cloth') || catName.toLowerCase().includes('fabric') || catName.toLowerCase().includes('unstitched');
-      const uSize = u.size || (u as any).meterRange || (isCloth ? '1.0m - 1.5m' : 'All Sizes');
+      const uSize = u.size || (u as any).meterRange || (isCloth ? '1.0m - 1.5m' : '');
       if ((uSize || '').toLowerCase().includes('free')) return;
       const key = `${catName.toLowerCase()}_${uSize.toLowerCase()}`;
 
       if (!map.has(key)) {
-        const stock = u.availableStock ?? (u.openingStock ?? 150);
+        const stock = u.availableStock ?? (u.openingStock ?? 0);
+        const minStock = (u as any).minThreshold || 0;
+        const reorderPt = (u as any).reorderPoint || 0;
         map.set(key, {
           id: `inv-cfg-${u.id}`,
           itemName: catName,
@@ -72,9 +74,9 @@ export const UniformInventoryView: React.FC<UniformInventoryViewProps> = ({ tabs
           size: uSize,
           openingStock: stock,
           currentStock: stock,
-          minimumStock: 10,
-          reorderPoint: 15,
-          status: stock > 10 ? 'In Stock' : (stock > 0 ? 'Low Stock' : 'Out of Stock'),
+          minimumStock: minStock,
+          reorderPoint: reorderPt,
+          status: stock === 0 ? 'Out of Stock' : (minStock > 0 && stock <= minStock ? 'Low Stock' : 'In Stock'),
           lastRestockedDate: (u as any).lastRestockedDate || new Date().toISOString().split('T')[0]
         });
       } else {
@@ -82,7 +84,7 @@ export const UniformInventoryView: React.FC<UniformInventoryViewProps> = ({ tabs
         if (u.availableStock !== undefined) {
           existing.currentStock = u.availableStock;
           existing.openingStock = u.openingStock !== undefined ? u.openingStock : u.availableStock;
-          existing.status = u.availableStock > 10 ? 'In Stock' : (u.availableStock > 0 ? 'Low Stock' : 'Out of Stock');
+          existing.status = u.availableStock === 0 ? 'Out of Stock' : (existing.minimumStock > 0 && u.availableStock <= existing.minimumStock ? 'Low Stock' : 'In Stock');
         }
       }
     });
@@ -189,7 +191,7 @@ export const UniformInventoryView: React.FC<UniformInventoryViewProps> = ({ tabs
     if (!acc[key]) {
       acc[key] = {};
     }
-    acc[key][item.size || 'M'] = (acc[key][item.size || 'M'] || 0) + (item.currentStock || 0);
+    acc[key][item.size || 'Standard'] = (acc[key][item.size || 'Standard'] || 0) + (item.currentStock || 0);
     return acc;
   }, {} as Record<string, Record<string, number>>);
 
