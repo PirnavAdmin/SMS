@@ -416,6 +416,47 @@ export const FinanceDashboardView: React.FC<FinanceDashboardViewProps> = ({ onNa
 
   const totalLiquidity = cashBalance + bankBalance;
 
+  const normalizedCategoryBreakdown = React.useMemo(() => {
+    if (!apiStats?.categoryBreakdown || !Array.isArray(apiStats.categoryBreakdown)) return [];
+    const map = new Map<string, { categoryName: string; expectedAmount: number; collectedAmount: number }>();
+
+    for (const cat of apiStats.categoryBreakdown) {
+      if (!cat) continue;
+      let name = (cat.categoryName || "").trim();
+      const lower = name.toLowerCase();
+
+      // Normalize common variants to standard canonical category names
+      if (lower.includes("transport") || lower.includes("conveyance") || lower.includes("bus route") || lower.startsWith("route") || lower.includes("van")) {
+        name = "Transport Fee";
+      } else if (lower.includes("hostel") || lower.includes("block fee") || lower.includes("boarding") || lower.includes("mess") || lower.includes("bed fee")) {
+        name = "Hostel Fee";
+      } else if (lower.includes("uniform") || lower.includes("merchandise") || lower.includes("dress")) {
+        name = "Uniform Fee";
+      } else if (lower.includes("fine") || lower.includes("penalty")) {
+        name = "Late Fines & Penalties";
+      } else if (lower.includes("tuition") || lower.includes("academic") || lower.includes("admission")) {
+        name = "Tuition Fee";
+      }
+
+      const exp = Number(cat.expectedAmount || 0);
+      const coll = Number(cat.collectedAmount || 0);
+
+      if (!map.has(name)) {
+        map.set(name, {
+          categoryName: name,
+          expectedAmount: exp,
+          collectedAmount: coll,
+        });
+      } else {
+        const existing = map.get(name)!;
+        existing.expectedAmount = Math.max(existing.expectedAmount, exp);
+        existing.collectedAmount = Math.max(existing.collectedAmount, coll);
+      }
+    }
+
+    return Array.from(map.values());
+  }, [apiStats?.categoryBreakdown]);
+
   const handleCardClick = (targetTab: string) => {
     if (onNavigate) {
       onNavigate(targetTab);
@@ -755,8 +796,8 @@ export const FinanceDashboardView: React.FC<FinanceDashboardViewProps> = ({ onNa
             </button>
           </div>
           <div className="space-y-3">
-            {apiStats?.categoryBreakdown && apiStats.categoryBreakdown.length > 0 ? (
-              apiStats.categoryBreakdown.map((cat: any, idx: number) => {
+            {normalizedCategoryBreakdown && normalizedCategoryBreakdown.length > 0 ? (
+              normalizedCategoryBreakdown.map((cat: any, idx: number) => {
                 const exp = Number(cat.expectedAmount || 0);
                 const coll = Number(cat.collectedAmount || 0);
                 const pend = Math.max(0, exp - coll);

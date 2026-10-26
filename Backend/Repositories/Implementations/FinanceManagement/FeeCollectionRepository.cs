@@ -1229,18 +1229,74 @@ public class FeeCollectionRepository : IFeeCollectionRepository
         string clean = rawName.Trim();
         string lower = clean.ToLowerInvariant();
 
+        // 1. Transport canonical detection
+        if (lower.Contains("transport") || lower.Contains("conveyance") || lower.Contains("bus route") || lower.StartsWith("route") || lower.Contains("van"))
+        {
+            return "Transport Fee";
+        }
+
+        // 2. Hostel canonical detection
+        if (lower.Contains("hostel") || lower.Contains("boarding") || lower.Contains("mess") || lower.Contains("block fee") || lower.Contains("bed fee"))
+        {
+            return "Hostel Fee";
+        }
+
+        // 3. Uniform canonical detection
+        if (lower.Contains("uniform") || lower.Contains("merchandise") || lower.Contains("dress"))
+        {
+            return "Uniform Fee";
+        }
+
+        // 4. Late Fines detection
+        if (lower.Contains("fine") || lower.Contains("penalty"))
+        {
+            return "Late Fines & Penalties";
+        }
+
+        // 5. Check exact match in configured Fee Heads
         var exact = activeHeads.FirstOrDefault(fh =>
             (!string.IsNullOrWhiteSpace(fh.Name) && fh.Name.Trim().ToLowerInvariant() == lower) ||
             (!string.IsNullOrWhiteSpace(fh.Category) && fh.Category.Trim().ToLowerInvariant() == lower));
-        if (exact != null && !string.IsNullOrWhiteSpace(exact.Name)) return exact.Name.Trim();
+        if (exact != null)
+        {
+            if (!string.IsNullOrWhiteSpace(exact.Category))
+            {
+                string catLower = exact.Category.Trim().ToLowerInvariant();
+                if (catLower.Contains("hostel")) return "Hostel Fee";
+                if (catLower.Contains("transport")) return "Transport Fee";
+                if (catLower.Contains("uniform")) return "Uniform Fee";
+                if (catLower.Contains("tuition") || catLower.Contains("academic")) return "Tuition Fee";
+                return exact.Category.Trim();
+            }
+            return !string.IsNullOrWhiteSpace(exact.Name) ? exact.Name.Trim() : clean;
+        }
 
+        // 6. Check stripped alias
         string stripped = System.Text.RegularExpressions.Regex.Replace(lower, @"\s+fee$", "").Trim();
         var alias = activeHeads.FirstOrDefault(fh => {
             string hName = System.Text.RegularExpressions.Regex.Replace((fh.Name ?? "").Trim().ToLowerInvariant(), @"\s+fee$", "").Trim();
             string hCat = System.Text.RegularExpressions.Regex.Replace((fh.Category ?? "").Trim().ToLowerInvariant(), @"\s+fee$", "").Trim();
             return (hName.Length > 0 && hName == stripped) || (hCat.Length > 0 && hCat == stripped);
         });
-        if (alias != null && !string.IsNullOrWhiteSpace(alias.Name)) return alias.Name.Trim();
+        if (alias != null)
+        {
+            if (!string.IsNullOrWhiteSpace(alias.Category))
+            {
+                string catLower = alias.Category.Trim().ToLowerInvariant();
+                if (catLower.Contains("hostel")) return "Hostel Fee";
+                if (catLower.Contains("transport")) return "Transport Fee";
+                if (catLower.Contains("uniform")) return "Uniform Fee";
+                if (catLower.Contains("tuition") || catLower.Contains("academic")) return "Tuition Fee";
+                return alias.Category.Trim();
+            }
+            return !string.IsNullOrWhiteSpace(alias.Name) ? alias.Name.Trim() : clean;
+        }
+
+        // 7. Tuition canonical detection
+        if (lower.Contains("tuition") || lower.Contains("term") || lower.Contains("admission"))
+        {
+            return "Tuition Fee";
+        }
 
         return clean;
     }
@@ -2406,60 +2462,84 @@ public class FeeCollectionRepository : IFeeCollectionRepository
             }
         }
 
-        // Include active module categories if expected or collected > 0
+        // Include active module categories if expected or collected > 0 (Deduplicating any existing aliases)
         if (hostelExpected > 0 || hostelCollected > 0)
         {
-            string hKey = "Hostel Accommodation";
-            if (!catSummaryDict.ContainsKey(hKey))
+            string hKey = "Hostel Fee";
+            var existingKey = catSummaryDict.Keys.FirstOrDefault(k =>
+                k.Contains("hostel", StringComparison.OrdinalIgnoreCase) ||
+                k.Contains("boarding", StringComparison.OrdinalIgnoreCase) ||
+                k.Contains("mess", StringComparison.OrdinalIgnoreCase) ||
+                k.Contains("block", StringComparison.OrdinalIgnoreCase));
+
+            string targetKey = existingKey ?? hKey;
+            if (!catSummaryDict.ContainsKey(targetKey))
             {
-                catSummaryDict[hKey] = (hKey, hostelExpected, hostelCollected);
+                catSummaryDict[targetKey] = (targetKey, hostelExpected, hostelCollected);
             }
             else
             {
-                var cur = catSummaryDict[hKey];
-                catSummaryDict[hKey] = (cur.Name, Math.Max(cur.Expected, hostelExpected), Math.Max(cur.Collected, hostelCollected));
+                var cur = catSummaryDict[targetKey];
+                catSummaryDict[targetKey] = (cur.Name, Math.Max(cur.Expected, hostelExpected), Math.Max(cur.Collected, hostelCollected));
             }
         }
 
         if (transportExpected > 0 || transportCollectedTotal > 0)
         {
-            string tKey = "Transport & Conveyance";
-            if (!catSummaryDict.ContainsKey(tKey))
+            string tKey = "Transport Fee";
+            var existingKey = catSummaryDict.Keys.FirstOrDefault(k =>
+                k.Contains("transport", StringComparison.OrdinalIgnoreCase) ||
+                k.Contains("conveyance", StringComparison.OrdinalIgnoreCase) ||
+                k.Contains("bus", StringComparison.OrdinalIgnoreCase) ||
+                k.Contains("route", StringComparison.OrdinalIgnoreCase));
+
+            string targetKey = existingKey ?? tKey;
+            if (!catSummaryDict.ContainsKey(targetKey))
             {
-                catSummaryDict[tKey] = (tKey, transportExpected, transportCollectedTotal);
+                catSummaryDict[targetKey] = (targetKey, transportExpected, transportCollectedTotal);
             }
             else
             {
-                var cur = catSummaryDict[tKey];
-                catSummaryDict[tKey] = (cur.Name, Math.Max(cur.Expected, transportExpected), Math.Max(cur.Collected, transportCollectedTotal));
+                var cur = catSummaryDict[targetKey];
+                catSummaryDict[targetKey] = (cur.Name, Math.Max(cur.Expected, transportExpected), Math.Max(cur.Collected, transportCollectedTotal));
             }
         }
 
         if (uniformExpected > 0 || uniformCollected > 0)
         {
-            string uKey = "Uniform & Merchandise";
-            if (!catSummaryDict.ContainsKey(uKey))
+            string uKey = "Uniform Fee";
+            var existingKey = catSummaryDict.Keys.FirstOrDefault(k =>
+                k.Contains("uniform", StringComparison.OrdinalIgnoreCase) ||
+                k.Contains("merchandise", StringComparison.OrdinalIgnoreCase));
+
+            string targetKey = existingKey ?? uKey;
+            if (!catSummaryDict.ContainsKey(targetKey))
             {
-                catSummaryDict[uKey] = (uKey, uniformExpected, uniformCollected);
+                catSummaryDict[targetKey] = (targetKey, uniformExpected, uniformCollected);
             }
             else
             {
-                var cur = catSummaryDict[uKey];
-                catSummaryDict[uKey] = (cur.Name, Math.Max(cur.Expected, uniformExpected), Math.Max(cur.Collected, uniformCollected));
+                var cur = catSummaryDict[targetKey];
+                catSummaryDict[targetKey] = (cur.Name, Math.Max(cur.Expected, uniformExpected), Math.Max(cur.Collected, uniformCollected));
             }
         }
 
         if (finesExpected > 0 || finesCollected > 0)
         {
             string fKey = "Late Fines & Penalties";
-            if (!catSummaryDict.ContainsKey(fKey))
+            var existingKey = catSummaryDict.Keys.FirstOrDefault(k =>
+                k.Contains("fine", StringComparison.OrdinalIgnoreCase) ||
+                k.Contains("penalty", StringComparison.OrdinalIgnoreCase));
+
+            string targetKey = existingKey ?? fKey;
+            if (!catSummaryDict.ContainsKey(targetKey))
             {
-                catSummaryDict[fKey] = (fKey, finesExpected, finesCollected);
+                catSummaryDict[targetKey] = (targetKey, finesExpected, finesCollected);
             }
             else
             {
-                var cur = catSummaryDict[fKey];
-                catSummaryDict[fKey] = (cur.Name, Math.Max(cur.Expected, finesExpected), Math.Max(cur.Collected, finesCollected));
+                var cur = catSummaryDict[targetKey];
+                catSummaryDict[targetKey] = (cur.Name, Math.Max(cur.Expected, finesExpected), Math.Max(cur.Collected, finesCollected));
             }
         }
 
