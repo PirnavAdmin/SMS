@@ -91,36 +91,36 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             closeBtn: string;
           }> = {
             success: {
-              container: 'bg-emerald-50/95 dark:bg-emerald-955/40 border border-emerald-300/90 dark:border-emerald-800/80 shadow-xl shadow-emerald-500/10 text-emerald-950 dark:text-emerald-100',
+              container: 'bg-emerald-50 dark:bg-emerald-50 border border-emerald-300 dark:border-emerald-300 shadow-xl shadow-black/10 text-emerald-950 dark:text-emerald-950',
               iconBg: 'bg-emerald-500 text-white shadow-sm shadow-emerald-500/25',
               iconColor: 'text-white',
-              titleColor: 'text-emerald-950 dark:text-emerald-100',
-              messageColor: 'text-emerald-800 dark:text-emerald-300',
-              closeBtn: 'text-emerald-700 hover:text-emerald-950 dark:text-emerald-400 dark:hover:text-emerald-200 hover:bg-emerald-100/80 dark:hover:bg-emerald-900/40'
+              titleColor: 'text-emerald-950 dark:text-emerald-950',
+              messageColor: 'text-emerald-800 dark:text-emerald-800',
+              closeBtn: 'text-emerald-700 hover:text-emerald-950 dark:text-emerald-700 dark:hover:text-emerald-950 hover:bg-emerald-100 dark:hover:bg-emerald-100'
             },
             error: {
-              container: 'bg-rose-50/95 dark:bg-rose-955/40 border border-rose-300/90 dark:border-rose-800/80 shadow-xl shadow-rose-500/10 text-rose-950 dark:text-rose-100',
+              container: 'bg-rose-50 dark:bg-rose-50 border border-rose-300 dark:border-rose-300 shadow-xl shadow-black/10 text-rose-950 dark:text-rose-950',
               iconBg: 'bg-rose-500 text-white shadow-sm shadow-rose-500/25',
               iconColor: 'text-white',
-              titleColor: 'text-rose-950 dark:text-rose-100',
-              messageColor: 'text-rose-800 dark:text-rose-300',
-              closeBtn: 'text-rose-700 hover:text-rose-950 dark:text-rose-400 dark:hover:text-rose-200 hover:bg-rose-100/80 dark:hover:bg-rose-900/40'
+              titleColor: 'text-rose-950 dark:text-rose-950',
+              messageColor: 'text-rose-800 dark:text-rose-800',
+              closeBtn: 'text-rose-700 hover:text-rose-950 dark:text-rose-700 dark:hover:text-rose-950 hover:bg-rose-100 dark:hover:bg-rose-100'
             },
             warning: {
-              container: 'bg-amber-50/95 dark:bg-amber-955/40 border border-amber-300/90 dark:border-amber-800/80 shadow-xl shadow-amber-500/10 text-amber-950 dark:text-amber-100',
+              container: 'bg-amber-50 dark:bg-amber-50 border border-amber-300 dark:border-amber-300 shadow-xl shadow-black/10 text-amber-950 dark:text-amber-950',
               iconBg: 'bg-amber-500 text-white shadow-sm shadow-amber-500/25',
               iconColor: 'text-white',
-              titleColor: 'text-amber-950 dark:text-amber-100',
-              messageColor: 'text-amber-800 dark:text-amber-300',
-              closeBtn: 'text-amber-700 hover:text-amber-950 dark:text-amber-400 dark:hover:text-amber-200 hover:bg-amber-100/80 dark:hover:bg-amber-900/40'
+              titleColor: 'text-amber-950 dark:text-amber-950',
+              messageColor: 'text-amber-800 dark:text-amber-800',
+              closeBtn: 'text-amber-700 hover:text-amber-950 dark:text-amber-700 dark:hover:text-amber-950 hover:bg-amber-100 dark:hover:bg-amber-100'
             },
             info: {
-              container: 'bg-sky-50/95 dark:bg-sky-955/40 border border-sky-300/90 dark:border-sky-800/80 shadow-xl shadow-sky-500/10 text-sky-950 dark:text-sky-100',
+              container: 'bg-sky-50 dark:bg-sky-50 border border-sky-300 dark:border-sky-300 shadow-xl shadow-black/10 text-sky-950 dark:text-sky-950',
               iconBg: 'bg-brand-500 text-white shadow-sm shadow-brand-500/25',
               iconColor: 'text-white',
-              titleColor: 'text-sky-950 dark:text-sky-100',
-              messageColor: 'text-sky-800 dark:text-sky-300',
-              closeBtn: 'text-sky-700 hover:text-sky-950 dark:text-sky-400 dark:hover:text-sky-200 hover:bg-sky-100/80 dark:hover:bg-sky-900/40'
+              titleColor: 'text-sky-950 dark:text-sky-950',
+              messageColor: 'text-sky-800 dark:text-sky-800',
+              closeBtn: 'text-sky-700 hover:text-sky-950 dark:text-sky-700 dark:hover:text-sky-950 hover:bg-sky-100 dark:hover:bg-sky-100'
             }
           };
 

@@ -141,6 +141,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         localStorage.removeItem('roles');
         localStorage.removeItem('active_selected_class_id');
         localStorage.removeItem('active_class_tab');
+    localStorage.removeItem('training_active_tab');
         localStorage.setItem('active_module', 'dashboard');
         return null;
       }
@@ -331,6 +332,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     localStorage.removeItem('roles');
     localStorage.removeItem('active_selected_class_id');
     localStorage.removeItem('active_class_tab');
+    localStorage.removeItem('training_active_tab');
   };
 
   useEffect(() => {
