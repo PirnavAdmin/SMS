@@ -18,17 +18,35 @@ public class StudentHostelService : IStudentHostelService
         _context = context;
     }
 
-    public Task<HostelDropdownOptionsDto> GetHostelDropdownOptionsAsync()
+    public async Task<HostelDropdownOptionsDto> GetHostelDropdownOptionsAsync()
     {
-        return Task.FromResult(new HostelDropdownOptionsDto
+        var dbYears = await _context.AcademicYears.AsNoTracking().Select(y => y.AcademicYearName).ToListAsync();
+        return new HostelDropdownOptionsDto
         {
-            AcademicYears = new List<string> { "2027-28", "2026-27", "2025-26" }
-        });
+            AcademicYears = dbYears.Count > 0 ? dbYears : new List<string> { "2026-27" }
+        };
     }
 
     public async Task<StudentHostelResponseDto> GetStudentHostelDetailsAsync(int? studentId, string? academicYear = "2027-28")
     {
         int targetStudentId = studentId ?? 1;
+
+        // Fetch real student details from Students or AdmissionApplications
+        var student = await _context.Students.AsNoTracking()
+            .Include(s => s.ClassGrade)
+            .Include(s => s.Branch)
+            .FirstOrDefaultAsync(s => s.StudentId == targetStudentId);
+
+        var admission = await _context.AdmissionApplications.AsNoTracking()
+            .FirstOrDefaultAsync(a => a.Id == targetStudentId || (student != null && !string.IsNullOrEmpty(student.AdmissionNumber) && a.AdmissionNo == student.AdmissionNumber));
+
+        string resolvedName = student?.StudentName ?? $"{admission?.FirstName} {admission?.LastName}".Trim();
+        if (string.IsNullOrWhiteSpace(resolvedName))
+        {
+            resolvedName = "Student";
+        }
+
+        string resolvedType = admission?.StudentType ?? (student != null ? "Non-Residential" : "Non-Residential");
 
         try
         {
@@ -36,25 +54,25 @@ public class StudentHostelService : IStudentHostelService
             var allocation = await _context.StudentBedAllocations.AsNoTracking()
                 .Include(b => b.Hostel)
                 .Include(b => b.Room)
-                .FirstOrDefaultAsync(b => b.StudentId == targetStudentId && b.Status != null && b.Status.Equals("Active", StringComparison.OrdinalIgnoreCase));
+                .FirstOrDefaultAsync(b => (b.StudentId == targetStudentId || (student != null && !string.IsNullOrEmpty(student.AdmissionNumber) && b.RegistrationNo == student.AdmissionNumber)) && b.Status != null && b.Status.Equals("Active", StringComparison.OrdinalIgnoreCase));
 
             if (allocation != null)
             {
                 return new StudentHostelResponseDto
                 {
                     StudentId = targetStudentId,
-                    StudentName = allocation.StudentName ?? "Alexander Wright",
+                    StudentName = allocation.StudentName ?? resolvedName,
                     StudentType = "Residential",
                     IsHosteller = true,
                     IsAssigned = true,
-                    Message = "Student is assigned to campus residential facilities.",
-                    HostelName = allocation.Hostel?.HostelName ?? "Boys Hostel A",
-                    HostelType = allocation.Hostel?.HostelType ?? "Boys",
-                    RoomNo = allocation.Room?.RoomNumber ?? "102",
-                    BedNo = allocation.BedNumber ?? "B-1",
-                    WardenName = "Dr. Suresh Kumar",
-                    WardenMobile = "+91 9876543210",
-                    WardenAlternateMobile = "+91 9876543211"
+                    Message = $"{allocation.StudentName ?? resolvedName} is assigned to campus residential facilities.",
+                    HostelName = allocation.Hostel?.HostelName ?? "Campus Hostel",
+                    HostelType = allocation.Hostel?.HostelType ?? "General",
+                    RoomNo = allocation.Room?.RoomNumber ?? "N/A",
+                    BedNo = allocation.BedNumber ?? "N/A",
+                    WardenName = allocation.Hostel?.WardenName ?? "Hostel Warden",
+                    WardenMobile = allocation.Hostel?.PrimaryMobileNumber ?? "",
+                    WardenAlternateMobile = ""
                 };
             }
         }
@@ -63,15 +81,15 @@ public class StudentHostelService : IStudentHostelService
             // Fallback gracefully if database is unreachable
         }
 
-        // Default Non-Residential response matching screenshot
+        // Dynamic Non-Residential response
         return new StudentHostelResponseDto
         {
             StudentId = targetStudentId,
-            StudentName = "Alexander",
-            StudentType = "Non-Residential",
+            StudentName = resolvedName,
+            StudentType = resolvedType,
             IsHosteller = false,
             IsAssigned = false,
-            Message = "Alexander is registered as a Non-Residential student and is not assigned to any campus residential facilities."
+            Message = $"{resolvedName} is registered as a {resolvedType} student and is not assigned to any campus residential facilities."
         };
     }
 }

@@ -1204,7 +1204,7 @@ export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialS
         id: form.studentId || `ST-${Date.now().toString().slice(-4)}`,
         firstName: fName,
         lastName: lName,
-        admissionNo: `REG-${Math.floor(1000 + Math.random() * 9000)}`,
+        admissionNo: form.studentId ? `ADM-${form.studentId}` : `ADM-${Date.now().toString().slice(-4)}`,
         className: 'Class 1',
         section: 'A',
         gender: 'Male',

@@ -3258,7 +3258,7 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
                                   const cleanStudSec = (stud.section || '').replace(/^Section\s*/i, '').trim();
                                   const isUnassigned = !cleanStudSec || cleanStudSec.toLowerCase() === 'unassigned' || cleanStudSec.toLowerCase() === 'none';
                                   const isAssigned = !isUnassigned && availableClassSections.some(sec => sec.toLowerCase() === cleanStudSec.toLowerCase());
-                                  const admissionDisplay = stud.admissionNo || (stud as any).registrationNumber || stud.id || 'REG-1001';
+                                  const admissionDisplay = stud.admissionNo || (stud.id ? `ADM-${stud.id}` : 'ADM-1001');
 
                                   return (
                                     <tr 
