@@ -1121,14 +1121,15 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
       formData.hostelSharing ||
       formData.roomSharing ||
       formData.sharingType ||
-      "Four Sharing"
+      ""
     ).toLowerCase();
 
     const userAc = (
       formData.hostelAc ||
       formData.acType ||
       formData.hostelAcPreference ||
-      "Non-AC"
+      formData.facilityPreference ||
+      ""
     ).toLowerCase();
 
     const studentBranch = (formData.branch || selectedBranch || "").trim().toLowerCase();
@@ -1140,6 +1141,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
 
     const matchesSharing = (cfgShare?: string) => {
       if (!cfgShare || cfgShare.toLowerCase() === "all" || cfgShare.toLowerCase() === "all sharing types") return true;
+      if (!userSharing) return true;
       const c = cfgShare.toLowerCase().replace(/[^a-z0-9]/g, "");
       const u = userSharing.replace(/[^a-z0-9]/g, "");
       if (c === u || c.includes(u) || u.includes(c)) return true;
@@ -1157,6 +1159,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
 
     const matchesAc = (cfgAc?: string) => {
       if (!cfgAc || cfgAc.toLowerCase() === "all") return true;
+      if (!userAc) return true;
       const isUserAc = userAc === "ac" || (userAc.includes("ac") && !userAc.includes("non"));
       const isConfigAc = cfgAc.toLowerCase() === "ac" || (cfgAc.toLowerCase().includes("ac") && !cfgAc.toLowerCase().includes("non"));
       return isUserAc === isConfigAc;
@@ -1292,8 +1295,8 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
       className: formData.appliedClass || formData.className,
       studentType: "Residential",
       residentialStatus: "Residential",
-      hostelSharing: formData.roomSharing || (formData as any).hostelSharing || "Four Sharing",
-      hostelAc: formData.facilityPreference || (formData as any).hostelAc || "Non-AC",
+      hostelSharing: formData.roomSharing || (formData as any).hostelSharing || formData.sharingType || "",
+      hostelAc: formData.facilityPreference || (formData as any).hostelAc || formData.acType || "",
       hostelBlock: formData.hostelBlock || "",
       feeHead: "Hostel Security Deposit",
       feeCategory: "Hostel Fee",
@@ -3282,12 +3285,13 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
         formData.hostelSharing ||
         formData.roomSharing ||
         formData.sharingType ||
-        "Four Sharing";
+        "";
       const chosenAc =
         formData.hostelAc ||
         formData.acType ||
         formData.hostelAcPreference ||
-        "Non-AC";
+        formData.facilityPreference ||
+        "";
       const secDep = applicableSecurityDeposit;
       const hstFee =
         Number(
@@ -3295,9 +3299,13 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
           applicableHostelFeeConfig?.termFee,
         ) || 0;
 
+      const prefTag = chosenShare
+        ? (chosenAc ? ` (${chosenShare}, ${chosenAc})` : ` (${chosenShare})`)
+        : (chosenAc ? ` (${chosenAc})` : "");
+
       if (secDep > 0) {
         items.push({
-          name: `Hostel Security Deposit (${chosenShare}, ${chosenAc})`,
+          name: "Hostel Security Deposit (Refundable)",
           amount: secDep,
           isApplicable: true,
           remarks: formData.hostelSecurityDepositPaid
@@ -3306,7 +3314,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
         });
       } else {
         items.push({
-          name: `Hostel Security Deposit (${chosenShare}, ${chosenAc})`,
+          name: "Hostel Security Deposit (Refundable)",
           amount: 0,
           isApplicable: false,
           remarks: "No Deposit Configured in Fee Setup",
@@ -3315,13 +3323,13 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
 
       if (hstFee > 0) {
         items.push({
-          name: `Hostel Accommodation Fee (${chosenShare}, ${chosenAc})`,
+          name: `Hostel Accommodation Fee${prefTag}`,
           amount: hstFee,
           isApplicable: true,
         });
       } else {
         items.push({
-          name: `Hostel Accommodation Fee (${chosenShare}, ${chosenAc})`,
+          name: `Hostel Accommodation Fee${prefTag}`,
           amount: 0,
           isApplicable: false,
           remarks: "No Hostel Fee Configured in Fee Setup",
@@ -4725,7 +4733,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                         </label>
                         <div className="relative">
                           <select
-                            value={formData.hostelSharing || formData.roomSharing || formData.sharingType || "Four Sharing"}
+                            value={formData.hostelSharing || formData.roomSharing || formData.sharingType || ""}
                             onChange={(e) => {
                               const val = e.target.value;
                               setFormData({
@@ -4737,6 +4745,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                             }}
                             className="w-full px-3.5 py-2.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white text-xs font-semibold focus:ring-2 focus:ring-sky-500 outline-none appearance-none cursor-pointer"
                           >
+                            <option value="">-- Select Room Sharing --</option>
                             <option value="Single">Single Sharing (1 Person)</option>
                             <option value="Two Sharing">Two Sharing (2 Persons)</option>
                             <option value="Three Sharing">Three Sharing (3 Persons)</option>
@@ -4759,10 +4768,11 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                                 ...formData,
                                 hostelAc: "AC",
                                 acType: "AC",
+                                facilityPreference: "AC",
                               })
                             }
                             className={`py-2 px-3 rounded-xl text-xs font-bold border transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
-                              (formData.hostelAc === "AC" || formData.acType === "AC")
+                              (formData.hostelAc === "AC" || formData.acType === "AC" || formData.facilityPreference === "AC")
                                 ? "bg-sky-600 text-white border-sky-600 shadow-sm"
                                 : "bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:border-sky-300"
                             }`}
@@ -4776,10 +4786,11 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                                 ...formData,
                                 hostelAc: "Non-AC",
                                 acType: "Non-AC",
+                                facilityPreference: "Non-AC",
                               })
                             }
                             className={`py-2 px-3 rounded-xl text-xs font-bold border transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
-                              (formData.hostelAc === "Non-AC" || formData.acType === "Non-AC" || (!formData.hostelAc && !formData.acType))
+                              (formData.hostelAc === "Non-AC" || formData.acType === "Non-AC" || formData.facilityPreference === "Non-AC")
                                 ? "bg-sky-600 text-white border-sky-600 shadow-sm"
                                 : "bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:border-sky-300"
                             }`}

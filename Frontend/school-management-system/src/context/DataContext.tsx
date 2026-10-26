@@ -15631,19 +15631,21 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         (admApp as any)?.roomSharing ||
         (admApp as any)?.roomType ||
         (student as any)?.roomType ||
-        "Four Sharing";
+        "";
 
       const preferredAc =
         (admApp as any)?.hostelAc ||
         (student as any)?.hostelAc ||
         (admApp as any)?.acType ||
         (student as any)?.acType ||
-        "Non-AC";
+        (admApp as any)?.facilityPreference ||
+        "";
 
-      const isRoomAc =
-        String(preferredAc).toUpperCase().includes("AC") &&
-        !String(preferredAc).toUpperCase().includes("NON");
-      const acTypeStr = isRoomAc ? "AC" : "Non-AC";
+      const isRoomAc = preferredAc
+        ? (String(preferredAc).toUpperCase().includes("AC") &&
+           !String(preferredAc).toUpperCase().includes("NON"))
+        : false;
+      const acTypeStr = preferredAc ? (isRoomAc ? "AC" : "Non-AC") : "";
 
       // 1. Check DynamicFeeStructure for Hostel if present
       const activeHostelStruct = (dynamicFeeStructures || []).find((s) => {
@@ -15662,21 +15664,20 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         const configs = activeHostelStruct.hostelConfig.configurations || [];
         const matchedItem =
           configs.find((c) => {
-            if (c.acType !== acTypeStr) return false;
+            if (acTypeStr && c.acType !== acTypeStr) return false;
             if (c.acType === "Non-AC" && c.applyToAllNonAc) return true;
+            if (!preferredSharing) return true;
             return (
-              (preferredSharing &&
-                c.sharingType
-                  .toLowerCase()
-                  .includes(
-                    preferredSharing.toLowerCase().replace(" sharing", ""),
-                  )) ||
-              (preferredSharing &&
-                preferredSharing
-                  .toLowerCase()
-                  .includes(c.sharingType.toLowerCase()))
+              c.sharingType
+                .toLowerCase()
+                .includes(
+                  preferredSharing.toLowerCase().replace(" sharing", ""),
+                ) ||
+              preferredSharing
+                .toLowerCase()
+                .includes(c.sharingType.toLowerCase())
             );
-          }) || configs.find((c) => c.acType === acTypeStr);
+          }) || (acTypeStr ? configs.find((c) => c.acType === acTypeStr) : configs[0]);
 
         if (matchedItem && matchedItem.amount > 0) {
           hostelAccommodationTotal = matchedItem.amount;
@@ -15728,13 +15729,13 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           ) {
             return false;
           }
-          if (c.acType && c.acType !== "All") {
+          if (acTypeStr && c.acType && c.acType !== "All") {
             const cAc = c.acType.toUpperCase().includes("NON")
               ? "Non-AC"
               : "AC";
             if (cAc !== acTypeStr) return false;
           }
-          if (c.sharingType && c.sharingType !== "All") {
+          if (preferredSharing && c.sharingType && c.sharingType !== "All") {
             const clean = (s: string) =>
               String(s || "")
                 .toLowerCase()
@@ -17095,6 +17096,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           (activeHostelAssign as any)?.roomTypeName ||
           (student as any)?.roomType ||
           (admApp as any)?.roomType ||
+          (student as any)?.hostelSharing ||
+          (admApp as any)?.hostelSharing ||
           "";
 
         const matchedRoomObj = (hostelRooms || []).find(
@@ -17107,12 +17110,30 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
               !hstBlockName),
         );
 
-        const isRoomAc =
-          (matchedRoomObj as any)?.acType === "AC" ||
-          (matchedRoomObj as any)?.isAc === true ||
-          (String(roomType).toUpperCase().includes("AC") &&
-            !String(roomType).toUpperCase().includes("NON"));
-        const acTypeStr = isRoomAc ? "AC" : "Non-AC";
+        const prefAc =
+          (activeHostelAssign as any)?.acType ||
+          (matchedRoomObj as any)?.acType ||
+          (student as any)?.hostelAc ||
+          (admApp as any)?.hostelAc ||
+          (admApp as any)?.facilityPreference ||
+          (admApp as any)?.acType ||
+          (student as any)?.acType ||
+          "";
+
+        const hasAcSpecified =
+          Boolean(prefAc) ||
+          (matchedRoomObj as any)?.isAc !== undefined ||
+          String(roomType).toUpperCase().includes("AC");
+
+        const isRoomAc = hasAcSpecified
+          ? (matchedRoomObj as any)?.acType === "AC" ||
+            (matchedRoomObj as any)?.isAc === true ||
+            (String(prefAc).toUpperCase().includes("AC") &&
+              !String(prefAc).toUpperCase().includes("NON")) ||
+            (String(roomType).toUpperCase().includes("AC") &&
+              !String(roomType).toUpperCase().includes("NON"))
+          : false;
+        const acTypeStr = hasAcSpecified ? (isRoomAc ? "AC" : "Non-AC") : "";
 
         const parsedCapMatch = roomType.match(/\d+/);
         const roomCap =
@@ -17173,24 +17194,35 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
             if (cleanRoom(c.roomNo) !== cleanRoom(hstRoomName)) return false;
           }
 
-          if (c.acType && c.acType !== "All") {
+          if (acTypeStr && c.acType && c.acType !== "All") {
             const cAc = c.acType.toUpperCase().includes("NON")
               ? "Non-AC"
               : "AC";
             if (cAc !== acTypeStr) return false;
           }
 
-          if (c.sharingType && c.sharingType !== "All" && roomCap) {
-            const capMatch =
-              (c.sharingType.toLowerCase().includes("single") &&
-                roomCap === 1) ||
-              (c.sharingType.toLowerCase().includes("double") &&
-                roomCap === 2) ||
-              (c.sharingType.toLowerCase().includes("triple") &&
-                roomCap === 3) ||
-              (c.sharingType.toLowerCase().includes("4") && roomCap === 4) ||
-              c.sharingType.includes(String(roomCap));
-            if (!capMatch) return false;
+          if (c.sharingType && c.sharingType !== "All") {
+            if (roomCap) {
+              const capMatch =
+                (c.sharingType.toLowerCase().includes("single") &&
+                  roomCap === 1) ||
+                (c.sharingType.toLowerCase().includes("double") &&
+                  roomCap === 2) ||
+                (c.sharingType.toLowerCase().includes("triple") &&
+                  roomCap === 3) ||
+                (c.sharingType.toLowerCase().includes("4") && roomCap === 4) ||
+                c.sharingType.includes(String(roomCap));
+              if (!capMatch) return false;
+            } else if (roomType) {
+              const clean = (s: string) =>
+                String(s || "")
+                  .toLowerCase()
+                  .replace(/[^a-z0-9]/g, "");
+              const prefClean = clean(roomType);
+              const confClean = clean(c.sharingType);
+              if (!prefClean.includes(confClean) && !confClean.includes(prefClean))
+                return false;
+            }
           }
 
           return true;
