@@ -14,7 +14,8 @@ import {
   ChevronLeft,
   ChevronRight,
   ArrowUpDown,
-  ChevronDown
+  ChevronDown,
+  X
 } from 'lucide-react';
 import { useAuth } from '../../../context/AuthContext';
 import { useData } from '../../../context/DataContext';
@@ -918,11 +919,13 @@ export const TeacherPayslipsView: React.FC = () => {
                 </div>
               </div>
               <button 
+                type="button"
                 onClick={() => setViewingPayslip(null)} 
-                className="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                aria-label="Close"
                 title="Close"
               >
-                <XCircle className="w-5 h-5" />
+                <X className="w-5 h-5 shrink-0" />
               </button>
             </div>
 

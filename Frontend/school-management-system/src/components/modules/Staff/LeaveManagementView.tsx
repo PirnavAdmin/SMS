@@ -665,7 +665,7 @@ export const LeaveManagementView: React.FC = () => {
   const selectedLeaveType = leaveTypes.find(t => t.id === applyForm.leaveTypeId);
 
   const calculateDays = (from: string, to: string, half: boolean) => {
-    if (half) return 0.5;
+    if (half) return from ? 0.5 : 0;
     if (!from || !to) return 0;
     const start = new Date(from);
     const end = new Date(to);
@@ -675,6 +675,10 @@ export const LeaveManagementView: React.FC = () => {
   };
 
   const requestedDays = calculateDays(applyForm.fromDate, applyForm.toDate, applyForm.isHalfDay);
+  const hasValidDates = applyForm.isHalfDay
+    ? Boolean(applyForm.fromDate)
+    : Boolean(applyForm.fromDate && applyForm.toDate && applyForm.toDate >= applyForm.fromDate);
+  const isInvalidDateRange = Boolean(!applyForm.isHalfDay && applyForm.fromDate && applyForm.toDate && applyForm.toDate < applyForm.fromDate);
 
   const getAvailableBalance = (s: Staff, typeName: string) => {
     const rem = getEmployeeRemainingBalances(s);
@@ -1704,9 +1708,10 @@ export const LeaveManagementView: React.FC = () => {
               <button 
                 type="button" 
                 onClick={() => setIsApplyOpen(false)}
-                className="p-1 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                aria-label="Close"
               >
-                <X className="w-4 h-4" />
+                <X className="w-4 h-4 shrink-0" />
               </button>
             </div>
 
@@ -1873,7 +1878,14 @@ export const LeaveManagementView: React.FC = () => {
               {/* Submissions Footer */}
               <div className="flex items-center justify-between pt-2 border-t border-slate-100 dark:border-slate-800">
                 <span className="font-bold text-slate-900 dark:text-white text-[11px]">
-                  Total duration: <span className="text-sky-600 font-extrabold">{requestedDays} {requestedDays === 1 ? 'Day' : 'Days'}</span>
+                  Total duration:{' '}
+                  {isInvalidDateRange ? (
+                    <span className="text-rose-500 font-semibold text-[11px]">Invalid date range</span>
+                  ) : hasValidDates && requestedDays > 0 ? (
+                    <span className="text-sky-600 font-extrabold">{requestedDays} {requestedDays === 1 ? 'Day' : 'Days'}</span>
+                  ) : (
+                    <span className="text-slate-400 dark:text-slate-500 font-medium text-[11px] italic">Select dates to calculate duration</span>
+                  )}
                 </span>
                 <div className="flex gap-2">
                   <button type="button" onClick={() => setIsApplyOpen(false)} className="px-3.5 py-1.5 font-bold bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-lg text-xs transition-colors">Cancel</button>
@@ -1990,7 +2002,14 @@ export const LeaveManagementView: React.FC = () => {
                   <p className="text-[10px] font-bold text-sky-600 uppercase tracking-wide">Leave Application Slip Preview</p>
                 </div>
               </div>
-              <button onClick={() => setViewingApplication(null)} className="p-1.5 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-100"><XCircle className="w-5 h-5" /></button>
+              <button 
+                type="button"
+                onClick={() => setViewingApplication(null)} 
+                className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                aria-label="Close"
+              >
+                <X className="w-5 h-5 shrink-0" />
+              </button>
             </div>
 
             <div className="space-y-3 text-xs">
@@ -2084,9 +2103,10 @@ export const LeaveManagementView: React.FC = () => {
               <button 
                 type="button" 
                 onClick={() => { setIsTypeModalOpen(false); setEditingType(null); setTypeFormErrors({}); }}
-                className="p-1 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                aria-label="Close"
               >
-                <X className="w-4 h-4" />
+                <X className="w-4 h-4 shrink-0" />
               </button>
             </div>
 

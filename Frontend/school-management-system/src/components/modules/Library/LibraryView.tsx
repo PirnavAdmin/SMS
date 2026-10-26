@@ -3564,8 +3564,13 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ initialPhase = 'phase1
               <h3 className="text-base font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
                 <CalendarCheck className="w-5 h-5 text-sky-500" /> Record Librarian Shift Attendance
               </h3>
-              <button onClick={() => setModalType(null)} className="p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400">
-                <XCircle className="w-5 h-5" />
+              <button 
+                type="button"
+                onClick={() => setModalType(null)} 
+                className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                aria-label="Close"
+              >
+                <X className="w-5 h-5 shrink-0" />
               </button>
             </div>
             <form onSubmit={e => {

@@ -434,10 +434,12 @@ export const DriverLeaveView: React.FC = () => {
                 </div>
               </div>
               <button
+                type="button"
                 onClick={() => setIsApplyModalOpen(false)}
-                className="p-2 rounded-xl text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                className="w-8 h-8 rounded-xl flex items-center justify-center text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                aria-label="Close"
               >
-                <X className="w-4 h-4" />
+                <X className="w-4 h-4 shrink-0" />
               </button>
             </div>
 
@@ -509,9 +511,19 @@ export const DriverLeaveView: React.FC = () => {
               {/* Duration Banner */}
               <div className="p-2.5 rounded-xl bg-sky-50 dark:bg-sky-950/40 border border-sky-200 dark:border-sky-800 flex items-center justify-between text-xs">
                 <span className="font-bold text-slate-600 dark:text-slate-300">Total Leave Duration:</span>
-                <span className="font-black text-sky-600 dark:text-sky-400 font-mono">
-                  {durationDays} {durationDays === 1 ? 'Day' : 'Days'}
-                </span>
+                {fromDate && toDate ? (
+                  toDate < fromDate ? (
+                    <span className="font-semibold text-rose-500 text-xs">Invalid date range</span>
+                  ) : (
+                    <span className="font-black text-sky-600 dark:text-sky-400 font-mono">
+                      {durationDays} {durationDays === 1 ? 'Day' : 'Days'}
+                    </span>
+                  )
+                ) : (
+                  <span className="font-medium text-slate-400 dark:text-slate-500 text-xs italic">
+                    Select dates to calculate duration
+                  </span>
+                )}
               </div>
 
               {/* Reason */}
