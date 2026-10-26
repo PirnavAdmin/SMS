@@ -967,7 +967,7 @@ export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialS
       }, 0);
 
       const totalToPay = baseAmountToPay + extrasAmountToPay;
-      const payAmount = totalToPay > 0 ? totalToPay : (basePkgPrice > 0 ? basePkgPrice : 2000);
+      const payAmount = totalToPay > 0 ? totalToPay : (basePkgPrice > 0 ? basePkgPrice : 0);
       const receiptNo = `REC-UNI-${Date.now().toString().slice(-6)}`;
       const ay = student.academicYear || selectedAcademicYear || financeSettings?.academicYear || '';
 
