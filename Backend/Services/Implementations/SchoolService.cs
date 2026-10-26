@@ -1733,12 +1733,13 @@ public class SchoolService : ISchoolService
 											var parentRole = await Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions.FirstOrDefaultAsync(
 												_context.Roles, r => r.RoleName == "Parent");
 
+											var dynamicParentPassword = SMS.Api.Helpers.PasswordHelper.GenerateDynamicPassword();
 											var newParentUser = new User
 											{
 												FullName = parentFullName,
 												Email = parentEmail,
 												MobileNumber = !string.IsNullOrWhiteSpace(parentMobile) ? parentMobile : $"PAR-{DateTime.UtcNow.Ticks}",
-												PasswordHash = BCrypt.Net.BCrypt.HashPassword("admin1234"),
+												PasswordHash = BCrypt.Net.BCrypt.HashPassword(dynamicParentPassword),
 												Role = "Parent",
 												IsEmailVerified = true,
 												IsMobileVerified = true,
@@ -1777,12 +1778,13 @@ public class SchoolService : ISchoolService
 
 										if (existingUser == null)
 										{
+											var dynamicStudentPassword = SMS.Api.Helpers.PasswordHelper.GenerateDynamicPassword();
 											var newUser = new User
 											{
 												FullName = studentFullName,
 												Email = studentEmail,
 												MobileNumber = studentMobile,
-												PasswordHash = BCrypt.Net.BCrypt.HashPassword("admin1234"),
+												PasswordHash = BCrypt.Net.BCrypt.HashPassword(dynamicStudentPassword),
 												Role = "Student",
 												IsEmailVerified = true,
 												IsMobileVerified = true,
@@ -1791,25 +1793,25 @@ public class SchoolService : ISchoolService
 											};
 											await _context.Users.AddAsync(newUser);
 											await _context.SaveChangesAsync();
-										}
 
-										// Send Welcome Credentials Email to student / parent email
-										if (!string.IsNullOrWhiteSpace(studentEmail) && studentEmail.Contains('@'))
-										{
-											var loginId = studentEmail;
-											_ = Task.Run(async () =>
+											// Send Welcome Credentials Email to student / parent email with dynamic password
+											if (!string.IsNullOrWhiteSpace(studentEmail) && studentEmail.Contains('@'))
 											{
-												try
+												var loginId = studentEmail;
+												_ = Task.Run(async () =>
 												{
-													await _emailNotificationService.SendWelcomeCredentialsAsync(
-														recipientEmail: studentEmail,
-														recipientName: studentFullName,
-														loginIdentifier: loginId,
-														defaultPassword: "admin1234",
-														roleName: "Student");
-												}
-												catch { /* Ignored */ }
-											});
+													try
+													{
+														await _emailNotificationService.SendWelcomeCredentialsAsync(
+															recipientEmail: studentEmail,
+															recipientName: studentFullName,
+															loginIdentifier: loginId,
+															defaultPassword: dynamicStudentPassword,
+															roleName: "Student");
+													}
+													catch { /* Ignored */ }
+												});
+											}
 										}
 									}
 									catch (Exception userSyncEx)

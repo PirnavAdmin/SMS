@@ -28,21 +28,23 @@ namespace Backend.Tests.E2E
         {
             var context = await GetInMemoryDbContextAsync();
 
+            var dynamicAdminPassword = SMS.Api.Helpers.PasswordHelper.GenerateDynamicPassword();
             var adminUser = new User
             {
                 Email = "admin@sms.com",
                 MobileNumber = "9998887770",
-                PasswordHash = BCrypt.Net.BCrypt.HashPassword("Admin@123"),
+                PasswordHash = BCrypt.Net.BCrypt.HashPassword(dynamicAdminPassword),
                 FullName = "System Administrator",
                 Role = "Admin"
             };
             await context.Users.AddAsync(adminUser);
             await context.SaveChangesAsync();
 
+            var dynamicOtpCode = SMS.Api.Helpers.PasswordHelper.GenerateNumericOtp();
             var otp = new OtpVerification
             {
                 UserId = adminUser.UserId,
-                OtpCodeHash = BCrypt.Net.BCrypt.HashPassword("123456"),
+                OtpCodeHash = BCrypt.Net.BCrypt.HashPassword(dynamicOtpCode),
                 DeliveryMethod = "Email",
                 Purpose = "Login",
                 ExpiryTime = DateTime.UtcNow.AddMinutes(10),

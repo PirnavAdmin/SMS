@@ -350,12 +350,13 @@ public class StaffService : IStaffService
 
             if (existingUser == null)
             {
+                var dynamicStaffPassword = SMS.Api.Helpers.PasswordHelper.GenerateDynamicPassword();
                 var newUser = new User
                 {
                     FullName = fullName,
                     Email = staff.Email,
                     MobileNumber = mobileNo,
-                    PasswordHash = BCrypt.Net.BCrypt.HashPassword("admin1234"),
+                    PasswordHash = BCrypt.Net.BCrypt.HashPassword(dynamicStaffPassword),
                     Role = userRole,
                     IsEmailVerified = true,
                     IsMobileVerified = true,
@@ -364,6 +365,25 @@ public class StaffService : IStaffService
                 };
                 await _context.Users.AddAsync(newUser);
                 await _context.SaveChangesAsync();
+
+                // Dispatch welcome credentials email asynchronously with dynamic generated password
+                if (!string.IsNullOrWhiteSpace(staff.Email) && staff.Email.Contains('@'))
+                {
+                    var loginId = staff.Email;
+                    _ = Task.Run(async () =>
+                    {
+                        try
+                        {
+                            await _emailNotificationService.SendWelcomeCredentialsAsync(
+                                recipientEmail: staff.Email!,
+                                recipientName: fullName,
+                                loginIdentifier: loginId,
+                                defaultPassword: dynamicStaffPassword,
+                                roleName: userRole);
+                        }
+                        catch { /* Ignored */ }
+                    });
+                }
             }
             else
             {
@@ -371,25 +391,6 @@ public class StaffService : IStaffService
                 existingUser.Role = userRole;
                 if (!string.IsNullOrWhiteSpace(staff.Email)) existingUser.Email = staff.Email;
                 await _context.SaveChangesAsync();
-            }
-
-            // Dispatch welcome credentials email asynchronously
-            if (!string.IsNullOrWhiteSpace(staff.Email) && staff.Email.Contains('@'))
-            {
-                var loginId = staff.Email;
-                _ = Task.Run(async () =>
-                {
-                    try
-                    {
-                        await _emailNotificationService.SendWelcomeCredentialsAsync(
-                            recipientEmail: staff.Email!,
-                            recipientName: fullName,
-                            loginIdentifier: loginId,
-                            defaultPassword: "admin1234",
-                            roleName: userRole);
-                    }
-                    catch { /* Ignored */ }
-                });
             }
         }
         catch (Exception ex)

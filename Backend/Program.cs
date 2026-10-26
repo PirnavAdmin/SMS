@@ -2143,6 +2143,14 @@ using (var scope = app.Services.CreateScope())
         const string adminEmail = "admin@pirnavschools.com";
         const string adminMobile = "9876543210";
 
+        var existingAdmin = await context.Admins.FirstOrDefaultAsync(
+            a => (a.Email != null && a.Email.ToLower() == adminEmail) ||
+                 a.MobileNumber == adminMobile);
+
+        string adminPasswordHash = existingAdmin != null && !string.IsNullOrWhiteSpace(existingAdmin.PasswordHash)
+            ? existingAdmin.PasswordHash
+            : BCrypt.Net.BCrypt.HashPassword(SMS.Api.Helpers.PasswordHelper.GenerateDynamicPassword());
+
         var adminUser =
             await context.Users
                 .Include(x => x.Roles)
@@ -2154,10 +2162,10 @@ using (var scope = app.Services.CreateScope())
         {
             adminUser = new User
             {
-                FullName = "Dr. Eleanor Vance",
+                FullName = existingAdmin?.FullName ?? "Dr. Eleanor Vance",
                 Email = adminEmail,
                 MobileNumber = adminMobile,
-                PasswordHash = BCrypt.Net.BCrypt.HashPassword("admin1234"),
+                PasswordHash = adminPasswordHash,
                 Role = "Admin",
                 IsEmailVerified = true,
                 IsMobileVerified = true,
@@ -2178,12 +2186,12 @@ using (var scope = app.Services.CreateScope())
         }
         else
         {
-            adminUser.FullName = "Dr. Eleanor Vance";
+            adminUser.FullName = existingAdmin?.FullName ?? adminUser.FullName;
             adminUser.Email = adminEmail;
             adminUser.MobileNumber = adminMobile;
             if (string.IsNullOrWhiteSpace(adminUser.PasswordHash))
             {
-                adminUser.PasswordHash = BCrypt.Net.BCrypt.HashPassword("admin1234");
+                adminUser.PasswordHash = adminPasswordHash;
             }
             adminUser.Role = "Admin";
             adminUser.IsEmailVerified = true;
@@ -2473,12 +2481,13 @@ using (var scope = app.Services.CreateScope())
 
                 if (!userExists)
                 {
+                    var dynamicStaffPass = SMS.Api.Helpers.PasswordHelper.GenerateDynamicPassword();
                     context.Users.Add(new User
                     {
                         FullName = name,
                         Email = stf.Email,
                         MobileNumber = phone,
-                        PasswordHash = BCrypt.Net.BCrypt.HashPassword("admin1234"),
+                        PasswordHash = BCrypt.Net.BCrypt.HashPassword(dynamicStaffPass),
                         Role = role,
                         IsEmailVerified = true,
                         IsMobileVerified = true,

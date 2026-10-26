@@ -113,6 +113,8 @@ namespace Backend.Tests.Services
         [Fact]
         public async Task LoginAsync_InvalidPassword_ThrowsUnauthorizedAppException()
         {
+            var correctPassword = SMS.Api.Helpers.PasswordHelper.GenerateDynamicPassword();
+            var wrongPassword = SMS.Api.Helpers.PasswordHelper.GenerateDynamicPassword() + "_wrong";
             var user = new User
             {
                 UserId = 1,
@@ -120,13 +122,13 @@ namespace Backend.Tests.Services
                 Email = "admin@example.com",
                 MobileNumber = "1234567890",
                 Role = "Admin",
-                PasswordHash = BCrypt.Net.BCrypt.HashPassword("correctPassword")
+                PasswordHash = BCrypt.Net.BCrypt.HashPassword(correctPassword)
             };
             user.Roles.Add(new Role { RoleName = "Admin" });
             _dbContext.Users.Add(user);
             await _dbContext.SaveChangesAsync();
 
-            var dto = new LoginRequestDto("admin@example.com", "wrongPassword");
+            var dto = new LoginRequestDto("admin@example.com", wrongPassword);
 
             _userRepoMock.Setup(r => r.GetByIdentifierAsync(dto.EmailOrPhone))
                 .ReturnsAsync(user);
@@ -138,7 +140,7 @@ namespace Backend.Tests.Services
         [Fact]
         public async Task LoginAsync_ValidCredentials_ReturnsAuthResponseDto()
         {
-            var password = "secretPassword123";
+            var password = SMS.Api.Helpers.PasswordHelper.GenerateDynamicPassword();
             var user = new User
             {
                 UserId = 5,
@@ -168,8 +170,8 @@ namespace Backend.Tests.Services
         [Fact]
         public async Task ChangePasswordAsync_WhenAdminAndUserExist_UpdatesBothTablesAndInvalidatesOldPassword()
         {
-            var oldPassword = "oldPassword123";
-            var newPassword = "newPassword456";
+            var oldPassword = SMS.Api.Helpers.PasswordHelper.GenerateDynamicPassword();
+            var newPassword = SMS.Api.Helpers.PasswordHelper.GenerateDynamicPassword() + "_new";
 
             var admin = new Admin
             {
@@ -231,6 +233,9 @@ namespace Backend.Tests.Services
         [Fact]
         public async Task ChangePasswordAsync_WithWrongCurrentPassword_ThrowsBadRequest()
         {
+            var validOldPass = SMS.Api.Helpers.PasswordHelper.GenerateDynamicPassword();
+            var wrongOldPass = SMS.Api.Helpers.PasswordHelper.GenerateDynamicPassword() + "_wrong";
+            var newPass = SMS.Api.Helpers.PasswordHelper.GenerateDynamicPassword() + "_new";
             var admin = new Admin
             {
                 AdminId = 20,
@@ -238,7 +243,7 @@ namespace Backend.Tests.Services
                 Email = "admin2@pirnavschools.com",
                 MobileNumber = "9876543211",
                 Role = "Admin",
-                PasswordHash = BCrypt.Net.BCrypt.HashPassword("validOldPass")
+                PasswordHash = BCrypt.Net.BCrypt.HashPassword(validOldPass)
             };
             _dbContext.Admins.Add(admin);
             await _dbContext.SaveChangesAsync();
@@ -246,9 +251,9 @@ namespace Backend.Tests.Services
             var dto = new ChangePasswordRequestDto
             {
                 EmailOrPhone = "admin2@pirnavschools.com",
-                OldPassword = "wrongOldPassword",
-                NewPassword = "newSecretPassword",
-                ConfirmPassword = "newSecretPassword"
+                OldPassword = wrongOldPass,
+                NewPassword = newPass,
+                ConfirmPassword = newPass
             };
 
             var ex = await Assert.ThrowsAsync<AppException>(() => _service.ChangePasswordAsync(

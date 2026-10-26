@@ -85,12 +85,13 @@ namespace Backend.Tests.Services
         [Fact]
         public async Task VerifyOtpAsync_ExpiredOtp_ReturnsFalse()
         {
+            var otpCode = SMS.Api.Helpers.PasswordHelper.GenerateNumericOtp();
             var user = new User { UserId = 3, Email = "user3@example.com", MobileNumber = "888" };
-            var dto = new VerifyOtpRequestDto("user3@example.com", "123456");
+            var dto = new VerifyOtpRequestDto("user3@example.com", otpCode);
             var expiredOtp = new OtpVerification
             {
                 UserId = 3,
-                OtpCodeHash = BCrypt.Net.BCrypt.HashPassword("123456"),
+                OtpCodeHash = BCrypt.Net.BCrypt.HashPassword(otpCode),
                 ExpiryTime = DateTime.UtcNow.AddMinutes(-5)
             };
 
@@ -106,12 +107,13 @@ namespace Backend.Tests.Services
         [Fact]
         public async Task VerifyOtpAsync_ValidOtp_ReturnsTrue()
         {
+            var otpCode = SMS.Api.Helpers.PasswordHelper.GenerateNumericOtp();
             var user = new User { UserId = 4, Email = "user4@example.com", MobileNumber = "777" };
-            var dto = new VerifyOtpRequestDto("user4@example.com", "654321");
+            var dto = new VerifyOtpRequestDto("user4@example.com", otpCode);
             var activeOtp = new OtpVerification
             {
                 UserId = 4,
-                OtpCodeHash = BCrypt.Net.BCrypt.HashPassword("654321"),
+                OtpCodeHash = BCrypt.Net.BCrypt.HashPassword(otpCode),
                 ExpiryTime = DateTime.UtcNow.AddMinutes(5)
             };
 
@@ -127,7 +129,8 @@ namespace Backend.Tests.Services
         [Fact]
         public async Task ResetPasswordAsync_UserNotFound_ThrowsException()
         {
-            var dto = new ResetPasswordDto { EmailOrPhone = "none@example.com", OldPassword = "old" };
+            var dynamicOldPass = SMS.Api.Helpers.PasswordHelper.GenerateDynamicPassword();
+            var dto = new ResetPasswordDto { EmailOrPhone = "none@example.com", OldPassword = dynamicOldPass };
             _userRepoMock.Setup(r => r.GetByIdentifierAsync(dto.EmailOrPhone))
                 .ReturnsAsync((User?)null);
 
@@ -137,17 +140,19 @@ namespace Backend.Tests.Services
         [Fact]
         public async Task ResetPasswordAsync_WithValidOldPassword_UpdatesPassword()
         {
+            var validOld = SMS.Api.Helpers.PasswordHelper.GenerateDynamicPassword();
+            var newPass = SMS.Api.Helpers.PasswordHelper.GenerateDynamicPassword() + "_new";
             var user = new User
             {
                 UserId = 5,
                 Email = "user5@example.com",
-                PasswordHash = BCrypt.Net.BCrypt.HashPassword("oldSecret123")
+                PasswordHash = BCrypt.Net.BCrypt.HashPassword(validOld)
             };
             var dto = new ResetPasswordDto
             {
                 EmailOrPhone = "user5@example.com",
-                OldPassword = "oldSecret123",
-                NewPassword = "newSecret456"
+                OldPassword = validOld,
+                NewPassword = newPass
             };
 
             _userRepoMock.Setup(r => r.GetByIdentifierAsync(dto.EmailOrPhone))
@@ -162,17 +167,20 @@ namespace Backend.Tests.Services
         [Fact]
         public async Task ResetPasswordAsync_WithInvalidOldPassword_ThrowsException()
         {
+            var correctOld = SMS.Api.Helpers.PasswordHelper.GenerateDynamicPassword();
+            var wrongOld = SMS.Api.Helpers.PasswordHelper.GenerateDynamicPassword() + "_wrong";
+            var newPass = SMS.Api.Helpers.PasswordHelper.GenerateDynamicPassword() + "_new";
             var user = new User
             {
                 UserId = 6,
                 Email = "user6@example.com",
-                PasswordHash = BCrypt.Net.BCrypt.HashPassword("correctOld")
+                PasswordHash = BCrypt.Net.BCrypt.HashPassword(correctOld)
             };
             var dto = new ResetPasswordDto
             {
                 EmailOrPhone = "user6@example.com",
-                OldPassword = "wrongOld",
-                NewPassword = "newSecret456"
+                OldPassword = wrongOld,
+                NewPassword = newPass
             };
 
             _userRepoMock.Setup(r => r.GetByIdentifierAsync(dto.EmailOrPhone))
