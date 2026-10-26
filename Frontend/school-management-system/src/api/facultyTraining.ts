@@ -76,6 +76,13 @@ export const gradeAssessmentCandidateApi = async (id: number | string, payload: 
   });
 };
 
+export const publishAssessmentResultsApi = async (id: number | string, payload: any) => {
+  return apiClient(`/api/v1/faculty-training/assessments/${id}/publish-results`, {
+    method: 'POST',
+    body: JSON.stringify(payload)
+  });
+};
+
 export const fetchIssuedCertificatesApi = async () => {
   return apiClient('/api/v1/faculty-training/certificates', { method: 'GET' });
 };

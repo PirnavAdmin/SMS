@@ -1485,6 +1485,7 @@ export interface StudentFeeAssignment {
   feeBreakdown?: FeeHeadAssignmentBreakdown[];
   adjustmentReason?: string;
   assignedDate: string;
+  targetRoleType?: string;
   createdBy?: string;
   createdAt?: string;
   status: 'Active' | 'Modified' | 'Removed';
@@ -2712,6 +2713,7 @@ export interface WorkshopTraining {
   status: 'Scheduled' | 'Ongoing' | 'Completed' | 'Cancelled';
   participants: TrainingParticipant[];
   attendancePct?: number;
+  targetRoleType?: string;
   createdBy?: string;
   createdAt?: string;
 }
@@ -2793,6 +2795,7 @@ export interface EmployeeAssessment {
   };
   status: 'Scheduled' | 'In Progress' | 'Evaluated' | 'Cancelled';
   results: AssessmentResult[];
+  targetRoleType?: string;
   createdBy?: string;
   createdAt?: string;
 }

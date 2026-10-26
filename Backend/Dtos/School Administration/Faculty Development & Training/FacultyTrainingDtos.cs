@@ -107,6 +107,7 @@ namespace SMS.Api.Dtos
         public bool AddToCalendar { get; set; } = true;
         public bool PublishImmediately { get; set; } = true;
         public int CandidatesCount { get; set; } = 0;
+        public List<int> CandidateStaffIds { get; set; } = new();
     }
 
     public class UpdateAssessmentDto

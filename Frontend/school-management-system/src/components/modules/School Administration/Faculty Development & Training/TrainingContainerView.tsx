@@ -1,14 +1,15 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import {
-  GraduationCap, Award, Calendar, BookOpen, CheckCircle2, AlertTriangle,
+  GraduationCap, Award, BookOpen, CheckCircle2, AlertTriangle,
   Plus, Search, Filter, Download, Printer, UserCheck, Users, FileText,
-  Clock, MapPin, Sparkles, Star, ChevronRight, X, Eye, Edit, Trash2,
+  MapPin, Sparkles, Star, ChevronRight, X, Eye, Edit, Trash2,
   FileCheck, ShieldCheck, Check, Layers, BarChart3, TrendingUp, HelpCircle,
   Megaphone, ExternalLink, Send, SlidersHorizontal, RefreshCw
 } from 'lucide-react';
 import { useData } from '../../../../context/DataContext';
 import { useToast } from '../../../../context/ToastContext';
 import { useAuth } from '../../../../context/AuthContext';
+import { ConfirmModal } from '../../../common/ConfirmModal';
 import { exportToExcel } from '../../../../utils/excelExport';
 import {
   WorkshopTraining, EmployeeAssessment, IssuedCertificate,
@@ -76,25 +77,52 @@ export const TrainingContainerView: React.FC = () => {
 
   const [selectedCertificateForPreview, setSelectedCertificateForPreview] = useState<IssuedCertificate | null>(null);
 
+  // Delete Confirmation States
+  const [deletingWorkshop, setDeletingWorkshop] = useState<WorkshopTraining | null>(null);
+  const [deletingAssessment, setDeletingAssessment] = useState<EmployeeAssessment | null>(null);
+
   // Workshop Form State
   const [workshopForm, setWorkshopForm] = useState({
     workshopName: '',
-    category: 'Faculty Development Program (FDP)' as TrainingCategory,
+    category: '' as any,
     type: 'Internal' as 'Internal' | 'External',
     trainerName: '',
-    organization: 'Pirnav Schools Professional Cell',
+    organization: '',
     branch: (selectedBranch && selectedBranch !== 'All' && selectedBranch !== 'All Branches' ? selectedBranch : '') || defaultBranch,
-    department: 'Academics',
-    applicableDesignation: 'All Staff',
-    venue: 'Main Auditorium',
-    startDate: new Date().toISOString().split('T')[0],
-    endDate: new Date().toISOString().split('T')[0],
-    startTime: '09:30 AM',
-    endTime: '03:30 PM',
-    capacity: 50,
+    department: '',
+    applicableDesignation: '',
+    venue: '',
+    startDate: '',
+    endDate: '',
+    startTime: '',
+    endTime: '',
+    capacity: '' as any,
     description: '',
-    targetRoleType: 'Teaching Staff' as 'Teaching Staff' | 'Non-Teaching Staff'
+    targetRoleType: '' as any
   });
+
+  const handleOpenCreateWorkshopModal = () => {
+    setWorkshopForm({
+      workshopName: '',
+      category: '' as any,
+      type: 'Internal',
+      trainerName: '',
+      organization: '',
+      branch: (selectedBranch && selectedBranch !== 'All' && selectedBranch !== 'All Branches' ? selectedBranch : '') || defaultBranch,
+      department: '',
+      applicableDesignation: '',
+      venue: '',
+      startDate: '',
+      endDate: '',
+      startTime: '',
+      endTime: '',
+      capacity: '' as any,
+      description: '',
+      targetRoleType: '' as any
+    });
+    setSelectedEmployeeIds([]);
+    setIsAddWorkshopModalOpen(true);
+  };
 
   // Participant Filter for Workshop Creation
   const [participantFilters, setParticipantFilters] = useState({
@@ -108,19 +136,28 @@ export const TrainingContainerView: React.FC = () => {
   // 2-Step Assessment Scheduling Wizard State
   const [assessmentWizardStep, setAssessmentWizardStep] = useState<1 | 2>(1);
 
-  const [wizardStep1, setWizardStep1] = useState({
+  const [wizardStep1, setWizardStep1] = useState<{
+    assessmentName: string;
+    assessmentType: any;
+    category: any;
+    description: string;
+    totalMarks: number | '';
+    passingMarks: number | '';
+    gradingScheme: any;
+    instructions: string;
+  }>({
     assessmentName: '',
-    assessmentType: '' as any,
-    category: '' as any,
+    assessmentType: '',
+    category: '',
     description: '',
-    totalMarks: 100,
-    passingMarks: 40,
-    gradingScheme: 'Letter Grade' as 'Letter Grade' | 'Percentage' | 'Pass/Fail',
+    totalMarks: '',
+    passingMarks: '',
+    gradingScheme: '',
     instructions: ''
   });
 
   const [wizardStep2, setWizardStep2] = useState({
-    targetEmployeeType: 'Teaching Staff' as 'Teaching Staff' | 'Non-Teaching Staff' | 'Both',
+    targetEmployeeType: '',
     academicYear: '2025-2026',
     branch: (selectedBranch && selectedBranch !== 'All' && selectedBranch !== 'All Branches' ? selectedBranch : '') || defaultBranch,
     department: 'All',
@@ -128,35 +165,35 @@ export const TrainingContainerView: React.FC = () => {
     subject: 'All',
     employmentType: 'Permanent',
     experienceRange: 'All',
-    assessmentDate: new Date(Date.now() + 86400000 * 5).toISOString().split('T')[0],
-    startTime: '10:00 AM',
-    endTime: '12:00 PM',
+    assessmentDate: '',
+    startTime: '',
+    endTime: '',
     venue: '',
     mode: 'Offline' as AssessmentMode,
     evaluatorName: '',
     coEvaluatorName: '',
     options: {
-      notifyParticipants: true,
-      addToCalendar: true,
+      notifyParticipants: false,
+      addToCalendar: false,
       allowReassessment: false,
-      publishImmediately: true,
-      generateCertificatesOnCompletion: true
+      publishImmediately: false,
+      generateCertificatesOnCompletion: false
     }
   });
 
   const handleOpenCreateAssessmentModal = () => {
     setWizardStep1({
       assessmentName: '',
-      assessmentType: '' as any,
-      category: '' as any,
+      assessmentType: '',
+      category: '',
       description: '',
-      totalMarks: 100,
-      passingMarks: 40,
-      gradingScheme: 'Letter Grade' as any,
+      totalMarks: '',
+      passingMarks: '',
+      gradingScheme: '',
       instructions: ''
     });
     setWizardStep2({
-      targetEmployeeType: 'Teaching Staff',
+      targetEmployeeType: '',
       academicYear: '2025-2026',
       branch: (selectedBranch && selectedBranch !== 'All' && selectedBranch !== 'All Branches' ? selectedBranch : '') || defaultBranch,
       department: 'All',
@@ -164,19 +201,19 @@ export const TrainingContainerView: React.FC = () => {
       subject: 'All',
       employmentType: 'Permanent',
       experienceRange: 'All',
-      assessmentDate: new Date(Date.now() + 86400000 * 5).toISOString().split('T')[0],
-      startTime: '10:00 AM',
-      endTime: '12:00 PM',
+      assessmentDate: '',
+      startTime: '',
+      endTime: '',
       venue: '',
       mode: 'Offline',
       evaluatorName: '',
       coEvaluatorName: '',
       options: {
-        notifyParticipants: true,
-        addToCalendar: true,
+        notifyParticipants: false,
+        addToCalendar: false,
         allowReassessment: false,
-        publishImmediately: true,
-        generateCertificatesOnCompletion: true
+        publishImmediately: false,
+        generateCertificatesOnCompletion: false
       }
     });
     setSelectedAssessmentCandidateIds([]);
@@ -228,13 +265,9 @@ export const TrainingContainerView: React.FC = () => {
     return list.length > 0 ? list : staff;
   }, [staff, wizardStep2, assessmentCandidateSearch]);
 
-  // Sync selected candidates when filters change
-  React.useEffect(() => {
-    setSelectedAssessmentCandidateIds(matchingAssessmentCandidates.map(s => s.id));
-  }, [matchingAssessmentCandidates]);
-
+  // Candidate selection is controlled manually by the user or Select All dropdown
   // Evaluation Form Results State
-  const [evaluationScores, setEvaluationScores] = useState<Record<string, { marksObtained: number; remarks: string }>>({});
+  const [evaluationScores, setEvaluationScores] = useState<Record<string, { marksObtained: number | ''; remarks: string }>>({});
 
   // ==========================================
   // FILTERED DATASETS
@@ -319,13 +352,6 @@ export const TrainingContainerView: React.FC = () => {
     return list.length > 0 ? list : staff;
   }, [staff, workshopForm.targetRoleType, participantFilters]);
 
-  // Auto-sync selected employees when candidateEmployees change or modal opens
-  React.useEffect(() => {
-    if (isAddWorkshopModalOpen) {
-      setSelectedEmployeeIds(candidateEmployees.map(s => s.id));
-    }
-  }, [isAddWorkshopModalOpen, candidateEmployees]);
-
   // Handle Select All Employees
   const handleSelectAllCandidates = () => {
     if (selectedEmployeeIds.length === candidateEmployees.length) {
@@ -342,6 +368,34 @@ export const TrainingContainerView: React.FC = () => {
       addToast('warning', 'Validation Error', 'Please enter workshop name.');
       return;
     }
+    if (!workshopForm.category) {
+      addToast('warning', 'Validation Error', 'Please select workshop category.');
+      return;
+    }
+    if (!workshopForm.targetRoleType) {
+      addToast('warning', 'Validation Error', 'Please select target role type.');
+      return;
+    }
+    if (selectedEmployeeIds.length === 0) {
+      addToast('warning', 'Validation Error', 'Please select at least one employee participant.');
+      return;
+    }
+    if (!workshopForm.startDate) {
+      addToast('warning', 'Validation Error', 'Please select workshop start date.');
+      return;
+    }
+    if (!workshopForm.endDate) {
+      addToast('warning', 'Validation Error', 'Please select workshop end date.');
+      return;
+    }
+    if (!workshopForm.startTime) {
+      addToast('warning', 'Validation Error', 'Please select workshop start time.');
+      return;
+    }
+    if (!workshopForm.endTime) {
+      addToast('warning', 'Validation Error', 'Please select workshop end time.');
+      return;
+    }
 
     const assignedParticipants: TrainingParticipant[] = selectedEmployeeIds.map(empId => {
       const s = staff.find(st => st.id === empId);
@@ -356,12 +410,12 @@ export const TrainingContainerView: React.FC = () => {
       };
     });
 
-    const newWks = addWorkshop({
+    addWorkshop({
       workshopName: workshopForm.workshopName.trim(),
       category: workshopForm.category,
       type: workshopForm.type,
-      trainerName: workshopForm.trainerName || 'External Expert',
-      organization: workshopForm.organization || 'Training Agency',
+      trainerName: workshopForm.trainerName,
+      organization: workshopForm.organization,
       branch: workshopForm.branch,
       department: workshopForm.department,
       applicableDesignation: workshopForm.applicableDesignation,
@@ -370,13 +424,13 @@ export const TrainingContainerView: React.FC = () => {
       endDate: workshopForm.endDate,
       startTime: workshopForm.startTime,
       endTime: workshopForm.endTime,
-      capacity: Number(workshopForm.capacity),
+      capacity: Number(workshopForm.capacity) || assignedParticipants.length,
       description: workshopForm.description,
       status: 'Scheduled',
       participants: assignedParticipants
     });
 
-    addToast('success', 'Workshop Created', `Created workshop '${newWks.workshopName}' & notified ${assignedParticipants.length} employees.`);
+    addToast('success', 'Workshop Created', 'Workshop created successfully.');
     setIsAddWorkshopModalOpen(false);
     setSelectedEmployeeIds([]);
   };
@@ -389,7 +443,7 @@ export const TrainingContainerView: React.FC = () => {
       status: p.attendanceStatus === 'Pending' ? 'Present' : p.attendanceStatus
     })));
 
-    addToast('success', 'Attendance Recorded', `Attendance and completion status updated for '${selectedWorkshopForAttendance.workshopName}'.`);
+    addToast('success', 'Attendance Recorded', 'Attendance recorded successfully.');
     setIsAttendanceModalOpen(false);
     setSelectedWorkshopForAttendance(null);
   };
@@ -408,11 +462,15 @@ export const TrainingContainerView: React.FC = () => {
       addToast('warning', 'Validation Error', 'Please select Assessment Category.');
       return;
     }
-    if (wizardStep1.totalMarks <= 0) {
+    if (!wizardStep1.totalMarks || Number(wizardStep1.totalMarks) <= 0) {
       addToast('warning', 'Validation Error', 'Total Marks must be greater than zero.');
       return;
     }
-    if (wizardStep1.passingMarks > wizardStep1.totalMarks) {
+    if (!wizardStep1.passingMarks || Number(wizardStep1.passingMarks) <= 0) {
+      addToast('warning', 'Validation Error', 'Passing Marks must be greater than zero.');
+      return;
+    }
+    if (Number(wizardStep1.passingMarks) > Number(wizardStep1.totalMarks)) {
       addToast('warning', 'Validation Error', 'Passing Marks cannot exceed Total Marks.');
       return;
     }
@@ -422,8 +480,28 @@ export const TrainingContainerView: React.FC = () => {
   // Final Assessment Scheduling Submission
   const handleScheduleWizardSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!wizardStep2.targetEmployeeType) {
+      addToast('warning', 'Validation Error', 'Please select Employee Type.');
+      return;
+    }
     if (selectedAssessmentCandidateIds.length === 0) {
       addToast('warning', 'No Participants Selected', 'Please select at least one employee for the assessment.');
+      return;
+    }
+    if (!wizardStep2.assessmentDate) {
+      addToast('warning', 'Validation Error', 'Please select assessment date.');
+      return;
+    }
+    if (!wizardStep2.startTime) {
+      addToast('warning', 'Validation Error', 'Please select start time.');
+      return;
+    }
+    if (!wizardStep2.endTime) {
+      addToast('warning', 'Validation Error', 'Please select end time.');
+      return;
+    }
+    if (!wizardStep2.evaluatorName.trim()) {
+      addToast('warning', 'Validation Error', 'Please enter Main Evaluator name.');
       return;
     }
 
@@ -443,17 +521,17 @@ export const TrainingContainerView: React.FC = () => {
       };
     });
 
-    const newAsm = addAssessment({
+    addAssessment({
       assessmentName: wizardStep1.assessmentName.trim(),
       assessmentType: wizardStep1.assessmentType,
       category: wizardStep1.category,
       description: wizardStep1.description,
-      gradingScheme: wizardStep1.gradingScheme,
+      gradingScheme: wizardStep1.gradingScheme || 'Letter Grade',
       department: wizardStep2.department,
       applicableDesignation: wizardStep2.designation,
       branch: wizardStep2.branch,
       academicYear: wizardStep2.academicYear,
-      targetEmployeeType: wizardStep2.targetEmployeeType,
+      targetEmployeeType: (wizardStep2.targetEmployeeType || 'Teaching Staff') as any,
       date: wizardStep2.assessmentDate,
       startTime: wizardStep2.startTime,
       endTime: wizardStep2.endTime,
@@ -470,20 +548,54 @@ export const TrainingContainerView: React.FC = () => {
       results: assignedResults
     });
 
-    addToast('success', 'Assessment Scheduled Successfully!', `Created '${newAsm.assessmentName}' and assigned ${assignedResults.length} participants.`);
+    addToast('success', 'Assessment Scheduled', 'Evaluation scheduled successfully.');
     setIsAddAssessmentModalOpen(false);
     setAssessmentWizardStep(1);
+  };
+
+  // Open Evaluation Modal
+  const handleOpenRecordResults = (assessment: EmployeeAssessment) => {
+    setSelectedAssessmentForEvaluation(assessment);
+    const initialScores: Record<string, { marksObtained: number | ''; remarks: string }> = {};
+    assessment.results.forEach(r => {
+      const isEvaluated = r.result === 'Pass' || r.result === 'Fail' || (r.marksObtained > 0 && r.result !== 'Pending');
+      initialScores[r.employeeId] = {
+        marksObtained: isEvaluated ? r.marksObtained : '',
+        remarks: r.evaluatorRemarks || ''
+      };
+    });
+    setEvaluationScores(initialScores);
+    setIsEvaluateModalOpen(true);
   };
 
   // Save Assessment Evaluation
   const handleSaveEvaluation = (assessmentId: string) => {
     if (!selectedAssessmentForEvaluation) return;
 
+    // Validate all candidate marks
+    for (const r of selectedAssessmentForEvaluation.results) {
+      const scoreData = evaluationScores[r.employeeId];
+      const marks = scoreData?.marksObtained;
+      if (marks === '' || marks === undefined || marks === null) {
+        addToast('warning', 'Marks Required', `Please enter evaluation score for ${r.employeeName}.`);
+        return;
+      }
+      const numMarks = Number(marks);
+      if (isNaN(numMarks) || numMarks < 0) {
+        addToast('warning', 'Invalid Score', `Please enter a valid non-negative score for ${r.employeeName}.`);
+        return;
+      }
+      if (numMarks > selectedAssessmentForEvaluation.totalMarks) {
+        addToast('error', 'Score Limit Exceeded', `Score for ${r.employeeName} (${numMarks}) cannot exceed maximum marks (${selectedAssessmentForEvaluation.totalMarks}).`);
+        return;
+      }
+    }
+
     const updatedResults: AssessmentResult[] = selectedAssessmentForEvaluation.results.map(r => {
       const scoreData = evaluationScores[r.employeeId];
-      const marksObtained = scoreData ? Number(scoreData.marksObtained) : r.marksObtained;
+      const marksObtained = Number(scoreData?.marksObtained ?? 0);
       const total = selectedAssessmentForEvaluation.totalMarks;
-      const pct = Math.round((marksObtained / total) * 100);
+      const pct = total > 0 ? Math.round((marksObtained / total) * 100) : 0;
       const isPass = marksObtained >= selectedAssessmentForEvaluation.passingMarks;
 
       let grade = 'F';
@@ -505,7 +617,7 @@ export const TrainingContainerView: React.FC = () => {
     });
 
     saveAssessmentResults(assessmentId, updatedResults);
-    addToast('success', 'Results Evaluated', `Saved assessment evaluation and auto-issued certificates to passed candidates.`);
+    addToast('success', 'Results Evaluated', 'Evaluation saved successfully.');
     setIsEvaluateModalOpen(false);
     setSelectedAssessmentForEvaluation(null);
   };
@@ -538,7 +650,7 @@ export const TrainingContainerView: React.FC = () => {
 
     try {
       exportToExcel([headers, ...workshopRows, ...assessmentRows], `Training_Assessments_Report_${new Date().toISOString().split('T')[0]}`, 'Reports');
-      addToast('success', 'Export Complete', 'Exported Training & Assessment Reports to Excel (.xlsx) file.');
+      addToast('success', 'Export Complete', 'Report exported to Excel.');
     } catch (err: any) {
       console.error("Training export error:", err);
       addToast('error', 'Export Failed', err.message || 'Failed to export reports.');
@@ -614,7 +726,7 @@ export const TrainingContainerView: React.FC = () => {
               </button>
 
               <button
-                onClick={() => setIsAddWorkshopModalOpen(true)}
+                onClick={() => handleOpenCreateWorkshopModal()}
                 className="px-3.5 py-2 rounded-xl bg-brand-600 hover:bg-brand-500 text-white text-xs font-bold shadow-md flex items-center gap-1.5 transition-all cursor-pointer"
               >
                 Create Workshop / FDP
@@ -819,7 +931,12 @@ export const TrainingContainerView: React.FC = () => {
                       <UserCheck className="w-3 h-3" /> Attendance ({w.attendancePct || 0}%)
                     </button>
                     {canManageTraining && (
-                      <button onClick={() => deleteWorkshop(w.id)} className="p-1 text-rose-500 hover:bg-rose-50 rounded-lg">
+                      <button
+                        type="button"
+                        onClick={() => setDeletingWorkshop(w)}
+                        className="p-1.5 text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-lg transition-all cursor-pointer"
+                        title="Delete Workshop"
+                      >
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>
                     )}
@@ -874,21 +991,17 @@ export const TrainingContainerView: React.FC = () => {
                   {canManageTraining && (
                     <div className="flex items-center gap-1">
                       <button
-                        onClick={() => {
-                          setSelectedAssessmentForEvaluation(a);
-                          // pre-fill scores
-                          const initialScores: Record<string, { marksObtained: number; remarks: string }> = {};
-                          a.results.forEach(r => {
-                            initialScores[r.employeeId] = { marksObtained: r.marksObtained, remarks: r.evaluatorRemarks || '' };
-                          });
-                          setEvaluationScores(initialScores);
-                          setIsEvaluateModalOpen(true);
-                        }}
-                        className="px-2.5 py-1 rounded-lg bg-sky-50 text-sky-700 dark:bg-sky-950/60 dark:text-sky-300 font-bold text-[10px] hover:bg-sky-100 flex items-center gap-1"
+                        onClick={() => handleOpenRecordResults(a)}
+                        className="px-2.5 py-1 rounded-lg bg-sky-50 text-sky-700 dark:bg-sky-950/60 dark:text-sky-300 font-bold text-[10px] hover:bg-sky-100 flex items-center gap-1 cursor-pointer"
                       >
                         <Edit className="w-3 h-3" /> Record Results
                       </button>
-                      <button onClick={() => deleteAssessment(a.id)} className="p-1 text-rose-500 hover:bg-rose-50 rounded-lg">
+                      <button
+                        type="button"
+                        onClick={() => setDeletingAssessment(a)}
+                        className="p-1.5 text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-lg transition-all cursor-pointer"
+                        title="Delete Assessment"
+                      >
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>
                     </div>
@@ -1165,7 +1278,7 @@ export const TrainingContainerView: React.FC = () => {
                 <input
                   type="text"
                   required
-                  placeholder="e.g. AI Tools in Education & Digital Lesson Planning"
+                  placeholder="Enter workshop / training title..."
                   value={workshopForm.workshopName}
                   onChange={e => setWorkshopForm({ ...workshopForm, workshopName: e.target.value })}
                   className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border"
@@ -1178,8 +1291,9 @@ export const TrainingContainerView: React.FC = () => {
                   <select
                     value={workshopForm.category}
                     onChange={e => setWorkshopForm({ ...workshopForm, category: e.target.value as any })}
-                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-semibold"
+                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-semibold text-xs cursor-pointer"
                   >
+                    <option value="">Select Category...</option>
                     <option value="Faculty Development Program (FDP)">Faculty Development Program (FDP)</option>
                     <option value="Subject Training">Subject Training</option>
                     <option value="Teaching Methodology">Teaching Methodology</option>
@@ -1196,8 +1310,9 @@ export const TrainingContainerView: React.FC = () => {
                   <select
                     value={workshopForm.targetRoleType}
                     onChange={e => setWorkshopForm({ ...workshopForm, targetRoleType: e.target.value as any })}
-                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-semibold"
+                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-semibold text-xs cursor-pointer"
                   >
+                    <option value="">Select Target Role...</option>
                     <option value="Teaching Staff">Teaching Staff</option>
                     <option value="Non-Teaching Staff">Non-Teaching Staff</option>
                     <option value="All Staff">All Staff (Both)</option>
@@ -1207,12 +1322,36 @@ export const TrainingContainerView: React.FC = () => {
 
               {/* Dynamic Employee Selector */}
               <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border space-y-2 font-semibold">
-                <div className="flex justify-between items-center">
-                  <span className="font-bold text-xs text-slate-800 dark:text-slate-200">
-                    Matching Employee Participants ({selectedEmployeeIds.length} of {candidateEmployees.length} Selected)
-                  </span>
+                <div className="flex items-center justify-between bg-sky-50/70 dark:bg-slate-800/80 p-2.5 rounded-xl border border-sky-100 dark:border-slate-700">
+                  <div className="flex items-center gap-2">
+                    <label className="flex items-center gap-2 text-xs font-black text-slate-900 dark:text-white cursor-pointer select-none">
+                      <input
+                        type="checkbox"
+                        checked={
+                          candidateEmployees.length > 0 &&
+                          selectedEmployeeIds.length === candidateEmployees.length
+                        }
+                        onChange={e => {
+                          if (e.target.checked) {
+                            setSelectedEmployeeIds(candidateEmployees.map(s => s.id));
+                          } else {
+                            setSelectedEmployeeIds([]);
+                          }
+                        }}
+                        className="w-4 h-4 rounded text-sky-600 focus:ring-sky-500 cursor-pointer"
+                      />
+                      <span>Select All Employees ({candidateEmployees.length})</span>
+                    </label>
+                    <span className="text-[11px] font-bold text-sky-700 dark:text-sky-300">
+                      • {selectedEmployeeIds.length} Selected
+                    </span>
+                  </div>
                   {selectedEmployeeIds.length > 0 && (
-                    <button type="button" onClick={() => setSelectedEmployeeIds([])} className="text-rose-600 text-[11px] font-bold hover:underline">
+                    <button
+                      type="button"
+                      onClick={() => setSelectedEmployeeIds([])}
+                      className="text-[11px] font-extrabold text-rose-600 dark:text-rose-400 hover:underline cursor-pointer"
+                    >
                       Clear Selection
                     </button>
                   )}
@@ -1279,6 +1418,98 @@ export const TrainingContainerView: React.FC = () => {
                       </label>
                     ))
                   )}
+                </div>
+              </div>
+
+              {/* Schedule, Venue & Expert Configuration */}
+              <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border space-y-3">
+                <span className="font-extrabold text-xs text-slate-900 dark:text-white block">Schedule, Venue & Expert</span>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block font-bold mb-1">Start Date <span className="text-rose-500 font-bold ml-0.5">*</span></label>
+                    <input
+                      type="date"
+                      required
+                      value={workshopForm.startDate}
+                      onChange={e => setWorkshopForm({ ...workshopForm, startDate: e.target.value })}
+                      onClick={e => (e.target as any).showPicker?.()}
+                      className="w-full px-3 py-2 rounded-xl bg-white dark:bg-slate-900 border font-mono font-bold text-xs cursor-pointer"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block font-bold mb-1">End Date <span className="text-rose-500 font-bold ml-0.5">*</span></label>
+                    <input
+                      type="date"
+                      required
+                      value={workshopForm.endDate}
+                      onChange={e => setWorkshopForm({ ...workshopForm, endDate: e.target.value })}
+                      onClick={e => (e.target as any).showPicker?.()}
+                      className="w-full px-3 py-2 rounded-xl bg-white dark:bg-slate-900 border font-mono font-bold text-xs cursor-pointer"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block font-bold mb-1">Start Time <span className="text-rose-500 font-bold ml-0.5">*</span></label>
+                    <input
+                      type="time"
+                      required
+                      value={workshopForm.startTime}
+                      onChange={e => setWorkshopForm({ ...workshopForm, startTime: e.target.value })}
+                      onClick={e => (e.target as any).showPicker?.()}
+                      className="w-full px-3 py-2 rounded-xl bg-white dark:bg-slate-900 border font-bold text-xs cursor-pointer"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block font-bold mb-1">End Time <span className="text-rose-500 font-bold ml-0.5">*</span></label>
+                    <input
+                      type="time"
+                      required
+                      value={workshopForm.endTime}
+                      onChange={e => setWorkshopForm({ ...workshopForm, endTime: e.target.value })}
+                      onClick={e => (e.target as any).showPicker?.()}
+                      className="w-full px-3 py-2 rounded-xl bg-white dark:bg-slate-900 border font-bold text-xs cursor-pointer"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div>
+                    <label className="block font-bold mb-1">Venue / Location</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. Main Auditorium"
+                      value={workshopForm.venue}
+                      onChange={e => setWorkshopForm({ ...workshopForm, venue: e.target.value })}
+                      className="w-full px-3 py-2 rounded-xl bg-white dark:bg-slate-900 border text-xs"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block font-bold mb-1">Trainer Name</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. Dr. Jane Smith"
+                      value={workshopForm.trainerName}
+                      onChange={e => setWorkshopForm({ ...workshopForm, trainerName: e.target.value })}
+                      className="w-full px-3 py-2 rounded-xl bg-white dark:bg-slate-900 border text-xs"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block font-bold mb-1">Organization</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. Training Institute"
+                      value={workshopForm.organization}
+                      onChange={e => setWorkshopForm({ ...workshopForm, organization: e.target.value })}
+                      className="w-full px-3 py-2 rounded-xl bg-white dark:bg-slate-900 border text-xs"
+                    />
+                  </div>
                 </div>
               </div>
 
@@ -1453,8 +1684,9 @@ export const TrainingContainerView: React.FC = () => {
                       <input
                         type="number"
                         min={1}
+                        placeholder="e.g. 100"
                         value={wizardStep1.totalMarks}
-                        onChange={e => setWizardStep1({ ...wizardStep1, totalMarks: Math.max(1, Number(e.target.value)) })}
+                        onChange={e => setWizardStep1({ ...wizardStep1, totalMarks: e.target.value === '' ? '' : Math.max(1, Number(e.target.value)) })}
                         className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-mono text-xs font-bold"
                       />
                     </div>
@@ -1464,9 +1696,10 @@ export const TrainingContainerView: React.FC = () => {
                       <input
                         type="number"
                         min={1}
-                        max={wizardStep1.totalMarks}
+                        max={Number(wizardStep1.totalMarks) || 100}
+                        placeholder="e.g. 40"
                         value={wizardStep1.passingMarks}
-                        onChange={e => setWizardStep1({ ...wizardStep1, passingMarks: Number(e.target.value) })}
+                        onChange={e => setWizardStep1({ ...wizardStep1, passingMarks: e.target.value === '' ? '' : Number(e.target.value) })}
                         className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-mono text-xs font-bold"
                       />
                     </div>
@@ -1478,6 +1711,7 @@ export const TrainingContainerView: React.FC = () => {
                         onChange={e => setWizardStep1({ ...wizardStep1, gradingScheme: e.target.value as any })}
                         className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-semibold text-xs cursor-pointer"
                       >
+                        <option value="">Select Grading Scheme...</option>
                         <option value="Letter Grade">Letter Grade (A+, A, B, C, F)</option>
                         <option value="Percentage">Percentage (%)</option>
                         <option value="Pass/Fail">Pass / Fail Only</option>
@@ -1521,6 +1755,7 @@ export const TrainingContainerView: React.FC = () => {
                           onChange={e => setWizardStep2({ ...wizardStep2, targetEmployeeType: e.target.value as any })}
                           className="w-full px-2.5 py-1.5 rounded-lg bg-white dark:bg-slate-900 border font-bold text-xs cursor-pointer"
                         >
+                          <option value="">Select Employee Type...</option>
                           <option value="Teaching Staff">Teaching Staff</option>
                           <option value="Non-Teaching Staff">Non-Teaching Staff</option>
                           <option value="Both">Both (All Staff)</option>
@@ -1574,18 +1809,37 @@ export const TrainingContainerView: React.FC = () => {
                     </div>
 
                     <div className="pt-2 border-t border-slate-200/60 dark:border-slate-700/60 space-y-2">
-                      <div className="flex items-center justify-between">
-                        <span className="font-bold text-xs text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
-                          <UserCheck className="w-4 h-4 text-sky-500" />
-                          Selected Candidates ({selectedAssessmentCandidateIds.length} of {matchingAssessmentCandidates.length})
-                        </span>
+                      <div className="flex items-center justify-between bg-sky-50/70 dark:bg-slate-800/80 p-2.5 rounded-xl border border-sky-100 dark:border-slate-700">
+                        <div className="flex items-center gap-2">
+                          <label className="flex items-center gap-2 text-xs font-black text-slate-900 dark:text-white cursor-pointer select-none">
+                            <input
+                              type="checkbox"
+                              checked={
+                                matchingAssessmentCandidates.length > 0 &&
+                                selectedAssessmentCandidateIds.length === matchingAssessmentCandidates.length
+                              }
+                              onChange={e => {
+                                if (e.target.checked) {
+                                  setSelectedAssessmentCandidateIds(matchingAssessmentCandidates.map(s => s.id));
+                                } else {
+                                  setSelectedAssessmentCandidateIds([]);
+                                }
+                              }}
+                              className="w-4 h-4 rounded text-sky-600 focus:ring-sky-500 cursor-pointer"
+                            />
+                            <span>Select All Employees ({matchingAssessmentCandidates.length})</span>
+                          </label>
+                          <span className="text-[11px] font-bold text-sky-700 dark:text-sky-300">
+                            • {selectedAssessmentCandidateIds.length} Selected
+                          </span>
+                        </div>
                         {selectedAssessmentCandidateIds.length > 0 && (
                           <button
                             type="button"
                             onClick={() => setSelectedAssessmentCandidateIds([])}
-                            className="text-[11px] font-bold text-rose-600 hover:underline cursor-pointer"
+                            className="text-[11px] font-extrabold text-rose-600 dark:text-rose-400 hover:underline cursor-pointer"
                           >
-                            Clear All Selected
+                            Clear Selection
                           </button>
                         )}
                       </div>
@@ -1619,9 +1873,6 @@ export const TrainingContainerView: React.FC = () => {
                         >
                           <option value="">Select Candidate from Dropdown...</option>
                           <optgroup label="⚡ Selection Actions">
-                            <option value="SELECT_1">Select 1st Candidate</option>
-                            <option value="SELECT_2">Select Top 2 Candidates</option>
-                            <option value="SELECT_3">Select Top 3 Candidates</option>
                             <option value="SELECT_ALL">Select All Candidates ({matchingAssessmentCandidates.length})</option>
                             <option value="DESELECT_ALL">Deselect All Candidates</option>
                           </optgroup>
@@ -1684,31 +1935,32 @@ export const TrainingContainerView: React.FC = () => {
                           required
                           value={wizardStep2.assessmentDate}
                           onChange={e => setWizardStep2({ ...wizardStep2, assessmentDate: e.target.value })}
-                          className="w-full px-3 py-2 rounded-xl bg-white dark:bg-slate-900 border font-mono font-bold"
+                          onClick={e => (e.target as any).showPicker?.()}
+                          className="w-full px-3 py-2 rounded-xl bg-white dark:bg-slate-900 border font-mono font-bold text-xs cursor-pointer"
                         />
                       </div>
 
                       <div>
                         <label className="block font-bold mb-1">Start Time <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                         <input
-                          type="text"
+                          type="time"
                           required
-                          placeholder="e.g. 10:00 AM"
                           value={wizardStep2.startTime}
                           onChange={e => setWizardStep2({ ...wizardStep2, startTime: e.target.value })}
-                          className="w-full px-3 py-2 rounded-xl bg-white dark:bg-slate-900 border font-bold"
+                          onClick={e => (e.target as any).showPicker?.()}
+                          className="w-full px-3 py-2 rounded-xl bg-white dark:bg-slate-900 border font-bold text-xs cursor-pointer"
                         />
                       </div>
 
                       <div>
                         <label className="block font-bold mb-1">End Time <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                         <input
-                          type="text"
+                          type="time"
                           required
-                          placeholder="e.g. 12:00 PM"
                           value={wizardStep2.endTime}
                           onChange={e => setWizardStep2({ ...wizardStep2, endTime: e.target.value })}
-                          className="w-full px-3 py-2 rounded-xl bg-white dark:bg-slate-900 border font-bold"
+                          onClick={e => (e.target as any).showPicker?.()}
+                          className="w-full px-3 py-2 rounded-xl bg-white dark:bg-slate-900 border font-bold text-xs cursor-pointer"
                         />
                       </div>
                     </div>
@@ -1815,7 +2067,7 @@ export const TrainingContainerView: React.FC = () => {
                       <p><strong>Name:</strong> {wizardStep1.assessmentName || 'Not Set'}</p>
                       <p><strong>Type:</strong> {wizardStep1.assessmentType} ({wizardStep1.category})</p>
                       <p><strong>Candidates:</strong> {selectedAssessmentCandidateIds.length} Employees</p>
-                      <p><strong>Schedule:</strong> {wizardStep2.assessmentDate} ({wizardStep2.startTime || '10:00 AM'} - {wizardStep2.endTime || '12:00 PM'})</p>
+                      <p><strong>Schedule:</strong> {wizardStep2.assessmentDate || 'Date Not Set'} ({wizardStep2.startTime || 'Start Time Not Set'} - {wizardStep2.endTime || 'End Time Not Set'})</p>
                       <p><strong>Evaluator:</strong> {wizardStep2.evaluatorName || 'Not Assigned'}</p>
                       <p><strong>Passing Score:</strong> {wizardStep1.passingMarks} / {wizardStep1.totalMarks} Marks</p>
                     </div>
@@ -1932,15 +2184,35 @@ export const TrainingContainerView: React.FC = () => {
                       <span className="font-bold text-slate-600">Score:</span>
                       <input
                         type="number"
-                        value={evaluationScores[r.employeeId]?.marksObtained ?? r.marksObtained}
+                        min={0}
+                        max={selectedAssessmentForEvaluation.totalMarks}
+                        placeholder="--"
+                        value={evaluationScores[r.employeeId]?.marksObtained ?? ''}
                         onChange={e => {
-                          const val = Number(e.target.value);
-                          setEvaluationScores({
-                            ...evaluationScores,
-                            [r.employeeId]: { ...evaluationScores[r.employeeId], marksObtained: val, remarks: evaluationScores[r.employeeId]?.remarks || '' }
-                          });
+                          const raw = e.target.value;
+                          if (raw === '') {
+                            setEvaluationScores(prev => ({
+                              ...prev,
+                              [r.employeeId]: { ...prev[r.employeeId], marksObtained: '', remarks: prev[r.employeeId]?.remarks || '' }
+                            }));
+                            return;
+                          }
+                          const val = Number(raw);
+                          if (val > selectedAssessmentForEvaluation.totalMarks) {
+                            addToast('warning', 'Score Limit Exceeded', `Score cannot exceed maximum marks (${selectedAssessmentForEvaluation.totalMarks}).`);
+                            return;
+                          }
+                          setEvaluationScores(prev => ({
+                            ...prev,
+                            [r.employeeId]: { ...prev[r.employeeId], marksObtained: val, remarks: prev[r.employeeId]?.remarks || '' }
+                          }));
                         }}
-                        className="w-16 px-2 py-1 rounded-xl bg-white dark:bg-slate-900 border font-mono font-bold text-right"
+                        className={`w-20 px-2.5 py-1.5 rounded-xl bg-white dark:bg-slate-900 border font-mono font-bold text-right text-xs outline-none focus:ring-2 ${
+                          evaluationScores[r.employeeId]?.marksObtained !== '' &&
+                          Number(evaluationScores[r.employeeId]?.marksObtained) > selectedAssessmentForEvaluation.totalMarks
+                            ? 'border-rose-500 text-rose-600 focus:ring-rose-500/20'
+                            : 'border-slate-300 dark:border-slate-700 focus:ring-sky-500/20'
+                        }`}
                       />
                       <span className="font-bold text-slate-400">/ {selectedAssessmentForEvaluation.totalMarks}</span>
                     </div>
@@ -2010,6 +2282,42 @@ export const TrainingContainerView: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* Workshop Delete Confirmation Modal */}
+      <ConfirmModal
+        isOpen={!!deletingWorkshop}
+        title="Delete Workshop / FDP"
+        message={`Are you sure you want to delete '${deletingWorkshop?.workshopName || 'this workshop'}'? This action cannot be undone.`}
+        confirmLabel="Delete Workshop"
+        cancelLabel="Cancel"
+        variant="danger"
+        onConfirm={() => {
+          if (deletingWorkshop) {
+            deleteWorkshop(deletingWorkshop.id);
+            addToast('error', 'Workshop Deleted', 'Workshop removed successfully.');
+            setDeletingWorkshop(null);
+          }
+        }}
+        onCancel={() => setDeletingWorkshop(null)}
+      />
+
+      {/* Assessment Delete Confirmation Modal */}
+      <ConfirmModal
+        isOpen={!!deletingAssessment}
+        title="Delete Assessment Evaluation"
+        message={`Are you sure you want to delete '${deletingAssessment?.assessmentName || 'this assessment'}'? This action cannot be undone.`}
+        confirmLabel="Delete Assessment"
+        cancelLabel="Cancel"
+        variant="danger"
+        onConfirm={() => {
+          if (deletingAssessment) {
+            deleteAssessment(deletingAssessment.id);
+            addToast('error', 'Assessment Deleted', 'Evaluation assessment removed successfully.');
+            setDeletingAssessment(null);
+          }
+        }}
+        onCancel={() => setDeletingAssessment(null)}
+      />
 
     </div>
   );
