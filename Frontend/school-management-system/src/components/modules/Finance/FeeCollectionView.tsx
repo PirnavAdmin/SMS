@@ -99,6 +99,7 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
     hostelBlocks = [],
     hostelRooms = [],
     hostelBeds = [],
+    financeHostelConfigs = [],
   } = useData();
   const { selectedAcademicYear, selectedBranch } = useAuth();
   const { addToast } = useToast();
@@ -2265,7 +2266,7 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
         (c.termName || "").toLowerCase().includes("security deposit"),
     );
 
-    let hostelDepositAmount = 5000;
+    let hostelDepositAmount = 0;
     try {
       const stored = sessionStorage.getItem("edu_fee_pay_target");
       if (stored) {
@@ -2274,12 +2275,14 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
       }
     } catch {}
 
-    if (hostelDepositAmount === 5000) {
+    if (hostelDepositAmount <= 0) {
       const fhc = (financeHostelConfigs || []).find((c) => c.status === "Active" && Number(c.securityDeposit) > 0);
       if (fhc && Number(fhc.securityDeposit) > 0) {
         hostelDepositAmount = Number(fhc.securityDeposit);
       } else if (admRecord?.hostelSecurityDeposit) {
         hostelDepositAmount = Number(admRecord.hostelSecurityDeposit);
+      } else {
+        hostelDepositAmount = 5000;
       }
     }
 
@@ -2353,6 +2356,12 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
     } else if (depInstallments.length === 1) {
       depInstallments[0].frequency = "One Time";
       depInstallments[0].termName = "One Time";
+      if ((depInstallments[0].amount || 0) <= 0 && hostelDepositAmount > 0) {
+        depInstallments[0].amount = hostelDepositAmount;
+        if (depInstallments[0].status !== "Paid") {
+          depInstallments[0].dueAmount = Math.max(0, hostelDepositAmount - (depInstallments[0].paidAmount || 0));
+        }
+      }
     }
 
     // Ensure Hostel Security Deposit is sorted to the VERY TOP (Row 1)
@@ -2384,6 +2393,7 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
     studentTransports,
     admissions,
     financeSettings,
+    financeHostelConfigs,
     academicYearFeeSchedules,
     getDynamicTransportFee,
     getStudentFeeLedger,
