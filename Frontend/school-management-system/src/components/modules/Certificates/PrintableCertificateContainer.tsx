@@ -192,8 +192,12 @@ export const PrintableCertificateContainer: React.FC<
   return (
     <div
       id="printable-certificate"
-      className="printable-area bg-white text-slate-900 p-8 sm:p-10 font-serif relative max-w-4xl mx-auto shadow-2xl space-y-6 print:shadow-none print:m-0 print:w-full print:max-w-none"
-      style={getContainerStyle()}
+      data-border-style={template.headerStyle || "Classic Double Border"}
+      className="certificate-paper bg-white text-slate-900 p-8 sm:p-10 font-serif relative max-w-4xl mx-auto shadow-2xl space-y-6 print:shadow-none print:m-0 print:w-full print:max-w-none"
+      style={{
+        ...getContainerStyle(),
+        ['--cert-theme-color' as any]: themeColor,
+      }}
     >
       {/* Top Accent Bar */}
       {template.headerStyle === "Modern Minimalist" && (
@@ -392,13 +396,13 @@ export const PrintableCertificateContainer: React.FC<
               <td className="py-2.5 px-3 font-extrabold">
                 <span
                   className={`px-2 py-0.5 rounded ${
-                    (feeClearanceStatus || "").includes("CLEARED") ||
-                    (feeClearanceStatus || "").includes("Paid")
+                    (feeClearanceStatus || "").toLowerCase().includes("cleared") ||
+                    (feeClearanceStatus || "").toLowerCase().includes("paid")
                       ? "bg-emerald-100 text-emerald-800"
                       : "bg-rose-100 text-rose-800"
                   }`}
                 >
-                  {feeClearanceStatus || "FULL DUES CLEARED"}
+                  {feeClearanceStatus || "Full Dues Cleared"}
                 </span>
               </td>
             </tr>

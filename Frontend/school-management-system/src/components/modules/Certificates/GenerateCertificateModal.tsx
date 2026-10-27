@@ -75,6 +75,15 @@ export const GenerateCertificateModal: React.FC<GenerateCertificateModalProps> =
     return `${new Date().getFullYear()}–${nextYear}`;
   }, [selectedAcademicYear, academicYears, schoolProfile]);
 
+  // Current local date in YYYY-MM-DD format (no future dates permitted)
+  const todayStr = useMemo(() => {
+    const d = new Date();
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  }, []);
+
   // Mode state: 'single' vs 'bulk'
   const [generationMode, setGenerationMode] = useState<'single' | 'bulk'>('single');
 
@@ -202,6 +211,7 @@ export const GenerateCertificateModal: React.FC<GenerateCertificateModalProps> =
     if (existingRecord) {
       setSelectedStudentId(existingRecord.studentId);
       setSelectedTypeId(existingRecord.certificateTypeId);
+      setActiveTab('preview');
     } else if (initialStudent) {
       setSelectedStudentId(initialStudent.id);
     }
@@ -240,15 +250,17 @@ export const GenerateCertificateModal: React.FC<GenerateCertificateModalProps> =
   // Dynamic Input Form State
   const [certificateSpecificData, setCertificateSpecificData] = useState<Record<string, any>>({});
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
-  const [activeTab, setActiveTab] = useState<'form' | 'preview'>('form');
+  const [activeTab, setActiveTab] = useState<'form' | 'preview'>(existingRecord ? 'preview' : 'form');
+  const [issuedSingleRecord, setIssuedSingleRecord] = useState<GeneratedCertificateRecord | null>(null);
 
   // Initialize or reset dynamic form state when Certificate Type or Student changes
   useEffect(() => {
     if (existingRecord) {
       const snapshot = existingRecord.fieldDataSnapshot || {};
+      const recordDate = snapshot.dateOfLeaving || existingRecord.leavingDate || todayStr;
       setCertificateSpecificData({
         ...snapshot,
-        dateOfLeaving: snapshot.dateOfLeaving || existingRecord.leavingDate || new Date().toISOString().split('T')[0],
+        dateOfLeaving: recordDate > todayStr ? todayStr : recordDate,
         reasonForLeaving: snapshot.reasonForLeaving || existingRecord.reason || 'Parent Request / Relocation',
         generalConduct: snapshot.generalConduct || existingRecord.conduct || 'Good & Exemplary',
         specialRemarks: snapshot.specialRemarks || existingRecord.remarks || '',
@@ -259,7 +271,9 @@ export const GenerateCertificateModal: React.FC<GenerateCertificateModalProps> =
       const initialData: Record<string, any> = {};
       activeFields.forEach(field => {
         if (field.key === 'issueDate' || field.key === 'dateOfLeaving') {
-          initialData[field.key] = new Date().toISOString().split('T')[0];
+          initialData[field.key] = todayStr;
+        } else if (field.type === 'date') {
+          initialData[field.key] = field.defaultValue && field.defaultValue <= todayStr ? field.defaultValue : todayStr;
         } else if (field.key === 'academicYear') {
           initialData[field.key] = activeAY;
         } else if (field.key === 'className') {
@@ -277,7 +291,9 @@ export const GenerateCertificateModal: React.FC<GenerateCertificateModalProps> =
         } else if (field.key === 'specialRemarks') {
           initialData[field.key] = 'Promoted to Higher Class / Course Completed';
         } else if (field.defaultValue !== undefined) {
-          initialData[field.key] = field.defaultValue;
+          let defVal = field.defaultValue;
+          if (defVal === 'FULL DUES CLEARED') defVal = 'Full Dues Cleared';
+          initialData[field.key] = defVal;
         } else {
           initialData[field.key] = '';
         }
@@ -389,13 +405,29 @@ export const GenerateCertificateModal: React.FC<GenerateCertificateModalProps> =
   const validateFormFields = (): boolean => {
     const errors: Record<string, string> = {};
     activeFields.forEach(field => {
+      const val = certificateSpecificData[field.key];
       if (field.required) {
-        const val = certificateSpecificData[field.key];
         if (val === undefined || val === null || String(val).trim() === '') {
           errors[field.key] = `${field.label} is required.`;
+          return;
+        }
+      }
+
+      // Ensure no certificate date is a future date
+      if (field.type === 'date' && val && String(val).trim() !== '') {
+        const valStr = String(val).trim();
+        if (valStr > todayStr) {
+          errors[field.key] = `${field.label} cannot be a future date.`;
         }
       }
     });
+
+    // Cross-field validation for study duration
+    if (certificateSpecificData.studyFromDate && certificateSpecificData.studyToDate) {
+      if (certificateSpecificData.studyToDate < certificateSpecificData.studyFromDate) {
+        errors['studyToDate'] = 'Study To Date cannot be earlier than Study From Date.';
+      }
+    }
 
     if (Object.keys(errors).length > 0) {
       setValidationErrors(errors);
@@ -444,7 +476,7 @@ export const GenerateCertificateModal: React.FC<GenerateCertificateModalProps> =
       section: selectedStudent.section,
       academicYear: activeAY,
       branch: selectedStudent.branch || selectedBranch || '',
-      issueDate: certificateSpecificData.issueDate || certificateSpecificData.dateOfLeaving || new Date().toISOString().split('T')[0],
+      issueDate: certificateSpecificData.issueDate || certificateSpecificData.dateOfLeaving || todayStr,
       status: 'Issued',
       generatedBy: 'Authorized Administrator',
       remarks: certificateSpecificData.remarks || certificateSpecificData.specialRemarks || '',
@@ -463,7 +495,7 @@ export const GenerateCertificateModal: React.FC<GenerateCertificateModalProps> =
         fatherName: selectedStudent.parentName || '—',
         dateOfAdmission: selectedStudent.joiningDate,
         certificateNumber: generatedCertNo,
-        issueDate: certificateSpecificData.issueDate || new Date().toISOString().split('T')[0]
+        issueDate: certificateSpecificData.issueDate || todayStr
       },
       templateSnapshot: selectedTemplate
     };
@@ -486,6 +518,7 @@ export const GenerateCertificateModal: React.FC<GenerateCertificateModalProps> =
     }
 
     addToast('success', 'Certificate Generated', `Generated ${selectedTypeConfig.name} #${generatedCertNo} for ${studentFullName}`);
+    setIssuedSingleRecord(newRecord);
     if (onSuccess) onSuccess(newRecord);
     setActiveTab('preview');
   };
@@ -534,7 +567,7 @@ export const GenerateCertificateModal: React.FC<GenerateCertificateModalProps> =
           section: st.section,
           academicYear: activeAY,
           branch: st.branch || selectedBranch || '',
-          issueDate: certificateSpecificData.issueDate || certificateSpecificData.dateOfLeaving || new Date().toISOString().split('T')[0],
+          issueDate: certificateSpecificData.issueDate || certificateSpecificData.dateOfLeaving || todayStr,
           status: 'Issued',
           generatedBy: 'Authorized Administrator (Bulk Issue)',
           remarks: certificateSpecificData.remarks || certificateSpecificData.specialRemarks || '',
@@ -553,7 +586,7 @@ export const GenerateCertificateModal: React.FC<GenerateCertificateModalProps> =
             fatherName: st.parentName || '—',
             dateOfAdmission: st.joiningDate,
             certificateNumber: certNo,
-            issueDate: certificateSpecificData.issueDate || new Date().toISOString().split('T')[0]
+            issueDate: certificateSpecificData.issueDate || todayStr
           },
           templateSnapshot: selectedTemplate
         };
@@ -595,15 +628,123 @@ export const GenerateCertificateModal: React.FC<GenerateCertificateModalProps> =
   };
 
   const handlePrint = () => {
-    window.print();
+    if (activeTab !== 'preview') {
+      setActiveTab('preview');
+      setTimeout(() => {
+        window.print();
+      }, 150);
+    } else {
+      window.print();
+    }
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm animate-in fade-in">
-      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-4xl w-full p-6 shadow-2xl space-y-4 max-h-[95vh] flex flex-col">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm animate-in fade-in printable-cert-modal-backdrop">
+      <style>{`
+        @media print {
+          @page {
+            size: A4 portrait;
+            margin: 6mm 8mm !important;
+          }
+          html, body {
+            height: auto !important;
+            overflow: visible !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            background: #ffffff !important;
+            color: #000000 !important;
+          }
+          body * {
+            visibility: hidden !important;
+          }
+          .no-print,
+          .no-print * {
+            display: none !important;
+          }
+          .printable-cert-modal-backdrop {
+            position: static !important;
+            padding: 0 !important;
+            margin: 0 !important;
+            background: transparent !important;
+            filter: none !important;
+            backdrop-filter: none !important;
+            transform: none !important;
+          }
+          .printable-cert-modal-card {
+            border: none !important;
+            box-shadow: none !important;
+            max-height: none !important;
+            overflow: visible !important;
+            padding: 0 !important;
+            margin: 0 !important;
+            width: 100% !important;
+            max-width: 100% !important;
+            background: transparent !important;
+          }
+          #printable-certificate-root,
+          #printable-certificate-root * {
+            visibility: visible !important;
+          }
+          #printable-certificate-root {
+            position: relative !important;
+            left: 0 !important;
+            top: 0 !important;
+            width: 100% !important;
+            max-width: 100% !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            box-shadow: none !important;
+            border: none !important;
+            background: transparent !important;
+            color: #000000 !important;
+            overflow: visible !important;
+            display: block !important;
+          }
+          #printable-certificate {
+            box-shadow: none !important;
+            margin: 0 auto !important;
+            width: 100% !important;
+            max-width: 100% !important;
+            background: #ffffff !important;
+            page-break-inside: avoid !important;
+            break-inside: avoid !important;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+          }
+          #printable-certificate[data-border-style="Classic Double Border"] {
+            border: 8px double var(--cert-theme-color, #1e3a8a) !important;
+            border-radius: 8px !important;
+          }
+          #printable-certificate[data-border-style="Modern Minimalist"] {
+            border: 2px solid var(--cert-theme-color, #1e3a8a) !important;
+            border-radius: 12px !important;
+          }
+          #printable-certificate[data-border-style="Royal Gold Crest"] {
+            border: 3px solid var(--cert-theme-color, #1e3a8a) !important;
+            outline: 3px double #d97706 !important;
+            outline-offset: -10px !important;
+            border-radius: 4px !important;
+          }
+          #printable-certificate[data-border-style="Executive Slate"] {
+            border: 4px solid #334155 !important;
+            border-radius: 8px !important;
+          }
+          .printable-batch-container > div {
+            page-break-after: always !important;
+            break-after: page !important;
+            page-break-inside: avoid !important;
+            break-inside: avoid !important;
+          }
+          .printable-batch-container > div:last-child {
+            page-break-after: auto !important;
+            break-after: auto !important;
+          }
+        }
+      `}</style>
+      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-4xl w-full p-6 shadow-2xl space-y-4 max-h-[95vh] flex flex-col printable-cert-modal-card">
         
         {/* Header Bar */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-4 gap-3">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-4 gap-3 no-print">
           <div className="flex items-center gap-3">
             <div className="p-2.5 rounded-2xl bg-sky-100 dark:bg-sky-950 text-sky-600 dark:text-sky-400">
               <Award className="w-6 h-6" />
@@ -688,10 +829,10 @@ export const GenerateCertificateModal: React.FC<GenerateCertificateModalProps> =
         </div>
 
         {/* Modal Body Content */}
-        <div className="flex-1 overflow-y-auto pr-1 space-y-4">
-          {activeTab === 'form' ? (
-            <div className="space-y-5">
-              {/* SINGLE vs BULK SELECTION AREA */}
+        <div className="flex-1 overflow-y-auto pr-1 space-y-4 print:overflow-visible print:p-0">
+          {/* FORM TAB */}
+          <div className={`space-y-5 no-print ${activeTab === 'form' ? 'block' : 'hidden'}`}>
+            {/* SINGLE vs BULK SELECTION AREA */}
               {generationMode === 'single' ? (
                 /* SINGLE STUDENT MODE SELECTION */
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-slate-50 dark:bg-slate-800/40 p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800">
@@ -1060,11 +1201,22 @@ export const GenerateCertificateModal: React.FC<GenerateCertificateModalProps> =
                             type={field.type === 'date' ? 'date' : field.type === 'number' ? 'number' : 'text'}
                             value={value}
                             disabled={!!existingRecord}
+                            max={field.type === 'date' ? todayStr : undefined}
                             onChange={(e) => {
-                              setCertificateSpecificData(prev => ({ ...prev, [field.key]: e.target.value }));
-                              if (validationErrors[field.key]) {
+                              const newVal = e.target.value;
+                              if (field.type === 'date') {
+                                if (newVal && newVal > todayStr) {
+                                  setValidationErrors(prev => ({
+                                    ...prev,
+                                    [field.key]: `${field.label} cannot be a future date.`
+                                  }));
+                                } else if (validationErrors[field.key]) {
+                                  setValidationErrors(prev => ({ ...prev, [field.key]: '' }));
+                                }
+                              } else if (validationErrors[field.key]) {
                                 setValidationErrors(prev => ({ ...prev, [field.key]: '' }));
                               }
+                              setCertificateSpecificData(prev => ({ ...prev, [field.key]: newVal }));
                             }}
                             placeholder={field.placeholder || `Enter ${field.label}...`}
                             className={`w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-xs font-bold text-slate-900 dark:text-white outline-none transition-all ${
@@ -1084,53 +1236,56 @@ export const GenerateCertificateModal: React.FC<GenerateCertificateModalProps> =
                 </div>
               </div>
             </div>
-          ) : (
-            /* PREVIEW TAB */
-            <div className="space-y-4">
-              {generationMode === 'bulk' && selectedBulkStudents.length > 0 && (
-                <div className="flex items-center justify-between bg-sky-50 dark:bg-sky-950/40 p-3 rounded-2xl border border-sky-200 dark:border-sky-800">
-                  <span className="text-xs font-extrabold text-sky-900 dark:text-sky-200">
-                    Previewing {bulkPreviewIndex + 1} of {selectedBulkStudents.length} selected students ({previewStudentForBulk?.firstName} {previewStudentForBulk?.lastName} - {previewStudentForBulk?.admissionNo})
-                  </span>
 
-                  <div className="flex items-center gap-2">
-                    <button
-                      type="button"
-                      disabled={bulkPreviewIndex === 0}
-                      onClick={() => setBulkPreviewIndex(prev => Math.max(0, prev - 1))}
-                      className="px-3 py-1 rounded-xl bg-white dark:bg-slate-900 border text-xs font-bold disabled:opacity-40 cursor-pointer shadow-xs"
-                    >
-                      ‹ Previous
-                    </button>
-                    <button
-                      type="button"
-                      disabled={bulkPreviewIndex >= selectedBulkStudents.length - 1}
-                      onClick={() => setBulkPreviewIndex(prev => Math.min(selectedBulkStudents.length - 1, prev + 1))}
-                      className="px-3 py-1 rounded-xl bg-white dark:bg-slate-900 border text-xs font-bold disabled:opacity-40 cursor-pointer shadow-xs"
-                    >
-                      Next ›
-                    </button>
-                  </div>
-                </div>
-              )}
-
-              <div className="flex items-center justify-between bg-slate-100 dark:bg-slate-800 p-3 rounded-2xl">
-                <span className="text-xs font-bold text-slate-700 dark:text-slate-300">
-                  Rendering Preview for {selectedTypeConfig.name} {generationMode === 'bulk' ? `(${selectedBulkStudents.length} Batch Certificates)` : `(${generatedCertNo})`}
+          {/* PREVIEW TAB */}
+          <div className={`space-y-4 ${activeTab === 'preview' ? 'block' : 'hidden print:block'}`}>
+            {generationMode === 'bulk' && selectedBulkStudents.length > 0 && (
+              <div className="flex items-center justify-between bg-sky-50 dark:bg-sky-950/40 p-3 rounded-2xl border border-sky-200 dark:border-sky-800 no-print">
+                <span className="text-xs font-extrabold text-sky-900 dark:text-sky-200">
+                  Previewing {bulkPreviewIndex + 1} of {selectedBulkStudents.length} selected students ({previewStudentForBulk?.firstName} {previewStudentForBulk?.lastName} - {previewStudentForBulk?.admissionNo})
                 </span>
 
                 <div className="flex items-center gap-2">
                   <button
-                    onClick={handlePrint}
-                    className="px-3 py-1.5 rounded-xl bg-slate-200 dark:bg-slate-700 text-slate-900 dark:text-white text-xs font-bold flex items-center gap-1 cursor-pointer"
+                    type="button"
+                    disabled={bulkPreviewIndex === 0}
+                    onClick={() => setBulkPreviewIndex(prev => Math.max(0, prev - 1))}
+                    className="px-3 py-1 rounded-xl bg-white dark:bg-slate-900 border text-xs font-bold disabled:opacity-40 cursor-pointer shadow-xs"
                   >
-                    <Printer className="w-3.5 h-3.5" /> Print Preview
+                    ‹ Previous
+                  </button>
+                  <button
+                    type="button"
+                    disabled={bulkPreviewIndex >= selectedBulkStudents.length - 1}
+                    onClick={() => setBulkPreviewIndex(prev => Math.min(selectedBulkStudents.length - 1, prev + 1))}
+                    className="px-3 py-1 rounded-xl bg-white dark:bg-slate-900 border text-xs font-bold disabled:opacity-40 cursor-pointer shadow-xs"
+                  >
+                    Next ›
                   </button>
                 </div>
               </div>
+            )}
 
-              {/* Certificate Preview Container */}
-              <div className="glass-card p-4 rounded-3xl bg-slate-200 dark:bg-slate-950 overflow-x-auto">
+            <div className="flex items-center justify-between bg-slate-100 dark:bg-slate-800 p-3 rounded-2xl no-print">
+              <span className="text-xs font-bold text-slate-700 dark:text-slate-300">
+                Rendering Preview for {selectedTypeConfig.name} {generationMode === 'bulk' ? `(${selectedBulkStudents.length} Batch Certificates)` : `(${generatedCertNo})`}
+              </span>
+
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={handlePrint}
+                  className="px-3 py-1.5 rounded-xl bg-slate-200 dark:bg-slate-700 text-slate-900 dark:text-white text-xs font-bold flex items-center gap-1 cursor-pointer"
+                >
+                  <Printer className="w-3.5 h-3.5" /> Print Preview
+                </button>
+              </div>
+            </div>
+
+            {/* Certificate Preview Container */}
+            <div
+              id="printable-certificate-root"
+              className="glass-card p-4 rounded-3xl bg-slate-200 dark:bg-slate-950 overflow-x-auto print:bg-transparent print:p-0 print:border-none print:shadow-none print:overflow-visible"
+            >
                 {generationMode === 'bulk' && isBatchCompletedShow && batchIssuedRecords.length > 0 ? (
                   <PrintableBatchCertificatesContainer
                     records={batchIssuedRecords}
@@ -1194,21 +1349,20 @@ export const GenerateCertificateModal: React.FC<GenerateCertificateModalProps> =
                     identificationMarks={certificateSpecificData.identificationMarks || certificateSpecificData.moleIdentification || ''}
                     moleIdentification={certificateSpecificData.moleIdentification || certificateSpecificData.identificationMarks || ''}
                     result="PASSED"
-                    feeClearanceStatus="FULL DUES CLEARED"
+                    feeClearanceStatus={certificateSpecificData.clearanceStatus === 'FULL DUES CLEARED' ? 'Full Dues Cleared' : (certificateSpecificData.clearanceStatus || "Full Dues Cleared")}
                     certificateNumber={generatedCertNo}
                     tcNo={generatedCertNo}
-                    issueDate={certificateSpecificData.issueDate || new Date().toISOString().split('T')[0]}
-                    isDraftPreview={!existingRecord && !isBatchCompletedShow}
+                    issueDate={certificateSpecificData.issueDate || certificateSpecificData.dateOfLeaving || todayStr}
+                    isDraftPreview={!existingRecord && !isBatchCompletedShow && !issuedSingleRecord}
                     fieldDataSnapshot={certificateSpecificData}
                   />
                 )}
               </div>
             </div>
-          )}
         </div>
 
         {/* Modal Action Buttons */}
-        <div className="flex items-center justify-between pt-4 border-t border-slate-100 dark:border-slate-800">
+        <div className="flex items-center justify-between pt-4 border-t border-slate-100 dark:border-slate-800 no-print">
           <button
             onClick={onClose}
             className="px-4 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-xs font-bold cursor-pointer"
@@ -1243,7 +1397,7 @@ export const GenerateCertificateModal: React.FC<GenerateCertificateModalProps> =
 
       {/* CONFIRMATION DIALOG FOR BULK GENERATION */}
       {isConfirmModalOpen && (
-        <div className="fixed inset-0 z-60 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-xs animate-in fade-in">
+        <div className="fixed inset-0 z-60 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-xs animate-in fade-in no-print">
           <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-md w-full p-6 shadow-2xl space-y-4">
             <div className="flex items-center gap-3">
               <div className="p-3 rounded-2xl bg-sky-100 dark:bg-sky-950 text-sky-600 dark:text-sky-400">
@@ -1275,7 +1429,7 @@ export const GenerateCertificateModal: React.FC<GenerateCertificateModalProps> =
               <div className="flex justify-between">
                 <span className="text-slate-500 font-medium">Date of Issue:</span>
                 <span className="font-mono font-bold text-slate-900 dark:text-white">
-                  {formatDateDDMMYYYY(certificateSpecificData.issueDate || new Date().toISOString().split('T')[0])}
+                  {formatDateDDMMYYYY(certificateSpecificData.issueDate || certificateSpecificData.dateOfLeaving || todayStr)}
                 </span>
               </div>
             </div>
