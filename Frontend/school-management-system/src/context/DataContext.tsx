@@ -56,6 +56,8 @@ import {
   normalizeClassName,
   compareClassesAscending,
   isClassInRange,
+  getSharingCapacity,
+  matchesSharingType,
 } from "../utils/classSorter";
 import { buildTermMonthMap } from "../utils/lateAdmission";
 import { generateTermsFromAcademicYear } from "../utils/academicYearTermUtils";
@@ -9541,37 +9543,36 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
                   ? ftc.feeAmount
                   : 0;
             additionalFees += pFee;
-          } else if (appNormType === "Residential" && app.hostelBed) {
+          } else if (appNormType === "Residential" && (app.hostelBed || app.hostelBlock || (app as any).hostelSharing || (app as any).roomSharing)) {
             const hObj =
               hostelMasters.find(
                 (h) =>
                   h.id === app.hostelBlock || h.hostelName === app.hostelBlock,
               ) || hostelMasters[0];
-            let fhc = financeHostelConfigs.find(
+            const appSharing = (app as any).hostelSharing || (app as any).roomSharing || (app as any).sharingType || "";
+            const appClass = app.className || (app as any).appliedClass || "";
+
+            const matchedFhc = financeHostelConfigs.find(
               (c) =>
                 c.status === "Active" &&
-                ((hObj &&
-                  c.hostelId &&
-                  String(c.hostelId) === String(hObj.id)) ||
-                  (hObj &&
-                    c.hostelName &&
-                    hObj.hostelName &&
-                    c.hostelName.toLowerCase() ===
-                      hObj.hostelName.toLowerCase()) ||
-                  (app.hostelBlock &&
-                    c.hostelName &&
-                    c.hostelName
-                      .toLowerCase()
-                      .includes(app.hostelBlock.toLowerCase()))),
+                (!appClass || isClassInRange(appClass, c.startClass, c.endClass, c.classRange, academicClasses)) &&
+                matchesSharingType(c.sharingType || c.roomTypeName, appSharing),
             );
-            if (!fhc) {
-              fhc =
-                financeHostelConfigs.find((c) => c.status === "Active") ||
-                financeHostelConfigs[0];
+
+            if (matchedFhc) {
+              additionalFees += Number(matchedFhc.hostelFee) || 0;
+              if (matchedFhc.securityDeposit !== undefined)
+                additionalFees += Number(matchedFhc.securityDeposit) || 0;
+            } else {
+              const depositCfg = financeHostelConfigs.find(
+                (c) =>
+                  c.status === "Active" &&
+                  (!appClass || isClassInRange(appClass, c.startClass, c.endClass, c.classRange, academicClasses)) &&
+                  Number(c.securityDeposit) > 0,
+              );
+              if (depositCfg && depositCfg.securityDeposit !== undefined)
+                additionalFees += Number(depositCfg.securityDeposit) || 0;
             }
-            additionalFees += fhc ? fhc.hostelFee : 0;
-            if (fhc && fhc.securityDeposit !== undefined)
-              additionalFees += fhc.securityDeposit;
           }
 
           let scholarshipAmount = 0;
@@ -9789,14 +9790,16 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
             const rObj =
               roomMasters.find((r) => r.id === app.hostelRoom) ||
               roomMasters[0];
+            const appSharing = (app as any).hostelSharing || (app as any).roomSharing || (app as any).sharingType || "";
+            const appClass = newStudent.className || (app as any).appliedClass || "";
             const fhc =
               financeHostelConfigs.find(
                 (c) =>
-                  (c.hostelId === hObj?.id ||
-                    c.hostelName === hObj?.hostelName) &&
-                  c.status === "Active",
-              ) || financeHostelConfigs[0];
-            const hstFee = fhc ? fhc.hostelFee : 0;
+                  c.status === "Active" &&
+                  (!appClass || isClassInRange(appClass, c.startClass, c.endClass, c.classRange, academicClasses)) &&
+                  matchesSharingType(c.sharingType || c.roomTypeName, appSharing),
+              );
+            const hstFee = fhc ? (Number(fhc.hostelFee) || 0) : 0;
 
             const hostelBlockId = hObj?.id || "HM-01";
             const hostelBlockName = hObj?.hostelName || "Boys Hostel";
@@ -15744,30 +15747,24 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
               : "AC";
             if (cAc !== acTypeStr) return false;
           }
-          if (preferredSharing && c.sharingType && c.sharingType !== "All") {
-            const clean = (s: string) =>
-              String(s || "")
-                .toLowerCase()
-                .replace(/[^a-z0-9]/g, "");
-            const prefClean = clean(preferredSharing);
-            const confClean = clean(c.sharingType);
-            const numPref = prefClean.match(/\d+/)?.[0];
-            const numConf = confClean.match(/\d+/)?.[0];
-            if (numPref && numConf && numPref !== numConf) return false;
-            if (
-              !numPref &&
-              !numConf &&
-              !prefClean.includes(confClean) &&
-              !confClean.includes(prefClean)
-            )
+          if (preferredSharing && c.sharingType && c.sharingType !== "All" && c.sharingType !== "All Sharing Types") {
+            if (!matchesSharingType(c.sharingType || c.roomTypeName, preferredSharing)) {
               return false;
+            }
           }
           return true;
         });
 
-        const fhc =
-          candidateConfigs[0] ||
-          (financeHostelConfigs || []).find(
+        const fhc = candidateConfigs[0];
+
+        if (fhc) {
+          hostelAccommodationTotal = Number(fhc.hostelFee) || 0;
+          hostelSecurityDepositTotal = Number(fhc.securityDeposit) || 0;
+          hostelFrequency = fhc.feePlan || "Quarterly";
+          hostelApplicable = true;
+        } else {
+          // If accommodation fee not configured for this sharing tier, still retrieve security deposit if configured on this class
+          const depositCfg = (financeHostelConfigs || []).find(
             (c) =>
               c.status === "Active" &&
               isClassInRange(
@@ -15776,15 +15773,14 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
                 c.endClass,
                 c.classRange,
                 academicClasses,
-              ),
-          ) ||
-          (financeHostelConfigs || []).find((c) => c.status === "Active");
-
-        if (fhc) {
-          hostelAccommodationTotal = Number(fhc.hostelFee) || 0;
-          hostelSecurityDepositTotal = Number(fhc.securityDeposit) || 0;
-          hostelFrequency = fhc.feePlan || "Quarterly";
-          hostelApplicable = true;
+              ) &&
+              Number(c.securityDeposit) > 0,
+          );
+          if (depositCfg) {
+            hostelSecurityDepositTotal = Number(depositCfg.securityDeposit) || 0;
+            hostelFrequency = depositCfg.feePlan || "Quarterly";
+            hostelApplicable = true;
+          }
         }
       }
 
@@ -17210,27 +17206,10 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
             if (cAc !== acTypeStr) return false;
           }
 
-          if (c.sharingType && c.sharingType !== "All") {
-            if (roomCap) {
-              const capMatch =
-                (c.sharingType.toLowerCase().includes("single") &&
-                  roomCap === 1) ||
-                (c.sharingType.toLowerCase().includes("double") &&
-                  roomCap === 2) ||
-                (c.sharingType.toLowerCase().includes("triple") &&
-                  roomCap === 3) ||
-                (c.sharingType.toLowerCase().includes("4") && roomCap === 4) ||
-                c.sharingType.includes(String(roomCap));
-              if (!capMatch) return false;
-            } else if (roomType) {
-              const clean = (s: string) =>
-                String(s || "")
-                  .toLowerCase()
-                  .replace(/[^a-z0-9]/g, "");
-              const prefClean = clean(roomType);
-              const confClean = clean(c.sharingType);
-              if (!prefClean.includes(confClean) && !confClean.includes(prefClean))
-                return false;
+          if (c.sharingType && c.sharingType !== "All" && c.sharingType !== "All Sharing Types") {
+            const sharingPref = roomCap ? String(roomCap) : roomType;
+            if (!matchesSharingType(c.sharingType || c.roomTypeName, sharingPref)) {
+              return false;
             }
           }
 
@@ -17254,20 +17233,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           );
         });
 
-        const fhc =
-          candidateConfigs[0] ||
-          (financeHostelConfigs || []).find(
-            (c) =>
-              c.status === "Active" &&
-              isClassInRange(
-                studentClass,
-                c.startClass,
-                c.endClass,
-                c.classRange,
-                academicClasses,
-              ),
-          ) ||
-          (financeHostelConfigs || []).find((c) => c.status === "Active");
+        const fhc = candidateConfigs[0];
 
         let hostelFeeTotal = 0;
         let hostelDepTotal = 0;
@@ -17277,6 +17243,24 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           hostelFeeTotal = Number(fhc.hostelFee) || 0;
           hostelDepTotal = Number(fhc.securityDeposit) || 0;
           hostelFrequency = fhc.feePlan || "Quarterly";
+        } else {
+          // Accommodation not configured for this sharing tier. Fall back for security deposit if configured on this class:
+          const depCfg = (financeHostelConfigs || []).find(
+            (c) =>
+              c.status === "Active" &&
+              isClassInRange(
+                studentClass,
+                c.startClass,
+                c.endClass,
+                c.classRange,
+                academicClasses,
+              ) &&
+              Number(c.securityDeposit) > 0,
+          );
+          if (depCfg) {
+            hostelDepTotal = Number(depCfg.securityDeposit) || 0;
+            hostelFrequency = depCfg.feePlan || "Quarterly";
+          }
         }
 
         // Process Hostel Security Deposit Item in itemsToReturn

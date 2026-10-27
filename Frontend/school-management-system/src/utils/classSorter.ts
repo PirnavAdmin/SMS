@@ -168,3 +168,50 @@ export const doClassRangesOverlap = (
 
   return Math.max(aMin, bMin) <= Math.min(aMax, bMax);
 };
+
+/**
+ * Extracts normalized sharing capacity (1, 2, 3, 4, 5 for dormitory) from a string.
+ * Returns null if wild/unspecified (e.g. 'All') or unrecognizable.
+ */
+export const getSharingCapacity = (str?: string): number | null => {
+  if (!str) return null;
+  const s = String(str).toLowerCase().trim();
+  if (s === 'all' || s === 'all sharing types' || s === 'all sharing') {
+    return null;
+  }
+  if (s.includes('single') || /\b1\b/.test(s) || s.startsWith('1')) return 1;
+  if (s.includes('two') || s.includes('double') || /\b2\b/.test(s) || s.startsWith('2')) return 2;
+  if (s.includes('three') || s.includes('triple') || /\b3\b/.test(s) || s.startsWith('3')) return 3;
+  if (s.includes('four') || s.includes('quad') || /\b4\b/.test(s) || s.startsWith('4')) return 4;
+  if (s.includes('dorm')) return 5;
+  const num = parseInt(s.replace(/[^0-9]/g, ''), 10);
+  if (!isNaN(num) && num > 0) return num;
+  return null;
+};
+
+/**
+ * Checks whether a configured sharing type matches a student/preference sharing type.
+ * - If cfgShare is 'All' / empty / undefined, it matches anything.
+ * - If prefShare is empty / undefined, returns false (no sharing selected).
+ * - Otherwise, strictly compares extracted capacities or clean strings.
+ */
+export const matchesSharingType = (cfgShare?: string, prefShare?: string): boolean => {
+  if (!cfgShare) return true;
+  const cLower = String(cfgShare).toLowerCase().trim();
+  if (cLower === '' || cLower === 'all' || cLower === 'all sharing types' || cLower === 'all sharing') {
+    return true;
+  }
+  if (!prefShare) return false;
+  const pLower = String(prefShare).toLowerCase().trim();
+  if (pLower === '') return false;
+
+  const cCap = getSharingCapacity(cLower);
+  const pCap = getSharingCapacity(pLower);
+
+  if (cCap !== null && pCap !== null) {
+    return cCap === pCap;
+  }
+
+  const clean = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, '');
+  return clean(cLower) === clean(pLower);
+};

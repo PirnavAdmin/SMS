@@ -56,7 +56,7 @@ import { DateInput } from "../../common/DateInput";
 import { Pagination } from "../../common/Pagination";
 import { SchoolPrintHeader } from "../../common/SchoolPrintHeader";
 import { lookupPostalCode, getOfflinePostalInfo } from "../../../utils/postalLookup";
-import { isClassInRange } from "../../../utils/classSorter";
+import { isClassInRange, getSharingCapacity, matchesSharingType } from "../../../utils/classSorter";
 import {
   validate10DigitPhone,
   validateEmail,
@@ -1140,21 +1140,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
     );
 
     const matchesSharing = (cfgShare?: string) => {
-      if (!cfgShare || cfgShare.toLowerCase() === "all" || cfgShare.toLowerCase() === "all sharing types") return true;
-      if (!userSharing) return true;
-      const c = cfgShare.toLowerCase().replace(/[^a-z0-9]/g, "");
-      const u = userSharing.replace(/[^a-z0-9]/g, "");
-      if (c === u || c.includes(u) || u.includes(c)) return true;
-      const getNum = (str: string) => {
-        if (str.includes("1") || str.includes("single")) return 1;
-        if (str.includes("2") || str.includes("two") || str.includes("double")) return 2;
-        if (str.includes("3") || str.includes("three") || str.includes("triple")) return 3;
-        if (str.includes("4") || str.includes("four")) return 4;
-        return null;
-      };
-      const cNum = getNum(c);
-      const uNum = getNum(u);
-      return cNum !== null && uNum !== null && cNum === uNum;
+      return matchesSharingType(cfgShare, userSharing);
     };
 
     const matchesAc = (cfgAc?: string) => {
@@ -1182,51 +1168,64 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
       return !studentClass || isClassInRange(studentClass, c.startClass, c.endClass, c.classRange, academicClasses);
     };
 
-    // 1. Exact match: Branch + AY + Class + Sharing + AC
-    let matched = activeConfigs.find(
-      (c) => matchesBranch(c.branch) && matchesAy(c.academicYear) && isClassMatch(c) && matchesSharing(c.sharingType || c.roomTypeName) && matchesAc(c.acType)
+    if (!userSharing) {
+      return null;
+    }
+
+    // Strictly filter configs that match the selected class AND the chosen sharing tier
+    const eligibleConfigs = activeConfigs.filter(
+      (c) => isClassMatch(c) && matchesSharing(c.sharingType || c.roomTypeName)
     );
 
-    // 2. Branch + AY + Class + Sharing
+    if (eligibleConfigs.length === 0) {
+      return null;
+    }
+
+    // Priority matching among eligible sharing configs:
+    // 1. Branch + AY + AC
+    let matched = eligibleConfigs.find(
+      (c) => matchesBranch(c.branch) && matchesAy(c.academicYear) && matchesAc(c.acType)
+    );
+
+    // 2. Branch + AY
     if (!matched) {
-      matched = activeConfigs.find(
-        (c) => matchesBranch(c.branch) && matchesAy(c.academicYear) && isClassMatch(c) && matchesSharing(c.sharingType || c.roomTypeName)
+      matched = eligibleConfigs.find(
+        (c) => matchesBranch(c.branch) && matchesAy(c.academicYear)
       );
     }
 
-    // 3. Branch + AY + Class + AC
+    // 3. Branch + AC
     if (!matched) {
-      matched = activeConfigs.find(
-        (c) => matchesBranch(c.branch) && matchesAy(c.academicYear) && isClassMatch(c) && matchesAc(c.acType)
+      matched = eligibleConfigs.find(
+        (c) => matchesBranch(c.branch) && matchesAc(c.acType)
       );
     }
 
-    // 4. Branch + AY + Class
+    // 4. Branch
     if (!matched) {
-      matched = activeConfigs.find(
-        (c) => matchesBranch(c.branch) && matchesAy(c.academicYear) && isClassMatch(c)
+      matched = eligibleConfigs.find((c) => matchesBranch(c.branch));
+    }
+
+    // 5. AY + AC
+    if (!matched) {
+      matched = eligibleConfigs.find(
+        (c) => matchesAy(c.academicYear) && matchesAc(c.acType)
       );
     }
 
-    // 5. Any Branch/AY: Class + Sharing + AC
+    // 6. AY
     if (!matched) {
-      matched = activeConfigs.find(
-        (c) => isClassMatch(c) && matchesSharing(c.sharingType || c.roomTypeName) && matchesAc(c.acType)
-      );
+      matched = eligibleConfigs.find((c) => matchesAy(c.academicYear));
     }
 
-    // 6. Any Branch/AY: Class + Sharing
+    // 7. AC
     if (!matched) {
-      matched = activeConfigs.find(
-        (c) => isClassMatch(c) && matchesSharing(c.sharingType || c.roomTypeName)
-      );
+      matched = eligibleConfigs.find((c) => matchesAc(c.acType));
     }
 
-    // 7. Any Branch/AY: Class
+    // 8. Any remaining eligible config for this class & sharing tier
     if (!matched) {
-      matched = activeConfigs.find(
-        (c) => isClassMatch(c)
-      );
+      matched = eligibleConfigs[0];
     }
 
     return matched || null;
@@ -1254,8 +1253,50 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
     if (!isNaN(configuredDeposit) && configuredDeposit > 0) {
       return configuredDeposit;
     }
+    // Security deposit is independent of room sharing. If the user configured a security deposit
+    // for this student's class under any config in Fee Setup, use it.
+    const studentClass = formData.appliedClass || formData.className || "";
+    const activeConfigs = (financeHostelConfigs || []).filter(
+      (c) => !c.status || c.status === "Active"
+    );
+    const classConfigWithDeposit = activeConfigs.find(
+      (c) =>
+        (!studentClass || isClassInRange(studentClass, c.startClass, c.endClass, c.classRange, academicClasses)) &&
+        Number(c.securityDeposit) > 0
+    );
+    if (classConfigWithDeposit) {
+      return Number(classConfigWithDeposit.securityDeposit);
+    }
     return 0;
-  }, [isResidentialStudent, applicableHostelFeeConfig]);
+  }, [
+    isResidentialStudent,
+    applicableHostelFeeConfig,
+    formData.appliedClass,
+    formData.className,
+    financeHostelConfigs,
+    academicClasses,
+  ]);
+
+  
+  const getSharingFeeHint = (sharingVal: string) => {
+    if (!isResidentialStudent) return "";
+    const studentClass = formData.appliedClass || formData.className || "";
+    const activeConfigs = (financeHostelConfigs || []).filter(
+      (c) => !c.status || c.status === "Active"
+    );
+    const cfg = activeConfigs.find(
+      (c) =>
+        (!studentClass || isClassInRange(studentClass, c.startClass, c.endClass, c.classRange, academicClasses)) &&
+        matchesSharingType(c.sharingType || c.roomTypeName, sharingVal)
+    );
+    if (cfg) {
+      const fee = Number(cfg.hostelFee || cfg.termFee);
+      if (!isNaN(fee) && fee > 0) {
+        return ` — Configured (₹${fee.toLocaleString()})`;
+      }
+    }
+    return "";
+  };
 
   const handleConfirmSecurityDepositPayment = () => {
     if (applicableSecurityDeposit <= 0) return;
@@ -3332,7 +3373,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
           name: `Hostel Accommodation Fee${prefTag}`,
           amount: 0,
           isApplicable: false,
-          remarks: "No Hostel Fee Configured in Fee Setup",
+          remarks: chosenShare ? `No Fee Configured for ${chosenShare} in Fee Setup` : "No Hostel Fee Configured in Fee Setup",
         });
       }
     } else {
@@ -4746,11 +4787,11 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                             className="w-full px-3.5 py-2.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white text-xs font-semibold focus:ring-2 focus:ring-sky-500 outline-none appearance-none cursor-pointer"
                           >
                             <option value="">-- Select Room Sharing --</option>
-                            <option value="Single">Single Sharing (1 Person)</option>
-                            <option value="Two Sharing">Two Sharing (2 Persons)</option>
-                            <option value="Three Sharing">Three Sharing (3 Persons)</option>
-                            <option value="Four Sharing">Four Sharing (4 Persons)</option>
-                            <option value="Dormitory">Dormitory</option>
+                            <option value="Single">Single Sharing (1 Person){getSharingFeeHint("Single")}</option>
+                            <option value="Two Sharing">Two Sharing (2 Persons){getSharingFeeHint("Two Sharing")}</option>
+                            <option value="Three Sharing">Three Sharing (3 Persons){getSharingFeeHint("Three Sharing")}</option>
+                            <option value="Four Sharing">Four Sharing (4 Persons){getSharingFeeHint("Four Sharing")}</option>
+                            <option value="Dormitory">Dormitory{getSharingFeeHint("Dormitory")}</option>
                           </select>
                           <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
                         </div>
