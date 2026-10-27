@@ -104,6 +104,10 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
   const { selectedAcademicYear, selectedBranch } = useAuth();
   const { addToast } = useToast();
 
+  const lastInitialStudentIdRef = useRef<string | null>(null);
+  const activePayTargetRef = useRef<any>(null);
+  const payTargetAppliedRef = useRef<boolean>(false);
+
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedClass, setSelectedClass] = useState("ALL");
   const [selectedSection, setSelectedSection] = useState("ALL");
@@ -835,10 +839,6 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
     updateCalculation(st.id, calculateStudentPayableFee(st.id), freshLedger);
   };
 
-  const lastInitialStudentIdRef = useRef<string | null>(null);
-  const activePayTargetRef = useRef<any>(null);
-  const payTargetAppliedRef = useRef<boolean>(false);
-
   useEffect(() => {
     if (initialStudent) {
       const studentKey = typeof initialStudent === "string" 
@@ -1284,6 +1284,7 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
 
         setSelectedStudent((prev: any) => (prev ? { ...prev, hostelSecurityDepositPaid: true, studentType: "Hosteller", residentialStatus: "Residential" } : prev));
         sessionStorage.removeItem("edu_fee_pay_target");
+        activePayTargetRef.current = null;
 
         if (typeof window !== "undefined") {
           window.dispatchEvent(new CustomEvent("residential_students_updated"));
