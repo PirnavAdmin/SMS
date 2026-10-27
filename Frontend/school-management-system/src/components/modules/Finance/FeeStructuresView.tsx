@@ -46,7 +46,7 @@ import {
   FeeStructureItem,
   FeeHead,
 } from "../../../types";
-import { useData, matchesAcademicYear } from "../../../context/DataContext";
+import { useData, matchesAcademicYear, formatAcademicYear } from "../../../context/DataContext";
 import { useAuth } from "../../../context/AuthContext";
 import { useToast } from "../../../context/ToastContext";
 import { ExportButton } from "../../common/ExportButton";
@@ -157,7 +157,7 @@ export const FeeStructuresView: React.FC<FeeStructuresViewProps> = () => {
     const initialAy =
       selectedAcademicYear ||
       (academicYears && (academicYears[0]?.academicYear || (academicYears[0] as any)?.name)) ||
-      "2026-2027";
+      "2026-27";
 
     const defaultClass = sortedClasses[0]?.name || "";
     setStructClass(defaultClass);
@@ -175,7 +175,7 @@ export const FeeStructuresView: React.FC<FeeStructuresViewProps> = () => {
     setEditingStruct(s);
     setStructName(s.name || `${s.className} Fee Structure`);
     setStructClass(s.className || "");
-    setStructAcademicYear(s.academicYear || selectedAcademicYear || "2026-2027");
+    setStructAcademicYear(s.academicYear || selectedAcademicYear || "2026-27");
     setStructStatus(s.status || "Active");
     const activeHeadIds = new Set(activeFeeHeads.map((h) => String(h.id).trim().toLowerCase()));
     const activeHeadNames = new Set(activeFeeHeads.map((h) => (h.name || "").trim().toLowerCase()));
@@ -336,7 +336,7 @@ export const FeeStructuresView: React.FC<FeeStructuresViewProps> = () => {
       structAcademicYear ||
       selectedAcademicYear ||
       (academicYears && academicYears[0]?.academicYear) ||
-      "2026-2027";
+      "2026-27";
 
     const finalTotal = finalItems.reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
 
@@ -485,7 +485,7 @@ export const FeeStructuresView: React.FC<FeeStructuresViewProps> = () => {
                       <p className="text-[11px] text-slate-400 mt-0.5">
                         Academic Year:{" "}
                         <span className="font-semibold text-slate-600 dark:text-slate-300">
-                          {s.academicYear || "Current Year"}
+                          {formatAcademicYear(s.academicYear) || "Current Year"}
                         </span>
                       </p>
                     </div>
@@ -628,7 +628,7 @@ export const FeeStructuresView: React.FC<FeeStructuresViewProps> = () => {
                         );
                       })
                     ) : (
-                      <option value={structAcademicYear}>{structAcademicYear || "2026-2027"}</option>
+                      <option value={structAcademicYear}>{structAcademicYear || "2026-27"}</option>
                     )}
                   </select>
                 </div>

@@ -7,7 +7,7 @@ import {
 import { 
   GeneratedCertificateRecord, CertificateTypeConfig, Student 
 } from '../../../types';
-import { useData } from '../../../context/DataContext';
+import { useData, formatAcademicYear } from '../../../context/DataContext';
 import { useAuth } from '../../../context/AuthContext';
 import { useToast } from '../../../context/ToastContext';
 import { GenerateCertificateModal } from './GenerateCertificateModal';
@@ -100,7 +100,7 @@ export const CertificatesView: React.FC<CertificatesViewProps> = ({ onNavigateTo
   const { students, schoolProfile, academicClasses } = useData();
   const { selectedAcademicYear, selectedBranch } = useAuth();
   const { addToast } = useToast();
-  const activeAY = selectedAcademicYear || '2026–2027';
+  const activeAY = formatAcademicYear(selectedAcademicYear) || '2026-27';
 
   const [activeTab, setActiveTab] = useState<'generate' | 'history'>('generate');
 
@@ -276,33 +276,33 @@ export const CertificatesView: React.FC<CertificatesViewProps> = ({ onNavigateTo
 
       {/* Summary KPI Widgets */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="glass-card p-4 rounded-3xl border border-slate-200/80 dark:border-slate-800 flex items-center gap-4">
-          <div className="w-12 h-12 rounded-2xl bg-sky-100 dark:bg-sky-950 text-sky-600 dark:text-sky-400 font-extrabold flex items-center justify-center text-xl shrink-0">
+        <div className="glass-card p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800 flex items-center gap-3.5">
+          <div className="w-11 h-11 rounded-2xl bg-sky-100 dark:bg-sky-950 text-sky-600 dark:text-sky-400 font-extrabold flex items-center justify-center text-base shrink-0">
             {historyRecords.length}
           </div>
           <div>
-            <p className="text-xs text-slate-400 font-bold uppercase tracking-wider">Total Certificates Issued</p>
-            <p className="text-lg font-black text-slate-900 dark:text-white">All Records</p>
+            <p className="text-xs text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider">Total Certificates Issued</p>
+            <p className="text-sm sm:text-[15px] font-extrabold text-slate-900 dark:text-white">All Records</p>
           </div>
         </div>
 
-        <div className="glass-card p-4 rounded-3xl border border-slate-200/80 dark:border-slate-800 flex items-center gap-4">
-          <div className="w-12 h-12 rounded-2xl bg-emerald-100 dark:bg-emerald-950 text-emerald-600 dark:text-emerald-400 font-extrabold flex items-center justify-center text-xl shrink-0">
+        <div className="glass-card p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800 flex items-center gap-3.5">
+          <div className="w-11 h-11 rounded-2xl bg-emerald-100 dark:bg-emerald-950 text-emerald-600 dark:text-emerald-400 font-extrabold flex items-center justify-center text-base shrink-0">
             {certificateTypes.filter(t => t.status === 'Active').length}
           </div>
           <div>
-            <p className="text-xs text-slate-400 font-bold uppercase tracking-wider">Active Certificate Types</p>
-            <p className="text-lg font-black text-slate-900 dark:text-white">Configured Types</p>
+            <p className="text-xs text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider">Active Certificate Types</p>
+            <p className="text-sm sm:text-[15px] font-extrabold text-slate-900 dark:text-white">Configured Types</p>
           </div>
         </div>
 
-        <div className="glass-card p-4 rounded-3xl border border-slate-200/80 dark:border-slate-800 flex items-center gap-4">
-          <div className="w-12 h-12 rounded-2xl bg-indigo-100 dark:bg-indigo-950 text-indigo-600 dark:text-indigo-400 font-extrabold flex items-center justify-center text-xl shrink-0">
+        <div className="glass-card p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800 flex items-center gap-3.5">
+          <div className="w-11 h-11 rounded-2xl bg-indigo-100 dark:bg-indigo-950 text-indigo-600 dark:text-indigo-400 font-extrabold flex items-center justify-center text-base shrink-0">
             {historyRecords.filter(r => r.academicYear === activeAY).length}
           </div>
           <div>
-            <p className="text-xs text-slate-400 font-bold uppercase tracking-wider">Issued in Current Session</p>
-            <p className="text-lg font-black text-slate-900 dark:text-white">{activeAY}</p>
+            <p className="text-xs text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider">Issued in Current Session</p>
+            <p className="text-sm sm:text-[15px] font-extrabold text-slate-900 dark:text-white">{activeAY}</p>
           </div>
         </div>
       </div>

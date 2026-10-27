@@ -64,7 +64,7 @@ export const PrintableIDCard: React.FC<PrintableIDCardProps> = ({
     matchingAdmission?.pickupPoint ||
     'Not Assigned';
 
-  const academicSession = (liveStudent as any).academicYear || schoolProfile?.academicYear || '2025-2026';
+  const academicSession = (liveStudent as any).academicYear || schoolProfile?.academicYear || '2025-26';
 
   const handlePrint = () => {
     window.print();

@@ -35,7 +35,7 @@ import {
   UserCheck,
   Clock,
 } from "lucide-react";
-import { useData } from "../../../context/DataContext";
+import { useData, formatAcademicYear, matchesAcademicYear } from "../../../context/DataContext";
 import { useAuth } from "../../../context/AuthContext";
 import { useToast } from "../../../context/ToastContext";
 import { ConfirmModal } from "../../common/ConfirmModal";
@@ -1144,9 +1144,10 @@ export const SettingsView: React.FC = () => {
       }
     }
 
+    const formattedAY = formatAcademicYear(trimmedAY);
     const payload = {
       ...ayForm,
-      academicYear: trimmedAY,
+      academicYear: formattedAY || trimmedAY,
       status: ayForm.status as "Active" | "Closed" | "Upcoming",
     };
 
@@ -2089,7 +2090,7 @@ export const SettingsView: React.FC = () => {
               >
                 <div className="flex items-center justify-between">
                   <span className="font-mono font-bold text-[10px] text-sky-600 bg-sky-50 dark:bg-sky-950 px-2 py-0.5 rounded-md">
-                    {ay.academicYear}
+                    {formatAcademicYear(ay.academicYear)}
                   </span>
                   <span
                     className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase border ${
@@ -3094,7 +3095,7 @@ export const SettingsView: React.FC = () => {
                   type="text"
                   required
                   maxLength={20}
-                  placeholder="e.g. YYYY–YY or YYYY-YYYY"
+                  placeholder="e.g. 2026-27"
                   value={ayForm.academicYear}
                   onChange={(e) => {
                     const val = e.target.value.slice(0, 20);

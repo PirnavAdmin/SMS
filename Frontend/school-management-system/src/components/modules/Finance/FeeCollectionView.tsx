@@ -584,7 +584,7 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
           address: adm.address || (adm as any).areaLocality || "",
           status: "Active",
           academicYear: adm.academicYear || selectedAcademicYear || "",
-          academicYear: adm.academicYear || selectedAcademicYear || "2026-2027",
+          academicYear: adm.academicYear || selectedAcademicYear || "2026-27",
           branch: adm.branch || (selectedBranch && selectedBranch !== "All" && selectedBranch !== "All Branches" ? selectedBranch : "") || "",
           selectedOptionalFees: adm.selectedOptionalFees || [],
           // Preserve dynamic transport assignment information
