@@ -12150,61 +12150,78 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
 
     const classStudents = students.filter(
       (s) =>
-        s.className === dfs.className ||
-        (s as any).appliedClass === dfs.className,
+        matchesClassName(s.className, dfs.className) ||
+        matchesClassName((s as any).appliedClass, dfs.className),
     );
 
-    if (classStudents.length === 0) return;
+    const classAdmissions = admissions.filter(
+      (a) =>
+        matchesClassName(a.targetClass, dfs.className) ||
+        matchesClassName(a.appliedClass, dfs.className) ||
+        matchesClassName((a as any).className, dfs.className),
+    );
 
-    setStudentFeeAssignments((prev) => {
-      let updated = [...prev];
-      classStudents.forEach((st) => {
-        const existingIdx = updated.findIndex(
-          (a) => a.studentId === st.id && a.academicYear === dfs.academicYear,
-        );
-        const newAssign: StudentFeeAssignment = {
-          id:
-            existingIdx !== -1
-              ? updated[existingIdx].id
-              : `SFA-${st.id}-${dfs.academicYear}`,
-          studentId: st.id,
-          studentName: `${st.firstName} ${st.lastName}`,
-          admissionNo: st.admissionNo,
-          branch: st.branch || selectedBranch || "",
-          academicYear: dfs.academicYear,
-          className: st.className,
-          section: st.section,
-          feeStructureId: dfs.id,
-          assignedFeeHeads: dfs.items,
-          baseFeeTotal: dfs.totalAmount,
-          assignedDate: new Date().toISOString().split("T")[0],
-          status: "Active",
-        };
-        if (existingIdx !== -1) {
-          updated[existingIdx] = newAssign;
-        } else {
-          updated.push(newAssign);
-        }
-      });
-      return updated;
-    });
+    if (classStudents.length === 0 && classAdmissions.length === 0) return;
 
-    setStudents((prev) =>
-      prev.map((s) => {
-        if (s.className === dfs.className) {
-          return {
-            ...s,
-            totalFee: dfs.totalAmount,
-            dueFee: Math.max(0, dfs.totalAmount - (s.paidFee || 0)),
+    if (classStudents.length > 0) {
+      setStudentFeeAssignments((prev) => {
+        let updated = [...prev];
+        classStudents.forEach((st) => {
+          const existingIdx = updated.findIndex(
+            (a) =>
+              a.studentId === st.id &&
+              (!dfs.academicYear || matchesAcademicYear(a.academicYear, dfs.academicYear)),
+          );
+          const newAssign: StudentFeeAssignment = {
+            id:
+              existingIdx !== -1
+                ? updated[existingIdx].id
+                : `SFA-${st.id}-${dfs.academicYear || selectedAcademicYear || "2026-2027"}`,
+            studentId: st.id,
+            studentName: `${st.firstName} ${st.lastName}`,
+            admissionNo: st.admissionNo,
+            branch: st.branch || selectedBranch || "",
+            academicYear: dfs.academicYear || selectedAcademicYear || "2026-2027",
+            className: st.className,
+            section: st.section,
+            feeStructureId: dfs.id,
+            assignedFeeHeads: dfs.items,
+            baseFeeTotal: dfs.totalAmount,
+            assignedDate: new Date().toISOString().split("T")[0],
+            status: "Active",
           };
-        }
-        return s;
-      }),
-    );
+          if (existingIdx !== -1) {
+            updated[existingIdx] = newAssign;
+          } else {
+            updated.push(newAssign);
+          }
+        });
+        return updated;
+      });
+
+      setStudents((prev) =>
+        prev.map((s) => {
+          if (
+            matchesClassName(s.className, dfs.className) ||
+            matchesClassName((s as any).appliedClass, dfs.className)
+          ) {
+            return {
+              ...s,
+              totalFee: dfs.totalAmount,
+              dueFee: Math.max(0, dfs.totalAmount - (s.paidFee || 0)),
+            };
+          }
+          return s;
+        }),
+      );
+    }
 
     setTimeout(() => {
       classStudents.forEach((st) => {
         generateStudentFeeLedger(st.id, dfs.academicYear);
+      });
+      classAdmissions.forEach((adm) => {
+        generateStudentFeeLedger(adm.id, dfs.academicYear);
       });
     }, 100);
   };
@@ -13821,9 +13838,20 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         }
       }
 
-      let frequency = rawFrequency;
-      if (rawFrequency === "Half-Yearly" || rawFrequency === "Half Yearly") {
+      const normRawFreq = String(rawFrequency || "").toLowerCase().trim();
+      let frequency = "Term-wise";
+      if (normRawFreq.includes("half-yearly") || normRawFreq.includes("half yearly")) {
         frequency = "Half-Yearly";
+      } else if (normRawFreq.includes("month")) {
+        frequency = "Monthly";
+      } else if (normRawFreq.includes("one time") || normRawFreq.includes("one-time")) {
+        frequency = "One Time";
+      } else if (normRawFreq === "annual") {
+        frequency = "Annual";
+      } else if (normRawFreq.includes("one term") || normRawFreq.includes("single term")) {
+        frequency = "One Term";
+      } else if (normRawFreq.includes("term") || normRawFreq.includes("quarter")) {
+        frequency = "Term-wise";
       }
 
       const isSecurityDepositItem =
@@ -14100,7 +14128,12 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         });
       }
       // 5. QUARTERLY / TERM-WISE
-      else if (frequency === "Quarterly" || frequency === "Term-wise") {
+      else if (
+        frequency === "Quarterly" ||
+        frequency === "Term-wise" ||
+        String(frequency).toLowerCase().includes("term") ||
+        String(frequency).toLowerCase().includes("quarter")
+      ) {
         let categoryTerms = terms;
         if (catApplicableTerms && catApplicableTerms.length > 0) {
           const filtered = terms.filter((t) =>
@@ -14322,6 +14355,38 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
             updatedAt: new Date().toISOString(),
           });
         }
+      }
+
+      // Safety fallback: if no installment was generated for this applicable fee item with amount > 0, generate a fallback
+      const hasGeneratedInst = installments.some(
+        (i) =>
+          i.feeHeadId === item.headId ||
+          (i.feeHeadName && item.headName && i.feeHeadName.toLowerCase().trim() === item.headName.toLowerCase().trim()),
+      );
+      if (!hasGeneratedInst && item.isApplicable && finalAmount > 0) {
+        installments.push({
+          id: `INST-${studentId}-${academicYear}-${item.headId}-fallback`,
+          studentId,
+          academicYear,
+          feeAssignmentId: assignment?.id || "SYNTHETIC",
+          feeHeadId: item.headId,
+          feeHeadName: item.headName,
+          frequency: "One Time",
+          termId: "ONETIME",
+          termName: item.category || item.headName,
+          dueDate: resolvedOneTimeDueDate,
+          amount: finalAmount,
+          paidAmount: 0,
+          dueAmount: finalAmount,
+          status: "Pending",
+          isApplicable: true,
+          isLateAdmission,
+          feeCalculationMethod: isLateAdmission
+            ? feeCalculationMethod
+            : undefined,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        });
       }
     });
 
@@ -15278,9 +15343,64 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           : rawStName || "Student";
 
     const cleanCls = (clsName || "").replace(/[-\s][A-Z]$/i, "").trim();
+
+    // Gather all active non-hostel fee structures matching the student's class
+    const matchingDfsList = dynamicFeeStructures.filter((d) => {
+      if (d.category === "Hostel" || d.feeCategory === "Hostel") return false;
+      if (d.status === "Inactive") return false;
+      if (
+        targetYear &&
+        d.academicYear &&
+        !matchesAcademicYear(d.academicYear, targetYear)
+      )
+        return false;
+      return (
+        matchesClassName(d.className, clsName) ||
+        matchesClassName(d.className, cleanCls)
+      );
+    });
+
+    const fallbackDfsList =
+      matchingDfsList.length > 0
+        ? matchingDfsList
+        : dynamicFeeStructures.filter((d) => {
+            if (d.category === "Hostel" || d.feeCategory === "Hostel")
+              return false;
+            if (d.status === "Inactive") return false;
+            return (
+              matchesClassName(d.className, clsName) ||
+              matchesClassName(d.className, cleanCls)
+            );
+          });
+
+    const activeDfsItems: FeeStructureItem[] = [];
+    fallbackDfsList.forEach((struct) => {
+      if (struct.items && Array.isArray(struct.items)) {
+        struct.items.forEach((item) => {
+          const exists = activeDfsItems.some(
+            (ai) =>
+              (ai.feeHeadId &&
+                item.feeHeadId &&
+                String(ai.feeHeadId).toLowerCase() ===
+                  String(item.feeHeadId).toLowerCase()) ||
+              (ai.feeHeadName &&
+                item.feeHeadName &&
+                ai.feeHeadName.toLowerCase().trim() ===
+                  item.feeHeadName.toLowerCase().trim()),
+          );
+          if (!exists) {
+            activeDfsItems.push(item);
+          }
+        });
+      }
+    });
+
     const dfs =
+      fallbackDfsList[0] ||
       dynamicFeeStructures.find(
         (d) =>
+          d.category !== "Hostel" &&
+          d.feeCategory !== "Hostel" &&
           matchesClassName(d.className, clsName) &&
           (d.status === "Active" || !d.status),
       ) ||
@@ -15404,15 +15524,44 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
 
     let ledgerItems: LedgerFeeItem[] = [];
 
-    if (
+    const assignmentFeeHeads =
       assignment &&
       assignment.assignedFeeHeads &&
       assignment.assignedFeeHeads.length > 0
-    ) {
-      assignment.assignedFeeHeads.forEach((h) => {
-        const isUni = isUniformHead(h.feeHeadName);
+        ? assignment.assignedFeeHeads
+        : [];
+
+    let effectiveFeeHeads: any[] = [];
+    if (assignmentFeeHeads.length > 0) {
+      effectiveFeeHeads = [...assignmentFeeHeads];
+      // Merge in any class fee heads (such as newly created Tuition Fee) missing from the assignment
+      activeDfsItems.forEach((di) => {
+        const alreadyExists = effectiveFeeHeads.some(
+          (ah) =>
+            (ah.feeHeadId &&
+              di.feeHeadId &&
+              String(ah.feeHeadId).toLowerCase() ===
+                String(di.feeHeadId).toLowerCase()) ||
+            (ah.feeHeadName &&
+              di.feeHeadName &&
+              ah.feeHeadName.toLowerCase().trim() ===
+                di.feeHeadName.toLowerCase().trim()),
+        );
+        if (!alreadyExists) {
+          effectiveFeeHeads.push(di);
+        }
+      });
+    } else if (activeDfsItems.length > 0) {
+      effectiveFeeHeads = [...activeDfsItems];
+    }
+
+    if (effectiveFeeHeads.length > 0) {
+      effectiveFeeHeads.forEach((h: any) => {
+        const headId = h.feeHeadId || h.id || `FH-${h.feeHeadName || h.name}`;
+        const headName = h.feeHeadName || h.name || "Tuition Fee";
+        const isUni = isUniformHead(headName);
         const isSelected = isUni
-          ? isUniformOpted(selectedOptional, h.feeHeadId, h.feeHeadName)
+          ? isUniformOpted(selectedOptional, headId, headName)
           : true;
         const uniFee = isUni
           ? getUniformFeeForClass(
@@ -15422,12 +15571,13 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
               dynamicFeeStructures,
             )
           : 0;
-        const itemAmount = isUni && uniFee > 0 ? uniFee : h.amount;
+        const itemAmount =
+          isUni && uniFee > 0 ? uniFee : (Number(h.amount) || 0);
 
         ledgerItems.push({
-          headId: h.feeHeadId,
-          headName: h.feeHeadName,
-          category: h.category || h.feeHeadName,
+          headId,
+          headName,
+          category: h.category || headName,
           originalAmount: itemAmount,
           scholarshipDeduction: 0,
           discountDeduction: 0,
@@ -15435,6 +15585,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           finalAmount: isSelected ? itemAmount : 0,
           isApplicable: isSelected,
           status: "Pending",
+          frequency: h.frequency || h.billingType,
+          paymentEligibility: h.paymentEligibility,
+          applicableTerms: h.applicableTerms,
           remarks: isSelected
             ? undefined
             : "Optional Fee - Not Selected at Admission",
@@ -16701,12 +16854,42 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       const dfs =
         dynamicFeeStructures.find(
           (d) =>
+            d.category !== "Hostel" &&
+            d.feeCategory !== "Hostel" &&
             matchesClassName(d.className, clsName) &&
             (d.status === "Active" || !d.status),
         ) ||
-        dynamicFeeStructures.find((d) =>
-          matchesClassName(d.className, clsName),
+        dynamicFeeStructures.find(
+          (d) =>
+            d.category !== "Hostel" &&
+            d.feeCategory !== "Hostel" &&
+            matchesClassName(d.className, clsName),
         );
+
+      const classDfsList = dynamicFeeStructures.filter((d) => {
+        if (d.category === "Hostel" || d.feeCategory === "Hostel") return false;
+        if (d.status === "Inactive") return false;
+        return matchesClassName(d.className, clsName);
+      });
+      const activeClassItems: FeeStructureItem[] = [];
+      classDfsList.forEach((struct) => {
+        if (struct.items && Array.isArray(struct.items)) {
+          struct.items.forEach((item) => {
+            const exists = activeClassItems.some(
+              (ai) =>
+                (ai.feeHeadId &&
+                  item.feeHeadId &&
+                  String(ai.feeHeadId).toLowerCase() ===
+                    String(item.feeHeadId).toLowerCase()) ||
+                (ai.feeHeadName &&
+                  item.feeHeadName &&
+                  ai.feeHeadName.toLowerCase().trim() ===
+                    item.feeHeadName.toLowerCase().trim()),
+            );
+            if (!exists) activeClassItems.push(item);
+          });
+        }
+      });
 
       // STRICT DYNAMIC VALIDATION:
       // If student has NO active fee assignment and NO dynamic fee structure in MySQL for their class,
@@ -16777,8 +16960,11 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         }
       }
 
-      if (dfs && dfs.items && dfs.items.length > 0) {
-        const hasMissingHead = dfs.items.some((di) => {
+      const itemsToCheck =
+        activeClassItems.length > 0 ? activeClassItems : dfs?.items || [];
+
+      if (itemsToCheck.length > 0) {
+        const hasMissingHead = itemsToCheck.some((di) => {
           return !existing.feeItems.some(
             (fi) =>
               fi.headId === di.feeHeadId ||
@@ -16787,7 +16973,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           );
         });
 
-        const hasAmountMismatch = dfs.items.some((di) => {
+        const hasAmountMismatch = itemsToCheck.some((di) => {
           const matchingFi = existing.feeItems.find(
             (fi) =>
               fi.headId === di.feeHeadId ||
@@ -16797,29 +16983,27 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           return matchingFi && matchingFi.originalAmount !== di.amount;
         });
 
-        const hasExtraHead = existing.feeItems.some((fi) => {
-          if (fi.headId === "FH-TRP" || fi.category === "Transport Fee")
-            return false;
-          if (fi.headId === "FH-HST" || fi.category === "Hostel Fee")
-            return false;
-          if (
-            fi.headId === "FH-UNI-EXTRA" ||
-            fi.category === "Additional Uniform Purchase"
-          )
-            return false;
-          return !dfs.items.some(
-            (di) =>
-              di.feeHeadId === fi.headId ||
-              di.feeHeadName.toLowerCase().trim() ===
-                fi.headName.toLowerCase().trim(),
+        const hasMissingInstallments = existing.feeItems.some((fi) => {
+          if (!fi.isApplicable || fi.finalAmount <= 0) return false;
+          return !existing.installments?.some(
+            (inst) =>
+              inst.feeHeadId === fi.headId ||
+              (inst.feeHeadName &&
+                fi.headName &&
+                inst.feeHeadName.toLowerCase().trim() ===
+                  fi.headName.toLowerCase().trim()) ||
+              (fi.category &&
+                inst.termName &&
+                inst.termName
+                  .toLowerCase()
+                  .includes(fi.category.toLowerCase())),
           );
         });
 
         if (
           hasMissingHead ||
           hasAmountMismatch ||
-          hasExtraHead ||
-          existing.grossAmount !== dfs.totalAmount
+          hasMissingInstallments
         ) {
           return buildStudentFeeLedgerObject(studentId, optStudent, targetYear);
         }

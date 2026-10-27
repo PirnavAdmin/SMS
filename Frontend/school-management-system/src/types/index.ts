@@ -1833,6 +1833,10 @@ export interface LedgerFeeItem {
   isApplicable: boolean;
   status: 'Paid' | 'Partial' | 'Pending';
   remarks?: string;
+  frequency?: string;
+  paymentEligibility?: FeePaymentEligibility;
+  applicableTerms?: string[];
+  feePlan?: string;
 }
 
 export interface StudentFeeLedger {

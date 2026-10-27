@@ -148,8 +148,8 @@ export const StudentFeeAssignmentView: React.FC = () => {
     }
 
     const classDfs =
-      dynamicFeeStructures.find((d) => d.className === selectedClass && d.academicYear === activeAY) ||
-      dynamicFeeStructures.find((d) => d.className === selectedClass) ||
+      dynamicFeeStructures.find((d) => matchesClassName(d.className, selectedClass) && d.academicYear === activeAY) ||
+      dynamicFeeStructures.find((d) => matchesClassName(d.className, selectedClass)) ||
       dynamicFeeStructures.find((d) => d.id === targetStructureId) ||
       dynamicFeeStructures[0];
 
@@ -169,8 +169,8 @@ export const StudentFeeAssignmentView: React.FC = () => {
 
     // Find structure for student's class
     const matchingDfs =
-      dynamicFeeStructures.find((d) => d.className === st.className && d.academicYear === activeAY) ||
-      dynamicFeeStructures.find((d) => d.className === st.className) ||
+      dynamicFeeStructures.find((d) => matchesClassName(d.className, st.className) && d.academicYear === activeAY) ||
+      dynamicFeeStructures.find((d) => matchesClassName(d.className, st.className)) ||
       dynamicFeeStructures[0];
 
     const structId = matchingDfs ? matchingDfs.id : '';
