@@ -73,6 +73,8 @@ namespace SMS.Api.Services.Implementations
                 if (activeDriver != null) dto.DriverId = activeDriver.DriverId;
             }
 
+            ValidateTripTimes(dto.MorningTripTime, dto.EveningTripTime);
+
             await ValidateAssignmentAsync(
                 dto.RouteId,
                 dto.VehicleId,
@@ -139,6 +141,8 @@ namespace SMS.Api.Services.Implementations
             {
                 dto.DriverId = existing.DriverId;
             }
+
+            ValidateTripTimes(dto.MorningTripTime, dto.EveningTripTime);
 
             await ValidateAssignmentAsync(
                 dto.RouteId,
@@ -270,6 +274,45 @@ namespace SMS.Api.Services.Implementations
             {
                 throw new InvalidOperationException(
                     "The selected driver's licence expires before the assignment starts.");
+            }
+        }
+
+        private static void ValidateTripTimes(string? morningTripTime, string? eveningTripTime)
+        {
+            if (!string.IsNullOrWhiteSpace(morningTripTime) && !morningTripTime.Equals("string", StringComparison.OrdinalIgnoreCase))
+            {
+                var cleanM = morningTripTime.Trim();
+                if (cleanM.EndsWith("PM", StringComparison.OrdinalIgnoreCase))
+                {
+                    throw new ArgumentException("Morning trip time must be an AM time (e.g. 07:00 AM). PM times are not allowed.");
+                }
+
+                var match = System.Text.RegularExpressions.Regex.Match(cleanM, @"^(\d{1,2}):(\d{2})");
+                if (match.Success && int.TryParse(match.Groups[1].Value, out var h))
+                {
+                    if (h >= 12 && !cleanM.EndsWith("AM", StringComparison.OrdinalIgnoreCase))
+                    {
+                        throw new ArgumentException("Morning trip time must be an AM time (between 12:00 AM and 11:59 AM).");
+                    }
+                }
+            }
+
+            if (!string.IsNullOrWhiteSpace(eveningTripTime) && !eveningTripTime.Equals("string", StringComparison.OrdinalIgnoreCase))
+            {
+                var cleanE = eveningTripTime.Trim();
+                if (cleanE.EndsWith("AM", StringComparison.OrdinalIgnoreCase))
+                {
+                    throw new ArgumentException("Evening trip time must be a PM time (e.g. 05:40 PM). AM times are not allowed.");
+                }
+
+                var match = System.Text.RegularExpressions.Regex.Match(cleanE, @"^(\d{1,2}):(\d{2})");
+                if (match.Success && int.TryParse(match.Groups[1].Value, out var h))
+                {
+                    if (h < 12 && !cleanE.EndsWith("PM", StringComparison.OrdinalIgnoreCase))
+                    {
+                        throw new ArgumentException("Evening trip time must be a PM time (between 12:00 PM and 11:59 PM).");
+                    }
+                }
             }
         }
     }

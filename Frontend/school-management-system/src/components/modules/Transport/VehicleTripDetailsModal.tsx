@@ -8,7 +8,7 @@ import { VehicleAssignment, Student, PickupPoint } from '../../../types';
 import { useData } from '../../../context/DataContext';
 import { Badge } from '../../common/Badge';
 import { ExportButton } from '../../common/ExportButton';
-import { initialBusAttendants, resolveAssignedStudentsForTrip } from './transportData';
+import { initialBusAttendants, resolveAssignedStudentsForTrip, formatMorningTripTime, formatEveningTripTime } from './transportData';
 
 interface VehicleTripDetailsModalProps {
   assignment: VehicleAssignment | null;
@@ -138,8 +138,8 @@ export const VehicleTripDetailsModal: React.FC<VehicleTripDetailsModalProps> = (
   const attendantName = assignment.attendantName || attendant?.attendantName || 'Unassigned';
   const attendantMobile = assignment.attendantMobile || attendant?.mobileNumber || '';
   const seatingCapacity = vehicle ? vehicle.capacity : (assignment.vehicleCapacity || 0);
-  const morningTripTime = assignment.morningTripTime ? formatTripTime(assignment.morningTripTime) : '-';
-  const eveningTripTime = assignment.eveningTripTime ? formatTripTime(assignment.eveningTripTime) : '-';
+  const morningTripTime = assignment.morningTripTime ? formatMorningTripTime(assignment.morningTripTime) : '-';
+  const eveningTripTime = assignment.eveningTripTime ? formatEveningTripTime(assignment.eveningTripTime) : '-';
 
   const configuredStops = pickupPoints
     .filter((point: PickupPoint) => 
@@ -157,8 +157,8 @@ export const VehicleTripDetailsModal: React.FC<VehicleTripDetailsModalProps> = (
         id: p.id,
         label: p.pickupName,
         order: seq++,
-        morningTime: p.morningPickupTime || p.arrivalTime ? formatTripTime(p.morningPickupTime || p.arrivalTime) : morningTripTime,
-        eveningTime: p.eveningDropTime || p.dropTime ? formatTripTime(p.eveningDropTime || p.dropTime) : eveningTripTime,
+        morningTime: p.morningPickupTime || p.arrivalTime ? formatMorningTripTime(p.morningPickupTime || p.arrivalTime) : morningTripTime,
+        eveningTime: p.eveningDropTime || p.dropTime ? formatEveningTripTime(p.eveningDropTime || p.dropTime) : eveningTripTime,
         distanceKm: p.distanceFromSchoolKm ?? p.distanceFromStart ?? 0,
         status: p.status || 'Active'
       });
@@ -222,10 +222,10 @@ export const VehicleTripDetailsModal: React.FC<VehicleTripDetailsModalProps> = (
     route: log.routeName,
     driver: log.driverName,
     att: log.attendantName || 'Unassigned',
-    mStart: log.morningTripTime ? formatTripTime(log.morningTripTime) : '-',
-    mEnd: log.morningTripTime ? formatTripTime(log.morningTripTime) : '-',
-    eStart: log.eveningTripTime ? formatTripTime(log.eveningTripTime) : '-',
-    eEnd: log.eveningTripTime ? formatTripTime(log.eveningTripTime) : '-',
+    mStart: log.morningTripTime ? formatMorningTripTime(log.morningTripTime) : '-',
+    mEnd: log.morningTripTime ? formatMorningTripTime(log.morningTripTime) : '-',
+    eStart: log.eveningTripTime ? formatEveningTripTime(log.eveningTripTime) : '-',
+    eEnd: log.eveningTripTime ? formatEveningTripTime(log.eveningTripTime) : '-',
     status: 'Inactive' as const
   }));
 

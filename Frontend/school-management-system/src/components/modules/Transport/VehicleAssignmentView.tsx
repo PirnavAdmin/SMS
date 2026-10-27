@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import {
   Layers, Plus, Search, Trash2, Edit, X, ArrowRight, UserCheck, Users,
-  Bus, Route, History, Eye
+  Bus, Route, History, Eye, AlertCircle
 } from 'lucide-react';
 import { VehicleAssignment } from '../../../types';
 import { useData } from '../../../context/DataContext';
@@ -14,7 +14,15 @@ import { ConfirmModal } from '../../common/ConfirmModal';
 import { Pagination } from '../../common/Pagination';
 import { initialBusAttendants } from './BusAttendantMasterView';
 import { VehicleTripDetailsModal } from './VehicleTripDetailsModal';
-import { resolveAssignedStudentsForTrip } from './transportData';
+import {
+  resolveAssignedStudentsForTrip,
+  formatMorningTripTime,
+  formatEveningTripTime,
+  to24HourMorningTime,
+  to24HourEveningTime,
+  to24HourTime,
+  formatTripTime
+} from './transportData';
 
 export interface VehicleAssignmentLogItem {
   id: string;
@@ -44,40 +52,59 @@ type AssignmentFormState = {
   status: 'Active' | 'Inactive';
 };
 
-const to24HourTime = (value?: string) => {
-  if (!value) return '';
-  const clean = value.trim();
-  const ampmMatch = clean.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)?$/i);
-  if (ampmMatch) {
-    let hour = parseInt(ampmMatch[1], 10);
-    const minute = ampmMatch[2];
-    const ampm = ampmMatch[3] ? ampmMatch[3].toUpperCase() : null;
-    if (ampm === 'PM' && hour < 12) hour += 12;
-    if (ampm === 'AM' && hour === 12) hour = 0;
-    return `${String(hour).padStart(2, '0')}:${minute}`;
+const parseTimeToMinutes = (timeStr?: string): number | null => {
+  if (!timeStr || !timeStr.trim()) return null;
+  const time24 = to24HourTime(timeStr);
+  const match = time24.match(/^(\d{1,2}):(\d{2})$/);
+  if (!match) return null;
+  const hours = parseInt(match[1], 10);
+  const minutes = parseInt(match[2], 10);
+  if (isNaN(hours) || isNaN(minutes) || hours < 0 || hours > 23 || minutes < 0 || minutes > 59) {
+    return null;
   }
-  if (/^\d{2}:\d{2}:\d{2}$/.test(clean)) {
-    return clean.slice(0, 5);
-  }
-  if (/^\d{2}:\d{2}$/.test(clean)) {
-    return clean;
-  }
-  return '';
+  return hours * 60 + minutes;
 };
 
-const formatTripTime = (value?: string) => {
-  if (!value) return 'Not set';
-  if (value.includes('AM') || value.includes('PM')) return value;
+const getMorningTimeError = (timeStr?: string): string | null => {
+  if (!timeStr || !timeStr.trim()) return null;
+  const minutes = parseTimeToMinutes(timeStr);
+  if (minutes === null) return 'Invalid morning time format.';
+  if (minutes >= 12 * 60) {
+    return 'Morning trip must be an AM time (between 12:00 AM and 11:59 AM).';
+  }
+  return null;
+};
 
-  const [hourText, minuteText] = value.split(':');
-  const hour = Number(hourText);
-  const minute = Number(minuteText);
+const getEveningTimeError = (timeStr?: string, morningStr?: string): string | null => {
+  if (!timeStr || !timeStr.trim()) return null;
+  const minutes = parseTimeToMinutes(timeStr);
+  if (minutes === null) return 'Invalid evening time format.';
+  if (minutes < 12 * 60) {
+    return 'Evening trip must be a PM time (between 12:00 PM and 11:59 PM).';
+  }
+  const mMin = parseTimeToMinutes(morningStr);
+  if (mMin !== null && minutes <= mMin) {
+    return 'Evening trip time must be later than morning trip time.';
+  }
+  return null;
+};
 
-  if (Number.isNaN(hour) || Number.isNaN(minute)) return value;
+const convertToPM = (timeStr: string): string => {
+  const match = timeStr.trim().match(/^(\d{1,2}):(\d{2})/);
+  if (!match) return timeStr;
+  let h = parseInt(match[1], 10);
+  const m = match[2];
+  if (h < 12) h += 12;
+  return `${String(h).padStart(2, '0')}:${m}`;
+};
 
-  const suffix = hour >= 12 ? 'PM' : 'AM';
-  const displayHour = hour % 12 || 12;
-  return `${String(displayHour).padStart(2, '0')}:${String(minute).padStart(2, '0')} ${suffix}`;
+const convertToAM = (timeStr: string): string => {
+  const match = timeStr.trim().match(/^(\d{1,2}):(\d{2})/);
+  if (!match) return timeStr;
+  let h = parseInt(match[1], 10);
+  const m = match[2];
+  if (h >= 12) h = h % 12;
+  return `${String(h).padStart(2, '0')}:${m}`;
 };
 
 const getCurrentAcademicYear = () => {
@@ -465,8 +492,8 @@ export const VehicleAssignmentView: React.FC = () => {
       routeId: matchedRoute ? String(matchedRoute.id) : (assignment.routeId ? String(assignment.routeId) : ''),
       driverId: matchedDriver ? String(matchedDriver.id) : (assignment.driverId ? String(assignment.driverId) : ''),
       attendantId: matchedAttendant ? String(matchedAttendant.id) : (assignment.attendantId ? String(assignment.attendantId) : ''),
-      morningTripTime: to24HourTime(assignment.morningTripTime),
-      eveningTripTime: to24HourTime(assignment.eveningTripTime),
+      morningTripTime: to24HourMorningTime(assignment.morningTripTime),
+      eveningTripTime: to24HourEveningTime(assignment.eveningTripTime),
       effectiveFrom: (assignment.effectiveFrom || '').split('T')[0] || new Date().toISOString().split('T')[0],
       status: assignment.status === 'Active' || (assignment.status as any) === true ? 'Active' : 'Inactive'
     });
@@ -512,8 +539,8 @@ export const VehicleAssignmentView: React.FC = () => {
       routeId: matchedRoute ? String(matchedRoute.id) : (assignment.routeId ? String(assignment.routeId) : ''),
       driverId: matchedDriver ? String(matchedDriver.id) : (assignment.driverId ? String(assignment.driverId) : ''),
       attendantId: matchedAttendant ? String(matchedAttendant.id) : (assignment.attendantId ? String(assignment.attendantId) : ''),
-      morningTripTime: to24HourTime(assignment.morningTripTime),
-      eveningTripTime: to24HourTime(assignment.eveningTripTime),
+      morningTripTime: to24HourMorningTime(assignment.morningTripTime),
+      eveningTripTime: to24HourEveningTime(assignment.eveningTripTime),
       effectiveFrom: new Date().toISOString().split('T')[0],
       status: 'Active'
     });
@@ -624,6 +651,18 @@ export const VehicleAssignmentView: React.FC = () => {
 
     if (!vehicle || !route || !driver) {
       addToast('warning', 'Incomplete Form', 'Select active vehicle, route, and driver before saving.');
+      return;
+    }
+
+    const morningValidationErr = getMorningTimeError(form.morningTripTime);
+    if (morningValidationErr) {
+      addToast('warning', 'Invalid Morning Trip Time', morningValidationErr);
+      return;
+    }
+
+    const eveningValidationErr = getEveningTimeError(form.eveningTripTime, form.morningTripTime);
+    if (eveningValidationErr) {
+      addToast('warning', 'Invalid Evening Trip Time', eveningValidationErr);
       return;
     }
 
@@ -740,8 +779,8 @@ export const VehicleAssignmentView: React.FC = () => {
       attendantName,
       attendantEmployeeId,
       attendantMobile,
-      morningTripTime: form.morningTripTime,
-      eveningTripTime: form.eveningTripTime,
+      morningTripTime: form.morningTripTime ? formatMorningTripTime(form.morningTripTime) : '',
+      eveningTripTime: form.eveningTripTime ? formatEveningTripTime(form.eveningTripTime) : '',
       vehicleCapacity: vehicle.capacity,
       assignedStudents,
       gpsStatus,
@@ -852,8 +891,8 @@ export const VehicleAssignmentView: React.FC = () => {
     const rawMorningTime = assignment.morningTripTime || firstStop?.morningPickupTime || (firstStop as any)?.arrivalTime || '';
     const rawEveningTime = assignment.eveningTripTime || firstStop?.eveningDropTime || (firstStop as any)?.dropTime || '';
 
-    const morningTripTime = rawMorningTime ? formatTripTime(rawMorningTime) : '-';
-    const eveningTripTime = rawEveningTime ? formatTripTime(rawEveningTime) : '-';
+    const morningTripTime = rawMorningTime ? formatMorningTripTime(rawMorningTime) : '-';
+    const eveningTripTime = rawEveningTime ? formatEveningTripTime(rawEveningTime) : '-';
 
     return {
       assignment,
@@ -867,6 +906,9 @@ export const VehicleAssignmentView: React.FC = () => {
       eveningTripTime
     };
   });
+
+  const morningError = getMorningTimeError(form.morningTripTime);
+  const eveningError = getEveningTimeError(form.eveningTripTime, form.morningTripTime);
 
   return (
     <div className="space-y-5 animate-in fade-in">
@@ -1196,8 +1238,12 @@ export const VehicleAssignmentView: React.FC = () => {
                       .filter(p => (matchedRoute?.id && String(p.routeId) === String(matchedRoute.id)) || (matchedRoute?.routeName && p.routeName?.toLowerCase() === matchedRoute.routeName.toLowerCase()))
                       .sort((a, b) => (Number(a.sequenceNumber) || 1) - (Number(b.sequenceNumber) || 1));
                     const firstStop = targetRouteStops[0];
-                    const morningTime = firstStop?.morningPickupTime ? to24HourTime(firstStop.morningPickupTime) : (form.morningTripTime || '');
-                    const eveningTime = firstStop?.eveningDropTime ? to24HourTime(firstStop.eveningDropTime) : (form.eveningTripTime || '');
+                    const morningTime = firstStop?.morningPickupTime
+                      ? to24HourMorningTime(firstStop.morningPickupTime)
+                      : (form.morningTripTime ? to24HourMorningTime(form.morningTripTime) : '');
+                    const eveningTime = firstStop?.eveningDropTime
+                      ? to24HourEveningTime(firstStop.eveningDropTime)
+                      : (form.eveningTripTime ? to24HourEveningTime(form.eveningTripTime) : '');
                     setForm(prev => ({
                       ...prev,
                       routeId: selectedRtId,
@@ -1337,23 +1383,81 @@ export const VehicleAssignmentView: React.FC = () => {
               </div>
 
               <div>
-                <label className="block font-semibold mb-1">Morning Trip Time</label>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="font-semibold text-slate-800 dark:text-slate-200">
+                    Morning Trip Time <span className="text-[10px] text-sky-600 dark:text-sky-400 font-bold ml-1 bg-sky-50 dark:bg-sky-950/60 px-1.5 py-0.5 rounded border border-sky-200 dark:border-sky-800">AM Only</span>
+                  </label>
+                  {form.morningTripTime && (
+                    <span className="text-[11px] font-mono font-bold text-sky-600 dark:text-sky-400">
+                      {formatMorningTripTime(form.morningTripTime)}
+                    </span>
+                  )}
+                </div>
                 <input
                   type="time"
                   value={form.morningTripTime}
                   onChange={e => setForm(prev => ({ ...prev, morningTripTime: e.target.value }))}
-                  className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold"
+                  className={`w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-mono font-bold text-slate-900 dark:text-white outline-none transition-all ${
+                    morningError ? 'border-rose-500 focus:border-rose-500 bg-rose-50/20' : 'focus:border-sky-500'
+                  }`}
                 />
+                {morningError ? (
+                  <div className="mt-1 flex flex-wrap items-center justify-between gap-1 text-[11px]">
+                    <span className="text-rose-500 font-bold flex items-center gap-1">
+                      <AlertCircle className="w-3.5 h-3.5 shrink-0" /> {morningError}
+                    </span>
+                    {parseTimeToMinutes(form.morningTripTime) !== null && parseTimeToMinutes(form.morningTripTime)! >= 12 * 60 && (
+                      <button
+                        type="button"
+                        onClick={() => setForm(prev => ({ ...prev, morningTripTime: convertToAM(prev.morningTripTime) }))}
+                        className="px-2 py-0.5 rounded bg-sky-100 dark:bg-sky-900/60 text-sky-700 dark:text-sky-300 font-bold hover:underline cursor-pointer"
+                      >
+                        Switch to AM ({formatMorningTripTime(convertToAM(form.morningTripTime))})
+                      </button>
+                    )}
+                  </div>
+                ) : (
+                  <p className="text-[10px] text-slate-400 mt-1">Accepts AM hours only (e.g. 07:00 AM)</p>
+                )}
               </div>
 
               <div>
-                <label className="block font-semibold mb-1">Evening Trip Time</label>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="font-semibold text-slate-800 dark:text-slate-200">
+                    Evening Trip Time <span className="text-[10px] text-amber-600 dark:text-amber-400 font-bold ml-1 bg-amber-50 dark:bg-amber-950/60 px-1.5 py-0.5 rounded border border-amber-200 dark:border-amber-800">PM Only</span>
+                  </label>
+                  {form.eveningTripTime && (
+                    <span className="text-[11px] font-mono font-bold text-amber-600 dark:text-amber-400">
+                      {formatEveningTripTime(form.eveningTripTime)}
+                    </span>
+                  )}
+                </div>
                 <input
                   type="time"
                   value={form.eveningTripTime}
                   onChange={e => setForm(prev => ({ ...prev, eveningTripTime: e.target.value }))}
-                  className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold"
+                  className={`w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-mono font-bold text-slate-900 dark:text-white outline-none transition-all ${
+                    eveningError ? 'border-rose-500 focus:border-rose-500 bg-rose-50/20' : 'focus:border-sky-500'
+                  }`}
                 />
+                {eveningError ? (
+                  <div className="mt-1 flex flex-wrap items-center justify-between gap-1 text-[11px]">
+                    <span className="text-rose-500 font-bold flex items-center gap-1">
+                      <AlertCircle className="w-3.5 h-3.5 shrink-0" /> {eveningError}
+                    </span>
+                    {parseTimeToMinutes(form.eveningTripTime) !== null && parseTimeToMinutes(form.eveningTripTime)! < 12 * 60 && (
+                      <button
+                        type="button"
+                        onClick={() => setForm(prev => ({ ...prev, eveningTripTime: convertToPM(prev.eveningTripTime) }))}
+                        className="px-2 py-0.5 rounded bg-amber-100 dark:bg-amber-900/60 text-amber-800 dark:text-amber-300 font-bold hover:underline cursor-pointer"
+                      >
+                        Set to PM ({formatEveningTripTime(convertToPM(form.eveningTripTime))})
+                      </button>
+                    )}
+                  </div>
+                ) : (
+                  <p className="text-[10px] text-slate-400 mt-1">Accepts PM hours only (e.g. 05:40 PM / 17:40)</p>
+                )}
               </div>
 
               <div>

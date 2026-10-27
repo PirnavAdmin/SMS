@@ -11,6 +11,7 @@ import { Badge } from '../../common/Badge';
 import { TransportGPSTrackingView } from './TransportGPSTrackingView';
 import { VehicleTripDetailsModal } from './VehicleTripDetailsModal';
 import { TransportScrollableTabs } from './TransportScrollableTabs';
+import { formatMorningTripTime, formatEveningTripTime } from './transportData';
 
 interface DriverTransportPortalViewProps {
   onNavigate?: (module: string) => void;
@@ -358,8 +359,8 @@ export const DriverTransportPortalView: React.FC<DriverTransportPortalViewProps>
   };
 
   const seatingCapacity = assignedVehicle?.capacity || currentAssignment?.vehicleCapacity || 0;
-  const morningTime = currentAssignment?.morningTripTime ? formatTripTime(currentAssignment.morningTripTime) : '-';
-  const eveningTime = currentAssignment?.eveningTripTime ? formatTripTime(currentAssignment.eveningTripTime) : '-';
+  const morningTime = currentAssignment?.morningTripTime ? formatMorningTripTime(currentAssignment.morningTripTime) : '-';
+  const eveningTime = currentAssignment?.eveningTripTime ? formatEveningTripTime(currentAssignment.eveningTripTime) : '-';
 
   const DRIVER_TABS = useMemo(() => [
     { id: 'my-bus', label: 'Vehicle & Trip Overview', icon: Bus },
