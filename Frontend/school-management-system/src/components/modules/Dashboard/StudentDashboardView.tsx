@@ -161,28 +161,27 @@ export const StudentDashboardView: React.FC<StudentDashboardViewProps> = ({ onNa
     const list: any[] = [];
     const seenKeys = new Set<string>();
 
-    (studentAttendance || []).forEach(a => {
+    const addRecord = (a: any, fallbackEntity: string) => {
+      if (!a) return;
       const d = String(a.date || '').split('T')[0];
-      const sId = String(a.studentId || a.id || '');
-      const key = `${sId}_${d}`;
-      seenKeys.add(key);
-      list.push({ ...a, date: d, studentId: sId, entityType: 'Student' });
-    });
-
-    (attendance || []).forEach(a => {
-      const d = String(a.date || '').split('T')[0];
-      const sId = String(a.studentId || a.entityId || '');
-      const key = `${sId}_${d}`;
+      const sId = String(a.studentId || a.entityId || a.id || '');
+      const roll = String(a.rollNo || '');
+      const adm = String(a.admissionNo || '');
+      const ident = adm || roll || sId;
+      const key = `${ident}_${d}_${a.subject || ''}_${a.period || ''}`;
       if (!seenKeys.has(key)) {
         seenKeys.add(key);
-        list.push({ ...a, date: d, studentId: sId, entityType: a.entityType || 'Student' });
+        list.push({ ...a, date: d, studentId: sId, entityType: a.entityType || fallbackEntity });
       }
-    });
+    };
+
+    (studentAttendance || []).forEach(a => addRecord(a, 'Student'));
+    (attendance || []).forEach(a => addRecord(a, 'Student'));
 
     return list;
   }, [studentAttendance, attendance, registryVersion]);
 
-  const wardAttendance = combinedAttendance.filter(a => {
+  const wardAttendanceRaw = combinedAttendance.filter(a => {
     const isStudentEntity = !a.entityType || a.entityType === 'Student';
     if (!isStudentEntity) return false;
 
@@ -204,6 +203,24 @@ export const StudentDashboardView: React.FC<StudentDashboardViewProps> = ({ onNa
       (recName && wardNameStr && (recName === wardNameStr || recName.includes(wardNameStr) || wardNameStr.includes(recName)))
     );
   });
+
+  const stuDateMap = new Map<string, any>();
+  for (const rec of wardAttendanceRaw) {
+    const dKey = String(rec.date || '').split('T')[0];
+    if (!stuDateMap.has(dKey)) {
+      stuDateMap.set(dKey, rec);
+    } else {
+      const existing = stuDateMap.get(dKey);
+      if (
+        (existing.status === 'Present' && rec.status === 'Absent') ||
+        (existing.status === 'Absent' && rec.status === 'Present')
+      ) {
+        existing.status = 'HalfDay';
+      }
+    }
+  }
+  const wardAttendance = Array.from(stuDateMap.values());
+
   const presentDays = wardAttendance.filter(a => a.status === 'Present').length;
   const lateDays = wardAttendance.filter(a => a.status === 'Late').length;
   const halfDays = wardAttendance.filter(a => a.status === 'HalfDay' || a.status === 'Half Day').length;

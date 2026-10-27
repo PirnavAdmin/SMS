@@ -65,35 +65,30 @@ export const ParentAttendanceView: React.FC = () => {
     const list: any[] = [];
     const seenDateKeys = new Set<string>();
 
-    // 1. From studentAttendance in DataContext
-    (studentAttendance || []).forEach(a => {
+    const addRecord = (a: any, fallbackEntity: string) => {
+      if (!a) return;
       const d = String(a.date || '').split('T')[0];
-      const sId = String(a.studentId || a.id || '');
-      const key = `${sId}_${d}`;
-      seenDateKeys.add(key);
-      list.push({
-        ...a,
-        date: d,
-        studentId: sId,
-        entityType: 'Student'
-      });
-    });
-
-    // 2. From rawAttendance in DataContext
-    (rawAttendance || []).forEach(a => {
-      const d = String(a.date || '').split('T')[0];
-      const sId = String(a.studentId || a.entityId || '');
-      const key = `${sId}_${d}`;
+      const sId = String(a.studentId || a.entityId || a.id || '');
+      const roll = String(a.rollNo || '');
+      const adm = String(a.admissionNo || '');
+      const ident = adm || roll || sId;
+      const key = `${ident}_${d}_${a.subject || ''}_${a.period || ''}`;
       if (!seenDateKeys.has(key)) {
         seenDateKeys.add(key);
         list.push({
           ...a,
           date: d,
           studentId: sId,
-          entityType: a.entityType || 'Student'
+          entityType: a.entityType || fallbackEntity
         });
       }
-    });
+    };
+
+    // 1. From studentAttendance in DataContext
+    (studentAttendance || []).forEach(a => addRecord(a, 'Student'));
+
+    // 2. From rawAttendance in DataContext
+    (rawAttendance || []).forEach(a => addRecord(a, 'Student'));
 
     return list;
   }, [studentAttendance, rawAttendance, registryVersion]);
@@ -108,7 +103,7 @@ export const ParentAttendanceView: React.FC = () => {
     const wardRoll = String(currentWard.rollNo || '').trim();
     const wardAdm = String(currentWard.admissionNo || '').trim();
 
-    return combinedAttendance.filter(a => {
+    const filteredList = combinedAttendance.filter(a => {
       const isStudentEntity = !a.entityType || a.entityType === 'Student';
       if (!isStudentEntity) return false;
 
@@ -169,7 +164,46 @@ export const ParentAttendanceView: React.FC = () => {
         return recDateStr >= startDate && recDateStr <= endDate;
       }
       return true;
-    }).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    });
+
+    // Deduplicate daily records: Ensure each calendar date appears exactly once for this student
+    const dateMap = new Map<string, any>();
+    for (const rec of filteredList) {
+      const rawDateStr = String(rec.date || '').split('T')[0].trim();
+      let dKey = rawDateStr;
+      if (/^\d{4}-\d{2}-\d{2}$/.test(rawDateStr)) {
+        dKey = rawDateStr;
+      } else if (/^\d{1,2}[\/-]\d{1,2}[\/-]\d{4}$/.test(rawDateStr)) {
+        const [d, m, y] = rawDateStr.split(/[\/-]/);
+        dKey = `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
+      } else {
+        const p = new Date(rawDateStr);
+        if (!isNaN(p.getTime())) {
+          dKey = `${p.getFullYear()}-${String(p.getMonth() + 1).padStart(2, '0')}-${String(p.getDate()).padStart(2, '0')}`;
+        }
+      }
+
+      if (!dateMap.has(dKey)) {
+        dateMap.set(dKey, { ...rec, date: dKey });
+      } else {
+        const existing = dateMap.get(dKey);
+        if (!existing.remarks && rec.remarks) {
+          existing.remarks = rec.remarks;
+        }
+        if (
+          (existing.status === 'Present' && rec.status === 'Absent') ||
+          (existing.status === 'Absent' && rec.status === 'Present')
+        ) {
+          existing.status = 'HalfDay';
+        } else if (existing.status !== 'Present' && rec.status === 'Present') {
+          existing.status = rec.status;
+        }
+      }
+    }
+
+    return Array.from(dateMap.values()).sort(
+      (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
+    );
   }, [combinedAttendance, currentWard, filterType, selectedMonth, selectedYear, selectedDate, startDate, endDate]);
 
   const wardAttendance = rawWardAttendance;
