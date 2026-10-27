@@ -56,7 +56,7 @@ export const DEFAULT_CERTIFICATE_FIELDS_MAP: Record<string, CertificateFieldConf
   ],
   'CT-FEE-CLEARANCE': [
     { key: 'issueDate', label: 'Date of Issue', type: 'date', required: true, displayOrder: 1 },
-    { key: 'clearanceStatus', label: 'Dues Clearance Status', type: 'dropdown', options: ['FULL DUES CLEARED', 'PARTIAL CLEARED WITH NOC', 'CONDITIONAL CLEARANCE'], required: true, defaultValue: 'FULL DUES CLEARED', displayOrder: 2 },
+    { key: 'clearanceStatus', label: 'Dues Clearance Status', type: 'dropdown', options: ['Full Dues Cleared', 'Partial Cleared with NOC', 'Conditional Clearance'], required: true, defaultValue: 'Full Dues Cleared', displayOrder: 2 },
     { key: 'academicYear', label: 'Academic Year', type: 'text', required: false, displayOrder: 3 },
     { key: 'remarks', label: 'Remarks', type: 'textarea', required: false, displayOrder: 4 }
   ],
@@ -82,29 +82,44 @@ export const DEFAULT_CERTIFICATE_FIELDS_MAP: Record<string, CertificateFieldConf
 };
 
 export function getFieldsForCertificateType(typeConfig?: Partial<CertificateTypeConfig> | null): CertificateFieldConfig[] {
-  if (!typeConfig) return DEFAULT_GENERIC_FIELDS;
+  let fields: CertificateFieldConfig[] = DEFAULT_GENERIC_FIELDS;
 
-  if (typeConfig.fields && Array.isArray(typeConfig.fields) && typeConfig.fields.length > 0) {
-    return [...typeConfig.fields].sort((a, b) => (a.displayOrder || 0) - (b.displayOrder || 0));
+  if (typeConfig) {
+    if (typeConfig.fields && Array.isArray(typeConfig.fields) && typeConfig.fields.length > 0) {
+      fields = [...typeConfig.fields].sort((a, b) => (a.displayOrder || 0) - (b.displayOrder || 0));
+    } else if (typeConfig.id && DEFAULT_CERTIFICATE_FIELDS_MAP[typeConfig.id]) {
+      fields = DEFAULT_CERTIFICATE_FIELDS_MAP[typeConfig.id];
+    } else {
+      const nameLower = (typeConfig.name || '').toLowerCase();
+      const codeLower = (typeConfig.code || '').toLowerCase();
+
+      if (nameLower.includes('transfer') || codeLower === 'tc') fields = DEFAULT_CERTIFICATE_FIELDS_MAP['CT-TC'];
+      else if (nameLower.includes('bonafide') || codeLower === 'bc') fields = DEFAULT_CERTIFICATE_FIELDS_MAP['CT-BONAFIDE'];
+      else if (nameLower.includes('study') || codeLower === 'sc') fields = DEFAULT_CERTIFICATE_FIELDS_MAP['CT-STUDY'];
+      else if (nameLower.includes('character') || codeLower === 'cc') fields = DEFAULT_CERTIFICATE_FIELDS_MAP['CT-CHARACTER'];
+      else if (nameLower.includes('conduct') || codeLower === 'cd') fields = DEFAULT_CERTIFICATE_FIELDS_MAP['CT-CONDUCT'];
+      else if (nameLower.includes('migration') || codeLower === 'mc') fields = DEFAULT_CERTIFICATE_FIELDS_MAP['CT-MIGRATION'];
+      else if (nameLower.includes('fee')) fields = DEFAULT_CERTIFICATE_FIELDS_MAP['CT-FEE-CLEARANCE'];
+      else if (nameLower.includes('admission')) fields = DEFAULT_CERTIFICATE_FIELDS_MAP['CT-ADMISSION'];
+      else if (nameLower.includes('completion')) fields = DEFAULT_CERTIFICATE_FIELDS_MAP['CT-COURSE-COMPLETION'];
+      else if (nameLower.includes('leaving')) fields = DEFAULT_CERTIFICATE_FIELDS_MAP['CT-LEAVING'];
+    }
   }
 
-  if (typeConfig.id && DEFAULT_CERTIFICATE_FIELDS_MAP[typeConfig.id]) {
-    return DEFAULT_CERTIFICATE_FIELDS_MAP[typeConfig.id];
-  }
-
-  const nameLower = (typeConfig.name || '').toLowerCase();
-  const codeLower = (typeConfig.code || '').toLowerCase();
-
-  if (nameLower.includes('transfer') || codeLower === 'tc') return DEFAULT_CERTIFICATE_FIELDS_MAP['CT-TC'];
-  if (nameLower.includes('bonafide') || codeLower === 'bc') return DEFAULT_CERTIFICATE_FIELDS_MAP['CT-BONAFIDE'];
-  if (nameLower.includes('study') || codeLower === 'sc') return DEFAULT_CERTIFICATE_FIELDS_MAP['CT-STUDY'];
-  if (nameLower.includes('character') || codeLower === 'cc') return DEFAULT_CERTIFICATE_FIELDS_MAP['CT-CHARACTER'];
-  if (nameLower.includes('conduct') || codeLower === 'cd') return DEFAULT_CERTIFICATE_FIELDS_MAP['CT-CONDUCT'];
-  if (nameLower.includes('migration') || codeLower === 'mc') return DEFAULT_CERTIFICATE_FIELDS_MAP['CT-MIGRATION'];
-  if (nameLower.includes('fee')) return DEFAULT_CERTIFICATE_FIELDS_MAP['CT-FEE-CLEARANCE'];
-  if (nameLower.includes('admission')) return DEFAULT_CERTIFICATE_FIELDS_MAP['CT-ADMISSION'];
-  if (nameLower.includes('completion')) return DEFAULT_CERTIFICATE_FIELDS_MAP['CT-COURSE-COMPLETION'];
-  if (nameLower.includes('leaving')) return DEFAULT_CERTIFICATE_FIELDS_MAP['CT-LEAVING'];
-
-  return DEFAULT_GENERIC_FIELDS;
+  // Ensure clearance status options are always cleanly formatted in mixed characters
+  return fields.map(f => {
+    if (f.key === 'clearanceStatus' && Array.isArray(f.options)) {
+      return {
+        ...f,
+        defaultValue: f.defaultValue === 'FULL DUES CLEARED' ? 'Full Dues Cleared' : (f.defaultValue || 'Full Dues Cleared'),
+        options: f.options.map(opt => {
+          if (opt === 'FULL DUES CLEARED') return 'Full Dues Cleared';
+          if (opt === 'PARTIAL CLEARED WITH NOC') return 'Partial Cleared with NOC';
+          if (opt === 'CONDITIONAL CLEARANCE') return 'Conditional Clearance';
+          return opt;
+        })
+      };
+    }
+    return f;
+  });
 }

@@ -1093,7 +1093,7 @@ export const CertificateSettingsTab: React.FC = () => {
                 conduct="Good & Exemplary"
                 remarks="Promoted to Higher Grade"
                 result="PASSED"
-                feeClearanceStatus="FULL DUES CLEARED"
+                feeClearanceStatus="Full Dues Cleared"
                 tcNo={`${currentTypeForTemplate?.numberingPrefix || 'CERT'}-${activeYearPrefix}-0001`}
                 issueDate={new Date().toISOString().split('T')[0]}
                 isDraftPreview={true}
