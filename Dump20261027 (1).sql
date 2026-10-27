@@ -268,7 +268,7 @@ CREATE TABLE `automated_id_formats` (
   `UpdatedAt` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`Id`),
   UNIQUE KEY `ux_automated_id_key` (`FormatKey`)
-) ENGINE=InnoDB AUTO_INCREMENT=1058 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=1070 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -2078,7 +2078,7 @@ CREATE TABLE `student_attendance_sessions` (
   KEY `IX_student_attendance_sessions_PeriodId` (`PeriodId`),
   KEY `IX_student_attendance_sessions_SectionId` (`SectionId`),
   KEY `IX_student_attendance_sessions_SubjectId` (`SubjectId`)
-) ENGINE=InnoDB AUTO_INCREMENT=50 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=52 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -2101,7 +2101,7 @@ CREATE TABLE `student_attendances` (
   KEY `IX_student_attendances_StudentId` (`StudentId`),
   CONSTRAINT `FK_student_attendances_student_attendance_sessions_AttendanceSe~` FOREIGN KEY (`AttendanceSessionId`) REFERENCES `student_attendance_sessions` (`AttendanceSessionId`) ON DELETE CASCADE,
   CONSTRAINT `FK_student_attendances_students_StudentId` FOREIGN KEY (`StudentId`) REFERENCES `students` (`student_id`)
-) ENGINE=InnoDB AUTO_INCREMENT=1088 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=1090 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -3066,4 +3066,4 @@ CREATE TABLE `users` (
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2026-10-27 12:15:55
+-- Dump completed on 2026-10-27 14:35:01
