@@ -205,7 +205,10 @@ export const StudentDashboardView: React.FC<StudentDashboardViewProps> = ({ onNa
     );
   });
   const presentDays = wardAttendance.filter(a => a.status === 'Present').length;
-  const attPercentage = wardAttendance.length > 0 ? Math.round((presentDays / wardAttendance.length) * 100) : 100;
+  const lateDays = wardAttendance.filter(a => a.status === 'Late').length;
+  const halfDays = wardAttendance.filter(a => a.status === 'HalfDay' || a.status === 'Half Day').length;
+  const totalDays = wardAttendance.filter(a => ['Present', 'Absent', 'Late', 'HalfDay', 'Half Day'].includes(a.status)).length;
+  const attPercentage = totalDays > 0 ? Math.round(((presentDays + lateDays + (halfDays * 0.5)) / totalDays) * 100) : 100;
 
   // Homework (Pending tasks)
   const normalizeClassNumHw = (str?: string) => {

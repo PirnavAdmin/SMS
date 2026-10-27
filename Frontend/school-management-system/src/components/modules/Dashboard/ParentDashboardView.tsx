@@ -341,9 +341,14 @@ export const ParentDashboardView: React.FC<ParentDashboardViewProps> = ({ onNavi
     const lEnd = pEnd + latePct;
     const hdEnd = lEnd + halfDayPct;
 
+    const overallPct = (present + absent + late + halfDay) > 0
+      ? Math.round(((present + late + (halfDay * 0.5)) / (present + absent + late + halfDay)) * 100)
+      : 100;
+
     return {
       present, absent, late, halfDay, total,
       presentPct, latePct, halfDayPct, absentPct,
+      overallPct,
       pEnd, lEnd, hdEnd,
       wardAttendance: wardAtt
     };
@@ -492,7 +497,7 @@ export const ParentDashboardView: React.FC<ParentDashboardViewProps> = ({ onNavi
   }
 
   const wardAttendance = wardAttendanceStats.wardAttendance;
-  const attPercentage = wardAttendanceStats.presentPct;
+  const attPercentage = wardAttendanceStats.overallPct ?? wardAttendanceStats.presentPct;
 
   // Real data for notices
   const recentNotices = [

@@ -19,7 +19,7 @@ export const ParentAttendanceView: React.FC = () => {
 
   // Filters state
   const currentDate = new Date();
-  const [filterType, setFilterType] = useState<'Month' | 'Day' | 'Custom'>('Month');
+  const [filterType, setFilterType] = useState<'Overall' | 'Month' | 'Day' | 'Custom'>('Overall');
   const [selectedMonth, setSelectedMonth] = useState(currentDate.getMonth().toString());
   const [selectedYear, setSelectedYear] = useState(currentDate.getFullYear().toString());
   
@@ -157,7 +157,9 @@ export const ParentAttendanceView: React.FC = () => {
         }
       }
 
-      if (filterType === 'Month') {
+      if (filterType === 'Overall') {
+        return true;
+      } else if (filterType === 'Month') {
         const isMatchMonth = recMonth === selectedMonth;
         const isMatchYear = recYear === selectedYear;
         return isMatchMonth && isMatchYear;
@@ -192,16 +194,19 @@ export const ParentAttendanceView: React.FC = () => {
   }
 
   // Statistics
-  const totalDays = wardAttendance.length;
   const presentDays = wardAttendance.filter(a => a.status === 'Present').length;
   const absentDays = wardAttendance.filter(a => a.status === 'Absent').length;
   const lateDays = wardAttendance.filter(a => a.status === 'Late').length;
-  const halfDays = wardAttendance.filter(a => a.status === 'HalfDay').length;
+  const halfDays = wardAttendance.filter(a => a.status === 'HalfDay' || a.status === 'Half Day').length;
   const leaveDays = wardAttendance.filter(a => a.status === 'Leave').length;
+
+  // Working marked days (excluding non-working holidays from the denominator)
+  const workingDays = presentDays + absentDays + lateDays + halfDays;
+  const totalDays = workingDays > 0 ? workingDays : wardAttendance.length;
 
   const attendancePercentage = totalDays > 0 
     ? Math.round(((presentDays + lateDays + (halfDays * 0.5)) / totalDays) * 100) 
-    : 0;
+    : (wardAttendance.length > 0 ? 0 : 100);
 
   const getStatusConfig = (status: DailyAttendance['status']) => {
     switch (status) {
@@ -249,11 +254,12 @@ export const ParentAttendanceView: React.FC = () => {
         <div className="flex-1 min-w-[150px] w-full">
           <label className="block text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5">View By</label>
           <select 
-            value={filterType} onChange={(e) => setFilterType(e.target.value as 'Month' | 'Day' | 'Custom')}
+            value={filterType} onChange={(e) => setFilterType(e.target.value as 'Overall' | 'Month' | 'Day' | 'Custom')}
             className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-sm text-slate-900 dark:text-white font-medium focus:ring-2 focus:ring-sky-500/50 outline-none"
           >
-            <option value="Day">Daily</option>
+            <option value="Overall">Overall</option>
             <option value="Month">Monthly</option>
+            <option value="Day">Daily</option>
             <option value="Custom">Custom Range</option>
           </select>
         </div>
@@ -350,11 +356,7 @@ export const ParentAttendanceView: React.FC = () => {
         <div className="p-4 border-b border-slate-200 dark:border-slate-700 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-slate-50/50 dark:bg-slate-900/50">
           <div className="flex items-center gap-3">
             <h3 className="text-base font-bold text-slate-900 dark:text-white">Daily Records</h3>
-            {rawWardAttendance.length === 0 && filterType === 'Month' && (
-              <span className="text-[10px] font-bold text-amber-600 bg-amber-50 px-2 py-1 rounded-md">
-                Demo Data
-              </span>
-            )}
+            
           </div>
           
           <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 w-full md:w-auto">
@@ -375,7 +377,7 @@ export const ParentAttendanceView: React.FC = () => {
             </div>
             <div className="hidden sm:block w-px h-6 bg-slate-200 dark:bg-slate-700"></div>
             <div className="text-xs font-semibold text-slate-500 bg-white dark:bg-slate-800 px-3 py-1 rounded-full border border-slate-200 dark:border-slate-700 whitespace-nowrap">
-              {filterType === 'Month' ? `${months.find(m => m.value === selectedMonth)?.label} ${selectedYear}` : filterType === 'Day' ? selectedDate : `${startDate} to ${endDate}`}
+              {filterType === 'Overall' ? 'Overall Records' : filterType === 'Month' ? `${months.find(m => m.value === selectedMonth)?.label} ${selectedYear}` : filterType === 'Day' ? selectedDate : `${startDate} to ${endDate}`}
             </div>
           </div>
         </div>
