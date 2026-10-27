@@ -440,6 +440,25 @@ export const GenerateCertificateModal: React.FC<GenerateCertificateModalProps> =
     return true;
   };
 
+  // Click handler for Preview button on Configuration Form tab
+  const handlePreviewClick = () => {
+    if (generationMode === 'single') {
+      if (!selectedStudent) {
+        addToast('warning', 'Selection Required', 'Please select a student to preview certificate.');
+        return;
+      }
+      if (!validateFormFields()) return;
+      setActiveTab('preview');
+    } else {
+      if (selectedStudentIds.length === 0) {
+        addToast('warning', 'Selection Required', 'Please select at least one student for bulk preview.');
+        return;
+      }
+      if (!validateFormFields()) return;
+      setActiveTab('preview');
+    }
+  };
+
   // Click handler for Generate button
   const handleGenerateClick = () => {
     if (generationMode === 'single') {
@@ -758,12 +777,6 @@ export const GenerateCertificateModal: React.FC<GenerateCertificateModalProps> =
                     : 'Generate Official School Certificate'
                 }
               </h3>
-              <p className="text-xs text-slate-500">
-                {generationMode === 'bulk'
-                  ? 'Select class, section, filter multiple students, enter common details, and batch issue.'
-                  : 'Select student, certificate type, fill required details, and issue with unique snapshot.'
-                }
-              </p>
             </div>
           </div>
 
@@ -1371,24 +1384,45 @@ export const GenerateCertificateModal: React.FC<GenerateCertificateModalProps> =
           </button>
 
           <div className="flex items-center gap-3">
-            <button
-              onClick={handlePrint}
-              className="px-4 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-900 dark:text-white text-xs font-bold flex items-center gap-1.5 cursor-pointer"
-            >
-              <Printer className="w-4 h-4" /> Print / PDF
-            </button>
-
-            {!existingRecord && (
+            {activeTab === 'preview' && (
               <button
+                type="button"
+                onClick={() => setActiveTab('form')}
+                className="px-4 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-900 dark:text-white text-xs font-bold flex items-center gap-1.5 cursor-pointer"
+              >
+                Back to Form
+              </button>
+            )}
+
+            {activeTab === 'form' ? (
+              <button
+                type="button"
+                onClick={handlePreviewClick}
+                disabled={generationMode === 'bulk' && selectedStudentIds.length === 0}
+                className="px-5 py-2.5 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-extrabold text-xs shadow-lg shadow-sky-600/20 flex items-center gap-2 cursor-pointer transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                <Eye className="w-4 h-4" /> Preview
+              </button>
+            ) : !existingRecord && !isBatchCompletedShow && !issuedSingleRecord ? (
+              <button
+                type="button"
                 onClick={handleGenerateClick}
                 disabled={generationMode === 'bulk' && selectedStudentIds.length === 0}
                 className="px-5 py-2.5 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-extrabold text-xs shadow-lg shadow-sky-600/20 flex items-center gap-2 cursor-pointer transition-all disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 <Award className="w-4 h-4" /> 
                 {generationMode === 'bulk'
-                  ? `Generate & Issue ${selectedStudentIds.length} Certificate${selectedStudentIds.length === 1 ? '' : 's'}`
-                  : 'Generate & Issue Certificate'
+                  ? `Issue ${selectedStudentIds.length} Certificate${selectedStudentIds.length === 1 ? '' : 's'}`
+                  : 'Issue'
                 }
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={handlePrint}
+                className="px-5 py-2.5 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-extrabold text-xs shadow-lg shadow-sky-600/20 flex items-center gap-2 cursor-pointer transition-all"
+              >
+                <Printer className="w-4 h-4" /> Print / PDF
               </button>
             )}
           </div>

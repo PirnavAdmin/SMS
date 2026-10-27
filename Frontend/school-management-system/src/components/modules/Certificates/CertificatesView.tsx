@@ -434,7 +434,7 @@ export const CertificatesView: React.FC<CertificatesViewProps> = ({ onNavigateTo
                             onClick={() => handleViewRecordDetails(rec)}
                             className="px-3 py-1.5 rounded-xl bg-sky-50 dark:bg-sky-950 text-sky-600 dark:text-sky-400 font-bold hover:bg-sky-100 flex items-center gap-1.5 ml-auto cursor-pointer"
                           >
-                            <Eye className="w-3.5 h-3.5" /> View & Print
+                            <Eye className="w-3.5 h-3.5" /> View
                           </button>
                         </td>
                       </tr>
