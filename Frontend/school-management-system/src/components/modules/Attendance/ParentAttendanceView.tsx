@@ -15,7 +15,7 @@ export const ParentAttendanceView: React.FC = () => {
 
   const [statusFilter, setStatusFilter] = useState('All');
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 50;
+  const itemsPerPage = 10;
 
   // Filters state
   const currentDate = new Date();
@@ -262,17 +262,85 @@ export const ParentAttendanceView: React.FC = () => {
   };
 
   return (
-    <div className="space-y-4 animate-in fade-in">
+    <div className="space-y-3 sm:space-y-3.5 animate-in fade-in">
       
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
-          <h1 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white flex items-center gap-3">
-            <div className="p-2.5 bg-sky-100 dark:bg-sky-500/20 rounded-xl">
-              <CalendarCheck className="w-6 h-6 text-sky-600 dark:text-sky-400" />
+      {/* Cockpit Header with Unified Filters */}
+      <div className="bg-white dark:bg-slate-800 p-3 sm:px-4 sm:py-3 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-xs flex flex-col lg:flex-row justify-between items-start lg:items-center gap-3">
+        <div className="flex items-center gap-3">
+          <div className="p-2 bg-sky-100 dark:bg-sky-500/20 rounded-xl shrink-0">
+            <CalendarCheck className="w-5 h-5 text-sky-600 dark:text-sky-400" />
+          </div>
+          <div>
+            <h1 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white leading-tight">
+              Student Attendance
+            </h1>
+            <p className="text-[11px] text-slate-500 dark:text-slate-400">
+              {currentWard ? `${currentWard.studentName || `${currentWard.firstName} ${currentWard.lastName}`} • ${currentWard.className} ${currentWard.section ? `(${currentWard.section})` : ''}` : "View your child's attendance records"}
+            </p>
+          </div>
+        </div>
+
+        {/* Filters */}
+        <div className="flex flex-wrap items-center gap-2 w-full lg:w-auto">
+          <div className="flex items-center gap-1.5">
+            <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider whitespace-nowrap">View:</span>
+            <select 
+              value={filterType} 
+              onChange={(e) => setFilterType(e.target.value as 'Overall' | 'Month' | 'Day' | 'Custom')}
+              className="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-2.5 py-1 text-xs text-slate-900 dark:text-white font-medium focus:ring-2 focus:ring-sky-500/50 outline-none cursor-pointer"
+            >
+              <option value="Overall">Overall</option>
+              <option value="Month">Monthly</option>
+              <option value="Day">Daily</option>
+              <option value="Custom">Custom Range</option>
+            </select>
+          </div>
+
+          {filterType === 'Month' && (
+            <>
+              <select 
+                value={selectedMonth} 
+                onChange={(e) => setSelectedMonth(e.target.value)}
+                className="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-2.5 py-1 text-xs text-slate-900 dark:text-white font-medium focus:ring-2 focus:ring-sky-500/50 outline-none cursor-pointer"
+              >
+                {months.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
+              </select>
+              <select 
+                value={selectedYear} 
+                onChange={(e) => setSelectedYear(e.target.value)}
+                className="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-2.5 py-1 text-xs text-slate-900 dark:text-white font-medium focus:ring-2 focus:ring-sky-500/50 outline-none cursor-pointer"
+              >
+                {years.map(year => <option key={year} value={year}>{year}</option>)}
+              </select>
+            </>
+          )}
+
+          {filterType === 'Day' && (
+            <input 
+              type="date" 
+              value={selectedDate} 
+              onChange={(e) => setSelectedDate(e.target.value)}
+              className="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-2.5 py-1 text-xs text-slate-900 dark:text-white font-medium focus:ring-2 focus:ring-sky-500/50 outline-none"
+            />
+          )}
+
+          {filterType === 'Custom' && (
+            <div className="flex items-center gap-1.5">
+              <input 
+                type="date" 
+                value={startDate} 
+                onChange={(e) => setStartDate(e.target.value)}
+                className="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-2 py-1 text-xs text-slate-900 dark:text-white font-medium focus:ring-2 focus:ring-sky-500/50 outline-none"
+              />
+              <span className="text-slate-400 text-xs font-bold">-</span>
+              <input 
+                type="date" 
+                value={endDate} 
+                onChange={(e) => setEndDate(e.target.value)}
+                className="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-2 py-1 text-xs text-slate-900 dark:text-white font-medium focus:ring-2 focus:ring-sky-500/50 outline-none"
+              />
             </div>
-            Attendance
-          </h1>
+          )}
         </div>
       </div>
 
@@ -283,125 +351,56 @@ export const ParentAttendanceView: React.FC = () => {
         onSelect={setSelectedChildIdx}
       />
 
-      {/* Filters Section */}
-      <div className="bg-white dark:bg-slate-800 p-4 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm flex flex-col sm:flex-row gap-4 items-end">
-        <div className="flex-1 min-w-[150px] w-full">
-          <label className="block text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5">View By</label>
-          <select 
-            value={filterType} onChange={(e) => setFilterType(e.target.value as 'Overall' | 'Month' | 'Day' | 'Custom')}
-            className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-sm text-slate-900 dark:text-white font-medium focus:ring-2 focus:ring-sky-500/50 outline-none"
-          >
-            <option value="Overall">Overall</option>
-            <option value="Month">Monthly</option>
-            <option value="Day">Daily</option>
-            <option value="Custom">Custom Range</option>
-          </select>
-        </div>
-
-        {filterType === 'Month' && (
-            <>
-              <div className="flex-1 min-w-[150px] w-full">
-                <label className="block text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5">Month</label>
-                <select 
-                  value={selectedMonth} onChange={(e) => setSelectedMonth(e.target.value)}
-                  className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-sm text-slate-900 dark:text-white font-medium focus:ring-2 focus:ring-sky-500/50 outline-none"
-                >
-                  {months.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
-                </select>
-              </div>
-              <div className="flex-1 min-w-[150px] w-full">
-                <label className="block text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5">Year</label>
-                <select 
-                  value={selectedYear} onChange={(e) => setSelectedYear(e.target.value)}
-                  className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-sm text-slate-900 dark:text-white font-medium focus:ring-2 focus:ring-sky-500/50 outline-none"
-                >
-                  {years.map(year => <option key={year} value={year}>{year}</option>)}
-                </select>
-              </div>
-            </>
-          )}
-
-          {filterType === 'Day' && (
-             <div className="flex-1 min-w-[150px] w-full sm:max-w-xs">
-               <label className="block text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5">Select Date</label>
-               <input 
-                 type="date" 
-                 value={selectedDate} onChange={(e) => setSelectedDate(e.target.value)}
-                 className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-sm text-slate-900 dark:text-white font-medium focus:ring-2 focus:ring-sky-500/50 outline-none"
-               />
-             </div>
-          )}
-
-          {filterType === 'Custom' && (
-            <>
-             <div className="flex-1 min-w-[150px] w-full sm:max-w-xs">
-               <label className="block text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5">Start Date</label>
-               <input 
-                 type="date" 
-                 value={startDate} onChange={(e) => setStartDate(e.target.value)}
-                 className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-sm text-slate-900 dark:text-white font-medium focus:ring-2 focus:ring-sky-500/50 outline-none"
-               />
-             </div>
-             <div className="flex-1 min-w-[150px] w-full sm:max-w-xs">
-               <label className="block text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5">End Date</label>
-               <input 
-                 type="date" 
-                 value={endDate} onChange={(e) => setEndDate(e.target.value)}
-                 className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-sm text-slate-900 dark:text-white font-medium focus:ring-2 focus:ring-sky-500/50 outline-none"
-               />
-             </div>
-            </>
-          )}
-      </div>
-
       {/* Summary Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-        <div className="bg-white dark:bg-slate-800 p-4 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm relative overflow-hidden group">
-          <div className="absolute top-0 right-0 p-3 opacity-10 group-hover:scale-110 transition-transform">
-            <CheckCircle2 className="w-12 h-12 text-sky-600" />
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-2.5">
+        <div className="bg-white dark:bg-slate-800 p-3 rounded-xl border border-slate-200 dark:border-slate-700 shadow-2xs relative overflow-hidden group">
+          <div className="absolute top-0 right-0 p-2.5 opacity-10 group-hover:scale-110 transition-transform">
+            <CheckCircle2 className="w-8 h-8 text-sky-600" />
           </div>
-          <h3 className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1">Attendance %</h3>
-          <p className="text-2xl font-black text-slate-900 dark:text-white">{attendancePercentage}%</p>
+          <h3 className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-0.5">Attendance %</h3>
+          <p className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white">{attendancePercentage}%</p>
         </div>
         
-        <div className="bg-white dark:bg-slate-800 p-4 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm">
-          <h3 className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1">Present</h3>
-          <p className="text-2xl font-black text-emerald-600 dark:text-emerald-400">{presentDays}</p>
+        <div className="bg-white dark:bg-slate-800 p-3 rounded-xl border border-slate-200 dark:border-slate-700 shadow-2xs">
+          <h3 className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-0.5">Present</h3>
+          <p className="text-xl sm:text-2xl font-black text-emerald-600 dark:text-emerald-400">{presentDays}</p>
         </div>
 
-        <div className="bg-white dark:bg-slate-800 p-4 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm">
-          <h3 className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1">Absent</h3>
-          <p className="text-2xl font-black text-rose-600 dark:text-rose-400">{absentDays}</p>
+        <div className="bg-white dark:bg-slate-800 p-3 rounded-xl border border-slate-200 dark:border-slate-700 shadow-2xs">
+          <h3 className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-0.5">Absent</h3>
+          <p className="text-xl sm:text-2xl font-black text-rose-600 dark:text-rose-400">{absentDays}</p>
         </div>
 
-        <div className="bg-white dark:bg-slate-800 p-4 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm">
-          <h3 className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1">Late</h3>
-          <p className="text-2xl font-black text-orange-600 dark:text-orange-400">{lateDays + leaveDays}</p>
+        <div className="bg-white dark:bg-slate-800 p-3 rounded-xl border border-slate-200 dark:border-slate-700 shadow-2xs">
+          <h3 className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-0.5">Late / Leave</h3>
+          <p className="text-xl sm:text-2xl font-black text-orange-600 dark:text-orange-400">{lateDays + leaveDays}</p>
         </div>
 
-        <div className="bg-white dark:bg-slate-800 p-4 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm">
-          <h3 className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1">Half Day</h3>
-          <p className="text-2xl font-black text-amber-500 dark:text-amber-400">{halfDays}</p>
+        <div className="bg-white dark:bg-slate-800 p-3 rounded-xl border border-slate-200 dark:border-slate-700 shadow-2xs">
+          <h3 className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-0.5">Half Day</h3>
+          <p className="text-xl sm:text-2xl font-black text-amber-500 dark:text-amber-400">{halfDays}</p>
         </div>
       </div>
 
       {/* Detailed Attendance List */}
-      <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden">
-        <div className="p-4 border-b border-slate-200 dark:border-slate-700 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-slate-50/50 dark:bg-slate-900/50">
-          <div className="flex items-center gap-3">
-            <h3 className="text-base font-bold text-slate-900 dark:text-white">Daily Records</h3>
-            
+      <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-xs overflow-hidden">
+        <div className="px-4 py-2.5 border-b border-slate-200 dark:border-slate-700 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 bg-slate-50/50 dark:bg-slate-900/50">
+          <div className="flex items-center gap-2">
+            <h3 className="text-sm font-bold text-slate-900 dark:text-white">Daily Records</h3>
+            <span className="text-[11px] font-semibold text-slate-500 bg-white dark:bg-slate-800 px-2 py-0.5 rounded-full border border-slate-200 dark:border-slate-700">
+              {filteredRecords.length} {filteredRecords.length === 1 ? 'record' : 'records'}
+            </span>
           </div>
           
-          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 w-full md:w-auto">
-            <div className="flex items-center flex-wrap gap-2">
+          <div className="flex items-center gap-2 w-full sm:w-auto">
+            <div className="flex items-center flex-wrap gap-1.5">
               {['All', 'Present', 'Absent', 'Late', 'HalfDay'].map(status => (
                 <button
                   key={status}
                   onClick={() => setStatusFilter(status)}
-                  className={`px-3 py-1 rounded-full text-xs font-semibold border transition-colors ${
+                  className={`px-2.5 py-0.5 rounded-full text-xs font-semibold border transition-colors cursor-pointer ${
                     statusFilter === status 
-                      ? 'bg-sky-600 text-white border-sky-600 shadow-sm' 
+                      ? 'bg-sky-600 text-white border-sky-600 shadow-2xs' 
                       : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-slate-50'
                   }`}
                 >
@@ -409,8 +408,8 @@ export const ParentAttendanceView: React.FC = () => {
                 </button>
               ))}
             </div>
-            <div className="hidden sm:block w-px h-6 bg-slate-200 dark:bg-slate-700"></div>
-            <div className="text-xs font-semibold text-slate-500 bg-white dark:bg-slate-800 px-3 py-1 rounded-full border border-slate-200 dark:border-slate-700 whitespace-nowrap">
+            <div className="hidden sm:block w-px h-5 bg-slate-200 dark:border-slate-700"></div>
+            <div className="text-[11px] font-semibold text-slate-500 bg-white dark:bg-slate-800 px-2.5 py-0.5 rounded-full border border-slate-200 dark:border-slate-700 whitespace-nowrap">
               {filterType === 'Overall' ? 'Overall Records' : filterType === 'Month' ? `${months.find(m => m.value === selectedMonth)?.label} ${selectedYear}` : filterType === 'Day' ? selectedDate : `${startDate} to ${endDate}`}
             </div>
           </div>
@@ -418,10 +417,10 @@ export const ParentAttendanceView: React.FC = () => {
         
         <div className="divide-y divide-slate-100 dark:divide-slate-700/50">
           {filteredRecords.length === 0 ? (
-            <div className="p-8 text-center text-slate-500 dark:text-slate-400">
-              <Calendar className="w-10 h-10 mx-auto mb-3 opacity-20" />
-              <p className="font-medium text-base">No attendance records found.</p>
-              <p className="text-xs mt-1">There are no records matching your selected filter criteria.</p>
+            <div className="p-6 text-center text-slate-500 dark:text-slate-400">
+              <Calendar className="w-8 h-8 mx-auto mb-2 opacity-20" />
+              <p className="font-semibold text-sm">No attendance records found.</p>
+              <p className="text-xs mt-0.5">There are no records matching your selected filter criteria.</p>
             </div>
           ) : (
             paginatedRecords.map(record => {
@@ -429,13 +428,13 @@ export const ParentAttendanceView: React.FC = () => {
               const StatusIcon = config.icon;
               
               return (
-                <div key={record.id} className="px-4 py-3 sm:px-5 sm:py-3 flex flex-col sm:flex-row justify-between sm:items-center gap-3 hover:bg-slate-50 dark:hover:bg-slate-700/20 transition-colors">
-                  <div className="flex items-center gap-3">
-                    <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${config.bg} ${config.text}`}>
-                      <StatusIcon className="w-4 h-4" />
+                <div key={record.id} className="px-4 py-2 sm:px-4 sm:py-2.5 flex flex-col sm:flex-row justify-between sm:items-center gap-2 hover:bg-slate-50 dark:hover:bg-slate-700/20 transition-colors">
+                  <div className="flex items-center gap-2.5">
+                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${config.bg} ${config.text}`}>
+                      <StatusIcon className="w-3.5 h-3.5" />
                     </div>
                     <div>
-                      <h4 className="font-bold text-slate-900 dark:text-white text-sm">
+                      <h4 className="font-bold text-slate-900 dark:text-white text-xs sm:text-sm">
                         {(() => {
                           const parts = String(record.date).split('T')[0].split('-').map(Number);
                           if (parts.length === 3) {
@@ -445,14 +444,14 @@ export const ParentAttendanceView: React.FC = () => {
                         })()}
                       </h4>
                       {record.remarks && (
-                        <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 flex items-center gap-1.5">
+                        <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 flex items-center gap-1">
                           Teacher Note: {record.remarks}
                         </p>
                       )}
                     </div>
                   </div>
                   
-                  <div className={`px-3 py-1 rounded-full text-xs font-bold border border-current/20 ${config.bg} ${config.text}`}>
+                  <div className={`px-2.5 py-0.5 rounded-full text-xs font-bold border border-current/20 self-start sm:self-auto ${config.bg} ${config.text}`}>
                     {record.status}
                   </div>
                 </div>
@@ -462,22 +461,22 @@ export const ParentAttendanceView: React.FC = () => {
         </div>
         
         {totalPages > 1 && (
-          <div className="p-4 border-t border-slate-200 dark:border-slate-700 flex justify-between items-center bg-slate-50/50 dark:bg-slate-900/50">
-            <span className="text-xs font-medium text-slate-500">
+          <div className="px-4 py-2.5 border-t border-slate-200 dark:border-slate-700 flex justify-between items-center bg-slate-50/50 dark:bg-slate-900/50 text-xs">
+            <span className="font-medium text-slate-500">
               Showing {(currentPage - 1) * itemsPerPage + 1} to {Math.min(currentPage * itemsPerPage, filteredRecords.length)} of {filteredRecords.length} entries
             </span>
-            <div className="flex gap-2">
+            <div className="flex gap-1.5">
               <button
                 onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
                 disabled={currentPage === 1}
-                className="px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-600 dark:text-slate-300 disabled:opacity-50 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
+                className="px-2.5 py-1 rounded-lg border border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-600 dark:text-slate-300 disabled:opacity-50 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors cursor-pointer"
               >
                 Previous
               </button>
               <button
                 onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
                 disabled={currentPage === totalPages}
-                className="px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-600 dark:text-slate-300 disabled:opacity-50 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
+                className="px-2.5 py-1 rounded-lg border border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-600 dark:text-slate-300 disabled:opacity-50 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors cursor-pointer"
               >
                 Next
               </button>
