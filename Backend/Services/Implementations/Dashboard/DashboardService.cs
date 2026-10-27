@@ -125,7 +125,14 @@ public class DashboardService : IDashboardService
 
         if (!string.IsNullOrEmpty(targetBranchName) && !targetBranchName.Equals("All Branches", StringComparison.OrdinalIgnoreCase) && !targetBranchName.Equals("All", StringComparison.OrdinalIgnoreCase))
         {
-            staffQuery = staffQuery.Where(s => s.BranchName != null && s.BranchName.ToLower() == targetBranchName.ToLower());
+            string cleanBranch = targetBranchName.Trim().ToLower();
+            string cleanBranchBase = cleanBranch.Replace(" branch", "").Replace(" campus", "").Trim();
+
+            staffQuery = staffQuery.Where(s => string.IsNullOrEmpty(s.BranchName) || 
+                                               s.BranchName.ToLower() == cleanBranch || 
+                                               s.BranchName.ToLower() == cleanBranchBase ||
+                                               s.BranchName.ToLower().Contains(cleanBranchBase) ||
+                                               cleanBranch.Contains(s.BranchName.ToLower()));
         }
 
         var staffInfo = await staffQuery
