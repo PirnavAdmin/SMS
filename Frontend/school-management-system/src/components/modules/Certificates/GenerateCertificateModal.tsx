@@ -62,7 +62,7 @@ export const GenerateCertificateModal: React.FC<GenerateCertificateModalProps> =
   onSuccess,
   existingRecord
 }) => {
-  const { students, schoolProfile, academicClasses, academicYears = [] } = useData();
+  const { students, schoolProfile, academicClasses, academicYears = [], saveGeneratedCertificates } = useData();
   const { selectedAcademicYear, selectedBranch } = useAuth();
   const { addToast } = useToast();
   
@@ -520,12 +520,16 @@ export const GenerateCertificateModal: React.FC<GenerateCertificateModalProps> =
       templateSnapshot: selectedTemplate
     };
 
-    // Save to localStorage
+    // Save to database & localStorage
     try {
-      const saved = localStorage.getItem('edu_db_generated_certificates');
-      let records: GeneratedCertificateRecord[] = saved ? JSON.parse(saved) : [];
-      records = [newRecord, ...records.filter(r => r.id !== newRecord.id)];
-      localStorage.setItem('edu_db_generated_certificates', JSON.stringify(records));
+      if (saveGeneratedCertificates) {
+        saveGeneratedCertificates([newRecord]);
+      } else {
+        const saved = localStorage.getItem('edu_db_generated_certificates');
+        let records: GeneratedCertificateRecord[] = saved ? JSON.parse(saved) : [];
+        records = [newRecord, ...records.filter(r => r.id !== newRecord.id)];
+        localStorage.setItem('edu_db_generated_certificates', JSON.stringify(records));
+      }
       
       if (selectedTypeConfig.name === 'Transfer Certificate' || selectedTypeConfig.code === 'TC') {
         const legacyTcRecords = localStorage.getItem('edu_db_tc_register');
@@ -620,10 +624,14 @@ export const GenerateCertificateModal: React.FC<GenerateCertificateModalProps> =
       }
     });
 
-    // Save batch to localStorage
+    // Save batch to database & localStorage
     try {
       savedCertRecords = [...newIssuedList, ...savedCertRecords];
-      localStorage.setItem('edu_db_generated_certificates', JSON.stringify(savedCertRecords));
+      if (saveGeneratedCertificates) {
+        saveGeneratedCertificates(newIssuedList);
+      } else {
+        localStorage.setItem('edu_db_generated_certificates', JSON.stringify(savedCertRecords));
+      }
 
       if (selectedTypeConfig.name === 'Transfer Certificate' || selectedTypeConfig.code === 'TC') {
         legacyTcRecords = [...newIssuedList, ...legacyTcRecords];

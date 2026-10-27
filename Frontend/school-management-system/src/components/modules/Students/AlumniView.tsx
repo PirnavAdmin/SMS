@@ -17,9 +17,25 @@ interface AlumniViewProps {
 }
 
 export const AlumniView: React.FC<AlumniViewProps> = ({ onNavigate }) => {
-  const { alumniRecords, students, updateAlumniStatus, schoolProfile, examMarks, feePayments, academicYears } = useData();
+  const { alumniRecords, students, updateAlumniStatus, schoolProfile, examMarks, feePayments, academicYears, fetchStudents, refreshCertificatesFromDb } = useData();
   const { selectedAcademicYear } = useAuth();
   const { addToast } = useToast();
+  const [isSyncing, setIsSyncing] = useState(false);
+
+  const handleSyncFromDb = async () => {
+    try {
+      setIsSyncing(true);
+      await Promise.allSettled([
+        fetchStudents ? fetchStudents() : Promise.resolve(),
+        refreshCertificatesFromDb ? refreshCertificatesFromDb() : Promise.resolve()
+      ]);
+      addToast("success", "Synced with DB", "Loaded latest alumni records and status from database.");
+    } catch (err: any) {
+      addToast("error", "Sync Failed", err?.message || "Could not sync from database.");
+    } finally {
+      setIsSyncing(false);
+    }
+  };
 
   const [activeTab, setActiveTab] = useState<'directory' | 'reports'>('directory');
   const [searchQuery, setSearchQuery] = useState('');
@@ -46,7 +62,9 @@ export const AlumniView: React.FC<AlumniViewProps> = ({ onNavigate }) => {
   // Consolidated Alumni dataset (sourced exclusively from alumniRecords & completed students)
   const masterAlumniList: AlumniRecord[] = useMemo(() => {
     // 1. Sanitize alumniRecords: ensure completionAcademicYear is a valid session format and not a calendar date
-    const list: AlumniRecord[] = (alumniRecords || []).map(a => {
+    const list: AlumniRecord[] = (alumniRecords || [])
+      .filter(a => !a.id?.startsWith('ALM-100') && !a.studentId?.startsWith('STU-ALM-'))
+      .map(a => {
       let formattedAY = formatAcademicYear(a.completionAcademicYear);
       if (!formattedAY) {
         formattedAY = formatAcademicYear(selectedAcademicYear) || formatAcademicYear(schoolProfile?.academicYear) || '2026-27';
@@ -124,11 +142,6 @@ export const AlumniView: React.FC<AlumniViewProps> = ({ onNavigate }) => {
     masterAlumniList.forEach(a => {
       if (a.batch) batchesSet.add(a.batch);
     });
-    if (batchesSet.size === 0) {
-      batchesSet.add('Class of 2025');
-      batchesSet.add('Class of 2024');
-      batchesSet.add('Class of 2023');
-    }
     return Array.from(batchesSet).filter(Boolean).sort().reverse();
   }, [masterAlumniList]);
 
@@ -242,6 +255,16 @@ export const AlumniView: React.FC<AlumniViewProps> = ({ onNavigate }) => {
               <BarChart3 className="w-3.5 h-3.5" /> Alumni Reports
             </button>
           </div>
+
+          <button
+            onClick={handleSyncFromDb}
+            disabled={isSyncing}
+            className="px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 text-xs font-bold text-slate-700 dark:text-slate-200 shadow-xs flex items-center gap-1.5 transition-colors disabled:opacity-50"
+            title="Sync alumni records from backend database"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 text-brand-600 dark:text-brand-400 ${isSyncing ? "animate-spin" : ""}`} />
+            <span>{isSyncing ? "Syncing..." : "Sync with DB"}</span>
+          </button>
 
           <ExportButton data={filteredAlumni} filename="alumni_directory_report" />
         </div>

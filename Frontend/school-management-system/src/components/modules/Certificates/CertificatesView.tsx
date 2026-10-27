@@ -97,18 +97,36 @@ const DownwardSelect: React.FC<{
 };
 
 export const CertificatesView: React.FC<CertificatesViewProps> = ({ onNavigateToSettings }) => {
-  const { students, schoolProfile, academicClasses } = useData();
+  const { students, schoolProfile, academicClasses, generatedCertificates = [], refreshCertificatesFromDb } = useData();
   const { selectedAcademicYear, selectedBranch } = useAuth();
   const { addToast } = useToast();
   const activeAY = formatAcademicYear(selectedAcademicYear) || '2026-27';
 
   const [activeTab, setActiveTab] = useState<'generate' | 'history'>('generate');
+  const [isSyncing, setIsSyncing] = useState(false);
 
   useEffect(() => {
     try {
       localStorage.removeItem('certificates_view_active_tab');
     } catch {}
+    if (refreshCertificatesFromDb) {
+      refreshCertificatesFromDb().catch(() => {});
+    }
   }, []);
+
+  const handleSyncWithDb = async () => {
+    setIsSyncing(true);
+    try {
+      if (refreshCertificatesFromDb) {
+        await refreshCertificatesFromDb();
+      }
+      addToast('success', 'Database Synced', 'Fetched latest issued certificates and templates from database.');
+    } catch (err: any) {
+      addToast('error', 'Sync Failed', err?.message || 'Could not sync from database.');
+    } finally {
+      setIsSyncing(false);
+    }
+  };
 
   // Load Certificate Types from localStorage or fallback
   const certificateTypes = useMemo<CertificateTypeConfig[]>(() => {
@@ -122,48 +140,35 @@ export const CertificatesView: React.FC<CertificatesViewProps> = ({ onNavigateTo
     return INITIAL_CERTIFICATE_TYPES;
   }, []);
 
-  // Load Generated Certificate History from localStorage (merging with legacy TC register)
+  // Load Generated Certificate History from database & localStorage
   const [historyRecords, setHistoryRecords] = useState<GeneratedCertificateRecord[]>(() => {
+    if (Array.isArray(generatedCertificates) && generatedCertificates.length > 0) {
+      return generatedCertificates;
+    }
     try {
       const savedCert = localStorage.getItem('edu_db_generated_certificates');
-      const savedTc = localStorage.getItem('edu_db_tc_register');
-
-      let certList: GeneratedCertificateRecord[] = savedCert ? JSON.parse(savedCert) : [];
-      let tcList: any[] = savedTc ? JSON.parse(savedTc) : [];
-
-      // Map legacy TC records if not already in certList
-      tcList.forEach(tc => {
-        if (!certList.some(c => c.id === tc.id || c.certificateNumber === tc.tcNo || c.certificateNumber === tc.certificateNumber)) {
-          certList.push({
-            id: tc.id || `REC-TC-${Date.now()}`,
-            certificateNumber: tc.tcNo || tc.certificateNumber || 'TC-2026-0001',
-            certificateTypeId: 'CT-TC',
-            certificateTypeName: 'Transfer Certificate',
-            studentId: tc.studentId || '',
-            admissionNo: tc.admissionNo || '',
-            studentName: tc.studentName || '',
-            className: tc.className || '',
-            section: tc.section || '',
-            academicYear: tc.academicYear || activeAY,
-            branch: tc.branch || '',
-            issueDate: tc.issueDate || new Date().toISOString().split('T')[0],
-            status: 'Issued',
-            generatedBy: tc.generatedBy || 'Administrator',
-            fieldDataSnapshot: tc.fieldDataSnapshot || {},
-            templateSnapshot: tc.templateSnapshot || {},
-            leavingDate: tc.leavingDate,
-            reason: tc.reason,
-            conduct: tc.conduct,
-            remarks: tc.remarks
-          });
-        }
-      });
-
-      return certList;
+      return savedCert ? JSON.parse(savedCert) : [];
     } catch (e) {
       return [];
     }
   });
+
+  useEffect(() => {
+    if (Array.isArray(generatedCertificates)) {
+      setHistoryRecords(generatedCertificates);
+    }
+  }, [generatedCertificates]);
+
+  useEffect(() => {
+    const handleUpdate = () => {
+      try {
+        const saved = localStorage.getItem('edu_db_generated_certificates');
+        if (saved) setHistoryRecords(JSON.parse(saved));
+      } catch {}
+    };
+    window.addEventListener('certificates_updated', handleUpdate);
+    return () => window.removeEventListener('certificates_updated', handleUpdate);
+  }, []);
 
   const refreshHistory = () => {
     try {
@@ -261,6 +266,15 @@ export const CertificatesView: React.FC<CertificatesViewProps> = ({ onNavigateTo
         </div>
 
         <div className="flex items-center gap-2.5">
+          <button
+            onClick={handleSyncWithDb}
+            disabled={isSyncing}
+            title="Sync with Database"
+            className="px-3.5 py-2.5 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 font-bold text-xs flex items-center gap-1.5 transition-all cursor-pointer shadow-xs disabled:opacity-50"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 text-sky-600 dark:text-sky-400 ${isSyncing ? 'animate-spin' : ''}`} />
+            <span>{isSyncing ? 'Syncing...' : 'Sync with DB'}</span>
+          </button>
           <button
             onClick={() => {
               setSelectedStudentForCert(null);

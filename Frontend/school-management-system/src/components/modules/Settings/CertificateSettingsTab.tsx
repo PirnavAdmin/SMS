@@ -13,6 +13,7 @@ import { useToast } from '../../../context/ToastContext';
 import { PrintableCertificateContainer } from '../Certificates/PrintableCertificateContainer';
 import { ConfirmModal } from '../../common/ConfirmModal';
 
+import { fetchSchoolSettingsApi, updateCertificateTemplatesApi } from '../../../api/settings';
 import { DEFAULT_CERTIFICATE_FIELDS_MAP } from '../../../utils/certificateFields';
 import { validateCertificateTypeName, validateCertificateTypeCode, formatTitleCase } from '../../../utils/validation';
 
@@ -383,6 +384,49 @@ export const CertificateSettingsTab: React.FC = () => {
       localStorage.setItem('edu_db_certificate_placeholders', JSON.stringify(placeholders));
     } catch (e) {}
   }, [placeholders]);
+  // Sync Templates & Types from backend DB on mount
+  useEffect(() => {
+    let isMounted = true;
+    fetchSchoolSettingsApi()
+      .then((res: any) => {
+        if (!isMounted) return;
+        const certData = res?.data?.certificateTemplates;
+        if (certData && typeof certData === 'object' && !Array.isArray(certData)) {
+          if (Array.isArray(certData.types) && certData.types.length > 0) {
+            setTypes(certData.types);
+            localStorage.setItem('edu_db_certificate_types', JSON.stringify(certData.types));
+          }
+          if (Array.isArray(certData.templates) && certData.templates.length > 0) {
+            setTemplates(certData.templates);
+            localStorage.setItem('edu_db_certificate_templates_v2', JSON.stringify(certData.templates));
+          }
+        }
+      })
+      .catch(() => {});
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const syncSettingsToDb = async (newTemplates?: CertificateTemplateConfig[], newTypes?: CertificateTypeConfig[]) => {
+    try {
+      const currentRes: any = await fetchSchoolSettingsApi();
+      const currentRaw = currentRes?.data?.certificateTemplates;
+      let existingObj: any = { templates: [], types: [], issued: [], alumni: [] };
+      if (typeof currentRaw === 'object' && currentRaw !== null && !Array.isArray(currentRaw)) {
+        existingObj = { ...currentRaw };
+      }
+      const payload = {
+        ...existingObj,
+        templates: newTemplates ?? templates,
+        types: newTypes ?? types,
+      };
+      await updateCertificateTemplatesApi(payload);
+    } catch (e) {
+      console.warn('Could not sync certificate templates/types to DB:', e);
+    }
+  };
+
 
   // Certificate Type Modal State
   const [isTypeModalOpen, setIsTypeModalOpen] = useState(false);
@@ -564,13 +608,15 @@ export const CertificateSettingsTab: React.FC = () => {
     const cleanDescription = (typeForm.description || '').trim();
 
     if (editingType) {
-      setTypes(prev => prev.map(item => item.id === editingType.id ? {
+      const updatedTypes = types.map(item => item.id === editingType.id ? {
         ...item,
         ...typeForm,
         name: formattedName,
         code: formattedCode,
         description: cleanDescription,
-      } as CertificateTypeConfig : item));
+      } as CertificateTypeConfig : item);
+      setTypes(updatedTypes);
+      syncSettingsToDb(undefined, updatedTypes);
       addToast('success', 'Certificate type updated successfully');
     } else {
       const newId = `CT-${Date.now().toString().slice(-6)}`;
@@ -588,7 +634,9 @@ export const CertificateSettingsTab: React.FC = () => {
         includeAcademicYearInNo: !!typeForm.includeAcademicYearInNo,
         isSystem: false
       };
-      setTypes(prev => [...prev, newType]);
+      const nextTypes = [...types, newType];
+      setTypes(nextTypes);
+      syncSettingsToDb(undefined, nextTypes);
       addToast('success', 'Certificate type added successfully');
     }
     setIsTypeModalOpen(false);
@@ -644,13 +692,15 @@ export const CertificateSettingsTab: React.FC = () => {
       updatedAt: new Date().toISOString(),
     };
     setTemplateEditorState(updatedTemplate);
-    setTemplates(prev => {
-      const exists = prev.some(t => t.certificateTypeId === updatedTemplate.certificateTypeId);
+    const nextTemplates = (() => {
+      const exists = templates.some(t => t.certificateTypeId === updatedTemplate.certificateTypeId);
       if (exists) {
-        return prev.map(t => t.certificateTypeId === updatedTemplate.certificateTypeId ? updatedTemplate : t);
+        return templates.map(t => t.certificateTypeId === updatedTemplate.certificateTypeId ? updatedTemplate : t);
       }
-      return [...prev, updatedTemplate];
-    });
+      return [...templates, updatedTemplate];
+    })();
+    setTemplates(nextTemplates);
+    syncSettingsToDb(nextTemplates, undefined);
     addToast('success', 'Template Saved', `Saved layout configuration for ${updatedTemplate.certificateTypeName}`);
   };
 

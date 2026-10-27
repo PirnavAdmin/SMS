@@ -66,12 +66,13 @@ export const PrintableCertificateContainer: React.FC<
   moleIdentification = "",
 }) => {
   const themeColor = template.themeColor || "#1e3a8a";
-  const schoolName = schoolProfile.name || "Pirnav Educational Institutions";
+  const schoolName = schoolProfile?.name || schoolProfile?.schoolName || "Educational Institution";
   const schoolAddress =
     schoolProfile.address ||
     "";
-  const schoolPhone = schoolProfile.phone || "+91 9123456789";
-  const schoolEmail = schoolProfile.email || "contact@pirnavschools.edu";
+  const schoolPhone = schoolProfile?.phone || "";
+  const schoolEmail = schoolProfile?.email || "";
+  const contactParts = [schoolAddress, schoolPhone ? `Ph: ${schoolPhone}` : null, schoolEmail ? `Email: ${schoolEmail}` : null].filter(Boolean).join(" • ");
   const schoolLogoUrl = resolveMediaUrl(schoolProfile.logoUrl);
 
   // Header Style Variations
@@ -263,7 +264,7 @@ export const PrintableCertificateContainer: React.FC<
                   : "text-slate-600"
               }`}
             >
-              {schoolAddress} • Ph: {schoolPhone} • Email: {schoolEmail}
+              {contactParts || schoolAddress}
             </p>
           </div>
         </div>

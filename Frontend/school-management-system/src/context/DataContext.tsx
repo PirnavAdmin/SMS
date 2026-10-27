@@ -191,6 +191,7 @@ import {
   AlumniRecord,
   AlumniCurrentStatus,
   CertificateTemplateConfig,
+  GeneratedCertificateRecord,
   TcRecord,
   AcademicYearFeeSchedule,
   StudentFeeInstallment,
@@ -603,6 +604,7 @@ import {
   fetchBranchesApi,
   fetchSchoolSettingsApi,
   updateSchoolSettingsApi,
+  updateCertificateTemplatesApi,
   fetchIdSequenceSettingsApi,
 } from "../api/settings";
 
@@ -1487,6 +1489,10 @@ interface DataContextType {
     id: string,
     updates: Partial<CertificateTemplateConfig>,
   ) => void;
+  generatedCertificates: GeneratedCertificateRecord[];
+  saveGeneratedCertificates: (records: GeneratedCertificateRecord[]) => Promise<void>;
+  deleteGeneratedCertificate: (id: string) => Promise<void>;
+  refreshCertificatesFromDb: () => Promise<void>;
   tcRegister: TcRecord[];
   issueTransferCertificate: (tc: TcRecord) => void;
   reissueTransferCertificate: (
@@ -1506,160 +1512,7 @@ const initialFinancialAccounts: FinancialAccount[] = [];
 const initialFinancialCategories: FinancialCategory[] = [];
 
 const initialFinancialBudgets: FinancialBudget[] = [];
-const initialAlumniRecords: AlumniRecord[] = [
-  {
-    id: "ALM-1001",
-    studentId: "STU-ALM-101",
-    admissionNo: "ADM-2021-0101",
-    studentName: "Aarav Sharma",
-    avatar: "https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=150&auto=format&fit=crop&q=80",
-    batch: "Class of 2025",
-    completionAcademicYear: "2024-25",
-    finalClass: "Class 12",
-    finalSection: "A",
-    completionDate: "2025-03-31",
-    currentStatus: "Higher Studies",
-    higherEducationDetail: "B.Tech Computer Science, IIT Bombay",
-    contactPhone: "+91 98765 43210",
-    contactEmail: "aarav.sharma@alumni.edu",
-    parentName: "Rajesh Sharma",
-    branch: "Madhapur Branch",
-    createdDate: "2025-04-01",
-  },
-  {
-    id: "ALM-1002",
-    studentId: "STU-ALM-102",
-    admissionNo: "ADM-2021-0115",
-    studentName: "Ananya Reddy",
-    avatar: "https://images.unsplash.com/photo-1517841905240-472988babdf9?w=150&auto=format&fit=crop&q=80",
-    batch: "Class of 2025",
-    completionAcademicYear: "2024-25",
-    finalClass: "Class 12",
-    finalSection: "B",
-    completionDate: "2025-03-31",
-    currentStatus: "Higher Studies",
-    higherEducationDetail: "MBBS, AIIMS New Delhi",
-    contactPhone: "+91 98765 43211",
-    contactEmail: "ananya.reddy@alumni.edu",
-    parentName: "Srinivas Reddy",
-    branch: "Madhapur Branch",
-    createdDate: "2025-04-01",
-  },
-  {
-    id: "ALM-1003",
-    studentId: "STU-ALM-103",
-    admissionNo: "ADM-2020-0089",
-    studentName: "Rohan Verma",
-    avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80",
-    batch: "Class of 2024",
-    completionAcademicYear: "2023-24",
-    finalClass: "Class 12",
-    finalSection: "A",
-    completionDate: "2024-03-31",
-    currentStatus: "Working",
-    organizationCompany: "Software Engineer, Microsoft",
-    contactPhone: "+91 98765 43212",
-    contactEmail: "rohan.verma@alumni.edu",
-    parentName: "Manoj Verma",
-    branch: "Madhapur Branch",
-    createdDate: "2024-04-01",
-  },
-  {
-    id: "ALM-1004",
-    studentId: "STU-ALM-104",
-    admissionNo: "ADM-2020-0094",
-    studentName: "Pooja Iyer",
-    avatar: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&auto=format&fit=crop&q=80",
-    batch: "Class of 2024",
-    completionAcademicYear: "2023-24",
-    finalClass: "Class 12",
-    finalSection: "C",
-    completionDate: "2024-03-31",
-    currentStatus: "Working",
-    organizationCompany: "Business Analyst, Deloitte",
-    contactPhone: "+91 98765 43213",
-    contactEmail: "pooja.iyer@alumni.edu",
-    parentName: "Subramanian Iyer",
-    branch: "Madhapur Branch",
-    createdDate: "2024-04-01",
-  },
-  {
-    id: "ALM-1005",
-    studentId: "STU-ALM-105",
-    admissionNo: "ADM-2019-0072",
-    studentName: "Vikram Patel",
-    avatar: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&auto=format&fit=crop&q=80",
-    batch: "Class of 2023",
-    completionAcademicYear: "2022-23",
-    finalClass: "Class 12",
-    finalSection: "A",
-    completionDate: "2023-03-31",
-    currentStatus: "Business",
-    organizationCompany: "Founder, TechVenture Solutions",
-    contactPhone: "+91 98765 43214",
-    contactEmail: "vikram.patel@alumni.edu",
-    parentName: "Harish Patel",
-    branch: "Madhapur Branch",
-    createdDate: "2023-04-01",
-  },
-  {
-    id: "ALM-1006",
-    studentId: "STU-ALM-106",
-    admissionNo: "ADM-2020-0105",
-    studentName: "Sneha Kulkarni",
-    avatar: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80",
-    batch: "Class of 2024",
-    completionAcademicYear: "2023-24",
-    finalClass: "Class 12",
-    finalSection: "B",
-    completionDate: "2024-03-31",
-    currentStatus: "Competitive Exams",
-    higherEducationDetail: "UPSC Civil Services Aspirant",
-    contactPhone: "+91 98765 43215",
-    contactEmail: "sneha.kulkarni@alumni.edu",
-    parentName: "Anand Kulkarni",
-    branch: "Madhapur Branch",
-    createdDate: "2024-04-01",
-  },
-  {
-    id: "ALM-1007",
-    studentId: "STU-ALM-107",
-    admissionNo: "ADM-2021-0130",
-    studentName: "Karthik Nair",
-    avatar: "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=150&auto=format&fit=crop&q=80",
-    batch: "Class of 2025",
-    completionAcademicYear: "2024-25",
-    finalClass: "Class 12",
-    finalSection: "A",
-    completionDate: "2025-03-31",
-    currentStatus: "Higher Studies",
-    higherEducationDetail: "BS Data Science, Stanford University",
-    contactPhone: "+91 98765 43216",
-    contactEmail: "karthik.nair@alumni.edu",
-    parentName: "Ramesh Nair",
-    branch: "Madhapur Branch",
-    createdDate: "2025-04-01",
-  },
-  {
-    id: "ALM-1008",
-    studentId: "STU-ALM-108",
-    admissionNo: "ADM-2020-0062",
-    studentName: "Divya Sri",
-    avatar: "https://images.unsplash.com/photo-1524504388940-b1c1722653e1?w=150&auto=format&fit=crop&q=80",
-    batch: "Class of 2024",
-    completionAcademicYear: "2023-24",
-    finalClass: "Class 12",
-    finalSection: "A",
-    completionDate: "2024-03-31",
-    currentStatus: "Working",
-    organizationCompany: "Product Designer, Razorpay",
-    contactPhone: "+91 98765 43217",
-    contactEmail: "divya.sri@alumni.edu",
-    parentName: "Krishna Murthy",
-    branch: "Madhapur Branch",
-    createdDate: "2024-04-01",
-  }
-];
+const initialAlumniRecords: AlumniRecord[] = [];
 
 const initialSchoolEvents: SchoolEvent[] = [];
 
@@ -2894,18 +2747,51 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     IssuedCertificate[]
   >([]);
 
-  // Alumni ERP State
+  // Alumni ERP State - strictly populated from DB and completed students
   const [alumniRecords, setAlumniRecords] = useState<AlumniRecord[]>(() => {
-    const stored = getStored<AlumniRecord[]>("alumni_records", initialAlumniRecords);
-    if (!stored || stored.length === 0) {
-      try {
-        localStorage.setItem("edu_db_alumni_records", JSON.stringify(initialAlumniRecords));
-        localStorage.setItem("alumni_records", JSON.stringify(initialAlumniRecords));
-      } catch (e) {}
-      return initialAlumniRecords;
-    }
-    return stored;
+    const stored = getStored<AlumniRecord[]>("alumni_records", []);
+    return (stored || []).filter(
+      (a) => !a.id?.startsWith("ALM-100") && !a.studentId?.startsWith("STU-ALM-")
+    );
   });
+
+  // Generated Certificates ERP State - synced with database
+  const [generatedCertificates, setGeneratedCertificates] = useState<
+    GeneratedCertificateRecord[]
+  >(() => {
+    try {
+      const saved = localStorage.getItem("edu_db_generated_certificates");
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) {
+          return parsed.filter(
+            (c: any) => !c.id?.includes("mock") && !c.studentName?.includes("Mock")
+          );
+        }
+      }
+    } catch {}
+    return [];
+  });
+
+  // Purge any leftover mock alumni from storage on mount
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem("alumni_records");
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed)) {
+          const cleaned = parsed.filter(
+            (a: any) => !a.id?.startsWith("ALM-100") && !a.studentId?.startsWith("STU-ALM-")
+          );
+          if (cleaned.length !== parsed.length) {
+            localStorage.setItem("alumni_records", JSON.stringify(cleaned));
+            localStorage.setItem("edu_db_alumni_records", JSON.stringify(cleaned));
+            setAlumniRecords(cleaned);
+          }
+        }
+      }
+    } catch {}
+  }, []);
   useEffect(() => {
     try {
       localStorage.setItem(
@@ -7179,9 +7065,69 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           } catch (e) {}
 
           setSchoolProfile(next);
+
+          // Sync Certificate Templates, Types, Issued Certificates & Alumni from DB
+          const rawCertSettings = data.certificateTemplates;
+          if (rawCertSettings) {
+            let parsedTemplates: any[] = [];
+            let parsedTypes: any[] = [];
+            let parsedIssued: any[] = [];
+            let parsedAlumni: any[] = [];
+
+            if (Array.isArray(rawCertSettings)) {
+              parsedTemplates = rawCertSettings;
+            } else if (typeof rawCertSettings === "object" && rawCertSettings !== null) {
+              parsedTemplates = Array.isArray(rawCertSettings.templates)
+                ? rawCertSettings.templates
+                : [];
+              parsedTypes = Array.isArray(rawCertSettings.types)
+                ? rawCertSettings.types
+                : [];
+              parsedIssued = Array.isArray(rawCertSettings.issued)
+                ? rawCertSettings.issued
+                : [];
+              parsedAlumni = Array.isArray(rawCertSettings.alumni)
+                ? rawCertSettings.alumni
+                : [];
+            }
+
+            if (parsedTemplates.length > 0) {
+              setCertificateTemplates(parsedTemplates);
+              localStorage.setItem(
+                "edu_db_certificate_templates_v2",
+                JSON.stringify(parsedTemplates),
+              );
+            }
+            if (parsedTypes.length > 0) {
+              localStorage.setItem(
+                "edu_db_certificate_types",
+                JSON.stringify(parsedTypes),
+              );
+            }
+            if (parsedIssued.length > 0) {
+              setGeneratedCertificates(parsedIssued);
+              localStorage.setItem(
+                "edu_db_generated_certificates",
+                JSON.stringify(parsedIssued),
+              );
+            }
+            if (parsedAlumni.length > 0) {
+              setAlumniRecords((prev) => {
+                const map = new Map<string, AlumniRecord>();
+                prev.forEach((p) => map.set(p.studentId || p.admissionNo, p));
+                parsedAlumni.forEach((a) => {
+                  const key = a.studentId || a.admissionNo;
+                  map.set(key, { ...map.get(key), ...a });
+                });
+                return Array.from(map.values());
+              });
+            }
+          }
+
           setTimeout(() => {
             try {
               window.dispatchEvent(new Event("school_profile_updated"));
+              window.dispatchEvent(new Event("certificates_updated"));
             } catch (e) {}
           }, 0);
         }
@@ -7913,13 +7859,102 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     return newRecord;
   };
 
+  const syncCertificatesToDb = async (
+    issuedToSave?: GeneratedCertificateRecord[],
+    templatesToSave?: CertificateTemplateConfig[],
+    alumniToSave?: AlumniRecord[],
+  ) => {
+    try {
+      const currentRes: any = await fetchSchoolSettingsApi();
+      const currentRaw = currentRes?.data?.certificateTemplates;
+      let existingObj: any = { templates: [], types: [], issued: [], alumni: [] };
+      if (typeof currentRaw === "object" && currentRaw !== null && !Array.isArray(currentRaw)) {
+        existingObj = { ...currentRaw };
+      }
+
+      const payload = {
+        ...existingObj,
+        templates: templatesToSave ?? certificateTemplates ?? existingObj.templates ?? [],
+        issued: issuedToSave ?? generatedCertificates ?? existingObj.issued ?? [],
+        alumni: alumniToSave ?? alumniRecords ?? existingObj.alumni ?? [],
+      };
+
+      await updateCertificateTemplatesApi(payload);
+    } catch (err) {
+      console.warn("Failed to sync certificate/alumni data to backend database:", err);
+    }
+  };
+
+  const saveGeneratedCertificates = async (
+    newRecords: GeneratedCertificateRecord[],
+  ) => {
+    setGeneratedCertificates((prev) => {
+      const map = new Map<string, GeneratedCertificateRecord>();
+      prev.forEach((r) => map.set(r.id, r));
+      newRecords.forEach((r) => map.set(r.id, r));
+      const next = Array.from(map.values()).sort(
+        (a, b) => new Date(b.issueDate).getTime() - new Date(a.issueDate).getTime(),
+      );
+      localStorage.setItem("edu_db_generated_certificates", JSON.stringify(next));
+      syncCertificatesToDb(next).catch(() => {});
+      setTimeout(() => {
+        try {
+          window.dispatchEvent(new Event("certificates_updated"));
+        } catch {}
+      }, 0);
+      return next;
+    });
+  };
+
+  const deleteGeneratedCertificate = async (id: string) => {
+    setGeneratedCertificates((prev) => {
+      const next = prev.filter((r) => r.id !== id);
+      localStorage.setItem("edu_db_generated_certificates", JSON.stringify(next));
+      syncCertificatesToDb(next).catch(() => {});
+      setTimeout(() => {
+        try {
+          window.dispatchEvent(new Event("certificates_updated"));
+        } catch {}
+      }, 0);
+      return next;
+    });
+  };
+
+  const refreshCertificatesFromDb = async () => {
+    try {
+      const res: any = await fetchSchoolSettingsApi();
+      const raw = res?.data?.certificateTemplates;
+      if (raw && typeof raw === "object") {
+        if (Array.isArray(raw.issued)) {
+          setGeneratedCertificates(raw.issued);
+          localStorage.setItem("edu_db_generated_certificates", JSON.stringify(raw.issued));
+        }
+        if (Array.isArray(raw.templates)) {
+          setCertificateTemplates(raw.templates);
+          localStorage.setItem("edu_db_certificate_templates_v2", JSON.stringify(raw.templates));
+        }
+        if (Array.isArray(raw.alumni)) {
+          setAlumniRecords((prev) => {
+            const map = new Map<string, AlumniRecord>();
+            prev.forEach((p) => map.set(p.studentId || p.admissionNo, p));
+            raw.alumni.forEach((a: AlumniRecord) => {
+              const key = a.studentId || a.admissionNo;
+              map.set(key, { ...map.get(key), ...a });
+            });
+            return Array.from(map.values());
+          });
+        }
+      }
+    } catch (e) {}
+  };
+
   const updateAlumniStatus = (
     id: string,
     currentStatus: AlumniCurrentStatus,
     details?: { higherEducationDetail?: string; organizationCompany?: string },
   ) => {
-    setAlumniRecords((prev) =>
-      prev.map((a) => {
+    setAlumniRecords((prev) => {
+      const next = prev.map((a) => {
         if (a.id === id || a.studentId === id) {
           return {
             ...a,
@@ -7931,8 +7966,12 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           };
         }
         return a;
-      }),
-    );
+      });
+      localStorage.setItem("alumni_records", JSON.stringify(next));
+      localStorage.setItem("edu_db_alumni_records", JSON.stringify(next));
+      syncCertificatesToDb(undefined, undefined, next).catch(() => {});
+      return next;
+    });
   };
 
   const completeStudent = (
@@ -7969,6 +8008,14 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       ),
     );
 
+    // Persist completed status to backend MySQL database
+    const numericId = parseInt(targetStudent.id, 10);
+    if (!isNaN(numericId)) {
+      updateStudentStatusApi(numericId, { status: "Completed" })
+        .then(() => fetchStudents())
+        .catch((err) => console.warn("Failed to persist completed student status to database:", err));
+    }
+
     const exists = alumniRecords.find(
       (a) => a.studentId === id || a.admissionNo === targetStudent.admissionNo,
     );
@@ -7997,7 +8044,13 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         branch: targetStudent.branch || selectedBranch || "",
         createdDate: new Date().toISOString().split("T")[0],
       };
-      setAlumniRecords((prev) => [newAlumni, ...prev]);
+      setAlumniRecords((prev) => {
+        const next = [newAlumni, ...prev];
+        localStorage.setItem("alumni_records", JSON.stringify(next));
+        localStorage.setItem("edu_db_alumni_records", JSON.stringify(next));
+        syncCertificatesToDb(undefined, undefined, next).catch(() => {});
+        return next;
+      });
     }
 
     logActivity(
@@ -26710,6 +26763,10 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         loadTimetableForClassSection,
         certificateTemplates,
         updateCertificateTemplate,
+        generatedCertificates,
+        saveGeneratedCertificates,
+        deleteGeneratedCertificate,
+        refreshCertificatesFromDb,
         tcRegister,
         issueTransferCertificate,
         reissueTransferCertificate,
