@@ -177,7 +177,7 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
           setIsLoadingProfile(false);
         });
     }
-  }, [selectedStudent, selectedAcademicYear]);
+  }, [selectedStudent?.id, selectedAcademicYear]);
 
   const refreshStudentProfile = async () => {
     if (!selectedStudent) return;
@@ -323,18 +323,15 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
     if (sType === "Residential" || sType === "Hosteller" || rStatus === "Residential" || rStatus === "Resident") return true;
 
     // Check if target is stored from Admissions
-    try {
-      const stored = sessionStorage.getItem('edu_fee_pay_target');
-      if (stored) {
-        const p = JSON.parse(stored);
-        const sKey = String(p.studentId || p.admissionNo || '').trim().toLowerCase();
-        const curId = String(selectedStudent.id || '').trim().toLowerCase();
-        const curAdm = String(selectedStudent.admissionNo || '').trim().toLowerCase();
-        if (sKey && (sKey === curId || sKey === curAdm)) {
-          if (p.feeHead === "Hostel Security Deposit" || p.studentType === "Residential" || p.source === "admission_security_deposit") return true;
-        }
+    if (activePayTargetRef.current) {
+      const p = activePayTargetRef.current;
+      const sKey = String(p.studentId || p.admissionNo || '').trim().toLowerCase();
+      const curId = String(selectedStudent.id || '').trim().toLowerCase();
+      const curAdm = String(selectedStudent.admissionNo || '').trim().toLowerCase();
+      if (!sKey || sKey === curId || sKey === curAdm) {
+        if (p.feeHead === "Hostel Security Deposit" || p.studentType === "Residential" || p.source === "admission_security_deposit") return true;
       }
-    } catch {}
+    }
 
     const adm = (admissions || []).find((a: any) => {
       const aId = String(a.id || '').trim().toLowerCase();
@@ -677,6 +674,34 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
       });
   }, [allEnrolledStudents, searchQuery, selectedClass, selectedSection]);
 
+  const selectableStudents = React.useMemo(() => {
+    const list = allEnrolledStudents.filter((s) => {
+      const classMatch =
+        selectedClass === "ALL" ||
+        matchesClassName(s.className, selectedClass);
+
+      const sectionMatch =
+        selectedSection === "ALL" ||
+        String(s.section || "").toLowerCase() === selectedSection.toLowerCase();
+
+      return classMatch && sectionMatch;
+    });
+
+    if (
+      selectedStudent &&
+      !list.some(
+        (s) =>
+          String(s.id) === String(selectedStudent.id) ||
+          String(s.admissionNo) === String(selectedStudent.admissionNo)
+      )
+    ) {
+      return [selectedStudent, ...list];
+    }
+
+    return list;
+  }, [allEnrolledStudents, selectedClass, selectedSection, selectedStudent]);
+
+
   const displayedHistoryPayments = React.useMemo(() => {
     if (!feePayments || feePayments.length === 0) return [];
     const targetStudent = selectedStudent;
@@ -811,6 +836,8 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
   };
 
   const lastInitialStudentIdRef = useRef<string | null>(null);
+  const activePayTargetRef = useRef<any>(null);
+  const payTargetAppliedRef = useRef<boolean>(false);
 
   useEffect(() => {
     if (initialStudent) {
@@ -836,42 +863,54 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
 
     // Auto-select student when navigated via edu_fee_pay_target (e.g. from Admissions 'Pay Hostel Security Deposit')
     try {
-      const storedPayTarget = sessionStorage.getItem('edu_fee_pay_target');
-      if (storedPayTarget) {
-        const parsed = JSON.parse(storedPayTarget);
-        const sKey = String(parsed.studentId || parsed.admissionNo || '').trim().toLowerCase();
-        const sName = String(parsed.studentName || '').trim().toLowerCase();
-        const matched = allEnrolledStudents.find((s) => {
-          const sid = String(s.id || '').trim().toLowerCase();
-          const adm = String(s.admissionNo || '').trim().toLowerCase();
-          const name = `${s.firstName || ''} ${s.lastName || ''}`.trim().toLowerCase();
-          return (sKey && (sid === sKey || adm === sKey)) || (sName && (name === sName || name.includes(sName)));
-        });
-        if (matched) {
-          const isHostelTarget =
-            parsed.feeHead === "Hostel Security Deposit" ||
-            parsed.feeCategory === "Hostel Fee" ||
-            parsed.source === "admission_security_deposit" ||
-            parsed.studentType === "Residential";
+      if (!payTargetAppliedRef.current) {
+        const storedPayTarget = sessionStorage.getItem('edu_fee_pay_target');
+        if (storedPayTarget) {
+          payTargetAppliedRef.current = true;
+          sessionStorage.removeItem('edu_fee_pay_target');
+          const parsed = JSON.parse(storedPayTarget);
+          activePayTargetRef.current = parsed;
 
-          const studentWithResidential = isHostelTarget
-            ? {
-                ...matched,
+          const sKey = String(parsed.studentId || parsed.admissionNo || '').trim().toLowerCase();
+          const sName = String(parsed.studentName || '').trim().toLowerCase();
+          const matched = allEnrolledStudents.find((s) => {
+            const sid = String(s.id || '').trim().toLowerCase();
+            const adm = String(s.admissionNo || '').trim().toLowerCase();
+            const name = `${s.firstName || ''} ${s.lastName || ''}`.trim().toLowerCase();
+            return (sKey && (sid === sKey || adm === sKey)) || (sName && (name === sName || name.includes(sName)));
+          });
+          if (matched) {
+            const isHostelTarget =
+              parsed.feeHead === "Hostel Security Deposit" ||
+              parsed.feeCategory === "Hostel Fee" ||
+              parsed.source === "admission_security_deposit" ||
+              parsed.studentType === "Residential";
+
+            const studentWithResidential = isHostelTarget
+              ? {
+                  ...matched,
+                  studentType: "Hosteller",
+                  residentialStatus: "Residential",
+                  hostelSharing: parsed.hostelSharing || (matched as any).hostelSharing,
+                  hostelAc: parsed.hostelAc || (matched as any).hostelAc,
+                  hostelBlock: parsed.hostelBlock || (matched as any).hostelBlock,
+                }
+              : matched;
+
+            handleSelectStudent(studentWithResidential as any);
+
+            // Only update student if status is not already Residential to avoid infinite update loops
+            if (
+              isHostelTarget &&
+              updateStudent &&
+              matched.id &&
+              (matched.studentType !== "Hosteller" || matched.residentialStatus !== "Residential")
+            ) {
+              updateStudent(matched.id, {
                 studentType: "Hosteller",
                 residentialStatus: "Residential",
-                hostelSharing: parsed.hostelSharing || (matched as any).hostelSharing,
-                hostelAc: parsed.hostelAc || (matched as any).hostelAc,
-                hostelBlock: parsed.hostelBlock || (matched as any).hostelBlock,
-              }
-            : matched;
-
-          handleSelectStudent(studentWithResidential as any);
-
-          if (isHostelTarget && updateStudent && matched.id) {
-            updateStudent(matched.id, {
-              studentType: "Hosteller",
-              residentialStatus: "Residential",
-            } as any);
+              } as any);
+            }
           }
         }
       }
@@ -2267,13 +2306,9 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
     );
 
     let hostelDepositAmount = 0;
-    try {
-      const stored = sessionStorage.getItem("edu_fee_pay_target");
-      if (stored) {
-        const p = JSON.parse(stored);
-        if (p.amount && Number(p.amount) > 0) hostelDepositAmount = Number(p.amount);
-      }
-    } catch {}
+    if (activePayTargetRef.current?.amount && Number(activePayTargetRef.current.amount) > 0) {
+      hostelDepositAmount = Number(activePayTargetRef.current.amount);
+    }
 
     if (hostelDepositAmount <= 0) {
       const fhc = (financeHostelConfigs || []).find((c) => c.status === "Active" && Number(c.securityDeposit) > 0);
@@ -2409,22 +2444,16 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
         lastAutoSelectedStudentIdRef.current = sKey;
         if (pendingInsts.length > 0) {
           let targetInsts = pendingInsts;
-          try {
-            const storedTarget = sessionStorage.getItem('edu_fee_pay_target');
-            if (storedTarget) {
-              const parsed = JSON.parse(storedTarget);
-              if (parsed?.feeHead === "Hostel Security Deposit") {
-                const depInsts = pendingInsts.filter(i =>
-                  i.feeHeadId === "FH-HST-DEP" ||
-                  (i.feeHeadName || '').toLowerCase().includes("security deposit") ||
-                  (i.termName || '').toLowerCase().includes("security deposit")
-                );
-                if (depInsts.length > 0) {
-                  targetInsts = depInsts;
-                }
-              }
+          if (activePayTargetRef.current?.feeHead === "Hostel Security Deposit") {
+            const depInsts = pendingInsts.filter(i =>
+              i.feeHeadId === "FH-HST-DEP" ||
+              (i.feeHeadName || '').toLowerCase().includes("security deposit") ||
+              (i.termName || '').toLowerCase().includes("security deposit")
+            );
+            if (depInsts.length > 0) {
+              targetInsts = depInsts;
             }
-          } catch (e) {}
+          }
 
           const targetIds = targetInsts.map((i) => i.id);
           setSelectedInstallments(targetIds);
@@ -2700,9 +2729,9 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
   };
 
   const handleSelectAllCurrentYear = () => {
-    const pendingInsts = currentYearInstallments.filter((i) => i.dueAmount > 0);
+    const pendingInsts = allInstallments.filter((i) => i.dueAmount > 0 && i.status !== "Paid" && i.status !== "Cancelled");
     const pendingIds = pendingInsts.map((i) => i.id);
-    const allSelected = pendingIds.every((id) =>
+    const allSelected = pendingIds.length > 0 && pendingIds.every((id) =>
       selectedInstallments.includes(id),
     );
     if (allSelected) {
@@ -2891,13 +2920,23 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
             <select
               value={selectedStudent?.id || ""}
               onChange={(e) => {
-                const s = filteredStudents.find((st) => st.id === e.target.value || st.admissionNo === e.target.value);
-                if (s) handleSelectStudent(s);
+                const val = String(e.target.value || "").trim();
+                if (!val) {
+                  setSelectedStudent(null);
+                  return;
+                }
+                const s = allEnrolledStudents.find(
+                  (st) => String(st.id) === val || String(st.admissionNo) === val
+                );
+                if (s) {
+                  activePayTargetRef.current = null;
+                  handleSelectStudent(s);
+                }
               }}
               className="px-3 py-2.5 rounded-xl border border-blue-300 dark:border-blue-700 bg-blue-50/50 dark:bg-blue-950/40 text-blue-900 dark:text-blue-200 text-xs font-bold cursor-pointer max-w-[280px] truncate"
             >
-              <option value="">-- Select Student ({filteredStudents.length}) --</option>
-              {filteredStudents.map((st) => (
+              <option value="">-- Select Student ({selectableStudents.length}) --</option>
+              {selectableStudents.map((st) => (
                 <option key={st.id || st.admissionNo} value={st.id}>
                   {st.className} - {st.section || 'A'} | {st.firstName} {st.lastName} ({st.admissionNo})
                 </option>
@@ -2932,7 +2971,6 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
                   </span>{" "}
                   | Branch:{" "}
                   <span className="font-bold text-slate-800 dark:text-slate-200">
-                    {activeStudent.branch || (activeStudent as any).campus || (selectedBranch && selectedBranch !== "All" && selectedBranch !== "All Branches" ? selectedBranch : "-")}
                     {activeStudent.branch || (activeStudent as any).campus || (selectedBranch && selectedBranch !== "All" && selectedBranch !== "All Branches" ? selectedBranch : "—")}
                   </span>
                 </p>
@@ -3141,7 +3179,6 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
                         {st.admissionNo || st.id}
                       </td>
                       <td className="py-3 px-4 text-slate-500">
-                        {st.branch || (selectedBranch && selectedBranch !== "All" && selectedBranch !== "All Branches" ? selectedBranch : "-")}
                         {st.branch || (selectedBranch && selectedBranch !== "All" && selectedBranch !== "All Branches" ? selectedBranch : "—")}
                       </td>
                       <td className="py-3 px-4 text-right">
