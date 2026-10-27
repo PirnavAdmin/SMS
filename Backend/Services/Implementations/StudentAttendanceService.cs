@@ -84,10 +84,24 @@ public class StudentAttendanceService : IStudentAttendanceService
             })
             .ToList();
 
+        string resolvedStudentName = "Student";
+        if (query.StudentId.HasValue && query.StudentId.Value > 0)
+        {
+            var matchedStudent = await _context.Students.AsNoTracking().FirstOrDefaultAsync(s => s.StudentId == query.StudentId.Value);
+            if (matchedStudent != null && !string.IsNullOrWhiteSpace(matchedStudent.StudentName))
+            {
+                resolvedStudentName = matchedStudent.StudentName;
+            }
+        }
+        if (resolvedStudentName == "Student")
+        {
+            resolvedStudentName = records.OrderByDescending(r => r.AttendanceSession?.AttendanceDate).FirstOrDefault()?.Student?.StudentName ?? "Student";
+        }
+
         return new StudentAttendanceRegisterResponseDto
         {
-            StudentId = query.StudentId ?? 1,
-            StudentName = records.OrderByDescending(r => r.AttendanceSession?.AttendanceDate).FirstOrDefault()?.Student?.StudentName ?? "Student",
+            StudentId = query.StudentId ?? 0,
+            StudentName = resolvedStudentName,
             Summary = new StudentAttendanceSummaryDto
             {
                 AttendancePercentage = percentage,

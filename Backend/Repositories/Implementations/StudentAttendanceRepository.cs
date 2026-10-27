@@ -46,15 +46,24 @@ public class StudentAttendanceRepository : IStudentAttendanceRepository
         {
             switch (filterType.Trim().ToLower())
             {
+                case "overall":
+                case "all":
+                    break;
+
                 case "month":
                     {
                         int targetYear = year ?? DateTime.Now.Year;
                         int targetMonth = month ?? DateTime.Now.Month;
 
+                        // Support both 0-indexed (0-11) and 1-indexed (1-12) months
+                        if (targetMonth >= 0 && targetMonth <= 11 && month.HasValue)
+                        {
+                            targetMonth = targetMonth + 1;
+                        }
+
                         if (targetMonth < 1 || targetMonth > 12)
                         {
-                            throw new ArgumentException(
-                                "Month must be between 1 and 12.");
+                            targetMonth = DateTime.Now.Month;
                         }
 
                         query = query.Where(a =>
@@ -123,7 +132,7 @@ public class StudentAttendanceRepository : IStudentAttendanceRepository
 
                 default:
                     throw new ArgumentException(
-                        "Filter type must be Month, Day, or Custom.");
+                        "Filter type must be Overall, Month, Day, or Custom.");
             }
         }
 
@@ -181,10 +190,15 @@ public class StudentAttendanceRepository : IStudentAttendanceRepository
             dbQuery = dbQuery.Where(a => a.AttendanceSession!.AttendanceDate.Date <= end);
         }
 
-        if (query.Month.HasValue && query.Month.Value >= 1 && query.Month.Value <= 12)
+        if (query.Month.HasValue)
         {
-            int targetYear = query.Year ?? DateTime.Now.Year;
-            dbQuery = dbQuery.Where(a => a.AttendanceSession!.AttendanceDate.Year == targetYear && a.AttendanceSession.AttendanceDate.Month == query.Month.Value);
+            int mVal = query.Month.Value;
+            if (mVal >= 0 && mVal <= 11) mVal = mVal + 1;
+            if (mVal >= 1 && mVal <= 12)
+            {
+                int targetYear = query.Year ?? DateTime.Now.Year;
+                dbQuery = dbQuery.Where(a => a.AttendanceSession!.AttendanceDate.Year == targetYear && a.AttendanceSession.AttendanceDate.Month == mVal);
+            }
         }
 
         if (!string.IsNullOrWhiteSpace(query.Status) && !query.Status.Equals("All", StringComparison.OrdinalIgnoreCase))
