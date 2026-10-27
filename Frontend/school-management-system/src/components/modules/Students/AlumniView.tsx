@@ -4,7 +4,8 @@ import {
   Eye, Edit3, FileText, CheckCircle2, Printer, Download, User, Calendar,
   BarChart3, Filter, Check, X, Shield, BookOpen, Clock, ChevronLeft, ChevronRight, RefreshCw, Compass
 } from 'lucide-react';
-import { useData } from '../../../context/DataContext';
+import { useData, formatAcademicYear, matchesAcademicYear } from '../../../context/DataContext';
+import { useAuth } from '../../../context/AuthContext';
 import { useToast } from '../../../context/ToastContext';
 import { ExportButton } from '../../common/ExportButton';
 import { AlumniRecord, AlumniCurrentStatus, Student } from '../../../types';
@@ -16,7 +17,8 @@ interface AlumniViewProps {
 }
 
 export const AlumniView: React.FC<AlumniViewProps> = ({ onNavigate }) => {
-  const { alumniRecords, students, updateAlumniStatus, schoolProfile, examMarks, feePayments } = useData();
+  const { alumniRecords, students, updateAlumniStatus, schoolProfile, examMarks, feePayments, academicYears } = useData();
+  const { selectedAcademicYear } = useAuth();
   const { addToast } = useToast();
 
   const [activeTab, setActiveTab] = useState<'directory' | 'reports'>('directory');
@@ -43,15 +45,36 @@ export const AlumniView: React.FC<AlumniViewProps> = ({ onNavigate }) => {
 
   // Consolidated Alumni dataset (sourced exclusively from alumniRecords & completed students)
   const masterAlumniList: AlumniRecord[] = useMemo(() => {
-    const list: AlumniRecord[] = [...alumniRecords];
+    // 1. Sanitize alumniRecords: ensure completionAcademicYear is a valid session format and not a calendar date
+    const list: AlumniRecord[] = (alumniRecords || []).map(a => {
+      let formattedAY = formatAcademicYear(a.completionAcademicYear);
+      if (!formattedAY) {
+        formattedAY = formatAcademicYear(selectedAcademicYear) || formatAcademicYear(schoolProfile?.academicYear) || '2026-27';
+      }
+      const parts = formattedAY.split('-');
+      const batchYear = parts[1] ? (parts[1].length === 2 ? `20${parts[1]}` : parts[1]) : (parts[0] || '2027');
+      const validBatch = a.batch && !a.batch.includes('undefined') && !a.batch.includes('NaN') && !a.batch.includes('2010')
+        ? a.batch
+        : `Class of ${batchYear}`;
+      return {
+        ...a,
+        completionAcademicYear: formattedAY,
+        batch: validBatch
+      };
+    });
 
-    // Sync any completed/alumni students from students table if missing from alumniRecords
+    // 2. Sync any completed/alumni students from students table if missing from alumniRecords
     students.forEach(st => {
-      if (st.status === 'Completed' || st.status === 'Alumni') {
+      if (st.status === 'Completed' || st.status === 'Alumni' || (st as any).status === 'Graduated') {
         const exists = list.some(a => a.studentId === st.id || a.admissionNo === st.admissionNo);
         if (!exists) {
-          const finalYear = st.completionAcademicYear || schoolProfile?.academicYear || '';
-          const batchYear = finalYear.split('-')[1] || finalYear.split('-')[0] || String(new Date().getFullYear());
+          const rawYear = st.completionAcademicYear || (st as any).academicYear || schoolProfile?.academicYear || selectedAcademicYear || '2026-27';
+          let finalYear = formatAcademicYear(rawYear);
+          if (!finalYear) {
+            finalYear = formatAcademicYear(selectedAcademicYear) || formatAcademicYear(schoolProfile?.academicYear) || '2026-27';
+          }
+          const parts = finalYear.split('-');
+          const batchYear = parts[1] ? (parts[1].length === 2 ? `20${parts[1]}` : parts[1]) : (parts[0] || String(new Date().getFullYear()));
           list.push({
             id: 'ALM-' + st.id,
             studentId: st.id,
@@ -75,11 +98,40 @@ export const AlumniView: React.FC<AlumniViewProps> = ({ onNavigate }) => {
     });
 
     return list;
-  }, [alumniRecords, students, schoolProfile]);
+  }, [alumniRecords, students, schoolProfile, selectedAcademicYear]);
 
-  // Unique filter values
-  const uniqueYears = useMemo(() => Array.from(new Set(masterAlumniList.map(a => a.completionAcademicYear))).filter(Boolean).sort().reverse(), [masterAlumniList]);
-  const uniqueBatches = useMemo(() => Array.from(new Set(masterAlumniList.map(a => a.batch))).filter(Boolean).sort().reverse(), [masterAlumniList]);
+  // Unique filter values - strictly valid academic years (YYYY-YY), excluding calendar dates
+  const uniqueYears = useMemo(() => {
+    const yearsSet = new Set<string>();
+    masterAlumniList.forEach(a => {
+      const yr = formatAcademicYear(a.completionAcademicYear);
+      if (yr && /^\d{4}-\d{2}$/.test(yr)) {
+        yearsSet.add(yr);
+      }
+    });
+    (academicYears || []).forEach((ay: any) => {
+      const rawYr = ay?.academicYear || ay?.year;
+      const yr = formatAcademicYear(rawYr);
+      if (yr && /^\d{4}-\d{2}$/.test(yr)) {
+        yearsSet.add(yr);
+      }
+    });
+    return Array.from(yearsSet).sort().reverse();
+  }, [masterAlumniList, academicYears]);
+
+  const uniqueBatches = useMemo(() => {
+    const batchesSet = new Set<string>();
+    masterAlumniList.forEach(a => {
+      if (a.batch) batchesSet.add(a.batch);
+    });
+    if (batchesSet.size === 0) {
+      batchesSet.add('Class of 2025');
+      batchesSet.add('Class of 2024');
+      batchesSet.add('Class of 2023');
+    }
+    return Array.from(batchesSet).filter(Boolean).sort().reverse();
+  }, [masterAlumniList]);
+
   const uniqueClasses = useMemo(() => Array.from(new Set(masterAlumniList.map(a => a.finalClass))).filter(Boolean).sort(), [masterAlumniList]);
   const uniqueBranches = useMemo(() => Array.from(new Set(masterAlumniList.map(a => a.branch).filter(Boolean))), [masterAlumniList]);
 
@@ -88,25 +140,26 @@ export const AlumniView: React.FC<AlumniViewProps> = ({ onNavigate }) => {
     return searchQuery.trim() !== '' || filterYear !== 'All' || filterBatch !== 'All' || filterClass !== 'All' || filterBranch !== 'All';
   }, [searchQuery, filterYear, filterBatch, filterClass, filterBranch]);
 
-  // Filtered Alumni list (Empty by default until search or filter is applied)
+  // Filtered Alumni list: displays all alumni by default, and filters when search or dropdowns change
   const filteredAlumni = useMemo(() => {
-    if (!isFilterActive) {
-      return [];
-    }
-
     return masterAlumniList.filter(a => {
-      const matchYear = filterYear === 'All' || a.completionAcademicYear === filterYear;
+      const matchYear = filterYear === 'All' || matchesAcademicYear(a.completionAcademicYear, filterYear);
       const matchBatch = filterBatch === 'All' || a.batch === filterBatch;
       const matchClass = filterClass === 'All' || a.finalClass === filterClass;
       const matchBranch = filterBranch === 'All' || a.branch === filterBranch;
-      const matchQuery = !searchQuery.trim() ||
-        a.studentName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        a.admissionNo.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        a.batch.toLowerCase().includes(searchQuery.toLowerCase());
+      const q = searchQuery.trim().toLowerCase();
+      const matchQuery = !q ||
+        (a.studentName || '').toLowerCase().includes(q) ||
+        (a.admissionNo || '').toLowerCase().includes(q) ||
+        (a.batch || '').toLowerCase().includes(q) ||
+        (a.finalClass || '').toLowerCase().includes(q) ||
+        (a.currentStatus || '').toLowerCase().includes(q) ||
+        (a.higherEducationDetail || '').toLowerCase().includes(q) ||
+        (a.organizationCompany || '').toLowerCase().includes(q);
 
       return matchYear && matchBatch && matchClass && matchBranch && matchQuery;
     });
-  }, [masterAlumniList, filterYear, filterBatch, filterClass, filterBranch, searchQuery, isFilterActive]);
+  }, [masterAlumniList, filterYear, filterBatch, filterClass, filterBranch, searchQuery]);
 
   // Pagination State for Alumni Directory
   const [currentPage, setCurrentPage] = useState<number>(1);
@@ -330,19 +383,19 @@ export const AlumniView: React.FC<AlumniViewProps> = ({ onNavigate }) => {
                     <tr>
                       <td colSpan={7} className="text-center py-12 text-slate-400">
                         <div className="flex flex-col items-center justify-center space-y-2">
-                          {!isFilterActive ? (
-                            <>
-                              <Filter className="w-8 h-8 text-slate-300 dark:text-slate-600 animate-pulse" />
-                              <p className="font-bold text-slate-700 dark:text-slate-200">Search or filter to view alumni records</p>
-                              <p className="text-[11px] text-slate-400">Enter a student name, admission number, or select an Academic Year / Batch filter above to display results.</p>
-                            </>
-                          ) : (
-                            <>
-                              <GraduationCap className="w-8 h-8 text-slate-300" />
-                              <p className="font-bold">No alumni records found matching filters.</p>
-                              <p className="text-[11px]">Try searching with a different keyword or selecting a different batch filter.</p>
-                            </>
-                          )}
+                          <GraduationCap className="w-10 h-10 text-slate-300 dark:text-slate-600" />
+                          <p className="font-bold text-slate-700 dark:text-slate-200">
+                            {masterAlumniList.length === 0
+                              ? "No alumni records registered yet."
+                              : "No alumni records found matching filters."
+                            }
+                          </p>
+                          <p className="text-[11px] text-slate-400">
+                            {masterAlumniList.length === 0
+                              ? "Students who graduate or complete education will appear in this directory."
+                              : "Try searching with a different keyword or selecting a different batch/year filter."
+                            }
+                          </p>
                         </div>
                       </td>
                     </tr>

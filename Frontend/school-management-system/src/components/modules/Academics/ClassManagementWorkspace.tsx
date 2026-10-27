@@ -695,7 +695,7 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
   const classKPIs = useMemo(() => {
     const filteredForKPIs = academicClasses.filter(c => {
       const campus = (c as any).campus || (c as any).branch || defaultCampus;
-      const year = (c as any).academicYear || '2026-2027';
+      const year = (c as any).academicYear || '2026-27';
       const matchesCampus = isBranchMatch(campus, selectedBranch);
       const matchesYear = isYearMatch(year, selectedAcademicYear);
       return matchesCampus && matchesYear;
@@ -842,7 +842,7 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
     const resolvedCampus = rawCampus && rawCampus !== 'All' ? rawCampus : defaultCampus;
     setClassForm({
       campus: resolvedCampus,
-      academicYear: (c as any).academicYear || selectedAcademicYear || '2026-2027',
+      academicYear: (c as any).academicYear || selectedAcademicYear || '2026-27',
       name: isPredefined ? c.name : 'Other',
       displayName: (c as any).displayName || c.name,
       status: ((c as any).status === 'Archived' ? 'Active' : (c as any).status || 'Active') as any,
@@ -868,7 +868,7 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
 
     const isDuplicate = academicClasses.some(c => {
       const cCampus = (c as any).campus || (c as any).branch || defaultCampus;
-      const cYear = (c as any).academicYear || '2026-2027';
+      const cYear = (c as any).academicYear || '2026-27';
       return isNameEquivalent(c.name, finalName) && 
              (!campus || !cCampus || cCampus.toLowerCase() === campus.toLowerCase()) &&
              cYear === academicYear;
@@ -1508,7 +1508,7 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
   const filteredClasses = useMemo(() => {
     const rawFiltered = academicClasses.filter(c => {
       const campus = (c as any).campus || (c as any).branch || defaultCampus;
-      const year = (c as any).academicYear || '2026-2027';
+      const year = (c as any).academicYear || '2026-27';
       const status = (c as any).status || 'Active';
       const name = c.name.toLowerCase();
       const disp = ((c as any).displayName || '').toLowerCase();
@@ -1767,7 +1767,7 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
             });
           } else {
             addTeacherAssignment({
-              academicYear: (activeClass as any).academicYear || selectedAcademicYear || '2026-2027',
+              academicYear: (activeClass as any).academicYear || selectedAcademicYear || '2026-27',
               branch: (activeClass as any).branch || defaultCampus,
               className: activeClass.name,
               section: activeWorkspaceSection,
@@ -1815,7 +1815,7 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
       });
     } else {
       addTeacherAssignment({
-        academicYear: (activeClass as any).academicYear || selectedAcademicYear || '2026-2027',
+        academicYear: (activeClass as any).academicYear || selectedAcademicYear || '2026-27',
         branch: (activeClass as any).branch || defaultCampus,
         className: activeClass.name,
         section: activeWorkspaceSection,
@@ -3528,7 +3528,7 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
                   const count = students.filter(s => s.className === cl.name).length;
                   const status = (cl as any).status || 'Active';
                   const campus = (cl as any).campus || (cl as any).branch || defaultCampus;
-                  const ay = (cl as any).academicYear || defaultAcademicYear || '2026-2027';
+                  const ay = (cl as any).academicYear || defaultAcademicYear || '2026-27';
                   const remarks = (cl as any).remarks || '';
 
                   const validSecs = (cl.sections || []).filter(isValidSection);

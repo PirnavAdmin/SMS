@@ -5,7 +5,7 @@ import {
   AlertCircle, Users, LayoutGrid, Check, FileCheck2, ShieldCheck, XCircle,
   ChevronLeft, ChevronRight, Loader2
 } from 'lucide-react';
-import { useData } from '../../../../context/DataContext';
+import { useData, formatAcademicYear } from '../../../../context/DataContext';
 import { useAuth } from '../../../../context/AuthContext';
 import { useToast } from '../../../../context/ToastContext';
 import { ExportButton } from '../../../common/ExportButton';
@@ -167,10 +167,14 @@ export const StudentPromotionView: React.FC<StudentPromotionViewProps> = ({ onNa
       if (end < 100) {
         end = Math.floor(parseInt(match[1], 10) / 100) * 100 + end;
       }
-      return `${start}-${end + 1}`;
+      const targetEnd = end + 1;
+      const shortEnd = String(targetEnd % 100).padStart(2, '0');
+      return `${start}-${shortEnd}`;
     }
     const curr = new Date().getFullYear();
-    return `${curr + 1}-${curr + 2}`;
+    const nextStart = curr + 1;
+    const nextEnd = String((curr + 2) % 100).padStart(2, '0');
+    return `${nextStart}-${nextEnd}`;
   }, []);
 
   // Resolve only the current active academic year
@@ -188,7 +192,7 @@ export const StudentPromotionView: React.FC<StudentPromotionViewProps> = ({ onNa
         Boolean(ay.isCurrentAcademicYear || ay.isCurrent)
     );
     if (explicitCurrent && getYr(explicitCurrent)) {
-      return getYr(explicitCurrent);
+      return formatAcademicYear(getYr(explicitCurrent));
     }
 
     const activeStatusItem = list.find(
@@ -198,20 +202,21 @@ export const StudentPromotionView: React.FC<StudentPromotionViewProps> = ({ onNa
         (String(ay.status || '').toLowerCase() === 'active' || Boolean(ay.isActive))
     );
     if (activeStatusItem && getYr(activeStatusItem)) {
-      return getYr(activeStatusItem);
+      return formatAcademicYear(getYr(activeStatusItem));
     }
 
     if (selectedAcademicYear && selectedAcademicYear.trim()) {
-      return selectedAcademicYear.trim();
+      return formatAcademicYear(selectedAcademicYear.trim());
     }
-    return list.length > 0 ? getYr(list[0]) : '';
+    return list.length > 0 ? formatAcademicYear(getYr(list[0])) : '';
   }, [academicYears, selectedAcademicYear]);
 
   // Target Academic Year options: only Current Active Year and Future Academic Years (deduplicated)
   const targetAcademicYearOptions = useMemo(() => {
     const list = Array.isArray(academicYears) ? academicYears : [];
-    const { key: currentKey, startYear: currentStartYear } = parseAcademicYearRange(currentActiveAcademicYear);
-    const nextCalculated = getTargetYearFromCurrent(currentActiveAcademicYear);
+    const formattedCurrentAY = formatAcademicYear(currentActiveAcademicYear);
+    const { key: currentKey, startYear: currentStartYear } = parseAcademicYearRange(formattedCurrentAY);
+    const nextCalculated = getTargetYearFromCurrent(formattedCurrentAY);
     const { key: nextKey, startYear: nextStartYear } = parseAcademicYearRange(nextCalculated);
 
     const optionsMap = new Map<string, { value: string; label: string; startYear: number }>();
@@ -223,7 +228,8 @@ export const StudentPromotionView: React.FC<StudentPromotionViewProps> = ({ onNa
         : String(ay?.academicYear || ay?.year || ay?.academicYearName || '').trim();
       if (!rawYr) return;
 
-      const { key, startYear } = parseAcademicYearRange(rawYr);
+      const formattedYr = formatAcademicYear(rawYr);
+      const { key, startYear } = parseAcademicYearRange(formattedYr);
       if (!startYear || (currentStartYear > 0 && startYear < currentStartYear)) {
         return; // Exclude past academic years
       }
@@ -233,18 +239,18 @@ export const StudentPromotionView: React.FC<StudentPromotionViewProps> = ({ onNa
         const isNext = key === nextKey;
         const suffix = isCurr ? ' (Current)' : isNext ? ' (Next Year)' : '';
         optionsMap.set(key, {
-          value: rawYr,
-          label: `${rawYr}${suffix}`,
+          value: formattedYr,
+          label: `${formattedYr}${suffix}`,
           startYear
         });
       }
     });
 
     // 2. Ensure currentActiveAcademicYear is present
-    if (currentActiveAcademicYear && currentKey && !optionsMap.has(currentKey)) {
+    if (formattedCurrentAY && currentKey && !optionsMap.has(currentKey)) {
       optionsMap.set(currentKey, {
-        value: currentActiveAcademicYear,
-        label: `${currentActiveAcademicYear} (Current)`,
+        value: formattedCurrentAY,
+        label: `${formattedCurrentAY} (Current)`,
         startYear: currentStartYear || new Date().getFullYear()
       });
     }
@@ -262,7 +268,7 @@ export const StudentPromotionView: React.FC<StudentPromotionViewProps> = ({ onNa
   }, [academicYears, currentActiveAcademicYear, parseAcademicYearRange, getTargetYearFromCurrent]);
 
   // Filter States
-  const [currentYear, setCurrentYear] = useState<string>(currentActiveAcademicYear);
+  const [currentYear, setCurrentYear] = useState<string>(() => formatAcademicYear(currentActiveAcademicYear));
   const [targetYear, setTargetYear] = useState<string>(() => getTargetYearFromCurrent(currentActiveAcademicYear));
   const [branch, setBranch] = useState<string>(selectedBranch && selectedBranch !== 'All' ? selectedBranch : '');
   const [fromClass, setFromClass] = useState<string>('');
@@ -270,13 +276,14 @@ export const StudentPromotionView: React.FC<StudentPromotionViewProps> = ({ onNa
 
   // Keep currentYear synchronized with the current active academic year and targetYear valid
   useEffect(() => {
-    if (currentActiveAcademicYear && currentYear !== currentActiveAcademicYear) {
-      setCurrentYear(currentActiveAcademicYear);
+    const formattedCurrent = formatAcademicYear(currentActiveAcademicYear);
+    if (formattedCurrent && currentYear !== formattedCurrent) {
+      setCurrentYear(formattedCurrent);
     }
     if (targetAcademicYearOptions.length > 0) {
       const hasCurrentTarget = targetAcademicYearOptions.some(opt => opt.value === targetYear);
       if (!hasCurrentTarget) {
-        const nextCalc = getTargetYearFromCurrent(currentActiveAcademicYear);
+        const nextCalc = getTargetYearFromCurrent(formattedCurrent);
         const { key: nextKey } = parseAcademicYearRange(nextCalc);
         const preferred =
           targetAcademicYearOptions.find(opt => parseAcademicYearRange(opt.value).key === nextKey) ||
@@ -1356,13 +1363,16 @@ export const StudentPromotionView: React.FC<StudentPromotionViewProps> = ({ onNa
 
       // Match target academic year ID dynamically without hardcoding
       const targetYearClean = (targetYear || '').replace(/\s+/g, '').toLowerCase();
-      const matchedYearObj = (yearsDropdown || []).find((y: any) =>
-        (y.name || '').replace(/\s+/g, '').toLowerCase() === targetYearClean ||
-        (y.name || '').toLowerCase().includes(targetYearClean)
-      ) || (academicYears || []).find((y: any) =>
-        (y.year || y.academicYear || y.name || '').replace(/\s+/g, '').toLowerCase() === targetYearClean ||
-        (y.year || y.academicYear || y.name || '').toLowerCase().includes(targetYearClean)
-      );
+      const targetYearKey = parseAcademicYearRange(targetYear).key;
+      const matchedYearObj = (yearsDropdown || []).find((y: any) => {
+        const raw = y.name || y.academicYear || y.year || '';
+        return parseAcademicYearRange(raw).key === targetYearKey ||
+          raw.replace(/\s+/g, '').toLowerCase() === targetYearClean;
+      }) || (academicYears || []).find((y: any) => {
+        const raw = y.year || y.academicYear || y.name || '';
+        return parseAcademicYearRange(raw).key === targetYearKey ||
+          raw.replace(/\s+/g, '').toLowerCase() === targetYearClean;
+      });
       const targetYearId = matchedYearObj
         ? Number(matchedYearObj.id || (matchedYearObj as any).academicYearId)
         : (yearsDropdown.length > 0 ? Number(yearsDropdown[0].id) : (academicYears.length > 0 ? Number(academicYears[0].id) : undefined));
@@ -1596,7 +1606,7 @@ export const StudentPromotionView: React.FC<StudentPromotionViewProps> = ({ onNa
           <div>
             <label className="block text-[10px] font-black uppercase tracking-wider text-slate-400 mb-1">Current Academic Year</label>
             <div className="w-full px-3.5 py-2.5 rounded-2xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white select-none">
-              {currentActiveAcademicYear ? `${currentActiveAcademicYear} (Current)` : '—'}
+              {currentActiveAcademicYear ? `${formatAcademicYear(currentActiveAcademicYear)} (Current)` : '—'}
             </div>
           </div>
 

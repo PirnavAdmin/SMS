@@ -7,7 +7,7 @@ import {
 import { 
   Student, GeneratedCertificateRecord, CertificateTypeConfig, CertificateTemplateConfig 
 } from '../../../types';
-import { useData } from '../../../context/DataContext';
+import { useData, formatAcademicYear } from '../../../context/DataContext';
 import { useAuth } from '../../../context/AuthContext';
 import { useToast } from '../../../context/ToastContext';
 import { PrintableCertificateContainer, PrintableBatchCertificatesContainer } from './PrintableCertificateContainer';
@@ -67,12 +67,13 @@ export const GenerateCertificateModal: React.FC<GenerateCertificateModalProps> =
   const { addToast } = useToast();
   
   const activeAY = useMemo(() => {
-    if (selectedAcademicYear && selectedAcademicYear !== 'All') return selectedAcademicYear;
+    if (selectedAcademicYear && selectedAcademicYear !== 'All') return formatAcademicYear(selectedAcademicYear);
     const activeMaster = academicYears.find(ay => ay.status === 'Active' || ay.isCurrentAcademicYear);
-    if (activeMaster?.academicYear) return activeMaster.academicYear;
-    if (schoolProfile?.academicYear) return schoolProfile.academicYear;
-    const nextYear = new Date().getFullYear() + 1;
-    return `${new Date().getFullYear()}–${nextYear}`;
+    if (activeMaster?.academicYear) return formatAcademicYear(activeMaster.academicYear);
+    if (schoolProfile?.academicYear) return formatAcademicYear(schoolProfile.academicYear);
+    const curr = new Date().getFullYear();
+    const shortEnd = String((curr + 1) % 100).padStart(2, '0');
+    return `${curr}-${shortEnd}`;
   }, [selectedAcademicYear, academicYears, schoolProfile]);
 
   // Current local date in YYYY-MM-DD format (no future dates permitted)

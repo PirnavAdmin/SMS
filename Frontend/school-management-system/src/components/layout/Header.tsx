@@ -5,7 +5,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
-import { useData } from '../../context/DataContext';
+import { useData, formatAcademicYear } from '../../context/DataContext';
 import { UserRole } from '../../types';
 import { ConfirmModal } from '../common/ConfirmModal';
 import { resolveMediaUrl, DEFAULT_USER_AVATAR, getInitialsAvatar } from '../../utils/mediaUtils';
@@ -235,17 +235,7 @@ export const Header: React.FC<HeaderProps> = ({ collapsed, setCollapsed, onOpenS
   };
 
   const formatAYDisplay = (ay?: string) => {
-    if (!ay) return '';
-    const parts = ay.split(/[-–]/);
-    if (parts.length === 2) {
-      const start = parts[0].trim();
-      let end = parts[1].trim();
-      if (end.length === 4) {
-        end = end.substring(2);
-      }
-      return `${start}–${end}`;
-    }
-    return ay;
+    return formatAcademicYear(ay);
   };
 
   const ayOptions = useMemo(() => {
@@ -271,12 +261,12 @@ export const Header: React.FC<HeaderProps> = ({ collapsed, setCollapsed, onOpenS
         if (isCurrent) {
           existing.isCurrent = true;
           existing.status = 'Active';
-          existing.academicYear = rawYearStr;
+          existing.academicYear = displayKey;
         }
       } else {
         allYears.set(displayKey, {
           id: ay.id || `AY-${displayKey}`,
-          academicYear: rawYearStr,
+          academicYear: displayKey,
           isCurrent,
           status: ay.status
         });

@@ -24,6 +24,7 @@ import { Badge } from "../../common/Badge";
 import { ExportButton } from "../../common/ExportButton";
 import { ConfirmModal } from "../../common/ConfirmModal";
 import {
+  fetchAllDriverDocumentsApi,
   fetchDriverDocumentsApi,
   createDriverDocumentApi,
   deleteDriverDocumentApi,
@@ -153,12 +154,71 @@ export const DriverMasterView: React.FC = () => {
   };
 
   // Driver Documents Modal State (Directly synced with Backend API & Database)
+  const [allDriverDocs, setAllDriverDocs] = useState<DriverDocumentItem[]>([]);
   const [driverDocs, setDriverDocs] = useState<DriverDocumentItem[]>([]);
   const [isLoadingDocs, setIsLoadingDocs] = useState(false);
   const [isUploadingDoc, setIsUploadingDoc] = useState(false);
   const [docModalDriver, setDocModalDriver] = useState<DriverMaster | null>(
     null,
   );
+
+  const loadAllDriverDocuments = async () => {
+    try {
+      const apiDocs = await fetchAllDriverDocumentsApi();
+      if (Array.isArray(apiDocs) && apiDocs.length > 0) {
+        const mapped: DriverDocumentItem[] = apiDocs.map((item: any) => ({
+          id: String(item.id || item.documentId || Date.now()),
+          driverId: String(item.driverId || ""),
+          docType: (item.documentCategory || "Driving License") as any,
+          docNumber: item.documentNumber || "",
+          issueDate: item.issueDate ? item.issueDate.split("T")[0] : "",
+          expiryDate: item.expiryDate ? item.expiryDate.split("T")[0] : "",
+          badgeNumber: item.badgeNumber || "",
+          attachmentName: item.fileName || "",
+        }));
+        setAllDriverDocs(mapped);
+        return;
+      }
+
+      if (uniqueDrivers && uniqueDrivers.length > 0) {
+        const docPromises = uniqueDrivers.map(async (d) => {
+          try {
+            let docs = await fetchDriverDocumentsApi(String(d.id));
+            if ((!docs || docs.length === 0) && d.employeeId && d.employeeId !== d.id) {
+              docs = await fetchDriverDocumentsApi(String(d.employeeId));
+            }
+            if (Array.isArray(docs)) {
+              return docs.map((item: any) => ({
+                id: String(item.id || item.documentId || Date.now()),
+                driverId: String(d.id),
+                docType: (item.documentCategory || "Driving License") as any,
+                docNumber: item.documentNumber || "",
+                issueDate: item.issueDate ? item.issueDate.split("T")[0] : "",
+                expiryDate: item.expiryDate ? item.expiryDate.split("T")[0] : "",
+                badgeNumber: item.badgeNumber || "",
+                attachmentName: item.fileName || "",
+              }));
+            }
+          } catch {
+            return [];
+          }
+          return [];
+        });
+
+        const results = await Promise.all(docPromises);
+        const flattened = results.flat();
+        if (flattened.length > 0) {
+          setAllDriverDocs(flattened);
+        }
+      }
+    } catch (err) {
+      console.error("Error loading driver documents:", err);
+    }
+  };
+
+  useEffect(() => {
+    loadAllDriverDocuments();
+  }, [uniqueDrivers.length]);
   const [docForm, setDocForm] = useState<Partial<DriverDocumentItem> & { otherDocName?: string }>({
     docType: "Driving License",
     docNumber: "",
@@ -205,11 +265,9 @@ export const DriverMasterView: React.FC = () => {
   const validateForm = (): typeof formErrors => {
     const errs: typeof formErrors = {};
 
-    if (!form.driverName?.trim()) {
-      errs.driverName = "Driver full name is required.";
-    }
-    if (!form.employeeId?.trim()) {
-      errs.employeeId = "Employee ID is required.";
+    if (!form.driverName?.trim() || !form.employeeId?.trim()) {
+      errs.driverName = "Please select a driver from the Staff Directory.";
+      errs.employeeId = "Employee ID is required from Staff Directory.";
     }
     if (!form.licenseNumber?.trim()) {
       errs.licenseNumber = "Commercial license number is required.";
@@ -365,6 +423,14 @@ export const DriverMasterView: React.FC = () => {
           attachmentName: item.fileName || "",
         }));
         setDriverDocs(mapped);
+        setAllDriverDocs((prev) => {
+          const otherDocs = prev.filter(
+            (doc) =>
+              String(doc.driverId) !== String(d.id) &&
+              (!d.employeeId || String(doc.driverId) !== String(d.employeeId))
+          );
+          return [...otherDocs, ...mapped];
+        });
       }
     } catch (err) {
       console.error("Error fetching driver documents from database:", err);
@@ -433,6 +499,7 @@ export const DriverMasterView: React.FC = () => {
 
       // 3. Document immediately appears in list below
       setDriverDocs((prev) => [newDoc, ...prev]);
+      setAllDriverDocs((prev) => [newDoc, ...prev]);
 
       // 4. Reset form
       setDocForm({
@@ -464,6 +531,7 @@ export const DriverMasterView: React.FC = () => {
         attachmentName: docForm.attachmentName,
       };
       setDriverDocs((prev) => [fallbackDoc, ...prev]);
+      setAllDriverDocs((prev) => [fallbackDoc, ...prev]);
       setDocForm({
         docType: "Driving License",
         docNumber: docModalDriver.licenseNumber || "",
@@ -488,6 +556,7 @@ export const DriverMasterView: React.FC = () => {
     try {
       await deleteDriverDocumentApi(String(docModalDriver.id), docId);
       setDriverDocs((prev) => prev.filter((x) => x.id !== docId));
+      setAllDriverDocs((prev) => prev.filter((x) => x.id !== docId));
       addToast(
         "error",
         "Document Removed",
@@ -623,11 +692,34 @@ export const DriverMasterView: React.FC = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {filteredDrivers.map((d) => {
             const currentAssignment = resolveCurrentAssignment(d);
-            const dDocs = driverDocs.filter(
-              (doc) =>
-                String(doc.driverId) === String(d.id) ||
-                (Boolean(d.employeeId) && String(doc.driverId) === String(d.employeeId)),
-            );
+            const dId = String(d.id || "").trim().toLowerCase();
+            const dEmp = String(d.employeeId || "").trim().toLowerCase();
+            const dNum = dId.replace("drv-", "").replace("nts-", "").trim();
+            const dEmpNum = dEmp.replace("drv-", "").replace("nts-", "").trim();
+
+            const matchingDocs = allDriverDocs.filter((doc) => {
+              const docDriverId = String(doc.driverId || "").trim().toLowerCase();
+              const docNum = docDriverId.replace("drv-", "").replace("nts-", "").trim();
+              return (
+                (docDriverId && docDriverId === dId) ||
+                (dEmp && docDriverId === dEmp) ||
+                (dNum && docDriverId === dNum) ||
+                (dEmpNum && docDriverId === dEmpNum) ||
+                (docNum && docNum === dNum) ||
+                (docNum && docNum === dEmpNum) ||
+                (d.driverName && docDriverId === d.driverName.trim().toLowerCase())
+              );
+            });
+
+            const modalDocsForThis =
+              docModalDriver &&
+              (String(docModalDriver.id) === String(d.id) ||
+                (d.employeeId && docModalDriver.employeeId === d.employeeId))
+                ? driverDocs.length
+                : 0;
+
+            const countFromBackend = Number((d as any).documentsCount) || 0;
+            const docCount = Math.max(matchingDocs.length, modalDocsForThis, countFromBackend);
             const licStatus = checkDocExpiryStatus(d.licenseExpiryDate);
 
             return (
@@ -685,12 +777,14 @@ export const DriverMasterView: React.FC = () => {
                         {d.email || "Not provided"}
                       </span>
                     </div>
-                    <div className="flex justify-between">
-                      <span className="text-slate-400">Address:</span>
-                      <span className="font-medium text-slate-800 dark:text-slate-200 text-right max-w-[12rem]">
-                        {d.address || "Not provided"}
-                      </span>
-                    </div>
+                    {d.address && d.address.trim() !== "" && d.address.toLowerCase() !== "not provided" && (
+                      <div className="flex justify-between">
+                        <span className="text-slate-400">Address:</span>
+                        <span className="font-medium text-slate-800 dark:text-slate-200 text-right max-w-[12rem] truncate" title={d.address}>
+                          {d.address}
+                        </span>
+                      </div>
+                    )}
                     <div className="flex justify-between">
                       <span className="text-slate-400">License Expiry:</span>
                       <span
@@ -741,7 +835,7 @@ export const DriverMasterView: React.FC = () => {
                     className="text-xs font-bold text-sky-600 hover:text-sky-500 flex items-center gap-1"
                   >
                     <FileText className="w-3.5 h-3.5" /> Driver Documents (
-                    {dDocs.length})
+                    {docCount})
                   </button>
                   <div className="flex items-center gap-1">
                     <button
@@ -925,144 +1019,87 @@ export const DriverMasterView: React.FC = () => {
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-semibold mb-1">
-                    Driver Full Name{" "}
-                    <span className="text-rose-500 font-bold ml-0.5">*</span>
-                  </label>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="font-semibold text-slate-800 dark:text-slate-200">
+                      Driver Full Name <span className="text-rose-500 font-bold ml-0.5">*</span>
+                    </label>
+                    <span className="text-[10px] text-sky-600 dark:text-sky-400 font-bold bg-sky-50 dark:bg-sky-950/60 px-1.5 py-0.5 rounded border border-sky-200 dark:border-sky-800">
+                      Staff Directory
+                    </span>
+                  </div>
                   <input
                     type="text"
-                    required
-                    placeholder="e.g. Ramesh Kumar"
+                    readOnly
+                    disabled
+                    tabIndex={-1}
+                    placeholder="Select driver from Staff Directory above"
                     value={form.driverName || ""}
-                    onChange={(e) => {
-                      setForm({ ...form, driverName: e.target.value });
-                      if (formErrors.driverName)
-                        setFormErrors((prev) => ({
-                          ...prev,
-                          driverName: undefined,
-                        }));
-                    }}
-                    className={`w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold text-slate-900 dark:text-white outline-none ${
-                      formErrors.driverName
-                        ? "border-rose-500 focus:border-rose-500 bg-rose-50/20"
-                        : ""
-                    }`}
+                    className="w-full px-3 py-2 rounded-xl bg-slate-100 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 font-bold text-slate-600 dark:text-slate-300 cursor-not-allowed outline-none select-none"
                   />
-                  {formErrors.driverName && (
-                    <p className="text-[10px] text-rose-500 font-bold mt-1 flex items-center gap-1">
-                      <AlertCircle className="w-3 h-3 flex-shrink-0" />
-                      <span>{formErrors.driverName}</span>
-                    </p>
-                  )}
+                  <p className="text-[10px] text-slate-400 mt-1">Defaulted from Staff Directory (cannot be edited here)</p>
                 </div>
                 <div>
-                  <label className="block font-semibold mb-1">
-                    Employee ID{" "}
-                    <span className="text-rose-500 font-bold ml-0.5">*</span>
-                  </label>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="font-semibold text-slate-800 dark:text-slate-200">
+                      Employee ID <span className="text-rose-500 font-bold ml-0.5">*</span>
+                    </label>
+                    <span className="text-[10px] text-sky-600 dark:text-sky-400 font-bold bg-sky-50 dark:bg-sky-950/60 px-1.5 py-0.5 rounded border border-sky-200 dark:border-sky-800">
+                      Staff Directory
+                    </span>
+                  </div>
                   <input
                     type="text"
-                    placeholder="e.g. EMP-DRV-101"
+                    readOnly
+                    disabled
+                    tabIndex={-1}
+                    placeholder="Select driver from Staff Directory above"
                     value={form.employeeId || ""}
-                    onChange={(e) => {
-                      setForm({ ...form, employeeId: e.target.value });
-                      if (formErrors.employeeId)
-                        setFormErrors((prev) => ({
-                          ...prev,
-                          employeeId: undefined,
-                        }));
-                    }}
-                    className={`w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-mono font-bold text-slate-900 dark:text-white outline-none ${
-                      formErrors.employeeId
-                        ? "border-rose-500 focus:border-rose-500 bg-rose-50/20"
-                        : ""
-                    }`}
+                    className="w-full px-3 py-2 rounded-xl bg-slate-100 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 font-mono font-bold text-slate-600 dark:text-slate-300 cursor-not-allowed outline-none select-none"
                   />
-                  {formErrors.employeeId && (
-                    <p className="text-[10px] text-rose-500 font-bold mt-1 flex items-center gap-1">
-                      <AlertCircle className="w-3 h-3 flex-shrink-0" />
-                      <span>{formErrors.employeeId}</span>
-                    </p>
-                  )}
+                  <p className="text-[10px] text-slate-400 mt-1">Defaulted from Staff Directory (cannot be edited here)</p>
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-semibold mb-1">
-                    Mobile Number{" "}
-                    <span className="text-rose-500 font-bold ml-0.5">*</span>
-                  </label>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="font-semibold text-slate-800 dark:text-slate-200">
+                      Mobile Number <span className="text-rose-500 font-bold ml-0.5">*</span>
+                    </label>
+                    <span className="text-[10px] text-sky-600 dark:text-sky-400 font-bold bg-sky-50 dark:bg-sky-950/60 px-1.5 py-0.5 rounded border border-sky-200 dark:border-sky-800">
+                      Staff Directory
+                    </span>
+                  </div>
                   <input
                     type="tel"
-                    inputMode="numeric"
-                    maxLength={10}
-                    required
-                    placeholder="10-digit mobile number"
+                    readOnly
+                    disabled
+                    tabIndex={-1}
+                    placeholder="Select driver from Staff Directory above"
                     value={form.mobileNumber || ""}
-                    onChange={(e) => {
-                      const sanitized = sanitizePhoneInput(e.target.value);
-                      setForm({ ...form, mobileNumber: sanitized });
-                      if (formErrors.mobileNumber) {
-                        setFormErrors((prev) => ({
-                          ...prev,
-                          mobileNumber: undefined,
-                        }));
-                      }
-                    }}
-                    onBlur={() => {
-                      if (form.mobileNumber) {
-                        const check = validatePhoneNumber(
-                          form.mobileNumber,
-                          true,
-                        );
-                        if (!check.isValid) {
-                          setFormErrors((prev) => ({
-                            ...prev,
-                            mobileNumber: check.error,
-                          }));
-                        }
-                      }
-                    }}
-                    className={`w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-mono font-bold text-slate-900 dark:text-white outline-none ${
-                      formErrors.mobileNumber
-                        ? "border-rose-500 focus:border-rose-500 bg-rose-50/20"
-                        : ""
-                    }`}
+                    className="w-full px-3 py-2 rounded-xl bg-slate-100 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 font-mono font-bold text-slate-600 dark:text-slate-300 cursor-not-allowed outline-none select-none"
                   />
-                  {formErrors.mobileNumber && (
-                    <p className="text-[10px] text-rose-500 font-bold mt-1 flex items-center gap-1">
-                      <AlertCircle className="w-3 h-3 flex-shrink-0" />
-                      <span>{formErrors.mobileNumber}</span>
-                    </p>
-                  )}
+                  <p className="text-[10px] text-slate-400 mt-1">Defaulted from Staff Directory (cannot be edited here)</p>
                 </div>
                 <div>
-                  <label className="block font-semibold mb-1">Email</label>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="font-semibold text-slate-800 dark:text-slate-200">
+                      Email (Gmail)
+                    </label>
+                    <span className="text-[10px] text-sky-600 dark:text-sky-400 font-bold bg-sky-50 dark:bg-sky-950/60 px-1.5 py-0.5 rounded border border-sky-200 dark:border-sky-800">
+                      Staff Directory
+                    </span>
+                  </div>
                   <input
                     type="email"
-                    placeholder="e.g. driver@school.edu"
+                    readOnly
+                    disabled
+                    tabIndex={-1}
+                    placeholder="Select driver from Staff Directory above"
                     value={form.email || ""}
-                    onChange={(e) => {
-                      setForm({ ...form, email: e.target.value });
-                      if (formErrors.email)
-                        setFormErrors((prev) => ({
-                          ...prev,
-                          email: undefined,
-                        }));
-                    }}
-                    className={`w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-mono text-slate-900 dark:text-white outline-none ${
-                      formErrors.email
-                        ? "border-rose-500 focus:border-rose-500 bg-rose-50/20"
-                        : ""
-                    }`}
+                    className="w-full px-3 py-2 rounded-xl bg-slate-100 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 font-bold text-slate-600 dark:text-slate-300 cursor-not-allowed outline-none select-none"
                   />
-                  {formErrors.email && (
-                    <p className="text-[10px] text-rose-500 font-bold mt-1 flex items-center gap-1">
-                      <AlertCircle className="w-3 h-3 flex-shrink-0" />
-                      <span>{formErrors.email}</span>
-                    </p>
-                  )}
+                  <p className="text-[10px] text-slate-400 mt-1">Defaulted from Staff Directory (cannot be edited here)</p>
                 </div>
               </div>
 
@@ -1129,18 +1166,6 @@ export const DriverMasterView: React.FC = () => {
                     className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-slate-900 dark:text-white"
                   />
                 </div>
-              </div>
-
-              <div>
-                <label className="block font-semibold mb-1">Address</label>
-                <input
-                  type="text"
-                  value={form.address}
-                  onChange={(e) =>
-                    setForm({ ...form, address: e.target.value })
-                  }
-                  className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border"
-                />
               </div>
 
               <div>

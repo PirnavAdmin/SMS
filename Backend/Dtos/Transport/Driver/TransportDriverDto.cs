@@ -79,6 +79,9 @@ namespace SMS.Api.Dtos.Transport.Driver
         [JsonPropertyName("isLicenceExpired")]
         public bool IsLicenceExpired { get; set; }
 
+        [JsonPropertyName("documentsCount")]
+        public int DocumentsCount { get; set; } = 0;
+
         [JsonPropertyName("createdAt")]
         public DateTime CreatedAt { get; set; }
     }

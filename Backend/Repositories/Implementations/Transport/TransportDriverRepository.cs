@@ -58,6 +58,29 @@ namespace SMS.Api.Repositories.Implementations
 
             query = ApplySorting(query, filter.SortBy, filter.SortOrder);
 
+            Dictionary<string, int> docCounts = new(StringComparer.OrdinalIgnoreCase);
+            try
+            {
+                var groupedDocs = await _context.TransportDriverDocuments
+                    .AsNoTracking()
+                    .Where(d => !d.IsDeleted)
+                    .GroupBy(d => d.DriverId)
+                    .Select(g => new { DriverId = g.Key, Count = g.Count() })
+                    .ToListAsync();
+
+                foreach (var gd in groupedDocs)
+                {
+                    if (!string.IsNullOrWhiteSpace(gd.DriverId))
+                    {
+                        var key = gd.DriverId.Trim();
+                        docCounts[key] = gd.Count;
+                        var rawK = key.Replace("DRV-", "").Replace("NTS-", "").Trim();
+                        if (rawK != "" && !docCounts.ContainsKey(rawK)) docCounts[rawK] = gd.Count;
+                    }
+                }
+            }
+            catch { }
+
             var allItems = await query
                 .Select(x => new TransportDriverDto
                 {
@@ -80,6 +103,16 @@ namespace SMS.Api.Repositories.Implementations
                     CreatedAt = x.CreatedAt
                 })
                 .ToListAsync();
+
+            foreach (var item in allItems)
+            {
+                int count = 0;
+                var idStr = item.DriverId.ToString();
+                var empStr = item.EmployeeId?.Trim() ?? "";
+                if (docCounts.TryGetValue(idStr, out var c1)) count = Math.Max(count, c1);
+                if (empStr != "" && docCounts.TryGetValue(empStr, out var c2)) count = Math.Max(count, c2);
+                item.DocumentsCount = count;
+            }
 
             var seenKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             var distinctItems = new List<TransportDriverDto>();

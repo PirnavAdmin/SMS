@@ -756,11 +756,15 @@ export function validateAcademicSessionName(
   }
   const trimmed = name.trim();
   if (trimmed.length < 4 || trimmed.length > 20) {
-    return { isValid: false, error: 'Academic Session Name must be between 4 and 20 characters (e.g. 2026–27).' };
+    return { isValid: false, error: 'Academic Session Name must be between 4 and 20 characters (e.g. 2026-27).' };
+  }
+  // Reject full calendar dates (e.g., DD-MM-YYYY, YYYY-MM-DD, DD/MM/YYYY)
+  if (/^\d{1,4}[-–/.]\d{1,2}[-–/.]\d{2,4}$/.test(trimmed)) {
+    return { isValid: false, error: 'Enter a valid academic session range (e.g. 2026-27), not a specific calendar date.' };
   }
   // Must contain numeric year representation or session/term identifier
   if (!/\d{2,4}/.test(trimmed) && !/(spring|summer|fall|winter|session|term|semester|batch)/i.test(trimmed)) {
-    return { isValid: false, error: 'Please enter a valid academic session name (e.g. YYYY–YY or YYYY-YYYY).' };
+    return { isValid: false, error: 'Please enter a valid academic session name (e.g. 2026-27 or YYYY-YY).' };
   }
   return { isValid: true };
 }

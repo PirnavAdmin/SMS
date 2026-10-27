@@ -433,7 +433,7 @@ export const StudentProfileDrawer: React.FC<StudentProfileDrawerProps> = ({
     );
   };
 
-  const academicSession = (liveStudent as any)?.academicYear || schoolProfile?.academicYear || '2025-2026';
+  const academicSession = (liveStudent as any)?.academicYear || schoolProfile?.academicYear || '2025-26';
 
   const tabs = [
     { id: 'personal', label: 'Personal', icon: User },
