@@ -19,6 +19,8 @@ export function initSafeStorage() {
   const redundantLegacyKeys = [
     "student_attendance",
     "sms_student_attendance",
+    "edu_db_student_attendance",
+    "edu_db_attendance",
     "edu_db_leave_applications",
     "leave_applications",
     "sms_leave_applications",

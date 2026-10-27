@@ -106,6 +106,7 @@ public class StudentAttendanceUniversalDto
 public class StudentAttendanceUniversalQueryDto
 {
     public int? StudentId { get; set; }
+    public List<int>? StudentIds { get; set; }
     public string? ClassName { get; set; }
     public string? Section { get; set; }
     public string? Date { get; set; }

@@ -657,6 +657,31 @@ export const AttendanceView = () => {
     setHasUnsavedChanges(false);
     setIsSaved(false);
   }, [selectedClass, selectedSection, isAggregatedView, isTeacher, isAuthorizedClassTeacher, filterStatus, dateMode, date, month, startDate, endDate, selectedSubject, selectedPeriod]);
+
+  // Synchronize dynamic student attendance from backend database whenever context filters change
+  useEffect(() => {
+    if (!fetchStudentAttendanceData) return;
+    const query: any = {};
+    if (selectedClass && selectedClass !== 'Select Class' && selectedClass !== 'All Classes') {
+      query.className = selectedClass;
+    }
+    if (selectedSection && selectedSection !== 'Select Section' && selectedSection !== 'All Sections') {
+      query.section = selectedSection;
+    }
+    if (dateMode === 'Daily' && date) {
+      query.date = date;
+    } else if (dateMode === 'Monthly' && month) {
+      const [yr, mo] = month.split('-');
+      if (yr && mo) {
+        query.year = parseInt(yr, 10);
+        query.month = parseInt(mo, 10);
+      }
+    } else if (dateMode === 'Custom Range' && startDate && endDate) {
+      query.startDate = startDate;
+      query.endDate = endDate;
+    }
+    fetchStudentAttendanceData(query);
+  }, [selectedClass, selectedSection, dateMode, date, month, startDate, endDate, fetchStudentAttendanceData]);
  
   const [remarkModalStudent, setRemarkModalStudent] = useState<Student | null>(null);
   const [tempRemark, setTempRemark] = useState('');
@@ -1209,6 +1234,10 @@ export const AttendanceView = () => {
       try {
         window.dispatchEvent(new Event('attendance_updated'));
       } catch {}
+
+      if (fetchStudentAttendanceData) {
+        fetchStudentAttendanceData();
+      }
 
       addToast('success', 'Attendance Register Saved', `Saved attendance entries for ${recordsToSave.length} student${recordsToSave.length === 1 ? '' : 's'}.`);
       setHasUnsavedChanges(false);

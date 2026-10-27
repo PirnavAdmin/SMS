@@ -218,17 +218,34 @@ export const saveBulkStudentAttendanceApi = async (payload: {
     markedBy?: string;
   }>;
 }) => {
-  try {
-    return await apiClient('/api/attendance/student/bulk', {
-      method: 'POST',
-      body: JSON.stringify(payload)
-    });
-  } catch (err: any) {
-    if (err?.status === 403 || err?.status === 401 || err?.status === 404) {
-      return { success: true, localOnly: true };
-    }
-    throw err;
-  }
+  const sanitizedRecords = (payload.records || []).map((r) => {
+    const numId = Number(r.studentId);
+    return {
+      ...r,
+      studentId: !isNaN(numId) && numId > 0 ? numId : undefined,
+    };
+  });
+
+  return await apiClient('/api/attendance/student/bulk', {
+    method: 'POST',
+    body: JSON.stringify({
+      ...payload,
+      records: sanitizedRecords,
+    }),
+  });
+};
+
+export const markStudentAttendanceApi = async (payload: {
+  studentId: number;
+  attendanceSessionId?: number;
+  date?: string;
+  status: string;
+  remarks?: string;
+}) => {
+  return await apiClient('/api/attendance/student/mark', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
 };
 
 

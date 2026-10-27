@@ -15,7 +15,7 @@ import { exportToExcel } from '../../../utils/excelExport';
 
 export const ParentAttendanceView: React.FC = () => {
   const { studentAttendance = [], holidays = [] } = useData();
-  const { role } = useAuth();
+  const { role, user } = useAuth();
   const { addToast } = useToast?.() || {};
   const parentWards = useParentWards();
   const [selectedChildIdx, setSelectedChildIdx] = useState(0);
@@ -62,6 +62,13 @@ export const ParentAttendanceView: React.FC = () => {
   const displayWards = useMemo(() => {
     return parentWards && parentWards.length > 0 ? parentWards : [];
   }, [parentWards]);
+
+  // Helper to format class name without duplicate 'Class'
+  const formatClassName = useCallback((className?: string) => {
+    if (!className) return '';
+    const clean = className.trim();
+    return clean.toLowerCase().startsWith('class') ? clean : `Class ${clean}`;
+  }, []);
 
   // Helper to match a record against the current ward
   const isChildMatch = useCallback((rec: any) => {
@@ -439,7 +446,7 @@ export const ParentAttendanceView: React.FC = () => {
           rows.push([
             ward.admissionNo || ward.rollNo || `ADM-${ward.studentId}`,
             ward.studentName || `${ward.firstName} ${ward.lastName}`.trim(),
-            ward.className,
+            formatClassName(ward.className),
             ward.section,
             ...dateCells,
             pCount,
@@ -468,10 +475,19 @@ export const ParentAttendanceView: React.FC = () => {
     }, 400);
   };
 
+  // If no registered wards linked to this parent account
   if (parentWards.length === 0) {
     return (
-      <div className="p-8 text-center text-slate-500">
-        No active wards found in the system.
+      <div className="bg-white dark:bg-slate-800 p-8 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-xs text-center space-y-3 animate-in fade-in">
+        <div className="w-12 h-12 bg-amber-50 dark:bg-amber-950/40 text-amber-500 rounded-2xl flex items-center justify-center mx-auto">
+          <AlertCircle className="w-6 h-6 stroke-[2.2]" />
+        </div>
+        <h3 className="text-base font-bold text-slate-800 dark:text-white">
+          No Registered Student Records Found
+        </h3>
+        <p className="text-xs text-slate-500 dark:text-slate-400 max-w-md mx-auto leading-relaxed">
+          No active wards are linked to your parent account ({user?.email || user?.name || 'current account'}). Please contact the school administrative office to link your student profile.
+        </p>
       </div>
     );
   }
@@ -509,6 +525,8 @@ export const ParentAttendanceView: React.FC = () => {
     }
   };
 
+  const currentClassFormatted = formatClassName(currentWard?.className);
+
   return (
     <div className="space-y-3 sm:space-y-3.5 animate-in fade-in">
       
@@ -523,7 +541,7 @@ export const ParentAttendanceView: React.FC = () => {
               Student Attendance
             </h1>
             <p className="text-[11px] text-slate-500 dark:text-slate-400">
-              {currentWard ? `${currentWard.studentName || `${currentWard.firstName} ${currentWard.lastName}`} • ${currentWard.className} ${currentWard.section ? `(${currentWard.section})` : ''}` : "View your child's attendance records"}
+              {currentWard ? `${currentWard.studentName || `${currentWard.firstName} ${currentWard.lastName}`} • ${currentClassFormatted} ${currentWard.section ? `(${currentWard.section})` : ''}` : "View your child's attendance records"}
             </p>
           </div>
         </div>
@@ -602,7 +620,7 @@ export const ParentAttendanceView: React.FC = () => {
         </div>
       </div>
 
-      {/* Multiple Wards Tabs */}
+      {/* Multiple Wards Tabs (Shows only parent's real children) */}
       <ParentStudentSelector
         wards={parentWards}
         selectedIndex={selectedChildIdx}
@@ -650,7 +668,7 @@ export const ParentAttendanceView: React.FC = () => {
                 Attendance ({displayWards.length} {displayWards.length === 1 ? 'Student' : 'Students'})
               </span>
               <span className="px-2.5 py-0.5 rounded-full bg-sky-50 text-sky-700 dark:bg-sky-950/60 dark:text-sky-300 font-bold text-[10.5px] border border-sky-200/60 dark:border-sky-800 whitespace-nowrap">
-                {currentWard ? `${currentWard.className}${currentWard.section ? `-${currentWard.section}` : ''}` : 'General'}
+                {currentWard ? `${currentClassFormatted}${currentWard.section ? `-${currentWard.section}` : ''}` : 'General'}
               </span>
               {isLoading && (
                 <span className="text-[10px] text-sky-600 flex items-center gap-1 font-bold">
@@ -727,7 +745,7 @@ export const ParentAttendanceView: React.FC = () => {
                   {displayWards.length === 0 ? (
                     <tr>
                       <td colSpan={matrixDates.length + 7} className="py-12 text-center text-slate-400 italic">
-                        No student wards found in the system.
+                        No registered student records found.
                       </td>
                     </tr>
                   ) : (
@@ -740,6 +758,7 @@ export const ParentAttendanceView: React.FC = () => {
 
                       const isSelected = idx === selectedChildIdx;
                       const wardDisplayName = ward.studentName || `${ward.firstName || ''} ${ward.lastName || ''}`.trim() || 'Student';
+                      const wardClassFormatted = formatClassName(ward.className);
 
                       return (
                         <tr
@@ -763,7 +782,7 @@ export const ParentAttendanceView: React.FC = () => {
                               {wardDisplayName}
                             </span>
                             <span className="text-[9px] font-mono text-slate-400 block text-center">
-                              {ward.admissionNo || ward.rollNo || `ADM-${ward.studentId}`} &bull; Class {ward.className}{ward.section ? `-${ward.section}` : ''}
+                              {ward.admissionNo || ward.rollNo || `ADM-${ward.studentId}`} &bull; {wardClassFormatted}{ward.section ? `-${ward.section}` : ''}
                             </span>
                           </td>
 

@@ -4058,11 +4058,12 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     );
   }, [gradeConfigurations]);
   useEffect(() => {
-    localStorage.setItem(
-      "edu_db_student_attendance",
-      JSON.stringify(studentAttendance),
-    );
-  }, [studentAttendance]);
+    try {
+      localStorage.removeItem("edu_db_student_attendance");
+      localStorage.removeItem("student_attendance");
+      localStorage.removeItem("sms_student_attendance");
+    } catch {}
+  }, []);
 
   useEffect(() => {
     localStorage.setItem(
@@ -5469,34 +5470,28 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
             response?.data?.items ||
             response?.data ||
             [];
-        if (Array.isArray(items) && items.length > 0) {
+        if (Array.isArray(items)) {
           setStudentAttendance((prev) => {
             const existingMap = new Map<string, any>();
+            if (!query || Object.keys(query).length === 0) {
+              items.forEach((item: any) => {
+                const recDate = String(item.date || "").split("T")[0];
+                const key = `${item.studentId || item.id}_${recDate}_${item.subject || ""}_${item.period || ""}`;
+                existingMap.set(key, { ...item, date: recDate });
+              });
+              return Array.from(existingMap.values());
+            }
+
             (prev || []).forEach((r) => {
               const key = `${r.studentId || r.id}_${String(r.date || "").split("T")[0]}_${r.subject || ""}_${r.period || ""}`;
               existingMap.set(key, r);
             });
-            let hasChanges = false;
             items.forEach((item: any) => {
               const recDate = String(item.date || "").split("T")[0];
               const key = `${item.studentId || item.id}_${recDate}_${item.subject || ""}_${item.period || ""}`;
-              const existing = existingMap.get(key);
-              if (
-                !existing ||
-                existing.status !== item.status ||
-                existing.remarks !== item.remarks
-              ) {
-                hasChanges = true;
-              }
               existingMap.set(key, { ...item, date: recDate });
             });
-
-            if (!hasChanges && prev && prev.length === existingMap.size) {
-              return prev; // Preserve reference to prevent unnecessary component re-renders
-            }
-
-            const merged = Array.from(existingMap.values());
-            return merged;
+            return Array.from(existingMap.values());
           });
           setTimeout(() => {
             try {
@@ -22667,7 +22662,10 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       } catch {}
     }, 0);
 
-    // Async backend persistence
+    const numId = Number(record.studentId || record.id);
+    const validStudentId = !isNaN(numId) && numId > 0 ? numId : undefined;
+
+    // Direct backend database synchronization
     saveBulkStudentAttendanceApi({
       date: recordDate,
       className: record.className,
@@ -22676,7 +22674,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       period: record.period,
       records: [
         {
-          studentId: record.studentId || record.id,
+          studentId: validStudentId,
           rollNo: record.rollNo,
           admissionNo: record.admissionNo,
           studentName: record.studentName,
@@ -22690,8 +22688,10 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           markedBy: record.markedBy,
         },
       ],
+    }).then(() => {
+      fetchStudentAttendanceData();
     }).catch((e) => {
-      console.warn("Async saveStudentAttendance backend sync failed:", e);
+      console.warn("saveStudentAttendance backend sync failed:", e);
     });
 
     logActivity(
@@ -22730,6 +22730,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         }, 0);
 
         const response = await saveBulkStudentAttendanceApi(payload);
+        fetchStudentAttendanceData();
         return response;
       }
     } catch (err) {

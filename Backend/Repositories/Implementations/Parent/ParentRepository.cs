@@ -30,28 +30,67 @@ namespace SMS.Api.Repositories.Implementations.Parent
                 identifier = identifier.Trim().ToLowerInvariant();
                 var digitsOnly = new string(identifier.Where(char.IsDigit).ToArray());
 
-                // 1. Look up parentUser in Users table if identifier is email/mobile/userId
+                // 1. Look up parentUser in Users table if identifier is email/mobile/userId/name
                 var parentUser = await _context.Users
                     .AsNoTracking()
                     .FirstOrDefaultAsync(u => 
                         (u.Email != null && u.Email.ToLower() == identifier) ||
                         u.MobileNumber == identifier ||
                         (digitsOnly.Length >= 10 && u.MobileNumber != null && u.MobileNumber.EndsWith(digitsOnly)) ||
-                        u.UserId.ToString() == identifier
+                        u.UserId.ToString() == identifier ||
+                        (u.FullName != null && u.FullName.ToLower() == identifier)
                     );
 
                 string searchMobile = parentUser?.MobileNumber ?? (digitsOnly.Length >= 10 ? identifier : string.Empty);
                 string searchEmail = parentUser?.Email ?? (identifier.Contains("@") ? identifier : string.Empty);
-                string searchFullName = parentUser?.FullName ?? string.Empty;
+                string searchFullName = (parentUser?.FullName ?? (identifier.Contains("@") ? string.Empty : identifier)).Trim();
                 string searchMobileDigits = new string(searchMobile.Where(char.IsDigit).ToArray());
 
-                // 2. Query students strictly matching exact Mobile, Email, or Full Name
-                var children = await _context.Students
+                // 2. Query AdmissionApplications matching parent email or parent contact
+                var matchingAppAdmissionNos = new List<string>();
+                var matchingAppRegNos = new List<string>();
+                var matchingAppStudentNames = new List<string>();
+
+                if (!string.IsNullOrEmpty(searchEmail) || !string.IsNullOrEmpty(searchMobile))
+                {
+                    var matchedApps = await _context.AdmissionApplications
+                        .AsNoTracking()
+                        .Where(a => !a.IsDeleted && (
+                            (!string.IsNullOrEmpty(searchEmail) && a.ParentEmail != null && a.ParentEmail.ToLower() == searchEmail) ||
+                            (!string.IsNullOrEmpty(searchMobile) && (
+                                a.FatherContact == searchMobile ||
+                                a.MotherMobileNumber == searchMobile ||
+                                a.AlternateMobileNumber == searchMobile ||
+                                (searchMobileDigits.Length >= 10 && (
+                                    (a.FatherContact != null && a.FatherContact.EndsWith(searchMobileDigits)) ||
+                                    (a.MotherMobileNumber != null && a.MotherMobileNumber.EndsWith(searchMobileDigits)) ||
+                                    (a.AlternateMobileNumber != null && a.AlternateMobileNumber.EndsWith(searchMobileDigits))
+                                ))
+                            ))
+                        ))
+                        .ToListAsync();
+
+                    foreach (var app in matchedApps)
+                    {
+                        if (!string.IsNullOrWhiteSpace(app.AdmissionNo))
+                            matchingAppAdmissionNos.Add(app.AdmissionNo.Trim());
+                        if (!string.IsNullOrWhiteSpace(app.RegistrationNo))
+                            matchingAppRegNos.Add(app.RegistrationNo.Trim());
+                        var fullAppName = $"{app.FirstName ?? ""} {app.LastName ?? ""}".Trim();
+                        if (!string.IsNullOrWhiteSpace(fullAppName))
+                            matchingAppStudentNames.Add(fullAppName.ToLower());
+                    }
+                }
+
+                // 3. Query candidate students strictly matching exact Mobile, Email, Full Name or Admission Application
+                var candidates = await _context.Students
                     .Include(s => s.ClassGrade)
                     .Include(s => s.ClassSection)
                     .AsNoTracking()
                     .Where(s => !s.IsDeleted && s.Status == "Active")
                     .Where(s =>
+                        (matchingAppAdmissionNos.Count > 0 && s.AdmissionNumber != null && matchingAppAdmissionNos.Contains(s.AdmissionNumber)) ||
+                        (matchingAppRegNos.Count > 0 && s.RollNumber != null && matchingAppRegNos.Contains(s.RollNumber)) ||
                         (!string.IsNullOrEmpty(searchMobile) && (
                             s.FatherMobile == searchMobile || 
                             s.MotherMobile == searchMobile || 
@@ -66,20 +105,39 @@ namespace SMS.Api.Repositories.Implementations.Parent
                             (s.Email != null && s.Email.ToLower() == searchEmail)
                         )) ||
                         (!string.IsNullOrEmpty(searchFullName) && (
-                            (s.FatherName != null && s.FatherName.Trim().ToLower() == searchFullName.Trim().ToLower()) ||
-                            (s.MotherName != null && s.MotherName.Trim().ToLower() == searchFullName.Trim().ToLower())
+                            (s.FatherName != null && (s.FatherName.ToLower() == searchFullName.ToLower() || s.FatherName.ToLower().Contains(searchFullName.ToLower()) || searchFullName.ToLower().Contains(s.FatherName.ToLower()))) ||
+                            (s.MotherName != null && (s.MotherName.ToLower() == searchFullName.ToLower() || s.MotherName.ToLower().Contains(searchFullName.ToLower()) || searchFullName.ToLower().Contains(s.MotherName.ToLower())))
                         ))
                     )
                     .OrderByDescending(s => s.StudentId)
                     .ToListAsync();
 
-                // Deduplicate children by normalized StudentName + Class + Section to avoid duplicate tabs for the same child
-                var uniqueChildren = children
-                    .GroupBy(s => new {
-                        Name = (s.StudentName ?? "").Trim().ToLowerInvariant(),
-                        Class = (s.ClassGrade?.ClassName ?? "").Trim().ToLowerInvariant(),
-                        Section = (s.ClassSection?.SectionName ?? "").Trim().ToLowerInvariant()
-                    })
+                // 4. In-memory check for token and surname matches if no candidates found yet
+                if (candidates.Count == 0 && !string.IsNullOrEmpty(searchFullName))
+                {
+                    var tokens = searchFullName.Split(' ', StringSplitOptions.RemoveEmptyEntries).Where(t => t.Length >= 3).ToList();
+                    if (tokens.Count >= 2)
+                    {
+                        var firstToken = tokens.First().ToLower();
+                        var lastToken = tokens.Last().ToLower();
+
+                        candidates = await _context.Students
+                            .Include(s => s.ClassGrade)
+                            .Include(s => s.ClassSection)
+                            .AsNoTracking()
+                            .Where(s => !s.IsDeleted && s.Status == "Active")
+                            .Where(s =>
+                                (s.FatherName != null && s.FatherName.ToLower().Contains(firstToken) && s.FatherName.ToLower().Contains(lastToken)) ||
+                                (s.StudentName != null && s.StudentName.ToLower().Contains(lastToken) && s.FatherName != null && s.FatherName.ToLower().Contains(firstToken))
+                            )
+                            .OrderByDescending(s => s.StudentId)
+                            .ToListAsync();
+                    }
+                }
+
+                // Deduplicate children by StudentId
+                var uniqueChildren = candidates
+                    .GroupBy(s => s.StudentId)
                     .Select(g => g.First())
                     .ToList();
 

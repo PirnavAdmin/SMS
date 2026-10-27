@@ -171,6 +171,34 @@ public class StudentAttendanceRepository : IStudentAttendanceRepository
         {
             dbQuery = dbQuery.Where(a => a.StudentId == query.StudentId.Value);
         }
+        else if (query.StudentIds != null && query.StudentIds.Count > 0)
+        {
+            dbQuery = dbQuery.Where(a => a.StudentId.HasValue && query.StudentIds.Contains(a.StudentId.Value));
+        }
+
+        if (!string.IsNullOrWhiteSpace(query.ClassName) &&
+            !query.ClassName.Equals("All Classes", StringComparison.OrdinalIgnoreCase) &&
+            !query.ClassName.Equals("Select Class", StringComparison.OrdinalIgnoreCase))
+        {
+            string cleanCls = query.ClassName.Replace("Class", "", StringComparison.OrdinalIgnoreCase).Trim().ToLower();
+            dbQuery = dbQuery.Where(a => a.Student != null && a.Student.ClassGrade != null && a.Student.ClassGrade.ClassName != null &&
+                (a.Student.ClassGrade.ClassName.ToLower() == cleanCls ||
+                 a.Student.ClassGrade.ClassName.ToLower() == query.ClassName.ToLower() ||
+                 a.Student.ClassGrade.ClassName.ToLower().Contains(cleanCls)));
+        }
+
+        if (!string.IsNullOrWhiteSpace(query.Section) &&
+            !query.Section.Equals("All Sections", StringComparison.OrdinalIgnoreCase) &&
+            !query.Section.Equals("Select Section", StringComparison.OrdinalIgnoreCase))
+        {
+            string cleanSec = query.Section.Replace("Section", "", StringComparison.OrdinalIgnoreCase).Trim().ToLower();
+            dbQuery = dbQuery.Where(a => a.Student != null && a.Student.ClassSection != null &&
+                (a.Student.ClassSection.SectionName.ToLower() == cleanSec ||
+                 a.Student.ClassSection.SectionName.ToLower() == query.Section.ToLower() ||
+                 a.Student.ClassSection.SectionName.Replace("Section", "").Trim().ToLower() == cleanSec));
+        }
+
+
 
         if (!string.IsNullOrWhiteSpace(query.Date) && DateTime.TryParse(query.Date, out DateTime singleDate))
         {
@@ -277,6 +305,29 @@ public class StudentAttendanceRepository : IStudentAttendanceRepository
                 continue;
             }
 
+            int branchId = student.BranchId > 0 ? student.BranchId : defaultBranchId;
+            int yearId = student.AcademicYearId > 0 ? student.AcademicYearId : defaultYearId;
+            int classId = student.ClassId;
+            int sectionId = student.SectionId;
+
+            if (classId == 0 && !string.IsNullOrWhiteSpace(rec.ClassName))
+            {
+                string cNorm = rec.ClassName.Replace("Class", "", StringComparison.OrdinalIgnoreCase).Trim().ToLower();
+                var matchedClass = await _context.Classes.AsNoTracking().FirstOrDefaultAsync(c => c.ClassName != null && (c.ClassName.ToLower() == cNorm || c.ClassName.ToLower().Contains(cNorm)));
+                if (matchedClass != null) classId = matchedClass.ClassId;
+            }
+
+            if (sectionId == 0 && !string.IsNullOrWhiteSpace(rec.Section))
+            {
+                string sNorm = rec.Section.Replace("Section", "", StringComparison.OrdinalIgnoreCase).Trim().ToLower();
+                var matchedSec = await _context.ClassSections.AsNoTracking().FirstOrDefaultAsync(s => (classId == 0 || s.ClassId == classId) && (s.SectionName.ToLower() == sNorm || s.SectionName.ToLower().Contains(sNorm)));
+                if (matchedSec != null)
+                {
+                    sectionId = matchedSec.SectionId;
+                    if (classId == 0) classId = matchedSec.ClassId;
+                }
+            }
+
             // Strict Class Teacher Authorization for Teachers
             if (isTeacherCaller && callerStaff != null)
             {
@@ -285,11 +336,23 @@ public class StudentAttendanceRepository : IStudentAttendanceRepository
 
                 bool isCT = await _context.TeacherAssignments.AsNoTracking().AnyAsync(ta =>
                     ta.TeacherId == callerStaff.StaffId &&
-                    ta.ClassId == student.ClassId &&
-                    ta.Role == "Class Teacher" &&
+                    ta.ClassId == classId &&
                     ta.Status == "Active" &&
-                    (ta.SectionLetter.Trim().ToLower() == secName.ToLower() ||
-                     ta.SectionLetter.Replace("Section", "", StringComparison.OrdinalIgnoreCase).Trim().ToLower() == cleanSec));
+                    (ta.Role == null || ta.Role.Contains("Teacher") || ta.Role.Contains("Class")) &&
+                    (string.IsNullOrEmpty(ta.SectionLetter) ||
+                     ta.SectionLetter.Trim().ToLower() == secName.ToLower() ||
+                     ta.SectionLetter.Replace("Section", "", StringComparison.OrdinalIgnoreCase).Trim().ToLower() == cleanSec ||
+                     secName.Replace("Section", "", StringComparison.OrdinalIgnoreCase).Trim().ToLower() == ta.SectionLetter.Trim().ToLower()));
+
+                if (!isCT)
+                {
+                    string tFullName = $"{callerStaff.FirstName} {callerStaff.LastName}".Trim().ToLower();
+                    string tFirst = (callerStaff.FirstName ?? "").Trim().ToLower();
+                    isCT = await _context.SubjectTeacherAllocations.AsNoTracking().AnyAsync(sta =>
+                        sta.Status == "Active" &&
+                        (sta.TeacherName.ToLower() == tFullName || (tFirst.Length > 2 && sta.TeacherName.ToLower().Contains(tFirst))) &&
+                        (string.IsNullOrEmpty(rec.ClassName) || sta.ClassName.ToLower().Contains(rec.ClassName.ToLower().Replace("class", "").Trim())));
+                }
 
                 if (!isCT)
                 {
@@ -297,11 +360,6 @@ public class StudentAttendanceRepository : IStudentAttendanceRepository
                     continue;
                 }
             }
-
-            int branchId = student.BranchId > 0 ? student.BranchId : defaultBranchId;
-            int yearId = student.AcademicYearId > 0 ? student.AcademicYearId : defaultYearId;
-            int classId = student.ClassId;
-            int sectionId = student.SectionId;
 
             // Resolve subjectId
             int subjectId = 0;

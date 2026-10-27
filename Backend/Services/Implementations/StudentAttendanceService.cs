@@ -134,6 +134,14 @@ public class StudentAttendanceService : IStudentAttendanceService
             .AsNoTracking()
             .ToDictionaryAsync(st => st.StaffId, st => $"{st.FirstName} {st.LastName}".Trim());
 
+        var classes = await _context.Classes
+            .AsNoTracking()
+            .ToDictionaryAsync(c => c.ClassId, c => c.ClassName ?? "");
+
+        var sections = await _context.ClassSections
+            .AsNoTracking()
+            .ToDictionaryAsync(s => s.SectionId, s => s.SectionName ?? "");
+
         return records.Select(r =>
         {
             var sess = r.AttendanceSession;
@@ -142,6 +150,18 @@ public class StudentAttendanceService : IStudentAttendanceService
             string prdName = sess != null && periods.TryGetValue(sess.PeriodId, out var pn) ? pn : "";
             string markedByName = sess != null && staff.TryGetValue(sess.MarkedByStaffId, out var mn) ? mn : "Administrator";
 
+            string resolvedClass = stu?.ClassGrade?.ClassName ?? "";
+            if (string.IsNullOrWhiteSpace(resolvedClass) && sess != null && classes.TryGetValue(sess.ClassId, out var cn))
+            {
+                resolvedClass = cn;
+            }
+
+            string resolvedSection = stu?.ClassSection?.SectionName ?? "";
+            if (string.IsNullOrWhiteSpace(resolvedSection) && sess != null && sections.TryGetValue(sess.SectionId, out var secn))
+            {
+                resolvedSection = secn;
+            }
+
             return new StudentAttendanceUniversalDto
             {
                 Id = r.Id.ToString(),
@@ -149,8 +169,8 @@ public class StudentAttendanceService : IStudentAttendanceService
                 RollNo = stu?.RollNumber ?? "",
                 AdmissionNo = stu?.AdmissionNumber ?? "",
                 StudentName = stu?.StudentName ?? "Student",
-                ClassName = stu?.ClassGrade?.ClassName ?? "",
-                Section = stu?.ClassSection?.SectionName ?? "",
+                ClassName = resolvedClass,
+                Section = resolvedSection,
                 Date = sess?.AttendanceDate.ToString("yyyy-MM-dd") ?? "",
                 Status = FormatStatus(r.Status),
                 Remarks = r.Remarks ?? "",
