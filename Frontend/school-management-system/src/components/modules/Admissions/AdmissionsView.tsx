@@ -712,7 +712,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
               const rowSection = getField(row, "section", "sec") || "A";
               const rawStatus = getField(row, "status");
               const rowStatus = rawStatus ? (rawStatus.charAt(0).toUpperCase() + rawStatus.slice(1).toLowerCase()) : "Enrolled";
-              const rowClass = getField(row, "appliedClass", "class", "className", "grade", "standard") || "Class 1";
+              const rowClass = getField(row, "appliedClass", "class", "className", "grade", "standard") || (classOptions && classOptions[0]) || "";
               
               const defaultActiveBranch = selectedBranch && selectedBranch !== "All Branches" && selectedBranch !== "All" && dynamicCampuses.includes(selectedBranch) ? selectedBranch : (dynamicCampuses[0] || "");
               let rowBranch = getField(row, "campus", "branch", "campusLocation", "location");
@@ -4988,7 +4988,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                   const clsName =
                     formData.appliedClass ||
                     (classOptions && classOptions[0]) ||
-                    "Class 1";
+                    "";
                   const matchesClass = (structCls?: string, targetCls?: string): boolean => {
                     if (!structCls || !targetCls) return false;
                     const s1 = String(structCls).replace(/^Class\s*/i, '').replace(/^Grade\s*/i, '').trim().toLowerCase();
@@ -5506,11 +5506,6 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                     </td>
                     <td className="py-3 px-4 font-bold text-slate-800 dark:text-slate-200">
                       {app.appliedClass}
-                      {app.section ? (
-                        <span className="ml-1 text-xs font-semibold text-slate-500 dark:text-slate-400">
-                          ({app.section.toLowerCase().startsWith("section") ? app.section : `Sec ${app.section}`})
-                        </span>
-                      ) : null}
                     </td>
                     <td className="py-3 px-4">
                       <span className="font-bold text-slate-700 dark:text-slate-300 block">
@@ -5665,7 +5660,6 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                         <BookOpen className="w-3.5 h-3.5 text-sky-600 dark:text-sky-400" /> Class:{" "}
                         <span className="font-bold text-slate-900 dark:text-white">
                           {selectedAppForView.appliedClass}
-                          {selectedAppForView.section ? ` (${selectedAppForView.section.toLowerCase().startsWith("section") ? selectedAppForView.section : `Sec ${selectedAppForView.section}`})` : ""}
                         </span>
                       </span>
                       {selectedAppForView.branch && (
@@ -6106,7 +6100,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
             (adm as any)?.className ||
             st?.className ||
             ledger?.className ||
-            "Nursery";
+            "";
           const stSection = st?.section || adm?.section || (ledger?.section || "A");
           const stType = formatStudentType(
             st?.studentType ||
@@ -6189,10 +6183,10 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                   </div>
                   <div className="flex justify-between">
                     <span className="font-semibold text-slate-500">
-                      Class & Section:
+                      Class:
                     </span>
                     <span className="font-bold text-slate-800 dark:text-slate-200">
-                      {ledger.className || "Class 1"} - {ledger.section || "A"}
+                      {ledger.className || adm?.appliedClass || "—"}
                     </span>
                   </div>
                   <div className="flex justify-between">
@@ -6359,7 +6353,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                           <div class="student-box">
                             <div class="info-row"><span class="label">Student Name: </span><span class="value">${ledger.studentName || "Student"}</span></div>
                             <div class="info-row"><span class="label">Admission No: </span><span class="value">${ledger.admissionNo || "—"}</span></div>
-                            <div class="info-row"><span class="label">Class & Section: </span><span class="value">${ledger.className || "Class 1"} - ${ledger.section || "A"}</span></div>
+                            <div class="info-row"><span class="label">Class: </span><span class="value">${ledger.className || adm?.appliedClass || "—"}</span></div>
                             <div class="info-row"><span class="label">Academic Session: </span><span class="value">${ledger.academicYear || selectedAcademicYear || "—"}</span></div>
                             <div class="info-row"><span class="label">Student Category: </span><span class="value">${formatStudentType(ledger.studentType)}</span></div>
                             <div class="info-row"><span class="label">Date of Statement: </span><span class="value">${new Date().toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })}</span></div>
@@ -6452,8 +6446,8 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                           schoolPhone: schoolProfile?.phone,
                           studentName: ledger.studentName || "Student",
                           admissionNo: ledger.admissionNo || "—",
-                          className: ledger.className || "Class 1",
-                          section: ledger.section || "A",
+                          className: ledger.className || adm?.appliedClass || "—",
+                          section: "",
                           academicYear: ledger.academicYear || selectedAcademicYear || "",
                           studentType: formatStudentType(ledger.studentType),
                           appliedFeeItems,
