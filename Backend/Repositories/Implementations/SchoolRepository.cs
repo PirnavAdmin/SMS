@@ -35,7 +35,14 @@ public class SchoolRepository : ISchoolRepository
             !branch.Equals("All Branches", System.StringComparison.OrdinalIgnoreCase) && 
             !branch.Equals("All Campuses", System.StringComparison.OrdinalIgnoreCase))
         {
-            query = query.Where(s => s.BranchName != null && s.BranchName.ToLower() == branch.ToLower());
+            string cleanBranch = branch.Trim().ToLower();
+            string cleanBranchBase = cleanBranch.Replace(" branch", "").Replace(" campus", "").Trim();
+
+            query = query.Where(s => string.IsNullOrEmpty(s.BranchName) || 
+                                     s.BranchName.ToLower() == cleanBranch || 
+                                     s.BranchName.ToLower() == cleanBranchBase ||
+                                     s.BranchName.ToLower().Contains(cleanBranchBase) ||
+                                     cleanBranch.Contains(s.BranchName.ToLower()));
         }
 
         if (!string.IsNullOrWhiteSpace(department) && !department.Equals("All Departments", System.StringComparison.OrdinalIgnoreCase))

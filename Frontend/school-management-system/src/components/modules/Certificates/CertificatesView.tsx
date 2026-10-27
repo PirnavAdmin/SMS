@@ -250,7 +250,9 @@ export const CertificatesView: React.FC<CertificatesViewProps> = ({ onNavigateTo
 
   return (
     <div className="space-y-6 animate-in fade-in">
-      {/* Top Title & Header Actions */}
+      {/* Background UI Container - Hidden during certificate printing */}
+      <div className="space-y-6 no-print">
+        {/* Top Title & Header Actions */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white flex items-center gap-2.5">
@@ -487,10 +489,6 @@ export const CertificatesView: React.FC<CertificatesViewProps> = ({ onNavigateTo
                   ...availableGenSections.map(sec => ({ value: sec, label: `Section ${sec}` }))
                 ]}
               />
-
-              <span className="text-xs font-mono font-bold text-slate-500 dark:text-slate-400 px-3 py-2 bg-slate-100 dark:bg-slate-800 rounded-2xl">
-                {filteredStudentsForGen.length} Students
-              </span>
             </div>
           </div>
 
@@ -535,8 +533,7 @@ export const CertificatesView: React.FC<CertificatesViewProps> = ({ onNavigateTo
           )}
         </div>
       )}
-
-
+      </div>
 
       {/* GENERATE / VIEW CERTIFICATE MODAL */}
       <GenerateCertificateModal

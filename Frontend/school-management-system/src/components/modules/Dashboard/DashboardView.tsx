@@ -349,8 +349,15 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
       if (!selectedBranch || selectedBranch === 'All' || selectedBranch === 'All Branches' || selectedBranch === 'All Campuses') return true;
       const sBranch = (s.branch || s.branchName || s.campus || s.campusLocation || '').trim().toLowerCase();
       const selBranch = selectedBranch.trim().toLowerCase();
-      if (!sBranch) return false;
-      return sBranch === selBranch || sBranch.includes(selBranch) || selBranch.includes(sBranch);
+      if (!sBranch) return true;
+      const sBranchBase = sBranch.replace(/ branch| campus/gi, '').trim();
+      const selBranchBase = selBranch.replace(/ branch| campus/gi, '').trim();
+      return (
+        sBranch === selBranch ||
+        sBranch.includes(selBranch) ||
+        selBranch.includes(sBranch) ||
+        (Boolean(sBranchBase && selBranchBase) && (sBranchBase === selBranchBase || sBranchBase.includes(selBranchBase) || selBranchBase.includes(sBranchBase)))
+      );
     };
   }, [selectedBranch]);
 
@@ -413,6 +420,20 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
     return !isTeacher && isBranchMatch(s);
   }), [staff, isBranchMatch]);
 
+  const displayTeachingStaff = useMemo(() => {
+    if (summaryData?.teachingStaff !== undefined && summaryData.teachingStaff > 0) {
+      return summaryData.teachingStaff;
+    }
+    return teachingStaff.length;
+  }, [summaryData, teachingStaff]);
+
+  const displayNonTeachingStaff = useMemo(() => {
+    if (summaryData?.nonTeachingStaff !== undefined && summaryData.nonTeachingStaff > 0) {
+      return summaryData.nonTeachingStaff;
+    }
+    return nonTeachingStaff.length;
+  }, [summaryData, nonTeachingStaff]);
+
   // Real-Time Student Attendance from Backend Summary
   const attendanceStats = useMemo(() => {
     if (summaryData?.studentAttendance && summaryData.studentAttendance.total > 0) {
@@ -452,6 +473,18 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
   const [staffAttendanceTab, setStaffAttendanceTab] = useState<'Teaching' | 'Non-Teaching'>('Teaching');
   
   const teacherAttendanceStats = useMemo(() => {
+    if (summaryData?.teachingStaffAttendance && summaryData.teachingStaffAttendance.total > 0) {
+      const { present, absent, late, halfDay = 0, total, presentPct } = summaryData.teachingStaffAttendance;
+      const latePct = Math.round((late / total) * 100);
+      const halfDayPct = Math.round((halfDay / total) * 100);
+      const absentPct = Math.max(0, 100 - presentPct - latePct - halfDayPct);
+      return {
+        present, absent, late, halfDay, total,
+        presentPct, latePct, halfDayPct, absentPct,
+        pEnd: presentPct, lEnd: presentPct + latePct, hdEnd: presentPct + latePct + halfDayPct
+      };
+    }
+
     const todayStr = new Date().toLocaleDateString('en-CA');
     const teacherInTime = localStorage.getItem('teacher_check_in_time');
     const teacherAttDate = localStorage.getItem('teacher_attendance_date');
@@ -531,10 +564,22 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
       presentPct, latePct, halfDayPct, absentPct,
       pEnd: presentPct, lEnd: presentPct + latePct, hdEnd: presentPct + latePct + halfDayPct
     };
-  }, [attendance, teachingStaff, leaveApplications, user]);
+  }, [attendance, teachingStaff, leaveApplications, user, summaryData]);
 
   // Section 2: Non-Teaching Staff Attendance calculation
   const nonTeachingAttendanceStats = useMemo(() => {
+    if (summaryData?.nonTeachingStaffAttendance && summaryData.nonTeachingStaffAttendance.total > 0) {
+      const { present, absent, late, halfDay = 0, total, presentPct } = summaryData.nonTeachingStaffAttendance;
+      const latePct = Math.round((late / total) * 100);
+      const halfDayPct = Math.round((halfDay / total) * 100);
+      const absentPct = Math.max(0, 100 - presentPct - latePct - halfDayPct);
+      return {
+        present, absent, late, halfDay, total,
+        presentPct, latePct, halfDayPct, absentPct,
+        pEnd: presentPct, lEnd: presentPct + latePct, hdEnd: presentPct + latePct + halfDayPct
+      };
+    }
+
     const todayStr = new Date().toLocaleDateString('en-CA');
 
     let present = 0;
@@ -597,7 +642,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
       presentPct, latePct, halfDayPct, absentPct,
       pEnd: presentPct, lEnd: presentPct + latePct, hdEnd: presentPct + latePct + halfDayPct
     };
-  }, [attendance, nonTeachingStaff, leaveApplications]);
+  }, [attendance, nonTeachingStaff, leaveApplications, summaryData]);
 
   const activeStaffStats = staffAttendanceTab === 'Teaching' ? teacherAttendanceStats : nonTeachingAttendanceStats;
 
@@ -952,7 +997,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
         <div onClick={() => onNavigate('staff')} className="bg-white dark:bg-slate-900 border border-sky-300 dark:border-sky-800 shadow-xs hover:shadow-md hover:border-sky-400 dark:hover:border-sky-600 hover:-translate-y-1 transition-all duration-300 p-4 rounded-2xl flex items-center justify-between cursor-pointer group">
           <div className="space-y-1 text-left">
             <span className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-500 tracking-wider">Teaching Staff</span>
-            <p className="text-2xl font-black text-slate-900 dark:text-white mt-1">{teachingStaff.length.toLocaleString()}</p>
+            <p className="text-2xl font-black text-slate-900 dark:text-white mt-1">{displayTeachingStaff.toLocaleString()}</p>
           </div>
           <div className="p-3 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 group-hover:bg-emerald-600 group-hover:text-white transition-all duration-300 border border-emerald-200 dark:border-emerald-800">
             <UserCheck className="w-5 h-5" />
@@ -963,7 +1008,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
         <div onClick={() => onNavigate('staff-non-teaching')} className="bg-white dark:bg-slate-900 border border-sky-300 dark:border-sky-800 shadow-xs hover:shadow-md hover:border-sky-400 dark:hover:border-sky-600 hover:-translate-y-1 transition-all duration-300 p-4 rounded-2xl flex items-center justify-between cursor-pointer group">
           <div className="space-y-1 text-left">
             <span className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-500 tracking-wider">Non-Teaching Staff</span>
-            <p className="text-2xl font-black text-slate-900 dark:text-white mt-1">{nonTeachingStaff.length.toLocaleString()}</p>
+            <p className="text-2xl font-black text-slate-900 dark:text-white mt-1">{displayNonTeachingStaff.toLocaleString()}</p>
           </div>
           <div className="p-3 rounded-2xl bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 group-hover:bg-rose-600 group-hover:text-white transition-all duration-300 border border-rose-200 dark:border-rose-800">
             <Users className="w-5 h-5" />
