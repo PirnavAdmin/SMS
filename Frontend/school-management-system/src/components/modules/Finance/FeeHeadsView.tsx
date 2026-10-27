@@ -18,7 +18,7 @@ const SYSTEM_FEE_TYPES: FeeHeadCategory[] = [
 ];
 
 const FREQUENCIES: FeeHeadFrequency[] = [
-  'One Time', 'Monthly', 'Quarterly', 'Half Yearly', 'Annual', 'Custom'
+  'One Time', 'Monthly', 'Term-wise', 'Quarterly', 'Half Yearly', 'Annual', 'Custom'
 ];
 
 export const FeeHeadsView: React.FC = () => {
@@ -181,7 +181,7 @@ export const FeeHeadsView: React.FC = () => {
     name: '',
     code: '',
     category: 'Tuition',
-    frequency: 'Quarterly',
+    frequency: 'Term-wise',
     mandatory: true,
     applicableClasses: classOptions,
     applicableBranches: ['All Branches'],
@@ -254,7 +254,7 @@ export const FeeHeadsView: React.FC = () => {
       name: '',
       code: 'FH-' + Math.floor(100 + Math.random() * 900),
       category: 'Tuition Fee',
-      frequency: 'Quarterly',
+      frequency: 'Term-wise',
       mandatory: true,
       applicableClasses: classOptions,
       applicableBranches: ['All Branches'],
@@ -344,8 +344,7 @@ export const FeeHeadsView: React.FC = () => {
       const cleanOrder = (formData.displayOrder as any) === '' || formData.displayOrder === undefined || formData.displayOrder === null ? feeHeads.length + 1 : Number(formData.displayOrder);
 
       const calculatedFrequency: FeeHeadFrequency =
-        formData.paymentEligibility === 'One-Time Only' ? 'One Time' :
-        formData.paymentEligibility === 'Term-Wise Allowed' ? 'Quarterly' : 'Quarterly';
+        formData.paymentEligibility === 'One-Time Only' ? 'One Time' : 'Term-wise';
 
       const resolvedTerms = formData.paymentEligibility === 'One-Time Only'
         ? []
@@ -717,7 +716,7 @@ export const FeeHeadsView: React.FC = () => {
                             setFormData({
                               ...formData,
                               paymentEligibility: "Term-Wise Allowed",
-                              frequency: "Quarterly",
+                              frequency: "Term-wise",
                               applicableTerms: formData.applicableTerms && formData.applicableTerms.length > 0 ? formData.applicableTerms : [...availableAcademicTerms],
                             });
                           }}
@@ -807,7 +806,7 @@ export const FeeHeadsView: React.FC = () => {
                       setFormData({
                         ...formData,
                         paymentEligibility: val,
-                        frequency: val === 'One-Time Only' ? 'One Time' : 'Quarterly',
+                        frequency: val === 'One-Time Only' ? 'One Time' : 'Term-wise',
                         applicableTerms: val === 'One-Time Only' ? [] : (formData.applicableTerms && formData.applicableTerms.length > 0 ? formData.applicableTerms : [...availableAcademicTerms])
                       });
                     }}

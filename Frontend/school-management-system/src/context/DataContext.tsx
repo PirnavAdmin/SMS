@@ -119,6 +119,7 @@ import {
   PeriodSetting,
   TeacherAssignment,
   FeeHead,
+  FeeHeadFrequency,
   DynamicFeeStructure,
   StudentFeeAssignment,
   Scholarship,
@@ -1879,7 +1880,19 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     const seenIds = new Set<string>();
     const seenCodes = new Set<string>();
 
-    return heads.filter((h) => {
+    return heads.map((h) => {
+      // Auto-correct any legacy or hardcoded 'Quarterly' frequency on fee heads with term-wise/flexible mode
+      if (
+        h &&
+        h.frequency === 'Quarterly' &&
+        (h.paymentEligibility === 'Both One-Time and Term-Wise' ||
+          h.paymentEligibility === 'Term-Wise Allowed' ||
+          (h.applicableTerms && h.applicableTerms.length > 0))
+      ) {
+        return { ...h, frequency: 'Term-wise' as FeeHeadFrequency };
+      }
+      return h;
+    }).filter((h) => {
       if (!h) return false;
       const id = String(h.id || "").trim();
       const code = String(h.code || "")

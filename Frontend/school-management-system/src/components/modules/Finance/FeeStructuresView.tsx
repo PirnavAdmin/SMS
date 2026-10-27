@@ -1,3 +1,30 @@
+
+export const getFeeHeadDisplayFrequency = (head?: {
+  frequency?: string;
+  paymentEligibility?: string;
+  applicableTerms?: string[];
+} | null): string => {
+  if (!head) return "";
+  if (head.paymentEligibility === "One-Time Only" || head.frequency === "One Time") {
+    return "One Time";
+  }
+  if (head.paymentEligibility === "Both One-Time and Term-Wise") {
+    const count = head.applicableTerms?.length;
+    return count ? `Term-wise (${count} Terms)` : "Term-wise";
+  }
+  if (head.paymentEligibility === "Term-Wise Allowed") {
+    const count = head.applicableTerms?.length;
+    return count ? `Term-wise (${count} Terms)` : "Term-wise";
+  }
+  if (head.applicableTerms && head.applicableTerms.length > 0) {
+    return `Term-wise (${head.applicableTerms.length} Terms)`;
+  }
+  if (head.frequency === "Quarterly") {
+    return "Term-wise";
+  }
+  return head.frequency || "Annual";
+};
+
 import React, { useState, useMemo, useEffect } from "react";
 import { formatCurrency } from "../../../utils/currency";
 import {
@@ -207,7 +234,7 @@ export const FeeStructuresView: React.FC<FeeStructuresViewProps> = () => {
         feeHeadId: head.id,
         feeHeadName: head.name,
         category: head.category || "General",
-        frequency: head.frequency || "Annual",
+        frequency: getFeeHeadDisplayFrequency(head),
         paymentEligibility: head.paymentEligibility,
         applicableTerms: head.applicableTerms,
       };
@@ -219,7 +246,7 @@ export const FeeStructuresView: React.FC<FeeStructuresViewProps> = () => {
         feeHeadId: head.id,
         feeHeadName: head.name,
         category: head.category || "General",
-        frequency: head.frequency || "Annual",
+        frequency: getFeeHeadDisplayFrequency(head),
         paymentEligibility: head.paymentEligibility,
         applicableTerms: head.applicableTerms,
         amount: amt,
@@ -260,8 +287,43 @@ export const FeeStructuresView: React.FC<FeeStructuresViewProps> = () => {
       return;
     }
 
-    if (structItems.length === 0) {
-      addToast("warning", "Fee Heads Required", "Please add at least one Fee Head to this fee structure.");
+    // Auto-stage any pending selected fee head and entered amount if user clicks Save without clicking + Add
+    let finalItems = [...structItems];
+    if (selectedFeeHeadId && feeHeadInputAmount && parseFloat(feeHeadInputAmount) > 0) {
+      const amt = parseFloat(feeHeadInputAmount);
+      const head = activeFeeHeads.find((h) => String(h.id) === String(selectedFeeHeadId));
+      if (head) {
+        const existingIdx = finalItems.findIndex(
+          (item) =>
+            String(item.feeHeadId) === String(head.id) ||
+            (item.feeHeadName && item.feeHeadName.toLowerCase().trim() === head.name.toLowerCase().trim())
+        );
+        const resolvedFreq = getFeeHeadDisplayFrequency(head);
+        if (existingIdx >= 0) {
+          finalItems[existingIdx] = {
+            ...finalItems[existingIdx],
+            amount: amt,
+            frequency: resolvedFreq,
+            paymentEligibility: head.paymentEligibility,
+            applicableTerms: head.applicableTerms,
+          };
+        } else {
+          finalItems.push({
+            feeHeadId: head.id,
+            feeHeadName: head.name,
+            category: head.category || "General",
+            frequency: resolvedFreq,
+            paymentEligibility: head.paymentEligibility,
+            applicableTerms: head.applicableTerms,
+            amount: amt,
+          });
+        }
+        setStructItems(finalItems);
+      }
+    }
+
+    if (finalItems.length === 0) {
+      addToast("warning", "Fee Heads Required", "Please select a Fee Head, enter an amount, and click Add (or Save).");
       return;
     }
 
@@ -276,6 +338,8 @@ export const FeeStructuresView: React.FC<FeeStructuresViewProps> = () => {
       (academicYears && academicYears[0]?.academicYear) ||
       "2026-2027";
 
+    const finalTotal = finalItems.reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
+
     const payload: Omit<DynamicFeeStructure, "id"> = {
       name: structName.trim() || `${structClass} Fee Structure`,
       academicYear: defaultAy,
@@ -285,8 +349,8 @@ export const FeeStructuresView: React.FC<FeeStructuresViewProps> = () => {
       studentCategory: "General",
       category: "Tuition Fee",
       feeCategory: "Tuition Fee",
-      items: structItems,
-      totalAmount: calculatedTotalAmount,
+      items: finalItems,
+      totalAmount: finalTotal,
       status: structStatus,
     };
 
@@ -462,7 +526,7 @@ export const FeeStructuresView: React.FC<FeeStructuresViewProps> = () => {
                             </span>
                             {item.frequency && (
                               <span className="text-[10px] text-slate-400 block">
-                                {item.frequency}
+                                {getFeeHeadDisplayFrequency(item as any)}
                               </span>
                             )}
                           </div>
@@ -620,7 +684,7 @@ export const FeeStructuresView: React.FC<FeeStructuresViewProps> = () => {
                           <option value="">-- Choose Fee Head --</option>
                           {activeFeeHeads.map((head) => (
                             <option key={head.id} value={head.id}>
-                              {head.name} {head.code ? `(${head.code})` : ""} {head.frequency ? `• ${head.frequency}` : ""}
+                              {head.name} {head.code ? `(${head.code})` : ""} • {getFeeHeadDisplayFrequency(head)}
                             </option>
                           ))}
                         </select>
@@ -636,6 +700,12 @@ export const FeeStructuresView: React.FC<FeeStructuresViewProps> = () => {
                           placeholder="0.00"
                           value={feeHeadInputAmount}
                           onChange={(e) => setFeeHeadInputAmount(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") {
+                              e.preventDefault();
+                              handleAddFeeHead();
+                            }
+                          }}
                           className="w-full px-3 py-2 rounded-xl bg-white dark:bg-slate-900 border font-mono font-bold text-xs outline-none text-right"
                         />
                       </div>
@@ -654,7 +724,7 @@ export const FeeStructuresView: React.FC<FeeStructuresViewProps> = () => {
 
                     {currentSelectedHead && (
                       <div className="text-[10px] text-slate-400 flex items-center gap-3 pt-0.5">
-                        <span>Frequency: <strong className="text-slate-600 dark:text-slate-300">{currentSelectedHead.frequency || "Annual"}</strong></span>
+                        <span>Frequency: <strong className="text-slate-600 dark:text-slate-300">{getFeeHeadDisplayFrequency(currentSelectedHead)}</strong></span>
                         <span>Eligibility: <strong className="text-slate-600 dark:text-slate-300">{currentSelectedHead.paymentEligibility || "Both One-Time and Term-Wise"}</strong></span>
                         {currentSelectedHead.category && (
                           <span>Category: <strong className="text-slate-600 dark:text-slate-300">{currentSelectedHead.category}</strong></span>
@@ -687,7 +757,7 @@ export const FeeStructuresView: React.FC<FeeStructuresViewProps> = () => {
                               {item.feeHeadName}
                             </p>
                             <p className="text-[10px] text-slate-400">
-                              {item.frequency || "Annual"} {item.category ? `• ${item.category}` : ""}
+                              {getFeeHeadDisplayFrequency(item as any)} {item.category ? `• ${item.category}` : ""}
                             </p>
                           </div>
 
