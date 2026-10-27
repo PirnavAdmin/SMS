@@ -927,6 +927,8 @@ interface DataContextType {
 
   // Academic Calendar & School Events System
   schoolEvents: SchoolEvent[];
+  fetchSchoolEvents?: () => Promise<void>;
+  fetchHolidays?: () => Promise<void>;
   addSchoolEvent: (event: Omit<SchoolEvent, "id">) => SchoolEvent;
   updateSchoolEvent: (id: string, updates: Partial<SchoolEvent>) => void;
   deleteSchoolEvent: (id: string) => void;
@@ -1704,43 +1706,18 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     getStored("inventory", initialInventory),
   );
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
-  const [holidays, setHolidays] = useState<Holiday[]>(() => {
-    const stored = getStored("holidays", initialHolidays);
-    const combined =
-      Array.isArray(stored) && stored.length > 0
-        ? [...stored, ...initialHolidays]
-        : initialHolidays;
-    const seen = new Set<string>();
-    const unique: Holiday[] = [];
-    combined.forEach((h: any) => {
-      if (!h || !h.name || !h.startDate) return;
-      const cleanName = (h.name || "").toLowerCase().replace(/[^a-z0-9]/g, "");
-      const key = `${cleanName}_${h.startDate}`;
-      if (!seen.has(key)) {
-        seen.add(key);
-        unique.push(h);
-      }
-    });
-    return unique;
-  });
-  const [schoolEvents, setSchoolEvents] = useState<SchoolEvent[]>(() => {
-    const stored = getStored("school_events", initialSchoolEvents);
-    const rawList =
-      !stored || stored.length === 0 ? initialSchoolEvents : stored;
-    const seen = new Set<string>();
-    const unique: SchoolEvent[] = [];
-    rawList.forEach((e: any) => {
-      const cleanTitle = (e.title || "")
-        .toLowerCase()
-        .replace(/[^a-z0-9]/g, "");
-      const key = `${cleanTitle}_${e.startDate}`;
-      if (!seen.has(key)) {
-        seen.add(key);
-        unique.push(e);
-      }
-    });
-    return unique;
-  });
+  const [holidays, setHolidays] = useState<Holiday[]>([]);
+  const [schoolEvents, setSchoolEvents] = useState<SchoolEvent[]>([]);
+
+  // Clear legacy localStorage cache for events & holidays so DB is single source of truth
+  useEffect(() => {
+    try {
+      localStorage.removeItem("holidays");
+      localStorage.removeItem("edu_db_holidays");
+      localStorage.removeItem("school_events");
+      localStorage.removeItem("edu_db_school_events");
+    } catch {}
+  }, []);
   const [birthdays] = useState<Birthday[]>(() => {
     const val = getStored("birthdays", initialBirthdays);
     if (
@@ -2605,9 +2582,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       JSON.stringify(financialBudgets),
     );
   }, [financialBudgets]);
-  useEffect(() => {
-    localStorage.setItem("edu_db_school_events", JSON.stringify(schoolEvents));
-  }, [schoolEvents]);
+  // School events are synced directly with the database API, no localStorage
 
   // One-time automatic normalization of class names to "Class X"
   useEffect(() => {
@@ -3869,9 +3844,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   }, [studentFeeInstallments]);
 
   // Leave & Payroll System Effects
-  useEffect(() => {
-    localStorage.setItem("edu_db_holidays", JSON.stringify(holidays));
-  }, [holidays]);
+  // Holidays are synced directly with the database API, no localStorage
   useEffect(() => {
     localStorage.setItem("edu_db_leave_types", JSON.stringify(leaveTypes));
   }, [leaveTypes]);
@@ -5605,15 +5578,32 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   const fetchSchoolEventsData = useCallback(async () => {
     try {
       const response: any = await fetchSchoolEventsApi();
-      const items = Array.isArray(response)
+      const rawList = Array.isArray(response)
         ? response
         : response?.data?.items || response?.data || [];
-      if (Array.isArray(items) && items.length > 0) {
-        setSchoolEvents((prev) => {
-          const apiIds = new Set(items.map((i: any) => i.id));
-          const localOnly = (prev || []).filter((i: any) => !apiIds.has(i.id));
-          return [...items, ...localOnly];
-        });
+      if (Array.isArray(rawList)) {
+        const mapped: SchoolEvent[] = rawList
+          .map((raw: any) => ({
+            id: String(raw.eventId || raw.id || ''),
+            title: raw.title || raw.eventName || '',
+            category: raw.category || 'Sports Day',
+            venue: raw.venue || '',
+            startDate: String(raw.startDate || raw.date || '').split('T')[0],
+            endDate: String(raw.endDate || raw.startDate || raw.date || '').split('T')[0],
+            time: raw.time || raw.timeSlot || '',
+            startTime: raw.startTime || (raw.time ? raw.time.split('-')[0]?.trim() : '') || '',
+            endTime: raw.endTime || (raw.time && raw.time.includes('-') ? raw.time.split('-')[1]?.trim() : '') || '',
+            organizer: raw.organizer || '',
+            description: raw.description || '',
+            status: raw.status || 'Published',
+            branch: raw.applicableBranch || raw.branch || '',
+            academicYear: raw.academicYear || '',
+            participants: raw.participants || '',
+            applicableClasses: raw.applicableClasses || [],
+            attachments: raw.attachments || []
+          }))
+          .filter(e => e.title && e.startDate);
+        setSchoolEvents(mapped);
       }
     } catch (err) {
       console.warn("Failed to fetch school events from API", err);
@@ -5623,15 +5613,40 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   const fetchHolidaysData = useCallback(async () => {
     try {
       const response: any = await fetchHolidaysApi();
-      const items = Array.isArray(response)
+      const rawList = Array.isArray(response)
         ? response
         : response?.data?.items || response?.data || [];
-      if (Array.isArray(items) && items.length > 0) {
-        setHolidays((prev) => {
-          const apiIds = new Set(items.map((i: any) => i.id));
-          const localOnly = (prev || []).filter((i: any) => !apiIds.has(i.id));
-          return [...items, ...localOnly];
-        });
+      if (Array.isArray(rawList)) {
+        const mapped: Holiday[] = rawList
+          .map((raw: any) => {
+            let normType: HolidayType = 'National';
+            const rawType = String(raw.type || raw.holidayType || 'National').trim().toUpperCase();
+            if (rawType.includes('GAZETTED')) normType = 'Gazetted';
+            else if (rawType.includes('FESTIVAL')) normType = 'Festival';
+            else if (rawType.includes('VACATION')) normType = 'Vacation';
+            else if (rawType.includes('RESTRICTED') || rawType.includes('OPTIONAL')) normType = 'Optional';
+            else if (rawType.includes('STATE')) normType = 'State';
+            else if (rawType.includes('EMERGENCY')) normType = 'Emergency';
+            else if (rawType.includes('SCHOOL')) normType = 'School';
+            else normType = 'National';
+
+            const startDate = String(raw.startDate || raw.fromDate || raw.date || '').split('T')[0];
+            const endDate = String(raw.endDate || raw.toDate || startDate).split('T')[0];
+
+            return {
+              id: String(raw.holidayId || raw.id || ''),
+              name: String(raw.holidayName || raw.name || raw.title || '').trim(),
+              type: normType,
+              startDate,
+              endDate: endDate || startDate,
+              description: raw.description || '',
+              branch: raw.applicableBranch || raw.branch || '',
+              status: raw.status || 'Active',
+              applicableTo: raw.applicableTo || 'All'
+            };
+          })
+          .filter(h => h.name && h.startDate);
+        setHolidays(mapped);
       }
     } catch (err) {
       console.warn("Failed to fetch holidays from API", err);
@@ -10154,13 +10169,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     localStorage.setItem("edu_db_homework", JSON.stringify(homework));
   }, [homework]);
 
-  useEffect(() => {
-    localStorage.setItem("edu_db_holidays", JSON.stringify(holidays));
-  }, [holidays]);
-
-  useEffect(() => {
-    localStorage.setItem("edu_db_school_events", JSON.stringify(schoolEvents));
-  }, [schoolEvents]);
+  // Holidays and school events synced directly with DB API, no localStorage
 
   useEffect(() => {
     localStorage.setItem(
@@ -24308,204 +24317,112 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   };
 
-  // Holiday CRUD
+  // Holiday CRUD - Direct Database API Sync (No LocalStorage)
   const addHoliday = async (hData: Omit<Holiday, "id">) => {
-    const id = "HOL-" + Math.floor(100 + Math.random() * 900);
-    const newHoliday: Holiday = {
-      ...hData,
-      id,
-      branch: hData.branch || selectedBranch || "",
-    };
-    setHolidays((prev) => {
-      const updated = [newHoliday, ...prev];
-      try {
-        localStorage.setItem("edu_db_holidays", JSON.stringify(updated));
-        window.dispatchEvent(new Event("storage"));
-      } catch {}
-      return updated;
-    });
-
     try {
       const payload = {
-        name: newHoliday.name,
-        type: newHoliday.type,
-        startDate: newHoliday.startDate,
-        endDate: newHoliday.endDate,
-        description: newHoliday.description,
-        applicableTo: newHoliday.applicableTo || "All Students & Staff",
+        holidayName: hData.name,
+        holidayType: hData.type,
+        startDate: hData.startDate,
+        endDate: hData.endDate || hData.startDate,
+        description: hData.description || "",
+        applicableBranch: hData.branch || selectedBranch || ""
       };
       await createHolidayApi(payload);
+      await fetchHolidaysData();
     } catch (err) {
       console.warn("Failed to create holiday on backend", err);
+      await fetchHolidaysData();
     }
   };
 
   const updateHoliday = async (id: string, updates: Partial<Holiday>) => {
-    const targetIdStr = String(id).toLowerCase().trim();
-    const numericIdStr = targetIdStr.replace(/^hol-/i, "");
-
-    setHolidays((prev) => {
-      const updated = prev.map((h) => {
-        const hIdStr = String(h.id).toLowerCase().trim();
-        const hNumStr = hIdStr.replace(/^hol-/i, "");
-        if (hIdStr === targetIdStr || hNumStr === numericIdStr) {
-          return { ...h, ...updates };
-        }
-        return h;
-      });
-      try {
-        localStorage.setItem("edu_db_holidays", JSON.stringify(updated));
-      } catch {}
-      return updated;
-    });
-
     try {
       const payload = {
-        name: updates.name,
-        type: updates.type,
+        holidayName: updates.name,
+        holidayType: updates.type,
         startDate: updates.startDate,
         endDate: updates.endDate,
-        description: updates.description,
-        applicableTo: updates.applicableTo || "All Students & Staff",
+        description: updates.description
       };
       await updateHolidayApi(id, payload);
+      await fetchHolidaysData();
     } catch (err) {
       console.warn("Failed to update holiday on backend", err);
+      await fetchHolidaysData();
     }
   };
 
   const deleteHoliday = async (id: string) => {
-    const targetIdStr = String(id).toLowerCase().trim();
-    const numericIdStr = targetIdStr.replace(/^hol-/i, "");
-
-    setHolidays((prev) => {
-      const updated = prev.filter((h) => {
-        const hIdStr = String(h.id).toLowerCase().trim();
-        const hNumStr = hIdStr.replace(/^hol-/i, "");
-        return hIdStr !== targetIdStr && hNumStr !== numericIdStr;
-      });
-      try {
-        localStorage.setItem("edu_db_holidays", JSON.stringify(updated));
-      } catch {}
-      return updated;
-    });
-
     try {
       const numericId = id.replace(/^HOL-/i, "");
       await deleteHolidayApi(numericId);
+      await fetchHolidaysData();
     } catch (err) {
       console.warn("Failed to delete holiday on backend", err);
+      await fetchHolidaysData();
     }
   };
 
-  // School Events CRUD
+  // School Events CRUD - Direct Database API Sync (No LocalStorage)
   const addSchoolEvent = (eventData: Omit<SchoolEvent, "id">): SchoolEvent => {
-    const id = "EVT-" + Math.floor(100 + Math.random() * 900);
+    const tempId = "EVT-" + Math.floor(100 + Math.random() * 900);
     const newEvent: SchoolEvent = {
       ...eventData,
-      id,
+      id: tempId,
       branch: eventData.branch || selectedBranch || "",
       status: eventData.status || "Published",
       updatedAt: new Date().toISOString().split("T")[0],
     };
-    setSchoolEvents((prev) => [newEvent, ...prev]);
-    logActivity(
-      "Created School Event",
-      `Scheduled event ${newEvent.title} on ${newEvent.startDate}`,
-    );
 
-    try {
-      const payload = {
-        title: newEvent.title,
-        category: newEvent.category,
-        startDate: newEvent.startDate,
-        endDate: newEvent.endDate,
-        startTime: newEvent.startTime,
-        endTime: newEvent.endTime,
-        location: newEvent.location,
-        description: newEvent.description,
-        status: newEvent.status ? newEvent.status.toUpperCase() : "PUBLISHED",
-      };
-      createSchoolEventApi(payload).catch((err) =>
-        console.warn("Failed to create school event on backend", err),
-      );
-    } catch (err) {
-      console.warn("Failed to create school event on backend", err);
-    }
+    const payload = {
+      title: eventData.title,
+      category: eventData.category,
+      venue: eventData.venue || "School Auditorium",
+      startDate: eventData.startDate,
+      endDate: eventData.endDate || eventData.startDate,
+      time: eventData.startTime ? `${eventData.startTime} - ${eventData.endTime || ''}`.trim() : (eventData.time || "08:30 AM"),
+      organizer: eventData.organizer || "School Administration",
+      description: eventData.description || "",
+      status: eventData.status || "Published",
+      applicableBranch: eventData.branch || selectedBranch || ""
+    };
+
+    createSchoolEventApi(payload)
+      .then(() => fetchSchoolEventsData())
+      .catch((err) => console.warn("Failed to create school event on backend", err));
 
     return newEvent;
   };
 
-  const updateSchoolEvent = async (
-    id: string,
-    updates: Partial<SchoolEvent>,
-  ) => {
-    const targetIdStr = String(id).toLowerCase().trim();
-    const numericIdStr = targetIdStr.replace(/^evt-/i, "").replace(/^se-/i, "");
-
-    setSchoolEvents((prev) => {
-      const updated = prev.map((e) => {
-        const eIdStr = String(e.id).toLowerCase().trim();
-        const eNumStr = eIdStr.replace(/^evt-/i, "").replace(/^se-/i, "");
-        if (eIdStr === targetIdStr || eNumStr === numericIdStr) {
-          return {
-            ...e,
-            ...updates,
-            updatedAt: new Date().toISOString().split("T")[0],
-          };
-        }
-        return e;
-      });
-      try {
-        localStorage.setItem("edu_db_school_events", JSON.stringify(updated));
-      } catch {}
-      return updated;
-    });
-
-    logActivity("Updated School Event", `Updated event ID ${id}`);
-
+  const updateSchoolEvent = async (id: string, updates: Partial<SchoolEvent>) => {
     try {
       const payload = {
         title: updates.title,
         category: updates.category,
+        venue: updates.venue,
         startDate: updates.startDate,
         endDate: updates.endDate,
-        startTime: updates.startTime,
-        endTime: updates.endTime,
-        location: updates.location || updates.venue,
-        venue: updates.venue,
+        time: updates.startTime ? `${updates.startTime} - ${updates.endTime || ''}`.trim() : (updates.time || undefined),
         organizer: updates.organizer,
         description: updates.description,
-        status: updates.status ? updates.status.toUpperCase() : "PUBLISHED",
+        status: updates.status
       };
       await updateSchoolEventApi(id, payload);
+      await fetchSchoolEventsData();
     } catch (err) {
       console.warn("Failed to update school event on backend", err);
+      await fetchSchoolEventsData();
     }
   };
 
   const deleteSchoolEvent = async (id: string) => {
-    const targetIdStr = String(id).toLowerCase().trim();
-    const numericIdStr = targetIdStr.replace(/^evt-/i, "").replace(/^se-/i, "");
-
-    setSchoolEvents((prev) => {
-      const updated = prev.filter((e) => {
-        const eIdStr = String(e.id).toLowerCase().trim();
-        const eNumStr = eIdStr.replace(/^evt-/i, "").replace(/^se-/i, "");
-        return eIdStr !== targetIdStr && eNumStr !== numericIdStr;
-      });
-      try {
-        localStorage.setItem("edu_db_school_events", JSON.stringify(updated));
-      } catch {}
-      return updated;
-    });
-
-    logActivity("Deleted School Event", `Removed event ID ${id}`);
-
     try {
       await deleteSchoolEventApi(id);
+      await fetchSchoolEventsData();
     } catch (err) {
       console.warn("Failed to delete school event on backend", err);
+      await fetchSchoolEventsData();
     }
   };
 
@@ -26726,6 +26643,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
 
         // ACADEMIC CALENDAR & SCHOOL EVENTS MAPPINGS
         schoolEvents,
+        fetchSchoolEvents: fetchSchoolEventsData,
+        fetchHolidays: fetchHolidaysData,
         addSchoolEvent,
         updateSchoolEvent,
         deleteSchoolEvent,

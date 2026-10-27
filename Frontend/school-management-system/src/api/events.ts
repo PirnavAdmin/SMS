@@ -1,5 +1,35 @@
 import { apiClient } from './client';
 
+export interface SchoolEventsQueryParams {
+  search?: string;
+  status?: string;
+  category?: string;
+  page?: number;
+  pageSize?: number;
+}
+
+export interface HolidaysQueryParams {
+  search?: string;
+  type?: string;
+  page?: number;
+  pageSize?: number;
+}
+
+export interface UpcomingEventsQueryParams {
+  search?: string;
+  date?: string;
+  category?: string;
+  page?: number;
+  pageSize?: number;
+}
+
+export interface AcademicCalendarEventsQueryParams {
+  search?: string;
+  type?: string;
+  page?: number;
+  pageSize?: number;
+}
+
 // ============================
 // EVENTS API  (/api/events)
 // ============================
@@ -16,14 +46,48 @@ export const fetchCalendarEventsApi = async (month?: number, year?: number) => {
   return apiClient(`/api/events/calendar${query ? `?${query}` : ''}`, { method: 'GET' });
 };
 
-export const fetchUpcomingEventsApi = async () => {
-  return apiClient('/api/events/upcoming', { method: 'GET' });
+export const fetchUpcomingEventsApi = async (
+  searchOrParams?: string | UpcomingEventsQueryParams,
+  date?: string,
+  page?: number,
+  pageSize?: number
+) => {
+  const params = new URLSearchParams();
+  if (typeof searchOrParams === 'object' && searchOrParams !== null) {
+    if (searchOrParams.search) params.append('search', searchOrParams.search);
+    if (searchOrParams.date) params.append('date', searchOrParams.date);
+    if (searchOrParams.category) params.append('category', searchOrParams.category);
+    if (searchOrParams.page !== undefined && searchOrParams.page !== null) params.append('page', String(searchOrParams.page));
+    if (searchOrParams.pageSize !== undefined && searchOrParams.pageSize !== null) params.append('pageSize', String(searchOrParams.pageSize));
+  } else {
+    if (searchOrParams) params.append('search', searchOrParams);
+    if (date) params.append('date', date);
+    if (page !== undefined && page !== null) params.append('page', String(page));
+    if (pageSize !== undefined && pageSize !== null) params.append('pageSize', String(pageSize));
+  }
+  const query = params.toString();
+  return apiClient(`/api/events/upcoming${query ? `?${query}` : ''}`, { method: 'GET' });
 };
 
-export const fetchSchoolEventsApi = async (search?: string, status?: string) => {
+export const fetchSchoolEventsApi = async (
+  searchOrParams?: string | SchoolEventsQueryParams,
+  status?: string,
+  page?: number,
+  pageSize?: number
+) => {
   const params = new URLSearchParams();
-  if (search) params.append('search', search);
-  if (status) params.append('status', status);
+  if (typeof searchOrParams === 'object' && searchOrParams !== null) {
+    if (searchOrParams.search) params.append('search', searchOrParams.search);
+    if (searchOrParams.status) params.append('status', searchOrParams.status);
+    if (searchOrParams.category) params.append('category', searchOrParams.category);
+    if (searchOrParams.page !== undefined && searchOrParams.page !== null) params.append('page', String(searchOrParams.page));
+    if (searchOrParams.pageSize !== undefined && searchOrParams.pageSize !== null) params.append('pageSize', String(searchOrParams.pageSize));
+  } else {
+    if (searchOrParams) params.append('search', searchOrParams);
+    if (status) params.append('status', status);
+    if (page !== undefined && page !== null) params.append('page', String(page));
+    if (pageSize !== undefined && pageSize !== null) params.append('pageSize', String(pageSize));
+  }
   const query = params.toString();
   return apiClient(`/api/events/school-events${query ? `?${query}` : ''}`, { method: 'GET' });
 };
@@ -54,8 +118,26 @@ export const deleteSchoolEventApi = async (id: number | string) => {
 // HOLIDAYS API  (/api/events or /api/holidays)
 // ============================
 
-export const fetchHolidaysApi = async () => {
-  return apiClient('/api/events/holidays', { method: 'GET' });
+export const fetchHolidaysApi = async (
+  searchOrParams?: string | HolidaysQueryParams,
+  type?: string,
+  page?: number,
+  pageSize?: number
+) => {
+  const params = new URLSearchParams();
+  if (typeof searchOrParams === 'object' && searchOrParams !== null) {
+    if (searchOrParams.search) params.append('search', searchOrParams.search);
+    if (searchOrParams.type) params.append('type', searchOrParams.type);
+    if (searchOrParams.page !== undefined && searchOrParams.page !== null) params.append('page', String(searchOrParams.page));
+    if (searchOrParams.pageSize !== undefined && searchOrParams.pageSize !== null) params.append('pageSize', String(searchOrParams.pageSize));
+  } else {
+    if (searchOrParams) params.append('search', searchOrParams);
+    if (type) params.append('type', type);
+    if (page !== undefined && page !== null) params.append('page', String(page));
+    if (pageSize !== undefined && pageSize !== null) params.append('pageSize', String(pageSize));
+  }
+  const query = params.toString();
+  return apiClient(`/api/events/holidays${query ? `?${query}` : ''}`, { method: 'GET' });
 };
 
 export const fetchHolidayByIdApi = async (id: number | string) => {
@@ -88,10 +170,24 @@ export const fetchAcademicCalendarDashboardApi = async () => {
   return apiClient('/api/academic-calendar/dashboard', { method: 'GET' });
 };
 
-export const fetchAcademicCalendarEventsApi = async (search?: string, type?: string) => {
+export const fetchAcademicCalendarEventsApi = async (
+  searchOrParams?: string | AcademicCalendarEventsQueryParams,
+  type?: string,
+  page?: number,
+  pageSize?: number
+) => {
   const params = new URLSearchParams();
-  if (search) params.append('search', search);
-  if (type) params.append('type', type);
+  if (typeof searchOrParams === 'object' && searchOrParams !== null) {
+    if (searchOrParams.search) params.append('search', searchOrParams.search);
+    if (searchOrParams.type) params.append('type', searchOrParams.type);
+    if (searchOrParams.page !== undefined && searchOrParams.page !== null) params.append('page', String(searchOrParams.page));
+    if (searchOrParams.pageSize !== undefined && searchOrParams.pageSize !== null) params.append('pageSize', String(searchOrParams.pageSize));
+  } else {
+    if (searchOrParams) params.append('search', searchOrParams);
+    if (type) params.append('type', type);
+    if (page !== undefined && page !== null) params.append('page', String(page));
+    if (pageSize !== undefined && pageSize !== null) params.append('pageSize', String(pageSize));
+  }
   const query = params.toString();
   return apiClient(`/api/academic-calendar/events${query ? `?${query}` : ''}`, { method: 'GET' });
 };

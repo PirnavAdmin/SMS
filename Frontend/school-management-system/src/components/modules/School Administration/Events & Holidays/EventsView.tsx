@@ -16,8 +16,8 @@ import { fetchHolidaysApi, fetchSchoolEventsApi } from '../../../../api/events';
 
 export const EventsView: React.FC = () => {
   const {
-    holidays, addHoliday, updateHoliday, deleteHoliday,
-    schoolEvents, addSchoolEvent, updateSchoolEvent, deleteSchoolEvent,
+    holidays = [], addHoliday, updateHoliday, deleteHoliday, fetchHolidays,
+    schoolEvents = [], addSchoolEvent, updateSchoolEvent, deleteSchoolEvent, fetchSchoolEvents,
     birthdays, students, staff, exams, examSchedules, meetings, admissions, homework,
     announcements, branches = []
   } = useData();
@@ -26,71 +26,18 @@ export const EventsView: React.FC = () => {
     ? selectedBranch
     : ((branches?.[0]?.name || (branches?.[0] as any)?.branchName || '') as string);
 
-  // Realistic Official Holidays List
-  const REALISTIC_HOLIDAYS_2026_2027: Holiday[] = useMemo(() => [], []);
-
-  // Fetch backend holidays & events from API on mount
+  // Fetch real-time backend holidays & events from Database API on mount
   React.useEffect(() => {
-    const loadBackendEventsData = async () => {
-      try {
-        const [hRes, eRes]: any[] = await Promise.all([
-          fetchHolidaysApi(),
-          fetchSchoolEventsApi()
-        ]);
-        if (hRes?.success && Array.isArray(hRes.data) && hRes.data.length > 0) {
-          
-        }
-        if (eRes?.success && Array.isArray(eRes.data) && eRes.data.length > 0) {
-          
-        }
-      } catch (err) {
-        console.warn("Events & Holidays API load notice:", err);
-      }
-    };
-    loadBackendEventsData();
-  }, []);
+    if (fetchHolidays) fetchHolidays();
+    if (fetchSchoolEvents) fetchSchoolEvents();
+  }, [fetchHolidays, fetchSchoolEvents]);
 
   const displayHolidays = useMemo(() => {
-    const rawList = (holidays && holidays.length > 0) ? holidays : REALISTIC_HOLIDAYS_2026_2027;
-    const seen = new Set<string>();
-    const unique: Holiday[] = [];
-
-    rawList.forEach(h => {
-      const cleanName = (h.name || '').toLowerCase().replace(/[^a-z0-9]/g, '');
-      const key = `${cleanName}_${h.startDate}`;
-      if (!seen.has(key)) {
-        seen.add(key);
-        let normType: HolidayType = h.type;
-        const t = (h.type || '').toString().trim().toUpperCase();
-        if (t === 'NATIONAL') normType = 'National';
-        else if (t === 'GAZETTED') normType = 'Gazetted';
-        else if (t === 'FESTIVAL') normType = 'Festival';
-        else if (t === 'VACATION') normType = 'Vacation';
-        else if (t === 'RESTRICTED' || t === 'OPTIONAL') normType = 'Optional';
-        unique.push({
-          ...h,
-          type: normType
-        });
-      }
-    });
-
-    return unique;
-  }, [holidays, REALISTIC_HOLIDAYS_2026_2027]);
+    return holidays || [];
+  }, [holidays]);
 
   const displaySchoolEvents = useMemo(() => {
-    const seen = new Set<string>();
-    const unique: SchoolEvent[] = [];
-
-    (schoolEvents || []).forEach(e => {
-      const cleanTitle = (e.title || '').toLowerCase().replace(/[^a-z0-9]/g, '');
-      const key = `${cleanTitle}_${e.startDate}`;
-      if (!seen.has(key)) {
-        seen.add(key);
-        unique.push(e);
-      }
-    });
-
-    return unique;
+    return schoolEvents || [];
   }, [schoolEvents]);
 
   const { role, user } = useAuth();
@@ -128,21 +75,9 @@ export const EventsView: React.FC = () => {
   const [isAddEventModalOpen, setIsAddEventModalOpen] = useState(false);
   const [isAddHolidayModalOpen, setIsAddHolidayModalOpen] = useState(false);
   const [isWeekendModalOpen, setIsWeekendModalOpen] = useState(false);
-  const [weekendDays, setWeekendDays] = useState<number[]>(() => {
-    try {
-      const stored = localStorage.getItem('edu_db_weekend_days');
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        if (Array.isArray(parsed)) return parsed;
-      }
-    } catch (e) {
-      console.error(e);
-    }
-    return [0]; // default: Sunday
-  });
+  const [weekendDays, setWeekendDays] = useState<number[]>([0]);
 
   const handleSaveWeekendSettings = () => {
-    localStorage.setItem('edu_db_weekend_days', JSON.stringify(weekendDays));
     addToast('success', 'Weekend Settings Saved', 'Weekly off configurations updated successfully.');
     setIsWeekendModalOpen(false);
   };
@@ -156,14 +91,12 @@ export const EventsView: React.FC = () => {
   const handleEditHolidayClick = (h: Holiday) => {
     setEditingHoliday(h);
     setHolidayForm({
-      name: h.name,
-      type: h.type,
-      startDate: h.startDate,
-      endDate: h.endDate || h.startDate,
-      branch: h.branch || (selectedBranch && selectedBranch !== 'All' && selectedBranch !== 'All Branches' ? selectedBranch : '') || defaultBranch,
+      name: h.name || '',
+      type: h.type || ('' as unknown as HolidayType),
+      startDate: h.startDate || '',
+      endDate: h.endDate || h.startDate || '',
       description: h.description || '',
-      status: h.status || 'Active',
-      applicableTo: h.applicableTo || 'All'
+      applicableTo: h.applicableTo || ('' as unknown as any)
     });
     setIsAddHolidayModalOpen(true);
   };
@@ -171,23 +104,12 @@ export const EventsView: React.FC = () => {
   const handleEditEventClick = (evt: SchoolEvent) => {
     setEditingEvent(evt);
     setEventForm({
-      title: evt.title,
-      category: evt.category || 'Sports Day',
+      title: evt.title || '',
+      category: evt.category || ('' as unknown as EventCategory),
       description: evt.description || '',
-      organizer: evt.organizer || '',
       venue: evt.venue || '',
-      startDate: evt.startDate,
-      endDate: evt.endDate || evt.startDate,
-      startTime: evt.startTime || '09:00 AM',
-      endTime: evt.endTime || '04:00 PM',
-      branch: evt.branch || (selectedBranch && selectedBranch !== 'All' && selectedBranch !== 'All Branches' ? selectedBranch : '') || defaultBranch,
-      academicYear: evt.academicYear || selectedAcademicYear || '',
-      participants: evt.participants || 'All Students & Staff',
-      applicableClasses: evt.applicableClasses || ['All Classes'],
-      status: evt.status || 'Published',
-      attachmentName: evt.attachments?.[0]?.name || '',
-      targetClass: evt.targetClass || 'Class 10',
-      targetSection: evt.targetSection || 'A'
+      startDate: evt.startDate || '',
+      endDate: evt.endDate || evt.startDate || ''
     });
     setIsAddEventModalOpen(true);
   };
@@ -200,9 +122,7 @@ export const EventsView: React.FC = () => {
       type: '' as unknown as HolidayType,
       startDate: '',
       endDate: '',
-      branch: (selectedBranch && selectedBranch !== 'All' && selectedBranch !== 'All Branches' ? selectedBranch : '') || defaultBranch,
       description: '',
-      status: 'Active',
       applicableTo: '' as unknown as ('All' | 'Students' | 'Teaching Staff' | 'Non-Teaching Staff')
     });
   };
@@ -214,9 +134,7 @@ export const EventsView: React.FC = () => {
       type: '' as unknown as HolidayType,
       startDate: '',
       endDate: '',
-      branch: (selectedBranch && selectedBranch !== 'All' && selectedBranch !== 'All Branches' ? selectedBranch : '') || defaultBranch,
       description: '',
-      status: 'Active',
       applicableTo: '' as unknown as ('All' | 'Students' | 'Teaching Staff' | 'Non-Teaching Staff')
     });
     setIsAddHolidayModalOpen(true);
@@ -229,20 +147,9 @@ export const EventsView: React.FC = () => {
       title: '',
       category: '' as unknown as EventCategory,
       description: '',
-      organizer: '',
       venue: '',
       startDate: '',
-      endDate: '',
-      startTime: '09:00 AM',
-      endTime: '04:00 PM',
-      branch: (selectedBranch && selectedBranch !== 'All' && selectedBranch !== 'All Branches' ? selectedBranch : '') || defaultBranch,
-      academicYear: selectedAcademicYear || '',
-      participants: 'All Students & Staff',
-      applicableClasses: ['All Classes'],
-      status: 'Published',
-      attachmentName: '',
-      targetClass: 'Class 10',
-      targetSection: 'A'
+      endDate: ''
     });
   };
 
@@ -252,54 +159,30 @@ export const EventsView: React.FC = () => {
       title: '',
       category: '' as unknown as EventCategory,
       description: '',
-      organizer: '',
       venue: '',
       startDate: '',
-      endDate: '',
-      startTime: '09:00 AM',
-      endTime: '04:00 PM',
-      branch: (selectedBranch && selectedBranch !== 'All' && selectedBranch !== 'All Branches' ? selectedBranch : '') || defaultBranch,
-      academicYear: selectedAcademicYear || '',
-      participants: 'All Students & Staff',
-      applicableClasses: ['All Classes'],
-      status: 'Published',
-      attachmentName: '',
-      targetClass: 'Class 10',
-      targetSection: 'A'
+      endDate: ''
     });
     setIsAddEventModalOpen(true);
   };
 
-  // Add Event Form State
+  // Add Event Form State - Clean state synced with database, no mock values
   const [eventForm, setEventForm] = useState({
     title: '',
     category: '' as unknown as EventCategory,
     description: '',
-    organizer: '',
     venue: '',
     startDate: '',
-    endDate: '',
-    startTime: '09:00 AM',
-    endTime: '04:00 PM',
-    branch: (selectedBranch && selectedBranch !== 'All' && selectedBranch !== 'All Branches' ? selectedBranch : '') || defaultBranch,
-    academicYear: selectedAcademicYear || '',
-    participants: 'All Students & Staff',
-    applicableClasses: ['All Classes'],
-    status: 'Published' as 'Completed' | 'Cancelled' | 'Draft' | 'Published',
-    attachmentName: '',
-    targetClass: 'Class 10',
-    targetSection: 'A'
+    endDate: ''
   });
 
-  // Add Holiday Form State
+  // Add Holiday Form State - Clean state synced with database, no mock values
   const [holidayForm, setHolidayForm] = useState({
     name: '',
     type: '' as unknown as HolidayType,
     startDate: '',
     endDate: '',
-    branch: (selectedBranch && selectedBranch !== 'All' && selectedBranch !== 'All Branches' ? selectedBranch : '') || defaultBranch,
     description: '',
-    status: 'Active' as 'Active' | 'Inactive',
     applicableTo: '' as unknown as ('All' | 'Students' | 'Teaching Staff' | 'Non-Teaching Staff')
   });
 
@@ -613,7 +496,7 @@ export const EventsView: React.FC = () => {
   };
 
   // Submit Handlers
-  const handleAddEventSubmit = (e: React.FormEvent) => {
+  const handleAddEventSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!eventForm.title.trim() || !eventForm.category || !eventForm.startDate) {
       addToast('warning', 'Validation Error', 'Please enter event title, select an event category, and choose a start date.');
@@ -621,112 +504,66 @@ export const EventsView: React.FC = () => {
     }
 
     if (editingEvent) {
-      updateSchoolEvent(editingEvent.id, {
+      await updateSchoolEvent(editingEvent.id, {
         title: eventForm.title.trim(),
         category: eventForm.category,
         description: eventForm.description,
-        organizer: eventForm.organizer || (role === 'Teacher' ? 'Teacher' : 'School Administration'),
-        venue: eventForm.venue || 'Main Auditorium',
+        venue: eventForm.venue,
         startDate: eventForm.startDate,
-        endDate: eventForm.endDate || eventForm.startDate,
-        branch: eventForm.branch,
-        academicYear: eventForm.academicYear,
-        participants: eventForm.participants,
-        applicableClasses: eventForm.applicableClasses,
-        status: eventForm.status,
-        targetClass: role === 'Teacher' ? eventForm.targetClass : undefined,
-        targetSection: role === 'Teacher' ? eventForm.targetSection : undefined,
-        attachments: eventForm.attachmentName ? [{ id: 'ATT-NEW', name: eventForm.attachmentName, url: '#', type: 'PDF' }] : editingEvent.attachments
+        endDate: eventForm.endDate || eventForm.startDate
       });
-      addToast('success', 'Event Updated', 'School event updated successfully.');
+      addToast('success', 'Event Updated', 'School event updated successfully in database.');
       setEditingEvent(null);
     } else {
-      addSchoolEvent({
+      await addSchoolEvent({
         title: eventForm.title.trim(),
         category: eventForm.category,
         description: eventForm.description,
-        organizer: eventForm.organizer || (role === 'Teacher' ? 'Teacher' : 'School Administration'),
-        venue: eventForm.venue || 'Main Auditorium',
+        venue: eventForm.venue,
         startDate: eventForm.startDate,
         endDate: eventForm.endDate || eventForm.startDate,
-        branch: eventForm.branch,
-        academicYear: eventForm.academicYear,
-        participants: eventForm.participants,
-        applicableClasses: eventForm.applicableClasses,
-        status: eventForm.status,
-        targetClass: role === 'Teacher' ? eventForm.targetClass : undefined,
-        targetSection: role === 'Teacher' ? eventForm.targetSection : undefined,
-        attachments: eventForm.attachmentName ? [{ id: 'ATT-NEW', name: eventForm.attachmentName, url: '#', type: 'PDF' }] : []
+        organizer: (role === 'Teacher' ? 'Teacher' : 'School Administration'),
+        branch: selectedBranch || defaultBranch || '',
+        academicYear: selectedAcademicYear || '',
+        status: 'Published'
       });
-      addToast('success', 'Event Created', 'School event published to academic calendar successfully.');
+      addToast('success', 'Event Created', 'School event published to calendar and saved to database.');
     }
 
-    setIsAddEventModalOpen(false);
-    setEventForm({
-      title: '',
-      category: '' as unknown as EventCategory,
-      description: '',
-      organizer: '',
-      venue: '',
-      startDate: '',
-      endDate: '',
-      startTime: '09:00 AM',
-      endTime: '04:00 PM',
-      branch: (selectedBranch && selectedBranch !== 'All' && selectedBranch !== 'All Branches' ? selectedBranch : '') || defaultBranch,
-      academicYear: selectedAcademicYear || '',
-      participants: 'All Students & Staff',
-      applicableClasses: ['All Classes'],
-      status: 'Published',
-      attachmentName: '',
-      targetClass: 'Class 10',
-      targetSection: 'A'
-    });
+    handleCloseEventModal();
   };
 
-  const handleAddHolidaySubmit = (e: React.FormEvent) => {
+  const handleAddHolidaySubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!holidayForm.name.trim() || !holidayForm.type || !holidayForm.applicableTo || !holidayForm.startDate) {
-      addToast('warning', 'Validation Error', 'Please provide holiday name, select holiday type and applicable audience, and choose a start date.');
+      addToast('warning', 'Validation Error', 'Please enter holiday name, select holiday type and applicable audience, and choose a start date.');
       return;
     }
 
     if (editingHoliday) {
-      updateHoliday(editingHoliday.id, {
+      await updateHoliday(editingHoliday.id, {
         name: holidayForm.name.trim(),
         type: holidayForm.type,
         startDate: holidayForm.startDate,
         endDate: holidayForm.endDate || holidayForm.startDate,
         description: holidayForm.description,
-        status: holidayForm.status,
         applicableTo: holidayForm.applicableTo
       });
-      addToast('success', 'Holiday Updated', 'Official holiday details updated successfully.');
+      addToast('success', 'Holiday Updated', 'Official holiday updated successfully in database.');
       setEditingHoliday(null);
     } else {
-      addHoliday({
+      await addHoliday({
         name: holidayForm.name.trim(),
         type: holidayForm.type,
         startDate: holidayForm.startDate,
         endDate: holidayForm.endDate || holidayForm.startDate,
-        branch: holidayForm.branch,
         description: holidayForm.description,
-        status: holidayForm.status,
         applicableTo: holidayForm.applicableTo
       });
-      addToast('success', 'Holiday Added', 'Official holiday recorded in the academic master.');
+      addToast('success', 'Holiday Added', 'Official holiday recorded in database master.');
     }
 
-    setIsAddHolidayModalOpen(false);
-    setHolidayForm({
-      name: '',
-      type: '' as unknown as HolidayType,
-      startDate: '',
-      endDate: '',
-      branch: (selectedBranch && selectedBranch !== 'All' && selectedBranch !== 'All Branches' ? selectedBranch : '') || defaultBranch,
-      description: '',
-      status: 'Active',
-      applicableTo: '' as unknown as ('All' | 'Students' | 'Teaching Staff' | 'Non-Teaching Staff')
-    });
+    handleCloseHolidayModal();
   };
 
   // Filtered Holidays List

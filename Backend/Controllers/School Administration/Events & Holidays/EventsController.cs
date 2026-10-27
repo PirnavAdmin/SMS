@@ -150,8 +150,8 @@ public class EventsController : ControllerBase
         [FromQuery] string? search,
         [FromQuery] string? date,
         [FromQuery] string? category = "All",
-        [FromQuery] int page = 1,
-        [FromQuery] int pageSize = 10)
+        [FromQuery] int? page = null,
+        [FromQuery] int? pageSize = null)
     {
         var events = await _context.SchoolEvents.AsNoTracking().OrderBy(e => e.StartDate).ToListAsync();
 
@@ -186,10 +186,25 @@ public class EventsController : ControllerBase
         }
 
         int totalCount = items.Count;
-        int currentPage = page > 0 ? page : 1;
-        int currentSize = pageSize > 0 ? pageSize : 10;
 
-        var pagedData = items.Skip((currentPage - 1) * currentSize).Take(currentSize).ToList();
+        if (page.HasValue || pageSize.HasValue)
+        {
+            int currentPage = page.HasValue && page.Value > 0 ? page.Value : 1;
+            int currentSize = pageSize.HasValue && pageSize.Value > 0 ? pageSize.Value : 10;
+            var pagedData = items.Skip((currentPage - 1) * currentSize).Take(currentSize).ToList();
+
+            return Ok(new
+            {
+                success = true,
+                message = "Upcoming events retrieved successfully.",
+                totalCount,
+                totalEntries = totalCount,
+                page = currentPage,
+                pageSize = currentSize,
+                totalPages = (int)Math.Ceiling((double)totalCount / currentSize),
+                data = pagedData
+            });
+        }
 
         return Ok(new
         {
@@ -197,10 +212,10 @@ public class EventsController : ControllerBase
             message = "Upcoming events retrieved successfully.",
             totalCount,
             totalEntries = totalCount,
-            page = currentPage,
-            pageSize = currentSize,
-            totalPages = (int)Math.Ceiling((double)totalCount / currentSize),
-            data = pagedData
+            page = 1,
+            pageSize = totalCount,
+            totalPages = 1,
+            data = items
         });
     }
 
@@ -212,8 +227,8 @@ public class EventsController : ControllerBase
     public async Task<IActionResult> GetSchoolEventsList(
         [FromQuery] string? search,
         [FromQuery] string? category,
-        [FromQuery] int page = 1,
-        [FromQuery] int pageSize = 10)
+        [FromQuery] int? page = null,
+        [FromQuery] int? pageSize = null)
     {
         var query = _context.SchoolEvents.AsNoTracking().AsQueryable();
 
@@ -238,10 +253,25 @@ public class EventsController : ControllerBase
 
         var dtos = list.Select(MapSchoolEventToDto).ToList();
         int totalCount = dtos.Count;
-        int currentPage = page > 0 ? page : 1;
-        int currentSize = pageSize > 0 ? pageSize : 10;
 
-        var pagedData = dtos.Skip((currentPage - 1) * currentSize).Take(currentSize).ToList();
+        if (page.HasValue || pageSize.HasValue)
+        {
+            int currentPage = page.HasValue && page.Value > 0 ? page.Value : 1;
+            int currentSize = pageSize.HasValue && pageSize.Value > 0 ? pageSize.Value : 10;
+            var pagedData = dtos.Skip((currentPage - 1) * currentSize).Take(currentSize).ToList();
+
+            return Ok(new
+            {
+                success = true,
+                message = "School events retrieved successfully.",
+                totalCount,
+                totalEntries = totalCount,
+                page = currentPage,
+                pageSize = currentSize,
+                totalPages = (int)Math.Ceiling((double)totalCount / currentSize),
+                data = pagedData
+            });
+        }
 
         return Ok(new
         {
@@ -249,10 +279,10 @@ public class EventsController : ControllerBase
             message = "School events retrieved successfully.",
             totalCount,
             totalEntries = totalCount,
-            page = currentPage,
-            pageSize = currentSize,
-            totalPages = (int)Math.Ceiling((double)totalCount / currentSize),
-            data = pagedData
+            page = 1,
+            pageSize = totalCount,
+            totalPages = 1,
+            data = dtos
         });
     }
 
@@ -373,8 +403,8 @@ public class EventsController : ControllerBase
     public async Task<IActionResult> GetSchoolHolidays(
         [FromQuery] string? search,
         [FromQuery] string? type,
-        [FromQuery] int page = 1,
-        [FromQuery] int pageSize = 10)
+        [FromQuery] int? page = null,
+        [FromQuery] int? pageSize = null)
     {
         var query = _context.HolidayCalendars.AsNoTracking().AsQueryable();
 
@@ -408,10 +438,26 @@ public class EventsController : ControllerBase
         };
 
         int totalCount = holidays.Count;
-        int currentPage = page > 0 ? page : 1;
-        int currentSize = pageSize > 0 ? pageSize : 10;
 
-        var pagedData = holidays.Skip((currentPage - 1) * currentSize).Take(currentSize).ToList();
+        if (page.HasValue || pageSize.HasValue)
+        {
+            int currentPage = page.HasValue && page.Value > 0 ? page.Value : 1;
+            int currentSize = pageSize.HasValue && pageSize.Value > 0 ? pageSize.Value : 10;
+            var pagedData = holidays.Skip((currentPage - 1) * currentSize).Take(currentSize).ToList();
+
+            return Ok(new
+            {
+                success = true,
+                message = "Holidays retrieved successfully.",
+                totalCount,
+                totalEntries = totalCount,
+                page = currentPage,
+                pageSize = currentSize,
+                totalPages = (int)Math.Ceiling((double)totalCount / currentSize),
+                metrics = metrics,
+                data = pagedData
+            });
+        }
 
         return Ok(new
         {
@@ -419,11 +465,11 @@ public class EventsController : ControllerBase
             message = "Holidays retrieved successfully.",
             totalCount,
             totalEntries = totalCount,
-            page = currentPage,
-            pageSize = currentSize,
-            totalPages = (int)Math.Ceiling((double)totalCount / currentSize),
+            page = 1,
+            pageSize = totalCount,
+            totalPages = 1,
             metrics = metrics,
-            data = pagedData
+            data = holidays
         });
     }
 
