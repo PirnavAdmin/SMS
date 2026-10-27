@@ -1838,7 +1838,7 @@ export const StudentPromotionView: React.FC<StudentPromotionViewProps> = ({ onNa
               <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-2.5" />
               <input
                 type="text"
-                placeholder="Search student name, roll no..."
+                placeholder="Search student name, adm no..."
                 value={searchQuery}
                 onChange={e => setSearchQuery(e.target.value)}
                 className="w-full pl-9 pr-3.5 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-brand-500/20"
@@ -1967,7 +1967,6 @@ export const StudentPromotionView: React.FC<StudentPromotionViewProps> = ({ onNa
                       )}
                     </th>
                     <th className="py-3.5 px-4">Adm No</th>
-                    <th className="py-3.5 px-4 whitespace-nowrap min-w-[5.5rem]">Roll No</th>
                     <th className="py-3.5 px-4">Student Name</th>
                     <th className="py-3.5 px-4">Current Sec</th>
                     <th className="py-3.5 px-4">Overall %</th>
@@ -1980,7 +1979,7 @@ export const StudentPromotionView: React.FC<StudentPromotionViewProps> = ({ onNa
                 <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-medium">
                   {filteredRows.length === 0 ? (
                     <tr>
-                      <td colSpan={10} className="text-center py-10 text-slate-400 font-bold">
+                      <td colSpan={9} className="text-center py-10 text-slate-400 font-bold">
                         No active student records matched for {fromClass}
                       </td>
                     </tr>
@@ -2008,11 +2007,6 @@ export const StudentPromotionView: React.FC<StudentPromotionViewProps> = ({ onNa
                           {/* Admission No */}
                           <td className="py-3.5 px-4 font-mono font-bold text-slate-900 dark:text-white">
                             {r.admissionNo}
-                          </td>
-
-                          {/* Roll No */}
-                          <td className="py-3.5 px-4 font-mono text-slate-600 dark:text-slate-400 whitespace-nowrap min-w-[5.5rem]">
-                            {r.rollNo}
                           </td>
 
                           {/* Student Name */}

@@ -273,6 +273,17 @@ export const GenerateCertificateModal: React.FC<GenerateCertificateModalProps> =
       activeFields.forEach(field => {
         if (field.key === 'issueDate' || field.key === 'dateOfLeaving') {
           initialData[field.key] = todayStr;
+        } else if (field.key === 'studyFromDate' || field.key === 'fromDate') {
+          const studentAdmDate = selectedStudent?.joiningDate || (selectedStudent as any)?.admissionDate;
+          if (studentAdmDate && String(studentAdmDate).trim() && String(studentAdmDate) < todayStr) {
+            initialData[field.key] = String(studentAdmDate).split('T')[0];
+          } else {
+            const d = new Date();
+            d.setFullYear(d.getFullYear() - 1);
+            initialData[field.key] = d.toISOString().split('T')[0];
+          }
+        } else if (field.key === 'studyToDate' || field.key === 'toDate') {
+          initialData[field.key] = todayStr;
         } else if (field.type === 'date') {
           initialData[field.key] = field.defaultValue && field.defaultValue <= todayStr ? field.defaultValue : todayStr;
         } else if (field.key === 'academicYear') {
@@ -423,12 +434,23 @@ export const GenerateCertificateModal: React.FC<GenerateCertificateModalProps> =
       }
     });
 
-    // Cross-field validation for study duration
-    if (certificateSpecificData.studyFromDate && certificateSpecificData.studyToDate) {
-      if (certificateSpecificData.studyToDate < certificateSpecificData.studyFromDate) {
-        errors['studyToDate'] = 'Study To Date cannot be earlier than Study From Date.';
+    // Cross-field validation for study duration and date ranges:
+    // To date should not be on or before From date
+    activeFields.forEach(f => {
+      if (f.key === 'studyToDate' || f.key === 'toDate' || f.key.toLowerCase().includes('todate')) {
+        const fromKey = f.key === 'studyToDate'
+          ? 'studyFromDate'
+          : (f.key === 'toDate'
+              ? 'fromDate'
+              : activeFields.find(o => o.key.toLowerCase() === f.key.toLowerCase().replace('todate', 'fromdate'))?.key);
+        const fromVal = fromKey ? certificateSpecificData[fromKey] : undefined;
+        const toVal = certificateSpecificData[f.key];
+        if (fromVal && toVal && toVal <= fromVal) {
+          const fromLabel = activeFields.find(o => o.key === fromKey)?.label || 'From Date';
+          errors[f.key] = `${f.label} cannot be on or before ${fromLabel}.`;
+        }
       }
-    }
+    });
 
     if (Object.keys(errors).length > 0) {
       setValidationErrors(errors);
@@ -1177,6 +1199,45 @@ export const GenerateCertificateModal: React.FC<GenerateCertificateModalProps> =
                     const value = certificateSpecificData[field.key] ?? '';
                     const error = validationErrors[field.key];
 
+                    const isToDateField = field.type === 'date' && (field.key === 'studyToDate' || field.key === 'toDate' || field.key.toLowerCase().includes('todate'));
+                    const isFromDateField = field.type === 'date' && (field.key === 'studyFromDate' || field.key === 'fromDate' || field.key.toLowerCase().includes('fromdate'));
+
+                    const matchingFromKey = isToDateField
+                      ? (field.key === 'studyToDate' ? 'studyFromDate' : (field.key === 'toDate' ? 'fromDate' : activeFields.find(o => o.key.toLowerCase() === field.key.toLowerCase().replace('todate', 'fromdate'))?.key))
+                      : undefined;
+                    const matchingToKey = isFromDateField
+                      ? (field.key === 'studyFromDate' ? 'studyToDate' : (field.key === 'fromDate' ? 'toDate' : activeFields.find(o => o.key.toLowerCase() === field.key.toLowerCase().replace('fromdate', 'todate'))?.key))
+                      : undefined;
+
+                    const matchingFromVal = matchingFromKey ? certificateSpecificData[matchingFromKey] : undefined;
+                    const matchingToVal = matchingToKey ? certificateSpecificData[matchingToKey] : undefined;
+
+                    // Min date for To-Date (must be after From-Date)
+                    const computedMin = (() => {
+                      if (isToDateField && matchingFromVal) {
+                        const d = new Date(matchingFromVal);
+                        if (!isNaN(d.getTime())) {
+                          d.setDate(d.getDate() + 1);
+                          return d.toISOString().split('T')[0];
+                        }
+                      }
+                      return undefined;
+                    })();
+
+                    // Max date for From-Date (cannot be future date AND cannot be on or after To-Date)
+                    const computedMax = (() => {
+                      if (field.type !== 'date') return undefined;
+                      if (isFromDateField && matchingToVal) {
+                        const d = new Date(matchingToVal);
+                        if (!isNaN(d.getTime())) {
+                          d.setDate(d.getDate() - 1);
+                          const dayBefore = d.toISOString().split('T')[0];
+                          return dayBefore < todayStr ? dayBefore : todayStr;
+                        }
+                      }
+                      return todayStr;
+                    })();
+
                     return (
                       <div key={field.key} className={isFullWidth ? 'sm:col-span-2' : ''}>
                         <label className="block font-bold mb-1 text-slate-700 dark:text-slate-300">
@@ -1223,7 +1284,8 @@ export const GenerateCertificateModal: React.FC<GenerateCertificateModalProps> =
                             type={field.type === 'date' ? 'date' : field.type === 'number' ? 'number' : 'text'}
                             value={value}
                             disabled={!!existingRecord}
-                            max={field.type === 'date' ? todayStr : undefined}
+                            min={computedMin}
+                            max={computedMax}
                             onChange={(e) => {
                               const newVal = e.target.value;
                               if (field.type === 'date') {
@@ -1232,6 +1294,27 @@ export const GenerateCertificateModal: React.FC<GenerateCertificateModalProps> =
                                     ...prev,
                                     [field.key]: `${field.label} cannot be a future date.`
                                   }));
+                                } else if (isToDateField) {
+                                  if (newVal && matchingFromVal && newVal <= matchingFromVal) {
+                                    const fromLabel = activeFields.find(o => o.key === matchingFromKey)?.label || 'From Date';
+                                    setValidationErrors(prev => ({
+                                      ...prev,
+                                      [field.key]: `${field.label} cannot be on or before ${fromLabel}.`
+                                    }));
+                                  } else {
+                                    setValidationErrors(prev => ({ ...prev, [field.key]: '' }));
+                                  }
+                                } else if (isFromDateField) {
+                                  if (newVal && matchingToVal && matchingToVal <= newVal) {
+                                    const toLabel = activeFields.find(o => o.key === matchingToKey)?.label || 'To Date';
+                                    setValidationErrors(prev => ({
+                                      ...prev,
+                                      [matchingToKey!]: `${toLabel} cannot be on or before ${field.label}.`
+                                    }));
+                                  } else if (matchingToKey && matchingToVal && matchingToVal > newVal) {
+                                    setValidationErrors(prev => ({ ...prev, [matchingToKey]: '' }));
+                                  }
+                                  setValidationErrors(prev => ({ ...prev, [field.key]: '' }));
                                 } else if (validationErrors[field.key]) {
                                   setValidationErrors(prev => ({ ...prev, [field.key]: '' }));
                                 }
