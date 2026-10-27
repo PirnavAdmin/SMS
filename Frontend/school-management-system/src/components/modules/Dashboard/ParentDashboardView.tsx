@@ -276,7 +276,6 @@ export const ParentDashboardView: React.FC<ParentDashboardViewProps> = ({ onNavi
     };
 
     (studentAttendance || []).forEach(a => addRecord(a, 'Student'));
-    (attendance || []).forEach(a => addRecord(a, 'Student'));
 
     return list;
   }, [studentAttendance, attendance, registryVersion]);

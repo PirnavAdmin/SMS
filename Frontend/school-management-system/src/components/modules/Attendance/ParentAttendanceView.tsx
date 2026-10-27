@@ -1,15 +1,22 @@
 // @ts-nocheck
-import React, { useState, useEffect, useMemo } from 'react';
-import { CalendarCheck, Calendar, Filter, User, AlertCircle, CheckCircle2, Clock, CalendarDays } from 'lucide-react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import {
+  CalendarCheck, Calendar, Filter, User, AlertCircle, CheckCircle2,
+  Clock, CalendarDays, Loader2, RefreshCw, FileSpreadsheet, Check
+} from 'lucide-react';
 import { useData } from '../../../context/DataContext';
 import { useAuth } from '../../../context/AuthContext';
+import { useToast } from '../../../context/ToastContext';
 import { DailyAttendance } from '../../../types';
 import { useParentWards, ParentStudentSelector } from '../../common/ParentStudentSelector';
+import { fetchStudentAttendanceRegisterApi } from '../../../api/attendance';
+import { checkSundayOrHoliday } from '../../../utils/dateValidation';
+import { exportToExcel } from '../../../utils/excelExport';
 
 export const ParentAttendanceView: React.FC = () => {
-  const { studentAttendance = [], attendance: rawAttendance, fetchStudentAttendanceData } = useData();
-  const attendance = rawAttendance || studentAttendance || [];
+  const { studentAttendance = [], holidays = [] } = useData();
   const { role } = useAuth();
+  const { addToast } = useToast?.() || {};
   const parentWards = useParentWards();
   const [selectedChildIdx, setSelectedChildIdx] = useState(0);
 
@@ -19,7 +26,7 @@ export const ParentAttendanceView: React.FC = () => {
 
   // Filters state
   const currentDate = new Date();
-  const [filterType, setFilterType] = useState<'Overall' | 'Month' | 'Day' | 'Custom'>('Overall');
+  const [filterType, setFilterType] = useState<'Overall' | 'Month' | 'Day' | 'Custom'>('Month');
   const [selectedMonth, setSelectedMonth] = useState(currentDate.getMonth().toString());
   const [selectedYear, setSelectedYear] = useState(currentDate.getFullYear().toString());
   
@@ -27,30 +34,131 @@ export const ParentAttendanceView: React.FC = () => {
   const [startDate, setStartDate] = useState(new Date(currentDate.getFullYear(), currentDate.getMonth(), 1).toISOString().split('T')[0]);
   const [endDate, setEndDate] = useState(currentDate.toISOString().split('T')[0]);
 
+  const [apiRecords, setApiRecords] = useState<any[]>([]);
+  const [apiSummary, setApiSummary] = useState<any>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isDownloading, setIsDownloading] = useState(false);
+
+  // In-flight guard to completely prevent infinite request loops
+  const isFetchingRef = useRef(false);
+
   const months = [
     { value: '0', label: 'January' }, { value: '1', label: 'February' },
     { value: '2', label: 'March' }, { value: '3', label: 'April' },
     { value: '4', label: 'May' }, { value: '5', label: 'June' },
     { value: '6', label: 'July' }, { value: '7', label: 'August' },
     { value: '8', label: 'September' }, { value: '9', label: 'October' },
-    { value: '10', label: 'November' }, { value: '11', label: 'December' },
+    { value: '10', label: 'November' }, { value: '11', label: 'December' }
   ];
-  const years = ['2024', '2025', '2026'];
+
+  const currentYear = currentDate.getFullYear();
+  const years = [
+    (currentYear - 1).toString(),
+    currentYear.toString(),
+    (currentYear + 1).toString()
+  ];
+
+  const currentWard = parentWards[selectedChildIdx] || parentWards[0];
+  const displayWards = useMemo(() => {
+    return parentWards && parentWards.length > 0 ? parentWards : [];
+  }, [parentWards]);
+
+  // Helper to match a record against the current ward
+  const isChildMatch = useCallback((rec: any) => {
+    if (!currentWard || !rec) return false;
+    const wardId = String(currentWard.studentId ?? currentWard.id ?? '').trim().toLowerCase();
+    const wardAdm = String(currentWard.admissionNo || '').trim().toLowerCase();
+    const wardRoll = String(currentWard.rollNo || '').trim().toLowerCase();
+    const wardName = String(currentWard.studentName || `${currentWard.firstName || ''} ${currentWard.lastName || ''}`).trim().toLowerCase();
+
+    const recId = String(rec.studentId ?? rec.entityId ?? rec.id ?? '').trim().toLowerCase();
+    const recAdm = String(rec.admissionNo || '').trim().toLowerCase();
+    const recRoll = String(rec.rollNo || '').trim().toLowerCase();
+    const recName = String(rec.studentName || '').trim().toLowerCase();
+
+    if (wardId && (recId === wardId || recAdm === wardId || recRoll === wardId)) return true;
+    if (wardAdm && (recAdm === wardAdm || recId === wardAdm || recRoll === wardAdm)) return true;
+    if (wardRoll && (recRoll === wardRoll || recId === wardRoll || recAdm === wardRoll)) return true;
+    if (wardName && recName && (recName === wardName || recName.includes(wardName) || wardName.includes(recName))) return true;
+
+    return false;
+  }, [currentWard]);
+
+  // Fetch dynamic attendance register from backend for the currently selected child and filters
+  const loadDynamicAttendance = useCallback(async (force = false) => {
+    if (!currentWard) return;
+    if (isFetchingRef.current && !force) return;
+
+    isFetchingRef.current = true;
+    setIsLoading(true);
+
+    try {
+      const rawStudentId = currentWard.studentId ?? currentWard.id;
+      const numStudentId = Number(rawStudentId);
+      const validStudentId = !isNaN(numStudentId) && numStudentId > 0 ? numStudentId : undefined;
+
+      const query: any = {
+        filterType: filterType,
+        statusFilter: statusFilter !== 'All' ? statusFilter : undefined
+      };
+
+      if (validStudentId) {
+        query.studentId = validStudentId;
+      }
+
+      if (filterType === 'Month') {
+        query.month = parseInt(selectedMonth, 10) + 1;
+        query.year = parseInt(selectedYear, 10);
+      } else if (filterType === 'Day') {
+        query.date = selectedDate;
+      } else if (filterType === 'Custom') {
+        query.startDate = startDate;
+        query.endDate = endDate;
+      }
+
+      const regRes: any = await fetchStudentAttendanceRegisterApi(query);
+      const regData = regRes?.data || regRes;
+      if (regData && Array.isArray(regData.records)) {
+        setApiRecords(regData.records);
+        setApiSummary(regData.summary || null);
+      } else {
+        setApiRecords([]);
+        setApiSummary(null);
+      }
+    } catch (err) {
+      console.warn('Failed to load dynamic student attendance register:', err);
+      setApiRecords([]);
+      setApiSummary(null);
+    } finally {
+      setIsLoading(false);
+      isFetchingRef.current = false;
+    }
+  }, [
+    currentWard?.studentId,
+    currentWard?.id,
+    filterType,
+    selectedMonth,
+    selectedYear,
+    selectedDate,
+    startDate,
+    endDate,
+    statusFilter
+  ]);
 
   useEffect(() => {
-    if (fetchStudentAttendanceData) {
-      fetchStudentAttendanceData();
-    }
-  }, [fetchStudentAttendanceData]);
+    loadDynamicAttendance();
+  }, [loadDynamicAttendance]);
 
-  // Listen for real-time attendance updates
-  const [registryVersion, setRegistryVersion] = useState(0);
+  // Listen for real-time attendance updates (debounced and guarded)
   useEffect(() => {
     let timeoutId: any;
     const handleUpdate = () => {
+      clearTimeout(timeoutId);
       timeoutId = setTimeout(() => {
-        setRegistryVersion(v => v + 1);
-      }, 0);
+        if (!isFetchingRef.current) {
+          loadDynamicAttendance(true);
+        }
+      }, 1000);
     };
     window.addEventListener('storage', handleUpdate);
     window.addEventListener('attendance_updated', handleUpdate);
@@ -59,154 +167,64 @@ export const ParentAttendanceView: React.FC = () => {
       window.removeEventListener('storage', handleUpdate);
       window.removeEventListener('attendance_updated', handleUpdate);
     };
-  }, []);
+  }, [loadDynamicAttendance]);
 
-  const combinedAttendance = useMemo(() => {
-    const list: any[] = [];
-    const seenDateKeys = new Set<string>();
+  // Merge API register records with any real-time in-memory attendance from teacher submissions
+  const wardAttendance = useMemo(() => {
+    const dateMap = new Map<string, any>();
 
-    const addRecord = (a: any, fallbackEntity: string) => {
-      if (!a) return;
-      const d = String(a.date || '').split('T')[0];
-      const sId = String(a.studentId || a.entityId || a.id || '');
-      const roll = String(a.rollNo || '');
-      const adm = String(a.admissionNo || '');
-      const ident = adm || roll || sId;
-      const key = `${ident}_${d}_${a.subject || ''}_${a.period || ''}`;
-      if (!seenDateKeys.has(key)) {
-        seenDateKeys.add(key);
-        list.push({
-          ...a,
-          date: d,
-          studentId: sId,
-          entityType: a.entityType || fallbackEntity
+    // 1. Add records returned from the backend Register API
+    (apiRecords || []).forEach(r => {
+      const dKey = String(r.date || '').split('T')[0].trim();
+      if (dKey) {
+        dateMap.set(dKey, {
+          id: r.id || `att_${dKey}`,
+          date: dKey,
+          status: r.status || 'Present',
+          remarks: r.remarks || '',
+          formattedDate: r.formattedDate,
+          dayOfWeek: r.dayOfWeek
         });
       }
-    };
-
-    // 1. From studentAttendance in DataContext
-    (studentAttendance || []).forEach(a => addRecord(a, 'Student'));
-
-    // 2. From rawAttendance in DataContext
-    (rawAttendance || []).forEach(a => addRecord(a, 'Student'));
-
-    return list;
-  }, [studentAttendance, rawAttendance, registryVersion]);
-
-  const currentWard = parentWards[selectedChildIdx] || parentWards[0];
-
-  // Filter real attendance for the selected child and the selected month/year/day
-  const rawWardAttendance = useMemo(() => {
-    if (!currentWard) return [];
-    const wardId = String(currentWard.id || '').trim();
-    const wardStudentId = String((currentWard as any).studentId || '').trim();
-    const wardRoll = String(currentWard.rollNo || '').trim();
-    const wardAdm = String(currentWard.admissionNo || '').trim();
-
-    const filteredList = combinedAttendance.filter(a => {
-      const isStudentEntity = !a.entityType || a.entityType === 'Student';
-      if (!isStudentEntity) return false;
-
-      const recId = String(a.studentId || a.entityId || a.id || '').trim().toLowerCase();
-      const recRoll = String(a.rollNo || '').trim().toLowerCase();
-      const recAdm = String(a.admissionNo || '').trim().toLowerCase();
-      const recName = String(a.studentName || '').trim().toLowerCase();
-
-      const wardIdStr = wardId.toLowerCase();
-      const wardStudentIdStr = wardStudentId.toLowerCase();
-      const wardRollStr = wardRoll.toLowerCase();
-      const wardAdmStr = wardAdm.toLowerCase();
-      const wardNameStr = String(currentWard.studentName || `${currentWard.firstName || ''} ${currentWard.lastName || ''}`).trim().toLowerCase();
-
-      const isChildMatch = (
-        (recId && (recId === wardIdStr || recId === wardStudentIdStr || recId === wardRollStr || recId === wardAdmStr)) ||
-        (recRoll && (recRoll === wardRollStr || recRoll === wardIdStr || recRoll === wardAdmStr)) ||
-        (recAdm && (recAdm === wardAdmStr || recAdm === wardIdStr || recAdm === wardRollStr)) ||
-        (recName && wardNameStr && (recName === wardNameStr || recName.includes(wardNameStr) || wardNameStr.includes(recName)))
-      );
-      if (!isChildMatch) return false;
-      
-      const rawDateStr = String(a.date || '').split('T')[0].trim();
-      let recYear = '';
-      let recMonth = '';
-      let recDateStr = '';
-
-      if (/^\d{4}-\d{2}-\d{2}$/.test(rawDateStr)) {
-        const [y, m, d] = rawDateStr.split('-');
-        recYear = y;
-        recMonth = String(parseInt(m, 10) - 1);
-        recDateStr = `${y}-${m}-${d}`;
-      } else if (/^\d{1,2}[\/-]\d{1,2}[\/-]\d{4}$/.test(rawDateStr)) {
-        const [d, m, y] = rawDateStr.split(/[\/-]/);
-        recYear = y;
-        recMonth = String(parseInt(m, 10) - 1);
-        recDateStr = `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
-      } else {
-        const parsed = new Date(rawDateStr);
-        if (!isNaN(parsed.getTime())) {
-          recYear = String(parsed.getFullYear());
-          recMonth = String(parsed.getMonth());
-          recDateStr = `${parsed.getFullYear()}-${String(parsed.getMonth() + 1).padStart(2, '0')}-${String(parsed.getDate()).padStart(2, '0')}`;
-        } else {
-          return false;
-        }
-      }
-
-      if (filterType === 'Overall') {
-        return true;
-      } else if (filterType === 'Month') {
-        const isMatchMonth = recMonth === selectedMonth;
-        const isMatchYear = recYear === selectedYear;
-        return isMatchMonth && isMatchYear;
-      } else if (filterType === 'Day') {
-        return recDateStr === selectedDate;
-      } else if (filterType === 'Custom') {
-        return recDateStr >= startDate && recDateStr <= endDate;
-      }
-      return true;
     });
 
-    // Deduplicate daily records: Ensure each calendar date appears exactly once for this student
-    const dateMap = new Map<string, any>();
-    for (const rec of filteredList) {
-      const rawDateStr = String(rec.date || '').split('T')[0].trim();
-      let dKey = rawDateStr;
-      if (/^\d{4}-\d{2}-\d{2}$/.test(rawDateStr)) {
-        dKey = rawDateStr;
-      } else if (/^\d{1,2}[\/-]\d{1,2}[\/-]\d{4}$/.test(rawDateStr)) {
-        const [d, m, y] = rawDateStr.split(/[\/-]/);
-        dKey = `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
-      } else {
-        const p = new Date(rawDateStr);
-        if (!isNaN(p.getTime())) {
-          dKey = `${p.getFullYear()}-${String(p.getMonth() + 1).padStart(2, '0')}-${String(p.getDate()).padStart(2, '0')}`;
+    // 2. Add any real-time student attendance in DataContext matching this specific ward
+    (studentAttendance || []).forEach(r => {
+      if (!isChildMatch(r)) return;
+      const rawDate = String(r.date || '').split('T')[0].trim();
+      if (!rawDate) return;
+
+      // Filter against selected criteria if filter is active
+      let inScope = true;
+      if (filterType === 'Month') {
+        const parts = rawDate.split('-');
+        if (parts.length === 3) {
+          const recY = parts[0];
+          const recM = String(parseInt(parts[1], 10) - 1);
+          inScope = recY === selectedYear && recM === selectedMonth;
         }
+      } else if (filterType === 'Day') {
+        inScope = rawDate === selectedDate;
+      } else if (filterType === 'Custom') {
+        inScope = rawDate >= startDate && rawDate <= endDate;
       }
 
-      if (!dateMap.has(dKey)) {
-        dateMap.set(dKey, { ...rec, date: dKey });
-      } else {
-        const existing = dateMap.get(dKey);
-        if (!existing.remarks && rec.remarks) {
-          existing.remarks = rec.remarks;
-        }
-        if (
-          (existing.status === 'Present' && rec.status === 'Absent') ||
-          (existing.status === 'Absent' && rec.status === 'Present')
-        ) {
-          existing.status = 'HalfDay';
-        } else if (existing.status !== 'Present' && rec.status === 'Present') {
-          existing.status = rec.status;
-        }
+      if (inScope) {
+        dateMap.set(rawDate, {
+          id: r.id || `att_${rawDate}`,
+          date: rawDate,
+          status: r.status || 'Present',
+          remarks: r.remarks || r.teacherNote || '',
+          subject: r.subject || '',
+          period: r.period || ''
+        });
       }
-    }
+    });
 
     return Array.from(dateMap.values()).sort(
       (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
     );
-  }, [combinedAttendance, currentWard, filterType, selectedMonth, selectedYear, selectedDate, startDate, endDate]);
-
-  const wardAttendance = rawWardAttendance;
+  }, [apiRecords, studentAttendance, isChildMatch, filterType, selectedMonth, selectedYear, selectedDate, startDate, endDate]);
 
   const filteredRecords = useMemo(() => {
     return wardAttendance.filter(record => statusFilter === 'All' || record.status === statusFilter);
@@ -219,6 +237,237 @@ export const ParentAttendanceView: React.FC = () => {
     setCurrentPage(1);
   }, [statusFilter, filterType, selectedMonth, selectedYear, selectedDate, startDate, endDate, selectedChildIdx]);
 
+  // Construct dates for the Monthly / Custom grid register
+  const matrixDates = useMemo(() => {
+    const dates: string[] = [];
+    if (filterType === 'Month') {
+      const year = parseInt(selectedYear, 10);
+      const month = parseInt(selectedMonth, 10); // 0-indexed
+      const daysInMonth = new Date(year, month + 1, 0).getDate();
+      for (let day = 1; day <= daysInMonth; day++) {
+        const dStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+        dates.push(dStr);
+      }
+    } else if (filterType === 'Custom') {
+      if (startDate && endDate) {
+        const start = new Date(startDate);
+        const end = new Date(endDate);
+        start.setHours(0, 0, 0, 0);
+        end.setHours(0, 0, 0, 0);
+        const curr = new Date(start);
+        while (curr <= end && dates.length < 31) {
+          const y = curr.getFullYear();
+          const m = String(curr.getMonth() + 1).padStart(2, '0');
+          const d = String(curr.getDate()).padStart(2, '0');
+          dates.push(`${y}-${m}-${d}`);
+          curr.setDate(curr.getDate() + 1);
+        }
+      }
+    }
+    return dates;
+  }, [filterType, selectedMonth, selectedYear, startDate, endDate]);
+
+  // Helper to resolve student status for a given calendar date in matrix view
+  const getStudentStatusForDate = useCallback((ward: any, dateStr: string) => {
+    const holCheck = checkSundayOrHoliday(dateStr, holidays);
+
+    const wId = String(ward.studentId ?? ward.id ?? '').trim().toLowerCase();
+    const wAdm = String(ward.admissionNo || '').trim().toLowerCase();
+    const wRoll = String(ward.rollNo || '').trim().toLowerCase();
+    const wName = String(ward.studentName || `${ward.firstName || ''} ${ward.lastName || ''}`).trim().toLowerCase();
+
+    let foundStatus: string | null = null;
+    let foundRemarks: string = '';
+
+    // Check currently loaded apiRecords (if it matches this ward)
+    const currentWardId = String(currentWard?.studentId ?? currentWard?.id ?? '').trim().toLowerCase();
+    if (wId && wId === currentWardId) {
+      for (const r of apiRecords) {
+        const rDate = String(r.date || '').split('T')[0].trim();
+        if (rDate === dateStr) {
+          foundStatus = r.status;
+          foundRemarks = r.remarks || '';
+          break;
+        }
+      }
+    }
+
+    // Check studentAttendance in DataContext
+    if (!foundStatus) {
+      for (const r of (studentAttendance || [])) {
+        const rDate = String(r.date || '').split('T')[0].trim();
+        if (rDate !== dateStr) continue;
+
+        const rId = String(r.studentId ?? r.id ?? '').trim().toLowerCase();
+        const rAdm = String(r.admissionNo || '').trim().toLowerCase();
+        const rRoll = String(r.rollNo || '').trim().toLowerCase();
+        const rName = String(r.studentName || `${r.firstName || ''} ${r.lastName || ''}`).trim().toLowerCase();
+
+        const match = (wId && (rId === wId || rAdm === wId || rRoll === wId)) ||
+                      (wAdm && (rAdm === wAdm || rId === wAdm || rRoll === wAdm)) ||
+                      (wRoll && (rRoll === wRoll || rId === wRoll || rAdm === wRoll)) ||
+                      (wName && rName && (rName === wName || rName.includes(wName) || wName.includes(rName)));
+
+        if (match) {
+          foundStatus = r.status;
+          foundRemarks = r.remarks || r.teacherNote || '';
+          break;
+        }
+      }
+    }
+
+    if (holCheck.isHoliday && (!foundStatus || foundStatus === 'Holiday')) {
+      return {
+        code: 'H',
+        badgeStyle: 'text-purple-700 bg-purple-100 dark:bg-purple-950/60 dark:text-purple-300 font-extrabold border border-purple-200/80 dark:border-purple-800/80',
+        tooltip: holCheck.name ? `${dateStr} - ${holCheck.name}` : `${dateStr} - Sunday / School Holiday`
+      };
+    }
+
+    if (!foundStatus) {
+      return {
+        code: '-',
+        badgeStyle: 'text-slate-400 font-medium',
+        tooltip: `${dateStr} - Unmarked`
+      };
+    }
+
+    const norm = String(foundStatus).toLowerCase().replace(/[\s_-]/g, '');
+    if (norm === 'present' || norm === 'p') {
+      return {
+        code: 'P',
+        badgeStyle: 'text-emerald-700 bg-emerald-50 dark:bg-emerald-500/10 dark:text-emerald-400 font-bold border border-emerald-200/60 dark:border-emerald-800/40',
+        tooltip: `${dateStr} - Present${foundRemarks ? ` (${foundRemarks})` : ''}`
+      };
+    }
+    if (norm === 'absent' || norm === 'a') {
+      return {
+        code: 'A',
+        badgeStyle: 'text-rose-700 bg-rose-100 dark:bg-rose-500/10 dark:text-rose-400 font-black border border-rose-200/60 dark:border-rose-800/40',
+        tooltip: `${dateStr} - Absent${foundRemarks ? ` (${foundRemarks})` : ''}`
+      };
+    }
+    if (norm === 'halfday' || norm === 'hd') {
+      return {
+        code: 'HD',
+        badgeStyle: 'text-amber-700 bg-amber-50 dark:bg-amber-500/10 dark:text-amber-400 font-bold border border-amber-200/60 dark:border-amber-800/40',
+        tooltip: `${dateStr} - Half Day${foundRemarks ? ` (${foundRemarks})` : ''}`
+      };
+    }
+    if (norm === 'late' || norm === 'l') {
+      return {
+        code: 'L',
+        badgeStyle: 'text-orange-700 bg-orange-50 dark:bg-orange-500/10 dark:text-orange-400 font-bold border border-orange-200/60 dark:border-orange-800/40',
+        tooltip: `${dateStr} - Late${foundRemarks ? ` (${foundRemarks})` : ''}`
+      };
+    }
+    if (norm === 'holiday' || norm === 'h') {
+      return {
+        code: 'H',
+        badgeStyle: 'text-purple-700 bg-purple-100 dark:bg-purple-950/60 dark:text-purple-300 font-extrabold border border-purple-200/80 dark:border-purple-800/80',
+        tooltip: `${dateStr} - Holiday${foundRemarks ? ` (${foundRemarks})` : ''}`
+      };
+    }
+    if (norm === 'leave' || norm === 'lv') {
+      return {
+        code: 'LV',
+        badgeStyle: 'text-sky-700 bg-sky-50 dark:bg-sky-500/10 dark:text-sky-400 font-bold border border-sky-200/60 dark:border-sky-800/40',
+        tooltip: `${dateStr} - Approved Leave${foundRemarks ? ` (${foundRemarks})` : ''}`
+      };
+    }
+
+    return {
+      code: foundStatus.slice(0, 2).toUpperCase(),
+      badgeStyle: 'text-slate-600 bg-slate-100 font-bold',
+      tooltip: `${dateStr} - ${foundStatus}`
+    };
+  }, [holidays, currentWard, apiRecords, studentAttendance]);
+
+  // Excel exporter matching AttendanceView
+  const handleExportCSV = () => {
+    if (displayWards.length === 0) {
+      if (addToast) addToast('warning', 'Download Blocked', 'No student records available.');
+      return;
+    }
+    setIsDownloading(true);
+
+    setTimeout(() => {
+      try {
+        const rows: any[][] = [];
+        let filename = "";
+        let sheetName = "Attendance";
+
+        const dateHeaders = matrixDates.map(d => {
+          const dayNum = d.split('-')[2];
+          const holCheck = checkSundayOrHoliday(d, holidays);
+          return holCheck.isHoliday ? `${dayNum} (H)` : dayNum;
+        });
+        rows.push([
+          "Admission No",
+          "Student Name",
+          "Class",
+          "Section",
+          ...dateHeaders,
+          "Present (P)",
+          "Half Day (HD)",
+          "Late (L)",
+          "Absent (A)",
+          "Holiday (H)",
+          "Attendance %"
+        ]);
+
+        displayWards.forEach(ward => {
+          let pCount = 0;
+          let aCount = 0;
+          let hdCount = 0;
+          let lCount = 0;
+          let hCount = 0;
+
+          const dateCells = matrixDates.map(d => {
+            const cell = getStudentStatusForDate(ward, d);
+            if (cell.code === 'P') { pCount++; return 'P'; }
+            if (cell.code === 'A') { aCount++; return 'A'; }
+            if (cell.code === 'HD') { hdCount++; return 'HD'; }
+            if (cell.code === 'L') { lCount++; return 'L'; }
+            if (cell.code === 'H') { hCount++; return 'H'; }
+            return cell.code;
+          });
+
+          const netWorkingDays = matrixDates.length - hCount;
+          const pct = netWorkingDays > 0 ? Math.round(((pCount + lCount + (hdCount * 0.5)) / netWorkingDays) * 100) : 100;
+
+          rows.push([
+            ward.admissionNo || ward.rollNo || `ADM-${ward.studentId}`,
+            ward.studentName || `${ward.firstName} ${ward.lastName}`.trim(),
+            ward.className,
+            ward.section,
+            ...dateCells,
+            pCount,
+            hdCount,
+            lCount,
+            aCount,
+            hCount,
+            `${pct}%`
+          ]);
+        });
+
+        const periodName = filterType === 'Month' 
+          ? `${months.find(m => m.value === selectedMonth)?.label || 'Month'}_${selectedYear}`
+          : `${startDate}_to_${endDate}`;
+        filename = `Attendance_Register_${periodName}`;
+        sheetName = "Matrix Register";
+
+        exportToExcel(rows, filename, sheetName);
+        if (addToast) addToast('success', 'Download Complete', 'Attendance Excel report has been downloaded.');
+      } catch (err) {
+        console.error('Failed to export attendance to Excel:', err);
+        if (addToast) addToast('error', 'Download Failed', 'Failed to generate attendance Excel report.');
+      } finally {
+        setIsDownloading(false);
+      }
+    }, 400);
+  };
+
   if (parentWards.length === 0) {
     return (
       <div className="p-8 text-center text-slate-500">
@@ -227,20 +476,19 @@ export const ParentAttendanceView: React.FC = () => {
     );
   }
 
-  // Statistics
+  // Statistics dynamically derived from real records
   const presentDays = wardAttendance.filter(a => a.status === 'Present').length;
   const absentDays = wardAttendance.filter(a => a.status === 'Absent').length;
   const lateDays = wardAttendance.filter(a => a.status === 'Late').length;
   const halfDays = wardAttendance.filter(a => a.status === 'HalfDay' || a.status === 'Half Day').length;
   const leaveDays = wardAttendance.filter(a => a.status === 'Leave').length;
 
-  // Working marked days (excluding non-working holidays from the denominator)
   const workingDays = presentDays + absentDays + lateDays + halfDays;
   const totalDays = workingDays > 0 ? workingDays : wardAttendance.length;
 
   const attendancePercentage = totalDays > 0 
     ? Math.round(((presentDays + lateDays + (halfDays * 0.5)) / totalDays) * 100) 
-    : (wardAttendance.length > 0 ? 0 : 100);
+    : 100;
 
   const getStatusConfig = (status: DailyAttendance['status']) => {
     switch (status) {
@@ -280,8 +528,18 @@ export const ParentAttendanceView: React.FC = () => {
           </div>
         </div>
 
-        {/* Filters */}
+        {/* Filters & Refresh */}
         <div className="flex flex-wrap items-center gap-2 w-full lg:w-auto">
+          <button
+            type="button"
+            onClick={() => loadDynamicAttendance(true)}
+            disabled={isLoading}
+            className="p-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 hover:bg-slate-100 text-slate-600 dark:text-slate-300 transition-all cursor-pointer disabled:opacity-50"
+            title="Refresh dynamic records"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin text-sky-600' : ''}`} />
+          </button>
+
           <div className="flex items-center gap-1.5">
             <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider whitespace-nowrap">View:</span>
             <select 
@@ -289,10 +547,10 @@ export const ParentAttendanceView: React.FC = () => {
               onChange={(e) => setFilterType(e.target.value as 'Overall' | 'Month' | 'Day' | 'Custom')}
               className="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-2.5 py-1 text-xs text-slate-900 dark:text-white font-medium focus:ring-2 focus:ring-sky-500/50 outline-none cursor-pointer"
             >
-              <option value="Overall">Overall</option>
               <option value="Month">Monthly</option>
-              <option value="Day">Daily</option>
               <option value="Custom">Custom Range</option>
+              <option value="Day">Daily</option>
+              <option value="Overall">Overall</option>
             </select>
           </div>
 
@@ -382,14 +640,200 @@ export const ParentAttendanceView: React.FC = () => {
         </div>
       </div>
 
+      {/* Monthly & Custom Day-Grid Register Matrix View (User Requested Design) */}
+      {(filterType === 'Month' || filterType === 'Custom') && (
+        <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-xs p-4 sm:p-5 space-y-3">
+          {/* Header Row */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="font-extrabold text-sm sm:text-base text-slate-900 dark:text-white">
+                Attendance ({displayWards.length} {displayWards.length === 1 ? 'Student' : 'Students'})
+              </span>
+              <span className="px-2.5 py-0.5 rounded-full bg-sky-50 text-sky-700 dark:bg-sky-950/60 dark:text-sky-300 font-bold text-[10.5px] border border-sky-200/60 dark:border-sky-800 whitespace-nowrap">
+                {currentWard ? `${currentWard.className}${currentWard.section ? `-${currentWard.section}` : ''}` : 'General'}
+              </span>
+              {isLoading && (
+                <span className="text-[10px] text-sky-600 flex items-center gap-1 font-bold">
+                  <Loader2 className="w-3 h-3 animate-spin" /> Syncing...
+                </span>
+              )}
+            </div>
+
+            <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap justify-start sm:justify-end">
+              <button
+                type="button"
+                onClick={handleExportCSV}
+                disabled={isDownloading}
+                className="px-3 py-1.5 rounded-xl bg-sky-50 hover:bg-sky-100 text-sky-800 dark:bg-sky-950/40 dark:text-sky-300 font-bold transition-colors flex items-center gap-1.5 disabled:opacity-50 cursor-pointer text-xs whitespace-nowrap"
+              >
+                {isDownloading ? (
+                  <Loader2 className="w-3.5 h-3.5 animate-spin text-sky-600 dark:text-sky-400" />
+                ) : (
+                  <FileSpreadsheet className="w-3.5 h-3.5" />
+                )}
+                <span>{isDownloading ? 'Downloading...' : 'Download'}</span>
+              </button>
+
+              <div className="bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700/60 rounded-xl py-1.5 px-3 flex items-center gap-1.5 text-xs font-black cursor-default whitespace-nowrap select-none">
+                <Check className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 stroke-[2.5]" />
+                <span>Saved & Locked</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Read-Only Mode Banner */}
+          <div className="p-3 rounded-xl bg-slate-50/80 dark:bg-slate-900/60 border border-slate-200/80 dark:border-slate-700/80 flex items-center gap-2 text-xs text-slate-600 dark:text-slate-300">
+            <Clock className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+            <span>
+              <strong className="font-extrabold text-slate-700 dark:text-slate-200">Read-Only Mode:</strong> Records are officially verified and locked by school administration. Below is the attendance day-grid register.
+            </span>
+          </div>
+
+          {/* Table View */}
+          <div className="border border-slate-200 dark:border-slate-700 rounded-2xl overflow-hidden">
+            <div className="overflow-x-auto scrollbar-thin">
+              <table className="w-full text-left border-collapse text-[11px]">
+                <thead>
+                  <tr className="bg-slate-50 dark:bg-slate-800/40 text-slate-500 font-bold uppercase tracking-wider border-b border-slate-200 dark:border-slate-800">
+                    <th className="py-3 px-3 min-w-[170px] sticky left-0 bg-slate-50 dark:bg-slate-800 z-10 shadow-xs border-r border-slate-200 dark:border-slate-700 text-center">
+                      Student Name
+                    </th>
+                    {matrixDates.map(d => {
+                      const dayNum = parseInt(d.split('-')[2], 10);
+                      const holCheck = checkSundayOrHoliday(d, holidays);
+                      return (
+                        <th
+                          key={d}
+                          className={`py-3 px-1 text-center min-w-[28px] font-mono ${
+                            holCheck.isHoliday
+                              ? 'bg-purple-100/90 dark:bg-purple-950/70 text-purple-700 dark:text-purple-300 font-black border-b-2 border-purple-400'
+                              : ''
+                          }`}
+                          title={holCheck.isHoliday ? (holCheck.name ? `${d} - ${holCheck.name}` : `${d} - Sunday / School Holiday`) : d}
+                        >
+                          {dayNum}
+                        </th>
+                      );
+                    })}
+                    <th className="py-3 px-2 text-center text-emerald-600 font-bold">P</th>
+                    <th className="py-3 px-2 text-center text-amber-500 font-bold">HD</th>
+                    <th className="py-3 px-2 text-center text-orange-500 font-bold">L</th>
+                    <th className="py-3 px-2 text-center text-rose-600 font-bold">A</th>
+                    <th className="py-3 px-2 text-center text-purple-600 font-bold">H</th>
+                    <th className="py-3 px-2 text-center text-sky-600 font-bold">%</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60 font-medium">
+                  {displayWards.length === 0 ? (
+                    <tr>
+                      <td colSpan={matrixDates.length + 7} className="py-12 text-center text-slate-400 italic">
+                        No student wards found in the system.
+                      </td>
+                    </tr>
+                  ) : (
+                    displayWards.map((ward, idx) => {
+                      let pCount = 0;
+                      let aCount = 0;
+                      let hdCount = 0;
+                      let lCount = 0;
+                      let hCount = 0;
+
+                      const isSelected = idx === selectedChildIdx;
+                      const wardDisplayName = ward.studentName || `${ward.firstName || ''} ${ward.lastName || ''}`.trim() || 'Student';
+
+                      return (
+                        <tr
+                          key={ward.id || ward.studentId || idx}
+                          onClick={() => setSelectedChildIdx(idx)}
+                          className={`hover:bg-slate-50/80 dark:hover:bg-slate-800/30 text-slate-800 dark:text-slate-200 cursor-pointer transition-colors ${
+                            isSelected 
+                              ? 'bg-sky-50/30 dark:bg-sky-950/20' 
+                              : (idx % 2 === 0 ? 'bg-white dark:bg-slate-900' : 'bg-slate-50/30 dark:bg-slate-800/10')
+                          }`}
+                          title="Click to view detailed daily records for this child"
+                        >
+                          <td
+                            className={`py-2 px-3 whitespace-nowrap sticky left-0 z-10 border-r border-slate-200 dark:border-slate-700 shadow-xs text-center ${
+                              isSelected
+                                ? 'bg-sky-50 dark:bg-slate-850 font-bold'
+                                : (idx % 2 === 0 ? 'bg-white dark:bg-slate-900' : 'bg-slate-50 dark:bg-slate-800')
+                            }`}
+                          >
+                            <span className="font-extrabold text-slate-900 dark:text-white block text-center">
+                              {wardDisplayName}
+                            </span>
+                            <span className="text-[9px] font-mono text-slate-400 block text-center">
+                              {ward.admissionNo || ward.rollNo || `ADM-${ward.studentId}`} &bull; Class {ward.className}{ward.section ? `-${ward.section}` : ''}
+                            </span>
+                          </td>
+
+                          {matrixDates.map(d => {
+                            const cell = getStudentStatusForDate(ward, d);
+                            if (cell.code === 'P') pCount++;
+                            else if (cell.code === 'A') aCount++;
+                            else if (cell.code === 'HD') hdCount++;
+                            else if (cell.code === 'L') lCount++;
+                            else if (cell.code === 'H') hCount++;
+
+                            const holCheck = checkSundayOrHoliday(d, holidays);
+
+                            return (
+                              <td
+                                key={d}
+                                className={`py-2 px-0.5 text-center font-mono font-bold text-[10px] ${
+                                  holCheck.isHoliday ? 'bg-purple-50/30 dark:bg-purple-950/10' : ''
+                                }`}
+                              >
+                                {cell.code !== '-' ? (
+                                  <span className={`inline-block w-6 py-0.5 rounded shadow-2xs ${cell.badgeStyle}`} title={cell.tooltip}>
+                                    {cell.code}
+                                  </span>
+                                ) : (
+                                  <span className={cell.badgeStyle} title={cell.tooltip}>
+                                    {cell.code}
+                                  </span>
+                                )}
+                              </td>
+                            );
+                          })}
+
+                          <td className="py-2 px-2 text-center font-bold text-emerald-600">{pCount}</td>
+                          <td className="py-2 px-2 text-center font-bold text-amber-500">{hdCount}</td>
+                          <td className="py-2 px-2 text-center font-bold text-orange-500">{lCount}</td>
+                          <td className="py-2 px-2 text-center font-bold text-rose-600">{aCount}</td>
+                          <td className="py-2 px-2 text-center font-bold text-purple-600">{hCount}</td>
+                          <td className="py-2 px-2 text-center font-extrabold text-sky-600 bg-sky-50/30 dark:bg-sky-900/10">
+                            {(() => {
+                              const netDays = matrixDates.length - hCount;
+                              return netDays > 0 ? Math.round(((pCount + lCount + (hdCount * 0.5)) / netDays) * 100) : 100;
+                            })()}%
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Detailed Attendance List */}
       <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-xs overflow-hidden">
         <div className="px-4 py-2.5 border-b border-slate-200 dark:border-slate-700 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 bg-slate-50/50 dark:bg-slate-900/50">
           <div className="flex items-center gap-2">
-            <h3 className="text-sm font-bold text-slate-900 dark:text-white">Daily Records</h3>
+            <h3 className="text-sm font-bold text-slate-900 dark:text-white">
+              Daily Records {currentWard?.studentName ? `• ${currentWard.studentName}` : ''}
+            </h3>
             <span className="text-[11px] font-semibold text-slate-500 bg-white dark:bg-slate-800 px-2 py-0.5 rounded-full border border-slate-200 dark:border-slate-700">
               {filteredRecords.length} {filteredRecords.length === 1 ? 'record' : 'records'}
             </span>
+            {isLoading && (
+              <span className="text-[10px] text-sky-600 flex items-center gap-1 font-bold">
+                <Loader2 className="w-3 h-3 animate-spin" /> Syncing...
+              </span>
+            )}
           </div>
           
           <div className="flex items-center gap-2 w-full sm:w-auto">
@@ -417,10 +861,14 @@ export const ParentAttendanceView: React.FC = () => {
         
         <div className="divide-y divide-slate-100 dark:divide-slate-700/50">
           {filteredRecords.length === 0 ? (
-            <div className="p-6 text-center text-slate-500 dark:text-slate-400">
-              <Calendar className="w-8 h-8 mx-auto mb-2 opacity-20" />
-              <p className="font-semibold text-sm">No attendance records found.</p>
-              <p className="text-xs mt-0.5">There are no records matching your selected filter criteria.</p>
+            <div className="p-8 text-center text-slate-500 dark:text-slate-400 space-y-1.5">
+              <Calendar className="w-8 h-8 mx-auto mb-1 opacity-25" />
+              <p className="font-bold text-sm text-slate-700 dark:text-slate-300">
+                {isLoading ? 'Checking for attendance records...' : `No attendance records found for ${currentWard?.studentName || 'this student'}.`}
+              </p>
+              <p className="text-xs text-slate-400">
+                {isLoading ? 'Please wait while dynamic attendance is synchronized from the school registry.' : 'There are no attendance entries recorded matching your selected criteria.'}
+              </p>
             </div>
           ) : (
             paginatedRecords.map(record => {
@@ -428,7 +876,7 @@ export const ParentAttendanceView: React.FC = () => {
               const StatusIcon = config.icon;
               
               return (
-                <div key={record.id} className="px-4 py-2 sm:px-4 sm:py-2.5 flex flex-col sm:flex-row justify-between sm:items-center gap-2 hover:bg-slate-50 dark:hover:bg-slate-700/20 transition-colors">
+                <div key={record.id} className="px-4 py-2.5 sm:px-4 sm:py-3 flex flex-col sm:flex-row justify-between sm:items-center gap-2 hover:bg-slate-50 dark:hover:bg-slate-700/20 transition-colors">
                   <div className="flex items-center gap-2.5">
                     <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${config.bg} ${config.text}`}>
                       <StatusIcon className="w-3.5 h-3.5" />
@@ -436,6 +884,7 @@ export const ParentAttendanceView: React.FC = () => {
                     <div>
                       <h4 className="font-bold text-slate-900 dark:text-white text-xs sm:text-sm">
                         {(() => {
+                          if (record.formattedDate) return record.formattedDate;
                           const parts = String(record.date).split('T')[0].split('-').map(Number);
                           if (parts.length === 3) {
                             return new Date(parts[0], parts[1] - 1, parts[2]).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'short', day: 'numeric' });
