@@ -1,0 +1,31 @@
+services:
+  backend:
+    build:
+      context: ./Backend
+      dockerfile: Dockerfile
+    ports:
+      - "5000:5000"
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ASPNETCORE_URLS: http://+:5000
+      ConnectionStrings__DefaultConnection: "Server=${DB_HOST:-15.206.4.182};Port=${DB_PORT:-3306};Database=${DB_NAME:-sms_new_test};User=${DB_USER};Password=${DB_PASSWORD};"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - backend_uploads:/app/wwwroot/uploads
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./Frontend/school-management-system
+      dockerfile: Dockerfile
+      args:
+        VITE_API_URL: "http://${SERVER_IP:-15.206.4.182}:5000"
+    depends_on:
+      - backend
+    ports:
+      - "3000:3000"
+    restart: unless-stopped
+
+volumes:
+  backend_uploads:
