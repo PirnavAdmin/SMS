@@ -1,5 +1,5 @@
-import React, { useState, useMemo } from 'react';
-import { Tag, Plus, Search, Edit, Trash2, CheckCircle2, XCircle, Building2, Bus, Shirt, BookOpen, AlertTriangle, Calculator } from 'lucide-react';
+import React, { useState, useMemo, useEffect } from 'react';
+import { Tag, Plus, Search, Edit, Trash2, CheckCircle2, XCircle, Building2, Bus, Shirt, BookOpen, AlertTriangle, Calculator, Calendar } from 'lucide-react';
 import { FeeHead, FeeHeadCategory, FeeHeadFrequency, FeePaymentEligibility } from '../../../types';
 import { useData, matchesAcademicYear } from '../../../context/DataContext';
 import { useAuth } from '../../../context/AuthContext';
@@ -7,6 +7,7 @@ import { useToast } from '../../../context/ToastContext';
 import { ExportButton } from '../../common/ExportButton';
 import { ConfirmModal } from '../../common/ConfirmModal';
 import { compareClassesAscending } from '../../../utils/classSorter';
+import { getHostelBlocks } from '../../../api/hostel';
 
 const SYSTEM_FEE_TYPES: FeeHeadCategory[] = [
   'Tuition Fee',
@@ -36,7 +37,11 @@ export const FeeHeadsView: React.FC = () => {
     pickupPoints,
     vehicleMasters,
     uniforms,
-    uniformSizes
+    uniformSizes,
+    hostelMasters = [],
+    financeHostelConfigs = [],
+    updateFinanceHostelConfig,
+    addFinanceHostelConfig,
   } = useData();
 
   const { selectedAcademicYear } = useAuth();
@@ -135,6 +140,43 @@ export const FeeHeadsView: React.FC = () => {
   const [editingHead, setEditingHead] = useState<FeeHead | null>(null);
   const [deletingHead, setDeletingHead] = useState<FeeHead | null>(null);
 
+  const [liveHostelBlocks, setLiveHostelBlocks] = useState<Array<{ id: string; hostelName: string }>>([]);
+
+  useEffect(() => {
+    let isMounted = true;
+    getHostelBlocks()
+      .then((blocks) => {
+        if (isMounted && Array.isArray(blocks) && blocks.length > 0) {
+          setLiveHostelBlocks(
+            blocks.map((b: any) => ({
+              id: String(b.hostelId || b.id),
+              hostelName: b.hostelName || `Block #${b.hostelId}`,
+            }))
+          );
+        } else if (isMounted && hostelMasters && hostelMasters.length > 0) {
+          setLiveHostelBlocks(
+            hostelMasters.map((b: any) => ({
+              id: String(b.id || b.hostelId),
+              hostelName: b.hostelName || b.name,
+            }))
+          );
+        }
+      })
+      .catch(() => {
+        if (isMounted && hostelMasters && hostelMasters.length > 0) {
+          setLiveHostelBlocks(
+            hostelMasters.map((b: any) => ({
+              id: String(b.id || b.hostelId),
+              hostelName: b.hostelName || b.name,
+            }))
+          );
+        }
+      });
+    return () => {
+      isMounted = false;
+    };
+  }, [hostelMasters]);
+
   const [formData, setFormData] = useState<Partial<FeeHead>>({
     name: '',
     code: '',
@@ -149,6 +191,8 @@ export const FeeHeadsView: React.FC = () => {
     taxPercentage: 0,
     displayOrder: 1,
     status: 'Active',
+    hostelBlockId: '',
+    hostelBlockName: 'All',
     transportRouteId: '',
     transportRouteName: '',
     transportVehicleId: '',
@@ -219,7 +263,18 @@ export const FeeHeadsView: React.FC = () => {
       applicableTerms: [...availableAcademicTerms],
       taxPercentage: 0,
       displayOrder: feeHeads.length + 1,
-      status: 'Active'
+      status: 'Active',
+      hostelBlockId: '',
+      hostelBlockName: 'All',
+      transportRouteId: '',
+      transportRouteName: '',
+      transportVehicleId: '',
+      transportVehicleNo: '',
+      transportStopId: '',
+      transportStopName: '',
+      uniformItemId: '',
+      uniformItemName: '',
+      uniformSize: ''
     });
     setIsModalOpen(true);
   };
@@ -236,6 +291,8 @@ export const FeeHeadsView: React.FC = () => {
       applicableTerms: Array.isArray(h.applicableTerms)
         ? [...h.applicableTerms]
         : (h.paymentEligibility === 'One-Time Only' ? [] : [...availableAcademicTerms]),
+      hostelBlockId: (h as any).hostelBlockId || '',
+      hostelBlockName: (h as any).hostelBlockName || 'All',
       transportRouteId: h.transportRouteId || '',
       transportRouteName: h.transportRouteName || '',
       transportVehicleId: h.transportVehicleId || '',
@@ -302,7 +359,9 @@ export const FeeHeadsView: React.FC = () => {
         mandatory: formData.mandatory === true,
         academicYear: selectedAcademicYear || 'All',
         paymentEligibility: formData.paymentEligibility || 'Both One-Time and Term-Wise',
-        applicableTerms: resolvedTerms
+        applicableTerms: resolvedTerms,
+        hostelBlockName: formData.category === 'Hostel' ? (formData.hostelBlockName || 'All') : undefined,
+        hostelBlockId: formData.category === 'Hostel' ? (formData.hostelBlockId || '') : undefined,
       };
 
       if (editingHead) {
@@ -311,6 +370,37 @@ export const FeeHeadsView: React.FC = () => {
       } else {
         await addFeeHead(payload as Omit<FeeHead, 'id'>);
         addToast('success', 'Fee Head Created', `Created ${formData.name}`);
+      }
+
+      // SYNC WITH HOSTEL FEE CONFIGURATIONS (Hostel Fee blocks tab)
+      if (formData.category === 'Hostel') {
+        const targetBlock = formData.hostelBlockName || 
+          (liveHostelBlocks || []).find((b: any) => formData.name?.toLowerCase().includes((b.hostelName || b.name || "").toLowerCase()))?.hostelName ||
+          "All";
+        const feePlan = formData.paymentEligibility === 'One-Time Only' ? 'Annual' : 'Term-wise';
+        const applicableTerms = formData.paymentEligibility === 'One-Time Only' 
+          ? [] 
+          : (formData.applicableTerms && formData.applicableTerms.length > 0 ? formData.applicableTerms : [...availableAcademicTerms]);
+
+        // Find all matching configs in financeHostelConfigs
+        const configsToUpdate = (financeHostelConfigs || []).filter((c: any) => 
+          targetBlock === "All" ||
+          !c.hostelName ||
+          c.hostelName === "All" ||
+          (c.hostelName && targetBlock && c.hostelName.toLowerCase() === targetBlock.toLowerCase()) ||
+          (formData.name && c.hostelName && formData.name.toLowerCase().includes(c.hostelName.toLowerCase())) ||
+          (c.hostelName && formData.name && c.hostelName.toLowerCase().includes(formData.name.toLowerCase()))
+        );
+
+        if (configsToUpdate.length > 0 && updateFinanceHostelConfig) {
+          configsToUpdate.forEach((c: any) => {
+            updateFinanceHostelConfig(c.id, {
+              feePlan,
+              applicableTerms
+            });
+          });
+        }
+        window.dispatchEvent(new CustomEvent("finance_data_updated"));
       }
       setIsModalOpen(false);
     } catch (err: any) {
@@ -550,14 +640,99 @@ export const FeeHeadsView: React.FC = () => {
 
               {/* DYNAMIC MODULE ARCHITECTURE NOTICES */}
               {formData.category === 'Hostel' && (
-                <div className="p-3.5 rounded-2xl bg-amber-50/70 dark:bg-amber-950/30 border border-amber-200/80 dark:border-amber-800/80 space-y-1">
-                  <div className="flex items-center gap-2 text-xs font-bold text-amber-900 dark:text-amber-200">
-                    <Building2 className="w-4 h-4 text-amber-600" />
-                    Hostel Fee Head Master
+                <div className="p-4 rounded-2xl bg-amber-50/80 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2 text-xs font-bold text-amber-900 dark:text-amber-200">
+                      <Building2 className="w-4 h-4 text-amber-600" />
+                      Hostel Fee Head Master &amp; Block Billing Schedule
+                    </div>
+                    <span className="text-[10px] font-bold text-amber-800 dark:text-amber-300 bg-amber-100 dark:bg-amber-900/60 px-2 py-0.5 rounded-full">
+                      Syncs with Hostel Fee Tab
+                    </span>
                   </div>
                   <p className="text-[11px] text-amber-700 dark:text-amber-300">
-                    Define the master fee head here (Code, Frequency, Payment Eligibility, Tax %, Applicable Classes). Block, room, sharing capacity, and term fee amounts are configured dynamically in the <strong>Fee Structures</strong> tab.
+                    Select whether hostel fees are billed <strong>Annual</strong> or <strong>Term-wise</strong>. Whatever you choose here will automatically reflect in the <strong>Hostel Fee</strong> blocks tab.
                   </p>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                    <div>
+                      <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300 text-xs">
+                        Associated Hostel Block
+                      </label>
+                      <select
+                        value={formData.hostelBlockName || "All"}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          const matchedBlock = liveHostelBlocks.find((b) => b.hostelName === val);
+                          setFormData({
+                            ...formData,
+                            hostelBlockName: val,
+                            hostelBlockId: matchedBlock ? matchedBlock.id : "",
+                            name: !formData.name || formData.name === "Hostel Fee" || formData.name.endsWith("Block Fee")
+                              ? (val === "All" ? "Hostel Fee" : `${val} Fee`)
+                              : formData.name,
+                            code: !formData.code || formData.code.startsWith("HST-")
+                              ? (val === "All" ? "HST-GEN" : `HST-${val.replace(/[^A-Za-z0-9]/g, "").slice(0, 4).toUpperCase()}`)
+                              : formData.code,
+                          });
+                        }}
+                        className="w-full px-3 py-2 rounded-xl bg-white dark:bg-slate-900 border border-amber-300 dark:border-amber-700 font-bold text-xs text-slate-900 dark:text-white outline-none cursor-pointer"
+                      >
+                        <option value="All">All Hostel Blocks</option>
+                        {liveHostelBlocks.map((b) => (
+                          <option key={b.id} value={b.hostelName}>
+                            {b.hostelName}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300 text-xs">
+                        Hostel Billing Mode <span className="text-rose-500 font-bold">*</span>
+                      </label>
+                      <div className="grid grid-cols-2 gap-2">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setFormData({
+                              ...formData,
+                              paymentEligibility: "One-Time Only",
+                              frequency: "Annual",
+                              applicableTerms: [],
+                            });
+                          }}
+                          className={`py-2 px-3 rounded-xl text-xs font-bold border transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                            formData.paymentEligibility === "One-Time Only"
+                              ? "bg-amber-600 text-white border-amber-600 shadow-sm"
+                              : "bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:border-amber-300"
+                          }`}
+                        >
+                          <Calendar className="w-3.5 h-3.5" />
+                          Annual
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setFormData({
+                              ...formData,
+                              paymentEligibility: "Term-Wise Allowed",
+                              frequency: "Quarterly",
+                              applicableTerms: formData.applicableTerms && formData.applicableTerms.length > 0 ? formData.applicableTerms : [...availableAcademicTerms],
+                            });
+                          }}
+                          className={`py-2 px-3 rounded-xl text-xs font-bold border transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                            formData.paymentEligibility === "Term-Wise Allowed" || formData.paymentEligibility === "Both One-Time and Term-Wise"
+                              ? "bg-amber-600 text-white border-amber-600 shadow-sm"
+                              : "bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:border-amber-300"
+                          }`}
+                        >
+                          <Calculator className="w-3.5 h-3.5" />
+                          Term-wise
+                        </button>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               )}
 

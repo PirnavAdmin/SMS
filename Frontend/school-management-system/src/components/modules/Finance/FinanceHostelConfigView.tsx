@@ -209,12 +209,30 @@ export const FinanceHostelConfigView: React.FC = () => {
     academicYears,
     academicYearFeeSchedules,
     financeHostelConfigs = [],
+    feeHeads = [],
     addFinanceHostelConfig,
     updateFinanceHostelConfig,
     deleteFinanceHostelConfig,
   } = useData();
   const { selectedBranch, selectedAcademicYear } = useAuth();
   const { addToast } = useToast();
+
+  const getHostelFeeHeadForBlock = useCallback((hostelName?: string) => {
+    if (!hostelName || hostelName === "All") {
+      return (feeHeads || []).find((h) => h.category === "Hostel");
+    }
+    const cleanB = hostelName.trim().toLowerCase();
+    return (
+      (feeHeads || []).find(
+        (h) =>
+          h.category === "Hostel" &&
+          (((h as any).hostelBlockName && (h as any).hostelBlockName.toLowerCase() === cleanB) ||
+            (h.name && h.name.toLowerCase().includes(cleanB)) ||
+            (cleanB && h.name && cleanB.includes(h.name.toLowerCase())))
+      ) ||
+      (feeHeads || []).find((h) => h.category === "Hostel")
+    );
+  }, [feeHeads]);
 
   // Filters
   const [query, setQuery] = useState("");
@@ -457,6 +475,19 @@ export const FinanceHostelConfigView: React.FC = () => {
     const ay = selectedAcademicYear || (academicYears && academicYears[0]?.academicYear) || "";
     const initialClass = dynamicClasses[0] || "";
 
+    const matchedHead = getHostelFeeHeadForBlock(bName);
+    let initialFeePlan = "Annual";
+    let initialTerms = [...availableScheduleTerms];
+    if (matchedHead) {
+      if (matchedHead.paymentEligibility === "One-Time Only") {
+        initialFeePlan = "Annual";
+        initialTerms = [];
+      } else if (matchedHead.paymentEligibility === "Term-Wise Allowed" || matchedHead.paymentEligibility === "Both One-Time and Term-Wise") {
+        initialFeePlan = "Term-wise";
+        initialTerms = matchedHead.applicableTerms && matchedHead.applicableTerms.length > 0 ? matchedHead.applicableTerms : [...availableScheduleTerms];
+      }
+    }
+
     setForm({
       hostelId: bId,
       hostelName: bName,
@@ -467,8 +498,8 @@ export const FinanceHostelConfigView: React.FC = () => {
       acType: "All",
       sharingType: "All",
       academicYear: ay,
-      feePlan: "Annual",
-      applicableTerms: [...availableScheduleTerms],
+      feePlan: initialFeePlan,
+      applicableTerms: initialTerms,
       effectiveFrom: new Date().toISOString().split("T")[0],
       status: "Active",
     });
@@ -496,6 +527,21 @@ export const FinanceHostelConfigView: React.FC = () => {
     await loadLiveMasters();
     setEditingConfig(c);
 
+    const matchedHead = getHostelFeeHeadForBlock(c.hostelName);
+    let editPlan = c.feePlan || "Annual";
+    let editTerms = Array.isArray(c.applicableTerms) ? c.applicableTerms : [...availableScheduleTerms];
+    if (matchedHead) {
+      if (matchedHead.paymentEligibility === "One-Time Only") {
+        editPlan = "Annual";
+        editTerms = [];
+      } else if (matchedHead.paymentEligibility === "Term-Wise Allowed") {
+        editPlan = "Term-wise";
+        if (!c.applicableTerms || c.applicableTerms.length === 0) {
+          editTerms = matchedHead.applicableTerms && matchedHead.applicableTerms.length > 0 ? matchedHead.applicableTerms : [...availableScheduleTerms];
+        }
+      }
+    }
+
     setForm({
       hostelId: c.hostelId || "",
       hostelName: c.hostelName || "",
@@ -506,8 +552,8 @@ export const FinanceHostelConfigView: React.FC = () => {
       acType: (c.acType as any) || "All",
       sharingType: c.sharingType || "All",
       academicYear: c.academicYear || selectedAcademicYear || "",
-      feePlan: c.feePlan || "Annual",
-      applicableTerms: Array.isArray(c.applicableTerms) ? c.applicableTerms : [...availableScheduleTerms],
+      feePlan: editPlan,
+      applicableTerms: editTerms,
       effectiveFrom: c.effectiveFrom || new Date().toISOString().split("T")[0],
       status: (c.status as any) || "Active",
     });
@@ -819,18 +865,23 @@ export const FinanceHostelConfigView: React.FC = () => {
     return filteredConfigs.map((c) => ({
       "Hostel Block": c.hostelName,
       "Room Number": c.roomNo || "All Rooms",
-      "Room Category": c.roomTypeName || "All Room Types",
-      "AC Status": c.acType || "All",
       "Sharing Type": c.sharingType || "All",
       "Class Range": c.classRange || `${c.startClass} - ${c.endClass}`,
-      "Payment Frequency": c.feePlan || "Annual",
+      "Payment Frequency": (() => {
+        const matched = getHostelFeeHeadForBlock(c.hostelName);
+        if (matched) {
+          if (matched.paymentEligibility === "One-Time Only") return "Annual";
+          if (matched.paymentEligibility === "Term-Wise Allowed") return "Term-wise";
+        }
+        return c.feePlan || "Annual";
+      })(),
       "Hostel Fee (INR)": c.hostelFee || 0,
       "Security Deposit (INR)": c.securityDeposit || 0,
       "Total Amount (INR)": (Number(c.hostelFee) || 0) + (Number(c.securityDeposit) || 0),
       "Academic Year": c.academicYear || "",
       Status: c.status || "Active",
     }));
-  }, [filteredConfigs]);
+  }, [filteredConfigs, getHostelFeeHeadForBlock]);
 
   return (
     <div className="space-y-4 animate-in fade-in">
@@ -975,8 +1026,6 @@ export const FinanceHostelConfigView: React.FC = () => {
                 <th className="py-3 px-3">Order</th>
                 <th className="py-3 px-4">Hostel Block</th>
                 <th className="py-3 px-3">Room No</th>
-                <th className="py-3 px-4">Room Category</th>
-                <th className="py-3 px-3">AC</th>
                 <th className="py-3 px-3">Sharing</th>
                 <th className="py-3 px-4">Class Range</th>
                 <th className="py-3 px-3">Frequency</th>
@@ -990,7 +1039,7 @@ export const FinanceHostelConfigView: React.FC = () => {
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-medium">
               {filteredConfigs.length === 0 ? (
                 <tr>
-                  <td colSpan={13} className="py-12 text-center text-slate-400">
+                  <td colSpan={11} className="py-12 text-center text-slate-400">
                     <Building2 className="w-8 h-8 mx-auto text-slate-300 dark:text-slate-600 mb-2 opacity-50" />
                     <p className="font-bold text-slate-700 dark:text-slate-300">No hostel fee configurations found</p>
                     <p className="text-xs text-slate-400 mt-1">
@@ -1001,7 +1050,6 @@ export const FinanceHostelConfigView: React.FC = () => {
               ) : (
                 filteredConfigs.map((c, idx) => {
                   const total = (Number(c.hostelFee) || 0) + (Number(c.securityDeposit) || 0);
-                  const isAc = (c.acType || "").toUpperCase() === "AC";
                   const rangeLabel =
                     c.classRange || (c.startClass && c.endClass ? `${c.startClass} - ${c.endClass}` : "All Classes");
 
@@ -1031,24 +1079,6 @@ export const FinanceHostelConfigView: React.FC = () => {
                         )}
                       </td>
 
-                      {/* Room Category */}
-                      <td className="py-2.5 px-4 text-slate-600 dark:text-slate-300">
-                        {c.roomTypeName || "All Room Types"}
-                      </td>
-
-                      {/* AC Type */}
-                      <td className="py-2.5 px-3">
-                        {isAc ? (
-                          <span className="px-2 py-0.5 rounded-full bg-cyan-100 text-cyan-800 dark:bg-cyan-950 dark:text-cyan-300 font-bold text-[10px]">
-                            AC
-                          </span>
-                        ) : (
-                          <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 font-medium text-[10px]">
-                            Non-AC
-                          </span>
-                        )}
-                      </td>
-
                       {/* Sharing */}
                       <td className="py-2.5 px-3 text-slate-600 dark:text-slate-300 text-[11px]">
                         {c.sharingType || "Standard"}
@@ -1063,8 +1093,36 @@ export const FinanceHostelConfigView: React.FC = () => {
                       </td>
 
                       {/* Frequency */}
-                      <td className="py-2.5 px-3 text-slate-500 text-[11px]">
-                        {c.feePlan || "Annual"}
+                      <td className="py-2.5 px-3 text-[11px]">
+                        {(() => {
+                          const matchedHead = getHostelFeeHeadForBlock(c.hostelName);
+                          let resolvedPlan = c.feePlan || "Annual";
+                          if (matchedHead) {
+                            if (matchedHead.paymentEligibility === "One-Time Only") {
+                              resolvedPlan = "Annual";
+                            } else if (matchedHead.paymentEligibility === "Term-Wise Allowed") {
+                              resolvedPlan = "Term-wise";
+                            }
+                          }
+
+                          if (resolvedPlan === "Annual" || resolvedPlan === "One Time") {
+                            return (
+                              <span className="px-2.5 py-1 rounded-full bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300 font-extrabold text-[10px] border border-blue-200 dark:border-blue-800 inline-flex items-center gap-1 shadow-xs">
+                                Annual
+                              </span>
+                            );
+                          }
+
+                          const terms = (c.applicableTerms && c.applicableTerms.length > 0)
+                            ? c.applicableTerms
+                            : (matchedHead?.applicableTerms && matchedHead.applicableTerms.length > 0 ? matchedHead.applicableTerms : availableScheduleTerms);
+
+                          return (
+                            <span className="px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 font-extrabold text-[10px] border border-emerald-200 dark:border-emerald-800 inline-flex items-center gap-1 shadow-xs">
+                              Term-wise ({terms.length} Terms)
+                            </span>
+                          );
+                        })()}
                       </td>
 
                       {/* Fees */}
@@ -1160,12 +1218,27 @@ export const FinanceHostelConfigView: React.FC = () => {
                     }))}
                     onChange={(val) => {
                       const hObj = activeBlocks.find((h) => String(h.id) === String(val));
+                      const bName = hObj ? hObj.hostelName : val;
+                      const matchedHead = getHostelFeeHeadForBlock(bName);
+                      let newPlan = form.feePlan;
+                      let newTerms = form.applicableTerms;
+                      if (matchedHead) {
+                        if (matchedHead.paymentEligibility === "One-Time Only") {
+                          newPlan = "Annual";
+                          newTerms = [];
+                        } else if (matchedHead.paymentEligibility === "Term-Wise Allowed" || matchedHead.paymentEligibility === "Both One-Time and Term-Wise") {
+                          newPlan = "Term-wise";
+                          newTerms = matchedHead.applicableTerms && matchedHead.applicableTerms.length > 0 ? matchedHead.applicableTerms : [...availableScheduleTerms];
+                        }
+                      }
                       setForm((prev) => ({
                         ...prev,
                         hostelId: val,
-                        hostelName: hObj ? hObj.hostelName : val,
+                        hostelName: bName,
                         roomId: "",
                         roomNo: "All Rooms",
+                        feePlan: newPlan,
+                        applicableTerms: newTerms,
                       }));
                       if (val) loadRoomsForBlock(val);
                     }}
@@ -1361,9 +1434,20 @@ export const FinanceHostelConfigView: React.FC = () => {
                 {/* 5. Frequency & Academic Year */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
-                    <label className="block font-bold mb-1 text-slate-700 dark:text-slate-300">
-                      Payment Frequency <span className="text-rose-500">*</span>
-                    </label>
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="block font-bold text-slate-700 dark:text-slate-300">
+                        Payment Frequency <span className="text-rose-500">*</span>
+                      </label>
+                      {(() => {
+                        const matched = getHostelFeeHeadForBlock(form.hostelName);
+                        if (!matched) return null;
+                        return (
+                          <span className="text-[10px] font-bold text-sky-700 dark:text-sky-300 bg-sky-50 dark:bg-sky-950 px-2 py-0.5 rounded-full border border-sky-200 dark:border-sky-800">
+                            Fee Head: {matched.paymentEligibility === 'One-Time Only' ? 'Annual' : 'Term-wise'}
+                          </span>
+                        );
+                      })()}
+                    </div>
                     <select
                       value={form.feePlan}
                       onChange={(e) => setForm({ ...form, feePlan: e.target.value })}
