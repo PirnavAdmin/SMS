@@ -17,6 +17,7 @@ export const BusAttendantMasterView: React.FC = () => {
   const {
     staff = [],
     vehicleAssignments = [],
+    branches = [],
     busAttendants: attendants = [],
     addBusAttendant,
     updateBusAttendant,
@@ -97,12 +98,85 @@ export const BusAttendantMasterView: React.FC = () => {
     sessionStorage.setItem('tm_attendant_filter', val);
   };
 
+  // Dynamic branch options derived from active branches and current selection
+  const branchOptions = React.useMemo(() => {
+    const list: string[] = (branches || [])
+      .map((b: any) => (typeof b === 'string' ? b : (b.branchName || b.name || '')).trim())
+      .filter((b: string) => b && !b.toLowerCase().startsWith('all'));
+    if (selectedBranch && selectedBranch !== 'All Branches' && selectedBranch !== 'All' && selectedBranch !== 'All Campuses' && !list.includes(selectedBranch)) {
+      list.push(selectedBranch);
+    }
+    if (list.length === 0) {
+      list.push('Madhapur Branch');
+    }
+    return Array.from(new Set(list));
+  }, [branches, selectedBranch]);
+
+  // Dynamically resolve attendant branch across record, assignment, staff directory, and active context
+  const resolveAttendantBranch = React.useCallback((attendant: BusAttendantMaster, currentAssignment?: any): string => {
+    // 1. Attendant's own branch property if valid
+    const attBranch = (attendant?.branch || '').trim();
+    if (attBranch && !attBranch.toLowerCase().startsWith('all')) {
+      return attBranch;
+    }
+
+    // 2. Active assignment branch
+    const asgnBranch = (currentAssignment?.branch || '').trim();
+    if (asgnBranch && !asgnBranch.toLowerCase().startsWith('all')) {
+      return asgnBranch;
+    }
+
+    // 3. Any vehicle assignment matching this attendant
+    const matchAsgn = vehicleAssignments.find(asgn => {
+      const matchId = asgn.attendantId && asgn.attendantId === attendant?.id;
+      const matchEmp = attendant?.employeeId && asgn.attendantEmployeeId && asgn.attendantEmployeeId.toLowerCase() === attendant.employeeId.toLowerCase();
+      const matchName = attendant?.attendantName && asgn.attendantName && asgn.attendantName.toLowerCase() === attendant.attendantName.toLowerCase();
+      return matchId || matchEmp || matchName;
+    });
+    if (matchAsgn?.branch?.trim() && !matchAsgn.branch.trim().toLowerCase().startsWith('all')) {
+      return matchAsgn.branch.trim();
+    }
+
+    // 4. Linked staff member from directory
+    const empId = (attendant?.employeeId || '').trim().toLowerCase();
+    const name = (attendant?.attendantName || '').trim().toLowerCase();
+    const matchedStaff = staff.find(s => {
+      const sEmp = (s.empId || (s as any).employeeId || '').trim().toLowerCase();
+      if (empId && sEmp && sEmp === empId) return true;
+      if (s.id && (String(s.id) === String(attendant?.id) || `staff-${s.id}` === String(attendant?.id))) return true;
+      const sName = `${s.firstName || ''} ${s.lastName || ''}`.trim().toLowerCase();
+      if (name && sName && sName === name) return true;
+      return false;
+    });
+
+    const staffBranch = (matchedStaff?.branch || (matchedStaff as any)?.branchName || (matchedStaff as any)?.campus || (matchedStaff as any)?.branchCampus || '').trim();
+    if (staffBranch && !staffBranch.toLowerCase().startsWith('all')) {
+      return staffBranch;
+    }
+
+    // 5. Selected branch from Auth context if set
+    if (selectedBranch && selectedBranch.trim() !== '' && selectedBranch !== 'All Branches' && selectedBranch !== 'All' && selectedBranch !== 'All Campuses') {
+      return selectedBranch.trim();
+    }
+
+    // 6. First active branch from branches list in data context
+    const firstBranch = (branches || [])
+      .map((b: any) => (typeof b === 'string' ? b : (b.branchName || b.name || '')).trim())
+      .filter((b: string) => b && !b.toLowerCase().startsWith('all'))[0];
+    if (firstBranch) {
+      return firstBranch;
+    }
+
+    // 7. Fallback default
+    return 'Madhapur Branch';
+  }, [branches, selectedBranch, staff, vehicleAssignments]);
+
   const [form, setForm] = useState<Partial<BusAttendantMaster>>({
     employeeId: '',
     attendantName: '',
     mobileNumber: '',
     gender: '' as any,
-    branch: (selectedBranch && selectedBranch !== 'All Branches' && selectedBranch !== 'All') ? selectedBranch : '',
+    branch: (selectedBranch && selectedBranch !== 'All Branches' && selectedBranch !== 'All' && selectedBranch !== 'All Campuses') ? selectedBranch : (branches?.[0]?.name || (branches?.[0] as any)?.branchName || 'Madhapur Branch'),
     status: 'Active'
   });
 
@@ -128,11 +202,9 @@ export const BusAttendantMasterView: React.FC = () => {
   const validateForm = (): typeof formErrors => {
     const errs: typeof formErrors = {};
 
-    if (!form.attendantName?.trim()) {
-      errs.attendantName = 'Attendant full name is required.';
-    }
-    if (!form.employeeId?.trim()) {
-      errs.employeeId = 'Employee ID is required.';
+    if (!form.attendantName?.trim() || !form.employeeId?.trim()) {
+      errs.attendantName = 'Please select an attendant from the Staff Directory.';
+      errs.employeeId = 'Employee ID is required from Staff Directory.';
     }
     if (!form.gender) {
       errs.gender = 'Please select a gender.';
@@ -321,7 +393,7 @@ export const BusAttendantMasterView: React.FC = () => {
                     </span>
                   </div>
                   <div className="flex justify-between"><span className="text-slate-400">Gender:</span><span className="font-semibold text-slate-800 dark:text-slate-200">{a.gender}</span></div>
-                  <div className="flex justify-between"><span className="text-slate-400">Branch:</span><span className="font-bold text-amber-600 dark:text-amber-400">{a.branch}</span></div>
+                  <div className="flex justify-between"><span className="text-slate-400">Branch:</span><span className="font-bold text-amber-600 dark:text-amber-400">{resolveAttendantBranch(a, currentAssignment)}</span></div>
                   <div className="p-2 rounded-xl bg-slate-50 dark:bg-slate-800/60 border space-y-1">
                     <span className="text-[10px] font-bold uppercase text-slate-400 block flex items-center gap-1">
                       <Bus className="w-3 h-3 text-emerald-500" /> Current Assignment
@@ -393,7 +465,7 @@ export const BusAttendantMasterView: React.FC = () => {
                               attendantName: '',
                               mobileNumber: '',
                               gender: '' as any,
-                              branch: (selectedBranch && selectedBranch !== 'All Branches' && selectedBranch !== 'All') ? selectedBranch : ''
+                              branch: (selectedBranch && selectedBranch !== 'All Branches' && selectedBranch !== 'All' && selectedBranch !== 'All Campuses') ? selectedBranch : (branchOptions[0] || 'Madhapur Branch')
                             }));
                             setStaffSearchQuery('');
                           }}
@@ -494,28 +566,24 @@ export const BusAttendantMasterView: React.FC = () => {
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-semibold mb-1">
-                    Employee ID <span className="text-rose-500 font-bold ml-0.5">*</span>
-                  </label>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="font-semibold text-slate-800 dark:text-slate-200">
+                      Employee ID <span className="text-rose-500 font-bold ml-0.5">*</span>
+                    </label>
+                    <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold bg-emerald-50 dark:bg-emerald-950/60 px-1.5 py-0.5 rounded border border-emerald-200 dark:border-emerald-800">
+                      Staff Directory
+                    </span>
+                  </div>
                   <input
                     type="text"
-                    required
-                    placeholder="e.g. EMP-ATT-101"
+                    readOnly
+                    disabled
+                    tabIndex={-1}
+                    placeholder="Select attendant from Staff Directory above"
                     value={form.employeeId || ''}
-                    onChange={e => {
-                      setForm({ ...form, employeeId: e.target.value });
-                      if (formErrors.employeeId) setFormErrors(prev => ({ ...prev, employeeId: undefined }));
-                    }}
-                    className={`w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-mono font-bold text-slate-900 dark:text-white outline-none ${
-                      formErrors.employeeId ? 'border-rose-500 focus:border-rose-500 bg-rose-50/20' : ''
-                    }`}
+                    className="w-full px-3 py-2 rounded-xl bg-slate-100 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 font-mono font-bold text-slate-600 dark:text-slate-300 cursor-not-allowed outline-none select-none"
                   />
-                  {formErrors.employeeId && (
-                    <p className="text-[10px] text-rose-500 font-bold mt-1 flex items-center gap-1">
-                      <AlertCircle className="w-3 h-3 flex-shrink-0" />
-                      <span>{formErrors.employeeId}</span>
-                    </p>
-                  )}
+                  <p className="text-[10px] text-slate-400 mt-1">Defaulted from Staff Directory (cannot be edited here)</p>
                 </div>
                 <div>
                   <label className="block font-semibold mb-1">Status</label>
@@ -532,67 +600,46 @@ export const BusAttendantMasterView: React.FC = () => {
               </div>
 
               <div>
-                <label className="block font-semibold mb-1">
-                  Attendant Full Name <span className="text-rose-500 font-bold ml-0.5">*</span>
-                </label>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="font-semibold text-slate-800 dark:text-slate-200">
+                    Attendant Full Name <span className="text-rose-500 font-bold ml-0.5">*</span>
+                  </label>
+                  <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold bg-emerald-50 dark:bg-emerald-950/60 px-1.5 py-0.5 rounded border border-emerald-200 dark:border-emerald-800">
+                    Staff Directory
+                  </span>
+                </div>
                 <input
                   type="text"
-                  required
-                  placeholder="e.g. Sunita Devi"
+                  readOnly
+                  disabled
+                  tabIndex={-1}
+                  placeholder="Select attendant from Staff Directory above"
                   value={form.attendantName || ''}
-                  onChange={e => {
-                    setForm({ ...form, attendantName: e.target.value });
-                    if (formErrors.attendantName) setFormErrors(prev => ({ ...prev, attendantName: undefined }));
-                  }}
-                  className={`w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold text-slate-900 dark:text-white outline-none ${
-                    formErrors.attendantName ? 'border-rose-500 focus:border-rose-500 bg-rose-50/20' : ''
-                  }`}
+                  className="w-full px-3 py-2 rounded-xl bg-slate-100 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 font-bold text-slate-600 dark:text-slate-300 cursor-not-allowed outline-none select-none"
                 />
-                {formErrors.attendantName && (
-                  <p className="text-[10px] text-rose-500 font-bold mt-1 flex items-center gap-1">
-                    <AlertCircle className="w-3 h-3 flex-shrink-0" />
-                    <span>{formErrors.attendantName}</span>
-                  </p>
-                )}
+                <p className="text-[10px] text-slate-400 mt-1">Defaulted from Staff Directory (cannot be edited here)</p>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-semibold mb-1">
-                    Mobile Number <span className="text-rose-500 font-bold ml-0.5">*</span>
-                  </label>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="font-semibold text-slate-800 dark:text-slate-200">
+                      Mobile Number <span className="text-rose-500 font-bold ml-0.5">*</span>
+                    </label>
+                    <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold bg-emerald-50 dark:bg-emerald-950/60 px-1.5 py-0.5 rounded border border-emerald-200 dark:border-emerald-800">
+                      Staff Directory
+                    </span>
+                  </div>
                   <input
                     type="tel"
-                    inputMode="numeric"
-                    maxLength={10}
-                    required
-                    placeholder="10-digit mobile number"
+                    readOnly
+                    disabled
+                    tabIndex={-1}
+                    placeholder="Select attendant from Staff Directory above"
                     value={form.mobileNumber || ''}
-                    onChange={e => {
-                      const sanitized = sanitizePhoneInput(e.target.value);
-                      setForm({ ...form, mobileNumber: sanitized });
-                      if (formErrors.mobileNumber) {
-                        setFormErrors(prev => ({ ...prev, mobileNumber: undefined }));
-                      }
-                    }}
-                    onBlur={() => {
-                      if (form.mobileNumber) {
-                        const check = validatePhoneNumber(form.mobileNumber, true);
-                        if (!check.isValid) {
-                          setFormErrors(prev => ({ ...prev, mobileNumber: check.error }));
-                        }
-                      }
-                    }}
-                    className={`w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-mono font-bold text-slate-900 dark:text-white outline-none ${
-                      formErrors.mobileNumber ? 'border-rose-500 focus:border-rose-500 bg-rose-50/20' : ''
-                    }`}
+                    className="w-full px-3 py-2 rounded-xl bg-slate-100 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 font-mono font-bold text-slate-600 dark:text-slate-300 cursor-not-allowed outline-none select-none"
                   />
-                  {formErrors.mobileNumber && (
-                    <p className="text-[10px] text-rose-500 font-bold mt-1 flex items-center gap-1">
-                      <AlertCircle className="w-3 h-3 flex-shrink-0" />
-                      <span>{formErrors.mobileNumber}</span>
-                    </p>
-                  )}
+                  <p className="text-[10px] text-slate-400 mt-1">Defaulted from Staff Directory (cannot be edited here)</p>
                 </div>
                 <div>
                   <label className="block font-semibold mb-1">

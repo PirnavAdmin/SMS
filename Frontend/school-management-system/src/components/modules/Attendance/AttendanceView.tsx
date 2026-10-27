@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import {
   Check, X, AlertCircle, Save, FileSpreadsheet,
-  Search, Filter, ChevronDown, Clock, CalendarCheck, User, Plus, Edit2, FileText, Loader2, Lock, Unlock
+  Search, Filter, ChevronDown, Clock, CalendarCheck, User, Plus, Edit2, FileText, Loader2, Lock, Unlock, CheckCircle2
 } from 'lucide-react';
 import { useAuth } from '../../../context/AuthContext';
 import { useData } from '../../../context/DataContext';

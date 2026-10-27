@@ -824,6 +824,14 @@ export interface DriverDocumentDto {
   fileUrl?: string;
 }
 
+export const fetchAllDriverDocumentsApi = async (): Promise<DriverDocumentDto[]> => {
+  return safeTransportApiCall<DriverDocumentDto[]>(
+    '/api/transport/drivers/documents',
+    { method: 'GET' },
+    []
+  );
+};
+
 export const fetchDriverDocumentsApi = async (driverId: string): Promise<DriverDocumentDto[]> => {
   return safeTransportApiCall<DriverDocumentDto[]>(
     `/api/transport/drivers/${driverId}/documents`,

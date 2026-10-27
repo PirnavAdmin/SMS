@@ -3429,6 +3429,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
             JSON.stringify(finalDrivers),
           );
         }
+        let resolvedVehicleAssignments: any[] = [];
         if (assignments) {
           const mappedAssignments = assignments.map((a: any) => {
             let routeId = (a.routeId || "").toString();
@@ -3602,6 +3603,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
             return a;
           });
 
+          resolvedVehicleAssignments = deduplicatedAssignments;
           setVehicleAssignments(deduplicatedAssignments);
           localStorage.setItem(
             "edu_db_vehicle_assignments",
@@ -3637,20 +3639,70 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           setVehicleMaintenances(mappedMaintenance);
         }
         if (attendants) {
-          const mappedAttendants = attendants.map((a: any) => ({
-            id: (a.id || a.attendantId || "").toString(),
-            employeeId: a.employeeId || a.empId || "",
-            attendantName:
-              a.attendantName ||
-              a.attendantFullName ||
-              a.fullName ||
-              a.name ||
-              "",
-            mobileNumber: a.mobileNumber || a.phone || "",
-            gender: a.gender || "",
-            branch: a.branch || a.branchName || "",
-            status: normalizeStatus(a.status),
-          }));
+          const mappedAttendants = attendants.map((a: any) => {
+            let attendantBranch = (a.branch || a.branchName || a.branchCampus || "").trim();
+
+            if (!attendantBranch || attendantBranch.toLowerCase().startsWith("all")) {
+              const empId = (a.employeeId || a.empId || "").trim().toLowerCase();
+              const attName = (a.attendantName || a.attendantFullName || a.fullName || a.name || "").trim().toLowerCase();
+              const attId = (a.id || a.attendantId || "").toString().trim();
+
+              // 1. Try matching with vehicle assignments
+              const assignmentList = (resolvedVehicleAssignments && resolvedVehicleAssignments.length > 0)
+                ? resolvedVehicleAssignments
+                : (assignments && Array.isArray(assignments) ? assignments : []);
+              if (assignmentList.length > 0) {
+                const matchAsgn = assignmentList.find((asgn: any) =>
+                  (attId && (asgn.attendantId?.toString() === attId || asgn.id?.toString() === attId)) ||
+                  (empId && (asgn.attendantEmployeeId?.toLowerCase() === empId || asgn.employeeId?.toLowerCase() === empId)) ||
+                  (attName && (asgn.attendantName?.toLowerCase() === attName || asgn.name?.toLowerCase() === attName))
+                );
+                if (matchAsgn && matchAsgn.branch && !matchAsgn.branch.toLowerCase().startsWith("all")) {
+                  attendantBranch = matchAsgn.branch;
+                }
+              }
+
+              // 2. Try matching with staff
+              if (!attendantBranch && staff && Array.isArray(staff)) {
+                const matchStaff = (staff as any[]).find((s: any) => {
+                  const sEmp = (s.empId || s.employeeId || "").trim().toLowerCase();
+                  if (empId && sEmp && sEmp === empId) return true;
+                  if (attId && (s.id?.toString() === attId || `staff-${s.id}` === attId)) return true;
+                  const sName = `${s.firstName || ""} ${s.lastName || ""}`.trim().toLowerCase();
+                  if (attName && sName && sName === attName) return true;
+                  return false;
+                });
+                if (matchStaff) {
+                  const sb = matchStaff.branch || matchStaff.branchName || matchStaff.campus || matchStaff.branchCampus || "";
+                  if (sb && !sb.toLowerCase().startsWith("all")) {
+                    attendantBranch = sb;
+                  }
+                }
+              }
+
+              // 3. Fallback to active branch or default
+              if (!attendantBranch) {
+                attendantBranch = (selectedBranch && selectedBranch !== "All Branches" && selectedBranch !== "All" && selectedBranch !== "All Campuses")
+                  ? selectedBranch
+                  : (branches && branches[0] ? (branches[0].branchName || branches[0].name) : "Madhapur Branch");
+              }
+            }
+
+            return {
+              id: (a.id || a.attendantId || "").toString(),
+              employeeId: a.employeeId || a.empId || "",
+              attendantName:
+                a.attendantName ||
+                a.attendantFullName ||
+                a.fullName ||
+                a.name ||
+                "",
+              mobileNumber: a.mobileNumber || a.phone || "",
+              gender: a.gender || "",
+              branch: attendantBranch || "Madhapur Branch",
+              status: normalizeStatus(a.status),
+            };
+          });
 
           const uniqueAttendantsMap = new Map<string, BusAttendantMaster>();
           mappedAttendants.forEach((att: BusAttendantMaster) => {
@@ -8339,6 +8391,11 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
               ...(newPhone ? { mobileNumber: newPhone } : {}),
               ...(targetFullName ? { attendantName: targetFullName } : {}),
               ...(updates.gender ? { gender: updates.gender as any } : {}),
+              ...(updates.branch
+                ? { branch: updates.branch }
+                : (updates as any).branchName
+                  ? { branch: (updates as any).branchName }
+                  : {}),
               ...(updates.status
                 ? {
                     status: updates.status === "Active" ? "Active" : "Inactive",
@@ -19835,9 +19892,10 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         (a as any).branchCampus ||
         (selectedBranch &&
         selectedBranch !== "All Branches" &&
-        selectedBranch !== "All"
+        selectedBranch !== "All" &&
+        selectedBranch !== "All Campuses"
           ? selectedBranch
-          : "");
+          : (branches && branches[0] ? (branches[0].branchName || branches[0].name) : "Madhapur Branch"));
       const payload = {
         employeeId: a.employeeId || "",
         empId: a.employeeId || "",
@@ -19850,6 +19908,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         gender: a.gender || "",
         branchCampus: branchCampus,
         branch: branchCampus,
+        branchName: branchCampus,
         status: a.status === "Active",
       };
       const response = await TransportAPI.createAttendantApi(payload as any);
@@ -19866,7 +19925,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           a.status === "Active"
             ? "Active"
             : "Inactive",
-        branch: (a as any).branch || selectedBranch || "",
+        branch: (a as any).branch || branchCampus || "Madhapur Branch",
       } as any;
 
       setBusAttendants((prev) => {
@@ -19910,7 +19969,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       const newAttendant: BusAttendantMaster = {
         ...a,
         id,
-        branch: (a as any).branch || selectedBranch || "",
+        branch: (a as any).branch || (selectedBranch && selectedBranch !== "All Branches" && selectedBranch !== "All" && selectedBranch !== "All Campuses" ? selectedBranch : "Madhapur Branch"),
       } as any;
       setBusAttendants((prev) => [...prev, newAttendant]);
       syncAttendantToStaffAndAssignments(newAttendant.id, newAttendant);
@@ -19938,6 +19997,11 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         payload.phone = updates.mobileNumber;
       }
       if (updates.gender !== undefined) payload.gender = updates.gender;
+      if (updates.branch !== undefined) {
+        payload.branch = updates.branch;
+        payload.branchCampus = updates.branch;
+        payload.branchName = updates.branch;
+      }
       if (updates.status !== undefined)
         payload.status = updates.status === "Active";
 

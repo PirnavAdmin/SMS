@@ -187,6 +187,56 @@ namespace SMS.Api.Controllers
             }
         }
 
+        [HttpGet("documents")]
+        public async Task<IActionResult> GetAllDriverDocuments()
+        {
+            try
+            {
+                await _context.Database.ExecuteSqlRawAsync(@"
+                    CREATE TABLE IF NOT EXISTS `transport_driver_documents` (
+                        `Id` bigint NOT NULL AUTO_INCREMENT,
+                        `DriverId` varchar(100) NOT NULL,
+                        `DocumentCategory` varchar(100) NULL,
+                        `DocumentNumber` varchar(100) NULL,
+                        `IssueDate` varchar(50) NULL,
+                        `ExpiryDate` varchar(50) NULL,
+                        `BadgeNumber` varchar(100) NULL,
+                        `Status` varchar(50) NOT NULL DEFAULT 'Active',
+                        `FileName` varchar(255) NULL,
+                        `FileUrl` varchar(500) NULL,
+                        `IsDeleted` tinyint(1) NOT NULL DEFAULT 0,
+                        `CreatedAt` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+                        PRIMARY KEY (`Id`),
+                        KEY `ix_driver_id` (`DriverId`)
+                    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;");
+
+                var docs = await _context.TransportDriverDocuments
+                    .AsNoTracking()
+                    .Where(d => !d.IsDeleted)
+                    .OrderByDescending(d => d.Id)
+                    .Select(d => new DriverDocumentDto
+                    {
+                        Id = d.Id,
+                        DriverId = d.DriverId,
+                        DocumentCategory = d.DocumentCategory ?? "Driving License",
+                        DocumentNumber = d.DocumentNumber ?? string.Empty,
+                        IssueDate = d.IssueDate ?? string.Empty,
+                        ExpiryDate = d.ExpiryDate ?? string.Empty,
+                        BadgeNumber = d.BadgeNumber ?? string.Empty,
+                        Status = d.Status ?? "Active",
+                        FileName = d.FileName ?? string.Empty,
+                        FileUrl = d.FileUrl ?? string.Empty
+                    })
+                    .ToListAsync();
+
+                return Ok(new { success = true, data = docs });
+            }
+            catch
+            {
+                return Ok(new { success = true, data = new List<DriverDocumentDto>() });
+            }
+        }
+
         [HttpGet("{id}/documents")]
         public async Task<IActionResult> GetDriverDocuments(string id)
         {
