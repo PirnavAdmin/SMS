@@ -40,8 +40,74 @@ export interface AssignedStudentDetail {
   status?: string;
 }
 
-export const formatTripTime = (value?: string) => {
+export const formatMorningTripTime = (value?: string): string => {
+  if (!value || value.trim() === '' || value === '-') return '-';
+  const clean = value.trim();
+  const match = clean.match(/^(\d{1,2}):(\d{2})(?::\d{2})?\s*(AM|PM)?$/i);
+  if (match) {
+    let hour = parseInt(match[1], 10);
+    const minute = match[2];
+    if (hour > 12) hour = hour % 12 || 12;
+    if (hour === 0) hour = 12;
+    return `${String(hour).padStart(2, '0')}:${minute} AM`;
+  }
+  return clean.replace(/PM/i, 'AM');
+};
+
+export const formatEveningTripTime = (value?: string): string => {
+  if (!value || value.trim() === '' || value === '-') return '-';
+  const clean = value.trim();
+  const match = clean.match(/^(\d{1,2}):(\d{2})(?::\d{2})?\s*(AM|PM)?$/i);
+  if (match) {
+    let hour = parseInt(match[1], 10);
+    const minute = match[2];
+    if (hour > 12) hour = hour % 12 || 12;
+    if (hour === 0) hour = 12;
+    return `${String(hour).padStart(2, '0')}:${minute} PM`;
+  }
+  return clean.replace(/AM/i, 'PM');
+};
+
+export const to24HourTime = (value?: string): string => {
+  if (!value) return '';
+  const clean = value.trim();
+  const ampmMatch = clean.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)?$/i);
+  if (ampmMatch) {
+    let hour = parseInt(ampmMatch[1], 10);
+    const minute = ampmMatch[2];
+    const ampm = ampmMatch[3] ? ampmMatch[3].toUpperCase() : null;
+    if (ampm === 'PM' && hour < 12) hour += 12;
+    if (ampm === 'AM' && hour === 12) hour = 0;
+    return `${String(hour).padStart(2, '0')}:${minute}`;
+  }
+  if (/^\d{2}:\d{2}:\d{2}$/.test(clean)) return clean.slice(0, 5);
+  if (/^\d{2}:\d{2}$/.test(clean)) return clean;
+  return '';
+};
+
+export const to24HourMorningTime = (value?: string): string => {
+  if (!value) return '';
+  const t24 = to24HourTime(value);
+  if (!t24) return '';
+  const [h, m] = t24.split(':').map(Number);
+  const hour = h >= 12 ? h % 12 : h;
+  return `${String(hour).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+};
+
+export const to24HourEveningTime = (value?: string): string => {
+  if (!value) return '';
+  const t24 = to24HourTime(value);
+  if (!t24) return '';
+  const [h, m] = t24.split(':').map(Number);
+  const hour = h < 12 ? h + 12 : h;
+  return `${String(hour).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+};
+
+export const formatTripTime = (value?: string, tripType?: 'morning' | 'evening') => {
   if (!value) return 'Not set';
+  if (tripType === 'morning') return formatMorningTripTime(value);
+  if (tripType === 'evening') return formatEveningTripTime(value);
+
   if (value.includes('AM') || value.includes('PM')) return value;
 
   const [hourText, minuteText] = value.split(':');
@@ -110,8 +176,8 @@ export const resolveAssignedStudentsForTrip = (
   const targetVehicleNum = (assignment.vehicleNumber || vehicle?.vehicleNumber || '').trim().toLowerCase();
   const assignmentId = String(assignment.id || '').trim();
 
-  const morningTripTime = assignment.morningTripTime ? formatTripTime(assignment.morningTripTime) : '-';
-  const eveningTripTime = assignment.eveningTripTime ? formatTripTime(assignment.eveningTripTime) : '-';
+  const morningTripTime = assignment.morningTripTime ? formatMorningTripTime(assignment.morningTripTime) : '-';
+  const eveningTripTime = assignment.eveningTripTime ? formatEveningTripTime(assignment.eveningTripTime) : '-';
 
   const configuredStops = (pickupPoints || [])
     .filter((point: any) =>
@@ -137,8 +203,8 @@ export const resolveAssignedStudentsForTrip = (
     const eTime = matchedStop?.eveningDropTime || matchedStop?.dropTime || matchedStop?.eveningTime;
 
     return {
-      morningTime: mTime ? formatTripTime(mTime) : morningTripTime,
-      eveningTime: eTime ? formatTripTime(eTime) : eveningTripTime
+      morningTime: mTime ? formatMorningTripTime(mTime) : morningTripTime,
+      eveningTime: eTime ? formatEveningTripTime(eTime) : eveningTripTime
     };
   };
 

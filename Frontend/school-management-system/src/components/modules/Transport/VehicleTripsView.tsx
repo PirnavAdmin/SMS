@@ -4,7 +4,7 @@ import { Bus, Users, UserCheck, Phone, Eye, Search, Navigation, Signal } from 'l
 import { useData } from '../../../context/DataContext';
 import { Badge } from '../../common/Badge';
 import { ExportButton } from '../../common/ExportButton';
-import { initialBusAttendants, resolveAssignedStudentsForTrip } from './transportData';
+import { initialBusAttendants, resolveAssignedStudentsForTrip, formatMorningTripTime, formatEveningTripTime } from './transportData';
 import { VehicleTripDetailsModal } from './VehicleTripDetailsModal';
 import { VehicleAssignment } from '../../../types';
 
@@ -379,8 +379,8 @@ export const VehicleTripsView: React.FC<VehicleTripsViewProps> = ({ onOpenGps })
           const assignedCount = assignedStudents.length;
           const statusText = assignment.status === 'Active' ? 'Running' : 'Completed';
           const gpsOnline = assignment.gpsStatus ? assignment.gpsStatus === 'Online' : !!vehicle?.gpsDeviceId;
-          const morningTripTime = assignment.morningTripTime ? formatTripTime(assignment.morningTripTime) : '-';
-          const eveningTripTime = assignment.eveningTripTime ? formatTripTime(assignment.eveningTripTime) : '-';
+          const morningTripTime = assignment.morningTripTime ? formatMorningTripTime(assignment.morningTripTime) : '-';
+          const eveningTripTime = assignment.eveningTripTime ? formatEveningTripTime(assignment.eveningTripTime) : '-';
           const displayRouteName = route?.routeName || (assignment.routeName && assignment.routeName.toUpperCase() !== 'N/A' ? assignment.routeName : '') || 'Unassigned Route';
 
           return (
