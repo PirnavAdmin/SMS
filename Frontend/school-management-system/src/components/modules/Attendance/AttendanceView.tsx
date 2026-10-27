@@ -1814,7 +1814,7 @@ export const AttendanceView = () => {
                             <td className="py-3.5 px-4 text-center">
                               {hasRemark ? (
                                 <div className="flex items-center justify-center">
-                                  <div className="relative group inline-flex items-center justify-center max-w-[220px] w-full">
+                                  <div className="relative group inline-flex items-center justify-center max-w-[200px] w-full">
                                     <button
                                       type="button"
                                       onClick={() => {
@@ -1825,17 +1825,17 @@ export const AttendanceView = () => {
                                       }}
                                       disabled={!isEditable}
                                       title={remarkText}
-                                      className="w-full flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-50/80 dark:bg-amber-955/20 border border-amber-200/80 dark:border-amber-900/60 text-amber-800 dark:text-amber-300 text-[11px] font-semibold cursor-pointer text-center hover:bg-amber-100/80 dark:hover:bg-amber-900/30 transition-colors disabled:cursor-default"
+                                      className="w-full flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-50/80 dark:bg-amber-955/20 border border-amber-200/80 dark:border-amber-900/60 text-amber-800 dark:text-amber-300 text-xs font-bold cursor-pointer text-center hover:bg-amber-100/90 dark:hover:bg-amber-900/40 transition-all shadow-xs hover:shadow-sm active:scale-95 disabled:cursor-not-allowed disabled:opacity-60 disabled:active:scale-100"
                                     >
-                                      <span className="truncate max-w-[170px] text-center">{displayText}</span>
+                                      <span className="truncate max-w-[155px] text-center">{displayText}</span>
                                       {isEditable && (
-                                        <Edit2 className="w-3 h-3 text-amber-600 dark:text-amber-400 shrink-0 opacity-70 group-hover:opacity-100 transition-opacity" />
+                                        <Edit2 className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400 shrink-0 stroke-[2.5] opacity-80 group-hover:opacity-100 transition-opacity" />
                                       )}
                                     </button>
 
                                     {/* Hover Tooltip displaying full remark */}
                                     {isLong && (
-                                      <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:flex flex-col items-center z-50 pointer-events-none min-w-[220px] max-w-xs animate-in fade-in zoom-in-95 duration-150">
+                                      <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:flex flex-col items-center z-50 pointer-events-none min-w-[200px] max-w-xs animate-in fade-in zoom-in-95 duration-150">
                                         <div className="bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900 text-xs rounded-xl py-2 px-3 shadow-2xl text-center whitespace-normal break-words font-medium border border-slate-700 dark:border-slate-300">
                                           {remarkText}
                                         </div>
@@ -1853,9 +1853,10 @@ export const AttendanceView = () => {
                                       setTempRemark('');
                                     }}
                                     disabled={!isEditable}
-                                    className="mx-auto w-full max-w-[190px] px-3 py-1.5 rounded-xl bg-slate-50 hover:bg-slate-100 dark:bg-slate-800/50 dark:hover:bg-slate-800 border border-slate-200/90 dark:border-slate-700/80 text-slate-400 dark:text-slate-500 font-medium text-[11px] transition-colors disabled:opacity-50 flex items-center justify-center gap-1.5 cursor-pointer text-center"
+                                    title={isEditable ? 'Add attendance remark' : 'Unlock editing to add remarks'}
+                                    className="mx-auto w-full max-w-[200px] px-3 py-1.5 rounded-xl bg-brand-50 hover:bg-brand-100 dark:bg-brand-950/40 dark:hover:bg-brand-900/50 border border-brand-200/80 dark:border-brand-800/80 text-brand-700 dark:text-brand-300 hover:text-brand-800 dark:hover:text-brand-200 font-bold text-xs shadow-xs hover:shadow-sm transition-all flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed select-none active:scale-95 disabled:active:scale-100 text-center"
                                   >
-                                    <Plus className="w-3.5 h-3.5" />
+                                    <Plus className="w-3.5 h-3.5 stroke-[2.5] text-brand-600 dark:text-brand-400" />
                                     <span>Add Remark</span>
                                   </button>
                                 </div>
@@ -2044,7 +2045,7 @@ export const AttendanceView = () => {
             <div className="flex items-center justify-between mb-4">
               <h3 className="font-black text-lg text-slate-900 dark:text-white flex items-center gap-2">
                 <FileText className="w-5 h-5 text-amber-500" />
-                Add Remark
+                {tempRemark ? 'Edit Remark' : 'Add Remark'}
               </h3>
               <button onClick={() => setRemarkModalStudent(null)} className="p-1 text-slate-400 hover:text-slate-600 transition-colors">
                 <X className="w-5 h-5" />
