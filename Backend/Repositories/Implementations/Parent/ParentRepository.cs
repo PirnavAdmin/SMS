@@ -41,6 +41,26 @@ namespace SMS.Api.Repositories.Implementations.Parent
                         (u.FullName != null && u.FullName.ToLower() == identifier)
                     );
 
+                // Priority 1: Check direct database-backed ParentStudentMappings table
+                if (parentUser != null)
+                {
+                    var mappedStudents = await _context.ParentStudentMappings
+                        .AsNoTracking()
+                        .Where(m => m.ParentUserId == parentUser.UserId && m.Status == "Active")
+                        .Include(m => m.Student)
+                            .ThenInclude(s => s!.ClassGrade)
+                        .Include(m => m.Student)
+                            .ThenInclude(s => s!.ClassSection)
+                        .Select(m => m.Student)
+                        .Where(s => s != null && !s.IsDeleted && s.Status == "Active")
+                        .ToListAsync();
+
+                    if (mappedStudents != null && mappedStudents.Count > 0)
+                    {
+                        return mappedStudents!;
+                    }
+                }
+
                 string searchMobile = parentUser?.MobileNumber ?? (digitsOnly.Length >= 10 ? identifier : string.Empty);
                 string searchEmail = parentUser?.Email ?? (identifier.Contains("@") ? identifier : string.Empty);
                 string searchFullName = (parentUser?.FullName ?? (identifier.Contains("@") ? string.Empty : identifier)).Trim();

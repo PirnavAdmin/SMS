@@ -182,6 +182,7 @@ namespace SMS.Api.Data
         public DbSet<AcademicYear> AcademicYears { get; set; } = null!;
         public DbSet<StudentAttendanceSession> StudentAttendanceSessions { get; set; } = null!;
         public DbSet<StudentAttendance> StudentAttendances { get; set; } = null!;
+        public DbSet<ParentStudentMapping> ParentStudentMappings { get; set; } = null!;
         //public DbSet<AdmissionApplication> AdmissionApplications { get; set; } = null!;
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
