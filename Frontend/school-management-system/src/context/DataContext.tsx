@@ -6019,6 +6019,10 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
             academicYear: ay,
             numberOfTerms:
               apiFeeSchedule.numberOfTerms || apiFeeSchedule.terms.length,
+            dueDateOffsetDays:
+              typeof apiFeeSchedule.dueDateOffsetDays === "number"
+                ? apiFeeSchedule.dueDateOffsetDays
+                : 45,
             status: apiFeeSchedule.status || "Active",
             annualDueDate: apiFeeSchedule.annualDueDate || "",
             oneTimeDueDate: apiFeeSchedule.oneTimeDueDate || "",
@@ -13937,7 +13941,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         : generateTermsFromAcademicYear(
             { startDate: ayStartStr, endDate: ayEndStr, academicYear },
             4,
-            45,
+            typeof schedule?.dueDateOffsetDays === "number"
+              ? schedule.dueDateOffsetDays
+              : 45,
           );
 
     const monthlyConfig =

@@ -78,7 +78,7 @@ export const FeeScheduleView: React.FC = () => {
   };
 
   // Configurable Due Date Offset (default 45 days)
-  const [dueDateOffsetDays, setDueDateOffsetDays] = useState<number>(45);
+  const [dueDateOffsetDays, setDueDateOffsetDays] = useState<number | ''>(45);
 
   // Loading & API persistence status
   const [isLoadingSchedule, setIsLoadingSchedule] = useState<boolean>(false);
@@ -105,12 +105,14 @@ export const FeeScheduleView: React.FC = () => {
     setIsPersistedInDb(false);
 
     const numTerms = schedule.numberOfTerms || 4;
-    const offset = dueDateOffsetDays || 45;
+    const offset = typeof dueDateOffsetDays === 'number' && !isNaN(dueDateOffsetDays) ? dueDateOffsetDays : 45;
     const computedTerms = hasConfiguredDates ? generateTermsFromAcademicYear(ayDates, numTerms, offset) : [];
 
     const existing = academicYearFeeSchedules.find(s => s.academicYear === activeAY);
     if (existing) {
-      const loadedOffset = existing.dueDateOffsetDays || offset;
+      const loadedOffset = typeof existing.dueDateOffsetDays === 'number' && !isNaN(existing.dueDateOffsetDays)
+        ? existing.dueDateOffsetDays
+        : offset;
       setDueDateOffsetDays(loadedOffset);
       const mergedTerms = hasConfiguredDates ? generateTermsFromAcademicYear(ayDates, existing.numberOfTerms || 4, loadedOffset, existing.terms) : [];
 
@@ -143,12 +145,14 @@ export const FeeScheduleView: React.FC = () => {
         if (apiData && apiData.terms && apiData.terms.length > 0) {
           setIsPersistedInDb(true);
           const loadedNumTerms = apiData.numberOfTerms || 4;
-          const loadedOffset = apiData.dueDateOffsetDays || 45;
+          const loadedOffset = typeof apiData.dueDateOffsetDays === 'number' && !isNaN(apiData.dueDateOffsetDays)
+            ? apiData.dueDateOffsetDays
+            : 45;
           setDueDateOffsetDays(loadedOffset);
 
-          const finalTerms = (apiData.terms && apiData.terms.length > 0)
-            ? apiData.terms
-            : (hasConfiguredDates ? generateTermsFromAcademicYear(ayDates, loadedNumTerms, loadedOffset) : []);
+          const finalTerms = hasConfiguredDates
+            ? generateTermsFromAcademicYear(ayDates, loadedNumTerms, loadedOffset, apiData.terms)
+            : apiData.terms;
 
           const loaded: AcademicYearFeeSchedule = {
             id: apiData.id || `SCH-${activeAY}`,
@@ -183,26 +187,48 @@ export const FeeScheduleView: React.FC = () => {
   }, [activeAY, currentAYMaster?.startDate, currentAYMaster?.endDate]);
 
   const handleNumTermsChange = (num: number) => {
-    const freshTerms = generateTermsFromAcademicYear(ayDates, num, dueDateOffsetDays, schedule.terms);
+    const offset = typeof dueDateOffsetDays === 'number' ? dueDateOffsetDays : 0;
+    const freshTerms = generateTermsFromAcademicYear(ayDates, num, offset, schedule.terms);
 
     setSchedule(prev => ({
       ...prev,
       numberOfTerms: num,
-      dueDateOffsetDays,
+      dueDateOffsetDays: offset,
       terms: freshTerms
     }));
   };
 
-  const handleOffsetChange = (newOffset: number) => {
-    const safeOffset = Math.max(0, newOffset);
-    setDueDateOffsetDays(safeOffset);
+  const handleOffsetChange = (newOffset: number, rawInput?: string | number) => {
+    const safeOffset = Math.max(0, isNaN(newOffset) ? 0 : newOffset);
+    setDueDateOffsetDays(rawInput === '' ? '' : safeOffset);
 
-    const updatedTerms = generateTermsFromAcademicYear(
-      ayDates,
-      schedule.numberOfTerms || 4,
-      safeOffset,
-      schedule.terms
-    );
+    // Calculate automatically for every term: Due Date = Start Date + safeOffset
+    const existingTerms = schedule.terms || [];
+    let updatedTerms: FeeScheduleTerm[];
+
+    if (existingTerms.length > 0) {
+      updatedTerms = existingTerms.map(term => {
+        const start = parseDateIso(term.startDate);
+        let newDue = term.dueDate;
+        if (start) {
+          const calc = new Date(start);
+          calc.setDate(start.getDate() + safeOffset);
+          newDue = formatDateIso(calc);
+        }
+        return {
+          ...term,
+          dueDate: newDue,
+          dueDateOffsetDays: safeOffset,
+          dueDateMode: 'AUTO'
+        };
+      });
+    } else {
+      updatedTerms = generateTermsFromAcademicYear(
+        ayDates,
+        schedule.numberOfTerms || 4,
+        safeOffset
+      );
+    }
 
     setSchedule(prev => ({
       ...prev,
@@ -232,11 +258,12 @@ export const FeeScheduleView: React.FC = () => {
     const target = updatedTerms[index];
     if (!target) return;
 
+    const offset = typeof dueDateOffsetDays === 'number' ? dueDateOffsetDays : 0;
     const start = parseDateIso(target.startDate);
     let autoDueStr = target.dueDate;
     if (start) {
       const calculatedDue = new Date(start);
-      calculatedDue.setDate(start.getDate() + dueDateOffsetDays);
+      calculatedDue.setDate(start.getDate() + offset);
       autoDueStr = formatDateIso(calculatedDue);
     }
 
@@ -244,7 +271,7 @@ export const FeeScheduleView: React.FC = () => {
       ...target,
       dueDate: autoDueStr,
       dueDateMode: 'AUTO',
-      dueDateOffsetDays
+      dueDateOffsetDays: offset
     };
 
     setSchedule(prev => ({
@@ -255,7 +282,7 @@ export const FeeScheduleView: React.FC = () => {
     addToast(
       'info',
       'Due Date Reset',
-      `${target.termName} due date reset to automatic calculation (Start + ${dueDateOffsetDays} days).`
+      `${target.termName} due date reset to automatic calculation (Start + ${offset} days).`
     );
   };
 
@@ -335,7 +362,7 @@ export const FeeScheduleView: React.FC = () => {
       id: schedule.id || `SCH-${activeAY}`,
       academicYear: activeAY,
       numberOfTerms: schedule.numberOfTerms || 4,
-      dueDateOffsetDays,
+      dueDateOffsetDays: typeof dueDateOffsetDays === 'number' ? dueDateOffsetDays : 0,
       terms: (schedule.terms || []).map(t => ({ ...t, status: 'Active' })),
       status: 'Active',
       annualDueDate: finalAnnualDueDate,
@@ -457,7 +484,15 @@ export const FeeScheduleView: React.FC = () => {
                   min="0"
                   max="365"
                   value={dueDateOffsetDays}
-                  onChange={e => handleOffsetChange(Number(e.target.value))}
+                  onChange={e => {
+                    const raw = e.target.value;
+                    if (raw === '') {
+                      handleOffsetChange(0, '');
+                    } else {
+                      const num = parseInt(raw, 10);
+                      handleOffsetChange(isNaN(num) ? 0 : num, num);
+                    }
+                  }}
                   className="w-24 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 font-black text-xs text-slate-900 dark:text-white text-center outline-none focus:border-brand-500 shadow-xs"
                 />
                 <span className="text-xs font-bold text-slate-600 dark:text-slate-400">days after term start</span>
@@ -474,7 +509,7 @@ export const FeeScheduleView: React.FC = () => {
                   ? 'Annual Fee Schedule: The entire academic year is scheduled as 1 annual term with 1 automatically calculated Due Date (Start + offset days).'
                   : schedule.numberOfTerms === 12
                   ? 'Monthly Billing: Fee obligations are split across 12 monthly due dates.'
-                  : `Term Schedule: Split into ${schedule.numberOfTerms} terms across the Academic Year duration. Each term gets 1 Due Date calculated as Start + ${dueDateOffsetDays} days.`}
+                  : `Term Schedule: Split into ${schedule.numberOfTerms} terms across the Academic Year duration. Each term gets 1 Due Date calculated as Start + ${typeof dueDateOffsetDays === 'number' ? dueDateOffsetDays : 0} days.`}
               </p>
             </div>
           </div>
@@ -507,7 +542,7 @@ export const FeeScheduleView: React.FC = () => {
                         </span>
                       ) : (
                         <span className="text-[10px] text-slate-400 font-medium">
-                          Automatically calculated: Start + {dueDateOffsetDays} days
+                          Automatically calculated: Start + {typeof dueDateOffsetDays === 'number' ? dueDateOffsetDays : 0} days
                         </span>
                       )}
                     </div>

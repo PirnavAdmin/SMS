@@ -93,11 +93,12 @@ function generateTermsFromDates(
       const mode = existingMatch?.dueDateMode === 'MANUAL' ? 'MANUAL' : 'AUTO';
 
       let dueDateStr: string;
-      if (existingMatch?.dueDate) {
+      if (mode === 'MANUAL' && existingMatch?.dueDate) {
         dueDateStr = existingMatch.dueDate;
       } else {
-        const calculatedDue = new Date(termStart);
-        calculatedDue.setDate(termStart.getDate() + dueDateOffsetDays);
+        const termStartDate = existingMatch?.startDate ? (parseDateIso(existingMatch.startDate) || termStart) : termStart;
+        const calculatedDue = new Date(termStartDate);
+        calculatedDue.setDate(termStartDate.getDate() + dueDateOffsetDays);
         dueDateStr = formatDateIso(calculatedDue);
       }
 
@@ -147,11 +148,12 @@ function generateTermsFromDates(
     const mode = existingMatch?.dueDateMode === 'MANUAL' ? 'MANUAL' : 'AUTO';
 
     let dueDateStr: string;
-    if (existingMatch?.dueDate) {
+    if (mode === 'MANUAL' && existingMatch?.dueDate) {
       dueDateStr = existingMatch.dueDate;
     } else {
-      const calculatedDue = new Date(termStart);
-      calculatedDue.setDate(termStart.getDate() + dueDateOffsetDays);
+      const termStartDate = existingMatch?.startDate ? (parseDateIso(existingMatch.startDate) || termStart) : termStart;
+      const calculatedDue = new Date(termStartDate);
+      calculatedDue.setDate(termStartDate.getDate() + dueDateOffsetDays);
       dueDateStr = formatDateIso(calculatedDue);
     }
 

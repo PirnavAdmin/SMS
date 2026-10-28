@@ -808,7 +808,7 @@ public class FinanceMasterRepository : IFinanceMasterRepository
 
         if (entity != null)
         {
-            int offset = entity.DueDateOffsetDays > 0 ? entity.DueDateOffsetDays : 45;
+            int offset = entity.DueDateOffsetDays >= 0 ? entity.DueDateOffsetDays : 45;
             var dbTermsDto = entity.Terms != null && entity.Terms.Count > 0
                 ? entity.Terms.OrderBy(t => t.Sequence).Select(t => new FeeScheduleTermDto
                 {
@@ -819,7 +819,7 @@ public class FinanceMasterRepository : IFinanceMasterRepository
                     EndDate = t.EndDate,
                     DueDate = t.DueDate,
                     DueDateMode = string.IsNullOrWhiteSpace(t.DueDateMode) ? "AUTO" : t.DueDateMode,
-                    DueDateOffsetDays = t.DueDateOffsetDays > 0 ? t.DueDateOffsetDays : offset,
+                    DueDateOffsetDays = t.DueDateOffsetDays >= 0 ? t.DueDateOffsetDays : offset,
                     Status = t.Status,
                     PercentageShare = (double)t.PercentageShare
                 }).ToList()
@@ -891,7 +891,7 @@ public class FinanceMasterRepository : IFinanceMasterRepository
         string ayCompact = ay.Replace(" ", "");
         string ayPrefix = ay.Contains('-') ? ay.Split('-')[0] : ay;
         string sId = string.IsNullOrWhiteSpace(schedule.Id) ? $"SCH-{ay}" : schedule.Id;
-        int offset = schedule.DueDateOffsetDays > 0 ? schedule.DueDateOffsetDays : 45;
+        int offset = schedule.DueDateOffsetDays >= 0 ? schedule.DueDateOffsetDays : 45;
 
         var ayEntity = await _context.AcademicYears.AsNoTracking()
             .FirstOrDefaultAsync(a => !a.IsDeleted && (
