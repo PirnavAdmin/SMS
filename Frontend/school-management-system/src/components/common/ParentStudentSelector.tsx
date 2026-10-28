@@ -39,7 +39,16 @@ export function useParentWards() {
     let isMounted = true;
     const fetchChildren = async () => {
       try {
-        const identifier = user?.email || user?.phone || user?.name;
+        let identifier = user?.email || user?.phone || (user as any)?.mobileNumber || user?.name || user?.id;
+        if (!identifier) {
+          try {
+            const saved = localStorage.getItem('auth_user') || localStorage.getItem('user');
+            if (saved) {
+              const parsed = JSON.parse(saved);
+              identifier = parsed?.email || parsed?.phone || parsed?.mobileNumber || parsed?.name || parsed?.id;
+            }
+          } catch {}
+        }
         if (!identifier) return;
         const children = await getParentChildren(identifier);
         if (isMounted) {
@@ -53,7 +62,7 @@ export function useParentWards() {
     return () => {
       isMounted = false;
     };
-  }, [user?.email, user?.phone, user?.name]);
+  }, [user?.email, user?.phone, (user as any)?.mobileNumber, user?.name, user?.id]);
 
   const wards = useMemo<ParentWard[]>(() => {
     const userRoleStr = (user?.role || role || '').toString().toLowerCase();

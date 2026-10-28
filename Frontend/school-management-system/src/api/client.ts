@@ -54,17 +54,15 @@ export const apiClient = async (endpoint: string, options: RequestInit = {}) => 
   let fallbackUrl = '';
   const isTunnel = baseUrl.includes('ngrok') || baseUrl.includes('trycloudflare') || baseUrl.includes('cloudflare');
 
-  // When running locally on localhost with a tunnel, keep tunnel as primary and local port 5151 as transparent fallback
+  // When running locally on localhost, always prioritize local direct/proxy endpoint to ensure real-time local DB access
   if (endpoint.startsWith('http')) {
     primaryUrl = endpoint;
-  } else if (isLocalHost && isTunnel) {
-    primaryUrl = `${baseUrl}${cleanEndpoint}`;
-    const localHost = window.location.hostname === '127.0.0.1' ? '127.0.0.1:5151' : 'localhost:5151';
-    fallbackUrl = `http://${localHost}${cleanEndpoint}`;
-  } else if (isLocalHost && !baseUrl) {
+  } else if (isLocalHost) {
     primaryUrl = cleanEndpoint;
     const localHost = window.location.hostname === '127.0.0.1' ? '127.0.0.1:5151' : 'localhost:5151';
     fallbackUrl = `http://${localHost}${cleanEndpoint}`;
+  } else if (baseUrl) {
+    primaryUrl = `${baseUrl}${cleanEndpoint}`;
   }
 
   let response: Response;

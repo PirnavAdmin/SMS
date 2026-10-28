@@ -21,7 +21,7 @@ export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '');
   const rawTarget = env.VITE_BACKEND_TARGET || env.VITE_API_URL || 'http://127.0.0.1:5151';
   let apiTarget = rawTarget.trim().replace(/\/+$/, '');
-  if (apiTarget.includes('ngrok')) {
+  if (apiTarget.includes('ngrok') || apiTarget.includes('trycloudflare') || apiTarget.includes('cloudflare') || apiTarget.includes('loca.lt')) {
     apiTarget = 'http://127.0.0.1:5151';
   }
   const isHttps = apiTarget.startsWith('https');

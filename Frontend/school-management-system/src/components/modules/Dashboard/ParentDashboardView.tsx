@@ -593,9 +593,44 @@ export const ParentDashboardView: React.FC<ParentDashboardViewProps> = ({ onNavi
     return matchedMap.size;
   }, [homework, currentWard, wardClassNumP, wardSecP]);
 
+  const [isResolvingWards, setIsResolvingWards] = useState(true);
+
+  useEffect(() => {
+    if (parentWards.length > 0) {
+      setIsResolvingWards(false);
+    } else {
+      const timer = setTimeout(() => {
+        setIsResolvingWards(false);
+      }, 1500);
+      return () => clearTimeout(timer);
+    }
+  }, [parentWards.length]);
+
   // Early conditional return blocks (must be placed AFTER all Hook calls!)
-  if (parentWards.length === 0) {
+  if (isResolvingWards && parentWards.length === 0) {
     return <DashboardShimmer />;
+  }
+
+  if (!isResolvingWards && parentWards.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[420px] p-6 text-center bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm animate-in fade-in">
+        <div className="w-16 h-16 rounded-2xl bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 flex items-center justify-center mb-4 border border-amber-200 dark:border-amber-900/50">
+          <AlertCircle className="w-8 h-8" />
+        </div>
+        <h3 className="text-lg font-bold text-slate-800 dark:text-white mb-1">
+          No Student Records Linked
+        </h3>
+        <p className="text-sm text-slate-500 dark:text-slate-400 max-w-md mb-6 leading-relaxed">
+          There are currently no active student profiles associated with your parent login ({user?.email || 'registered email'}). If your ward has recently been enrolled, please contact the school administration to link their record.
+        </p>
+        <button
+          onClick={() => window.location.reload()}
+          className="px-4 py-2 text-xs font-semibold rounded-xl bg-sky-600 hover:bg-sky-700 text-white transition-all shadow-sm"
+        >
+          Refresh Portal
+        </button>
+      </div>
+    );
   }
 
   const wardAttendance = wardAttendanceStats.wardAttendance;
