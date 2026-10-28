@@ -11274,6 +11274,16 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     const activeAY =
       selectedAcademicYear || financeSettings?.academicYear || "";
 
+    const currentLedger = getStudentFeeLedger(paymentData.studentId, activeAY);
+    const maxDueAllowed = currentLedger.dueBalance ?? Math.max(0, (currentLedger.totalPayable || 0) - (currentLedger.paidAmount || 0));
+    if (maxDueAllowed <= 0 && (currentLedger.totalPayable || 0) > 0) {
+      console.warn("Attempted to collect payment for fully paid student, aborted");
+      return null as any;
+    }
+    if (maxDueAllowed > 0 && paymentData.amountPaid > maxDueAllowed) {
+      paymentData.amountPaid = maxDueAllowed;
+    }
+
     const targetStudentId = paymentData.studentId;
     const targetAdmissionNo = (paymentData as any).admissionNo;
 
@@ -11714,7 +11724,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
             s.admissionNo?.toLowerCase() === student.admissionNo.toLowerCase());
 
         if (isTarget) {
-          const newPaidTotal = (s.paidFee || 0) + paymentData.amountPaid;
+          const rawPaidTotal = (s.paidFee || 0) + paymentData.amountPaid;
+          const newPaidTotal = s.totalFee ? Math.min(s.totalFee, rawPaidTotal) : rawPaidTotal;
           return {
             ...s,
             paidFee: newPaidTotal,
@@ -18214,11 +18225,12 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         (sum, p) => sum + (Number(p.amountPaid ?? (p as any).amount) || 0),
         0,
       );
-      const effectivePaid = Math.max(
+      const rawEffectivePaid = Math.max(
         existing.paidAmount || 0,
         paidFromPayments,
         student?.paidFee || 0,
       );
+      const effectivePaid = totalPay > 0 ? Math.min(totalPay, rawEffectivePaid) : rawEffectivePaid;
       const dueBal = Math.max(0, totalPay - effectivePaid);
 
       const updatedLedger: StudentFeeLedger = {
@@ -18640,7 +18652,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
 
       const originalGross = baseFee + transportFee + pendingUniformExtrasSynth;
       const netPayable = Math.max(0, originalGross - totalSch - totalDisc);
-      const paid = Math.max(totalPaidCurrentYear, student.paidFee || 0);
+      const rawPaid = Math.max(totalPaidCurrentYear, student.paidFee || 0);
+      const paid = netPayable > 0 ? Math.min(netPayable, rawPaid) : rawPaid;
       const due = Math.max(0, netPayable - paid);
 
       const synthesizedCurrentLedger: StudentFeeLedger = {

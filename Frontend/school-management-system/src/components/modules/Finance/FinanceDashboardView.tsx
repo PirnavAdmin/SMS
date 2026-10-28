@@ -125,7 +125,8 @@ export const FinanceDashboardView: React.FC<FinanceDashboardViewProps> = ({ onNa
       if (!ledger) return;
 
       const stExp = Number(ledger.totalPayable ?? ledger.grossAmount ?? 0);
-      const stColl = Number(ledger.paidAmount || 0);
+      const rawColl = Number(ledger.paidAmount || 0);
+      const stColl = stExp > 0 ? Math.min(stExp, rawColl) : rawColl;
       concessions += Number(ledger.discountAmount || 0);
 
       expected += stExp;
@@ -181,18 +182,35 @@ export const FinanceDashboardView: React.FC<FinanceDashboardViewProps> = ({ onNa
       .filter((p) => p.status === "Paid" || p.status === "Partial")
       .reduce((s, p) => s + Number(p.amount || 0), 0);
 
-    const finalCollected = Math.max(collected, actualPaymentsSum);
+    const rawCollected = Math.max(collected, actualPaymentsSum);
+    const finalCollected = expected > 0 ? Math.min(expected, rawCollected) : rawCollected;
 
-    const classWise = Array.from(classMap.values()).map((c) => ({
-      className: c.className,
-      totalExpectedRevenue: c.expected,
-      totalCollectedRevenue: c.collected,
-      totalPendingRevenue: Math.max(0, c.expected - c.collected),
-      collectionPercentage: c.expected > 0 ? Math.round((c.collected / c.expected) * 100) : 0,
-      studentCount: c.studentCount,
-    }));
+    const classWise = Array.from(classMap.values()).map((c) => {
+      const cExp = c.expected;
+      const cColl = cExp > 0 ? Math.min(cExp, c.collected) : c.collected;
+      return {
+        className: c.className,
+        totalExpectedRevenue: cExp,
+        totalCollectedRevenue: cColl,
+        totalPendingRevenue: Math.max(0, cExp - cColl),
+        collectionPercentage: cExp > 0 ? Math.round((cColl / cExp) * 100) : 0,
+        studentCount: c.studentCount,
+      };
+    });
 
-    const categories = Array.from(categoryMap.values());
+    const categories = Array.from(categoryMap.values()).map((cat) => {
+      const exp = cat.expectedAmount;
+      const coll = exp > 0 ? Math.min(exp, cat.collectedAmount) : cat.collectedAmount;
+      return {
+        ...cat,
+        collectedAmount: coll,
+      };
+    });
+
+    const safeHostelColl = hostelExp > 0 ? Math.min(hostelExp, hostelColl) : hostelColl;
+    const safeTransportColl = transportExp > 0 ? Math.min(transportExp, transportColl) : transportColl;
+    const safeUniformColl = uniformExp > 0 ? Math.min(uniformExp, uniformColl) : uniformColl;
+    const safeFinesColl = finesExp > 0 ? Math.min(finesExp, finesColl) : finesColl;
 
     return {
       expected,
@@ -201,13 +219,13 @@ export const FinanceDashboardView: React.FC<FinanceDashboardViewProps> = ({ onNa
       classWise,
       categories,
       hostelExp,
-      hostelColl,
+      hostelColl: safeHostelColl,
       transportExp,
-      transportColl,
+      transportColl: safeTransportColl,
       uniformExp,
-      uniformColl,
+      uniformColl: safeUniformColl,
       finesExp,
-      finesColl,
+      finesColl: safeFinesColl,
       concessions,
     };
   }, [students, getStudentFeeLedger, selectedAcademicYear, feePayments]);
@@ -221,17 +239,31 @@ export const FinanceDashboardView: React.FC<FinanceDashboardViewProps> = ({ onNa
   }, [apiStats, localStats.expected]);
 
   const computedCollected = React.useMemo(() => {
+    let coll = localStats.collected;
     if (apiStats && typeof apiStats.totalCollectedRevenue === 'number' && apiStats.totalCollectedRevenue > 0) {
-      return Number(apiStats.totalCollectedRevenue);
+      coll = Number(apiStats.totalCollectedRevenue);
     }
-    return localStats.collected;
-  }, [apiStats, localStats.collected]);
+    return computedExpected > 0 ? Math.min(computedExpected, coll) : coll;
+  }, [apiStats, localStats.collected, computedExpected]);
 
   const computedClassWiseRevenue = React.useMemo(() => {
-    if (apiStats?.classWiseRevenue && Array.isArray(apiStats.classWiseRevenue) && apiStats.classWiseRevenue.length > 0) {
-      return apiStats.classWiseRevenue;
-    }
-    return localStats.classWise;
+    const raw = (apiStats?.classWiseRevenue && Array.isArray(apiStats.classWiseRevenue) && apiStats.classWiseRevenue.length > 0)
+      ? apiStats.classWiseRevenue
+      : localStats.classWise;
+    return (raw || []).map((c: any) => {
+      const exp = Number(c.expectedAmount ?? c.totalExpectedRevenue ?? 0);
+      const coll = Number(c.collectedAmount ?? c.totalCollectedRevenue ?? 0);
+      const safeColl = exp > 0 ? Math.min(exp, coll) : coll;
+      return {
+        ...c,
+        totalExpectedRevenue: exp,
+        expectedAmount: exp,
+        totalCollectedRevenue: safeColl,
+        collectedAmount: safeColl,
+        totalPendingRevenue: Math.max(0, exp - safeColl),
+        collectionPercentage: exp > 0 ? Math.round((safeColl / exp) * 100) : 0,
+      };
+    });
   }, [apiStats, localStats.classWise]);
 
   const totalCollected = computedCollected;

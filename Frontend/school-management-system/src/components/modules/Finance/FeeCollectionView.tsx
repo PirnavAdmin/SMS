@@ -1048,11 +1048,12 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
       return;
     }
 
-    if (amountPaying > computedNetPayable) {
+    const maxAllowed = totalOutstanding > 0 ? Math.min(computedNetPayable, totalOutstanding) : computedNetPayable;
+    if (amountPaying > maxAllowed) {
       addToast(
         "error",
         "Amount Exceeds Dues",
-        `Paying amount cannot exceed the selected net payable amount of ${formatCurrency(computedNetPayable)}.`,
+        `Paying amount cannot exceed the remaining due amount of ${formatCurrency(maxAllowed)}.`,
       );
       return;
     }
@@ -1085,11 +1086,12 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
       setShowPaymentConfirmModal(false);
       return;
     }
-    if (amountPaying > computedNetPayable || isCustomExceeding) {
+    const maxAllowed = totalOutstanding > 0 ? Math.min(computedNetPayable, totalOutstanding) : computedNetPayable;
+    if (amountPaying > maxAllowed || isCustomExceeding) {
       addToast(
         "error",
         "Amount Exceeds Dues",
-        `Paying amount cannot exceed the selected net payable amount of ${formatCurrency(computedNetPayable)}.`,
+        `Paying amount cannot exceed the remaining due amount of ${formatCurrency(maxAllowed)}.`,
       );
       setShowPaymentConfirmModal(false);
       return;
@@ -2563,6 +2565,7 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
     selectedInstallments.length > 0 &&
     amountPaying > 0 &&
     amountPaying <= computedNetPayable &&
+    (totalOutstanding <= 0 || amountPaying <= totalOutstanding) &&
     !isCustomExceeding &&
     !hasAnyAmountError;
 
@@ -2620,10 +2623,11 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
       setCustomAmountReceived("");
       return;
     }
+    const maxAllowed = totalOutstanding > 0 ? Math.min(computedNetPayable, totalOutstanding) : computedNetPayable;
     const numVal = Number(valStr);
     const validVal =
-      valStr !== "" && !isNaN(numVal) && numVal > computedNetPayable
-        ? String(computedNetPayable)
+      valStr !== "" && !isNaN(numVal) && numVal > maxAllowed
+        ? String(maxAllowed)
         : valStr;
     setCustomAmountReceived(validVal);
 

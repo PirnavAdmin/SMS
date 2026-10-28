@@ -1128,9 +1128,9 @@ public class FeeCollectionRepository : IFeeCollectionRepository
         }
 
         decimal maxAllowed = existingProfile.TotalOutstandingBalance + (request.IsFineWaived ? 0m : request.FineAmount) - request.ConcessionDiscountAmount;
-        if (maxAllowed > 0 && request.TotalAmountPaid > maxAllowed)
+        if (maxAllowed <= 0 || request.TotalAmountPaid > maxAllowed)
         {
-            throw new InvalidOperationException($"Paying amount cannot exceed the total outstanding balance of ₹{maxAllowed:N0}.");
+            throw new InvalidOperationException($"Paying amount (₹{request.TotalAmountPaid:N2}) cannot exceed the remaining due balance of ₹{Math.Max(0m, maxAllowed):N2}.");
         }
 
         string termName = request.SelectedItems != null && request.SelectedItems.Any()
@@ -2368,19 +2368,37 @@ public class FeeCollectionRepository : IFeeCollectionRepository
         {
             tuitionCollected = validPayments.Sum(p => p.Amount);
         }
+        if (tuitionExpected > 0m && tuitionCollected > tuitionExpected)
+        {
+            tuitionCollected = tuitionExpected;
+        }
 
         // 8. Main Dashboard Financial Totals Aggregation
         decimal totalExpected = tuitionExpected + hostelExpected + transportExpected + uniformExpected + finesExpected;
-        decimal totalCollected = validPayments.Sum(p => p.Amount);
-        if (totalCollected < (tuitionCollected + hostelCollected + transportCollectedTotal + uniformCollected + finesCollected))
-        {
-            totalCollected = tuitionCollected + hostelCollected + transportCollectedTotal + uniformCollected + finesCollected;
-        }
+        decimal rawPaymentsTotal = validPayments.Sum(p => p.Amount);
+        decimal sumModuleCollected = tuitionCollected + hostelCollected + transportCollectedTotal + uniformCollected + finesCollected;
+        decimal totalCollected = Math.Max(rawPaymentsTotal, sumModuleCollected);
 
-        // If total expected is smaller than collected, balance expected
-        if (totalExpected < totalCollected)
+        // A school or student can never collect more than the expected fee dynamically
+        if (totalExpected > 0m && totalCollected > totalExpected)
         {
-            totalExpected = totalCollected;
+            totalCollected = totalExpected;
+        }
+        if (transportExpected > 0m && transportCollectedTotal > transportExpected)
+        {
+            transportCollectedTotal = transportExpected;
+        }
+        if (hostelExpected > 0m && hostelCollected > hostelExpected)
+        {
+            hostelCollected = hostelExpected;
+        }
+        if (uniformExpected > 0m && uniformCollected > uniformExpected)
+        {
+            uniformCollected = uniformExpected;
+        }
+        if (finesExpected > 0m && finesCollected > finesExpected)
+        {
+            finesCollected = finesExpected;
         }
 
         decimal totalOutstanding = Math.Max(0m, totalExpected - totalCollected);
@@ -2522,7 +2540,7 @@ public class FeeCollectionRepository : IFeeCollectionRepository
                 }
             }
 
-            if (classExpected < classCollected) classExpected = classCollected;
+            if (classExpected > 0m && classCollected > classExpected) classCollected = classExpected;
 
             classWiseList.Add(new ClassWiseCollectionShareDto
             {
@@ -2739,7 +2757,7 @@ public class FeeCollectionRepository : IFeeCollectionRepository
         {
             decimal exp = entry.Expected;
             decimal coll = entry.Collected;
-            if (exp < coll) exp = coll;
+            if (exp > 0m && coll > exp) coll = exp;
 
             categoryBreakdown.Add(new FeeCategoryCollectionSummaryDto
             {
