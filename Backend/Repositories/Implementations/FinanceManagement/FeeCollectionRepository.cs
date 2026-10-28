@@ -458,6 +458,25 @@ public class FeeCollectionRepository : IFeeCollectionRepository
         var matchYear = System.Text.RegularExpressions.Regex.Match(activeAYName, @"\d{4}");
         string yearPrefix = matchYear.Success ? matchYear.Value : activeAYName;
 
+        // Dynamic Student Fee Policy resolution
+        string sIdStr = student.StudentId.ToString();
+        string sAdmNo = student.AdmissionNumber ?? string.Empty;
+
+        var feeAssignment = await _context.StudentFeeAssignments.AsNoTracking()
+            .FirstOrDefaultAsync(a => (a.StudentId == sIdStr || (sAdmNo != "" && a.StudentId == sAdmNo)) &&
+                                      (a.Status == "Active" || string.IsNullOrEmpty(a.Status)));
+
+        string studentPolicy = feeAssignment?.FeePolicy ?? "Default Annual";
+
+        string polLower = studentPolicy.Trim().ToLower();
+        bool isAnnualPolicy = polLower == "default annual" ||
+                              polLower == "full annual fee" ||
+                              polLower == "full annual" ||
+                              polLower == "annual" ||
+                              polLower == "one time" ||
+                              polLower == "one-time" ||
+                              (!polLower.Contains("term") && !polLower.Contains("quarter") && !polLower.Contains("pro-rata") && !polLower.Contains("prorated") && !polLower.Contains("monthly"));
+
         var schedule = await _context.FeeSchedules.AsNoTracking()
             .Include(s => s.Terms)
             .FirstOrDefaultAsync(s => s.AcademicYear.Contains(yearPrefix) || s.Status == "Active" || s.Status == "Published");
@@ -466,13 +485,13 @@ public class FeeCollectionRepository : IFeeCollectionRepository
         string defaultDueDate = !string.IsNullOrEmpty(schedule?.AnnualDueDate)
             ? schedule.AnnualDueDate
             : (scheduleTerms.FirstOrDefault()?.DueDate ?? DateTime.UtcNow.AddMonths(1).ToString("yyyy-MM-dd"));
-        string dynamicFrequency = scheduleTerms.Count > 0 ? $"Term-Wise ({scheduleTerms.Count} Terms)" : "Annual";
+        string dynamicFrequency = !isAnnualPolicy && scheduleTerms.Count > 0 ? $"Term-Wise ({scheduleTerms.Count} Terms)" : "Annual";
 
         var tuitionHead = await _context.FeeHeads.AsNoTracking()
             .FirstOrDefaultAsync(h => h.Category.Contains("Tuition") || h.Name.Contains("Tuition"));
         string tuitionHeadId = tuitionHead?.Code ?? (!string.IsNullOrEmpty(tuitionHead?.Id.ToString()) ? tuitionHead.Id.ToString() : "FH-101");
         string tuitionHeadName = tuitionHead?.Name ?? "Academic Fee";
-        string tuitionFrequency = !string.IsNullOrEmpty(tuitionHead?.Frequency) ? tuitionHead.Frequency : dynamicFrequency;
+        string tuitionFrequency = isAnnualPolicy ? "Annual" : (!string.IsNullOrEmpty(tuitionHead?.Frequency) ? tuitionHead.Frequency : dynamicFrequency);
 
         List<FeeTermItemDto> BuildDynamicTerms(decimal totalAmount, decimal paidAmount, string prefix = "")
         {
@@ -1040,6 +1059,7 @@ public class FeeCollectionRepository : IFeeCollectionRepository
             AcademicYear = student.AcademicYear?.AcademicYearName ?? $"{DateTime.UtcNow.Year}-{(DateTime.UtcNow.Year + 1)}",
             FatherName = student.FatherName ?? "",
             FatherMobile = student.FatherMobile ?? "",
+            FeePolicy = studentPolicy,
             CurrentYearDues = totalOutstanding,
             PreviousYearsArrears = 0m,
             TotalConcessions = totalDiscounts,

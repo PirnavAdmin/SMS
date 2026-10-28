@@ -24,6 +24,7 @@ public class FeeCollectionStudentSummaryDto
     public string AcademicYear { get; set; } = "2026-2027";
     public string FatherName { get; set; } = string.Empty;
     public string FatherMobile { get; set; } = string.Empty;
+    public string FeePolicy { get; set; } = "Default Annual";
     public decimal TotalFee { get; set; }
     public decimal PaidFee { get; set; }
     public decimal TotalOutstanding { get; set; }
@@ -135,6 +136,7 @@ public class StudentFeeProfileResponseDto
     public string AcademicYear { get; set; } = "2026-2027";
     public string FatherName { get; set; } = string.Empty;
     public string FatherMobile { get; set; } = string.Empty;
+    public string FeePolicy { get; set; } = "Default Annual";
 
     public decimal CurrentYearDues { get; set; }
     public decimal PreviousYearsArrears { get; set; }

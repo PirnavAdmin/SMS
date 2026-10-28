@@ -512,6 +512,26 @@ namespace SMS.Api.Repositories.Implementations.Parent
                     var items = new List<ParentFeeItemDto>();
                     int feeIdCounter = 1;
 
+                    // Resolve student policy dynamically
+                    string sIdStr = studentId.ToString();
+                    var student = await _context.Students.AsNoTracking().FirstOrDefaultAsync(s => s.StudentId == studentId);
+                    string sAdmNo = student?.AdmissionNumber ?? string.Empty;
+
+                    var feeAssignment = await _context.StudentFeeAssignments.AsNoTracking()
+                        .FirstOrDefaultAsync(a => (a.StudentId == sIdStr || (sAdmNo != "" && a.StudentId == sAdmNo)) &&
+                                                  (a.Status == "Active" || string.IsNullOrEmpty(a.Status)));
+
+                    string studentPolicy = feeAssignment?.FeePolicy ?? profile.FeePolicy ?? "Default Annual";
+
+                    string polLower = (studentPolicy ?? "Default Annual").Trim().ToLower();
+                    bool isAnnualPolicy = polLower == "default annual" ||
+                                          polLower == "full annual fee" ||
+                                          polLower == "full annual" ||
+                                          polLower == "annual" ||
+                                          polLower == "one time" ||
+                                          polLower == "one-time" ||
+                                          (!polLower.Contains("term") && !polLower.Contains("quarter") && !polLower.Contains("pro-rata") && !polLower.Contains("prorated") && !polLower.Contains("monthly"));
+
                     if (profile.CurrentAcademicYearFees != null && profile.CurrentAcademicYearFees.Count > 0)
                     {
                         foreach (var head in profile.CurrentAcademicYearFees)
@@ -520,7 +540,9 @@ namespace SMS.Api.Repositories.Implementations.Parent
                             totalPaid += head.PaidAmount;
                             totalDue += head.RemainingAmount;
 
-                            if (head.Terms != null && head.Terms.Count > 0)
+                            bool isHeadAnnual = isAnnualPolicy || (head.Frequency != null && head.Frequency.ToLower().Contains("annual"));
+
+                            if (!isHeadAnnual && head.Terms != null && head.Terms.Count > 0)
                             {
                                 foreach (var term in head.Terms)
                                 {
@@ -538,10 +560,16 @@ namespace SMS.Api.Repositories.Implementations.Parent
                             }
                             else
                             {
+                                string displayHeadName = head.HeadName;
+                                if (isHeadAnnual && !displayHeadName.ToLower().Contains("annual"))
+                                {
+                                    displayHeadName = $"{displayHeadName} (Annual)";
+                                }
+
                                 items.Add(new ParentFeeItemDto
                                 {
                                     FeeId = feeIdCounter++,
-                                    FeeHeadName = head.HeadName,
+                                    FeeHeadName = displayHeadName,
                                     Amount = head.TotalAmount,
                                     PaidAmount = head.PaidAmount,
                                     BalanceDue = head.RemainingAmount,
