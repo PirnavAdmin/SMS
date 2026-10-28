@@ -107,8 +107,13 @@ namespace SMS.Api.Services.Implementations
                 if (string.IsNullOrEmpty(hash)) return false;
                 try
                 {
-                    if (hash.StartsWith("$2") && BCrypt.Net.BCrypt.Verify(plainPassword, hash))
-                        return true;
+                    if (hash.StartsWith("$2"))
+                    {
+                        if (BCrypt.Net.BCrypt.Verify(plainPassword, hash))
+                            return true;
+                        if (plainPassword.Contains("@") && BCrypt.Net.BCrypt.Verify(plainPassword.ToLowerInvariant(), hash))
+                            return true;
+                    }
                 }
                 catch { }
 
@@ -758,8 +763,13 @@ namespace SMS.Api.Services.Implementations
                 if (string.IsNullOrEmpty(hash)) return false;
                 try
                 {
-                    if (hash.StartsWith("$2") && BCrypt.Net.BCrypt.Verify(plainPassword, hash))
-                        return true;
+                    if (hash.StartsWith("$2"))
+                    {
+                        if (BCrypt.Net.BCrypt.Verify(plainPassword, hash))
+                            return true;
+                        if (plainPassword.Contains("@") && BCrypt.Net.BCrypt.Verify(plainPassword.ToLowerInvariant(), hash))
+                            return true;
+                    }
                 }
                 catch { }
 

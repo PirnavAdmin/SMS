@@ -151,4 +151,165 @@ public class EmailNotificationService : IEmailNotificationService
             _logger.LogError(ex, "[EMAIL ERROR] Failed to send welcome email to {Email}", recipientEmail);
         }
     }
+    public async Task<bool> SendParentWelcomeEmailAsync(
+        string parentEmail,
+        string parentName,
+        string studentName,
+        string admissionNo,
+        string loginEmail,
+        string initialPassword,
+        bool isNewAccount,
+        string? portalUrl = null,
+        string? schoolName = null)
+    {
+        if (string.IsNullOrWhiteSpace(parentEmail) || !parentEmail.Contains('@'))
+        {
+            _logger.LogWarning("[EMAIL] Skipped sending parent welcome email. Invalid or empty email: {Email}", parentEmail);
+            return false;
+        }
+
+        try
+        {
+            var smtpHost = _configuration["Smtp:Host"] ?? "smtp.gmail.com";
+            var smtpPort = int.TryParse(_configuration["Smtp:Port"], out var p) ? p : 587;
+            var senderEmail = _configuration["Smtp:Email"] ?? "pirnavsms@gmail.com";
+            var senderPassword = _configuration["Smtp:Password"] ?? "";
+
+            if (string.IsNullOrWhiteSpace(senderPassword))
+            {
+                _logger.LogWarning("[EMAIL] SMTP Password not configured. Welcome email not sent.");
+                return false;
+            }
+
+            var cleanSchoolName = !string.IsNullOrWhiteSpace(schoolName) ? schoolName.Trim() : "Pirnav Schools";
+            var cleanParentName = !string.IsNullOrWhiteSpace(parentName) ? parentName.Trim() : "Parent / Guardian";
+            var cleanStudentName = !string.IsNullOrWhiteSpace(studentName) ? studentName.Trim() : "Student";
+            var cleanAdmNo = !string.IsNullOrWhiteSpace(admissionNo) ? admissionNo.Trim() : "N/A";
+            var cleanLoginEmail = !string.IsNullOrWhiteSpace(loginEmail) ? loginEmail.Trim() : parentEmail.Trim();
+
+            var loginUrl = !string.IsNullOrWhiteSpace(portalUrl) 
+                ? portalUrl 
+                : (_configuration["AppUrl"] ?? "http://localhost:5173");
+
+            if (!loginUrl.EndsWith("/#login") && !loginUrl.Contains("login"))
+            {
+                loginUrl = loginUrl.TrimEnd('/') + "/#login";
+            }
+
+            using var client = new SmtpClient(smtpHost, smtpPort)
+            {
+                UseDefaultCredentials = false,
+                Credentials = new NetworkCredential(senderEmail, senderPassword),
+                EnableSsl = true
+            };
+
+            string passwordRowHtml = isNewAccount
+                ? $@"<tr>
+                        <td style=""padding: 8px 0; color: #64748b; font-size: 13px; font-weight: 600;"">Initial Password:</td>
+                        <td style=""padding: 8px 0; color: #0284c7; font-size: 14px; font-weight: 700; font-family: monospace;"">{WebUtility.HtmlEncode(initialPassword)}</td>
+                    </tr>"
+                : $@"<tr>
+                        <td style=""padding: 8px 0; color: #64748b; font-size: 13px; font-weight: 600;"">Password:</td>
+                        <td style=""padding: 8px 0; color: #10b981; font-size: 14px; font-weight: 600;"">Your existing Parent Portal password</td>
+                    </tr>";
+
+            var mailMessage = new MailMessage
+            {
+                From = new MailAddress(senderEmail, $"{cleanSchoolName} Management"),
+                Subject = $"Welcome to {cleanSchoolName} - Parent Portal Access for {cleanStudentName}",
+                IsBodyHtml = true,
+                Body = $@"
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset=""utf-8"">
+    <title>Parent Portal Welcome - {WebUtility.HtmlEncode(cleanSchoolName)}</title>
+</head>
+<body style=""margin: 0; padding: 0; background-color: #f1f5f9; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;"">
+    <table role=""presentation"" style=""width: 100%; border-collapse: collapse;"">
+        <tr>
+            <td align=""center"" style=""padding: 30px 15px;"">
+                <table role=""presentation"" style=""width: 100%; max-width: 580px; background-color: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);"">
+                    <!-- Header -->
+                    <tr>
+                        <td style=""background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%); padding: 32px 24px; text-align: center;"">
+                            <h1 style=""margin: 0; color: #ffffff; font-size: 24px; font-weight: 800; letter-spacing: -0.5px;"">{WebUtility.HtmlEncode(cleanSchoolName.ToUpper())}</h1>
+                            <p style=""margin: 6px 0 0 0; color: #e0f2fe; font-size: 13px; font-weight: 500;"">Official Parent Portal & Student Information System</p>
+                        </td>
+                    </tr>
+                    <!-- Body -->
+                    <tr>
+                        <td style=""padding: 32px 28px;"">
+                            <h2 style=""margin: 0 0 14px 0; color: #0f172a; font-size: 20px; font-weight: 700;"">Welcome, {WebUtility.HtmlEncode(cleanParentName)}! 👋</h2>
+                            <p style=""margin: 0 0 16px 0; color: #475569; font-size: 14px; line-height: 1.6;"">
+                                We are pleased to confirm that the enrollment of your child, <strong>{WebUtility.HtmlEncode(cleanStudentName)}</strong> (Admission No: <strong style=""color: #0284c7;"">{WebUtility.HtmlEncode(cleanAdmNo)}</strong>), has been successfully completed.
+                            </p>
+                            <p style=""margin: 0 0 20px 0; color: #475569; font-size: 14px; line-height: 1.6;"">
+                                Your Parent Portal account has been activated. Through this portal, you can monitor your child's academic progress, track real-time attendance, review homework assignments, view examination results, and manage fee dues securely.
+                            </p>
+                            
+                            <!-- Credentials Card -->
+                            <div style=""background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 20px; margin-bottom: 24px;"">
+                                <h3 style=""margin: 0 0 12px 0; color: #1e293b; font-size: 14px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;"">Parent Portal Credentials</h3>
+                                <table style=""width: 100%; border-collapse: collapse;"">
+                                    <tr>
+                                        <td style=""padding: 8px 0; color: #64748b; font-size: 13px; font-weight: 600; width: 38%;"">Portal URL:</td>
+                                        <td style=""padding: 8px 0; color: #0284c7; font-size: 13px; font-weight: 600;""><a href=""{loginUrl}"" style=""color: #0284c7; text-decoration: underline;"">{WebUtility.HtmlEncode(loginUrl)}</a></td>
+                                    </tr>
+                                    <tr>
+                                        <td style=""padding: 8px 0; color: #64748b; font-size: 13px; font-weight: 600;"">Login Email / Username:</td>
+                                        <td style=""padding: 8px 0; color: #0f172a; font-size: 14px; font-weight: 700;"">{WebUtility.HtmlEncode(cleanLoginEmail)}</td>
+                                    </tr>
+                                    {passwordRowHtml}
+                                    <tr>
+                                        <td style=""padding: 8px 0; color: #64748b; font-size: 13px; font-weight: 600;"">Enrolled Student:</td>
+                                        <td style=""padding: 8px 0; color: #0f172a; font-size: 14px; font-weight: 600;"">{WebUtility.HtmlEncode(cleanStudentName)} ({WebUtility.HtmlEncode(cleanAdmNo)})</td>
+                                    </tr>
+                                </table>
+                            </div>
+
+                            <!-- CTA Button -->
+                            <div style=""text-align: center; margin: 28px 0;"">
+                                <a href=""{loginUrl}"" style=""display: inline-block; background-color: #0284c7; color: #ffffff; font-size: 14px; font-weight: 700; text-decoration: none; padding: 14px 34px; border-radius: 10px; box-shadow: 0 4px 12px rgba(2, 132, 199, 0.3);"">
+                                    Log In to Parent Portal
+                                </a>
+                            </div>
+
+                            <!-- Security Advice -->
+                            <div style=""background-color: #eff6ff; border-left: 4px solid #0284c7; padding: 12px 16px; border-radius: 6px; margin-bottom: 20px;"">
+                                <p style=""margin: 0; color: #1e40af; font-size: 12px; line-height: 1.5;"">
+                                    <strong>Security Notice:</strong> Your registered email address is set as your initial login password. You can update your password at any time via the <strong>Change Password</strong> option in your Parent Portal profile.
+                                </p>
+                            </div>
+
+                            <p style=""margin: 0; color: #94a3b8; font-size: 12px; line-height: 1.5; text-align: center;"">
+                                If you have any questions or require assistance, please feel free to contact the school administration office.
+                            </p>
+                        </td>
+                    </tr>
+                    <!-- Footer -->
+                    <tr>
+                        <td style=""background-color: #f8fafc; border-top: 1px solid #e2e8f0; padding: 20px 24px; text-align: center;"">
+                            <p style=""margin: 0; color: #64748b; font-size: 12px;"">© {DateTime.UtcNow.Year} {WebUtility.HtmlEncode(cleanSchoolName)}. All rights reserved.</p>
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+    </table>
+</body>
+</html>"
+            };
+
+            mailMessage.To.Add(parentEmail);
+            await client.SendMailAsync(mailMessage);
+            _logger.LogInformation("[EMAIL] Parent welcome credentials email sent successfully to {Email} for student {Student} ({AdmNo})", parentEmail, cleanStudentName, cleanAdmNo);
+            return true;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "[EMAIL ERROR] Failed to send parent welcome email to {Email}", parentEmail);
+            return false;
+        }
+    }
 }

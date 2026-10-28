@@ -1,3 +1,5 @@
+using System;
+using System.Linq;
 using System.Security.Claims;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
@@ -33,6 +35,23 @@ namespace SMS.Api.Controllers.Parent
             return emailClaim ?? mobileClaim ?? nameClaim ?? string.Empty;
         }
 
+        private async Task<bool> ValidateParentAccessAsync(int studentId)
+        {
+            var isParentRole = User.IsInRole("Parent") || string.Equals(User.FindFirst(ClaimTypes.Role)?.Value, "Parent", StringComparison.OrdinalIgnoreCase);
+            var parentId = GetParentIdentifier();
+
+            if (isParentRole || !string.IsNullOrWhiteSpace(parentId))
+            {
+                if (string.IsNullOrWhiteSpace(parentId)) return true;
+                var children = await _parentService.GetChildrenAsync(parentId);
+                if (children != null && children.Count > 0)
+                {
+                    return children.Any(c => c.StudentId == studentId);
+                }
+            }
+            return true;
+        }
+
         [HttpGet("children")]
         public async Task<IActionResult> GetChildren([FromQuery] string? identifier)
         {
@@ -44,6 +63,9 @@ namespace SMS.Api.Controllers.Parent
         [HttpGet("dashboard/{studentId:int}")]
         public async Task<IActionResult> GetDashboardSummary(int studentId)
         {
+            if (!await ValidateParentAccessAsync(studentId))
+                return StatusCode(403, new { success = false, message = "Access denied: student not associated with this parent account." });
+
             var summary = await _parentService.GetDashboardSummaryAsync(studentId);
             return Ok(new { success = true, data = summary });
         }
@@ -51,6 +73,9 @@ namespace SMS.Api.Controllers.Parent
         [HttpGet("student/{studentId:int}")]
         public async Task<IActionResult> GetStudentDetails(int studentId)
         {
+            if (!await ValidateParentAccessAsync(studentId))
+                return StatusCode(403, new { success = false, message = "Access denied: student not associated with this parent account." });
+
             var details = await _parentService.GetStudentDetailsAsync(studentId);
             if (details == null)
                 return NotFound(new { success = false, message = "Student not found." });
@@ -61,6 +86,9 @@ namespace SMS.Api.Controllers.Parent
         [HttpGet("attendance/{studentId:int}")]
         public async Task<IActionResult> GetAttendanceSummary(int studentId)
         {
+            if (!await ValidateParentAccessAsync(studentId))
+                return StatusCode(403, new { success = false, message = "Access denied: student not associated with this parent account." });
+
             var summary = await _parentService.GetAttendanceSummaryAsync(studentId);
             return Ok(new { success = true, data = summary });
         }
@@ -68,6 +96,9 @@ namespace SMS.Api.Controllers.Parent
         [HttpGet("timetable/{studentId:int}")]
         public async Task<IActionResult> GetTimetable(int studentId)
         {
+            if (!await ValidateParentAccessAsync(studentId))
+                return StatusCode(403, new { success = false, message = "Access denied: student not associated with this parent account." });
+
             var timetable = await _parentService.GetTimetableAsync(studentId);
             return Ok(new { success = true, data = timetable });
         }
@@ -75,6 +106,9 @@ namespace SMS.Api.Controllers.Parent
         [HttpGet("homework/{studentId:int}")]
         public async Task<IActionResult> GetHomework(int studentId)
         {
+            if (!await ValidateParentAccessAsync(studentId))
+                return StatusCode(403, new { success = false, message = "Access denied: student not associated with this parent account." });
+
             var homework = await _parentService.GetHomeworkAsync(studentId);
             return Ok(new { success = true, data = homework });
         }
@@ -83,6 +117,9 @@ namespace SMS.Api.Controllers.Parent
         [HttpGet("exam-results/{studentId:int}")]
         public async Task<IActionResult> GetExamResults(int studentId)
         {
+            if (!await ValidateParentAccessAsync(studentId))
+                return StatusCode(403, new { success = false, message = "Access denied: student not associated with this parent account." });
+
             var results = await _parentService.GetExamResultsAsync(studentId);
             return Ok(new { success = true, data = results });
         }
@@ -90,6 +127,9 @@ namespace SMS.Api.Controllers.Parent
         [HttpGet("fee-details/{studentId:int}")]
         public async Task<IActionResult> GetFeeSummary(int studentId)
         {
+            if (!await ValidateParentAccessAsync(studentId))
+                return StatusCode(403, new { success = false, message = "Access denied: student not associated with this parent account." });
+
             var feeSummary = await _parentService.GetFeeSummaryAsync(studentId);
             return Ok(new { success = true, data = feeSummary });
         }
@@ -101,6 +141,9 @@ namespace SMS.Api.Controllers.Parent
             {
                 return BadRequest(new { success = false, message = "Invalid payment request payload." });
             }
+            if (!await ValidateParentAccessAsync(request.StudentId))
+                return StatusCode(403, new { success = false, message = "Access denied: student not associated with this parent account." });
+
             var response = await _parentService.PayFeeAsync(request);
             return Ok(new { success = true, data = response });
         }
@@ -108,6 +151,9 @@ namespace SMS.Api.Controllers.Parent
         [HttpGet("teachers/{studentId:int}")]
         public async Task<IActionResult> GetTeachers(int studentId)
         {
+            if (!await ValidateParentAccessAsync(studentId))
+                return StatusCode(403, new { success = false, message = "Access denied: student not associated with this parent account." });
+
             var teachers = await _parentService.GetTeachersAsync(studentId);
             return Ok(new { success = true, data = teachers });
         }
@@ -115,6 +161,9 @@ namespace SMS.Api.Controllers.Parent
         [HttpGet("transport/{studentId:int}")]
         public async Task<IActionResult> GetTransportInfo(int studentId)
         {
+            if (!await ValidateParentAccessAsync(studentId))
+                return StatusCode(403, new { success = false, message = "Access denied: student not associated with this parent account." });
+
             var transport = await _parentService.GetTransportInfoAsync(studentId);
             return Ok(new { success = true, data = transport });
         }
@@ -122,6 +171,9 @@ namespace SMS.Api.Controllers.Parent
         [HttpGet("hostel/{studentId:int}")]
         public async Task<IActionResult> GetHostelInfo(int studentId)
         {
+            if (!await ValidateParentAccessAsync(studentId))
+                return StatusCode(403, new { success = false, message = "Access denied: student not associated with this parent account." });
+
             var hostel = await _parentService.GetHostelInfoAsync(studentId);
             return Ok(new { success = true, data = hostel });
         }

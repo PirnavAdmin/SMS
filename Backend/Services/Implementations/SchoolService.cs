@@ -1625,6 +1625,7 @@ public class SchoolService : ISchoolService
 									}
 								}
 
+								Student? targetStudent = matchedStudent;
 								if (matchedStudent != null)
 								{
 									if (string.IsNullOrWhiteSpace(matchedStudent.AdmissionNumber) || matchedStudent.AdmissionNumber.StartsWith("REG-", StringComparison.OrdinalIgnoreCase))
@@ -1693,28 +1694,35 @@ public class SchoolService : ISchoolService
 										CreatedAt = DateTime.UtcNow
 									};
 									await _context.Students.AddAsync(newStudent);
+									targetStudent = newStudent;
 								}
 								await _context.SaveChangesAsync();
 
-								// Provision and sync Parent User in users table for Parent Portal Login
+								// Provision and sync Parent User & ParentStudentMapping for Parent Portal Login
 								try
 								{
 									var parentEmail = !string.IsNullOrWhiteSpace(app.ParentEmail) ? app.ParentEmail.Trim() : null;
 									var parentMobile = !string.IsNullOrWhiteSpace(app.FatherContact) ? app.FatherContact.Trim() : (!string.IsNullOrWhiteSpace(existing?.FatherMobile) ? existing!.FatherMobile.Trim() : null);
 									var parentFullName = !string.IsNullOrWhiteSpace(app.FatherName) ? app.FatherName.Trim() : (!string.IsNullOrWhiteSpace(app.MotherName) ? app.MotherName.Trim() : "Parent");
+									var normEmail = parentEmail?.ToLowerInvariant();
 
 									if (!string.IsNullOrWhiteSpace(parentEmail) || !string.IsNullOrWhiteSpace(parentMobile))
 									{
 										var existingParentUser = await Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions.FirstOrDefaultAsync(
 											_context.Users.Include(u => u.Roles), u =>
-												(!string.IsNullOrWhiteSpace(parentMobile) && u.MobileNumber == parentMobile) ||
-												(!string.IsNullOrWhiteSpace(parentEmail) && u.Email != null && u.Email.ToLower() == parentEmail.ToLower()));
+												(!string.IsNullOrWhiteSpace(normEmail) && u.Email != null && u.Email.ToLower() == normEmail) ||
+												(!string.IsNullOrWhiteSpace(parentMobile) && u.MobileNumber == parentMobile && (u.Role == "Parent" || u.Role == "Parent / Guardian")));
+
+										bool isNewAccount = false;
 
 										if (existingParentUser != null)
 										{
-											if (!string.IsNullOrWhiteSpace(parentEmail)) existingParentUser.Email = parentEmail;
-											if (!string.IsNullOrWhiteSpace(parentMobile)) existingParentUser.MobileNumber = parentMobile;
-											if (!string.IsNullOrWhiteSpace(parentFullName)) existingParentUser.FullName = parentFullName;
+											if (!string.IsNullOrWhiteSpace(parentEmail) && string.IsNullOrWhiteSpace(existingParentUser.Email)) 
+												existingParentUser.Email = parentEmail;
+											if (!string.IsNullOrWhiteSpace(parentMobile) && string.IsNullOrWhiteSpace(existingParentUser.MobileNumber)) 
+												existingParentUser.MobileNumber = parentMobile;
+											if (!string.IsNullOrWhiteSpace(parentFullName) && string.IsNullOrWhiteSpace(existingParentUser.FullName)) 
+												existingParentUser.FullName = parentFullName;
 											
 											var parentRole = await Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions.FirstOrDefaultAsync(
 												_context.Roles, r => r.RoleName == "Parent");
@@ -1730,16 +1738,18 @@ public class SchoolService : ISchoolService
 										}
 										else
 										{
+											isNewAccount = true;
 											var parentRole = await Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions.FirstOrDefaultAsync(
 												_context.Roles, r => r.RoleName == "Parent");
 
-											var dynamicParentPassword = SMS.Api.Helpers.PasswordHelper.GenerateDynamicPassword();
+											// Initial Password is set dynamically to the parent's registered email address
+											var initialPassword = normEmail ?? parentEmail ?? parentMobile ?? "Welcome@123";
 											var newParentUser = new User
 											{
 												FullName = parentFullName,
 												Email = parentEmail,
 												MobileNumber = !string.IsNullOrWhiteSpace(parentMobile) ? parentMobile : $"PAR-{DateTime.UtcNow.Ticks}",
-												PasswordHash = BCrypt.Net.BCrypt.HashPassword(dynamicParentPassword),
+												PasswordHash = BCrypt.Net.BCrypt.HashPassword(initialPassword),
 												Role = "Parent",
 												IsEmailVerified = true,
 												IsMobileVerified = true,
@@ -1754,70 +1764,101 @@ public class SchoolService : ISchoolService
 
 											await _context.Users.AddAsync(newParentUser);
 											await _context.SaveChangesAsync();
+											existingParentUser = newParentUser;
+										}
+
+										// Establish or update the ParentStudentMapping relationship
+										if (existingParentUser != null && targetStudent != null)
+										{
+											var existingMapping = await Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions.FirstOrDefaultAsync(
+												_context.ParentStudentMappings,
+												m => m.ParentUserId == existingParentUser.UserId && m.StudentId == targetStudent.StudentId);
+
+											string relationshipType = !string.IsNullOrWhiteSpace(app.FatherName) ? "Father" : (!string.IsNullOrWhiteSpace(app.MotherName) ? "Mother" : "Guardian");
+
+											if (existingMapping == null)
+											{
+												existingMapping = new ParentStudentMapping
+												{
+													ParentUserId = existingParentUser.UserId,
+													StudentId = targetStudent.StudentId,
+													RelationshipType = relationshipType,
+													IsPrimaryContact = true,
+													Status = "Active",
+													BranchId = targetStudent.BranchId,
+													AcademicYearId = targetStudent.AcademicYearId,
+													OnboardingStatus = "Account Ready",
+													CreatedAt = DateTime.UtcNow,
+													UpdatedAt = DateTime.UtcNow
+												};
+												await _context.ParentStudentMappings.AddAsync(existingMapping);
+												await _context.SaveChangesAsync();
+											}
+											else
+											{
+												existingMapping.Status = "Active";
+												existingMapping.RelationshipType = relationshipType;
+												existingMapping.UpdatedAt = DateTime.UtcNow;
+												await _context.SaveChangesAsync();
+											}
+
+											// Automatically send Welcome Email when enrollment is completed
+											if (string.Equals(app.Status, "Enrolled", StringComparison.OrdinalIgnoreCase) &&
+											    existingMapping.WelcomeEmailSentAt == null &&
+											    !string.IsNullOrWhiteSpace(parentEmail) && 
+											    parentEmail.Contains('@'))
+											{
+												try
+												{
+													var schoolName = "Pirnav School";
+													var branch = await Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions.FirstOrDefaultAsync(
+														_context.Branches, b => b.BranchId == targetStudent.BranchId);
+													if (branch != null && !string.IsNullOrWhiteSpace(branch.BranchName))
+													{
+														schoolName = branch.BranchName;
+													}
+
+													var portalUrl = "http://localhost:5173/login";
+													var initialPassText = isNewAccount ? parentEmail : "Your existing password";
+
+													var emailSent = await _emailNotificationService.SendParentWelcomeEmailAsync(
+														parentEmail: parentEmail,
+														parentName: parentFullName,
+														studentName: targetStudent.StudentName,
+														admissionNo: targetStudent.AdmissionNumber ?? app.AdmissionNo ?? "N/A",
+														loginEmail: parentEmail,
+														initialPassword: initialPassText,
+														isNewAccount: isNewAccount,
+														portalUrl: portalUrl,
+														schoolName: schoolName);
+
+													if (emailSent)
+													{
+														existingMapping.OnboardingStatus = "Email Sent";
+														existingMapping.WelcomeEmailSentAt = DateTime.UtcNow;
+														existingMapping.EmailFailureReason = null;
+													}
+													else
+													{
+														existingMapping.OnboardingStatus = "Email Failed";
+														existingMapping.EmailFailureReason = "SMTP service delivery unconfirmed.";
+													}
+													await _context.SaveChangesAsync();
+												}
+												catch (Exception emailEx)
+												{
+													Console.WriteLine($"[SchoolService] Failed to send parent welcome email: {emailEx.Message}");
+													existingMapping.OnboardingStatus = "Email Failed";
+													existingMapping.EmailFailureReason = emailEx.Message;
+													await _context.SaveChangesAsync();
+												}
+											}
 										}
 									}
 								}
 								catch (Exception parentSyncEx)
 								{
-									Console.WriteLine($"[SchoolService] Failed to sync Parent user account: {parentSyncEx.Message}");
-								}
-
-								// Automatically create Student User in users table and send Welcome Credentials Email
-								if (app.Status == "Enrolled")
-								{
-									try
-									{
-										var studentEmail = !string.IsNullOrWhiteSpace(app.ParentEmail) ? app.ParentEmail.Trim() : null;
-										var studentMobile = !string.IsNullOrWhiteSpace(app.FatherContact) ? app.FatherContact.Trim() : (!string.IsNullOrWhiteSpace(existing?.FatherMobile) ? existing!.FatherMobile.Trim() : (existing != null ? $"STU{existing.AdmissionId}" : $"STU{app.Id}"));
-										var studentFullName = $"{app.FirstName} {app.LastName}".Trim();
-
-										var existingUser = await Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions.FirstOrDefaultAsync(
-											_context.Users, u =>
-												(!string.IsNullOrWhiteSpace(studentEmail) && u.Email != null && u.Email.ToLower() == studentEmail.ToLower()) ||
-												(!string.IsNullOrWhiteSpace(studentMobile) && u.MobileNumber == studentMobile));
-
-										if (existingUser == null)
-										{
-											var dynamicStudentPassword = SMS.Api.Helpers.PasswordHelper.GenerateDynamicPassword();
-											var newUser = new User
-											{
-												FullName = studentFullName,
-												Email = studentEmail,
-												MobileNumber = studentMobile,
-												PasswordHash = BCrypt.Net.BCrypt.HashPassword(dynamicStudentPassword),
-												Role = "Student",
-												IsEmailVerified = true,
-												IsMobileVerified = true,
-												CreatedAt = DateTime.UtcNow,
-												SchoolId = null
-											};
-											await _context.Users.AddAsync(newUser);
-											await _context.SaveChangesAsync();
-
-											// Send Welcome Credentials Email to student / parent email with dynamic password
-											if (!string.IsNullOrWhiteSpace(studentEmail) && studentEmail.Contains('@'))
-											{
-												var loginId = studentEmail;
-												_ = Task.Run(async () =>
-												{
-													try
-													{
-														await _emailNotificationService.SendWelcomeCredentialsAsync(
-															recipientEmail: studentEmail,
-															recipientName: studentFullName,
-															loginIdentifier: loginId,
-															defaultPassword: dynamicStudentPassword,
-															roleName: "Student");
-													}
-													catch { /* Ignored */ }
-												});
-											}
-										}
-									}
-									catch (Exception userSyncEx)
-									{
-										Console.WriteLine($"[SchoolService] Failed to auto-create user or send welcome email for student: {userSyncEx.Message}");
-									}
+									Console.WriteLine($"[SchoolService] Failed to sync Parent user or parent-student mapping: {parentSyncEx.Message}");
 								}
 							}
 						}
