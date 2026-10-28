@@ -239,7 +239,10 @@ export function downloadFeeSummaryPdf(data: FeeSummaryPdfData, filename: string)
 
   drawInfoRow('Student Name:', data.studentName || 'Student');
   drawInfoRow('Admission No:', data.admissionNo || '—', '#0284c7');
-  drawInfoRow('Class & Section:', `${data.className || 'Class 1'} - ${data.section || 'A'} (${data.academicYear || ''})`);
+  const classDisplay = data.section
+    ? `${data.className || '—'} - ${data.section} (${data.academicYear || ''})`
+    : `${data.className || '—'} (${data.academicYear || ''})`;
+  drawInfoRow(data.section ? 'Class & Section:' : 'Class:', classDisplay);
   drawInfoRow('Student Type:', data.studentType || 'Day Scholar', '#075985', true);
 
   y += cardH + 42;
