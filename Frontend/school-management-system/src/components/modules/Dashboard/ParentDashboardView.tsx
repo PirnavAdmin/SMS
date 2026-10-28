@@ -26,6 +26,7 @@ const ParentPremiumDonutChart: React.FC<{
     latePct: number;
     halfDayPct: number;
     absentPct: number;
+    overallPct?: number;
   };
 }> = ({ stats }) => {
   const [hoveredSegment, setHoveredSegment] = useState<{
@@ -47,6 +48,7 @@ const ParentPremiumDonutChart: React.FC<{
   const absentPct = Math.round((absentVal / total) * 100);
   const latePct = Math.round((lateVal / total) * 100);
   const halfDayPct = Math.max(0, 100 - presentPct - absentPct - latePct);
+  const overallAvg = typeof stats.overallPct === 'number' ? stats.overallPct : presentPct;
 
   const rotPresent = -90;
   const rotAbsent = rotPresent + (presentVal / total) * 360;
@@ -131,18 +133,18 @@ const ParentPremiumDonutChart: React.FC<{
             />
           )}
         </svg>
-        <div className="absolute flex flex-col items-center justify-center pointer-events-none group-hover/chart:opacity-0 transition-opacity duration-200">
+        <div className="absolute flex flex-col items-center justify-center pointer-events-none group-hover/chart:opacity-0 transition-opacity duration-200 text-center">
           <span className="text-xs font-black text-slate-900 dark:text-white leading-none">
-            {hoveredSegment ? `${hoveredSegment.pct}%` : `${presentPct}%`}
+            {hoveredSegment ? `${hoveredSegment.pct}%` : `${overallAvg}%`}
           </span>
           <span className="text-[6.5px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mt-0.5">
-            {hoveredSegment ? hoveredSegment.label : 'Present'}
+            {hoveredSegment ? hoveredSegment.label : 'AVERAGE'}
           </span>
         </div>
 
         {/* Tooltip Overlay displayed inside the circle on hover */}
         <div className="absolute inset-0 bg-slate-950/95 dark:bg-slate-900/95 text-white rounded-full opacity-0 group-hover/chart:opacity-100 transition-opacity duration-200 flex flex-col items-center justify-center p-2 text-center shadow-lg border border-slate-700/50 pointer-events-none">
-          <p className="text-[7.5px] font-extrabold uppercase tracking-wider text-slate-400 mb-1 border-b border-slate-700 w-16 pb-0.5">Details</p>
+          <p className="text-[7.5px] font-extrabold uppercase tracking-wider text-slate-400 mb-1 border-b border-slate-700 w-16 pb-0.5">Avg: {overallAvg}%</p>
           <div className="text-[7.5px] font-bold space-y-0.5 text-left">
             <div className="flex items-center gap-1">
               <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
@@ -226,14 +228,32 @@ export const ParentDashboardView: React.FC<ParentDashboardViewProps> = ({ onNavi
     exams = [], 
     schoolProfile,
     fetchHomeworkData,
-    fetchStudentAttendanceData
+    fetchStudentAttendanceData,
+    fetchSchoolEvents,
+    fetchHolidays,
+    fetchAnnouncements,
+    fetchAdmissions,
+    fetchStudents
   } = useData();
   const [selectedChildIdx, setSelectedChildIdx] = useState(0);
 
   useEffect(() => {
     fetchHomeworkData?.();
     fetchStudentAttendanceData?.();
-  }, [fetchHomeworkData, fetchStudentAttendanceData]);
+    fetchSchoolEvents?.();
+    fetchHolidays?.();
+    fetchAnnouncements?.();
+    fetchAdmissions?.();
+    fetchStudents?.();
+  }, [
+    fetchHomeworkData,
+    fetchStudentAttendanceData,
+    fetchSchoolEvents,
+    fetchHolidays,
+    fetchAnnouncements,
+    fetchAdmissions,
+    fetchStudents
+  ]);
 
   const [registryVersion, setRegistryVersion] = useState(0);
   useEffect(() => {
@@ -256,6 +276,36 @@ export const ParentDashboardView: React.FC<ParentDashboardViewProps> = ({ onNavi
   const hasMatchedWards = parentWards.length > 0;
 
   const currentWard = parentWards[selectedChildIdx] || parentWards[0];
+
+  const matchedStudent = useMemo(() => {
+    if (!currentWard) return null;
+    const wAdm = String(currentWard.admissionNo || '').trim().toLowerCase();
+    const wRoll = String(currentWard.rollNo || '').trim().toLowerCase();
+    const wId = String(currentWard.studentId || currentWard.id || '').trim().toLowerCase();
+    return (students || []).find(s => {
+      const sAdm = String(s.admissionNo || (s as any).admissionNumber || '').trim().toLowerCase();
+      const sRoll = String((s as any).rollNo || (s as any).rollNumber || '').trim().toLowerCase();
+      const sId = String(s.id || (s as any).studentId || '').trim().toLowerCase();
+      return (wAdm && sAdm === wAdm) || (wRoll && sRoll === wRoll) || (wId && sId === wId);
+    });
+  }, [students, currentWard]);
+
+  const matchedAdmission = useMemo(() => {
+    if (!currentWard) return null;
+    const wAdm = String(currentWard.admissionNo || '').trim().toLowerCase();
+    const wRoll = String(currentWard.rollNo || '').trim().toLowerCase();
+    const wId = String(currentWard.studentId || currentWard.id || '').trim().toLowerCase();
+    const wName = String(currentWard.studentName || `${currentWard.firstName || ''} ${currentWard.lastName || ''}`).trim().toLowerCase();
+    return (admissions || []).find(a => {
+      const aAdm = String(a.admissionNo || (a as any).admissionNumber || (a as any).applicationNo || '').trim().toLowerCase();
+      const aReg = String((a as any).registrationNo || (a as any).registrationNumber || '').trim().toLowerCase();
+      const aId = String(a.id || (a as any).applicationId || '').trim().toLowerCase();
+      const aName = String((a as any).applicantFullName || (a as any).applicantName || (a as any).studentName || '').trim().toLowerCase();
+      return (wAdm && (aAdm === wAdm || aReg === wAdm)) || 
+             (wRoll && (aReg === wRoll || aAdm === wRoll)) || 
+             (wName && aName && wName === aName);
+    });
+  }, [admissions, currentWard]);
 
   const combinedAttendance = useMemo(() => {
     const list: any[] = [];
@@ -375,27 +425,48 @@ export const ParentDashboardView: React.FC<ParentDashboardViewProps> = ({ onNavi
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    const eventsList = (schoolEvents || []).map(e => ({
-      id: `SE-${e.id}`,
-      title: e.title,
-      category: e.category || 'School Event',
-      date: e.startDate,
-      type: 'Event'
-    }));
+    const isInternalAssessmentOrWorkshop = (title?: string, cat?: string) => {
+      const t = (title || '').toLowerCase();
+      const c = (cat || '').toLowerCase();
+      return (
+        t.includes('[assessment]') ||
+        t.includes('[workshop]') ||
+        t.includes('pocso') ||
+        t.includes('pedagogy') ||
+        t.includes('classroom discipline') ||
+        t.includes('subject knowledge') ||
+        t.includes('faculty training') ||
+        t.includes('teacher training') ||
+        c.includes('training') ||
+        c.includes('faculty')
+      );
+    };
 
-    const announces = (announcements || []).map(a => ({
-      id: `AN-${a.id}`,
-      title: a.title,
-      category: a.category || 'Announcement',
-      date: a.date,
-      type: 'Event'
-    }));
+    const eventsList = (schoolEvents || [])
+      .filter(e => !isInternalAssessmentOrWorkshop(e.title, e.category))
+      .map(e => ({
+        id: `SE-${e.id}`,
+        title: e.title,
+        category: e.category || 'School Event',
+        date: e.startDate || (e as any).date,
+        type: 'Event'
+      }));
+
+    const announces = (announcements || [])
+      .filter(a => !isInternalAssessmentOrWorkshop(a.title, a.category))
+      .map(a => ({
+        id: `AN-${a.id}`,
+        title: a.title,
+        category: a.category || 'Announcement',
+        date: a.date,
+        type: 'Event'
+      }));
 
     const hols = (holidays || []).map(h => ({
       id: `HL-${h.id}`,
-      title: h.name,
-      category: h.type || 'Holiday',
-      date: h.startDate,
+      title: h.name || (h as any).holidayName || (h as any).title,
+      category: h.type || (h as any).holidayType || 'Holiday',
+      date: h.startDate || (h as any).fromDate || (h as any).date,
       type: 'Holiday'
     }));
 
@@ -744,27 +815,45 @@ export const ParentDashboardView: React.FC<ParentDashboardViewProps> = ({ onNavi
           <div className="space-y-2 text-xs flex-1 overflow-y-auto pr-1">
             <div className="flex justify-between py-1 border-b border-sky-100/60 dark:border-sky-900/30">
               <span className="text-slate-550 dark:text-slate-455 font-bold">Admission Number</span>
-              <span className="font-mono font-black text-slate-900 dark:text-white">{currentWard.admissionNo}</span>
+              <span className="font-mono font-black text-slate-900 dark:text-white">{currentWard.admissionNo || matchedStudent?.admissionNo || matchedAdmission?.admissionNo || 'N/A'}</span>
             </div>
             <div className="flex justify-between py-1 border-b border-sky-100/60 dark:border-sky-900/30">
               <span className="text-slate-550 dark:text-slate-455 font-bold">Date of Birth</span>
-              <span className="font-bold text-slate-800 dark:text-slate-250">{currentWard.dob ? String(currentWard.dob).split('T')[0].split(' ')[0] : ''}</span>
+              <span className="font-bold text-slate-800 dark:text-slate-250">
+                {currentWard.dob 
+                  ? String(currentWard.dob).split('T')[0].split(' ')[0] 
+                  : matchedStudent?.dob 
+                    ? String(matchedStudent.dob).split('T')[0].split(' ')[0] 
+                    : matchedAdmission?.dob 
+                      ? String(matchedAdmission.dob).split('T')[0].split(' ')[0] 
+                      : (matchedAdmission as any)?.dateOfBirth 
+                        ? String((matchedAdmission as any).dateOfBirth).split('T')[0].split(' ')[0] 
+                        : 'Not Provided'}
+              </span>
             </div>
             <div className="flex justify-between py-1 border-b border-sky-100/60 dark:border-sky-900/30">
               <span className="text-slate-550 dark:text-slate-455 font-bold">Blood Group</span>
-              <span className="font-bold text-slate-800 dark:text-slate-250">{currentWard.bloodGroup || 'Not Provided'}</span>
+              <span className="font-bold text-slate-800 dark:text-slate-250">
+                {currentWard.bloodGroup || matchedAdmission?.bloodGroup || (matchedStudent as any)?.bloodGroup || 'Not Provided'}
+              </span>
             </div>
             <div className="flex justify-between py-1 border-b border-sky-100/60 dark:border-sky-900/30">
               <span className="text-slate-550 dark:text-slate-455 font-bold">Board Type</span>
-              <span className="font-bold text-slate-800 dark:text-slate-250">{currentWard.boardType || schoolProfile?.boardType || 'CBSE'}</span>
+              <span className="font-bold text-slate-800 dark:text-slate-250">
+                {currentWard.boardType || (matchedAdmission as any)?.boardType || (matchedStudent as any)?.boardType || schoolProfile?.boardType || 'CBSE'}
+              </span>
             </div>
             <div className="flex justify-between py-1 border-b border-sky-100/60 dark:border-sky-900/30">
               <span className="text-slate-550 dark:text-slate-455 font-bold">Student Type</span>
-              <span className="font-bold text-slate-800 dark:text-slate-250">{currentWard.studentType || 'Day Scholar'}</span>
+              <span className="font-bold text-slate-800 dark:text-slate-250">
+                {currentWard.studentType || matchedAdmission?.studentType || (matchedStudent as any)?.studentType || 'Day Scholar'}
+              </span>
             </div>
             <div className="flex justify-between py-1">
               <span className="text-slate-550 dark:text-slate-455 font-bold">Caste Category</span>
-              <span className="font-bold text-slate-800 dark:text-slate-250">{currentWard.casteCategory || 'General'}</span>
+              <span className="font-bold text-slate-800 dark:text-slate-250">
+                {currentWard.casteCategory || (matchedAdmission as any)?.casteCategory || (matchedAdmission as any)?.caste || (matchedStudent as any)?.casteCategory || 'General'}
+              </span>
             </div>
           </div>
         </div>

@@ -46,26 +46,31 @@ namespace SMS.Api.Repositories.Implementations.Parent
                 string searchFullName = (parentUser?.FullName ?? (identifier.Contains("@") ? string.Empty : identifier)).Trim();
                 string searchMobileDigits = new string(searchMobile.Where(char.IsDigit).ToArray());
 
+                // Prepare tokens for full name matching (e.g. "Suresh Kandukuri")
+                var tokens = !string.IsNullOrEmpty(searchFullName)
+                    ? searchFullName.Split(' ', StringSplitOptions.RemoveEmptyEntries).Where(t => t.Length >= 3).ToList()
+                    : new List<string>();
+                string firstToken = tokens.Count >= 2 ? tokens[0].ToLower() : string.Empty;
+                string lastToken = tokens.Count >= 2 ? tokens[tokens.Count - 1].ToLower() : string.Empty;
+
                 // 2. Query AdmissionApplications matching parent email or parent contact
                 var matchingAppAdmissionNos = new List<string>();
                 var matchingAppRegNos = new List<string>();
                 var matchingAppStudentNames = new List<string>();
 
-                if (!string.IsNullOrEmpty(searchEmail) || !string.IsNullOrEmpty(searchMobile))
+                if (!string.IsNullOrEmpty(searchEmail) || (!string.IsNullOrEmpty(searchMobile) && searchMobileDigits.Length >= 10))
                 {
                     var matchedApps = await _context.AdmissionApplications
                         .AsNoTracking()
                         .Where(a => !a.IsDeleted && (
                             (!string.IsNullOrEmpty(searchEmail) && a.ParentEmail != null && a.ParentEmail.ToLower() == searchEmail) ||
-                            (!string.IsNullOrEmpty(searchMobile) && (
+                            (searchMobileDigits.Length >= 10 && (
                                 a.FatherContact == searchMobile ||
                                 a.MotherMobileNumber == searchMobile ||
                                 a.AlternateMobileNumber == searchMobile ||
-                                (searchMobileDigits.Length >= 10 && (
-                                    (a.FatherContact != null && a.FatherContact.EndsWith(searchMobileDigits)) ||
-                                    (a.MotherMobileNumber != null && a.MotherMobileNumber.EndsWith(searchMobileDigits)) ||
-                                    (a.AlternateMobileNumber != null && a.AlternateMobileNumber.EndsWith(searchMobileDigits))
-                                ))
+                                (a.FatherContact != null && a.FatherContact.EndsWith(searchMobileDigits)) ||
+                                (a.MotherMobileNumber != null && a.MotherMobileNumber.EndsWith(searchMobileDigits)) ||
+                                (a.AlternateMobileNumber != null && a.AlternateMobileNumber.EndsWith(searchMobileDigits))
                             ))
                         ))
                         .ToListAsync();
@@ -91,55 +96,63 @@ namespace SMS.Api.Repositories.Implementations.Parent
                     .Where(s =>
                         (matchingAppAdmissionNos.Count > 0 && s.AdmissionNumber != null && matchingAppAdmissionNos.Contains(s.AdmissionNumber)) ||
                         (matchingAppRegNos.Count > 0 && s.RollNumber != null && matchingAppRegNos.Contains(s.RollNumber)) ||
-                        (!string.IsNullOrEmpty(searchMobile) && (
+                        (searchMobileDigits.Length >= 10 && (
                             s.FatherMobile == searchMobile || 
                             s.MotherMobile == searchMobile || 
                             s.MobileNumber == searchMobile ||
-                            (searchMobileDigits.Length >= 10 && (
-                                (s.FatherMobile != null && s.FatherMobile.EndsWith(searchMobileDigits)) ||
-                                (s.MotherMobile != null && s.MotherMobile.EndsWith(searchMobileDigits)) ||
-                                (s.MobileNumber != null && s.MobileNumber.EndsWith(searchMobileDigits))
-                            ))
+                            (s.FatherMobile != null && s.FatherMobile.EndsWith(searchMobileDigits)) ||
+                            (s.MotherMobile != null && s.MotherMobile.EndsWith(searchMobileDigits)) ||
+                            (s.MobileNumber != null && s.MobileNumber.EndsWith(searchMobileDigits))
                         )) ||
                         (!string.IsNullOrEmpty(searchEmail) && (
                             (s.Email != null && s.Email.ToLower() == searchEmail)
                         )) ||
                         (!string.IsNullOrEmpty(searchFullName) && (
-                            (s.FatherName != null && (s.FatherName.ToLower() == searchFullName.ToLower() || s.FatherName.ToLower().Contains(searchFullName.ToLower()) || searchFullName.ToLower().Contains(s.FatherName.ToLower()))) ||
-                            (s.MotherName != null && (s.MotherName.ToLower() == searchFullName.ToLower() || s.MotherName.ToLower().Contains(searchFullName.ToLower()) || searchFullName.ToLower().Contains(s.MotherName.ToLower())))
+                            (s.FatherName != null && (s.FatherName.ToLower() == searchFullName.ToLower() || (!string.IsNullOrEmpty(firstToken) && s.FatherName.ToLower().Contains(firstToken) && s.FatherName.ToLower().Contains(lastToken)))) ||
+                            (s.MotherName != null && (s.MotherName.ToLower() == searchFullName.ToLower() || (!string.IsNullOrEmpty(firstToken) && s.MotherName.ToLower().Contains(firstToken) && s.MotherName.ToLower().Contains(lastToken))))
                         ))
                     )
                     .OrderByDescending(s => s.StudentId)
                     .ToListAsync();
 
                 // 4. In-memory check for token and surname matches if no candidates found yet
-                if (candidates.Count == 0 && !string.IsNullOrEmpty(searchFullName))
+                if (candidates.Count == 0 && !string.IsNullOrEmpty(searchFullName) && !string.IsNullOrEmpty(firstToken) && !string.IsNullOrEmpty(lastToken))
                 {
-                    var tokens = searchFullName.Split(' ', StringSplitOptions.RemoveEmptyEntries).Where(t => t.Length >= 3).ToList();
-                    if (tokens.Count >= 2)
-                    {
-                        var firstToken = tokens.First().ToLower();
-                        var lastToken = tokens.Last().ToLower();
-
-                        candidates = await _context.Students
-                            .Include(s => s.ClassGrade)
-                            .Include(s => s.ClassSection)
-                            .AsNoTracking()
-                            .Where(s => !s.IsDeleted && s.Status == "Active")
-                            .Where(s =>
-                                (s.FatherName != null && s.FatherName.ToLower().Contains(firstToken) && s.FatherName.ToLower().Contains(lastToken)) ||
-                                (s.StudentName != null && s.StudentName.ToLower().Contains(lastToken) && s.FatherName != null && s.FatherName.ToLower().Contains(firstToken))
-                            )
-                            .OrderByDescending(s => s.StudentId)
-                            .ToListAsync();
-                    }
+                    candidates = await _context.Students
+                        .Include(s => s.ClassGrade)
+                        .Include(s => s.ClassSection)
+                        .AsNoTracking()
+                        .Where(s => !s.IsDeleted && s.Status == "Active")
+                        .Where(s =>
+                            (s.FatherName != null && s.FatherName.ToLower().Contains(firstToken) && s.FatherName.ToLower().Contains(lastToken)) ||
+                            (s.StudentName != null && s.StudentName.ToLower().Contains(lastToken) && s.FatherName != null && s.FatherName.ToLower().Contains(firstToken))
+                        )
+                        .OrderByDescending(s => s.StudentId)
+                        .ToListAsync();
                 }
 
-                // Deduplicate children by StudentId
-                var uniqueChildren = candidates
-                    .GroupBy(s => s.StudentId)
-                    .Select(g => g.First())
-                    .ToList();
+                // Deduplicate strictly by StudentId, AdmissionNumber, or normalized (Name + ClassId)
+                var seenIds = new HashSet<int>();
+                var seenAdmissions = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                var seenNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                var uniqueChildren = new List<Student>();
+
+                foreach (var child in candidates)
+                {
+                    if (seenIds.Contains(child.StudentId)) continue;
+
+                    var adm = (child.AdmissionNumber ?? string.Empty).Trim();
+                    if (!string.IsNullOrEmpty(adm) && seenAdmissions.Contains(adm)) continue;
+
+                    var normName = (child.StudentName ?? string.Empty).Trim().ToLowerInvariant().Replace("  ", " ");
+                    var nameKey = $"{normName}_{child.ClassId}";
+                    if (!string.IsNullOrEmpty(normName) && seenNames.Contains(nameKey)) continue;
+
+                    seenIds.Add(child.StudentId);
+                    if (!string.IsNullOrEmpty(adm)) seenAdmissions.Add(adm);
+                    if (!string.IsNullOrEmpty(normName)) seenNames.Add(nameKey);
+                    uniqueChildren.Add(child);
+                }
 
                 return uniqueChildren;
             }

@@ -5902,6 +5902,11 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   }, []);
   const fetchFinanceData = useCallback(async () => {
+    const userRole = (role || user?.role || "").toLowerCase();
+    const allowedFinanceRoles = ["admin", "superadmin", "accountant", "finance", "staff"];
+    if (!allowedFinanceRoles.includes(userRole)) {
+      return;
+    }
     if (activeRequests.current["finance-data"]) {
       return activeRequests.current["finance-data"];
     }
@@ -6659,7 +6664,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     })();
     activeRequests.current["finance-data"] = promise;
     return promise;
-  }, []);
+  }, [role, user?.role]);
 
   const fetchFacultyTrainingData = useCallback(async () => {
     try {
@@ -6824,23 +6829,27 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         fetchDailyAttendance(new Date().toISOString().split("T")[0]);
         fetchUniformData().catch(() => {});
         fetchFacultyTrainingData().catch(() => {});
+        const allowedFinanceRoles = ["admin", "superadmin", "accountant", "finance", "staff"];
+        if (allowedFinanceRoles.includes(userRole)) {
+          fetchFinanceData().catch(() => {});
+        }
       }
-    }
-    if (isAuthenticated) {
       fetchAdmissions();
-      fetchFinanceData().catch(() => {});
     }
-  }, [isAuthenticated, role]);
+  }, [isAuthenticated, role, user?.role]);
 
   useEffect(() => {
     const handleFinanceUpdated = () => {
+      const userRole = (role || user?.role || "").toLowerCase();
+      const allowedFinanceRoles = ["admin", "superadmin", "accountant", "finance", "staff"];
+      if (!allowedFinanceRoles.includes(userRole)) return;
       fetchFinanceData().catch(() => {});
     };
     window.addEventListener("finance_updated", handleFinanceUpdated);
     return () => {
       window.removeEventListener("finance_updated", handleFinanceUpdated);
     };
-  }, [fetchFinanceData]);
+  }, [fetchFinanceData, role, user?.role]);
 
   const logActivity = (
     action: string,
