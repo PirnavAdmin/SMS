@@ -67,7 +67,7 @@ export const AlumniView: React.FC<AlumniViewProps> = ({ onNavigate }) => {
       .map(a => {
       let formattedAY = formatAcademicYear(a.completionAcademicYear);
       if (!formattedAY) {
-        formattedAY = formatAcademicYear(selectedAcademicYear) || formatAcademicYear(schoolProfile?.academicYear) || '2026-27';
+        formattedAY = formatAcademicYear(selectedAcademicYear) || formatAcademicYear(schoolProfile?.academicYear) || '';
       }
       const parts = formattedAY.split('-');
       const batchYear = parts[1] ? (parts[1].length === 2 ? `20${parts[1]}` : parts[1]) : (parts[0] || '2027');
@@ -86,10 +86,10 @@ export const AlumniView: React.FC<AlumniViewProps> = ({ onNavigate }) => {
       if (st.status === 'Completed' || st.status === 'Alumni' || (st as any).status === 'Graduated') {
         const exists = list.some(a => a.studentId === st.id || a.admissionNo === st.admissionNo);
         if (!exists) {
-          const rawYear = st.completionAcademicYear || (st as any).academicYear || schoolProfile?.academicYear || selectedAcademicYear || '2026-27';
+          const rawYear = st.completionAcademicYear || (st as any).academicYear || schoolProfile?.academicYear || selectedAcademicYear || '';
           let finalYear = formatAcademicYear(rawYear);
           if (!finalYear) {
-            finalYear = formatAcademicYear(selectedAcademicYear) || formatAcademicYear(schoolProfile?.academicYear) || '2026-27';
+            finalYear = formatAcademicYear(selectedAcademicYear) || formatAcademicYear(schoolProfile?.academicYear) || '';
           }
           const parts = finalYear.split('-');
           const batchYear = parts[1] ? (parts[1].length === 2 ? `20${parts[1]}` : parts[1]) : (parts[0] || String(new Date().getFullYear()));

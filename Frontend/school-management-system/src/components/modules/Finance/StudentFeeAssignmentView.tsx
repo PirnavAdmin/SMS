@@ -47,20 +47,25 @@ export const StudentFeeAssignmentView: React.FC = () => {
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [previewInstallments, setPreviewInstallments] = useState<any[]>([]);
 
-  const activeAY = selectedAcademicYear || '';
+  const activeAY = selectedAcademicYear || 
+    (academicYears.find((ay: any) => ay.isCurrent || ay.isCurrentAcademicYear || ay.status === 'Active')?.academicYear) || 
+    (academicYears[0]?.academicYear) || 
+    '';
 
   // Academic Year Start/End Date Range Check
-  const currentAYObj = academicYears.find((ay) => ay.academicYear === activeAY);
-  const rawAyStartDate = currentAYObj?.startDate || `${activeAY.slice(0, 4)}-06-01`;
+  const currentAYObj = academicYears.find((ay) => matchesAcademicYear(ay.academicYear, activeAY));
+  const parsedYearMatch = activeAY.match(/\d{4}/);
+  const ayStartYearNum = parsedYearMatch ? parseInt(parsedYearMatch[0], 10) : new Date().getFullYear();
+  const rawAyStartDate = currentAYObj?.startDate || `${ayStartYearNum}-06-01`;
   const ayStartDate = rawAyStartDate;
-  const ayEndDate = currentAYObj?.endDate || `${parseInt(activeAY.slice(0, 4), 10) + 1}-05-31`;
+  const ayEndDate = currentAYObj?.endDate || `${ayStartYearNum + 1}-05-31`;
 
-  const safeTerm1Start = (rawAyStartDate && rawAyStartDate <= `${activeAY.slice(0, 4)}-08-31`)
+  const safeTerm1Start = (rawAyStartDate && rawAyStartDate <= `${ayStartYearNum}-08-31`)
     ? rawAyStartDate
-    : `${activeAY.slice(0, 4)}-06-01`;
+    : `${ayStartYearNum}-06-01`;
 
   // Active Schedule & Configured Terms for Policy calculation
-  const activeAYSchedule = (academicYearFeeSchedules || []).find((s) => s.academicYear === activeAY);
+  const activeAYSchedule = (academicYearFeeSchedules || []).find((s) => matchesAcademicYear(s.academicYear, activeAY));
   const configuredTerms: FeeScheduleTerm[] =
     activeAYSchedule && activeAYSchedule.terms && activeAYSchedule.terms.length > 0
       ? [...activeAYSchedule.terms].map((t) => {
@@ -74,35 +79,35 @@ export const StudentFeeAssignmentView: React.FC = () => {
             id: `T1-${activeAY}`,
             termName: 'Term 1',
             startDate: safeTerm1Start,
-            endDate: `${activeAY.slice(0, 4)}-08-31`,
-            dueDate: `${activeAY.slice(0, 4)}-06-15`,
+            endDate: `${ayStartYearNum}-08-31`,
+            dueDate: `${ayStartYearNum}-06-15`,
             sequence: 1,
             status: 'Active'
           },
           {
             id: `T2-${activeAY}`,
             termName: 'Term 2',
-            startDate: `${activeAY.slice(0, 4)}-09-01`,
-            endDate: `${activeAY.slice(0, 4)}-11-30`,
-            dueDate: `${activeAY.slice(0, 4)}-09-15`,
+            startDate: `${ayStartYearNum}-09-01`,
+            endDate: `${ayStartYearNum}-11-30`,
+            dueDate: `${ayStartYearNum}-09-15`,
             sequence: 2,
             status: 'Active'
           },
           {
             id: `T3-${activeAY}`,
             termName: 'Term 3',
-            startDate: `${activeAY.slice(0, 4)}-12-01`,
-            endDate: `${parseInt(activeAY.slice(0, 4), 10) + 1}-02-28`,
-            dueDate: `${activeAY.slice(0, 4)}-12-15`,
+            startDate: `${ayStartYearNum}-12-01`,
+            endDate: `${ayStartYearNum + 1}-02-28`,
+            dueDate: `${ayStartYearNum}-12-15`,
             sequence: 3,
             status: 'Active'
           },
           {
             id: `T4-${activeAY}`,
             termName: 'Term 4',
-            startDate: `${parseInt(activeAY.slice(0, 4), 10) + 1}-03-01`,
+            startDate: `${ayStartYearNum + 1}-03-01`,
             endDate: ayEndDate,
-            dueDate: `${parseInt(activeAY.slice(0, 4), 10) + 1}-03-15`,
+            dueDate: `${ayStartYearNum + 1}-03-15`,
             sequence: 4,
             status: 'Active'
           }
@@ -117,7 +122,9 @@ export const StudentFeeAssignmentView: React.FC = () => {
         !query.trim() ||
         fullName.toLowerCase().includes(query.toLowerCase()) ||
         (s.admissionNo || '').toLowerCase().includes(query.toLowerCase());
-      return matchesClass && matchesSection && matchesQuery;
+      const sAY = (s as any).academicYear || (s as any).academicYearName || '';
+      const matchesAY = !activeAY || !sAY || matchesAcademicYear(sAY, activeAY);
+      return matchesClass && matchesSection && matchesQuery && matchesAY;
     })
     .sort((a, b) => {
       const classComp = compareClassesAscending(a.className, b.className);
@@ -176,7 +183,7 @@ export const StudentFeeAssignmentView: React.FC = () => {
     const structId = matchingDfs ? matchingDfs.id : '';
     setModalStructureId(structId);
 
-    const admDate = st.joiningDate || (st as any).admissionDate || `${activeAY.slice(0, 4)}-08-15`;
+    const admDate = st.joiningDate || (st as any).admissionDate || `${ayStartYearNum}-08-15`;
     setModalAdmissionDate(admDate);
 
     // Default to all configured terms so standard fee applies with no unwanted adjustment
@@ -185,7 +192,7 @@ export const StudentFeeAssignmentView: React.FC = () => {
 
     // Check existing assignment
     const existingAssign = studentFeeAssignments.find(
-      (a) => a.studentId === st.id && a.academicYear === activeAY
+      (a) => a.studentId === st.id && matchesAcademicYear(a.academicYear, activeAY)
     );
 
     let initialPolicy: FeePolicyType = 'Full Annual Fee';
@@ -683,7 +690,7 @@ export const StudentFeeAssignmentView: React.FC = () => {
                 filteredStudents.map((st) => {
                   const isSelected = selectedStudentIds.includes(st.id);
                   const assignment = studentFeeAssignments.find(
-                    (a) => a.studentId === st.id && a.academicYear === activeAY
+                    (a) => a.studentId === st.id && matchesAcademicYear(a.academicYear, activeAY)
                   );
 
                   return (

@@ -157,7 +157,8 @@ export const FeeStructuresView: React.FC<FeeStructuresViewProps> = () => {
     const initialAy =
       selectedAcademicYear ||
       (academicYears && (academicYears[0]?.academicYear || (academicYears[0] as any)?.name)) ||
-      "2026-27";
+      (academicYears && (academicYears.find((ay: any) => ay.isCurrent || ay.isCurrentAcademicYear || ay.status === 'Active')?.academicYear || (academicYears[0] as any)?.academicYear || (academicYears[0] as any)?.name)) ||
+      "";
 
     const defaultClass = sortedClasses[0]?.name || "";
     setStructClass(defaultClass);
@@ -175,7 +176,7 @@ export const FeeStructuresView: React.FC<FeeStructuresViewProps> = () => {
     setEditingStruct(s);
     setStructName(s.name || `${s.className} Fee Structure`);
     setStructClass(s.className || "");
-    setStructAcademicYear(s.academicYear || selectedAcademicYear || "2026-27");
+    setStructAcademicYear(s.academicYear || selectedAcademicYear || (academicYears && academicYears[0]?.academicYear) || "");
     setStructStatus(s.status || "Active");
     const activeHeadIds = new Set(activeFeeHeads.map((h) => String(h.id).trim().toLowerCase()));
     const activeHeadNames = new Set(activeFeeHeads.map((h) => (h.name || "").trim().toLowerCase()));
@@ -336,7 +337,8 @@ export const FeeStructuresView: React.FC<FeeStructuresViewProps> = () => {
       structAcademicYear ||
       selectedAcademicYear ||
       (academicYears && academicYears[0]?.academicYear) ||
-      "2026-27";
+      (academicYears && (academicYears.find((ay: any) => ay.isCurrent || ay.isCurrentAcademicYear || ay.status === 'Active')?.academicYear || (academicYears[0] as any)?.academicYear || (academicYears[0] as any)?.name)) ||
+      "";
 
     const finalTotal = finalItems.reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
 
@@ -628,7 +630,7 @@ export const FeeStructuresView: React.FC<FeeStructuresViewProps> = () => {
                         );
                       })
                     ) : (
-                      <option value={structAcademicYear}>{structAcademicYear || "2026-27"}</option>
+                      <option value={structAcademicYear}>{structAcademicYear || selectedAcademicYear || "Select Academic Year"}</option>
                     )}
                   </select>
                 </div>

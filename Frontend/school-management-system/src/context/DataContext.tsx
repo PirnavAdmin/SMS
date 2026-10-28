@@ -8011,7 +8011,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       validatedYear ||
       formatAcademicYear(selectedAcademicYear) ||
       formatAcademicYear(schoolProfile.academicYear) ||
-      "2026-27";
+      formatAcademicYear(academicYears.find((ay: any) => ay.isCurrent || ay.isCurrentAcademicYear || ay.status === 'Active')?.academicYear) ||
+      formatAcademicYear(academicYears[0]?.academicYear) ||
+      "";
     const parts = finalYear.split("-");
     const batchYear =
       parts[1] && parts[1].length === 2
@@ -9446,12 +9448,12 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           const exists = prev.some((a) => a.studentId === newStudentEntry.id);
           if (exists) return prev;
           const newAssign: StudentFeeAssignment = {
-            id: `SFA-${newStudentEntry.id}-${selectedAcademicYear || "2026-2027"}`,
+            id: `SFA-${newStudentEntry.id}-${selectedAcademicYear || (academicYears.find((ay: any) => ay.isCurrent || ay.isCurrentAcademicYear || ay.status === 'Active')?.academicYear) || (academicYears[0]?.academicYear) || "ACTIVE"}`,
             studentId: newStudentEntry.id,
             studentName: `${newStudentEntry.firstName} ${newStudentEntry.lastName}`.trim(),
             admissionNo: newStudentEntry.admissionNo,
             branch: newStudentEntry.branch || selectedBranch || "",
-            academicYear: selectedAcademicYear || "2026-2027",
+            academicYear: selectedAcademicYear || (academicYears.find((ay: any) => ay.isCurrent || ay.isCurrentAcademicYear || ay.status === 'Active')?.academicYear) || (academicYears[0]?.academicYear) || "",
             className: newStudentEntry.className,
             section: newStudentEntry.section,
             feeStructureId: matchingDfs.id,
@@ -17135,7 +17137,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
               String(resolvedStudent.admissionNo).trim().toLowerCase() ||
               String(l.admissionNo).trim().toLowerCase() ===
                 String(resolvedStudent.admissionNo).trim().toLowerCase()))) &&
-        l.academicYear === targetYear,
+        matchesAcademicYear(l.academicYear, targetYear),
     );
 
     const isUniform = (name: string) => {

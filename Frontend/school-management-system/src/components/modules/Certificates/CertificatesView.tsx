@@ -100,7 +100,7 @@ export const CertificatesView: React.FC<CertificatesViewProps> = ({ onNavigateTo
   const { students, schoolProfile, academicClasses, generatedCertificates = [], refreshCertificatesFromDb } = useData();
   const { selectedAcademicYear, selectedBranch } = useAuth();
   const { addToast } = useToast();
-  const activeAY = formatAcademicYear(selectedAcademicYear) || '2026-27';
+  const activeAY = formatAcademicYear(selectedAcademicYear) || formatAcademicYear(schoolProfile?.academicYear) || '';
 
   const [activeTab, setActiveTab] = useState<'generate' | 'history'>('generate');
   const [isSyncing, setIsSyncing] = useState(false);

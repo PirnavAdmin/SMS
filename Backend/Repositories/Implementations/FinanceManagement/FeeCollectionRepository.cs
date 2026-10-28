@@ -1817,8 +1817,8 @@ public class FeeCollectionRepository : IFeeCollectionRepository
 
             studentQuery = studentQuery.Where(s => 
                 s.AcademicYearId.ToString() == academicYear || 
-                (s.AcademicYear != null && (s.AcademicYear.AcademicYearName.Contains(academicYear) || s.AcademicYear.AcademicYearName.Contains(yearSub))) ||
-                s.AcademicYearId == 1);
+                (s.AcademicYear != null && (s.AcademicYear.AcademicYearName.Contains(academicYear) || s.AcademicYear.AcademicYearName.Contains(yearSub))));
+
         }
 
         var activeStudents = await studentQuery.ToListAsync();
