@@ -10,6 +10,7 @@ import { useAuth } from '../../../context/AuthContext';
 import { useData } from '../../../context/DataContext';
 import { DashboardShimmer } from '../../common/DashboardShimmer';
 import { useParentWards, ParentStudentSelector } from '../../common/ParentStudentSelector';
+import { getParentFeeDetails } from '../../../api/parent/parentApi';
 
 interface ParentDashboardViewProps {
   onNavigate?: (module: string) => void;
@@ -236,6 +237,18 @@ export const ParentDashboardView: React.FC<ParentDashboardViewProps> = ({ onNavi
     fetchStudents
   } = useData();
   const [selectedChildIdx, setSelectedChildIdx] = useState(0);
+  const [feeSummary, setFeeSummary] = useState<any>(null);
+
+  useEffect(() => {
+    if (currentWard) {
+      const studentId = Number(currentWard.studentId || currentWard.id);
+      if (studentId) {
+        getParentFeeDetails(studentId)
+          .then(data => setFeeSummary(data))
+          .catch(() => {});
+      }
+    }
+  }, [currentWard?.studentId, currentWard?.id]);
 
   useEffect(() => {
     fetchHomeworkData?.();
@@ -599,7 +612,9 @@ export const ParentDashboardView: React.FC<ParentDashboardViewProps> = ({ onNavi
 
   // Fee Dues
   const wardLedger = currentWard ? (studentFeeLedgers || []).find(l => l.studentId === currentWard.id) : null;
-  const dueBalance = wardLedger ? wardLedger.dueBalance : 0;
+  const dueBalance = feeSummary && typeof feeSummary.totalDue === 'number' 
+    ? feeSummary.totalDue 
+    : (wardLedger ? wardLedger.dueBalance : 0);
   const isFeeCleared = dueBalance <= 0;
   const isResidential = currentWard?.studentType && ['hosteller', 'residential'].includes(currentWard.studentType.toLowerCase());
 
