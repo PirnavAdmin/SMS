@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import {
   CalendarCheck, Calendar, Filter, User, AlertCircle, CheckCircle2,
-  Clock, CalendarDays, Loader2, RefreshCw, FileSpreadsheet, Check
+  Clock, CalendarDays, Loader2, RefreshCw, FileSpreadsheet, Check, ChevronDown
 } from 'lucide-react';
 import { useData } from '../../../context/DataContext';
 import { useAuth } from '../../../context/AuthContext';
@@ -27,6 +27,29 @@ export const ParentAttendanceView: React.FC = () => {
   // Filters state
   const currentDate = new Date();
   const [filterType, setFilterType] = useState<'Overall' | 'Month' | 'Day' | 'Custom'>('Month');
+  const [isViewMenuOpen, setIsViewMenuOpen] = useState(false);
+  const viewMenuRef = useRef<HTMLDivElement>(null);
+
+  const viewOptions: { value: 'Month' | 'Custom' | 'Day' | 'Overall'; label: string }[] = [
+    { value: 'Month', label: 'Monthly' },
+    { value: 'Custom', label: 'Custom Range' },
+    { value: 'Day', label: 'Daily' },
+    { value: 'Overall', label: 'Overall' },
+  ];
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (viewMenuRef.current && !viewMenuRef.current.contains(event.target as Node)) {
+        setIsViewMenuOpen(false);
+      }
+    };
+    if (isViewMenuOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isViewMenuOpen]);
   const [selectedMonth, setSelectedMonth] = useState(currentDate.getMonth().toString());
   const [selectedYear, setSelectedYear] = useState(currentDate.getFullYear().toString());
   
@@ -560,16 +583,51 @@ export const ParentAttendanceView: React.FC = () => {
 
           <div className="flex items-center gap-1.5">
             <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider whitespace-nowrap">View:</span>
-            <select 
-              value={filterType} 
-              onChange={(e) => setFilterType(e.target.value as 'Overall' | 'Month' | 'Day' | 'Custom')}
-              className="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-2.5 py-1 text-xs text-slate-900 dark:text-white font-medium focus:ring-2 focus:ring-sky-500/50 outline-none cursor-pointer"
-            >
-              <option value="Month">Monthly</option>
-              <option value="Custom">Custom Range</option>
-              <option value="Day">Daily</option>
-              <option value="Overall">Overall</option>
-            </select>
+            <div className="relative" ref={viewMenuRef}>
+              <button
+                type="button"
+                onClick={() => setIsViewMenuOpen(prev => !prev)}
+                className="inline-flex items-center justify-between gap-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600 rounded-lg px-2.5 py-1 text-xs text-slate-900 dark:text-white font-medium focus:ring-2 focus:ring-sky-500/50 outline-none cursor-pointer transition-all shadow-sm"
+                aria-haspopup="listbox"
+                aria-expanded={isViewMenuOpen}
+              >
+                <span>{viewOptions.find(opt => opt.value === filterType)?.label || 'Monthly'}</span>
+                <ChevronDown className={`w-3.5 h-3.5 text-slate-500 dark:text-slate-400 transition-transform duration-200 ${isViewMenuOpen ? 'rotate-180 text-sky-500' : ''}`} />
+              </button>
+
+              {isViewMenuOpen && (
+                <div 
+                  className="absolute left-0 mt-1.5 w-44 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700/80 rounded-xl shadow-xl shadow-slate-900/10 dark:shadow-black/40 py-1.5 z-50 animate-in fade-in zoom-in-95 duration-100"
+                  role="listbox"
+                >
+                  {viewOptions.map((option) => {
+                    const isSelected = filterType === option.value;
+                    return (
+                      <button
+                        key={option.value}
+                        type="button"
+                        role="option"
+                        aria-selected={isSelected}
+                        onClick={() => {
+                          setFilterType(option.value);
+                          setIsViewMenuOpen(false);
+                        }}
+                        className={`w-full flex items-center justify-between px-3 py-2 text-xs transition-colors text-left ${
+                          isSelected
+                            ? 'bg-sky-50 dark:bg-sky-950/60 text-sky-600 dark:text-sky-400 font-bold border-l-2 border-sky-500'
+                            : 'text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/60 font-medium'
+                        }`}
+                      >
+                        <span className={isSelected ? 'text-sky-600 dark:text-sky-400' : ''}>{option.label}</span>
+                        {isSelected && (
+                          <Check className="w-3.5 h-3.5 text-sky-600 dark:text-sky-400 stroke-[2.5] flex-shrink-0" />
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
           </div>
 
           {filterType === 'Month' && (
@@ -708,12 +766,12 @@ export const ParentAttendanceView: React.FC = () => {
           </div>
 
           {/* Table View */}
-          <div className="border border-slate-200 dark:border-slate-700 rounded-2xl overflow-hidden">
-            <div className="overflow-x-auto scrollbar-thin">
-              <table className="w-full text-left border-collapse text-[11px]">
+          <div className="border border-slate-200 dark:border-slate-700 rounded-2xl overflow-hidden bg-white dark:bg-slate-900 shadow-xs">
+            <div className="overflow-x-auto pb-3 custom-scrollbar">
+              <table className="w-full text-left border-separate border-spacing-0 text-[11px]">
                 <thead>
-                  <tr className="bg-slate-50 dark:bg-slate-800/40 text-slate-500 font-bold uppercase tracking-wider border-b border-slate-200 dark:border-slate-800">
-                    <th className="py-3 px-3 min-w-[170px] sticky left-0 bg-slate-50 dark:bg-slate-800 z-10 shadow-xs border-r border-slate-200 dark:border-slate-700 text-center">
+                  <tr className="bg-slate-50 dark:bg-slate-800/60 text-slate-500 font-bold uppercase tracking-wider">
+                    <th className="py-3 px-3.5 min-w-[180px] sticky left-0 bg-slate-50 dark:bg-slate-800 z-20 border-b border-r border-slate-200 dark:border-slate-700 text-center shadow-[2px_0_4px_rgba(0,0,0,0.02)]">
                       Student Name
                     </th>
                     {matrixDates.map(d => {
@@ -722,7 +780,7 @@ export const ParentAttendanceView: React.FC = () => {
                       return (
                         <th
                           key={d}
-                          className={`py-3 px-1 text-center min-w-[28px] font-mono ${
+                          className={`py-3 px-1 text-center min-w-[30px] font-mono border-b border-r border-slate-200/80 dark:border-slate-800 ${
                             holCheck.isHoliday
                               ? 'bg-purple-100/90 dark:bg-purple-950/70 text-purple-700 dark:text-purple-300 font-black border-b-2 border-purple-400'
                               : ''
@@ -733,18 +791,18 @@ export const ParentAttendanceView: React.FC = () => {
                         </th>
                       );
                     })}
-                    <th className="py-3 px-2 text-center text-emerald-600 font-bold">P</th>
-                    <th className="py-3 px-2 text-center text-amber-500 font-bold">HD</th>
-                    <th className="py-3 px-2 text-center text-orange-500 font-bold">L</th>
-                    <th className="py-3 px-2 text-center text-rose-600 font-bold">A</th>
-                    <th className="py-3 px-2 text-center text-purple-600 font-bold">H</th>
-                    <th className="py-3 px-2 text-center text-sky-600 font-bold">%</th>
+                    <th className="py-3 px-2 text-center text-emerald-600 font-bold border-b border-r border-slate-200/80 dark:border-slate-800">P</th>
+                    <th className="py-3 px-2 text-center text-amber-500 font-bold border-b border-r border-slate-200/80 dark:border-slate-800">HD</th>
+                    <th className="py-3 px-2 text-center text-orange-500 font-bold border-b border-r border-slate-200/80 dark:border-slate-800">L</th>
+                    <th className="py-3 px-2 text-center text-rose-600 font-bold border-b border-r border-slate-200/80 dark:border-slate-800">A</th>
+                    <th className="py-3 px-2 text-center text-purple-600 font-bold border-b border-r border-slate-200/80 dark:border-slate-800">H</th>
+                    <th className="py-3 px-2 text-center text-sky-600 font-bold border-b border-slate-200/80 dark:border-slate-800">%</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60 font-medium">
+                <tbody className="font-medium">
                   {displayWards.length === 0 ? (
                     <tr>
-                      <td colSpan={matrixDates.length + 7} className="py-12 text-center text-slate-400 italic">
+                      <td colSpan={matrixDates.length + 7} className="py-12 text-center text-slate-400 italic border-b border-slate-200 dark:border-slate-700">
                         No registered student records found.
                       </td>
                     </tr>
@@ -772,7 +830,7 @@ export const ParentAttendanceView: React.FC = () => {
                           title="Click to view detailed daily records for this child"
                         >
                           <td
-                            className={`py-2 px-3 whitespace-nowrap sticky left-0 z-10 border-r border-slate-200 dark:border-slate-700 shadow-xs text-center ${
+                            className={`py-3.5 px-3.5 whitespace-nowrap sticky left-0 z-10 border-b border-r border-slate-200 dark:border-slate-700 shadow-[2px_0_4px_rgba(0,0,0,0.03)] text-center ${
                               isSelected
                                 ? 'bg-sky-50 dark:bg-slate-850 font-bold'
                                 : (idx % 2 === 0 ? 'bg-white dark:bg-slate-900' : 'bg-slate-50 dark:bg-slate-800')
@@ -781,7 +839,7 @@ export const ParentAttendanceView: React.FC = () => {
                             <span className="font-extrabold text-slate-900 dark:text-white block text-center">
                               {wardDisplayName}
                             </span>
-                            <span className="text-[9px] font-mono text-slate-400 block text-center">
+                            <span className="text-[9.5px] font-mono text-slate-400 block text-center mt-0.5">
                               {ward.admissionNo || ward.rollNo || `ADM-${ward.studentId}`} &bull; {wardClassFormatted}{ward.section ? `-${ward.section}` : ''}
                             </span>
                           </td>
@@ -799,7 +857,7 @@ export const ParentAttendanceView: React.FC = () => {
                             return (
                               <td
                                 key={d}
-                                className={`py-2 px-0.5 text-center font-mono font-bold text-[10px] ${
+                                className={`py-3 px-1 text-center font-mono font-bold text-[10px] border-b border-r border-slate-100 dark:border-slate-800/60 ${
                                   holCheck.isHoliday ? 'bg-purple-50/30 dark:bg-purple-950/10' : ''
                                 }`}
                               >
@@ -816,12 +874,12 @@ export const ParentAttendanceView: React.FC = () => {
                             );
                           })}
 
-                          <td className="py-2 px-2 text-center font-bold text-emerald-600">{pCount}</td>
-                          <td className="py-2 px-2 text-center font-bold text-amber-500">{hdCount}</td>
-                          <td className="py-2 px-2 text-center font-bold text-orange-500">{lCount}</td>
-                          <td className="py-2 px-2 text-center font-bold text-rose-600">{aCount}</td>
-                          <td className="py-2 px-2 text-center font-bold text-purple-600">{hCount}</td>
-                          <td className="py-2 px-2 text-center font-extrabold text-sky-600 bg-sky-50/30 dark:bg-sky-900/10">
+                          <td className="py-3 px-2 text-center font-bold text-emerald-600 border-b border-r border-slate-100 dark:border-slate-800/60">{pCount}</td>
+                          <td className="py-3 px-2 text-center font-bold text-amber-500 border-b border-r border-slate-100 dark:border-slate-800/60">{hdCount}</td>
+                          <td className="py-3 px-2 text-center font-bold text-orange-500 border-b border-r border-slate-100 dark:border-slate-800/60">{lCount}</td>
+                          <td className="py-3 px-2 text-center font-bold text-rose-600 border-b border-r border-slate-100 dark:border-slate-800/60">{aCount}</td>
+                          <td className="py-3 px-2 text-center font-bold text-purple-600 border-b border-r border-slate-100 dark:border-slate-800/60">{hCount}</td>
+                          <td className="py-3 px-2 text-center font-extrabold text-sky-600 bg-sky-50/30 dark:bg-sky-900/10 border-b border-slate-100 dark:border-slate-800/60">
                             {(() => {
                               const netDays = matrixDates.length - hCount;
                               return netDays > 0 ? Math.round(((pCount + lCount + (hdCount * 0.5)) / netDays) * 100) : 100;
