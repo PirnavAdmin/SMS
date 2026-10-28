@@ -36,7 +36,7 @@ public class FeeScheduleTerm
     [MaxLength(20)]
     public string DueDateMode { get; set; } = "AUTO";
 
-    public int DueDateOffsetDays { get; set; } = 45;
+    public int DueDateOffsetDays { get; set; } = 0;
 
     [Column(TypeName = "decimal(5,2)")]
     public decimal PercentageShare { get; set; } = 0.00m;

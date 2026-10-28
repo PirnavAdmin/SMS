@@ -808,7 +808,7 @@ public class FinanceMasterRepository : IFinanceMasterRepository
 
         if (entity != null)
         {
-            int offset = entity.DueDateOffsetDays >= 0 ? entity.DueDateOffsetDays : 45;
+            int offset = entity.DueDateOffsetDays >= 0 ? entity.DueDateOffsetDays : (entity.Terms != null && entity.Terms.Count > 0 && !string.IsNullOrWhiteSpace(entity.Terms.First().DueDate) && !string.IsNullOrWhiteSpace(entity.Terms.First().StartDate) && DateTime.TryParse(entity.Terms.First().DueDate, out var dtDue) && DateTime.TryParse(entity.Terms.First().StartDate, out var dtStart) ? Math.Max(0, (int)(dtDue - dtStart).TotalDays) : 0);
             var dbTermsDto = entity.Terms != null && entity.Terms.Count > 0
                 ? entity.Terms.OrderBy(t => t.Sequence).Select(t => new FeeScheduleTermDto
                 {
@@ -865,7 +865,7 @@ public class FinanceMasterRepository : IFinanceMasterRepository
             };
         }
 
-        int defaultOffset = 45;
+        int defaultOffset = 0;
         var generatedTerms = AcademicYearTermCalculator.GenerateTermsFromAcademicYear(ayEntity, 4, defaultOffset);
         var generatedMonthly = AcademicYearTermCalculator.GenerateMonthlyDatesFromAcademicYear(ayEntity, 10);
         string defaultDueDate = ayEntity.StartDate.AddDays(defaultOffset).ToString("yyyy-MM-dd");
@@ -891,7 +891,7 @@ public class FinanceMasterRepository : IFinanceMasterRepository
         string ayCompact = ay.Replace(" ", "");
         string ayPrefix = ay.Contains('-') ? ay.Split('-')[0] : ay;
         string sId = string.IsNullOrWhiteSpace(schedule.Id) ? $"SCH-{ay}" : schedule.Id;
-        int offset = schedule.DueDateOffsetDays >= 0 ? schedule.DueDateOffsetDays : 45;
+        int offset = schedule.DueDateOffsetDays >= 0 ? schedule.DueDateOffsetDays : 0;
 
         var ayEntity = await _context.AcademicYears.AsNoTracking()
             .FirstOrDefaultAsync(a => !a.IsDeleted && (

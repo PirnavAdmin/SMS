@@ -178,7 +178,7 @@ public class FeeScheduleTermDto
     public string EndDate { get; set; } = string.Empty;
     public string DueDate { get; set; } = string.Empty;
     public string DueDateMode { get; set; } = "AUTO"; // "AUTO" | "MANUAL"
-    public int DueDateOffsetDays { get; set; } = 45;
+    public int DueDateOffsetDays { get; set; } = 0;
     public string Status { get; set; } = "Active";
     public double PercentageShare { get; set; } = 0.0;
 }
@@ -202,7 +202,7 @@ public class FeeScheduleConfigDto
     public string Id { get; set; } = string.Empty;
     public string AcademicYear { get; set; } = string.Empty;
     public int NumberOfTerms { get; set; } = 4;
-    public int DueDateOffsetDays { get; set; } = 45;
+    public int DueDateOffsetDays { get; set; } = 0;
     public string Status { get; set; } = "Published";
     public List<FeeScheduleTermDto> Terms { get; set; } = new();
     public MonthlyDueDateConfigDto? MonthlyConfig { get; set; }

@@ -77,8 +77,20 @@ export const FeeScheduleView: React.FC = () => {
     academicYear: activeAY || ''
   };
 
-  // Configurable Due Date Offset (default 45 days)
-  const [dueDateOffsetDays, setDueDateOffsetDays] = useState<number | ''>(45);
+  // Helper to dynamically derive offset from existing terms if available
+  const deriveOffsetFromTerms = (terms?: FeeScheduleTerm[]): number => {
+    if (!terms || terms.length === 0) return 0;
+    const first = terms[0];
+    if (!first?.startDate || !first?.dueDate) return 0;
+    const start = parseDateIso(first.startDate);
+    const due = parseDateIso(first.dueDate);
+    if (!start || !due) return 0;
+    const diffDays = Math.round((due.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
+    return Math.max(0, diffDays);
+  };
+
+  // Configurable Due Date Offset (dynamically derived, default 0 days)
+  const [dueDateOffsetDays, setDueDateOffsetDays] = useState<number | ''>(0);
 
   // Loading & API persistence status
   const [isLoadingSchedule, setIsLoadingSchedule] = useState<boolean>(false);
@@ -89,7 +101,7 @@ export const FeeScheduleView: React.FC = () => {
   const [schedule, setSchedule] = useState<Partial<AcademicYearFeeSchedule>>({
     academicYear: '',
     numberOfTerms: 4,
-    dueDateOffsetDays: 45,
+    dueDateOffsetDays: 0,
     terms: []
   });
 
@@ -105,14 +117,14 @@ export const FeeScheduleView: React.FC = () => {
     setIsPersistedInDb(false);
 
     const numTerms = schedule.numberOfTerms || 4;
-    const offset = typeof dueDateOffsetDays === 'number' && !isNaN(dueDateOffsetDays) ? dueDateOffsetDays : 45;
+    const offset = typeof dueDateOffsetDays === 'number' && !isNaN(dueDateOffsetDays) ? dueDateOffsetDays : 0;
     const computedTerms = hasConfiguredDates ? generateTermsFromAcademicYear(ayDates, numTerms, offset) : [];
 
     const existing = academicYearFeeSchedules.find(s => s.academicYear === activeAY);
     if (existing) {
       const loadedOffset = typeof existing.dueDateOffsetDays === 'number' && !isNaN(existing.dueDateOffsetDays)
         ? existing.dueDateOffsetDays
-        : offset;
+        : deriveOffsetFromTerms(existing.terms);
       setDueDateOffsetDays(loadedOffset);
       const mergedTerms = hasConfiguredDates ? generateTermsFromAcademicYear(ayDates, existing.numberOfTerms || 4, loadedOffset, existing.terms) : [];
 
@@ -147,7 +159,7 @@ export const FeeScheduleView: React.FC = () => {
           const loadedNumTerms = apiData.numberOfTerms || 4;
           const loadedOffset = typeof apiData.dueDateOffsetDays === 'number' && !isNaN(apiData.dueDateOffsetDays)
             ? apiData.dueDateOffsetDays
-            : 45;
+            : deriveOffsetFromTerms(apiData.terms);
           setDueDateOffsetDays(loadedOffset);
 
           const finalTerms = hasConfiguredDates

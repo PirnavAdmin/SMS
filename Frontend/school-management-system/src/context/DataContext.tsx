@@ -6022,7 +6022,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
             dueDateOffsetDays:
               typeof apiFeeSchedule.dueDateOffsetDays === "number"
                 ? apiFeeSchedule.dueDateOffsetDays
-                : 45,
+                : (apiFeeSchedule.terms && apiFeeSchedule.terms.length > 0 && apiFeeSchedule.terms[0].startDate && apiFeeSchedule.terms[0].dueDate
+                  ? Math.max(0, Math.round((new Date(apiFeeSchedule.terms[0].dueDate).getTime() - new Date(apiFeeSchedule.terms[0].startDate).getTime()) / (1000 * 60 * 60 * 24)) || 0)
+                  : 0),
             status: apiFeeSchedule.status || "Active",
             annualDueDate: apiFeeSchedule.annualDueDate || "",
             oneTimeDueDate: apiFeeSchedule.oneTimeDueDate || "",
@@ -13943,7 +13945,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
             4,
             typeof schedule?.dueDateOffsetDays === "number"
               ? schedule.dueDateOffsetDays
-              : 45,
+              : 0,
           );
 
     const monthlyConfig =

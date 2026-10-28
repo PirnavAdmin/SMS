@@ -11,7 +11,7 @@ public static class AcademicYearTermCalculator
     public static List<FeeScheduleTermDto> GenerateTermsFromAcademicYear(
         AcademicYear ay,
         int numberOfTerms,
-        int dueDateOffsetDays = 45,
+        int dueDateOffsetDays = 0,
         List<FeeScheduleTermDto>? existingTerms = null)
     {
         int n = Math.Max(1, Math.Min(12, numberOfTerms > 0 ? numberOfTerms : 4));

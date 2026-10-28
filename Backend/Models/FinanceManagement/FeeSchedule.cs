@@ -14,7 +14,7 @@ public class FeeSchedule
 
     public int NumberOfTerms { get; set; } = 4;
 
-    public int DueDateOffsetDays { get; set; } = 45;
+    public int DueDateOffsetDays { get; set; } = 0;
 
     public string Status { get; set; } = "Published";
 

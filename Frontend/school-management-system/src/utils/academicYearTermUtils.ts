@@ -49,11 +49,11 @@ export function parseDateIso(str: string): Date | null {
 export function generateTermsFromAcademicYear(
   ay: AcademicYearDates,
   numberOfTerms: number,
-  dueDateOffsetDays: number = 45,
+  dueDateOffsetDays: number = 0,
   existingTerms?: FeeScheduleTerm[]
 ): FeeScheduleTerm[] {
   const n = Math.max(1, Math.min(12, numberOfTerms || 4));
-  const safeOffset = Math.max(0, isNaN(dueDateOffsetDays) ? 45 : dueDateOffsetDays);
+  const safeOffset = Math.max(0, isNaN(dueDateOffsetDays) ? 0 : dueDateOffsetDays);
   const start = parseDateIso(ay.startDate);
   const end = parseDateIso(ay.endDate);
 
