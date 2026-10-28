@@ -21,7 +21,7 @@ public class StudentBedAllocation
     public int? StudentId { get; set; }
 
     [ForeignKey("StudentId")]
-    public virtual AdmissionApplication? Student { get; set; }
+    public virtual Student? Student { get; set; }
 
     [Required]
     public int HostelId { get; set; }

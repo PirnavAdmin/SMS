@@ -1236,7 +1236,7 @@ export const StudentList: React.FC<{ onNavigate?: (module: string) => void }> = 
             <table className="w-full text-left border-collapse text-xs">
               <thead>
                 <tr className="bg-slate-50 dark:bg-slate-800/60 text-slate-500 font-extrabold uppercase tracking-wider border-b border-slate-100 dark:border-slate-800">
-                  <th className="py-3.5 px-4">Adm No</th>
+                  <th className="py-3.5 px-4">Student ID</th>
                   <th className="py-3.5 px-4 whitespace-nowrap min-w-[5.5rem]">Roll No</th>
                   <th className="py-3.5 px-4">Student Name</th>
                   <th className="py-3.5 px-4">Class & Sec</th>
@@ -1268,8 +1268,8 @@ export const StudentList: React.FC<{ onNavigate?: (module: string) => void }> = 
 
                     return (
                       <tr key={s.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors">
-                        <td className="py-3.5 px-4 font-mono font-bold text-slate-900 dark:text-white">
-                          {s.admissionNo}
+                        <td className="py-3.5 px-4 font-mono font-bold text-brand-600 dark:text-brand-400">
+                          {s.id}
                         </td>
                         <td className="py-3.5 px-4 font-mono text-slate-600 dark:text-slate-400 whitespace-nowrap min-w-[5.5rem]">
                           {s.rollNo}
@@ -1626,7 +1626,7 @@ export const StudentList: React.FC<{ onNavigate?: (module: string) => void }> = 
                 <ExportButton
                   data={filteredRoster.map(s => ({
                     'Roll Number': s.rollNo || '-',
-                    'Admission Number': s.admissionNo || '-',
+                    'Student ID': s.id || '-',
                     'Student Name': `${s.firstName} ${s.lastName}`.trim(),
                     'Gender': s.gender || '-',
                     'Father Name': s.fatherName || '-',
@@ -1651,7 +1651,7 @@ export const StudentList: React.FC<{ onNavigate?: (module: string) => void }> = 
                 <thead>
                   <tr className="bg-slate-100/70 dark:bg-slate-800/60 text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider border-b border-slate-200 dark:border-slate-800">
                     <th className="py-3 px-4 text-center whitespace-nowrap min-w-[5.5rem]">Roll Number</th>
-                    <th className="py-3 px-4 text-center">Admission Number</th>
+                    <th className="py-3 px-4 text-center">Student ID</th>
                     <th className="py-3 px-4 text-center">Photo</th>
                     <th className="py-3 px-4">Student Name</th>
                     <th className="py-3 px-4 text-center">Gender</th>
@@ -1693,8 +1693,8 @@ export const StudentList: React.FC<{ onNavigate?: (module: string) => void }> = 
                         </td>
 
                         {/* 2. Admission Number */}
-                        <td className="py-3 px-4 text-center font-mono font-bold text-slate-700 dark:text-slate-300">
-                          {st.admissionNo}
+                        <td className="py-3 px-4 text-center font-mono font-bold text-brand-600 dark:text-brand-400">
+                          {st.id}
                         </td>
 
                         {/* 3. Photo */}

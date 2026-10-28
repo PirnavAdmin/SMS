@@ -170,7 +170,7 @@ public class HostelRepository : IHostelRepository
     public async Task<List<StudentBedAllocation>> GetAllBedAllocationsAsync(int? hostelId, int? roomId, string? search)
     {
         var query = _context.StudentBedAllocations
-            .Include(a => a.Student!).ThenInclude(s => s.AppliedClass)
+            .Include(a => a.Student!).ThenInclude(s => s.ClassGrade)
             .Include(a => a.Hostel)
             .Include(a => a.Room!).ThenInclude(r => r.RoomType)
             .Include(a => a.AttendanceRecords)
@@ -187,7 +187,7 @@ public class HostelRepository : IHostelRepository
         if (!string.IsNullOrWhiteSpace(search))
         {
             var q = search.ToLower();
-            query = query.Where(a => (a.Student != null && ((a.Student.FirstName != null && a.Student.FirstName.ToLower().Contains(q)) || (a.Student.LastName != null && a.Student.LastName.ToLower().Contains(q)) || (a.Student.RegistrationNo != null && a.Student.RegistrationNo.ToLower().Contains(q)))) ||
+            query = query.Where(a => (a.Student != null && ((a.Student.StudentName != null && a.Student.StudentName.ToLower().Contains(q)) || (a.Student.RollNumber != null && a.Student.RollNumber.ToLower().Contains(q)) || (a.Student.AdmissionNumber != null && a.Student.AdmissionNumber.ToLower().Contains(q)))) ||
                                      (a.RegistrationNo != null && a.RegistrationNo.ToLower().Contains(q)) ||
                                      (a.StudentName != null && a.StudentName.ToLower().Contains(q)) ||
                                      (a.BedNumber != null && a.BedNumber.ToLower().Contains(q)) ||
@@ -199,7 +199,7 @@ public class HostelRepository : IHostelRepository
 
     public async Task<StudentBedAllocation?> GetBedAllocationByIdAsync(int allocationId) =>
         await _context.StudentBedAllocations
-            .Include(a => a.Student!).ThenInclude(s => s.AppliedClass)
+            .Include(a => a.Student!).ThenInclude(s => s.ClassGrade)
             .Include(a => a.Hostel)
             .Include(a => a.Room!).ThenInclude(r => r.RoomType)
             .Include(a => a.AttendanceRecords)

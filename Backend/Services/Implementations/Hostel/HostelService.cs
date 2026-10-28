@@ -1,4 +1,4 @@
-﻿namespace SMS.Api.Services.Implementations;
+namespace SMS.Api.Services.Implementations;
 
 using Microsoft.EntityFrameworkCore;
 using SMS.Api.Data;
@@ -117,8 +117,8 @@ public class HostelService : IHostelService
                 {
                     Id = a.AllocationId,
                     StudentId = a.StudentId ?? 0,
-                    StudentName = a.StudentName ?? $"{a.Student?.FirstName} {a.Student?.LastName}".Trim(),
-                    AdmissionNo = a.RegistrationNo ?? a.Student?.RegistrationNo ?? string.Empty,
+                    StudentName = a.StudentName ?? a.Student?.StudentName ?? string.Empty,
+                    AdmissionNo = a.RegistrationNo ?? a.Student?.RollNumber ?? a.Student?.AdmissionNumber ?? string.Empty,
                     HostelName = a.Hostel?.HostelName ?? string.Empty,
                     RoomNumber = a.Room?.RoomNumber ?? string.Empty,
                     BedNumber = a.BedNumber ?? string.Empty,
@@ -785,7 +785,7 @@ public class HostelService : IHostelService
             throw new NotFoundException("Student not found for bed allocation. Please select an eligible student.");
         }
 
-        string stName = studentApp != null ? $"{studentApp.FirstName} {studentApp.LastName}".Trim() : (enrolledStudent?.StudentName ?? "Student");
+        string stName = enrolledStudent?.StudentName ?? (studentApp != null ? $"{studentApp.FirstName} {studentApp.LastName}".Trim() : (dto.StudentName ?? "Student"));
         string regNo = studentApp?.RegistrationNo ?? enrolledStudent?.RollNumber ?? string.Empty;
         string admNo = studentApp?.AdmissionNo ?? enrolledStudent?.AdmissionNumber ?? string.Empty;
 
@@ -891,7 +891,7 @@ public class HostelService : IHostelService
             throw new NotFoundException($"Hostel Room '{dto.RoomNumber ?? dto.RoomId.ToString()}' not found in {hostel.HostelName}. Please select a valid room.");
         }
 
-        int targetStudentId = studentApp?.Id ?? enrolledStudent?.StudentId ?? 0;
+        int targetStudentId = enrolledStudent?.StudentId ?? studentApp?.Id ?? (dto.StudentId > 0 ? dto.StudentId : 0);
         int roomCapacity = room.RoomType?.BedCapacity ?? 1;
         int currentOccupied = await _hostelRepo.GetOccupiedBedCountForRoomAsync(room.RoomId);
 
@@ -1022,8 +1022,8 @@ public class HostelService : IHostelService
                 AttendanceId = att.AttendanceId,
                 AllocationId = att.AllocationId,
                 StudentId = att.Allocation?.StudentId ?? 0,
-                StudentName = att.Allocation?.Student != null ? $"{att.Allocation.Student.FirstName} {att.Allocation.Student.LastName}" : "Unknown",
-                AdmissionNo = att.Allocation?.Student?.RegistrationNo ?? "N/A",
+                StudentName = !string.IsNullOrWhiteSpace(att.Allocation?.StudentName) ? att.Allocation.StudentName : (att.Allocation?.Student?.StudentName ?? "Unknown"),
+                AdmissionNo = att.Allocation?.RegistrationNo ?? att.Allocation?.Student?.RollNumber ?? att.Allocation?.Student?.AdmissionNumber ?? "N/A",
                 HostelName = att.Allocation?.Hostel?.HostelName ?? "N/A",
                 RoomNumber = att.Allocation?.Room?.RoomNumber ?? "N/A",
                 BedNumber = att.Allocation?.BedNumber ?? "N/A",
@@ -1045,8 +1045,8 @@ public class HostelService : IHostelService
             AttendanceId = 0,
             AllocationId = a.AllocationId,
             StudentId = a.StudentId ?? 0,
-            StudentName = a.Student != null ? $"{a.Student.FirstName} {a.Student.LastName}" : "Unknown",
-            AdmissionNo = a.Student?.RegistrationNo ?? "N/A",
+            StudentName = !string.IsNullOrWhiteSpace(a.StudentName) ? a.StudentName : (a.Student?.StudentName ?? "Unknown"),
+            AdmissionNo = a.RegistrationNo ?? a.Student?.RollNumber ?? a.Student?.AdmissionNumber ?? "N/A",
             HostelName = a.Hostel?.HostelName ?? "N/A",
             RoomNumber = a.Room?.RoomNumber ?? "N/A",
             BedNumber = a.BedNumber ?? "",
@@ -1305,9 +1305,9 @@ public class HostelService : IHostelService
             return new HostelReportItemDto
             {
                 AllocationId = a.AllocationId,
-                AdmissionNo = !string.IsNullOrWhiteSpace(a.RegistrationNo) ? a.RegistrationNo : (a.Student?.RegistrationNo ?? string.Empty),
-                StudentName = !string.IsNullOrWhiteSpace(a.StudentName) ? a.StudentName : (a.Student != null ? $"{a.Student.FirstName} {a.Student.LastName}".Trim() : string.Empty),
-                ClassSection = a.Student?.AppliedClass?.ClassName ?? string.Empty,
+                AdmissionNo = !string.IsNullOrWhiteSpace(a.RegistrationNo) ? a.RegistrationNo : (a.Student?.RollNumber ?? a.Student?.AdmissionNumber ?? string.Empty),
+                StudentName = !string.IsNullOrWhiteSpace(a.StudentName) ? a.StudentName : (a.Student?.StudentName ?? string.Empty),
+                ClassSection = a.Student?.ClassGrade?.ClassName ?? string.Empty,
                 HostelName = a.Hostel?.HostelName ?? string.Empty,
                 BlockName = w?.BlockName ?? string.Empty,
                 FloorLevel = a.Room?.FloorLevel ?? string.Empty,
@@ -1405,9 +1405,9 @@ public class HostelService : IHostelService
     {
         AllocationId = a.AllocationId,
         StudentId = a.StudentId ?? 0,
-        StudentName = !string.IsNullOrWhiteSpace(a.StudentName) ? a.StudentName : (a.Student != null ? $"{a.Student.FirstName} {a.Student.LastName}" : string.Empty),
-        AdmissionNo = !string.IsNullOrWhiteSpace(a.RegistrationNo) ? a.RegistrationNo : (a.Student?.RegistrationNo ?? string.Empty),
-        ClassName = a.Student?.AppliedClass?.ClassName ?? string.Empty,
+        StudentName = !string.IsNullOrWhiteSpace(a.StudentName) ? a.StudentName : (a.Student?.StudentName ?? string.Empty),
+        AdmissionNo = !string.IsNullOrWhiteSpace(a.RegistrationNo) ? a.RegistrationNo : (a.Student?.RollNumber ?? a.Student?.AdmissionNumber ?? string.Empty),
+        ClassName = a.Student?.ClassGrade?.ClassName ?? string.Empty,
         HostelId = a.HostelId,
         HostelName = a.Hostel?.HostelName ?? string.Empty,
         RoomId = a.RoomId,

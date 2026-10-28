@@ -1059,46 +1059,95 @@ namespace SMS.Api.Controllers.AcademicManagement
                 return NotFound(new { success = false, message = "Class not found." });
             }
 
-            var query = _context.Admissions
+            var enrolledQuery = _context.Students
+                .AsNoTracking()
+                .Include(s => s.ClassGrade)
+                .Include(s => s.ClassSection)
                 .Where(s => s.ClassId == id && !s.IsDeleted);
 
             if (!string.IsNullOrEmpty(section))
             {
-                query = query.Where(s => (s.SectionLetter ?? "").ToLower() == section.ToLower());
+                var cleanSec = section.ToLower().Replace("section", "").Trim();
+                enrolledQuery = enrolledQuery.Where(s => s.ClassSection != null &&
+                    (s.ClassSection.SectionName.ToLower() == section.ToLower() ||
+                     s.ClassSection.SectionName.ToLower().Replace("section", "").Trim() == cleanSec));
             }
 
-            var students = await query.ToListAsync();
+            var enrolledStudents = await enrolledQuery.ToListAsync();
 
-            var response = students.Select(s =>
+            List<StudentResponseDto> response;
+            if (enrolledStudents.Any())
             {
-                var names = (s.StudentName ?? "").Split(new[] { ' ' }, 2);
-                var fName = names.Length > 0 ? names[0] : "";
-                var lName = names.Length > 1 ? names[1] : "";
-
-                return new StudentResponseDto
+                response = enrolledStudents.Select(s =>
                 {
-                    Id = $"STD-{s.AdmissionId}",
-                    AdmissionNo = s.ApplicationNo ?? "",
-                    RollNo = s.RollNo,
-                    FirstName = fName,
-                    LastName = lName,
-                    Gender = s.Gender ?? "Male",
-                    Dob = s.Dob?.ToString("yyyy-MM-ddTHH:mm:ssZ") ?? "",
-                    ClassName = classObj.ClassName ?? "",
-                    Section = s.SectionLetter ?? "",
-                    FatherName = s.FatherName ?? "",
-                    FatherPhone = s.FatherMobile ?? "",
-                    Email = "",
-                    Status = s.Status == "Enrolled" || s.Status == "Active" ? "Active" : "Inactive",
-                    // BUG-036 FIX: Do not use hardcoded fee/attendance values; return 0 until real data is wired
-                    TotalFee = 0,
-                    PaidFee = 0,
-                    DueFee = 0,
-                    AttendancePct = 0,
-                    Gpa = 0
-                };
-            }).ToList();
+                    var names = (s.StudentName ?? "").Split(new[] { ' ' }, 2);
+                    var fName = names.Length > 0 ? names[0] : "";
+                    var lName = names.Length > 1 ? names[1] : "";
 
+                    return new StudentResponseDto
+                    {
+                        Id = s.StudentId.ToString(),
+                        AdmissionNo = s.AdmissionNumber ?? "",
+                        RollNo = s.RollNumber ?? "",
+                        FirstName = fName,
+                        LastName = lName,
+                        Gender = s.Gender ?? "Male",
+                        Dob = s.DateOfBirth?.ToString("yyyy-MM-ddTHH:mm:ssZ") ?? "",
+                        ClassName = s.ClassGrade?.ClassName ?? classObj.ClassName ?? "",
+                        Section = s.ClassSection?.SectionName ?? "",
+                        FatherName = s.FatherName ?? "",
+                        FatherPhone = s.FatherMobile ?? "",
+                        Email = s.Email ?? "",
+                        Status = s.Status == "Enrolled" || s.Status == "Active" ? "Active" : s.Status,
+                        TotalFee = 0,
+                        PaidFee = 0,
+                        DueFee = 0,
+                        AttendancePct = 0,
+                        Gpa = 0
+                    };
+                }).ToList();
+            }
+            else
+            {
+                var query = _context.Admissions
+                    .Where(s => s.ClassId == id && !s.IsDeleted);
+
+                if (!string.IsNullOrEmpty(section))
+                {
+                    query = query.Where(s => (s.SectionLetter ?? "").ToLower() == section.ToLower());
+                }
+
+                var students = await query.ToListAsync();
+
+                response = students.Select(s =>
+                {
+                    var names = (s.StudentName ?? "").Split(new[] { ' ' }, 2);
+                    var fName = names.Length > 0 ? names[0] : "";
+                    var lName = names.Length > 1 ? names[1] : "";
+
+                    return new StudentResponseDto
+                    {
+                        Id = s.AdmissionId.ToString(),
+                        AdmissionNo = s.ApplicationNo ?? "",
+                        RollNo = s.RollNo,
+                        FirstName = fName,
+                        LastName = lName,
+                        Gender = s.Gender ?? "Male",
+                        Dob = s.Dob?.ToString("yyyy-MM-ddTHH:mm:ssZ") ?? "",
+                        ClassName = classObj.ClassName ?? "",
+                        Section = s.SectionLetter ?? "",
+                        FatherName = s.FatherName ?? "",
+                        FatherPhone = s.FatherMobile ?? "",
+                        Email = "",
+                        Status = s.Status == "Enrolled" || s.Status == "Active" ? "Active" : "Inactive",
+                        TotalFee = 0,
+                        PaidFee = 0,
+                        DueFee = 0,
+                        AttendancePct = 0,
+                        Gpa = 0
+                    };
+                }).ToList();
+            }
             return Ok(response);
         }
 

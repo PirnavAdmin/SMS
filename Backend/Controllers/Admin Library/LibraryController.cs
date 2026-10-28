@@ -439,7 +439,7 @@ public class LibraryController : ControllerBase
                 .Take(50)
                 .ToListAsync();
             studentMembers = studentList.Select(s => {
-                string memId = !string.IsNullOrWhiteSpace(s.AdmissionNumber) ? s.AdmissionNumber : $"REG-{s.StudentId}";
+                string memId = s.StudentId.ToString();
                 int issuedCount = activeIssueCounts.ContainsKey(memId) ? activeIssueCounts[memId] : 0;
                 string classSec = $"{s.ClassGrade?.ClassName} - {s.ClassSection?.SectionName}".Trim(' ', '-');
                 if (string.IsNullOrWhiteSpace(classSec)) classSec = "Student";
