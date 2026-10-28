@@ -10124,6 +10124,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           assignedAdmissionNo = resolvedAdmissionNo;
 
           const resolvedRegistrationNo =
+            json?.studentId ||
             json?.registrationNo ||
             json?.data?.registrationNumber ||
             json?.data?.rollNumber ||
@@ -10134,7 +10135,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           const newStudent = addStudent(
             {
               admissionNo: resolvedAdmissionNo,
-              rollNo: resolvedRegistrationNo,
+              rollNo: resolvedRegistrationNo && !resolvedRegistrationNo.startsWith("REG-") ? resolvedRegistrationNo : "",
               firstName: (() => {
                 const parts = (app.applicantName || "").trim().split(" ");
                 return app.firstName || parts[0] || "";

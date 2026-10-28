@@ -491,7 +491,7 @@ using (var scope = app.Services.CreateScope())
                     cmd.CommandText = "DROP TRIGGER IF EXISTS `trg_admissionapplications_before_insert`;";
                     cmd.ExecuteNonQuery();
 
-                    cmd.CommandText = "DROP TRIGGER IF EXISTS `trg_admission_applications_before_insert`;";
+                    cmd.CommandText = "DROP TRIGGER IF EXISTS `trg_admission_applications_before_insert`;"; cmd.ExecuteNonQuery(); /*
                     cmd.ExecuteNonQuery();
 
                     cmd.CommandText = @"
@@ -506,7 +506,7 @@ using (var scope = app.Services.CreateScope())
                             SET NEW.RegistrationNo = CONCAT('REG-', max_num + 1);
                         END;";
                     cmd.ExecuteNonQuery();
-                    System.Console.WriteLine("[Database Schema Upgrade] Recreated trigger `trg_admission_applications_before_insert` successfully.");
+                    */ System.Console.WriteLine("[Database Schema Upgrade] Dropped legacy REG- triggers successfully.");
                 }
                 catch (System.Exception ex)
                 {
@@ -2473,6 +2473,96 @@ using (var scope = app.Services.CreateScope())
                     catch (Exception ex)
                     {
                         Console.WriteLine($"[Startup Sync] Note: Student sync completed with note: {ex.Message}");
+                    }
+
+                    // 4. Migrate any legacy REG-% records on enrolled applications to dynamic Student IDs from Settings
+                    try
+                    {
+                        var settingsService = services.GetService<SMS.Api.Services.Interfaces.Settings.ISettingsService>();
+                        var enrolledWithReg = await context.AdmissionApplications
+                            .Where(a => !a.IsDeleted && (a.Status == "Enrolled" || a.Status == "Admitted") && a.RegistrationNo != null && a.RegistrationNo.StartsWith("REG-"))
+                            .ToListAsync();
+
+                        foreach (var appItem in enrolledWithReg)
+                        {
+                            string newStudentId = "";
+                            if (settingsService != null)
+                            {
+                                try
+                                {
+                                    var gen = await settingsService.GenerateNextIdAsync("student");
+                                    newStudentId = gen?.NextId ?? "";
+                                }
+                                catch { }
+                            }
+                            if (string.IsNullOrWhiteSpace(newStudentId))
+                            {
+                                newStudentId = $"STU-{DateTime.UtcNow.Year}-1001";
+                            }
+
+                            var matchedStudent = await context.Students
+                                .FirstOrDefaultAsync(s => s.AdmissionNumber == appItem.AdmissionNo || 
+                                                          s.RollNumber == appItem.RegistrationNo ||
+                                                          (s.FatherMobile == appItem.FatherContact && s.StudentName == $"{appItem.FirstName} {appItem.LastName}".Trim()));
+
+                            appItem.RegistrationNo = newStudentId;
+                            if (matchedStudent != null)
+                            {
+                                matchedStudent.RollNumber = newStudentId;
+                                if (string.IsNullOrWhiteSpace(matchedStudent.AdmissionNumber) || matchedStudent.AdmissionNumber.StartsWith("REG-"))
+                                {
+                                    matchedStudent.AdmissionNumber = appItem.AdmissionNo;
+                                }
+                            }
+
+                            var studentRole = await context.Roles.FirstOrDefaultAsync(r => r.RoleName == "Student");
+                            var sName = matchedStudent?.StudentName ?? $"{appItem.FirstName} {appItem.LastName}".Trim();
+                            var existingU = await context.Users.Include(u => u.Roles).FirstOrDefaultAsync(u =>
+                                u.Role == "Student" && (
+                                    u.MobileNumber == newStudentId ||
+                                    (u.Email != null && u.Email.ToLower().StartsWith(newStudentId.ToLower() + "@")) ||
+                                    u.FullName.ToLower() == sName.ToLower()
+                                )
+                            );
+
+                            if (existingU != null)
+                            {
+                                existingU.FullName = sName;
+                                existingU.MobileNumber = newStudentId;
+                                existingU.Email = $"{newStudentId.ToLowerInvariant()}@school.internal";
+                                existingU.PasswordHash = BCrypt.Net.BCrypt.HashPassword(newStudentId);
+                            }
+                            else
+                            {
+                                var newU = new User
+                                {
+                                    FullName = sName,
+                                    Email = $"{newStudentId.ToLowerInvariant()}@school.internal",
+                                    MobileNumber = newStudentId,
+                                    PasswordHash = BCrypt.Net.BCrypt.HashPassword(newStudentId),
+                                    Role = "Student",
+                                    IsEmailVerified = true,
+                                    IsMobileVerified = true,
+                                    CreatedAt = DateTime.UtcNow
+                                };
+                                if (studentRole != null) newU.Roles.Add(studentRole);
+                                await context.Users.AddAsync(newU);
+                            }
+                        }
+
+                        var nonEnrolledWithReg = await context.AdmissionApplications
+                            .Where(a => a.RegistrationNo != null && a.RegistrationNo.StartsWith("REG-") && a.Status != "Enrolled" && a.Status != "Admitted")
+                            .ToListAsync();
+                        foreach (var nonApp in nonEnrolledWithReg)
+                        {
+                            nonApp.RegistrationNo = null;
+                        }
+
+                        await context.SaveChangesAsync();
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine($"[Startup Migration Note] Student ID migration completed with note: {ex.Message}");
                     }
                 }
             }

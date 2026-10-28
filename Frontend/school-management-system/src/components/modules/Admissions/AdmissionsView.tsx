@@ -5483,9 +5483,9 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                             ? app.applicationNo
                             : (app as any).admissionNo || "—")}
                       </span>
-                      {((app as any).registrationNo || (app as any).rollNo) && (
+                      {(app.status?.toLowerCase() === 'enrolled' || app.status?.toLowerCase() === 'admitted' || app.status?.toLowerCase() === 'active') && Boolean(((app as any).studentId || (app as any).rollNo || (app as any).registrationNo || '').replace(/^REG-.*$/i, '')) && (
                         <span className="text-[10px] text-slate-500 dark:text-slate-400 font-medium block">
-                          Reg: {(app as any).registrationNo || (app as any).rollNo}
+                          Student ID: {((app as any).studentId || (app as any).rollNo || (app as any).registrationNo || '').replace(/^REG-.*$/i, '')}
                         </span>
                       )}
                     </td>

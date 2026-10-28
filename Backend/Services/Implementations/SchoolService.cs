@@ -1209,8 +1209,8 @@ public class SchoolService : ISchoolService
 			}
 		}
 
-		// Generate sequential registration number (e.g. REG-1001, REG-1002, ...)
-		string nextRegNo = "";
+		// Before enrollment, student has only Admission Number from Settings; Student ID is assigned only upon enrollment.
+		string? nextRegNo = null; /*
 		if (!string.IsNullOrWhiteSpace(dto.RegistrationNo) && dto.RegistrationNo.StartsWith("REG-", StringComparison.OrdinalIgnoreCase))
 		{
 			bool isTaken = await _context.AdmissionApplications.AnyAsync(a => !a.IsDeleted && a.RegistrationNo == dto.RegistrationNo.Trim());
@@ -1253,7 +1253,7 @@ public class SchoolService : ISchoolService
 			}
 		}
 
-		var allBranches = await _context.Branches.AsNoTracking().ToListAsync();
+		*/ var allBranches = await _context.Branches.AsNoTracking().ToListAsync();
 		var defaultBranch = allBranches.FirstOrDefault();
 		string effectiveBranchName = dto.BranchName ?? "";
 		if (string.IsNullOrWhiteSpace(effectiveBranchName) || 
@@ -1991,7 +1991,8 @@ public class SchoolService : ISchoolService
 	private static AdmissionApplicationResponseDto MapToAdmissionResponseDto(AdmissionApplication a) => new()
 	{
 		Id = a.Id,
-		RegistrationNo = a.RegistrationNo ?? "",
+		RegistrationNo = (!string.IsNullOrWhiteSpace(a.RegistrationNo) && !a.RegistrationNo.StartsWith("REG-", StringComparison.OrdinalIgnoreCase)) ? a.RegistrationNo : "",
+		StudentId = (!string.IsNullOrWhiteSpace(a.RegistrationNo) && !a.RegistrationNo.StartsWith("REG-", StringComparison.OrdinalIgnoreCase)) ? a.RegistrationNo : null,
 		AdmissionNo = a.AdmissionNo,
 		ProfilePhotoUrl = a.ProfilePhotoUrl,
 		FirstName = a.FirstName ?? "",

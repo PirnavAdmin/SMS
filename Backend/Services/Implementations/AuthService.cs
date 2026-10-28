@@ -567,6 +567,7 @@ namespace SMS.Api.Services.Implementations
                         {
                             var matchedStudent = await _dbContext.Students.FirstOrDefaultAsync(s => 
                                 (s.Email != null && user.Email != null && s.Email.ToLower() == user.Email.ToLower()) ||
+                                (!string.IsNullOrEmpty(s.RollNumber) && (user.MobileNumber == s.RollNumber || (user.Email != null && user.Email.ToLower().StartsWith(s.RollNumber.ToLower() + "@")))) ||
                                 (s.MobileNumber != null && user.MobileNumber != null && (s.MobileNumber == user.MobileNumber || (digitsOnly.Length >= 10 && s.MobileNumber.EndsWith(digitsOnly)))) ||
                                 s.StudentName.ToLower() == user.FullName.ToLower());
                             if (matchedStudent != null)

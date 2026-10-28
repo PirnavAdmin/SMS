@@ -162,7 +162,7 @@ public class AdmissionsController : ControllerBase
             await _schoolService.UpdateApplicationStatusAsync(target.Id, dto.Status);
         }
 
-        return Ok(new { success = true, message = $"Status updated to '{dto.Status}' successfully.", admissionNo = enrolledAdmissionNo, registrationNo = enrolledRegNo });
+        return Ok(new { success = true, message = $"Status updated to '{dto.Status}' successfully.", admissionNo = enrolledAdmissionNo, studentId = enrolledRegNo, registrationNo = enrolledRegNo });
     }
 
     [HttpPost("{id}/reject")]
@@ -218,6 +218,7 @@ public class AdmissionsController : ControllerBase
                     success = true, 
                     message = "Student enrolled successfully into active database.", 
                     admissionNo = admNo,
+                    studentId = updatedApp?.RegistrationNo,
                     registrationNo = updatedApp?.RegistrationNo 
                 });
             }
@@ -234,6 +235,7 @@ public class AdmissionsController : ControllerBase
                 success = true, 
                 message = "Student enrolled successfully into active database.", 
                 admissionNo = admNo,
+                studentId = updatedApp?.RegistrationNo,
                 registrationNo = updatedApp?.RegistrationNo 
             });
         }
