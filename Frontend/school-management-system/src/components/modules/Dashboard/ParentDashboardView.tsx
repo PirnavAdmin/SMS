@@ -237,18 +237,6 @@ export const ParentDashboardView: React.FC<ParentDashboardViewProps> = ({ onNavi
     fetchStudents
   } = useData();
   const [selectedChildIdx, setSelectedChildIdx] = useState(0);
-  const [feeSummary, setFeeSummary] = useState<any>(null);
-
-  useEffect(() => {
-    if (currentWard) {
-      const studentId = Number(currentWard.studentId || currentWard.id);
-      if (studentId) {
-        getParentFeeDetails(studentId)
-          .then(data => setFeeSummary(data))
-          .catch(() => {});
-      }
-    }
-  }, [currentWard?.studentId, currentWard?.id]);
 
   useEffect(() => {
     fetchHomeworkData?.();
@@ -289,6 +277,19 @@ export const ParentDashboardView: React.FC<ParentDashboardViewProps> = ({ onNavi
   const hasMatchedWards = parentWards.length > 0;
 
   const currentWard = parentWards[selectedChildIdx] || parentWards[0];
+
+  const [feeSummary, setFeeSummary] = useState<any>(null);
+
+  useEffect(() => {
+    if (currentWard) {
+      const studentId = Number(currentWard.studentId || currentWard.id);
+      if (studentId) {
+        getParentFeeDetails(studentId)
+          .then(data => setFeeSummary(data))
+          .catch(() => {});
+      }
+    }
+  }, [currentWard?.studentId, currentWard?.id]);
 
   const matchedStudent = useMemo(() => {
     if (!currentWard) return null;
