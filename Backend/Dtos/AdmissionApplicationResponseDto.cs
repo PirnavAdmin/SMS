@@ -10,9 +10,13 @@ public class AdmissionApplicationResponseDto
     public int ApplicationId => Id;
 
     public string RegistrationNo { get; set; } = string.Empty;
-    public string? StudentId { get; set; }
+    private string? _studentId;
     [JsonPropertyName("studentId")]
-    public string? StudentIdProperty => StudentId ?? (!string.IsNullOrWhiteSpace(RegistrationNo) && !RegistrationNo.StartsWith("REG-", System.StringComparison.OrdinalIgnoreCase) ? RegistrationNo : null);
+    public string? StudentId
+    {
+        get => _studentId ?? (!string.IsNullOrWhiteSpace(RegistrationNo) && !RegistrationNo.StartsWith("REG-", System.StringComparison.OrdinalIgnoreCase) ? RegistrationNo : null);
+        set => _studentId = value;
+    }
 
     [JsonPropertyName("registrationNumber")]
     public string RegistrationNumber => RegistrationNo;
