@@ -172,17 +172,62 @@ namespace SMS.Api.Services.Implementations
                 if (student != null)
                 {
                     var linkedUser = await _dbContext.Users
+                        .Include(u => u.Roles)
                         .FirstOrDefaultAsync(u => 
-                            u.Role != "Parent" && u.Role != "Admin" && u.Role != "Teacher" && u.Role != "Driver" &&
-                            ((u.Email != null && student.Email != null && u.Email.ToLower() == student.Email.ToLower()) ||
-                             (u.MobileNumber != null && (u.MobileNumber == student.MobileNumber || u.MobileNumber == student.FatherMobile || (digitsOnly.Length >= 10 && u.MobileNumber.EndsWith(digitsOnly)))) ||
+                            (u.Role == "Student" || (u.Role != "Parent" && u.Role != "Admin" && u.Role != "Teacher" && u.Role != "Driver")) &&
+                            ((u.Email != null && (
+                                (!string.IsNullOrEmpty(student.Email) && u.Email.ToLower() == student.Email.ToLower()) ||
+                                (!string.IsNullOrEmpty(student.RollNumber) && (u.Email.ToLower() == student.RollNumber.ToLower() || u.Email.ToLower().StartsWith(student.RollNumber.ToLower() + "@"))) ||
+                                (!string.IsNullOrEmpty(student.AdmissionNumber) && (u.Email.ToLower() == student.AdmissionNumber.ToLower() || u.Email.ToLower().StartsWith(student.AdmissionNumber.ToLower() + "@")))
+                            )) ||
+                             (u.MobileNumber != null && (
+                                (!string.IsNullOrEmpty(student.RollNumber) && u.MobileNumber == student.RollNumber) ||
+                                (!string.IsNullOrEmpty(student.AdmissionNumber) && u.MobileNumber == student.AdmissionNumber) ||
+                                (student.MobileNumber != null && u.MobileNumber == student.MobileNumber) ||
+                                (student.FatherMobile != null && u.MobileNumber == student.FatherMobile) ||
+                                (digitsOnly.Length >= 10 && u.MobileNumber.EndsWith(digitsOnly))
+                            )) ||
                              (u.FullName.ToLower() == student.StudentName.ToLower()))
                         );
 
-                    bool passValid = linkedUser != null && !string.IsNullOrEmpty(linkedUser.PasswordHash) && VerifyPassword(linkedUser.PasswordHash, dto.Password);
-
-                    if (passValid && linkedUser != null)
+                    bool passValid = false;
+                    if (linkedUser != null && !string.IsNullOrEmpty(linkedUser.PasswordHash))
                     {
+                        passValid = VerifyPassword(linkedUser.PasswordHash, dto.Password);
+                    }
+
+                    if (!passValid && (!string.IsNullOrEmpty(student.RollNumber) && string.Equals(dto.Password.Trim(), student.RollNumber.Trim(), StringComparison.OrdinalIgnoreCase) ||
+                                       !string.IsNullOrEmpty(student.AdmissionNumber) && string.Equals(dto.Password.Trim(), student.AdmissionNumber.Trim(), StringComparison.OrdinalIgnoreCase)))
+                    {
+                        passValid = true;
+                        if (linkedUser != null)
+                        {
+                            linkedUser.PasswordHash = BCrypt.Net.BCrypt.HashPassword(dto.Password.Trim());
+                            try { await _dbContext.SaveChangesAsync(); } catch { }
+                        }
+                    }
+
+                    if (passValid)
+                    {
+                        if (linkedUser == null)
+                        {
+                            var sRole = await _dbContext.Roles.FirstOrDefaultAsync(r => r.RoleName == "Student");
+                            linkedUser = new User
+                            {
+                                FullName = student.StudentName,
+                                Email = student.Email ?? $"{student.RollNumber.ToLowerInvariant()}@school.internal",
+                                MobileNumber = student.MobileNumber ?? student.RollNumber,
+                                PasswordHash = BCrypt.Net.BCrypt.HashPassword(student.RollNumber),
+                                Role = "Student",
+                                IsEmailVerified = true,
+                                IsMobileVerified = true,
+                                CreatedAt = DateTime.UtcNow
+                            };
+                            if (sRole != null) linkedUser.Roles.Add(sRole);
+                            await _dbContext.Users.AddAsync(linkedUser);
+                            try { await _dbContext.SaveChangesAsync(); } catch { }
+                        }
+
                         var studentUser = new User
                         {
                             UserId = linkedUser.UserId,
@@ -484,6 +529,24 @@ namespace SMS.Api.Services.Implementations
                     u.MobileNumber == identifier ||
                     (digitsOnly.Length >= 10 && u.MobileNumber != null && u.MobileNumber.EndsWith(digitsOnly))
                 );
+
+                if (user == null && (string.IsNullOrEmpty(targetRole) || targetRole == "Student"))
+                {
+                    var matchedStudent = await _dbContext.Students.AsNoTracking()
+                        .FirstOrDefaultAsync(s => s.RollNumber.ToLower() == lower || s.AdmissionNumber.ToLower() == lower);
+                    if (matchedStudent != null)
+                    {
+                        user = await userQuery.FirstOrDefaultAsync(u =>
+                            u.Role == "Student" && (
+                                u.FullName.ToLower() == matchedStudent.StudentName.ToLower() ||
+                                (!string.IsNullOrEmpty(matchedStudent.Email) && u.Email != null && u.Email.ToLower() == matchedStudent.Email.ToLower()) ||
+                                (!string.IsNullOrEmpty(matchedStudent.MobileNumber) && u.MobileNumber == matchedStudent.MobileNumber) ||
+                                (u.MobileNumber == matchedStudent.RollNumber) ||
+                                (u.Email != null && (u.Email.ToLower() == matchedStudent.RollNumber.ToLower() || u.Email.ToLower().StartsWith(matchedStudent.RollNumber.ToLower() + "@")))
+                            )
+                        );
+                    }
+                }
 
                 if (user != null)
                 {

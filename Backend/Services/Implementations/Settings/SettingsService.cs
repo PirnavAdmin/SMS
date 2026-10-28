@@ -447,7 +447,15 @@ namespace SMS.Api.Services.Implementations.Settings
                     .Select(s => s.AdmissionNumber)
                     .ToListAsync();
 
-                maxExisting = ExtractMaxNumber(rollCodes.Concat(admissionCodes), prefix);
+                var appRegNos = await _context.AdmissionApplications
+                    .Select(a => a.RegistrationNo)
+                    .ToListAsync();
+
+                var admRollNos = await _context.Admissions
+                    .Select(a => a.RollNo)
+                    .ToListAsync();
+
+                maxExisting = ExtractMaxNumber(rollCodes.Concat(admissionCodes).Concat(appRegNos).Concat(admRollNos), prefix);
             }
             else if (normType == "admission" || normType == "admissionno")
             {
@@ -564,6 +572,24 @@ namespace SMS.Api.Services.Implementations.Settings
             int nextNumber = Math.Max(startNo, maxExisting + 1);
 
             string nextId = BuildFormattedId(prefix, nextNumber, padding, includeYear, separator, position);
+
+            if (normType == "student" || normType == "studentid")
+            {
+                var existingStudentIds = await _context.Students
+                    .Select(s => s.RollNumber)
+                    .Concat(_context.Students.Select(s => s.AdmissionNumber))
+                    .Concat(_context.AdmissionApplications.Select(a => a.RegistrationNo))
+                    .Concat(_context.Admissions.Select(a => a.RollNo))
+                    .Where(x => !string.IsNullOrEmpty(x))
+                    .Select(x => x!)
+                    .ToListAsync();
+                var set = new HashSet<string>(existingStudentIds, StringComparer.OrdinalIgnoreCase);
+                while (set.Contains(nextId))
+                {
+                    nextNumber++;
+                    nextId = BuildFormattedId(prefix, nextNumber, padding, includeYear, separator, position);
+                }
+            }
 
             if (normType.Contains("teach") || normType == "staff")
             {

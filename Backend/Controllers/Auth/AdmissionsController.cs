@@ -146,6 +146,7 @@ public class AdmissionsController : ControllerBase
         }
 
         string? enrolledAdmissionNo = null;
+        string? enrolledRegNo = null;
         if (dto.Status.Equals("Rejected", System.StringComparison.OrdinalIgnoreCase))
         {
             await _schoolService.RejectApplicationAsync(target.Id);
@@ -153,13 +154,15 @@ public class AdmissionsController : ControllerBase
         else if (dto.Status.Equals("Enrolled", System.StringComparison.OrdinalIgnoreCase) || dto.Status.Equals("Admitted", System.StringComparison.OrdinalIgnoreCase))
         {
             enrolledAdmissionNo = await _schoolService.EnrollStudentAsync(target.Id);
+            var updatedApp = await _schoolService.GetApplicationByIdAsync(target.Id);
+            enrolledRegNo = updatedApp?.RegistrationNo;
         }
         else
         {
             await _schoolService.UpdateApplicationStatusAsync(target.Id, dto.Status);
         }
 
-        return Ok(new { success = true, message = $"Status updated to '{dto.Status}' successfully.", admissionNo = enrolledAdmissionNo });
+        return Ok(new { success = true, message = $"Status updated to '{dto.Status}' successfully.", admissionNo = enrolledAdmissionNo, registrationNo = enrolledRegNo });
     }
 
     [HttpPost("{id}/reject")]
@@ -210,7 +213,13 @@ public class AdmissionsController : ControllerBase
             try
             {
                 var admNo = await _schoolService.EnrollStudentAsync(targetId);
-                return Ok(new { success = true, message = "Student enrolled successfully into active database.", admissionNo = admNo });
+                var updatedApp = await _schoolService.GetApplicationByIdAsync(targetId);
+                return Ok(new { 
+                    success = true, 
+                    message = "Student enrolled successfully into active database.", 
+                    admissionNo = admNo,
+                    registrationNo = updatedApp?.RegistrationNo 
+                });
             }
             catch { }
         }
@@ -220,7 +229,13 @@ public class AdmissionsController : ControllerBase
         if (target != null)
         {
             var admNo = await _schoolService.EnrollStudentAsync(target.Id);
-            return Ok(new { success = true, message = "Student enrolled successfully into active database.", admissionNo = admNo });
+            var updatedApp = await _schoolService.GetApplicationByIdAsync(target.Id);
+            return Ok(new { 
+                success = true, 
+                message = "Student enrolled successfully into active database.", 
+                admissionNo = admNo,
+                registrationNo = updatedApp?.RegistrationNo 
+            });
         }
 
         return Ok(new { success = true, message = "Student enrolled successfully into active database." });

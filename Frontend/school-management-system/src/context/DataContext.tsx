@@ -10123,10 +10123,18 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
             generateNextAdmissionNo(students);
           assignedAdmissionNo = resolvedAdmissionNo;
 
+          const resolvedRegistrationNo =
+            json?.registrationNo ||
+            json?.data?.registrationNumber ||
+            json?.data?.rollNumber ||
+            (app as any).registrationNo ||
+            (app as any).rollNo ||
+            "";
+
           const newStudent = addStudent(
             {
               admissionNo: resolvedAdmissionNo,
-              rollNo: (app as any).rollNo || "",
+              rollNo: resolvedRegistrationNo,
               firstName: (() => {
                 const parts = (app.applicantName || "").trim().split(" ");
                 return app.firstName || parts[0] || "";

@@ -1625,6 +1625,40 @@ public class SchoolService : ISchoolService
 									}
 								}
 
+								// Resolve or dynamically generate student registration number from Settings -> Automated ID Settings ("student" key)
+								string studentRollNo = "";
+								if (!string.IsNullOrWhiteSpace(existing?.RollNo) && !existing!.RollNo.StartsWith("REG-", StringComparison.OrdinalIgnoreCase))
+								{
+									studentRollNo = existing.RollNo;
+								}
+								else if (matchedStudent != null && !string.IsNullOrWhiteSpace(matchedStudent.RollNumber) && !matchedStudent.RollNumber.StartsWith("REG-", StringComparison.OrdinalIgnoreCase))
+								{
+									studentRollNo = matchedStudent.RollNumber;
+								}
+								else if (!string.IsNullOrWhiteSpace(app.RegistrationNo) && !app.RegistrationNo.StartsWith("REG-", StringComparison.OrdinalIgnoreCase))
+								{
+									studentRollNo = app.RegistrationNo;
+								}
+								else
+								{
+									try
+									{
+										var genStudent = await _settingsService.GenerateNextIdAsync("student");
+										studentRollNo = genStudent?.NextId ?? $"STU-{DateTime.UtcNow.Year}-1001";
+									}
+									catch
+									{
+										studentRollNo = $"STU-{DateTime.UtcNow.Year}-1001";
+									}
+								}
+
+								if (existing != null)
+								{
+									existing.RollNo = studentRollNo;
+								}
+								app.RegistrationNo = studentRollNo;
+								_context.Entry(app).State = Microsoft.EntityFrameworkCore.EntityState.Modified;
+
 								Student? targetStudent = matchedStudent;
 								if (matchedStudent != null)
 								{
@@ -1644,7 +1678,7 @@ public class SchoolService : ISchoolService
 									if (!string.IsNullOrWhiteSpace(fullAddress)) matchedStudent.Address = fullAddress;
 									matchedStudent.ClassId = (existing != null && existing.ClassId.HasValue) ? existing.ClassId.Value : matchedStudent.ClassId;
 									matchedStudent.SectionId = sectionObj.SectionId;
-									matchedStudent.RollNumber = existing?.RollNo ?? matchedStudent.RollNumber;
+									matchedStudent.RollNumber = studentRollNo;
 									matchedStudent.BranchId = existing != null ? (int)existing.BranchId : matchedStudent.BranchId;
 									matchedStudent.Status = "Active";
 									matchedStudent.IsDeleted = false;
@@ -1653,24 +1687,6 @@ public class SchoolService : ISchoolService
 								}
 								else
 								{
-									string studentRollNo = existing?.RollNo ?? "";
-									if (string.IsNullOrWhiteSpace(studentRollNo))
-									{
-										try
-										{
-											var genStudent = await _settingsService.GenerateNextIdAsync("student");
-											studentRollNo = genStudent?.NextId ?? $"STU-{DateTime.UtcNow.Year}-1001";
-										}
-										catch
-										{
-											studentRollNo = $"STU-{DateTime.UtcNow.Year}-1001";
-										}
-										if (existing != null)
-										{
-											existing.RollNo = studentRollNo;
-										}
-									}
-
 									var newStudent = new Student
 									{
 										AdmissionNumber = studentAdmissionNo,
@@ -1697,6 +1713,79 @@ public class SchoolService : ISchoolService
 									targetStudent = newStudent;
 								}
 								await _context.SaveChangesAsync();
+
+								// Provision and sync Student User for Student Portal Login
+								try
+								{
+									if (string.Equals(app.Status, "Enrolled", StringComparison.OrdinalIgnoreCase) && targetStudent != null)
+									{
+										var studentRegNo = !string.IsNullOrWhiteSpace(targetStudent.RollNumber) 
+											? targetStudent.RollNumber.Trim() 
+											: studentRollNo;
+
+										if (!string.IsNullOrWhiteSpace(studentRegNo))
+										{
+											var studentRole = await Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions.FirstOrDefaultAsync(
+												_context.Roles, r => r.RoleName == "Student");
+
+											var existingStudentUser = await Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions.FirstOrDefaultAsync(
+												_context.Users.Include(u => u.Roles), u =>
+													u.Role == "Student" && (
+														(u.Email != null && (u.Email.ToLower() == studentRegNo.ToLower() || u.Email.ToLower().StartsWith(studentRegNo.ToLower() + "@"))) ||
+														u.MobileNumber == studentRegNo ||
+														u.FullName.ToLower() == targetStudent.StudentName.ToLower()
+													)
+											);
+
+											if (existingStudentUser != null)
+											{
+												existingStudentUser.FullName = targetStudent.StudentName;
+												existingStudentUser.PasswordHash = BCrypt.Net.BCrypt.HashPassword(studentRegNo);
+												existingStudentUser.Role = "Student";
+												if (string.IsNullOrWhiteSpace(existingStudentUser.Email))
+												{
+													existingStudentUser.Email = $"{studentRegNo.ToLowerInvariant()}@school.internal";
+												}
+												if (string.IsNullOrWhiteSpace(existingStudentUser.MobileNumber))
+												{
+													existingStudentUser.MobileNumber = studentRegNo;
+												}
+												if (studentRole != null && existingStudentUser.Roles != null && !existingStudentUser.Roles.Any(r => r.RoleId == studentRole.RoleId || r.RoleName == "Student"))
+												{
+													existingStudentUser.Roles.Add(studentRole);
+												}
+												await _context.SaveChangesAsync();
+											}
+											else
+											{
+												var newStudentUser = new User
+												{
+													FullName = targetStudent.StudentName,
+													Email = $"{studentRegNo.ToLowerInvariant()}@school.internal",
+													MobileNumber = studentRegNo,
+													PasswordHash = BCrypt.Net.BCrypt.HashPassword(studentRegNo),
+													Role = "Student",
+													IsEmailVerified = true,
+													IsMobileVerified = true,
+													CreatedAt = DateTime.UtcNow,
+													SchoolId = null
+												};
+
+												if (studentRole != null)
+												{
+													newStudentUser.Roles.Add(studentRole);
+												}
+
+												await _context.Users.AddAsync(newStudentUser);
+												await _context.SaveChangesAsync();
+											}
+										}
+									}
+								}
+								catch (Exception studentSyncEx)
+								{
+									Console.WriteLine($"[SchoolService] Failed to sync Student user: {studentSyncEx.Message}");
+								}
 
 								// Provision and sync Parent User & ParentStudentMapping for Parent Portal Login
 								try

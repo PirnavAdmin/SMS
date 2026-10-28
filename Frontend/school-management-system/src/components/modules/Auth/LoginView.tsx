@@ -231,7 +231,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onBack }) => {
   // Validation helpers
   const getIdentifierError = () => {
     if (!identifier.trim()) {
-      return (identifierTouched || loginSubmitted) ? 'Email or phone is required' : '';
+      return (identifierTouched || loginSubmitted) ? 'Email, mobile or Student ID is required' : '';
     }
     const clean = identifier.trim();
     if (clean.includes('@')) {
@@ -240,8 +240,9 @@ export const LoginView: React.FC<LoginViewProps> = ({ onBack }) => {
         return 'Invalid email address';
       }
     } else {
+      const isPureDigitsOrPhone = /^[0-9+\-\s()]+$/.test(clean);
       const digits = clean.replace(/\D/g, '');
-      if (digits.length < 8 && (identifierTouched || loginSubmitted)) {
+      if (isPureDigitsOrPhone && digits.length > 0 && digits.length < 8 && (identifierTouched || loginSubmitted)) {
         return 'Invalid phone number';
       }
     }
@@ -498,7 +499,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onBack }) => {
                   {/* Email / Phone Field */}
                   <div className="space-y-1 text-left">
                     <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">
-                      Email or Mobile Number <span className="text-rose-500 ml-0.5">*</span>
+                      Email, Mobile Number or Student ID <span className="text-rose-500 ml-0.5">*</span>
                     </label>
                     <div className="relative group">
                       <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400 group-focus-within:text-sky-500 transition-colors">
@@ -509,7 +510,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onBack }) => {
                         value={identifier}
                         onChange={e => handleIdentifierChange(e.target.value)}
                         onBlur={() => setIdentifierTouched(true)}
-                        placeholder="Enter your email or phone"
+                        placeholder="Enter email, phone, or Student ID"
                         className={`w-full pl-9 pr-3.5 py-2.5 rounded-xl bg-slate-50/70 dark:bg-slate-950/80 border text-slate-900 dark:text-white text-xs sm:text-sm placeholder-slate-400 focus:outline-none focus:ring-3 transition-all font-medium ${
                           identifierError
                             ? 'border-rose-500 focus:ring-rose-500/20 focus:border-rose-500 bg-rose-50/20'

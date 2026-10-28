@@ -5483,6 +5483,11 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                             ? app.applicationNo
                             : (app as any).admissionNo || "—")}
                       </span>
+                      {((app as any).registrationNo || (app as any).rollNo) && (
+                        <span className="text-[10px] text-slate-500 dark:text-slate-400 font-medium block">
+                          Reg: {(app as any).registrationNo || (app as any).rollNo}
+                        </span>
+                      )}
                     </td>
                     <td className="py-3 px-4">
                       <div className="flex items-center gap-3">
