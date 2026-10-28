@@ -61,6 +61,7 @@ import {
 } from "../utils/classSorter";
 import { buildTermMonthMap } from "../utils/lateAdmission";
 import { generateTermsFromAcademicYear } from "../utils/academicYearTermUtils";
+import { notifyFinanceUpdated } from "../utils/financeEvents";
 import {
   normalizeStudentType,
   formatStudentType,
@@ -5271,8 +5272,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
                 s.joiningDate || new Date().toISOString().split("T")[0],
             } as unknown as Student;
           });
-          setStudents((prev) =>
-            mapped.map((st) => {
+          setStudents((prev) => {
+            const mappedResult = mapped.map((st) => {
               const existing = (prev || []).find(
                 (p) =>
                   p.id === st.id ||
@@ -5305,8 +5306,21 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
                   st.category ||
                   "General",
               };
-            }),
-          );
+            });
+
+            const mappedIds = new Set(mappedResult.map((s) => s.id));
+            const mappedAdmNos = new Set(
+              mappedResult.filter((s) => s.admissionNo).map((s) => s.admissionNo),
+            );
+
+            const extraFromPrev = (prev || []).filter(
+              (p) =>
+                !mappedIds.has(p.id) &&
+                (!p.admissionNo || !mappedAdmNos.has(p.admissionNo)),
+            );
+
+            return [...mappedResult, ...extraFromPrev];
+          });
         }
       } catch (err) {
         console.warn("Failed to fetch students from API", err);
@@ -9359,6 +9373,99 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         ...prev.filter((a) => a.id !== createdApp.id),
       ]);
 
+      // Dynamically ensure student is in students state and fees are assigned immediately
+      const matchingDfs = (dynamicFeeStructures || []).find(
+        (d) =>
+          matchesClassName(d.className, createdApp.appliedClass) &&
+          (matchesAcademicYear(d.academicYear, selectedAcademicYear) || !d.academicYear) &&
+          (d.status === "Active" || !d.status),
+      );
+      const calculatedTotalFee = matchingDfs
+        ? matchingDfs.totalAmount ||
+          matchingDfs.items?.reduce((s, it) => s + Number(it.amount || 0), 0) ||
+          0
+        : 0;
+
+      const newStudentEntry: Student = {
+        id: createdApp.id,
+        admissionNo:
+          createdApp.admissionNo ||
+          createdApp.applicationNo ||
+          createdApp.registrationNo ||
+          "",
+        firstName: createdApp.applicantName
+          ? createdApp.applicantName.split(" ")[0]
+          : "Student",
+        lastName: createdApp.applicantName
+          ? createdApp.applicantName.split(" ").slice(1).join(" ")
+          : "",
+        className: createdApp.appliedClass || "Nursery",
+        section: (createdApp as any).section || "A",
+        gender: (createdApp.gender as any) || "Male",
+        dob: createdApp.dob || "",
+        bloodGroup: createdApp.bloodGroup || "O+",
+        religion: createdApp.religion || "General",
+        casteCategory: createdApp.casteCategory || "General",
+        category: createdApp.casteCategory || "General",
+        parentName: createdApp.parentName || "",
+        fatherName: createdApp.parentName || "",
+        motherName: createdApp.motherName || "",
+        phone: createdApp.phone || "",
+        email: createdApp.email || "",
+        studentType: normalizeStudentType(createdApp.studentType),
+        branch: createdApp.branch || selectedBranch || "",
+        rollNo: "",
+        avatar: "",
+        joiningDate:
+          createdApp.submissionDate || new Date().toISOString().split("T")[0],
+        admissionDate:
+          createdApp.submissionDate || new Date().toISOString().split("T")[0],
+        status: "Active",
+        totalFee: calculatedTotalFee,
+        paidFee: 0,
+        dueFee: calculatedTotalFee,
+      } as unknown as Student;
+
+      setStudents((prev) => {
+        const idx = prev.findIndex(
+          (s) =>
+            s.id === newStudentEntry.id ||
+            (newStudentEntry.admissionNo &&
+              s.admissionNo === newStudentEntry.admissionNo),
+        );
+        if (idx !== -1) {
+          const updated = [...prev];
+          updated[idx] = { ...updated[idx], ...newStudentEntry };
+          return updated;
+        }
+        return [newStudentEntry, ...prev];
+      });
+
+      if (matchingDfs) {
+        setStudentFeeAssignments((prev) => {
+          const exists = prev.some((a) => a.studentId === newStudentEntry.id);
+          if (exists) return prev;
+          const newAssign: StudentFeeAssignment = {
+            id: `SFA-${newStudentEntry.id}-${selectedAcademicYear || "2026-2027"}`,
+            studentId: newStudentEntry.id,
+            studentName: `${newStudentEntry.firstName} ${newStudentEntry.lastName}`.trim(),
+            admissionNo: newStudentEntry.admissionNo,
+            branch: newStudentEntry.branch || selectedBranch || "",
+            academicYear: selectedAcademicYear || "2026-2027",
+            className: newStudentEntry.className,
+            section: newStudentEntry.section,
+            feeStructureId: matchingDfs.id,
+            assignedFeeHeads: matchingDfs.items,
+            baseFeeTotal: calculatedTotalFee,
+            assignedDate: new Date().toISOString().split("T")[0],
+            status: "Active",
+          };
+          return [newAssign, ...prev];
+        });
+      }
+
+      notifyFinanceUpdated();
+
       if (json && json.success !== false) {
         logActivity(
           "New Admission Application",
@@ -9616,6 +9723,41 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         }),
       );
 
+      // Re-evaluate fees if class changed
+      const updatedClass = appData.appliedClass || existing?.appliedClass;
+      if (updatedClass) {
+        const matchingDfs = (dynamicFeeStructures || []).find(
+          (d) =>
+            matchesClassName(d.className, updatedClass) &&
+            (matchesAcademicYear(d.academicYear, selectedAcademicYear) || !d.academicYear) &&
+            (d.status === "Active" || !d.status),
+        );
+        if (matchingDfs) {
+          const dfsAmt =
+            matchingDfs.totalAmount ||
+            matchingDfs.items?.reduce((s, it) => s + Number(it.amount || 0), 0) ||
+            0;
+          setStudentFeeAssignments((prev) => {
+            const idx = prev.findIndex(
+              (a) => a.studentId === id || a.admissionNo === appData.admissionNo,
+            );
+            if (idx !== -1) {
+              const updated = [...prev];
+              updated[idx] = {
+                ...updated[idx],
+                className: updatedClass,
+                feeStructureId: matchingDfs.id,
+                assignedFeeHeads: matchingDfs.items,
+                baseFeeTotal: dfsAmt,
+              };
+              return updated;
+            }
+            return prev;
+          });
+        }
+      }
+
+      notifyFinanceUpdated();
       fetchStudents();
       logActivity("Updated Admission Record", `Updated application ID ${id}`);
     } catch (err) {

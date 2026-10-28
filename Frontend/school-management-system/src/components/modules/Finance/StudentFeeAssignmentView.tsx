@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { formatCurrency } from '../../../utils/currency';
 import { UserPlus, Search, CheckSquare, Square, CheckCircle, CheckCircle2, ArrowRight, Settings2, RefreshCw, X, AlertTriangle, Info, Check } from 'lucide-react';
-import { useData } from '../../../context/DataContext';
+import { useData, matchesAcademicYear } from '../../../context/DataContext';
 import { useAuth } from '../../../context/AuthContext';
 import { useToast } from '../../../context/ToastContext';
 import { FeePolicyType, FeeHeadAssignmentBreakdown, Student, FeeScheduleTerm } from '../../../types';
@@ -148,7 +148,7 @@ export const StudentFeeAssignmentView: React.FC = () => {
     }
 
     const classDfs =
-      dynamicFeeStructures.find((d) => matchesClassName(d.className, selectedClass) && d.academicYear === activeAY) ||
+      dynamicFeeStructures.find((d) => matchesClassName(d.className, selectedClass) && matchesAcademicYear(d.academicYear, activeAY)) ||
       dynamicFeeStructures.find((d) => matchesClassName(d.className, selectedClass)) ||
       dynamicFeeStructures.find((d) => d.id === targetStructureId) ||
       dynamicFeeStructures[0];
@@ -169,7 +169,7 @@ export const StudentFeeAssignmentView: React.FC = () => {
 
     // Find structure for student's class
     const matchingDfs =
-      dynamicFeeStructures.find((d) => matchesClassName(d.className, st.className) && d.academicYear === activeAY) ||
+      dynamicFeeStructures.find((d) => matchesClassName(d.className, st.className) && matchesAcademicYear(d.academicYear, activeAY)) ||
       dynamicFeeStructures.find((d) => matchesClassName(d.className, st.className)) ||
       dynamicFeeStructures[0];
 
@@ -739,17 +739,28 @@ export const StudentFeeAssignmentView: React.FC = () => {
                       </td>
                       <td className="py-3 px-4 font-extrabold text-slate-900 dark:text-white font-mono">
                         {(() => {
+                          const ledger = getStudentFeeLedger ? getStudentFeeLedger(st.id, activeAY) : null;
+                          const ledgerAmt = ledger ? (ledger.totalPayable ?? ledger.grossAmount ?? 0) : 0;
+                          if (ledgerAmt > 0) {
+                            return formatCurrency(ledgerAmt);
+                          }
+
                           const validAssignment = assignment && (
                             (!assignment.feeStructureId && !(assignment as any).dynamicFeeStructureId) ||
                             (dynamicFeeStructures || []).some((d) => String(d.id) === String(assignment.feeStructureId || (assignment as any).dynamicFeeStructureId))
                           );
-                          if (validAssignment) {
+                          if (validAssignment && (assignment.baseFeeTotal || (assignment as any).totalAmount)) {
                             return formatCurrency(assignment.baseFeeTotal || (assignment as any).totalAmount || 0);
                           }
                           const matchingDfs = (dynamicFeeStructures || []).find(
-                            (d) => matchesClassName(d.className, st.className) && (d.academicYear === activeAY || !d.academicYear) && (d.status === 'Active' || !d.status)
+                            (d) => matchesClassName(d.className, st.className) && 
+                                   (matchesAcademicYear(d.academicYear, activeAY) || !d.academicYear) && 
+                                   (d.status === 'Active' || !d.status)
                           );
-                          return formatCurrency(matchingDfs ? (matchingDfs.totalAmount || 0) : 0);
+                          const dfsAmt = matchingDfs 
+                            ? (matchingDfs.totalAmount || matchingDfs.items?.reduce((acc, it) => acc + Number(it.amount || 0), 0) || 0) 
+                            : 0;
+                          return formatCurrency(dfsAmt);
                         })()}
                       </td>
                       <td className="py-3 px-4 text-right">

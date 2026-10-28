@@ -103,99 +103,208 @@ export const FinanceDashboardView: React.FC<FinanceDashboardViewProps> = ({ onNa
     };
   }, [loadDashboardData]);
 
-  // Dashboard financial metrics sourced directly and dynamically from the backend API stats
+  // Real-time dynamic local fallback calculation directly from student fee ledgers
+  const localStats = React.useMemo(() => {
+    let expected = 0;
+    let collected = 0;
+    let hostelExp = 0;
+    let hostelColl = 0;
+    let transportExp = 0;
+    let transportColl = 0;
+    let uniformExp = 0;
+    let uniformColl = 0;
+    let finesExp = 0;
+    let finesColl = 0;
+    let concessions = 0;
+
+    const classMap = new Map<string, { className: string; expected: number; collected: number; studentCount: number }>();
+    const categoryMap = new Map<string, { categoryName: string; expectedAmount: number; collectedAmount: number }>();
+
+    (students || []).forEach((st) => {
+      const ledger = getStudentFeeLedger ? getStudentFeeLedger(st.id, selectedAcademicYear) : null;
+      if (!ledger) return;
+
+      const stExp = Number(ledger.totalPayable ?? ledger.grossAmount ?? 0);
+      const stColl = Number(ledger.paidAmount || 0);
+      concessions += Number(ledger.discountAmount || 0);
+
+      expected += stExp;
+      collected += stColl;
+
+      const cName = st.className || "Unassigned";
+      if (!classMap.has(cName)) {
+        classMap.set(cName, { className: cName, expected: 0, collected: 0, studentCount: 0 });
+      }
+      const cEntry = classMap.get(cName)!;
+      cEntry.expected += stExp;
+      cEntry.collected += stColl;
+      cEntry.studentCount += 1;
+
+      (ledger.feeItems || []).forEach((item: any) => {
+        let catName = (item.feeCategory || item.category || item.feeHeadName || "Tuition Fee").trim();
+        const lower = catName.toLowerCase();
+        const amt = Number(item.amount || 0);
+        const paid = Number(item.paidAmount || 0);
+
+        if (lower.includes("transport") || lower.includes("conveyance") || lower.includes("bus")) {
+          catName = "Transport Fee";
+          transportExp += amt;
+          transportColl += paid;
+        } else if (lower.includes("hostel") || lower.includes("boarding") || lower.includes("mess") || lower.includes("security")) {
+          catName = "Hostel Fee";
+          hostelExp += amt;
+          hostelColl += paid;
+        } else if (lower.includes("uniform") || lower.includes("dress")) {
+          catName = "Uniform Fee";
+          uniformExp += amt;
+          uniformColl += paid;
+        } else if (lower.includes("fine") || lower.includes("penalty")) {
+          catName = "Late Fines & Penalties";
+          finesExp += amt;
+          finesColl += paid;
+        } else if (lower.includes("admission") || lower.includes("registration")) {
+          catName = "Admission Fee";
+        } else {
+          catName = "Tuition Fee";
+        }
+
+        if (!categoryMap.has(catName)) {
+          categoryMap.set(catName, { categoryName: catName, expectedAmount: 0, collectedAmount: 0 });
+        }
+        const catEntry = categoryMap.get(catName)!;
+        catEntry.expectedAmount += amt;
+        catEntry.collectedAmount += paid;
+      });
+    });
+
+    const actualPaymentsSum = (feePayments || [])
+      .filter((p) => p.status === "Paid" || p.status === "Partial")
+      .reduce((s, p) => s + Number(p.amount || 0), 0);
+
+    const finalCollected = Math.max(collected, actualPaymentsSum);
+
+    const classWise = Array.from(classMap.values()).map((c) => ({
+      className: c.className,
+      totalExpectedRevenue: c.expected,
+      totalCollectedRevenue: c.collected,
+      totalPendingRevenue: Math.max(0, c.expected - c.collected),
+      collectionPercentage: c.expected > 0 ? Math.round((c.collected / c.expected) * 100) : 0,
+      studentCount: c.studentCount,
+    }));
+
+    const categories = Array.from(categoryMap.values());
+
+    return {
+      expected,
+      collected: finalCollected,
+      pending: Math.max(0, expected - finalCollected),
+      classWise,
+      categories,
+      hostelExp,
+      hostelColl,
+      transportExp,
+      transportColl,
+      uniformExp,
+      uniformColl,
+      finesExp,
+      finesColl,
+      concessions,
+    };
+  }, [students, getStudentFeeLedger, selectedAcademicYear, feePayments]);
+
+  // Dashboard financial metrics sourced directly and dynamically from the backend API stats or ledger fallback
   const computedExpected = React.useMemo(() => {
-    if (apiStats && typeof apiStats.totalExpectedRevenue === 'number') {
+    if (apiStats && typeof apiStats.totalExpectedRevenue === 'number' && apiStats.totalExpectedRevenue > 0) {
       return Number(apiStats.totalExpectedRevenue);
     }
-    return 0;
-  }, [apiStats]);
+    return localStats.expected;
+  }, [apiStats, localStats.expected]);
 
   const computedCollected = React.useMemo(() => {
-    if (apiStats && typeof apiStats.totalCollectedRevenue === 'number') {
+    if (apiStats && typeof apiStats.totalCollectedRevenue === 'number' && apiStats.totalCollectedRevenue > 0) {
       return Number(apiStats.totalCollectedRevenue);
     }
-    return 0;
-  }, [apiStats]);
+    return localStats.collected;
+  }, [apiStats, localStats.collected]);
 
   const computedClassWiseRevenue = React.useMemo(() => {
-    if (apiStats?.classWiseRevenue && Array.isArray(apiStats.classWiseRevenue)) {
+    if (apiStats?.classWiseRevenue && Array.isArray(apiStats.classWiseRevenue) && apiStats.classWiseRevenue.length > 0) {
       return apiStats.classWiseRevenue;
     }
-    return [];
-  }, [apiStats]);
+    return localStats.classWise;
+  }, [apiStats, localStats.classWise]);
 
   const totalCollected = computedCollected;
   const totalExpected = computedExpected;
   const totalPending = Math.max(0, totalExpected - totalCollected);
   const todaysCollection = Number(apiStats?.todayCollectionAmount || 0);
 
-  // Module Specific Expected, Collected, Pending Amounts sourced directly from backend API
+  // Module Specific Expected, Collected, Pending Amounts
   const hostelExpected = React.useMemo(() => {
-    if (apiStats && typeof apiStats.hostelExpected === 'number') {
+    if (apiStats && typeof apiStats.hostelExpected === 'number' && apiStats.hostelExpected > 0) {
       return Number(apiStats.hostelExpected);
     }
-    return 0;
-  }, [apiStats]);
+    return localStats.hostelExp;
+  }, [apiStats, localStats.hostelExp]);
 
   const hostelCollected = React.useMemo(() => {
-    if (apiStats && typeof apiStats.hostelCollected === 'number') {
+    if (apiStats && typeof apiStats.hostelCollected === 'number' && apiStats.hostelCollected > 0) {
       return Number(apiStats.hostelCollected);
     }
-    return 0;
-  }, [apiStats]);
+    return localStats.hostelColl;
+  }, [apiStats, localStats.hostelColl]);
 
   const hostelPending = Math.max(0, hostelExpected - hostelCollected);
 
   const transportExpected = React.useMemo(() => {
-    if (apiStats && typeof apiStats.transportExpected === 'number') {
+    if (apiStats && typeof apiStats.transportExpected === 'number' && apiStats.transportExpected > 0) {
       return Number(apiStats.transportExpected);
     }
-    return 0;
-  }, [apiStats]);
+    return localStats.transportExp;
+  }, [apiStats, localStats.transportExp]);
 
   const transportCollected = React.useMemo(() => {
-    if (apiStats && typeof apiStats.transportCollected === 'number') {
+    if (apiStats && typeof apiStats.transportCollected === 'number' && apiStats.transportCollected > 0) {
       return Number(apiStats.transportCollected);
     }
-    return 0;
-  }, [apiStats]);
+    return localStats.transportColl;
+  }, [apiStats, localStats.transportColl]);
 
   const transportPending = Math.max(0, transportExpected - transportCollected);
 
   const uniformExpected = React.useMemo(() => {
-    if (apiStats && typeof apiStats.uniformExpected === 'number') {
+    if (apiStats && typeof apiStats.uniformExpected === 'number' && apiStats.uniformExpected > 0) {
       return Number(apiStats.uniformExpected);
     }
-    return 0;
-  }, [apiStats]);
+    return localStats.uniformExp;
+  }, [apiStats, localStats.uniformExp]);
 
   const uniformCollected = React.useMemo(() => {
-    if (apiStats && typeof apiStats.uniformCollected === 'number') {
+    if (apiStats && typeof apiStats.uniformCollected === 'number' && apiStats.uniformCollected > 0) {
       return Number(apiStats.uniformCollected);
     }
-    return 0;
-  }, [apiStats]);
+    return localStats.uniformColl;
+  }, [apiStats, localStats.uniformColl]);
 
   const uniformPending = Math.max(0, uniformExpected - uniformCollected);
 
   const finesExpected = React.useMemo(() => {
-    if (apiStats && typeof apiStats.finesExpected === 'number') {
+    if (apiStats && typeof apiStats.finesExpected === 'number' && apiStats.finesExpected > 0) {
       return Number(apiStats.finesExpected);
     }
-    return 0;
-  }, [apiStats]);
+    return localStats.finesExp;
+  }, [apiStats, localStats.finesExp]);
 
   const finesCollected = React.useMemo(() => {
-    if (apiStats && typeof apiStats.finesCollected === 'number') {
+    if (apiStats && typeof apiStats.finesCollected === 'number' && apiStats.finesCollected > 0) {
       return Number(apiStats.finesCollected);
     }
-    return 0;
-  }, [apiStats]);
+    return localStats.finesColl;
+  }, [apiStats, localStats.finesColl]);
 
   const finesPending = Math.max(0, finesExpected - finesCollected);
 
-  const scholarshipAmount = Number(apiStats?.scholarshipsGranted || apiStats?.totalConcessionsGranted || 0);
+  const scholarshipAmount = Number(apiStats?.scholarshipsGranted || apiStats?.totalConcessionsGranted || localStats.concessions || 0);
 
   const cashBalance = React.useMemo(() => {
     return (financialAccounts || [])
@@ -212,7 +321,9 @@ export const FinanceDashboardView: React.FC<FinanceDashboardViewProps> = ({ onNa
   const totalLiquidity = cashBalance + bankBalance;
 
   const normalizedCategoryBreakdown = React.useMemo(() => {
-    if (!apiStats?.categoryBreakdown || !Array.isArray(apiStats.categoryBreakdown)) return [];
+    if (!apiStats?.categoryBreakdown || !Array.isArray(apiStats.categoryBreakdown) || apiStats.categoryBreakdown.length === 0) {
+      return localStats.categories;
+    }
     const map = new Map<string, { categoryName: string; expectedAmount: number; collectedAmount: number }>();
 
     for (const cat of apiStats.categoryBreakdown) {

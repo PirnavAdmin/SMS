@@ -1844,6 +1844,45 @@ public class FeeCollectionRepository : IFeeCollectionRepository
             }
         }
 
+        string admBranchClean = !string.IsNullOrWhiteSpace(branch) ? branch.Trim().ToLower() : "";
+        string admYearSub = !string.IsNullOrWhiteSpace(academicYear) && System.Text.RegularExpressions.Regex.IsMatch(academicYear, @"\d{4}")
+            ? System.Text.RegularExpressions.Regex.Match(academicYear, @"\d{4}").Value
+            : (academicYear ?? "");
+
+        foreach (var adm in allActiveAdmissions)
+        {
+            string admIdStr = adm.Id.ToString();
+            string admNo = adm.AdmissionNo ?? "";
+            string regNo = adm.RegistrationNo ?? "";
+
+            bool alreadyInActive = studentIdsSet.Contains(admIdStr) || 
+                                   (!string.IsNullOrEmpty(admNo) && admNosSet.Contains(admNo)) ||
+                                   (!string.IsNullOrEmpty(regNo) && admNosSet.Contains(regNo));
+
+            if (!alreadyInActive)
+            {
+                bool branchMatches = string.IsNullOrWhiteSpace(branch) || branch.Equals("All", StringComparison.OrdinalIgnoreCase) || branch.Equals("All Branches", StringComparison.OrdinalIgnoreCase) ||
+                    (!string.IsNullOrEmpty(adm.BranchName) && (adm.BranchName.ToLower().Contains(admBranchClean) || admBranchClean.Contains(adm.BranchName.ToLower())));
+
+                if (branchMatches)
+                {
+                    string appliedClassName = adm.AppliedClass?.ClassName ?? "Nursery";
+
+                    activeStudents.Add(new SMS.Api.Models.Student
+                    {
+                        StudentId = adm.Id,
+                        AdmissionNumber = !string.IsNullOrEmpty(admNo) ? admNo : regNo,
+                        StudentName = $"{adm.FirstName} {adm.LastName}".Trim(),
+                        ClassGrade = new SMS.Api.Models.AcademicManagement.ClassGrade { ClassName = appliedClassName },
+                        Status = "Active"
+                    });
+                    studentIdsSet.Add(admIdStr);
+                    if (!string.IsNullOrEmpty(admNo)) admNosSet.Add(admNo);
+                    if (!string.IsNullOrEmpty(regNo)) admNosSet.Add(regNo);
+                }
+            }
+        }
+
         if (!string.IsNullOrWhiteSpace(branch) && !branch.Equals("All", StringComparison.OrdinalIgnoreCase) && !branch.Equals("All Branches", StringComparison.OrdinalIgnoreCase))
         {
             if (activeStudents.Count > 0)
@@ -1939,10 +1978,11 @@ public class FeeCollectionRepository : IFeeCollectionRepository
             }
             else
             {
+                string stClassName = GetStudentClassName(s);
                 var matchedDfs = dynamicStructures.FirstOrDefault(d => 
                     !string.IsNullOrEmpty(d.ClassName) && 
-                    !string.IsNullOrEmpty(s.ClassGrade?.ClassName) && 
-                    MatchesClassName(d.ClassName, s.ClassGrade?.ClassName));
+                    !string.IsNullOrEmpty(stClassName) && 
+                    MatchesClassName(d.ClassName, stClassName));
                 if (matchedDfs != null)
                 {
                     tuitionExpected += matchedDfs.TotalAmount;
@@ -2374,8 +2414,15 @@ public class FeeCollectionRepository : IFeeCollectionRepository
             .Distinct()
             .ToList();
 
+        var admissionClassNames = allActiveAdmissions
+            .Select(a => a.AppliedClass?.ClassName)
+            .Where(n => !string.IsNullOrWhiteSpace(n))
+            .Distinct()
+            .ToList();
+
         var allClassNames = dbClassNames
             .Concat(studentClassNames)
+            .Concat(admissionClassNames)
             .Where(name => !string.IsNullOrWhiteSpace(name))
             .Select(name => name!)
             .Distinct(StringComparer.OrdinalIgnoreCase)
