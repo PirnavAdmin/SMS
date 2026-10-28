@@ -16,7 +16,7 @@ export const PromoteStudentModal: React.FC<PromoteStudentModalProps> = ({
   isOpen,
   onClose
 }) => {
-  const { promoteStudent, completeStudent, getHighestClass, academicClasses, branches = [], academicYears = [] } = useData();
+  const { promoteStudent, completeStudent, getHighestClass, academicClasses = [], branches = [], academicYears = [] } = useData();
   const { addToast } = useToast();
   const { selectedBranch, selectedAcademicYear } = useAuth();
 
@@ -32,12 +32,12 @@ export const PromoteStudentModal: React.FC<PromoteStudentModalProps> = ({
     return unique;
   }, [branches, selectedBranch]);
 
-  const [targetYear, setTargetYear] = useState(selectedAcademicYear || ((academicYears[0] as any)?.academicYear || (academicYears[0] as any)?.year || ''));
-  const [targetClass, setTargetClass] = useState(academicClasses[0]?.name || 'Class 11');
+  const [targetYear, setTargetYear] = useState(selectedAcademicYear || ((academicYears?.[0] as any)?.academicYear || (academicYears?.[0] as any)?.year || ''));
+  const [targetClass, setTargetClass] = useState(academicClasses?.[0]?.name || 'Class 11');
   const [targetSection, setTargetSection] = useState('A');
   const [enableBranchTransfer, setEnableBranchTransfer] = useState(false);
   const [targetBranch, setTargetBranch] = useState<string>(
-    student?.branch || (selectedBranch && selectedBranch !== 'All' && selectedBranch !== 'All Branches' && dynamicCampuses.includes(selectedBranch) ? selectedBranch : (dynamicCampuses[0] || ''))
+    student?.branch || (selectedBranch && selectedBranch !== 'All' && selectedBranch !== 'All Branches' && dynamicCampuses.includes(selectedBranch) ? selectedBranch : (dynamicCampuses?.[0] || ''))
   );
 
   if (!isOpen || !student) return null;
@@ -45,7 +45,7 @@ export const PromoteStudentModal: React.FC<PromoteStudentModalProps> = ({
   const highestClass = typeof getHighestClass === 'function' ? getHighestClass() : 'Class 12';
   const isHighestClass = student.className === highestClass;
 
-  const targetClassModel = academicClasses.find(c => c.name === targetClass);
+  const targetClassModel = (academicClasses || []).find(c => c.name === targetClass);
   const availableSections = targetClassModel?.sections || ['A', 'B', 'C'];
 
   const handleSubmit = (e: React.SyntheticEvent) => {
@@ -132,7 +132,7 @@ export const PromoteStudentModal: React.FC<PromoteStudentModalProps> = ({
                     const selectedCls = e.target.value;
                     const clsModel = academicClasses.find(c => c.name === selectedCls);
                     setTargetClass(selectedCls);
-                    setTargetSection(clsModel?.sections[0] || 'A');
+                    setTargetSection(clsModel?.sections?.[0] || 'A');
                   }}
                   className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-xs font-bold text-slate-900 dark:text-white"
                 >

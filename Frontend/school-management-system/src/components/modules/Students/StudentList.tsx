@@ -30,7 +30,7 @@ import { hasModuleAccess } from '../../../utils/rbac';
 import { formatConfiguredStudentAdmissionNo } from '../../../utils/idGenerator';
 
 export const StudentList: React.FC<{ onNavigate?: (module: string) => void }> = ({ onNavigate }) => {
-  const { students = [], updateStudent, deleteStudent, academicClasses = [], staff = [], fetchStudents, admissions = [], applications = [], teacherAssignments = [], timetable = [] } = useData();
+  const { students = [], updateStudent, deleteStudent, academicClasses = [], staff = [], fetchStudents, admissions = [], applications = [], teacherAssignments = [], timetable = [], branches = [] } = useData();
   const [apiStudents, setApiStudents] = useState<Student[]>([]);
   const [allocations, setAllocations] = useState<BedAllocation[]>([]);
   const [hostelBlocks, setHostelBlocks] = useState<any[]>([]);
@@ -531,7 +531,7 @@ export const StudentList: React.FC<{ onNavigate?: (module: string) => void }> = 
         'Father Mobile': '9876543210',
         'Mother Name': 'Sunita Sharma',
         'Email': 'aarav.sharma@gmail.com',
-        'Branch': (selectedBranch && selectedBranch !== 'All' && selectedBranch !== 'All Branches' ? selectedBranch : '') || (branches[0]?.name || branches[0]?.branchName || ''),
+        'Branch': (selectedBranch && selectedBranch !== 'All' && selectedBranch !== 'All Branches' ? selectedBranch : '') || (branches?.[0]?.name || branches?.[0]?.branchName || ''),
         'Student Type': 'Day Scholar',
         'Status': 'Active'
       },
@@ -548,7 +548,7 @@ export const StudentList: React.FC<{ onNavigate?: (module: string) => void }> = 
         'Father Mobile': '9876543211',
         'Mother Name': 'Meena Patel',
         'Email': 'ananya.patel@gmail.com',
-        'Branch': (selectedBranch && selectedBranch !== 'All' && selectedBranch !== 'All Branches' ? selectedBranch : '') || (branches[0]?.name || branches[0]?.branchName || ''),
+        'Branch': (selectedBranch && selectedBranch !== 'All' && selectedBranch !== 'All Branches' ? selectedBranch : '') || (branches?.[0]?.name || branches?.[0]?.branchName || ''),
         'Student Type': 'Residential',
         'Status': 'Active'
       }
@@ -917,7 +917,7 @@ export const StudentList: React.FC<{ onNavigate?: (module: string) => void }> = 
       (b.hostelName || b.name || '').toLowerCase().includes('boys')
     );
 
-    return defaultBlock || hostelBlocks[0];
+    return defaultBlock || hostelBlocks?.[0];
   }, [hostelBlocks, user]);
 
   const wardenTargetBlocks = useMemo(() => {
@@ -940,8 +940,8 @@ export const StudentList: React.FC<{ onNavigate?: (module: string) => void }> = 
 
   useEffect(() => {
     if (isWardenRole && wardenTargetBlocks.length > 0) {
-      const firstId = String(wardenTargetBlocks[0].hostelId || wardenTargetBlocks[0].id);
-      if (wardenSelectedBlockId === 'All' || !wardenSelectedBlockId || !wardenTargetBlocks.some(b => String(b.hostelId || b.id) === wardenSelectedBlockId)) {
+      const firstId = String(wardenTargetBlocks[0]?.hostelId || wardenTargetBlocks[0]?.id || '');
+      if (firstId && (wardenSelectedBlockId === 'All' || !wardenSelectedBlockId || !wardenTargetBlocks.some(b => String(b.hostelId || b.id) === wardenSelectedBlockId))) {
         setWardenSelectedBlockId(firstId);
       }
     }
@@ -957,7 +957,7 @@ export const StudentList: React.FC<{ onNavigate?: (module: string) => void }> = 
   const wardenHostelStudents = useMemo(() => {
     const activeBlockId = (wardenSelectedBlockId && wardenSelectedBlockId !== 'All')
       ? wardenSelectedBlockId
-      : (wardenTargetBlocks[0] ? String(wardenTargetBlocks[0].hostelId || wardenTargetBlocks[0].id) : '');
+      : (wardenTargetBlocks?.[0] ? String(wardenTargetBlocks[0]?.hostelId || wardenTargetBlocks[0]?.id || '') : '');
 
     const selectedBlockObj = hostelBlocks.find(b => String(b.hostelId || b.id) === activeBlockId) || wardenAssignedBlock;
     const targetBlockName = (selectedBlockObj?.hostelName || selectedBlockObj?.name || '').toLowerCase();
@@ -1162,7 +1162,7 @@ export const StudentList: React.FC<{ onNavigate?: (module: string) => void }> = 
               <Building2 className="w-4 h-4 text-sky-600 shrink-0" />
               {wardenTargetBlocks.length > 0 ? (
                 <select
-                  value={wardenSelectedBlockId || (wardenTargetBlocks[0] ? String(wardenTargetBlocks[0].hostelId || wardenTargetBlocks[0].id) : '')}
+                  value={wardenSelectedBlockId || (wardenTargetBlocks?.[0] ? String(wardenTargetBlocks[0]?.hostelId || wardenTargetBlocks[0]?.id || '') : '')}
                   onChange={e => { setWardenSelectedBlockId(e.target.value); setWardenCurrentPage(1); }}
                   className="w-full px-3 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none cursor-pointer h-[38px]"
                 >
@@ -1796,48 +1796,60 @@ export const StudentList: React.FC<{ onNavigate?: (module: string) => void }> = 
       )}
 
       {/* Drawers & Modals */}
-      <StudentFormModal
-        isOpen={isEditOpen}
-        onClose={() => { setIsEditOpen(false); setStudentToEdit(null); }}
-        studentToEdit={studentToEdit}
-      />
+      {isEditOpen && (
+        <StudentFormModal
+          isOpen={isEditOpen}
+          onClose={() => { setIsEditOpen(false); setStudentToEdit(null); }}
+          studentToEdit={studentToEdit}
+        />
+      )}
 
-      <StudentProfileDrawer
-        student={selectedStudent}
-        isOpen={!!selectedStudent}
-        onClose={() => setSelectedStudent(null)}
-      />
+      {selectedStudent && (
+        <StudentProfileDrawer
+          student={selectedStudent}
+          isOpen={!!selectedStudent}
+          onClose={() => setSelectedStudent(null)}
+        />
+      )}
 
-      <PromoteStudentModal
-        student={studentToPromote}
-        isOpen={!!studentToPromote}
-        onClose={() => setStudentToPromote(null)}
-      />
+      {studentToPromote && (
+        <PromoteStudentModal
+          student={studentToPromote}
+          isOpen={!!studentToPromote}
+          onClose={() => setStudentToPromote(null)}
+        />
+      )}
 
-      <TransferStudentModal
-        student={studentToTransfer}
-        isOpen={!!studentToTransfer}
-        onClose={() => setStudentToTransfer(null)}
-      />
+      {studentToTransfer && (
+        <TransferStudentModal
+          student={studentToTransfer}
+          isOpen={!!studentToTransfer}
+          onClose={() => setStudentToTransfer(null)}
+        />
+      )}
 
-      <AcademicHistoryImportModal
-        isOpen={isImportModalOpen}
-        onClose={() => setIsImportModalOpen(false)}
-      />
+      {isImportModalOpen && (
+        <AcademicHistoryImportModal
+          isOpen={isImportModalOpen}
+          onClose={() => setIsImportModalOpen(false)}
+        />
+      )}
 
-      <ConfirmModal
-        isOpen={!!studentToDelete}
-        title="Delete Student Record"
-        message={`Are you sure you want to delete student record for ${studentToDelete?.firstName} ${studentToDelete?.lastName}?`}
-        onConfirm={() => {
-          if (studentToDelete) {
-            deleteStudent(studentToDelete.id);
-            addToast('success', 'Student Record Deleted');
-            setStudentToDelete(null);
-          }
-        }}
-        onCancel={() => setStudentToDelete(null)}
-      />
+      {studentToDelete && (
+        <ConfirmModal
+          isOpen={!!studentToDelete}
+          title="Delete Student Record"
+          message={`Are you sure you want to delete student record for ${studentToDelete?.firstName} ${studentToDelete?.lastName}?`}
+          onConfirm={() => {
+            if (studentToDelete) {
+              deleteStudent(studentToDelete.id);
+              addToast('success', 'Student Record Deleted');
+              setStudentToDelete(null);
+            }
+          }}
+          onCancel={() => setStudentToDelete(null)}
+        />
+      )}
     </div>
   );
 };

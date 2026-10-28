@@ -39,10 +39,10 @@ export const AcademicHistoryImportModal: React.FC<AcademicHistoryImportModalProp
   onSuccess
 }) => {
   const {
-    students,
+    students = [],
     branches = [],
-    academicClasses,
-    academicYears,
+    academicClasses = [],
+    academicYears = [],
     addAcademicHistoryRecord,
     importHistoricalAttendanceData,
     importHistoricalExamData,
@@ -52,7 +52,7 @@ export const AcademicHistoryImportModal: React.FC<AcademicHistoryImportModalProp
 
   const { addToast } = useToast();
   const { selectedBranch } = useAuth();
-  const defaultBranchName = (branches[0] as any)?.name || (branches[0] as any)?.branchName || '';
+  const defaultBranchName = (branches?.[0] as any)?.name || (branches?.[0] as any)?.branchName || '';
 
   const [activeDomain, setActiveDomain] = useState<ImportDomain>('academic-history');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);

@@ -24,7 +24,7 @@ export const StudentFormModal: React.FC<StudentFormModalProps> = ({
   onClose,
   studentToEdit
 }) => {
-  const { addStudent, updateStudent, students, admissions = [], transportRoutes, pickupPoints, routeMasters, hostelBlocks, hostelRooms, hostelBeds, academicClasses, schoolProfile, branches = [] } = useData();
+  const { addStudent, updateStudent, students = [], admissions = [], transportRoutes = [], pickupPoints = [], routeMasters = [], hostelBlocks = [], hostelRooms = [], hostelBeds = [], academicClasses = [], schoolProfile, branches = [] } = useData();
   const { addToast } = useToast();
   const { selectedBranch } = useAuth();
 
@@ -49,7 +49,7 @@ export const StudentFormModal: React.FC<StudentFormModalProps> = ({
     bloodGroup: 'O+',
     religion: 'Other',
     nationality: 'Indian',
-    className: academicClasses[0]?.name || '',
+    className: academicClasses?.[0]?.name || '',
     section: '',
     category: 'General',
     status: 'Active',
@@ -57,14 +57,14 @@ export const StudentFormModal: React.FC<StudentFormModalProps> = ({
     joiningDate: new Date().toISOString().split('T')[0],
     isLateAdmission: false,
     feeCalculationMethod: 'Term-wise',
-    branch: studentToEdit?.branch || (selectedBranch && selectedBranch !== 'All' && selectedBranch !== 'All Branches' && dynamicCampuses.includes(selectedBranch) ? selectedBranch : (dynamicCampuses[0] || '')),
+    branch: studentToEdit?.branch || (selectedBranch && selectedBranch !== 'All' && selectedBranch !== 'All Branches' && dynamicCampuses.includes(selectedBranch) ? selectedBranch : (dynamicCampuses?.[0] || '')),
     studentType: 'Day Scholar',
     busRoute: '',
     transportType: 'AC',
     pickupPoint: '',
     dropPoint: '',
-    hostelBlock: hostelBlocks[0]?.id || '',
-    hostelRoom: hostelRooms[0]?.id || '',
+    hostelBlock: hostelBlocks?.[0]?.id || '',
+    hostelRoom: hostelRooms?.[0]?.id || '',
     hostelBed: '',
     boardType: schoolProfile?.boardType || 'CBSE',
     fatherName: '',
@@ -242,7 +242,7 @@ export const StudentFormModal: React.FC<StudentFormModalProps> = ({
     setSiblingSearchQuery('');
   };
 
-  const availableBeds = hostelBeds.filter(b => b.status === 'Available');
+  const availableBeds = (hostelBeds || []).filter(b => b.status === 'Available');
 
   const matchingAdmission = useMemo(() => {
     if (!studentToEdit) return null;
@@ -589,7 +589,7 @@ export const StudentFormModal: React.FC<StudentFormModalProps> = ({
       hasSiblings,
       siblingsCount: hasSiblings ? siblingsCount : 0,
       siblingDetails: hasSiblings ? siblingDetails : [],
-      siblingStudentId: selectedStudentIds[0] || '',
+      siblingStudentId: selectedStudentIds?.[0] || '',
       siblingStudentIds: selectedStudentIds,
     };
 
