@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { 
   Award, Plus, Edit, Trash2, CheckCircle, XCircle, Search, SlidersHorizontal, 
   FileText, ShieldCheck, Eye, Save, Settings, Hash, Layout, RefreshCw, Check, Sparkles, Layers,
@@ -225,8 +225,8 @@ export const INITIAL_CERTIFICATE_TEMPLATES: CertificateTemplateConfig[] = [
     footerText: 'Official Transfer Certificate issued in accordance with School Education Rules.',
     signatories: [
       { id: 'sig-1', title: 'Class Teacher', name: 'Class Teacher', show: true },
-      { id: 'sig-2', title: 'Verified By (Accounts)', name: 'Accounts Officer', show: true },
-      { id: 'sig-3', title: 'Principal', name: 'Dr. Robert Miller', designation: 'Principal & Head of School', show: true }
+      { id: 'sig-2', title: '', name: 'Accounts Officer', show: true },
+      { id: 'sig-3', title: 'Principal', name: '', designation: 'Principal & Head of School', show: true }
     ],
     showSeal: true,
     dateFormat: 'DD/MM/YYYY'
@@ -245,7 +245,7 @@ export const INITIAL_CERTIFICATE_TEMPLATES: CertificateTemplateConfig[] = [
     signatories: [
       { id: 'sig-1', title: 'Class Teacher', show: true },
       { id: 'sig-2', title: 'Administrative Officer', show: true },
-      { id: 'sig-3', title: 'Principal', name: 'Dr. Robert Miller', designation: 'Principal', show: true }
+      { id: 'sig-3', title: 'Principal', name: '', designation: 'Principal', show: true }
     ],
     showSeal: true,
     dateFormat: 'DD/MM/YYYY'
@@ -264,7 +264,7 @@ export const INITIAL_CERTIFICATE_TEMPLATES: CertificateTemplateConfig[] = [
     signatories: [
       { id: 'sig-1', title: 'Class Teacher', show: true },
       { id: 'sig-2', title: 'Vice Principal', show: true },
-      { id: 'sig-3', title: 'Principal', name: 'Dr. Robert Miller', show: true }
+      { id: 'sig-3', title: 'Principal', name: '', show: true }
     ],
     showSeal: true,
     dateFormat: 'DD/MM/YYYY'
@@ -283,7 +283,7 @@ export const INITIAL_CERTIFICATE_TEMPLATES: CertificateTemplateConfig[] = [
     signatories: [
       { id: 'sig-1', title: 'Class Teacher', show: true },
       { id: 'sig-2', title: 'Student Counselor', show: true },
-      { id: 'sig-3', title: 'Principal', name: 'Dr. Robert Miller', show: true }
+      { id: 'sig-3', title: 'Principal', name: '', show: true }
     ],
     showSeal: true,
     dateFormat: 'DD/MM/YYYY'
@@ -313,77 +313,104 @@ export const CertificateSettingsTab: React.FC = () => {
     return rawMatch ? rawMatch[0] : currentYearStr;
   }, [activeAY, currentYearStr]);
 
-  const [activeSubSection, setActiveSubSectionState] = useState<
-    'types' | 'templates' | 'numbering' | 'fields' | 'signatures'
-  >(() => {
-    try {
-      const saved = localStorage.getItem('certificate_settings_active_subsection');
-      if (saved && ['types', 'templates', 'numbering', 'fields', 'signatures'].includes(saved)) {
-        return saved as any;
-      }
-    } catch {}
-    return 'types';
+  const [activeSubSection, setActiveSubSection] = useState<'types' | 'templates' | 'numbering' | 'fields' | 'signatures'>('types');
+
+  // Certificate Types State (loaded and synced from Backend DB)
+  const [types, setTypes] = useState<CertificateTypeConfig[]>(INITIAL_CERTIFICATE_TYPES);
+
+  // Certificate Templates State (loaded and synced from Backend DB)
+  const [templates, setTemplates] = useState<CertificateTemplateConfig[]>(INITIAL_CERTIFICATE_TEMPLATES);
+
+  // Dynamic Placeholders State (loaded and synced from Backend DB)
+  const [placeholders, setPlaceholders] = useState<DynamicPlaceholderItem[]>(INITIAL_DYNAMIC_PLACEHOLDERS);
+
+    // Serialization helpers for Numbering Rules & Required Fields change tracking
+  const getNumberingSnapshot = (typesList: CertificateTypeConfig[]) =>
+    JSON.stringify(
+      (typesList || []).map(t => ({
+        id: t.id,
+        prefix: (t.numberingPrefix || "").trim(),
+        start: Number(t.numberingStart) || 1,
+        length: Number(t.numberingLength) || 4,
+        includeYear: !!t.includeAcademicYearInNo,
+      }))
+    );
+
+  const getRequiredFieldsSnapshot = (typesList: CertificateTypeConfig[]) =>
+    JSON.stringify(
+      (typesList || []).map(t => ({
+        id: t.id,
+        fields: [...(t.requiredFields || [])].sort(),
+      }))
+    );
+
+  const [savedNumberingSnapshot, setSavedNumberingSnapshot] = useState<string>(() =>
+    getNumberingSnapshot(types)
+  );
+  const [savedFieldsSnapshot, setSavedFieldsSnapshot] = useState<string>(() =>
+    getRequiredFieldsSnapshot(types)
+  );
+  const isInitialTypesLoadedRef = useRef(false);
+
+  const currentNumberingSnapshot = useMemo(() => getNumberingSnapshot(types), [types]);
+  const isNumberingDirty = currentNumberingSnapshot !== savedNumberingSnapshot;
+
+  const currentFieldsSnapshot = useMemo(() => getRequiredFieldsSnapshot(types), [types]);
+  const isFieldsDirty = currentFieldsSnapshot !== savedFieldsSnapshot;
+
+  const [isSavingNumbering, setIsSavingNumbering] = useState(false);
+  const [isSavingFields, setIsSavingFields] = useState(false);
+
+  // Selected Certificate Type for Required Fields Configuration Matrix
+  const [selectedFieldMatrixTypeId, setSelectedFieldMatrixTypeId] = useState<string>("");
+
+  const currentFieldMatrixType = useMemo(() => {
+    if (!selectedFieldMatrixTypeId) return undefined;
+    return types.find(t => t.id === selectedFieldMatrixTypeId);
+  }, [types, selectedFieldMatrixTypeId]);
+
+  // Signatory Designation & Official Seal State (Empty Initial / Synced with Backend API & DB)
+  const [signatories, setSignatories] = useState<Array<{ id: string; title: string; name: string; show: boolean }>>([
+    { id: "sig-1", title: "", name: "", show: true },
+    { id: "sig-2", title: "", name: "", show: true },
+    { id: "sig-3", title: "", name: "", show: true },
+  ]);
+
+  const [savedSignatories, setSavedSignatories] = useState(() => signatories);
+
+  const [sealConfig, setSealConfig] = useState<{ show: boolean; sealText: string; sealImageUrl: string }>({
+    show: true,
+    sealText: "",
+    sealImageUrl: "",
   });
 
-  const setActiveSubSection = (section: 'types' | 'templates' | 'numbering' | 'fields' | 'signatures') => {
-    setActiveSubSectionState(section);
+  const [savedSealConfig, setSavedSealConfig] = useState(() => sealConfig);
+    const [isEditingSignatures, setIsEditingSignatures] = useState(false);
+  const [isSavingSignatures, setIsSavingSignatures] = useState(false);
+  const [signatoryErrors, setSignatoryErrors] = useState<Record<number, string>>({});
+  const [sealError, setSealError] = useState<string>("");
+
+  const syncSettingsToDb = async (newTemplates?: CertificateTemplateConfig[], newTypes?: CertificateTypeConfig[], newSignatories?: any[], newSeal?: any) => {
     try {
-      localStorage.setItem('certificate_settings_active_subsection', section);
-    } catch {}
+      const currentRes: any = await fetchSchoolSettingsApi();
+      const currentRaw = currentRes?.data?.certificateTemplates;
+      let existingObj: any = { templates: [], types: [], issued: [], alumni: [] };
+      if (typeof currentRaw === "object" && currentRaw !== null && !Array.isArray(currentRaw)) {
+        existingObj = { ...currentRaw };
+      }
+      const payload = {
+        ...existingObj,
+        templates: newTemplates ?? templates,
+        types: newTypes ?? types,
+        signatories: newSignatories ?? signatories,
+        seal: newSeal ?? sealConfig,
+      };
+      await updateCertificateTemplatesApi(payload);
+    } catch (e) {
+      console.warn("Could not sync certificate templates/types to DB:", e);
+    }
   };
 
-  // Certificate Types State
-  const [types, setTypes] = useState<CertificateTypeConfig[]>(() => {
-    try {
-      const saved = localStorage.getItem('edu_db_certificate_types');
-      if (saved) return JSON.parse(saved);
-    } catch (e) {}
-    return INITIAL_CERTIFICATE_TYPES;
-  });
-
-  // Certificate Templates State
-  const [templates, setTemplates] = useState<CertificateTemplateConfig[]>(() => {
-    try {
-      const saved = localStorage.getItem('edu_db_certificate_templates_v2');
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed)) {
-          return parsed.map((tpl: CertificateTemplateConfig) =>
-            tpl.updatedAt ? tpl : { ...tpl, headerStyle: '' }
-          );
-        }
-      }
-    } catch (e) {}
-    return INITIAL_CERTIFICATE_TEMPLATES;
-  });
-
-  // Dynamic Placeholders State
-  const [placeholders, setPlaceholders] = useState<DynamicPlaceholderItem[]>(() => {
-    try {
-      const saved = localStorage.getItem('edu_db_certificate_placeholders');
-      if (saved) return JSON.parse(saved);
-    } catch (e) {}
-    return INITIAL_DYNAMIC_PLACEHOLDERS;
-  });
-
-  // Save Types, Templates & Placeholders to localStorage
-  useEffect(() => {
-    try {
-      localStorage.setItem('edu_db_certificate_types', JSON.stringify(types));
-    } catch (e) {}
-  }, [types]);
-
-  useEffect(() => {
-    try {
-      localStorage.setItem('edu_db_certificate_templates_v2', JSON.stringify(templates));
-    } catch (e) {}
-  }, [templates]);
-
-  useEffect(() => {
-    try {
-      localStorage.setItem('edu_db_certificate_placeholders', JSON.stringify(placeholders));
-    } catch (e) {}
-  }, [placeholders]);
   // Sync Templates & Types from backend DB on mount
   useEffect(() => {
     let isMounted = true;
@@ -391,15 +418,26 @@ export const CertificateSettingsTab: React.FC = () => {
       .then((res: any) => {
         if (!isMounted) return;
         const certData = res?.data?.certificateTemplates;
-        if (certData && typeof certData === 'object' && !Array.isArray(certData)) {
+        if (certData && typeof certData === "object" && !Array.isArray(certData)) {
           if (Array.isArray(certData.types) && certData.types.length > 0) {
             setTypes(certData.types);
-            localStorage.setItem('edu_db_certificate_types', JSON.stringify(certData.types));
+                        if (!isInitialTypesLoadedRef.current) {
+              setSavedNumberingSnapshot(getNumberingSnapshot(certData.types));
+              setSavedFieldsSnapshot(getRequiredFieldsSnapshot(certData.types));
+              isInitialTypesLoadedRef.current = true;
+            }
           }
           if (Array.isArray(certData.templates) && certData.templates.length > 0) {
             setTemplates(certData.templates);
-            localStorage.setItem('edu_db_certificate_templates_v2', JSON.stringify(certData.templates));
-          }
+                      }
+          if (Array.isArray(certData.signatories) && certData.signatories.length > 0) {
+            setSignatories(certData.signatories);
+            setSavedSignatories(certData.signatories);
+                      }
+          if (certData.seal && typeof certData.seal === "object") {
+            setSealConfig(certData.seal);
+            setSavedSealConfig(certData.seal);
+                      }
         }
       })
       .catch(() => {});
@@ -408,25 +446,96 @@ export const CertificateSettingsTab: React.FC = () => {
     };
   }, []);
 
-  const syncSettingsToDb = async (newTemplates?: CertificateTemplateConfig[], newTypes?: CertificateTypeConfig[]) => {
+  const handleSaveNumberingRules = async () => {
+    if (!isNumberingDirty || isSavingNumbering) return;
+    setIsSavingNumbering(true);
     try {
-      const currentRes: any = await fetchSchoolSettingsApi();
-      const currentRaw = currentRes?.data?.certificateTemplates;
-      let existingObj: any = { templates: [], types: [], issued: [], alumni: [] };
-      if (typeof currentRaw === 'object' && currentRaw !== null && !Array.isArray(currentRaw)) {
-        existingObj = { ...currentRaw };
-      }
-      const payload = {
-        ...existingObj,
-        templates: newTemplates ?? templates,
-        types: newTypes ?? types,
-      };
-      await updateCertificateTemplatesApi(payload);
-    } catch (e) {
-      console.warn('Could not sync certificate templates/types to DB:', e);
+            await syncSettingsToDb(templates, types);
+      setSavedNumberingSnapshot(currentNumberingSnapshot);
+      addToast("success", "Numbering Rules Saved", "Certificate numbering sequences updated successfully.");
+    } catch (err: any) {
+      console.error("Error saving numbering rules:", err);
+      addToast("error", "Save Failed", err?.message || "Failed to save numbering rules.");
+    } finally {
+      setIsSavingNumbering(false);
     }
   };
 
+  const handleSaveRequiredFields = async () => {
+    if (!currentFieldMatrixType) {
+      addToast("error", "Certificate Type Required", "Please select a Certificate Type first.");
+      return;
+    }
+    if (!isFieldsDirty || isSavingFields) return;
+    setIsSavingFields(true);
+    try {
+            await syncSettingsToDb(templates, types);
+      setSavedFieldsSnapshot(currentFieldsSnapshot);
+      addToast("success", "Configuration Saved", `Required fields updated for ${currentFieldMatrixType.name}`);
+    } catch (err: any) {
+      console.error("Error saving required fields configuration:", err);
+      addToast("error", "Save Failed", err?.message || "Failed to save required fields configuration.");
+    } finally {
+      setIsSavingFields(false);
+    }
+  };
+
+  const handleSaveSignatures = async () => {
+    const errors: Record<number, string> = {};
+    signatories.forEach((sig, idx) => {
+      if (sig.show && !sig.title.trim()) {
+        errors[idx] = `Designation Title is required for Signatory ${idx + 1}.`;
+      }
+    });
+
+    let sealErr = "";
+    if (sealConfig.show && !sealConfig.sealText.trim()) {
+      sealErr = "Stamp / Seal Text Label is required when seal is displayed.";
+    }
+
+    if (Object.keys(errors).length > 0 || sealErr) {
+      setSignatoryErrors(errors);
+      setSealError(sealErr);
+      addToast("error", "Mandatory Fields Missing", "Please fill in all mandatory (*) fields before saving.");
+      return;
+    }
+
+    setSignatoryErrors({});
+    setSealError("");
+    setIsSavingSignatures(true);
+
+    try {
+      const updatedTemplates = templates.map(tpl => ({
+        ...tpl,
+        signatories: [...signatories],
+        showSeal: sealConfig.show,
+        sealText: sealConfig.sealText,
+        sealImageUrl: sealConfig.sealImageUrl,
+      }));
+
+      setTemplates(updatedTemplates);
+                  
+      await syncSettingsToDb(updatedTemplates, types, signatories, sealConfig);
+      setSavedSignatories(signatories);
+      setSavedSealConfig(sealConfig);
+
+      addToast("success", "Signatures & Seal Saved", "Signatory designations and official seal configuration saved successfully.");
+      setIsEditingSignatures(false);
+    } catch (err: any) {
+      console.error("Failed to save signatures:", err);
+      addToast("error", "Save Failed", err?.message || "Failed to save signatory settings.");
+    } finally {
+      setIsSavingSignatures(false);
+    }
+  };
+
+  const handleCancelEditSignatures = () => {
+    setSignatories(savedSignatories);
+    setSealConfig(savedSealConfig);
+    setSignatoryErrors({});
+    setSealError("");
+    setIsEditingSignatures(false);
+  };
 
   // Certificate Type Modal State
   const [isTypeModalOpen, setIsTypeModalOpen] = useState(false);
@@ -471,14 +580,6 @@ export const CertificateSettingsTab: React.FC = () => {
     sampleValue: ''
   });
 
-  // Selected Certificate Type for Required Fields Configuration Matrix
-  const [selectedFieldMatrixTypeId, setSelectedFieldMatrixTypeId] = useState<string>('');
-
-  const currentFieldMatrixType = useMemo(() => {
-    if (!selectedFieldMatrixTypeId) return undefined;
-    return types.find(t => t.id === selectedFieldMatrixTypeId);
-  }, [types, selectedFieldMatrixTypeId]);
-
   // Selected Template for Editing in Templates subtab
   const [selectedTemplateTypeId, setSelectedTemplateTypeId] = useState<string>('');
 
@@ -500,11 +601,7 @@ export const CertificateSettingsTab: React.FC = () => {
         showSchoolHeader: true,
         bodyTemplate: '',
         footerText: '',
-        signatories: [
-          { id: 'sig-1', title: 'Class Teacher', show: true },
-          { id: 'sig-2', title: 'Accounts Officer', show: true },
-          { id: 'sig-3', title: 'Principal', name: schoolProfile?.principalName || 'Principal', show: true }
-        ],
+        signatories: signatories.map(s => ({ ...s })),
         showSeal: true,
         dateFormat: 'DD/MM/YYYY'
       };
@@ -1161,8 +1258,18 @@ export const CertificateSettingsTab: React.FC = () => {
               <h4 className="font-extrabold text-sm text-slate-900 dark:text-white">Certificate Numbering Sequences</h4>
               <p className="text-xs text-slate-500">Configure auto-generation number formats for each certificate type.</p>
             </div>
-            <button onClick={() => addToast('success', 'Numbering Rules Saved')} className="px-3.5 py-1.5 rounded-xl bg-sky-600 text-white text-xs font-bold flex items-center gap-1.5 cursor-pointer">
-              <Save className="w-3.5 h-3.5" /> Save All Number Rules
+            <button
+              type="button"
+              disabled={!isNumberingDirty || isSavingNumbering}
+              onClick={handleSaveNumberingRules}
+              className={`px-3.5 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all ${
+                isNumberingDirty && !isSavingNumbering
+                  ? "bg-sky-600 hover:bg-sky-500 text-white shadow-sm cursor-pointer active:scale-95"
+                  : "bg-slate-200 dark:bg-slate-800 text-slate-400 dark:text-slate-500 cursor-not-allowed opacity-60"
+              }`}
+            >
+              <Save className="w-3.5 h-3.5" />
+              <span>{isSavingNumbering ? "Saving..." : "Save"}</span>
             </button>
           </div>
 
@@ -1319,16 +1426,17 @@ export const CertificateSettingsTab: React.FC = () => {
                 </select>
 
                 <button
-                  onClick={() => {
-                    if (!currentFieldMatrixType) {
-                      addToast('error', 'Certificate Type Required', 'Please select a Certificate Type first.');
-                      return;
-                    }
-                    addToast('success', 'Configuration Saved', `Required fields updated for ${currentFieldMatrixType.name}`);
-                  }}
-                  className="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-md flex items-center gap-1.5 cursor-pointer"
+                  type="button"
+                  disabled={!isFieldsDirty || isSavingFields}
+                  onClick={handleSaveRequiredFields}
+                  className={`px-3.5 py-2 rounded-xl text-xs font-bold shadow-sm flex items-center gap-1.5 transition-all ${
+                    isFieldsDirty && !isSavingFields
+                      ? "bg-sky-600 hover:bg-sky-500 text-white cursor-pointer active:scale-95"
+                      : "bg-slate-200 dark:bg-slate-800 text-slate-400 dark:text-slate-500 cursor-not-allowed opacity-60"
+                  }`}
                 >
-                  <Save className="w-3.5 h-3.5" /> Save Required Matrix
+                  <Save className="w-3.5 h-3.5" />
+                  <span>{isSavingFields ? "Saving..." : "Save"}</span>
                 </button>
               </div>
             </div>
@@ -1375,182 +1483,368 @@ export const CertificateSettingsTab: React.FC = () => {
       )}
 
       {/* 5. SIGNATURES & SEAL SECTION */}
-      {activeSubSection === 'signatures' && (
+      {activeSubSection === "signatures" && (
         <div className="space-y-4 glass-card p-5 rounded-3xl border border-slate-200 dark:border-slate-800">
-          <div className="flex justify-between items-center border-b border-slate-100 dark:border-slate-800 pb-3">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 dark:border-slate-800 pb-3">
             <div>
-              <h4 className="font-extrabold text-sm text-slate-900 dark:text-white">Signatory Designation & Seal Settings</h4>
-              <p className="text-xs text-slate-500">Configure authority signatures displayed on printed certificates.</p>
-            </div>
-            <button onClick={handleSaveTemplate} className="px-3.5 py-1.5 rounded-xl bg-sky-600 text-white text-xs font-bold flex items-center gap-1.5 cursor-pointer">
-              <Save className="w-3.5 h-3.5" /> Save Signatories
-            </button>
-          </div>
-
-          <div className="space-y-4 text-xs">
-            {(templateEditorState.signatories || []).map((sig, idx) => (
-              <div key={sig.id || idx} className="p-4 bg-slate-50 dark:bg-slate-800/60 rounded-2xl border flex flex-col sm:flex-row items-center gap-4">
-                <div className="font-bold text-slate-700 dark:text-slate-300 w-24">Signatory {idx + 1}:</div>
-                <input
-                  type="text"
-                  value={sig.title}
-                  onChange={e => {
-                    const newSigs = [...(templateEditorState.signatories || [])];
-                    newSigs[idx] = { ...newSigs[idx], title: e.target.value };
-                    setTemplateEditorState(prev => ({ ...prev, signatories: newSigs }));
-                  }}
-                  className="px-3 py-1.5 rounded-xl border text-xs font-bold bg-white dark:bg-slate-900 text-slate-900 dark:text-white outline-none flex-1"
-                  placeholder="Designation Title (e.g. Principal)"
-                />
-                <input
-                  type="text"
-                  value={sig.name || ''}
-                  onChange={e => {
-                    const newSigs = [...(templateEditorState.signatories || [])];
-                    newSigs[idx] = { ...newSigs[idx], name: e.target.value };
-                    setTemplateEditorState(prev => ({ ...prev, signatories: newSigs }));
-                  }}
-                  className="px-3 py-1.5 rounded-xl border text-xs bg-white dark:bg-slate-900 text-slate-900 dark:text-white outline-none flex-1"
-                  placeholder="Signatory Name (Optional)"
-                />
-                <label className="flex items-center gap-1 text-slate-700 dark:text-slate-300 font-bold select-none cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={sig.show}
-                    onChange={e => {
-                      const newSigs = [...(templateEditorState.signatories || [])];
-                      newSigs[idx] = { ...newSigs[idx], show: e.target.checked };
-                      setTemplateEditorState(prev => ({ ...prev, signatories: newSigs }));
-                    }}
-                    className="w-4 h-4 text-sky-600 rounded cursor-pointer"
-                  />
-                  Show
-                </label>
-              </div>
-            ))}
-          </div>
-
-          {/* Official School Stamp / Seal Management Card */}
-          <div className="pt-4 border-t border-slate-200 dark:border-slate-800 space-y-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <h4 className="font-extrabold text-sm text-slate-900 dark:text-white flex items-center gap-2">
-                  <ShieldCheck className="w-4 h-4 text-sky-600" /> Official School Stamp & Seal Configuration
-                </h4>
-                <p className="text-xs text-slate-500">
-                  Configure the official seal text and rubber stamp graphic displayed on printed certificates.
-                </p>
-              </div>
-
-              <label className="flex items-center gap-2 text-xs font-bold text-slate-800 dark:text-white cursor-pointer select-none">
-                <input
-                  type="checkbox"
-                  checked={templateEditorState.showSeal ?? true}
-                  onChange={e => setTemplateEditorState(prev => ({ ...prev, showSeal: e.target.checked }))}
-                  className="w-4 h-4 text-sky-600 rounded cursor-pointer"
-                />
-                Display Stamp / Seal
-              </label>
+              <h4 className="font-extrabold text-sm text-slate-900 dark:text-white flex items-center gap-2">
+                <ShieldCheck className="w-4 h-4 text-sky-600" /> Signatory Designation & Seal Settings
+              </h4>
+              <p className="text-xs text-slate-500">Configure authority signatures and official school seal displayed on printed certificates.</p>
             </div>
 
-            {(templateEditorState.showSeal ?? true) && (
-              <div className="p-4 bg-slate-50 dark:bg-slate-800/60 rounded-2xl border border-slate-200 dark:border-slate-700 grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
-                <div>
-                  <label className="block font-bold mb-1 text-slate-700 dark:text-slate-300">
-                    Stamp / Seal Text Label
-                  </label>
-                  <input
-                    type="text"
-                    value={templateEditorState.sealText || 'OFFICIAL SEAL'}
-                    onChange={e => setTemplateEditorState(prev => ({ ...prev, sealText: e.target.value }))}
-                    className="w-full px-3 py-2 rounded-xl bg-white dark:bg-slate-900 border text-xs font-bold text-slate-900 dark:text-white outline-none"
-                    placeholder="e.g. OFFICIAL SEAL - PIRNAV SCHOOLS"
-                  />
+            <div className="flex items-center gap-2 self-end sm:self-auto">
+              {!isEditingSignatures ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsEditingSignatures(true);
+                    setSignatoryErrors({});
+                    setSealError("");
+                  }}
+                  className="px-3.5 py-1.5 rounded-xl bg-sky-600 hover:bg-sky-500 text-white text-xs font-bold flex items-center gap-1.5 cursor-pointer shadow-sm active:scale-95 transition-all"
+                >
+                  <Edit className="w-3.5 h-3.5" /> Edit
+                </button>
+              ) : (
+                <>
+                  <button
+                    type="button"
+                    onClick={handleCancelEditSignatures}
+                    className="px-3.5 py-1.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-xs font-bold hover:bg-slate-50 dark:hover:bg-slate-700/60 cursor-pointer transition-all active:scale-95"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    disabled={isSavingSignatures}
+                    onClick={handleSaveSignatures}
+                    className="px-3.5 py-1.5 rounded-xl bg-sky-600 hover:bg-sky-500 text-white text-xs font-bold flex items-center gap-1.5 cursor-pointer shadow-sm active:scale-95 transition-all disabled:opacity-60 disabled:cursor-not-allowed"
+                  >
+                    <Save className="w-3.5 h-3.5" />
+                    <span>{isSavingSignatures ? "Saving..." : "Save"}</span>
+                  </button>
+                </>
+              )}
+            </div>
+          </div>
+
+          {!isEditingSignatures ? (
+            /* VIEW MODE: Clean summary cards of configured signatories & seal */
+            <div className="space-y-4 text-xs">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                {signatories.map((sig, idx) => (
+                  <div
+                    key={sig.id || idx}
+                    className="p-4 bg-slate-50 dark:bg-slate-800/60 rounded-2xl border border-slate-200/80 dark:border-slate-700/80 space-y-2.5"
+                  >
+                    <div className="flex items-center justify-between border-b border-slate-200/60 dark:border-slate-700/60 pb-2">
+                      <span className="font-extrabold text-slate-900 dark:text-white text-xs">
+                        Signatory {idx + 1}
+                      </span>
+                      <span
+                        className={`px-2 py-0.5 rounded-md text-[10px] font-black uppercase ${
+                          sig.show
+                            ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800"
+                            : "bg-slate-200 dark:bg-slate-700 text-slate-500"
+                        }`}
+                      >
+                        {sig.show ? "Displayed" : "Hidden"}
+                      </span>
+                    </div>
+
+                    <div>
+                      <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">
+                        Designation Title
+                      </span>
+                      <p className="font-bold text-slate-800 dark:text-slate-200 text-xs mt-0.5">
+                        {sig.title ? sig.title : <span className="text-slate-400 font-normal italic">Not configured</span>}
+                      </p>
+                    </div>
+
+                    <div>
+                      <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">
+                        Signatory Name
+                      </span>
+                      <p className="font-medium text-slate-700 dark:text-slate-300 text-xs mt-0.5">
+                        {sig.name ? sig.name : <span className="text-slate-400 font-normal italic">Optional / Not set</span>}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* View Mode: Stamp & Seal Details */}
+              <div className="p-4 bg-slate-50 dark:bg-slate-800/60 rounded-2xl border border-slate-200/80 dark:border-slate-700/80 flex flex-col sm:flex-row items-center gap-4">
+                <div className="w-20 h-20 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 flex items-center justify-center p-2 shrink-0 overflow-hidden">
+                  {sealConfig.sealImageUrl ? (
+                    <img
+                      src={sealConfig.sealImageUrl}
+                      alt="Official Stamp"
+                      className="w-full h-full object-contain"
+                    />
+                  ) : (
+                    <div className="text-center text-slate-400">
+                      <ImageIcon className="w-8 h-8 mx-auto stroke-1 opacity-50" />
+                      <span className="text-[9px] font-bold block mt-1">No Stamp</span>
+                    </div>
+                  )}
                 </div>
 
-                <div className="md:col-span-2">
-                  <label className="block font-bold mb-1.5 text-slate-700 dark:text-slate-300">
-                    Official Stamp / Seal Graphic Upload (Rubber Stamp)
-                  </label>
+                <div className="space-y-1.5 flex-1 text-center sm:text-left">
+                  <div className="flex items-center gap-2 justify-center sm:justify-start">
+                    <h5 className="font-extrabold text-xs text-slate-900 dark:text-white">
+                      Official Stamp & Seal
+                    </h5>
+                    <span
+                      className={`px-2 py-0.5 rounded-md text-[10px] font-black uppercase ${
+                        sealConfig.show
+                          ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800"
+                          : "bg-slate-200 dark:bg-slate-700 text-slate-500"
+                      }`}
+                    >
+                      {sealConfig.show ? "Display Active" : "Hidden"}
+                    </span>
+                  </div>
 
-                  <div className="p-4 bg-white dark:bg-slate-900 rounded-2xl border border-dashed border-slate-300 dark:border-slate-700 flex flex-col sm:flex-row items-center gap-4">
-                    {/* Stamp Thumbnail Preview */}
-                    <div className="w-20 h-20 rounded-2xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex items-center justify-center p-2 shrink-0 relative overflow-hidden group">
-                      {templateEditorState.sealImageUrl ? (
-                        <img
-                          src={templateEditorState.sealImageUrl}
-                          alt="Official Stamp Preview"
-                          className="w-full h-full object-contain transform rotate-6"
-                        />
-                      ) : (
-                        <div className="text-center text-slate-400">
-                          <ImageIcon className="w-8 h-8 mx-auto stroke-1" />
-                          <span className="text-[9px] font-bold block mt-1">No Stamp</span>
-                        </div>
+                  <p className="text-xs text-slate-600 dark:text-slate-300">
+                    <span className="text-slate-400 font-medium">Text Label: </span>
+                    <strong className="font-bold">
+                      {sealConfig.sealText ? sealConfig.sealText : <span className="font-normal italic text-slate-400">Not configured</span>}
+                    </strong>
+                  </p>
+                  <p className="text-[11px] text-slate-400">
+                    {sealConfig.sealImageUrl ? "Custom rubber stamp image active on printed certificates." : "No stamp image uploaded yet."}
+                  </p>
+                </div>
+              </div>
+            </div>
+          ) : (
+            /* EDIT MODE: Inputs with red asterisks on mandatory fields and immediate validation */
+            <div className="space-y-4 text-xs">
+              {signatories.map((sig, idx) => (
+                <div
+                  key={sig.id || idx}
+                  className={`p-4 bg-slate-50 dark:bg-slate-800/60 rounded-2xl border transition-all ${
+                    signatoryErrors[idx]
+                      ? "border-rose-400 dark:border-rose-600 ring-2 ring-rose-400/20"
+                      : "border-slate-200 dark:border-slate-700"
+                  }`}
+                >
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-2.5">
+                    <div className="font-bold text-slate-800 dark:text-slate-200 text-xs">
+                      Signatory {idx + 1}
+                    </div>
+                    <label className="flex items-center gap-1.5 text-slate-700 dark:text-slate-300 font-bold select-none cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={sig.show}
+                        onChange={e => {
+                          const newSigs = [...signatories];
+                          newSigs[idx] = { ...newSigs[idx], show: e.target.checked };
+                          setSignatories(newSigs);
+                          if (!e.target.checked && signatoryErrors[idx]) {
+                            const errs = { ...signatoryErrors };
+                            delete errs[idx];
+                            setSignatoryErrors(errs);
+                          }
+                        }}
+                        className="w-4 h-4 text-sky-600 rounded cursor-pointer"
+                      />
+                      <span>Show on Certificate</span>
+                    </label>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300 mb-1">
+                        Designation Title {sig.show && <span className="text-rose-500 font-bold">*</span>}
+                      </label>
+                      <input
+                        type="text"
+                        value={sig.title}
+                        onChange={e => {
+                          const newSigs = [...signatories];
+                          newSigs[idx] = { ...newSigs[idx], title: e.target.value };
+                          setSignatories(newSigs);
+                          if (e.target.value.trim() && signatoryErrors[idx]) {
+                            const errs = { ...signatoryErrors };
+                            delete errs[idx];
+                            setSignatoryErrors(errs);
+                          }
+                        }}
+                        className={`w-full px-3 py-2 rounded-xl border text-xs font-bold bg-white dark:bg-slate-900 text-slate-900 dark:text-white outline-none transition ${
+                          signatoryErrors[idx]
+                            ? "border-rose-500 focus:ring-2 focus:ring-rose-400/30"
+                            : "border-slate-300 dark:border-slate-700 focus:border-sky-500"
+                        }`}
+                        placeholder="Designation Title (e.g. Principal)"
+                      />
+                      {signatoryErrors[idx] && (
+                        <p className="text-[11px] text-rose-500 font-semibold mt-1">
+                          {signatoryErrors[idx]}
+                        </p>
                       )}
                     </div>
 
-                    {/* Upload Actions & Details */}
-                    <div className="flex-1 space-y-2 text-center sm:text-left">
-                      <div>
-                        <h5 className="font-extrabold text-xs text-slate-900 dark:text-white">
-                          Upload School Stamp / Seal Graphic
-                        </h5>
-                        <p className="text-[11px] text-slate-500">
-                          Upload your official rubber stamp, round seal, or embossed crest image (PNG with transparent background recommended, max 5MB).
-                        </p>
-                      </div>
-
-                      <div className="flex flex-wrap items-center gap-2">
-                        <label className="px-3.5 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white text-xs font-bold shadow-sm flex items-center gap-1.5 cursor-pointer transition-all">
-                          <Upload className="w-3.5 h-3.5" /> Upload Stamp Image
-                          <input
-                            type="file"
-                            accept="image/png,image/jpeg,image/webp,image/svg+xml"
-                            className="hidden"
-                            onChange={e => {
-                              const file = e.target.files?.[0];
-                              if (!file) return;
-                              if (!file.type.startsWith('image/')) {
-                                addToast('error', 'Invalid File', 'Please select an image file (PNG, JPG, WEBP, SVG).');
-                                return;
-                              }
-                              if (file.size > 5 * 1024 * 1024) {
-                                addToast('error', 'File Too Large', 'Stamp image file size must be less than 5MB.');
-                                return;
-                              }
-                              const reader = new FileReader();
-                              reader.onload = (ev) => {
-                                const result = ev.target?.result as string;
-                                if (result) {
-                                  setTemplateEditorState(prev => ({ ...prev, sealImageUrl: result }));
-                                  addToast('success', 'Stamp Uploaded', 'Official stamp image uploaded successfully.');
-                                }
-                              };
-                              reader.readAsDataURL(file);
-                            }}
-                          />
-                        </label>
-
-                        {templateEditorState.sealImageUrl && (
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setTemplateEditorState(prev => ({ ...prev, sealImageUrl: '' }));
-                              addToast('info', 'Stamp Removed', 'Custom stamp image removed. Default seal will be used.');
-                            }}
-                            className="px-3 py-2 rounded-xl bg-rose-50 dark:bg-rose-950/40 hover:bg-rose-100 text-rose-600 dark:text-rose-400 text-xs font-bold border border-rose-200 dark:border-rose-900 flex items-center gap-1.5 cursor-pointer"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" /> Remove Stamp Image
-                          </button>
-                        )}
-                      </div>
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300 mb-1">
+                        Signatory Name (Optional)
+                      </label>
+                      <input
+                        type="text"
+                        value={sig.name || ""}
+                        onChange={e => {
+                          const newSigs = [...signatories];
+                          newSigs[idx] = { ...newSigs[idx], name: e.target.value };
+                          setSignatories(newSigs);
+                        }}
+                        className="w-full px-3 py-2 rounded-xl border text-xs bg-white dark:bg-slate-900 text-slate-900 dark:text-white outline-none border-slate-300 dark:border-slate-700 focus:border-sky-500"
+                        placeholder="Signatory Name (Optional)"
+                      />
                     </div>
                   </div>
                 </div>
+              ))}
+
+              {/* Official School Stamp / Seal Management Card (Edit Mode) */}
+              <div className="pt-4 border-t border-slate-200 dark:border-slate-800 space-y-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h4 className="font-extrabold text-sm text-slate-900 dark:text-white flex items-center gap-2">
+                      <ShieldCheck className="w-4 h-4 text-sky-600" /> Official School Stamp & Seal Configuration
+                    </h4>
+                    <p className="text-xs text-slate-500">
+                      Configure the official seal text and rubber stamp graphic displayed on printed certificates.
+                    </p>
+                  </div>
+
+                  <label className="flex items-center gap-2 text-xs font-bold text-slate-800 dark:text-white cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      checked={sealConfig.show}
+                      onChange={e => {
+                        setSealConfig(prev => ({ ...prev, show: e.target.checked }));
+                        if (!e.target.checked) setSealError("");
+                      }}
+                      className="w-4 h-4 text-sky-600 rounded cursor-pointer"
+                    />
+                    Display Stamp / Seal
+                  </label>
+                </div>
+
+                {sealConfig.show && (
+                  <div className="p-4 bg-slate-50 dark:bg-slate-800/60 rounded-2xl border border-slate-200 dark:border-slate-700 grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+                    <div>
+                      <label className="block font-bold mb-1 text-slate-700 dark:text-slate-300">
+                        Stamp / Seal Text Label <span className="text-rose-500 font-bold">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        value={sealConfig.sealText}
+                        onChange={e => {
+                          setSealConfig(prev => ({ ...prev, sealText: e.target.value }));
+                          if (e.target.value.trim()) setSealError("");
+                        }}
+                        className={`w-full px-3 py-2 rounded-xl bg-white dark:bg-slate-900 border text-xs font-bold text-slate-900 dark:text-white outline-none transition ${
+                          sealError
+                            ? "border-rose-500 focus:ring-2 focus:ring-rose-400/30"
+                            : "border-slate-300 dark:border-slate-700 focus:border-sky-500"
+                        }`}
+                        placeholder="OFFICIAL SEAL"
+                      />
+                      {sealError && (
+                        <p className="text-[11px] text-rose-500 font-semibold mt-1">
+                          {sealError}
+                        </p>
+                      )}
+                    </div>
+
+                    <div className="md:col-span-2">
+                      <label className="block font-bold mb-1.5 text-slate-700 dark:text-slate-300">
+                        Official Stamp / Seal Graphic Upload (Rubber Stamp)
+                      </label>
+
+                      <div className="p-4 bg-white dark:bg-slate-900 rounded-2xl border border-dashed border-slate-300 dark:border-slate-700 flex flex-col sm:flex-row items-center gap-4">
+                        {/* Stamp Thumbnail Preview */}
+                        <div className="w-20 h-20 rounded-2xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex items-center justify-center p-2 shrink-0 relative overflow-hidden group">
+                          {sealConfig.sealImageUrl ? (
+                            <img
+                              src={sealConfig.sealImageUrl}
+                              alt="Official Stamp Preview"
+                              className="w-full h-full object-contain"
+                            />
+                          ) : (
+                            <div className="text-center text-slate-400">
+                              <ImageIcon className="w-8 h-8 mx-auto stroke-1" />
+                              <span className="text-[9px] font-bold block mt-1">No Stamp</span>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Upload Actions & Details */}
+                        <div className="flex-1 space-y-2 text-center sm:text-left">
+                          <div>
+                            <h5 className="font-extrabold text-xs text-slate-900 dark:text-white">
+                              Upload School Stamp / Seal Graphic
+                            </h5>
+                            <p className="text-[11px] text-slate-500">
+                              Upload your official rubber stamp, round seal, or embossed crest image (PNG with transparent background recommended, max 5MB).
+                            </p>
+                          </div>
+
+                          <div className="flex flex-wrap items-center gap-2 justify-center sm:justify-start">
+                            <label className="px-3.5 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white text-xs font-bold shadow-sm flex items-center gap-1.5 cursor-pointer transition-all active:scale-95">
+                              <Upload className="w-3.5 h-3.5" /> Upload Stamp Image
+                              <input
+                                type="file"
+                                accept="image/png,image/jpeg,image/webp,image/svg+xml"
+                                className="hidden"
+                                onChange={e => {
+                                  const file = e.target.files?.[0];
+                                  if (!file) return;
+                                  if (!file.type.startsWith("image/")) {
+                                    addToast("error", "Invalid File", "Please select an image file (PNG, JPG, WEBP, SVG).");
+                                    return;
+                                  }
+                                  if (file.size > 5 * 1024 * 1024) {
+                                    addToast("error", "File Too Large", "Stamp image file size must be less than 5MB.");
+                                    return;
+                                  }
+                                  const reader = new FileReader();
+                                  reader.onload = (ev) => {
+                                    const result = ev.target?.result as string;
+                                    if (result) {
+                                      setSealConfig(prev => ({ ...prev, sealImageUrl: result }));
+                                      addToast("success", "Stamp Uploaded", "Official stamp image uploaded successfully.");
+                                    }
+                                  };
+                                  reader.readAsDataURL(file);
+                                }}
+                              />
+                            </label>
+
+                            {sealConfig.sealImageUrl && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setSealConfig(prev => ({ ...prev, sealImageUrl: "" }));
+                                  addToast("info", "Stamp Removed", "Custom stamp image removed.");
+                                }}
+                                className="px-3 py-2 rounded-xl bg-rose-50 dark:bg-rose-950/40 hover:bg-rose-100 text-rose-600 dark:text-rose-400 text-xs font-bold border border-rose-200 dark:border-rose-900 flex items-center gap-1.5 cursor-pointer"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" /> Remove Stamp Image
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
-            )}
-          </div>
+            </div>
+          )}
         </div>
       )}
 

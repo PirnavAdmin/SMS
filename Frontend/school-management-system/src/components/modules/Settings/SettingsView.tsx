@@ -2481,7 +2481,7 @@ export const SettingsView: React.FC = () => {
                     <label className="block text-xs font-bold text-slate-600 dark:text-slate-300 mb-1.5">Starting Number</label>
                     <input
                       type="number"
-                      placeholder="e.g. 1001"
+                      placeholder="e.g. 1"
                       value={idForm.studentIdStartNo || ""}
                       onChange={e => {
                         const val = e.target.value ? Number(e.target.value) : ("" as any);
@@ -2618,7 +2618,7 @@ export const SettingsView: React.FC = () => {
                     <label className="block text-xs font-bold text-slate-600 dark:text-slate-300 mb-1.5">Starting Number</label>
                     <input
                       type="number"
-                      placeholder="e.g. 501"
+                      placeholder="e.g. 1"
                       value={idForm.teachingIdStartNo || ""}
                       onChange={e => {
                         const val = e.target.value ? Number(e.target.value) : ("" as any);
@@ -2755,7 +2755,7 @@ export const SettingsView: React.FC = () => {
                     <label className="block text-xs font-bold text-slate-600 dark:text-slate-300 mb-1.5">Starting Number</label>
                     <input
                       type="number"
-                      placeholder="e.g. 801"
+                      placeholder="e.g. 1"
                       value={idForm.nonTeachingIdStartNo || ""}
                       onChange={e => {
                         const val = e.target.value ? Number(e.target.value) : ("" as any);
@@ -2892,7 +2892,7 @@ export const SettingsView: React.FC = () => {
                     <label className="block text-xs font-bold text-slate-600 dark:text-slate-300 mb-1.5">Starting Number</label>
                     <input
                       type="number"
-                      placeholder="e.g. 2001"
+                      placeholder="e.g. 1"
                       value={idForm.admissionNoStartNo || ""}
                       onChange={e => {
                         const val = e.target.value ? Number(e.target.value) : ("" as any);

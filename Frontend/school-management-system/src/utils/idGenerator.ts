@@ -206,14 +206,13 @@ export function buildPreviewId(
   fallbackPrefix: string = ''
 ): string {
   const cleanPrefix = (prefix || '').trim().toUpperCase();
-  const defaultFallbackNo = fallbackPrefix === 'TCH' ? 501 : fallbackPrefix === 'NTS' ? 801 : fallbackPrefix === 'ADM' ? 2001 : 1001;
   const sep = (separator === 'none' || separator === '__none__')
     ? ''
     : (separator !== undefined && separator !== '' ? separator : '-');
   const pos = position || 'start';
   const pad = Number(padding) || 4;
   const yearStr = includeYear ? `${new Date().getFullYear()}` : '';
-  const paddedSeq = String(startNo || defaultFallbackNo).padStart(pad, '0');
+  const paddedSeq = String(Number(startNo) || 1).padStart(pad, '0');
 
   const parts: string[] = [];
 
@@ -242,7 +241,7 @@ export function generateNextStudentId(students: Student[] = []): string {
   const existingIds = students.map(s => s.id || '').filter(Boolean);
   return buildFormattedId(
     config.studentIdPrefix,
-    config.studentIdStartNo,
+    Number(config.studentIdStartNo) || 1,
     config.studentIdPadding,
     config.studentIdIncludeYear,
     config.studentIdSeparator,
@@ -259,7 +258,7 @@ export function generateNextAdmissionNo(students: Student[] = []): string {
   const existingNos = students.map(s => s.admissionNo || '').filter(Boolean);
   return buildFormattedId(
     config.admissionNoPrefix,
-    config.admissionNoStartNo,
+    Number(config.admissionNoStartNo) || 1,
     config.admissionNoPadding,
     config.admissionNoIncludeYear,
     config.admissionNoSeparator,
@@ -280,7 +279,8 @@ export function generateNextEmployeeId(staff: Staff[] = [], category?: string): 
   );
 
   const prefix = isTeaching ? config.teachingIdPrefix : config.nonTeachingIdPrefix;
-  const startNo = isTeaching ? config.teachingIdStartNo : config.nonTeachingIdStartNo;
+  const rawStartNo = isTeaching ? config.teachingIdStartNo : config.nonTeachingIdStartNo;
+  const startNo = Number(rawStartNo) || 1;
   const padding = isTeaching ? config.teachingIdPadding : config.nonTeachingIdPadding;
   const includeYear = isTeaching ? config.teachingIdIncludeYear : config.nonTeachingIdIncludeYear;
   const separator = isTeaching ? config.teachingIdSeparator : config.nonTeachingIdSeparator;
