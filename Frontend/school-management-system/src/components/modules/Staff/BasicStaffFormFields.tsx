@@ -222,16 +222,7 @@ export const BasicStaffFormFields: React.FC<BasicStaffFormFieldsProps> = ({
     return Array.from(new Set(dynamicBranches)).filter(Boolean).sort();
   }, [dynamicBranches]);
 
-  React.useEffect(() => {
-    if ((!value.branch || !branchList.includes(value.branch)) && branchList.length > 0) {
-      const defaultBranch = (selectedBranch && branchList.includes(selectedBranch))
-        ? selectedBranch
-        : branchList[0];
-      if (defaultBranch) {
-        parentOnChange('branch', defaultBranch);
-      }
-    }
-  }, [branchList, value.branch, selectedBranch]);
+
 
   const [localErrors, setLocalErrors] = useState<Record<string, string>>({});
   const errors = { ...parentErrors, ...localErrors };
@@ -244,6 +235,85 @@ export const BasicStaffFormFields: React.FC<BasicStaffFormFieldsProps> = ({
       delete next[field];
       return next;
     });
+  };
+
+  const parsePhone = (phoneStr: string = '') => {
+    const clean = (phoneStr || '').trim();
+    const sortedCodes = COUNTRY_DIAL_CODES.map(c => c.code).sort((a, b) => b.length - a.length);
+    for (const code of sortedCodes) {
+      if (clean.startsWith(code)) {
+        let local = clean.slice(code.length);
+        if (local.startsWith('-')) local = local.slice(1);
+        const maxLen = code === '+91' ? 10 : 15;
+        return { countryCode: code, localNumber: local.replace(/[^0-9]/g, '').slice(0, maxLen) };
+      }
+    }
+    return { countryCode: '+91', localNumber: clean.replace(/[^0-9]/g, '').slice(0, 10) };
+  };
+
+  const validateMobile = (cc: string, localNum: string, isRequired: boolean, fieldLabel: string = 'Mobile number') => {
+    if (!localNum) {
+      return isRequired ? `${fieldLabel} is required.` : undefined;
+    }
+    if (cc === '+91') {
+      const res = validate10DigitPhone(localNum);
+      if (!res.isValid) {
+        return res.error;
+      }
+    } else {
+      if (localNum.length < 6 || localNum.length > 15) {
+        return `Enter a valid ${fieldLabel.toLowerCase()} (6 to 15 digits).`;
+      }
+    }
+    return undefined;
+  };
+
+  const { countryCode: primaryCc, localNumber: primaryLocal } = parsePhone(value.mobileNumber);
+  const { countryCode: altCc, localNumber: altLocal } = parsePhone(value.alternateMobileNumber || '');
+
+  const handleMobileChange = (field: 'mobileNumber' | 'alternateMobileNumber', val: string) => {
+    const cc = field === 'mobileNumber' ? primaryCc : altCc;
+    const maxLen = cc === '+91' ? 10 : 15;
+    const numericVal = val.replace(/[^0-9]/g, '').slice(0, maxLen);
+    if (field === 'alternateMobileNumber') {
+      parentOnChange(field, numericVal ? `${cc}-${numericVal}` : '');
+    } else {
+      parentOnChange(field, `${cc}-${numericVal}`);
+    }
+
+    if (cc === '+91') {
+      if (numericVal.length > 0 && !/^[6-9]/.test(numericVal)) {
+        setLocalErrors(prev => ({
+          ...prev,
+          [field]: field === 'mobileNumber'
+            ? 'Mobile number must start with 6, 7, 8, or 9.'
+            : 'Alternate mobile number must start with 6, 7, 8, or 9.'
+        }));
+      } else if (numericVal.length === 10) {
+        const res = validate10DigitPhone(numericVal);
+        if (!res.isValid && res.error) {
+          setLocalErrors(prev => ({ ...prev, [field]: res.error }));
+        } else {
+          setLocalErrors(prev => {
+            const next = { ...prev };
+            delete next[field];
+            return next;
+          });
+        }
+      } else {
+        setLocalErrors(prev => {
+          const next = { ...prev };
+          delete next[field];
+          return next;
+        });
+      }
+    } else {
+      setLocalErrors(prev => {
+        const next = { ...prev };
+        delete next[field];
+        return next;
+      });
+    }
   };
 
   const validateStep = (step: number): boolean => {
@@ -261,10 +331,20 @@ export const BasicStaffFormFields: React.FC<BasicStaffFormFieldsProps> = ({
       require("bloodGroup", !!value.bloodGroup, "Blood Group is required.");
       require("mobileNumber", !!value.mobileNumber.trim(), "Mobile number is required.");
       if (value.mobileNumber.trim()) {
-        const localPart = value.mobileNumber.split("-").pop() || "";
-        const phoneRes = validate10DigitPhone(localPart.replace(/[^\d]/g, ""));
-        if (!phoneRes.isValid && phoneRes.error) {
-          stepErrors.mobileNumber = phoneRes.error;
+        const { countryCode, localNumber } = parsePhone(value.mobileNumber);
+        const err = validateMobile(countryCode, localNumber, true, "Mobile number");
+        if (err) {
+          stepErrors.mobileNumber = err;
+        }
+      }
+
+      if (value.alternateMobileNumber?.trim()) {
+        const { countryCode, localNumber } = parsePhone(value.alternateMobileNumber);
+        if (localNumber) {
+          const err = validateMobile(countryCode, localNumber, false, "Alternate mobile number");
+          if (err) {
+            stepErrors.alternateMobileNumber = err;
+          }
         }
       }
       require("presentAddress", !!value.presentAddress.trim(), "Present Address is required.");
@@ -372,29 +452,65 @@ export const BasicStaffFormFields: React.FC<BasicStaffFormFieldsProps> = ({
     return Object.keys(stepErrors).length === 0;
   };
 
-  const parsePhone = (phoneStr: string = '') => {
-    const clean = phoneStr.trim();
-    const sortedCodes = COUNTRY_DIAL_CODES.map(c => c.code).sort((a, b) => b.length - a.length);
-    for (const code of sortedCodes) {
-      if (clean.startsWith(code)) {
-        let local = clean.slice(code.length);
-        if (local.startsWith('-')) local = local.slice(1);
-        return { countryCode: code, localNumber: local.replace(/[^0-9]/g, '').slice(0, 10) };
+
+
+  const [cityDropdownOpen, setCityDropdownOpen] = useState(false);
+  const cityContainerRef = React.useRef<HTMLDivElement>(null);
+  const [stateDropdownOpen, setStateDropdownOpen] = useState(false);
+  const stateContainerRef = React.useRef<HTMLDivElement>(null);
+
+  React.useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (cityContainerRef.current && !cityContainerRef.current.contains(e.target as Node)) {
+        setCityDropdownOpen(false);
       }
+      if (stateContainerRef.current && !stateContainerRef.current.contains(e.target as Node)) {
+        setStateDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const filteredCities = React.useMemo(() => {
+    const query = (value.city || '').trim().toLowerCase();
+    if (!query) return KNOWN_INDIAN_CITIES;
+    return KNOWN_INDIAN_CITIES.filter(c => c.toLowerCase().includes(query));
+  }, [value.city]);
+
+  const filteredStates = React.useMemo(() => {
+    const query = (value.state || '').trim().toLowerCase();
+    if (!query) return VALID_INDIAN_STATES;
+    return VALID_INDIAN_STATES.filter(s => s.toLowerCase().includes(query));
+  }, [value.state]);
+
+  const handleSelectCity = (cityName: string) => {
+    onChange('city', cityName);
+    setCityDropdownOpen(false);
+    const res = validateCityName(cityName);
+    if (!res.isValid && res.error) {
+      setLocalErrors(prev => ({ ...prev, city: res.error! }));
+    } else {
+      setLocalErrors(prev => {
+        const next = { ...prev };
+        delete next.city;
+        return next;
+      });
     }
-    return { countryCode: '+91', localNumber: clean.replace(/[^0-9]/g, '').slice(0, 10) };
   };
 
-  const { countryCode: primaryCc, localNumber: primaryLocal } = parsePhone(value.mobileNumber);
-  const { countryCode: altCc, localNumber: altLocal } = parsePhone(value.alternateMobileNumber || '');
-
-  const handleMobileChange = (field: 'mobileNumber' | 'alternateMobileNumber', val: string) => {
-    const numericVal = val.replace(/[^0-9]/g, '').slice(0, 10);
-    const cc = field === 'mobileNumber' ? primaryCc : altCc;
-    if (field === 'alternateMobileNumber') {
-      onChange(field, numericVal ? `${cc}-${numericVal}` : '');
+  const handleSelectState = (stateName: string) => {
+    onChange('state', stateName);
+    setStateDropdownOpen(false);
+    const res = validateStateName(stateName);
+    if (!res.isValid && res.error) {
+      setLocalErrors(prev => ({ ...prev, state: res.error! }));
     } else {
-      onChange(field, `${cc}-${numericVal}`);
+      setLocalErrors(prev => {
+        const next = { ...prev };
+        delete next.state;
+        return next;
+      });
     }
   };
 
@@ -534,12 +650,14 @@ export const BasicStaffFormFields: React.FC<BasicStaffFormFieldsProps> = ({
   const [previewDoc, setPreviewDoc] = useState<StaffUploadedDocItem | null>(null);
 
   const departmentSelectOptions = React.useMemo(() => {
+    if (!value.employeeCategory) return [];
     return getDepartmentSelectOptions(normalizedCategory, departments);
-  }, [normalizedCategory, departments]);
+  }, [normalizedCategory, value.employeeCategory, departments]);
 
   const designationOptions = React.useMemo(() => {
+    if (!value.employeeCategory) return [];
     return getDesignationOptions(normalizedCategory, value.department, designations);
-  }, [normalizedCategory, value.department, designations]);
+  }, [normalizedCategory, value.employeeCategory, value.department, designations]);
 
   // Dynamic Department change handler
   const handleDepartmentChange = (dept: string) => {
@@ -553,6 +671,13 @@ export const BasicStaffFormFields: React.FC<BasicStaffFormFieldsProps> = ({
   // Dynamic Staff Type change handler
   const handleStaffTypeSelect = (staffType: string) => {
     onCategoryChange(staffType);
+    if (staffType) {
+      setLocalErrors(prev => {
+        const next = { ...prev };
+        delete next.employeeCategory;
+        return next;
+      });
+    }
     const nextAllowedDepts = getDepartmentOptions(staffType, departments);
     if (value.department && !nextAllowedDepts.includes(value.department)) {
       onChange('department', '');
@@ -812,10 +937,13 @@ export const BasicStaffFormFields: React.FC<BasicStaffFormFieldsProps> = ({
                   <select
                     value={value.employeeCategory || ''}
                     onChange={e => handleStaffTypeSelect(e.target.value)}
-                    className="w-full rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 px-3.5 py-2 text-xs outline-none transition focus:border-brand-500 text-slate-900 dark:text-white font-medium appearance-none cursor-pointer pr-10"
+                    className={`w-full rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 px-3.5 py-2 text-xs outline-none transition focus:border-brand-500 font-medium appearance-none cursor-pointer pr-10 ${
+                      !value.employeeCategory ? 'text-slate-400 dark:text-slate-500' : 'text-slate-900 dark:text-white'
+                    } ${errors.employeeCategory ? 'border-rose-500 text-rose-700' : ''}`}
                   >
-                    <option value="Teaching Staff">Teaching Staff</option>
-                    <option value="Non-Teaching Staff">Non-Teaching Staff</option>
+                    <option value="" disabled className="text-slate-400">Select Staff Type</option>
+                    <option value="Teaching Staff" className="text-slate-900 dark:text-white">Teaching Staff</option>
+                    <option value="Non-Teaching Staff" className="text-slate-900 dark:text-white">Non-Teaching Staff</option>
                   </select>
                   <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
                 </div>
@@ -985,7 +1113,19 @@ export const BasicStaffFormFields: React.FC<BasicStaffFormFieldsProps> = ({
                   <div className="relative shrink-0 w-28">
                     <select
                       value={primaryCc}
-                      onChange={e => onChange('mobileNumber', `${e.target.value}-${primaryLocal}`)}
+                      onChange={e => {
+                        const newCc = e.target.value;
+                        parentOnChange('mobileNumber', `${newCc}-${primaryLocal}`);
+                        if (primaryLocal) {
+                          const err = validateMobile(newCc, primaryLocal, true, 'Mobile number');
+                          setLocalErrors(prev => {
+                            const next = { ...prev };
+                            if (err) next.mobileNumber = err;
+                            else delete next.mobileNumber;
+                            return next;
+                          });
+                        }
+                      }}
                       className="w-full rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 pl-3 pr-7 py-2 text-xs outline-none transition focus:border-brand-500 text-slate-900 dark:text-white font-medium appearance-none cursor-pointer"
                     >
                       {COUNTRY_DIAL_CODES.map(item => (
@@ -1000,7 +1140,20 @@ export const BasicStaffFormFields: React.FC<BasicStaffFormFieldsProps> = ({
                     type="tel"
                     value={primaryLocal}
                     onChange={e => handleMobileChange('mobileNumber', e.target.value)}
-                    className="flex-1 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 px-3.5 py-2 text-xs outline-none transition focus:border-brand-500 text-slate-900 dark:text-white font-medium"
+                    onBlur={() => {
+                      const err = validateMobile(primaryCc, primaryLocal, true, 'Mobile number');
+                      setLocalErrors(prev => {
+                        const next = { ...prev };
+                        if (err) next.mobileNumber = err;
+                        else delete next.mobileNumber;
+                        return next;
+                      });
+                    }}
+                    className={`flex-1 rounded-xl border bg-white dark:bg-slate-950 px-3.5 py-2 text-xs outline-none transition font-medium ${
+                      errors.mobileNumber
+                        ? 'border-rose-500 text-rose-700 dark:text-rose-400 focus:border-rose-500 focus:ring-1 focus:ring-rose-500'
+                        : 'border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white focus:border-brand-500'
+                    }`}
                     placeholder="10-digit number"
                   />
                 </div>
@@ -1014,7 +1167,19 @@ export const BasicStaffFormFields: React.FC<BasicStaffFormFieldsProps> = ({
                   <div className="relative shrink-0 w-28">
                     <select
                       value={altCc}
-                      onChange={e => onChange('alternateMobileNumber', altLocal ? `${e.target.value}-${altLocal}` : '')}
+                      onChange={e => {
+                        const newCc = e.target.value;
+                        parentOnChange('alternateMobileNumber', altLocal ? `${newCc}-${altLocal}` : '');
+                        if (altLocal) {
+                          const err = validateMobile(newCc, altLocal, false, 'Alternate mobile number');
+                          setLocalErrors(prev => {
+                            const next = { ...prev };
+                            if (err) next.alternateMobileNumber = err;
+                            else delete next.alternateMobileNumber;
+                            return next;
+                          });
+                        }
+                      }}
                       className="w-full rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 pl-3 pr-7 py-2 text-xs outline-none transition focus:border-brand-500 text-slate-900 dark:text-white font-medium appearance-none cursor-pointer"
                     >
                       {COUNTRY_DIAL_CODES.map(item => (
@@ -1029,10 +1194,24 @@ export const BasicStaffFormFields: React.FC<BasicStaffFormFieldsProps> = ({
                     type="tel"
                     value={altLocal}
                     onChange={e => handleMobileChange('alternateMobileNumber', e.target.value)}
-                    className="flex-1 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 px-3.5 py-2 text-xs outline-none transition focus:border-brand-500 text-slate-900 dark:text-white font-medium"
+                    onBlur={() => {
+                      const err = validateMobile(altCc, altLocal, false, 'Alternate mobile number');
+                      setLocalErrors(prev => {
+                        const next = { ...prev };
+                        if (err) next.alternateMobileNumber = err;
+                        else delete next.alternateMobileNumber;
+                        return next;
+                      });
+                    }}
+                    className={`flex-1 rounded-xl border bg-white dark:bg-slate-950 px-3.5 py-2 text-xs outline-none transition font-medium ${
+                      errors.alternateMobileNumber
+                        ? 'border-rose-500 text-rose-700 dark:text-rose-400 focus:border-rose-500 focus:ring-1 focus:ring-rose-500'
+                        : 'border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white focus:border-brand-500'
+                    }`}
                     placeholder="10-digit number"
                   />
                 </div>
+                {errors.alternateMobileNumber && <p className="mt-1 text-[11px] font-semibold text-rose-500">{errors.alternateMobileNumber}</p>}
               </div>
 
               {/* Email Address */}
@@ -1238,42 +1417,85 @@ export const BasicStaffFormFields: React.FC<BasicStaffFormFieldsProps> = ({
                 <label className="text-xs font-bold text-slate-700 dark:text-slate-300">
                   State <span className="text-rose-500">*</span>
                 </label>
-                <input
-                  type="text"
-                  list="indian-states-list"
-                  value={value.state || ''}
-                  onChange={e => {
-                    const val = e.target.value.replace(/[^A-Za-z\s.\-']/g, '');
-                    onChange('state', val);
-                    if (val.trim()) {
-                      const res = validateStateName(val);
-                      if (!res.isValid && res.error) {
-                        setLocalErrors(prev => ({ ...prev, state: res.error! }));
-                      } else {
-                        setLocalErrors(prev => {
-                          const next = { ...prev };
-                          delete next.state;
-                          return next;
-                        });
+                <div ref={stateContainerRef} className="relative mt-1.5">
+                  <input
+                    type="text"
+                    value={value.state || ''}
+                    onFocus={() => setStateDropdownOpen(true)}
+                    onChange={e => {
+                      const val = e.target.value.replace(/[^A-Za-z\s.\-']/g, '');
+                      onChange('state', val);
+                      setStateDropdownOpen(true);
+                      if (val.trim()) {
+                        const res = validateStateName(val);
+                        if (!res.isValid && res.error) {
+                          setLocalErrors(prev => ({ ...prev, state: res.error! }));
+                        } else {
+                          setLocalErrors(prev => {
+                            const next = { ...prev };
+                            delete next.state;
+                            return next;
+                          });
+                        }
                       }
-                    }
-                  }}
-                  onBlur={() => {
-                    if (value.state?.trim()) {
-                      const res = validateStateName(value.state);
-                      if (!res.isValid && res.error) {
-                        setLocalErrors(prev => ({ ...prev, state: res.error! }));
+                    }}
+                    onBlur={() => {
+                      if (value.state?.trim()) {
+                        const res = validateStateName(value.state);
+                        if (!res.isValid && res.error) {
+                          setLocalErrors(prev => ({ ...prev, state: res.error! }));
+                        }
                       }
-                    }
-                  }}
-                  className={fieldClass}
-                  placeholder="e.g. Telangana, Andhra Pradesh"
-                />
-                <datalist id="indian-states-list">
-                  {VALID_INDIAN_STATES.map(st => (
-                    <option key={st} value={st} />
-                  ))}
-                </datalist>
+                    }}
+                    className={`w-full rounded-xl border bg-white dark:bg-slate-950 pl-3.5 pr-9 py-2 text-xs outline-none transition font-medium ${
+                      errors.state
+                        ? 'border-rose-500 text-rose-700 dark:text-rose-400 focus:border-rose-500 focus:ring-1 focus:ring-rose-500'
+                        : 'border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white focus:border-brand-500'
+                    }`}
+                    placeholder="e.g. Telangana, Andhra Pradesh"
+                    autoComplete="off"
+                  />
+                  <button
+                    type="button"
+                    tabIndex={-1}
+                    onClick={() => setStateDropdownOpen(prev => !prev)}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors"
+                  >
+                    <ChevronDown className={`w-4 h-4 transition-transform ${stateDropdownOpen ? 'rotate-180 text-brand-600' : ''}`} />
+                  </button>
+
+                  {stateDropdownOpen && (
+                    <div className="absolute z-50 left-0 right-0 top-full mt-1 max-h-48 overflow-y-auto rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 p-1 shadow-xl custom-scrollbar animate-in fade-in duration-100">
+                      {filteredStates.length > 0 ? (
+                        filteredStates.map(st => {
+                          const isSelected = value.state?.trim().toLowerCase() === st.toLowerCase();
+                          return (
+                            <button
+                              key={st}
+                              type="button"
+                              onMouseDown={e => {
+                                e.preventDefault();
+                                handleSelectState(st);
+                              }}
+                              className={`w-full flex items-center justify-between px-3 py-1.5 rounded-lg text-xs font-semibold text-left transition-colors ${
+                                isSelected
+                                  ? 'bg-brand-50 dark:bg-brand-950/60 text-brand-700 dark:text-brand-300 font-bold'
+                                  : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/70'
+                              }`}
+                            >
+                              <span className="truncate">{st}</span>
+                              {isSelected && <Check className="w-3.5 h-3.5 text-brand-600 shrink-0 ml-2" />}
+                            </button>
+                          );
+                        })
+                      ) : (
+                        <div className="px-3 py-2 text-xs text-slate-400 italic">
+                          No matching states found
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
                 {errors.state && <p className="mt-1 text-[11px] font-semibold text-rose-500">{errors.state}</p>}
               </div>
 
@@ -1281,42 +1503,85 @@ export const BasicStaffFormFields: React.FC<BasicStaffFormFieldsProps> = ({
                 <label className="text-xs font-bold text-slate-700 dark:text-slate-300">
                   City <span className="text-rose-500">*</span>
                 </label>
-                <input
-                  type="text"
-                  list="popular-cities-list"
-                  value={value.city || ''}
-                  onChange={e => {
-                    const val = e.target.value.replace(/[^A-Za-z\s.\-']/g, '');
-                    onChange('city', val);
-                    if (val.trim()) {
-                      const res = validateCityName(val);
-                      if (!res.isValid && res.error) {
-                        setLocalErrors(prev => ({ ...prev, city: res.error! }));
-                      } else {
-                        setLocalErrors(prev => {
-                          const next = { ...prev };
-                          delete next.city;
-                          return next;
-                        });
+                <div ref={cityContainerRef} className="relative mt-1.5">
+                  <input
+                    type="text"
+                    value={value.city || ''}
+                    onFocus={() => setCityDropdownOpen(true)}
+                    onChange={e => {
+                      const val = e.target.value.replace(/[^A-Za-z\s.\-']/g, '');
+                      onChange('city', val);
+                      setCityDropdownOpen(true);
+                      if (val.trim()) {
+                        const res = validateCityName(val);
+                        if (!res.isValid && res.error) {
+                          setLocalErrors(prev => ({ ...prev, city: res.error! }));
+                        } else {
+                          setLocalErrors(prev => {
+                            const next = { ...prev };
+                            delete next.city;
+                            return next;
+                          });
+                        }
                       }
-                    }
-                  }}
-                  onBlur={() => {
-                    if (value.city?.trim()) {
-                      const res = validateCityName(value.city);
-                      if (!res.isValid && res.error) {
-                        setLocalErrors(prev => ({ ...prev, city: res.error! }));
+                    }}
+                    onBlur={() => {
+                      if (value.city?.trim()) {
+                        const res = validateCityName(value.city);
+                        if (!res.isValid && res.error) {
+                          setLocalErrors(prev => ({ ...prev, city: res.error! }));
+                        }
                       }
-                    }
-                  }}
-                  className={fieldClass}
-                  placeholder="e.g. Hyderabad, Vijayawada"
-                />
-                <datalist id="popular-cities-list">
-                  {KNOWN_INDIAN_CITIES.map(ct => (
-                    <option key={ct} value={ct} />
-                  ))}
-                </datalist>
+                    }}
+                    className={`w-full rounded-xl border bg-white dark:bg-slate-950 pl-3.5 pr-9 py-2 text-xs outline-none transition font-medium ${
+                      errors.city
+                        ? 'border-rose-500 text-rose-700 dark:text-rose-400 focus:border-rose-500 focus:ring-1 focus:ring-rose-500'
+                        : 'border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white focus:border-brand-500'
+                    }`}
+                    placeholder="e.g. Hyderabad, Vijayawada"
+                    autoComplete="off"
+                  />
+                  <button
+                    type="button"
+                    tabIndex={-1}
+                    onClick={() => setCityDropdownOpen(prev => !prev)}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors"
+                  >
+                    <ChevronDown className={`w-4 h-4 transition-transform ${cityDropdownOpen ? 'rotate-180 text-brand-600' : ''}`} />
+                  </button>
+
+                  {cityDropdownOpen && (
+                    <div className="absolute z-50 left-0 right-0 top-full mt-1 max-h-48 overflow-y-auto rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 p-1 shadow-xl custom-scrollbar animate-in fade-in duration-100">
+                      {filteredCities.length > 0 ? (
+                        filteredCities.map(ct => {
+                          const isSelected = value.city?.trim().toLowerCase() === ct.toLowerCase();
+                          return (
+                            <button
+                              key={ct}
+                              type="button"
+                              onMouseDown={e => {
+                                e.preventDefault();
+                                handleSelectCity(ct);
+                              }}
+                              className={`w-full flex items-center justify-between px-3 py-1.5 rounded-lg text-xs font-semibold text-left transition-colors ${
+                                isSelected
+                                  ? 'bg-brand-50 dark:bg-brand-950/60 text-brand-700 dark:text-brand-300 font-bold'
+                                  : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/70'
+                              }`}
+                            >
+                              <span className="truncate">{ct}</span>
+                              {isSelected && <Check className="w-3.5 h-3.5 text-brand-600 shrink-0 ml-2" />}
+                            </button>
+                          );
+                        })
+                      ) : (
+                        <div className="px-3 py-2 text-xs text-slate-400 italic">
+                          No matching cities found
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
                 {errors.city && <p className="mt-1 text-[11px] font-semibold text-rose-500">{errors.city}</p>}
               </div>
 
@@ -1366,11 +1631,13 @@ export const BasicStaffFormFields: React.FC<BasicStaffFormFieldsProps> = ({
                   <select
                     value={value.country || ''}
                     onChange={e => onChange('country', e.target.value)}
-                    className="w-full rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 px-3.5 py-2 text-xs outline-none transition focus:border-brand-500 text-slate-900 dark:text-white font-medium appearance-none cursor-pointer pr-10"
+                    className={`w-full rounded-xl border bg-white dark:bg-slate-950 px-3.5 py-2 text-xs outline-none transition font-medium appearance-none cursor-pointer pr-10 ${
+                      !value.country ? 'text-slate-400 dark:text-slate-500' : 'text-slate-900 dark:text-white'
+                    } ${errors.country ? 'border-rose-500 text-rose-700' : 'border-slate-200 dark:border-slate-800 focus:border-brand-500'}`}
                   >
-                    <option value="">Select Country</option>
+                    <option value="" disabled className="text-slate-400">Select Country</option>
                     {WORLD_COUNTRIES.map(c => (
-                      <option key={c} value={c}>{c}</option>
+                      <option key={c} value={c} className="text-slate-900 dark:text-white">{c}</option>
                     ))}
                   </select>
                   <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
@@ -1403,15 +1670,17 @@ export const BasicStaffFormFields: React.FC<BasicStaffFormFieldsProps> = ({
                   <select
                     value={value.branch || ''}
                     onChange={e => onChange('branch', e.target.value)}
-                    className="w-full rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 px-3.5 py-2 text-xs outline-none transition focus:border-brand-500 text-slate-900 dark:text-white font-medium appearance-none cursor-pointer pr-10"
+                    className={`w-full rounded-xl border bg-white dark:bg-slate-950 px-3.5 py-2 text-xs outline-none transition font-medium appearance-none cursor-pointer pr-10 ${
+                      !value.branch ? 'text-slate-400 dark:text-slate-500' : 'text-slate-900 dark:text-white'
+                    } ${errors.branch ? 'border-rose-500 text-rose-700' : 'border-slate-200 dark:border-slate-800 focus:border-brand-500'}`}
                   >
                     {branchList.length === 0 ? (
-                      <option value="">No Campuses Configured (Add in Settings)</option>
+                      <option value="" disabled className="text-slate-400">No Campuses Configured (Add in Settings)</option>
                     ) : (
                       <>
-                        {!value.branch && <option value="">Select Branch / Campus</option>}
+                        <option value="" disabled className="text-slate-400">Select Branch / Campus</option>
                         {branchList.map(branch => (
-                          <option key={branch} value={branch}>
+                          <option key={branch} value={branch} className="text-slate-900 dark:text-white">
                             {branch}
                           </option>
                         ))}
@@ -1565,7 +1834,7 @@ export const BasicStaffFormFields: React.FC<BasicStaffFormFieldsProps> = ({
               </div>
             )}
 
-            {normalizedCategory === 'Teaching Staff' && (
+            {value.employeeCategory === 'Teaching Staff' && (
               <div className="border-t border-slate-200/80 dark:border-slate-800 pt-3.5 mt-3 space-y-3">
                 <div className="flex items-center gap-2">
                   <GraduationCap className="w-4 h-4 text-brand-600 dark:text-brand-400" />

@@ -845,9 +845,9 @@ export interface BasicStaffFormState {
 }
 
 export const defaultBasicStaffFormState = (
-  category: string = "Teaching Staff",
+  category: string = "",
 ): BasicStaffFormState => ({
-  employeeCategory: normalizeStaffType(category),
+  employeeCategory: category ? normalizeStaffType(category) : "",
   empId: "",
   firstName: "",
   middleName: "",
@@ -869,7 +869,7 @@ export const defaultBasicStaffFormState = (
   city: "",
   state: "",
   pinCode: "",
-  country: "India",
+  country: "",
 
   branch: "",
   department: "",

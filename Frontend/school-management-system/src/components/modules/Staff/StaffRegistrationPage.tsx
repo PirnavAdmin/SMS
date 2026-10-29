@@ -13,26 +13,11 @@ import {
   normalizeStaffType
 } from './staffFlowOptions';
 import { BasicStaffFormFields } from './BasicStaffFormFields';
+import { validate10DigitPhone } from '../../../utils/validation';
 
 interface StaffRegistrationPageProps {
   onNavigate: (module: string) => void;
 }
-
-const getInitialCategory = (): string => {
-  try {
-    const globalVal = (window as any).staffRegistrationCategory;
-    if (globalVal) return normalizeStaffType(globalVal);
-  } catch {
-    // Ignore
-  }
-  try {
-    const saved = sessionStorage.getItem('staff-registration-category');
-    if (saved) return normalizeStaffType(saved);
-  } catch {
-    // Ignore storage access issues.
-  }
-  return 'Teaching Staff';
-};
 
 export const StaffRegistrationPage: React.FC<StaffRegistrationPageProps> = ({ onNavigate }) => {
   const { staff, addStaff, departments, designations, branches } = useData();
@@ -41,36 +26,44 @@ export const StaffRegistrationPage: React.FC<StaffRegistrationPageProps> = ({ on
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState(false);
 
-  const [form, setForm] = useState<BasicStaffFormState>(() => {
-    const initCat = getInitialCategory();
-    let initBranch = '';
+  // Clear any legacy session/window category storage on mount
+  useEffect(() => {
     try {
-      const storedB = sessionStorage.getItem('staff-registration-branch');
-      if (storedB) initBranch = storedB;
+      sessionStorage.removeItem('staff-registration-category');
     } catch {}
-    if (selectedBranch && selectedBranch !== 'All' && selectedBranch !== 'All Branches' && selectedBranch !== 'All Campuses') {
-      initBranch = selectedBranch;
-    } else if (!initBranch) {
-      initBranch = branches[0]?.name || '';
-    }
+    try {
+      delete (window as any).staffRegistrationCategory;
+    } catch {}
+  }, []);
+
+  const [form, setForm] = useState<BasicStaffFormState>(() => {
+    try {
+      sessionStorage.removeItem('staff-registration-category');
+    } catch {}
+    try {
+      delete (window as any).staffRegistrationCategory;
+    } catch {}
+
     return {
-      ...defaultBasicStaffFormState(initCat),
-      branch: initBranch,
-      empId: getNextEmployeeId(staff, initCat)
+      ...defaultBasicStaffFormState(''),
+      employeeCategory: '',
+      branch: '',
+      empId: ''
     };
   });
 
   useEffect(() => {
-    const initCat = getInitialCategory();
+    if (!form.employeeCategory) return;
     setForm(prev => {
+      if (!prev.employeeCategory) return prev;
       const trimmed = (prev.empId || '').toLowerCase().trim();
       const isColliding = trimmed && staff.some(s => String(s.empId || (s as any).employeeId || '').toLowerCase().trim() === trimmed);
       if (!prev.empId || isColliding) {
-        return { ...prev, empId: getNextEmployeeId(staff, initCat) };
+        return { ...prev, empId: getNextEmployeeId(staff, prev.employeeCategory) };
       }
       return prev;
     });
-  }, [staff]);
+  }, [staff, form.employeeCategory]);
 
   const handleChange = (field: keyof BasicStaffFormState, value: any) => {
     setForm(prev => ({ ...prev, [field]: value }));
@@ -88,7 +81,7 @@ export const StaffRegistrationPage: React.FC<StaffRegistrationPageProps> = ({ on
       employeeCategory: value,
       department: '',
       designation: '',
-      empId: getNextEmployeeId(staff, value)
+      empId: value ? getNextEmployeeId(staff, value) : ''
     }));
   };
 
@@ -106,9 +99,36 @@ export const StaffRegistrationPage: React.FC<StaffRegistrationPageProps> = ({ on
     require('bloodGroup', !!form.bloodGroup, 'Blood Group is required.');
     require('mobileNumber', !!form.mobileNumber.trim(), 'Mobile Number is required.');
     if (form.mobileNumber.trim()) {
-      const localPart = form.mobileNumber.split('-').pop() || '';
-      if (!/^\d{10}$/.test(localPart.replace(/[^\d]/g, ''))) {
-        nextErrors.mobileNumber = 'Mobile number must be exactly 10 digits.';
+      const parts = form.mobileNumber.split('-');
+      const cc = parts.length > 1 ? parts[0] : '+91';
+      const localPart = (parts.length > 1 ? parts.slice(1).join('') : parts[0]).replace(/\D/g, '');
+      if (cc === '+91') {
+        const phoneRes = validate10DigitPhone(localPart);
+        if (!phoneRes.isValid && phoneRes.error) {
+          nextErrors.mobileNumber = phoneRes.error;
+        }
+      } else {
+        if (localPart.length < 6 || localPart.length > 15) {
+          nextErrors.mobileNumber = 'Enter a valid mobile number (6 to 15 digits).';
+        }
+      }
+    }
+
+    if (form.alternateMobileNumber?.trim()) {
+      const parts = form.alternateMobileNumber.split('-');
+      const cc = parts.length > 1 ? parts[0] : '+91';
+      const localPart = (parts.length > 1 ? parts.slice(1).join('') : parts[0]).replace(/\D/g, '');
+      if (localPart) {
+        if (cc === '+91') {
+          const phoneRes = validate10DigitPhone(localPart);
+          if (!phoneRes.isValid && phoneRes.error) {
+            nextErrors.alternateMobileNumber = phoneRes.error;
+          }
+        } else {
+          if (localPart.length < 6 || localPart.length > 15) {
+            nextErrors.alternateMobileNumber = 'Enter a valid alternate mobile number (6 to 15 digits).';
+          }
+        }
       }
     }
     require('branch', !!form.branch.trim(), 'Branch is required.');

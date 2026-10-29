@@ -191,12 +191,12 @@ export const StaffList: React.FC<{
 
   const openStaffRegistration = () => {
     try {
-      sessionStorage.setItem("staff-registration-category", activeCategory);
+      sessionStorage.removeItem("staff-registration-category");
     } catch {
       // Ignore storage failures and keep navigation working.
     }
     try {
-      (window as any).staffRegistrationCategory = activeCategory;
+      delete (window as any).staffRegistrationCategory;
     } catch {
       // Ignore
     }
@@ -1147,7 +1147,7 @@ export const StaffList: React.FC<{
         isOpen={isAddOpen}
         onClose={() => setIsAddOpen(false)}
         staffToEdit={staffToEdit}
-        defaultCategory={activeCategory}
+        defaultCategory=""
       />
 
       <StaffProfileDrawer

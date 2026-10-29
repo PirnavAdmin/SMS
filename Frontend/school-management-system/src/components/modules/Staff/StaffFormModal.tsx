@@ -29,17 +29,18 @@ export const StaffFormModal: React.FC<StaffFormModalProps> = ({
   isOpen,
   onClose,
   staffToEdit,
-  defaultCategory = "Teaching Staff",
+  defaultCategory = "",
 }) => {
   const { staff, addStaff, updateStaff, departments, designations } = useData();
   const { selectedBranch } = useAuth();
   const { addToast } = useToast();
 
   const [form, setForm] = useState<BasicStaffFormState>(() => {
-    const initBranch = (selectedBranch && selectedBranch !== 'All' && selectedBranch !== 'All Branches' && selectedBranch !== 'All Campuses') ? selectedBranch : '';
+    const initialCategory = staffToEdit ? normalizeStaffType(staffToEdit.employeeCategory) : "";
     return {
-      ...defaultBasicStaffFormState(defaultCategory),
-      branch: initBranch,
+      ...defaultBasicStaffFormState(initialCategory),
+      branch: staffToEdit ? (staffToEdit.branch || "") : "",
+      empId: staffToEdit ? (staffToEdit.empId || "") : "",
     };
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -80,7 +81,7 @@ export const StaffFormModal: React.FC<StaffFormModalProps> = ({
         city: staffToEdit.city || "",
         state: staffToEdit.state || "",
         pinCode: staffToEdit.pinCode || "",
-        country: staffToEdit.country || "India",
+        country: staffToEdit.country || "",
         branch: staffToEdit.branch || "",
         department: staffToEdit.department || "",
         designation: staffToEdit.designation || "",
@@ -121,11 +122,10 @@ export const StaffFormModal: React.FC<StaffFormModalProps> = ({
         })),
       });
     } else {
-      const initBranch = (selectedBranch && selectedBranch !== 'All' && selectedBranch !== 'All Branches' && selectedBranch !== 'All Campuses') ? selectedBranch : '';
       setForm({
-        ...defaultBasicStaffFormState(defaultCategory),
-        branch: initBranch,
-        empId: getNextEmployeeId(staff, defaultCategory),
+        ...defaultBasicStaffFormState(""),
+        branch: "",
+        empId: "",
       });
     }
 
@@ -148,7 +148,7 @@ export const StaffFormModal: React.FC<StaffFormModalProps> = ({
       employeeCategory: value,
       department: "",
       designation: "",
-      empId: staffToEdit ? prev.empId : getNextEmployeeId(staff, value),
+      empId: staffToEdit ? prev.empId : (value ? getNextEmployeeId(staff, value) : ""),
     }));
   };
 
@@ -166,10 +166,36 @@ export const StaffFormModal: React.FC<StaffFormModalProps> = ({
     require("bloodGroup", !!form.bloodGroup, "Blood Group is required.");
     require("mobileNumber", !!form.mobileNumber.trim(), "Mobile number is required.");
     if (form.mobileNumber.trim()) {
-      const localPart = form.mobileNumber.split("-").pop() || "";
-      const phoneRes = validate10DigitPhone(localPart.replace(/[^\d]/g, ""));
-      if (!phoneRes.isValid && phoneRes.error) {
-        nextErrors.mobileNumber = phoneRes.error;
+      const parts = form.mobileNumber.split("-");
+      const cc = parts.length > 1 ? parts[0] : "+91";
+      const localPart = (parts.length > 1 ? parts.slice(1).join("") : parts[0]).replace(/\D/g, "");
+      if (cc === "+91") {
+        const phoneRes = validate10DigitPhone(localPart);
+        if (!phoneRes.isValid && phoneRes.error) {
+          nextErrors.mobileNumber = phoneRes.error;
+        }
+      } else {
+        if (localPart.length < 6 || localPart.length > 15) {
+          nextErrors.mobileNumber = "Enter a valid mobile number (6 to 15 digits).";
+        }
+      }
+    }
+
+    if (form.alternateMobileNumber?.trim()) {
+      const parts = form.alternateMobileNumber.split("-");
+      const cc = parts.length > 1 ? parts[0] : "+91";
+      const localPart = (parts.length > 1 ? parts.slice(1).join("") : parts[0]).replace(/\D/g, "");
+      if (localPart) {
+        if (cc === "+91") {
+          const phoneRes = validate10DigitPhone(localPart);
+          if (!phoneRes.isValid && phoneRes.error) {
+            nextErrors.alternateMobileNumber = phoneRes.error;
+          }
+        } else {
+          if (localPart.length < 6 || localPart.length > 15) {
+            nextErrors.alternateMobileNumber = "Enter a valid alternate mobile number (6 to 15 digits).";
+          }
+        }
       }
     }
     require("branch", !!form.branch.trim(), "Branch is required.");

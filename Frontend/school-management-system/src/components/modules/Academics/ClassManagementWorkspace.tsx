@@ -436,13 +436,13 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
   const [sectionForm, setSectionForm] = useState<{
     name: string;
     capacity: string | number;
-    status: 'Active' | 'Inactive' | 'Archived';
+    status: 'Active' | 'Inactive' | 'Archived' | '';
     remarks: string;
     roomNo: string;
   }>({
     name: 'A',
     capacity: '',
-    status: 'Active',
+    status: '',
     remarks: '',
     roomNo: ''
   });
@@ -1037,7 +1037,7 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
     setSectionForm({
       name: nextLetter,
       capacity: '',
-      status: 'Active',
+      status: '',
       remarks: '',
       roomNo: ''
     });
@@ -1069,6 +1069,11 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
 
     if (!sectionForm.capacity || isNaN(capacityNum) || capacityNum <= 0) {
       addToast('warning', 'Invalid Capacity', 'Please enter a valid seat capacity.');
+      return;
+    }
+
+    if (!status) {
+      addToast('warning', 'Status Required', 'Please select a status for the section.');
       return;
     }
     const capacity = capacityNum;
@@ -4028,15 +4033,24 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
 
 
               <div>
-                <label className="block text-slate-700 mb-1">Status</label>
-                <select
-                  value={sectionForm.status}
-                  onChange={e => setSectionForm({ ...sectionForm, status: e.target.value as any })}
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 outline-none"
-                >
-                  <option value="Active">Active</option>
-                  <option value="Inactive">Inactive</option>
-                </select>
+                <label className="block text-slate-700 dark:text-slate-300 font-bold mb-1">
+                  Status <span className="text-rose-500 font-bold ml-0.5">*</span>
+                </label>
+                <div className="relative">
+                  <select
+                    required
+                    value={sectionForm.status}
+                    onChange={e => setSectionForm({ ...sectionForm, status: e.target.value as any })}
+                    className={`w-full appearance-none px-3.5 pr-10 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 outline-none font-bold text-xs cursor-pointer focus:border-sky-500 transition-colors ${
+                      !sectionForm.status ? 'text-slate-400 dark:text-slate-500 font-medium' : 'text-slate-900 dark:text-white'
+                    }`}
+                  >
+                    <option value="" disabled className="text-slate-400">Select Status</option>
+                    <option value="Active" className="text-slate-900 dark:text-white">Active</option>
+                    <option value="Inactive" className="text-slate-900 dark:text-white">Inactive</option>
+                  </select>
+                  <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                </div>
               </div>
 
               <div className="flex justify-end gap-3 pt-3 border-t border-slate-100 dark:border-slate-808">
