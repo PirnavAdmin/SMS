@@ -63,6 +63,7 @@ namespace SMS.Api.Repositories.Implementations.Settings
             if (settings.PrincipalName != null) existing.PrincipalName = settings.PrincipalName;
             if (settings.LogoUrl != null) existing.LogoUrl = settings.LogoUrl;
             if (!string.IsNullOrWhiteSpace(settings.LogoFormat)) existing.LogoFormat = settings.LogoFormat;
+            if (settings.BoardType != null) existing.BoardType = settings.BoardType;
             if (settings.CampusesJson != null) existing.CampusesJson = settings.CampusesJson;
             if (settings.CertificateTemplatesJson != null) existing.CertificateTemplatesJson = settings.CertificateTemplatesJson;
             if (settings.IdSequenceSettingsJson != null) existing.IdSequenceSettingsJson = settings.IdSequenceSettingsJson;

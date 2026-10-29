@@ -575,6 +575,16 @@ using (var scope = app.Services.CreateScope())
                         System.Console.WriteLine("[Database Schema Upgrade] Added column `IdSequenceSettingsJson` to `SchoolSettings`.");
                     }
 
+                    // Upgrade SchoolSettings table to add BoardType column if not exists
+                    cmd.CommandText = $"SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = '{dbName}' AND TABLE_NAME = 'SchoolSettings' AND COLUMN_NAME = 'BoardType';";
+                    var boardTypeExists = System.Convert.ToInt32(cmd.ExecuteScalar());
+                    if (boardTypeExists == 0)
+                    {
+                        cmd.CommandText = "ALTER TABLE `SchoolSettings` ADD COLUMN `BoardType` varchar(100) NULL;";
+                        cmd.ExecuteNonQuery();
+                        System.Console.WriteLine("[Database Schema Upgrade] Added column `BoardType` to `SchoolSettings`.");
+                    }
+
                     // Upgrade SchoolSettings table to add UserProfileJson column if not exists
                     cmd.CommandText = $"SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = '{dbName}' AND TABLE_NAME = 'SchoolSettings' AND COLUMN_NAME = 'UserProfileJson';";
                     var userProfExists = System.Convert.ToInt32(cmd.ExecuteScalar());

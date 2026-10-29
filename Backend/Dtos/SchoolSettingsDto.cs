@@ -58,6 +58,9 @@ namespace SMS.Api.Dtos
         [JsonPropertyName("certificateTemplates")]
         public object? CertificateTemplates { get; set; }
 
+        [JsonPropertyName("boardType")]
+        public string? BoardType { get; set; }
+
         [JsonPropertyName("idSequences")]
         public object? IdSequences { get; set; }
     }

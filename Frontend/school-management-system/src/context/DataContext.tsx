@@ -1559,10 +1559,14 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       localStorage.getItem("school_logo") ??
       localStorage.getItem("logoUrl") ??
       localStorage.getItem("schoolLogo");
-    if (storedLogo !== null) {
-      return { ...profile, logoUrl: storedLogo };
+    const base = { ...profile };
+    if (base.boardType === "CBSE" && !localStorage.getItem("edu_db_profile_board_saved")) {
+      base.boardType = "";
     }
-    return profile;
+    if (storedLogo !== null) {
+      return { ...base, logoUrl: storedLogo };
+    }
+    return base;
   });
   const [academicYears, setAcademicYears] = useState<AcademicYearMaster[]>([]);
   const [branches, setBranches] = useState<any[]>([]);
@@ -6898,6 +6902,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       } catch (e) {}
 
       // Asynchronously persist to database table
+      if (next.boardType) { try { localStorage.setItem("edu_db_profile_board_saved", "true"); } catch(e){} }
       updateSchoolSettingsApi({
         schoolName: next.name,
         tagline: next.tagline,
@@ -6907,6 +6912,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         website: next.website,
         principalName: next.principalName,
         logoUrl: next.logoUrl || "",
+        boardType: next.boardType ?? "",
       }).catch((err) => {
         console.warn("Failed to save school settings to backend API:", err);
       });
@@ -7080,6 +7086,10 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
                 ? data.principalName
                 : currentProfile.principalName ||
                   initialSchoolProfile.principalName,
+            boardType:
+              data.boardType !== undefined && data.boardType !== null
+                ? data.boardType
+                : "",
             logoUrl: effectiveLogo,
           };
           try {

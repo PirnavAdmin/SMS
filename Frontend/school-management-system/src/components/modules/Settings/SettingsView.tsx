@@ -758,7 +758,7 @@ export const SettingsView: React.FC = () => {
   const [editingCampus, setEditingCampus] = useState<CampusItem | null>(null);
   const [deletingCampus, setDeletingCampus] = useState<CampusItem | null>(null);
   const [campusErrors, setCampusErrors] = useState<{ name?: string; code?: string; address?: string; phone?: string; email?: string; status?: string }>({});
-  const [schoolProfileErrors, setSchoolProfileErrors] = useState<{ name?: string; email?: string; principalName?: string }>({});
+  const [schoolProfileErrors, setSchoolProfileErrors] = useState<{ name?: string; email?: string; principalName?: string; boardType?: string }>({});
   const [isCodeManuallyEdited, setIsCodeManuallyEdited] = useState(false);
 
   const generateCampusCode = (name: string): string => {
@@ -888,6 +888,12 @@ export const SettingsView: React.FC = () => {
     if (!pNameRes.isValid) {
       setSchoolProfileErrors((prev) => ({ ...prev, principalName: pNameRes.error }));
       addToast("error", "Invalid Principal Name", pNameRes.error || "Enter a valid principal name.");
+      return;
+    }
+
+    if (!profileForm.boardType || !profileForm.boardType.trim()) {
+      setSchoolProfileErrors((prev) => ({ ...prev, boardType: "Educational board is required." }));
+      addToast("error", "Educational Board Required", "Please select an educational board.");
       return;
     }
 
@@ -2020,19 +2026,32 @@ export const SettingsView: React.FC = () => {
                   </label>
                   <select
                     value={profileForm.boardType || ""}
-                    onChange={(e) =>
-                      setProfileForm({ ...profileForm, boardType: e.target.value })
-                    }
-                    className="w-full px-3 py-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 font-bold text-slate-900 dark:text-white"
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setProfileForm({ ...profileForm, boardType: val });
+                      if (val) {
+                        setSchoolProfileErrors((prev) => ({ ...prev, boardType: undefined }));
+                      }
+                    }}
+                    className={`w-full px-3 py-2 rounded-xl font-bold transition border ${
+                      schoolProfileErrors.boardType
+                        ? "border-rose-500 focus:border-rose-500 focus:ring-rose-500/20 bg-rose-50/20 text-slate-900 dark:text-white"
+                        : "bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white"
+                    } ${!profileForm.boardType ? "text-slate-400 dark:text-slate-500" : ""}`}
                   >
-                    <option value="" disabled>Select Educational Board</option>
-                    <option value="CBSE">CBSE (Central Board of Secondary Education)</option>
-                    <option value="ICSE">ICSE / CISCE Board</option>
-                    <option value="State Board (SSC)">State Board (SSC / Matriculation)</option>
-                    <option value="IB">IB (International Baccalaureate)</option>
-                    <option value="IGCSE">IGCSE / Cambridge International</option>
-                    <option value="Other Board">Other / Recognized Board</option>
+                    <option value="" disabled className="text-slate-400 dark:text-slate-500">Select Educational Board</option>
+                    <option value="CBSE" className="text-slate-900 dark:text-white">CBSE (Central Board of Secondary Education)</option>
+                    <option value="ICSE" className="text-slate-900 dark:text-white">ICSE / CISCE Board</option>
+                    <option value="State Board (SSC)" className="text-slate-900 dark:text-white">State Board (SSC / Matriculation)</option>
+                    <option value="IB" className="text-slate-900 dark:text-white">IB (International Baccalaureate)</option>
+                    <option value="IGCSE" className="text-slate-900 dark:text-white">IGCSE / Cambridge International</option>
+                    <option value="Other Board" className="text-slate-900 dark:text-white">Other / Recognized Board</option>
                   </select>
+                  {schoolProfileErrors.boardType && (
+                    <p className="mt-1 text-xs font-bold text-rose-500 flex items-center gap-1">
+                      <span>⚠️</span> {schoolProfileErrors.boardType}
+                    </p>
+                  )}
                 </div>
 
                 <div>

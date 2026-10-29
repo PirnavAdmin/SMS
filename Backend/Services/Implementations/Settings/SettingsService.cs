@@ -62,6 +62,7 @@ namespace SMS.Api.Services.Implementations.Settings
                 PrincipalName = s.PrincipalName,
                 LogoUrl = s.LogoUrl ?? string.Empty,
                 LogoFormat = s.LogoFormat,
+                BoardType = s.BoardType,
                 Campuses = campuses,
                 CertificateTemplates = certificateTemplates,
                 IdSequences = idSequences
@@ -81,6 +82,7 @@ namespace SMS.Api.Services.Implementations.Settings
                 PrincipalName = dto.PrincipalName,
                 LogoUrl = dto.LogoUrl ?? string.Empty,
                 LogoFormat = dto.LogoFormat,
+                BoardType = dto.BoardType,
                 CampusesJson = dto.Campuses != null ? JsonSerializer.Serialize(dto.Campuses) : "[]",
                 CertificateTemplatesJson = dto.CertificateTemplates != null ? JsonSerializer.Serialize(dto.CertificateTemplates) : "[]",
                 IdSequenceSettingsJson = dto.IdSequences != null ? JsonSerializer.Serialize(dto.IdSequences) : null

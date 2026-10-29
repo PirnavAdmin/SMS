@@ -31,7 +31,7 @@ export const initialSchoolProfile: SchoolProfile = {
   staffCheckOutTime: "05:00 PM",
   schoolStartTime: "08:30 AM",
   schoolEndTime: "03:30 PM",
-  boardType: "CBSE",
+  boardType: "",
   staffLoginAllowWindow: true,
   staffGracePeriodMinutes: 15
 };

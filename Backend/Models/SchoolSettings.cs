@@ -43,6 +43,9 @@ namespace SMS.Api.Models
 
         public string? UserProfileJson { get; set; } = null;
 
+        [MaxLength(100)]
+        public string? BoardType { get; set; } = null;
+
         public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
     }
 }
