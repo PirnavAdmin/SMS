@@ -44,7 +44,14 @@ export const uploadSchoolLogoFileApi = async (file: File) => {
     return await res.json();
   } catch (err) {
     const isTunnel = url.includes('ngrok') || url.includes('trycloudflare') || url.includes('cloudflare');
-    if (isTunnel && (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'))) {
+    if (isTunnel && (typeof window !== 'undefined' && (
+      window.location.hostname === 'localhost' ||
+      window.location.hostname === '127.0.0.1' ||
+      window.location.hostname.startsWith('192.168.') ||
+      window.location.hostname.startsWith('10.') ||
+      window.location.hostname.startsWith('172.') ||
+      window.location.hostname.endsWith('.local')
+    ))) {
       const localHost = window.location.hostname === '127.0.0.1' ? '127.0.0.1:5151' : 'localhost:5151';
       const fallbackUrl = `http://${localHost}/api/Settings/logo/upload`;
       const fallbackRes = await fetch(fallbackUrl, {

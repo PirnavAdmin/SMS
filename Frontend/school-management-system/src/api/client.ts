@@ -47,10 +47,17 @@ export const apiClient = async (endpoint: string, options: RequestInit = {}) => 
   const baseUrl = rawBase.trim().replace(/\/+$/, '');
   const cleanEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
 
-  const isLocalHost = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+  const isLocalHost = typeof window !== 'undefined' && (
+    window.location.hostname === 'localhost' ||
+    window.location.hostname === '127.0.0.1' ||
+    window.location.hostname.startsWith('192.168.') ||
+    window.location.hostname.startsWith('10.') ||
+    window.location.hostname.startsWith('172.') ||
+    window.location.hostname.endsWith('.local')
+  );
 
   // Primary URL is always based on the configured VITE_API_URL
-  let primaryUrl = endpoint.startsWith('http') ? endpoint : (baseUrl ? `${baseUrl}${cleanEndpoint}` : cleanEndpoint);
+  let primaryUrl = endpoint.startsWith('http') ? endpoint : ((baseUrl && !isLocalHost) ? `${baseUrl}${cleanEndpoint}` : cleanEndpoint);
   let fallbackUrl = '';
   const isTunnel = baseUrl.includes('ngrok') || baseUrl.includes('trycloudflare') || baseUrl.includes('cloudflare');
 
@@ -59,7 +66,9 @@ export const apiClient = async (endpoint: string, options: RequestInit = {}) => 
     primaryUrl = endpoint;
   } else if (isLocalHost) {
     primaryUrl = cleanEndpoint;
-    const localHost = window.location.hostname === '127.0.0.1' ? '127.0.0.1:5151' : 'localhost:5151';
+    const localHost = (window.location.hostname === '127.0.0.1' || window.location.hostname === 'localhost')
+      ? (window.location.hostname === '127.0.0.1' ? '127.0.0.1:5151' : 'localhost:5151')
+      : `${window.location.hostname}:5151`;
     fallbackUrl = `http://${localHost}${cleanEndpoint}`;
   } else if (baseUrl) {
     primaryUrl = `${baseUrl}${cleanEndpoint}`;
