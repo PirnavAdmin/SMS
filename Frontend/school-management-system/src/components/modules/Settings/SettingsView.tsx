@@ -568,14 +568,41 @@ export const SettingsView: React.FC = () => {
       try {
         const res = await fetchIdSequenceSettingsApi();
         if (res && res.success && res.data && isMounted) {
+          const apiData = res.data;
+          const normalized = {
+            ...apiData,
+            studentIdPrefix: apiData.studentIdPrefix || "",
+            studentIdStartNo: apiData.studentIdStartNo ? apiData.studentIdStartNo : "",
+            studentIdPadding: apiData.studentIdPadding ? apiData.studentIdPadding : "",
+            studentIdPosition: apiData.studentIdPosition || "",
+            studentIdSeparator: apiData.studentIdSeparator || "",
+
+            teachingIdPrefix: apiData.teachingIdPrefix || "",
+            teachingIdStartNo: apiData.teachingIdStartNo ? apiData.teachingIdStartNo : "",
+            teachingIdPadding: apiData.teachingIdPadding ? apiData.teachingIdPadding : "",
+            teachingIdPosition: apiData.teachingIdPosition || "",
+            teachingIdSeparator: apiData.teachingIdSeparator || "",
+
+            nonTeachingIdPrefix: apiData.nonTeachingIdPrefix || "",
+            nonTeachingIdStartNo: apiData.nonTeachingIdStartNo ? apiData.nonTeachingIdStartNo : "",
+            nonTeachingIdPadding: apiData.nonTeachingIdPadding ? apiData.nonTeachingIdPadding : "",
+            nonTeachingIdPosition: apiData.nonTeachingIdPosition || "",
+            nonTeachingIdSeparator: apiData.nonTeachingIdSeparator || "",
+
+            admissionNoPrefix: apiData.admissionNoPrefix || "",
+            admissionNoStartNo: apiData.admissionNoStartNo ? apiData.admissionNoStartNo : "",
+            admissionNoPadding: apiData.admissionNoPadding ? apiData.admissionNoPadding : "",
+            admissionNoPosition: apiData.admissionNoPosition || "",
+            admissionNoSeparator: apiData.admissionNoSeparator || "",
+          };
           setIdForm(prev => {
-            const merged = { ...prev, ...res.data };
+            const merged = { ...prev, ...normalized };
             saveIdSequenceSettings(merged);
             return merged;
           });
         }
       } catch (err) {
-        console.warn("Could not fetch remote ID sequence settings:", err);
+        console.warn("Could not fetch remote ID sequence settings from API:", err);
       }
     };
     loadIdSequenceSettings();
@@ -757,14 +784,14 @@ export const SettingsView: React.FC = () => {
     }
 
     if (!profileForm.email || !profileForm.email.trim()) {
-      setSchoolProfileErrors((prev) => ({ ...prev, email: "Contact email is required." }));
-      addToast("error", "Contact Email Required", "Please enter the contact email address.");
+      setSchoolProfileErrors((prev) => ({ ...prev, email: "Please enter a valid email address." }));
+      addToast("error", "Invalid Email", "Please enter a valid email address.");
       return;
     }
     const emailRes = validateEmail(profileForm.email, true);
     if (!emailRes.isValid) {
-      setSchoolProfileErrors((prev) => ({ ...prev, email: emailRes.error }));
-      addToast("error", "Invalid Email", emailRes.error || "Enter a valid email address.");
+      setSchoolProfileErrors((prev) => ({ ...prev, email: emailRes.error || "Please enter a valid email address." }));
+      addToast("error", "Invalid Email", emailRes.error || "Please enter a valid email address.");
       return;
     }
 
@@ -1476,7 +1503,7 @@ export const SettingsView: React.FC = () => {
                           : "bg-slate-50 dark:bg-slate-800/80 border-slate-200 dark:border-slate-700 cursor-pointer"
                       }`}
                     >
-                      <option value="">Select Campus</option>
+                      <option value="" disabled>Select Campus</option>
                       {configuredBranches.map((bName: string) => (
                         <option key={bName} value={bName}>
                           {bName}
@@ -1769,6 +1796,10 @@ export const SettingsView: React.FC = () => {
                     const res = validateEmail(sanitized, true);
                     setSchoolProfileErrors((prev) => ({ ...prev, email: sanitized ? res.error : undefined }));
                   }}
+                  onBlur={() => {
+                    const res = validateEmail(profileForm.email, true);
+                    setSchoolProfileErrors((prev) => ({ ...prev, email: res.error }));
+                  }}
                   className={`w-full px-3 py-2 rounded-xl border transition ${
                     schoolProfileErrors.email
                       ? "border-rose-500 focus:border-rose-500 focus:ring-rose-500/20 bg-rose-50/20"
@@ -1841,12 +1872,13 @@ export const SettingsView: React.FC = () => {
                     Educational Board <span className="text-rose-500">*</span>
                   </label>
                   <select
-                    value={profileForm.boardType || "CBSE"}
+                    value={profileForm.boardType || ""}
                     onChange={(e) =>
                       setProfileForm({ ...profileForm, boardType: e.target.value })
                     }
                     className="w-full px-3 py-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 font-bold text-slate-900 dark:text-white"
                   >
+                    <option value="" disabled>Select Educational Board</option>
                     <option value="CBSE">CBSE (Central Board of Secondary Education)</option>
                     <option value="ICSE">ICSE / CISCE Board</option>
                     <option value="State Board (SSC)">State Board (SSC / Matriculation)</option>
@@ -1935,15 +1967,16 @@ export const SettingsView: React.FC = () => {
                     Late Grace Buffer <span className="text-rose-500">*</span>
                   </label>
                   <select
-                    value={profileForm.staffGracePeriodMinutes || 15}
+                    value={profileForm.staffGracePeriodMinutes ?? ""}
                     onChange={(e) =>
                       setProfileForm({
                         ...profileForm,
-                        staffGracePeriodMinutes: parseInt(e.target.value, 10) || 15,
+                        staffGracePeriodMinutes: e.target.value ? parseInt(e.target.value, 10) : ("" as any),
                       })
                     }
                     className="w-full px-3 py-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 font-bold text-amber-700 dark:text-amber-300"
                   >
+                    <option value="" disabled>Select Grace Buffer</option>
                     <option value={5}>5 Mins (Strict)</option>
                     <option value={10}>10 Mins Grace</option>
                     <option value={15}>15 Mins Grace (Default)</option>
@@ -2107,7 +2140,7 @@ export const SettingsView: React.FC = () => {
               >
                 <div className="flex items-center justify-between">
                   <span className="font-mono font-bold text-[10px] text-sky-600 bg-sky-50 dark:bg-sky-950 px-2 py-0.5 rounded-md">
-                    {formatAcademicYear(ay.academicYear)}
+                    {formatAcademicYear(ay.academicYear) || ay.academicYear || (ay as any).academicYearName || '—'}
                   </span>
                   <span
                     className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase border ${
@@ -2212,10 +2245,19 @@ export const SettingsView: React.FC = () => {
             <div className="flex items-center gap-2.5 shrink-0">
               <button
                 type="button"
-                onClick={() => {
-                  saveIdSequenceSettings(idForm);
-                  updateIdSequenceSettingsApi(idForm).catch(() => {});
-                  addToast("success", "Automated Settings Saved", "All ID sequence formatting rules updated successfully.");
+                onClick={async () => {
+                  try {
+                    saveIdSequenceSettings(idForm);
+                    const res = await updateIdSequenceSettingsApi(idForm);
+                    if (res && (res.success || res.data)) {
+                      addToast("success", "Automated Settings Saved", "All ID sequence formatting rules synced successfully to database.");
+                    } else {
+                      addToast("success", "Automated Settings Saved", "All ID sequence formatting rules updated.");
+                    }
+                  } catch (err) {
+                    console.warn("Error saving ID sequence settings to backend API:", err);
+                    addToast("error", "Sync Warning", "Could not sync ID sequence settings to backend API.");
+                  }
                 }}
                 className="px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs shadow-md flex items-center gap-1.5 transition cursor-pointer"
               >
@@ -2247,7 +2289,7 @@ export const SettingsView: React.FC = () => {
               <div className="py-4 px-4 rounded-xl bg-slate-950 text-center shadow-inner space-y-1 border border-slate-800/80 group-hover:border-sky-500/40 transition-colors duration-200">
                 <p className="text-[10px] uppercase tracking-widest font-extrabold text-slate-400">LIVE PREVIEW</p>
                 <p className="font-mono text-lg font-black text-sky-400 tracking-wider">
-                  {buildPreviewId(idForm.studentIdPrefix, idForm.studentIdStartNo, idForm.studentIdPadding, idForm.studentIdIncludeYear, idForm.studentIdSeparator, idForm.studentIdPosition)}
+                  {buildPreviewId(idForm.studentIdPrefix, idForm.studentIdStartNo, idForm.studentIdPadding, idForm.studentIdIncludeYear, idForm.studentIdSeparator, idForm.studentIdPosition, 'STU')}
                 </p>
               </div>
 
@@ -2258,9 +2300,10 @@ export const SettingsView: React.FC = () => {
                     <label className="block text-xs font-bold text-slate-600 dark:text-slate-300 mb-1.5">ID Prefix</label>
                     <input
                       type="text"
-                      value={idForm.studentIdPrefix}
+                      placeholder="e.g. STU"
+                      value={idForm.studentIdPrefix || ""}
                       onChange={e => {
-                        const next = { ...idForm, studentIdPrefix: e.target.value };
+                        const next = { ...idForm, studentIdPrefix: e.target.value.toUpperCase() };
                         setIdForm(next);
                         saveIdSequenceSettings(next);
                       }}
@@ -2270,7 +2313,7 @@ export const SettingsView: React.FC = () => {
                   <div>
                     <label className="block text-xs font-bold text-slate-600 dark:text-slate-300 mb-1.5">Tag Placement</label>
                     <select
-                      value={idForm.studentIdPosition}
+                      value={idForm.studentIdPosition || ""}
                       onChange={e => {
                         const next = { ...idForm, studentIdPosition: e.target.value as any };
                         setIdForm(next);
@@ -2278,6 +2321,7 @@ export const SettingsView: React.FC = () => {
                       }}
                       className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 font-semibold text-xs text-slate-900 dark:text-white focus:bg-white dark:focus:bg-slate-900 focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20 transition hover:border-slate-300 dark:hover:border-slate-600 cursor-pointer"
                     >
+                      <option value="" disabled>Select Tag Placement</option>
                       <option value="start">Start (Prefix - Year - Number)</option>
                       <option value="middle">Middle (Year - Prefix - Number)</option>
                       <option value="end">End (Year - Number - Prefix)</option>
@@ -2290,9 +2334,11 @@ export const SettingsView: React.FC = () => {
                     <label className="block text-xs font-bold text-slate-600 dark:text-slate-300 mb-1.5">Starting Number</label>
                     <input
                       type="number"
-                      value={idForm.studentIdStartNo}
+                      placeholder="e.g. 1001"
+                      value={idForm.studentIdStartNo || ""}
                       onChange={e => {
-                        const next = { ...idForm, studentIdStartNo: Number(e.target.value) };
+                        const val = e.target.value ? Number(e.target.value) : ("" as any);
+                        const next = { ...idForm, studentIdStartNo: val };
                         setIdForm(next);
                         saveIdSequenceSettings(next);
                       }}
@@ -2302,14 +2348,15 @@ export const SettingsView: React.FC = () => {
                   <div>
                     <label className="block text-xs font-bold text-slate-600 dark:text-slate-300 mb-1.5">Digit Padding</label>
                     <select
-                      value={idForm.studentIdPadding}
+                      value={idForm.studentIdPadding || ""}
                       onChange={e => {
-                        const next = { ...idForm, studentIdPadding: Number(e.target.value) };
+                        const next = { ...idForm, studentIdPadding: e.target.value ? Number(e.target.value) : ("" as any) };
                         setIdForm(next);
                         saveIdSequenceSettings(next);
                       }}
                       className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 font-semibold text-xs text-slate-900 dark:text-white focus:bg-white dark:focus:bg-slate-900 focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20 transition hover:border-slate-300 dark:hover:border-slate-600 cursor-pointer"
                     >
+                      <option value="" disabled>Select Digit Padding</option>
                       <option value={3}>3 Digits (001)</option>
                       <option value={4}>4 Digits (0001)</option>
                       <option value={5}>5 Digits (00001)</option>
@@ -2322,7 +2369,7 @@ export const SettingsView: React.FC = () => {
                   <div>
                     <label className="block text-xs font-bold text-slate-600 dark:text-slate-300 mb-1.5">Separator Symbol</label>
                     <select
-                      value={idForm.studentIdSeparator}
+                      value={idForm.studentIdSeparator ?? ""}
                       onChange={e => {
                         const next = { ...idForm, studentIdSeparator: e.target.value };
                         setIdForm(next);
@@ -2330,11 +2377,12 @@ export const SettingsView: React.FC = () => {
                       }}
                       className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 font-semibold text-xs text-slate-900 dark:text-white focus:bg-white dark:focus:bg-slate-900 focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20 transition hover:border-slate-300 dark:hover:border-slate-600 cursor-pointer"
                     >
+                      <option value="" disabled>Select Separator Symbol</option>
                       <option value="-">Hyphen (-)</option>
                       <option value="/">Forward Slash (/)</option>
                       <option value=".">Dot (.)</option>
                       <option value="_">Underscore (_)</option>
-                      <option value="">None (No Separator)</option>
+                      <option value="none">None (No Separator)</option>
                     </select>
                   </div>
                   <div>
@@ -2378,7 +2426,7 @@ export const SettingsView: React.FC = () => {
               <div className="py-4 px-4 rounded-xl bg-slate-950 text-center shadow-inner space-y-1 border border-slate-800/80 group-hover:border-indigo-500/40 transition-colors duration-200">
                 <p className="text-[10px] uppercase tracking-widest font-extrabold text-slate-400">LIVE PREVIEW</p>
                 <p className="font-mono text-lg font-black text-indigo-400 tracking-wider">
-                  {buildPreviewId(idForm.teachingIdPrefix, idForm.teachingIdStartNo, idForm.teachingIdPadding, idForm.teachingIdIncludeYear, idForm.teachingIdSeparator, idForm.teachingIdPosition)}
+                  {buildPreviewId(idForm.teachingIdPrefix, idForm.teachingIdStartNo, idForm.teachingIdPadding, idForm.teachingIdIncludeYear, idForm.teachingIdSeparator, idForm.teachingIdPosition, 'TCH')}
                 </p>
               </div>
 
@@ -2389,9 +2437,10 @@ export const SettingsView: React.FC = () => {
                     <label className="block text-xs font-bold text-slate-600 dark:text-slate-300 mb-1.5">ID Prefix</label>
                     <input
                       type="text"
-                      value={idForm.teachingIdPrefix}
+                      placeholder="e.g. TCH"
+                      value={idForm.teachingIdPrefix || ""}
                       onChange={e => {
-                        const next = { ...idForm, teachingIdPrefix: e.target.value };
+                        const next = { ...idForm, teachingIdPrefix: e.target.value.toUpperCase() };
                         setIdForm(next);
                         saveIdSequenceSettings(next);
                       }}
@@ -2401,7 +2450,7 @@ export const SettingsView: React.FC = () => {
                   <div>
                     <label className="block text-xs font-bold text-slate-600 dark:text-slate-300 mb-1.5">Tag Placement</label>
                     <select
-                      value={idForm.teachingIdPosition}
+                      value={idForm.teachingIdPosition || ""}
                       onChange={e => {
                         const next = { ...idForm, teachingIdPosition: e.target.value as any };
                         setIdForm(next);
@@ -2409,6 +2458,7 @@ export const SettingsView: React.FC = () => {
                       }}
                       className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 font-semibold text-xs text-slate-900 dark:text-white focus:bg-white dark:focus:bg-slate-900 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition hover:border-slate-300 dark:hover:border-slate-600 cursor-pointer"
                     >
+                      <option value="" disabled>Select Tag Placement</option>
                       <option value="start">Start (Prefix - Year - Number)</option>
                       <option value="middle">Middle (Year - Prefix - Number)</option>
                       <option value="end">End (Year - Number - Prefix)</option>
@@ -2421,9 +2471,11 @@ export const SettingsView: React.FC = () => {
                     <label className="block text-xs font-bold text-slate-600 dark:text-slate-300 mb-1.5">Starting Number</label>
                     <input
                       type="number"
-                      value={idForm.teachingIdStartNo}
+                      placeholder="e.g. 501"
+                      value={idForm.teachingIdStartNo || ""}
                       onChange={e => {
-                        const next = { ...idForm, teachingIdStartNo: Number(e.target.value) };
+                        const val = e.target.value ? Number(e.target.value) : ("" as any);
+                        const next = { ...idForm, teachingIdStartNo: val };
                         setIdForm(next);
                         saveIdSequenceSettings(next);
                       }}
@@ -2433,14 +2485,15 @@ export const SettingsView: React.FC = () => {
                   <div>
                     <label className="block text-xs font-bold text-slate-600 dark:text-slate-300 mb-1.5">Digit Padding</label>
                     <select
-                      value={idForm.teachingIdPadding}
+                      value={idForm.teachingIdPadding || ""}
                       onChange={e => {
-                        const next = { ...idForm, teachingIdPadding: Number(e.target.value) };
+                        const next = { ...idForm, teachingIdPadding: e.target.value ? Number(e.target.value) : ("" as any) };
                         setIdForm(next);
                         saveIdSequenceSettings(next);
                       }}
                       className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 font-semibold text-xs text-slate-900 dark:text-white focus:bg-white dark:focus:bg-slate-900 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition hover:border-slate-300 dark:hover:border-slate-600 cursor-pointer"
                     >
+                      <option value="" disabled>Select Digit Padding</option>
                       <option value={3}>3 Digits (001)</option>
                       <option value={4}>4 Digits (0001)</option>
                       <option value={5}>5 Digits (00001)</option>
@@ -2453,7 +2506,7 @@ export const SettingsView: React.FC = () => {
                   <div>
                     <label className="block text-xs font-bold text-slate-600 dark:text-slate-300 mb-1.5">Separator Symbol</label>
                     <select
-                      value={idForm.teachingIdSeparator}
+                      value={idForm.teachingIdSeparator ?? ""}
                       onChange={e => {
                         const next = { ...idForm, teachingIdSeparator: e.target.value };
                         setIdForm(next);
@@ -2461,11 +2514,12 @@ export const SettingsView: React.FC = () => {
                       }}
                       className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 font-semibold text-xs text-slate-900 dark:text-white focus:bg-white dark:focus:bg-slate-900 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition hover:border-slate-300 dark:hover:border-slate-600 cursor-pointer"
                     >
+                      <option value="" disabled>Select Separator Symbol</option>
                       <option value="-">Hyphen (-)</option>
                       <option value="/">Forward Slash (/)</option>
                       <option value=".">Dot (.)</option>
                       <option value="_">Underscore (_)</option>
-                      <option value="">None (No Separator)</option>
+                      <option value="none">None (No Separator)</option>
                     </select>
                   </div>
                   <div>
@@ -2509,7 +2563,7 @@ export const SettingsView: React.FC = () => {
               <div className="py-4 px-4 rounded-xl bg-slate-950 text-center shadow-inner space-y-1 border border-slate-800/80 group-hover:border-fuchsia-500/40 transition-colors duration-200">
                 <p className="text-[10px] uppercase tracking-widest font-extrabold text-slate-400">LIVE PREVIEW</p>
                 <p className="font-mono text-lg font-black text-fuchsia-400 tracking-wider">
-                  {buildPreviewId(idForm.nonTeachingIdPrefix, idForm.nonTeachingIdStartNo, idForm.nonTeachingIdPadding, idForm.nonTeachingIdIncludeYear, idForm.nonTeachingIdSeparator, idForm.nonTeachingIdPosition)}
+                  {buildPreviewId(idForm.nonTeachingIdPrefix, idForm.nonTeachingIdStartNo, idForm.nonTeachingIdPadding, idForm.nonTeachingIdIncludeYear, idForm.nonTeachingIdSeparator, idForm.nonTeachingIdPosition, 'NTS')}
                 </p>
               </div>
 
@@ -2520,9 +2574,10 @@ export const SettingsView: React.FC = () => {
                     <label className="block text-xs font-bold text-slate-600 dark:text-slate-300 mb-1.5">ID Prefix</label>
                     <input
                       type="text"
-                      value={idForm.nonTeachingIdPrefix}
+                      placeholder="e.g. NTS"
+                      value={idForm.nonTeachingIdPrefix || ""}
                       onChange={e => {
-                        const next = { ...idForm, nonTeachingIdPrefix: e.target.value };
+                        const next = { ...idForm, nonTeachingIdPrefix: e.target.value.toUpperCase() };
                         setIdForm(next);
                         saveIdSequenceSettings(next);
                       }}
@@ -2532,7 +2587,7 @@ export const SettingsView: React.FC = () => {
                   <div>
                     <label className="block text-xs font-bold text-slate-600 dark:text-slate-300 mb-1.5">Tag Placement</label>
                     <select
-                      value={idForm.nonTeachingIdPosition}
+                      value={idForm.nonTeachingIdPosition || ""}
                       onChange={e => {
                         const next = { ...idForm, nonTeachingIdPosition: e.target.value as any };
                         setIdForm(next);
@@ -2540,6 +2595,7 @@ export const SettingsView: React.FC = () => {
                       }}
                       className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 font-semibold text-xs text-slate-900 dark:text-white focus:bg-white dark:focus:bg-slate-900 focus:border-fuchsia-500 focus:ring-2 focus:ring-fuchsia-500/20 transition hover:border-slate-300 dark:hover:border-slate-600 cursor-pointer"
                     >
+                      <option value="" disabled>Select Tag Placement</option>
                       <option value="start">Start (Prefix - Year - Number)</option>
                       <option value="middle">Middle (Year - Prefix - Number)</option>
                       <option value="end">End (Year - Number - Prefix)</option>
@@ -2552,9 +2608,11 @@ export const SettingsView: React.FC = () => {
                     <label className="block text-xs font-bold text-slate-600 dark:text-slate-300 mb-1.5">Starting Number</label>
                     <input
                       type="number"
-                      value={idForm.nonTeachingIdStartNo}
+                      placeholder="e.g. 801"
+                      value={idForm.nonTeachingIdStartNo || ""}
                       onChange={e => {
-                        const next = { ...idForm, nonTeachingIdStartNo: Number(e.target.value) };
+                        const val = e.target.value ? Number(e.target.value) : ("" as any);
+                        const next = { ...idForm, nonTeachingIdStartNo: val };
                         setIdForm(next);
                         saveIdSequenceSettings(next);
                       }}
@@ -2564,14 +2622,15 @@ export const SettingsView: React.FC = () => {
                   <div>
                     <label className="block text-xs font-bold text-slate-600 dark:text-slate-300 mb-1.5">Digit Padding</label>
                     <select
-                      value={idForm.nonTeachingIdPadding}
+                      value={idForm.nonTeachingIdPadding || ""}
                       onChange={e => {
-                        const next = { ...idForm, nonTeachingIdPadding: Number(e.target.value) };
+                        const next = { ...idForm, nonTeachingIdPadding: e.target.value ? Number(e.target.value) : ("" as any) };
                         setIdForm(next);
                         saveIdSequenceSettings(next);
                       }}
                       className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 font-semibold text-xs text-slate-900 dark:text-white focus:bg-white dark:focus:bg-slate-900 focus:border-fuchsia-500 focus:ring-2 focus:ring-fuchsia-500/20 transition hover:border-slate-300 dark:hover:border-slate-600 cursor-pointer"
                     >
+                      <option value="" disabled>Select Digit Padding</option>
                       <option value={3}>3 Digits (001)</option>
                       <option value={4}>4 Digits (0001)</option>
                       <option value={5}>5 Digits (00001)</option>
@@ -2584,7 +2643,7 @@ export const SettingsView: React.FC = () => {
                   <div>
                     <label className="block text-xs font-bold text-slate-600 dark:text-slate-300 mb-1.5">Separator Symbol</label>
                     <select
-                      value={idForm.nonTeachingIdSeparator}
+                      value={idForm.nonTeachingIdSeparator ?? ""}
                       onChange={e => {
                         const next = { ...idForm, nonTeachingIdSeparator: e.target.value };
                         setIdForm(next);
@@ -2592,11 +2651,12 @@ export const SettingsView: React.FC = () => {
                       }}
                       className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 font-semibold text-xs text-slate-900 dark:text-white focus:bg-white dark:focus:bg-slate-900 focus:border-fuchsia-500 focus:ring-2 focus:ring-fuchsia-500/20 transition hover:border-slate-300 dark:hover:border-slate-600 cursor-pointer"
                     >
+                      <option value="" disabled>Select Separator Symbol</option>
                       <option value="-">Hyphen (-)</option>
                       <option value="/">Forward Slash (/)</option>
                       <option value=".">Dot (.)</option>
                       <option value="_">Underscore (_)</option>
-                      <option value="">None (No Separator)</option>
+                      <option value="none">None (No Separator)</option>
                     </select>
                   </div>
                   <div>
@@ -2640,7 +2700,7 @@ export const SettingsView: React.FC = () => {
               <div className="py-4 px-4 rounded-xl bg-slate-950 text-center shadow-inner space-y-1 border border-slate-800/80 group-hover:border-emerald-500/40 transition-colors duration-200">
                 <p className="text-[10px] uppercase tracking-widest font-extrabold text-slate-400">LIVE PREVIEW</p>
                 <p className="font-mono text-lg font-black text-emerald-400 tracking-wider">
-                  {buildPreviewId(idForm.admissionNoPrefix, idForm.admissionNoStartNo, idForm.admissionNoPadding, idForm.admissionNoIncludeYear, idForm.admissionNoSeparator, idForm.admissionNoPosition)}
+                  {buildPreviewId(idForm.admissionNoPrefix, idForm.admissionNoStartNo, idForm.admissionNoPadding, idForm.admissionNoIncludeYear, idForm.admissionNoSeparator, idForm.admissionNoPosition, 'ADM')}
                 </p>
               </div>
 
@@ -2651,9 +2711,10 @@ export const SettingsView: React.FC = () => {
                     <label className="block text-xs font-bold text-slate-600 dark:text-slate-300 mb-1.5">Admission Prefix</label>
                     <input
                       type="text"
-                      value={idForm.admissionNoPrefix}
+                      placeholder="e.g. ADM"
+                      value={idForm.admissionNoPrefix || ""}
                       onChange={e => {
-                        const next = { ...idForm, admissionNoPrefix: e.target.value };
+                        const next = { ...idForm, admissionNoPrefix: e.target.value.toUpperCase() };
                         setIdForm(next);
                         saveIdSequenceSettings(next);
                       }}
@@ -2663,7 +2724,7 @@ export const SettingsView: React.FC = () => {
                   <div>
                     <label className="block text-xs font-bold text-slate-600 dark:text-slate-300 mb-1.5">Tag Placement</label>
                     <select
-                      value={idForm.admissionNoPosition}
+                      value={idForm.admissionNoPosition || ""}
                       onChange={e => {
                         const next = { ...idForm, admissionNoPosition: e.target.value as any };
                         setIdForm(next);
@@ -2671,6 +2732,7 @@ export const SettingsView: React.FC = () => {
                       }}
                       className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 font-semibold text-xs text-slate-900 dark:text-white focus:bg-white dark:focus:bg-slate-900 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition hover:border-slate-300 dark:hover:border-slate-600 cursor-pointer"
                     >
+                      <option value="" disabled>Select Tag Placement</option>
                       <option value="start">Start (Prefix - Year - Number)</option>
                       <option value="middle">Middle (Year - Prefix - Number)</option>
                       <option value="end">End (Year - Number - Prefix)</option>
@@ -2683,9 +2745,11 @@ export const SettingsView: React.FC = () => {
                     <label className="block text-xs font-bold text-slate-600 dark:text-slate-300 mb-1.5">Starting Number</label>
                     <input
                       type="number"
-                      value={idForm.admissionNoStartNo}
+                      placeholder="e.g. 2001"
+                      value={idForm.admissionNoStartNo || ""}
                       onChange={e => {
-                        const next = { ...idForm, admissionNoStartNo: Number(e.target.value) };
+                        const val = e.target.value ? Number(e.target.value) : ("" as any);
+                        const next = { ...idForm, admissionNoStartNo: val };
                         setIdForm(next);
                         saveIdSequenceSettings(next);
                       }}
@@ -2695,14 +2759,15 @@ export const SettingsView: React.FC = () => {
                   <div>
                     <label className="block text-xs font-bold text-slate-600 dark:text-slate-300 mb-1.5">Digit Padding</label>
                     <select
-                      value={idForm.admissionNoPadding}
+                      value={idForm.admissionNoPadding || ""}
                       onChange={e => {
-                        const next = { ...idForm, admissionNoPadding: Number(e.target.value) };
+                        const next = { ...idForm, admissionNoPadding: e.target.value ? Number(e.target.value) : ("" as any) };
                         setIdForm(next);
                         saveIdSequenceSettings(next);
                       }}
                       className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 font-semibold text-xs text-slate-900 dark:text-white focus:bg-white dark:focus:bg-slate-900 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition hover:border-slate-300 dark:hover:border-slate-600 cursor-pointer"
                     >
+                      <option value="" disabled>Select Digit Padding</option>
                       <option value={3}>3 Digits (001)</option>
                       <option value={4}>4 Digits (0001)</option>
                       <option value={5}>5 Digits (00001)</option>
@@ -2715,7 +2780,7 @@ export const SettingsView: React.FC = () => {
                   <div>
                     <label className="block text-xs font-bold text-slate-600 dark:text-slate-300 mb-1.5">Separator Symbol</label>
                     <select
-                      value={idForm.admissionNoSeparator}
+                      value={idForm.admissionNoSeparator ?? ""}
                       onChange={e => {
                         const next = { ...idForm, admissionNoSeparator: e.target.value };
                         setIdForm(next);
@@ -2723,11 +2788,12 @@ export const SettingsView: React.FC = () => {
                       }}
                       className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 font-semibold text-xs text-slate-900 dark:text-white focus:bg-white dark:focus:bg-slate-900 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition hover:border-slate-300 dark:hover:border-slate-600 cursor-pointer"
                     >
+                      <option value="" disabled>Select Separator Symbol</option>
                       <option value="-">Hyphen (-)</option>
                       <option value="/">Forward Slash (/)</option>
                       <option value=".">Dot (.)</option>
                       <option value="_">Underscore (_)</option>
-                      <option value="">None (No Separator)</option>
+                      <option value="none">None (No Separator)</option>
                     </select>
                   </div>
                   <div>

@@ -16,68 +16,68 @@ export interface CustomIdSequence {
 export interface IdSequenceSettings {
   // Student ID Config
   studentIdPrefix: string;
-  studentIdStartNo: number;
-  studentIdPadding: number;
+  studentIdStartNo: number | '';
+  studentIdPadding: number | '';
   studentIdIncludeYear: boolean;
   studentIdSeparator: string;
-  studentIdPosition: TagPosition;
+  studentIdPosition: TagPosition | '';
 
   // Admission No Config
   admissionNoPrefix: string;
-  admissionNoStartNo: number;
-  admissionNoPadding: number;
+  admissionNoStartNo: number | '';
+  admissionNoPadding: number | '';
   admissionNoIncludeYear: boolean;
   admissionNoSeparator: string;
-  admissionNoPosition: TagPosition;
+  admissionNoPosition: TagPosition | '';
 
   // Teaching Staff ID Config
   teachingIdPrefix: string;
-  teachingIdStartNo: number;
-  teachingIdPadding: number;
+  teachingIdStartNo: number | '';
+  teachingIdPadding: number | '';
   teachingIdIncludeYear: boolean;
   teachingIdSeparator: string;
-  teachingIdPosition: TagPosition;
+  teachingIdPosition: TagPosition | '';
 
   // Non-Teaching Staff ID Config
   nonTeachingIdPrefix: string;
-  nonTeachingIdStartNo: number;
-  nonTeachingIdPadding: number;
+  nonTeachingIdStartNo: number | '';
+  nonTeachingIdPadding: number | '';
   nonTeachingIdIncludeYear: boolean;
   nonTeachingIdSeparator: string;
-  nonTeachingIdPosition: TagPosition;
+  nonTeachingIdPosition: TagPosition | '';
 
   // User Defined Custom Automated ID Sequences
   customSequences: CustomIdSequence[];
 }
 
 export const defaultIdSequenceSettings: IdSequenceSettings = {
-  studentIdPrefix: 'STU',
-  studentIdStartNo: 1001,
-  studentIdPadding: 4,
+  studentIdPrefix: '',
+  studentIdStartNo: '',
+  studentIdPadding: '',
   studentIdIncludeYear: true,
-  studentIdSeparator: '-',
-  studentIdPosition: 'start',
+  studentIdSeparator: '',
+  studentIdPosition: '',
 
-  admissionNoPrefix: 'ADM',
-  admissionNoStartNo: 2001,
-  admissionNoPadding: 4,
+  admissionNoPrefix: '',
+  admissionNoStartNo: '',
+  admissionNoPadding: '',
   admissionNoIncludeYear: true,
-  admissionNoSeparator: '-',
-  admissionNoPosition: 'start',
+  admissionNoSeparator: '',
+  admissionNoPosition: '',
 
-  teachingIdPrefix: 'TCH',
-  teachingIdStartNo: 501,
-  teachingIdPadding: 4,
+  teachingIdPrefix: '',
+  teachingIdStartNo: '',
+  teachingIdPadding: '',
   teachingIdIncludeYear: true,
-  teachingIdSeparator: '-',
-  teachingIdPosition: 'start',
+  teachingIdSeparator: '',
+  teachingIdPosition: '',
 
-  nonTeachingIdPrefix: 'NTS',
-  nonTeachingIdStartNo: 801,
-  nonTeachingIdPadding: 4,
+  nonTeachingIdPrefix: '',
+  nonTeachingIdStartNo: '',
+  nonTeachingIdPadding: '',
   nonTeachingIdIncludeYear: true,
-  nonTeachingIdSeparator: '-',
-  nonTeachingIdPosition: 'start',
+  nonTeachingIdSeparator: '',
+  nonTeachingIdPosition: '',
 
   customSequences: []
 };
@@ -93,21 +93,25 @@ export function getIdSequenceSettings(): IdSequenceSettings {
         ...defaultIdSequenceSettings,
         ...parsed,
         customSequences: Array.isArray(parsed.customSequences) ? parsed.customSequences : [],
-        studentIdPosition: parsed.studentIdPosition || defaultIdSequenceSettings.studentIdPosition,
-        admissionNoPosition: parsed.admissionNoPosition || defaultIdSequenceSettings.admissionNoPosition,
-        teachingIdPosition: parsed.teachingIdPosition || defaultIdSequenceSettings.teachingIdPosition,
-        nonTeachingIdPosition: parsed.nonTeachingIdPosition || defaultIdSequenceSettings.nonTeachingIdPosition,
-
-        teachingIdPrefix: parsed.teachingIdPrefix || parsed.employeeIdPrefix || defaultIdSequenceSettings.teachingIdPrefix,
-        teachingIdStartNo: parsed.teachingIdStartNo || parsed.employeeIdStartNo || defaultIdSequenceSettings.teachingIdStartNo,
-        teachingIdPadding: parsed.teachingIdPadding || parsed.employeeIdPadding || defaultIdSequenceSettings.teachingIdPadding,
-        teachingIdIncludeYear: parsed.teachingIdIncludeYear ?? parsed.employeeIdIncludeYear ?? defaultIdSequenceSettings.teachingIdIncludeYear,
-        teachingIdSeparator: parsed.teachingIdSeparator ?? parsed.employeeIdSeparator ?? defaultIdSequenceSettings.teachingIdSeparator,
-
-        nonTeachingIdPrefix: parsed.nonTeachingIdPrefix || defaultIdSequenceSettings.nonTeachingIdPrefix,
-        nonTeachingIdStartNo: parsed.nonTeachingIdStartNo || defaultIdSequenceSettings.nonTeachingIdStartNo,
-        nonTeachingIdPadding: parsed.nonTeachingIdPadding || defaultIdSequenceSettings.nonTeachingIdPadding,
-        nonTeachingIdIncludeYear: parsed.nonTeachingIdIncludeYear ?? defaultIdSequenceSettings.nonTeachingIdIncludeYear,
+        studentIdPrefix: parsed.studentIdPrefix ?? defaultIdSequenceSettings.studentIdPrefix,
+        studentIdStartNo: parsed.studentIdStartNo ? parsed.studentIdStartNo : '',
+        teachingIdPrefix: parsed.teachingIdPrefix ?? defaultIdSequenceSettings.teachingIdPrefix,
+        teachingIdStartNo: parsed.teachingIdStartNo ? parsed.teachingIdStartNo : '',
+        nonTeachingIdPrefix: parsed.nonTeachingIdPrefix ?? defaultIdSequenceSettings.nonTeachingIdPrefix,
+        nonTeachingIdStartNo: parsed.nonTeachingIdStartNo ? parsed.nonTeachingIdStartNo : '',
+        admissionNoPrefix: parsed.admissionNoPrefix ?? defaultIdSequenceSettings.admissionNoPrefix,
+        admissionNoStartNo: parsed.admissionNoStartNo ? parsed.admissionNoStartNo : '',
+        studentIdPosition: parsed.studentIdPosition ?? defaultIdSequenceSettings.studentIdPosition,
+        admissionNoPosition: parsed.admissionNoPosition ?? defaultIdSequenceSettings.admissionNoPosition,
+        teachingIdPosition: parsed.teachingIdPosition ?? defaultIdSequenceSettings.teachingIdPosition,
+        nonTeachingIdPosition: parsed.nonTeachingIdPosition ?? defaultIdSequenceSettings.nonTeachingIdPosition,
+        studentIdPadding: parsed.studentIdPadding ? parsed.studentIdPadding : '',
+        admissionNoPadding: parsed.admissionNoPadding ? parsed.admissionNoPadding : '',
+        teachingIdPadding: parsed.teachingIdPadding ? parsed.teachingIdPadding : '',
+        nonTeachingIdPadding: parsed.nonTeachingIdPadding ? parsed.nonTeachingIdPadding : '',
+        studentIdSeparator: parsed.studentIdSeparator ?? defaultIdSequenceSettings.studentIdSeparator,
+        admissionNoSeparator: parsed.admissionNoSeparator ?? defaultIdSequenceSettings.admissionNoSeparator,
+        teachingIdSeparator: parsed.teachingIdSeparator ?? defaultIdSequenceSettings.teachingIdSeparator,
         nonTeachingIdSeparator: parsed.nonTeachingIdSeparator ?? defaultIdSequenceSettings.nonTeachingIdSeparator,
       };
     }
@@ -128,14 +132,18 @@ export function saveIdSequenceSettings(settings: IdSequenceSettings): void {
 export function buildFormattedId(
   prefix: string,
   startNo: number,
-  padding: number,
+  padding: number | string,
   includeYear: boolean,
   separator: string,
-  position: TagPosition = 'start',
+  position: TagPosition | string = 'start',
   existingIds: string[] = []
 ): string {
   const cleanPrefix = (prefix || '').trim().toUpperCase();
-  const sep = separator !== undefined ? separator : '-';
+  const sep = (separator === 'none' || separator === '__none__')
+    ? ''
+    : (separator !== undefined && separator !== '' ? separator : '-');
+  const pos = position || 'start';
+  const pad = Number(padding) || 4;
   const yearStr = includeYear ? `${new Date().getFullYear()}` : '';
 
   // Extract highest numerical suffix in existing IDs
@@ -164,19 +172,19 @@ export function buildFormattedId(
   });
 
   const nextSeq = maxSeq + 1;
-  const paddedSeq = String(nextSeq).padStart(padding || 4, '0');
+  const paddedSeq = String(nextSeq).padStart(pad, '0');
 
   const parts: string[] = [];
 
-  if (position === 'start') {
+  if (pos === 'start') {
     if (cleanPrefix) parts.push(cleanPrefix);
     if (yearStr) parts.push(yearStr);
     parts.push(paddedSeq);
-  } else if (position === 'middle') {
+  } else if (pos === 'middle') {
     if (yearStr) parts.push(yearStr);
     if (cleanPrefix) parts.push(cleanPrefix);
     parts.push(paddedSeq);
-  } else if (position === 'end') {
+  } else if (pos === 'end') {
     if (yearStr) parts.push(yearStr);
     parts.push(paddedSeq);
     if (cleanPrefix) parts.push(cleanPrefix);
@@ -190,28 +198,34 @@ export function buildFormattedId(
  */
 export function buildPreviewId(
   prefix: string,
-  startNo: number,
-  padding: number,
+  startNo: number | string,
+  padding: number | string,
   includeYear: boolean,
   separator: string,
-  position: TagPosition = 'start'
+  position: TagPosition | string = 'start',
+  fallbackPrefix: string = ''
 ): string {
   const cleanPrefix = (prefix || '').trim().toUpperCase();
-  const sep = separator !== undefined ? separator : '-';
+  const defaultFallbackNo = fallbackPrefix === 'TCH' ? 501 : fallbackPrefix === 'NTS' ? 801 : fallbackPrefix === 'ADM' ? 2001 : 1001;
+  const sep = (separator === 'none' || separator === '__none__')
+    ? ''
+    : (separator !== undefined && separator !== '' ? separator : '-');
+  const pos = position || 'start';
+  const pad = Number(padding) || 4;
   const yearStr = includeYear ? `${new Date().getFullYear()}` : '';
-  const paddedSeq = String(startNo || 1001).padStart(padding || 4, '0');
+  const paddedSeq = String(startNo || defaultFallbackNo).padStart(pad, '0');
 
   const parts: string[] = [];
 
-  if (position === 'start') {
+  if (pos === 'start') {
     if (cleanPrefix) parts.push(cleanPrefix);
     if (yearStr) parts.push(yearStr);
     parts.push(paddedSeq);
-  } else if (position === 'middle') {
+  } else if (pos === 'middle') {
     if (yearStr) parts.push(yearStr);
     if (cleanPrefix) parts.push(cleanPrefix);
     parts.push(paddedSeq);
-  } else if (position === 'end') {
+  } else if (pos === 'end') {
     if (yearStr) parts.push(yearStr);
     parts.push(paddedSeq);
     if (cleanPrefix) parts.push(cleanPrefix);

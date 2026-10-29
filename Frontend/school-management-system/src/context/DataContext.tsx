@@ -298,7 +298,7 @@ export function formatAcademicYear(ay?: string | null): string {
     return `${startYear}-${shortEnd}`;
   }
 
-  return "";
+  return trimmed;
 }
 
 export function normalizeAcademicYear(dateOrAy?: string | null): string {
@@ -329,7 +329,7 @@ export function normalizeAcademicYear(dateOrAy?: string | null): string {
     return `${startYear}-${startYear + 1}`;
   }
 
-  return "";
+  return trimmed;
 }
 
 export function matchesAcademicYear(
