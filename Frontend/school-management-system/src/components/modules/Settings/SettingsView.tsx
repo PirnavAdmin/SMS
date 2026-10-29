@@ -34,6 +34,8 @@ import {
   Sparkles,
   UserCheck,
   Clock,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import { useData, formatAcademicYear, matchesAcademicYear } from "../../../context/DataContext";
 import { useAuth } from "../../../context/AuthContext";
@@ -288,6 +290,88 @@ export const SettingsView: React.FC = () => {
       window.removeEventListener("settings_tab_change", handleTabChange);
     };
   }, []);
+
+  // Tab bar scrolling & drag handling
+  const tabsContainerRef = useRef<HTMLDivElement>(null);
+  const [canScrollLeft, setCanScrollLeft] = useState(false);
+  const [canScrollRight, setCanScrollRight] = useState(false);
+  const [isDraggingTabs, setIsDraggingTabs] = useState(false);
+  const dragStartXRef = useRef(0);
+  const dragStartScrollLeftRef = useRef(0);
+  const hasDraggedRef = useRef(false);
+
+  const checkTabsScroll = () => {
+    const el = tabsContainerRef.current;
+    if (!el) return;
+    const { scrollLeft, scrollWidth, clientWidth } = el;
+    setCanScrollLeft(scrollLeft > 4);
+    setCanScrollRight(scrollLeft + clientWidth < scrollWidth - 4);
+  };
+
+  useEffect(() => {
+    checkTabsScroll();
+    const el = tabsContainerRef.current;
+    if (!el) return;
+    el.addEventListener("scroll", checkTabsScroll, { passive: true });
+    window.addEventListener("resize", checkTabsScroll);
+    return () => {
+      el.removeEventListener("scroll", checkTabsScroll);
+      window.removeEventListener("resize", checkTabsScroll);
+    };
+  }, []);
+
+  // Auto-center active tab into view smoothly whenever activeTab changes
+  useEffect(() => {
+    if (!tabsContainerRef.current) return;
+    const activeEl = tabsContainerRef.current.querySelector<HTMLElement>(
+      `[data-tab-id="${activeTab}"]`
+    );
+    if (activeEl) {
+      activeEl.scrollIntoView({
+        behavior: "smooth",
+        block: "nearest",
+        inline: "center",
+      });
+    }
+    checkTabsScroll();
+  }, [activeTab]);
+
+  const handleScrollTabs = (direction: "left" | "right") => {
+    if (!tabsContainerRef.current) return;
+    const offset = direction === "left" ? -240 : 240;
+    tabsContainerRef.current.scrollBy({ left: offset, behavior: "smooth" });
+  };
+
+  const handleTabsWheel = (e: React.WheelEvent<HTMLDivElement>) => {
+    if (e.deltaY !== 0 && tabsContainerRef.current) {
+      tabsContainerRef.current.scrollBy({
+        left: e.deltaY * 1.2,
+        behavior: "smooth",
+      });
+    }
+  };
+
+  const handleTabsMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!tabsContainerRef.current) return;
+    setIsDraggingTabs(true);
+    hasDraggedRef.current = false;
+    dragStartXRef.current = e.pageX - tabsContainerRef.current.offsetLeft;
+    dragStartScrollLeftRef.current = tabsContainerRef.current.scrollLeft;
+  };
+
+  const handleTabsMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!isDraggingTabs || !tabsContainerRef.current) return;
+    const x = e.pageX - tabsContainerRef.current.offsetLeft;
+    const walk = (x - dragStartXRef.current) * 1.5;
+    if (Math.abs(walk) > 5) {
+      hasDraggedRef.current = true;
+    }
+    tabsContainerRef.current.scrollLeft = dragStartScrollLeftRef.current - walk;
+  };
+
+  const handleTabsMouseUpOrLeave = () => {
+    setIsDraggingTabs(false);
+  };
 
   // Personal Profile Details State for Logged-In User (Warden / Admin)
   const getCleanUserEmail = (raw?: string): string => {
@@ -1288,67 +1372,130 @@ export const SettingsView: React.FC = () => {
       </div>
 
       {/* Settings Navigation Tabs */}
-      <div className="p-1 bg-white dark:bg-slate-900 rounded-2xl flex items-center gap-1 overflow-x-auto no-scrollbar border border-sky-300 dark:border-sky-700 shadow-xs">
-        {[
-          {
-            id: "my-profile",
-            label: "My Profile",
-            visible: true,
-          },
-          {
-            id: "profile",
-            label: "School Branding Profile",
-            visible: isAdminOrSuperAdmin,
-          },
-          {
-            id: "campus",
-            label: "Campus Configuration",
-            visible: isAdminOrSuperAdmin,
-          },
-          {
-            id: "academic-year",
-            label: "Academic Year Configuration",
-            visible: isAdminOrSuperAdmin,
-          },
-          {
-            id: "certificates",
-            label: "Certificate Templates",
-            visible: isAdminOrSuperAdmin,
-          },
-          {
-            id: "automated-ids",
-            label: "Automated ID Settings",
-            visible: isAdminOrSuperAdmin,
-          },
-          {
-            id: "backup",
-            label: "Backup & Restore",
-            visible: isAdminOrSuperAdmin,
-          },
-          {
-            id: "audit",
-            label: "System Audit Logs",
-            visible: isAdminOrSuperAdmin,
-          },
-        ]
-          .filter((t) => t.visible)
-          .map((tab) => {
-            const isActive = activeTab === tab.id;
-            return (
-              <button
-                key={tab.id}
-                type="button"
-                onClick={() => setActiveTab(tab.id as any)}
-                className={`px-4 py-2 rounded-xl text-sm font-bold transition-all cursor-pointer whitespace-nowrap shrink-0 text-center ${
-                  isActive
-                    ? "bg-sky-600 dark:bg-sky-500 text-white shadow-xs border border-sky-600 dark:border-sky-500 font-extrabold"
-                    : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-50 dark:hover:bg-slate-800/60 font-semibold border border-transparent"
-                }`}
-              >
-                <span>{tab.label}</span>
-              </button>
-            );
-          })}
+      <div className="relative group w-full">
+        {/* Left Scroll Navigation Button & Fade Mask */}
+        <div
+          className={`absolute left-0 top-0 bottom-0 z-10 flex items-center pr-2 bg-gradient-to-r from-white via-white/95 to-transparent dark:from-slate-900 dark:via-slate-900/95 rounded-l-xl transition-opacity duration-200 pointer-events-none ${
+            canScrollLeft ? "opacity-100" : "opacity-0"
+          }`}
+        >
+          <button
+            type="button"
+            onClick={() => handleScrollTabs("left")}
+            aria-label="Scroll tabs left"
+            className="pointer-events-auto p-1 ml-0.5 rounded-lg bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 shadow-sm border border-slate-200 dark:border-slate-700 hover:bg-sky-50 dark:hover:bg-slate-700 hover:text-sky-600 dark:hover:text-sky-400 transition-all cursor-pointer active:scale-95"
+          >
+            <ChevronLeft className="w-3.5 h-3.5" />
+          </button>
+        </div>
+
+        {/* Scrollable Tabs List */}
+        <div
+          ref={tabsContainerRef}
+          onWheel={handleTabsWheel}
+          onMouseDown={handleTabsMouseDown}
+          onMouseMove={handleTabsMouseMove}
+          onMouseUp={handleTabsMouseUpOrLeave}
+          onMouseLeave={handleTabsMouseUpOrLeave}
+          className={`p-1 bg-white dark:bg-slate-900 rounded-xl flex items-center gap-1 overflow-x-auto border border-sky-300 dark:border-sky-700 shadow-xs select-none no-scrollbar ${
+            isDraggingTabs ? "cursor-grabbing" : "cursor-grab"
+          }`}
+          style={{
+            scrollbarWidth: "none",
+            msOverflowStyle: "none",
+          }}
+        >
+          {[
+            {
+              id: "my-profile",
+              label: "My Profile",
+              icon: UserCheck,
+              visible: true,
+            },
+            {
+              id: "profile",
+              label: "School Branding Profile",
+              icon: Building2,
+              visible: isAdminOrSuperAdmin,
+            },
+            {
+              id: "campus",
+              label: "Campus Configuration",
+              icon: MapPin,
+              visible: isAdminOrSuperAdmin,
+            },
+            {
+              id: "academic-year",
+              label: "Academic Year Configuration",
+              icon: Calendar,
+              visible: isAdminOrSuperAdmin,
+            },
+            {
+              id: "certificates",
+              label: "Certificate Templates",
+              icon: Award,
+              visible: isAdminOrSuperAdmin,
+            },
+            {
+              id: "automated-ids",
+              label: "Automated ID Settings",
+              icon: Layers,
+              visible: isAdminOrSuperAdmin,
+            },
+            {
+              id: "backup",
+              label: "Backup & Restore",
+              icon: Database,
+              visible: isAdminOrSuperAdmin,
+            },
+            {
+              id: "audit",
+              label: "System Audit Logs",
+              icon: Activity,
+              visible: isAdminOrSuperAdmin,
+            },
+          ]
+            .filter((t) => t.visible)
+            .map((tab) => {
+              const isActive = activeTab === tab.id;
+              const Icon = tab.icon;
+              return (
+                <button
+                  key={tab.id}
+                  data-tab-id={tab.id}
+                  type="button"
+                  onClick={() => {
+                    if (hasDraggedRef.current) return;
+                    setActiveTab(tab.id as any);
+                  }}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-bold transition-all duration-150 cursor-pointer whitespace-nowrap shrink-0 text-center select-none ${
+                    isActive
+                      ? "bg-sky-600 dark:bg-sky-500 text-white shadow-xs font-extrabold border border-sky-600 dark:border-sky-500"
+                      : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-100/70 dark:hover:bg-slate-800/60 font-semibold border border-transparent"
+                  }`}
+                >
+                  <Icon className={`w-3.5 h-3.5 shrink-0 transition-transform ${isActive ? "scale-105 text-white" : "text-slate-500 dark:text-slate-400"}`} />
+                  <span>{tab.label}</span>
+                </button>
+              );
+            })}
+        </div>
+
+        {/* Right Scroll Navigation Button & Fade Mask */}
+        <div
+          className={`absolute right-0 top-0 bottom-0 z-10 flex items-center pl-2 bg-gradient-to-l from-white via-white/95 to-transparent dark:from-slate-900 dark:via-slate-900/95 rounded-r-xl transition-opacity duration-200 pointer-events-none ${
+            canScrollRight ? "opacity-100" : "opacity-0"
+          }`}
+        >
+          <button
+            type="button"
+            onClick={() => handleScrollTabs("right")}
+            aria-label="Scroll tabs right"
+            className="pointer-events-auto p-1 mr-0.5 rounded-lg bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 shadow-sm border border-slate-200 dark:border-slate-700 hover:bg-sky-50 dark:hover:bg-slate-700 hover:text-sky-600 dark:hover:text-sky-400 transition-all cursor-pointer active:scale-95"
+          >
+            <ChevronRight className="w-3.5 h-3.5" />
+          </button>
+        </div>
       </div>
 
       {/* TAB 0: PERSONAL BASIC DETAILS & PHOTO (FOR ALL ROLES INCLUDING WARDEN & ADMIN) */}
