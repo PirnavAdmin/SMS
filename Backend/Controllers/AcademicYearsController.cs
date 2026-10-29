@@ -67,17 +67,42 @@ namespace SMS.Api.Controllers
                 }
             }
 
-            var ay = new AcademicYear
-            {
-                AcademicYearName = dto.AcademicYear.Trim(),
-                StartDate = sDate,
-                EndDate = eDate,
-                IsCurrent = dto.IsCurrentAcademicYear || dto.Status == "Active",
-                IsActive = dto.Status != "Closed",
-                CreatedAt = DateTime.UtcNow
-            };
+            var normalizedName = dto.AcademicYear.Trim();
+            var existing = await _context.AcademicYears
+                .IgnoreQueryFilters()
+                .FirstOrDefaultAsync(y => y.AcademicYearName.ToLower() == normalizedName.ToLower());
 
-            _context.AcademicYears.Add(ay);
+            AcademicYear ay;
+            if (existing != null)
+            {
+                if (!existing.IsDeleted)
+                {
+                    return BadRequest($"Academic session \"{normalizedName}\" already exists.");
+                }
+
+                existing.IsDeleted = false;
+                existing.StartDate = sDate;
+                existing.EndDate = eDate;
+                existing.IsCurrent = dto.IsCurrentAcademicYear || dto.Status == "Active";
+                existing.IsActive = dto.Status != "Closed";
+                existing.UpdatedAt = DateTime.UtcNow;
+                ay = existing;
+            }
+            else
+            {
+                ay = new AcademicYear
+                {
+                    AcademicYearName = normalizedName,
+                    StartDate = sDate,
+                    EndDate = eDate,
+                    IsCurrent = dto.IsCurrentAcademicYear || dto.Status == "Active",
+                    IsActive = dto.Status != "Closed",
+                    CreatedAt = DateTime.UtcNow
+                };
+
+                _context.AcademicYears.Add(ay);
+            }
+
             await _context.SaveChangesAsync();
 
             var result = new AcademicYearDto
@@ -106,8 +131,12 @@ namespace SMS.Api.Controllers
             else if (id.StartsWith("AY-") && int.TryParse(id.Replace("AY-", ""), out var parsedAy)) numId = parsedAy;
             else if (dto.AcademicYearId > 0) numId = dto.AcademicYearId;
 
-            var ay = await _context.AcademicYears.FirstOrDefaultAsync(x => x.AcademicYearId == numId || x.AcademicYearName.ToLower() == id.ToLower());
+            var ay = await _context.AcademicYears
+                .IgnoreQueryFilters()
+                .FirstOrDefaultAsync(x => x.AcademicYearId == numId || x.AcademicYearName.ToLower() == id.ToLower());
             if (ay == null) return NotFound("Academic year not found.");
+
+            ay.IsDeleted = false;
 
             if (!string.IsNullOrWhiteSpace(dto.AcademicYear))
             {
@@ -159,7 +188,9 @@ namespace SMS.Api.Controllers
             if (int.TryParse(id, out var parsed)) numId = parsed;
             else if (id.StartsWith("AY-") && int.TryParse(id.Replace("AY-", ""), out var parsedAy)) numId = parsedAy;
 
-            var ay = await _context.AcademicYears.FirstOrDefaultAsync(x => x.AcademicYearId == numId || x.AcademicYearName.ToLower() == id.ToLower());
+            var ay = await _context.AcademicYears
+                .IgnoreQueryFilters()
+                .FirstOrDefaultAsync(x => x.AcademicYearId == numId || x.AcademicYearName.ToLower() == id.ToLower());
             if (ay == null) return NotFound("Academic year not found.");
 
             ay.IsDeleted = true;
