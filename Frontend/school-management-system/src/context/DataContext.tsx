@@ -2391,23 +2391,33 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   );
 
   const addAcademicYear = async (ayData: Omit<AcademicYearMaster, "id">) => {
-    const id = `AY-${ayData.academicYear.replace(/\s+/g, "") || Date.now()}`;
-    const newAY: AcademicYearMaster = { id, ...ayData };
-    setAcademicYears((prev) => {
-      let updated = [...prev];
-      if (newAY.isCurrentAcademicYear) {
-        updated = updated.map((a) => ({ ...a, isCurrentAcademicYear: false }));
-        setSelectedAcademicYear(newAY.academicYear);
-      }
-      const next = [...updated, newAY];
-      window.dispatchEvent(new Event("academic_years_updated"));
-      return next;
-    });
-
     try {
-      await createAcademicYearApi(newAY);
-    } catch (err) {
-      console.warn("Failed to create academic year on backend:", err);
+      const res: any = await createAcademicYearApi(ayData);
+      const data = res?.data || res;
+      const created: AcademicYearMaster = {
+        id: data?.id || (data?.academicYearId ? `AY-${data.academicYearId}` : `AY-${ayData.academicYear.replace(/\s+/g, "") || Date.now()}`),
+        academicYear: data?.academicYear || data?.academicYearName || ayData.academicYear,
+        startDate: data?.startDate || ayData.startDate,
+        endDate: data?.endDate || ayData.endDate,
+        status: data?.status || ayData.status,
+        description: data?.description ?? (ayData.description || ""),
+        isCurrentAcademicYear: Boolean(data?.isCurrentAcademicYear ?? (ayData.status === "Active")),
+      };
+
+      setAcademicYears((prev) => {
+        let updated = prev.filter((a) => a.id !== created.id && a.academicYear.toLowerCase() !== created.academicYear.toLowerCase());
+        if (created.isCurrentAcademicYear) {
+          updated = updated.map((a) => ({ ...a, isCurrentAcademicYear: false }));
+          setSelectedAcademicYear(created.academicYear);
+        }
+        return [...updated, created];
+      });
+
+      window.dispatchEvent(new Event("academic_years_updated"));
+      return created;
+    } catch (err: any) {
+      console.error("Failed to create academic year on backend:", err);
+      throw err;
     }
   };
 
@@ -2415,43 +2425,45 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     id: string,
     updates: Partial<AcademicYearMaster>,
   ) => {
-    setAcademicYears((prev) => {
-      let updated = prev.map((a) =>
-        a.id === id
-          ? { ...a, ...updates, updatedAt: new Date().toISOString() }
-          : a,
-      );
-      if (updates.isCurrentAcademicYear) {
-        const target = updated.find((a) => a.id === id);
-        updated = updated.map((a) =>
-          a.id === id
-            ? { ...a, isCurrentAcademicYear: true }
-            : { ...a, isCurrentAcademicYear: false },
-        );
-        if (target) setSelectedAcademicYear(target.academicYear);
-      }
-      window.dispatchEvent(new Event("academic_years_updated"));
-      return updated;
-    });
-
     try {
-      await updateAcademicYearApi(id, updates);
-    } catch (err) {
-      console.warn("Failed to update academic year on backend:", err);
+      const res: any = await updateAcademicYearApi(id, updates);
+      const data = res?.data || updates;
+      setAcademicYears((prev) => {
+        let updated = prev.map((a) =>
+          a.id === id || a.academicYear === id
+            ? { ...a, ...data, updatedAt: new Date().toISOString() }
+            : a,
+        );
+        if (updates.isCurrentAcademicYear || updates.status === "Active") {
+          const target = updated.find((a) => a.id === id || a.academicYear === id);
+          updated = updated.map((a) =>
+            a.id === id || a.academicYear === id
+              ? { ...a, isCurrentAcademicYear: true }
+              : { ...a, isCurrentAcademicYear: false },
+          );
+          if (target) setSelectedAcademicYear(target.academicYear);
+        }
+        return updated;
+      });
+      window.dispatchEvent(new Event("academic_years_updated"));
+      return res?.data;
+    } catch (err: any) {
+      console.error("Failed to update academic year on backend:", err);
+      throw err;
     }
   };
 
   const deleteAcademicYear = async (id: string) => {
-    setAcademicYears((prev) => {
-      const next = prev.filter((a) => a.id !== id);
-      window.dispatchEvent(new Event("academic_years_updated"));
-      return next;
-    });
-
     try {
       await deleteAcademicYearApi(id);
-    } catch (err) {
-      console.warn("Failed to delete academic year on backend:", err);
+      setAcademicYears((prev) => {
+        const next = prev.filter((a) => a.id !== id && a.academicYear !== id);
+        return next;
+      });
+      window.dispatchEvent(new Event("academic_years_updated"));
+    } catch (err: any) {
+      console.error("Failed to delete academic year on backend:", err);
+      throw err;
     }
   };
 
@@ -2502,15 +2514,6 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       } catch {}
     };
     syncAcademicYearsFromApi();
-
-    const handleAYUpdate = () => {
-      syncAcademicYearsFromApi();
-    };
-    window.addEventListener("academic_years_updated", handleAYUpdate);
-
-    return () => {
-      window.removeEventListener("academic_years_updated", handleAYUpdate);
-    };
   }, []);
   useEffect(() => {
     try {

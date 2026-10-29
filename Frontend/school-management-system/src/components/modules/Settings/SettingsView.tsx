@@ -613,6 +613,7 @@ export const SettingsView: React.FC = () => {
   // Academic Year Configuration States
   const [aySearch, setAySearch] = useState("");
   const [isAYModalOpen, setIsAYModalOpen] = useState(false);
+  const [isSavingAY, setIsSavingAY] = useState(false);
   const [editingAY, setEditingAY] = useState<AcademicYearMaster | null>(null);
   const [deletingAY, setDeletingAY] = useState<AcademicYearMaster | null>(null);
   const [ayErrors, setAyErrors] = useState<{
@@ -1070,8 +1071,10 @@ export const SettingsView: React.FC = () => {
     return undefined;
   };
 
-  const handleSaveAY = (e: React.FormEvent) => {
+  const handleSaveAY = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSavingAY) return;
+
     const trimmedAY = ayForm.academicYear.trim();
     if (!trimmedAY) {
       setAyErrors((prev) => ({ ...prev, academicYear: "Academic Session Name is required." }));
@@ -1085,8 +1088,6 @@ export const SettingsView: React.FC = () => {
       addToast("error", "Invalid Session Name", valResult.error);
       return;
     }
-
-
 
     // Case-insensitive duplicate session check
     const isDuplicate = academicYears.some(
@@ -1151,34 +1152,50 @@ export const SettingsView: React.FC = () => {
       status: ayForm.status as "Active" | "Closed" | "Upcoming",
     };
 
-    if (editingAY) {
-      updateAcademicYear(editingAY.id, payload);
-      addToast(
-        "success",
-        "Academic Year Updated",
-        `Academic year ${ayForm.academicYear} configuration updated.`,
-      );
-    } else {
-      addAcademicYear(payload);
-      addToast(
-        "success",
-        "Academic Year Added",
-        `Academic year ${ayForm.academicYear} created successfully.`,
-      );
+    setIsSavingAY(true);
+    try {
+      if (editingAY) {
+        await updateAcademicYear(editingAY.id, payload);
+        addToast(
+          "success",
+          "Academic Year Updated",
+          `Academic year ${ayForm.academicYear} configuration updated.`,
+        );
+      } else {
+        await addAcademicYear(payload);
+        addToast(
+          "success",
+          "Academic Year Added",
+          `Academic year ${ayForm.academicYear} created successfully.`,
+        );
+      }
+      setIsAYModalOpen(false);
+    } catch (err: any) {
+      let rawMsg = err?.message || err?.error || "Failed to save academic year.";
+      if (rawMsg.includes("Duplicate entry") || rawMsg.includes("already exists")) {
+        rawMsg = `Academic session "${trimmedAY}" already exists in system records.`;
+      }
+      setAyErrors((prev) => ({ ...prev, academicYear: rawMsg }));
+      addToast("error", "Error Saving Session", rawMsg);
+    } finally {
+      setIsSavingAY(false);
     }
-
-    setIsAYModalOpen(false);
   };
 
-  const confirmDeleteAY = () => {
+  const confirmDeleteAY = async () => {
     if (!deletingAY) return;
-    deleteAcademicYear(deletingAY.id);
-    addToast(
-      "success",
-      "Academic Year Removed",
-      `Academic year ${deletingAY.academicYear} deleted.`,
-    );
-    setDeletingAY(null);
+    try {
+      await deleteAcademicYear(deletingAY.id);
+      addToast(
+        "success",
+        "Academic Year Removed",
+        `Academic year ${deletingAY.academicYear} deleted.`,
+      );
+    } catch (err: any) {
+      addToast("error", "Failed to Delete", err?.message || "Failed to delete academic year.");
+    } finally {
+      setDeletingAY(null);
+    }
   };
 
   const handleSetActiveSession = (ay: AcademicYearMaster) => {
@@ -3271,9 +3288,11 @@ export const SettingsView: React.FC = () => {
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-bold shadow-md cursor-pointer"
+                  disabled={isSavingAY}
+                  className="px-5 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-bold shadow-md cursor-pointer disabled:opacity-50 flex items-center gap-1.5"
                 >
-                  Save Academic Year
+                  {isSavingAY && <span className="animate-spin mr-1">⏳</span>}
+                  {isSavingAY ? "Saving..." : "Save Academic Year"}
                 </button>
               </div>
             </form>
