@@ -646,75 +646,55 @@ export function getDesignationOptions(
     return [];
   }
 
-  const cleanSelectedDept = (selectedDepartment || "").toLowerCase().trim();
+  const rawDept = (selectedDepartment || "").trim();
+  const cleanSelectedDept = rawDept.replace(/\s*\([^)]*\)/g, '').toLowerCase().trim();
 
-  // Find matching key from departmentDesignationMap
-  const matchedDeptKey = Object.keys(departmentDesignationMap).find(k => {
-    const lk = k.toLowerCase();
-    return cleanSelectedDept === lk || cleanSelectedDept.includes(lk) || lk.includes(cleanSelectedDept);
-  });
+  const dynamicDesignations: string[] = [];
 
-  const allowedStaticDesignations = matchedDeptKey
-    ? departmentDesignationMap[matchedDeptKey].map(d => d.toLowerCase())
-    : [];
-
-  // Find department-specific keywords
-  const matchedKeywordEntry = Object.entries(departmentKeywords).find(([k]) =>
-    cleanSelectedDept.includes(k) || k.includes(cleanSelectedDept)
-  );
-  const deptKeywords = matchedKeywordEntry ? matchedKeywordEntry[1] : [];
-
-  const customDesignations: string[] = [];
   settingsDesignations.forEach((d) => {
     const name = typeof d === "string" ? d : d.designationName || d.name;
-    if (!name) return;
+    if (!name || typeof name !== 'string' || !name.trim()) return;
 
+    const trimmedName = name.trim();
     const status = typeof d === "object" ? d.status : "Active";
     if (status === "Inactive") return;
 
     const category = typeof d === "object" ? d.employeeCategory || d.staffType || '' : '';
     const cleanCat = String(category).toLowerCase().trim();
 
+    // Check category compatibility (Teaching vs Non-Teaching)
+    // "Both", "All", or unassigned categories apply to both Teaching and Non-Teaching
     if (cleanCat.includes("non-teach") || cleanCat.includes("non teach")) {
       if (isTeachingStaff) return;
     } else if (cleanCat.includes("teach")) {
       if (!isTeachingStaff) return;
     }
 
-    const cleanName = name.toLowerCase().trim();
-    const targetDept = typeof d === "object" ? d.department || d.departmentName : null;
-    const cleanTargetDept = String(targetDept || "").toLowerCase().trim();
+    // If designation is assigned to a specific department in Subject Management, match department
+    const targetDept = typeof d === "object" ? d.department || d.departmentName || d.dept : null;
+    const cleanTargetDept = String(targetDept || "").replace(/\s*\([^)]*\)/g, '').toLowerCase().trim();
 
-    if (cleanSelectedDept) {
-      if (targetDept && cleanTargetDept !== "all" && cleanTargetDept !== "both") {
-        if (cleanTargetDept !== cleanSelectedDept && !cleanSelectedDept.includes(cleanTargetDept) && !cleanTargetDept.includes(cleanSelectedDept)) {
-          return;
-        }
-      } else {
-        // If targetDept is not explicitly defined on designation, filter by department matching
-        if (isTeachingStaff) {
-          const teachingKeywords = [
-            'teacher', 'pgt', 'tgt', 'prt', 'principal', 'vice principal', 'hod', 'faculty', 'lecturer', 'instructor', 'educator'
-          ];
-          const isTeaching = teachingKeywords.some(kw => cleanName.includes(kw));
-          if (!isTeaching) return;
-        } else {
-          const isDirectMatch = allowedStaticDesignations.some(ad =>
-            ad === cleanName || ad.includes(cleanName) || cleanName.includes(ad)
-          );
-          const isKeywordMatch = deptKeywords.length > 0 && deptKeywords.some(kw => cleanName.includes(kw));
-
-          if (!isDirectMatch && !isKeywordMatch) {
-            return;
-          }
-        }
+    if (cleanSelectedDept && cleanTargetDept && cleanTargetDept !== "all" && cleanTargetDept !== "both") {
+      if (cleanTargetDept !== cleanSelectedDept && !cleanSelectedDept.includes(cleanTargetDept) && !cleanTargetDept.includes(cleanSelectedDept)) {
+        return;
       }
     }
 
-    customDesignations.push(name);
+    dynamicDesignations.push(trimmedName);
   });
 
-  return Array.from(new Set(customDesignations));
+  // Deduplicate case-insensitively preserving neat display casing
+  const seen = new Set<string>();
+  const uniqueOptions: string[] = [];
+  for (const item of dynamicDesignations) {
+    const key = item.toLowerCase().trim();
+    if (key && !seen.has(key)) {
+      seen.add(key);
+      uniqueOptions.push(item);
+    }
+  }
+
+  return uniqueOptions;
 }
 
 export interface DocumentRequirementSlot {

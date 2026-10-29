@@ -20,7 +20,13 @@ interface StaffRegistrationPageProps {
 }
 
 export const StaffRegistrationPage: React.FC<StaffRegistrationPageProps> = ({ onNavigate }) => {
-  const { staff, addStaff, departments, designations, branches } = useData();
+  const { staff, addStaff, departments, designations, branches, fetchDesignations, fetchDepartments, fetchBranches } = useData();
+
+  useEffect(() => {
+    fetchDesignations?.();
+    fetchDepartments?.();
+    fetchBranches?.();
+  }, [fetchDesignations, fetchDepartments, fetchBranches]);
   const { selectedBranch } = useAuth();
   const { addToast } = useToast();
   const [errors, setErrors] = useState<Record<string, string>>({});

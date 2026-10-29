@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Search, ChevronDown, Check, X } from 'lucide-react';
+import { Search, ChevronDown, Check, X, Plus } from 'lucide-react';
 
 export interface SelectOption {
   value: string;
@@ -18,6 +18,7 @@ interface SearchableSelectProps {
   disabled?: boolean;
   className?: string;
   error?: string;
+  allowCustom?: boolean;
 }
 
 export const SearchableSelect: React.FC<SearchableSelectProps> = ({
@@ -29,7 +30,8 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
   showSearch,
   disabled = false,
   className = '',
-  error
+  error,
+  allowCustom = false
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [search, setSearch] = useState('');
@@ -44,7 +46,7 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
     return opt;
   });
 
-  const isSearchVisible = showSearch !== undefined ? showSearch : normalizedOptions.length > 5;
+  const isSearchVisible = showSearch !== undefined ? showSearch : (normalizedOptions.length > 5 || allowCustom);
 
   const selectedOption = normalizedOptions.find(o => o.value === value);
 
@@ -84,6 +86,11 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
     setIsOpen(false);
   };
 
+  const trimmedSearch = search.trim();
+  const hasExactMatch = normalizedOptions.some(
+    o => o.value.toLowerCase() === trimmedSearch.toLowerCase() || o.label.toLowerCase() === trimmedSearch.toLowerCase()
+  );
+
   return (
     <div ref={containerRef} className="relative w-full">
       {/* Trigger Button */}
@@ -109,6 +116,8 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
                 </span>
               )}
             </span>
+          ) : value ? (
+            <span className="font-bold text-slate-900 dark:text-white truncate">{value}</span>
           ) : (
             <span className="text-slate-400 font-normal truncate">{placeholder}</span>
           )}
@@ -147,7 +156,18 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
 
           {/* Options List - Exactly 5 items height scroll container */}
           <div className="max-h-44 overflow-y-auto p-1 space-y-0.5 custom-scrollbar">
-            {filteredOptions.length === 0 ? (
+            {allowCustom && trimmedSearch && !hasExactMatch && (
+              <button
+                type="button"
+                onClick={() => handleSelect(trimmedSearch)}
+                className="w-full flex items-center gap-2 px-3 py-2 mb-1 rounded-xl text-xs font-bold text-sky-600 dark:text-sky-400 bg-sky-50/70 dark:bg-sky-950/40 hover:bg-sky-100 dark:hover:bg-sky-900/60 border border-dashed border-sky-300 dark:border-sky-800 transition-all text-left"
+              >
+                <Plus className="w-3.5 h-3.5 shrink-0 text-sky-600 dark:text-sky-400" />
+                <span className="truncate">Add custom: &quot;{trimmedSearch}&quot;</span>
+              </button>
+            )}
+
+            {filteredOptions.length === 0 && (!allowCustom || !trimmedSearch) ? (
               <div className="px-3 py-4 text-center text-slate-400 text-xs font-medium">
                 No matching options found
               </div>

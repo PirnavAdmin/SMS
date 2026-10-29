@@ -181,7 +181,13 @@ export const BasicStaffFormFields: React.FC<BasicStaffFormFieldsProps> = ({
   onCancel,
   staffToEdit
 }) => {
-  const { departments = [], designations = [], staff = [], academicClasses = [], subjects = [], branches = [] } = useData();
+  const { departments = [], designations = [], staff = [], academicClasses = [], subjects = [], branches = [], fetchDesignations, fetchDepartments, fetchBranches } = useData();
+
+  React.useEffect(() => {
+    fetchDesignations?.();
+    fetchDepartments?.();
+    fetchBranches?.();
+  }, [fetchDesignations, fetchDepartments, fetchBranches]);
   const { selectedBranch } = useAuth();
   const { addToast } = useToast();
   const normalizedCategory = normalizeStaffType(value.employeeCategory);
@@ -1725,7 +1731,7 @@ export const BasicStaffFormFields: React.FC<BasicStaffFormFieldsProps> = ({
                         ? 'Select Staff Type First'
                         : !value.department
                         ? 'Select Department First'
-                        : `Select Designation for ${value.department}`
+                        : `Select Designation for ${value.department.replace(/\s*\([^)]*\)/g, '').trim() || value.department}`
                     }
                     searchPlaceholder="Search designation..."
                     disabled={!value.employeeCategory || !value.department}

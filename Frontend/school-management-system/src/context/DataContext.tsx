@@ -466,6 +466,7 @@ import {
   fetchDesignationsApi,
   createDesignationApi,
   updateDesignationApi,
+  deleteDesignationApi,
   fetchAcademicSubjectsApi,
   fetchAcademicPeriodsApi,
   savePeriodApi,
@@ -4948,10 +4949,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           designationName: item.designationName || "",
           designationCode: item.designationCode || "",
           description: item.description || "",
-          employeeCategory:
-            item.employeeCategory === "Both" || !item.employeeCategory
-              ? "Non-Teaching"
-              : item.employeeCategory,
+          employeeCategory: item.employeeCategory || "Both",
+          department: item.department || item.departmentName || "",
           status: item.status || "Active",
         }));
         setDesignations(mapped);
@@ -22755,6 +22754,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
 
     createDesignationApi({
       designationName: newDesignation.designationName,
+      employeeCategory: newDesignation.employeeCategory,
       status: newDesignation.status,
     })
       .then((response: any) => {
@@ -22762,7 +22762,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           setDesignations((prev) =>
             prev.map((d) =>
               d.id === newDesignation.id
-                ? { ...d, id: response.data.designationId.toString() }
+                ? { ...d, id: (response.data.id || response.data.designationId || d.id).toString() }
                 : d,
             ),
           );
@@ -22789,6 +22789,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       const fullDesig = { ...oldDesig, ...updates };
       updateDesignationApi(numericId, {
         designationName: fullDesig.designationName,
+        employeeCategory: fullDesig.employeeCategory,
         status: fullDesig.status,
       }).catch((err) => console.error("Failed to update designation", err));
     }
@@ -22803,6 +22804,12 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   };
 
   const deleteDesignation = (id: string) => {
+    const numericId = parseInt(id, 10);
+    if (!isNaN(numericId)) {
+      deleteDesignationApi(numericId).catch((err: any) =>
+        console.error("Failed to delete designation", err)
+      );
+    }
     setDesignations((prev) => prev.filter((d) => d.id !== id));
     logActivity("Deleted Designation", `Removed designation ID ${id}`);
   };

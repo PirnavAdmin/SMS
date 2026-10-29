@@ -17,6 +17,27 @@ import { fetchSchoolSettingsApi, updateCertificateTemplatesApi } from '../../../
 import { DEFAULT_CERTIFICATE_FIELDS_MAP } from '../../../utils/certificateFields';
 import { validateCertificateTypeName, validateCertificateTypeCode, formatTitleCase } from '../../../utils/validation';
 
+export const formatCertificateNumberPreview = (
+  prefix?: string,
+  startNo?: number | string,
+  paddingDigits?: number | string,
+  includeYear?: boolean,
+  yearPrefix?: string
+): string => {
+  const cleanPrefix = (prefix || '').trim() || 'CERT';
+  const yearPart = includeYear ? `${yearPrefix || '2026-27'}-` : '';
+
+  // Extract raw digits only to eliminate any scientific notation characters (e.g. 'e', '+')
+  const rawDigits = String(startNo ?? '1').replace(/[^0-9]/g, '');
+  const clampedNo = rawDigits === '' ? '1' : rawDigits.slice(0, 8);
+  const numValue = Math.min(Math.max(parseInt(clampedNo, 10) || 1, 1), 99999999);
+
+  const padLen = Math.min(Math.max(parseInt(String(paddingDigits || 4), 10) || 1, 1), 8);
+  const formattedSeq = String(numValue).padStart(padLen, '0');
+
+  return `${cleanPrefix}-${yearPart}${formattedSeq}`;
+};
+
 export const INITIAL_CERTIFICATE_TYPES: CertificateTypeConfig[] = [
   {
     id: 'CT-TC',
@@ -360,6 +381,61 @@ export const CertificateSettingsTab: React.FC = () => {
 
   const [isSavingNumbering, setIsSavingNumbering] = useState(false);
   const [isSavingFields, setIsSavingFields] = useState(false);
+  const [numberingErrors, setNumberingErrors] = useState<Record<string, { prefix?: string; startNo?: string; digits?: string }>>({});
+
+  const validateNumberingField = (typeId: string, field: 'prefix' | 'startNo' | 'digits', value: any) => {
+    setNumberingErrors(prev => {
+      const current = { ...(prev[typeId] || {}) };
+
+      if (field === 'prefix') {
+        const prefix = String(value || '').trim();
+        if (!prefix) {
+          current.prefix = 'Prefix is required.';
+        } else if (prefix.length > 10) {
+          current.prefix = 'Max 10 characters allowed.';
+        } else if (!/^[A-Za-z0-9\-]+$/.test(prefix)) {
+          current.prefix = 'Letters, numbers & hyphen only.';
+        } else if (/([a-zA-Z])\1{3,}/i.test(prefix)) {
+          current.prefix = 'Enter a valid prefix.';
+        } else {
+          delete current.prefix;
+        }
+      }
+
+      if (field === 'startNo') {
+        const raw = String(value ?? '').trim();
+        const num = Number(raw);
+        if (!raw || isNaN(num)) {
+          current.startNo = 'Start No is required.';
+        } else if (num < 1) {
+          current.startNo = 'Must be at least 1.';
+        } else if (raw.length > 8 || num > 99999999) {
+          current.startNo = 'Max 8 digits (up to 99,999,999).';
+        } else {
+          delete current.startNo;
+        }
+      }
+
+      if (field === 'digits') {
+        const raw = String(value ?? '').trim();
+        const num = Number(raw);
+        if (!raw || isNaN(num)) {
+          current.digits = 'Digits is required.';
+        } else if (num < 1 || num > 8) {
+          current.digits = 'Must be between 1 and 8.';
+        } else {
+          delete current.digits;
+        }
+      }
+
+      if (Object.keys(current).length === 0) {
+        const next = { ...prev };
+        delete next[typeId];
+        return next;
+      }
+      return { ...prev, [typeId]: current };
+    });
+  };
 
   // Selected Certificate Type for Required Fields Configuration Matrix
   const [selectedFieldMatrixTypeId, setSelectedFieldMatrixTypeId] = useState<string>("");
@@ -545,7 +621,7 @@ export const CertificateSettingsTab: React.FC = () => {
     name: '',
     code: '',
     description: '',
-    status: 'Active',
+    status: '' as any,
     displayOrder: 1,
     numberingPrefix: '',
     numberingStart: 1,
@@ -553,7 +629,7 @@ export const CertificateSettingsTab: React.FC = () => {
     includeAcademicYearInNo: true,
     requiredFields: ['studentName', 'admissionNumber', 'class']
   });
-  const [typeErrors, setTypeErrors] = useState<{ name?: string; code?: string }>({});
+  const [typeErrors, setTypeErrors] = useState<{ name?: string; code?: string; status?: string }>({});
   const [isTypeCodeManuallyEdited, setIsTypeCodeManuallyEdited] = useState(false);
 
   const generateCertificateCode = (name: string): string => {
@@ -564,6 +640,16 @@ export const CertificateSettingsTab: React.FC = () => {
     return words.map(w => w[0]).join("").slice(0, 6).toUpperCase();
   };
 
+  const toColorPickerValue = (val?: string): string => {
+    if (!val) return "#1e3a8a";
+    const trimmed = val.trim();
+    if (/^#[0-9A-Fa-f]{6}$/.test(trimmed)) return trimmed.toLowerCase();
+    if (/^#[0-9A-Fa-f]{3}$/.test(trimmed)) {
+      return `#${trimmed[1]}${trimmed[1]}${trimmed[2]}${trimmed[2]}${trimmed[3]}${trimmed[3]}`.toLowerCase();
+    }
+    return "#1e3a8a";
+  };
+
   // Placeholder Modal State
   const [isPlaceholderModalOpen, setIsPlaceholderModalOpen] = useState(false);
   const [editingPlaceholder, setEditingPlaceholder] = useState<DynamicPlaceholderItem | null>(null);
@@ -571,14 +657,15 @@ export const CertificateSettingsTab: React.FC = () => {
   const [placeholderForm, setPlaceholderForm] = useState<{
     tokenKey: string;
     description: string;
-    category: 'Student Info' | 'Academic' | 'School Details' | 'Certificate Info' | 'Custom';
+    category: 'Student Info' | 'Academic' | 'School Details' | 'Certificate Info' | 'Custom' | '';
     sampleValue: string;
   }>({
     tokenKey: '',
     description: '',
-    category: 'Custom',
+    category: '',
     sampleValue: ''
   });
+  const [placeholderErrors, setPlaceholderErrors] = useState<{ tokenKey?: string; category?: string; description?: string }>({});
 
   // Selected Template for Editing in Templates subtab
   const [selectedTemplateTypeId, setSelectedTemplateTypeId] = useState<string>('');
@@ -631,9 +718,34 @@ export const CertificateSettingsTab: React.FC = () => {
 
   const [templateEditorState, setTemplateEditorState] = useState<CertificateTemplateConfig>(activeTemplate);
 
+  const getTemplateSnapshot = (t?: Partial<CertificateTemplateConfig>) => {
+    if (!t) return "";
+    return JSON.stringify({
+      certificateTypeId: t.certificateTypeId || "",
+      title: (t.title || "").trim(),
+      headerStyle: t.headerStyle || "",
+      themeColor: (t.themeColor || "").trim().toLowerCase(),
+      bodyTemplate: (t.bodyTemplate || "").trim(),
+      footerText: (t.footerText || "").trim(),
+    });
+  };
+
+  const [savedTemplateSnapshot, setSavedTemplateSnapshot] = useState<string>(() =>
+    getTemplateSnapshot(activeTemplate)
+  );
+  const [isSavingTemplate, setIsSavingTemplate] = useState(false);
+
   useEffect(() => {
     setTemplateEditorState(activeTemplate);
+    setSavedTemplateSnapshot(getTemplateSnapshot(activeTemplate));
   }, [activeTemplate]);
+
+  const currentTemplateSnapshot = useMemo(
+    () => getTemplateSnapshot(templateEditorState),
+    [templateEditorState]
+  );
+  const isTemplateDirty =
+    Boolean(selectedTemplateTypeId) && currentTemplateSnapshot !== savedTemplateSnapshot;
 
   const handleOpenAddType = () => {
     setEditingType(null);
@@ -643,7 +755,7 @@ export const CertificateSettingsTab: React.FC = () => {
       name: '',
       code: '',
       description: '',
-      status: 'Active',
+      status: '' as any,
       displayOrder: types.length + 1,
       numberingPrefix: 'CERT',
       numberingStart: 1,
@@ -702,6 +814,12 @@ export const CertificateSettingsTab: React.FC = () => {
       return;
     }
 
+    if (!typeForm.status) {
+      setTypeErrors(prev => ({ ...prev, status: 'Status is required.' }));
+      addToast('error', 'Status Required', 'Please select a Status.');
+      return;
+    }
+
     const cleanDescription = (typeForm.description || '').trim();
 
     if (editingType) {
@@ -753,7 +871,7 @@ export const CertificateSettingsTab: React.FC = () => {
     if (selectedTemplateTypeId) setTemplateTypeError(undefined);
   }, [selectedTemplateTypeId]);
 
-  const handleSaveTemplate = () => {
+  const handleSaveTemplate = async () => {
     let hasError = false;
     if (!selectedTemplateTypeId) {
       setTemplateTypeError('Please select a Certificate Type.');
@@ -770,6 +888,13 @@ export const CertificateSettingsTab: React.FC = () => {
     if (!templateEditorState.themeColor?.trim()) {
       setThemeColorError('Accent Theme Color is required.');
       hasError = true;
+    } else {
+      const colorVal = templateEditorState.themeColor.trim();
+      const isValidHex = /^#([0-9A-Fa-f]{3}|[0-9A-Fa-f]{6})$/.test(colorVal);
+      if (!isValidHex) {
+        setThemeColorError('Please enter a valid hex color code (e.g. #1e3a8a).');
+        hasError = true;
+      }
     }
     if (!templateEditorState.bodyTemplate?.trim()) {
       setBodyTemplateError('Body Content Template is required.');
@@ -784,21 +909,31 @@ export const CertificateSettingsTab: React.FC = () => {
     setHeaderStyleError(undefined);
     setThemeColorError(undefined);
     setBodyTemplateError(undefined);
-    const updatedTemplate: CertificateTemplateConfig = {
-      ...templateEditorState,
-      updatedAt: new Date().toISOString(),
-    };
-    setTemplateEditorState(updatedTemplate);
-    const nextTemplates = (() => {
-      const exists = templates.some(t => t.certificateTypeId === updatedTemplate.certificateTypeId);
-      if (exists) {
-        return templates.map(t => t.certificateTypeId === updatedTemplate.certificateTypeId ? updatedTemplate : t);
-      }
-      return [...templates, updatedTemplate];
-    })();
-    setTemplates(nextTemplates);
-    syncSettingsToDb(nextTemplates, undefined);
-    addToast('success', 'Template Saved', `Saved layout configuration for ${updatedTemplate.certificateTypeName}`);
+
+    setIsSavingTemplate(true);
+    try {
+      const updatedTemplate: CertificateTemplateConfig = {
+        ...templateEditorState,
+        updatedAt: new Date().toISOString(),
+      };
+      setTemplateEditorState(updatedTemplate);
+      const nextTemplates = (() => {
+        const exists = templates.some(t => t.certificateTypeId === updatedTemplate.certificateTypeId);
+        if (exists) {
+          return templates.map(t => t.certificateTypeId === updatedTemplate.certificateTypeId ? updatedTemplate : t);
+        }
+        return [...templates, updatedTemplate];
+      })();
+      setTemplates(nextTemplates);
+      await syncSettingsToDb(nextTemplates, undefined);
+      setSavedTemplateSnapshot(getTemplateSnapshot(updatedTemplate));
+      addToast('success', 'Template Saved', `Saved layout configuration for ${updatedTemplate.certificateTypeName}`);
+    } catch (err: any) {
+      console.error('Failed to save template:', err);
+      addToast('error', 'Save Failed', err?.message || 'Failed to save certificate template.');
+    } finally {
+      setIsSavingTemplate(false);
+    }
   };
 
   const handleInsertPlaceholder = (ph: string) => {
@@ -811,10 +946,11 @@ export const CertificateSettingsTab: React.FC = () => {
   // Placeholder CRUD Handlers
   const handleOpenAddPlaceholder = () => {
     setEditingPlaceholder(null);
+    setPlaceholderErrors({});
     setPlaceholderForm({
       tokenKey: '',
       description: '',
-      category: 'Custom',
+      category: '',
       sampleValue: ''
     });
     setIsPlaceholderModalOpen(true);
@@ -822,6 +958,7 @@ export const CertificateSettingsTab: React.FC = () => {
 
   const handleOpenEditPlaceholder = (p: DynamicPlaceholderItem) => {
     setEditingPlaceholder(p);
+    setPlaceholderErrors({});
     const cleanKey = p.placeholder.replace(/^\{\{/, '').replace(/\}\}$/, '');
     setPlaceholderForm({
       tokenKey: cleanKey,
@@ -834,10 +971,26 @@ export const CertificateSettingsTab: React.FC = () => {
 
   const handleSavePlaceholder = (e: React.FormEvent) => {
     e.preventDefault();
+    const newErrors: { tokenKey?: string; category?: string; description?: string } = {};
+
     if (!placeholderForm.tokenKey.trim()) {
-      addToast('warning', 'Validation Error', 'Placeholder Token Key is required.');
+      newErrors.tokenKey = 'Placeholder Token Key is required.';
+    }
+    if (!placeholderForm.category) {
+      newErrors.category = 'Please select a Category.';
+    }
+    if (!placeholderForm.description.trim()) {
+      newErrors.description = 'Description is required.';
+    }
+
+    if (Object.keys(newErrors).length > 0) {
+      setPlaceholderErrors(newErrors);
+      const firstError = newErrors.tokenKey || newErrors.category || newErrors.description;
+      addToast('warning', 'Validation Error', firstError || 'Please fill in all required fields.');
       return;
     }
+
+    setPlaceholderErrors({});
 
     const cleanTokenKey = placeholderForm.tokenKey.trim().replace(/[^a-zA-Z0-9_]/g, '');
     const formattedPlaceholder = `{{${cleanTokenKey}}}`;
@@ -846,18 +999,18 @@ export const CertificateSettingsTab: React.FC = () => {
       setPlaceholders(prev => prev.map(item => item.id === editingPlaceholder.id ? {
         ...item,
         placeholder: formattedPlaceholder,
-        description: placeholderForm.description,
-        category: placeholderForm.category,
-        sampleValue: placeholderForm.sampleValue
+        description: placeholderForm.description.trim(),
+        category: placeholderForm.category as any,
+        sampleValue: placeholderForm.sampleValue.trim()
       } : item));
       addToast('success', 'Placeholder Updated', `Updated token ${formattedPlaceholder}`);
     } else {
       const newPh: DynamicPlaceholderItem = {
         id: `PH-CUST-${Date.now().toString().slice(-6)}`,
         placeholder: formattedPlaceholder,
-        description: placeholderForm.description || 'Custom Token Field',
-        category: placeholderForm.category,
-        sampleValue: placeholderForm.sampleValue || 'Sample Data',
+        description: placeholderForm.description.trim() || 'Custom Token Field',
+        category: placeholderForm.category as any,
+        sampleValue: placeholderForm.sampleValue.trim() || 'Sample Data',
         isSystem: false
       };
       setPlaceholders(prev => [...prev, newPh]);
@@ -1007,10 +1160,16 @@ export const CertificateSettingsTab: React.FC = () => {
             <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
               <h4 className="font-extrabold text-sm text-slate-900 dark:text-white">Configure Certificate Template</h4>
               <button
+                type="button"
+                disabled={!isTemplateDirty || isSavingTemplate}
                 onClick={handleSaveTemplate}
-                className="px-3.5 py-1.5 rounded-xl bg-sky-600 hover:bg-sky-500 text-white text-xs font-bold flex items-center gap-1.5 shadow-md cursor-pointer"
+                className={`px-3.5 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all shadow-sm ${
+                  isTemplateDirty && !isSavingTemplate
+                    ? "bg-sky-600 hover:bg-sky-500 text-white cursor-pointer active:scale-95 shadow-md"
+                    : "bg-slate-200 dark:bg-slate-800 text-slate-400 dark:text-slate-500 cursor-not-allowed opacity-60"
+                }`}
               >
-                <Save className="w-3.5 h-3.5" /> Save Template
+                <Save className="w-3.5 h-3.5" /> {isSavingTemplate ? "Saving..." : "Save"}
               </button>
             </div>
 
@@ -1111,25 +1270,32 @@ export const CertificateSettingsTab: React.FC = () => {
                   <div className="flex items-center gap-2">
                     <input
                       type="color"
-                      required
-                      value={templateEditorState.themeColor || '#1e3a8a'}
+                      value={toColorPickerValue(templateEditorState.themeColor)}
                       onChange={e => {
                         setTemplateEditorState(prev => ({ ...prev, themeColor: e.target.value }));
-                        if (e.target.value) setThemeColorError(undefined);
+                        setThemeColorError(undefined);
                       }}
                       className="w-8 h-8 rounded-lg cursor-pointer border-0"
+                      title="Choose Accent Theme Color"
                     />
                     <input
                       type="text"
-                      required
-                      value={templateEditorState.themeColor || '#1e3a8a'}
+                      value={templateEditorState.themeColor ?? ''}
                       onChange={e => {
-                        setTemplateEditorState(prev => ({ ...prev, themeColor: e.target.value }));
-                        if (e.target.value.trim()) setThemeColorError(undefined);
+                        const val = e.target.value;
+                        setTemplateEditorState(prev => ({ ...prev, themeColor: val }));
+                        if (val.trim()) setThemeColorError(undefined);
                       }}
-                      className={`w-full px-2.5 py-1.5 rounded-xl bg-slate-50 dark:bg-slate-800 border font-mono text-xs text-slate-900 dark:text-white ${
-                        themeColorError ? 'border-rose-500 focus:ring-rose-500' : ''
+                      onBlur={() => {
+                        const trimmed = (templateEditorState.themeColor || '').trim();
+                        if (trimmed && !trimmed.startsWith('#') && /^[0-9A-Fa-f]{3,6}$/.test(trimmed)) {
+                          setTemplateEditorState(prev => ({ ...prev, themeColor: `#${trimmed}` }));
+                        }
+                      }}
+                      className={`w-full px-2.5 py-1.5 rounded-xl bg-slate-50 dark:bg-slate-800 border font-mono text-xs text-slate-900 dark:text-white transition outline-none ${
+                        themeColorError ? 'border-rose-500 focus:ring-rose-500' : 'border-slate-200 dark:border-slate-700'
                       }`}
+                      placeholder="#1e3a8a"
                     />
                   </div>
                   {themeColorError && (
@@ -1274,60 +1440,138 @@ export const CertificateSettingsTab: React.FC = () => {
           </div>
 
           <div className="divide-y divide-slate-100 dark:divide-slate-800">
-            {types.map(t => (
-              <div key={t.id} className="py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                <div>
-                  <h4 className="font-bold text-xs text-slate-900 dark:text-white">{t.name}</h4>
-                  <p className="text-[11px] text-slate-400 font-mono">Code: {t.code}</p>
+            {types.map(t => {
+              const rowErr = numberingErrors[t.id];
+              return (
+                <div
+                  key={t.id}
+                  className="py-4 flex flex-col lg:flex-row lg:items-start justify-between gap-4 transition-all"
+                >
+                  <div className="min-w-[170px] pt-1">
+                    <h4 className="font-bold text-xs text-slate-900 dark:text-white">{t.name}</h4>
+                    <p className="text-[11px] text-slate-400 font-mono mt-0.5">Code: {t.code}</p>
+                  </div>
+
+                  <div className="flex flex-wrap items-start gap-4 sm:gap-5 flex-1 justify-start lg:justify-end">
+                    {/* Prefix Field */}
+                    <div className="flex flex-col min-w-[95px] max-w-[130px]">
+                      <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-300 mb-1">
+                        Prefix <span className="text-rose-500 font-bold">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        maxLength={10}
+                        name="numberingPrefix"
+                        aria-label="Prefix"
+                        value={t.numberingPrefix || ''}
+                        onChange={e => {
+                          const val = e.target.value.slice(0, 10);
+                          setTypes(prev => prev.map(x => x.id === t.id ? { ...x, numberingPrefix: val } : x));
+                          validateNumberingField(t.id, 'prefix', val);
+                        }}
+                        className={`w-24 px-2.5 py-1.5 rounded-xl border text-xs font-mono font-bold outline-none transition ${
+                          rowErr?.prefix
+                            ? 'border-rose-500 bg-rose-50/20 text-rose-600 focus:ring-1 focus:ring-rose-500'
+                            : 'border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white focus:border-sky-500'
+                        }`}
+                        placeholder="e.g. TC"
+                      />
+                      {rowErr?.prefix && (
+                        <p className="mt-1 text-[11px] font-semibold text-rose-500 leading-tight break-words">
+                          {rowErr.prefix}
+                        </p>
+                      )}
+                    </div>
+
+                    {/* Start No Field */}
+                    <div className="flex flex-col min-w-[110px] max-w-[150px]">
+                      <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-300 mb-1">
+                        Start No <span className="text-rose-500 font-bold">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        maxLength={8}
+                        name="numberingStart"
+                        aria-label="Start Number"
+                        value={t.numberingStart ?? ''}
+                        onChange={e => {
+                          const cleaned = e.target.value.replace(/[^0-9]/g, '');
+                          const val = cleaned.slice(0, 8);
+                          const num = val === '' ? ('' as any) : Number(val);
+                          setTypes(prev => prev.map(x => x.id === t.id ? { ...x, numberingStart: num } : x));
+                          validateNumberingField(t.id, 'startNo', val);
+                        }}
+                        className={`w-28 px-2.5 py-1.5 rounded-xl border text-xs font-mono font-bold outline-none transition ${
+                          rowErr?.startNo
+                            ? 'border-rose-500 bg-rose-50/20 text-rose-600 focus:ring-1 focus:ring-rose-500'
+                            : 'border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white focus:border-sky-500'
+                        }`}
+                        placeholder="e.g. 1"
+                      />
+                      {rowErr?.startNo && (
+                        <p className="mt-1 text-[11px] font-semibold text-rose-500 leading-tight break-words">
+                          {rowErr.startNo}
+                        </p>
+                      )}
+                    </div>
+
+                    {/* Digits Padding Field */}
+                    <div className="flex flex-col min-w-[80px] max-w-[120px]">
+                      <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-300 mb-1">
+                        Digits <span className="text-rose-500 font-bold">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        maxLength={2}
+                        name="numberingLength"
+                        aria-label="Digits Padding"
+                        value={t.numberingLength ?? ''}
+                        onChange={e => {
+                          const cleaned = e.target.value.replace(/[^0-9]/g, '');
+                          const val = cleaned.slice(0, 2);
+                          const num = val === '' ? ('' as any) : Number(val);
+                          setTypes(prev => prev.map(x => x.id === t.id ? { ...x, numberingLength: num } : x));
+                          validateNumberingField(t.id, 'digits', val);
+                        }}
+                        className={`w-20 px-2.5 py-1.5 rounded-xl border text-xs font-mono font-bold outline-none transition ${
+                          rowErr?.digits
+                            ? 'border-rose-500 bg-rose-50/20 text-rose-600 focus:ring-1 focus:ring-rose-500'
+                            : 'border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white focus:border-sky-500'
+                        }`}
+                        placeholder="4"
+                      />
+                      {rowErr?.digits && (
+                        <p className="mt-1 text-[11px] font-semibold text-rose-500 leading-tight break-words">
+                          {rowErr.digits}
+                        </p>
+                      )}
+                    </div>
+
+                    {/* Include Year Checkbox */}
+                    <div className="flex flex-col pt-6">
+                      <label className="flex items-center gap-1.5 text-xs text-slate-700 dark:text-slate-300 font-medium select-none cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={Boolean(t.includeAcademicYearInNo)}
+                          onChange={e => setTypes(prev => prev.map(x => x.id === t.id ? { ...x, includeAcademicYearInNo: e.target.checked } : x))}
+                          className="w-4 h-4 rounded text-sky-600 cursor-pointer accent-sky-600"
+                        />
+                        <span>Include Year</span>
+                      </label>
+                    </div>
+
+                    {/* Preview Badge */}
+                    <div className="flex flex-col pt-5">
+                      <div className="px-3.5 py-1.5 bg-sky-50 dark:bg-sky-950/40 rounded-xl text-xs font-mono font-bold text-sky-700 dark:text-sky-300 border border-sky-200 dark:border-sky-800/60 shadow-2xs whitespace-nowrap">
+                        {formatCertificateNumberPreview(t.numberingPrefix, t.numberingStart, t.numberingLength, Boolean(t.includeAcademicYearInNo), activeYearPrefix)}
+                      </div>
+                    </div>
+                  </div>
                 </div>
-
-                <div className="flex flex-wrap items-center gap-3">
-                  <div>
-                    <span className="block text-[10px] text-slate-400 font-bold">Prefix</span>
-                    <input
-                      type="text"
-                      value={t.numberingPrefix}
-                      onChange={e => setTypes(prev => prev.map(x => x.id === t.id ? { ...x, numberingPrefix: e.target.value } : x))}
-                      className="w-20 px-2 py-1 rounded-lg border text-xs font-mono font-bold text-slate-900 dark:text-white bg-slate-50 dark:bg-slate-800"
-                    />
-                  </div>
-
-                  <div>
-                    <span className="block text-[10px] text-slate-400 font-bold">Start No</span>
-                    <input
-                      type="number"
-                      value={t.numberingStart}
-                      onChange={e => setTypes(prev => prev.map(x => x.id === t.id ? { ...x, numberingStart: Number(e.target.value) } : x))}
-                      className="w-20 px-2 py-1 rounded-lg border text-xs font-mono font-bold text-slate-900 dark:text-white bg-slate-50 dark:bg-slate-800"
-                    />
-                  </div>
-
-                  <div>
-                    <span className="block text-[10px] text-slate-400 font-bold">Digits</span>
-                    <input
-                      type="number"
-                      value={t.numberingLength}
-                      onChange={e => setTypes(prev => prev.map(x => x.id === t.id ? { ...x, numberingLength: Number(e.target.value) } : x))}
-                      className="w-16 px-2 py-1 rounded-lg border text-xs font-mono font-bold text-slate-900 dark:text-white bg-slate-50 dark:bg-slate-800"
-                    />
-                  </div>
-
-                  <label className="flex items-center gap-1.5 text-xs text-slate-700 dark:text-slate-300 font-medium select-none cursor-pointer mt-3">
-                    <input
-                      type="checkbox"
-                      checked={t.includeAcademicYearInNo}
-                      onChange={e => setTypes(prev => prev.map(x => x.id === t.id ? { ...x, includeAcademicYearInNo: e.target.checked } : x))}
-                      className="w-4 h-4 rounded text-sky-600 cursor-pointer"
-                    />
-                    Include Year
-                  </label>
-
-                  <div className="mt-3 px-3 py-1 bg-slate-100 dark:bg-slate-800 rounded-lg text-xs font-mono font-bold text-sky-600 dark:text-sky-400 border">
-                    {t.numberingPrefix}-{t.includeAcademicYearInNo ? `${activeYearPrefix}-` : ''}{String(t.numberingStart).padStart(t.numberingLength, '0')}
-                  </div>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       )}
@@ -1949,15 +2193,33 @@ export const CertificateSettingsTab: React.FC = () => {
                   )}
                 </div>
                 <div>
-                  <label className="block font-bold mb-1 text-slate-700 dark:text-slate-300">Status</label>
+                  <label className="block font-bold mb-1 text-slate-700 dark:text-slate-300">
+                    Status <span className="text-rose-500 font-bold ml-0.5">*</span>
+                  </label>
                   <select
-                    value={typeForm.status}
-                    onChange={e => setTypeForm(prev => ({ ...prev, status: e.target.value as any }))}
-                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-xs font-bold text-slate-900 dark:text-white outline-none cursor-pointer"
+                    value={typeForm.status || ''}
+                    onChange={e => {
+                      const val = e.target.value as any;
+                      setTypeForm(prev => ({ ...prev, status: val }));
+                      if (val) setTypeErrors(prev => ({ ...prev, status: undefined }));
+                    }}
+                    className={`w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-xs font-bold outline-none cursor-pointer transition-colors ${
+                      typeErrors.status
+                        ? 'border-rose-500 focus:ring-rose-500/20 bg-rose-50/20'
+                        : 'border-slate-200 dark:border-slate-700'
+                    } ${
+                      !typeForm.status ? 'text-slate-400 dark:text-slate-500' : 'text-slate-900 dark:text-white'
+                    }`}
                   >
+                    <option value="" disabled>Select Status</option>
                     <option value="Active">Active</option>
                     <option value="Inactive">Inactive</option>
                   </select>
+                  {typeErrors.status && (
+                    <p className="mt-1 text-xs font-bold text-rose-500 flex items-center gap-1">
+                      <span>⚠️</span> {typeErrors.status}
+                    </p>
+                  )}
                 </div>
               </div>
 
@@ -1977,7 +2239,7 @@ export const CertificateSettingsTab: React.FC = () => {
                   Cancel
                 </button>
                 <button type="submit" className="px-4 py-2 rounded-xl bg-sky-600 text-white font-bold shadow-md cursor-pointer">
-                  Save Certificate Type
+                  Save
                 </button>
               </div>
             </form>
@@ -1998,46 +2260,86 @@ export const CertificateSettingsTab: React.FC = () => {
 
             <form onSubmit={handleSavePlaceholder} className="space-y-3.5 text-xs">
               <div>
-                <label className="block font-bold mb-1 text-slate-700 dark:text-slate-300">Placeholder Key Name <span className="text-rose-500 font-bold ml-0.5">*</span></label>
-                <div className="flex items-center gap-1 bg-slate-50 dark:bg-slate-800 p-2 rounded-xl border font-mono font-bold text-xs text-sky-600 dark:text-sky-400">
+                <label className="block font-bold mb-1 text-slate-700 dark:text-slate-300">
+                  Placeholder Key Name <span className="text-rose-500 font-bold ml-0.5">*</span>
+                </label>
+                <div className={`flex items-center gap-1 bg-slate-50 dark:bg-slate-800 p-2 rounded-xl border font-mono font-bold text-xs text-sky-600 dark:text-sky-400 ${
+                  placeholderErrors.tokenKey ? 'border-rose-500 ring-1 ring-rose-500/20' : 'border-slate-200 dark:border-slate-700'
+                }`}>
                   <span>{"{{"}</span>
                   <input
                     type="text"
-                    required
                     value={placeholderForm.tokenKey}
-                    onChange={e => setPlaceholderForm(prev => ({ ...prev, tokenKey: e.target.value }))}
+                    onChange={e => {
+                      setPlaceholderForm(prev => ({ ...prev, tokenKey: e.target.value }));
+                      if (e.target.value.trim()) setPlaceholderErrors(prev => ({ ...prev, tokenKey: undefined }));
+                    }}
                     className="w-full bg-transparent outline-none text-slate-900 dark:text-white font-mono font-bold"
                     placeholder="e.g. sportsCategory"
                   />
                   <span>{"}}"}</span>
                 </div>
+                {placeholderErrors.tokenKey && (
+                  <p className="mt-1 text-xs font-bold text-rose-500 flex items-center gap-1">
+                    <span>⚠️</span> {placeholderErrors.tokenKey}
+                  </p>
+                )}
               </div>
 
               <div>
-                <label className="block font-bold mb-1 text-slate-700 dark:text-slate-300">Category</label>
+                <label className="block font-bold mb-1 text-slate-700 dark:text-slate-300">
+                  Category <span className="text-rose-500 font-bold ml-0.5">*</span>
+                </label>
                 <select
-                  value={placeholderForm.category}
-                  onChange={e => setPlaceholderForm(prev => ({ ...prev, category: e.target.value as any }))}
-                  className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-xs font-bold text-slate-900 dark:text-white outline-none cursor-pointer"
+                  value={placeholderForm.category || ''}
+                  onChange={e => {
+                    const val = e.target.value as any;
+                    setPlaceholderForm(prev => ({ ...prev, category: val }));
+                    if (val) setPlaceholderErrors(prev => ({ ...prev, category: undefined }));
+                  }}
+                  className={`w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-xs font-bold outline-none cursor-pointer transition-colors ${
+                    placeholderErrors.category
+                      ? 'border-rose-500 focus:ring-rose-500/20 bg-rose-50/20'
+                      : 'border-slate-200 dark:border-slate-700'
+                  } ${
+                    !placeholderForm.category ? 'text-slate-400 dark:text-slate-500' : 'text-slate-900 dark:text-white'
+                  }`}
                 >
+                  <option value="" disabled>Select Category</option>
                   <option value="Student Info">Student Info</option>
                   <option value="Academic">Academic</option>
                   <option value="School Details">School Details</option>
                   <option value="Certificate Info">Certificate Info</option>
                   <option value="Custom">Custom</option>
                 </select>
+                {placeholderErrors.category && (
+                  <p className="mt-1 text-xs font-bold text-rose-500 flex items-center gap-1">
+                    <span>⚠️</span> {placeholderErrors.category}
+                  </p>
+                )}
               </div>
 
               <div>
-                <label className="block font-bold mb-1 text-slate-700 dark:text-slate-300">Description <span className="text-rose-500 font-bold ml-0.5">*</span></label>
+                <label className="block font-bold mb-1 text-slate-700 dark:text-slate-300">
+                  Description <span className="text-rose-500 font-bold ml-0.5">*</span>
+                </label>
                 <input
                   type="text"
-                  required
                   value={placeholderForm.description}
-                  onChange={e => setPlaceholderForm(prev => ({ ...prev, description: e.target.value }))}
-                  className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-xs text-slate-900 dark:text-white outline-none"
+                  onChange={e => {
+                    setPlaceholderForm(prev => ({ ...prev, description: e.target.value }));
+                    if (e.target.value.trim()) setPlaceholderErrors(prev => ({ ...prev, description: undefined }));
+                  }}
+                  className={`w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-xs text-slate-900 dark:text-white outline-none ${
+                    placeholderErrors.description ? 'border-rose-500 ring-1 ring-rose-500/20' : 'border-slate-200 dark:border-slate-700'
+                  }`}
                   placeholder="e.g. Winner of Inter-School Athletics"
                 />
+                {placeholderErrors.description && (
+                  <p className="mt-1 text-xs font-bold text-rose-500 flex items-center gap-1">
+                    <span>⚠️</span> {placeholderErrors.description}
+                  </p>
+                )}
               </div>
 
               <div>
@@ -2046,7 +2348,7 @@ export const CertificateSettingsTab: React.FC = () => {
                   type="text"
                   value={placeholderForm.sampleValue}
                   onChange={e => setPlaceholderForm(prev => ({ ...prev, sampleValue: e.target.value }))}
-                  className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-xs text-slate-900 dark:text-white outline-none"
+                  className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-xs text-slate-900 dark:text-white outline-none border-slate-200 dark:border-slate-700"
                   placeholder="e.g. 100m Athletics Champion"
                 />
               </div>
@@ -2056,7 +2358,7 @@ export const CertificateSettingsTab: React.FC = () => {
                   Cancel
                 </button>
                 <button type="submit" className="px-4 py-2 rounded-xl bg-sky-600 text-white font-bold shadow-md cursor-pointer">
-                  Save Placeholder Token
+                  Save
                 </button>
               </div>
             </form>

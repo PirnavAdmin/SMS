@@ -31,7 +31,7 @@ export const StaffFormModal: React.FC<StaffFormModalProps> = ({
   staffToEdit,
   defaultCategory = "",
 }) => {
-  const { staff, addStaff, updateStaff, departments, designations } = useData();
+  const { staff, addStaff, updateStaff, departments, designations, fetchDesignations, fetchDepartments } = useData();
   const { selectedBranch } = useAuth();
   const { addToast } = useToast();
 
@@ -48,6 +48,8 @@ export const StaffFormModal: React.FC<StaffFormModalProps> = ({
 
   useEffect(() => {
     if (!isOpen) return;
+    fetchDesignations?.();
+    fetchDepartments?.();
 
     if (staffToEdit) {
       const normalizedCat = normalizeStaffType(staffToEdit.employeeCategory);

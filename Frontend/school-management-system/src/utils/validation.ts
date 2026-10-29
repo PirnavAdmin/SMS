@@ -1408,11 +1408,19 @@ const SKIP_INPUT_TYPES = new Set([
 ]);
 
 function inferInputFieldLabel(input: HTMLInputElement | HTMLTextAreaElement): string {
-  // 1. Look for a preceding or wrapping <label>
+  // 0. Explicit aria-label, name, or title
+  const explicitAria = (input.getAttribute('aria-label') || '').trim().toLowerCase();
+  if (explicitAria && explicitAria.length <= 50) return explicitAria;
+
+  // 1. Look for a preceding or wrapping <label> strictly within the field's own container or sibling
   const parentDiv = input.closest('div');
   const labelEl =
-    parentDiv?.querySelector('label') ||
-    parentDiv?.parentElement?.querySelector('label');
+    input.closest('label') ||
+    (input.id && typeof document !== 'undefined' ? document.querySelector(`label[for="${input.id}"]`) : null) ||
+    parentDiv?.querySelector(':scope > label, :scope > span') ||
+    (input.previousElementSibling?.tagName?.toLowerCase() === 'label' || input.previousElementSibling?.tagName?.toLowerCase() === 'span'
+      ? input.previousElementSibling
+      : null);
 
   if (labelEl && labelEl.textContent) {
     const raw = labelEl.textContent
@@ -1420,13 +1428,21 @@ function inferInputFieldLabel(input: HTMLInputElement | HTMLTextAreaElement): st
       .replace(/\(.*?\)/g, '')
       .trim()
       .toLowerCase();
-    if (raw && raw.length <= 50) {
+    if (raw && raw.length <= 50 && !raw.includes('\n')) {
       return raw;
     }
   }
 
-  // 2. Fallback to placeholder
+  // 2. Fallback to name or placeholder
+  const nameAttr = (input.getAttribute('name') || '').toLowerCase();
+  if (nameAttr.includes('prefix')) return 'prefix';
+  if (nameAttr.includes('start')) return 'start number';
+  if (nameAttr.includes('length') || nameAttr.includes('digit')) return 'digits';
+
   const ph = (input.getAttribute('placeholder') || '').toLowerCase();
+  if (ph.includes('prefix') || ph.includes('tc') || ph.includes('bc')) return 'prefix';
+  if (ph.includes('start no') || ph.includes('starting number')) return 'start number';
+  if (ph.includes('digit') || ph.includes('padding')) return 'digit padding';
   if (ph.includes('designation')) return 'designation name';
   if (ph.includes('department')) return 'department name';
   if (ph.includes('subject')) return 'subject name';
@@ -1538,6 +1554,9 @@ function setGlobalInputError(input: HTMLInputElement | HTMLTextAreaElement, erro
     container.closest('form') ||
     container.closest('.grid') ||
     targetParent.querySelector('label') ||
+    targetParent.querySelector('span') ||
+    container.classList.contains('flex-col') ||
+    targetParent.classList.contains('flex-col') ||
     (!isInsideHorizontalLayout && (container.classList.contains('w-full') || input.classList.contains('w-full')))
   );
 
@@ -1617,7 +1636,9 @@ function setGlobalInputError(input: HTMLInputElement | HTMLTextAreaElement, erro
     errEl.style.lineHeight = '1.2';
     errEl.style.zIndex = '30';
     errEl.style.pointerEvents = 'none';
-    errEl.style.whiteSpace = 'nowrap';
+    errEl.style.whiteSpace = 'normal';
+    errEl.style.maxWidth = '180px';
+    errEl.style.wordBreak = 'break-word';
 
     if (errEl.parentElement !== anchor) {
       anchor.appendChild(errEl);
