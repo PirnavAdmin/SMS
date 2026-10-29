@@ -125,10 +125,10 @@ namespace SMS.Api.Repositories.Implementations.Settings
             {
                 var defaults = new List<AutomatedIdFormat>
                 {
-                    new AutomatedIdFormat { FormatKey = "student", Name = "Student ID", Prefix = "STU", StartNo = 1001, Padding = 4, IncludeYear = true, Separator = "-", Position = "start", IsCustom = false },
-                    new AutomatedIdFormat { FormatKey = "teaching", Name = "Teaching Staff ID", Prefix = "TCH", StartNo = 501, Padding = 4, IncludeYear = true, Separator = "-", Position = "start", IsCustom = false },
-                    new AutomatedIdFormat { FormatKey = "non-teaching", Name = "Non-Teaching Staff ID", Prefix = "NTS", StartNo = 801, Padding = 4, IncludeYear = true, Separator = "-", Position = "start", IsCustom = false },
-                    new AutomatedIdFormat { FormatKey = "admission", Name = "Admission No", Prefix = "ADM", StartNo = 2001, Padding = 4, IncludeYear = true, Separator = "-", Position = "start", IsCustom = false }
+                    new AutomatedIdFormat { FormatKey = "student", Name = "Student ID", Prefix = "", StartNo = 0, Padding = 0, IncludeYear = true, Separator = "", Position = "", IsCustom = false },
+                    new AutomatedIdFormat { FormatKey = "teaching", Name = "Teaching Staff ID", Prefix = "", StartNo = 0, Padding = 0, IncludeYear = true, Separator = "", Position = "", IsCustom = false },
+                    new AutomatedIdFormat { FormatKey = "non-teaching", Name = "Non-Teaching Staff ID", Prefix = "", StartNo = 0, Padding = 0, IncludeYear = true, Separator = "", Position = "", IsCustom = false },
+                    new AutomatedIdFormat { FormatKey = "admission", Name = "Admission No", Prefix = "", StartNo = 0, Padding = 0, IncludeYear = true, Separator = "", Position = "", IsCustom = false }
                 };
                 _context.AutomatedIdFormats.AddRange(defaults);
                 await _context.SaveChangesAsync();

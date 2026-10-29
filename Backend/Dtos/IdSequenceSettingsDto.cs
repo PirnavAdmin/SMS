@@ -48,79 +48,79 @@ namespace SMS.Api.Dtos
     {
         // Student ID
         [JsonPropertyName("studentIdPrefix")]
-        public string StudentIdPrefix { get; set; } = "STU";
+        public string StudentIdPrefix { get; set; } = string.Empty;
 
         [JsonPropertyName("studentIdStartNo")]
-        public int StudentIdStartNo { get; set; } = 1001;
+        public int StudentIdStartNo { get; set; } = 0;
 
         [JsonPropertyName("studentIdPadding")]
-        public int StudentIdPadding { get; set; } = 4;
+        public int StudentIdPadding { get; set; } = 0;
 
         [JsonPropertyName("studentIdIncludeYear")]
         public bool StudentIdIncludeYear { get; set; } = true;
 
         [JsonPropertyName("studentIdSeparator")]
-        public string StudentIdSeparator { get; set; } = "-";
+        public string StudentIdSeparator { get; set; } = string.Empty;
 
         [JsonPropertyName("studentIdPosition")]
-        public string StudentIdPosition { get; set; } = "start";
+        public string StudentIdPosition { get; set; } = string.Empty;
 
         // Admission No
         [JsonPropertyName("admissionNoPrefix")]
-        public string AdmissionNoPrefix { get; set; } = "ADM";
+        public string AdmissionNoPrefix { get; set; } = string.Empty;
 
         [JsonPropertyName("admissionNoStartNo")]
-        public int AdmissionNoStartNo { get; set; } = 2001;
+        public int AdmissionNoStartNo { get; set; } = 0;
 
         [JsonPropertyName("admissionNoPadding")]
-        public int AdmissionNoPadding { get; set; } = 4;
+        public int AdmissionNoPadding { get; set; } = 0;
 
         [JsonPropertyName("admissionNoIncludeYear")]
         public bool AdmissionNoIncludeYear { get; set; } = true;
 
         [JsonPropertyName("admissionNoSeparator")]
-        public string AdmissionNoSeparator { get; set; } = "-";
+        public string AdmissionNoSeparator { get; set; } = string.Empty;
 
         [JsonPropertyName("admissionNoPosition")]
-        public string AdmissionNoPosition { get; set; } = "start";
+        public string AdmissionNoPosition { get; set; } = string.Empty;
 
         // Teaching Staff ID
         [JsonPropertyName("teachingIdPrefix")]
-        public string TeachingIdPrefix { get; set; } = "TCH";
+        public string TeachingIdPrefix { get; set; } = string.Empty;
 
         [JsonPropertyName("teachingIdStartNo")]
-        public int TeachingIdStartNo { get; set; } = 501;
+        public int TeachingIdStartNo { get; set; } = 0;
 
         [JsonPropertyName("teachingIdPadding")]
-        public int TeachingIdPadding { get; set; } = 4;
+        public int TeachingIdPadding { get; set; } = 0;
 
         [JsonPropertyName("teachingIdIncludeYear")]
         public bool TeachingIdIncludeYear { get; set; } = true;
 
         [JsonPropertyName("teachingIdSeparator")]
-        public string TeachingIdSeparator { get; set; } = "-";
+        public string TeachingIdSeparator { get; set; } = string.Empty;
 
         [JsonPropertyName("teachingIdPosition")]
-        public string TeachingIdPosition { get; set; } = "start";
+        public string TeachingIdPosition { get; set; } = string.Empty;
 
         // Non-Teaching Staff ID
         [JsonPropertyName("nonTeachingIdPrefix")]
-        public string NonTeachingIdPrefix { get; set; } = "NTS";
+        public string NonTeachingIdPrefix { get; set; } = string.Empty;
 
         [JsonPropertyName("nonTeachingIdStartNo")]
-        public int NonTeachingIdStartNo { get; set; } = 801;
+        public int NonTeachingIdStartNo { get; set; } = 0;
 
         [JsonPropertyName("nonTeachingIdPadding")]
-        public int NonTeachingIdPadding { get; set; } = 4;
+        public int NonTeachingIdPadding { get; set; } = 0;
 
         [JsonPropertyName("nonTeachingIdIncludeYear")]
         public bool NonTeachingIdIncludeYear { get; set; } = true;
 
         [JsonPropertyName("nonTeachingIdSeparator")]
-        public string NonTeachingIdSeparator { get; set; } = "-";
+        public string NonTeachingIdSeparator { get; set; } = string.Empty;
 
         [JsonPropertyName("nonTeachingIdPosition")]
-        public string NonTeachingIdPosition { get; set; } = "start";
+        public string NonTeachingIdPosition { get; set; } = string.Empty;
 
         // Custom Automated Sequences
         [JsonPropertyName("customSequences")]

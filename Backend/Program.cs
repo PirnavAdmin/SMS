@@ -1504,10 +1504,10 @@ using (var scope = app.Services.CreateScope())
             context.Database.ExecuteSqlRaw(@"
                 INSERT INTO `automated_id_formats` (`FormatKey`, `Name`, `Prefix`, `StartNo`, `Padding`, `IncludeYear`, `Separator`, `Position`, `IsCustom`)
                 VALUES 
-                ('student', 'Student ID', 'STU', 1001, 4, 1, '-', 'start', 0),
-                ('teaching', 'Teaching Staff ID', 'TCH', 501, 4, 1, '-', 'start', 0),
-                ('non-teaching', 'Non-Teaching Staff ID', 'NTS', 801, 4, 1, '-', 'start', 0),
-                ('admission', 'Admission No', 'ADM', 2001, 4, 1, '-', 'start', 0)
+                ('student', 'Student ID', '', 0, 0, 1, '', '', 0),
+                ('teaching', 'Teaching Staff ID', '', 0, 0, 1, '', '', 0),
+                ('non-teaching', 'Non-Teaching Staff ID', '', 0, 0, 1, '', '', 0),
+                ('admission', 'Admission No', '', 0, 0, 1, '', '', 0)
                 ON DUPLICATE KEY UPDATE `FormatKey`=`FormatKey`;");
         }
         catch { }
@@ -1610,52 +1610,7 @@ using (var scope = app.Services.CreateScope())
 
         void EnsureColumnRenamed(string table, string oldColumn, string newColumn, string columnDef)
         {
-            try
-            {
-                var conn = context.Database.GetDbConnection();
-                bool closeConn = false;
-                if (conn.State != System.Data.ConnectionState.Open)
-                {
-                    conn.Open();
-                    closeConn = true;
-                }
-
-                bool oldExists = false;
-                bool newExists = false;
-
-                using (var schemaTable = conn.GetSchema("Columns", new[] { null, conn.Database, table, null }))
-                {
-                    foreach (System.Data.DataRow row in schemaTable.Rows)
-                    {
-                        var colName = row["COLUMN_NAME"]?.ToString();
-                        if (colName != null)
-                        {
-                            if (colName.Equals(oldColumn, StringComparison.OrdinalIgnoreCase)) oldExists = true;
-                            if (colName.Equals(newColumn, StringComparison.OrdinalIgnoreCase)) newExists = true;
-                        }
-                    }
-                }
-
-                if (closeConn)
-                {
-                    conn.Close();
-                }
-
-                if (oldExists && !newExists)
-                {
-#pragma warning disable EF1002
-                    try
-                    {
-                        context.Database.ExecuteSqlRaw($"ALTER TABLE `{table}` RENAME COLUMN `{oldColumn}` TO `{newColumn}`;");
-                    }
-                    catch
-                    {
-                        context.Database.ExecuteSqlRaw($"ALTER TABLE `{table}` CHANGE COLUMN `{oldColumn}` `{newColumn}` {columnDef};");
-                    }
-#pragma warning restore EF1002
-                }
-            }
-            catch { }
+            // Already migrated
         }
 
         EnsureColumnRenamed("classes", "ClassId", "id", "int NOT NULL AUTO_INCREMENT");
