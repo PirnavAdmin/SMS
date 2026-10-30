@@ -971,6 +971,49 @@ public class SchoolService : ISchoolService
 		throw new NotFoundException($"Admission application with ID '{id}' not found.");
 	}
 
+	public async Task<AdmissionApplicationResponseDto?> GetApplicationByIdentifierAsync(string identifier)
+	{
+		if (string.IsNullOrWhiteSpace(identifier)) return null;
+
+		var app = await _schoolRepository.GetApplicationByIdentifierAsync(identifier);
+		if (app != null)
+		{
+			var resp = MapToAdmissionResponseDto(app);
+			if (!string.IsNullOrEmpty(app.RegistrationNo))
+			{
+				var adm = await _context.Admissions.AsNoTracking().FirstOrDefaultAsync(a => a.ApplicationNo != null && a.ApplicationNo.ToLower() == app.RegistrationNo.ToLower());
+				if (adm != null && !string.IsNullOrWhiteSpace(adm.SectionLetter))
+				{
+					resp.Section = adm.SectionLetter;
+				}
+			}
+			return resp;
+		}
+
+		int studentId = 0;
+		if (int.TryParse(identifier, out int parsed))
+		{
+			studentId = parsed > 100000 ? parsed - 100000 : parsed;
+		}
+
+		var clean = identifier.Trim().ToLowerInvariant();
+		var s = await _context.Students
+			.Include(st => st.Branch)
+			.Include(st => st.ClassGrade)
+			.Include(st => st.ClassSection)
+			.FirstOrDefaultAsync(st => !st.IsDeleted && (
+				(studentId > 0 && st.StudentId == studentId) ||
+				(st.AdmissionNumber != null && st.AdmissionNumber.ToLower() == clean) ||
+				(st.RollNumber != null && st.RollNumber.ToLower() == clean)));
+
+		if (s != null)
+		{
+			return await GetApplicationByIdAsync(100000 + s.StudentId);
+		}
+
+		return null;
+	}
+
 	public async Task<bool> DeleteApplicationAsync(int id)
 	{
 		var app = await _schoolRepository.GetApplicationByIdAsync(id);
@@ -1301,7 +1344,7 @@ public class SchoolService : ISchoolService
 			AvailableBed = dto.AvailableBed,
 			AllocatedBedId = dto.AllocatedBedId ?? dto.AvailableBed,
 			HostelSecurityDepositPaid = dto.HostelSecurityDepositPaid ?? false,
-			SecurityDepositAmount = dto.SecurityDepositAmount,
+			SecurityDepositAmount = dto.SecurityDepositAmount ?? 0m,
 			SecurityDepositReceiptNo = dto.SecurityDepositReceiptNo,
 			Scholarship = dto.Scholarship,
 			Discount = dto.Discount,
@@ -1991,7 +2034,7 @@ public class SchoolService : ISchoolService
 	private static AdmissionApplicationResponseDto MapToAdmissionResponseDto(AdmissionApplication a) => new()
 	{
 		Id = a.Id,
-		RegistrationNo = (!string.IsNullOrWhiteSpace(a.RegistrationNo) && !a.RegistrationNo.StartsWith("REG-", StringComparison.OrdinalIgnoreCase)) ? a.RegistrationNo : "",
+		RegistrationNo = a.RegistrationNo ?? "",
 		StudentId = (!string.IsNullOrWhiteSpace(a.RegistrationNo) && !a.RegistrationNo.StartsWith("REG-", StringComparison.OrdinalIgnoreCase)) ? a.RegistrationNo : null,
 		AdmissionNo = a.AdmissionNo,
 		ProfilePhotoUrl = a.ProfilePhotoUrl,

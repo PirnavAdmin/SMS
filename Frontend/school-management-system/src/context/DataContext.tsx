@@ -9671,41 +9671,17 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     }
     inFlightStatusUpdates.add(id);
 
-    const appIdParam = (app as any).registrationNo || app.applicationNo || id;
+    const appIdParam = app.id || id || (app as any).registrationNo || app.applicationNo;
 
     try {
-      let json: any = { success: true };
+      let json: any = null;
       if (status === "Enrolled") {
-        try {
-          json = await enrollAdmissionApi(appIdParam);
-        } catch (apiErr: any) {
-          console.warn(
-            "[updateAdmissionStatus] Remote API enroll call failed/bypassed:",
-            apiErr,
-          );
-          json = { success: true };
-        }
+        json = await enrollAdmissionApi(appIdParam);
       } else if (status === "Rejected") {
-        try {
-          json = await rejectAdmissionApi(appIdParam);
-        } catch (apiErr: any) {
-          console.warn(
-            "[updateAdmissionStatus] Remote API reject call failed/bypassed:",
-            apiErr,
-          );
-          json = { success: true };
-        }
+        json = await rejectAdmissionApi(appIdParam);
       } else {
-        try {
-          if (appIdParam) {
-            json = await updateAdmissionStatusApi(appIdParam, status);
-          }
-        } catch (apiErr: any) {
-          console.warn(
-            "[updateAdmissionStatus] Remote API status call failed/bypassed:",
-            apiErr,
-          );
-          json = { success: true };
+        if (appIdParam) {
+          json = await updateAdmissionStatusApi(appIdParam, status);
         }
       }
 
@@ -10199,26 +10175,20 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           "Update Failed",
           json?.message || `Failed to update status to ${status}`,
         );
+        return null;
       }
     } catch (err: any) {
-      console.warn("Server status update note:", err?.message || err);
-      // Seamless local fallback
-      setAdmissions((prev) =>
-        prev.map((a) => (a.id === id ? { ...a, status } : a)),
+      console.error("[updateAdmissionStatus] Status update failed:", err);
+      addToast(
+        "error",
+        "Action Failed",
+        err?.message || `Failed to update status to ${status}.`,
       );
-      if (status === "Rejected") {
-        setStudents((prev) =>
-          prev.map((s) =>
-            String(s.id) === String(id) || s.admissionNo === id
-              ? { ...s, status: "Inactive" as any }
-              : s,
-          ),
-        );
-      }
+      return null;
     } finally {
       setTimeout(() => {
         inFlightStatusUpdates.delete(id);
-      }, 3000);
+      }, 500);
     }
     return null;
   };

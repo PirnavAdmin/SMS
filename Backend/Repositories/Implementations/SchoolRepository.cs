@@ -240,13 +240,34 @@ public class SchoolRepository : ISchoolRepository
             query = query.Where(a => a.Status != null && a.Status.ToLower() == status.ToLower());
 
         if (!string.IsNullOrWhiteSpace(search))
-            query = query.Where(a => (a.FirstName != null && a.FirstName.Contains(search)) || (a.LastName != null && a.LastName.Contains(search)) || (a.RegistrationNo != null && a.RegistrationNo.Contains(search)) || (a.FatherName != null && a.FatherName.Contains(search)));
+            query = query.Where(a => (a.FirstName != null && a.FirstName.Contains(search)) || (a.LastName != null && a.LastName.Contains(search)) || (a.RegistrationNo != null && a.RegistrationNo.Contains(search)) || (a.AdmissionNo != null && a.AdmissionNo.Contains(search)) || (a.FatherName != null && a.FatherName.Contains(search)));
 
         return await query.ToListAsync();
     }
 
     public async Task<AdmissionApplication?> GetApplicationByIdAsync(int id) =>
         await _context.AdmissionApplications.Include(a => a.AppliedClass).FirstOrDefaultAsync(a => a.Id == id && !a.IsDeleted && a.Status != "Deleted");
+
+
+    public async Task<AdmissionApplication?> GetApplicationByIdentifierAsync(string identifier)
+    {
+        if (string.IsNullOrWhiteSpace(identifier)) return null;
+        var clean = identifier.Trim();
+
+        if (int.TryParse(clean, out int id) && id > 0)
+        {
+            var appById = await _context.AdmissionApplications
+                .Include(a => a.AppliedClass)
+                .FirstOrDefaultAsync(a => a.Id == id && !a.IsDeleted && a.Status != "Deleted");
+            if (appById != null) return appById;
+        }
+
+        return await _context.AdmissionApplications
+            .Include(a => a.AppliedClass)
+            .FirstOrDefaultAsync(a => !a.IsDeleted && a.Status != "Deleted" &&
+                ((a.AdmissionNo != null && a.AdmissionNo == clean) ||
+                 (a.RegistrationNo != null && a.RegistrationNo == clean)));
+    }
 
     public async Task AddApplicationAsync(AdmissionApplication application) =>
         await _context.AdmissionApplications.AddAsync(application);

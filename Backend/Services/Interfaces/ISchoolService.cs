@@ -46,6 +46,7 @@ public interface ISchoolService
     // Admission Application Operations
     Task<List<AdmissionApplicationResponseDto>> GetAllApplicationsAsync(string? search, string? branch, int? classId, string? status);
     Task<AdmissionApplicationResponseDto> GetApplicationByIdAsync(int id);
+    Task<AdmissionApplicationResponseDto?> GetApplicationByIdentifierAsync(string identifier);
     Task<AdmissionApplicationResponseDto> SubmitApplicationAsync(SubmitAdmissionDto dto);
     Task<AdmissionApplicationResponseDto> UpdateApplicationAsync(int id, SubmitAdmissionDto dto);
     Task<bool> DeleteApplicationAsync(int id);

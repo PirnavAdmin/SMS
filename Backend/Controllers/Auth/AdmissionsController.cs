@@ -50,29 +50,14 @@ public class AdmissionsController : ControllerBase
     }
 
     [HttpGet("{id}")]
-    [HttpGet("{id:int}")]
     [AllowAnonymous]
     public async Task<IActionResult> GetApplicationById(string id)
     {
-        int targetId = 0;
-        if (int.TryParse(id, out int parsedId))
+        var app = await _schoolService.GetApplicationByIdentifierAsync(id);
+        if (app != null)
         {
-            targetId = parsedId;
+            return Ok(new { success = true, data = app });
         }
-
-        if (targetId > 0)
-        {
-            try
-            {
-                var app = await _schoolService.GetApplicationByIdAsync(targetId);
-                if (app != null) return Ok(new { success = true, data = app });
-            }
-            catch { }
-        }
-
-        var apps = await _schoolService.GetAllApplicationsAsync(id, null, null, null);
-        var target = apps.Find(a => a.RegistrationNo.Equals(id, System.StringComparison.OrdinalIgnoreCase) || (targetId > 0 && a.Id == targetId));
-        if (target != null) return Ok(new { success = true, data = target });
 
         return NotFound(new { success = false, message = $"Application '{id}' not found." });
     }
@@ -102,182 +87,95 @@ public class AdmissionsController : ControllerBase
     [AllowAnonymous]
     public async Task<IActionResult> UpdateApplication(string id, [FromBody] SubmitAdmissionDto dto)
     {
-        int targetId = 0;
-        if (int.TryParse(id, out int parsedId))
-        {
-            targetId = parsedId;
-        }
-        else
-        {
-            var apps = await _schoolService.GetAllApplicationsAsync(id, null, null, null);
-            var target = apps.Find(a => a.RegistrationNo.Equals(id, System.StringComparison.OrdinalIgnoreCase));
-            if (target != null) targetId = target.Id;
-        }
-
-        if (targetId <= 0)
+        var app = await _schoolService.GetApplicationByIdentifierAsync(id);
+        if (app == null)
         {
             return NotFound(new { success = false, message = $"Application '{id}' not found." });
         }
 
-        return Ok(new { success = true, message = "Application updated successfully.", data = await _schoolService.UpdateApplicationAsync(targetId, dto) });
+        return Ok(new { success = true, message = "Application updated successfully.", data = await _schoolService.UpdateApplicationAsync(app.Id, dto) });
     }
 
     [HttpDelete("{id}")]
-    [HttpDelete("{id:int}")]
     [AllowAnonymous]
     public async Task<IActionResult> DeleteApplication(string id)
     {
-        int targetId = 0;
-        if (int.TryParse(id, out int parsedId))
+        var app = await _schoolService.GetApplicationByIdentifierAsync(id);
+        if (app == null)
         {
-            targetId = parsedId;
+            return NotFound(new { success = false, message = $"Application '{id}' not found." });
         }
 
-        if (targetId > 0)
-        {
-            try
-            {
-                await _schoolService.DeleteApplicationAsync(targetId);
-                return Ok(new { success = true, message = "Application deleted successfully." });
-            }
-            catch { }
-        }
-
-        var apps = await _schoolService.GetAllApplicationsAsync(id, null, null, null);
-        var target = apps.Find(a => a.RegistrationNo.Equals(id, System.StringComparison.OrdinalIgnoreCase) || (targetId > 0 && a.Id == targetId));
-        if (target != null)
-        {
-            await _schoolService.DeleteApplicationAsync(target.Id);
-            return Ok(new { success = true, message = "Application deleted successfully." });
-        }
-
-        return Ok(new { success = true, message = "Application marked as deleted." });
+        await _schoolService.DeleteApplicationAsync(app.Id);
+        return Ok(new { success = true, message = "Application deleted successfully." });
     }
 
-    [HttpPost("{registrationNo}/status")]
-    [HttpPatch("{registrationNo}/status")]
-    [HttpPut("{registrationNo}/status")]
-    [HttpPost("{id:int}/status")]
-    [HttpPatch("{id:int}/status")]
-    [HttpPut("{id:int}/status")]
+    [HttpPost("{id}/status")]
+    [HttpPatch("{id}/status")]
+    [HttpPut("{id}/status")]
     [AllowAnonymous]
-    public async Task<IActionResult> UpdateStatusByRegistrationNo(string registrationNo, [FromBody] StatusUpdateDto dto)
+    public async Task<IActionResult> UpdateStatusByRegistrationNo(string id, [FromBody] StatusUpdateDto dto)
     {
-        int targetId = 0;
-        if (int.TryParse(registrationNo, out int parsedId))
+        var app = await _schoolService.GetApplicationByIdentifierAsync(id);
+        if (app == null)
         {
-            targetId = parsedId;
-        }
-
-        var apps = await _schoolService.GetAllApplicationsAsync(registrationNo, null, null, null);
-        var target = apps.Find(a => a.RegistrationNo.Equals(registrationNo, System.StringComparison.OrdinalIgnoreCase) || (targetId > 0 && a.Id == targetId));
-        if (target == null && targetId > 0)
-        {
-            var allApps = await _schoolService.GetAllApplicationsAsync(null, null, null, null);
-            target = allApps.Find(a => a.Id == targetId);
-        }
-
-        if (target == null)
-        {
-            return NotFound(new { success = false, message = $"Application '{registrationNo}' not found." });
+            return NotFound(new { success = false, message = $"Application '{id}' not found." });
         }
 
         string? enrolledAdmissionNo = null;
         string? enrolledRegNo = null;
         if (dto.Status.Equals("Rejected", System.StringComparison.OrdinalIgnoreCase))
         {
-            await _schoolService.RejectApplicationAsync(target.Id);
+            await _schoolService.RejectApplicationAsync(app.Id);
         }
         else if (dto.Status.Equals("Enrolled", System.StringComparison.OrdinalIgnoreCase) || dto.Status.Equals("Admitted", System.StringComparison.OrdinalIgnoreCase))
         {
-            enrolledAdmissionNo = await _schoolService.EnrollStudentAsync(target.Id);
-            var updatedApp = await _schoolService.GetApplicationByIdAsync(target.Id);
+            enrolledAdmissionNo = await _schoolService.EnrollStudentAsync(app.Id);
+            var updatedApp = await _schoolService.GetApplicationByIdAsync(app.Id);
             enrolledRegNo = updatedApp?.RegistrationNo;
         }
         else
         {
-            await _schoolService.UpdateApplicationStatusAsync(target.Id, dto.Status);
+            await _schoolService.UpdateApplicationStatusAsync(app.Id, dto.Status);
         }
 
         return Ok(new { success = true, message = $"Status updated to '{dto.Status}' successfully.", admissionNo = enrolledAdmissionNo, studentId = enrolledRegNo, registrationNo = enrolledRegNo });
     }
 
     [HttpPost("{id}/reject")]
-    [HttpPost("{id:int}/reject")]
     [AllowAnonymous]
     public async Task<IActionResult> RejectApplication(string id)
     {
-        int targetId = 0;
-        if (int.TryParse(id, out int parsedId))
+        var app = await _schoolService.GetApplicationByIdentifierAsync(id);
+        if (app == null)
         {
-            targetId = parsedId;
+            return NotFound(new { success = false, message = $"Application '{id}' not found." });
         }
 
-        if (targetId > 0)
-        {
-            try
-            {
-                await _schoolService.RejectApplicationAsync(targetId);
-                return Ok(new { success = true, message = "Application rejected successfully." });
-            }
-            catch { }
-        }
-
-        var apps = await _schoolService.GetAllApplicationsAsync(id, null, null, null);
-        var target = apps.Find(a => a.RegistrationNo.Equals(id, System.StringComparison.OrdinalIgnoreCase) || (targetId > 0 && a.Id == targetId));
-        if (target != null)
-        {
-            await _schoolService.RejectApplicationAsync(target.Id);
-            return Ok(new { success = true, message = "Application rejected successfully." });
-        }
-
+        await _schoolService.RejectApplicationAsync(app.Id);
         return Ok(new { success = true, message = "Application rejected successfully." });
     }
 
     [HttpPost("{id}/enroll")]
-    [HttpPost("{id:int}/enroll")]
     [AllowAnonymous]
     public async Task<IActionResult> EnrollStudent(string id)
     {
-        int targetId = 0;
-        if (int.TryParse(id, out int parsedId))
+        var app = await _schoolService.GetApplicationByIdentifierAsync(id);
+        if (app == null)
         {
-            targetId = parsedId;
+            return NotFound(new { success = false, message = $"Application '{id}' not found." });
         }
 
-        if (targetId > 0)
-        {
-            try
-            {
-                var admNo = await _schoolService.EnrollStudentAsync(targetId);
-                var updatedApp = await _schoolService.GetApplicationByIdAsync(targetId);
-                return Ok(new { 
-                    success = true, 
-                    message = "Student enrolled successfully into active database.", 
-                    admissionNo = admNo,
-                    studentId = updatedApp?.RegistrationNo,
-                    registrationNo = updatedApp?.RegistrationNo 
-                });
-            }
-            catch { }
-        }
-
-        var apps = await _schoolService.GetAllApplicationsAsync(id, null, null, null);
-        var target = apps.Find(a => a.RegistrationNo.Equals(id, System.StringComparison.OrdinalIgnoreCase) || (targetId > 0 && a.Id == targetId));
-        if (target != null)
-        {
-            var admNo = await _schoolService.EnrollStudentAsync(target.Id);
-            var updatedApp = await _schoolService.GetApplicationByIdAsync(target.Id);
-            return Ok(new { 
-                success = true, 
-                message = "Student enrolled successfully into active database.", 
-                admissionNo = admNo,
-                studentId = updatedApp?.RegistrationNo,
-                registrationNo = updatedApp?.RegistrationNo 
-            });
-        }
-
-        return Ok(new { success = true, message = "Student enrolled successfully into active database." });
+        var admNo = await _schoolService.EnrollStudentAsync(app.Id);
+        var updatedApp = await _schoolService.GetApplicationByIdAsync(app.Id);
+        return Ok(new 
+        { 
+            success = true, 
+            message = "Student enrolled successfully into active database.", 
+            admissionNo = admNo,
+            studentId = updatedApp?.RegistrationNo,
+            registrationNo = updatedApp?.RegistrationNo 
+        });
     }
 }
 

@@ -6015,6 +6015,9 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                 confirmingApp.app.id,
                 confirmingApp.status,
               );
+              if (confirmingApp.status === "Enrolled" && !studentId) {
+                return;
+              }
               if (confirmingApp.status === "Enrolled") {
                 await fetchStudents();
                 const appObj = confirmingApp.app;

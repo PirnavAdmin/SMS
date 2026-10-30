@@ -42,6 +42,7 @@ public interface ISchoolRepository
     // Admissions Operations
     Task<List<AdmissionApplication>> GetAllApplicationsAsync(string? search, string? branch, int? classId, string? status);
     Task<AdmissionApplication?> GetApplicationByIdAsync(int id);
+    Task<AdmissionApplication?> GetApplicationByIdentifierAsync(string identifier);
     Task AddApplicationAsync(AdmissionApplication application);
     void RemoveApplication(AdmissionApplication application);
 
