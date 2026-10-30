@@ -16121,9 +16121,6 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         const headId = h.feeHeadId || h.id || `FH-${h.feeHeadName || h.name}`;
         const headName = h.feeHeadName || h.name || "Tuition Fee";
         const isUni = isUniformHead(headName);
-        const isSelected = isUni
-          ? isUniformOpted(selectedOptional, headId, headName)
-          : true;
         const uniFee = isUni
           ? getUniformFeeForClass(
               clsName || student?.className || "",
@@ -16132,8 +16129,11 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
               dynamicFeeStructures,
             )
           : 0;
+        const isSelected = isUni
+          ? (isUniformOpted(selectedOptional, headId, headName) || uniFee > 0 || uniformAmount > 0)
+          : true;
         const itemAmount =
-          isUni && uniFee > 0 ? uniFee : (Number(h.amount) || 0);
+          isUni && (uniFee > 0 || uniformAmount > 0) ? (uniformAmount > 0 ? uniformAmount : uniFee) : (Number(h.amount) || 0);
 
         ledgerItems.push({
           headId,
@@ -16158,15 +16158,17 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
 
     // Ensure Uniform Fee category amount matches config lookup
     ledgerItems = ledgerItems.map((item) => {
-      if (item.category === "Uniform Fee") {
-        const isApp = item.isApplicable;
+      if (item.category === "Uniform Fee" || isUniformHead(item.headName)) {
+        const isApp = item.isApplicable || uniformAmount > 0;
+        const feeVal = uniformAmount > 0 ? uniformAmount : item.originalAmount;
         return {
           ...item,
-          originalAmount: isApp ? uniformAmount : 0,
+          isApplicable: isApp,
+          originalAmount: isApp ? feeVal : 0,
           finalAmount: isApp
             ? Math.max(
                 0,
-                uniformAmount -
+                feeVal -
                   item.scholarshipDeduction -
                   item.discountDeduction,
               )
@@ -16175,6 +16177,22 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       }
       return item;
     });
+
+    if (uniformAmount > 0 && !ledgerItems.some((i) => isUniformHead(i.headName) || i.category === "Uniform Fee")) {
+      ledgerItems.push({
+        headId: "FH-04",
+        headName: "Uniform & Accessories",
+        category: "Uniform Fee",
+        originalAmount: uniformAmount,
+        scholarshipDeduction: 0,
+        discountDeduction: 0,
+        fineAmount: 0,
+        finalAmount: uniformAmount,
+        isApplicable: true,
+        status: hasUniformIssued ? "Paid" : "Pending",
+        frequency: "Annual",
+      });
+    }
 
     // Normalize Residential Status
     const isResident =
@@ -17602,6 +17620,13 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         );
       });
 
+      const classUniformFee = getUniformFeeForClass(
+        resolvedStudent?.className || student?.className || "",
+        resolvedStudent?.gender || student?.gender || "Male",
+        financeUniformConfigs,
+        dynamicFeeStructures,
+      ) || 0;
+
       const sanitizedItems = existing.feeItems.map((fi) => {
         if (
           isUniform(fi.headName) &&
@@ -17612,12 +17637,14 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
             fi.headId,
             fi.headName,
           );
-          const shouldBeApplicable = isOptedInApp || hasUniformIssued;
+          const shouldBeApplicable = isOptedInApp || hasUniformIssued || classUniformFee > 0;
+          const feeAmt = classUniformFee > 0 ? classUniformFee : (fi.originalAmount || 0);
 
           return {
             ...fi,
+            originalAmount: feeAmt,
             isApplicable: shouldBeApplicable,
-            finalAmount: shouldBeApplicable ? fi.originalAmount : 0,
+            finalAmount: shouldBeApplicable ? feeAmt : 0,
             status: fi.status || ("Pending" as const),
             remarks: shouldBeApplicable
               ? fi.remarks
@@ -17630,6 +17657,22 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       // Inject pending additional uniform purchase dues directly into feeItems
       const pendingUniformExtras = getPendingUniformExtraDues(studentId);
       const itemsToReturn = [...sanitizedItems];
+
+      if (classUniformFee > 0 && !itemsToReturn.some((i) => isUniform(i.headName) || i.category === "Uniform Fee")) {
+        itemsToReturn.push({
+          headId: "FH-04",
+          headName: "Uniform & Accessories",
+          category: "Uniform Fee",
+          originalAmount: classUniformFee,
+          scholarshipDeduction: 0,
+          discountDeduction: 0,
+          fineAmount: 0,
+          finalAmount: classUniformFee,
+          isApplicable: true,
+          status: hasUniformIssued ? "Paid" : "Pending",
+          frequency: "Annual",
+        });
+      }
 
       if (pendingUniformExtras > 0) {
         const extraIdx = itemsToReturn.findIndex(

@@ -1240,7 +1240,8 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
           const targetIssue = (studentUniformIssues || []).find((i) => i.id === rawIssueId);
           if (targetIssue && !targetIssue.replacementDate && !targetIssue.notes?.toLowerCase().includes('exchanged') && targetIssue.status !== 'Returned' && targetIssue.status !== 'Cancelled') {
             updateStudentUniformIssue(rawIssueId, {
-              status: "Paid" as any,
+              status: "Issued" as any,
+              issueDate: targetIssue.issueDate || new Date().toISOString().split("T")[0],
               notes: `Fees Paid at Counter (${paymentMode}) — Receipt #${receiptNumber}`,
             });
           }
@@ -1252,7 +1253,8 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
           );
           if (baseIssue) {
             updateStudentUniformIssue(baseIssue.id, {
-              status: "Paid" as any,
+              status: "Issued" as any,
+              issueDate: baseIssue.issueDate || new Date().toISOString().split("T")[0],
               notes: `Fees Paid at Counter (${paymentMode}) — Receipt #${receiptNumber}`,
             });
           } else if (addStudentUniformIssue) {
@@ -1267,7 +1269,7 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
               size: "M",
               quantity: 1,
               issueDate: new Date().toISOString().split("T")[0],
-              status: "Paid" as any,
+              status: "Issued" as any,
               academicYear: selectedAcademicYear || financeSettings.academicYear || "",
               type: "Base Package",
               price: paidAmount,
@@ -1562,6 +1564,14 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
 
     const isExplicitlyOptedOut = !isExplicitlyOptedIn;
 
+    const classUniformFee =
+      getUniformFeeForClass(
+        selectedStudent.className,
+        selectedStudent.gender,
+        financeUniformConfigs,
+        feeStructures,
+      ) || 0;
+
     // 2. Filter baseline ledger installments based on Residential Status & Uniform Opt-In
     const combined: StudentFeeInstallment[] = ledgerInstallments.filter(
       (inst) => {
@@ -1601,9 +1611,9 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
           return false;
         }
 
-        // Rule 4: If student DID NOT OPT for uniform fee at admission, hide default baseline uniform fee
+        // Rule 4: If student DID NOT OPT for uniform fee at admission, hide default baseline uniform fee only if no uniform fee configured for class
         const isUnifHead = inst.feeHeadId === "FH-04" || inst.feeHeadId === "FH-UNI-BASE" || headLower.includes("uniform");
-        if (isUnifHead && !isExplicitlyOptedIn && !inst.id.startsWith("INST-UNIF-EXTRA-") && !inst.id.startsWith("INST-UNIF-UIS-")) {
+        if (isUnifHead && !isExplicitlyOptedIn && classUniformFee <= 0 && !inst.id.startsWith("INST-UNIF-EXTRA-") && !inst.id.startsWith("INST-UNIF-UIS-")) {
           return false;
         }
 
@@ -2022,7 +2032,7 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
         return false;
       });
 
-      const shouldIncludeUniformFee = isExplicitlyOptedIn && expectedBaseFee > 0;
+      const shouldIncludeUniformFee = (isExplicitlyOptedIn || expectedBaseFee > 0) && expectedBaseFee > 0;
 
       if (shouldIncludeUniformFee && !hasPaidBaseInFinance) {
         const baseUnitFee = (expectedBaseFee && expectedBaseFee > 0) ? expectedBaseFee : 5000;
@@ -2086,8 +2096,8 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
             updatedAt: new Date().toISOString(),
           });
         }
-      } else {
-        // Remove pending base uniform package fee charge for un-opted students without distributed items
+      } else if (!expectedBaseFee || expectedBaseFee <= 0) {
+        // Remove pending base uniform package fee charge for un-opted students without distributed items when no uniform fee configured for class
         for (let i = combined.length - 1; i >= 0; i--) {
           const c = combined[i];
           if (!c.id.startsWith("INST-UNIF-")) {
