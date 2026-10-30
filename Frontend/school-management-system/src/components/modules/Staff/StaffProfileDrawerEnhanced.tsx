@@ -147,8 +147,34 @@ function normalizeStaffRecord(raw: any): Staff {
     return total + parsed;
   }, 0) || Number(raw.experienceYears) || 0;
 
+  const empId = raw.empId || raw.employeeId || raw.EmployeeId || raw.teacherCode || (raw as any).employeeCode || '';
+  const status = raw.status || (raw.isActive === false ? 'Inactive' : (raw.isActive === true ? 'Active' : (raw.status || 'Active')));
+  const panNumber = raw.panNumber || raw.PanNumber || (raw as any).panNo || (raw as any).pan || '';
+  const aadhaarNumber = raw.aadhaarNumber || raw.AadhaarNumber || (raw as any).aadhaar || '';
+  const dob = raw.dob || raw.dateOfBirth ? String(raw.dob || raw.dateOfBirth).split('T')[0] : '';
+  const joiningDate = raw.joiningDate ? String(raw.joiningDate).split('T')[0] : '';
+  const employeeCategory = raw.employeeCategory || raw.category || (raw.role === 'Teacher' ? 'Teaching Staff' : 'Non-Teaching Staff');
+  const role = raw.role || raw.systemRole || (employeeCategory === 'Teaching Staff' ? 'Teacher' : 'Staff');
+  const id = String(raw.staffId || raw.StaffId || raw.id || '');
+  const branch = raw.branch || raw.branchName || raw.BranchName || '';
+  const phone = raw.phone || raw.Phone || (raw as any).mobile || '';
+  const alternateMobile = raw.alternateMobile || raw.AlternateMobile || (raw as any).alternatePhone || '';
+
   return {
     ...raw,
+    id,
+    empId,
+    employeeId: empId,
+    status,
+    panNumber,
+    aadhaarNumber,
+    dob,
+    joiningDate,
+    employeeCategory,
+    role,
+    branch,
+    phone,
+    alternateMobile,
     avatar,
     profilePhoto: avatar,
     qualifications: normalizedQuals,
@@ -168,33 +194,56 @@ function normalizeStaffRecord(raw: any): Staff {
     },
     grossSalary: raw.grossSalary ?? raw.salary ?? raw.monthlySalary ?? 0,
     netSalary: raw.netSalary ?? raw.salary ?? raw.monthlySalary ?? 0,
-    branch: raw.branch || raw.branchName || '',
   } as Staff;
 }
 
 function matchesRequiredDoc(doc: StaffDocument, requiredDoc: string) {
-  const docLabel = normalize(doc.title || (doc as any).documentTitle || (doc as any).name || '');
+  const docLabel = normalize(doc.title || (doc as any).documentTitle || (doc as any).name || (doc as any).fileName || '');
   const docType = normalize(String(doc.type || (doc as any).documentType || ''));
+  const docCombined = `${docLabel} ${docType}`.trim();
   const req = normalize(requiredDoc);
 
-  if (docLabel === req || docType === req) return true;
-  if (docLabel.includes(req) || docType.includes(req) || req.includes(docLabel) || req.includes(docType)) return true;
-  if (req.includes('aadhaar') || req.includes('adhar')) return docLabel.includes('aadhaar') || docType.includes('aadhaar');
-  if (req.includes('pan')) return docLabel.includes('pan') || docType.includes('pan');
-  if (req.includes('photo')) return docLabel.includes('photo') || docType.includes('photo');
-  if (req.includes('certificate') || req.includes('degree') || req.includes('qualification') || req.includes('education')) {
-    return docLabel.includes('certificate') || docLabel.includes('degree') || docType.includes('certificate') || docType.includes('degree') || docLabel.includes('qualification') || docType.includes('qualification');
+  if (!req || !docCombined) return false;
+  if (docLabel === req || docType === req || docCombined === req) return true;
+  if (docCombined.includes(req) || req.includes(docLabel) || req.includes(docType)) return true;
+
+  if (req.includes('photo') || req.includes('profile picture') || req.includes('avatar') || req.includes('passport')) {
+    return docCombined.includes('photo') || docCombined.includes('profile') || docCombined.includes('avatar');
   }
-  if (req.includes('experience')) return docLabel.includes('experience') || docType.includes('experience');
-  if (req.includes('appointment') || req.includes('offer')) return docLabel.includes('appointment') || docLabel.includes('offer');
-  if (req.includes('police')) return docLabel.includes('police') || docType.includes('police');
-  if (req.includes('medical')) return docLabel.includes('medical') || docType.includes('medical');
-  if (req.includes('bank')) return docLabel.includes('bank') || docType.includes('bank') || docLabel.includes('passbook') || docType.includes('passbook');
-  if (req.includes('resume')) return docLabel.includes('resume') || docType.includes('resume');
+  if (req.includes('aadhaar') || req.includes('adhar')) {
+    return docCombined.includes('aadhaar') || docCombined.includes('adhar');
+  }
+  if (req.includes('pan')) {
+    return docCombined.includes('pan');
+  }
+  if (req.includes('degree') || req.includes('qualification') || req.includes('graduation')) {
+    return docCombined.includes('degree') || docCombined.includes('qualification') || docCombined.includes('graduation') || docCombined.includes('certificate');
+  }
+  if (req.includes('bed') || req.includes('med') || req.includes('b ed') || req.includes('m ed')) {
+    return docCombined.includes('bed') || docCombined.includes('med') || docCombined.includes('b ed') || docCombined.includes('m ed') || docCombined.includes('degree') || docCombined.includes('education');
+  }
+  if (req.includes('experience')) {
+    return docCombined.includes('experience');
+  }
+  if (req.includes('joining') || req.includes('offer') || req.includes('appointment')) {
+    return docCombined.includes('joining') || docCombined.includes('offer') || docCombined.includes('appointment');
+  }
+  if (req.includes('bank') || req.includes('passbook')) {
+    return docCombined.includes('bank') || docCombined.includes('passbook') || docCombined.includes('statement') || docCombined.includes('cheque');
+  }
+  if (req.includes('police')) {
+    return docCombined.includes('police');
+  }
+  if (req.includes('medical')) {
+    return docCombined.includes('medical');
+  }
+  if (req.includes('resume') || req.includes('cv')) {
+    return docCombined.includes('resume') || docCombined.includes('cv');
+  }
   return false;
 }
 
-const MetricCard: React.FC<{ label: string; value: string | number; tone?: 'brand' | 'emerald' | 'amber' | 'slate' }> = ({
+const MetricCard: React.FC<{ label: string; value: string | number | undefined | null; tone?: 'brand' | 'emerald' | 'amber' | 'slate' }> = ({
   label,
   value,
   tone = 'slate'
@@ -211,7 +260,7 @@ const MetricCard: React.FC<{ label: string; value: string | number; tone?: 'bran
   return (
     <div className={`rounded-xl border border-slate-200 dark:border-slate-800 bg-gradient-to-br ${toneClass} p-2.5`}>
       <p className="text-[9px] uppercase tracking-[0.25em] font-black opacity-80">{label}</p>
-      <p className="text-sm font-black mt-0.5 truncate">{value}</p>
+      <p className="text-sm font-black mt-0.5 truncate">{value || '—'}</p>
     </div>
   );
 };
@@ -251,7 +300,10 @@ export const StaffProfileDrawer: React.FC<StaffProfileDrawerProps> = ({ staff: s
     workshops = [],
     employeeAssessments = [],
     issuedCertificates = [],
-    auditLogs = []
+    auditLogs = [],
+    loadMonthlyStaffAttendance,
+    fetchPayslips,
+    fetchLeaveApplications
   } = useData();
 
   const safeStaffList = Array.isArray(allStaff) ? allStaff : [];
@@ -274,7 +326,7 @@ export const StaffProfileDrawer: React.FC<StaffProfileDrawerProps> = ({ staff: s
         fetchStaffByIdApi(numId)
           .then((res: any) => {
             if (isMounted && res?.data) {
-              setLiveStaff(normalizeStaffRecord(res.data));
+              setLiveStaff(normalizeStaffRecord({ ...(initialMatched || {}), ...res.data }));
             }
           })
           .catch((err) => {
@@ -315,6 +367,12 @@ export const StaffProfileDrawer: React.FC<StaffProfileDrawerProps> = ({ staff: s
       setActiveTab('overview');
       setImgErr(false);
       refreshStaffLetters();
+      if (typeof fetchPayslips === 'function') fetchPayslips().catch(() => {});
+      if (typeof fetchLeaveApplications === 'function') fetchLeaveApplications().catch(() => {});
+      if (typeof loadMonthlyStaffAttendance === 'function') {
+        const d = new Date();
+        loadMonthlyStaffAttendance(d.getMonth() + 1, d.getFullYear()).catch(() => {});
+      }
     }
   }, [isOpen, staff?.id]);
 
@@ -412,13 +470,15 @@ export const StaffProfileDrawer: React.FC<StaffProfileDrawerProps> = ({ staff: s
           <InfoLine label="Branch" value={staff.branch || '—'} />
           <InfoLine label="Joining Date" value={staff.joiningDate} />
           <InfoLine label="Experience" value={`${staff.experienceYears || 0} years`} />
+          <InfoLine label="PAN Number" value={staff.panNumber || (staff as any).panNo || (staff as any).pan || 'Not Provided'} />
+          <InfoLine label="Aadhaar Number" value={staff.aadhaarNumber || (staff as any).aadhaar || 'Not Provided'} />
           <InfoLine label="Profile Status" value={profileStatus} />
           <InfoLine label="Primary Subject" value={staff.primarySubject || 'Not Assigned'} />
           <InfoLine label="Classes" value={classList.length > 0 ? classList.join(', ') : 'Not Assigned'} />
         </div>
       </SectionBlock>
 
-      <SectionBlock title="Salary Snapshot" subtitle="The latest saved payroll figures in the mock ERP data.">
+      <SectionBlock title="Salary Snapshot" subtitle="Latest dynamic payroll and compensation records.">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <MetricCard label="Gross Salary" value={formatCurrency(grossSalary)} tone="brand" />
           <MetricCard label="Net Salary" value={formatCurrency(netSalary)} tone="emerald" />
@@ -475,7 +535,8 @@ export const StaffProfileDrawer: React.FC<StaffProfileDrawerProps> = ({ staff: s
         <InfoLine label="Shift" value={(staff as any).workShift} />
         <InfoLine label="Weekly Off" value={(staff as any).weeklyOff} />
         <InfoLine label="Attendance Type" value={(staff as any).attendanceType} />
-        <InfoLine label="Employee Code" value={staff.teacherCode || (staff as any).employeeCode} />
+        <InfoLine label="Employee Code" value={staff.empId || staff.teacherCode || (staff as any).employeeCode || 'Not Assigned'} />
+        <InfoLine label="PAN Number" value={staff.panNumber || (staff as any).panNo || (staff as any).pan || 'Not Provided'} />
         <InfoLine label="Biometric ID" value={(staff as any).biometricId} />
         <InfoLine label="Staff Role" value={staff.role === 'Teacher' ? 'Teacher' : (staff.role === 'Staff' ? 'Non-Teaching Staff' : staff.role || 'Non-Teaching Staff')} />
       </div>
@@ -483,61 +544,72 @@ export const StaffProfileDrawer: React.FC<StaffProfileDrawerProps> = ({ staff: s
   );
 
   const renderEducation = () => (
-    <SectionBlock title="Education" subtitle="Multiple qualification records and degree documents.">
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+    <SectionBlock title="Education" subtitle="Educational background and qualification records.">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <MetricCard label="Records" value={educationRecords.length || (staff.qualification || staff.highestQualification ? 1 : 0)} tone="brand" />
         <MetricCard label="Highest Qualification" value={staff.highestQualification || staff.qualification || educationRecords[0]?.highestQualification || 'Not Provided'} tone="emerald" />
-        <MetricCard label="Qualification Docs" value={qualificationDocs.length} tone="amber" />
       </div>
 
       <div className="mt-5 space-y-3">
         {educationRecords.length > 0 ? (
-          educationRecords.map((record, index) => (
-            <div key={record.id || `${index}`} className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/70 px-4 py-4">
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <p className="text-sm font-bold text-slate-900 dark:text-white">
-                    {record.highestQualification || (record as any).qualificationDegree || (record as any).qualification || 'Degree / Qualification'}
-                  </p>
-                  <p className="text-[10px] text-slate-500">
-                    {record.university || (record as any).boardUniversity || (record as any).institutionCollege || 'University'} | {record.year || (record as any).passingYear || 'Year N/A'}
-                  </p>
+          educationRecords.map((record, index) => {
+            const hasBed = Boolean(record.bed && String(record.bed).trim() && record.bed !== 'Not Provided');
+            const hasMed = Boolean(record.med && String(record.med).trim() && record.med !== 'Not Provided');
+            const hasPhd = Boolean(record.phd && String(record.phd).trim() && record.phd !== 'Not Provided');
+            const specVal = record.specialization || (record as any).specializationSubject;
+            const hasSpec = Boolean(specVal && String(specVal).trim() && specVal !== 'Not Provided');
+            const hasExtra = hasBed || hasMed || hasPhd || hasSpec;
+
+            const universityAndYear = [
+              record.university || (record as any).boardUniversity || (record as any).institutionCollege,
+              record.year || (record as any).passingYear
+            ].filter(Boolean).join(' | ');
+
+            const percentageVal = record.percentage || (record as any).percentageCgpa;
+
+            return (
+              <div key={record.id || `${index}`} className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/70 px-4 py-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-bold text-slate-900 dark:text-white">
+                      {record.highestQualification || (record as any).qualificationDegree || (record as any).qualification || 'Degree / Qualification'}
+                    </p>
+                    {universityAndYear && (
+                      <p className="text-[10px] text-slate-500">
+                        {universityAndYear}
+                      </p>
+                    )}
+                  </div>
+                  {percentageVal && percentageVal !== 'N/A' && (
+                    <Badge variant="info" size="sm">{percentageVal}%</Badge>
+                  )}
                 </div>
-                <Badge variant="info" size="sm">{record.percentage || (record as any).percentageCgpa || 'N/A'}%</Badge>
+                {hasExtra && (
+                  <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-3">
+                    {hasBed && <InfoLine label="B.Ed" value={record.bed} />}
+                    {hasMed && <InfoLine label="M.Ed" value={record.med} />}
+                    {hasPhd && <InfoLine label="Ph.D" value={record.phd} />}
+                    {hasSpec && <InfoLine label="Specialization" value={specVal} />}
+                  </div>
+                )}
               </div>
-              <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-3">
-                <InfoLine label="B.Ed" value={record.bed || 'Not Provided'} />
-                <InfoLine label="M.Ed" value={record.med || 'Not Provided'} />
-                <InfoLine label="Ph.D" value={record.phd || 'Not Provided'} />
-                <InfoLine label="Specialization" value={record.specialization || (record as any).specializationSubject || 'Not Provided'} />
-              </div>
-            </div>
-          ))
+            );
+          })
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <InfoLine label="Highest Qualification" value={staff.highestQualification || staff.qualification} />
-            <InfoLine label="Qualification Summary" value={staff.qualification || staff.highestQualification} />
-            <InfoLine label="Specialization" value={staff.specialization || 'Not Provided'} />
-            <InfoLine label="Experience" value={`${staff.experienceYears || 0} years`} />
+            <InfoLine label="Highest Qualification" value={staff.highestQualification || staff.qualification || 'Not Provided'} />
+            <InfoLine label="Qualification Summary" value={staff.qualification || staff.highestQualification || 'Not Provided'} />
+            {staff.specialization && staff.specialization !== 'Not Provided' && (
+              <InfoLine label="Specialization" value={staff.specialization} />
+            )}
+            {Boolean(staff.experienceYears) && (
+              <InfoLine label="Experience" value={`${staff.experienceYears} years`} />
+            )}
           </div>
         )}
       </div>
 
-      <div className="mt-5 space-y-2">
-        {qualificationDocs.length === 0 ? (
-          <p className="text-sm text-slate-500 italic">No qualification certificates or degree files are attached.</p>
-        ) : (
-          qualificationDocs.map(doc => (
-            <div key={doc.id} className="flex items-center justify-between rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/70 px-4 py-3">
-              <div>
-                <p className="text-sm font-bold text-slate-900 dark:text-white">{doc.title || (doc as any).documentTitle}</p>
-                <p className="text-[10px] text-slate-500">{doc.type || (doc as any).documentType} | Uploaded {doc.uploadedDate || (doc as any).uploadedAt || 'Recently'}</p>
-              </div>
-              <Badge variant="info" size="sm">{doc.verificationStatus || (doc as any).status || 'Pending Verification'}</Badge>
-            </div>
-          ))
-        )}
-      </div>
+
     </SectionBlock>
   );
 
@@ -594,6 +666,7 @@ export const StaffProfileDrawer: React.FC<StaffProfileDrawerProps> = ({ staff: s
           <InfoLine label="Branch" value={bank.branch || (staff as any).branchName || (staff as any).branch} />
           <InfoLine label="Account Number" value={bank.accountNumber || (staff as any).accountNumber} />
           <InfoLine label="IFSC Code" value={bank.ifscCode || (staff as any).ifscCode} />
+          <InfoLine label="PAN Number" value={staff.panNumber || (staff as any).panNo || (staff as any).pan || 'Not Provided'} />
           <InfoLine label="UPI ID" value={bank.upiId || (staff as any).upiId || 'Not Provided'} />
         </div>
       </SectionBlock>
@@ -1136,7 +1209,7 @@ export const StaffProfileDrawer: React.FC<StaffProfileDrawerProps> = ({ staff: s
               <div className="min-w-0">
                 <div className="flex items-center gap-2 flex-wrap">
                   <h2 className="text-base font-black text-slate-900 dark:text-white truncate">{fullName}</h2>
-                  <Badge variant="info" size="sm">{staff.empId}</Badge>
+                  <Badge variant="info" size="sm">{staff.empId || 'No ID'}</Badge>
                 </div>
                 <p className="text-xs text-slate-500 font-bold mt-0.5">{designation} | {department}</p>
                 <p className="text-[10px] text-slate-400 font-medium">{staff.branch ? `Branch: ${staff.branch} | ` : ''}Role: {staff.role === 'Teacher' ? 'Teacher' : (staff.role === 'Staff' ? 'Non-Teaching Staff' : staff.role || 'Non-Teaching Staff')}</p>
