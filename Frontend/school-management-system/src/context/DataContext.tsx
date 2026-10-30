@@ -1592,9 +1592,12 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   );
   const [students, setStudents] = useState<Student[]>([]);
   const [totalStudentCount, setTotalStudentCount] = useState<number>(0);
-  const [staff, setStaff] = useState<Staff[]>(() =>
-    getStored("edu_db_staff", initialStaff),
-  );
+  const [staff, setStaff] = useState<Staff[]>(() => {
+    try {
+      localStorage.removeItem("edu_db_staff");
+    } catch {}
+    return [];
+  });
   const [admissions, setAdmissions] = useState<AdmissionApplication[]>([]);
   const [rawClasses, setRawClasses] = useState<any[]>([]);
   const [academicClasses, setAcademicClasses] = useState<AcademicClass[]>([]);
@@ -2520,22 +2523,12 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     };
     syncAcademicYearsFromApi();
   }, []);
+  // Stale localStorage sync for staff removed to ensure 100% dynamic API data
   useEffect(() => {
     try {
-      const lightweightStaff = (staff || []).map((s) => {
-        if (
-          s.avatar &&
-          typeof s.avatar === "string" &&
-          s.avatar.startsWith("data:")
-        ) {
-          const { avatar, ...rest } = s;
-          return rest;
-        }
-        return s;
-      });
-      localStorage.setItem("edu_db_staff", JSON.stringify(lightweightStaff));
+      localStorage.removeItem("edu_db_staff");
     } catch {}
-  }, [staff]);
+  }, []);
   useEffect(() => {
     try {
       localStorage.setItem(
@@ -4706,6 +4699,19 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
                 id: item.applicationId
                   ? item.applicationId.toString()
                   : existing?.id || Math.random().toString(),
+                studentId:
+                  item.studentId ||
+                  item.registrationNo ||
+                  item.registrationNumber ||
+                  (item as any).rollNo ||
+                  existing?.studentId ||
+                  "",
+                rollNo:
+                  (item as any).rollNo ||
+                  item.studentId ||
+                  item.registrationNo ||
+                  existing?.rollNo ||
+                  "",
                 admissionNo:
                   item.admissionNo ||
                   item.admissionNumber ||
@@ -5030,6 +5036,83 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
               }
               seenEmpIds.add(itemEmpId.toUpperCase());
 
+              const mappedDocuments = (item.documents || existing?.documents || []).map((d: any) => {
+                const title = d.title || d.documentTitle || d.documentType || d.name || "Document";
+                const type = d.type || d.documentType || d.docType || "Certificate";
+                const uploadedDate = d.uploadedDate || d.uploadedAt || d.uploadDate || "";
+                const verificationStatus = d.verificationStatus || (d.isVerified ? "Verified" : (d.status || "Pending Verification"));
+                return {
+                  ...d,
+                  id: d.id || String(Math.random()),
+                  title,
+                  documentTitle: title,
+                  type,
+                  documentType: type,
+                  uploadedDate: typeof uploadedDate === "string" ? uploadedDate.split("T")[0] : "",
+                  uploadedAt: uploadedDate,
+                  verificationStatus,
+                  status: verificationStatus,
+                  fileUrl: d.fileUrl || "",
+                };
+              });
+
+              const mappedQualifications = (item.qualifications || existing?.qualifications || []).map((q: any) => {
+                const highestQualification = q.highestQualification || q.qualificationDegree || q.qualification || q.degree || "";
+                const university = q.university || q.boardUniversity || q.institutionCollege || "";
+                const year = (q.year || q.passingYear || "").toString();
+                const percentage = (q.percentage || q.percentageCgpa || "").toString();
+                const specialization = q.specialization || q.specializationSubject || "";
+                return {
+                  ...q,
+                  id: q.id || String(Math.random()),
+                  highestQualification,
+                  qualificationDegree: highestQualification,
+                  university,
+                  boardUniversity: university,
+                  institutionCollege: q.institutionCollege || university,
+                  year,
+                  passingYear: year,
+                  percentage,
+                  percentageCgpa: percentage,
+                  specialization,
+                  specializationSubject: specialization,
+                  bed: q.bed || undefined,
+                  med: q.med || undefined,
+                  phd: q.phd || undefined,
+                };
+              });
+
+              const mappedExperience = (item.experienceRecords || existing?.experienceRecords || []).map((e: any) => {
+                const org = e.organization || e.previousOrganization || e.previousSchool || e.school || "";
+                const desig = e.designation || e.designationHeld || e.role || "";
+                const from = e.joiningDate || e.fromDate || "";
+                const to = e.relievingDate || e.toDate || "";
+                const exp = e.totalExperience || (e.yearsOfExperience ? `${e.yearsOfExperience} years` : "");
+                return {
+                  ...e,
+                  id: e.id || String(Math.random()),
+                  organization: org,
+                  previousOrganization: org,
+                  previousSchool: org,
+                  designation: desig,
+                  designationHeld: desig,
+                  joiningDate: from,
+                  fromDate: from,
+                  relievingDate: to,
+                  toDate: to,
+                  totalExperience: exp,
+                  certificateFileName: e.certificateFileName || "",
+                  certificateFileUrl: e.certificateFileUrl || "",
+                };
+              });
+
+              const photoDoc = mappedDocuments.find((d: any) => /photo|profile/i.test(`${d.title || ''} ${d.type || ''}`));
+              const resolvedAvatar = item.avatar || item.profilePhoto || photoDoc?.fileUrl || existing?.avatar || "";
+              const totalExpYears = mappedExperience.reduce((total: number, rec: any) => {
+                const parsed = parseFloat(String(rec.totalExperience || '').replace(/[^\d.]/g, '')) || Number(rec.yearsOfExperience) || 0;
+                return total + parsed;
+              }, 0) || Number(item.experienceYears) || 0;
+
               mappedStaff.push({
                 id: itemId,
                 empId: itemEmpId,
@@ -5063,15 +5146,14 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
                 joiningDate: item.joiningDate
                   ? item.joiningDate.split("T")[0]
                   : "",
-                qualification: item.qualification || "",
-                experienceYears: item.experienceRecords
-                  ? item.experienceRecords.reduce(
-                      (total: number, rec: any) =>
-                        total + (rec.yearsOfExperience || 0),
-                      0,
-                    )
-                  : 0,
-                salary: item.monthlySalary || 0,
+                qualification: mappedQualifications[0]?.highestQualification || item.qualification || existing?.qualification || "",
+                highestQualification: mappedQualifications[0]?.highestQualification || item.highestQualification || existing?.highestQualification || "",
+                experienceYears: totalExpYears,
+                salary: item.monthlySalary || item.grossSalary || 0,
+                grossSalary: item.grossSalary || item.monthlySalary || 0,
+                netSalary: item.netSalary || item.monthlySalary || 0,
+                salaryStructureName: item.salaryStructureName || "",
+                salaryStructureEffectiveDate: item.salaryStructureEffectiveDate || "",
                 designation: item.designation || "",
                 department: item.department || "",
                 role: item.systemRole || (isTeaching ? "Teacher" : "Staff"),
@@ -5100,19 +5182,18 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
                     ? item.isClassTeacherEligible
                     : existing?.isClassTeacherEligible || false,
                 bankDetails: {
-                  accountHolderName: item.accountHolderName || "",
-                  accountNumber: item.accountNumber || "",
-                  bankName: item.bankName || "",
-                  branch: item.branchName || "",
-                  ifscCode: item.ifscCode || "",
-                  upiId: item.upiId || "",
+                  accountHolderName: item.accountHolderName || existing?.bankDetails?.accountHolderName || "",
+                  accountNumber: item.accountNumber || existing?.bankDetails?.accountNumber || "",
+                  bankName: item.bankName || existing?.bankDetails?.bankName || "",
+                  branch: item.branchName || item.branch || existing?.bankDetails?.branch || "",
+                  ifscCode: item.ifscCode || existing?.bankDetails?.ifscCode || "",
+                  upiId: item.upiId || existing?.bankDetails?.upiId || "",
                 },
-                qualifications:
-                  item.qualifications || existing?.qualifications || [],
-                experienceRecords:
-                  item.experienceRecords || existing?.experienceRecords || [],
-                documents: item.documents || existing?.documents || [],
-                avatar: item.avatar || existing?.avatar || "",
+                qualifications: mappedQualifications,
+                experienceRecords: mappedExperience,
+                documents: mappedDocuments,
+                avatar: resolvedAvatar,
+                profilePhoto: resolvedAvatar,
                 leaveBalance: existing?.leaveBalance,
                 branch:
                   item.branchName || item.branch || existing?.branch || "",
@@ -5204,10 +5285,19 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
               s.category ||
               "General";
 
+            const effectiveStudentId =
+              (matchingAdmission as any)?.studentId ||
+              (matchingAdmission as any)?.registrationNo ||
+              s.rollNumber ||
+              s.rollNo ||
+              sIdStr;
+
             return {
               id: sIdStr,
+              studentId: effectiveStudentId,
               admissionNo: admNo,
-              registrationNumber: regNo,
+              registrationNo: (matchingAdmission as any)?.registrationNo || regNo || effectiveStudentId,
+              registrationNumber: (matchingAdmission as any)?.registrationNo || regNo || effectiveStudentId,
               firstName,
               middleName: s.middleName || "",
               lastName,
@@ -5268,7 +5358,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
               motherPhone: s.motherMobile || s.motherPhone || "",
               address: s.address || "",
               promotionHistory: [],
-              rollNo: s.rollNumber || s.rollNo || "",
+              rollNo: (matchingAdmission as any)?.studentId || (matchingAdmission as any)?.registrationNo || s.rollNumber || s.rollNo || "",
               bloodGroup: s.bloodGroup || matchingAdmission?.bloodGroup || "O+",
               religion: resolvedReligion,
               casteCategory: resolvedCasteCategory,
@@ -6856,7 +6946,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       }
       fetchAdmissions();
     }
-  }, [isAuthenticated, role, user?.role]);
+  }, [isAuthenticated, role, user?.role, selectedBranch, selectedAcademicYear]);
 
   useEffect(() => {
     const handleFinanceUpdated = () => {
@@ -8525,6 +8615,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       const existing = staff.find((s) => s.id === id);
       if (existing) {
         const fullStaff = { ...existing, ...updates };
+        const photoDoc = (fullStaff.documents || []).find((d: any) => /photo|profile/i.test(`${d.title || d.documentTitle || ''} ${d.type || d.documentType || ''}`));
+        const finalAvatar = fullStaff.avatar || (fullStaff as any).profilePhoto || photoDoc?.fileUrl || "";
+
         updateStaffApi(numericId, {
           employeeId: fullStaff.empId,
           employeeCategory:
@@ -8550,9 +8643,13 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           department: fullStaff.department,
           systemRole: fullStaff.role,
           joiningDate: fullStaff.joiningDate,
-          qualification: fullStaff.qualification || "",
+          qualification: fullStaff.qualification || fullStaff.highestQualification || "",
           employmentType: fullStaff.employmentType,
-          monthlySalary: fullStaff.salary || 0,
+          monthlySalary: fullStaff.salary || (fullStaff as any).monthlySalary || 0,
+          grossSalary: fullStaff.grossSalary || fullStaff.salary || 0,
+          netSalary: fullStaff.netSalary || fullStaff.salary || 0,
+          profilePhoto: finalAvatar,
+          avatar: finalAvatar,
           dateOfBirth: fullStaff.dob,
           bloodGroup: fullStaff.bloodGroup,
           aadhaarNumber: fullStaff.aadhaarNumber || null,
@@ -8561,49 +8658,49 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
             (fullStaff as any).panNo ||
             (fullStaff as any).pan ||
             null,
-          presentAddress: fullStaff.presentAddress || null,
+          presentAddress: fullStaff.presentAddress || (fullStaff as any).residentialAddress || fullStaff.address || null,
           permanentAddress: fullStaff.permanentAddress || null,
           city: fullStaff.city || null,
           state: fullStaff.state || null,
           pinCode: fullStaff.pinCode || null,
           country: fullStaff.country || "India",
-          accountHolderName: fullStaff.bankDetails?.accountHolderName || "",
-          accountNumber: fullStaff.bankDetails?.accountNumber || "",
-          bankName: fullStaff.bankDetails?.bankName || "",
-          branchName: fullStaff.branch || fullStaff.bankDetails?.branch || "",
-          ifscCode: fullStaff.bankDetails?.ifscCode || "",
-          upiId: fullStaff.bankDetails?.upiId || "",
+          accountHolderName: fullStaff.bankDetails?.accountHolderName || (fullStaff as any).accountHolderName || "",
+          accountNumber: fullStaff.bankDetails?.accountNumber || (fullStaff as any).accountNumber || "",
+          bankName: fullStaff.bankDetails?.bankName || (fullStaff as any).bankName || "",
+          branchName: fullStaff.branch || fullStaff.bankDetails?.branch || (fullStaff as any).branchName || "",
+          ifscCode: fullStaff.bankDetails?.ifscCode || (fullStaff as any).ifscCode || "",
+          upiId: fullStaff.bankDetails?.upiId || (fullStaff as any).upiId || "",
           isActive: fullStaff.status === "Active",
           assignedClasses: fullStaff.assignedClasses || [],
           assignedSubjects: fullStaff.assignedSubjects || [],
           qualifications: (fullStaff.qualifications || []).map((q: any) => ({
-            qualificationDegree: q.qualification || q.qualificationDegree || "",
+            qualificationDegree: q.highestQualification || q.qualificationDegree || q.qualification || q.degree || "",
             specializationSubject:
-              q.specialization || q.specializationSubject || "",
-            institutionCollege: q.institution || q.institutionCollege || "",
-            boardUniversity: q.boardUniversity || q.university || "",
-            passingYear: (q.passingYear || q.year || "").toString(),
-            percentageCgpa: (q.percentageCgpa || q.percentage || "").toString(),
+              q.specialization || q.specializationSubject || q.subject || "",
+            institutionCollege: q.institution || q.institutionCollege || q.college || "",
+            boardUniversity: q.university || q.boardUniversity || q.board || "",
+            passingYear: (q.year || q.passingYear || "").toString(),
+            percentageCgpa: (q.percentage || q.percentageCgpa || "").toString(),
           })),
           experienceRecords: (fullStaff.experienceRecords || []).map(
             (e: any) => ({
               previousOrganization:
-                e.previousOrganization || e.school || e.organization || "",
+                e.organization || e.previousOrganization || e.previousSchool || e.school || "",
               designationHeld:
-                e.designationHeld || e.designation || e.role || "",
-              fromDate: e.fromDate || null,
-              toDate: e.toDate || null,
-              totalExperience: e.totalExperience || "",
+                e.designation || e.designationHeld || e.role || "",
+              fromDate: e.joiningDate || e.fromDate || null,
+              toDate: e.relievingDate || e.toDate || null,
+              totalExperience: (e.totalExperience || "").toString(),
               reasonForLeaving: e.reasonForLeaving || "",
             }),
           ),
           documents: (fullStaff.documents || []).map((d: any) => ({
-            documentTitle: d.title || d.fileName || d.name || "",
+            documentTitle: d.title || d.documentTitle || d.fileName || d.name || d.documentType || "",
             documentType:
-              d.documentType || d.docType || d.type || d.title || "Document",
+              d.type || d.documentType || d.docType || d.title || "Document",
             fileUrl: d.fileUrl || "",
             isRequired: d.isRequired ?? true,
-            status: d.status || "Attached",
+            status: d.verificationStatus || d.status || "Attached",
             uploadedAt:
               d.uploadedAt ||
               d.uploadDate ||
@@ -8613,6 +8710,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         })
           .then(() => {
             fetchAcademicClasses();
+            fetchStaff();
           })
           .catch((err) => {
             console.error("Failed to update staff in backend", err);
@@ -8659,7 +8757,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
             (targetEmpId && dEmp && dEmp === targetEmpId) ||
             String(d.id) === String(id) ||
             (targetFullName &&
-              d.driverName.trim().toLowerCase() ===
+              (d.driverName || "").trim().toLowerCase() ===
                 targetFullName.toLowerCase());
 
           if (match) {
@@ -8688,7 +8786,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
             (targetEmpId && aEmp && aEmp === targetEmpId) ||
             String(a.id) === String(id) ||
             (targetFullName &&
-              a.attendantName.trim().toLowerCase() ===
+              (a.attendantName || "").trim().toLowerCase() ===
                 targetFullName.toLowerCase());
 
           if (match) {
@@ -15253,16 +15351,42 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       "";
     const todayStr = new Date().toISOString().split("T")[0];
 
+    const getStartYearFromAY = (ay?: string): number => {
+      if (!ay) return 0;
+      const match = String(ay).match(/\d{4}/);
+      return match ? parseInt(match[0], 10) : 0;
+    };
+
+    const isPriorAcademicYear = (itemAY?: string, refAY?: string): boolean => {
+      const itemY = getStartYearFromAY(itemAY);
+      const refY = getStartYearFromAY(refAY);
+      if (itemY <= 0 || refY <= 0) return false;
+      return itemY < refY;
+    };
+
     const result: PromotedStudentWithDues[] = [];
 
     students.forEach((student) => {
       if (student.status === "Inactive") return;
 
+      // Only evaluate students who have actually been promoted or have prior academic history
+      const hasPromotionHistory =
+        Boolean(student.promotionHistory && student.promotionHistory.length > 0);
+      const hasPriorAcademicHistory =
+        Boolean(student.academicHistory && student.academicHistory.some((h) =>
+          isPriorAcademicYear(h.academicYear, activeAY)
+        ));
+      const isMarkedPromoted = student.status === "Promoted";
+
+      if (!hasPromotionHistory && !hasPriorAcademicHistory && !isMarkedPromoted) {
+        return;
+      }
+
       // Collect all installments belonging to academic years strictly before activeAY
       let prevInsts = studentFeeInstallments.filter(
         (inst) =>
           inst.studentId === student.id &&
-          inst.academicYear < activeAY &&
+          isPriorAcademicYear(inst.academicYear, activeAY) &&
           inst.dueAmount > 0,
       );
 
@@ -15270,7 +15394,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       const prevLedgers = studentFeeLedgers.filter(
         (l) =>
           l.studentId === student.id &&
-          l.academicYear < activeAY &&
+          isPriorAcademicYear(l.academicYear, activeAY) &&
           l.dueBalance > 0,
       );
 
@@ -15360,7 +15484,12 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         (l) => l.academicYear === latestPrevAY,
       );
       const previousClass =
-        prevHist?.className || prevLedgerObj?.className || "Class 5";
+        prevHist?.className ||
+        prevLedgerObj?.className ||
+        (student.promotionHistory && student.promotionHistory.length > 0
+          ? student.promotionHistory[student.promotionHistory.length - 1].fromClass
+          : "") ||
+        "—";
 
       const breakdownByYear = previousAcademicYears.map((ay) => {
         const items = yearMap.get(ay) || [];
@@ -15371,7 +15500,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         const lObj = prevLedgers.find((l) => l.academicYear === ay);
         return {
           academicYear: ay,
-          className: histItem?.className || lObj?.className || previousClass,
+          className: histItem?.className || lObj?.className || previousClass || "—",
           totalPending: totPending,
           items,
         };
@@ -16068,9 +16197,6 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         const headId = h.feeHeadId || h.id || `FH-${h.feeHeadName || h.name}`;
         const headName = h.feeHeadName || h.name || "Tuition Fee";
         const isUni = isUniformHead(headName);
-        const isSelected = isUni
-          ? isUniformOpted(selectedOptional, headId, headName)
-          : true;
         const uniFee = isUni
           ? getUniformFeeForClass(
               clsName || student?.className || "",
@@ -16079,8 +16205,11 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
               dynamicFeeStructures,
             )
           : 0;
+        const isSelected = isUni
+          ? (isUniformOpted(selectedOptional, headId, headName) || uniFee > 0 || uniformAmount > 0)
+          : true;
         const itemAmount =
-          isUni && uniFee > 0 ? uniFee : (Number(h.amount) || 0);
+          isUni && (uniFee > 0 || uniformAmount > 0) ? (uniformAmount > 0 ? uniformAmount : uniFee) : (Number(h.amount) || 0);
 
         ledgerItems.push({
           headId,
@@ -16105,15 +16234,17 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
 
     // Ensure Uniform Fee category amount matches config lookup
     ledgerItems = ledgerItems.map((item) => {
-      if (item.category === "Uniform Fee") {
-        const isApp = item.isApplicable;
+      if (item.category === "Uniform Fee" || isUniformHead(item.headName)) {
+        const isApp = item.isApplicable || uniformAmount > 0;
+        const feeVal = uniformAmount > 0 ? uniformAmount : item.originalAmount;
         return {
           ...item,
-          originalAmount: isApp ? uniformAmount : 0,
+          isApplicable: isApp,
+          originalAmount: isApp ? feeVal : 0,
           finalAmount: isApp
             ? Math.max(
                 0,
-                uniformAmount -
+                feeVal -
                   item.scholarshipDeduction -
                   item.discountDeduction,
               )
@@ -16122,6 +16253,22 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       }
       return item;
     });
+
+    if (uniformAmount > 0 && !ledgerItems.some((i) => isUniformHead(i.headName) || i.category === "Uniform Fee")) {
+      ledgerItems.push({
+        headId: "FH-04",
+        headName: "Uniform & Accessories",
+        category: "Uniform Fee",
+        originalAmount: uniformAmount,
+        scholarshipDeduction: 0,
+        discountDeduction: 0,
+        fineAmount: 0,
+        finalAmount: uniformAmount,
+        isApplicable: true,
+        status: hasUniformIssued ? "Paid" : "Pending",
+        frequency: "Annual",
+      });
+    }
 
     // Normalize Residential Status
     const isResident =
@@ -17062,6 +17209,10 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         : students.find(
             (s) =>
               String(s.id).trim().toLowerCase() === sIdStr ||
+              (s.studentId &&
+                String(s.studentId).trim().toLowerCase() === sIdStr) ||
+              (s.rollNo &&
+                String(s.rollNo).trim().toLowerCase() === sIdStr) ||
               (s.admissionNo &&
                 String(s.admissionNo).trim().toLowerCase() === sIdStr),
           ) ||
@@ -17083,6 +17234,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
                       .trim()
                       .toLowerCase()
                   : "";
+              const aStuId = (a as any).studentId
+                ? String((a as any).studentId).trim().toLowerCase()
+                : "";
               const aAdm = (a as any).admissionNo
                 ? String((a as any).admissionNo)
                     .trim()
@@ -17097,6 +17251,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
                 (aId === sIdStr ||
                   aApp === sIdStr ||
                   aReg === sIdStr ||
+                  aStuId === sIdStr ||
                   aAdm === sIdStr)
               );
             });
@@ -17541,6 +17696,13 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         );
       });
 
+      const classUniformFee = getUniformFeeForClass(
+        resolvedStudent?.className || student?.className || "",
+        resolvedStudent?.gender || student?.gender || "Male",
+        financeUniformConfigs,
+        dynamicFeeStructures,
+      ) || 0;
+
       const sanitizedItems = existing.feeItems.map((fi) => {
         if (
           isUniform(fi.headName) &&
@@ -17551,12 +17713,14 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
             fi.headId,
             fi.headName,
           );
-          const shouldBeApplicable = isOptedInApp || hasUniformIssued;
+          const shouldBeApplicable = isOptedInApp || hasUniformIssued || classUniformFee > 0;
+          const feeAmt = classUniformFee > 0 ? classUniformFee : (fi.originalAmount || 0);
 
           return {
             ...fi,
+            originalAmount: feeAmt,
             isApplicable: shouldBeApplicable,
-            finalAmount: shouldBeApplicable ? fi.originalAmount : 0,
+            finalAmount: shouldBeApplicable ? feeAmt : 0,
             status: fi.status || ("Pending" as const),
             remarks: shouldBeApplicable
               ? fi.remarks
@@ -17569,6 +17733,22 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       // Inject pending additional uniform purchase dues directly into feeItems
       const pendingUniformExtras = getPendingUniformExtraDues(studentId);
       const itemsToReturn = [...sanitizedItems];
+
+      if (classUniformFee > 0 && !itemsToReturn.some((i) => isUniform(i.headName) || i.category === "Uniform Fee")) {
+        itemsToReturn.push({
+          headId: "FH-04",
+          headName: "Uniform & Accessories",
+          category: "Uniform Fee",
+          originalAmount: classUniformFee,
+          scholarshipDeduction: 0,
+          discountDeduction: 0,
+          fineAmount: 0,
+          finalAmount: classUniformFee,
+          isApplicable: true,
+          status: hasUniformIssued ? "Paid" : "Pending",
+          frequency: "Annual",
+        });
+      }
 
       if (pendingUniformExtras > 0) {
         const extraIdx = itemsToReturn.findIndex(
@@ -18286,12 +18466,18 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   const getStudentFeeOutstandingSummary = (
     studentId: string,
   ): StudentFeeOutstandingSummary => {
+    const sIdLower = String(studentId || "").trim().toLowerCase();
     const student =
-      students.find((s) => s.id === studentId) ||
+      students.find(
+        (s) =>
+          s.id === studentId ||
+          String(s.id).toLowerCase() === sIdLower ||
+          (s.admissionNo && s.admissionNo.toLowerCase() === sIdLower) ||
+          (s.rollNo && s.rollNo.toLowerCase() === sIdLower) ||
+          ((s as any).studentId && String((s as any).studentId).toLowerCase() === sIdLower),
+      ) ||
       (() => {
-        const sId = String(studentId || "")
-          .trim()
-          .toLowerCase();
+        const sId = sIdLower;
         const adm = (admissions || []).find((a) => {
           if (!a) return false;
           const aId = a.id != null ? String(a.id).trim().toLowerCase() : "";
@@ -18309,6 +18495,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
                   .trim()
                   .toLowerCase()
               : "";
+          const aStuId = (a as any).studentId
+            ? String((a as any).studentId).trim().toLowerCase()
+            : "";
           const aAdm = (a as any).admissionNo
             ? String((a as any).admissionNo)
                 .trim()
@@ -18331,6 +18520,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
             (aId === sId ||
               aApp === sId ||
               aReg === sId ||
+              aStuId === sId ||
               aAdm === sId ||
               aName === sId ||
               aName.includes(sId))
@@ -21014,12 +21204,18 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   const calculateStudentPayableFee = (
     studentId: string,
   ): StudentCalculationResult | null => {
+    const sIdLower = String(studentId || "").trim().toLowerCase();
     const student =
-      students.find((s) => s.id === studentId) ||
+      students.find(
+        (s) =>
+          s.id === studentId ||
+          String(s.id).toLowerCase() === sIdLower ||
+          (s.admissionNo && s.admissionNo.toLowerCase() === sIdLower) ||
+          (s.rollNo && s.rollNo.toLowerCase() === sIdLower) ||
+          ((s as any).studentId && String((s as any).studentId).toLowerCase() === sIdLower),
+      ) ||
       (() => {
-        const sId = String(studentId || "")
-          .trim()
-          .toLowerCase();
+        const sId = sIdLower;
         const adm = (admissions || []).find((a) => {
           if (!a) return false;
           const aId = a.id != null ? String(a.id).trim().toLowerCase() : "";
@@ -21037,6 +21233,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
                   .trim()
                   .toLowerCase()
               : "";
+          const aStuId = (a as any).studentId
+            ? String((a as any).studentId).trim().toLowerCase()
+            : "";
           const aAdm = (a as any).admissionNo
             ? String((a as any).admissionNo)
                 .trim()
@@ -21059,6 +21258,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
             (aId === sId ||
               aApp === sId ||
               aReg === sId ||
+              aStuId === sId ||
               aAdm === sId ||
               aName === sId ||
               aName.includes(sId))

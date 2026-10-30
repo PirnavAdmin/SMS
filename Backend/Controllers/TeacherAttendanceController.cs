@@ -137,12 +137,18 @@ public class TeacherAttendanceController : ControllerBase
 
     private string GetTeacherEmail()
     {
+        var staffId = User.FindFirstValue("StaffId") ?? User.FindFirstValue("staff_id");
+        if (!string.IsNullOrWhiteSpace(staffId)) return staffId;
+
         var email =
             User.FindFirstValue(ClaimTypes.Email) ??
-            User.FindFirstValue("email") ??
-            User.FindFirstValue(ClaimTypes.Name) ??
-            User.FindFirstValue(ClaimTypes.NameIdentifier);
+            User.FindFirstValue("email");
+        if (!string.IsNullOrWhiteSpace(email)) return email;
 
-        return email ?? string.Empty;
+        var empId = User.FindFirstValue("EmployeeId") ?? User.FindFirstValue("employee_id");
+        if (!string.IsNullOrWhiteSpace(empId)) return empId;
+
+        var nameId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        return nameId ?? string.Empty;
     }
 }

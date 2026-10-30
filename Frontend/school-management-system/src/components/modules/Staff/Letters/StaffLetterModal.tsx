@@ -346,14 +346,21 @@ export const StaffLetterModal: React.FC<StaffLetterModalProps> = ({
       }
       setPayload(defaultPl);
 
+      const isMock = (name?: string | null) => {
+        if (!name) return true;
+        const norm = name.trim().toLowerCase();
+        return norm === '' || norm === 'dr. eleanor vance' || norm === 'eleanor vance';
+      };
+
       // Sync fresh global settings from backend database
       fetchGlobalLetterSettingsApi()
         .then((res) => {
           if (res?.data) {
             const s = res.data;
+            const validName = s.signatoryName && !isMock(s.signatoryName) ? s.signatoryName : '';
             setPayload((prev) => ({
               ...prev,
-              authorizedSignatoryName: s.signatoryName || prev.authorizedSignatoryName,
+              authorizedSignatoryName: validName || prev.authorizedSignatoryName,
               authorizedSignatoryTitle: s.signatoryTitle || prev.authorizedSignatoryTitle,
               probationMonths: s.probationMonths || prev.probationMonths,
               noticePeriodDays: s.noticePeriodDays || prev.noticePeriodDays,
@@ -366,6 +373,12 @@ export const StaffLetterModal: React.FC<StaffLetterModalProps> = ({
         })
         .catch(() => {});
     } else {
+      const isMock = (name?: string | null) => {
+        if (!name) return true;
+        const norm = name.trim().toLowerCase();
+        return norm === '' || norm === 'dr. eleanor vance' || norm === 'eleanor vance';
+      };
+
       // Initial state when opened without specific staff:
       // Opens in Configure ('edit') tab, initially showing "-- Select Employee --"
       setCurrentStaff(undefined);
@@ -383,9 +396,10 @@ export const StaffLetterModal: React.FC<StaffLetterModalProps> = ({
         .then((res) => {
           if (res?.data) {
             const s = res.data;
+            const validName = s.signatoryName && !isMock(s.signatoryName) ? s.signatoryName : '';
             setPayload((prev) => ({
               ...prev,
-              authorizedSignatoryName: prev.authorizedSignatoryName || s.signatoryName || '',
+              authorizedSignatoryName: prev.authorizedSignatoryName || validName || '',
               authorizedSignatoryTitle: prev.authorizedSignatoryTitle || s.signatoryTitle || '',
               probationMonths: prev.probationMonths || s.probationMonths || 0,
               noticePeriodDays: prev.noticePeriodDays || s.noticePeriodDays || 0,
@@ -1423,6 +1437,7 @@ export const StaffLetterModal: React.FC<StaffLetterModalProps> = ({
                       type="text"
                       value={payload.authorizedSignatoryName}
                       onChange={(e) => setPayload({ ...payload, authorizedSignatoryName: e.target.value })}
+                      placeholder="Enter Authorized Signatory Full Name"
                       className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none"
                     />
                   </div>
@@ -1435,6 +1450,7 @@ export const StaffLetterModal: React.FC<StaffLetterModalProps> = ({
                       type="text"
                       value={payload.authorizedSignatoryTitle}
                       onChange={(e) => setPayload({ ...payload, authorizedSignatoryTitle: e.target.value })}
+                      placeholder="Enter Signatory Title & Designation"
                       className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none"
                     />
                   </div>

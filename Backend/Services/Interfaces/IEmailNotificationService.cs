@@ -22,4 +22,14 @@ public interface IEmailNotificationService
         bool isNewAccount,
         string? portalUrl = null,
         string? schoolName = null);
+
+    Task<bool> SendStaffWelcomeEmailAsync(
+        string recipientEmail,
+        string recipientName,
+        string employeeId,
+        string employeeCategory,
+        string designation,
+        string? department = null,
+        string? portalUrl = null,
+        string? schoolName = null);
 }

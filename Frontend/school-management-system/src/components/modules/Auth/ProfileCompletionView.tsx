@@ -124,9 +124,12 @@ const stepMeta: { id: StepId; title: string; short: string; icon: React.Componen
   { id: 'review', title: 'Review & Submit', short: 'Review', icon: CheckCircle2 }
 ];
 
-function normalize(value: string) {
-  return value.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+function normalize(value?: string | null) {
+  if (!value) return '';
+  return String(value).toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
 }
+
+const safeTrim = (val?: string | null) => (val !== undefined && val !== null ? String(val).trim() : '');
 
 function fileSnapshot(file: File): UploadedFile {
   return {
@@ -137,7 +140,9 @@ function fileSnapshot(file: File): UploadedFile {
 }
 
 function matchesRequiredDocument(document: StaffDocument, requirement: string) {
-  const docLabel = normalize(`${document.title || ''} ${document.type || ''}`);
+  const docTitle = document.title || (document as any).documentTitle || (document as any).name || (document as any).fileName || '';
+  const docType = document.type || (document as any).documentType || '';
+  const docLabel = normalize(`${docTitle} ${docType}`);
   const req = normalize(requirement);
   if (req.includes('profile picture') || req.includes('passport photo')) {
     return docLabel.includes('profile picture') || docLabel.includes('passport photo') || docLabel.includes('photo') || docLabel.includes('avatar');
@@ -180,13 +185,13 @@ function buildDocumentDrafts(category: EmployeeCategory, staff?: Staff | null, u
     const existing = existingDocs.find(doc => matchesRequiredDocument(doc, req.label));
     let file = existing
       ? {
-          fileName: existing.title,
+          fileName: existing.title || (existing as any).documentTitle || (existing as any).name || (existing as any).fileName || req.label,
           fileUrl: existing.fileUrl,
           uploadedDate: existing.uploadedDate
         }
       : null;
 
-    if (!file && (req.label.toLowerCase().includes('profile picture') || req.label.toLowerCase().includes('photo')) && (staff?.avatar || user?.avatar)) {
+    if (!file && ((req.label || '').toLowerCase().includes('profile picture') || (req.label || '').toLowerCase().includes('photo')) && (staff?.avatar || user?.avatar)) {
       file = {
         fileName: 'profile_photo.jpg',
         fileUrl: (staff?.avatar || user?.avatar)!,
@@ -338,7 +343,7 @@ export const ProfileCompletionView: React.FC<ProfileCompletionViewProps> = ({ on
   const { addToast } = useToast();
 
   const linkedStaff = useMemo(
-    () => staff.find(item => item.email.toLowerCase() === (user?.email || '').toLowerCase()) || null,
+    () => staff.find(item => item && (item.email || '').toLowerCase() === (user?.email || '').toLowerCase()) || null,
     [staff, user?.email]
   );
 
@@ -350,6 +355,7 @@ export const ProfileCompletionView: React.FC<ProfileCompletionViewProps> = ({ on
   const requiredDocuments = useMemo(() => getDocumentRequirements(staffCategory), [staffCategory]);
   const [currentStep, setCurrentStep] = useState(0);
   const [loading, setLoading] = useState(false);
+  const [isSubmitted, setIsSubmitted] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [form, setForm] = useState<ProfileFormState>(() => buildProfileForm(linkedStaff, staffCategory, user));
 
@@ -414,7 +420,7 @@ export const ProfileCompletionView: React.FC<ProfileCompletionViewProps> = ({ on
       documents:
         updates.certificate !== undefined
           ? prev.documents.map(doc =>
-              doc.label.toLowerCase().includes('experience certificate')
+              (doc.label || '').toLowerCase().includes('experience certificate')
                 ? { ...doc, file: updates.certificate ?? null }
                 : doc
             )
@@ -444,9 +450,9 @@ export const ProfileCompletionView: React.FC<ProfileCompletionViewProps> = ({ on
       photo: snapshot,
       documents: prev.documents.map(d =>
         (d.id === docId ||
-         d.label.toLowerCase().includes('profile picture') ||
-         d.label.toLowerCase().includes('passport photo') ||
-         d.label.toLowerCase().includes('photo'))
+         (d.label || '').toLowerCase().includes('profile picture') ||
+         (d.label || '').toLowerCase().includes('passport photo') ||
+         (d.label || '').toLowerCase().includes('photo'))
           ? { ...d, file: snapshot }
           : d
       )
@@ -470,9 +476,9 @@ export const ProfileCompletionView: React.FC<ProfileCompletionViewProps> = ({ on
             photo: persistentSnapshot,
             documents: prev.documents.map(d =>
               (d.id === docId ||
-               d.label.toLowerCase().includes('profile picture') ||
-               d.label.toLowerCase().includes('passport photo') ||
-               d.label.toLowerCase().includes('photo'))
+               (d.label || '').toLowerCase().includes('profile picture') ||
+               (d.label || '').toLowerCase().includes('passport photo') ||
+               (d.label || '').toLowerCase().includes('photo'))
                 ? { ...d, file: persistentSnapshot }
                 : d
             )
@@ -491,7 +497,7 @@ export const ProfileCompletionView: React.FC<ProfileCompletionViewProps> = ({ on
 
   useEffect(() => {
     const photoDoc = form.documents.find(
-      doc => doc.file && (doc.label.toLowerCase().includes('profile picture') || doc.label.toLowerCase().includes('photo'))
+      doc => doc.file && ((doc.label || '').toLowerCase().includes('profile picture') || (doc.label || '').toLowerCase().includes('photo'))
     );
     const photoUrl = photoDoc?.file?.fileUrl || form.photo?.fileUrl;
     if (photoUrl && user && user.avatar !== photoUrl) {
@@ -631,7 +637,7 @@ export const ProfileCompletionView: React.FC<ProfileCompletionViewProps> = ({ on
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!validateAll()) {
       addToast('warning', 'Profile incomplete', 'Please review the highlighted fields before submitting.');
       return;
@@ -639,138 +645,161 @@ export const ProfileCompletionView: React.FC<ProfileCompletionViewProps> = ({ on
 
     setLoading(true);
 
-    const educationRecords: StaffEducationRecord[] = form.education.map(row => ({
-      id: row.id,
-      highestQualification: row.highestQualification.trim(),
-      university: row.university.trim(),
-      year: row.year.trim(),
-      percentage: row.percentage.trim(),
-      bed: row.bed.trim() || undefined,
-      med: row.med.trim() || undefined,
-      phd: row.phd.trim() || undefined,
-      specialization: row.specialization.trim() || undefined
-    })).filter(row => row.highestQualification || row.university || row.year || row.percentage);
+    try {
+      const educationRecords: StaffEducationRecord[] = form.education.map(row => ({
+        id: row.id,
+        highestQualification: safeTrim(row.highestQualification),
+        university: safeTrim(row.university),
+        year: safeTrim(row.year),
+        percentage: safeTrim(row.percentage),
+        bed: safeTrim(row.bed) || undefined,
+        med: safeTrim(row.med) || undefined,
+        phd: safeTrim(row.phd) || undefined,
+        specialization: safeTrim(row.specialization) || undefined
+      })).filter(row => row.highestQualification || row.university || row.year || row.percentage);
 
-    const experienceRecords: StaffExperienceRecord[] = form.experience.map(row => ({
-      id: row.id,
-      totalExperience: row.totalExperience.trim(),
-      previousSchool: row.previousSchool.trim() || undefined,
-      organization: row.organization.trim() || undefined,
-      designation: row.designation.trim() || undefined,
-      joiningDate: row.joiningDate || undefined,
-      relievingDate: row.relievingDate || undefined,
-      certificateFileName: row.certificate?.fileName,
-      certificateFileUrl: row.certificate?.fileUrl,
-      certificateUploadedAt: row.certificate?.uploadedDate
-    })).filter(row => row.totalExperience || row.previousSchool || row.organization || row.designation);
+      const experienceRecords: StaffExperienceRecord[] = form.experience.map(row => ({
+        id: row.id,
+        totalExperience: safeTrim(row.totalExperience),
+        previousSchool: safeTrim(row.previousSchool) || undefined,
+        organization: safeTrim(row.organization) || undefined,
+        designation: safeTrim(row.designation) || undefined,
+        joiningDate: row.joiningDate || undefined,
+        relievingDate: row.relievingDate || undefined,
+        certificateFileName: row.certificate?.fileName,
+        certificateFileUrl: row.certificate?.fileUrl,
+        certificateUploadedAt: row.certificate?.uploadedDate
+      })).filter(row => row.totalExperience || row.previousSchool || row.organization || row.designation);
 
-    const photoDocItem = form.documents.find(doc => doc.label.toLowerCase().includes('profile picture') || doc.label.toLowerCase().includes('photo'))?.file || form.photo;
+      const photoDocItem = form.documents.find(doc =>
+        (doc.label || '').toLowerCase().includes('profile picture') ||
+        (doc.label || '').toLowerCase().includes('photo')
+      )?.file || form.photo;
 
-    const uploadedDocs = form.documents
-      .filter(doc => doc.file)
-      .map((doc, index) => ({
-        id: `DOC-${Date.now()}-${index}`,
-        title: doc.label,
-        type: doc.type,
-        fileUrl: doc.file!.fileUrl,
-        uploadedDate: doc.file!.uploadedDate,
-        uploadedBy: user?.name || 'Employee',
-        verificationStatus: 'Pending Verification' as const,
-        isRequired: doc.required
-      }));
-
-    const photoDoc = photoDocItem
-      ? [{
-          id: `DOC-PHOTO-${Date.now()}`,
-          title: 'Profile Picture',
-          type: 'Other' as const,
-          fileUrl: photoDocItem.fileUrl,
-          uploadedDate: photoDocItem.uploadedDate,
+      const uploadedDocs = form.documents
+        .filter(doc => doc.file)
+        .map((doc, index) => ({
+          id: `DOC-${Date.now()}-${index}`,
+          title: doc.label || 'Document',
+          type: doc.type,
+          fileUrl: doc.file!.fileUrl,
+          uploadedDate: doc.file!.uploadedDate,
           uploadedBy: user?.name || 'Employee',
           verificationStatus: 'Pending Verification' as const,
-          isRequired: true
-        }]
-      : [];
+          isRequired: doc.required
+        }));
 
-    const mergedDocs = [...photoDoc, ...uploadedDocs].reduce<StaffDocument[]>((acc, doc) => {
-      const existingIndex = acc.findIndex(item => normalize(item.title) === normalize(doc.title));
-      if (existingIndex >= 0) {
-        acc[existingIndex] = doc;
-      } else {
-        acc.push(doc);
-      }
-      return acc;
-    }, linkedStaff?.documents ? [...linkedStaff.documents] : []);
+      const photoDoc = photoDocItem
+        ? [{
+            id: `DOC-PHOTO-${Date.now()}`,
+            title: 'Profile Picture',
+            type: 'Other' as const,
+            fileUrl: photoDocItem.fileUrl,
+            uploadedDate: photoDocItem.uploadedDate,
+            uploadedBy: user?.name || 'Employee',
+            verificationStatus: 'Pending Verification' as const,
+            isRequired: true
+          }]
+        : [];
 
-    const profilePayload: Partial<Staff> = {
-      profileStatus: 'Completed',
-      middleName: form.personal.middleName.trim() || undefined,
-      alternateMobile: form.personal.alternateMobile.trim() || undefined,
-      bloodGroup: form.personal.bloodGroup || undefined,
-      nationality: form.personal.nationality.trim() || undefined,
-      maritalStatus: form.personal.maritalStatus.trim() || undefined,
-      fatherName: form.personal.fatherName.trim() || undefined,
-      motherName: form.personal.motherName.trim() || undefined,
-      currentAddress: form.address.currentAddress.trim(),
-      residentialAddress: form.address.currentAddress.trim(),
-      permanentAddress: form.address.permanentAddress.trim() || undefined,
-      city: form.address.city.trim() || undefined,
-      district: form.address.district.trim() || undefined,
-      state: form.address.state.trim() || undefined,
-      country: form.address.country.trim() || undefined,
-      pinCode: form.address.pinCode.trim() || undefined,
-      address: [form.address.currentAddress, form.address.city, form.address.state, form.address.country, form.address.pinCode]
-        .map(value => value.trim())
-        .filter(Boolean)
-        .join(', '),
-      qualifications: educationRecords,
-      experienceRecords,
-      experienceYears: totalExperienceYears,
-      qualification: educationRecords[0]?.highestQualification || linkedStaff?.qualification || '',
-      highestQualification: educationRecords[0]?.highestQualification || linkedStaff?.highestQualification || '',
-      specialization: educationRecords[0]?.specialization || linkedStaff?.specialization || linkedStaff?.qualification || '',
-      bankDetails: {
-        accountHolderName: form.bank.accountHolderName.trim(),
-        accountNumber: form.bank.accountNumber.trim(),
-        bankName: form.bank.bankName.trim(),
-        branch: form.bank.branch.trim(),
-        ifscCode: form.bank.ifscCode.trim(),
-        upiId: form.bank.upiId.trim()
-      },
-      documents: mergedDocs,
-      avatar: photoDocItem?.fileUrl || form.photo?.fileUrl || linkedStaff?.avatar || defaultAvatar,
-      firstName: form.personal.firstName.trim(),
-      lastName: form.personal.lastName.trim(),
-      name: fullName,
-      gender: form.personal.gender || linkedStaff?.gender || 'Male',
-      dob: form.personal.dob || linkedStaff?.dob || '',
-      phone: form.personal.mobile.trim() || linkedStaff?.phone || '',
-      email: linkedStaff?.email || user?.email || ''
-    };
+      const initialStaffDocs = (linkedStaff?.documents || []).map((d: any) => ({
+        ...d,
+        title: d.title || d.documentTitle || d.fileName || d.name || 'Document'
+      }));
 
-    if (linkedStaff) {
-      updateStaff(linkedStaff.id, profilePayload);
-    }
+      const mergedDocs = [...photoDoc, ...uploadedDocs].reduce<StaffDocument[]>((acc, doc) => {
+        const docTitle = doc?.title || (doc as any)?.documentTitle || '';
+        const existingIndex = acc.findIndex(item => {
+          const itemTitle = item?.title || (item as any)?.documentTitle || '';
+          return normalize(itemTitle) === normalize(docTitle);
+        });
+        if (existingIndex >= 0) {
+          acc[existingIndex] = doc;
+        } else {
+          acc.push(doc);
+        }
+        return acc;
+      }, initialStaffDocs);
 
-    if (user) {
-      const updatedUser: any = {
-        ...user,
-        name: fullName || user.name,
-        phone: form.personal.mobile.trim() || user.phone,
-        avatar: photoDocItem?.fileUrl || form.photo?.fileUrl || user.avatar || defaultAvatar,
-        isFirstLogin: false
+      const profilePayload: Partial<Staff> = {
+        profileStatus: 'Completed',
+        middleName: safeTrim(form.personal.middleName) || undefined,
+        alternateMobile: safeTrim(form.personal.alternateMobile) || undefined,
+        bloodGroup: form.personal.bloodGroup || undefined,
+        nationality: safeTrim(form.personal.nationality) || undefined,
+        maritalStatus: safeTrim(form.personal.maritalStatus) || undefined,
+        fatherName: safeTrim(form.personal.fatherName) || undefined,
+        motherName: safeTrim(form.personal.motherName) || undefined,
+        currentAddress: safeTrim(form.address.currentAddress),
+        residentialAddress: safeTrim(form.address.currentAddress),
+        permanentAddress: safeTrim(form.address.permanentAddress) || undefined,
+        city: safeTrim(form.address.city) || undefined,
+        district: safeTrim(form.address.district) || undefined,
+        state: safeTrim(form.address.state) || undefined,
+        country: safeTrim(form.address.country) || undefined,
+        pinCode: safeTrim(form.address.pinCode) || undefined,
+        address: [form.address.currentAddress, form.address.city, form.address.state, form.address.country, form.address.pinCode]
+          .map(value => safeTrim(value))
+          .filter(Boolean)
+          .join(', '),
+        qualifications: educationRecords,
+        experienceRecords,
+        experienceYears: totalExperienceYears,
+        qualification: educationRecords[0]?.highestQualification || linkedStaff?.qualification || '',
+        highestQualification: educationRecords[0]?.highestQualification || linkedStaff?.highestQualification || '',
+        specialization: educationRecords[0]?.specialization || linkedStaff?.specialization || linkedStaff?.qualification || '',
+        bankDetails: {
+          accountHolderName: safeTrim(form.bank.accountHolderName),
+          accountNumber: safeTrim(form.bank.accountNumber),
+          bankName: safeTrim(form.bank.bankName),
+          branch: safeTrim(form.bank.branch),
+          ifscCode: safeTrim(form.bank.ifscCode),
+          upiId: safeTrim(form.bank.upiId)
+        },
+        documents: mergedDocs,
+        avatar: photoDocItem?.fileUrl || form.photo?.fileUrl || linkedStaff?.avatar || defaultAvatar,
+        firstName: safeTrim(form.personal.firstName),
+        lastName: safeTrim(form.personal.lastName),
+        name: fullName,
+        gender: form.personal.gender || linkedStaff?.gender || 'Male',
+        dob: form.personal.dob || linkedStaff?.dob || '',
+        phone: safeTrim(form.personal.mobile) || linkedStaff?.phone || '',
+        email: linkedStaff?.email || user?.email || ''
       };
-      setUser(updatedUser);
-      localStorage.setItem('auth_user', JSON.stringify(updatedUser));
-    }
 
-    setTimeout(() => {
-      addToast('success', 'Profile Updated Successfully', `Updated profile details for ${fullName || user?.name}`);
-      setLoading(false);
-      if (onComplete) {
-        onComplete();
+      if (linkedStaff) {
+        try {
+          updateStaff(linkedStaff.id, profilePayload);
+        } catch (e) {
+          console.warn('Could not update staff directly:', e);
+        }
       }
-    }, 500);
+
+      if (user) {
+        const updatedUser: any = {
+          ...user,
+          name: fullName || user.name,
+          phone: safeTrim(form.personal.mobile) || user.phone,
+          avatar: photoDocItem?.fileUrl || form.photo?.fileUrl || user.avatar || defaultAvatar,
+          isFirstLogin: false
+        };
+        try {
+          setUser(updatedUser);
+          localStorage.setItem('auth_user', JSON.stringify(updatedUser));
+        } catch (e) {
+          console.warn('Could not update user state:', e);
+        }
+      }
+
+      setLoading(false);
+      setIsSubmitted(true);
+      addToast('success', 'Profile Updated Successfully', `Profile details have been updated for ${fullName || user?.name || 'your account'}.`);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    } catch (err: any) {
+      console.error('Error during profile submit:', err);
+      setLoading(false);
+      addToast('error', 'Update Failed', err?.message || 'An error occurred while updating the profile. Please try again.');
+    }
   };
 
   const renderEducationSummary = () => {
@@ -1374,20 +1403,20 @@ export const ProfileCompletionView: React.FC<ProfileCompletionViewProps> = ({ on
                         {doc.file ? 'Replace' : 'Upload'}
                         <input
                           type="file"
-                          accept={doc.label.toLowerCase().includes('photo') || doc.label.toLowerCase().includes('profile picture') ? 'image/*' : '.pdf,image/*'}
+                          accept={(doc.label || '').toLowerCase().includes('photo') || (doc.label || '').toLowerCase().includes('profile picture') ? 'image/*' : '.pdf,image/*'}
                           className="hidden"
                           onChange={e => {
                             const selected = e.target.files?.[0];
                             if (!selected) return;
                             const snapshot = fileSnapshot(selected);
                             updateDocument(doc.id, snapshot);
-                            const isPhoto = doc.label.toLowerCase().includes('profile picture') ||
-                              doc.label.toLowerCase().includes('passport photo') ||
-                              doc.label.toLowerCase().includes('photo');
+                            const isPhoto = (doc.label || '').toLowerCase().includes('profile picture') ||
+                              (doc.label || '').toLowerCase().includes('passport photo') ||
+                              (doc.label || '').toLowerCase().includes('photo');
                             if (isPhoto) {
                               handleProfilePhotoUploaded(selected, snapshot, doc.id);
                             }
-                            if (doc.label.toLowerCase().includes('experience certificate') && form.experience[0]) {
+                            if ((doc.label || '').toLowerCase().includes('experience certificate') && form.experience[0]) {
                               updateExperience(form.experience[0].id, { certificate: snapshot });
                             }
                           }}
@@ -1414,6 +1443,34 @@ export const ProfileCompletionView: React.FC<ProfileCompletionViewProps> = ({ on
       default:
         return (
           <SectionCard title="Review & Submit" subtitle="Verify all details before completing your profile.">
+            {isSubmitted && (
+              <div className="mb-4 rounded-2xl border border-emerald-500/40 bg-emerald-50 dark:bg-emerald-950/50 p-4 sm:p-5 shadow-sm">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                  <div className="flex items-start gap-3.5">
+                    <div className="w-10 h-10 rounded-xl bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-sm">
+                      <CheckCircle2 className="w-6 h-6" />
+                    </div>
+                    <div>
+                      <h4 className="text-base font-black text-emerald-900 dark:text-emerald-100 flex items-center gap-2">
+                        <span>Profile Updated Successfully!</span>
+                        <Badge variant="success" size="sm">Completed</Badge>
+                      </h4>
+                      <p className="mt-1 text-xs text-emerald-700 dark:text-emerald-300">
+                        All personal information, academic qualifications, and verification documents have been updated and saved for <strong>{fullName || user?.name}</strong>.
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => onComplete?.()}
+                    className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 px-4 py-2 text-xs font-black text-white shadow-xs transition-colors shrink-0 cursor-pointer"
+                  >
+                    <span>Go to Dashboard</span>
+                    <ChevronRight className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              </div>
+            )}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
               <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 p-3">
                 <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Personal Details</p>
@@ -1489,6 +1546,33 @@ export const ProfileCompletionView: React.FC<ProfileCompletionViewProps> = ({ on
   return (
     <div className="min-h-screen bg-slate-50/50 dark:bg-slate-950 px-3 py-4 sm:px-6">
       <div className="mx-auto w-full max-w-5xl space-y-3 animate-in fade-in">
+        {isSubmitted && (
+          <div className="rounded-2xl border border-emerald-500/40 bg-emerald-50 dark:bg-emerald-950/60 p-4 sm:p-5 shadow-sm text-emerald-900 dark:text-emerald-100 animate-in fade-in slide-in-from-top-3">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-xs">
+                  <Check className="w-5 h-5 stroke-[2.5]" />
+                </div>
+                <div>
+                  <h3 className="font-extrabold text-sm sm:text-base text-emerald-900 dark:text-emerald-100">
+                    Profile Updated Successfully!
+                  </h3>
+                  <p className="text-xs text-emerald-700 dark:text-emerald-300">
+                    Your profile details for <strong>{fullName || user?.name}</strong> have been saved and verified.
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => onComplete?.()}
+                className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 px-4 py-2 text-xs font-bold text-white shadow-xs transition-colors cursor-pointer shrink-0"
+              >
+                <span>Go to Dashboard</span>
+                <ChevronRight className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          </div>
+        )}
         {/* Navigation Arrow to Dashboard */}
         <div className="flex items-center">
           <button
@@ -1596,15 +1680,41 @@ export const ProfileCompletionView: React.FC<ProfileCompletionViewProps> = ({ on
                     <ChevronRight className="w-3.5 h-3.5" />
                   </button>
                 ) : (
+                  isSubmitted ? (
+                  <div className="flex items-center gap-2">
+                    <span className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/60 px-3 py-1.5 rounded-xl border border-emerald-200 dark:border-emerald-800">
+                      <Check className="w-3.5 h-3.5" />
+                      <span>Profile Updated Successfully</span>
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => onComplete?.()}
+                      className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 px-5 py-2 text-xs font-black text-white shadow-xs transition-colors cursor-pointer"
+                    >
+                      <span>Go to Dashboard</span>
+                      <ChevronRight className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                ) : (
                   <button
                     type="button"
                     onClick={handleSubmit}
                     disabled={loading}
                     className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 px-5 py-2 text-xs font-black text-white shadow-xs transition-colors disabled:opacity-60 cursor-pointer"
                   >
-                    <CheckCircle2 className="w-3.5 h-3.5" />
-                    <span>{loading ? 'Submitting...' : 'Submit Profile'}</span>
+                    {loading ? (
+                      <>
+                        <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                        <span>Submitting...</span>
+                      </>
+                    ) : (
+                      <>
+                        <CheckCircle2 className="w-3.5 h-3.5" />
+                        <span>Submit Profile</span>
+                      </>
+                    )}
                   </button>
+                )
                 )}
               </div>
             </div>

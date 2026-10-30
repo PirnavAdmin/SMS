@@ -89,36 +89,40 @@ export const isTokenValid = (): boolean => {
   if (!token || token === 'null' || token === 'undefined' || token === 'offline-bypass-dev-token') return false;
 
   // 1. Check JWT expiration timestamp if token is a standard JWT
+  let hasValidJwtExp = false;
   try {
     const parts = token.split('.');
     if (parts.length === 3) {
-      const payload = JSON.parse(atob(parts[1]));
+      let b64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
+      while (b64.length % 4 !== 0) {
+        b64 += '=';
+      }
+      const payload = JSON.parse(atob(b64));
       if (payload && typeof payload.exp === 'number') {
         const expMs = payload.exp * 1000;
         if (Date.now() >= expMs) {
           return false;
         }
+        hasValidJwtExp = true;
       }
     }
   } catch {}
 
   // 2. Check 24-hour token timestamp
   const timestampStr = localStorage.getItem('auth_token_timestamp');
-  if (!timestampStr) {
-    return false;
+  if (timestampStr) {
+    const timestamp = Number(timestampStr);
+    if (!isNaN(timestamp)) {
+      const age = Date.now() - timestamp;
+      if (age < 0 || age >= TOKEN_EXPIRATION_MS) {
+        return false;
+      }
+      return true;
+    }
   }
 
-  const timestamp = Number(timestampStr);
-  if (isNaN(timestamp)) {
-    return false;
-  }
-
-  const age = Date.now() - timestamp;
-  if (age < 0 || age >= TOKEN_EXPIRATION_MS) {
-    return false;
-  }
-
-  return true;
+  // If JWT had an unexpired exp, consider it valid even if timestamp was missing
+  return hasValidJwtExp;
 };
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -133,6 +137,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (!isTokenValid()) {
         if (hadPreviousSession) {
           localStorage.setItem('session_timeout_occurred', 'true');
+          const currentMod = localStorage.getItem('active_module');
+          if (currentMod && currentMod !== 'dashboard' && !localStorage.getItem('session_resume_module')) {
+            localStorage.setItem('session_resume_module', currentMod);
+          }
         }
         localStorage.removeItem('auth_user');
         localStorage.removeItem('user');
@@ -141,11 +149,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         localStorage.removeItem('roles');
         localStorage.removeItem('active_selected_class_id');
         localStorage.removeItem('active_class_tab');
-    localStorage.removeItem('training_active_tab');
-    localStorage.removeItem('settings_active_tab');
-    localStorage.removeItem('certificates_view_active_tab');
-    localStorage.removeItem('staff_attendance_active_tab');
-        localStorage.setItem('active_module', 'dashboard');
+        localStorage.removeItem('training_active_tab');
+        localStorage.removeItem('staff_attendance_active_tab');
         return null;
       }
       const saved = localStorage.getItem('auth_user');
@@ -243,10 +248,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       try {
         const ayRes: any = await fetchAcademicYearsApi();
         if (ayRes?.success && Array.isArray(ayRes.data) && ayRes.data.length > 0) {
+          const storedYear = localStorage.getItem('selected_academic_year');
           const active = ayRes.data.find((a: any) => a.isCurrentAcademicYear || a.status === 'Active') || ayRes.data[0];
           const val = active?.academicYear || active?.year;
-          if (val) {
-            setSelectedAcademicYearState(prev => prev || val);
+          if (storedYear && ayRes.data.some((a: any) => (a.academicYear === storedYear || a.year === storedYear))) {
+            setSelectedAcademicYearState(storedYear);
+          } else if (val) {
+            setSelectedAcademicYearState(val);
+            localStorage.setItem('selected_academic_year', val);
           }
         }
       } catch {}
@@ -265,11 +274,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const handleSetBranch = (branch: string) => {
     setSelectedBranchState(branch);
     setActiveBranchHeader(branch);
+    if (branch) {
+      localStorage.setItem('selected_branch', branch);
+    } else {
+      localStorage.removeItem('selected_branch');
+    }
+    window.dispatchEvent(new CustomEvent('global_context_branch_changed', { detail: { branch } }));
   };
 
   const handleSetAcademicYear = (academicYear: string) => {
     setSelectedAcademicYearState(academicYear);
     setActiveAcademicYearHeader(academicYear);
+    if (academicYear) {
+      localStorage.setItem('selected_academic_year', academicYear);
+    } else {
+      localStorage.removeItem('selected_academic_year');
+    }
+    window.dispatchEvent(new CustomEvent('global_context_academic_year_changed', { detail: { academicYear } }));
   };
 
   useEffect(() => {
@@ -323,8 +344,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const logout = () => {
     try {
-      localStorage.removeItem('session_resume_module');
-      localStorage.setItem('active_module', 'dashboard');
+      const currentMod = localStorage.getItem('active_module');
+      if (currentMod && currentMod !== 'dashboard') {
+        localStorage.setItem('session_resume_module', currentMod);
+      }
     } catch {}
     setUser(null);
     setToken(null);
@@ -336,8 +359,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     localStorage.removeItem('active_selected_class_id');
     localStorage.removeItem('active_class_tab');
     localStorage.removeItem('training_active_tab');
-    localStorage.removeItem('settings_active_tab');
-    localStorage.removeItem('certificates_view_active_tab');
     localStorage.removeItem('staff_attendance_active_tab');
   };
 
@@ -478,8 +499,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       localStorage.setItem('auth_token', realToken);
       localStorage.setItem('auth_token_timestamp', Date.now().toString());
       localStorage.setItem('roles', JSON.stringify(roles));
+      const resumeMod = localStorage.getItem('session_resume_module');
+      if (resumeMod && resumeMod !== 'dashboard') {
+        localStorage.setItem('active_module', resumeMod);
+      } else if (!localStorage.getItem('active_module')) {
+        localStorage.setItem('active_module', 'dashboard');
+      }
       localStorage.removeItem('session_resume_module');
-      localStorage.setItem('active_module', 'dashboard');
 
       return true;
     } catch (err: any) {

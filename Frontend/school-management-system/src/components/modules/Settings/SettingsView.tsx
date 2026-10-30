@@ -269,16 +269,34 @@ export const SettingsView: React.FC = () => {
     | "automated-ids"
     | "backup"
     | "audit"
-  >("my-profile");
+  >(() => {
+    try {
+      const saved = localStorage.getItem("settings_active_tab");
+      const validTabs = [
+        "my-profile",
+        "profile",
+        "campus",
+        "academic-year",
+        "certificates",
+        "automated-ids",
+        "backup",
+        "audit"
+      ];
+      if (saved && validTabs.includes(saved)) {
+        return saved as any;
+      }
+    } catch {}
+    return "my-profile";
+  });
 
   const setActiveTab = (tab: any) => {
     setActiveTabState(tab);
+    try {
+      localStorage.setItem("settings_active_tab", tab);
+    } catch {}
   };
 
   useEffect(() => {
-    try {
-      localStorage.removeItem("settings_active_tab");
-    } catch {}
     const handleTabChange = (e: any) => {
       const targetTab = e?.detail?.tab;
       if (targetTab) {

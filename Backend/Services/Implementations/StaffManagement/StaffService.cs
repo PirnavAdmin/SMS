@@ -71,27 +71,99 @@ public class StaffService : IStaffService
             return candidate;
         }
 
-        int maxNumber = 0;
-        string prefix = isTeaching ? "TCH" : "NTS";
-
-        foreach (var id in existingIds)
+        try
         {
-            if (string.IsNullOrWhiteSpace(id)) continue;
-            var match = System.Text.RegularExpressions.Regex.Match(id, @"\d+$");
-            if (match.Success && int.TryParse(match.Value, out int num))
+            var config = await _settingsService.GetIdSequenceSettingsAsync();
+            string prefix = isTeaching ? config.TeachingIdPrefix : config.NonTeachingIdPrefix;
+            int startNo = isTeaching ? config.TeachingIdStartNo : config.NonTeachingIdStartNo;
+            int padding = isTeaching ? config.TeachingIdPadding : config.NonTeachingIdPadding;
+            bool includeYear = isTeaching ? config.TeachingIdIncludeYear : config.NonTeachingIdIncludeYear;
+            string separator = isTeaching ? config.TeachingIdSeparator : config.NonTeachingIdSeparator;
+            string position = isTeaching ? config.TeachingIdPosition : config.NonTeachingIdPosition;
+
+            if (string.IsNullOrWhiteSpace(prefix)) prefix = isTeaching ? "TCH" : "NTS";
+            if (startNo <= 0) startNo = 1;
+
+            int maxNumber = 0;
+            foreach (var id in existingIds)
             {
-                if (num > maxNumber) maxNumber = num;
+                if (string.IsNullOrWhiteSpace(id)) continue;
+                var matches = System.Text.RegularExpressions.Regex.Matches(id, @"\d+");
+                foreach (System.Text.RegularExpressions.Match m in matches)
+                {
+                    if (int.TryParse(m.Value, out int val))
+                    {
+                        if (matches.Count > 1 && val >= 2020 && val <= 2035) continue;
+                        if (val > maxNumber) maxNumber = val;
+                    }
+                }
             }
+
+            int nextNumber = Math.Max(startNo, maxNumber + 1);
+            string genId = FormatStaffId(prefix, nextNumber, padding, includeYear, separator, position);
+            while (existingSet.Contains(genId))
+            {
+                nextNumber++;
+                genId = FormatStaffId(prefix, nextNumber, padding, includeYear, separator, position);
+            }
+            return genId;
+        }
+        catch
+        {
+            int maxNumber = 0;
+            string prefix = isTeaching ? "TCH" : "NTS";
+
+            foreach (var id in existingIds)
+            {
+                if (string.IsNullOrWhiteSpace(id)) continue;
+                var match = System.Text.RegularExpressions.Regex.Match(id, @"\d+$");
+                if (match.Success && int.TryParse(match.Value, out int num))
+                {
+                    if (num > maxNumber) maxNumber = num;
+                }
+            }
+
+            int nextNumber = maxNumber + 1;
+            string finalId = $"{prefix}-{DateTime.UtcNow.Year}-{nextNumber:D4}";
+            while (existingSet.Contains(finalId))
+            {
+                nextNumber++;
+                finalId = $"{prefix}-{DateTime.UtcNow.Year}-{nextNumber:D4}";
+            }
+            return finalId;
+        }
+    }
+
+    private static string FormatStaffId(string prefix, int sequenceNumber, int padding, bool includeYear, string separator, string position)
+    {
+        var cleanPrefix = (prefix ?? string.Empty).Trim().ToUpperInvariant();
+        var sep = separator ?? "-";
+        var yearStr = includeYear ? DateTime.UtcNow.Year.ToString() : string.Empty;
+        var paddedSeq = sequenceNumber.ToString().PadLeft(padding > 0 ? padding : 4, '0');
+
+        var parts = new List<string>();
+        var pos = (position ?? "start").ToLowerInvariant();
+
+        if (pos == "middle")
+        {
+            if (!string.IsNullOrEmpty(yearStr)) parts.Add(yearStr);
+            if (!string.IsNullOrEmpty(cleanPrefix)) parts.Add(cleanPrefix);
+            parts.Add(paddedSeq);
+        }
+        else if (pos == "end")
+        {
+            if (!string.IsNullOrEmpty(yearStr)) parts.Add(yearStr);
+            parts.Add(paddedSeq);
+            if (!string.IsNullOrEmpty(cleanPrefix)) parts.Add(cleanPrefix);
+        }
+        else
+        {
+            if (!string.IsNullOrEmpty(cleanPrefix)) parts.Add(cleanPrefix);
+            if (!string.IsNullOrEmpty(yearStr)) parts.Add(yearStr);
+            parts.Add(paddedSeq);
         }
 
-        int nextNumber = maxNumber + 1;
-        string finalId = $"{prefix}-{DateTime.UtcNow.Year}-{nextNumber:D4}";
-        while (existingSet.Contains(finalId))
-        {
-            nextNumber++;
-            finalId = $"{prefix}-{DateTime.UtcNow.Year}-{nextNumber:D4}";
-        }
-        return finalId;
+        return string.Join(sep, parts.Where(p => !string.IsNullOrEmpty(p)));
     }
 
     public async Task<List<StaffResponseDto>> GetAllStaffAsync(string? search, string? department, string? branch = null)
@@ -207,21 +279,27 @@ public class StaffService : IStaffService
 
     public async Task<StaffResponseDto> CreateStaffAsync(StaffCreateDto dto)
     {
+        bool isTeaching = string.IsNullOrWhiteSpace(dto.EmployeeCategory) || 
+                          dto.EmployeeCategory.Equals("Teaching Staff", StringComparison.OrdinalIgnoreCase) || 
+                          dto.EmployeeCategory.Equals("Teacher", StringComparison.OrdinalIgnoreCase);
+
+        string effectiveCategory = isTeaching ? "Teaching Staff" : "Non-Teaching Staff";
+
         var empId = !string.IsNullOrWhiteSpace(dto.EmployeeId) 
             ? dto.EmployeeId.Trim() 
-            : await GetNextEmployeeIdAsync(dto.EmployeeCategory);
+            : await GetNextEmployeeIdAsync(effectiveCategory);
 
         var isDuplicateEmpId = await _context.Staff
             .AnyAsync(s => s.EmployeeId != null && s.EmployeeId.ToLower() == empId.ToLower());
         if (isDuplicateEmpId)
         {
-            throw new BadRequestException("Employee ID already exists. Please use a unique Employee ID.");
+            empId = await GetNextEmployeeIdAsync(effectiveCategory);
         }
 
         var staff = new Staff
         {
             EmployeeId = empId,
-            EmployeeCategory = string.IsNullOrWhiteSpace(dto.EmployeeCategory) ? "Teaching Staff" : dto.EmployeeCategory,
+            EmployeeCategory = effectiveCategory,
             FirstName = dto.FirstName,
             MiddleName = dto.MiddleName,
             LastName = dto.LastName,
@@ -337,26 +415,28 @@ public class StaffService : IStaffService
         await _schoolRepository.SaveChangesAsync();
         await SyncTeacherAssignmentsAsync(staff.StaffId, dto.AssignedClasses, dto.AssignedSubjects);
 
-        // Sync staff into users table for authentication
+        // Sync staff into users table for authentication (credentials: id = id and password = id)
         try
         {
             var userRole = SMS.Api.Helpers.RoleHelper.NormalizeRoleName(staff.Designation, staff.EmployeeCategory, staff.Department);
             var fullName = $"{staff.FirstName} {staff.LastName}".Trim();
-            var mobileNo = !string.IsNullOrWhiteSpace(staff.Phone) ? staff.Phone.Trim() : (!string.IsNullOrWhiteSpace(staff.AlternateMobile) ? staff.AlternateMobile.Trim() : $"STF{staff.StaffId}");
+            var mobileNo = !string.IsNullOrWhiteSpace(staff.Phone) ? staff.Phone.Trim() : (!string.IsNullOrWhiteSpace(staff.AlternateMobile) ? staff.AlternateMobile.Trim() : staff.EmployeeId);
 
             var existingUser = await _context.Users.FirstOrDefaultAsync(u => 
+                (!string.IsNullOrWhiteSpace(staff.EmployeeId) && (u.MobileNumber == staff.EmployeeId || (u.Email != null && u.Email.ToLower() == staff.EmployeeId.ToLower()))) ||
                 (!string.IsNullOrWhiteSpace(staff.Email) && u.Email != null && u.Email.ToLower() == staff.Email.ToLower()) ||
                 (!string.IsNullOrWhiteSpace(mobileNo) && u.MobileNumber == mobileNo));
 
+            string staffPassword = staff.EmployeeId; // Requirement: id = id and password = id
+
             if (existingUser == null)
             {
-                var dynamicStaffPassword = SMS.Api.Helpers.PasswordHelper.GenerateDynamicPassword();
                 var newUser = new User
                 {
                     FullName = fullName,
                     Email = staff.Email,
-                    MobileNumber = mobileNo,
-                    PasswordHash = BCrypt.Net.BCrypt.HashPassword(dynamicStaffPassword),
+                    MobileNumber = !string.IsNullOrWhiteSpace(mobileNo) ? mobileNo : staff.EmployeeId,
+                    PasswordHash = BCrypt.Net.BCrypt.HashPassword(staffPassword),
                     Role = userRole,
                     IsEmailVerified = true,
                     IsMobileVerified = true,
@@ -365,32 +445,50 @@ public class StaffService : IStaffService
                 };
                 await _context.Users.AddAsync(newUser);
                 await _context.SaveChangesAsync();
-
-                // Dispatch welcome credentials email asynchronously with dynamic generated password
-                if (!string.IsNullOrWhiteSpace(staff.Email) && staff.Email.Contains('@'))
-                {
-                    var loginId = staff.Email;
-                    _ = Task.Run(async () =>
-                    {
-                        try
-                        {
-                            await _emailNotificationService.SendWelcomeCredentialsAsync(
-                                recipientEmail: staff.Email!,
-                                recipientName: fullName,
-                                loginIdentifier: loginId,
-                                defaultPassword: dynamicStaffPassword,
-                                roleName: userRole);
-                        }
-                        catch { /* Ignored */ }
-                    });
-                }
             }
             else
             {
                 existingUser.FullName = fullName;
                 existingUser.Role = userRole;
                 if (!string.IsNullOrWhiteSpace(staff.Email)) existingUser.Email = staff.Email;
+                existingUser.PasswordHash = BCrypt.Net.BCrypt.HashPassword(staffPassword);
                 await _context.SaveChangesAsync();
+            }
+
+            // Retrieve school settings dynamically for email branding
+            string? schoolName = null;
+            try
+            {
+                var schoolSettings = await _context.SchoolSettings.AsNoTracking().FirstOrDefaultAsync();
+                if (schoolSettings != null && !string.IsNullOrWhiteSpace(schoolSettings.SchoolName))
+                {
+                    schoolName = schoolSettings.SchoolName;
+                }
+            }
+            catch { }
+
+            // Send official welcome credentials email to staff with Teaching / Non-Teaching ID and password = ID
+            if (!string.IsNullOrWhiteSpace(staff.Email) && staff.Email.Contains('@'))
+            {
+                _ = Task.Run(async () =>
+                {
+                    try
+                    {
+                        await _emailNotificationService.SendStaffWelcomeEmailAsync(
+                            recipientEmail: staff.Email!,
+                            recipientName: fullName,
+                            employeeId: staff.EmployeeId,
+                            employeeCategory: staff.EmployeeCategory,
+                            designation: staff.Designation,
+                            department: staff.Department,
+                            portalUrl: null,
+                            schoolName: schoolName);
+                    }
+                    catch (Exception exMail)
+                    {
+                        Console.WriteLine($"[StaffService] Failed to send staff welcome email: {exMail.Message}");
+                    }
+                });
             }
         }
         catch (Exception ex)
@@ -424,6 +522,10 @@ public class StaffService : IStaffService
         var oldFullName = $"{staff.FirstName} {staff.LastName}".Trim();
 
         if (!string.IsNullOrWhiteSpace(dto.EmployeeCategory)) staff.EmployeeCategory = dto.EmployeeCategory;
+    if (!string.IsNullOrWhiteSpace(dto.ProfilePhoto)) staff.ProfilePhoto = dto.ProfilePhoto;
+    else if (!string.IsNullOrWhiteSpace(dto.Avatar)) staff.ProfilePhoto = dto.Avatar;
+    if (!string.IsNullOrWhiteSpace(dto.BranchName)) staff.BranchName = dto.BranchName;
+    else if (!string.IsNullOrWhiteSpace(dto.Branch)) staff.BranchName = dto.Branch;
         staff.FirstName = dto.FirstName;
         staff.MiddleName = dto.MiddleName;
         staff.LastName = dto.LastName;
@@ -503,6 +605,13 @@ public class StaffService : IStaffService
 
         // Sync Documents
         staff.Documents.Clear();
+        var photoDoc = dto.Documents?.FirstOrDefault(d => 
+            (!string.IsNullOrWhiteSpace(d.DocumentType) && (d.DocumentType.Contains("Photo") || d.DocumentType.Contains("Profile Picture"))) ||
+            (!string.IsNullOrWhiteSpace(d.DocumentTitle) && (d.DocumentTitle.Contains("Photo") || d.DocumentTitle.Contains("Profile Picture"))));
+        if (photoDoc != null && !string.IsNullOrWhiteSpace(photoDoc.FileUrl))
+        {
+            staff.ProfilePhoto = photoDoc.FileUrl;
+        }
         if (dto.Documents != null)
         {
             foreach (var d in dto.Documents)
@@ -768,6 +877,9 @@ public class StaffService : IStaffService
             SalaryStructureName = s.SalaryStructureName,
             SalaryStructureEffectiveDate = s.SalaryStructureEffectiveDate?.ToString("yyyy-MM-dd"),
             GrossSalary = s.GrossSalary ?? s.MonthlySalary ?? 0m,
+            ProfilePhoto = s.ProfilePhoto ?? s.Documents.FirstOrDefault(d => d.DocumentType.Contains("Photo") || d.DocumentType.Contains("Profile"))?.FileUrl,
+            Avatar = s.ProfilePhoto ?? s.Documents.FirstOrDefault(d => d.DocumentType.Contains("Photo") || d.DocumentType.Contains("Profile"))?.FileUrl,
+                        Branch = s.BranchName ?? "",
             NetSalary = s.NetSalary ?? s.MonthlySalary ?? 0m,
             AccountHolderName = s.AccountHolderName,
             AccountNumber = s.AccountNumber,
@@ -801,6 +913,7 @@ public class StaffService : IStaffService
                 StaffDocumentId = d.StaffDocumentId,
                 StaffId = d.StaffId,
                 DocumentType = d.DocumentType,
+                DocumentTitle = d.DocumentType,
                 FileUrl = d.FileUrl,
                 IsRequired = d.IsRequired,
                 Status = d.Status,

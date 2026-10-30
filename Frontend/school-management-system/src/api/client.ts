@@ -1,18 +1,28 @@
-let activeBranchHeader = '';
-let activeAcademicYearHeader = '';
+let activeBranchHeader = (typeof window !== 'undefined' ? localStorage.getItem('selected_branch') || '' : '');
+let activeAcademicYearHeader = (typeof window !== 'undefined' ? localStorage.getItem('selected_academic_year') || '' : '');
 
 export const setActiveBranchHeader = (b: string) => {
   activeBranchHeader = b || '';
+  if (typeof window !== 'undefined') {
+    if (b && b !== 'All Branches' && b !== 'All') {
+      try { localStorage.setItem('selected_branch', b); } catch {}
+    }
+  }
 };
 
 export const setActiveAcademicYearHeader = (ay: string) => {
   activeAcademicYearHeader = ay || '';
+  if (typeof window !== 'undefined') {
+    if (ay && ay !== 'All') {
+      try { localStorage.setItem('selected_academic_year', ay); } catch {}
+    }
+  }
 };
 
 export const apiClient = async (endpoint: string, options: RequestInit = {}) => {
   const token = localStorage.getItem('auth_token');
-  const branch = activeBranchHeader;
-  const academicYear = activeAcademicYearHeader;
+  const branch = activeBranchHeader || (typeof window !== 'undefined' ? localStorage.getItem('selected_branch') || '' : '');
+  const academicYear = activeAcademicYearHeader || (typeof window !== 'undefined' ? localStorage.getItem('selected_academic_year') || '' : '');
 
   let userRole = '';
   try {
@@ -114,14 +124,16 @@ export const apiClient = async (endpoint: string, options: RequestInit = {}) => 
       // so do not wipe session or redirect to login.
       if (token && token !== 'null' && token !== 'undefined') {
         try {
-          localStorage.removeItem('session_resume_module');
+          const currentMod = localStorage.getItem('active_module');
+          if (currentMod && currentMod !== 'dashboard') {
+            localStorage.setItem('session_resume_module', currentMod);
+          }
           localStorage.setItem('session_timeout_occurred', 'true');
         } catch {}
         localStorage.removeItem('auth_user');
         localStorage.removeItem('auth_token');
         localStorage.removeItem('auth_token_timestamp');
         localStorage.removeItem('roles');
-        localStorage.removeItem('active_module');
         try {
           window.dispatchEvent(new CustomEvent('auth_unauthorized'));
           window.dispatchEvent(new CustomEvent('session_expired'));

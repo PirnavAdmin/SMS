@@ -1627,17 +1627,17 @@ public class SchoolService : ISchoolService
 
 								// Resolve or dynamically generate student registration number from Settings -> Automated ID Settings ("student" key)
 								string studentRollNo = "";
-								if (!string.IsNullOrWhiteSpace(existing?.RollNo) && !existing!.RollNo.StartsWith("REG-", StringComparison.OrdinalIgnoreCase))
+								if (!string.IsNullOrWhiteSpace(app.RegistrationNo) && !app.RegistrationNo.StartsWith("REG-", StringComparison.OrdinalIgnoreCase))
 								{
-									studentRollNo = existing.RollNo;
+									studentRollNo = app.RegistrationNo;
 								}
 								else if (matchedStudent != null && !string.IsNullOrWhiteSpace(matchedStudent.RollNumber) && !matchedStudent.RollNumber.StartsWith("REG-", StringComparison.OrdinalIgnoreCase))
 								{
 									studentRollNo = matchedStudent.RollNumber;
 								}
-								else if (!string.IsNullOrWhiteSpace(app.RegistrationNo) && !app.RegistrationNo.StartsWith("REG-", StringComparison.OrdinalIgnoreCase))
+								else if (!string.IsNullOrWhiteSpace(existing?.RollNo) && !existing!.RollNo.StartsWith("REG-", StringComparison.OrdinalIgnoreCase))
 								{
-									studentRollNo = app.RegistrationNo;
+									studentRollNo = existing.RollNo;
 								}
 								else
 								{

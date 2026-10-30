@@ -132,8 +132,10 @@ export const ChangePasswordModal: React.FC<ChangePasswordModalProps> = ({ isOpen
                 onClick={() => setShowOldPass(!showOldPass)}
                 className="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors cursor-pointer"
                 tabIndex={-1}
+                title={showOldPass ? "Hide password" : "Show password"}
+                aria-label={showOldPass ? "Hide password" : "Show password"}
               >
-                {showOldPass ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                {showOldPass ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
               </button>
             </div>
             {(!oldPass && (oldPassTouched || submitted)) && (
@@ -165,8 +167,10 @@ export const ChangePasswordModal: React.FC<ChangePasswordModalProps> = ({ isOpen
                 onClick={() => setShowNewPass(!showNewPass)}
                 className="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors cursor-pointer"
                 tabIndex={-1}
+                title={showNewPass ? "Hide password" : "Show password"}
+                aria-label={showNewPass ? "Hide password" : "Show password"}
               >
-                {showNewPass ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                {showNewPass ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
               </button>
             </div>
             {(!newPass && (newPassTouched || submitted)) && (
@@ -201,8 +205,10 @@ export const ChangePasswordModal: React.FC<ChangePasswordModalProps> = ({ isOpen
                 onClick={() => setShowConfirmPass(!showConfirmPass)}
                 className="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors cursor-pointer"
                 tabIndex={-1}
+                title={showConfirmPass ? "Hide password" : "Show password"}
+                aria-label={showConfirmPass ? "Hide password" : "Show password"}
               >
-                {showConfirmPass ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                {showConfirmPass ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
               </button>
             </div>
             {(!confirmPass && (confirmPassTouched || submitted)) && (

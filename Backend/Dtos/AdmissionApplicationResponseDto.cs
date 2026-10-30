@@ -58,6 +58,8 @@ public class AdmissionApplicationResponseDto
 
     [JsonPropertyName("branch")]
     public string Branch => BranchName;
+
+    public string? AcademicYear { get; set; }
     public string? BloodGroup { get; set; }
     public string? Religion { get; set; }
     public string? Caste { get; set; }

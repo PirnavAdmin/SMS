@@ -78,27 +78,45 @@ namespace SMS.Api.Controllers.AcademicManagement
         [Authorize]
         public async Task<IActionResult> GetClasses()
         {
-            var campus = Request.Headers["X-Branch-Id"].ToString();
-            var academicYear = Request.Headers["X-Academic-Year-Id"].ToString();
-            if (string.IsNullOrEmpty(academicYear))
+            var campus = Request.Headers["X-Branch-Id"].ToString()?.Trim() ?? string.Empty;
+            if (campus.Equals("All", StringComparison.OrdinalIgnoreCase) || campus.Equals("All Branches", StringComparison.OrdinalIgnoreCase))
             {
-                academicYear = await _context.AcademicYears
-                    .AsNoTracking()
-                    .Where(ay => !ay.IsDeleted && ay.IsActive && ay.IsCurrent)
-                    .Select(ay => ay.AcademicYearName)
-                    .FirstOrDefaultAsync() ?? string.Empty;
+                campus = string.Empty;
             }
 
-            var classes = await _context.Classes
+            var academicYear = Request.Headers["X-Academic-Year-Id"].ToString()?.Trim() ?? string.Empty;
+            if (academicYear.Equals("All", StringComparison.OrdinalIgnoreCase))
+            {
+                academicYear = string.Empty;
+            }
+
+            var query = _context.Classes
                 .AsNoTracking()
-                .Where(c => (string.IsNullOrEmpty(campus) || c.CampusLocation == campus || string.IsNullOrEmpty(c.CampusLocation)) && 
-                            (string.IsNullOrEmpty(academicYear) || c.AcademicYear == academicYear || string.IsNullOrEmpty(c.AcademicYear)))
                 .Include(c => c.Sections)
                 .Include(c => c.SubjectMappings)
                     .ThenInclude(cs => cs.Subject)
                 .Include(c => c.TeacherAssignments)
                     .ThenInclude(ta => ta.Teacher)
-                .ToListAsync();
+                .AsQueryable();
+
+            if (!string.IsNullOrEmpty(campus))
+            {
+                var cleanCampus = campus.ToLowerInvariant();
+                query = query.Where(c => c.CampusLocation != null && (c.CampusLocation.ToLower() == cleanCampus || c.CampusLocation.ToLower().Contains(cleanCampus)));
+            }
+
+            if (!string.IsNullOrEmpty(academicYear))
+            {
+                var cleanYear = academicYear.ToLowerInvariant().Replace(" ", "");
+                var startYear = cleanYear.Length >= 4 ? cleanYear.Substring(0, 4) : cleanYear;
+                query = query.Where(c => c.AcademicYear != null && 
+                    (c.AcademicYear.ToLower().Replace(" ", "") == cleanYear ||
+                     c.AcademicYear.ToLower().Replace(" ", "").Contains(cleanYear) ||
+                     cleanYear.Contains(c.AcademicYear.ToLower().Replace(" ", "")) ||
+                     c.AcademicYear.StartsWith(startYear)));
+            }
+
+            var classes = await query.ToListAsync();
 
             var response = classes.Select(c => new ClassGradeResponseDto
             {

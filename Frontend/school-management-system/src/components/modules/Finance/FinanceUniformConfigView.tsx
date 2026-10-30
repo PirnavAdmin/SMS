@@ -20,12 +20,19 @@ export const FinanceUniformConfigView: React.FC = () => {
     academicClasses,
     uniformCategories,
     uniforms,
+    uniformInventory,
     uniformSizes,
+    fetchUniformData,
   } = useData();
 
   const { selectedBranch, selectedAcademicYear } = useAuth();
-
   const { addToast } = useToast();
+
+  React.useEffect(() => {
+    if (fetchUniformData) {
+      fetchUniformData();
+    }
+  }, [fetchUniformData]);
 
   const [query, setQuery] = useState('');
   const [filterClass, setFilterClass] = useState('All');
@@ -37,7 +44,6 @@ export const FinanceUniformConfigView: React.FC = () => {
 
   const [form, setForm] = useState<Partial<FinanceUniformConfig>>({
     academicYear: selectedAcademicYear || financeSettings.academicYear || '',
-    academicYear: selectedAcademicYear || financeSettings.academicYear || '2026-2027',
     branch: selectedBranch || '',
     className: '',
     gender: '',
@@ -47,6 +53,13 @@ export const FinanceUniformConfigView: React.FC = () => {
     effectiveFrom: new Date().toISOString().split('T')[0],
     status: 'Active'
   });
+
+  const availableClasses = React.useMemo(() => {
+    if (academicClasses && academicClasses.length > 0) {
+      return academicClasses.map(c => c.name);
+    }
+    return ['Nursery', 'LKG', 'UKG', ...Array.from({ length: 12 }, (_, i) => `Class ${i + 1}`)];
+  }, [academicClasses]);
 
   const fabricSizeOptions = React.useMemo(() => {
     return [
@@ -100,77 +113,95 @@ export const FinanceUniformConfigView: React.FC = () => {
     return filteredConfigs.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
   }, [filteredConfigs, currentPage, itemsPerPage]);
 
-  // Dynamic uniform items mapped from Uniform Management module into Base Package and Additional Purchase
+  // Dynamic uniform items mapped STRICTLY from Uniform Management module (no hardcoded/mock items)
   const uniformItemsList = React.useMemo(() => {
     const basePackagesMap = new Map<string, { name: string; defaultGender?: string }>();
     const additionalItemsMap = new Map<string, { name: string; defaultGender?: string }>();
 
-    // 1. Process all categories explicitly defined by user in Categories tab (uniformCategories)
-    (uniformCategories || []).forEach(cat => {
-      const rawName = typeof cat === 'string' ? cat : (cat.name || (cat as any).categoryName || '');
-      if (!rawName) return;
-      const lower = rawName.toLowerCase().trim();
-      if (lower === 'uniform package' || lower === 'package') return;
-
-      let gen: 'Male' | 'Female' | 'Unisex' = 'Unisex';
-      if (lower.includes('boy')) gen = 'Male';
-      if (lower.includes('girl')) gen = 'Female';
-
-      // Only Cloth/fabric category from uniformCategories goes to Base Package
-      if (lower.includes('cloth') || lower.includes('fabric') || lower.includes('unstitched')) {
-        basePackagesMap.set(lower, { name: rawName, defaultGender: gen });
-      } else {
-        // The remaining 14 categories go to Additional Purchase
-        additionalItemsMap.set(lower, { name: rawName, defaultGender: gen });
-      }
-    });
-
-    // 2. Process custom items and packages created in Add Uniform Type (uniforms state)
+    // 1. Process all items and packages created in Uniform module (uniforms)
     (uniforms || []).forEach(u => {
       if (!u) return;
-      const rawName = (u.category || (u as any).name || (u as any).itemName || '').trim();
+      const rawName = (u.name || (u as any).itemName || u.category || '').trim();
       if (!rawName) return;
-      const lower = rawName.toLowerCase().trim();
-
-      // STRICTLY EXCLUDE generic standalone "Uniform Package" or "Package"
-      if (lower === 'uniform package' || lower === 'package') return;
+      const lower = rawName.toLowerCase();
 
       let gen: 'Male' | 'Female' | 'Unisex' = (u.gender as any) || 'Unisex';
       if (lower.includes('boy')) gen = 'Male';
       if (lower.includes('girl')) gen = 'Female';
 
-      // Check if it's a valid configured package (Boys/Girls Admission Kit package or u.isPackage created by admin)
-      const isConfiguredPackage = u.isPackage ||
-        lower.includes('boys uniform package') ||
-        lower.includes('girls uniform package') ||
-        (lower.includes('package') && (lower.includes('boys') || lower.includes('girls')));
+      const isPkg = Boolean(
+        u.isPackage ||
+        (u.packageComponents && u.packageComponents.length > 0) ||
+        lower.includes('package') ||
+        lower.includes('kit')
+      );
 
-      if (isConfiguredPackage) {
-        basePackagesMap.set(lower, { name: rawName, defaultGender: gen });
-        additionalItemsMap.delete(lower);
+      if (isPkg) {
+        if (!basePackagesMap.has(lower)) {
+          basePackagesMap.set(lower, { name: rawName, defaultGender: gen });
+        }
       } else {
-        // For additional items, ONLY include if its name matches one of the user's configured categories in uniformCategories
-        const matchesUserCategory = (uniformCategories || []).some(cat => {
-          const cName = typeof cat === 'string' ? cat : (cat.name || (cat as any).categoryName || '');
-          const cLower = (cName || '').toLowerCase().trim();
-          return cLower === lower || (cLower && lower && cLower.replace(/[^a-z0-9]/g, '') === lower.replace(/[^a-z0-9]/g, ''));
-        });
-
-        if (matchesUserCategory && !basePackagesMap.has(lower)) {
+        if (!additionalItemsMap.has(lower)) {
           additionalItemsMap.set(lower, { name: rawName, defaultGender: gen });
         }
       }
     });
 
+    // 2. Process all categories created in Categories tab (uniformCategories)
+    (uniformCategories || []).forEach(cat => {
+      if (!cat) return;
+      const rawName = typeof cat === 'string' ? cat : (cat.name || (cat as any).categoryName || '');
+      if (!rawName || !rawName.trim()) return;
+      const trimmed = rawName.trim();
+      const lower = trimmed.toLowerCase();
+
+      let gen: 'Male' | 'Female' | 'Unisex' = 'Unisex';
+      if (lower.includes('boy')) gen = 'Male';
+      if (lower.includes('girl')) gen = 'Female';
+
+      const isPkg = lower.includes('package') || lower.includes('kit');
+      if (isPkg) {
+        if (!basePackagesMap.has(lower)) {
+          basePackagesMap.set(lower, { name: trimmed, defaultGender: gen });
+        }
+      } else {
+        if (!additionalItemsMap.has(lower) && !basePackagesMap.has(lower)) {
+          additionalItemsMap.set(lower, { name: trimmed, defaultGender: gen });
+        }
+      }
+    });
+
+    // 3. Process any distinct items from inventory (uniformInventory)
+    (uniformInventory || []).forEach(inv => {
+      if (!inv) return;
+      const rawName = (inv.itemName || '').trim();
+      if (!rawName) return;
+      const lower = rawName.toLowerCase();
+
+      const isPkg = lower.includes('package') || lower.includes('kit');
+      if (isPkg) {
+        if (!basePackagesMap.has(lower)) {
+          basePackagesMap.set(lower, { name: rawName, defaultGender: 'Unisex' });
+        }
+      } else {
+        if (!additionalItemsMap.has(lower) && !basePackagesMap.has(lower)) {
+          additionalItemsMap.set(lower, { name: rawName, defaultGender: 'Unisex' });
+        }
+      }
+    });
+
+    const basePackages = Array.from(basePackagesMap.values());
+    const additionalItems = Array.from(additionalItemsMap.values());
+
     return {
-      basePackages: Array.from(basePackagesMap.values()),
-      additionalItems: Array.from(additionalItemsMap.values()),
+      basePackages,
+      additionalItems,
       all: [
-        ...Array.from(basePackagesMap.values()),
-        ...Array.from(additionalItemsMap.values())
+        ...basePackages,
+        ...additionalItems
       ]
     };
-  }, [uniformCategories, uniforms]);
+  }, [uniforms, uniformCategories, uniformInventory]);
 
   const handleUniformItemSelect = (selectedName: string) => {
     const found = uniformItemsList.all.find(
@@ -197,7 +228,6 @@ export const FinanceUniformConfigView: React.FC = () => {
     setEditingConfig(null);
     setForm({
       academicYear: selectedAcademicYear || financeSettings.academicYear || '',
-      academicYear: selectedAcademicYear || financeSettings.academicYear || '2026-2027',
       branch: selectedBranch || '',
       className: '',
       gender: '',
@@ -288,8 +318,8 @@ export const FinanceUniformConfigView: React.FC = () => {
           }}
           className="px-3 py-2 text-xs rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white font-semibold outline-none cursor-pointer"
         >
-          <option value="All">All Classes ({academicClasses.length})</option>
-          {academicClasses.map(c => <option key={c.name} value={c.name}>{c.name}</option>)}
+          <option value="All">All Classes ({availableClasses.length})</option>
+          {availableClasses.map(c => <option key={c} value={c}>{c}</option>)}
         </select>
       </div>
 
@@ -410,7 +440,7 @@ export const FinanceUniformConfigView: React.FC = () => {
                   >
                     <option value="">-- Select Class --</option>
                     <option value="All Classes">All Classes</option>
-                    {academicClasses.map(c => <option key={c.name} value={c.name}>{c.name}</option>)}
+                    {availableClasses.map(c => <option key={c} value={c}>{c}</option>)}
                   </select>
                 </div>
                 <div>
@@ -439,22 +469,36 @@ export const FinanceUniformConfigView: React.FC = () => {
                 >
                   <option value="">-- Select Package / Item --</option>
 
-                  <optgroup label="Base Package">
-                    {uniformItemsList.basePackages.map((pkg, idx) => (
-                      <option key={`${pkg.name}-${idx}`} value={pkg.name}>
-                        {pkg.name}
-                      </option>
-                    ))}
-                  </optgroup>
+                  {/* Keep current selected package if editing an existing record */}
+                  {form.uniformPackage && !uniformItemsList.all.some(i => i.name.toLowerCase() === form.uniformPackage?.toLowerCase()) && (
+                    <option value={form.uniformPackage}>{form.uniformPackage}</option>
+                  )}
 
-                  <optgroup label="Additional Purchase">
-                    {uniformItemsList.additionalItems.map((item, idx) => (
-                      <option key={`${item.name}-${idx}`} value={item.name}>
-                        {item.name}
-                      </option>
-                    ))}
-                  </optgroup>
+                  {uniformItemsList.basePackages.length > 0 && (
+                    <optgroup label="Packages">
+                      {uniformItemsList.basePackages.map((pkg, idx) => (
+                        <option key={`pkg-${pkg.name}-${idx}`} value={pkg.name}>
+                          {pkg.name}
+                        </option>
+                      ))}
+                    </optgroup>
+                  )}
+
+                  {uniformItemsList.additionalItems.length > 0 && (
+                    <optgroup label="Uniform Items & Categories">
+                      {uniformItemsList.additionalItems.map((item, idx) => (
+                        <option key={`item-${item.name}-${idx}`} value={item.name}>
+                          {item.name}
+                        </option>
+                      ))}
+                    </optgroup>
+                  )}
                 </select>
+                {uniformItemsList.all.length === 0 && !form.uniformPackage && (
+                  <p className="text-[11px] text-amber-600 dark:text-amber-400 font-semibold mt-1.5">
+                    No items or categories found in the Uniform module. Please add items in the Uniform module first.
+                  </p>
+                )}
               </div>
 
               {/* Fabric Measurement Specification Dropdown (if Cloth/Fabric item selected) */}

@@ -144,8 +144,8 @@ export const FinanceDashboardView: React.FC<FinanceDashboardViewProps> = ({ onNa
       (ledger.feeItems || []).forEach((item: any) => {
         let catName = (item.feeCategory || item.category || item.feeHeadName || "Tuition Fee").trim();
         const lower = catName.toLowerCase();
-        const amt = Number(item.amount || 0);
-        const paid = Number(item.paidAmount || 0);
+        const amt = Number(item.finalAmount ?? item.originalAmount ?? item.amount ?? 0);
+        const paid = Number(item.paidAmount ?? (item.status === 'Paid' ? amt : 0));
 
         if (lower.includes("transport") || lower.includes("conveyance") || lower.includes("bus")) {
           catName = "Transport Fee";

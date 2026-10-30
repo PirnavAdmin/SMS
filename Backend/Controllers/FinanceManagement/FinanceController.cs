@@ -22,10 +22,15 @@ public class FinanceController : ControllerBase
         [FromQuery] string? status,
         [FromQuery] string? className,
         [FromQuery] string? academicYear,
-        [FromQuery] string? branch)
+        [FromQuery] string? branch,
+        [FromHeader(Name = "X-Branch-Id")] string? headerBranch = null,
+        [FromHeader(Name = "X-Academic-Year-Id")] string? headerAcademicYear = null)
     {
         try
         {
+            branch = !string.IsNullOrWhiteSpace(branch) ? branch : (!string.IsNullOrWhiteSpace(headerBranch) ? headerBranch : null);
+            academicYear = !string.IsNullOrWhiteSpace(academicYear) ? academicYear : (!string.IsNullOrWhiteSpace(headerAcademicYear) ? headerAcademicYear : null);
+
             var result = await _service.GetFeeHeadsAsync();
             if (result == null) return Ok(new { success = true, data = new List<FeeHeadDto>() });
 
@@ -136,10 +141,16 @@ public class FinanceController : ControllerBase
         [FromQuery] string? search,
         [FromQuery] string? className,
         [FromQuery] string? academicYear,
-        [FromQuery] string? category)
+        [FromQuery] string? category,
+        [FromQuery] string? branch,
+        [FromHeader(Name = "X-Branch-Id")] string? headerBranch = null,
+        [FromHeader(Name = "X-Academic-Year-Id")] string? headerAcademicYear = null)
     {
         try
         {
+            branch = !string.IsNullOrWhiteSpace(branch) ? branch : (!string.IsNullOrWhiteSpace(headerBranch) ? headerBranch : null);
+            academicYear = !string.IsNullOrWhiteSpace(academicYear) ? academicYear : (!string.IsNullOrWhiteSpace(headerAcademicYear) ? headerAcademicYear : null);
+
             var list = await _service.GetDynamicFeeStructuresAsync();
             if (list == null) return Ok(new { success = true, data = new List<DynamicFeeStructureDto>() });
 
@@ -158,7 +169,25 @@ public class FinanceController : ControllerBase
             if (!string.IsNullOrWhiteSpace(className) && !className.Equals("ALL", System.StringComparison.OrdinalIgnoreCase))
                 list = list.Where(x => x.ClassName != null && x.ClassName.Equals(className, System.StringComparison.OrdinalIgnoreCase));
             if (!string.IsNullOrWhiteSpace(academicYear) && !academicYear.Equals("ALL", System.StringComparison.OrdinalIgnoreCase))
-                list = list.Where(x => string.IsNullOrEmpty(x.AcademicYear) || x.AcademicYear.Equals(academicYear, System.StringComparison.OrdinalIgnoreCase));
+            {
+                var cleanYear = academicYear.Trim().ToLower().Replace(" ", "");
+                var startYear = cleanYear.Length >= 4 ? cleanYear.Substring(0, 4) : cleanYear;
+                list = list.Where(x => string.IsNullOrEmpty(x.AcademicYear) || 
+                                       x.AcademicYear.Equals("All", System.StringComparison.OrdinalIgnoreCase) ||
+                                       x.AcademicYear.ToLower().Replace(" ", "") == cleanYear ||
+                                       x.AcademicYear.ToLower().Replace(" ", "").Contains(cleanYear) ||
+                                       cleanYear.Contains(x.AcademicYear.ToLower().Replace(" ", "")) ||
+                                       x.AcademicYear.StartsWith(startYear));
+            }
+            if (!string.IsNullOrWhiteSpace(branch) && !branch.Equals("ALL", System.StringComparison.OrdinalIgnoreCase) && !branch.Equals("All Branches", System.StringComparison.OrdinalIgnoreCase))
+            {
+                list = list.Where(x => string.IsNullOrEmpty(x.Branch) || 
+                                       x.Branch.Equals("All", System.StringComparison.OrdinalIgnoreCase) || 
+                                       x.Branch.Equals("All Branches", System.StringComparison.OrdinalIgnoreCase) ||
+                                       x.Branch.Equals(branch, System.StringComparison.OrdinalIgnoreCase) ||
+                                       x.Branch.ToLower().Contains(branch.ToLower()) ||
+                                       branch.ToLower().Contains(x.Branch.ToLower()));
+            }
 
             return Ok(new { success = true, data = list });
         }

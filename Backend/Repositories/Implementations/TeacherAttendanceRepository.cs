@@ -20,11 +20,21 @@ public class TeacherAttendanceRepository
     {
         if (string.IsNullOrWhiteSpace(email))
         {
-            return await _context.Staff.AsNoTracking().FirstOrDefaultAsync();
+            return null;
         }
 
         var normalizedEmail = email.Trim().ToLower();
 
+        // 1. Try StaffId if numeric
+        if (int.TryParse(normalizedEmail, out var numericStaffId))
+        {
+            var staffById = await _context.Staff
+                .AsNoTracking()
+                .FirstOrDefaultAsync(x => x.StaffId == numericStaffId && (x.IsActive == null || x.IsActive == true));
+            if (staffById != null) return staffById;
+        }
+
+        // 2. Exact Email match
         var staffByEmail = await _context.Staff
             .AsNoTracking()
             .FirstOrDefaultAsync(x =>
@@ -34,20 +44,21 @@ public class TeacherAttendanceRepository
 
         if (staffByEmail != null) return staffByEmail;
 
+        // 3. Exact EmployeeId match
         var staffByEmpId = await _context.Staff
             .AsNoTracking()
             .FirstOrDefaultAsync(x =>
-                (x.EmployeeId != null && x.EmployeeId.ToLower() == normalizedEmail) ||
-                (x.FirstName != null && x.FirstName.ToLower() == normalizedEmail) ||
-                ((x.FirstName + " " + (x.LastName ?? "")).ToLower().Trim() == normalizedEmail));
+                x.EmployeeId != null &&
+                x.EmployeeId.ToLower() == normalizedEmail &&
+                (x.IsActive == null || x.IsActive == true));
 
         if (staffByEmpId != null) return staffByEmpId;
 
+        // 4. Linked User by email
         var user = await _context.Users
             .AsNoTracking()
             .FirstOrDefaultAsync(u =>
-                (u.Email != null && u.Email.ToLower() == normalizedEmail) ||
-                (u.FullName != null && u.FullName.ToLower() == normalizedEmail));
+                u.Email != null && u.Email.ToLower() == normalizedEmail);
 
         if (user != null && !string.IsNullOrEmpty(user.Email))
         {
@@ -55,11 +66,11 @@ public class TeacherAttendanceRepository
             var s = await _context.Staff
                 .AsNoTracking()
                 .FirstOrDefaultAsync(x =>
-                    x.Email != null && x.Email.ToLower() == uEmail);
+                    x.Email != null && x.Email.ToLower() == uEmail && (x.IsActive == null || x.IsActive == true));
             if (s != null) return s;
         }
 
-        return await _context.Staff.AsNoTracking().FirstOrDefaultAsync();
+        return null;
     }
 
     public async Task<StaffAttendance?> GetTodayAttendanceAsync(

@@ -56,7 +56,7 @@ public class StaffController : ControllerBase
         Ok(new { success = true, message = "Staff member created successfully.", data = await _staffService.CreateStaffAsync(dto) });
 
     [HttpPut("{id:int}")]
-    [Authorize(Roles = "SuperAdmin,Admin,Principal")]
+    [Authorize]
     public async Task<IActionResult> UpdateStaff(int id, [FromBody] StaffCreateDto dto) =>
         Ok(new { success = true, message = "Staff member updated successfully.", data = await _staffService.UpdateStaffAsync(id, dto) });
 

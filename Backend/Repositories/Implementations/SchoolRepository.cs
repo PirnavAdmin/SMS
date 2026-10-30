@@ -387,10 +387,46 @@ public class SchoolRepository : ISchoolRepository
         }
 
         if (filter.BranchId.HasValue && filter.BranchId.Value > 0)
+        {
             query = query.Where(s => s.BranchId == filter.BranchId.Value);
+        }
+        else if (!string.IsNullOrWhiteSpace(filter.Branch) &&
+                 !filter.Branch.Equals("All", StringComparison.OrdinalIgnoreCase) &&
+                 !filter.Branch.Equals("All Branches", StringComparison.OrdinalIgnoreCase))
+        {
+            if (int.TryParse(filter.Branch, out int bId))
+            {
+                query = query.Where(s => s.BranchId == bId);
+            }
+            else
+            {
+                var cleanBranch = filter.Branch.Trim().ToLower();
+                query = query.Where(s => s.Branch != null && (s.Branch.BranchName.ToLower() == cleanBranch || s.Branch.BranchName.ToLower().Contains(cleanBranch)));
+            }
+        }
 
         if (filter.AcademicYearId.HasValue && filter.AcademicYearId.Value > 0)
+        {
             query = query.Where(s => s.AcademicYearId == filter.AcademicYearId.Value);
+        }
+        else if (!string.IsNullOrWhiteSpace(filter.AcademicYear) &&
+                 !filter.AcademicYear.Equals("All", StringComparison.OrdinalIgnoreCase))
+        {
+            if (int.TryParse(filter.AcademicYear, out int yId))
+            {
+                query = query.Where(s => s.AcademicYearId == yId);
+            }
+            else
+            {
+                var cleanYear = filter.AcademicYear.Trim().ToLower().Replace(" ", "");
+                var startYear = cleanYear.Length >= 4 ? cleanYear.Substring(0, 4) : cleanYear;
+                query = query.Where(s => s.AcademicYear != null &&
+                    (s.AcademicYear.AcademicYearName.ToLower().Replace(" ", "") == cleanYear ||
+                     s.AcademicYear.AcademicYearName.ToLower().Replace(" ", "").Contains(cleanYear) ||
+                     cleanYear.Contains(s.AcademicYear.AcademicYearName.ToLower().Replace(" ", "")) ||
+                     s.AcademicYear.AcademicYearName.StartsWith(startYear)));
+            }
+        }
 
         if (filter.ClassId.HasValue && filter.ClassId.Value > 0)
             query = query.Where(s => s.ClassId == filter.ClassId.Value);
