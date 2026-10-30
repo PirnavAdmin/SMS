@@ -1393,6 +1393,11 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
     onPrintReceipt(payment);
 
     fetchFinanceData().catch(() => {});
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new CustomEvent("finance_updated"));
+      window.dispatchEvent(new CustomEvent("finance_data_updated"));
+      window.dispatchEvent(new CustomEvent("fee_payment_collected"));
+    }
 
     setSelectedInstallments([]);
     setCustomCollectionAmounts({});

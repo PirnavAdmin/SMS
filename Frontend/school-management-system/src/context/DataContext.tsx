@@ -6648,8 +6648,12 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       fetchFinanceData().catch(() => {});
     };
     window.addEventListener("finance_updated", handleFinanceUpdated);
+    window.addEventListener("finance_data_updated", handleFinanceUpdated);
+    window.addEventListener("fee_payment_collected", handleFinanceUpdated);
     return () => {
       window.removeEventListener("finance_updated", handleFinanceUpdated);
+      window.removeEventListener("finance_data_updated", handleFinanceUpdated);
+      window.removeEventListener("fee_payment_collected", handleFinanceUpdated);
     };
   }, [fetchFinanceData, role, user?.role]);
 
