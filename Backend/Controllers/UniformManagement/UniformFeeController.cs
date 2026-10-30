@@ -96,40 +96,69 @@ public class UniformFeeController : ControllerBase
             "Female (Girls)"
         };
 
-        var basePackages = new List<string>
-        {
-            "Boys Uniform Package (Admission Kit)",
-            "Girls Uniform Package (Admission Kit)",
-            "Cloth"
-        };
+        var basePackages = new List<string>();
+        var additionalPackages = new List<string>();
 
-        var additionalPackages = new List<string>
-        {
-            "Sports Shoe",
-            "Extra Shirt",
-            "Extra Pair of Trousers",
-            "Extra Skirt",
-            "Formal Blazer (Winter)",
-            "Tie & Crest",
-            "Belt",
-            "Black Shoes (Pair)",
-            "Socks (Pair)"
-        };
-
-        var dbItems = new List<string>();
+        var dbTypes = new List<UniformType>();
         try
         {
-            dbItems = (await _context.UniformTypes.AsNoTracking()
-                .Where(u => u.ItemName != null)
-                .Select(u => u.ItemName)
+            dbTypes = await _context.UniformTypes.AsNoTracking().ToListAsync();
+        }
+        catch { }
+
+        var dbCategories = new List<string>();
+        try
+        {
+            dbCategories = (await _context.UniformCategories.AsNoTracking()
+                .Where(c => !string.IsNullOrWhiteSpace(c.CategoryName))
+                .Select(c => c.CategoryName)
                 .Distinct()
                 .ToListAsync())!;
         }
         catch { }
 
-        var allItems = dbItems.Any()
-            ? basePackages.Concat(additionalPackages).Concat(dbItems).Distinct().ToList()
-            : basePackages.Concat(additionalPackages).Distinct().ToList();
+        foreach (var t in dbTypes)
+        {
+            if (string.IsNullOrWhiteSpace(t.ItemName)) continue;
+            var name = t.ItemName.Trim();
+            var lower = name.ToLower();
+            bool isPkg = !string.IsNullOrWhiteSpace(t.IncludedItemsJson) ||
+                         lower.Contains("package") ||
+                         lower.Contains("kit");
+            if (isPkg)
+            {
+                if (!basePackages.Contains(name, StringComparer.OrdinalIgnoreCase))
+                    basePackages.Add(name);
+            }
+            else
+            {
+                if (!additionalPackages.Contains(name, StringComparer.OrdinalIgnoreCase))
+                    additionalPackages.Add(name);
+            }
+        }
+
+        foreach (var cat in dbCategories)
+        {
+            if (string.IsNullOrWhiteSpace(cat)) continue;
+            var name = cat.Trim();
+            var lower = name.ToLower();
+            bool isPkg = lower.Contains("package") || lower.Contains("kit");
+            if (isPkg)
+            {
+                if (!basePackages.Contains(name, StringComparer.OrdinalIgnoreCase))
+                    basePackages.Add(name);
+            }
+            else
+            {
+                if (!additionalPackages.Contains(name, StringComparer.OrdinalIgnoreCase) &&
+                    !basePackages.Contains(name, StringComparer.OrdinalIgnoreCase))
+                {
+                    additionalPackages.Add(name);
+                }
+            }
+        }
+
+        var allItems = basePackages.Concat(additionalPackages).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
 
         return Ok(new
         {
