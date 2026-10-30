@@ -5147,7 +5147,7 @@ export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialS
                         const sec = student.section || 'A';
                         const cleanClass = cName.toLowerCase().startsWith('class') ? cName : `Class ${cName}`;
                         return `${cleanClass} (${sec})`;
-                      })()} • Adm No: <span className="font-mono font-semibold">{student.admissionNo}</span>
+                      })()} • Student ID: <span className="font-mono font-semibold text-brand-600">{student.studentId || student.id}</span>
                     </p>
                   </div>
                 </div>

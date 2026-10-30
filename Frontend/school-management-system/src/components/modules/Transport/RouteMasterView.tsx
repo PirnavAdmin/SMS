@@ -684,7 +684,7 @@ export const RouteMasterView: React.FC = () => {
                   <div key={idx} className="flex items-center justify-between p-2 rounded-lg bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800">
                     <div className="flex items-center gap-2 min-w-0">
                       <span className="font-mono text-[10px] font-bold px-1.5 py-0.5 rounded bg-sky-100 dark:bg-sky-950 text-sky-800 dark:text-sky-300 shrink-0">
-                        {st.admissionNo || '-'}
+                        {st.studentId || st.admissionNo || '-'}
                       </span>
                       <span className="font-bold text-slate-800 dark:text-slate-200 truncate">{st.studentName}</span>
                     </div>

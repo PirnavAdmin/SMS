@@ -494,6 +494,7 @@ export const StudentPromotionView: React.FC<StudentPromotionViewProps> = ({ onNa
     if (!promotionRows || promotionRows.length === 0) return [];
     return promotionRows.map((r, idx) => ({
       "S.No": idx + 1,
+      "Student ID": r.id,
       "Admission No": r.admissionNo,
       "Roll No": r.rollNo,
       "Student Name": `${r.firstName} ${r.lastName}`,
@@ -1966,7 +1967,7 @@ export const StudentPromotionView: React.FC<StudentPromotionViewProps> = ({ onNa
                         />
                       )}
                     </th>
-                    <th className="py-3.5 px-4">Adm No</th>
+                    <th className="py-3.5 px-4">Student ID</th>
                     <th className="py-3.5 px-4">Student Name</th>
                     <th className="py-3.5 px-4">Current Sec</th>
                     <th className="py-3.5 px-4">Overall %</th>
@@ -2004,9 +2005,9 @@ export const StudentPromotionView: React.FC<StudentPromotionViewProps> = ({ onNa
                             />
                           </td>
 
-                          {/* Admission No */}
-                          <td className="py-3.5 px-4 font-mono font-bold text-slate-900 dark:text-white">
-                            {r.admissionNo}
+                          {/* Student ID */}
+                          <td className="py-3.5 px-4 font-mono font-bold text-brand-600 dark:text-brand-400">
+                            {r.id}
                           </td>
 
                           {/* Student Name */}

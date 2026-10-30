@@ -405,7 +405,7 @@ export const HostelAttendanceView: React.FC = () => {
     'Shift': attendanceShift === 'morning' ? 'Morning Attendance' : 'Night Attendance',
     'Date': selectedDate,
     'Student Name': a.studentName,
-    'Admission No': a.admissionNo,
+    'Student ID': a.studentId || a.admissionNo,
     'Hostel Block': a.hostelName,
     'Room No': formatRoomNumber(a.roomNumber),
     'Bed No': a.bedNumber || 'BED-1',
@@ -551,7 +551,7 @@ export const HostelAttendanceView: React.FC = () => {
               <Search className="w-4 h-4 absolute left-3.5 top-2.5 text-slate-400" />
               <input
                 type="text"
-                placeholder="Search by name, adm no, room..."
+                placeholder="Search by name, student ID, room..."
                 value={searchQuery}
                 onChange={e => {
                   setSearchQuery(e.target.value);
@@ -707,7 +707,7 @@ export const HostelAttendanceView: React.FC = () => {
           <table className="w-full text-left text-xs text-slate-700 dark:text-slate-300 border-collapse">
             <thead className="bg-slate-50 dark:bg-slate-800/80 uppercase font-extrabold text-[10px] tracking-wider text-slate-500 border-b border-slate-200 dark:border-slate-800">
               <tr>
-                <th className="py-3 px-4">ADMISSION NO</th>
+                <th className="py-3 px-4">STUDENT ID</th>
                 <th className="py-3 px-4">STUDENT NAME</th>
                 <th className="py-3 px-4">HOSTEL BLOCK</th>
                 <th className="py-3 px-4">ROOM & BED NO</th>
@@ -731,7 +731,7 @@ export const HostelAttendanceView: React.FC = () => {
                   const currentSt = getAttendanceStatus(itemKey);
                   return (
                     <tr key={`alloc_${a.allocationId}_${idx}`} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/50 transition-colors">
-                      <td className="py-3.5 px-4 font-mono font-bold text-slate-500 whitespace-nowrap">{a.admissionNo}</td>
+                      <td className="py-3.5 px-4 font-mono font-bold text-slate-500 whitespace-nowrap">{a.studentId || a.admissionNo}</td>
                       <td className="py-3.5 px-4 font-bold text-slate-900 dark:text-white text-xs whitespace-nowrap">
                         {a.studentName}
                       </td>

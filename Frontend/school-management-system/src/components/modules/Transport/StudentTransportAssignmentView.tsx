@@ -367,7 +367,7 @@ export const StudentTransportAssignmentView: React.FC = () => {
               <thead>
                 <tr className="bg-slate-100/70 dark:bg-slate-800/60 text-slate-500 font-bold uppercase tracking-wider border-b border-slate-200 dark:border-slate-800">
                   <th className="py-3.5 px-4 text-center">Student & Class</th>
-                  <th className="py-3.5 px-4 text-center">Adm No</th>
+                  <th className="py-3.5 px-4 text-center">Student ID</th>
                   <th className="py-3.5 px-4 text-center">Transit Route</th>
                   <th className="py-3.5 px-4 text-center">Pickup Point</th>
                   <th className="py-3.5 px-4 text-center">Assigned Vehicle</th>
@@ -392,7 +392,7 @@ export const StudentTransportAssignmentView: React.FC = () => {
                         </div>
                         <div className="text-[10px] text-slate-400 font-medium">{sObj?.studentType || 'Day Scholar (Non-Residential)'}</div>
                       </td>
-                      <td className="py-3 px-4 font-mono text-slate-500">{st.admissionNo}</td>
+                      <td className="py-3 px-4 font-mono font-bold text-sky-600 text-center">{st.studentId || st.admissionNo}</td>
                       <td className="py-3 px-4 font-bold text-sky-600 dark:text-sky-400">{st.routeName}</td>
                       <td className="py-3 px-4">
                         <div className="font-semibold text-slate-700 dark:text-slate-200">{st.pickupPoint}</div>
@@ -487,7 +487,7 @@ export const StudentTransportAssignmentView: React.FC = () => {
                   <option value="">-- Select Day Scholar Student --</option>
                   {availableStudentsForTransport.map(st => (
                     <option key={st.id} value={st.id}>
-                      {st.firstName} {st.lastName} ({st.className}-{st.section} • {st.admissionNo}) — {st.studentType || 'Day Scholar'}
+                      {st.firstName} {st.lastName} ({st.className}-{st.section} • ID: {st.id}) — {st.studentType || 'Day Scholar'}
                     </option>
                   ))}
                 </select>
@@ -653,7 +653,7 @@ export const StudentTransportAssignmentView: React.FC = () => {
                       )}
                     </div>
                     <p className="text-xs text-slate-500 font-mono">
-                      Adm No: <strong>{inspectingAssignment.admissionNo}</strong>{studentObj?.rollNo ? ` • Roll No: ${studentObj.rollNo}` : ''}
+                      Student ID: <strong>{inspectingAssignment.studentId || inspectingAssignment.id}</strong>{studentObj?.rollNo ? ` • Roll No: ${studentObj.rollNo}` : ''}
                     </p>
                     <p className="text-[11px] text-sky-700 dark:text-sky-300 font-bold mt-0.5">
                       {studentObj?.studentType || 'Day Scholar'}{studentObj?.branch ? ` • ${studentObj.branch}` : ''}

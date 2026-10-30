@@ -58,7 +58,7 @@ export const ParentExaminationView: React.FC = () => {
   };
 
   // Map current ward to a full Student type for PrintableReportCard
-  const wardStudent: Student = (currentWard && (students || []).find(s => String(s.id) === String(currentWard.id) || s.admissionNo === currentWard.admissionNo)) || {
+  const wardStudent: Student = (currentWard && (students || []).find(s => String(s.id) === String(currentWard.id || currentWard.studentId))) || {
     id: String(currentWard?.id || currentWard?.studentId || '1'),
     admissionNo: currentWard?.admissionNo || 'ADM-2026-0050',
     rollNo: currentWard?.rollNo || 'STU-2026-0050',

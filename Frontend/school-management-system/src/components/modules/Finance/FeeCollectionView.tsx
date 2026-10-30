@@ -2943,7 +2943,7 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
               <option value="">-- Select Student ({selectableStudents.length}) --</option>
               {selectableStudents.map((st) => (
                 <option key={st.id || st.admissionNo} value={st.id}>
-                  {st.className} - {st.section || 'A'} | {st.firstName} {st.lastName} ({st.admissionNo})
+                  {st.className} - {st.section || 'A'} | {st.firstName} {st.lastName} (ID: {st.id})
                 </option>
               ))}
             </select>
@@ -2962,9 +2962,9 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
                   {activeStudent.firstName} {activeStudent.lastName}
                 </h3>
                 <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                  Admission No:{" "}
+                  Student ID:{" "}
                   <span className="font-bold text-slate-800 dark:text-slate-200">
-                    {activeStudent.admissionNo || activeStudent.id || "A1234"}
+                    {activeStudent.id}
                   </span>{" "}
                   | Class:{" "}
                   <span className="font-bold text-slate-800 dark:text-slate-200">
@@ -3155,7 +3155,7 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
                   <th className="py-3 px-4">#</th>
                   <th className="py-3 px-4">Class & Sec</th>
                   <th className="py-3 px-4">Student Name</th>
-                  <th className="py-3 px-4">Adm No</th>
+                  <th className="py-3 px-4">Student ID</th>
                   <th className="py-3 px-4">Branch</th>
                   <th className="py-3 px-4 text-right">Action</th>
                 </tr>
@@ -3181,7 +3181,7 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
                         {st.firstName} {st.lastName}
                       </td>
                       <td className="py-3 px-4 font-mono font-semibold text-slate-600 dark:text-slate-300">
-                        {st.admissionNo || st.id}
+                        {st.id}
                       </td>
                       <td className="py-3 px-4 text-slate-500">
                         {st.branch || (selectedBranch && selectedBranch !== "All" && selectedBranch !== "All Branches" ? selectedBranch : "—")}
@@ -3865,7 +3865,7 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
                     Student Category Transition
                   </h3>
                   <p className="text-[11px] text-slate-500">
-                    {activeStudent.firstName} {activeStudent.lastName} ({activeStudent.admissionNo || activeStudent.id})
+                    {activeStudent.firstName} {activeStudent.lastName} (ID: {activeStudent.id})
                   </p>
                 </div>
               </div>

@@ -393,7 +393,7 @@ export const DueFeesView: React.FC<DueFeesViewProps> = ({
       return;
     }
     const exportData = studentDueList.map((item) => ({
-      "Admission No": item.student.admissionNo || item.student.id,
+      "Student ID": item.student.id,
       "Student Name": `${item.student.firstName} ${item.student.lastName}`.trim(),
       "Class": item.student.className || "",
       "Section": item.student.section || "",
@@ -436,7 +436,7 @@ export const DueFeesView: React.FC<DueFeesViewProps> = ({
       .map(
         (item) => `
       <tr>
-        <td style="padding: 6px 8px;">${item.student.admissionNo || item.student.id}</td>
+        <td style="padding: 6px 8px;">${item.student.id}</td>
         <td style="padding: 6px 8px; font-weight: 600;">${item.student.firstName} ${item.student.lastName}</td>
         <td style="padding: 6px 8px;">${item.student.className}-${item.student.section}</td>
         <td style="padding: 6px 8px;">${item.student.studentType || "Day Scholar"}</td>
@@ -531,7 +531,7 @@ export const DueFeesView: React.FC<DueFeesViewProps> = ({
           <table>
             <thead>
               <tr>
-                <th>Adm No</th>
+                <th>Student ID</th>
                 <th>Student Name</th>
                 <th>Class & Sec</th>
                 <th>Type</th>
@@ -831,7 +831,7 @@ export const DueFeesView: React.FC<DueFeesViewProps> = ({
           <table className="w-full text-left border-collapse text-xs">
             <thead>
               <tr className="bg-slate-100/70 dark:bg-slate-800/60 text-slate-500 font-bold uppercase tracking-wider border-b border-slate-200 dark:border-slate-800 text-[10px]">
-                <th className="py-3.5 px-4">Adm No</th>
+                <th className="py-3.5 px-4">Student ID</th>
                 <th className="py-3.5 px-4">Student Name</th>
                 <th className="py-3.5 px-4">Class & Section</th>
                 <th className="py-3.5 px-4">Student Type</th>
@@ -872,7 +872,7 @@ export const DueFeesView: React.FC<DueFeesViewProps> = ({
                   return (
                     <tr key={st.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors">
                       <td className="py-3 px-4 font-mono font-bold text-slate-700 dark:text-slate-300">
-                        {st.admissionNo || st.id}
+                        {st.id}
                       </td>
                       <td className="py-3 px-4">
                         <div className="flex items-center gap-2.5">

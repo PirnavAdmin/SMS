@@ -408,7 +408,7 @@ export const CertificatesView: React.FC<CertificatesViewProps> = ({ onNavigateTo
                     <tr className="bg-slate-50 dark:bg-slate-800/60 border-b border-slate-200 dark:border-slate-800 text-slate-500 font-extrabold uppercase tracking-wider text-[10px]">
                       <th className="p-3.5 pl-5">Certificate No</th>
                       <th className="p-3.5">Type</th>
-                      <th className="p-3.5">Student Name & Adm No</th>
+                      <th className="p-3.5">Student Name & ID</th>
                       <th className="p-3.5">Class</th>
                       <th className="p-3.5">Academic Session</th>
                       <th className="p-3.5">Issue Date</th>
@@ -427,7 +427,7 @@ export const CertificatesView: React.FC<CertificatesViewProps> = ({ onNavigateTo
                         </td>
                         <td className="p-3.5">
                           <p className="font-extrabold text-slate-900 dark:text-white">{rec.studentName}</p>
-                          <p className="text-[10px] text-slate-400 font-mono">Reg: {rec.admissionNo}</p>
+                          <p className="text-[10px] text-sky-600 dark:text-sky-400 font-mono font-bold">ID: {rec.studentId || rec.admissionNo}</p>
                         </td>
                         <td className="p-3.5 font-semibold text-slate-700 dark:text-slate-300">
                           {rec.className} {rec.section ? `- ${rec.section}` : ''}
@@ -473,7 +473,7 @@ export const CertificatesView: React.FC<CertificatesViewProps> = ({ onNavigateTo
                 type="text"
                 value={genSearchQuery}
                 onChange={e => setGenSearchQuery(e.target.value)}
-                placeholder="Search by student name or admission number..."
+                placeholder="Search by student name or student ID..."
                 className="w-full pl-10 pr-4 py-2.5 rounded-2xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200/80 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-sky-500 transition-all"
               />
             </div>
@@ -523,7 +523,7 @@ export const CertificatesView: React.FC<CertificatesViewProps> = ({ onNavigateTo
                       </div>
                       <div>
                         <h4 className="font-extrabold text-sm text-slate-900 dark:text-white">{s.firstName} {s.lastName}</h4>
-                        <p className="text-[11px] text-slate-400 font-mono">Adm No: {s.admissionNo}</p>
+                        <p className="text-[11px] text-sky-600 dark:text-sky-400 font-mono font-bold">ID: {s.id}</p>
                       </div>
                     </div>
                     <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase bg-emerald-100 text-emerald-800">

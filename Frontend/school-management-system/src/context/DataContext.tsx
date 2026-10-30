@@ -14146,12 +14146,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
 
     const terms: FeeScheduleTerm[] = dynamicGeneratedTerms;
 
-    const student = students.find(
-      (s) =>
-        s.id === studentId ||
-        s.admissionNo === studentId ||
-        (s as any).applicationNo === studentId,
-    );
+    const student = students.find((s) => s.id === studentId);
     const admApp = admissions.find(
       (a) =>
         a.id === studentId ||
@@ -18292,10 +18287,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     studentId: string,
   ): StudentFeeOutstandingSummary => {
     const student =
-      students.find(
-        (s) =>
-          s.id === studentId || (s.admissionNo && s.admissionNo === studentId),
-      ) ||
+      students.find((s) => s.id === studentId) ||
       (() => {
         const sId = String(studentId || "")
           .trim()
@@ -20998,9 +20990,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       const s = localStorage.getItem("edu_db_library_fines");
       if (!s) return 0;
       const fines = JSON.parse(s);
-      const stObj = students.find(
-        (st) => st.id === stId || st.admissionNo === stId,
-      );
+      const stObj = students.find((st) => st.id === stId);
       const admNo = stObj?.admissionNo || stId;
       const stName = stObj
         ? `${stObj.firstName} ${stObj.lastName}`.toLowerCase()
@@ -21025,7 +21015,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     studentId: string,
   ): StudentCalculationResult | null => {
     const student =
-      students.find((s) => s.id === studentId || s.admissionNo === studentId) ||
+      students.find((s) => s.id === studentId) ||
       (() => {
         const sId = String(studentId || "")
           .trim()
@@ -21595,12 +21585,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     studentId: string,
     scholarshipId: string,
   ) => {
-    const student = students.find(
-      (s) =>
-        s.id === studentId ||
-        (s.admissionNo &&
-          s.admissionNo.toLowerCase() === studentId.toLowerCase()),
-    );
+    const student = students.find((s) => s.id === studentId);
     const ledger = getStudentFeeLedger(studentId);
     const sch = scholarships.find(
       (s) => s.id === scholarshipId || s.code === scholarshipId,
@@ -21717,12 +21702,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   };
 
   const removeScholarshipFromStudent = (studentId: string) => {
-    const student = students.find(
-      (s) =>
-        s.id === studentId ||
-        (s.admissionNo &&
-          s.admissionNo.toLowerCase() === studentId.toLowerCase()),
-    );
+    const student = students.find((s) => s.id === studentId);
     const ledger = getStudentFeeLedger(studentId);
 
     const tuitionItem =
@@ -21837,12 +21817,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   };
 
   const applyDiscountToStudent = (studentId: string, discountId: string) => {
-    const student = students.find(
-      (s) =>
-        s.id === studentId ||
-        (s.admissionNo &&
-          s.admissionNo.toLowerCase() === studentId.toLowerCase()),
-    );
+    const student = students.find((s) => s.id === studentId);
     const ledger = getStudentFeeLedger(studentId);
     const d = discounts.find(
       (x) => x.id === discountId || x.code === discountId,
@@ -21959,12 +21934,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   };
 
   const removeDiscountFromStudent = (studentId: string) => {
-    const student = students.find(
-      (s) =>
-        s.id === studentId ||
-        (s.admissionNo &&
-          s.admissionNo.toLowerCase() === studentId.toLowerCase()),
-    );
+    const student = students.find((s) => s.id === studentId);
     const ledger = getStudentFeeLedger(studentId);
 
     const tuitionItem =
@@ -26598,7 +26568,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   ) => {
     setStudents((prev) => {
       const next = prev.map((s) => {
-        if (s.id === studentId || s.admissionNo === record.admissionNo) {
+        if (s.id === studentId) {
           const existingHistory = s.academicHistory || [];
           const filteredHistory = existingHistory.filter(
             (h) => h.academicYear !== record.academicYear,
@@ -26623,7 +26593,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   ) => {
     setStudents((prev) => {
       const next = prev.map((s) => {
-        if (s.id === studentId || s.admissionNo === studentId) {
+        if (s.id === studentId) {
           return {
             ...s,
             status: "Discontinued" as StudentStatus,
@@ -26644,7 +26614,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   const transferOutStudent = (studentId: string, details: TransferDetails) => {
     setStudents((prev) => {
       const next = prev.map((s) => {
-        if (s.id === studentId || s.admissionNo === studentId) {
+        if (s.id === studentId) {
           return {
             ...s,
             status: "Transferred Out" as StudentStatus,
@@ -26668,7 +26638,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   ) => {
     setStudents((prev) => {
       const next = prev.map((s) => {
-        if (s.id === studentId || s.admissionNo === studentId) {
+        if (s.id === studentId) {
           return {
             ...s,
             status: "Branch Transfer" as StudentStatus,

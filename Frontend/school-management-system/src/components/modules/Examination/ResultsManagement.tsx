@@ -103,8 +103,7 @@ export const ResultsManagement: React.FC<ResultsManagementProps> = ({
     if (visibleResults.length > 0) {
       const hasAllSubjectMarksInResults = activeClassStudents.every(student => {
         const studentRes = visibleResults.find(r => 
-          String(r.studentId) === String(student.id) || 
-          (r.admissionNo && r.admissionNo === student.admissionNo) ||
+          String(r.studentId) === String(student.id) ||
           r.studentName?.toLowerCase().trim() === `${student.firstName} ${student.lastName}`.toLowerCase().trim()
         );
         if (!studentRes || !Array.isArray(studentRes.subjectMarks) || studentRes.subjectMarks.length === 0) return false;
@@ -125,11 +124,11 @@ export const ResultsManagement: React.FC<ResultsManagementProps> = ({
       activeSubjects.forEach(sub => {
         const hasMarkInExamMarks = examMarks.some(
           m => String(m.examId) === String(exam.id) && 
-               (String(m.studentId) === String(student.id) || (m.admissionNo && m.admissionNo === student.admissionNo)) && 
+               String(m.studentId) === String(student.id) && 
                (m.subject || '').toLowerCase().trim() === sub.toLowerCase().trim()
         );
         const hasMarkInVisibleResults = visibleResults.some(r => 
-          (String(r.studentId) === String(student.id) || (r.admissionNo && r.admissionNo === student.admissionNo) || r.studentName?.toLowerCase().trim() === `${student.firstName} ${student.lastName}`.toLowerCase().trim()) &&
+          (String(r.studentId) === String(student.id) || r.studentName?.toLowerCase().trim() === `${student.firstName} ${student.lastName}`.toLowerCase().trim()) &&
           (r.subjectMarks || []).some((sm: any) => 
             (sm.subject || sm.subjectName || '').toLowerCase().trim() === sub.toLowerCase().trim() &&
             sm.obtainedMarks !== undefined && sm.obtainedMarks !== null && sm.obtainedMarks !== ''

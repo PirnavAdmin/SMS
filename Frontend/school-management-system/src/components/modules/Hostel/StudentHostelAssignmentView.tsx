@@ -98,7 +98,7 @@ const StudentInlineCombobox: React.FC<{
             </div>
           ) : (
             filteredStudents.map(st => {
-              const stId = String(st.id || st.studentId || st.applicationId || st.admissionNo);
+              const stId = String(st.studentId || st.id || st.applicationId);
               const isSelected = String(value) === stId;
               const name = st.studentName || st.name || 'Student';
               const cls = st.className || '';
@@ -1192,7 +1192,7 @@ export const StudentHostelAssignmentView: React.FC = () => {
       {viewStudentModal && (() => {
         const matchedStudent = students.find(s => 
           String(s.id) === String(viewStudentModal.studentId) || 
-          String(s.admissionNo) === String(viewStudentModal.admissionNo)
+          String(s.id) === String(viewStudentModal.studentId)
         );
         const parentName = matchedStudent?.fatherName || matchedStudent?.parentName || (matchedStudent as any)?.guardianName || (matchedStudent as any)?.motherName || 'Parent / Guardian';
         const parentPhone = matchedStudent?.fatherPhone || matchedStudent?.guardianPhone || matchedStudent?.phone || (matchedStudent as any)?.emergencyContact || (matchedStudent as any)?.parentPhone || 'N/A';
@@ -1219,7 +1219,7 @@ export const StudentHostelAssignmentView: React.FC = () => {
                   </div>
                   <div>
                     <h4 className="font-extrabold text-sm text-slate-900 dark:text-white">{viewStudentModal.studentName}</h4>
-                    <span className="font-mono text-[11px] text-slate-400 font-bold">Adm ID: {viewStudentModal.admissionNo}</span>
+                    <span className="font-mono text-[11px] text-slate-400 font-bold">Student ID: {viewStudentModal.studentId}</span>
                     <span className="block text-[10px] text-emerald-600 font-bold">Resident Boarder • Active</span>
                   </div>
                 </div>
