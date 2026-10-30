@@ -267,5 +267,140 @@ namespace Backend.Tests.Services
             Assert.Equal(HttpStatusCode.BadRequest, ex.StatusCode);
             Assert.Contains("Incorrect current password", ex.Message);
         }
+        [Fact]
+        public async Task ParentLoginAsync_AfterPasswordChanged_LoginWithNewPasswordSucceedsAndOldPasswordFails()
+        {
+            var oldPassword = SMS.Api.Helpers.PasswordHelper.GenerateDynamicPassword();
+            var newPassword = SMS.Api.Helpers.PasswordHelper.GenerateDynamicPassword() + "_new";
+
+            var parentUserA = new User
+            {
+                UserId = 881,
+                FullName = "Suresh Parent",
+                Email = "suresh.parentA@example.com",
+                MobileNumber = "9988771122",
+                Role = "Parent",
+                PasswordHash = BCrypt.Net.BCrypt.HashPassword(oldPassword)
+            };
+            parentUserA.Roles.Add(new Role { RoleName = "Parent" });
+            _dbContext.Users.Add(parentUserA);
+
+            // Add a second parent with identical name and old password to ensure no fallback/collision
+            var parentUserB = new User
+            {
+                UserId = 882,
+                FullName = "Suresh Parent",
+                Email = "suresh.parentB@example.com",
+                MobileNumber = "9988771133",
+                Role = "Parent",
+                PasswordHash = BCrypt.Net.BCrypt.HashPassword(oldPassword)
+            };
+            parentUserB.Roles.Add(new Role { RoleName = "Parent" });
+            _dbContext.Users.Add(parentUserB);
+
+            // Add student mapped to parentUserA
+            var student = new Student
+            {
+                StudentId = 991,
+                StudentName = "Abhinav Student",
+                AdmissionNumber = "ADM-881",
+                RollNumber = "ROL-881",
+                FatherName = "Suresh Parent",
+                FatherMobile = "9988771122",
+                Email = "abhinav.student@example.com",
+                Status = "Active"
+            };
+            _dbContext.Students.Add(student);
+
+            var mapping = new ParentStudentMapping
+            {
+                ParentUserId = 881,
+                StudentId = 991,
+                RelationshipType = "Father",
+                Status = "Active"
+            };
+            _dbContext.ParentStudentMappings.Add(mapping);
+            await _dbContext.SaveChangesAsync();
+
+            // 1. Change password for Parent A
+            var changeDto = new ChangePasswordRequestDto
+            {
+                EmailOrPhone = "suresh.parentA@example.com",
+                OldPassword = oldPassword,
+                NewPassword = newPassword,
+                ConfirmPassword = newPassword
+            };
+
+            var changeResult = await _service.ChangePasswordAsync(
+                changeDto,
+                userEmailFromToken: "suresh.parentA@example.com",
+                userIdFromToken: "881",
+                userNameFromToken: "Suresh Parent",
+                userRoleFromToken: "Parent"
+            );
+            Assert.True(changeResult);
+
+            // 2. Login with NEW password MUST succeed and return Parent A's identity
+            var newLoginDto = new LoginRequestDto("suresh.parentA@example.com", newPassword, "Parent");
+            var authResponse = await _service.LoginAsync(newLoginDto);
+            Assert.NotNull(authResponse);
+            Assert.Equal(881, authResponse.UserId);
+            Assert.Equal("suresh.parentA@example.com", authResponse.Email);
+            Assert.False(string.IsNullOrEmpty(authResponse.Token));
+
+            // 3. Login with OLD password MUST throw Unauthorized AppException and NEVER match Parent B
+            var oldLoginDto = new LoginRequestDto("suresh.parentA@example.com", oldPassword, "Parent");
+            var ex = await Assert.ThrowsAsync<AppException>(() => _service.LoginAsync(oldLoginDto));
+            Assert.Equal(HttpStatusCode.Unauthorized, ex.StatusCode);
+            Assert.Equal("Invalid email/mobile number or password.", ex.Message);
+        }
+
+        [Fact]
+        public async Task ParentLoginAsync_GenericLoginWithoutPortal_OldPasswordFailsSecurely()
+        {
+            var oldPassword = SMS.Api.Helpers.PasswordHelper.GenerateDynamicPassword();
+            var newPassword = SMS.Api.Helpers.PasswordHelper.GenerateDynamicPassword() + "_new";
+
+            var parentUser = new User
+            {
+                UserId = 883,
+                FullName = "Ramesh Parent",
+                Email = "ramesh.parent@example.com",
+                MobileNumber = "9988772244",
+                Role = "Parent",
+                PasswordHash = BCrypt.Net.BCrypt.HashPassword(oldPassword)
+            };
+            parentUser.Roles.Add(new Role { RoleName = "Parent" });
+            _dbContext.Users.Add(parentUser);
+            await _dbContext.SaveChangesAsync();
+
+            // Change password
+            var changeDto = new ChangePasswordRequestDto
+            {
+                EmailOrPhone = "ramesh.parent@example.com",
+                OldPassword = oldPassword,
+                NewPassword = newPassword,
+                ConfirmPassword = newPassword
+            };
+
+            await _service.ChangePasswordAsync(
+                changeDto,
+                userEmailFromToken: "ramesh.parent@example.com",
+                userIdFromToken: "883",
+                userNameFromToken: "Ramesh Parent",
+                userRoleFromToken: "Parent"
+            );
+
+            // Generic login (portal is null) with old password MUST fail
+            var genericOldLogin = new LoginRequestDto("ramesh.parent@example.com", oldPassword, null);
+            var ex = await Assert.ThrowsAsync<AppException>(() => _service.LoginAsync(genericOldLogin));
+            Assert.Equal(HttpStatusCode.Unauthorized, ex.StatusCode);
+
+            // Generic login with new password MUST succeed
+            var genericNewLogin = new LoginRequestDto("ramesh.parent@example.com", newPassword, null);
+            var res = await _service.LoginAsync(genericNewLogin);
+            Assert.NotNull(res);
+            Assert.Equal(883, res.UserId);
+        }
     }
 }

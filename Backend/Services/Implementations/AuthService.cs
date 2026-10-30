@@ -475,7 +475,7 @@ namespace SMS.Api.Services.Implementations
 
             async Task<AuthResponseDto?> TryParentAsync()
             {
-                // 1. Look for user in users table with role Parent
+                // 1. Authoritative lookup: Look for user in users table with role Parent
                 var parentUser = await _dbContext.Users
                     .FirstOrDefaultAsync(u => (u.Role == "Parent" || u.Role == "Parent / Guardian") && (
                         (u.Email != null && u.Email.ToLower() == lower) ||
@@ -501,56 +501,69 @@ namespace SMS.Api.Services.Implementations
                             string.Empty
                         );
                     }
+                    else
+                    {
+                        // Account found by authoritative identifier, but password was incorrect! Fail securely immediately.
+                        throw new AppException("Invalid email/mobile number or password.", HttpStatusCode.Unauthorized);
+                    }
                 }
 
-                // 2. Look for student with father_mobile or mother_mobile or parent email
-                var studentWithParent = await _dbContext.Students
+                // 2. Authoritative ParentStudentMapping lookup if parent signed in via student contact
+                var mappedStudent = await _dbContext.Students
                     .AsNoTracking()
                     .Include(s => s.Branch)
                     .FirstOrDefaultAsync(s => 
                         s.FatherMobile == identifier || 
                         s.MotherMobile == identifier ||
-                        (s.Email != null && s.Email.ToLower() == lower) ||
                         (digitsOnly.Length >= 10 && (
                             (s.FatherMobile != null && s.FatherMobile.EndsWith(digitsOnly)) || 
                             (s.MotherMobile != null && s.MotherMobile.EndsWith(digitsOnly))
                         ))
                     );
 
-                if (studentWithParent != null)
+                if (mappedStudent != null)
                 {
-                    var linkedUser = await _dbContext.Users
-                        .FirstOrDefaultAsync(u =>
-                            (u.Email != null && studentWithParent.Email != null && u.Email.ToLower() == studentWithParent.Email.ToLower()) ||
-                            (u.MobileNumber != null && (u.MobileNumber == studentWithParent.FatherMobile || u.MobileNumber == studentWithParent.MotherMobile || (digitsOnly.Length >= 10 && u.MobileNumber.EndsWith(digitsOnly)))) ||
-                            (studentWithParent.FatherName != null && u.FullName.ToLower() == studentWithParent.FatherName.ToLower()) ||
-                            (studentWithParent.MotherName != null && u.FullName.ToLower() == studentWithParent.MotherName.ToLower())
-                        );
+                    var mapping = await _dbContext.ParentStudentMappings
+                        .AsNoTracking()
+                        .Include(m => m.ParentUser)
+                        .FirstOrDefaultAsync(m => m.StudentId == mappedStudent.StudentId && m.ParentUser != null && (
+                            m.ParentUser.MobileNumber == identifier ||
+                            (m.ParentUser.Email != null && m.ParentUser.Email.ToLower() == lower) ||
+                            (digitsOnly.Length >= 10 && m.ParentUser.MobileNumber != null && m.ParentUser.MobileNumber.EndsWith(digitsOnly))
+                        ));
 
-                    if (linkedUser != null && !string.IsNullOrEmpty(linkedUser.PasswordHash) && VerifyPassword(linkedUser.PasswordHash, dto.Password))
+                    if (mapping?.ParentUser != null)
                     {
-                        string parentName = !string.IsNullOrWhiteSpace(studentWithParent.FatherName) 
-                            ? studentWithParent.FatherName 
-                            : (!string.IsNullOrWhiteSpace(studentWithParent.MotherName) ? studentWithParent.MotherName : linkedUser.FullName);
-
-                        var parentRoles = new List<string> { "Parent" };
-                        var pToken = GenerateJwtToken(linkedUser, parentRoles);
-                        return new AuthResponseDto(
-                            linkedUser.UserId,
-                            parentName,
-                            pToken,
-                            parentRoles,
-                            linkedUser.Email ?? studentWithParent.Email,
-                            linkedUser.MobileNumber ?? studentWithParent.FatherMobile ?? studentWithParent.MotherMobile,
-                            linkedUser.Avatar,
-                            studentWithParent.Branch?.BranchName ?? string.Empty
-                        );
+                        bool passValid = !string.IsNullOrEmpty(mapping.ParentUser.PasswordHash) && VerifyPassword(mapping.ParentUser.PasswordHash, dto.Password);
+                        if (passValid)
+                        {
+                            var parentRoles = new List<string> { "Parent" };
+                            var pToken = GenerateJwtToken(mapping.ParentUser, parentRoles);
+                            return new AuthResponseDto(
+                                mapping.ParentUser.UserId,
+                                mapping.ParentUser.FullName,
+                                pToken,
+                                parentRoles,
+                                mapping.ParentUser.Email ?? mappedStudent.Email,
+                                mapping.ParentUser.MobileNumber ?? mappedStudent.FatherMobile ?? mappedStudent.MotherMobile,
+                                mapping.ParentUser.Avatar,
+                                mappedStudent.Branch?.BranchName ?? string.Empty
+                            );
+                        }
+                        else
+                        {
+                            throw new AppException("Invalid email/mobile number or password.", HttpStatusCode.Unauthorized);
+                        }
                     }
+                }
+
+                if (string.Equals(portal, "Parent", StringComparison.OrdinalIgnoreCase))
+                {
+                    throw new AppException("Invalid email/mobile number or password.", HttpStatusCode.Unauthorized);
                 }
 
                 return null;
             }
-
             async Task<AuthResponseDto?> TryUserAsync(string? targetRole = null)
             {
                 var userQuery = _dbContext.Users.AsQueryable();
@@ -655,46 +668,118 @@ namespace SMS.Api.Services.Implementations
             if (string.Equals(portal, "Admin", StringComparison.OrdinalIgnoreCase))
             {
                 result = await TryAdminAsync();
+                if (result == null)
+                    throw new AppException("Invalid email/mobile number or password.", HttpStatusCode.Unauthorized);
             }
             else if (string.Equals(portal, "Parent", StringComparison.OrdinalIgnoreCase))
             {
-                result = await TryParentAsync() ?? await TryUserAsync("Parent");
+                result = await TryParentAsync();
+                if (result == null)
+                    throw new AppException("Invalid email/mobile number or password.", HttpStatusCode.Unauthorized);
             }
             else if (string.Equals(portal, "Driver", StringComparison.OrdinalIgnoreCase))
             {
                 result = await TryDriverAsync() ?? await TryUserAsync("Driver") ?? await TryStaffAsync("Driver");
+                if (result == null)
+                    throw new AppException("Invalid email/mobile number or password.", HttpStatusCode.Unauthorized);
             }
             else if (string.Equals(portal, "Student", StringComparison.OrdinalIgnoreCase))
             {
                 result = await TryStudentAsync() ?? await TryUserAsync("Student");
+                if (result == null)
+                    throw new AppException("Invalid email/mobile number or password.", HttpStatusCode.Unauthorized);
             }
             else if (string.Equals(portal, "Teacher", StringComparison.OrdinalIgnoreCase))
             {
                 result = await TryStaffAsync("Teacher") ?? await TryUserAsync("Teacher");
+                if (result == null)
+                    throw new AppException("Invalid email/mobile number or password.", HttpStatusCode.Unauthorized);
             }
             else if (string.Equals(portal, "Librarian", StringComparison.OrdinalIgnoreCase))
             {
                 result = await TryStaffAsync("Librarian") ?? await TryUserAsync("Librarian");
+                if (result == null)
+                    throw new AppException("Invalid email/mobile number or password.", HttpStatusCode.Unauthorized);
             }
             else if (string.Equals(portal, "Accountant", StringComparison.OrdinalIgnoreCase))
             {
                 result = await TryStaffAsync("Accountant") ?? await TryUserAsync("Accountant");
+                if (result == null)
+                    throw new AppException("Invalid email/mobile number or password.", HttpStatusCode.Unauthorized);
             }
             else if (string.Equals(portal, "Hostel Warden", StringComparison.OrdinalIgnoreCase) || string.Equals(portal, "Warden", StringComparison.OrdinalIgnoreCase))
             {
                 result = await TryWardenAsync() ?? await TryStaffAsync("Hostel Warden") ?? await TryUserAsync("Hostel Warden");
+                if (result == null)
+                    throw new AppException("Invalid email/mobile number or password.", HttpStatusCode.Unauthorized);
             }
 
-            // Fallback for generic login or if portal-specific lookup didn't match
+            // Fallback for generic login (when no portal was specified)
             if (result == null)
             {
-                result = await TryAdminAsync()
-                      ?? await TryParentAsync()
-                      ?? await TryStudentAsync()
-                      ?? await TryDriverAsync()
-                      ?? await TryStaffAsync()
-                      ?? await TryWardenAsync()
-                      ?? await TryUserAsync();
+                // 1. Direct check in Users table by immutable email/mobile
+                var directUser = await _dbContext.Users
+                    .FirstOrDefaultAsync(u =>
+                        (u.Email != null && u.Email.ToLower() == lower) ||
+                        u.MobileNumber == identifier ||
+                        (digitsOnly.Length >= 10 && u.MobileNumber != null && u.MobileNumber.EndsWith(digitsOnly))
+                    );
+
+                if (directUser != null)
+                {
+                    bool passValid = !string.IsNullOrEmpty(directUser.PasswordHash) && VerifyPassword(directUser.PasswordHash, dto.Password);
+                    if (!passValid)
+                    {
+                        // Direct authoritative user was found, but password was incorrect! Fail securely.
+                        throw new AppException("Invalid email/mobile number or password.", HttpStatusCode.Unauthorized);
+                    }
+
+                    if (directUser.Role == "Parent" || directUser.Role == "Parent / Guardian")
+                    {
+                        var parentRoles = new List<string> { "Parent" };
+                        var pToken = GenerateJwtToken(directUser, parentRoles);
+                        return new AuthResponseDto(
+                            directUser.UserId,
+                            directUser.FullName,
+                            pToken,
+                            parentRoles,
+                            directUser.Email,
+                            directUser.MobileNumber,
+                            directUser.Avatar,
+                            string.Empty
+                        );
+                    }
+
+                    var userRolesList = GetUserRolesList(directUser);
+                    if (userRolesList.Count == 0)
+                    {
+                        userRolesList = new List<string> { !string.IsNullOrEmpty(directUser.Role) ? directUser.Role : "Student" };
+                    }
+                    var userToken = GenerateJwtToken(directUser, userRolesList);
+                    return new AuthResponseDto(
+                        directUser.UserId,
+                        directUser.FullName,
+                        userToken,
+                        userRolesList,
+                        directUser.Email,
+                        directUser.MobileNumber,
+                        directUser.Avatar,
+                        string.Empty
+                    );
+                }
+
+                // 2. Direct check in Admins table
+                result = await TryAdminAsync();
+
+                // 3. Check entity-specific fallbacks (Parent mappings, Student credentials, Driver, Staff, Warden)
+                if (result == null)
+                {
+                    result = await TryParentAsync()
+                          ?? await TryStudentAsync()
+                          ?? await TryDriverAsync()
+                          ?? await TryStaffAsync()
+                          ?? await TryWardenAsync();
+                }
             }
 
             if (result != null)
@@ -939,14 +1024,14 @@ namespace SMS.Api.Services.Implementations
                     admin = await _dbContext.Admins.FirstOrDefaultAsync(a =>
                         (a.Email != null && a.Email.ToLower() == lower) ||
                         a.MobileNumber == candidate ||
-                        (a.FullName != null && a.FullName.ToLower() == lower));
+                        false);
 
                     if (admin != null) break;
 
                     user = await _dbContext.Users.FirstOrDefaultAsync(u =>
                         (u.Email != null && u.Email.ToLower() == lower) ||
                         u.MobileNumber == candidate ||
-                        (u.FullName != null && u.FullName.ToLower() == lower));
+                        false);
 
                     if (user != null) break;
 
