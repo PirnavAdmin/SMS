@@ -639,6 +639,10 @@ export const getRooms = async (hostelId?: number, floor?: string, roomTypeId?: n
 
 export const createRoom = async (data: Partial<HostelRoom>) => {
   const current = getStoredRooms();
+  const MAX_TOTAL_SYSTEM_ROOMS = 1000;
+  if (current.length >= MAX_TOTAL_SYSTEM_ROOMS) {
+    throw new Error(`Maximum hostel room capacity limit reached (${MAX_TOTAL_SYSTEM_ROOMS} rooms). Please clean up or delete unused rooms before adding more.`);
+  }
   const nextId = current.length > 0 ? Math.max(...current.map(r => Number(r.roomId) || 0)) + 1 : 201;
 
   const roomTypes = getStoredRoomTypes();

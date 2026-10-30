@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { LogOut, Plus, Search, CheckCircle2, XCircle, Clock, Trash2 } from 'lucide-react';
+import { LogOut, Plus, Search, CheckCircle2, XCircle, Clock, Trash2, AlertTriangle } from 'lucide-react';
 import { useData } from '../../../context/DataContext';
 import { useToast } from '../../../context/ToastContext';
 import { useAuth } from '../../../context/AuthContext';
@@ -18,7 +18,7 @@ interface OutpassRecord {
   departureDate: string;
   returnDate: string;
   reason: string;
-  status: 'Approved' | 'Pending' | 'Rejected';
+  status: 'Approved' | 'Pending' | 'Rejected' | 'Completed' | 'Cancelled';
 }
 
 const OUTPASSES_STORE_KEY = 'edu_db_hostel_outpasses';
@@ -230,6 +230,40 @@ export const HostelOutpassLeaveView: React.FC = () => {
   const [returnDate, setReturnDate] = useState('');
   const [reason, setReason] = useState('');
 
+  const getActiveOutpassForStudent = React.useCallback((studentId: string | number) => {
+    if (!studentId) return null;
+    const sIdStr = String(studentId).toLowerCase().trim();
+    const selectedSt = (displayStudentsList as any[]).find(s => String(s.id).toLowerCase().trim() === sIdStr) ||
+                       (students as any[]).find(s => String(s.id).toLowerCase().trim() === sIdStr);
+    const sAdm = selectedSt?.admissionNo ? String(selectedSt.admissionNo).toLowerCase().trim() : '';
+
+    const now = new Date();
+
+    return records.find(r => {
+      const rStudentId = String(r.studentId || '').toLowerCase().trim();
+      const rAdm = String(r.admissionNo || '').toLowerCase().trim();
+      const isSameStudent = (sIdStr && rStudentId === sIdStr) || (sAdm && rAdm && sAdm === rAdm);
+      if (!isSameStudent) return false;
+
+      // Pending is always active
+      if (r.status === 'Pending') return true;
+
+      // Approved is active until it expires or is marked Completed
+      if (r.status === 'Approved') {
+        if (!r.returnDate) return true;
+        const returnTime = new Date(r.returnDate);
+        if (isNaN(returnTime.getTime())) return true;
+        return returnTime >= now;
+      }
+
+      return false;
+    });
+  }, [records, displayStudentsList, students]);
+
+  const activeOutpassForSelectedStudent = React.useMemo(() => {
+    return getActiveOutpassForStudent(selectedStudentId);
+  }, [selectedStudentId, getActiveOutpassForStudent]);
+
   const handleOpenAdd = () => {
     setSelectedStudentId('');
     setOutpassType('Local Outpass');
@@ -243,6 +277,17 @@ export const HostelOutpassLeaveView: React.FC = () => {
     e.preventDefault();
     if (!selectedStudentId || !departureDate || !returnDate) {
       addToast('Please complete all required fields.', 'warning');
+      return;
+    }
+
+    if (new Date(returnDate) < new Date(departureDate)) {
+      addToast('Expected return date and time must be after departure.', 'warning');
+      return;
+    }
+
+    const existingActive = getActiveOutpassForStudent(selectedStudentId);
+    if (existingActive) {
+      addToast(`An active Outpass request already exists for this student (Status: ${existingActive.status}).`, 'error');
       return;
     }
 
@@ -272,7 +317,7 @@ export const HostelOutpassLeaveView: React.FC = () => {
     setIsModalOpen(false);
   };
 
-  const handleStatusChange = (id: number, newStatus: 'Approved' | 'Rejected') => {
+  const handleStatusChange = (id: number, newStatus: 'Approved' | 'Rejected' | 'Completed' | 'Cancelled') => {
     const updated = records.map(r => r.id === id ? { ...r, status: newStatus } : r);
     saveRecords(updated);
     addToast(`Outpass request marked as ${newStatus}.`, 'info');
@@ -336,6 +381,7 @@ export const HostelOutpassLeaveView: React.FC = () => {
                 { value: 'All', label: 'All Statuses' },
                 { value: 'Approved', label: 'Approved' },
                 { value: 'Pending', label: 'Pending' },
+                { value: 'Completed', label: 'Completed' },
                 { value: 'Rejected', label: 'Rejected' }
               ]}
             />
@@ -389,6 +435,7 @@ export const HostelOutpassLeaveView: React.FC = () => {
                         <span className={`px-2.5 py-1 rounded-full text-[10px] font-extrabold ${
                           r.status === 'Approved' ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300' :
                           r.status === 'Pending' ? 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300' :
+                          r.status === 'Completed' ? 'bg-sky-100 text-sky-800 dark:bg-sky-950 dark:text-sky-300' :
                           'bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300'
                         }`}>
                           {r.status}
@@ -398,11 +445,20 @@ export const HostelOutpassLeaveView: React.FC = () => {
                         <div className="flex items-center justify-end gap-2">
                           {r.status === 'Pending' && (
                             <>
-                              <button onClick={() => handleStatusChange(r.id, 'Approved')} className="p-1 rounded-lg text-emerald-600 hover:bg-emerald-50"><CheckCircle2 className="w-4 h-4" /></button>
-                              <button onClick={() => handleStatusChange(r.id, 'Rejected')} className="p-1 rounded-lg text-rose-600 hover:bg-rose-50"><XCircle className="w-4 h-4" /></button>
+                              <button onClick={() => handleStatusChange(r.id, 'Approved')} className="p-1 rounded-lg text-emerald-600 hover:bg-emerald-50" title="Approve Request"><CheckCircle2 className="w-4 h-4" /></button>
+                              <button onClick={() => handleStatusChange(r.id, 'Rejected')} className="p-1 rounded-lg text-rose-600 hover:bg-rose-50" title="Reject Request"><XCircle className="w-4 h-4" /></button>
                             </>
                           )}
-                          <button onClick={() => setDeletingRecord(r)} className="p-1 rounded-lg text-slate-400 hover:text-rose-600"><Trash2 className="w-4 h-4" /></button>
+                          {r.status === 'Approved' && (
+                            <button
+                              onClick={() => handleStatusChange(r.id, 'Completed')}
+                              className="px-2 py-0.5 rounded-lg text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/60 hover:bg-emerald-100 border border-emerald-300 dark:border-emerald-700 text-[10px] font-bold flex items-center gap-1 transition-colors"
+                              title="Mark as Returned / Completed"
+                            >
+                              <CheckCircle2 className="w-3.5 h-3.5" /> Returned
+                            </button>
+                          )}
+                          <button onClick={() => setDeletingRecord(r)} className="p-1 rounded-lg text-slate-400 hover:text-rose-600" title="Delete Outpass Record"><Trash2 className="w-4 h-4" /></button>
                         </div>
                       </td>
                     </tr>
@@ -429,15 +485,37 @@ export const HostelOutpassLeaveView: React.FC = () => {
                 <select
                   value={selectedStudentId}
                   onChange={e => setSelectedStudentId(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold"
+                  className={`w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold cursor-pointer transition-all ${
+                    !selectedStudentId ? 'text-slate-400 dark:text-slate-500 font-sans font-medium' : 'text-slate-900 dark:text-white'
+                  } ${activeOutpassForSelectedStudent ? 'border-amber-400 ring-1 ring-amber-400' : ''}`}
                   disabled={isSubmitting}
                   required
                 >
-                  <option value="" disabled>Select Student...</option>
-                  {displayStudentsList.map(st => (
-                    <option key={st.id} value={String(st.id ?? '')}>{st.firstName} {st.lastName} (ID: {st.id})</option>
-                  ))}
+                  <option value="" disabled className="text-slate-400 dark:text-slate-500 font-sans italic bg-white dark:bg-slate-900">Select Student...</option>
+                  {displayStudentsList.map(st => {
+                    const activeOp = getActiveOutpassForStudent(String(st.id ?? ''));
+                    return (
+                      <option key={st.id} value={String(st.id ?? '')}>
+                        {st.firstName} {st.lastName} (ID: {st.id}){activeOp ? ` • [Active: ${activeOp.status}]` : ''}
+                      </option>
+                    );
+                  })}
                 </select>
+
+                {activeOutpassForSelectedStudent && (
+                  <div className="mt-2.5 p-3 bg-amber-50 dark:bg-amber-950/50 border border-amber-300 dark:border-amber-800 rounded-2xl flex items-start gap-2.5 text-xs text-amber-900 dark:text-amber-200 animate-in fade-in">
+                    <AlertTriangle className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+                    <div className="space-y-1">
+                      <span className="font-bold block text-amber-800 dark:text-amber-200">
+                        An active Outpass request already exists for this student.
+                      </span>
+                      <span className="text-[11px] text-amber-700 dark:text-amber-300 block leading-relaxed">
+                        Current active request: <strong>{activeOutpassForSelectedStudent.outpassType}</strong> (Status: <strong>{activeOutpassForSelectedStudent.status}</strong>) • Return: {activeOutpassForSelectedStudent.returnDate}.
+                        A new request cannot be submitted until the previous request is completed, rejected, cancelled, or expired.
+                      </span>
+                    </div>
+                  </div>
+                )}
               </div>
 
               <div>
@@ -496,7 +574,15 @@ export const HostelOutpassLeaveView: React.FC = () => {
 
               <div className="flex items-center justify-between pt-3 border-t border-slate-100 dark:border-slate-800">
                 <button type="button" onClick={() => setIsModalOpen(false)} disabled={isSubmitting} className="px-4 py-2 text-xs font-semibold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-xl hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors">Cancel</button>
-                <button type="submit" disabled={isSubmitting} className="px-5 py-2 text-xs font-bold bg-sky-600 hover:bg-sky-500 text-white rounded-xl shadow-lg shadow-sky-500/20 disabled:opacity-50">
+                <button
+                  type="submit"
+                  disabled={isSubmitting || Boolean(activeOutpassForSelectedStudent)}
+                  className={`px-5 py-2 text-xs font-bold rounded-xl shadow-lg transition-all ${
+                    isSubmitting || Boolean(activeOutpassForSelectedStudent)
+                      ? 'bg-slate-200 text-slate-400 dark:bg-slate-800 dark:text-slate-600 cursor-not-allowed opacity-60'
+                      : 'bg-sky-600 hover:bg-sky-500 text-white shadow-sky-500/20'
+                  }`}
+                >
                   {isSubmitting ? 'Saving...' : 'Save'}
                 </button>
               </div>

@@ -546,6 +546,20 @@ export const ProfileCompletionView: React.FC<ProfileCompletionViewProps> = ({ on
 
     if (id) {
       updateExperience(id, { certificate: snapshot });
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const dataUrl = e.target?.result as string;
+        if (dataUrl) {
+          updateExperience(id, {
+            certificate: {
+              fileName: file.name,
+              fileUrl: dataUrl,
+              uploadedDate: new Date().toISOString().split('T')[0]
+            }
+          });
+        }
+      };
+      reader.readAsDataURL(file);
     }
   };
 
@@ -1436,6 +1450,22 @@ export const ProfileCompletionView: React.FC<ProfileCompletionViewProps> = ({ on
                             if (!selected) return;
                             const snapshot = fileSnapshot(selected);
                             updateDocument(doc.id, snapshot);
+                            const reader = new FileReader();
+                            reader.onload = (ev) => {
+                              const dataUrl = ev.target?.result as string;
+                              if (dataUrl) {
+                                const perm = {
+                                  fileName: selected.name,
+                                  fileUrl: dataUrl,
+                                  uploadedDate: new Date().toISOString().split('T')[0]
+                                };
+                                updateDocument(doc.id, perm);
+                                if ((doc.label || '').toLowerCase().includes('experience certificate') && form.experience[0]) {
+                                  updateExperience(form.experience[0].id, { certificate: perm });
+                                }
+                              }
+                            };
+                            reader.readAsDataURL(selected);
                             const isPhoto = (doc.label || '').toLowerCase().includes('profile picture') ||
                               (doc.label || '').toLowerCase().includes('passport photo') ||
                               (doc.label || '').toLowerCase().includes('photo');

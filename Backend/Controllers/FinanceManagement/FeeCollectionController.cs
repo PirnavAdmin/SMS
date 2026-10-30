@@ -24,7 +24,7 @@ public class FeeCollectionController : ControllerBase
     // =========================================================================
 
     [HttpGet("fee-collection/students")]
-    [Authorize(Roles = "Admin,Staff,SuperAdmin,Accountant")]
+    [Authorize(Roles = "Admin,Staff,SuperAdmin,Super Admin,Principal,Accountant,Finance,HR,Receptionist")]
     public async Task<IActionResult> GetStudentRoster(
         [FromQuery] string? search,
         [FromQuery] string? className,
@@ -39,7 +39,7 @@ public class FeeCollectionController : ControllerBase
     }
 
     [HttpGet("fee-collection/student/{studentId:int}")]
-    [Authorize(Roles = "Admin,Staff,SuperAdmin,Accountant,Parent,Student")]
+    [Authorize(Roles = "Admin,Staff,SuperAdmin,Super Admin,Principal,Accountant,Finance,HR,Receptionist,Parent,Student")]
     public async Task<IActionResult> GetStudentFeeProfile(
         int studentId,
         [FromQuery] string? academicYear = "2026-2027")
@@ -52,7 +52,7 @@ public class FeeCollectionController : ControllerBase
     }
 
     [HttpPost("fee-collection/collect")]
-    [Authorize(Roles = "Admin,Staff,SuperAdmin,Accountant")]
+    [Authorize(Roles = "Admin,Staff,SuperAdmin,Super Admin,Principal,Accountant,Finance,HR,Receptionist")]
     public async Task<IActionResult> CollectFeePayment([FromBody] CollectFeePaymentRequestDto request)
     {
         if (request == null || request.TotalAmountPaid <= 0)
@@ -63,7 +63,7 @@ public class FeeCollectionController : ControllerBase
     }
 
     [HttpPost("fee-collection/student-transition")]
-    [Authorize(Roles = "Admin,Staff,SuperAdmin,Accountant")]
+    [Authorize(Roles = "Admin,Staff,SuperAdmin,Super Admin,Principal,Accountant,Finance,HR,Receptionist")]
     public async Task<IActionResult> TransitionStudentCategory([FromBody] StudentCategoryTransitionRequestDto request)
     {
         if (request == null || request.StudentId <= 0)
@@ -74,7 +74,7 @@ public class FeeCollectionController : ControllerBase
     }
 
     [HttpPost("fee-collection/apply-transport-credit")]
-    [Authorize(Roles = "Admin,Staff,SuperAdmin,Accountant")]
+    [Authorize(Roles = "Admin,Staff,SuperAdmin,Super Admin,Principal,Accountant,Finance,HR,Receptionist")]
     public async Task<IActionResult> ApplyTransportCredit([FromBody] ApplyTransportCreditRequestDto request)
     {
         if (request == null || request.StudentId <= 0 || request.Amount <= 0)
@@ -85,7 +85,7 @@ public class FeeCollectionController : ControllerBase
     }
 
     [HttpPost("fee-collection/refund-security-deposit")]
-    [Authorize(Roles = "Admin,Staff,SuperAdmin,Accountant")]
+    [Authorize(Roles = "Admin,Staff,SuperAdmin,Super Admin,Principal,Accountant,Finance,HR,Receptionist")]
     public async Task<IActionResult> RefundSecurityDeposit([FromBody] ProcessDepositRefundRequestDto request)
     {
         if (request == null || request.StudentId <= 0 || request.RefundAmount <= 0)
@@ -96,7 +96,7 @@ public class FeeCollectionController : ControllerBase
     }
 
     [HttpPost("fee-collection/recalculate-student/{studentId:int}")]
-    [Authorize(Roles = "Admin,Staff,SuperAdmin,Accountant")]
+    [Authorize(Roles = "Admin,Staff,SuperAdmin,Super Admin,Principal,Accountant,Finance,HR,Receptionist")]
     public async Task<IActionResult> RecalculateStudentFeeProfile(int studentId, [FromQuery] string? academicYear)
     {
         var result = await _feeCollectionService.RecalculateStudentFeeProfileAsync(studentId, academicYear);
@@ -111,7 +111,7 @@ public class FeeCollectionController : ControllerBase
     // =========================================================================
 
     [HttpGet("due-fees")]
-    [Authorize(Roles = "Admin,Staff,SuperAdmin,Accountant")]
+    [Authorize(Roles = "Admin,Staff,SuperAdmin,Super Admin,Principal,Accountant,Finance,HR,Receptionist")]
     public async Task<IActionResult> GetDueFeesSummary(
         [FromQuery] string? className,
         [FromQuery] string? sectionName,
@@ -122,7 +122,7 @@ public class FeeCollectionController : ControllerBase
     }
 
     [HttpGet("category-dues")]
-    [Authorize(Roles = "Admin,Staff,SuperAdmin,Accountant")]
+    [Authorize(Roles = "Admin,Staff,SuperAdmin,Super Admin,Principal,Accountant,Finance,HR,Receptionist")]
     public async Task<IActionResult> GetCategoryWiseDues(
         [FromQuery] string? branch,
         [FromQuery] string? academicYear,
@@ -134,7 +134,7 @@ public class FeeCollectionController : ControllerBase
     }
 
     [HttpPost("due-fees/send-reminder")]
-    [Authorize(Roles = "Admin,Staff,SuperAdmin,Accountant")]
+    [Authorize(Roles = "Admin,Staff,SuperAdmin,Super Admin,Principal,Accountant,Finance,HR,Receptionist")]
     public IActionResult SendFeeReminder([FromBody] SendFeeReminderRequestDto request)
     {
         if (request == null || request.StudentId <= 0)
@@ -152,7 +152,7 @@ public class FeeCollectionController : ControllerBase
     // =========================================================================
 
     [HttpGet("promoted-students-dues")]
-    [Authorize(Roles = "Admin,Staff,SuperAdmin,Accountant")]
+    [Authorize(Roles = "Admin,Staff,SuperAdmin,Super Admin,Principal,Accountant,Finance,HR,Receptionist")]
     public async Task<IActionResult> GetPromotedStudentsDues(
         [FromQuery] string? search,
         [FromQuery] string? className,
@@ -168,7 +168,7 @@ public class FeeCollectionController : ControllerBase
     // =========================================================================
 
     [HttpGet("receipts")]
-    [Authorize(Roles = "Admin,Staff,SuperAdmin,Accountant,Parent")]
+    [Authorize(Roles = "Admin,Staff,SuperAdmin,Super Admin,Principal,Accountant,Finance,HR,Receptionist,Parent")]
     public async Task<IActionResult> GetReceiptsRegister(
         [FromQuery] string? search,
         [FromQuery] string? paymentMode,
@@ -183,7 +183,7 @@ public class FeeCollectionController : ControllerBase
     }
 
     [HttpGet("receipts/{receiptNo}")]
-    [Authorize(Roles = "Admin,Staff,SuperAdmin,Accountant,Parent,Student")]
+    [Authorize(Roles = "Admin,Staff,SuperAdmin,Super Admin,Principal,Accountant,Finance,HR,Receptionist,Parent,Student")]
     public async Task<IActionResult> GetReceiptByNo(string receiptNo)
     {
         var result = await _feeCollectionService.GetReceiptByNoAsync(receiptNo);
@@ -194,7 +194,7 @@ public class FeeCollectionController : ControllerBase
     }
 
     [HttpPost("receipts/{receiptNo}/cancel")]
-    [Authorize(Roles = "Admin,SuperAdmin")]
+    [Authorize(Roles = "Admin,SuperAdmin,Super Admin,Principal")]
     public async Task<IActionResult> CancelReceipt(string receiptNo, [FromBody] string? reason)
     {
         var success = await _feeCollectionService.CancelReceiptAsync(receiptNo, reason ?? "Administrative cancellation");

@@ -128,8 +128,16 @@ export const HostelMasterView: React.FC = () => {
       addToast('error', 'Validation Error', 'Please enter hostel name and code');
       return;
     }
+    if (!form.hostelType) {
+      addToast('error', 'Validation Error', 'Please select a hostel category');
+      return;
+    }
+    if (!(form as any).totalFloors) {
+      addToast('error', 'Validation Error', 'Please select total floors');
+      return;
+    }
 
-    const floorsVal = (form as any).totalFloors || 4;
+    const floorsVal = Number((form as any).totalFloors) || 1;
 
     try {
       setIsSubmitting(true);
@@ -296,9 +304,11 @@ export const HostelMasterView: React.FC = () => {
             <select
               value={filterType}
               onChange={e => setFilterType(e.target.value)}
-              className="px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-xs font-bold text-slate-900 dark:text-white outline-none"
+              className={`px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-xs font-bold cursor-pointer outline-none transition-all ${
+                !filterType ? 'text-slate-400 dark:text-slate-500 font-medium' : 'text-slate-900 dark:text-white'
+              }`}
             >
-              <option value="">Select Hostel...</option>
+              <option value="" className="text-slate-400 dark:text-slate-500 font-sans italic bg-white dark:bg-slate-900">Select Hostel...</option>
               <option value="All">All Hostels</option>
               {targetHostels.map((h, idx) => {
                 const displayTitle = h.hostelName || (h as any).name || (h as any).blockName || `Block #${h.hostelId}`;
@@ -453,13 +463,15 @@ export const HostelMasterView: React.FC = () => {
                   <select
                     value={form.hostelType || ''}
                     onChange={e => setForm({ ...form, hostelType: e.target.value })}
-                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold text-slate-900 dark:text-white"
+                    className={`w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold cursor-pointer transition-all ${
+                      !form.hostelType ? 'text-slate-600 dark:text-slate-300 font-sans font-medium' : 'text-slate-900 dark:text-white'
+                    }`}
                     disabled={isSubmitting}
                     required
                   >
-                    <option value="" disabled>Select Category...</option>
-                    <option value="Boys Hostel">Boys Hostel</option>
-                    <option value="Girls Hostel">Girls Hostel</option>
+                    <option value="" className="text-slate-600 dark:text-slate-300 font-sans font-medium bg-white dark:bg-slate-900">Select Category</option>
+                    <option value="Boys Hostel" className="text-slate-900 dark:text-white bg-white dark:bg-slate-900 font-medium">Boys Hostel</option>
+                    <option value="Girls Hostel" className="text-slate-900 dark:text-white bg-white dark:bg-slate-900 font-medium">Girls Hostel</option>
                   </select>
                 </div>
                 <div>
@@ -467,13 +479,17 @@ export const HostelMasterView: React.FC = () => {
                   <select
                     value={(form as any).totalFloors || ''}
                     onChange={e => setForm({ ...form, totalFloors: parseInt(e.target.value) || 1 } as any)}
-                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-mono font-bold text-slate-900 dark:text-white"
+                    className={`w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold cursor-pointer transition-all ${
+                      !(form as any).totalFloors
+                        ? 'text-slate-600 dark:text-slate-300 font-sans font-medium'
+                        : 'font-mono text-slate-900 dark:text-white'
+                    }`}
                     disabled={isSubmitting}
                     required
                   >
-                    <option value="" disabled>Select Floors...</option>
+                    <option value="" className="text-slate-600 dark:text-slate-300 font-sans font-medium bg-white dark:bg-slate-900">Select Floors...</option>
                     {Array.from({ length: 30 }, (_, i) => (
-                      <option key={i + 1} value={i + 1}>{i + 1} Floor{i > 0 ? 's' : ''}</option>
+                      <option key={i + 1} value={i + 1} className="font-mono text-slate-900 dark:text-white bg-white dark:bg-slate-900">{i + 1} Floor{i > 0 ? 's' : ''}</option>
                     ))}
                   </select>
                 </div>

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { formatCurrency } from '../../../utils/currency';
 import { formatDateForDisplay } from '../../../utils/dateValidation';
 import {
@@ -19,6 +19,7 @@ import {
   Download,
   Printer,
   FileSpreadsheet,
+  RefreshCw,
 } from 'lucide-react';
 import { Student } from '../../../types';
 import { useData, matchesAcademicYear } from '../../../context/DataContext';
@@ -55,6 +56,7 @@ export const DueFeesView: React.FC<DueFeesViewProps> = ({
     studentTransports,
     studentHostels,
     schoolProfile,
+    fetchFinanceData,
   } = useData();
 
   const { selectedAcademicYear, selectedBranch } = useAuth();
@@ -70,6 +72,46 @@ export const DueFeesView: React.FC<DueFeesViewProps> = ({
   const [selectedFeeHead, setSelectedFeeHead] = useState(initialFeeHead);
   const [selectedDueDate, setSelectedDueDate] = useState('All');
   const [timelineFilter, setTimelineFilter] = useState<'All' | 'Overdue' | 'Current' | 'Upcoming'>('All');
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  // Automatically refresh finance data on mount and whenever finance updates are broadcast
+  useEffect(() => {
+    if (fetchFinanceData) {
+      fetchFinanceData().catch(() => {});
+    }
+
+    const handleUpdate = () => {
+      if (fetchFinanceData) {
+        fetchFinanceData().catch(() => {});
+      }
+    };
+
+    window.addEventListener("finance_updated", handleUpdate);
+    window.addEventListener("finance_data_updated", handleUpdate);
+    window.addEventListener("fee_payment_collected", handleUpdate);
+    window.addEventListener("focus", handleUpdate);
+
+    return () => {
+      window.removeEventListener("finance_updated", handleUpdate);
+      window.removeEventListener("finance_data_updated", handleUpdate);
+      window.removeEventListener("fee_payment_collected", handleUpdate);
+      window.removeEventListener("focus", handleUpdate);
+    };
+  }, [fetchFinanceData]);
+
+  const handleManualRefresh = async () => {
+    setIsRefreshing(true);
+    try {
+      if (fetchFinanceData) {
+        await fetchFinanceData();
+      }
+      addToast("success", "Dues Refreshed", "Synchronized live student dues and payments from database.");
+    } catch {
+      addToast("info", "Dues Updated", "Live dues data refreshed.");
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
 
   // Keep selectedAY in sync when global academic year changes
   React.useEffect(() => {
@@ -162,23 +204,42 @@ export const DueFeesView: React.FC<DueFeesViewProps> = ({
         (d) => matchesClassName(d.className, st.className) && (d.status === "Active" || !d.status),
       );
       const hasAssignment = studentFeeAssignments.some(
-        (a) => a.studentId === st.id && a.status === "Active",
+        (a) => (a.studentId === st.id || (st.admissionNo && a.studentId === st.admissionNo) || (st.rollNo && a.studentId === st.rollNo)) && a.status === "Active",
       );
       const hasTransport = studentTransports.some(
-        (t) => t.studentId === st.id && t.status === "Active",
+        (t) => (t.studentId === st.id || (st.admissionNo && t.admissionNo === st.admissionNo)) && t.status === "Active",
       );
       const hasHostel = studentHostels.some(
-        (h) => h.studentId === st.id && h.status === "Active",
+        (h) => (h.studentId === st.id || (st.admissionNo && h.admissionNo === st.admissionNo)) && h.status === "Active",
       );
 
       if (!hasStructure && !hasAssignment && !hasTransport && !hasHostel) {
         return;
       }
 
-      const ledger = getStudentFeeLedger(st.id, selectedAY);
+      const ledger = getStudentFeeLedger(st.id, st, selectedAY);
       if (!ledger || !ledger.installments || ledger.installments.length === 0) return;
 
-      const unpaid = ledger.installments.filter((i) => i.dueAmount > 0);
+      const assignment = studentFeeAssignments.find(
+        (a) => (a.studentId === st.id || (st.admissionNo && a.studentId === st.admissionNo) || (st.rollNo && a.studentId === st.rollNo)) && a.status === "Active",
+      );
+
+      const policyLower = String((ledger as any).feePolicy || assignment?.feePolicy || (st as any).feePolicy || (st as any).feeCalculationMethod || "Full Annual Fee")
+        .toLowerCase()
+        .trim();
+      const isFullAnnual = policyLower.includes("full") || policyLower.includes("annual") || policyLower.includes("one time") || policyLower.includes("one-time") ||
+        (!policyLower.includes("term") && !policyLower.includes("quarter") && !policyLower.includes("monthly") && !policyLower.includes("pro-rata"));
+
+      const unpaid = ledger.installments.filter((i) => {
+        if (i.dueAmount <= 0) return false;
+        if (!isFullAnnual && timelineFilter !== "Upcoming") {
+          const instDue = i.dueDate ? String(i.dueDate).slice(0, 10) : "";
+          if (instDue && instDue > todayStr) {
+            return false;
+          }
+        }
+        return true;
+      });
       unpaid.forEach((inst: any) => {
         const instDue = Number(inst.dueAmount || 0);
         const isPastDue = inst.dueDate <= todayStr;
@@ -233,7 +294,7 @@ export const DueFeesView: React.FC<DueFeesViewProps> = ({
       }))
       .filter((item) => item.totalOutstanding > 0)
       .sort((a, b) => b.totalOutstanding - a.totalOutstanding);
-  }, [students, getStudentFeeLedger, selectedAY, selectedClass, selectedSection, feeHeads, todayStr, dynamicFeeStructures, studentFeeAssignments, studentTransports, studentHostels]);
+  }, [students, getStudentFeeLedger, selectedAY, selectedClass, selectedSection, feeHeads, todayStr, dynamicFeeStructures, studentFeeAssignments, studentTransports, studentHostels, timelineFilter]);
 
   const availableFeeCategories = React.useMemo(() => {
     const categoriesSet = new Set<string>();
@@ -292,10 +353,10 @@ export const DueFeesView: React.FC<DueFeesViewProps> = ({
       (d) => matchesClassName(d.className, st.className) && (d.status === "Active" || !d.status),
     );
     const hasAssignment = studentFeeAssignments.some(
-      (a) => a.studentId === st.id && a.status === "Active",
+      (a) => (a.studentId === st.id || (st.admissionNo && a.studentId === st.admissionNo) || (st.rollNo && a.studentId === st.rollNo)) && a.status === "Active",
     );
     const hasTransport = studentTransports.some(
-      (t) => t.studentId === st.id && t.status === "Active",
+      (t) => (t.studentId === st.id || (st.admissionNo && t.admissionNo === st.admissionNo)) && t.status === "Active",
     );
     const hasHostel = studentHostels.some(
       (h) => h.studentId === st.id && h.status === "Active",
@@ -305,10 +366,29 @@ export const DueFeesView: React.FC<DueFeesViewProps> = ({
       return;
     }
 
-    const ledger = getStudentFeeLedger(st.id, selectedAY);
+    const ledger = getStudentFeeLedger(st.id, st, selectedAY);
     if (!ledger || !ledger.installments || ledger.installments.length === 0) return;
 
-    let unpaidInsts = ledger.installments.filter((inst) => inst.dueAmount > 0);
+    const assignment = studentFeeAssignments.find(
+      (a) => (a.studentId === st.id || (st.admissionNo && a.studentId === st.admissionNo) || (st.rollNo && a.studentId === st.rollNo)) && a.status === "Active",
+    );
+
+    const policyLower = String((ledger as any).feePolicy || assignment?.feePolicy || (st as any).feePolicy || (st as any).feeCalculationMethod || "Full Annual Fee")
+      .toLowerCase()
+      .trim();
+    const isFullAnnual = policyLower.includes("full") || policyLower.includes("annual") || policyLower.includes("one time") || policyLower.includes("one-time") ||
+      (!policyLower.includes("term") && !policyLower.includes("quarter") && !policyLower.includes("monthly") && !policyLower.includes("pro-rata"));
+
+    let unpaidInsts = ledger.installments.filter((inst) => {
+      if (inst.dueAmount <= 0) return false;
+      if (!isFullAnnual && timelineFilter !== "Upcoming") {
+        const instDue = inst.dueDate ? String(inst.dueDate).slice(0, 10) : "";
+        if (instDue && instDue > todayStr) {
+          return false;
+        }
+      }
+      return true;
+    });
     if (selectedFeeHead !== "All") {
       unpaidInsts = unpaidInsts.filter((inst: any) => {
         const selectedLower = selectedFeeHead.toLowerCase().replace(/\s+fee$/, "").trim();
@@ -622,6 +702,13 @@ export const DueFeesView: React.FC<DueFeesViewProps> = ({
           >
             <Printer className="w-4 h-4" /> Print Dues Report
           </button>
+          <button
+            onClick={handleManualRefresh}
+            disabled={isRefreshing}
+            className="px-3.5 py-2 rounded-xl bg-indigo-50 hover:bg-indigo-100 text-indigo-700 dark:bg-indigo-950/60 dark:hover:bg-indigo-900 dark:text-indigo-300 text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer border border-indigo-200 dark:border-indigo-800 disabled:opacity-50"
+          >
+            <RefreshCw className={`w-4 h-4 ${isRefreshing ? "animate-spin" : ""}`} /> Refresh Data
+          </button>
         </div>
       </div>
 
@@ -866,7 +953,7 @@ export const DueFeesView: React.FC<DueFeesViewProps> = ({
                     st.studentType === "Residential" ||
                     (st as any).residentialStatus === "Residential" ||
                     (studentHostels || []).some(
-                      (h) => h.studentId === st.id && h.status === "Active",
+                      (h) => (h.studentId === st.id || (st.admissionNo && h.admissionNo === st.admissionNo)) && h.status === "Active",
                     );
 
                   return (

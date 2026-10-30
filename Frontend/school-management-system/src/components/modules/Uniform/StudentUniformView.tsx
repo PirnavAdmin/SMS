@@ -1,6 +1,6 @@
 // @ts-nocheck
 import React, { useState, useEffect } from 'react';
-import { UserPlus, Plus, Search, Calendar, User, Users, ShoppingBag, RefreshCw, Undo2, Trash2, X, XCircle, Printer, ShieldCheck, Receipt, AlertTriangle, CheckCircle2, ChevronDown, CreditCard, Shirt, Package, Clock } from 'lucide-react';
+import { UserPlus, Plus, Minus, Search, Calendar, User, Users, ShoppingBag, RefreshCw, Undo2, Trash2, X, XCircle, Printer, ShieldCheck, Receipt, AlertTriangle, CheckCircle2, ChevronDown, CreditCard, Shirt, Package, Clock, Lock } from 'lucide-react';
 import { useData } from '../../../context/DataContext';
 import { useAuth } from '../../../context/AuthContext';
 import { useToast } from '../../../context/ToastContext';
@@ -448,7 +448,7 @@ export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialS
   }, []);
   const [itemsModalSearch, setItemsModalSearch] = useState('');
   const [selectedReturnItem, setSelectedReturnItem] = useState<StudentUniformIssue | null>(null);
-  const [returnReason, setReturnReason] = useState<string>('Wrong Size / Fitting Issue');
+  const [returnReason, setReturnReason] = useState<string>('');
   const [returnNotes, setReturnNotes] = useState<string>('');
 
   React.useEffect(() => {
@@ -895,6 +895,21 @@ export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialS
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalType, setModalType] = useState<'Issue' | 'Replace' | 'Return'>('Issue');
   const [selectedIssue, setSelectedIssue] = useState<StudentUniformIssue | null>(null);
+  const [isStudentLocked, setIsStudentLocked] = useState(false);
+  const [lockedStudentData, setLockedStudentData] = useState<{
+    id: string;
+    name: string;
+    admissionNo: string;
+    className: string;
+    section: string;
+    gender: string;
+  } | null>(null);
+
+  const closeModal = () => {
+    setIsModalOpen(false);
+    setIsStudentLocked(false);
+    setLockedStudentData(null);
+  };
   
   // Receipt modal states
   const [receiptStudent, setReceiptStudent] = useState<StudentUniformIssue | null>(null);
@@ -1161,7 +1176,7 @@ export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialS
     dressCode: ''
   });
 
-  const [exchangeReason, setExchangeReason] = useState('Wrong Size / Fitting Issue');
+  const [exchangeReason, setExchangeReason] = useState('');
   const [exchangeNotes, setExchangeNotes] = useState('');
 
   const [extraItemsState, setExtraItemsState] = useState<Record<string, {
@@ -1397,6 +1412,9 @@ export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialS
 
   const handleOpenIssue = () => {
     setSelectedIssue(null);
+    setModalType('Issue');
+    setIsStudentLocked(false);
+    setLockedStudentData(null);
     setForm({
       studentId: '',
       itemId: '',
@@ -1416,6 +1434,7 @@ export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialS
 
   const handleOpenIssueForStudent = (g: any) => {
     setSelectedIssue(null);
+    setModalType('Issue');
     const studMatch = (allEnrolledStudents || []).find(s =>
       (g.studentId && (String(s.id) === String(g.studentId) || s.admissionNo === g.studentId)) ||
       (g.admissionNo && s.admissionNo && s.admissionNo.toLowerCase() === g.admissionNo.toLowerCase()) ||
@@ -1423,8 +1442,21 @@ export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialS
     );
     const stdId = studMatch?.id || g.studentId || g.id || '';
     const admNo = studMatch?.admissionNo || g.admissionNo || '';
-    const stdName = studMatch ? `${studMatch.firstName} ${studMatch.lastName}`.trim() : g.studentName;
+    const stdName = studMatch ? `${studMatch.firstName} ${studMatch.lastName}`.trim() : (g.studentName || '');
     const stdClass = studMatch?.className || g.className || '';
+    const stdSection = studMatch?.section || g.section || (g.className?.includes('-') ? g.className.split('-')[1].trim() : 'A');
+    const rawGender = studMatch?.gender || (g as any).gender || '';
+    const stdGender = rawGender ? (rawGender.toLowerCase().includes('female') || rawGender.toLowerCase().includes('girl') ? 'Female' : 'Male') : 'Unspecified';
+
+    setIsStudentLocked(true);
+    setLockedStudentData({
+      id: String(stdId),
+      name: stdName,
+      admissionNo: admNo,
+      className: stdClass,
+      section: stdSection,
+      gender: stdGender
+    });
 
     setIssueModalClass(stdClass);
     setForm({
@@ -1432,7 +1464,7 @@ export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialS
       itemId: '',
       quantity: '' as any,
       size: '',
-      type: 'Base Package',
+      type: 'Issue',
       paymentMode: 'Cash',
       notes: '',
       dressCode: ''
@@ -1447,7 +1479,7 @@ export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialS
   const handleOpenReplace = (issue: StudentUniformIssue) => {
     setSelectedIssue(issue);
     setModalType('Replace');
-    setExchangeReason('Wrong Size / Fitting Issue');
+    setExchangeReason('');
     setExchangeNotes('');
     setForm({
       studentId: issue.studentId,
@@ -1518,7 +1550,7 @@ export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialS
 
   const handleOpenReturnModal = (issue: StudentUniformIssue) => {
     setSelectedReturnItem(issue);
-    setReturnReason('Wrong Size / Fitting Issue');
+    setReturnReason('');
     setReturnNotes('');
   };
 
@@ -1741,6 +1773,11 @@ export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialS
     }
     if (!selectedReturnItem) return;
 
+    if (!returnReason || !returnReason.trim()) {
+      addToast('warning', 'Validation Error', 'Please select a reason for return.');
+      return;
+    }
+
     const targetItem = selectedReturnItem;
 
     const checkItemPaid = (item: StudentUniformIssue) => {
@@ -1863,6 +1900,10 @@ export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialS
         }
       }
     } else if (modalType === 'Replace') {
+      if (!exchangeReason || !exchangeReason.trim()) {
+        addToast('warning', 'Validation Error', 'Please select a reason for exchange.');
+        return;
+      }
       if (!form.size || form.size.trim() === '') {
         addToast('warning', 'Validation Error', 'Please select the New Size Specification for exchange.');
         return;
@@ -1965,7 +2006,7 @@ export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialS
 
         const itemSummaryStr = summaryNames.length <= 2 ? summaryNames.join(', ') : `${checkedEntries.length} items`;
         addToast('success', 'Uniform Items Issued', `Issued ${itemSummaryStr} to ${studentObj.firstName} (${formatCurrency(totalGrandSale)}).`);
-        setIsModalOpen(false);
+        closeModal();
         return;
       }
     }
@@ -2275,7 +2316,7 @@ export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialS
     setFilterSection('All');
     setFilterStatus('All');
     setCurrentPage(1);
-    setIsModalOpen(false);
+    closeModal();
   };
 
   const selectedUniformObj = uniforms.find(u => u.id === form.itemId);
@@ -2949,7 +2990,7 @@ export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialS
                   ? 'Uniform Kit Allocation & Dispatch'
                   : `Exchange Item — ${selectedIssue?.itemName ? selectedIssue.itemName.replace(/\s*\(Extra\)/gi, '') : 'Uniform Item'}`}
               </h3>
-              <button type="button" onClick={() => setIsModalOpen(false)} className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-white rounded-lg">
+              <button type="button" onClick={closeModal} className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-white rounded-lg">
                 <X className="w-5 h-5" />
               </button>
             </div>
@@ -2973,7 +3014,76 @@ export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialS
                     </select>
                   </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  {isStudentLocked ? (
+                    <div className="space-y-2.5 animate-in fade-in">
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                        <div className="sm:col-span-1">
+                          <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300 flex items-center justify-between">
+                            <span>Filter by Class</span>
+                            <span className="text-[10px] text-slate-400 font-normal flex items-center gap-1">
+                              <Lock className="w-3 h-3 text-slate-400" /> Read-only
+                            </span>
+                          </label>
+                          <input
+                            type="text"
+                            readOnly
+                            disabled
+                            value={lockedStudentData?.className || issueModalClass || '—'}
+                            className="w-full px-3 py-2.5 rounded-xl bg-slate-100 dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 font-semibold text-xs cursor-not-allowed select-none"
+                          />
+                        </div>
+
+                        <div className="sm:col-span-2 relative">
+                          <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300 flex items-center justify-between">
+                            <span>Select Student <span className="text-rose-500 font-bold ml-0.5">*</span></span>
+                            <span className="text-[10px] text-sky-600 dark:text-sky-400 font-semibold flex items-center gap-1">
+                              <Lock className="w-3 h-3" /> Locked to Selected Student
+                            </span>
+                          </label>
+                          <div className="relative p-0.5">
+                            <input
+                              type="text"
+                              readOnly
+                              disabled
+                              value={studentSearchTerm}
+                              className="w-full pl-3 pr-8 py-2.5 rounded-xl bg-slate-100 dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 font-semibold text-xs cursor-not-allowed select-none"
+                            />
+                            <Lock className="w-3.5 h-3.5 absolute right-3.5 top-3.5 text-slate-400 pointer-events-none" />
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Locked Contextual Student Details Card */}
+                      <div className="p-3 rounded-2xl bg-sky-50/70 dark:bg-sky-950/40 border border-sky-200/80 dark:border-sky-800/60 flex flex-wrap items-center justify-between gap-2.5 text-xs">
+                        <div>
+                          <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider block">Student Name</span>
+                          <span className="font-bold text-slate-800 dark:text-white text-xs block">
+                            {lockedStudentData?.name || (getResolvedStudentObj() ? `${getResolvedStudentObj()?.firstName} ${getResolvedStudentObj()?.lastName}`.trim() : '—')}
+                          </span>
+                        </div>
+                        <div>
+                          <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider block">Admission No</span>
+                          <span className="font-mono font-semibold text-slate-700 dark:text-slate-300 text-xs block">
+                            {lockedStudentData?.admissionNo || getResolvedStudentObj()?.admissionNo || '—'}
+                          </span>
+                        </div>
+                        <div>
+                          <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider block">Class & Sec</span>
+                          <span className="font-semibold text-sky-700 dark:text-sky-300 text-xs block">
+                            {lockedStudentData?.className || getResolvedStudentObj()?.className || '—'}
+                            {lockedStudentData?.section ? ` (${lockedStudentData.section})` : (getResolvedStudentObj()?.section ? ` (${getResolvedStudentObj()?.section})` : '')}
+                          </span>
+                        </div>
+                        <div>
+                          <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider block">Gender</span>
+                          <span className="font-semibold text-slate-700 dark:text-slate-300 text-xs block">
+                            {lockedStudentData?.gender || getResolvedStudentObj()?.gender || '—'}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+<div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                     <div className="sm:col-span-1">
                       <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">
                         Filter by Class
@@ -3111,6 +3221,7 @@ export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialS
                     )}
                   </div>
                 </div>
+                  )}
               </>
             )}
 
@@ -3189,9 +3300,10 @@ export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialS
                                       [item.id]: { ...itemState, quantity: newQ }
                                     }));
                                   }}
-                                  className="w-7 h-7 rounded-lg bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 font-semibold text-xs hover:bg-slate-100 cursor-pointer"
+                                  className="w-7 h-7 rounded-lg bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 font-semibold text-xs hover:bg-slate-100 cursor-pointer flex items-center justify-center"
+                                  title="Decrease"
                                 >
-                                  -
+                                  <Minus className="w-3 h-3" />
                                 </button>
                                 <input
                                   type="number"
@@ -3204,7 +3316,7 @@ export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialS
                                       [item.id]: { ...itemState, quantity: newQ }
                                     }));
                                   }}
-                                  className="w-12 text-center py-1 text-xs font-semibold rounded-lg bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-white"
+                                  className="w-12 h-7 text-center py-1 text-xs font-semibold rounded-lg bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-white [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                                 />
                                 <button
                                   type="button"
@@ -3215,9 +3327,10 @@ export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialS
                                       [item.id]: { ...itemState, quantity: newQ }
                                     }));
                                   }}
-                                  className="w-7 h-7 rounded-lg bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 font-semibold text-xs hover:bg-slate-100 cursor-pointer"
+                                  className="w-7 h-7 rounded-lg bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 font-semibold text-xs hover:bg-slate-100 cursor-pointer flex items-center justify-center"
+                                  title="Increase"
                                 >
-                                  +
+                                  <Plus className="w-3 h-3" />
                                 </button>
                                 <span className="text-[11px] font-semibold text-purple-600 dark:text-purple-400 ml-2">
                                   = {formatCurrency(item.unitPrice * itemState.quantity)}
@@ -3483,16 +3596,20 @@ export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialS
                     <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300 text-xs">
                       Reason for Exchange <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                     <select
+                      required
                       value={exchangeReason}
                       onChange={e => setExchangeReason(e.target.value)}
-                      className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-800 dark:text-white cursor-pointer focus:ring-2 focus:ring-sky-500"
+                      className={`w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-semibold cursor-pointer focus:ring-2 focus:ring-sky-500 ${
+                        !exchangeReason ? 'text-slate-400 dark:text-slate-500 font-medium' : 'text-slate-800 dark:text-white'
+                      }`}
                     >
-                      <option value="Wrong Size / Fitting Issue">📐 Wrong Size / Fitting Issue</option>
-                      <option value="Damaged / Defective Product">⚠️ Damaged / Defective Product</option>
-                      <option value="Stitching / Tear Defect">🪡 Stitching / Tear Defect</option>
-                      <option value="Fabric Stain / Color Discoloration">🎨 Fabric Stain / Color Discoloration</option>
-                      <option value="Parent / Student Special Request">🔁 Parent / Student Special Request</option>
-                      <option value="Other Reason">📝 Other Reason</option>
+                      <option value="" disabled className="text-slate-400">Select Reason for Exchange</option>
+                      <option value="Wrong Size / Fitting Issue" className="text-slate-800 dark:text-white">📐 Wrong Size / Fitting Issue</option>
+                      <option value="Damaged / Defective Product" className="text-slate-800 dark:text-white">⚠️ Damaged / Defective Product</option>
+                      <option value="Stitching / Tear Defect" className="text-slate-800 dark:text-white">🪡 Stitching / Tear Defect</option>
+                      <option value="Fabric Stain / Color Discoloration" className="text-slate-800 dark:text-white">🎨 Fabric Stain / Color Discoloration</option>
+                      <option value="Parent / Student Special Request" className="text-slate-800 dark:text-white">🔁 Parent / Student Special Request</option>
+                      <option value="Other Reason" className="text-slate-800 dark:text-white">📝 Other Reason</option>
                     </select>
                   </div>
 
@@ -3565,13 +3682,13 @@ export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialS
               {modalType === 'Issue' && form.type !== 'Additional Purchase' && (
                 <div className="grid grid-cols-2 gap-3 animate-in fade-in">
                   <div>
-                    <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">
+                    <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300 text-xs">
                       Size Specification <span className="text-rose-500 font-bold ml-0.5">*</span>
                     </label>
                     <select
                       value={form.size || ''}
                       onChange={e => setForm({ ...form, size: e.target.value })}
-                      className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border cursor-pointer font-semibold"
+                      className="w-full h-[38px] px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-white cursor-pointer font-semibold text-xs outline-none focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20 transition-all"
                     >
                       <option value="">-- Select Size * --</option>
                       {(() => {
@@ -3589,10 +3706,10 @@ export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialS
                     </select>
                   </div>
                   <div>
-                    <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">
+                    <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300 text-xs">
                       Quantity <span className="text-rose-500 font-bold ml-0.5">*</span>
                     </label>
-                    <div className="flex items-center gap-1">
+                    <div className="flex items-center h-[38px] rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 overflow-hidden focus-within:border-sky-500 focus-within:ring-2 focus-within:ring-sky-500/20 transition-all shadow-2xs">
                       <button
                         type="button"
                         disabled={!form.quantity || Number(form.quantity) <= 1}
@@ -3601,9 +3718,10 @@ export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialS
                           const newQ = Math.max(1, cur - 1);
                           setForm(prev => ({ ...prev, quantity: newQ }));
                         }}
-                        className="px-2.5 py-2 rounded-xl bg-slate-200 dark:bg-slate-700 text-slate-800 dark:text-slate-200 font-bold hover:bg-slate-300 dark:hover:bg-slate-600 disabled:opacity-40 transition-all cursor-pointer text-xs"
+                        className="h-full px-3.5 flex items-center justify-center bg-slate-100 hover:bg-slate-200 dark:bg-slate-800/80 dark:hover:bg-slate-700 text-slate-600 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200 border-r border-slate-200 dark:border-slate-700 disabled:opacity-30 disabled:cursor-not-allowed transition-colors cursor-pointer shrink-0"
+                        title="Decrease quantity"
                       >
-                        -
+                        <Minus className="w-3.5 h-3.5" />
                       </button>
                       <input
                         type="number"
@@ -3616,7 +3734,7 @@ export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialS
                           const newQ = val === '' ? ('' as any) : Math.max(1, Number(val) || 1);
                           setForm(prev => ({ ...prev, quantity: newQ }));
                         }}
-                        className="w-full text-center px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border disabled:opacity-60 font-bold text-xs"
+                        className="w-full h-full text-center bg-transparent border-0 outline-none font-bold text-xs text-slate-800 dark:text-white [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                       />
                       <button
                         type="button"
@@ -3625,9 +3743,10 @@ export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialS
                           const newQ = cur + 1;
                           setForm(prev => ({ ...prev, quantity: newQ }));
                         }}
-                        className="px-2.5 py-2 rounded-xl bg-slate-200 dark:bg-slate-700 text-slate-800 dark:text-slate-200 font-bold hover:bg-slate-300 dark:hover:bg-slate-600 transition-all cursor-pointer text-xs"
+                        className="h-full px-3.5 flex items-center justify-center bg-slate-100 hover:bg-slate-200 dark:bg-slate-800/80 dark:hover:bg-slate-700 text-slate-600 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200 border-l border-slate-200 dark:border-slate-700 transition-colors cursor-pointer shrink-0"
+                        title="Increase quantity"
                       >
-                        +
+                        <Plus className="w-3.5 h-3.5" />
                       </button>
                     </div>
                   </div>
@@ -3973,7 +4092,7 @@ export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialS
               )}
 
               <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100 dark:border-slate-800 shrink-0 mt-2 bg-white dark:bg-slate-900">
-                <button type="button" onClick={() => setIsModalOpen(false)} className="px-4 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs font-bold transition-all cursor-pointer">Cancel</button>
+                <button type="button" onClick={closeModal} className="px-4 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs font-bold transition-all cursor-pointer">Cancel</button>
                 <button type="button" onClick={handleSubmit} className="px-5 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white text-xs font-bold transition-all shadow-md shadow-sky-500/20 cursor-pointer">Save</button>
               </div>
             </form>
@@ -5409,20 +5528,24 @@ export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialS
             <div className="space-y-3">
               <div>
                 <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300 text-xs">
-                  Reason for Return *
+                  Reason for Return <span className="text-rose-500 font-bold ml-0.5">*</span>
                 </label>
                 <select
+                  required
                   value={returnReason}
                   onChange={e => setReturnReason(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-800 dark:text-white cursor-pointer focus:ring-2 focus:ring-rose-500"
+                  className={`w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-semibold cursor-pointer focus:ring-2 focus:ring-rose-500 ${
+                    !returnReason ? 'text-slate-400 dark:text-slate-500 font-medium' : 'text-slate-800 dark:text-white'
+                  }`}
                 >
-                  <option value="Wrong Size / Fitting Issue">📐 Wrong Size / Fitting Issue</option>
-                  <option value="Damaged / Defective Product">⚠️ Damaged / Defective Product</option>
-                  <option value="Stitching / Tear Defect">🪡 Stitching / Tear Defect</option>
-                  <option value="Fabric Stain / Color Discoloration">🎨 Fabric Stain / Color Discoloration</option>
-                  <option value="Student Discontinued / Left School">🎒 Student Discontinued / Left School</option>
-                  <option value="Parent / Student Special Request">↩ Parent / Student Special Request</option>
-                  <option value="Other Reason">📝 Other Reason</option>
+                  <option value="" disabled className="text-slate-400">Select Reason for Return</option>
+                  <option value="Wrong Size / Fitting Issue" className="text-slate-800 dark:text-white">📐 Wrong Size / Fitting Issue</option>
+                  <option value="Damaged / Defective Product" className="text-slate-800 dark:text-white">⚠️ Damaged / Defective Product</option>
+                  <option value="Stitching / Tear Defect" className="text-slate-800 dark:text-white">🪡 Stitching / Tear Defect</option>
+                  <option value="Fabric Stain / Color Discoloration" className="text-slate-800 dark:text-white">🎨 Fabric Stain / Color Discoloration</option>
+                  <option value="Student Discontinued / Left School" className="text-slate-800 dark:text-white">🎒 Student Discontinued / Left School</option>
+                  <option value="Parent / Student Special Request" className="text-slate-800 dark:text-white">↩ Parent / Student Special Request</option>
+                  <option value="Other Reason" className="text-slate-800 dark:text-white">📝 Other Reason</option>
                 </select>
               </div>
 

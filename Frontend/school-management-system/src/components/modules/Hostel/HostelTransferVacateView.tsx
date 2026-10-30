@@ -200,6 +200,12 @@ export const HostelTransferVacateView: React.FC = () => {
     return merged;
   }, [students, wardenAssignedBlocks, blocks, allocations]);
 
+  const availableBlockNames = useMemo(() => {
+    const dynamicNames = (blocks || []).map(b => b.hostelName || b.name).filter(Boolean);
+    const fallbackNames = ['Boys Residence - Block A', 'Bhanu Block', 'Girls Hostel - Block B'];
+    return Array.from(new Set([...dynamicNames, ...fallbackNames]));
+  }, [blocks]);
+
   const [records, setRecords] = useState<TransferRecord[]>(() => {
     if (typeof window !== 'undefined') {
       const stored = localStorage.getItem(TRANSFERS_STORE_KEY);
@@ -230,9 +236,10 @@ export const HostelTransferVacateView: React.FC = () => {
 
   // Form fields
   const [selectedStudentId, setSelectedStudentId] = useState('');
-  const [actionType, setActionType] = useState<'Room Transfer' | 'Bed Vacate'>('Room Transfer');
-  const [targetBlock, setTargetBlock] = useState('Boys Residence - Block B');
-  const [targetRoom, setTargetRoom] = useState('201');
+  const [actionType, setActionType] = useState<'Room Transfer' | 'Bed Vacate' | ''>('');
+  const [targetBlock, setTargetBlock] = useState('');
+  const [targetRoom, setTargetRoom] = useState('');
+  const [targetBed, setTargetBed] = useState('');
   const [reason, setReason] = useState('');
 
   // Fee Settlement fields
@@ -248,9 +255,10 @@ export const HostelTransferVacateView: React.FC = () => {
 
   const handleOpenAdd = () => {
     setSelectedStudentId('');
-    setActionType('Room Transfer');
-    setTargetBlock('Boys Residence - Block B');
-    setTargetRoom('201');
+    setActionType('');
+    setTargetBlock('');
+    setTargetRoom('');
+    setTargetBed('');
     setReason('');
     setTotalFeePaid(60000);
     setMonthsStayed(3);
@@ -265,6 +273,11 @@ export const HostelTransferVacateView: React.FC = () => {
       return;
     }
 
+    if (!actionType) {
+      addToast('Please select an action type.', 'warning');
+      return;
+    }
+
     setIsSubmitting(true);
     const selectedSt = displayStudentsList.find(s => String(s.id) === String(selectedStudentId)) || students.find(s => String(s.id) === String(selectedStudentId));
     const stName = selectedSt ? `${selectedSt.firstName || ''} ${selectedSt.lastName || ''}`.trim() : 'Student';
@@ -273,6 +286,21 @@ export const HostelTransferVacateView: React.FC = () => {
     const fromRoom = (selectedSt as any)?.roomNumber || '101';
 
     if (actionType === 'Room Transfer') {
+      if (!targetBlock) {
+        addToast('Please select a destination hostel block.', 'warning');
+        setIsSubmitting(false);
+        return;
+      }
+      if (!targetRoom) {
+        addToast('Please select a destination room.', 'warning');
+        setIsSubmitting(false);
+        return;
+      }
+      if (!targetBed) {
+        addToast('Please select a destination bed number.', 'warning');
+        setIsSubmitting(false);
+        return;
+      }
       try {
         const matchBlock = blocks.find(b => (b.hostelName || b.name || '').toLowerCase() === targetBlock.toLowerCase());
         const targetBlockId = matchBlock?.hostelId || matchBlock?.id;
@@ -295,7 +323,7 @@ export const HostelTransferVacateView: React.FC = () => {
       studentId: selectedStudentId,
       studentName: stName,
       admissionNo: admNo,
-      actionType,
+      actionType: actionType as 'Room Transfer' | 'Bed Vacate',
       fromHostel,
       fromRoom,
       toHostel: actionType === 'Bed Vacate' ? 'N/A (Vacated)' : targetBlock,
@@ -322,6 +350,7 @@ export const HostelTransferVacateView: React.FC = () => {
     addToast(`${actionType} request processed. ${actionType === 'Bed Vacate' ? 'Bed released to available. Fee adjusted: ₹' + refundableBalance.toLocaleString() : 'Transferred to ' + targetBlock}`, 'success');
     setIsSubmitting(false);
     setIsModalOpen(false);
+    setActionType('');
   };
 
   const handleApprove = (id: number) => {
@@ -490,11 +519,13 @@ export const HostelTransferVacateView: React.FC = () => {
                 <select
                   value={selectedStudentId}
                   onChange={e => setSelectedStudentId(e.target.value)}
-                  className="w-full px-3 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-bold text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-sky-500"
+                  className={`w-full px-3 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-bold focus:outline-none focus:ring-2 focus:ring-sky-500 cursor-pointer transition-all ${
+                    !selectedStudentId ? 'text-slate-400 dark:text-slate-500 font-sans font-medium' : 'text-slate-900 dark:text-white'
+                  }`}
                   disabled={isSubmitting}
                   required
                 >
-                  <option value="" disabled>Select Resident Student...</option>
+                  <option value="" disabled className="text-slate-400 dark:text-slate-500 font-sans italic bg-white dark:bg-slate-900">Select Resident Student...</option>
                   {displayStudentsList.map(st => (
                     <option key={st.id} value={String(st.id ?? '')}>{st.firstName} {st.lastName} (ID: {st.id})</option>
                   ))}
@@ -502,31 +533,53 @@ export const HostelTransferVacateView: React.FC = () => {
               </div>
 
               <div>
-                <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Action Type <span className="text-rose-500">*</span></label>
+                <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                  Action Type <span className="text-rose-500">*</span>
+                </label>
                 <select
                   value={actionType}
                   onChange={e => setActionType(e.target.value as any)}
-                  className="w-full px-3 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-bold text-sky-600 focus:outline-none focus:ring-2 focus:ring-sky-500"
+                  required
+                  className={`w-full px-3 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-bold focus:outline-none focus:ring-2 focus:ring-sky-500 cursor-pointer transition-all ${
+                    !actionType
+                      ? 'text-slate-400 dark:text-slate-500 font-normal'
+                      : 'text-sky-600 dark:text-sky-400'
+                  }`}
                   disabled={isSubmitting}
                 >
-                  <option value="Room Transfer">Room Transfer (Change Room/Block)</option>
-                  <option value="Bed Vacate">Bed Vacate (Checkout & Switch to Day Scholar)</option>
+                  <option value="" disabled hidden className="text-slate-400 dark:text-slate-500 font-normal">
+                    Select Action Type
+                  </option>
+                  <option value="" className="text-slate-400 dark:text-slate-500 font-normal">
+                    Select Action Type
+                  </option>
+                  <option value="Room Transfer" className="text-slate-900 dark:text-white font-medium">
+                    Room Transfer (Change Room/Block)
+                  </option>
+                  <option value="Bed Vacate" className="text-slate-900 dark:text-white font-medium">
+                    Bed Vacate (Checkout & Switch to Day Scholar)
+                  </option>
                 </select>
               </div>
 
-              {actionType === 'Room Transfer' ? (
+              {actionType === 'Room Transfer' && (
                 <div className="space-y-3">
                   <div>
                     <label className="block font-semibold mb-1">Destination Hostel Block <span className="text-rose-500">*</span></label>
                     <select
                       value={targetBlock}
-                      onChange={e => setTargetBlock(e.target.value)}
-                      className="w-full px-3 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold text-slate-900 dark:text-white"
+                      onChange={e => { setTargetBlock(e.target.value); setTargetRoom(''); setTargetBed(''); }}
+                      className={`w-full px-3 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold cursor-pointer transition-all ${
+                        !targetBlock ? 'text-slate-400 dark:text-slate-500 font-medium' : 'text-slate-900 dark:text-white'
+                      }`}
                       required
                     >
-                      <option value="Boys Residence - Block A">Boys Residence - Block A</option>
-                      <option value="Bhanu Block">Bhanu Block</option>
-                      <option value="Girls Hostel - Block B">Girls Hostel - Block B</option>
+                      <option value="" disabled className="text-slate-400">Select Destination Hostel Block</option>
+                      {availableBlockNames.map(bName => (
+                        <option key={bName} value={bName} className="text-slate-900 dark:text-white">
+                          {bName}
+                        </option>
+                      ))}
                     </select>
                   </div>
 
@@ -535,31 +588,41 @@ export const HostelTransferVacateView: React.FC = () => {
                       <label className="block font-semibold mb-1">Destination Room <span className="text-rose-500">*</span></label>
                       <select
                         value={targetRoom}
-                        onChange={e => setTargetRoom(e.target.value)}
-                        className="w-full px-3 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border font-mono font-bold text-slate-900 dark:text-white"
+                        onChange={e => { setTargetRoom(e.target.value); setTargetBed(''); }}
+                        className={`w-full px-3 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold cursor-pointer transition-all ${
+                          !targetRoom ? 'text-slate-400 dark:text-slate-500 font-sans font-medium' : 'font-mono text-slate-900 dark:text-white'
+                        }`}
                         required
                       >
-                        <option value="101">Room 101</option>
-                        <option value="102">Room 102</option>
-                        <option value="201">Room 201</option>
-                        <option value="202">Room 202</option>
+                        <option value="" disabled className="text-slate-400 font-sans">Select Destination Room</option>
+                        <option value="101" className="text-slate-900 dark:text-white font-mono">Room 101</option>
+                        <option value="102" className="text-slate-900 dark:text-white font-mono">Room 102</option>
+                        <option value="201" className="text-slate-900 dark:text-white font-mono">Room 201</option>
+                        <option value="202" className="text-slate-900 dark:text-white font-mono">Room 202</option>
                       </select>
                     </div>
                     <div>
                       <label className="block font-semibold mb-1">Destination Bed Number <span className="text-rose-500">*</span></label>
                       <select
-                        className="w-full px-3 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border font-mono font-bold text-slate-900 dark:text-white"
+                        value={targetBed}
+                        onChange={e => setTargetBed(e.target.value)}
+                        className={`w-full px-3 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold cursor-pointer transition-all ${
+                          !targetBed ? 'text-slate-400 dark:text-slate-500 font-sans font-medium' : 'font-mono text-slate-900 dark:text-white'
+                        }`}
                         required
                       >
-                        <option value="Bed #1">Bed #1</option>
-                        <option value="Bed #2">Bed #2</option>
-                        <option value="Bed #3">Bed #3</option>
-                        <option value="Bed #4">Bed #4</option>
+                        <option value="" disabled className="text-slate-400 font-sans">Select Destination Bed Number</option>
+                        <option value="Bed #1" className="text-slate-900 dark:text-white font-mono">Bed #1</option>
+                        <option value="Bed #2" className="text-slate-900 dark:text-white font-mono">Bed #2</option>
+                        <option value="Bed #3" className="text-slate-900 dark:text-white font-mono">Bed #3</option>
+                        <option value="Bed #4" className="text-slate-900 dark:text-white font-mono">Bed #4</option>
                       </select>
                     </div>
                   </div>
                 </div>
-              ) : (
+              )}
+
+              {actionType === 'Bed Vacate' && (
                 /* PRO-RATA HOSTEL FEE ADJUSTMENT & REFUND CALCULATOR */
                 <div className="p-4 bg-sky-50/70 dark:bg-sky-950/40 rounded-2xl border border-sky-200 dark:border-sky-800 space-y-3">
                   <div className="flex items-center justify-between border-b border-sky-200 dark:border-sky-800 pb-2">

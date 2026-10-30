@@ -1,9 +1,9 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { formatCurrency } from '../../../utils/currency';
 import { exportToExcel } from '../../../utils/excelExport';
 import { PrintDropdownMenu } from '../../common/PrintDropdownMenu';
 import { Pagination } from '../../common/Pagination';
-import { FileSpreadsheet, Download, Printer, Search, Calendar, Filter, RefreshCw, BarChart2, CheckCircle2 } from 'lucide-react';
+import { FileSpreadsheet, Download, Printer, Search, Calendar, Filter, RefreshCw, BarChart2, CheckCircle2, ChevronDown } from 'lucide-react';
 import { useData } from '../../../context/DataContext';
 import { useAuth } from '../../../context/AuthContext';
 import { useToast } from '../../../context/ToastContext';
@@ -13,6 +13,35 @@ import { fetchUniformReportsApi } from '../../../api/uniform';
 interface UniformReportsViewProps {
   initialReportType?: string;
 }
+
+const REPORT_CATEGORIES = [
+  {
+    category: 'Inventory Reports',
+    options: [
+      { value: 'Current Stock', label: 'Current Stock Registry' },
+      { value: 'Low Stock', label: 'Low Stock Alerts' },
+    ]
+  },
+  {
+    category: 'Student Reports',
+    options: [
+      { value: 'Uniform Issue Report', label: 'Uniform Issue Report' },
+      { value: 'Return & Exchange Report', label: 'Return & Exchange Report' },
+    ]
+  },
+  {
+    category: 'Supplier Reports',
+    options: [
+      { value: 'Supplier Purchase Report', label: 'Supplier Directory' },
+    ]
+  },
+  {
+    category: 'Sales Reports',
+    options: [
+      { value: 'Additional Uniform Sales', label: 'Additional Uniform Sales' },
+    ]
+  }
+];
 
 export const UniformReportsView: React.FC<UniformReportsViewProps> = ({ initialReportType }) => {
   const {
@@ -33,6 +62,26 @@ export const UniformReportsView: React.FC<UniformReportsViewProps> = ({ initialR
   const [fromDate, setFromDate] = useState<string>('');
   const [toDate, setToDate] = useState<string>('');
   const [searchQuery, setSearchQuery] = useState<string>('');
+  const [isReportDropdownOpen, setIsReportDropdownOpen] = useState(false);
+  const reportDropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (reportDropdownRef.current && !reportDropdownRef.current.contains(e.target as Node)) {
+        setIsReportDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const currentReportLabel = (() => {
+    for (const group of REPORT_CATEGORIES) {
+      const found = group.options.find(o => o.value === reportType);
+      if (found) return found.label;
+    }
+    return reportType || 'Select Report Type';
+  })();
 
   const fromDateRef = useRef<HTMLInputElement>(null);
   const toDateRef = useRef<HTMLInputElement>(null);
@@ -484,28 +533,82 @@ export const UniformReportsView: React.FC<UniformReportsViewProps> = ({ initialR
           <div className="flex flex-wrap items-end gap-3 w-full sm:w-auto justify-start sm:justify-end">
             
             {/* Select Report Type */}
-            <div className="w-full sm:w-60 md:w-64">
-              <label className="block text-[10px] font-extrabold text-slate-400 uppercase tracking-wider mb-1.5">Select Report Type <span className="text-rose-500 font-bold ml-0.5">*</span></label>
+            <div ref={reportDropdownRef} className="relative w-full sm:w-60 md:w-64">
+              <label className="block text-[10px] font-extrabold text-slate-400 uppercase tracking-wider mb-1.5">
+                Select Report Type <span className="text-rose-500 font-bold ml-0.5">*</span>
+              </label>
+
+              {/* Accessible hidden select for standard DOM interaction */}
               <select
+                aria-hidden="true"
+                tabIndex={-1}
                 value={reportType}
                 onChange={e => setReportType(e.target.value)}
-                className="w-full px-3.5 py-2.5 text-xs rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white font-bold outline-none cursor-pointer focus:ring-2 focus:ring-sky-500/20 transition-all"
+                className="sr-only pointer-events-none"
               >
-                <optgroup label="Inventory Reports">
-                  <option value="Current Stock">Current Stock Registry</option>
-                  <option value="Low Stock">Low Stock Alerts</option>
-                </optgroup>
-                <optgroup label="Student Reports">
-                  <option value="Uniform Issue Report">Uniform Issue Report</option>
-                  <option value="Return & Exchange Report">Return & Exchange Report</option>
-                </optgroup>
-                <optgroup label="Supplier Reports">
-                  <option value="Supplier Purchase Report">Supplier Directory</option>
-                </optgroup>
-                <optgroup label="Sales Reports">
-                  <option value="Additional Uniform Sales">Additional Uniform Sales</option>
-                </optgroup>
+                {REPORT_CATEGORIES.map(cat => (
+                  <optgroup key={cat.category} label={cat.category}>
+                    {cat.options.map(opt => (
+                      <option key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </option>
+                    ))}
+                  </optgroup>
+                ))}
               </select>
+
+              {/* Custom Aligned Dropdown Trigger Button */}
+              <button
+                type="button"
+                onClick={() => setIsReportDropdownOpen(prev => !prev)}
+                className={`w-full px-3.5 py-2.5 text-xs rounded-xl bg-slate-50 dark:bg-slate-800 border text-slate-900 dark:text-white font-bold outline-none cursor-pointer transition-all flex items-center justify-between text-left ${
+                  isReportDropdownOpen
+                    ? 'border-sky-500 ring-2 ring-sky-500/20'
+                    : 'border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600'
+                }`}
+              >
+                <span className="truncate">{currentReportLabel}</span>
+                <ChevronDown className={`w-4 h-4 text-slate-400 shrink-0 ml-2 transition-transform duration-200 ${isReportDropdownOpen ? 'rotate-180 text-sky-600' : ''}`} />
+              </button>
+
+              {/* Standardized Dropdown Menu with consistent alignment & indentation */}
+              {isReportDropdownOpen && (
+                <div className="absolute right-0 left-0 top-full mt-1.5 z-50 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl overflow-hidden animate-in fade-in py-1.5 max-h-80 overflow-y-auto custom-scrollbar">
+                  {REPORT_CATEGORIES.map((cat, idx) => (
+                    <div key={cat.category} className={idx > 0 ? 'mt-1.5 pt-1.5 border-t border-slate-100 dark:border-slate-800/80' : ''}>
+                      {/* Standardized Category Header */}
+                      <div className="px-3.5 pt-1 pb-1 text-[10px] font-extrabold uppercase tracking-wider text-slate-400 dark:text-slate-500 select-none">
+                        {cat.category}
+                      </div>
+
+                      {/* Standardized Child Options with consistent padding & indentation */}
+                      <div className="px-1.5 space-y-0.5">
+                        {cat.options.map(opt => {
+                          const isSelected = reportType === opt.value;
+                          return (
+                            <button
+                              key={opt.value}
+                              type="button"
+                              onClick={() => {
+                                setReportType(opt.value);
+                                setIsReportDropdownOpen(false);
+                              }}
+                              className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold transition-all text-left cursor-pointer ${
+                                isSelected
+                                  ? 'bg-sky-50 dark:bg-sky-950/70 text-sky-700 dark:text-sky-300 font-bold'
+                                  : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/70'
+                              }`}
+                            >
+                              <span className="truncate">{opt.label}</span>
+                              {isSelected && <CheckCircle2 className="w-4 h-4 text-sky-600 dark:text-sky-400 shrink-0 ml-2" />}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
 
             {/* Dynamic Class Filter */}

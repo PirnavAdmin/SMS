@@ -217,7 +217,7 @@ export const StaffProfileDrawer: React.FC<StaffProfileDrawerProps> = ({ staff: s
               <div className="grid grid-cols-2 gap-4">
                 <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border space-y-1">
                   <span className="text-[10px] font-bold text-slate-400 uppercase">Employee Category</span>
-                  <p className="font-bold text-slate-900 dark:text-white">{staff.employeeCategory || (staff.role === 'Teacher' ? 'Teaching Staff' : 'Non-Teaching Staff')}</p>
+                  <p className="font-bold text-slate-900 dark:text-white">{staff.employeeCategory === 'Teacher' || (staff.employeeCategory as string) === 'Teaching Staff' || staff.role === 'Teacher' ? 'Teaching Staff' : 'Non-Teaching Staff'}</p>
                 </div>
                 <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border space-y-1">
                   <span className="text-[10px] font-bold text-slate-400 uppercase">System Role</span>

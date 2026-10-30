@@ -316,17 +316,28 @@ export const StaffLetterModal: React.FC<StaffLetterModalProps> = ({
     lastInitKeyRef.current = currentKey;
     hasInitializedRef.current = true;
 
-    if (existingRecord) {
+        if (existingRecord) {
       setActiveType(existingRecord.letterType);
       setActiveView('preview');
-      setPayload({ ...existingRecord.payload });
+      const targetStaff = staff || (existingRecord ? effectiveStaffList.find(
+        (s) => s.id === existingRecord.staffId || s.empId === existingRecord.staffEmpId
+      ) : undefined) || currentStaff;
+      const basePayload = getDefaultLetterPayload(existingRecord.letterType, targetStaff, schoolProfile);
+      const existingPl = existingRecord.payload || {};
+      setPayload({
+        ...basePayload,
+        ...existingPl,
+        refNo: existingRecord.letterNumber || (existingPl as any)?.refNo || basePayload.refNo,
+        issueDate: existingRecord.issueDate || (existingPl as any)?.issueDate || basePayload.issueDate,
+        candidateName: existingRecord.staffName || (existingPl as any)?.candidateName || basePayload.candidateName,
+        designation: existingRecord.designation || (existingPl as any)?.designation || basePayload.designation,
+        department: existingRecord.department || (existingPl as any)?.department || basePayload.department,
+        branch: existingRecord.branch || (existingPl as any)?.branch || basePayload.branch,
+      });
       if (staff) {
         setCurrentStaff(staff);
-      } else {
-        const matched = effectiveStaffList.find(
-          (s) => s.id === existingRecord.staffId || s.empId === existingRecord.staffEmpId
-        );
-        if (matched) setCurrentStaff(matched);
+      } else if (targetStaff) {
+        setCurrentStaff(targetStaff);
       }
     } else if (staff) {
       setCurrentStaff(staff);
@@ -803,7 +814,7 @@ export const StaffLetterModal: React.FC<StaffLetterModalProps> = ({
   const isViewMode = readOnly || !!existingRecord;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-slate-950/70 backdrop-blur-sm animate-in fade-in duration-200 print:p-0 print:bg-white print:fixed print:inset-0">
+    <div className="fixed inset-0 z-[70] flex items-center justify-center p-2 sm:p-4 bg-slate-950/70 backdrop-blur-sm animate-in fade-in duration-200 print:p-0 print:bg-white print:fixed print:inset-0">
       <div className="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl w-full max-w-5xl h-[92vh] flex flex-col shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200 print:shadow-none print:border-none print:w-full print:max-w-none print:h-auto print:bg-white">
         {/* Top Header Bar */}
         <div className="px-4 py-3 bg-white dark:bg-slate-850 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between gap-3 shrink-0 no-print print:hidden">
