@@ -742,7 +742,7 @@ interface DataContextType {
 
   staff: Staff[];
   addStaff: (staffMember: Omit<Staff, "id">) => Staff;
-  updateStaff: (id: string, updates: Partial<Staff>) => void;
+  updateStaff: (id: string, updates: Partial<Staff>) => Promise<any>;
   deleteStaff: (id: string) => void;
   addStaffDocument: (staffId: string, doc: Omit<StaffDocument, "id">) => void;
   deleteStaffDocument: (staffId: string, docId: string) => void;
@@ -8282,7 +8282,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     return newStaff;
   };
 
-  const updateStaff = (id: string, updates: Partial<Staff>) => {
+  const updateStaff = async (id: string, updates: Partial<Staff>): Promise<any> => {
     if (updates.empId) {
       const trimmedTarget = updates.empId.trim().toLowerCase();
       const conflict = staff.find(
@@ -8300,119 +8300,131 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         updates = safeUpdates;
       }
     }
-    const numericId = parseInt(id, 10);
-    if (!isNaN(numericId)) {
-      const existing = staff.find((s) => s.id === id);
-      if (existing) {
-        const fullStaff = { ...existing, ...updates };
-        const photoDoc = (fullStaff.documents || []).find((d: any) => /photo|profile/i.test(`${d.title || d.documentTitle || ''} ${d.type || d.documentType || ''}`));
-        const finalAvatar = fullStaff.avatar || (fullStaff as any).profilePhoto || photoDoc?.fileUrl || "";
 
-        updateStaffApi(numericId, {
-          employeeId: fullStaff.empId,
-          employeeCategory:
-            fullStaff.employeeCategory === "Teacher"
-              ? "Teaching Staff"
-              : "Non-Teaching Staff",
-          firstName: fullStaff.firstName,
-          middleName: fullStaff.middleName || "",
-          lastName: fullStaff.lastName,
-          email: fullStaff.email?.trim() || null,
-          phone: fullStaff.phone,
-          alternateMobile: (() => {
-            const alt =
-              fullStaff.alternateMobile ||
-              (fullStaff as any).alternateMobileNumber ||
-              (fullStaff as any).alternatePhone ||
-              "";
-            const digits = String(alt).replace(/\D/g, "");
-            return digits.length >= 5 ? String(alt).trim() : null;
-          })(),
-          gender: fullStaff.gender || "Male",
-          designation: fullStaff.designation,
-          department: fullStaff.department,
-          systemRole: fullStaff.role,
-          joiningDate: fullStaff.joiningDate,
-          qualification: fullStaff.qualification || fullStaff.highestQualification || "",
-          employmentType: fullStaff.employmentType,
-          monthlySalary: fullStaff.salary || (fullStaff as any).monthlySalary || 0,
-          grossSalary: fullStaff.grossSalary || fullStaff.salary || 0,
-          netSalary: fullStaff.netSalary || fullStaff.salary || 0,
-          profilePhoto: finalAvatar,
-          avatar: finalAvatar,
-          dateOfBirth: fullStaff.dob,
-          bloodGroup: fullStaff.bloodGroup,
-          aadhaarNumber: fullStaff.aadhaarNumber || null,
-          panNumber:
-            fullStaff.panNumber ||
-            (fullStaff as any).panNo ||
-            (fullStaff as any).pan ||
-            null,
-          presentAddress: fullStaff.presentAddress || (fullStaff as any).residentialAddress || fullStaff.address || null,
-          permanentAddress: fullStaff.permanentAddress || null,
-          city: fullStaff.city || null,
-          state: fullStaff.state || null,
-          pinCode: fullStaff.pinCode || null,
-          country: fullStaff.country || "India",
-          accountHolderName: fullStaff.bankDetails?.accountHolderName || (fullStaff as any).accountHolderName || "",
-          accountNumber: fullStaff.bankDetails?.accountNumber || (fullStaff as any).accountNumber || "",
-          bankName: fullStaff.bankDetails?.bankName || (fullStaff as any).bankName || "",
-          branchName: fullStaff.branch || fullStaff.bankDetails?.branch || (fullStaff as any).branchName || "",
-          ifscCode: fullStaff.bankDetails?.ifscCode || (fullStaff as any).ifscCode || "",
-          upiId: fullStaff.bankDetails?.upiId || (fullStaff as any).upiId || "",
-          isActive: fullStaff.status === "Active",
-          assignedClasses: fullStaff.assignedClasses || [],
-          assignedSubjects: fullStaff.assignedSubjects || [],
-          qualifications: (fullStaff.qualifications || []).map((q: any) => ({
-            qualificationDegree: q.highestQualification || q.qualificationDegree || q.qualification || q.degree || "",
-            specializationSubject:
-              q.specialization || q.specializationSubject || q.subject || "",
-            institutionCollege: q.institution || q.institutionCollege || q.college || "",
-            boardUniversity: q.university || q.boardUniversity || q.board || "",
-            passingYear: (q.year || q.passingYear || "").toString(),
-            percentageCgpa: (q.percentage || q.percentageCgpa || "").toString(),
-          })),
-          experienceRecords: (fullStaff.experienceRecords || []).map(
-            (e: any) => ({
-              previousOrganization:
-                e.organization || e.previousOrganization || e.previousSchool || e.school || "",
-              designationHeld:
-                e.designation || e.designationHeld || e.role || "",
-              fromDate: e.joiningDate || e.fromDate || null,
-              toDate: e.relievingDate || e.toDate || null,
-              totalExperience: (e.totalExperience || "").toString(),
-              reasonForLeaving: e.reasonForLeaving || "",
-            }),
-          ),
-          documents: (fullStaff.documents || []).map((d: any) => ({
-            documentTitle: d.title || d.documentTitle || d.fileName || d.name || d.documentType || "",
-            documentType:
-              d.type || d.documentType || d.docType || d.title || "Document",
-            fileUrl: d.fileUrl || "",
-            isRequired: d.isRequired ?? true,
-            status: d.verificationStatus || d.status || "Attached",
-            uploadedAt:
-              d.uploadedAt ||
-              d.uploadDate ||
-              d.uploadedDate ||
-              new Date().toISOString(),
-          })),
-        })
-          .then(() => {
+    const existing = staff.find(
+      (s) =>
+        String(s.id) === String(id) ||
+        (s.empId && s.empId.toLowerCase() === String(id).toLowerCase()) ||
+        ((s as any).employeeId && (s as any).employeeId.toLowerCase() === String(id).toLowerCase())
+    );
+
+    const targetStaffId = existing?.id || id;
+    const numericId = parseInt(String(targetStaffId), 10);
+    const fullStaff = existing ? { ...existing, ...updates } : ({ id, ...updates } as Staff);
+    const photoDoc = (fullStaff.documents || []).find((d: any) => /photo|profile/i.test(`${d.title || d.documentTitle || ''} ${d.type || d.documentType || ''}`));
+    const finalAvatar = fullStaff.avatar || (fullStaff as any).profilePhoto || photoDoc?.fileUrl || "";
+
+    let apiPromise: Promise<any> = Promise.resolve();
+    if (!isNaN(numericId)) {
+      apiPromise = updateStaffApi(numericId, {
+        employeeId: fullStaff.empId,
+        employeeCategory:
+          fullStaff.employeeCategory === "Teacher"
+            ? "Teaching Staff"
+            : "Non-Teaching Staff",
+        firstName: fullStaff.firstName,
+        middleName: fullStaff.middleName || "",
+        lastName: fullStaff.lastName,
+        email: fullStaff.email?.trim() || null,
+        phone: fullStaff.phone,
+        alternateMobile: (() => {
+          const alt =
+            fullStaff.alternateMobile ||
+            (fullStaff as any).alternateMobileNumber ||
+            (fullStaff as any).alternatePhone ||
+            "";
+          const digits = String(alt).replace(/\D/g, "");
+          return digits.length >= 5 ? String(alt).trim() : null;
+        })(),
+        gender: fullStaff.gender || "Male",
+        designation: fullStaff.designation,
+        department: fullStaff.department,
+        systemRole: fullStaff.role,
+        joiningDate: fullStaff.joiningDate,
+        qualification: fullStaff.qualification || fullStaff.highestQualification || "",
+        employmentType: fullStaff.employmentType,
+        monthlySalary: fullStaff.salary || (fullStaff as any).monthlySalary || 0,
+        grossSalary: fullStaff.grossSalary || fullStaff.salary || 0,
+        netSalary: fullStaff.netSalary || fullStaff.salary || 0,
+        profilePhoto: finalAvatar,
+        avatar: finalAvatar,
+        dateOfBirth: fullStaff.dob,
+        bloodGroup: fullStaff.bloodGroup,
+        aadhaarNumber: fullStaff.aadhaarNumber || null,
+        panNumber:
+          fullStaff.panNumber ||
+          (fullStaff as any).panNo ||
+          (fullStaff as any).pan ||
+          null,
+        presentAddress: fullStaff.presentAddress || (fullStaff as any).residentialAddress || fullStaff.address || null,
+        permanentAddress: fullStaff.permanentAddress || null,
+        city: fullStaff.city || null,
+        state: fullStaff.state || null,
+        pinCode: fullStaff.pinCode || null,
+        country: fullStaff.country || "India",
+        accountHolderName: fullStaff.bankDetails?.accountHolderName || (fullStaff as any).accountHolderName || "",
+        accountNumber: fullStaff.bankDetails?.accountNumber || (fullStaff as any).accountNumber || "",
+        bankName: fullStaff.bankDetails?.bankName || (fullStaff as any).bankName || "",
+        branchName: fullStaff.branch || fullStaff.bankDetails?.branch || (fullStaff as any).branchName || "",
+        ifscCode: fullStaff.bankDetails?.ifscCode || (fullStaff as any).ifscCode || "",
+        upiId: fullStaff.bankDetails?.upiId || (fullStaff as any).upiId || "",
+        isActive: fullStaff.status === "Active",
+        assignedClasses: fullStaff.assignedClasses || [],
+        assignedSubjects: fullStaff.assignedSubjects || [],
+        qualifications: (fullStaff.qualifications || []).map((q: any) => ({
+          qualificationDegree: q.highestQualification || q.qualificationDegree || q.qualification || q.degree || "",
+          specializationSubject:
+            q.specialization || q.specializationSubject || q.subject || "",
+          institutionCollege: q.institution || q.institutionCollege || q.college || "",
+          boardUniversity: q.university || q.boardUniversity || q.board || "",
+          passingYear: (q.year || q.passingYear || "").toString(),
+          percentageCgpa: (q.percentage || q.percentageCgpa || "").toString(),
+        })),
+        experienceRecords: (fullStaff.experienceRecords || []).map(
+          (e: any) => ({
+            previousOrganization:
+              e.organization || e.previousOrganization || e.previousSchool || e.school || "",
+            designationHeld:
+              e.designation || e.designationHeld || e.role || "",
+            fromDate: e.joiningDate || e.fromDate || null,
+            toDate: e.relievingDate || e.toDate || null,
+            totalExperience: (e.totalExperience || "").toString(),
+            reasonForLeaving: e.reasonForLeaving || "",
+          }),
+        ),
+        documents: (fullStaff.documents || []).map((d: any) => ({
+          documentTitle: d.title || d.documentTitle || d.fileName || d.name || d.documentType || "",
+          documentType:
+            d.type || d.documentType || d.docType || d.title || "Document",
+          fileUrl: d.fileUrl || "",
+          isRequired: d.isRequired ?? true,
+          status: d.verificationStatus || d.status || "Attached",
+          uploadedAt:
+            d.uploadedAt ||
+            d.uploadDate ||
+            d.uploadedDate ||
+            new Date().toISOString(),
+        })),
+      })
+        .then(async () => {
+          try {
             fetchAcademicClasses();
-            fetchStaff();
-          })
-          .catch((err) => {
-            console.error("Failed to update staff in backend", err);
-          });
-      }
+            await fetchStaff();
+          } catch (e) {}
+        })
+        .catch((err) => {
+          console.error("Failed to update staff in backend", err);
+          throw err;
+        });
     }
 
     setStaff((prev) => {
       const nextStaff = prev.map((s) =>
-        s.id === id ? { ...s, ...updates } : s,
+        String(s.id) === String(id) || (s.empId && s.empId.toLowerCase() === String(id).toLowerCase())
+          ? { ...s, ...updates }
+          : s,
       );
-      const updated = nextStaff.find((s) => s.id === id);
+      const updated = nextStaff.find((s) => String(s.id) === String(id) || (s.empId && s.empId.toLowerCase() === String(id).toLowerCase()));
       if (updated && isTeachingStaff(updated)) {
         syncTeacherAssignments(updated);
       }
@@ -8502,6 +8514,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       );
     }
     logActivity("Updated Staff Record", `Updated details for staff ID ${id}`);
+    return apiPromise;
   };
 
   const deleteStaff = async (id: string) => {

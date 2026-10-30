@@ -82,6 +82,8 @@ interface ProfileFormState {
     bloodGroup: string;
     mobile: string;
     alternateMobile: string;
+    aadhaarNumber: string;
+    panNumber: string;
     nationality: string;
     maritalStatus: string;
     fatherName: string;
@@ -277,34 +279,36 @@ function buildProfileForm(staff: Staff | undefined | null, category: EmployeeCat
       middleName: staff?.middleName || '',
       lastName: staff?.lastName || fallbackLastName,
       gender: (staff?.gender as any) || 'Male',
-      dob: staff?.dob || '1990-01-15',
+      dob: staff?.dob ? String(staff.dob).split('T')[0] : '',
       bloodGroup: staff?.bloodGroup ? String(staff.bloodGroup) : 'O+',
-      mobile: staff?.phone || (staff as any)?.mobile || user?.phone || '9876543210',
-      alternateMobile: staff?.alternateMobile || '9876543211',
+      mobile: staff?.phone || (staff as any)?.mobile || user?.phone || '',
+      alternateMobile: staff?.alternateMobile || '',
+      aadhaarNumber: staff?.aadhaarNumber || (staff as any)?.aadhaar || '',
+      panNumber: staff?.panNumber || (staff as any)?.panNo || (staff as any)?.pan || '',
       nationality: staff?.nationality || 'Indian',
       maritalStatus: staff?.maritalStatus || 'Married',
-      fatherName: staff?.fatherName || 'Rajesh Kumar',
-      motherName: staff?.motherName || 'Sunita Kumar'
+      fatherName: staff?.fatherName || '',
+      motherName: staff?.motherName || ''
     },
     address: {
-      currentAddress: staff?.currentAddress || staff?.address || '',
-      permanentAddress: staff?.permanentAddress || '123 Academic Enclave, Central City',
-      city: staff?.city || 'Bengaluru',
-      district: staff?.district || 'Bengaluru Urban',
-      state: staff?.state || 'Karnataka',
+      currentAddress: staff?.currentAddress || staff?.residentialAddress || staff?.address || '',
+      permanentAddress: staff?.permanentAddress || '',
+      city: staff?.city || '',
+      district: staff?.district || '',
+      state: staff?.state || '',
       country: staff?.country || 'India',
-      pinCode: staff?.pinCode || '560001'
+      pinCode: staff?.pinCode || ''
     },
     education: educationRows,
     experience: experienceRows,
     bank: {
-      accountHolderName: staff?.bankDetails?.accountHolderName || user?.name || `${fallbackFirstName} ${fallbackLastName}`,
-      bankName: staff?.bankDetails?.bankName || 'HDFC Bank',
-      branch: staff?.bankDetails?.branch || 'Main Branch',
-      accountNumber: staff?.bankDetails?.accountNumber || '50100234891234',
-      confirmAccountNumber: staff?.bankDetails?.accountNumber || '50100234891234',
-      ifscCode: staff?.bankDetails?.ifscCode || 'HDFC0001234',
-      upiId: staff?.bankDetails?.upiId || 'admin@hdfc'
+      accountHolderName: staff?.bankDetails?.accountHolderName || (staff as any)?.accountHolderName || user?.name || `${fallbackFirstName} ${fallbackLastName}`.trim(),
+      bankName: staff?.bankDetails?.bankName || (staff as any)?.bankName || '',
+      branch: staff?.bankDetails?.branch || (staff as any)?.branchName || '',
+      accountNumber: staff?.bankDetails?.accountNumber || (staff as any)?.accountNumber || '',
+      confirmAccountNumber: staff?.bankDetails?.accountNumber || (staff as any)?.accountNumber || '',
+      ifscCode: staff?.bankDetails?.ifscCode || (staff as any)?.ifscCode || '',
+      upiId: staff?.bankDetails?.upiId || (staff as any)?.upiId || ''
     },
     documents: buildDocumentDrafts(category, staff, user)
   };
@@ -725,6 +729,8 @@ export const ProfileCompletionView: React.FC<ProfileCompletionViewProps> = ({ on
         profileStatus: 'Completed',
         middleName: safeTrim(form.personal.middleName) || undefined,
         alternateMobile: safeTrim(form.personal.alternateMobile) || undefined,
+        aadhaarNumber: safeTrim(form.personal.aadhaarNumber) || undefined,
+        panNumber: safeTrim(form.personal.panNumber)?.toUpperCase() || undefined,
         bloodGroup: form.personal.bloodGroup || undefined,
         nationality: safeTrim(form.personal.nationality) || undefined,
         maritalStatus: safeTrim(form.personal.maritalStatus) || undefined,
@@ -922,6 +928,26 @@ export const ProfileCompletionView: React.FC<ProfileCompletionViewProps> = ({ on
                     onChange={e => updatePersonal('alternateMobile', e.target.value)}
                     className={fieldInputClass()}
                     placeholder="Optional"
+                  />
+                </div>
+                <div>
+                  <FieldLabel label="Aadhaar Number" />
+                  <input
+                    value={form.personal.aadhaarNumber}
+                    onChange={e => updatePersonal('aadhaarNumber', e.target.value)}
+                    className={fieldInputClass()}
+                    placeholder="12-digit Aadhaar number"
+                    maxLength={14}
+                  />
+                </div>
+                <div>
+                  <FieldLabel label="PAN Number" />
+                  <input
+                    value={form.personal.panNumber}
+                    onChange={e => updatePersonal('panNumber', e.target.value.toUpperCase())}
+                    className={fieldInputClass()}
+                    placeholder="10-digit PAN (e.g. ABCDE1234F)"
+                    maxLength={10}
                   />
                 </div>
                 <div>
@@ -1443,34 +1469,7 @@ export const ProfileCompletionView: React.FC<ProfileCompletionViewProps> = ({ on
       default:
         return (
           <SectionCard title="Review & Submit" subtitle="Verify all details before completing your profile.">
-            {isSubmitted && (
-              <div className="mb-4 rounded-2xl border border-emerald-500/40 bg-emerald-50 dark:bg-emerald-950/50 p-4 sm:p-5 shadow-sm">
-                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                  <div className="flex items-start gap-3.5">
-                    <div className="w-10 h-10 rounded-xl bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-sm">
-                      <CheckCircle2 className="w-6 h-6" />
-                    </div>
-                    <div>
-                      <h4 className="text-base font-black text-emerald-900 dark:text-emerald-100 flex items-center gap-2">
-                        <span>Profile Updated Successfully!</span>
-                        <Badge variant="success" size="sm">Completed</Badge>
-                      </h4>
-                      <p className="mt-1 text-xs text-emerald-700 dark:text-emerald-300">
-                        All personal information, academic qualifications, and verification documents have been updated and saved for <strong>{fullName || user?.name}</strong>.
-                      </p>
-                    </div>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => onComplete?.()}
-                    className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 px-4 py-2 text-xs font-black text-white shadow-xs transition-colors shrink-0 cursor-pointer"
-                  >
-                    <span>Go to Dashboard</span>
-                    <ChevronRight className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-              </div>
-            )}
+
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
               <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 p-3">
                 <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Personal Details</p>
@@ -1478,6 +1477,8 @@ export const ProfileCompletionView: React.FC<ProfileCompletionViewProps> = ({ on
                   <p className="font-extrabold text-slate-900 dark:text-white truncate">{fullName || 'Name not provided'}</p>
                   <p className="text-slate-500">{form.personal.gender || 'Gender N/A'} • {form.personal.dob || 'DOB N/A'}</p>
                   <p className="text-slate-500">{form.personal.mobile || 'Phone N/A'}</p>
+                  {form.personal.panNumber && <p className="text-slate-600 dark:text-slate-300 font-semibold">PAN: {form.personal.panNumber.toUpperCase()}</p>}
+                  {form.personal.aadhaarNumber && <p className="text-slate-600 dark:text-slate-300">Aadhaar: {form.personal.aadhaarNumber}</p>}
                 </div>
               </div>
               <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 p-3">
@@ -1546,7 +1547,7 @@ export const ProfileCompletionView: React.FC<ProfileCompletionViewProps> = ({ on
   return (
     <div className="min-h-screen bg-slate-50/50 dark:bg-slate-950 px-3 py-4 sm:px-6">
       <div className="mx-auto w-full max-w-5xl space-y-3 animate-in fade-in">
-        {isSubmitted && (
+        {isSubmitted ? (
           <div className="rounded-2xl border border-emerald-500/40 bg-emerald-50 dark:bg-emerald-950/60 p-4 sm:p-5 shadow-sm text-emerald-900 dark:text-emerald-100 animate-in fade-in slide-in-from-top-3">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div className="flex items-center gap-3">
@@ -1572,18 +1573,18 @@ export const ProfileCompletionView: React.FC<ProfileCompletionViewProps> = ({ on
               </button>
             </div>
           </div>
+        ) : (
+          <div className="flex items-center">
+            <button
+              type="button"
+              onClick={() => onComplete?.()}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 text-xs font-semibold hover:bg-slate-50 dark:hover:bg-slate-800/60 transition-colors shadow-2xs cursor-pointer group"
+            >
+              <ArrowLeft className="w-3.5 h-3.5 text-slate-500 dark:text-slate-400 group-hover:-translate-x-0.5 transition-transform" />
+              <span>Back to Dashboard</span>
+            </button>
+          </div>
         )}
-        {/* Navigation Arrow to Dashboard */}
-        <div className="flex items-center">
-          <button
-            type="button"
-            onClick={() => onComplete?.()}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 text-xs font-semibold hover:bg-slate-50 dark:hover:bg-slate-800/60 transition-colors shadow-2xs cursor-pointer group"
-          >
-            <ArrowLeft className="w-3.5 h-3.5 text-slate-500 dark:text-slate-400 group-hover:-translate-x-0.5 transition-transform" />
-            <span>Go to Dashboard</span>
-          </button>
-        </div>
 
         <div className="rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-white/95 dark:bg-slate-950/95 shadow-sm overflow-hidden">
           {/* Header & Steps */}
@@ -1681,11 +1682,6 @@ export const ProfileCompletionView: React.FC<ProfileCompletionViewProps> = ({ on
                   </button>
                 ) : (
                   isSubmitted ? (
-                  <div className="flex items-center gap-2">
-                    <span className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/60 px-3 py-1.5 rounded-xl border border-emerald-200 dark:border-emerald-800">
-                      <Check className="w-3.5 h-3.5" />
-                      <span>Profile Updated Successfully</span>
-                    </span>
                     <button
                       type="button"
                       onClick={() => onComplete?.()}
@@ -1694,8 +1690,7 @@ export const ProfileCompletionView: React.FC<ProfileCompletionViewProps> = ({ on
                       <span>Go to Dashboard</span>
                       <ChevronRight className="w-3.5 h-3.5" />
                     </button>
-                  </div>
-                ) : (
+                  ) : (
                   <button
                     type="button"
                     onClick={handleSubmit}
