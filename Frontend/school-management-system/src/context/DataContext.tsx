@@ -2021,6 +2021,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         if (a.dynamicFeeStructureId && !dfs) return null;
 
         const effectiveTotal = dfs ? dfs.totalAmount : (a.totalAmount ?? 0);
+        const resolvedPolicy = a.feePolicy || (student as any)?.feeCalculationMethod || (student as any)?.feePolicy || "Full Annual Fee";
         return {
           id: a.id?.toString() || a.id || "",
           studentId: a.studentId || "",
@@ -2045,7 +2046,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           baseFeeTotal: effectiveTotal,
           originalFeeTotal: effectiveTotal,
           adjustmentTotal: a.adjustmentTotal || 0,
-          feePolicy: (a.feePolicy || "Full Annual Fee") as any,
+          feePolicy: resolvedPolicy as any,
           assignedDate: a.assignedDate || new Date().toISOString(),
           status: a.status || "Active",
         };
@@ -5076,6 +5077,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
               const effectiveRollNo = st.rollNo || existing.rollNo || "";
               return {
                 ...st,
+                feeCalculationMethod: existing?.feeCalculationMethod || (st as any).feeCalculationMethod,
                 section: effectiveSection,
                 rollNo: effectiveRollNo,
                 religion: st.religion || existing.religion || "",
@@ -5702,8 +5704,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   }, []);
   const fetchFinanceData = useCallback(async () => {
-    const userRole = (role || user?.role || "").toLowerCase();
-    const allowedFinanceRoles = ["admin", "superadmin", "accountant", "finance", "staff"];
+    const userRole = (role || user?.role || "").toLowerCase().replace(/[\s_-]+/g, "");
+    const allowedFinanceRoles = ["admin", "superadmin", "accountant", "finance", "staff", "principal"];
     if (!allowedFinanceRoles.includes(userRole)) {
       return;
     }
@@ -7451,7 +7453,18 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       const pol =
         (updates as any).feeCalculationMethod || (updates as any).feePolicy;
       setStudentFeeAssignments((prev) =>
-        prev.map((a) => (a.studentId === id ? { ...a, feePolicy: pol } : a)),
+        prev.map((a) =>
+          (String(a.studentId) === String(id) || (oldStudent?.admissionNo && String(a.studentId) === String(oldStudent.admissionNo)) || (a.admissionNo && oldStudent?.admissionNo && a.admissionNo === oldStudent.admissionNo))
+            ? { ...a, feePolicy: pol }
+            : a,
+        ),
+      );
+      setDbAssignments((prev) =>
+        prev.map((a) =>
+          (String(a.studentId) === String(id) || (oldStudent?.admissionNo && String(a.studentId) === String(oldStudent.admissionNo)))
+            ? { ...a, feePolicy: pol }
+            : a,
+        ),
       );
     }
 
@@ -12915,14 +12928,46 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         totalAmount: assignedTotal,
         breakdown: finalBreakdown,
       });
+      const freshAssignments = await FinanceAPI.fetchStudentFeeAssignmentsApi();
+      if (Array.isArray(freshAssignments) && freshAssignments.length > 0) {
+        setDbAssignments(freshAssignments);
+      }
     } catch (err) {
       console.warn("API failed, using local", err);
     }
 
+    setDbAssignments((prev) => {
+      const filtered = prev.filter(
+        (a) =>
+          !(
+            (String(a.studentId) === String(studentId) || (st.admissionNo && String(a.studentId) === String(st.admissionNo))) &&
+            matchesAcademicYear(a.academicYear, dfs.academicYear)
+          ),
+      );
+      return [
+        ...filtered,
+        {
+          id,
+          studentId: st.id,
+          admissionNo: st.admissionNo,
+          dynamicFeeStructureId: dfs.id,
+          totalAmount: assignedTotal,
+          paidAmount: 0,
+          dueAmount: assignedTotal,
+          status: "Active",
+          feePolicy: feePolicy,
+          academicYear: dfs.academicYear,
+        },
+      ];
+    });
+
     setStudentFeeAssignments((prev) => [
       ...prev.filter(
         (a) =>
-          !(a.studentId === studentId && a.academicYear === dfs.academicYear),
+          !(
+            (String(a.studentId) === String(studentId) || (st.admissionNo && String(a.studentId) === String(st.admissionNo))) &&
+            matchesAcademicYear(a.academicYear, dfs.academicYear)
+          ),
       ),
       assignment,
     ]);

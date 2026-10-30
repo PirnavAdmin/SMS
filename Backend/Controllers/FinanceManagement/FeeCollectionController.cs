@@ -210,17 +210,24 @@ public class FeeCollectionController : ControllerBase
 
     [HttpGet("dashboard")]
     [HttpGet("dashboard/summary")]
-    [Authorize(Roles = "Admin,Staff,SuperAdmin,Accountant")]
+    [Authorize(Roles = "Admin,Staff,SuperAdmin,Super Admin,Principal,Accountant,Finance,HR,Receptionist")]
     public async Task<IActionResult> GetDashboardStats(
         [FromQuery] string? branch,
         [FromQuery] string? academicYear,
         [FromHeader(Name = "X-Branch-Id")] string? headerBranch,
         [FromHeader(Name = "X-Academic-Year-Id")] string? headerAcademicYear)
     {
-        string? effectiveBranch = !string.IsNullOrWhiteSpace(branch) ? branch : (!string.IsNullOrWhiteSpace(headerBranch) ? headerBranch : null);
-        string? effectiveAcademicYear = !string.IsNullOrWhiteSpace(academicYear) ? academicYear : (!string.IsNullOrWhiteSpace(headerAcademicYear) ? headerAcademicYear : null);
+        try
+        {
+            string? effectiveBranch = !string.IsNullOrWhiteSpace(branch) ? branch : (!string.IsNullOrWhiteSpace(headerBranch) ? headerBranch : null);
+            string? effectiveAcademicYear = !string.IsNullOrWhiteSpace(academicYear) ? academicYear : (!string.IsNullOrWhiteSpace(headerAcademicYear) ? headerAcademicYear : null);
 
-        var result = await _feeCollectionService.GetDashboardStatsAsync(effectiveBranch, effectiveAcademicYear);
-        return Ok(new { success = true, data = result });
+            var result = await _feeCollectionService.GetDashboardStatsAsync(effectiveBranch, effectiveAcademicYear);
+            return Ok(new { success = true, data = result });
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new { success = false, message = ex.Message });
+        }
     }
 }

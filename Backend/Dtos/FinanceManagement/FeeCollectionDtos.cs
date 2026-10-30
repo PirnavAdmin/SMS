@@ -434,7 +434,13 @@ public class FinanceDashboardStatsDto
     public decimal TotalExpectedRevenue { get; set; }
     public decimal TotalCollectedRevenue { get; set; }
     public decimal TotalOutstandingDues { get; set; }
+    public decimal TotalPendingDues { get; set; }
     public decimal TotalConcessionsGranted { get; set; }
+
+    // Liquidity Accounts from database
+    public decimal CashBalance { get; set; }
+    public decimal BankBalance { get; set; }
+    public decimal TotalLiquidity => CashBalance + BankBalance;
     public decimal TodayCollectionAmount { get; set; }
     public decimal MonthlyCollectionAmount { get; set; }
     public int StudentsPaidCount { get; set; }

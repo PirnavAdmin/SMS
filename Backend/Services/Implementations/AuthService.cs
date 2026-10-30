@@ -787,7 +787,13 @@ namespace SMS.Api.Services.Implementations
             }
 
             foreach (var role in roles)
+            {
                 claims.Add(new Claim(ClaimTypes.Role, role));
+                if (role.Equals("Super Admin", StringComparison.OrdinalIgnoreCase))
+                    claims.Add(new Claim(ClaimTypes.Role, "SuperAdmin"));
+                else if (role.Equals("SuperAdmin", StringComparison.OrdinalIgnoreCase))
+                    claims.Add(new Claim(ClaimTypes.Role, "Super Admin"));
+            }
 
             var keyStr = _config["Jwt:Key"] ?? "SUPER_SECRET_JWT_KEY_1234567890_ANTIGRAVITY_SMS";
             var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(keyStr));
@@ -820,7 +826,13 @@ namespace SMS.Api.Services.Implementations
                 claims.Add(new Claim("schoolId", admin.SchoolId.Value.ToString()));
 
             foreach (var role in roles)
+            {
                 claims.Add(new Claim(ClaimTypes.Role, role));
+                if (role.Equals("Super Admin", StringComparison.OrdinalIgnoreCase))
+                    claims.Add(new Claim(ClaimTypes.Role, "SuperAdmin"));
+                else if (role.Equals("SuperAdmin", StringComparison.OrdinalIgnoreCase))
+                    claims.Add(new Claim(ClaimTypes.Role, "Super Admin"));
+            }
 
             var keyStr = _config["Jwt:Key"] ?? "SUPER_SECRET_JWT_KEY_1234567890_ANTIGRAVITY_SMS";
             var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(keyStr));

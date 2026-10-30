@@ -192,20 +192,25 @@ export const StudentFeeAssignmentView: React.FC = () => {
 
     // Check existing assignment
     const existingAssign = studentFeeAssignments.find(
-      (a) => a.studentId === st.id && matchesAcademicYear(a.academicYear, activeAY)
+      (a) =>
+        (String(a.studentId) === String(st.id) ||
+          (st.admissionNo && String(a.studentId) === String(st.admissionNo)) ||
+          (a.admissionNo && a.admissionNo === st.admissionNo)) &&
+        matchesAcademicYear(a.academicYear, activeAY)
     );
 
     let initialPolicy: FeePolicyType = 'Full Annual Fee';
-    if (existingAssign) {
-      let p = existingAssign.feePolicy || 'Full Annual Fee';
-      if (p === 'Pro-rata' || p === 'Monthly Pro-rated' || p === 'Monthly Pro-rated Fee') {
+    const rawPolicy = existingAssign?.feePolicy || st.feeCalculationMethod || (existingAssign as any)?.policy;
+    if (rawPolicy) {
+      let p = rawPolicy;
+      if (p === 'Pro-rata' || p === 'Monthly Pro-rated' || p === 'Monthly Pro-rated Fee' || p === 'Term-wise Fee' || p === 'Term-wise') {
         p = 'Term-wise';
       } else if (p === 'Custom' || p === 'Custom Amount') {
         p = 'Full Annual Fee';
       }
       initialPolicy = p as FeePolicyType;
       setModalPolicy(initialPolicy);
-      setModalAdjustmentReason(existingAssign.adjustmentReason || '');
+      setModalAdjustmentReason(existingAssign?.adjustmentReason || '');
     } else {
       setModalPolicy('Full Annual Fee');
       setModalAdjustmentReason('');
@@ -690,7 +695,11 @@ export const StudentFeeAssignmentView: React.FC = () => {
                 filteredStudents.map((st) => {
                   const isSelected = selectedStudentIds.includes(st.id);
                   const assignment = studentFeeAssignments.find(
-                    (a) => a.studentId === st.id && matchesAcademicYear(a.academicYear, activeAY)
+                    (a) =>
+                      (String(a.studentId) === String(st.id) ||
+                        (st.admissionNo && String(a.studentId) === String(st.admissionNo)) ||
+                        (a.admissionNo && a.admissionNo === st.admissionNo)) &&
+                      matchesAcademicYear(a.academicYear, activeAY)
                   );
 
                   return (
@@ -728,12 +737,20 @@ export const StudentFeeAssignmentView: React.FC = () => {
                             (!assignment.feeStructureId && !(assignment as any).dynamicFeeStructureId) ||
                             (dynamicFeeStructures || []).some((d) => String(d.id) === String(assignment.feeStructureId || (assignment as any).dynamicFeeStructureId))
                           );
-                          if (validAssignment) {
+                          const activePolicy = assignment?.feePolicy || st.feeCalculationMethod || (assignment as any)?.policy;
+                          const isTermWise =
+                            activePolicy === 'Term-wise' ||
+                            activePolicy === 'Term-wise Fee' ||
+                            activePolicy === 'Pro-rata' ||
+                            activePolicy === 'Monthly Pro-rated' ||
+                            activePolicy === 'Monthly Pro-rated Fee';
+
+                          if (validAssignment || activePolicy) {
                             return (
                               <span className="px-2.5 py-1 rounded-lg bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300 font-bold text-[11px]">
-                                {assignment.feePolicy === 'Pro-rata' || assignment.feePolicy === 'Monthly Pro-rated' || assignment.feePolicy === 'Monthly Pro-rated Fee'
-                                  ? 'Term-wise Fee'
-                                  : (assignment.feePolicy === 'Custom' || assignment.feePolicy === 'Custom Amount' ? 'Full Annual Fee' : assignment.feePolicy || 'Full Annual Fee')}
+                                {isTermWise
+                                  ? 'Term-wise'
+                                  : (activePolicy === 'Custom' || activePolicy === 'Custom Amount' ? 'Full Annual Fee' : activePolicy || 'Full Annual Fee')}
                               </span>
                             );
                           }
