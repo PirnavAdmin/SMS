@@ -11,7 +11,7 @@ namespace SMS.Api.Controllers.Parent
 {
     [ApiController]
     [Route("api/parent")]
-    [AllowAnonymous]
+    [Authorize]
     [Tags("Parent Portal Operations")]
     public class ParentController : ControllerBase
     {
@@ -22,42 +22,66 @@ namespace SMS.Api.Controllers.Parent
             _parentService = parentService;
         }
 
-        private string GetParentIdentifier()
+        private bool TryGetAuthenticatedUserId(out int userId)
         {
-            var emailClaim = User.FindFirst(ClaimTypes.Email)?.Value;
-            var mobileClaim = User.FindFirst(ClaimTypes.MobilePhone)?.Value;
-            var nameClaim = User.FindFirst(ClaimTypes.Name)?.Value;
+            userId = 0;
+            var claim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value
+                        ?? User.FindFirst("id")?.Value
+                        ?? User.FindFirst("sub")?.Value;
 
-            var headerIdentifier = Request.Headers["X-Parent-Identifier"].ToString();
-            if (!string.IsNullOrWhiteSpace(headerIdentifier))
-                return headerIdentifier;
-
-            return emailClaim ?? mobileClaim ?? nameClaim ?? string.Empty;
+            return int.TryParse(claim, out userId) && userId > 0;
         }
 
         private async Task<bool> ValidateParentAccessAsync(int studentId)
         {
-            var isParentRole = User.IsInRole("Parent") || string.Equals(User.FindFirst(ClaimTypes.Role)?.Value, "Parent", StringComparison.OrdinalIgnoreCase);
-            var parentId = GetParentIdentifier();
+            if (studentId <= 0)
+                return false;
 
-            if (isParentRole || !string.IsNullOrWhiteSpace(parentId))
-            {
-                if (string.IsNullOrWhiteSpace(parentId)) return true;
-                var children = await _parentService.GetChildrenAsync(parentId);
-                if (children != null && children.Count > 0)
-                {
-                    return children.Any(c => c.StudentId == studentId);
-                }
-            }
-            return true;
+            if (!TryGetAuthenticatedUserId(out int userId))
+                return false; // Fail closed if unauthenticated
+
+            // Administrators have oversight access across all student profiles
+            if (User.IsInRole("Admin") || User.IsInRole("Super Admin") || User.IsInRole("SuperAdmin"))
+                return true;
+
+            var isParent = User.IsInRole("Parent") || string.Equals(User.FindFirst(ClaimTypes.Role)?.Value, "Parent", StringComparison.OrdinalIgnoreCase);
+            if (!isParent)
+                return false; // Fail closed if role is neither Parent nor Admin
+
+            // Authoritative ownership check against database-backed parent_student_mappings
+            return await _parentService.IsStudentAssociatedWithParentAsync(userId, studentId);
         }
 
         [HttpGet("children")]
         public async Task<IActionResult> GetChildren([FromQuery] string? identifier)
         {
-            var parentId = !string.IsNullOrWhiteSpace(identifier) ? identifier : GetParentIdentifier();
-            var children = await _parentService.GetChildrenAsync(parentId);
-            return Ok(new { success = true, data = children });
+            if (!TryGetAuthenticatedUserId(out int userId))
+                return Unauthorized(new { success = false, message = "User not authenticated." });
+
+            var isParent = User.IsInRole("Parent") || string.Equals(User.FindFirst(ClaimTypes.Role)?.Value, "Parent", StringComparison.OrdinalIgnoreCase);
+
+            if (isParent)
+            {
+                // Parent callers MUST strictly see only their own mapped students.
+                // Request parameters or headers are strictly ignored to prevent authorization bypass.
+                var children = await _parentService.GetChildrenByUserIdAsync(userId);
+                return Ok(new { success = true, data = children });
+            }
+
+            if (User.IsInRole("Admin") || User.IsInRole("Super Admin") || User.IsInRole("SuperAdmin"))
+            {
+                // Administrative users can query on behalf of a parent using immutable ID, exact email, or exact mobile
+                if (!string.IsNullOrWhiteSpace(identifier))
+                {
+                    var adminChildren = await _parentService.GetChildrenAsync(identifier);
+                    return Ok(new { success = true, data = adminChildren });
+                }
+
+                var children = await _parentService.GetChildrenByUserIdAsync(userId);
+                return Ok(new { success = true, data = children });
+            }
+
+            return StatusCode(403, new { success = false, message = "Access denied: insufficient permissions." });
         }
 
         [HttpGet("dashboard/{studentId:int}")]

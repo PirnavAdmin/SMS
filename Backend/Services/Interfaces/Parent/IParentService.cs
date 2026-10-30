@@ -6,6 +6,8 @@ namespace SMS.Api.Services.Interfaces.Parent
 {
     public interface IParentService
     {
+        Task<List<ParentChildDto>> GetChildrenByUserIdAsync(int parentUserId);
+        Task<bool> IsStudentAssociatedWithParentAsync(int parentUserId, int studentId);
         Task<List<ParentChildDto>> GetChildrenAsync(string parentIdentifier);
         Task<ParentDashboardSummaryDto> GetDashboardSummaryAsync(int studentId);
         Task<ParentStudentDetailsDto?> GetStudentDetailsAsync(int studentId);

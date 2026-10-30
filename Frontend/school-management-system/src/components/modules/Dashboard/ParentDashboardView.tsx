@@ -693,15 +693,7 @@ export const ParentDashboardView: React.FC<ParentDashboardViewProps> = ({ onNavi
         </div>
       </div>
       
-      {!hasMatchedWards && (
-         <div className="bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900/40 text-amber-800 dark:text-amber-300 rounded-2xl p-4 flex items-start gap-3 animate-in slide-in-from-top-3 duration-355 shadow-xs">
-            <AlertCircle className="w-5 h-5 shrink-0 mt-0.5" />
-            <div className="text-xs">
-               <p className="font-extrabold text-sm mb-0.5">Demo Mode Active</p>
-               <p className="font-medium text-slate-655 dark:text-slate-400">Your logged-in user details ({user?.email}) did not match any guardian record. Displaying default student data for demonstration.</p>
-            </div>
-         </div>
-      )}
+      
 
       {/* Ward Selector Tabs */}
       <ParentStudentSelector

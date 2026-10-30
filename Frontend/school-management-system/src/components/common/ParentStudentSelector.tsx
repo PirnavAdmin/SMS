@@ -28,7 +28,7 @@ export interface ParentWard {
 
 /**
  * Standard hook to fetch and normalize parent wards consistently across all parent views.
- * Strictly resolves only the children belonging to the currently logged-in parent.
+ * Strictly resolves only the children belonging to the currently logged-in parent via the authoritative API.
  */
 export function useParentWards() {
   const { students = [], admissions = [] } = useData();
@@ -37,50 +37,45 @@ export function useParentWards() {
 
   useEffect(() => {
     let isMounted = true;
+    setApiChildren([]);
+
     const fetchChildren = async () => {
       try {
-        let identifier = user?.email || user?.phone || (user as any)?.mobileNumber || user?.name || user?.id;
-        if (!identifier) {
-          try {
-            const saved = localStorage.getItem('auth_user') || localStorage.getItem('user');
-            if (saved) {
-              const parsed = JSON.parse(saved);
-              identifier = parsed?.email || parsed?.phone || parsed?.mobileNumber || parsed?.name || parsed?.id;
-            }
-          } catch {}
-        }
-        if (!identifier) return;
-        const children = await getParentChildren(identifier);
+        // Authenticated request to backend - backend extracts verified parent userId from JWT
+        const children = await getParentChildren();
         if (isMounted) {
           setApiChildren(children || []);
         }
       } catch (err) {
         console.warn('Failed to fetch parent children in useParentWards:', err);
+        if (isMounted) {
+          setApiChildren([]);
+        }
       }
     };
+
     fetchChildren();
     return () => {
       isMounted = false;
     };
-  }, [user?.email, user?.phone, (user as any)?.mobileNumber, user?.name, user?.id]);
+  }, [user?.id, user?.email]);
 
   const wards = useMemo<ParentWard[]>(() => {
     const userRoleStr = (user?.role || role || '').toString().toLowerCase();
     const isStudentUser = userRoleStr.includes('student');
-    const userEmail = (user?.email || '').toLowerCase().trim();
-    const userPhone = (user?.phone || (user as any)?.mobileNumber || '').replace(/\D/g, '');
-    const userId = String(user?.id || '').trim().toLowerCase();
-    const userName = (user?.name || (user as any)?.fullName || '').trim().toLowerCase();
 
     // 1. If logged in as Student
     if (isStudentUser) {
+      const userId = String(user?.id || '').trim().toLowerCase();
+      const userEmail = (user?.email || '').toLowerCase().trim();
+      const userPhone = (user?.phone || (user as any)?.mobileNumber || '').replace(/\D/g, '');
+
       const matched = (students || []).find(s => {
         if (!s) return false;
         const sId = String(s.id || '').trim().toLowerCase();
         const sAdm = String(s.admissionNo || (s as any).admissionNumber || '').trim().toLowerCase();
         const sRoll = String((s as any).rollNo || (s as any).rollNumber || '').trim().toLowerCase();
         const sEmail = (s.email || '').trim().toLowerCase();
-        const sName = `${s.firstName || ''} ${s.lastName || ''}`.trim().toLowerCase();
 
         if (userId && (sId === userId || sAdm === userId || sRoll === userId)) return true;
         if (userEmail && sEmail === userEmail) return true;
@@ -88,7 +83,6 @@ export function useParentWards() {
           const sPhone = (s.phone || (s as any).mobileNumber || '').replace(/\D/g, '');
           if (sPhone && (sPhone.endsWith(userPhone) || userPhone.endsWith(sPhone))) return true;
         }
-        if (userName && (sName === userName || (s.firstName && userName.includes(s.firstName.toLowerCase())))) return true;
         return false;
       });
 
@@ -110,55 +104,33 @@ export function useParentWards() {
         }];
       }
 
-      return [{
-        id: String(user?.id || '1'),
-        studentId: user?.id || '1',
-        admissionNo: (user as any)?.admissionNo || 'ADM-STU-1',
-        rollNo: (user as any)?.rollNo || 'ROLL-1',
-        firstName: user?.name?.split(' ')[0] || 'Student',
-        lastName: user?.name?.split(' ').slice(1).join(' ') || '',
-        studentName: user?.name || 'Student',
-        className: (user as any)?.className || (user as any)?.class || 'Class 10',
-        section: (user as any)?.section || 'A',
-        gender: 'Male',
-        dob: '',
-        status: 'Active',
-        studentType: 'Day Scholar'
-      }];
+      return [];
     }
 
-    // 2. From API Children (authoritative backend endpoint /api/parent/children)
-    const mappedApi: ParentWard[] = (apiChildren || []).map(c => {
-      // Find matching student in students array to inherit enriched data
+    // 2. Authoritative parent ward list from backend /api/parent/children
+    if (!apiChildren || apiChildren.length === 0) {
+      return [];
+    }
+
+    const mappedApi: ParentWard[] = apiChildren.map(c => {
+      // Cross-reference with loaded students by immutable ID or exact admission number for metadata enrichment
       const matched = (students || []).find(st => {
-        const sId = String(st.id || (st as any).studentId || '').trim().toLowerCase();
-        const cId = String(c.studentId || '').trim().toLowerCase();
+        const sId = String(st.id || (st as any).studentId || '').trim();
+        const cId = String(c.studentId || '').trim();
         if (sId && cId && sId === cId) return true;
 
         const sAdm = (st.admissionNo || (st as any).admissionNumber || '').trim().toLowerCase();
         const cAdm = (c.admissionNumber || '').trim().toLowerCase();
         if (sAdm && cAdm && sAdm === cAdm) return true;
 
-        const sRoll = String((st as any).rollNo || (st as any).rollNumber || '').trim().toLowerCase();
-        const cRoll = (c.rollNumber || '').trim().toLowerCase();
-        if (sRoll && cRoll && sRoll === cRoll) return true;
-
         return false;
       });
 
-      // Find matching admission for any additional profile details (bloodGroup, studentType, caste)
+      // Cross-reference with admissions for additional demographic info if needed
       const matchedAdm = (admissions || []).find(a => {
         const aAdm = (a.admissionNo || (a as any).admissionNumber || (a as any).applicationNo || '').trim().toLowerCase();
         const cAdm = (c.admissionNumber || '').trim().toLowerCase();
         if (aAdm && cAdm && aAdm === cAdm) return true;
-
-        const aReg = String((a as any).registrationNo || (a as any).registrationNumber || (a as any).rollNo || '').trim().toLowerCase();
-        const cRoll = (c.rollNumber || '').trim().toLowerCase();
-        if (aReg && cRoll && aReg === cRoll) return true;
-
-        const cName = (c.studentName || `${c.firstName || ''} ${c.lastName || ''}`).trim().toLowerCase().replace(/\s+/g, ' ');
-        const aName = ((a as any).applicantFullName || (a as any).applicantName || `${(a as any).firstName || ''} ${(a as any).lastName || ''}`).trim().toLowerCase().replace(/\s+/g, ' ');
-        if (cName && aName && cName === aName) return true;
 
         return false;
       });
@@ -186,244 +158,20 @@ export function useParentWards() {
       };
     });
 
-    // 3. Fallback: From Local Students database matches (ONLY used if apiChildren is empty)
-    const nameTokens = userName ? userName.split(/\s+/).filter((t: string) => t.length >= 3) : [];
-    const isGenericUser = ['parent', 'user', 'administrator', 'admin', 'guest'].includes(userName);
+    // Deduplicate strictly by studentId
+    const seenStudentIds = new Set<string>();
+    const uniqueWards: ParentWard[] = [];
 
-    const localStudentMatches: ParentWard[] = (students || []).filter(s => {
-      if (s.status !== 'Active') return false;
-
-      // Match by parent email
-      if (userEmail) {
-        const emails = [
-          s.email,
-          (s as any).parentEmail,
-          (s as any).fatherEmail,
-          (s as any).motherEmail,
-          (s as any).guardianEmail,
-          (s as any).contactEmail
-        ].map(e => (e || '').toLowerCase().trim()).filter(Boolean);
-
-        if (emails.includes(userEmail)) return true;
+    for (const ward of mappedApi) {
+      const key = String(ward.studentId);
+      if (!seenStudentIds.has(key)) {
+        seenStudentIds.add(key);
+        uniqueWards.push(ward);
       }
+    }
 
-      // Match by parent phone
-      if (userPhone && userPhone.length >= 7) {
-        const phones = [
-          s.fatherPhone,
-          s.motherPhone,
-          (s as any).parentPhone,
-          s.phone,
-          (s as any).mobileNumber
-        ].map(p => (p || '').replace(/\D/g, '')).filter(p => p.length >= 7);
-
-        if (phones.some(p => p.endsWith(userPhone) || userPhone.endsWith(p))) return true;
-      }
-
-      // Match by exact parent full name
-      if (userName && !isGenericUser) {
-        const parentNames = [
-          s.fatherName,
-          s.motherName,
-          (s as any).parentName,
-          (s as any).guardianName
-        ].map(n => (n || '').toLowerCase().trim()).filter(Boolean);
-
-        for (const pName of parentNames) {
-          if (pName === userName) return true;
-          if (nameTokens.length >= 2 && nameTokens.every((token: string) => pName.includes(token))) return true;
-        }
-      }
-
-      return false;
-    }).map(s => ({
-      id: String(s.id),
-      studentId: s.id,
-      admissionNo: s.admissionNo || `ADM-${s.id}`,
-      rollNo: (s as any).rollNo || `ROLL-${s.id}`,
-      firstName: s.firstName || ((s as any).studentName ? (s as any).studentName.split(' ')[0] : 'Student'),
-      lastName: s.lastName || '',
-      studentName: (s as any).studentName || `${s.firstName || ''} ${s.lastName || ''}`.trim() || 'Student',
-      className: s.className || '',
-      section: s.section || '',
-      gender: s.gender || 'Male',
-      dob: s.dob || '',
-      status: s.status || 'Active',
-      fatherName: s.fatherName,
-      motherName: s.motherName,
-      studentType: (s as any).studentType || 'Day Scholar',
-      bloodGroup: (s as any).bloodGroup,
-      boardType: (s as any).boardType,
-      casteCategory: (s as any).casteCategory,
-      address: (s as any).address
-    }));
-
-    // 4. Fallback: From Admissions database matches (cross-referenced to real Student; ONLY if apiChildren is empty)
-    const localAdmissionMatches: ParentWard[] = (admissions || []).filter(a => {
-      const statusStr = String(a.status || '');
-      if (statusStr === 'Rejected' || statusStr === 'Cancelled') return false;
-
-      // Match by parent email
-      if (userEmail) {
-        const aEmail = ((a as any).parentEmail || a.email || '').toLowerCase().trim();
-        if (aEmail && aEmail === userEmail) return true;
-      }
-
-      // Match by parent phone
-      if (userPhone && userPhone.length >= 7) {
-        const phones = [
-          a.phone,
-          (a as any).fatherMobileNo,
-          (a as any).fatherContact,
-          (a as any).alternateMobileNumber,
-          (a as any).motherMobileNumber
-        ].map(p => (p || '').replace(/\D/g, '')).filter(p => p.length >= 7);
-
-        if (phones.some(p => p.endsWith(userPhone) || userPhone.endsWith(p))) return true;
-      }
-
-      // Match by exact parent full name
-      if (userName && !isGenericUser) {
-        const pNames = [(a as any).fatherFullName, a.parentName, (a as any).motherFullName, (a as any).motherName]
-          .map(n => (n || '').toLowerCase().trim()).filter(Boolean);
-
-        for (const pName of pNames) {
-          if (pName === userName) return true;
-          if (nameTokens.length >= 2 && nameTokens.every((token: string) => pName.includes(token))) return true;
-        }
-      }
-
-      return false;
-    }).map(a => {
-      // Find matching student in students database strictly by Admission No, Roll No, or Student Name
-      // CRITICAL FIX: NEVER match by String(st.id) === String(a.id) because admission ID and student ID are independent tables
-      const matchedStudent = (students || []).find(st => {
-        const stAdm = (st.admissionNo || (st as any).admissionNumber || '').trim().toLowerCase();
-        const aAdm = (a.admissionNo || (a as any).applicationNo || (a as any).registrationNo || '').trim().toLowerCase();
-        if (stAdm && aAdm && stAdm === aAdm) return true;
-
-        const stRoll = String((st as any).rollNo || (st as any).rollNumber || '').trim().toLowerCase();
-        const aRoll = String((a as any).registrationNo || (a as any).rollNo || '').trim().toLowerCase();
-        if (stRoll && aRoll && stRoll === aRoll) return true;
-
-        const stName = ((st as any).studentName || `${st.firstName || ''} ${st.lastName || ''}`).toLowerCase().trim().replace(/\s+/g, ' ');
-        const aName = ((a as any).applicantFullName || (a as any).applicantName || `${(a as any).firstName || ''} ${(a as any).lastName || ''}`).toLowerCase().trim().replace(/\s+/g, ' ');
-        if (stName && aName && stName === aName) return true;
-
-        return false;
-      });
-
-      if (matchedStudent) {
-        return {
-          id: String(matchedStudent.id),
-          studentId: matchedStudent.id,
-          admissionNo: matchedStudent.admissionNo || a.admissionNo || (a as any).applicationNo || `ADM-${matchedStudent.id}`,
-          rollNo: (matchedStudent as any).rollNo || (a as any).registrationNo || `ROLL-${matchedStudent.id}`,
-          firstName: matchedStudent.firstName || ((matchedStudent as any).studentName ? (matchedStudent as any).studentName.split(' ')[0] : 'Student'),
-          lastName: matchedStudent.lastName || '',
-          studentName: (matchedStudent as any).studentName || `${matchedStudent.firstName || ''} ${matchedStudent.lastName || ''}`.trim() || 'Student',
-          className: matchedStudent.className || (typeof a.appliedClass === 'string' ? a.appliedClass : (a.appliedClass as any)?.className) || '',
-          section: matchedStudent.section || (a as any).section || '',
-          gender: matchedStudent.gender || a.gender || 'Male',
-          dob: matchedStudent.dob || (a as any).dateOfBirth || '',
-          status: 'Active',
-          fatherName: (matchedStudent as any).fatherName || (a as any).fatherFullName || a.parentName || '',
-          motherName: (matchedStudent as any).motherName || (a as any).motherFullName || '',
-          studentType: (matchedStudent as any).studentType || (a as any).studentType || 'Day Scholar',
-          bloodGroup: (matchedStudent as any).bloodGroup || (a as any).bloodGroup,
-          boardType: (matchedStudent as any).boardType || (a as any).boardType,
-          casteCategory: (matchedStudent as any).casteCategory || (a as any).casteCategory || (a as any).caste,
-          address: (matchedStudent as any).address || ((a as any).houseNo ? `${(a as any).houseNo} ${(a as any).street || ''} ${(a as any).areaLocality || ''} ${(a as any).city || ''}`.trim() : undefined)
-        };
-      }
-
-      return {
-        id: String(a.id),
-        studentId: a.id,
-        admissionNo: (a as any).applicationNo || (a as any).registrationNo || a.admissionNo || `ADM-${a.id}`,
-        rollNo: (a as any).registrationNo || (a as any).applicationNo || `ROLL-${a.id}`,
-        firstName: a.firstName || (a as any).applicantName?.split(' ')[0] || 'Student',
-        lastName: a.lastName || (a as any).applicantName?.split(' ').slice(1).join(' ') || '',
-        studentName: `${a.firstName || ''} ${a.lastName || ''}`.trim() || (a as any).applicantName || 'Student',
-        className: (typeof a.appliedClass === 'string' ? a.appliedClass : (a.appliedClass as any)?.className) || a.className || '',
-        section: (a as any).section || '',
-        gender: a.gender || 'Male',
-        dob: (a as any).dateOfBirth || (a as any).dob || '',
-        status: 'Active',
-        fatherName: (a as any).fatherFullName || a.parentName || '',
-        motherName: (a as any).motherFullName || a.motherName || '',
-        studentType: (a as any).studentType || 'Day Scholar',
-        bloodGroup: (a as any).bloodGroup,
-        boardType: (a as any).boardType,
-        casteCategory: (a as any).casteCategory || (a as any).caste,
-        address: (a as any).houseNo ? `${(a as any).houseNo} ${(a as any).street || ''} ${(a as any).areaLocality || ''} ${(a as any).city || ''}`.trim() : undefined
-      };
-    });
-
-    // Authoritative selection:
-    // When apiChildren has returned children from backend /api/parent/children, use mappedApi as primary.
-    // Only if apiChildren is empty (e.g. offline / API not reachable), fallback to local matching.
-    const sourceList = mappedApi.length > 0 
-      ? mappedApi 
-      : [...localStudentMatches, ...localAdmissionMatches];
-
-    // Combine and deduplicate:
-    // A child is the same if they share admissionNo, rollNo, studentId, or normalized studentName
-    const mergedList: ParentWard[] = [];
-
-    sourceList.forEach(incoming => {
-      const inAdm = (incoming.admissionNo || '').trim().toLowerCase();
-      const inRoll = (incoming.rollNo || '').trim().toLowerCase();
-      const inId = String(incoming.studentId || incoming.id || '').trim().toLowerCase();
-      const inName = (incoming.studentName || `${incoming.firstName || ''} ${incoming.lastName || ''}`)
-        .trim().toLowerCase().replace(/\s+/g, ' ');
-
-      const existingIdx = mergedList.findIndex(existing => {
-        const exAdm = (existing.admissionNo || '').trim().toLowerCase();
-        const exRoll = (existing.rollNo || '').trim().toLowerCase();
-        const exId = String(existing.studentId || existing.id || '').trim().toLowerCase();
-        const exName = (existing.studentName || `${existing.firstName || ''} ${existing.lastName || ''}`)
-          .trim().toLowerCase().replace(/\s+/g, ' ');
-
-        // 1. Same admission number
-        if (inAdm && exAdm && inAdm === exAdm) return true;
-
-        // 2. Same roll number / registration number
-        if (inRoll && exRoll && inRoll === exRoll) return true;
-
-        // 3. Same student ID
-        if (inId && exId && inId === exId) return true;
-
-        // 4. Same student name
-        if (inName && exName && inName === exName) return true;
-
-        return false;
-      });
-
-      if (existingIdx === -1) {
-        mergedList.push({ ...incoming });
-      } else {
-        // Child already present; enrich any missing details from incoming
-        const ex = mergedList[existingIdx];
-        if (!ex.bloodGroup && incoming.bloodGroup) ex.bloodGroup = incoming.bloodGroup;
-        if (!ex.boardType && incoming.boardType) ex.boardType = incoming.boardType;
-        if (!ex.studentType && incoming.studentType) ex.studentType = incoming.studentType;
-        if (!ex.casteCategory && incoming.casteCategory) ex.casteCategory = incoming.casteCategory;
-        if (!ex.dob && incoming.dob) ex.dob = incoming.dob;
-        if (!ex.className && incoming.className) ex.className = incoming.className;
-        if (!ex.section && incoming.section) ex.section = incoming.section;
-        if (!ex.fatherName && incoming.fatherName) ex.fatherName = incoming.fatherName;
-        if (!ex.motherName && incoming.motherName) ex.motherName = incoming.motherName;
-        if (!ex.address && incoming.address) ex.address = incoming.address;
-      }
-    });
-
-    const result = mergedList;
-
-        // STRICT: Return only the matched children for this parent.
-    // Never fallback to arbitrary students (students.slice(0, 4)), preventing data leaks.
-    return result;
-  }, [students, admissions, apiChildren, user?.email, user?.phone, (user as any)?.mobileNumber, user?.name, (user as any)?.fullName, user?.id, user?.role, role]);
+    return uniqueWards;
+  }, [apiChildren, students, admissions, user?.id, user?.email, user?.role, role]);
 
   return wards;
 }
