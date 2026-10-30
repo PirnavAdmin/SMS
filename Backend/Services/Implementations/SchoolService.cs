@@ -901,10 +901,93 @@ public class SchoolService : ISchoolService
 			return 100;
 		}
 
+		var allMappings = await _context.ParentStudentMappings
+			.AsNoTracking()
+			.ToListAsync();
+
+		var studentLookup = await _context.Students
+			.AsNoTracking()
+			.Select(st => new { st.StudentId, st.AdmissionNumber, st.RollNumber })
+			.ToListAsync();
+
+		var studentIdByAdmNo = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+		foreach (var st in studentLookup)
+		{
+			if (!string.IsNullOrWhiteSpace(st.AdmissionNumber))
+				studentIdByAdmNo[st.AdmissionNumber.Trim()] = st.StudentId;
+			if (!string.IsNullOrWhiteSpace(st.RollNumber))
+				studentIdByAdmNo[st.RollNumber.Trim()] = st.StudentId;
+		}
+
+		var mappingByStudentId = allMappings
+			.GroupBy(m => m.StudentId)
+			.ToDictionary(g => g.Key, g => g.OrderByDescending(m => m.Id).First());
+
+		foreach (var r in result)
+		{
+			int? targetStId = null;
+			if (r.Id > 100000)
+			{
+				targetStId = r.Id - 100000;
+			}
+			else
+			{
+				if (!string.IsNullOrWhiteSpace(r.RegistrationNo) && studentIdByAdmNo.TryGetValue(r.RegistrationNo.Trim(), out var sid1))
+					targetStId = sid1;
+				else if (!string.IsNullOrWhiteSpace(r.AdmissionNo) && studentIdByAdmNo.TryGetValue(r.AdmissionNo.Trim(), out var sid2))
+					targetStId = sid2;
+			}
+
+			if (targetStId.HasValue && mappingByStudentId.TryGetValue(targetStId.Value, out var mapping))
+			{
+				r.ParentEmailStatus = mapping.OnboardingStatus;
+				r.ParentEmailFailureReason = mapping.EmailFailureReason;
+				r.WelcomeEmailSentAt = mapping.WelcomeEmailSentAt;
+				r.HasParentAccount = mapping.ParentUserId > 0;
+			}
+		}
+
 		return result.OrderBy(r => string.Equals(r.Status, "Enrolled", StringComparison.OrdinalIgnoreCase) || string.Equals(r.Status, "Admitted", StringComparison.OrdinalIgnoreCase) || string.Equals(r.Status, "Active", StringComparison.OrdinalIgnoreCase) ? 1 : 0)
 					 .ThenBy(r => GetClassSortWeight(r.AppliedClassGrade))
 					 .ThenBy(r => r.StudentName)
 					 .ToList();
+	}
+
+	private async Task PopulateParentOnboardingStatusAsync(AdmissionApplicationResponseDto? resp)
+	{
+		if (resp == null) return;
+		int? studentId = null;
+		if (resp.Id > 100000)
+		{
+			studentId = resp.Id - 100000;
+		}
+		else
+		{
+			var reg = !string.IsNullOrWhiteSpace(resp.RegistrationNo) ? resp.RegistrationNo.Trim() : null;
+			var adm = !string.IsNullOrWhiteSpace(resp.AdmissionNo) ? resp.AdmissionNo.Trim() : null;
+			var st = await _context.Students.AsNoTracking().FirstOrDefaultAsync(s =>
+				(!string.IsNullOrEmpty(reg) && (s.AdmissionNumber == reg || s.RollNumber == reg)) ||
+				(!string.IsNullOrEmpty(adm) && (s.AdmissionNumber == adm || s.RollNumber == adm)));
+			if (st != null)
+			{
+				studentId = st.StudentId;
+			}
+		}
+
+		if (studentId.HasValue)
+		{
+			var mapping = await _context.ParentStudentMappings.AsNoTracking()
+				.OrderByDescending(m => m.Id)
+				.FirstOrDefaultAsync(m => m.StudentId == studentId.Value);
+
+			if (mapping != null)
+			{
+				resp.ParentEmailStatus = mapping.OnboardingStatus;
+				resp.ParentEmailFailureReason = mapping.EmailFailureReason;
+				resp.WelcomeEmailSentAt = mapping.WelcomeEmailSentAt;
+				resp.HasParentAccount = mapping.ParentUserId > 0;
+			}
+		}
 	}
 
 	public async Task<AdmissionApplicationResponseDto> GetApplicationByIdAsync(int id)
@@ -921,6 +1004,7 @@ public class SchoolService : ISchoolService
 					resp.Section = adm.SectionLetter;
 				}
 			}
+			await PopulateParentOnboardingStatusAsync(resp);
 			return resp;
 		}
 
@@ -941,7 +1025,7 @@ public class SchoolService : ISchoolService
 			var fName = nameParts.Length > 0 ? nameParts[0] : (s.StudentName ?? "");
 			var lName = nameParts.Length > 1 ? string.Join(" ", nameParts.Skip(1)) : "";
 
-			return new AdmissionApplicationResponseDto
+			var stResp = new AdmissionApplicationResponseDto
 			{
 				Id = id,
 				RegistrationNo = regNo,
@@ -966,6 +1050,8 @@ public class SchoolService : ISchoolService
 				Status = !string.IsNullOrWhiteSpace(s.Status) ? s.Status : (adm?.Status ?? "Enrolled"),
 				CreatedAt = s.CreatedAt
 			};
+			await PopulateParentOnboardingStatusAsync(stResp);
+			return stResp;
 		}
 
 		throw new NotFoundException($"Admission application with ID '{id}' not found.");
@@ -987,6 +1073,7 @@ public class SchoolService : ISchoolService
 					resp.Section = adm.SectionLetter;
 				}
 			}
+			await PopulateParentOnboardingStatusAsync(resp);
 			return resp;
 		}
 
@@ -1023,20 +1110,42 @@ public class SchoolService : ISchoolService
 			app.IsDeleted = true;
 			await _schoolRepository.SaveChangesAsync();
 			await SyncToAdmissionsTableAsync(app, isDeleted: true);
+
+			var matchingStudents = await _context.Students
+				.Where(s => (!string.IsNullOrEmpty(app.AdmissionNo) && s.AdmissionNumber == app.AdmissionNo) ||
+							(!string.IsNullOrEmpty(app.RegistrationNo) && s.AdmissionNumber == app.RegistrationNo) ||
+							s.StudentId == app.Id)
+				.ToListAsync();
+
+			var targetStudentIds = matchingStudents.Select(s => s.StudentId.ToString()).ToHashSet();
+			if (!string.IsNullOrEmpty(app.AdmissionNo)) targetStudentIds.Add(app.AdmissionNo);
+			if (!string.IsNullOrEmpty(app.RegistrationNo)) targetStudentIds.Add(app.RegistrationNo);
+			targetStudentIds.Add(app.Id.ToString());
+
+			foreach (var st in matchingStudents)
+			{
+				st.IsDeleted = true;
+				st.Status = "Inactive";
+				st.UpdatedAt = DateTime.UtcNow;
+			}
+
+			var targetAssignments = await _context.StudentFeeAssignments
+				.Where(a => targetStudentIds.Contains(a.StudentId))
+				.ToListAsync();
+
+			foreach (var asg in targetAssignments)
+			{
+				asg.Status = "Inactive";
+			}
+
+			await _context.SaveChangesAsync();
 			return true;
 		}
 
 		if (id > 100000)
 		{
 			int studentId = id - 100000;
-			var st = await _context.Students.FindAsync(studentId);
-			if (st != null)
-			{
-				st.IsDeleted = true;
-				st.Status = "Inactive";
-				await _context.SaveChangesAsync();
-				return true;
-			}
+			return await DeleteStudentAsync(studentId);
 		}
 
 		return true;
@@ -1143,6 +1252,194 @@ public class SchoolService : ISchoolService
 		await _schoolRepository.SaveChangesAsync();
 		await SyncToAdmissionsTableAsync(app);
 		return app.AdmissionNo;
+	}
+
+	public async Task<EmailDeliveryResultDto> ResendParentWelcomeEmailAsync(string identifier)
+	{
+		if (string.IsNullOrWhiteSpace(identifier))
+		{
+			return new EmailDeliveryResultDto
+			{
+				Success = false,
+				ErrorMessage = "Invalid student or application identifier."
+			};
+		}
+
+		// 1. Locate student or application
+		Student? targetStudent = null;
+		AdmissionApplication? targetApp = null;
+
+		if (int.TryParse(identifier, out var parsedId))
+		{
+			if (parsedId > 100000)
+			{
+				int studentId = parsedId - 100000;
+				targetStudent = await _context.Students.Include(s => s.Branch).FirstOrDefaultAsync(s => s.StudentId == studentId);
+			}
+			else
+			{
+				targetApp = await _schoolRepository.GetApplicationByIdAsync(parsedId);
+			}
+		}
+
+		if (targetStudent == null && targetApp == null)
+		{
+			targetApp = await _schoolRepository.GetApplicationByIdentifierAsync(identifier);
+		}
+
+		if (targetStudent == null && targetApp != null)
+		{
+			var regNo = targetApp.RegistrationNo;
+			var admNo = targetApp.AdmissionNo;
+			targetStudent = await _context.Students.Include(s => s.Branch).FirstOrDefaultAsync(s =>
+				(!string.IsNullOrWhiteSpace(regNo) && s.AdmissionNumber == regNo) ||
+				(!string.IsNullOrWhiteSpace(admNo) && s.AdmissionNumber == admNo) ||
+				(!string.IsNullOrWhiteSpace(regNo) && s.RollNumber == regNo));
+		}
+
+		if (targetStudent == null)
+		{
+			targetStudent = await _context.Students.Include(s => s.Branch).FirstOrDefaultAsync(s =>
+				s.AdmissionNumber == identifier ||
+				s.RollNumber == identifier);
+		}
+
+		if (targetStudent == null)
+		{
+			return new EmailDeliveryResultDto
+			{
+				Success = false,
+				ErrorMessage = $"Enrolled student matching identifier '{identifier}' was not found in the database."
+			};
+		}
+
+		// 2. Resolve parent contact & email
+		var parentEmail = !string.IsNullOrWhiteSpace(targetApp?.ParentEmail)
+			? targetApp.ParentEmail.Trim()
+			: (!string.IsNullOrWhiteSpace(targetStudent.Email) && targetStudent.Email.Contains('@') && !targetStudent.Email.EndsWith(".internal") ? targetStudent.Email.Trim() : null);
+
+		var parentMobile = !string.IsNullOrWhiteSpace(targetApp?.FatherContact)
+			? targetApp.FatherContact.Trim()
+			: (!string.IsNullOrWhiteSpace(targetStudent.FatherMobile) ? targetStudent.FatherMobile.Trim() : targetStudent.MobileNumber);
+
+		var parentFullName = !string.IsNullOrWhiteSpace(targetApp?.FatherName)
+			? targetApp.FatherName.Trim()
+			: (!string.IsNullOrWhiteSpace(targetStudent.FatherName) ? targetStudent.FatherName.Trim() : (!string.IsNullOrWhiteSpace(targetStudent.MotherName) ? targetStudent.MotherName.Trim() : "Parent / Guardian"));
+
+		if (string.IsNullOrWhiteSpace(parentEmail) || !parentEmail.Contains('@'))
+		{
+			return new EmailDeliveryResultDto
+			{
+				Success = false,
+				ErrorMessage = $"No valid registered email address found for the parent of student '{targetStudent.StudentName}'. Please update the email address first."
+			};
+		}
+
+		var normEmail = parentEmail.ToLowerInvariant();
+
+		// 3. Resolve or create parent user
+		var existingParentUser = await _context.Users.Include(u => u.Roles).FirstOrDefaultAsync(u =>
+			(!string.IsNullOrWhiteSpace(normEmail) && u.Email != null && u.Email.ToLower() == normEmail) ||
+			(!string.IsNullOrWhiteSpace(parentMobile) && u.MobileNumber == parentMobile && (u.Role == "Parent" || u.Role == "Parent / Guardian")));
+
+		bool isNewAccount = false;
+		if (existingParentUser == null)
+		{
+			isNewAccount = true;
+			var parentRole = await _context.Roles.FirstOrDefaultAsync(r => r.RoleName == "Parent");
+			var initialPassword = normEmail;
+			var newParentUser = new User
+			{
+				FullName = parentFullName,
+				Email = parentEmail,
+				MobileNumber = !string.IsNullOrWhiteSpace(parentMobile) ? parentMobile : $"PAR-{DateTime.UtcNow.Ticks}",
+				PasswordHash = BCrypt.Net.BCrypt.HashPassword(initialPassword),
+				Role = "Parent",
+				IsEmailVerified = true,
+				IsMobileVerified = true,
+				CreatedAt = DateTime.UtcNow,
+				SchoolId = null
+			};
+
+			if (parentRole != null)
+			{
+				newParentUser.Roles.Add(parentRole);
+			}
+
+			await _context.Users.AddAsync(newParentUser);
+			await _context.SaveChangesAsync();
+			existingParentUser = newParentUser;
+		}
+
+		// 4. Resolve or create parent-student mapping
+		var existingMapping = await _context.ParentStudentMappings.FirstOrDefaultAsync(
+			m => m.ParentUserId == existingParentUser.UserId && m.StudentId == targetStudent.StudentId);
+
+		string relationshipType = !string.IsNullOrWhiteSpace(targetApp?.FatherName) ? "Father" : (!string.IsNullOrWhiteSpace(targetApp?.MotherName) ? "Mother" : "Guardian");
+
+		if (existingMapping == null)
+		{
+			existingMapping = new ParentStudentMapping
+			{
+				ParentUserId = existingParentUser.UserId,
+				StudentId = targetStudent.StudentId,
+				RelationshipType = relationshipType,
+				IsPrimaryContact = true,
+				Status = "Active",
+				BranchId = targetStudent.BranchId,
+				AcademicYearId = targetStudent.AcademicYearId,
+				OnboardingStatus = "Account Ready",
+				CreatedAt = DateTime.UtcNow,
+				UpdatedAt = DateTime.UtcNow
+			};
+			await _context.ParentStudentMappings.AddAsync(existingMapping);
+			await _context.SaveChangesAsync();
+		}
+
+		// 5. Determine school name
+		var schoolName = "Pirnav School";
+		if (targetStudent.Branch != null && !string.IsNullOrWhiteSpace(targetStudent.Branch.BranchName))
+		{
+			schoolName = targetStudent.Branch.BranchName;
+		}
+		else if (targetStudent.BranchId > 0)
+		{
+			var branch = await _context.Branches.FirstOrDefaultAsync(b => b.BranchId == targetStudent.BranchId);
+			if (branch != null && !string.IsNullOrWhiteSpace(branch.BranchName))
+			{
+				schoolName = branch.BranchName;
+			}
+		}
+
+		// 6. Send email
+		var initialPassText = isNewAccount ? parentEmail : "Your existing password";
+		var emailResult = await _emailNotificationService.SendParentWelcomeEmailWithResultAsync(
+			parentEmail: parentEmail,
+			parentName: parentFullName,
+			studentName: targetStudent.StudentName,
+			admissionNo: targetStudent.AdmissionNumber ?? targetApp?.AdmissionNo ?? "N/A",
+			loginEmail: parentEmail,
+			initialPassword: initialPassText,
+			isNewAccount: isNewAccount,
+			portalUrl: null,
+			schoolName: schoolName);
+
+		// 7. Update status in database
+		if (emailResult.Success)
+		{
+			existingMapping.OnboardingStatus = "Email Sent";
+			existingMapping.WelcomeEmailSentAt = emailResult.SentAt ?? DateTime.UtcNow;
+			existingMapping.EmailFailureReason = null;
+		}
+		else
+		{
+			existingMapping.OnboardingStatus = "Email Failed";
+			existingMapping.EmailFailureReason = emailResult.ErrorMessage ?? "SMTP delivery unconfirmed.";
+		}
+		existingMapping.UpdatedAt = DateTime.UtcNow;
+		await _context.SaveChangesAsync();
+
+		return emailResult;
 	}
 
 	public async Task<bool> UpdateApplicationStatusAsync(int id, string status)
@@ -1950,10 +2247,9 @@ public class SchoolService : ISchoolService
 														schoolName = branch.BranchName;
 													}
 
-													var portalUrl = "http://localhost:5173/login";
 													var initialPassText = isNewAccount ? parentEmail : "Your existing password";
 
-													var emailSent = await _emailNotificationService.SendParentWelcomeEmailAsync(
+													var emailResult = await _emailNotificationService.SendParentWelcomeEmailWithResultAsync(
 														parentEmail: parentEmail,
 														parentName: parentFullName,
 														studentName: targetStudent.StudentName,
@@ -1961,19 +2257,19 @@ public class SchoolService : ISchoolService
 														loginEmail: parentEmail,
 														initialPassword: initialPassText,
 														isNewAccount: isNewAccount,
-														portalUrl: portalUrl,
+														portalUrl: null,
 														schoolName: schoolName);
 
-													if (emailSent)
+													if (emailResult.Success)
 													{
 														existingMapping.OnboardingStatus = "Email Sent";
-														existingMapping.WelcomeEmailSentAt = DateTime.UtcNow;
+														existingMapping.WelcomeEmailSentAt = emailResult.SentAt ?? DateTime.UtcNow;
 														existingMapping.EmailFailureReason = null;
 													}
 													else
 													{
 														existingMapping.OnboardingStatus = "Email Failed";
-														existingMapping.EmailFailureReason = "SMTP service delivery unconfirmed.";
+														existingMapping.EmailFailureReason = emailResult.ErrorMessage ?? "SMTP delivery unconfirmed.";
 													}
 													await _context.SaveChangesAsync();
 												}
@@ -2976,26 +3272,39 @@ public class SchoolService : ISchoolService
 		student.Status = "Inactive";
 		student.UpdatedAt = DateTime.UtcNow;
 
+		var studentIdStr = student.StudentId.ToString();
+		var admNo = student.AdmissionNumber ?? "";
+
+		var targetAssignments = await _context.StudentFeeAssignments
+			.Where(a => a.StudentId == studentIdStr || (!string.IsNullOrEmpty(admNo) && a.StudentId == admNo))
+			.ToListAsync();
+
+		foreach (var asg in targetAssignments)
+		{
+			asg.Status = "Inactive";
+		}
+
 		if (!string.IsNullOrWhiteSpace(student.AdmissionNumber))
 		{
-			var app = await Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions.FirstOrDefaultAsync(
-				_context.AdmissionApplications, a => a.RegistrationNo == student.AdmissionNumber);
-			if (app != null)
+			var apps = await Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions.ToListAsync(
+				_context.AdmissionApplications.Where(a => a.RegistrationNo == student.AdmissionNumber || a.AdmissionNo == student.AdmissionNumber || a.Id == studentId));
+			foreach (var a in apps)
 			{
-				app.Status = "Deleted";
-				app.IsDeleted = true;
+				a.Status = "Deleted";
+				a.IsDeleted = true;
 			}
 
-			var admission = await Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions.FirstOrDefaultAsync(
-				_context.Admissions, a => a.ApplicationNo == student.AdmissionNumber);
-			if (admission != null)
+			var admissions = await Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions.ToListAsync(
+				_context.Admissions.Where(a => a.ApplicationNo == student.AdmissionNumber));
+			foreach (var adm in admissions)
 			{
-				admission.Status = "Deleted";
-				admission.IsDeleted = true;
+				adm.Status = "Deleted";
+				adm.IsDeleted = true;
 			}
 		}
 
 		await _schoolRepository.SaveChangesAsync();
+		await _context.SaveChangesAsync();
 		return true;
 	}
 

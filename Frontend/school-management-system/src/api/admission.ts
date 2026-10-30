@@ -50,3 +50,10 @@ export const updateAdmissionStatusApi = async (idOrRegNo: string | number, statu
     body: JSON.stringify({ status })
   });
 };
+
+
+export const resendParentWelcomeEmailApi = async (idOrRegNo: string | number) => {
+  return apiClient(`/api/admissions/${idOrRegNo}/resend-welcome-email`, {
+    method: 'POST'
+  });
+};

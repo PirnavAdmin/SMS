@@ -1,6 +1,7 @@
 namespace SMS.Api.Services.Interfaces;
 
 using System.Threading.Tasks;
+using SMS.Api.Dtos;
 
 public interface IEmailNotificationService
 {
@@ -13,6 +14,17 @@ public interface IEmailNotificationService
         string? portalUrl = null);
 
     Task<bool> SendParentWelcomeEmailAsync(
+        string parentEmail,
+        string parentName,
+        string studentName,
+        string admissionNo,
+        string loginEmail,
+        string initialPassword,
+        bool isNewAccount,
+        string? portalUrl = null,
+        string? schoolName = null);
+
+    Task<EmailDeliveryResultDto> SendParentWelcomeEmailWithResultAsync(
         string parentEmail,
         string parentName,
         string studentName,

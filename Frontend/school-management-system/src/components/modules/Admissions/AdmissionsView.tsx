@@ -38,6 +38,8 @@ import {
   ChevronDown,
   FileText,
   AlertCircle,
+  MailCheck,
+  Send,
   ShieldCheck,
   CreditCard,
 } from "lucide-react";
@@ -284,6 +286,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
     updateAdmission,
     deleteAdmission,
     updateAdmissionStatus,
+    resendParentWelcomeEmail,
     fetchStudents,
     students,
     routeMasters,
@@ -459,6 +462,24 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
     status: AdmissionApplication["status"];
   } | null>(null);
   const [isStatusUpdateLoading, setIsStatusUpdateLoading] = useState(false);
+  const [resendingEmailAppId, setResendingEmailAppId] = useState<number | string | null>(null);
+
+  const handleResendEmail = async (app: any) => {
+    if (!app || !app.id) return;
+    setResendingEmailAppId(app.id);
+    try {
+      const res = await resendParentWelcomeEmail(app.id);
+      if (res && res.success) {
+        addToast("success", "Welcome Email Delivered", Credentials successfully emailed to .);
+      } else {
+        addToast("error", "Email Delivery Failed", res?.message || res?.failureReason || "Could not deliver email.");
+      }
+    } catch (err: any) {
+      addToast("error", "Email Failed", err?.message || "Failed to deliver welcome email.");
+    } finally {
+      setResendingEmailAppId(null);
+    }
+  };
   const [isSubmittingForm, setIsSubmittingForm] = useState(false);
   const [feeSummaryStudentId, setFeeSummaryStudentId] = useState<string | null>(
     null,
@@ -5557,10 +5578,55 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
 
                         {/* Strict Status Options */}
                         {app.status === "Enrolled" || app.status === "Active" || app.status === "Admitted" ? (
-                          <span className="px-3 py-1 rounded-xl bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 font-extrabold text-xs flex items-center gap-1">
-                            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />{" "}
-                            Enrolled
-                          </span>
+                          <div className="flex flex-col items-center gap-1">
+                            <div className="flex items-center gap-1.5 flex-wrap justify-center">
+                              <span className="px-2.5 py-1 rounded-xl bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 font-extrabold text-[11px] flex items-center gap-1 shadow-2xs">
+                                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />{" "}
+                                Enrolled
+                              </span>
+
+                              {/* Parent Welcome Email Status Indicator & Resend Action */}
+                              {((app as any).parentEmailStatus === "Email Sent" || (app as any).welcomeEmailSentAt) ? (
+                                <span
+                                  className="px-2 py-0.5 rounded-lg bg-teal-50 text-teal-700 dark:bg-teal-950/80 dark:text-teal-300 border border-teal-200 dark:border-teal-800 text-[10px] font-bold flex items-center gap-1"
+                                  title={Welcome email sent}
+                                >
+                                  <MailCheck className="w-3 h-3 text-teal-600 dark:text-teal-400" />
+                                  Email Sent
+                                </span>
+                              ) : ((app as any).parentEmailStatus === "Email Failed" || (app as any).parentEmailFailureReason) ? (
+                                <button
+                                  type="button"
+                                  disabled={resendingEmailAppId === app.id}
+                                  onClick={() => handleResendEmail(app)}
+                                  className="px-2 py-0.5 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700 dark:bg-rose-950/80 dark:hover:bg-rose-900 dark:text-rose-300 border border-rose-200 dark:border-rose-800 text-[10px] font-bold flex items-center gap-1 transition-all cursor-pointer disabled:opacity-50"
+                                  title={(app as any).parentEmailFailureReason ? Email failed: . Click to retry. : "Email delivery failed. Click to retry."}
+                                >
+                                  {resendingEmailAppId === app.id ? (
+                                    <Loader2 className="w-3 h-3 animate-spin text-rose-600" />
+                                  ) : (
+                                    <AlertCircle className="w-3 h-3 text-rose-600 dark:text-rose-400" />
+                                  )}
+                                  Retry Email
+                                </button>
+                              ) : (
+                                <button
+                                  type="button"
+                                  disabled={resendingEmailAppId === app.id}
+                                  onClick={() => handleResendEmail(app)}
+                                  className="px-2 py-0.5 rounded-lg bg-sky-50 hover:bg-sky-100 text-sky-700 dark:bg-sky-950/80 dark:hover:bg-sky-900 dark:text-sky-300 border border-sky-200 dark:border-sky-800 text-[10px] font-bold flex items-center gap-1 transition-all cursor-pointer disabled:opacity-50"
+                                  title="Send Parent Portal welcome credentials email"
+                                >
+                                  {resendingEmailAppId === app.id ? (
+                                    <Loader2 className="w-3 h-3 animate-spin text-sky-600" />
+                                  ) : (
+                                    <Send className="w-3 h-3 text-sky-600 dark:text-sky-400" />
+                                  )}
+                                  Send Email
+                                </button>
+                              )}
+                            </div>
+                          </div>
                         ) : app.status === "Rejected" ? (
                           <span className="px-3 py-1 rounded-xl bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300 font-extrabold text-xs flex items-center gap-1">
                             <XCircle className="w-3.5 h-3.5 text-rose-600 dark:text-rose-400" />{" "}
@@ -5817,6 +5883,78 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                     )}
                   </div>
                 </div>
+
+                {/* Parent Portal & Welcome Email Credentials (Enrolled Students) */}
+                {selectedAppForView.status === "Enrolled" && (
+                  <div className="md:col-span-2 bg-white dark:bg-slate-850 p-4 rounded-2xl border border-sky-200 dark:border-sky-800/60 shadow-xs space-y-3">
+                    <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-700/60">
+                      <div className="flex items-center gap-2">
+                        <ShieldCheck className="w-4 h-4 text-sky-600 dark:text-sky-400" />
+                        <h4 className="text-xs font-bold uppercase tracking-wider text-slate-800 dark:text-slate-200">
+                          Parent Portal Credentials & Welcome Email
+                        </h4>
+                      </div>
+                      <button
+                        type="button"
+                        disabled={resendingEmailAppId === selectedAppForView.id}
+                        onClick={() => handleResendEmail(selectedAppForView)}
+                        className="px-3 py-1.5 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs shadow-xs flex items-center gap-1.5 transition-all cursor-pointer disabled:opacity-50"
+                      >
+                        {resendingEmailAppId === selectedAppForView.id ? (
+                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        ) : (
+                          <Mail className="w-3.5 h-3.5" />
+                        )}
+                        Resend Welcome Email
+                      </button>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                      <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-700/50">
+                        <p className="text-[10px] uppercase font-bold text-slate-400 tracking-wider mb-1">
+                          Login Username
+                        </p>
+                        <p className="text-xs font-bold text-slate-800 dark:text-slate-200 truncate font-mono">
+                          {(selectedAppForView as any).parentEmail || selectedAppForView.email || "N/A"}
+                        </p>
+                      </div>
+
+                      <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-700/50">
+                        <p className="text-[10px] uppercase font-bold text-slate-400 tracking-wider mb-1">
+                          Portal Account
+                        </p>
+                        <span className="px-2 py-0.5 rounded-lg bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 font-bold text-xs inline-flex items-center gap-1">
+                          <CheckCircle2 className="w-3 h-3 text-emerald-600 dark:text-emerald-400" /> Active
+                        </span>
+                      </div>
+
+                      <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-700/50">
+                        <p className="text-[10px] uppercase font-bold text-slate-400 tracking-wider mb-1">
+                          Email Delivery Status
+                        </p>
+                        {((selectedAppForView as any).parentEmailStatus === "Email Sent" || (selectedAppForView as any).welcomeEmailSentAt) ? (
+                          <span className="px-2 py-0.5 rounded-lg bg-teal-100 text-teal-800 dark:bg-teal-950 dark:text-teal-300 font-bold text-xs inline-flex items-center gap-1">
+                            <MailCheck className="w-3 h-3 text-teal-600" /> Delivered
+                          </span>
+                        ) : ((selectedAppForView as any).parentEmailStatus === "Email Failed" || (selectedAppForView as any).parentEmailFailureReason) ? (
+                          <span className="px-2 py-0.5 rounded-lg bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300 font-bold text-xs inline-flex items-center gap-1" title={(selectedAppForView as any).parentEmailFailureReason}>
+                            <AlertCircle className="w-3 h-3 text-rose-600" /> Delivery Deferred
+                          </span>
+                        ) : (
+                          <span className="px-2 py-0.5 rounded-lg bg-sky-100 text-sky-800 dark:bg-sky-950 dark:text-sky-300 font-bold text-xs inline-flex items-center gap-1">
+                            Pending
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    {(selectedAppForView as any).parentEmailFailureReason && (
+                      <div className="p-2.5 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/60 text-amber-800 dark:text-amber-300 text-[11px]">
+                        <strong>Notice:</strong> {(selectedAppForView as any).parentEmailFailureReason}
+                      </div>
+                    )}
+                  </div>
+                )}
 
                 {/* 3. Transport & Accommodation */}
                 <div className="bg-white dark:bg-slate-850 p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-3">

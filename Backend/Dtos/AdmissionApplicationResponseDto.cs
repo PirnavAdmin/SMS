@@ -154,5 +154,17 @@ public class AdmissionApplicationResponseDto
 
     public string Status { get; set; } = string.Empty;
 
+    [JsonPropertyName("parentEmailStatus")]
+    public string? ParentEmailStatus { get; set; }
+
+    [JsonPropertyName("parentEmailFailureReason")]
+    public string? ParentEmailFailureReason { get; set; }
+
+    [JsonPropertyName("welcomeEmailSentAt")]
+    public DateTime? WelcomeEmailSentAt { get; set; }
+
+    [JsonPropertyName("hasParentAccount")]
+    public bool HasParentAccount { get; set; }
+
     public DateTime? CreatedAt { get; set; }
 }
