@@ -239,10 +239,11 @@ const MainLayout: React.FC = () => {
       }
     } else {
       if (!prevAuthenticated.current) {
-        // Fresh login: always reflect dashboard and clean up hash if #login
-        setActiveModuleState("dashboard");
+        const resumeMod = localStorage.getItem("session_resume_module") || localStorage.getItem("active_module");
+        const targetMod = (resumeMod && resumeMod !== "dashboard") ? resumeMod : "dashboard";
+        setActiveModuleState(targetMod);
         try {
-          localStorage.setItem("active_module", "dashboard");
+          localStorage.setItem("active_module", targetMod);
           localStorage.removeItem("session_resume_module");
           if (window.location.hash === "#login") {
             window.history.replaceState(null, "", window.location.pathname + window.location.search);

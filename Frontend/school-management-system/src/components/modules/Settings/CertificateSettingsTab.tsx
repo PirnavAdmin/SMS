@@ -334,7 +334,23 @@ export const CertificateSettingsTab: React.FC = () => {
     return rawMatch ? rawMatch[0] : currentYearStr;
   }, [activeAY, currentYearStr]);
 
-  const [activeSubSection, setActiveSubSection] = useState<'types' | 'templates' | 'numbering' | 'fields' | 'signatures'>('types');
+  const [activeSubSection, setActiveSubSectionState] = useState<'types' | 'templates' | 'numbering' | 'fields' | 'signatures'>(() => {
+    try {
+      const saved = localStorage.getItem('certificate_settings_active_sub_section');
+      const valid = ['types', 'templates', 'numbering', 'fields', 'signatures'];
+      if (saved && valid.includes(saved)) {
+        return saved as any;
+      }
+    } catch {}
+    return 'types';
+  });
+
+  const setActiveSubSection = (sub: 'types' | 'templates' | 'numbering' | 'fields' | 'signatures') => {
+    setActiveSubSectionState(sub);
+    try {
+      localStorage.setItem('certificate_settings_active_sub_section', sub);
+    } catch {}
+  };
 
   // Certificate Types State (loaded and synced from Backend DB)
   const [types, setTypes] = useState<CertificateTypeConfig[]>(INITIAL_CERTIFICATE_TYPES);

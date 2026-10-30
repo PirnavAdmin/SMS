@@ -10,9 +10,25 @@ export function initSafeStorage() {
     "auth_token",
     "sms_auth_token",
     "token",
+    "auth_token_timestamp",
     "sidebar_collapsed",
     "theme",
-    "color_theme"
+    "color_theme",
+    "active_module",
+    "session_resume_module",
+    "session_timeout_occurred",
+    "settings_active_tab",
+    "certificate_settings_active_sub_section",
+    "certificates_view_active_tab",
+    "active_selected_class_id",
+    "active_class_tab",
+    "training_active_tab",
+    "staff_attendance_active_tab",
+    "selected_branch",
+    "selected_academic_year",
+    "remember_me",
+    "remember_me_identifier",
+    "remember_me_password"
   ]);
 
   // Redundant duplicate keys that can always be cleaned up
