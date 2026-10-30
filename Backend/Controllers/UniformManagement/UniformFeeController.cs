@@ -14,6 +14,7 @@ using System.Threading.Tasks;
 [ApiController]
 [Route("api/uniform/fee-configs")]
 [Route("api/finance/uniform-fee")]
+[Route("api/finance/uniform-fees")]
 [Route("api/uniform-fee")]
 [Route("api/uniform/fees")]
 [AllowAnonymous]

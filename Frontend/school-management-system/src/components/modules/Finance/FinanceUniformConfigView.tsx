@@ -37,7 +37,6 @@ export const FinanceUniformConfigView: React.FC = () => {
 
   const [form, setForm] = useState<Partial<FinanceUniformConfig>>({
     academicYear: selectedAcademicYear || financeSettings.academicYear || '',
-    academicYear: selectedAcademicYear || financeSettings.academicYear || '2026-2027',
     branch: selectedBranch || '',
     className: '',
     gender: '',
@@ -47,6 +46,13 @@ export const FinanceUniformConfigView: React.FC = () => {
     effectiveFrom: new Date().toISOString().split('T')[0],
     status: 'Active'
   });
+
+  const availableClasses = React.useMemo(() => {
+    if (academicClasses && academicClasses.length > 0) {
+      return academicClasses.map(c => c.name);
+    }
+    return ['Nursery', 'LKG', 'UKG', ...Array.from({ length: 12 }, (_, i) => `Class ${i + 1}`)];
+  }, [academicClasses]);
 
   const fabricSizeOptions = React.useMemo(() => {
     return [
@@ -105,6 +111,31 @@ export const FinanceUniformConfigView: React.FC = () => {
     const basePackagesMap = new Map<string, { name: string; defaultGender?: string }>();
     const additionalItemsMap = new Map<string, { name: string; defaultGender?: string }>();
 
+    // Standard baseline packages
+    basePackagesMap.set('boys base package (admission kit)', { name: 'Boys Base Package (Admission Kit)', defaultGender: 'Male' });
+    basePackagesMap.set('girls base package (admission kit)', { name: 'Girls Base Package (Admission Kit)', defaultGender: 'Female' });
+    basePackagesMap.set('uniform base package (admission kit)', { name: 'Uniform Base Package (Admission Kit)', defaultGender: 'Unisex' });
+
+    // Standard uniform additional items catalog
+    const standardCatalog = [
+      { name: 'Shirt', gender: 'Unisex' },
+      { name: 'Trouser / Pants', gender: 'Male' },
+      { name: 'Skirt', gender: 'Female' },
+      { name: 'Blazer (Winter)', gender: 'Unisex' },
+      { name: 'Black Shoes (Pair)', gender: 'Unisex' },
+      { name: 'Sports Shoe', gender: 'Unisex' },
+      { name: 'Socks (Pair)', gender: 'Unisex' },
+      { name: 'Tie & Belt Set', gender: 'Unisex' },
+      { name: 'Tie', gender: 'Unisex' },
+      { name: 'Belt', gender: 'Unisex' },
+      { name: 'Sports T-Shirt', gender: 'Unisex' },
+      { name: 'Track Pants', gender: 'Unisex' },
+      { name: 'Cloth Fabric', gender: 'Unisex' },
+    ];
+    standardCatalog.forEach(item => {
+      additionalItemsMap.set(item.name.toLowerCase().trim(), { name: item.name, defaultGender: item.gender });
+    });
+
     // 1. Process all categories explicitly defined by user in Categories tab (uniformCategories)
     (uniformCategories || []).forEach(cat => {
       const rawName = typeof cat === 'string' ? cat : (cat.name || (cat as any).categoryName || '');
@@ -116,11 +147,11 @@ export const FinanceUniformConfigView: React.FC = () => {
       if (lower.includes('boy')) gen = 'Male';
       if (lower.includes('girl')) gen = 'Female';
 
-      // Only Cloth/fabric category from uniformCategories goes to Base Package
+      // Cloth/fabric category from uniformCategories can also be configured under Base Package
       if (lower.includes('cloth') || lower.includes('fabric') || lower.includes('unstitched')) {
         basePackagesMap.set(lower, { name: rawName, defaultGender: gen });
+        additionalItemsMap.set(lower, { name: rawName, defaultGender: gen });
       } else {
-        // The remaining 14 categories go to Additional Purchase
         additionalItemsMap.set(lower, { name: rawName, defaultGender: gen });
       }
     });
@@ -132,14 +163,12 @@ export const FinanceUniformConfigView: React.FC = () => {
       if (!rawName) return;
       const lower = rawName.toLowerCase().trim();
 
-      // STRICTLY EXCLUDE generic standalone "Uniform Package" or "Package"
       if (lower === 'uniform package' || lower === 'package') return;
 
       let gen: 'Male' | 'Female' | 'Unisex' = (u.gender as any) || 'Unisex';
       if (lower.includes('boy')) gen = 'Male';
       if (lower.includes('girl')) gen = 'Female';
 
-      // Check if it's a valid configured package (Boys/Girls Admission Kit package or u.isPackage created by admin)
       const isConfiguredPackage = u.isPackage ||
         lower.includes('boys uniform package') ||
         lower.includes('girls uniform package') ||
@@ -147,18 +176,8 @@ export const FinanceUniformConfigView: React.FC = () => {
 
       if (isConfiguredPackage) {
         basePackagesMap.set(lower, { name: rawName, defaultGender: gen });
-        additionalItemsMap.delete(lower);
       } else {
-        // For additional items, ONLY include if its name matches one of the user's configured categories in uniformCategories
-        const matchesUserCategory = (uniformCategories || []).some(cat => {
-          const cName = typeof cat === 'string' ? cat : (cat.name || (cat as any).categoryName || '');
-          const cLower = (cName || '').toLowerCase().trim();
-          return cLower === lower || (cLower && lower && cLower.replace(/[^a-z0-9]/g, '') === lower.replace(/[^a-z0-9]/g, ''));
-        });
-
-        if (matchesUserCategory && !basePackagesMap.has(lower)) {
-          additionalItemsMap.set(lower, { name: rawName, defaultGender: gen });
-        }
+        additionalItemsMap.set(lower, { name: rawName, defaultGender: gen });
       }
     });
 
@@ -288,8 +307,8 @@ export const FinanceUniformConfigView: React.FC = () => {
           }}
           className="px-3 py-2 text-xs rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white font-semibold outline-none cursor-pointer"
         >
-          <option value="All">All Classes ({academicClasses.length})</option>
-          {academicClasses.map(c => <option key={c.name} value={c.name}>{c.name}</option>)}
+          <option value="All">All Classes ({availableClasses.length})</option>
+          {availableClasses.map(c => <option key={c} value={c}>{c}</option>)}
         </select>
       </div>
 
@@ -410,7 +429,7 @@ export const FinanceUniformConfigView: React.FC = () => {
                   >
                     <option value="">-- Select Class --</option>
                     <option value="All Classes">All Classes</option>
-                    {academicClasses.map(c => <option key={c.name} value={c.name}>{c.name}</option>)}
+                    {availableClasses.map(c => <option key={c} value={c}>{c}</option>)}
                   </select>
                 </div>
                 <div>
