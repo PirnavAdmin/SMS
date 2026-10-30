@@ -336,26 +336,36 @@ namespace SMS.Api.Services.Implementations
                         .FirstOrDefaultAsync(u => 
                             (u.Email != null && staffMember.Email != null && u.Email.ToLower() == staffMember.Email.ToLower()) ||
                             (u.MobileNumber != null && staffMember.Phone != null && (u.MobileNumber == staffMember.Phone || (digitsOnly.Length >= 10 && u.MobileNumber.EndsWith(digitsOnly)))) ||
+                            (!string.IsNullOrEmpty(staffMember.EmployeeId) && (u.MobileNumber == staffMember.EmployeeId || (u.Email != null && u.Email.ToLower() == staffMember.EmployeeId.ToLower()))) ||
                             u.FullName.ToLower() == $"{staffMember.FirstName} {staffMember.LastName}".Trim().ToLower()
                         );
 
-                    bool passValid = linkedUser != null && !string.IsNullOrEmpty(linkedUser.PasswordHash) && VerifyPassword(linkedUser.PasswordHash, dto.Password);
-
-                    if (passValid && linkedUser != null)
+                    bool passValid = false;
+                    if (linkedUser != null && !string.IsNullOrEmpty(linkedUser.PasswordHash))
                     {
-                        string staffFullName = $"{staffMember.FirstName} {staffMember.LastName}".Trim();
-                        if (string.IsNullOrWhiteSpace(staffFullName)) staffFullName = linkedUser.FullName;
+                        passValid = VerifyPassword(linkedUser.PasswordHash, dto.Password);
+                    }
 
-                        if (linkedUser.FullName != staffFullName)
+                    // Direct match for default staff password (id = id and password = id)
+                    if (!passValid && !string.IsNullOrEmpty(staffMember.EmployeeId) && string.Equals(dto.Password.Trim(), staffMember.EmployeeId.Trim(), StringComparison.OrdinalIgnoreCase))
+                    {
+                        passValid = true;
+                        if (linkedUser != null)
                         {
-                            linkedUser.FullName = staffFullName;
+                            linkedUser.PasswordHash = BCrypt.Net.BCrypt.HashPassword(dto.Password.Trim());
                             try { await _dbContext.SaveChangesAsync(); } catch { }
                         }
+                    }
+
+                    if (passValid)
+                    {
+                        string staffFullName = $"{staffMember.FirstName} {staffMember.LastName}".Trim();
+                        if (string.IsNullOrWhiteSpace(staffFullName) && linkedUser != null) staffFullName = linkedUser.FullName;
 
                         string resolvedRole = "Staff";
                         var designation = (staffMember.Designation ?? "").ToLower();
                         var sysRole = (staffMember.SystemRole ?? "").ToLower();
-                        if (designation.Contains("teacher") || sysRole.Contains("teacher") || staffMember.EmployeeCategory == "Teacher")
+                        if (designation.Contains("teacher") || sysRole.Contains("teacher") || staffMember.EmployeeCategory == "Teacher" || staffMember.EmployeeCategory == "Teaching Staff")
                             resolvedRole = "Teacher";
                         else if (designation.Contains("librarian") || sysRole.Contains("librarian"))
                             resolvedRole = "Librarian";
@@ -367,8 +377,33 @@ namespace SMS.Api.Services.Implementations
                             resolvedRole = "Driver";
                         else if (!string.IsNullOrEmpty(targetRole))
                             resolvedRole = targetRole;
-                        else if (!string.IsNullOrEmpty(linkedUser.Role))
+                        else if (linkedUser != null && !string.IsNullOrEmpty(linkedUser.Role))
                             resolvedRole = linkedUser.Role;
+
+                        if (linkedUser == null)
+                        {
+                            var sRole = await _dbContext.Roles.FirstOrDefaultAsync(r => r.RoleName == resolvedRole);
+                            var safeEmpId = !string.IsNullOrWhiteSpace(staffMember.EmployeeId) ? staffMember.EmployeeId : $"STF{staffMember.StaffId}";
+                            linkedUser = new User
+                            {
+                                FullName = staffFullName,
+                                Email = staffMember.Email ?? $"{safeEmpId.ToLowerInvariant()}@school.internal",
+                                MobileNumber = !string.IsNullOrWhiteSpace(staffMember.Phone) ? staffMember.Phone : safeEmpId,
+                                PasswordHash = BCrypt.Net.BCrypt.HashPassword(safeEmpId),
+                                Role = resolvedRole,
+                                IsEmailVerified = true,
+                                IsMobileVerified = true,
+                                CreatedAt = DateTime.UtcNow
+                            };
+                            if (sRole != null) linkedUser.Roles.Add(sRole);
+                            await _dbContext.Users.AddAsync(linkedUser);
+                            try { await _dbContext.SaveChangesAsync(); } catch { }
+                        }
+                        else if (linkedUser.FullName != staffFullName)
+                        {
+                            linkedUser.FullName = staffFullName;
+                            try { await _dbContext.SaveChangesAsync(); } catch { }
+                        }
 
                         var staffUser = new User
                         {

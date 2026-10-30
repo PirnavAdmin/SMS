@@ -4706,6 +4706,19 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
                 id: item.applicationId
                   ? item.applicationId.toString()
                   : existing?.id || Math.random().toString(),
+                studentId:
+                  item.studentId ||
+                  item.registrationNo ||
+                  item.registrationNumber ||
+                  (item as any).rollNo ||
+                  existing?.studentId ||
+                  "",
+                rollNo:
+                  (item as any).rollNo ||
+                  item.studentId ||
+                  item.registrationNo ||
+                  existing?.rollNo ||
+                  "",
                 admissionNo:
                   item.admissionNo ||
                   item.admissionNumber ||
@@ -5204,10 +5217,19 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
               s.category ||
               "General";
 
+            const effectiveStudentId =
+              (matchingAdmission as any)?.studentId ||
+              (matchingAdmission as any)?.registrationNo ||
+              s.rollNumber ||
+              s.rollNo ||
+              sIdStr;
+
             return {
               id: sIdStr,
+              studentId: effectiveStudentId,
               admissionNo: admNo,
-              registrationNumber: regNo,
+              registrationNo: (matchingAdmission as any)?.registrationNo || regNo || effectiveStudentId,
+              registrationNumber: (matchingAdmission as any)?.registrationNo || regNo || effectiveStudentId,
               firstName,
               middleName: s.middleName || "",
               lastName,
@@ -5268,7 +5290,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
               motherPhone: s.motherMobile || s.motherPhone || "",
               address: s.address || "",
               promotionHistory: [],
-              rollNo: s.rollNumber || s.rollNo || "",
+              rollNo: (matchingAdmission as any)?.studentId || (matchingAdmission as any)?.registrationNo || s.rollNumber || s.rollNo || "",
               bloodGroup: s.bloodGroup || matchingAdmission?.bloodGroup || "O+",
               religion: resolvedReligion,
               casteCategory: resolvedCasteCategory,
@@ -6856,7 +6878,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       }
       fetchAdmissions();
     }
-  }, [isAuthenticated, role, user?.role]);
+  }, [isAuthenticated, role, user?.role, selectedBranch, selectedAcademicYear]);
 
   useEffect(() => {
     const handleFinanceUpdated = () => {
@@ -15253,16 +15275,42 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       "";
     const todayStr = new Date().toISOString().split("T")[0];
 
+    const getStartYearFromAY = (ay?: string): number => {
+      if (!ay) return 0;
+      const match = String(ay).match(/\d{4}/);
+      return match ? parseInt(match[0], 10) : 0;
+    };
+
+    const isPriorAcademicYear = (itemAY?: string, refAY?: string): boolean => {
+      const itemY = getStartYearFromAY(itemAY);
+      const refY = getStartYearFromAY(refAY);
+      if (itemY <= 0 || refY <= 0) return false;
+      return itemY < refY;
+    };
+
     const result: PromotedStudentWithDues[] = [];
 
     students.forEach((student) => {
       if (student.status === "Inactive") return;
 
+      // Only evaluate students who have actually been promoted or have prior academic history
+      const hasPromotionHistory =
+        Boolean(student.promotionHistory && student.promotionHistory.length > 0);
+      const hasPriorAcademicHistory =
+        Boolean(student.academicHistory && student.academicHistory.some((h) =>
+          isPriorAcademicYear(h.academicYear, activeAY)
+        ));
+      const isMarkedPromoted = student.status === "Promoted";
+
+      if (!hasPromotionHistory && !hasPriorAcademicHistory && !isMarkedPromoted) {
+        return;
+      }
+
       // Collect all installments belonging to academic years strictly before activeAY
       let prevInsts = studentFeeInstallments.filter(
         (inst) =>
           inst.studentId === student.id &&
-          inst.academicYear < activeAY &&
+          isPriorAcademicYear(inst.academicYear, activeAY) &&
           inst.dueAmount > 0,
       );
 
@@ -15270,7 +15318,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       const prevLedgers = studentFeeLedgers.filter(
         (l) =>
           l.studentId === student.id &&
-          l.academicYear < activeAY &&
+          isPriorAcademicYear(l.academicYear, activeAY) &&
           l.dueBalance > 0,
       );
 
@@ -15360,7 +15408,12 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         (l) => l.academicYear === latestPrevAY,
       );
       const previousClass =
-        prevHist?.className || prevLedgerObj?.className || "Class 5";
+        prevHist?.className ||
+        prevLedgerObj?.className ||
+        (student.promotionHistory && student.promotionHistory.length > 0
+          ? student.promotionHistory[student.promotionHistory.length - 1].fromClass
+          : "") ||
+        "—";
 
       const breakdownByYear = previousAcademicYears.map((ay) => {
         const items = yearMap.get(ay) || [];
@@ -15371,7 +15424,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         const lObj = prevLedgers.find((l) => l.academicYear === ay);
         return {
           academicYear: ay,
-          className: histItem?.className || lObj?.className || previousClass,
+          className: histItem?.className || lObj?.className || previousClass || "—",
           totalPending: totPending,
           items,
         };
@@ -17062,6 +17115,10 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         : students.find(
             (s) =>
               String(s.id).trim().toLowerCase() === sIdStr ||
+              (s.studentId &&
+                String(s.studentId).trim().toLowerCase() === sIdStr) ||
+              (s.rollNo &&
+                String(s.rollNo).trim().toLowerCase() === sIdStr) ||
               (s.admissionNo &&
                 String(s.admissionNo).trim().toLowerCase() === sIdStr),
           ) ||
@@ -17083,6 +17140,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
                       .trim()
                       .toLowerCase()
                   : "";
+              const aStuId = (a as any).studentId
+                ? String((a as any).studentId).trim().toLowerCase()
+                : "";
               const aAdm = (a as any).admissionNo
                 ? String((a as any).admissionNo)
                     .trim()
@@ -17097,6 +17157,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
                 (aId === sIdStr ||
                   aApp === sIdStr ||
                   aReg === sIdStr ||
+                  aStuId === sIdStr ||
                   aAdm === sIdStr)
               );
             });
@@ -18286,12 +18347,18 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   const getStudentFeeOutstandingSummary = (
     studentId: string,
   ): StudentFeeOutstandingSummary => {
+    const sIdLower = String(studentId || "").trim().toLowerCase();
     const student =
-      students.find((s) => s.id === studentId) ||
+      students.find(
+        (s) =>
+          s.id === studentId ||
+          String(s.id).toLowerCase() === sIdLower ||
+          (s.admissionNo && s.admissionNo.toLowerCase() === sIdLower) ||
+          (s.rollNo && s.rollNo.toLowerCase() === sIdLower) ||
+          ((s as any).studentId && String((s as any).studentId).toLowerCase() === sIdLower),
+      ) ||
       (() => {
-        const sId = String(studentId || "")
-          .trim()
-          .toLowerCase();
+        const sId = sIdLower;
         const adm = (admissions || []).find((a) => {
           if (!a) return false;
           const aId = a.id != null ? String(a.id).trim().toLowerCase() : "";
@@ -18309,6 +18376,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
                   .trim()
                   .toLowerCase()
               : "";
+          const aStuId = (a as any).studentId
+            ? String((a as any).studentId).trim().toLowerCase()
+            : "";
           const aAdm = (a as any).admissionNo
             ? String((a as any).admissionNo)
                 .trim()
@@ -18331,6 +18401,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
             (aId === sId ||
               aApp === sId ||
               aReg === sId ||
+              aStuId === sId ||
               aAdm === sId ||
               aName === sId ||
               aName.includes(sId))
@@ -21014,12 +21085,18 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   const calculateStudentPayableFee = (
     studentId: string,
   ): StudentCalculationResult | null => {
+    const sIdLower = String(studentId || "").trim().toLowerCase();
     const student =
-      students.find((s) => s.id === studentId) ||
+      students.find(
+        (s) =>
+          s.id === studentId ||
+          String(s.id).toLowerCase() === sIdLower ||
+          (s.admissionNo && s.admissionNo.toLowerCase() === sIdLower) ||
+          (s.rollNo && s.rollNo.toLowerCase() === sIdLower) ||
+          ((s as any).studentId && String((s as any).studentId).toLowerCase() === sIdLower),
+      ) ||
       (() => {
-        const sId = String(studentId || "")
-          .trim()
-          .toLowerCase();
+        const sId = sIdLower;
         const adm = (admissions || []).find((a) => {
           if (!a) return false;
           const aId = a.id != null ? String(a.id).trim().toLowerCase() : "";
@@ -21037,6 +21114,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
                   .trim()
                   .toLowerCase()
               : "";
+          const aStuId = (a as any).studentId
+            ? String((a as any).studentId).trim().toLowerCase()
+            : "";
           const aAdm = (a as any).admissionNo
             ? String((a as any).admissionNo)
                 .trim()
@@ -21059,6 +21139,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
             (aId === sId ||
               aApp === sId ||
               aReg === sId ||
+              aStuId === sId ||
               aAdm === sId ||
               aName === sId ||
               aName.includes(sId))

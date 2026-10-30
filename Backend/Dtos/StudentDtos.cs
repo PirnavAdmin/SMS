@@ -239,7 +239,11 @@ public class StudentFilterDto
 
     public int? BranchId { get; set; }
 
+    public string? Branch { get; set; }
+
     public int? AcademicYearId { get; set; }
+
+    public string? AcademicYear { get; set; }
 
     public int? ClassId { get; set; }
 

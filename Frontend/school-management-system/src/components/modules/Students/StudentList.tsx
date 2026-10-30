@@ -612,7 +612,12 @@ export const StudentList: React.FC<{ onNavigate?: (module: string) => void }> = 
   const currentSectionRoster = useMemo(() => {
     if (!selectedClass || !selectedSection) return [];
 
-    const activeList = displayStudents.filter(s => s.status !== 'Completed' && s.status !== 'Alumni');
+    let activeList = displayStudents.filter(s => s.status !== 'Completed' && s.status !== 'Alumni');
+
+    if (selectedBranch && selectedBranch !== 'All' && selectedBranch !== 'All Branches') {
+      const cleanB = selectedBranch.trim().toLowerCase();
+      activeList = activeList.filter(s => !s.branch || s.branch.trim().toLowerCase() === cleanB || cleanB.includes(s.branch.trim().toLowerCase()));
+    }
 
     if (selectedClass === 'All') {
       if (isWardenRole) {
@@ -636,7 +641,7 @@ export const StudentList: React.FC<{ onNavigate?: (module: string) => void }> = 
       const matchesSection = selectedSection === 'All' || sSec === cleanTargetSection || (s.section || '').trim().toLowerCase() === selectedSection.trim().toLowerCase();
       return matchesClass && matchesSection;
     });
-  }, [displayStudents, selectedClass, selectedSection, isWardenRole]);
+  }, [displayStudents, selectedClass, selectedSection, isWardenRole, selectedBranch]);
 
   // Filtered Roster for Selected Section View
   const filteredRoster = useMemo(() => {

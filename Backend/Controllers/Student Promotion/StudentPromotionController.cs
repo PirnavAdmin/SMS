@@ -53,8 +53,13 @@ namespace SMS.Api.Controllers
             [FromQuery] string? targetYear = null,
             [FromQuery] string? currentClass = null,
             [FromQuery] string? branch = null,
-            [FromQuery] string? policy = "Manual")
+            [FromQuery] string? policy = "Manual",
+            [FromHeader(Name = "X-Branch-Id")] string? headerBranch = null,
+            [FromHeader(Name = "X-Academic-Year-Id")] string? headerAcademicYear = null)
         {
+            branch = !string.IsNullOrWhiteSpace(branch) ? branch : (!string.IsNullOrWhiteSpace(headerBranch) ? headerBranch : null);
+            currentYear = !string.IsNullOrWhiteSpace(currentYear) ? currentYear : (!string.IsNullOrWhiteSpace(headerAcademicYear) ? headerAcademicYear : null);
+
             if (string.IsNullOrWhiteSpace(currentClass))
             {
                 return BadRequest(new { success = false, message = "Please select a Current Class to load results." });

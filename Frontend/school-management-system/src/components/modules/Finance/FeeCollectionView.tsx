@@ -562,8 +562,17 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
         const lName = adm.lastName || nameParts.slice(1).join(" ") || "";
         const targetCls = adm.appliedClass || (adm as any).appliedClassGrade || adm.targetClass || adm.className || "Class 1";
 
+        const dynamicStudentId =
+          (adm as any).studentId ||
+          adm.registrationNo ||
+          (adm as any).registrationNumber ||
+          (adm as any).rollNo ||
+          adm.admissionNo ||
+          String(admId);
+
         map.set(nameKey, {
           id: String(admId),
+          studentId: dynamicStudentId,
           firstName: fName,
           lastName: lName,
           admissionNo: admNo,
@@ -576,7 +585,7 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
           dueFee: 0,
           paidFee: 0,
           totalFee: 0,
-          rollNo: "0",
+          rollNo: dynamicStudentId,
           fatherName: adm.parentName || adm.fatherName || (adm as any).fatherFullName || "",
           motherName: adm.motherName || (adm as any).motherFullName || "",
           mobile: adm.mobile || adm.phone || (adm as any).fatherContact || "",
@@ -594,7 +603,7 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
           pickupPoint: adm.pickupPoint || (adm as any).pickupPointName || (adm as any).pickupName || "",
           routeId: (adm as any).routeId || "",
           pickupPointId: (adm as any).pickupPointId || "",
-          registrationNo: adm.registrationNo || (adm as any).registrationNumber || "",
+          registrationNo: adm.registrationNo || (adm as any).registrationNumber || dynamicStudentId,
           applicationNo: adm.applicationNo || (adm as any).applicationId || "",
           hostelSharing: (adm as any).hostelSharing || (adm as any).roomSharing || (adm as any).roomType || "",
           hostelAc: (adm as any).hostelAc || (adm as any).acType || "",
@@ -614,6 +623,9 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
           map.set(nameKey, {
             ...s,
             ...existing,
+            studentId: existing.studentId || (s as any).studentId || s.rollNo || existing.rollNo,
+            rollNo: (existing.rollNo && existing.rollNo !== "0" ? existing.rollNo : "") || (s.rollNo && s.rollNo !== "0" ? s.rollNo : "") || existing.studentId,
+            registrationNo: (existing as any).registrationNo || (s as any).registrationNumber || existing.studentId,
             transportRequired: existing.transportRequired ?? (s as any).transportRequired,
             busRoute: existing.busRoute || (s as any).busRoute,
             pickupPoint: existing.pickupPoint || (s as any).pickupPoint,
@@ -626,12 +638,74 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
 
         const admKey = (s.admissionNo || s.id || "").toLowerCase().trim();
         if (admKey) {
-          map.set(admKey, s);
+          map.set(admKey, {
+            ...s,
+            studentId: (s as any).studentId || s.rollNo || s.admissionNo,
+          });
         }
       });
 
     return Array.from(map.values());
   }, [students, admissions, selectedBranch]);
+
+  const getStudentDisplayId = React.useCallback(
+    (st: any): string => {
+      if (!st) return "—";
+      const candidates = [
+        st.studentId,
+        st.registrationNo,
+        st.registrationNumber,
+        st.rollNo,
+        st.rollNumber,
+        st.admissionNo,
+        st.admissionNumber,
+        st.id,
+      ];
+
+      for (const c of candidates) {
+        if (c && typeof c === "string" && c.trim().toUpperCase().startsWith("STU-")) {
+          return c.trim();
+        }
+      }
+
+      for (const c of candidates) {
+        if (
+          c &&
+          typeof c === "string" &&
+          !/^\d+$/.test(c.trim()) &&
+          !c.trim().toUpperCase().startsWith("REG-") &&
+          c.trim() !== "0"
+        ) {
+          return c.trim();
+        }
+      }
+
+      for (const c of candidates) {
+        if (c && typeof c === "string" && !/^\d+$/.test(c.trim()) && c.trim() !== "0") {
+          return c.trim();
+        }
+      }
+
+      const matchingAdm = (admissions || []).find(
+        (a: any) =>
+          (a.admissionNo && st.admissionNo && String(a.admissionNo).toLowerCase() === String(st.admissionNo).toLowerCase()) ||
+          (a.applicantName && st.firstName && String(a.applicantName).toLowerCase().includes(String(st.firstName).toLowerCase())) ||
+          String(a.id) === String(st.id)
+      );
+      if (matchingAdm) {
+        const admStuId =
+          (matchingAdm as any).studentId ||
+          matchingAdm.registrationNo ||
+          (matchingAdm as any).registrationNumber;
+        if (admStuId && !/^\d+$/.test(String(admStuId))) {
+          return String(admStuId);
+        }
+      }
+
+      return String(st.admissionNo || st.id || "—");
+    },
+    [admissions]
+  );
 
   const uniqueClassNames = React.useMemo(() => {
     const set = new Set<string>();
@@ -2943,7 +3017,7 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
               <option value="">-- Select Student ({selectableStudents.length}) --</option>
               {selectableStudents.map((st) => (
                 <option key={st.id || st.admissionNo} value={st.id}>
-                  {st.className} - {st.section || 'A'} | {st.firstName} {st.lastName} (ID: {st.id})
+                  {st.className} - {st.section || 'A'} | {st.firstName} {st.lastName} (ID: {getStudentDisplayId(st)})
                 </option>
               ))}
             </select>
@@ -2964,7 +3038,7 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
                 <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
                   Student ID:{" "}
                   <span className="font-bold text-slate-800 dark:text-slate-200">
-                    {activeStudent.id}
+                    {getStudentDisplayId(activeStudent)}
                   </span>{" "}
                   | Class:{" "}
                   <span className="font-bold text-slate-800 dark:text-slate-200">
@@ -3181,7 +3255,7 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
                         {st.firstName} {st.lastName}
                       </td>
                       <td className="py-3 px-4 font-mono font-semibold text-slate-600 dark:text-slate-300">
-                        {st.id}
+                        {getStudentDisplayId(st)}
                       </td>
                       <td className="py-3 px-4 text-slate-500">
                         {st.branch || (selectedBranch && selectedBranch !== "All" && selectedBranch !== "All Branches" ? selectedBranch : "—")}
@@ -3865,7 +3939,7 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
                     Student Category Transition
                   </h3>
                   <p className="text-[11px] text-slate-500">
-                    {activeStudent.firstName} {activeStudent.lastName} (ID: {activeStudent.id})
+                    {activeStudent.firstName} {activeStudent.lastName} (ID: {getStudentDisplayId(activeStudent)})
                   </p>
                 </div>
               </div>

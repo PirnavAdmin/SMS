@@ -17,8 +17,20 @@ public class StudentController : ControllerBase
 
     [HttpGet]
     public async Task<ActionResult<PagedStudentResponseDto>> GetAllStudents(
-        [FromQuery] StudentFilterDto filter)
+        [FromQuery] StudentFilterDto filter,
+        [FromHeader(Name = "X-Branch-Id")] string? headerBranch = null,
+        [FromHeader(Name = "X-Academic-Year-Id")] string? headerAcademicYear = null)
     {
+        filter ??= new StudentFilterDto();
+        if (string.IsNullOrWhiteSpace(filter.Branch) && !string.IsNullOrWhiteSpace(headerBranch))
+        {
+            filter.Branch = headerBranch;
+        }
+        if (string.IsNullOrWhiteSpace(filter.AcademicYear) && !string.IsNullOrWhiteSpace(headerAcademicYear))
+        {
+            filter.AcademicYear = headerAcademicYear;
+        }
+
         var result = await _schoolService.GetAllStudentsAsync(filter);
         return Ok(result);
     }

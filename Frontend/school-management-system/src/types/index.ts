@@ -239,6 +239,9 @@ export interface SiblingDetail {
 
 export interface Student {
   id: string;
+  studentId?: string;
+  registrationNo?: string;
+  registrationNumber?: string;
   admissionNo: string;
   rollNo: string;
   name?: string;
@@ -507,6 +510,8 @@ export interface Staff {
 
 export interface AdmissionApplication {
   id: string;
+  studentId?: string;
+  rollNo?: string;
   applicationNo: string;
   applicantName: string;
   firstName?: string;

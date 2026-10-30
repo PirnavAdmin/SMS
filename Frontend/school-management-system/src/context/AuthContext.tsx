@@ -243,10 +243,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       try {
         const ayRes: any = await fetchAcademicYearsApi();
         if (ayRes?.success && Array.isArray(ayRes.data) && ayRes.data.length > 0) {
+          const storedYear = localStorage.getItem('selected_academic_year');
           const active = ayRes.data.find((a: any) => a.isCurrentAcademicYear || a.status === 'Active') || ayRes.data[0];
           const val = active?.academicYear || active?.year;
-          if (val) {
-            setSelectedAcademicYearState(prev => prev || val);
+          if (storedYear && ayRes.data.some((a: any) => (a.academicYear === storedYear || a.year === storedYear))) {
+            setSelectedAcademicYearState(storedYear);
+          } else if (val) {
+            setSelectedAcademicYearState(val);
+            localStorage.setItem('selected_academic_year', val);
           }
         }
       } catch {}
@@ -265,11 +269,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const handleSetBranch = (branch: string) => {
     setSelectedBranchState(branch);
     setActiveBranchHeader(branch);
+    if (branch) {
+      localStorage.setItem('selected_branch', branch);
+    } else {
+      localStorage.removeItem('selected_branch');
+    }
+    window.dispatchEvent(new CustomEvent('global_context_branch_changed', { detail: { branch } }));
   };
 
   const handleSetAcademicYear = (academicYear: string) => {
     setSelectedAcademicYearState(academicYear);
     setActiveAcademicYearHeader(academicYear);
+    if (academicYear) {
+      localStorage.setItem('selected_academic_year', academicYear);
+    } else {
+      localStorage.removeItem('selected_academic_year');
+    }
+    window.dispatchEvent(new CustomEvent('global_context_academic_year_changed', { detail: { academicYear } }));
   };
 
   useEffect(() => {

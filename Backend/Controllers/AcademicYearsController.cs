@@ -12,6 +12,7 @@ namespace SMS.Api.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
+    [Route("api/academic-years")]
     public class AcademicYearsController : ControllerBase
     {
         private readonly AppDbContext _context;

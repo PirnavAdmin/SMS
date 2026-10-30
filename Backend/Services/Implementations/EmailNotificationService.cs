@@ -312,4 +312,178 @@ public class EmailNotificationService : IEmailNotificationService
             return false;
         }
     }
+
+    public async Task<bool> SendStaffWelcomeEmailAsync(
+        string recipientEmail,
+        string recipientName,
+        string employeeId,
+        string employeeCategory,
+        string designation,
+        string? department = null,
+        string? portalUrl = null,
+        string? schoolName = null)
+    {
+        if (string.IsNullOrWhiteSpace(recipientEmail) || !recipientEmail.Contains('@'))
+        {
+            _logger.LogWarning("[EMAIL] Skipped sending staff welcome email. Invalid or empty email: {Email}", recipientEmail);
+            return false;
+        }
+
+        try
+        {
+            var smtpHost = _configuration["Smtp:Host"] ?? "smtp.gmail.com";
+            var smtpPort = int.TryParse(_configuration["Smtp:Port"], out var p) ? p : 587;
+            var senderEmail = _configuration["Smtp:Email"] ?? "pirnavsms@gmail.com";
+            var senderPassword = _configuration["Smtp:Password"] ?? "";
+
+            if (string.IsNullOrWhiteSpace(senderPassword))
+            {
+                _logger.LogWarning("[EMAIL] SMTP Password not configured. Staff welcome email not sent.");
+                return false;
+            }
+
+            var cleanSchoolName = !string.IsNullOrWhiteSpace(schoolName) ? schoolName.Trim() : "Pirnav Schools";
+            var cleanName = !string.IsNullOrWhiteSpace(recipientName) ? recipientName.Trim() : "Staff Member";
+            var cleanEmpId = !string.IsNullOrWhiteSpace(employeeId) ? employeeId.Trim() : "N/A";
+            var cleanDesignation = !string.IsNullOrWhiteSpace(designation) ? designation.Trim() : "Staff Member";
+            var cleanDept = !string.IsNullOrWhiteSpace(department) ? department.Trim() : "General";
+
+            bool isTeaching = !string.IsNullOrWhiteSpace(employeeCategory) &&
+                (employeeCategory.Equals("Teacher", StringComparison.OrdinalIgnoreCase) ||
+                 employeeCategory.Equals("Teaching Staff", StringComparison.OrdinalIgnoreCase));
+
+            string categoryLabel = isTeaching ? "Teaching Staff" : "Non-Teaching Staff";
+            string idLabel = isTeaching ? "Teaching ID" : "Non-Teaching ID";
+
+            var loginUrl = !string.IsNullOrWhiteSpace(portalUrl) 
+                ? portalUrl 
+                : (_configuration["AppUrl"] ?? "http://localhost:5173");
+
+            if (!loginUrl.EndsWith("/#login") && !loginUrl.Contains("login"))
+            {
+                loginUrl = loginUrl.TrimEnd('/') + "/#login";
+            }
+
+            using var client = new SmtpClient(smtpHost, smtpPort)
+            {
+                UseDefaultCredentials = false,
+                Credentials = new NetworkCredential(senderEmail, senderPassword),
+                EnableSsl = true
+            };
+
+            var mailMessage = new MailMessage
+            {
+                From = new MailAddress(senderEmail, $"{cleanSchoolName} Administration"),
+                Subject = $"Welcome to {cleanSchoolName} - Your {idLabel} & Account Credentials",
+                IsBodyHtml = true,
+                Body = $@"
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset=""utf-8"">
+    <title>Welcome to {WebUtility.HtmlEncode(cleanSchoolName)} - Staff Account</title>
+</head>
+<body style=""margin: 0; padding: 0; background-color: #f1f5f9; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;"">
+    <table role=""presentation"" style=""width: 100%; border-collapse: collapse;"">
+        <tr>
+            <td align=""center"" style=""padding: 30px 15px;"">
+                <table role=""presentation"" style=""width: 100%; max-width: 580px; background-color: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);"">
+                    <!-- Header -->
+                    <tr>
+                        <td style=""background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%); padding: 32px 24px; text-align: center;"">
+                            <h1 style=""margin: 0; color: #ffffff; font-size: 24px; font-weight: 800; letter-spacing: -0.5px;"">{WebUtility.HtmlEncode(cleanSchoolName.ToUpper())}</h1>
+                            <p style=""margin: 6px 0 0 0; color: #e0f2fe; font-size: 13px; font-weight: 500;"">Official School Management & Staff Information Portal</p>
+                        </td>
+                    </tr>
+                    <!-- Body -->
+                    <tr>
+                        <td style=""padding: 32px 28px;"">
+                            <h2 style=""margin: 0 0 14px 0; color: #0f172a; font-size: 20px; font-weight: 700;"">Welcome, {WebUtility.HtmlEncode(cleanName)}! 👋</h2>
+                            <p style=""margin: 0 0 16px 0; color: #475569; font-size: 14px; line-height: 1.6;"">
+                                We are pleased to welcome you to <strong>{WebUtility.HtmlEncode(cleanSchoolName)}</strong>. Your official staff profile has been created successfully as <strong>{WebUtility.HtmlEncode(categoryLabel)}</strong> with designation <strong>{WebUtility.HtmlEncode(cleanDesignation)}</strong> ({WebUtility.HtmlEncode(cleanDept)} Department).
+                            </p>
+                            <p style=""margin: 0 0 20px 0; color: #475569; font-size: 14px; line-height: 1.6;"">
+                                Your account has been activated on the school portal. Below are your official staff credentials:
+                            </p>
+
+                            <!-- Credentials Box -->
+                            <div style=""background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 22px; margin-bottom: 24px;"">
+                                <table style=""width: 100%; border-collapse: collapse;"">
+                                    <tr>
+                                        <td style=""padding: 7px 0; color: #64748b; font-size: 13px; font-weight: 600; width: 42%;"">Staff Type:</td>
+                                        <td style=""padding: 7px 0; color: #0f172a; font-size: 13px; font-weight: 700;"">{WebUtility.HtmlEncode(categoryLabel)}</td>
+                                    </tr>
+                                    <tr>
+                                        <td style=""padding: 7px 0; color: #64748b; font-size: 13px; font-weight: 600;"">{WebUtility.HtmlEncode(idLabel)}:</td>
+                                        <td style=""padding: 7px 0; color: #0284c7; font-size: 15px; font-weight: 800; font-family: monospace;"">{WebUtility.HtmlEncode(cleanEmpId)}</td>
+                                    </tr>
+                                    <tr>
+                                        <td style=""padding: 7px 0; color: #64748b; font-size: 13px; font-weight: 600;"">Login ID / Username:</td>
+                                        <td style=""padding: 7px 0; color: #0f172a; font-size: 14px; font-weight: 800; font-family: monospace;"">{WebUtility.HtmlEncode(cleanEmpId)}</td>
+                                    </tr>
+                                    <tr>
+                                        <td style=""padding: 7px 0; color: #64748b; font-size: 13px; font-weight: 600;"">Initial Password:</td>
+                                        <td style=""padding: 7px 0; color: #0284c7; font-size: 15px; font-weight: 800; font-family: monospace;"">{WebUtility.HtmlEncode(cleanEmpId)}</td>
+                                    </tr>
+                                    <tr>
+                                        <td style=""padding: 7px 0; color: #64748b; font-size: 13px; font-weight: 600;"">Designation:</td>
+                                        <td style=""padding: 7px 0; color: #0f172a; font-size: 13px; font-weight: 600;"">{WebUtility.HtmlEncode(cleanDesignation)}</td>
+                                    </tr>
+                                    <tr>
+                                        <td style=""padding: 7px 0; color: #64748b; font-size: 13px; font-weight: 600;"">Department:</td>
+                                        <td style=""padding: 7px 0; color: #0f172a; font-size: 13px; font-weight: 600;"">{WebUtility.HtmlEncode(cleanDept)}</td>
+                                    </tr>
+                                </table>
+                            </div>
+
+                            <!-- Prominent ID = ID and Password = ID Callout Banner -->
+                            <div style=""background: #eff6ff; border: 2px dashed #0284c7; border-radius: 12px; padding: 16px 20px; text-align: center; margin-bottom: 24px;"">
+                                <p style=""margin: 0; color: #0369a1; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;"">Quick Login Summary</p>
+                                <p style=""margin: 8px 0 0 0; color: #0f172a; font-size: 16px; font-weight: 800; font-family: monospace;"">
+                                    id = <span style=""color: #0284c7;"">{WebUtility.HtmlEncode(cleanEmpId)}</span> &nbsp;|&nbsp; password = <span style=""color: #0284c7;"">{WebUtility.HtmlEncode(cleanEmpId)}</span>
+                                </p>
+                                <p style=""margin: 6px 0 0 0; color: #64748b; font-size: 12px;"">Your login ID and initial password are both set to your {WebUtility.HtmlEncode(idLabel)}.</p>
+                            </div>
+
+                            <!-- CTA Button -->
+                            <div style=""text-align: center; margin: 28px 0;"">
+                                <a href=""{loginUrl}"" style=""display: inline-block; background-color: #0284c7; color: #ffffff; font-size: 14px; font-weight: 700; text-decoration: none; padding: 14px 34px; border-radius: 10px; box-shadow: 0 4px 12px rgba(2, 132, 199, 0.3);"">
+                                    Log In to Staff Portal
+                                </a>
+                            </div>
+
+                            <p style=""margin: 0 0 8px 0; color: #64748b; font-size: 13px; line-height: 1.5; text-align: center;"">
+                                You can sign in using your <strong>{WebUtility.HtmlEncode(idLabel)}</strong> (or registered email) with your default password.
+                            </p>
+                            <p style=""margin: 0; color: #94a3b8; font-size: 12px; line-height: 1.5; text-align: center;"">
+                                For security reasons, please change your password after your first login.<br>
+                                If you have questions or encounter any issues, please contact school administration.
+                            </p>
+                        </td>
+                    </tr>
+                    <!-- Footer -->
+                    <tr>
+                        <td style=""background-color: #f8fafc; border-top: 1px solid #e2e8f0; padding: 20px 24px; text-align: center;"">
+                            <p style=""margin: 0; color: #64748b; font-size: 12px;"">© {DateTime.UtcNow.Year} {WebUtility.HtmlEncode(cleanSchoolName)}. All rights reserved.</p>
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+    </table>
+</body>
+</html>"
+            };
+
+            mailMessage.To.Add(recipientEmail);
+            await client.SendMailAsync(mailMessage);
+            _logger.LogInformation("[EMAIL] Staff welcome email sent successfully to {Email} for {Name} (ID: {EmpId}, Category: {Category})", recipientEmail, cleanName, cleanEmpId, categoryLabel);
+            return true;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "[EMAIL ERROR] Failed to send staff welcome email to {Email}", recipientEmail);
+            return false;
+        }
+    }
 }

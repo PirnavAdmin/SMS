@@ -25,8 +25,29 @@ public class AdmissionsController : ControllerBase
         [FromQuery] string? search,
         [FromQuery] string? branch,
         [FromQuery] int? classId,
-        [FromQuery] string? status) =>
-        Ok(new { success = true, data = await _schoolService.GetAllApplicationsAsync(search, branch, classId, status) });
+        [FromQuery] string? status,
+        [FromQuery] string? academicYear,
+        [FromHeader(Name = "X-Branch-Id")] string? headerBranch = null,
+        [FromHeader(Name = "X-Academic-Year-Id")] string? headerAcademicYear = null)
+    {
+        string? effectiveBranch = !string.IsNullOrWhiteSpace(branch) ? branch : (!string.IsNullOrWhiteSpace(headerBranch) ? headerBranch : null);
+        string? effectiveAcademicYear = !string.IsNullOrWhiteSpace(academicYear) ? academicYear : (!string.IsNullOrWhiteSpace(headerAcademicYear) ? headerAcademicYear : null);
+
+        var apps = await _schoolService.GetAllApplicationsAsync(search, effectiveBranch, classId, status);
+
+        if (!string.IsNullOrWhiteSpace(effectiveAcademicYear) && !effectiveAcademicYear.Equals("All", System.StringComparison.OrdinalIgnoreCase))
+        {
+            var cleanYear = effectiveAcademicYear.Trim().ToLower().Replace(" ", "");
+            var startYear = cleanYear.Length >= 4 ? cleanYear.Substring(0, 4) : cleanYear;
+            apps = apps.Where(a => string.IsNullOrWhiteSpace(a.AcademicYear) ||
+                                   a.AcademicYear.ToLower().Replace(" ", "") == cleanYear ||
+                                   a.AcademicYear.ToLower().Replace(" ", "").Contains(cleanYear) ||
+                                   cleanYear.Contains(a.AcademicYear.ToLower().Replace(" ", "")) ||
+                                   a.AcademicYear.StartsWith(startYear)).ToList();
+        }
+
+        return Ok(new { success = true, data = apps });
+    }
 
     [HttpGet("{id}")]
     [HttpGet("{id:int}")]
@@ -58,8 +79,24 @@ public class AdmissionsController : ControllerBase
 
     [HttpPost]
     [AllowAnonymous]
-    public async Task<IActionResult> SubmitApplication([FromBody] SubmitAdmissionDto dto) =>
-        Ok(new { success = true, message = "Application submitted successfully.", data = await _schoolService.SubmitApplicationAsync(dto) });
+    public async Task<IActionResult> SubmitApplication(
+        [FromBody] SubmitAdmissionDto dto,
+        [FromHeader(Name = "X-Branch-Id")] string? headerBranch = null,
+        [FromHeader(Name = "X-Academic-Year-Id")] string? headerAcademicYear = null)
+    {
+        if (dto != null)
+        {
+            if (string.IsNullOrWhiteSpace(dto.BranchName) && !string.IsNullOrWhiteSpace(headerBranch))
+            {
+                dto.BranchName = headerBranch;
+            }
+            if (string.IsNullOrWhiteSpace(dto.AcademicYear) && !string.IsNullOrWhiteSpace(headerAcademicYear))
+            {
+                dto.AcademicYear = headerAcademicYear;
+            }
+        }
+        return Ok(new { success = true, message = "Application submitted successfully.", data = await _schoolService.SubmitApplicationAsync(dto!) });
+    }
 
     [HttpPut("{id}")]
     [AllowAnonymous]

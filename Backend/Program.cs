@@ -2433,6 +2433,21 @@ using (var scope = app.Services.CreateScope())
 
                     try
                     {
+                        // Ensure all enrolled applications and student records share the canonical dynamic Student ID
+                        var enrolledAppsToSync = await context.AdmissionApplications
+                            .Where(a => !a.IsDeleted && (a.Status == "Enrolled" || a.Status == "Admitted") && !string.IsNullOrWhiteSpace(a.RegistrationNo) && !a.RegistrationNo.StartsWith("REG-"))
+                            .ToListAsync();
+                        foreach (var appItem in enrolledAppsToSync)
+                        {
+                            var matchedStudent = await context.Students
+                                .FirstOrDefaultAsync(s => s.AdmissionNumber == appItem.AdmissionNo || 
+                                                          (s.FatherMobile == appItem.FatherContact && s.StudentName == $"{appItem.FirstName} {appItem.LastName}".Trim()));
+                            if (matchedStudent != null && matchedStudent.RollNumber != appItem.RegistrationNo)
+                            {
+                                matchedStudent.RollNumber = appItem.RegistrationNo;
+                            }
+                        }
+
                         await context.SaveChangesAsync();
                     }
                     catch (Exception ex)
@@ -2521,6 +2536,21 @@ using (var scope = app.Services.CreateScope())
                         foreach (var nonApp in nonEnrolledWithReg)
                         {
                             nonApp.RegistrationNo = null;
+                        }
+
+                        // Ensure all enrolled applications and student records share the canonical dynamic Student ID
+                        var enrolledAppsToSync = await context.AdmissionApplications
+                            .Where(a => !a.IsDeleted && (a.Status == "Enrolled" || a.Status == "Admitted") && !string.IsNullOrWhiteSpace(a.RegistrationNo) && !a.RegistrationNo.StartsWith("REG-"))
+                            .ToListAsync();
+                        foreach (var appItem in enrolledAppsToSync)
+                        {
+                            var matchedStudent = await context.Students
+                                .FirstOrDefaultAsync(s => s.AdmissionNumber == appItem.AdmissionNo || 
+                                                          (s.FatherMobile == appItem.FatherContact && s.StudentName == $"{appItem.FirstName} {appItem.LastName}".Trim()));
+                            if (matchedStudent != null && matchedStudent.RollNumber != appItem.RegistrationNo)
+                            {
+                                matchedStudent.RollNumber = appItem.RegistrationNo;
+                            }
                         }
 
                         await context.SaveChangesAsync();
