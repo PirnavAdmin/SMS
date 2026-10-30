@@ -4658,7 +4658,12 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   const fetchBranches = useCallback(async () => {
     try {
       const res: any = await fetchBranchesApi();
-      const list = Array.isArray(res) ? res : res?.data || [];
+      let list = (res?.success && Array.isArray(res.data)) ? res.data : (Array.isArray(res) ? res : res?.data || []);
+      if (!list || list.length === 0) {
+        const settingsRes: any = await fetchSchoolSettingsApi();
+        const campuses = settingsRes?.data?.campuses || settingsRes?.campuses;
+        if (Array.isArray(campuses) && campuses.length > 0) list = campuses;
+      }
       if (Array.isArray(list)) {
         setBranches(list);
       }
