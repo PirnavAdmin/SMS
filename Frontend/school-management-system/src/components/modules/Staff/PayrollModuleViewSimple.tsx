@@ -237,7 +237,7 @@ const SelectField: React.FC<{
 
 const normalize = (value: string) => value.toLowerCase().replace(/[^a-z0-9]+/g, '');
 
-const getCategoryLabel = (category?: CategoryValue | null) => (!category ? '' : category === 'Teacher' ? 'Teaching Staff' : 'Non-Teaching Staff');
+const getCategoryLabel = (category?: CategoryValue | string | null) => (!category ? '' : (category === 'Teacher' || category === 'Teaching Staff') ? 'Teaching Staff' : 'Non-Teaching Staff');
 
 const resolveCategory = (staff: Staff): CategoryValue => {
   if (staff.employeeCategory) return staff.employeeCategory;

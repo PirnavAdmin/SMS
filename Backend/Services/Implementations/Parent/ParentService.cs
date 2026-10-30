@@ -16,36 +16,49 @@ namespace SMS.Api.Services.Implementations.Parent
             _parentRepository = parentRepository;
         }
 
+        public async Task<List<ParentChildDto>> GetChildrenByUserIdAsync(int parentUserId)
+        {
+            var students = await _parentRepository.GetChildrenByParentUserIdAsync(parentUserId);
+            return students.Select(MapToParentChildDto).ToList();
+        }
+
+        public async Task<bool> IsStudentAssociatedWithParentAsync(int parentUserId, int studentId)
+        {
+            return await _parentRepository.IsStudentAssociatedWithParentAsync(parentUserId, studentId);
+        }
+
         public async Task<List<ParentChildDto>> GetChildrenAsync(string parentIdentifier)
         {
             var students = await _parentRepository.GetChildrenByParentIdentifierAsync(parentIdentifier);
-            
-            return students.Select(s => {
-                var studentName = s.StudentName ?? "Student";
-                var nameParts = studentName.Split(' ');
-                var firstName = nameParts.Length > 0 ? nameParts[0] : studentName;
-                var lastName = nameParts.Length > 1 ? string.Join(" ", nameParts.Skip(1)) : string.Empty;
-
-                return new ParentChildDto
-                {
-                    StudentId = s.StudentId,
-                    AdmissionNumber = s.AdmissionNumber,
-                    RollNumber = s.RollNumber,
-                    StudentName = studentName,
-                    FirstName = firstName,
-                    LastName = lastName,
-                    ClassId = s.ClassId,
-                    ClassName = s.ClassGrade?.ClassName ?? string.Empty,
-                    SectionId = s.SectionId,
-                    SectionName = s.ClassSection?.SectionName ?? string.Empty,
-                    Gender = s.Gender,
-                    DateOfBirth = s.DateOfBirth,
-                    ProfilePhoto = null
-                };
-            }).ToList();
+            return students.Select(MapToParentChildDto).ToList();
         }
 
-        public async Task<ParentDashboardSummaryDto> GetDashboardSummaryAsync(int studentId)
+        private static ParentChildDto MapToParentChildDto(Models.Student s)
+        {
+            var studentName = s.StudentName ?? "Student";
+            var nameParts = studentName.Split(' ');
+            var firstName = nameParts.Length > 0 ? nameParts[0] : studentName;
+            var lastName = nameParts.Length > 1 ? string.Join(" ", nameParts.Skip(1)) : string.Empty;
+
+            return new ParentChildDto
+            {
+                StudentId = s.StudentId,
+                AdmissionNumber = s.AdmissionNumber,
+                RollNumber = s.RollNumber,
+                StudentName = studentName,
+                FirstName = firstName,
+                LastName = lastName,
+                ClassId = s.ClassId,
+                ClassName = s.ClassGrade?.ClassName ?? string.Empty,
+                SectionId = s.SectionId,
+                SectionName = s.ClassSection?.SectionName ?? string.Empty,
+                Gender = s.Gender,
+                DateOfBirth = s.DateOfBirth,
+                ProfilePhoto = null
+            };
+        }
+
+                public async Task<ParentDashboardSummaryDto> GetDashboardSummaryAsync(int studentId)
         {
             return await _parentRepository.GetDashboardSummaryAsync(studentId);
         }

@@ -7,6 +7,8 @@ namespace SMS.Api.Repositories.Interfaces.Parent
 {
     public interface IParentRepository
     {
+        Task<List<Student>> GetChildrenByParentUserIdAsync(int parentUserId);
+        Task<bool> IsStudentAssociatedWithParentAsync(int parentUserId, int studentId);
         Task<List<Student>> GetChildrenByParentIdentifierAsync(string identifier);
         Task<Student?> GetStudentByIdAsync(int studentId);
         Task<ParentDashboardSummaryDto> GetDashboardSummaryAsync(int studentId);

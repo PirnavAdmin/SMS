@@ -6648,8 +6648,12 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       fetchFinanceData().catch(() => {});
     };
     window.addEventListener("finance_updated", handleFinanceUpdated);
+    window.addEventListener("finance_data_updated", handleFinanceUpdated);
+    window.addEventListener("fee_payment_collected", handleFinanceUpdated);
     return () => {
       window.removeEventListener("finance_updated", handleFinanceUpdated);
+      window.removeEventListener("finance_data_updated", handleFinanceUpdated);
+      window.removeEventListener("fee_payment_collected", handleFinanceUpdated);
     };
   }, [fetchFinanceData, role, user?.role]);
 
@@ -13850,7 +13854,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       students.find(
         (s) =>
           String(s.id).toLowerCase() === normSId ||
-          (s.admissionNo && String(s.admissionNo).toLowerCase() === normSId),
+          (s.admissionNo && String(s.admissionNo).toLowerCase() === normSId) ||
+          (s.rollNo && String(s.rollNo).toLowerCase() === normSId) ||
+          (s.studentId && String(s.studentId).toLowerCase() === normSId),
       ) ||
       admissions.find(
         (a) =>
@@ -13858,9 +13864,14 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           (a.applicationNo &&
             String(a.applicationNo).toLowerCase() === normSId) ||
           ((a as any).registrationNo &&
-            String((a as any).registrationNo).toLowerCase() === normSId),
+            String((a as any).registrationNo).toLowerCase() === normSId) ||
+          ((a as any).studentId &&
+            String((a as any).studentId).toLowerCase() === normSId),
       );
 
+    const stId = String((resolvedSt as any)?.id || "")
+      .trim()
+      .toLowerCase();
     const stAdm = String((resolvedSt as any)?.admissionNo || "")
       .trim()
       .toLowerCase();
@@ -13868,6 +13879,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       .trim()
       .toLowerCase();
     const stReg = String((resolvedSt as any)?.registrationNo || "")
+      .trim()
+      .toLowerCase();
+    const stRoll = String((resolvedSt as any)?.rollNo || (resolvedSt as any)?.studentId || "")
       .trim()
       .toLowerCase();
     const rawStName =
@@ -13879,7 +13893,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         ? rawStName
         : "";
 
-    return studentFeeAssignments.find((a) => {
+    const matchCandidate = (a: any) => {
       if (a.status !== "Active" && a.status !== undefined) return false;
       if (ay && a.academicYear && !matchesAcademicYear(a.academicYear, ay))
         return false;
@@ -13895,9 +13909,11 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         .toLowerCase();
 
       if (normSId && (aSid === normSId || aAdm === normSId)) return true;
+      if (stId && (aSid === stId || aAdm === stId)) return true;
       if (stAdm && (aSid === stAdm || aAdm === stAdm)) return true;
       if (stApp && (aSid === stApp || aAdm === stApp)) return true;
       if (stReg && (aSid === stReg || aAdm === stReg)) return true;
+      if (stRoll && (aSid === stRoll || aAdm === stRoll)) return true;
       if (
         stName &&
         aName &&
@@ -13906,7 +13922,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       )
         return true;
       return false;
-    });
+    };
+
+    return studentFeeAssignments.find(matchCandidate) || dbAssignments.find(matchCandidate);
   };
 
   const generateInstallmentsForStudent = (
@@ -14209,9 +14227,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         if (isFullAnnual) {
           frequency = "One Time";
         } else if (isTermWise) {
-          if (catPaymentEligibility !== "One-Time Only") {
-            frequency = "Term-wise";
-          }
+          frequency = "Term-wise";
         } else if (catPaymentEligibility === "One-Time Only") {
           frequency = "One Time";
         } else if (catPaymentEligibility === "Term-Wise Allowed") {
@@ -17318,7 +17334,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
 
           if (
             (isFullAnnualPolicy && hasQuarterlyOrTermInstallments) ||
-            (!isFullAnnualPolicy && hasOnlyOneTimeInstallment)
+            (!isFullAnnualPolicy && (!hasQuarterlyOrTermInstallments || hasOnlyOneTimeInstallment))
           ) {
             return buildStudentFeeLedgerObject(
               studentId,

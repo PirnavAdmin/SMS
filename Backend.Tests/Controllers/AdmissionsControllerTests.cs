@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
@@ -42,7 +43,7 @@ namespace Backend.Tests.Controllers
         {
             var expectedDto = new AdmissionApplicationResponseDto { Id = 1, FirstName = "Alice", LastName = "Smith" };
 
-            _schoolServiceMock.Setup(s => s.GetApplicationByIdAsync(1))
+            _schoolServiceMock.Setup(s => s.GetApplicationByIdentifierAsync("1"))
                 .ReturnsAsync(expectedDto);
 
             var result = await _controller.GetApplicationById("1");
@@ -72,6 +73,8 @@ namespace Backend.Tests.Controllers
             var dto = new SubmitAdmissionDto { FirstName = "Bob", LastName = "Jones Updated", BranchName = "Main" };
             var expectedDto = new AdmissionApplicationResponseDto { Id = 2, FirstName = "Bob", LastName = "Jones Updated" };
 
+            _schoolServiceMock.Setup(s => s.GetApplicationByIdentifierAsync("2"))
+                .ReturnsAsync(new AdmissionApplicationResponseDto { Id = 2 });
             _schoolServiceMock.Setup(s => s.UpdateApplicationAsync(2, dto))
                 .ReturnsAsync(expectedDto);
 
@@ -84,6 +87,8 @@ namespace Backend.Tests.Controllers
         [Fact]
         public async Task DeleteApplication_ReturnsOk()
         {
+            _schoolServiceMock.Setup(s => s.GetApplicationByIdentifierAsync("2"))
+                .ReturnsAsync(new AdmissionApplicationResponseDto { Id = 2 });
             _schoolServiceMock.Setup(s => s.DeleteApplicationAsync(2))
                 .ReturnsAsync(true);
 
@@ -96,6 +101,8 @@ namespace Backend.Tests.Controllers
         [Fact]
         public async Task RejectApplication_ReturnsOk()
         {
+            _schoolServiceMock.Setup(s => s.GetApplicationByIdentifierAsync("5"))
+                .ReturnsAsync(new AdmissionApplicationResponseDto { Id = 5 });
             _schoolServiceMock.Setup(s => s.RejectApplicationAsync(5))
                 .ReturnsAsync(true);
 
@@ -108,8 +115,12 @@ namespace Backend.Tests.Controllers
         [Fact]
         public async Task EnrollStudent_ReturnsOk()
         {
+            _schoolServiceMock.Setup(s => s.GetApplicationByIdentifierAsync("10"))
+                .ReturnsAsync(new AdmissionApplicationResponseDto { Id = 10 });
             _schoolServiceMock.Setup(s => s.EnrollStudentAsync(10))
                 .ReturnsAsync("ADM-10");
+            _schoolServiceMock.Setup(s => s.GetApplicationByIdAsync(10))
+                .ReturnsAsync(new AdmissionApplicationResponseDto { Id = 10, RegistrationNo = "REG-10" });
 
             var result = await _controller.EnrollStudent("10");
 

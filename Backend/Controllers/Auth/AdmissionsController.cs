@@ -22,11 +22,11 @@ public class AdmissionsController : ControllerBase
     [HttpGet]
     [AllowAnonymous]
     public async Task<IActionResult> GetApplications(
-        [FromQuery] string? search,
-        [FromQuery] string? branch,
-        [FromQuery] int? classId,
-        [FromQuery] string? status,
-        [FromQuery] string? academicYear,
+        [FromQuery] string? search = null,
+        [FromQuery] string? branch = null,
+        [FromQuery] int? classId = null,
+        [FromQuery] string? status = null,
+        [FromQuery] string? academicYear = null,
         [FromHeader(Name = "X-Branch-Id")] string? headerBranch = null,
         [FromHeader(Name = "X-Academic-Year-Id")] string? headerAcademicYear = null)
     {

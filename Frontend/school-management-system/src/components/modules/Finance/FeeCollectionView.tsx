@@ -621,11 +621,15 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
         if (nameKey && map.has(nameKey)) {
           const existing = map.get(nameKey)!;
           map.set(nameKey, {
-            ...s,
             ...existing,
+            ...s,
+            id: s.id ? String(s.id) : existing.id,
+            admissionNo: s.admissionNo || existing.admissionNo,
             studentId: existing.studentId || (s as any).studentId || s.rollNo || existing.rollNo,
             rollNo: (existing.rollNo && existing.rollNo !== "0" ? existing.rollNo : "") || (s.rollNo && s.rollNo !== "0" ? s.rollNo : "") || existing.studentId,
             registrationNo: (existing as any).registrationNo || (s as any).registrationNumber || existing.studentId,
+            feeCalculationMethod: (s as any).feeCalculationMethod || (existing as any).feeCalculationMethod,
+            feePolicy: (s as any).feePolicy || (existing as any).feePolicy,
             transportRequired: existing.transportRequired ?? (s as any).transportRequired,
             busRoute: existing.busRoute || (s as any).busRoute,
             pickupPoint: existing.pickupPoint || (s as any).pickupPoint,
@@ -1389,6 +1393,11 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
     onPrintReceipt(payment);
 
     fetchFinanceData().catch(() => {});
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new CustomEvent("finance_updated"));
+      window.dispatchEvent(new CustomEvent("finance_data_updated"));
+      window.dispatchEvent(new CustomEvent("fee_payment_collected"));
+    }
 
     setSelectedInstallments([]);
     setCustomCollectionAmounts({});
@@ -3313,7 +3322,23 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
               </div>
               <div className="flex items-center gap-2">
                 <span className="text-xs text-slate-600 dark:text-slate-300 font-semibold bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-2.5 py-1 rounded-lg">
-                  Configured Policy: <strong className="text-blue-600 dark:text-blue-400">{allInstallments.some(i => i.termName?.toLowerCase().includes("full") || (i.frequency === "One Time" && !i.termName?.toLowerCase().includes("term"))) ? "Full Annual Fee" : "Term-wise Fee"}</strong>
+                  Configured Policy: <strong className="text-blue-600 dark:text-blue-400">
+                    {(() => {
+                      const p = (selectedStudent as any)?.feeCalculationMethod || 
+                                (selectedStudent as any)?.feePolicy || 
+                                backendFeeProfile?.feePolicy;
+                      if (p) {
+                        const pLow = String(p).toLowerCase();
+                        if (pLow.includes("term") || pLow.includes("quarter")) return "Term-wise Fee";
+                        if (pLow.includes("month")) return "Monthly Fee";
+                        if (pLow.includes("full") || pLow.includes("annual") || pLow.includes("one time")) return "Full Annual Fee";
+                        return p;
+                      }
+                      return allInstallments.some(i => i.termName?.toLowerCase().includes("term") || i.frequency === "Term-wise" || i.frequency === "Quarterly")
+                        ? "Term-wise Fee"
+                        : "Full Annual Fee";
+                    })()}
+                  </strong>
                 </span>
               </div>
             </div>

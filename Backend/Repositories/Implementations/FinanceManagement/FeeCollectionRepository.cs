@@ -252,6 +252,9 @@ public class FeeCollectionRepository : IFeeCollectionRepository
 
         var allRoutes = await _context.TransportRoutes.AsNoTracking().ToListAsync();
         var allPickups = await _context.PickupPoints.AsNoTracking().ToListAsync();
+        var allAssignments = await _context.StudentFeeAssignments.AsNoTracking()
+            .Where(a => a.Status == "Active" || string.IsNullOrEmpty(a.Status))
+            .ToListAsync();
 
         var items = new List<FeeCollectionStudentSummaryDto>();
 
@@ -327,8 +330,47 @@ public class FeeCollectionRepository : IFeeCollectionRepository
             decimal discountAmt = stPayments.Sum(p => p.DiscountAmount);
             decimal fineAmt = stPayments.Sum(p => p.FineAmount);
 
-            decimal totalStudentFee = baseClassFee + transportFee + hostelFee;
-            decimal outstanding = Math.Max(0m, totalStudentFee - paidAmt - discountAmt + fineAmt);
+            string sIdStr = st.StudentId.ToString();
+            string sAdmNo = st.AdmissionNumber ?? "";
+            string sRollNo = st.RollNumber ?? "";
+            var stAssign = allAssignments.FirstOrDefault(a =>
+                a.StudentId == sIdStr ||
+                (!string.IsNullOrEmpty(sAdmNo) && a.StudentId == sAdmNo) ||
+                (!string.IsNullOrEmpty(sRollNo) && a.StudentId == sRollNo));
+
+            string stPolicy = stAssign?.FeePolicy ?? "Full Annual Fee";
+            bool isAnnualPolicy = string.IsNullOrEmpty(stPolicy) ||
+                stPolicy.Contains("Annual", StringComparison.OrdinalIgnoreCase) ||
+                stPolicy.Contains("Full", StringComparison.OrdinalIgnoreCase) ||
+                stPolicy.Contains("One Time", StringComparison.OrdinalIgnoreCase) ||
+                stPolicy.Contains("One-Time", StringComparison.OrdinalIgnoreCase);
+
+            decimal totalStudentFee = (stAssign != null && stAssign.TotalAmount > 0 ? stAssign.TotalAmount : baseClassFee) + transportFee + hostelFee;
+            decimal outstanding = 0m;
+            if (isAnnualPolicy)
+            {
+                outstanding = Math.Max(0m, totalStudentFee - paidAmt - discountAmt + fineAmt);
+            }
+            else
+            {
+                int termCount = 4;
+                decimal runningPaid = paidAmt + discountAmt;
+                decimal pendingArrived = 0m;
+                decimal prevTermsSum = 0m;
+                for (int t = 0; t < termCount; t++)
+                {
+                    decimal termAmt = (t == termCount - 1) ? Math.Max(0m, totalStudentFee - prevTermsSum) : Math.Round(totalStudentFee / termCount, 2);
+                    prevTermsSum += termAmt;
+                    decimal paidForTerm = Math.Min(termAmt, runningPaid);
+                    runningPaid -= paidForTerm;
+                    decimal unpaidTerm = Math.Max(0m, termAmt - paidForTerm);
+                    if (t == 0)
+                    {
+                        pendingArrived += unpaidTerm;
+                    }
+                }
+                outstanding = pendingArrived;
+            }
 
             items.Add(new FeeCollectionStudentSummaryDto
             {
@@ -364,14 +406,22 @@ public class FeeCollectionRepository : IFeeCollectionRepository
         };
     }
 
-    public async Task<StudentFeeProfileResponseDto?> GetStudentFeeProfileAsync(int studentId, string? academicYear)
+    public Task<StudentFeeProfileResponseDto?> GetStudentFeeProfileAsync(int studentId, string? academicYear)
     {
+        return GetStudentFeeProfileAsync(studentId.ToString(), academicYear);
+    }
+
+    public async Task<StudentFeeProfileResponseDto?> GetStudentFeeProfileAsync(string studentIdOrAdm, string? academicYear)
+    {
+        string idStr = (studentIdOrAdm ?? "").Trim();
+        bool isNumeric = int.TryParse(idStr, out int studentId);
+
         var student = await _context.Students.AsNoTracking()
             .Include(s => s.ClassGrade)
             .Include(s => s.ClassSection)
             .Include(s => s.Branch)
             .Include(s => s.AcademicYear)
-            .FirstOrDefaultAsync(s => s.StudentId == studentId);
+            .FirstOrDefaultAsync(s => (isNumeric && s.StudentId == studentId) || (s.AdmissionNumber != null && s.AdmissionNumber == idStr) || (s.RollNumber != null && s.RollNumber == idStr));
 
         if (student == null)
         {
@@ -462,8 +512,9 @@ public class FeeCollectionRepository : IFeeCollectionRepository
         string sIdStr = student.StudentId.ToString();
         string sAdmNo = student.AdmissionNumber ?? string.Empty;
 
+        string sRollNo = student.RollNumber ?? string.Empty;
         var feeAssignment = await _context.StudentFeeAssignments.AsNoTracking()
-            .FirstOrDefaultAsync(a => (a.StudentId == sIdStr || (sAdmNo != "" && a.StudentId == sAdmNo)) &&
+            .FirstOrDefaultAsync(a => (a.StudentId == sIdStr || (sAdmNo != "" && a.StudentId == sAdmNo) || (sRollNo != "" && a.StudentId == sRollNo)) &&
                                       (a.Status == "Active" || string.IsNullOrEmpty(a.Status)));
 
         string studentPolicy = feeAssignment?.FeePolicy ?? "Default Annual";
@@ -482,23 +533,54 @@ public class FeeCollectionRepository : IFeeCollectionRepository
             .FirstOrDefaultAsync(s => s.AcademicYear.Contains(yearPrefix) || s.Status == "Active" || s.Status == "Published");
 
         var scheduleTerms = schedule?.Terms?.OrderBy(t => t.Sequence).ToList() ?? new List<FeeScheduleTerm>();
+        if (scheduleTerms.Count == 0)
+        {
+            scheduleTerms = new List<FeeScheduleTerm>
+            {
+                new FeeScheduleTerm { Id = "term-1", TermName = "Term 1", Sequence = 1, DueDate = $"{yearPrefix}-06-15", PercentageShare = 25m },
+                new FeeScheduleTerm { Id = "term-2", TermName = "Term 2", Sequence = 2, DueDate = $"{yearPrefix}-09-15", PercentageShare = 25m },
+                new FeeScheduleTerm { Id = "term-3", TermName = "Term 3", Sequence = 3, DueDate = $"{yearPrefix}-12-15", PercentageShare = 25m },
+                new FeeScheduleTerm { Id = "term-4", TermName = "Term 4", Sequence = 4, DueDate = $"{int.Parse(yearPrefix) + 1}-03-15", PercentageShare = 25m },
+            };
+        }
         string defaultDueDate = !string.IsNullOrEmpty(schedule?.AnnualDueDate)
             ? schedule.AnnualDueDate
             : (scheduleTerms.FirstOrDefault()?.DueDate ?? DateTime.UtcNow.AddMonths(1).ToString("yyyy-MM-dd"));
-        string dynamicFrequency = !isAnnualPolicy && scheduleTerms.Count > 0 ? $"Term-Wise ({scheduleTerms.Count} Terms)" : "Annual";
+        string dynamicFrequency = !isAnnualPolicy ? $"Term-Wise ({scheduleTerms.Count} Terms)" : "Annual";
 
         var tuitionHead = await _context.FeeHeads.AsNoTracking()
             .FirstOrDefaultAsync(h => h.Category.Contains("Tuition") || h.Name.Contains("Tuition"));
         string tuitionHeadId = tuitionHead?.Code ?? (!string.IsNullOrEmpty(tuitionHead?.Id.ToString()) ? tuitionHead.Id.ToString() : "FH-101");
         string tuitionHeadName = tuitionHead?.Name ?? "Academic Fee";
-        string tuitionFrequency = isAnnualPolicy ? "Annual" : (!string.IsNullOrEmpty(tuitionHead?.Frequency) ? tuitionHead.Frequency : dynamicFrequency);
+        string tuitionFrequency = isAnnualPolicy ? "Annual" : "Term-wise";
 
         List<FeeTermItemDto> BuildDynamicTerms(decimal totalAmount, decimal paidAmount, string prefix = "")
         {
             var terms = new List<FeeTermItemDto>();
             decimal runningPaidTerm = paidAmount;
 
-            if (scheduleTerms.Count > 0)
+            if (isAnnualPolicy)
+            {
+                DateTime dueDt = DateTime.UtcNow.AddMonths(1);
+                bool hasDue = DateTime.TryParse(defaultDueDate, out dueDt);
+                bool isTermOverdue = totalAmount > paidAmount && hasDue && DateTime.UtcNow.Date > dueDt.Date;
+                int daysOverdue = isTermOverdue ? Math.Max(0, (DateTime.UtcNow.Date - dueDt.Date).Days) : 0;
+
+                terms.Add(new FeeTermItemDto
+                {
+                    TermId = string.IsNullOrEmpty(prefix) ? "term-1" : $"{prefix}-term-1",
+                    TermNumber = 1,
+                    TermName = "Full Annual Fee",
+                    DueDate = defaultDueDate,
+                    Amount = totalAmount,
+                    PaidAmount = paidAmount,
+                    RemainingAmount = Math.Max(0m, totalAmount - paidAmount),
+                    Status = (totalAmount <= paidAmount) ? "PAID" : (paidAmount > 0 ? "PARTIAL" : (isTermOverdue ? "OVERDUE" : "PENDING")),
+                    IsOverdue = isTermOverdue,
+                    DaysOverdue = daysOverdue
+                });
+            }
+            else
             {
                 int count = scheduleTerms.Count;
                 for (int i = 0; i < count; i++)
@@ -520,7 +602,7 @@ public class FeeCollectionRepository : IFeeCollectionRepository
 
                     terms.Add(new FeeTermItemDto
                     {
-                        TermId = string.IsNullOrEmpty(prefix) ? curTerm.Id : $"{prefix}-{curTerm.Id}",
+                        TermId = string.IsNullOrEmpty(prefix) ? curTerm.Id.ToString() : $"{prefix}-{curTerm.Id}",
                         TermNumber = curTerm.Sequence,
                         TermName = curTerm.TermName,
                         DueDate = curTerm.DueDate,
@@ -532,27 +614,6 @@ public class FeeCollectionRepository : IFeeCollectionRepository
                         DaysOverdue = daysOverdue
                     });
                 }
-            }
-            else
-            {
-                DateTime dueDt = DateTime.UtcNow.AddMonths(1);
-                bool hasDue = DateTime.TryParse(defaultDueDate, out dueDt);
-                bool isTermOverdue = totalAmount > paidAmount && hasDue && DateTime.UtcNow.Date > dueDt.Date;
-                int daysOverdue = isTermOverdue ? Math.Max(0, (DateTime.UtcNow.Date - dueDt.Date).Days) : 0;
-
-                terms.Add(new FeeTermItemDto
-                {
-                    TermId = string.IsNullOrEmpty(prefix) ? "term-1" : $"{prefix}-term-1",
-                    TermNumber = 1,
-                    TermName = "Full Fee",
-                    DueDate = defaultDueDate,
-                    Amount = totalAmount,
-                    PaidAmount = paidAmount,
-                    RemainingAmount = Math.Max(0m, totalAmount - paidAmount),
-                    Status = (totalAmount <= paidAmount) ? "PAID" : (paidAmount > 0 ? "PARTIAL" : (isTermOverdue ? "OVERDUE" : "PENDING")),
-                    IsOverdue = isTermOverdue,
-                    DaysOverdue = daysOverdue
-                });
             }
             return terms;
         }
@@ -1220,6 +1281,17 @@ public class FeeCollectionRepository : IFeeCollectionRepository
                     {
                         if (item.RemainingAmount > 0)
                         {
+                            bool isAnnual = profile.FeePolicy == null ||
+                                profile.FeePolicy.Contains("Annual", StringComparison.OrdinalIgnoreCase) ||
+                                profile.FeePolicy.Contains("Full", StringComparison.OrdinalIgnoreCase) ||
+                                profile.FeePolicy.Contains("One Time", StringComparison.OrdinalIgnoreCase) ||
+                                profile.FeePolicy.Contains("One-Time", StringComparison.OrdinalIgnoreCase);
+
+                            if (!isAnnual)
+                            {
+                                bool isDueOrArrived = item.IsOverdue || (!string.IsNullOrEmpty(item.DueDate) && DateTime.TryParse(item.DueDate, out var dDate) && dDate.Date <= DateTime.UtcNow.Date);
+                                if (!isDueOrArrived) continue;
+                            }
                             overdueHeadsList.Add(item.HeadName);
                             if (item.DaysOverdue > maxDays) maxDays = item.DaysOverdue;
                         }
@@ -1373,6 +1445,17 @@ public class FeeCollectionRepository : IFeeCollectionRepository
                     {
                         if (item.RemainingAmount > 0)
                         {
+                            bool isAnnual = profile.FeePolicy == null ||
+                                profile.FeePolicy.Contains("Annual", StringComparison.OrdinalIgnoreCase) ||
+                                profile.FeePolicy.Contains("Full", StringComparison.OrdinalIgnoreCase) ||
+                                profile.FeePolicy.Contains("One Time", StringComparison.OrdinalIgnoreCase) ||
+                                profile.FeePolicy.Contains("One-Time", StringComparison.OrdinalIgnoreCase);
+
+                            if (!isAnnual)
+                            {
+                                bool isDueOrArrived = item.IsOverdue || (!string.IsNullOrEmpty(item.DueDate) && DateTime.TryParse(item.DueDate, out var dDate) && dDate.Date <= DateTime.UtcNow.Date);
+                                if (!isDueOrArrived) continue;
+                            }
                             string cName = NormalizeCategoryName(!string.IsNullOrWhiteSpace(item.HeadName) ? item.HeadName : "Tuition Fee", activeHeads);
                             if (!catMap.ContainsKey(cName))
                             {
@@ -1995,7 +2078,8 @@ public class FeeCollectionRepository : IFeeCollectionRepository
         foreach (var s in activeStudents)
         {
             string sIdStr = s.StudentId.ToString();
-            if (assignmentDict.TryGetValue(sIdStr, out decimal assignedAmt))
+            string sAdmNo = s.AdmissionNumber ?? "";
+            if (assignmentDict.TryGetValue(sIdStr, out decimal assignedAmt) || (!string.IsNullOrEmpty(sAdmNo) && assignmentDict.TryGetValue(sAdmNo, out assignedAmt)) || (!string.IsNullOrEmpty(s.RollNumber) && assignmentDict.TryGetValue(s.RollNumber, out assignedAmt)))
             {
                 tuitionExpected += assignedAmt;
             }
@@ -2545,7 +2629,7 @@ public class FeeCollectionRepository : IFeeCollectionRepository
                 stPaid = stTotalAnnual;
             }
 
-            var studentAssignment = validAssignments.FirstOrDefault(a => a.StudentId == sIdStr);
+            var studentAssignment = validAssignments.FirstOrDefault(a => (a.StudentId != null && a.StudentId.Trim().ToLower() == sIdStr) || (!string.IsNullOrEmpty(sAdmNo) && a.StudentId != null && a.StudentId.Trim().ToLower() == sAdmNo.ToLower()) || (!string.IsNullOrEmpty(s.RollNumber) && a.StudentId != null && a.StudentId.Trim().ToLower() == s.RollNumber.ToLower()));
             var studentAdmApp = allActiveAdmissions.FirstOrDefault(a => 
                 a.Id == s.StudentId ||
                 (!string.IsNullOrEmpty(sAdmNo) && (a.AdmissionNo == sAdmNo || a.RegistrationNo == sAdmNo)));
@@ -2722,7 +2806,7 @@ public class FeeCollectionRepository : IFeeCollectionRepository
                     string stAdmNo = st.AdmissionNumber ?? "";
 
                     decimal stTuition = 0m;
-                    if (assignmentDict.TryGetValue(stIdStr, out decimal aAmt))
+                    if (assignmentDict.TryGetValue(stIdStr, out decimal aAmt) || (!string.IsNullOrEmpty(stAdmNo) && assignmentDict.TryGetValue(stAdmNo, out aAmt)) || (!string.IsNullOrEmpty(st.RollNumber) && assignmentDict.TryGetValue(st.RollNumber, out aAmt)))
                     {
                         stTuition = aAmt;
                     }
@@ -3517,6 +3601,11 @@ public class FeeCollectionRepository : IFeeCollectionRepository
 
         await _context.SaveChangesAsync();
         return true;
+    }
+
+    public async Task<StudentFeeProfileResponseDto?> RecalculateStudentFeeProfileAsync(string studentId, string? academicYear)
+    {
+        return await GetStudentFeeProfileAsync(studentId, academicYear);
     }
 
     public async Task<StudentFeeProfileResponseDto?> RecalculateStudentFeeProfileAsync(int studentId, string? academicYear)

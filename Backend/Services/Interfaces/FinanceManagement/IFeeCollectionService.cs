@@ -10,6 +10,7 @@ public interface IFeeCollectionService
         string? search, string? className, string? sectionName, string? studentType, int page, int pageSize);
 
     Task<StudentFeeProfileResponseDto?> GetStudentFeeProfileAsync(int studentId, string? academicYear);
+    Task<StudentFeeProfileResponseDto?> GetStudentFeeProfileAsync(string studentId, string? academicYear);
 
     Task<CollectFeePaymentResponseDto> CollectPaymentAsync(CollectFeePaymentRequestDto request);
 
@@ -38,4 +39,5 @@ public interface IFeeCollectionService
     Task<bool> ProcessDepositRefundAsync(ProcessDepositRefundRequestDto request);
 
     Task<StudentFeeProfileResponseDto?> RecalculateStudentFeeProfileAsync(int studentId, string? academicYear);
+    Task<StudentFeeProfileResponseDto?> RecalculateStudentFeeProfileAsync(string studentId, string? academicYear);
 }

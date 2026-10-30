@@ -240,6 +240,83 @@ namespace SMS.Api.Data
             ConfigureEmployeeCompetencyAssessment(modelBuilder);
             ConfigureFacultyTrainingParticipation(modelBuilder);
             ConfigureEmployeeAssessmentCandidate(modelBuilder);
+            ConfigureParentStudentMapping(modelBuilder);
+        }
+
+        private static void ConfigureParentStudentMapping(ModelBuilder modelBuilder)
+        {
+            modelBuilder.Entity<ParentStudentMapping>(entity =>
+            {
+                entity.ToTable("parent_student_mappings");
+
+                entity.HasKey(x => x.Id);
+
+                entity.Property(x => x.Id)
+                    .HasColumnName("Id")
+                    .ValueGeneratedOnAdd();
+
+                entity.Property(x => x.ParentUserId)
+                    .HasColumnName("ParentUserId")
+                    .IsRequired();
+
+                entity.Property(x => x.StudentId)
+                    .HasColumnName("StudentId")
+                    .IsRequired();
+
+                entity.Property(x => x.RelationshipType)
+                    .HasColumnName("RelationshipType")
+                    .HasMaxLength(50);
+
+                entity.Property(x => x.IsPrimaryContact)
+                    .HasColumnName("IsPrimaryContact");
+
+                entity.Property(x => x.Status)
+                    .HasColumnName("Status")
+                    .HasMaxLength(20);
+
+                entity.Property(x => x.BranchId)
+                    .HasColumnName("BranchId");
+
+                entity.Property(x => x.AcademicYearId)
+                    .HasColumnName("AcademicYearId");
+
+                entity.Property(x => x.OnboardingStatus)
+                    .HasColumnName("OnboardingStatus")
+                    .HasMaxLength(50);
+
+                entity.Property(x => x.WelcomeEmailSentAt)
+                    .HasColumnName("WelcomeEmailSentAt");
+
+                entity.Property(x => x.EmailFailureReason)
+                    .HasColumnName("EmailFailureReason")
+                    .HasMaxLength(500);
+
+                entity.Property(x => x.CreatedAt)
+                    .HasColumnName("CreatedAt");
+
+                entity.Property(x => x.UpdatedAt)
+                    .HasColumnName("UpdatedAt");
+
+                entity.HasOne(x => x.ParentUser)
+                    .WithMany()
+                    .HasForeignKey(x => x.ParentUserId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasOne(x => x.Student)
+                    .WithMany()
+                    .HasForeignKey(x => x.StudentId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasIndex(x => new { x.ParentUserId, x.StudentId })
+                    .IsUnique()
+                    .HasDatabaseName("UQ_parent_student_mappings_Parent_Student");
+
+                entity.HasIndex(x => x.ParentUserId)
+                    .HasDatabaseName("IX_parent_student_mappings_ParentUserId");
+
+                entity.HasIndex(x => x.StudentId)
+                    .HasDatabaseName("IX_parent_student_mappings_StudentId");
+            });
         }
 
         private static void ConfigureTeacherAttendanceCorrection(ModelBuilder modelBuilder)
