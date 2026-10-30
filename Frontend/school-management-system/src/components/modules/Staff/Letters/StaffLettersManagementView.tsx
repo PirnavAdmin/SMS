@@ -104,58 +104,11 @@ export const StaffLettersManagementView: React.FC<StaffLettersManagementViewProp
   // Global Template Settings State - pure database synced, no hardcoded / mock defaults
   const [globalTerms, setGlobalTerms] = useState<string[]>([]);
   const [newTermInput, setNewTermInput] = useState('');
-  const [globalSignatoryName, setGlobalSignatoryName] = useState(() => {
-    try {
-      const saved = localStorage.getItem('edu_db_global_letter_settings');
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (parsed.signatoryName && !isMockSignatory(parsed.signatoryName)) {
-          return parsed.signatoryName;
-        }
-      }
-    } catch (e) {}
-    return '';
-  });
-  const [globalSignatoryTitle, setGlobalSignatoryTitle] = useState(() => {
-    try {
-      const saved = localStorage.getItem('edu_db_global_letter_settings');
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (parsed.signatoryTitle) return parsed.signatoryTitle;
-      }
-    } catch (e) {}
-    return schoolProfile?.principalName ? 'Principal & Authorized Signatory' : '';
-  });
-  const [globalProbationMonths, setGlobalProbationMonths] = useState(() => {
-    try {
-      const saved = localStorage.getItem('edu_db_global_letter_settings');
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (parsed.probationMonths !== undefined) return parsed.probationMonths;
-      }
-    } catch (e) {}
-    return 6;
-  });
-  const [globalNoticePeriodDays, setGlobalNoticePeriodDays] = useState(() => {
-    try {
-      const saved = localStorage.getItem('edu_db_global_letter_settings');
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (parsed.noticePeriodDays !== undefined) return parsed.noticePeriodDays;
-      }
-    } catch (e) {}
-    return 30;
-  });
-  const [globalSignatureImage, setGlobalSignatureImage] = useState<string>(() => {
-    try {
-      const saved = localStorage.getItem('edu_db_global_letter_settings');
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (parsed.signatureImageUrl) return parsed.signatureImageUrl;
-      }
-    } catch (e) {}
-    return '';
-  });
+  const [globalSignatoryName, setGlobalSignatoryName] = useState('');
+  const [globalSignatoryTitle, setGlobalSignatoryTitle] = useState(schoolProfile?.principalName ? 'Principal & Authorized Signatory' : '');
+  const [globalProbationMonths, setGlobalProbationMonths] = useState(6);
+  const [globalNoticePeriodDays, setGlobalNoticePeriodDays] = useState(30);
+  const [globalSignatureImage, setGlobalSignatureImage] = useState<string>('');
 
   const [settingsErrors, setSettingsErrors] = useState<{
     signatoryName?: string;
@@ -212,21 +165,7 @@ export const StaffLettersManagementView: React.FC<StaffLettersManagementViewProp
           if (s.signatureImageUrl) setGlobalSignatureImage(s.signatureImageUrl);
           if (s.masterTerms && s.masterTerms.length > 0) setGlobalTerms(s.masterTerms);
 
-          try {
-            localStorage.setItem(
-              'edu_db_global_letter_settings',
-              JSON.stringify({
-                signatoryName: s.signatoryName && !isMockSignatory(s.signatoryName) ? s.signatoryName : '',
-                signatoryTitle: s.signatoryTitle,
-                probationMonths: s.probationMonths,
-                noticePeriodDays: s.noticePeriodDays,
-                signatureImageUrl: s.signatureImageUrl,
-              })
-            );
-            if (s.masterTerms) {
-              localStorage.setItem('edu_db_global_offer_terms', JSON.stringify(s.masterTerms));
-            }
-          } catch (e) {}
+// Synced directly with backend database; localStorage writes removed
         }
       })
       .catch((err) => {
@@ -322,9 +261,6 @@ export const StaffLettersManagementView: React.FC<StaffLettersManagementViewProp
   const handleRemoveTerm = (index: number) => {
     const updated = globalTerms.filter((_, idx) => idx !== index);
     setGlobalTerms(updated);
-    try {
-      localStorage.setItem('edu_db_global_offer_terms', JSON.stringify(updated));
-    } catch (e) {}
     addToast('success', 'Clause Removed', 'The selected policy/clause has been removed.');
   };
 

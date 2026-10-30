@@ -3820,7 +3820,7 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
                   placeholder="Additional remarks..."
                   value={classForm.remarks}
                   onChange={e => setClassForm({ ...classForm, remarks: e.target.value })}
-                  className="w-full px-3.5 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-202 outline-none"
+                  className="w-full px-3.5 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 outline-none"
                 />
               </div>
 
@@ -3984,19 +3984,19 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
       {/* ADD / EDIT SECTION DIALOG */}
       {isSectionModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm text-left">
-          <div className="bg-white dark:bg-slate-900 border border-slate-202 dark:border-slate-808 rounded-3xl max-w-md w-full p-6 space-y-4 shadow-2xl text-slate-900 dark:text-slate-105 font-bold">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-md w-full p-6 space-y-4 shadow-2xl text-slate-900 dark:text-slate-100 font-bold">
             <div className="flex items-center justify-between pb-1">
               <h3 className="text-base font-bold text-slate-900 dark:text-white">{editingSectionName ? 'Configure Section Details' : 'Add Section'}</h3>
             </div>
             
             <form onSubmit={handleSaveSection} className="space-y-4 text-xs font-bold">
               <div>
-                <label className="block text-slate-707 mb-1">Section Name (A-Z) <span className="text-rose-500 font-bold ml-0.5">*</span></label>
+                <label className="block text-slate-700 dark:text-slate-300 font-bold mb-1">Section Name (A-Z) <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                 <select
                   disabled={!!editingSectionName && students.filter(s => s.className === activeClass?.name && s.section === editingSectionName).length > 0}
                   value={sectionForm.name}
                   onChange={e => setSectionForm({ ...sectionForm, name: e.target.value })}
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-202 outline-none font-bold"
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 outline-none font-bold text-xs text-slate-900 dark:text-white"
                 >
                   {ALPHABET.map(l => (
                     <option key={l} value={l} disabled={!editingSectionName && (activeClass?.sections || []).filter(isValidSection).map(normalizeSectionLetter).includes(l)}>Section {l}</option>
@@ -4005,7 +4005,9 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
               </div>
  
               <div>
-                <label className="block text-slate-700 dark:text-slate-300 font-bold mb-1">Seat Capacity</label>
+                <label className="block text-slate-700 dark:text-slate-300 font-bold mb-1">
+                  Seat Capacity <span className="text-rose-500 font-bold ml-0.5">*</span>
+                </label>
                 <input
                   type="text"
                   inputMode="numeric"
@@ -4056,9 +4058,9 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
                 </div>
               </div>
 
-              <div className="flex justify-end gap-3 pt-3 border-t border-slate-100 dark:border-slate-808">
-                <button type="button" onClick={() => setIsSectionModalOpen(false)} className="px-4 py-2 text-slate-655 bg-slate-100 rounded-xl hover:bg-slate-200">Cancel</button>
-                <button type="submit" className="px-5 py-2 text-white bg-sky-600 hover:bg-sky-505 rounded-xl shadow-md">Save</button>
+              <div className="flex justify-end gap-3 pt-3 border-t border-slate-100 dark:border-slate-800">
+                <button type="button" onClick={() => setIsSectionModalOpen(false)} className="px-4 py-2 text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 rounded-xl hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors">Cancel</button>
+                <button type="submit" className="px-5 py-2 text-white bg-sky-600 hover:bg-sky-500 rounded-xl shadow-md transition-colors">Save</button>
               </div>
             </form>
           </div>

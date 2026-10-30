@@ -547,21 +547,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const handleSetUser = (newUser: User | null) => {
     setUser(newUser);
     if (newUser) {
-      localStorage.setItem('auth_user', JSON.stringify(newUser));
-      localStorage.setItem('user', JSON.stringify(newUser));
-      if (newUser.email) {
-        saveLocalUserProfile({
-          name: newUser.name,
-          email: newUser.email,
-          phone: newUser.phone,
-          avatar: newUser.avatar,
-          branch: newUser.branch,
-          role: newUser.role,
-        }, newUser.email);
+      try {
+        const safeUser = newUser.avatar && newUser.avatar.startsWith('data:')
+          ? { ...newUser, avatar: '' }
+          : newUser;
+        localStorage.setItem('auth_user', JSON.stringify(safeUser));
+        localStorage.setItem('user', JSON.stringify(safeUser));
+      } catch (e) {
+        console.warn('Could not cache user in localStorage', e);
       }
     } else {
-      localStorage.removeItem('auth_user');
-      localStorage.removeItem('user');
+      try {
+        localStorage.removeItem('auth_user');
+        localStorage.removeItem('user');
+      } catch (e) {}
     }
   };
 

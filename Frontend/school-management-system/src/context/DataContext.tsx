@@ -742,7 +742,7 @@ interface DataContextType {
 
   staff: Staff[];
   addStaff: (staffMember: Omit<Staff, "id">) => Staff;
-  updateStaff: (id: string, updates: Partial<Staff>) => void;
+  updateStaff: (id: string, updates: Partial<Staff>) => Promise<any>;
   deleteStaff: (id: string) => void;
   addStaffDocument: (staffId: string, doc: Omit<StaffDocument, "id">) => void;
   deleteStaffDocument: (staffId: string, docId: string) => void;
@@ -1538,20 +1538,35 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     role,
   } = useAuth();
 
-  const getStored = <T,>(key: string, initial: T): T => {
-    try {
-      const storageKey = key.startsWith("edu_db_") ? key : `edu_db_${key}`;
-      const saved =
-        localStorage.getItem(storageKey) || localStorage.getItem(key);
-      if (!saved || saved === "undefined" || saved === "null") return initial;
-      const parsed = JSON.parse(saved);
-      return parsed !== null && parsed !== undefined ? parsed : initial;
-    } catch {
-      const storageKey = key.startsWith("edu_db_") ? key : `edu_db_${key}`;
-      localStorage.removeItem(storageKey);
-      return initial;
-    }
+  const getStored = <T,>(_key: string, initial: T): T => {
+    // All business data is dynamically fetched from backend API and database
+    return initial;
   };
+
+  // One-time cleanup of legacy localStorage mock/cache database keys
+  useEffect(() => {
+    try {
+      const keysToRemove: string[] = [];
+      for (let i = 0; i < localStorage.length; i++) {
+        const k = localStorage.key(i);
+        if (
+          k &&
+          (k.startsWith("edu_db_") ||
+            k.startsWith("alumni_records") ||
+            k.startsWith("dynamic_fee_") ||
+            k.startsWith("fee_heads") ||
+            k.startsWith("student_discounts") ||
+            k.startsWith("student_fee_") ||
+            k.startsWith("route_slab_") ||
+            k === "selected_branch" ||
+            k === "selected_academic_year")
+        ) {
+          keysToRemove.push(k);
+        }
+      }
+      keysToRemove.forEach((k) => localStorage.removeItem(k));
+    } catch {}
+  }, []);
 
   const [schoolProfile, setSchoolProfile] = useState<SchoolProfile>(() => {
     const profile = getStored("profile", initialSchoolProfile);
@@ -1986,13 +2001,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   useEffect(() => {
     if (!dbAssignments.length) {
       setStudentFeeAssignments([]);
-      try {
-        localStorage.setItem("student_fee_assignments", JSON.stringify([]));
-        localStorage.setItem(
-          "edu_db_student_fee_assignments",
-          JSON.stringify([]),
-        );
-      } catch (e) {}
+
       return;
     }
     const mapped = dbAssignments
@@ -2508,9 +2517,6 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     });
   };
 
-  useEffect(() => {
-    localStorage.setItem("edu_db_profile", JSON.stringify(schoolProfile));
-  }, [schoolProfile]);
 
   useEffect(() => {
     const syncAcademicYearsFromApi = async () => {
@@ -2529,26 +2535,6 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       localStorage.removeItem("edu_db_staff");
     } catch {}
   }, []);
-  useEffect(() => {
-    try {
-      localStorage.setItem(
-        "edu_db_academic_classes",
-        JSON.stringify(academicClasses),
-      );
-    } catch {}
-  }, [academicClasses]);
-  useEffect(() => {
-    localStorage.setItem("edu_db_subjects", JSON.stringify(subjects));
-  }, [subjects]);
-  useEffect(() => {
-    localStorage.setItem("edu_db_buses", JSON.stringify(buses));
-  }, [buses]);
-  useEffect(() => {
-    localStorage.setItem("edu_db_hostel_blocks", JSON.stringify(hostelBlocks));
-  }, [hostelBlocks]);
-  useEffect(() => {
-    localStorage.setItem("edu_db_hostel_beds", JSON.stringify(hostelBeds));
-  }, [hostelBeds]);
 
   // Auto-reconcile uniform package stocks in real-time based on active non-returned student uniform issues
   useEffect(() => {
@@ -2609,48 +2595,6 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     });
   }, [studentUniformIssues]);
 
-  useEffect(() => {
-    localStorage.setItem("edu_db_custom_roles", JSON.stringify(customRoles));
-  }, [customRoles]);
-  useEffect(() => {
-    localStorage.setItem("edu_db_fee_payments", JSON.stringify(feePayments));
-  }, [feePayments]);
-  useEffect(() => {
-    localStorage.setItem(
-      "edu_db_finance_transactions",
-      JSON.stringify(financeTransactions),
-    );
-  }, [financeTransactions]);
-  useEffect(() => {
-    try {
-      localStorage.setItem(
-        "financial_accounts",
-        JSON.stringify(financialAccounts),
-      );
-      localStorage.setItem(
-        "edu_db_financial_accounts",
-        JSON.stringify(financialAccounts),
-      );
-    } catch (e) {}
-  }, [financialAccounts]);
-  useEffect(() => {
-    try {
-      localStorage.setItem(
-        "financial_categories",
-        JSON.stringify(financialCategories),
-      );
-      localStorage.setItem(
-        "edu_db_financial_categories",
-        JSON.stringify(financialCategories),
-      );
-    } catch (e) {}
-  }, [financialCategories]);
-  useEffect(() => {
-    localStorage.setItem(
-      "edu_db_financial_budgets",
-      JSON.stringify(financialBudgets),
-    );
-  }, [financialBudgets]);
   // School events are synced directly with the database API, no localStorage
 
   // One-time automatic normalization of class names to "Class X"
@@ -2786,155 +2730,17 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
             (a: any) => !a.id?.startsWith("ALM-100") && !a.studentId?.startsWith("STU-ALM-")
           );
           if (cleaned.length !== parsed.length) {
-            localStorage.setItem("alumni_records", JSON.stringify(cleaned));
-            localStorage.setItem("edu_db_alumni_records", JSON.stringify(cleaned));
+
             setAlumniRecords(cleaned);
           }
         }
       }
     } catch {}
   }, []);
-  useEffect(() => {
-    try {
-      localStorage.setItem(
-        "edu_db_alumni_records",
-        JSON.stringify(alumniRecords),
-      );
-      localStorage.setItem(
-        "alumni_records",
-        JSON.stringify(alumniRecords),
-      );
-    } catch (e) {}
-  }, [alumniRecords]);
 
   // ERP Effects
-  useEffect(() => {
-    localStorage.setItem("edu_db_fee_heads", JSON.stringify(feeHeads));
-  }, [feeHeads]);
-  useEffect(() => {
-    localStorage.setItem(
-      "edu_db_dynamic_fee_structures",
-      JSON.stringify(dynamicFeeStructures),
-    );
-  }, [dynamicFeeStructures]);
-  useEffect(() => {
-    localStorage.setItem(
-      "edu_db_student_fee_assignments",
-      JSON.stringify(studentFeeAssignments),
-    );
-  }, [studentFeeAssignments]);
-  useEffect(() => {
-    localStorage.setItem("edu_db_scholarships", JSON.stringify(scholarships));
-  }, [scholarships]);
-  useEffect(() => {
-    localStorage.setItem(
-      "edu_db_student_scholarships",
-      JSON.stringify(studentScholarships),
-    );
-  }, [studentScholarships]);
-  useEffect(() => {
-    localStorage.setItem("edu_db_discounts", JSON.stringify(discounts));
-    localStorage.setItem("discounts", JSON.stringify(discounts));
-  }, [discounts]);
-  useEffect(() => {
-    localStorage.setItem(
-      "edu_db_student_discounts",
-      JSON.stringify(studentDiscounts),
-    );
-    localStorage.setItem("student_discounts", JSON.stringify(studentDiscounts));
-  }, [studentDiscounts]);
-  useEffect(() => {
-    localStorage.setItem("edu_db_fine_rules", JSON.stringify(fineRules));
-  }, [fineRules]);
-  useEffect(() => {
-    localStorage.setItem(
-      "edu_db_erp_transport_routes",
-      JSON.stringify(erpTransportRoutes),
-    );
-  }, [erpTransportRoutes]);
-  useEffect(() => {
-    localStorage.setItem(
-      "edu_db_student_transports",
-      JSON.stringify(studentTransports),
-    );
-  }, [studentTransports]);
-  useEffect(() => {
-    localStorage.setItem(
-      "edu_db_hostel_masters",
-      JSON.stringify(hostelMasters),
-    );
-  }, [hostelMasters]);
-  useEffect(() => {
-    localStorage.setItem(
-      "edu_db_room_type_masters",
-      JSON.stringify(roomTypeMasters),
-    );
-  }, [roomTypeMasters]);
-  useEffect(() => {
-    localStorage.setItem("edu_db_room_masters", JSON.stringify(roomMasters));
-  }, [roomMasters]);
-  useEffect(() => {
-    localStorage.setItem(
-      "edu_db_student_hostel_assignments",
-      JSON.stringify(studentHostelAssignments),
-    );
-  }, [studentHostelAssignments]);
-  useEffect(() => {
-    localStorage.setItem(
-      "edu_db_hostel_visitor_logs",
-      JSON.stringify(hostelVisitorLogs),
-    );
-  }, [hostelVisitorLogs]);
-  useEffect(() => {
-    localStorage.setItem(
-      "edu_db_hostel_attendance_logs",
-      JSON.stringify(hostelAttendanceLogs),
-    );
-  }, [hostelAttendanceLogs]);
-  useEffect(() => {
-    localStorage.setItem(
-      "edu_db_finance_hostel_configs",
-      JSON.stringify(financeHostelConfigs),
-    );
-  }, [financeHostelConfigs]);
-  useEffect(() => {
-    localStorage.setItem(
-      "edu_db_student_hostels",
-      JSON.stringify(studentHostels),
-    );
-  }, [studentHostels]);
-  useEffect(() => {
-    localStorage.setItem("edu_db_refunds", JSON.stringify(refunds));
-  }, [refunds]);
-  useEffect(() => {
-    localStorage.setItem(
-      "edu_db_finance_settings",
-      JSON.stringify(financeSettings),
-    );
-  }, [financeSettings]);
-  useEffect(() => {
-    localStorage.setItem(
-      "edu_db_question_papers",
-      JSON.stringify(questionPapers),
-    );
-  }, [questionPapers]);
-  useEffect(() => {
-    localStorage.setItem("edu_db_school_meetings", JSON.stringify(meetings));
-  }, [meetings]);
-  useEffect(() => {
-    localStorage.setItem("edu_db_departments", JSON.stringify(departments));
-  }, [departments]);
-  useEffect(() => {
-    localStorage.setItem("edu_db_designations", JSON.stringify(designations));
-  }, [designations]);
 
   // Uniform ERP Effects (API & Database driven - dynamic data sync)
-  useEffect(() => {
-    localStorage.setItem(
-      "edu_db_finance_uniform_configs",
-      JSON.stringify(financeUniformConfigs),
-    );
-  }, [financeUniformConfigs]);
 
   // Auto-sync uniformCategories with uniforms catalog & inventory (Strict 1-to-1 count & deduplication)
   useEffect(() => {
@@ -3054,42 +2860,6 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   }, [uniforms]);
 
   // Transport ERP Effects
-  useEffect(() => {
-    localStorage.setItem("edu_db_route_masters", JSON.stringify(routeMasters));
-  }, [routeMasters]);
-  useEffect(() => {
-    localStorage.setItem("edu_db_pickup_points", JSON.stringify(pickupPoints));
-  }, [pickupPoints]);
-  useEffect(() => {
-    localStorage.setItem(
-      "edu_db_vehicle_masters",
-      JSON.stringify(vehicleMasters),
-    );
-  }, [vehicleMasters]);
-  useEffect(() => {
-    localStorage.setItem(
-      "edu_db_driver_masters",
-      JSON.stringify(driverMasters),
-    );
-  }, [driverMasters]);
-  useEffect(() => {
-    localStorage.setItem(
-      "edu_db_bus_attendants",
-      JSON.stringify(busAttendants),
-    );
-  }, [busAttendants]);
-  useEffect(() => {
-    localStorage.setItem(
-      "edu_db_vehicle_assignments",
-      JSON.stringify(vehicleAssignments),
-    );
-  }, [vehicleAssignments]);
-  useEffect(() => {
-    localStorage.setItem(
-      "edu_db_vehicle_maintenances",
-      JSON.stringify(vehicleMaintenances),
-    );
-  }, [vehicleMaintenances]);
 
   // Fetch API data on mount
   useEffect(() => {
@@ -3945,18 +3715,6 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   }, [isAuthenticated]);
 
   // Finance Transport Config & Ledger Effects
-  useEffect(() => {
-    localStorage.setItem(
-      "edu_db_finance_transport_configs",
-      JSON.stringify(financeTransportConfigs),
-    );
-  }, [financeTransportConfigs]);
-  useEffect(() => {
-    localStorage.setItem(
-      "edu_db_student_fee_ledgers",
-      JSON.stringify(studentFeeLedgers),
-    );
-  }, [studentFeeLedgers]);
 
   // Synchronize studentFeeLedgers with dynamic fee structures & assignments:
   // Prune any ledger where student has no active assignment, no payments, and no addons
@@ -3997,68 +3755,11 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     });
   }, [studentFeeAssignments, feePayments, studentTransports, studentHostels]);
 
-  useEffect(() => {
-    localStorage.setItem(
-      "edu_db_academic_year_fee_schedules",
-      JSON.stringify(academicYearFeeSchedules),
-    );
-  }, [academicYearFeeSchedules]);
 
-  useEffect(() => {
-    localStorage.setItem(
-      "edu_db_student_fee_installments",
-      JSON.stringify(studentFeeInstallments),
-    );
-  }, [studentFeeInstallments]);
 
   // Leave & Payroll System Effects
   // Holidays are synced directly with the database API, no localStorage
-  useEffect(() => {
-    localStorage.setItem("edu_db_leave_types", JSON.stringify(leaveTypes));
-  }, [leaveTypes]);
-  useEffect(() => {
-    localStorage.setItem(
-      "edu_db_payroll_configurations",
-      JSON.stringify(payrollConfigurations),
-    );
-  }, [payrollConfigurations]);
-  useEffect(() => {
-    localStorage.setItem(
-      "edu_db_payroll_components",
-      JSON.stringify(payrollComponents),
-    );
-  }, [payrollComponents]);
-  useEffect(() => {
-    localStorage.setItem(
-      "edu_db_salary_structures",
-      JSON.stringify(salaryStructures),
-    );
-  }, [salaryStructures]);
-  useEffect(() => {
-    localStorage.setItem(
-      "edu_db_employee_salary_assignments",
-      JSON.stringify(employeeSalaryAssignments),
-    );
-  }, [employeeSalaryAssignments]);
-  useEffect(() => {
-    localStorage.setItem("edu_db_payroll_runs", JSON.stringify(payrollRuns));
-  }, [payrollRuns]);
 
-  useEffect(() => {
-    localStorage.setItem("edu_db_exams", JSON.stringify(exams));
-  }, [exams]);
-  useEffect(() => {
-    localStorage.setItem(
-      "edu_db_exam_schedules",
-      JSON.stringify(examSchedules),
-    );
-  }, [examSchedules]);
-  useEffect(() => {
-    localStorage.setItem(
-      "edu_db_grade_configurations",
-      JSON.stringify(gradeConfigurations),
-    );
-  }, [gradeConfigurations]);
   useEffect(() => {
     try {
       localStorage.removeItem("edu_db_student_attendance");
@@ -4067,22 +3768,6 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     } catch {}
   }, []);
 
-  useEffect(() => {
-    localStorage.setItem(
-      "edu_db_finance_uniform_configs",
-      JSON.stringify(financeUniformConfigs),
-    );
-    localStorage.setItem(
-      "finance_uniform_configs",
-      JSON.stringify(financeUniformConfigs),
-    );
-  }, [financeUniformConfigs]);
-  useEffect(() => {
-    localStorage.setItem(
-      "edu_db_co_scholastic_assessments",
-      JSON.stringify(coScholasticAssessments),
-    );
-  }, [coScholasticAssessments]);
 
   const fetchTeacherAssignments = async () => {
     try {
@@ -4973,7 +4658,12 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   const fetchBranches = useCallback(async () => {
     try {
       const res: any = await fetchBranchesApi();
-      const list = Array.isArray(res) ? res : res?.data || [];
+      let list = (res?.success && Array.isArray(res.data)) ? res.data : (Array.isArray(res) ? res : res?.data || []);
+      if (!list || list.length === 0) {
+        const settingsRes: any = await fetchSchoolSettingsApi();
+        const campuses = settingsRes?.data?.campuses || settingsRes?.campuses;
+        if (Array.isArray(campuses) && campuses.length > 0) list = campuses;
+      }
       if (Array.isArray(list)) {
         setBranches(list);
       }
@@ -8592,7 +8282,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     return newStaff;
   };
 
-  const updateStaff = (id: string, updates: Partial<Staff>) => {
+  const updateStaff = async (id: string, updates: Partial<Staff>): Promise<any> => {
     if (updates.empId) {
       const trimmedTarget = updates.empId.trim().toLowerCase();
       const conflict = staff.find(
@@ -8610,119 +8300,131 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         updates = safeUpdates;
       }
     }
-    const numericId = parseInt(id, 10);
-    if (!isNaN(numericId)) {
-      const existing = staff.find((s) => s.id === id);
-      if (existing) {
-        const fullStaff = { ...existing, ...updates };
-        const photoDoc = (fullStaff.documents || []).find((d: any) => /photo|profile/i.test(`${d.title || d.documentTitle || ''} ${d.type || d.documentType || ''}`));
-        const finalAvatar = fullStaff.avatar || (fullStaff as any).profilePhoto || photoDoc?.fileUrl || "";
 
-        updateStaffApi(numericId, {
-          employeeId: fullStaff.empId,
-          employeeCategory:
-            fullStaff.employeeCategory === "Teacher"
-              ? "Teaching Staff"
-              : "Non-Teaching Staff",
-          firstName: fullStaff.firstName,
-          middleName: fullStaff.middleName || "",
-          lastName: fullStaff.lastName,
-          email: fullStaff.email?.trim() || null,
-          phone: fullStaff.phone,
-          alternateMobile: (() => {
-            const alt =
-              fullStaff.alternateMobile ||
-              (fullStaff as any).alternateMobileNumber ||
-              (fullStaff as any).alternatePhone ||
-              "";
-            const digits = String(alt).replace(/\D/g, "");
-            return digits.length >= 5 ? String(alt).trim() : null;
-          })(),
-          gender: fullStaff.gender || "Male",
-          designation: fullStaff.designation,
-          department: fullStaff.department,
-          systemRole: fullStaff.role,
-          joiningDate: fullStaff.joiningDate,
-          qualification: fullStaff.qualification || fullStaff.highestQualification || "",
-          employmentType: fullStaff.employmentType,
-          monthlySalary: fullStaff.salary || (fullStaff as any).monthlySalary || 0,
-          grossSalary: fullStaff.grossSalary || fullStaff.salary || 0,
-          netSalary: fullStaff.netSalary || fullStaff.salary || 0,
-          profilePhoto: finalAvatar,
-          avatar: finalAvatar,
-          dateOfBirth: fullStaff.dob,
-          bloodGroup: fullStaff.bloodGroup,
-          aadhaarNumber: fullStaff.aadhaarNumber || null,
-          panNumber:
-            fullStaff.panNumber ||
-            (fullStaff as any).panNo ||
-            (fullStaff as any).pan ||
-            null,
-          presentAddress: fullStaff.presentAddress || (fullStaff as any).residentialAddress || fullStaff.address || null,
-          permanentAddress: fullStaff.permanentAddress || null,
-          city: fullStaff.city || null,
-          state: fullStaff.state || null,
-          pinCode: fullStaff.pinCode || null,
-          country: fullStaff.country || "India",
-          accountHolderName: fullStaff.bankDetails?.accountHolderName || (fullStaff as any).accountHolderName || "",
-          accountNumber: fullStaff.bankDetails?.accountNumber || (fullStaff as any).accountNumber || "",
-          bankName: fullStaff.bankDetails?.bankName || (fullStaff as any).bankName || "",
-          branchName: fullStaff.branch || fullStaff.bankDetails?.branch || (fullStaff as any).branchName || "",
-          ifscCode: fullStaff.bankDetails?.ifscCode || (fullStaff as any).ifscCode || "",
-          upiId: fullStaff.bankDetails?.upiId || (fullStaff as any).upiId || "",
-          isActive: fullStaff.status === "Active",
-          assignedClasses: fullStaff.assignedClasses || [],
-          assignedSubjects: fullStaff.assignedSubjects || [],
-          qualifications: (fullStaff.qualifications || []).map((q: any) => ({
-            qualificationDegree: q.highestQualification || q.qualificationDegree || q.qualification || q.degree || "",
-            specializationSubject:
-              q.specialization || q.specializationSubject || q.subject || "",
-            institutionCollege: q.institution || q.institutionCollege || q.college || "",
-            boardUniversity: q.university || q.boardUniversity || q.board || "",
-            passingYear: (q.year || q.passingYear || "").toString(),
-            percentageCgpa: (q.percentage || q.percentageCgpa || "").toString(),
-          })),
-          experienceRecords: (fullStaff.experienceRecords || []).map(
-            (e: any) => ({
-              previousOrganization:
-                e.organization || e.previousOrganization || e.previousSchool || e.school || "",
-              designationHeld:
-                e.designation || e.designationHeld || e.role || "",
-              fromDate: e.joiningDate || e.fromDate || null,
-              toDate: e.relievingDate || e.toDate || null,
-              totalExperience: (e.totalExperience || "").toString(),
-              reasonForLeaving: e.reasonForLeaving || "",
-            }),
-          ),
-          documents: (fullStaff.documents || []).map((d: any) => ({
-            documentTitle: d.title || d.documentTitle || d.fileName || d.name || d.documentType || "",
-            documentType:
-              d.type || d.documentType || d.docType || d.title || "Document",
-            fileUrl: d.fileUrl || "",
-            isRequired: d.isRequired ?? true,
-            status: d.verificationStatus || d.status || "Attached",
-            uploadedAt:
-              d.uploadedAt ||
-              d.uploadDate ||
-              d.uploadedDate ||
-              new Date().toISOString(),
-          })),
-        })
-          .then(() => {
+    const existing = staff.find(
+      (s) =>
+        String(s.id) === String(id) ||
+        (s.empId && s.empId.toLowerCase() === String(id).toLowerCase()) ||
+        ((s as any).employeeId && (s as any).employeeId.toLowerCase() === String(id).toLowerCase())
+    );
+
+    const targetStaffId = existing?.id || id;
+    const numericId = parseInt(String(targetStaffId), 10);
+    const fullStaff = existing ? { ...existing, ...updates } : ({ id, ...updates } as Staff);
+    const photoDoc = (fullStaff.documents || []).find((d: any) => /photo|profile/i.test(`${d.title || d.documentTitle || ''} ${d.type || d.documentType || ''}`));
+    const finalAvatar = fullStaff.avatar || (fullStaff as any).profilePhoto || photoDoc?.fileUrl || "";
+
+    let apiPromise: Promise<any> = Promise.resolve();
+    if (!isNaN(numericId)) {
+      apiPromise = updateStaffApi(numericId, {
+        employeeId: fullStaff.empId,
+        employeeCategory:
+          fullStaff.employeeCategory === "Teacher"
+            ? "Teaching Staff"
+            : "Non-Teaching Staff",
+        firstName: fullStaff.firstName,
+        middleName: fullStaff.middleName || "",
+        lastName: fullStaff.lastName,
+        email: fullStaff.email?.trim() || null,
+        phone: fullStaff.phone,
+        alternateMobile: (() => {
+          const alt =
+            fullStaff.alternateMobile ||
+            (fullStaff as any).alternateMobileNumber ||
+            (fullStaff as any).alternatePhone ||
+            "";
+          const digits = String(alt).replace(/\D/g, "");
+          return digits.length >= 5 ? String(alt).trim() : null;
+        })(),
+        gender: fullStaff.gender || "Male",
+        designation: fullStaff.designation,
+        department: fullStaff.department,
+        systemRole: fullStaff.role,
+        joiningDate: fullStaff.joiningDate,
+        qualification: fullStaff.qualification || fullStaff.highestQualification || "",
+        employmentType: fullStaff.employmentType,
+        monthlySalary: fullStaff.salary || (fullStaff as any).monthlySalary || 0,
+        grossSalary: fullStaff.grossSalary || fullStaff.salary || 0,
+        netSalary: fullStaff.netSalary || fullStaff.salary || 0,
+        profilePhoto: finalAvatar,
+        avatar: finalAvatar,
+        dateOfBirth: fullStaff.dob,
+        bloodGroup: fullStaff.bloodGroup,
+        aadhaarNumber: fullStaff.aadhaarNumber || null,
+        panNumber:
+          fullStaff.panNumber ||
+          (fullStaff as any).panNo ||
+          (fullStaff as any).pan ||
+          null,
+        presentAddress: fullStaff.presentAddress || (fullStaff as any).residentialAddress || fullStaff.address || null,
+        permanentAddress: fullStaff.permanentAddress || null,
+        city: fullStaff.city || null,
+        state: fullStaff.state || null,
+        pinCode: fullStaff.pinCode || null,
+        country: fullStaff.country || "India",
+        accountHolderName: fullStaff.bankDetails?.accountHolderName || (fullStaff as any).accountHolderName || "",
+        accountNumber: fullStaff.bankDetails?.accountNumber || (fullStaff as any).accountNumber || "",
+        bankName: fullStaff.bankDetails?.bankName || (fullStaff as any).bankName || "",
+        branchName: fullStaff.branch || fullStaff.bankDetails?.branch || (fullStaff as any).branchName || "",
+        ifscCode: fullStaff.bankDetails?.ifscCode || (fullStaff as any).ifscCode || "",
+        upiId: fullStaff.bankDetails?.upiId || (fullStaff as any).upiId || "",
+        isActive: fullStaff.status === "Active",
+        assignedClasses: fullStaff.assignedClasses || [],
+        assignedSubjects: fullStaff.assignedSubjects || [],
+        qualifications: (fullStaff.qualifications || []).map((q: any) => ({
+          qualificationDegree: q.highestQualification || q.qualificationDegree || q.qualification || q.degree || "",
+          specializationSubject:
+            q.specialization || q.specializationSubject || q.subject || "",
+          institutionCollege: q.institution || q.institutionCollege || q.college || "",
+          boardUniversity: q.university || q.boardUniversity || q.board || "",
+          passingYear: (q.year || q.passingYear || "").toString(),
+          percentageCgpa: (q.percentage || q.percentageCgpa || "").toString(),
+        })),
+        experienceRecords: (fullStaff.experienceRecords || []).map(
+          (e: any) => ({
+            previousOrganization:
+              e.organization || e.previousOrganization || e.previousSchool || e.school || "",
+            designationHeld:
+              e.designation || e.designationHeld || e.role || "",
+            fromDate: e.joiningDate || e.fromDate || null,
+            toDate: e.relievingDate || e.toDate || null,
+            totalExperience: (e.totalExperience || "").toString(),
+            reasonForLeaving: e.reasonForLeaving || "",
+          }),
+        ),
+        documents: (fullStaff.documents || []).map((d: any) => ({
+          documentTitle: d.title || d.documentTitle || d.fileName || d.name || d.documentType || "",
+          documentType:
+            d.type || d.documentType || d.docType || d.title || "Document",
+          fileUrl: d.fileUrl || "",
+          isRequired: d.isRequired ?? true,
+          status: d.verificationStatus || d.status || "Attached",
+          uploadedAt:
+            d.uploadedAt ||
+            d.uploadDate ||
+            d.uploadedDate ||
+            new Date().toISOString(),
+        })),
+      })
+        .then(async () => {
+          try {
             fetchAcademicClasses();
-            fetchStaff();
-          })
-          .catch((err) => {
-            console.error("Failed to update staff in backend", err);
-          });
-      }
+            await fetchStaff();
+          } catch (e) {}
+        })
+        .catch((err) => {
+          console.error("Failed to update staff in backend", err);
+          throw err;
+        });
     }
 
     setStaff((prev) => {
       const nextStaff = prev.map((s) =>
-        s.id === id ? { ...s, ...updates } : s,
+        String(s.id) === String(id) || (s.empId && s.empId.toLowerCase() === String(id).toLowerCase())
+          ? { ...s, ...updates }
+          : s,
       );
-      const updated = nextStaff.find((s) => s.id === id);
+      const updated = nextStaff.find((s) => String(s.id) === String(id) || (s.empId && s.empId.toLowerCase() === String(id).toLowerCase()));
       if (updated && isTeachingStaff(updated)) {
         syncTeacherAssignments(updated);
       }
@@ -8812,6 +8514,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       );
     }
     logActivity("Updated Staff Record", `Updated details for staff ID ${id}`);
+    return apiPromise;
   };
 
   const deleteStaff = async (id: string) => {
@@ -10775,22 +10478,10 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     TeacherAssignment[]
   >([]);
 
-  useEffect(() => {
-    localStorage.setItem("edu_db_timetable", JSON.stringify(timetable));
-  }, [timetable]);
 
-  useEffect(() => {
-    localStorage.setItem("edu_db_homework", JSON.stringify(homework));
-  }, [homework]);
 
   // Holidays and school events synced directly with DB API, no localStorage
 
-  useEffect(() => {
-    localStorage.setItem(
-      "edu_db_period_settings",
-      JSON.stringify(periodSettings),
-    );
-  }, [periodSettings]);
 
   const addPeriodSetting = async (data: Omit<PeriodSetting, "id">) => {
     // Check duplicate

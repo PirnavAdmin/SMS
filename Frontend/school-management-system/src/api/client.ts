@@ -1,28 +1,18 @@
-let activeBranchHeader = (typeof window !== 'undefined' ? localStorage.getItem('selected_branch') || '' : '');
-let activeAcademicYearHeader = (typeof window !== 'undefined' ? localStorage.getItem('selected_academic_year') || '' : '');
+let activeBranchHeader = '';
+let activeAcademicYearHeader = '';
 
 export const setActiveBranchHeader = (b: string) => {
   activeBranchHeader = b || '';
-  if (typeof window !== 'undefined') {
-    if (b && b !== 'All Branches' && b !== 'All') {
-      try { localStorage.setItem('selected_branch', b); } catch {}
-    }
-  }
 };
 
 export const setActiveAcademicYearHeader = (ay: string) => {
   activeAcademicYearHeader = ay || '';
-  if (typeof window !== 'undefined') {
-    if (ay && ay !== 'All') {
-      try { localStorage.setItem('selected_academic_year', ay); } catch {}
-    }
-  }
 };
 
 export const apiClient = async (endpoint: string, options: RequestInit = {}) => {
   const token = localStorage.getItem('auth_token');
-  const branch = activeBranchHeader || (typeof window !== 'undefined' ? localStorage.getItem('selected_branch') || '' : '');
-  const academicYear = activeAcademicYearHeader || (typeof window !== 'undefined' ? localStorage.getItem('selected_academic_year') || '' : '');
+  const branch = activeBranchHeader;
+  const academicYear = activeAcademicYearHeader;
 
   let userRole = '';
   try {

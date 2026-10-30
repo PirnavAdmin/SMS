@@ -4,6 +4,8 @@ using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using SMS.Api.Data;
+using SMS.Api.Dtos;
+using System.Text.Json;
 using SMS.Api.Models;
 using SMS.Api.Repositories.Interfaces.Settings;
 
@@ -101,6 +103,67 @@ namespace SMS.Api.Repositories.Implementations.Settings
             existing.CampusesJson = json;
             existing.UpdatedAt = DateTime.UtcNow;
             await _context.SaveChangesAsync();
+
+            try
+            {
+                var campuses = JsonSerializer.Deserialize<List<BranchDto>>(json, new JsonSerializerOptions
+                {
+                    PropertyNameCaseInsensitive = true
+                });
+
+                if (campuses != null && campuses.Count > 0)
+                {
+                    var existingBranches = await _context.Branches.ToListAsync();
+                    bool changed = false;
+
+                    foreach (var c in campuses)
+                    {
+                        if (string.IsNullOrWhiteSpace(c.Name)) continue;
+
+                        int parsedBranchId = 0;
+                        if (c.BranchId > 0) parsedBranchId = c.BranchId;
+                        else if (!string.IsNullOrWhiteSpace(c.Id) && c.Id.StartsWith("CMP-") && int.TryParse(c.Id.Replace("CMP-", ""), out var pid)) parsedBranchId = pid;
+                        else if (!string.IsNullOrWhiteSpace(c.Id) && int.TryParse(c.Id, out var pid2)) parsedBranchId = pid2;
+
+                        var branch = existingBranches.FirstOrDefault(b => 
+                            (parsedBranchId > 0 && b.BranchId == parsedBranchId) ||
+                            string.Equals(b.BranchName.Trim(), c.Name.Trim(), StringComparison.OrdinalIgnoreCase) ||
+                            (!string.IsNullOrWhiteSpace(c.Code) && string.Equals(b.BranchCode.Trim(), c.Code.Trim(), StringComparison.OrdinalIgnoreCase))
+                        );
+
+                        if (branch != null)
+                        {
+                            branch.BranchName = c.Name.Trim();
+                            if (!string.IsNullOrWhiteSpace(c.Code)) branch.BranchCode = c.Code.Trim().ToUpper();
+                            branch.Address = c.Address?.Trim() ?? "";
+                            branch.Phone = c.Phone?.Trim() ?? "";
+                            branch.Email = c.Email?.Trim() ?? "";
+                            branch.Status = string.IsNullOrWhiteSpace(c.Status) ? "Active" : c.Status;
+                            changed = true;
+                        }
+                        else
+                        {
+                            _context.Branches.Add(new Branch
+                            {
+                                BranchName = c.Name.Trim(),
+                                BranchCode = !string.IsNullOrWhiteSpace(c.Code) ? c.Code.Trim().ToUpper() : c.Name.Trim().Substring(0, Math.Min(5, c.Name.Trim().Length)).ToUpper(),
+                                Address = c.Address?.Trim() ?? "",
+                                Phone = c.Phone?.Trim() ?? "",
+                                Email = c.Email?.Trim() ?? "",
+                                Status = string.IsNullOrWhiteSpace(c.Status) ? "Active" : c.Status
+                            });
+                            changed = true;
+                        }
+                    }
+
+                    if (changed)
+                    {
+                        await _context.SaveChangesAsync();
+                    }
+                }
+            }
+            catch { }
+
             return true;
         }
 

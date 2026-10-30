@@ -145,6 +145,14 @@ export const Header: React.FC<HeaderProps> = ({ collapsed, setCollapsed, onOpenS
       } catch {}
     };
     loadSettingsData();
+
+    const handleBranchesUpdated = () => {
+      if (fetchBranches) fetchBranches();
+    };
+    window.addEventListener('branches_updated', handleBranchesUpdated);
+    return () => {
+      window.removeEventListener('branches_updated', handleBranchesUpdated);
+    };
   }, [fetchBranches, fetchAnnouncements]);
 
   const roles: UserRole[] = [
@@ -159,8 +167,8 @@ export const Header: React.FC<HeaderProps> = ({ collapsed, setCollapsed, onOpenS
 
   const branchOptions = useMemo(() => {
     const fromApi = (branches || [])
-      .filter((b: any) => b.status !== 'Inactive')
-      .map((b: any) => b.name || b.branchName)
+      .filter((b: any) => b && b.status !== 'Inactive')
+      .map((b: any) => typeof b === 'string' ? b : (b.name || b.branchName))
       .filter(Boolean);
 
     return Array.from(new Set(fromApi)).sort();
@@ -210,10 +218,10 @@ export const Header: React.FC<HeaderProps> = ({ collapsed, setCollapsed, onOpenS
       if (editingBranchName) {
         const existing = (branches || []).find((b: any) => (b.name || b.branchName) === editingBranchName);
         if (existing) {
-          await updateBranchApi(existing.id, { ...existing, name: nextName });
+          await updateBranchApi(existing.id, { ...existing, name: nextName, address: existing.address || 'Main Campus' });
         }
       } else {
-        await createBranchApi({ name: nextName, code: nextName.slice(0, 4).toUpperCase(), status: 'Active' });
+        await createBranchApi({ name: nextName, code: nextName.slice(0, 4).toUpperCase(), address: 'Main Campus', status: 'Active' });
       }
       if (fetchBranches) await fetchBranches();
       window.dispatchEvent(new Event('branches_updated'));

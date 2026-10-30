@@ -250,6 +250,7 @@ export const SettingsView: React.FC = () => {
     certificateTemplates: contextTemplates,
     updateCertificateTemplate: contextUpdateTemplate,
     branches = [],
+    fetchBranches,
   } = useData();
   const { user, setUser, role, changePassword } = useAuth();
   const { addToast } = useToast();
@@ -771,6 +772,12 @@ export const SettingsView: React.FC = () => {
   // Campus Configuration States
   const [campuses, setCampuses] = useState<CampusItem[]>([]);
 
+  useEffect(() => {
+    if (branches && branches.length > 0) {
+      setCampuses(branches);
+    }
+  }, [branches]);
+
   const [campusSearch, setCampusSearch] = useState("");
   const [isCampusModalOpen, setIsCampusModalOpen] = useState(false);
   const [editingCampus, setEditingCampus] = useState<CampusItem | null>(null);
@@ -846,6 +853,7 @@ export const SettingsView: React.FC = () => {
   // Sync campuses to backend and trigger Header sync event
   const syncCampuses = async (updated: CampusItem[]) => {
     setCampuses(updated);
+    if (fetchBranches) await fetchBranches();
     window.dispatchEvent(new Event("branches_updated"));
 
     try {
