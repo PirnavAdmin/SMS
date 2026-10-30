@@ -55,7 +55,7 @@ export const calculateWorkedDutyHours = (checkIn?: string, checkOut?: string): s
 
 export const WardenAttendanceView: React.FC = () => {
   const { user, role } = useAuth();
-  const { staff = [], markAttendance } = useData();
+  const { staff = [], markAttendance, attendance = [], schoolProfile } = useData();
   const { addToast } = useToast();
 
   const todayStr = useMemo(() => new Date().toISOString().split('T')[0], []);
@@ -63,16 +63,21 @@ export const WardenAttendanceView: React.FC = () => {
   const [selectedMonth, setSelectedMonth] = useState<number>(new Date().getMonth());
   const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
 
-  // 1. Identify logged-in Warden Details
+  // 1. Identify logged-in Warden Details strictly
   const wardenInfo = useMemo(() => {
     const userName = user?.name || (user as any)?.firstName || 'Hostel Warden';
-    const userEmail = user?.email || '';
-    const userEmpId = user?.id || '';
+    const userEmail = (user?.email || '').toLowerCase().trim();
+    const userEmpId = String(user?.id || (user as any)?.empId || '').trim();
 
-    const matchedStaff = staff.find(s =>
-      s.email?.toLowerCase() === userEmail.toLowerCase() ||
-      `${s.firstName || ''} ${s.lastName || ''}`.trim().toLowerCase() === userName.toLowerCase()
-    );
+    const matchedStaff = staff.find(s => {
+      const sEmail = String(s.email || '').toLowerCase().trim();
+      const sId = String(s.id || '').trim();
+      const sEmpId = String(s.empId || (s as any).employeeId || '').trim();
+      return (
+        (userEmail && sEmail === userEmail) ||
+        (userEmpId && (sId === userEmpId || sEmpId === userEmpId))
+      );
+    });
 
     return {
       id: matchedStaff?.id || userEmpId,
@@ -91,14 +96,50 @@ export const WardenAttendanceView: React.FC = () => {
   const [checkOutTime, setCheckOutTime] = useState<string | null>(null);
   const [isCheckedOut, setIsCheckedOut] = useState<boolean>(false);
 
+  // Sync today's attendance from DataContext attendance records
+  useEffect(() => {
+    const wId = String(wardenInfo.id);
+    const wEmpId = String(wardenInfo.empId);
+    const wEmail = wardenInfo.email;
+
+    const todayRec = (attendance || []).find((r) => {
+      const rDate = String(r.date || "").split("T")[0];
+      if (rDate !== todayStr) return false;
+      const isStaff = !r.entityType || r.entityType.toLowerCase() === "staff";
+      if (!isStaff) return false;
+
+      const rEntityId = String(r.entityId || "");
+      const rStaffId = String((r as any).staffId || "");
+      const rEmployeeId = String((r as any).employeeId || "");
+      const rEmail = String((r as any).email || "").toLowerCase().trim();
+
+      const isIdMatch =
+        (wId && (rEntityId === wId || rStaffId === wId || rEmployeeId === wId)) ||
+        (wEmpId && (rEntityId === wEmpId || rStaffId === wEmpId || rEmployeeId === wEmpId));
+
+      const isEmailMatch = !!wEmail && !!rEmail && wEmail === rEmail;
+
+      return isIdMatch || isEmailMatch;
+    });
+
+    if (todayRec) {
+      if (todayRec.inTime) setCheckInTime(todayRec.inTime);
+      if (todayRec.outTime) {
+        setCheckOutTime(todayRec.outTime);
+        setIsCheckedOut(true);
+      }
+    }
+  }, [attendance, wardenInfo, todayStr]);
+
   // Load today's check-in status from backend on mount
   useEffect(() => {
     let isMounted = true;
     const loadTodayStatus = async () => {
+      if (!user?.email && !user?.id) return;
       try {
         const res: any = await fetchTeacherTodayAttendanceApi();
         if (isMounted && res) {
-          const attendanceData = res?.attendance || res;
+          const attendanceData = res?.attendance ?? (res?.inTime ? res : null);
           if (attendanceData && attendanceData.inTime) {
             const inTimeStr = attendanceData.inTime;
             setCheckInTime(inTimeStr);
@@ -115,7 +156,7 @@ export const WardenAttendanceView: React.FC = () => {
     };
     loadTodayStatus();
     return () => { isMounted = false; };
-  }, [todayStr]);
+  }, [todayStr, user?.email, user?.id]);
 
   // 3. Attendance Logs List State
   const [attendanceLogs, setAttendanceLogs] = useState<WardenAttendanceRecord[]>([]);
@@ -172,9 +213,20 @@ export const WardenAttendanceView: React.FC = () => {
 
     const activeWardenId = wardenInfo.id;
     const now = new Date();
-    const checkInHour = now.getHours();
-    const checkInMinute = now.getMinutes();
-    const computedStatus = (checkInHour > 9 || (checkInHour === 9 && checkInMinute > 0)) ? "Late" : "Present";
+    const checkInMinutes = now.getHours() * 60 + now.getMinutes();
+    const parseMins = (t?: string) => {
+      if (!t) return 510;
+      const m = t.match(/(\d+):(\d+)\s*(AM|PM)?/i);
+      if (!m) return 510;
+      let h = parseInt(m[1], 10);
+      const mn = parseInt(m[2], 10);
+      if (m[3]?.toUpperCase() === 'PM' && h < 12) h += 12;
+      if (m[3]?.toUpperCase() === 'AM' && h === 12) h = 0;
+      return h * 60 + mn;
+    };
+    const expMinutes = parseMins(schoolProfile?.staffCheckInTime);
+    const graceMinutes = Number(schoolProfile?.staffGracePeriodMinutes ?? 15);
+    const computedStatus = (checkInMinutes > expMinutes + graceMinutes) ? "Late" : "Present";
 
     if (markAttendance && activeWardenId) {
       try {
@@ -186,10 +238,11 @@ export const WardenAttendanceView: React.FC = () => {
           staffId: String(activeWardenId),
           employeeId: String(wardenInfo.empId),
           employeeName: wardenInfo.name,
+          email: wardenInfo.email || "",
           status: computedStatus,
           inTime: timeNow,
           outTime: "",
-          remarks: "Warden Duty Check-In",
+          remarks: computedStatus === "Late" ? "Late Warden Check-In" : "Warden Duty Check-In",
           department: wardenInfo.department || "Hostel Management",
           designation: wardenInfo.designation || "Hostel Warden"
         } as any]);

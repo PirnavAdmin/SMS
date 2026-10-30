@@ -62,6 +62,35 @@ import {
 
 type AttendanceTab = "teaching" | "non-teaching";
 
+export const parseTimeToMinutes = (timeStr?: string | null): number | null => {
+  if (!timeStr) return null;
+  const s = timeStr.trim();
+  if (!s || s === "--:--" || s === "--") return null;
+
+  const ampmMatch = s.match(/^(\d{1,2}):(\d{2})(?::\d{2})?\s*(AM|PM)$/i);
+  if (ampmMatch) {
+    let hrs = parseInt(ampmMatch[1], 10);
+    const mins = parseInt(ampmMatch[2], 10);
+    const isPM = ampmMatch[3].toUpperCase() === "PM";
+    if (isPM && hrs < 12) hrs += 12;
+    if (!isPM && hrs === 12) hrs = 0;
+    return hrs * 60 + mins;
+  }
+
+  const h24Match = s.match(/^(\d{1,2}):(\d{2})(?::\d{2})?$/);
+  if (h24Match) {
+    const hrs = parseInt(h24Match[1], 10);
+    const mins = parseInt(h24Match[2], 10);
+    return hrs * 60 + mins;
+  }
+
+  const d = new Date(s);
+  if (!isNaN(d.getTime())) {
+    return d.getHours() * 60 + d.getMinutes();
+  }
+  return null;
+};
+
 export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => void }> = ({ onNavigate }) => {
   const {
     staff = [],
@@ -118,12 +147,11 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
 
   // Find logged-in teacher / staff profile from DataContext staff
   const dbTeacher = useMemo(() => {
-    const uId = (user?.id || "").trim();
-    const uEmpId = ((user as any)?.empId || "").trim();
-    const uEmail = (user?.email || "").toLowerCase().trim();
-    const uName = (user?.name || "").toLowerCase().trim();
-    const isGenericAdmin = uName.includes("administrator") || uName.includes("admin");
+    const uId = String(user?.id || "").trim();
+    const uEmpId = String((user as any)?.empId || (user as any)?.employeeId || "").trim();
+    const uEmail = String(user?.email || "").toLowerCase().trim();
 
+    // 1. Strict exact Email matching (highest reliability)
     if (uEmail) {
       const byEmail = (staff || []).find(
         (s) => s.email && s.email.toLowerCase().trim() === uEmail
@@ -131,141 +159,110 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
       if (byEmail) return byEmail;
     }
 
-    if (uName && !isGenericAdmin) {
-      const byName = (staff || []).find((s) => {
-        const full = `${s.firstName || ""} ${s.lastName || ""}`
-          .toLowerCase()
-          .trim();
-        const sName = (s.name || "").toLowerCase().trim();
-        return (full && (full.includes(uName) || uName.includes(full))) || (sName && (sName.includes(uName) || uName.includes(sName)));
+    // 2. Strict Employee ID or Staff ID matching
+    if (uEmpId || uId) {
+      const byId = (staff || []).find((s) => {
+        const sId = String(s.id || "").trim();
+        const sEmpId = String(s.empId || (s as any).employeeId || "").trim();
+        return (
+          (uEmpId && (sEmpId === uEmpId || sId === uEmpId)) ||
+          (uId && (sId === uId || sEmpId === uId))
+        );
       });
-      if (byName) return byName;
-    }
-
-    if ((uId || uEmpId) && uId !== '358' && uId !== '1' && uId !== '90') {
-      const byId = (staff || []).find(
-        (s) =>
-          ((uId && (String(s.id) === uId || String(s.empId) === uId)) ||
-           (uEmpId && (String(s.id) === uEmpId || String(s.empId) === uEmpId))) &&
-          (userRole !== 'teacher' || (s.department || '').toLowerCase().includes('academ') || (s.designation || '').toLowerCase().includes('teacher') || (s.role || '').toLowerCase().includes('teacher'))
-      );
       if (byId) return byId;
     }
 
-    if (userRole === "driver") {
-      const byDriver = (staff || []).find(
-        (s) =>
-          (s.designation || "").toLowerCase().includes("driver") ||
-          (s.department || "").toLowerCase().includes("transport")
-      );
-      if (byDriver) return byDriver;
-    }
-
-    if (userRole.includes("warden")) {
-      const byWarden = (staff || []).find(
-        (s) =>
-          (s.designation || "").toLowerCase().includes("warden") ||
-          (s.department || "").toLowerCase().includes("hostel")
-      );
-      if (byWarden) return byWarden;
-    }
-
-    if (userRole.includes("accountant") || userRole === "finance") {
-      const byAccountant = (staff || []).find(
-        (s) =>
-          (s.designation || "").toLowerCase().includes("accountant") ||
-          (s.department || "").toLowerCase().includes("finance")
-      );
-      if (byAccountant) return byAccountant;
-    }
-
     return null;
-  }, [user, staff, userRole]);
+  }, [user, staff]);
 
   // Dynamic Teacher Profile resolution directly from logged in user & staff record
   const teacher = useMemo(() => {
-    const isWarden = userRole.includes("warden");
-    const isDriver = userRole === "driver";
-    const isAccountant = userRole.includes("accountant") || userRole === "finance";
-
-    const defaultRoleFirstName = isAccountant ? "Sardhar" : isWarden ? (user?.name?.split(' ')[0] || user?.firstName || "Hostel") : isDriver ? "Nag" : "Robert";
-    const defaultRoleLastName = isAccountant ? "Karthi" : isWarden ? (user?.name?.split(' ').slice(1).join(' ') || "Warden") : isDriver ? "Sahoo" : "Teacher";
-    const defaultEmpId = isAccountant ? "ACT-101" : isWarden ? "WRD-102" : isDriver ? "DRV-001" : "STF-2026-0001";
-    const defaultDept = isAccountant ? "Finance & Accounts" : isWarden ? "Hostel Management" : isDriver ? "Transport & Logistics" : "Academic Dept";
-    const defaultDesig = isAccountant ? "Accountant" : isWarden ? "Hostel Warden" : isDriver ? "Bus Driver" : "Teacher";
-
     const rawName = user?.name || "";
-    const isGenericName = !rawName || rawName.toLowerCase().includes("admin") || rawName.toLowerCase().includes("administrator");
-
-    let firstName = defaultRoleFirstName;
-    let lastName = defaultRoleLastName;
-
-    if (!isGenericName && rawName.trim()) {
+    let firstName = dbTeacher?.firstName || "";
+    let lastName = dbTeacher?.lastName || "";
+    if (!firstName && rawName.trim()) {
       const parts = rawName.trim().split(/\s+/);
-      firstName = parts[0] || defaultRoleFirstName;
+      firstName = parts[0];
       lastName = parts.length > 1 ? parts.slice(1).join(" ") : "";
-    } else if (dbTeacher && dbTeacher.firstName && !dbTeacher.firstName.toLowerCase().includes("admin")) {
-      firstName = dbTeacher.firstName;
-      lastName = dbTeacher.lastName || "";
     }
 
-    const matchedEmpId = (user as any)?.empId || user?.id || (dbTeacher?.empId && String(dbTeacher.empId) !== "358" && String(dbTeacher.empId) !== "90" ? dbTeacher.empId : defaultEmpId);
-    const matchedDept = isAccountant ? "Finance & Accounts" : isWarden ? "Hostel Management" : isDriver ? "Transport & Logistics" : (dbTeacher?.department || (user as any)?.department || defaultDept);
-    const matchedDesig = isAccountant ? "Accountant" : isWarden ? "Hostel Warden" : isDriver ? "Bus Driver" : (dbTeacher?.designation || (user as any)?.designation || defaultDesig);
+    const resolvedEmpId = dbTeacher?.empId || (dbTeacher as any)?.employeeId || (user as any)?.empId || (user as any)?.employeeId || String(dbTeacher?.id || user?.id || "");
+    const resolvedDept = dbTeacher?.department || (user as any)?.department || "General Staff";
+    const resolvedDesig = dbTeacher?.designation || (user as any)?.designation || "Staff";
 
     return {
-      id: matchedEmpId,
-      empId: matchedEmpId,
-      firstName,
-      lastName,
-      designation: matchedDesig,
-      department: matchedDept,
+      id: resolvedEmpId || String(user?.id || ""),
+      empId: resolvedEmpId || String(user?.id || ""),
+      firstName: firstName || "Staff",
+      lastName: lastName || "",
+      designation: resolvedDesig,
+      department: resolvedDept,
       assignedClasses: dbTeacher?.assignedClasses || (user as any)?.assignedClasses || [],
       assignedSubjects: (dbTeacher as any)?.assignedSubjects || (user as any)?.assignedSubjects || [],
       leaveBalance: dbTeacher?.leaveBalance || { casual: defaultCasual, sick: defaultSick, paid: defaultEarned }
     };
-  }, [dbTeacher, user, userRole, defaultCasual, defaultSick, defaultEarned]);
+  }, [dbTeacher, user, defaultCasual, defaultSick, defaultEarned]);
 
   // PERSONAL TEACHER ATTENDANCE STATES
   const todayDateStr = useMemo(() => new Date().toLocaleDateString('en-CA'), []);
 
   const activeTeacherId = useMemo(() => {
-    return teacher?.id || dbTeacher?.id || (user as any)?.empId || user?.id || 'default_teacher';
+    return teacher?.id || dbTeacher?.id || (user as any)?.empId || user?.id || "";
   }, [teacher, dbTeacher, user]);
-
-  const inKey = `teacher_check_in_time_${activeTeacherId}`;
-  const outKey = `teacher_check_out_time_${activeTeacherId}`;
-  const isOutKey = `teacher_is_checked_out_${activeTeacherId}`;
-  const dateKey = `teacher_attendance_date_${activeTeacherId}`;
 
   const [persCheckInTime, setPersCheckInTime] = useState<string | null>(null);
   const [persCheckOutTime, setPersCheckOutTime] = useState<string | null>(null);
   const [persIsCheckedOut, setPersIsCheckedOut] = useState<boolean>(false);
 
   useEffect(() => {
+    if (!activeTeacherId && !user?.email) {
+      setPersCheckInTime(null);
+      setPersCheckOutTime(null);
+      setPersIsCheckedOut(false);
+      return;
+    }
+
+    const uEmail = String(user?.email || "").toLowerCase().trim();
+    const uStaffId = String(dbTeacher?.id || "").trim();
+    const uEmpId = String(teacher?.empId || dbTeacher?.empId || (user as any)?.empId || "").trim();
+
     // Sync from DataContext attendance records if present
     const todayRec = (attendance || []).find((r) => {
       const rDate = String(r.date || "").split("T")[0];
-      const isDate = rDate === todayDateStr;
+      if (rDate !== todayDateStr) return false;
       const isStaff = !r.entityType || r.entityType.toLowerCase() === "staff";
-      const uName = (user?.name || "").toLowerCase().trim();
-      const rName = String((r as any).employeeName || "").toLowerCase().trim();
-      const isMatch =
-        String(r.entityId) === String(activeTeacherId) ||
-        String((r as any).staffId) === String(activeTeacherId) ||
-        String((r as any).employeeId) === String(activeTeacherId) ||
-        (uName && rName && uName === rName);
-      return isDate && isStaff && isMatch;
+      if (!isStaff) return false;
+
+      const rEntityId = String(r.entityId || "").trim();
+      const rStaffId = String((r as any).staffId || "").trim();
+      const rEmployeeId = String((r as any).employeeId || "").trim();
+      const rEmail = String((r as any).email || "").toLowerCase().trim();
+
+      const isIdMatch =
+        (uEmpId && (rEntityId === uEmpId || rStaffId === uEmpId || rEmployeeId === uEmpId)) ||
+        (uStaffId && (rEntityId === uStaffId || rStaffId === uStaffId || rEmployeeId === uStaffId)) ||
+        (activeTeacherId && (rEntityId === String(activeTeacherId) || rStaffId === String(activeTeacherId) || rEmployeeId === String(activeTeacherId)));
+
+      const isEmailMatch = !!uEmail && !!rEmail && uEmail === rEmail;
+
+      return isIdMatch || isEmailMatch;
     });
 
     if (todayRec) {
-      if (todayRec.inTime) setPersCheckInTime(todayRec.inTime);
+      setPersCheckInTime(todayRec.inTime || null);
       if (todayRec.outTime) {
         setPersCheckOutTime(todayRec.outTime);
         setPersIsCheckedOut(true);
+      } else {
+        setPersCheckOutTime(null);
+        setPersIsCheckedOut(false);
       }
+    } else {
+      setPersCheckInTime(null);
+      setPersCheckOutTime(null);
+      setPersIsCheckedOut(false);
     }
-  }, [activeTeacherId, todayDateStr, attendance, user]);
+  }, [activeTeacherId, dbTeacher, teacher, todayDateStr, attendance, user]);
 
   const [persWorkingHours, setPersWorkingHours] = useState<string>("0h 0m");
   const [personalFilterDate, setPersonalFilterDate] = useState(todayStr);
@@ -571,17 +568,19 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
   useEffect(() => {
     let isMounted = true;
     const loadBackendTodayAttendance = async () => {
+      if (!user?.email && !user?.id) return;
       try {
         const res: any = await fetchTeacherTodayAttendanceApi();
-        if (isMounted && res) {
-          const attendanceData = res?.attendance || res;
+        if (isMounted) {
+          const attendanceData = res?.attendance ?? (res?.inTime ? res : null);
           if (attendanceData && attendanceData.inTime) {
-            const inTimeStr = attendanceData.inTime;
-            setPersCheckInTime(inTimeStr);
+            setPersCheckInTime(attendanceData.inTime);
             if (attendanceData.outTime) {
-              const outTimeStr = attendanceData.outTime;
-              setPersCheckOutTime(outTimeStr);
+              setPersCheckOutTime(attendanceData.outTime);
               setPersIsCheckedOut(true);
+            } else {
+              setPersCheckOutTime(null);
+              setPersIsCheckedOut(false);
             }
           }
         }
@@ -591,7 +590,7 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
     };
     loadBackendTodayAttendance();
     return () => { isMounted = false; };
-  }, [todayDateStr]);
+  }, [todayDateStr, user?.email, user?.id]);
 
   const handlePersCheckIn = async () => {
     try {
@@ -603,10 +602,11 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
       setPersCheckOutTime(null);
       setPersIsCheckedOut(false);
 
-      const checkInHour = now.getHours();
-      const checkInMinute = now.getMinutes();
-      const computedStatus = (checkInHour > 9 || (checkInHour === 9 && checkInMinute > 0)) ? "Late" : "Present";
-      const teacherEmpId = teacher?.id || dbTeacher?.id || user?.id || "";
+      const checkInMinutes = now.getHours() * 60 + now.getMinutes();
+      const expMinutes = parseTimeToMinutes(schoolProfile?.staffCheckInTime) ?? (8 * 60 + 30);
+      const graceMinutes = Number(schoolProfile?.staffGracePeriodMinutes ?? 15);
+      const computedStatus = (checkInMinutes > expMinutes + graceMinutes) ? "Late" : "Present";
+      const teacherEmpId = teacher?.empId || dbTeacher?.empId || teacher?.id || dbTeacher?.id || user?.id || "";
 
       if (markAttendance && teacherEmpId) {
         await markAttendance([{
@@ -614,22 +614,23 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
           date: todayDateStr,
           entityType: "Staff",
           entityId: String(teacherEmpId),
-          staffId: String(teacherEmpId),
+          staffId: String(dbTeacher?.id || teacherEmpId),
           employeeId: String(teacherEmpId),
-          employeeName: user?.name || "Staff Member",
+          email: user?.email || dbTeacher?.email || "",
+          employeeName: `${teacher?.firstName || ''} ${teacher?.lastName || ''}`.trim() || user?.name || "Staff Member",
           status: computedStatus,
           inTime: formattedTime,
           outTime: "",
-          remarks: "Checked In Online",
-          department: teacher?.department || dbTeacher?.department || (user as any)?.department || "Transport Dept",
-          designation: teacher?.designation || dbTeacher?.designation || (user as any)?.designation || "Driver"
+          remarks: computedStatus === "Late" ? "Late Check-In Online" : "Checked In Online",
+          department: teacher?.department || dbTeacher?.department || (user as any)?.department || "General Staff",
+          designation: teacher?.designation || dbTeacher?.designation || (user as any)?.designation || "Staff"
         }]);
       }
 
       addToast(
         "success",
         "Checked In Successfully",
-        `Recorded check-in at ${formattedTime}`,
+        `Recorded check-in at ${formattedTime}${computedStatus === "Late" ? " (Late Arrival)" : ""}`,
       );
     } catch (err: any) {
       console.error("Personal check-in error:", err);
@@ -642,12 +643,12 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
       try { await teacherCheckOutApi(); } catch {}
       const now = new Date();
       const formattedTime = now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-      const inTimeVal = persCheckInTime ? formatDisplayTime(persCheckInTime) : "09:00 AM";
+      const inTimeVal = persCheckInTime ? formatDisplayTime(persCheckInTime) : (schoolProfile?.staffCheckInTime || "08:30 AM");
       
       setPersCheckOutTime(formattedTime);
       setPersIsCheckedOut(true);
 
-      const teacherEmpId = teacher?.id || dbTeacher?.id || user?.id || "";
+      const teacherEmpId = teacher?.empId || dbTeacher?.empId || teacher?.id || dbTeacher?.id || user?.id || "";
 
       if (markAttendance && teacherEmpId) {
         await markAttendance([{
@@ -655,15 +656,16 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
           date: todayDateStr,
           entityType: "Staff",
           entityId: String(teacherEmpId),
-          staffId: String(teacherEmpId),
+          staffId: String(dbTeacher?.id || teacherEmpId),
           employeeId: String(teacherEmpId),
-          employeeName: user?.name || "Staff Member",
+          email: user?.email || dbTeacher?.email || "",
+          employeeName: `${teacher?.firstName || ''} ${teacher?.lastName || ''}`.trim() || user?.name || "Staff Member",
           status: todayStatus === "Late" ? "Late" : "Present",
           inTime: persCheckInTime ? formatDisplayTime(persCheckInTime) : inTimeVal,
           outTime: formattedTime,
           remarks: "Checked In & Out Online",
-          department: teacher?.department || dbTeacher?.department || (user as any)?.department || "Transport Dept",
-          designation: teacher?.designation || dbTeacher?.designation || (user as any)?.designation || "Driver"
+          department: teacher?.department || dbTeacher?.department || (user as any)?.department || "General Staff",
+          designation: teacher?.designation || dbTeacher?.designation || (user as any)?.designation || "Staff"
         }]);
       }
 
@@ -688,26 +690,25 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
 
   const todayStatus = useMemo(() => {
     if (!persCheckInTime) return "Pending Check-In";
-    const checkInMs = parseTimeToMs(persCheckInTime, todayStr);
-    if (!checkInMs || checkInMs <= 0) return "Present";
-    const checkInDate = new Date(checkInMs);
-    const checkInHour = checkInDate.getHours();
-    const checkInMinute = checkInDate.getMinutes();
-    if (checkInHour > 9 || (checkInHour === 9 && checkInMinute > 0)) {
+    const checkInMins = parseTimeToMinutes(persCheckInTime);
+    if (checkInMins === null) return "Present";
+
+    const expMins = parseTimeToMinutes(schoolProfile?.staffCheckInTime) ?? (8 * 60 + 30);
+    const graceMins = Number(schoolProfile?.staffGracePeriodMinutes ?? 15);
+
+    if (checkInMins > expMins + graceMins) {
       return "Late";
     }
     return "Present";
-  }, [persCheckInTime, todayStr]);
+  }, [persCheckInTime, schoolProfile?.staffCheckInTime, schoolProfile?.staffGracePeriodMinutes]);
 
   const lateByMins = useMemo(() => {
     if (todayStatus !== "Late" || !persCheckInTime) return 0;
-    const checkInMs = parseTimeToMs(persCheckInTime, todayStr);
-    if (!checkInMs || checkInMs <= 0) return 0;
-    const checkInDate = new Date(checkInMs);
-    const checkInMin = checkInDate.getHours() * 60 + checkInDate.getMinutes();
-    const schoolStartMin = 9 * 60; // 09:00 AM
-    return Math.max(0, checkInMin - schoolStartMin);
-  }, [todayStatus, persCheckInTime, todayStr]);
+    const checkInMins = parseTimeToMinutes(persCheckInTime);
+    if (checkInMins === null) return 0;
+    const expMins = parseTimeToMinutes(schoolProfile?.staffCheckInTime) ?? (8 * 60 + 30);
+    return Math.max(0, checkInMins - expMins);
+  }, [todayStatus, persCheckInTime, schoolProfile?.staffCheckInTime]);
 
   const formattedLateBy = useMemo(() => {
     if (lateByMins <= 0) return '';
@@ -1119,6 +1120,17 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
                 <h3 className="font-extrabold text-xs sm:text-sm text-slate-900 dark:text-white">
                   Today's Attendance
                 </h3>
+              </div>
+
+              {/* Operational Shift Window from Admin Settings */}
+              <div className="flex items-center justify-between px-3 py-1.5 bg-sky-50/70 dark:bg-sky-950/30 rounded-xl border border-sky-100 dark:border-sky-900/40 text-[11px]">
+                <span className="font-semibold text-slate-500 dark:text-slate-400">Shift Window:</span>
+                <span className="font-mono font-black text-sky-700 dark:text-sky-300">
+                  {schoolProfile?.staffCheckInTime || "08:30 AM"} - {schoolProfile?.staffCheckOutTime || "05:00 PM"}
+                  <span className="ml-1 text-[10px] text-amber-600 dark:text-amber-400 font-sans font-bold">
+                    (+{schoolProfile?.staffGracePeriodMinutes ?? 15}m grace)
+                  </span>
+                </span>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
@@ -2422,34 +2434,37 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
         getApprovedLeave(s.id, targetDate) ||
         (s.empId ? getApprovedLeave(s.empId, targetDate) : undefined);
 
-      // 2. Check Existing Recorded Attendance (flexible match on ID, entityType & date)
+      // 2. Check Existing Recorded Attendance (Strict match on exact ID, Staff ID, Employee ID or Email)
       let existing = (attendance || []).find((r) => {
         const rDate = String(r.date || "").split("T")[0];
         const isDateMatch = rDate === targetDate;
         const isStaffEntity = !r.entityType || r.entityType.toLowerCase() === "staff";
-        const sFullName = `${s.firstName || ""} ${s.lastName || ""}`.toLowerCase().trim();
-        const rEmpName = String((r as any).employeeName || (r as any).name || "").toLowerCase().trim();
-        const isNameMatch = !!sFullName && !!rEmpName && (sFullName === rEmpName || sFullName.includes(rEmpName) || rEmpName.includes(sFullName));
-        const isEmailMatch = !!s.email && !!(r as any).email && s.email.toLowerCase() === String((r as any).email).toLowerCase();
+        if (!isDateMatch || !isStaffEntity) return false;
+
+        const sId = String(s.id || "").trim();
+        const sEmpId = String(s.empId || (s as any).employeeId || "").trim();
+        const sEmail = String(s.email || "").toLowerCase().trim();
+
+        const rEntityId = String(r.entityId || "").trim();
+        const rStaffId = String((r as any).staffId || "").trim();
+        const rEmployeeId = String((r as any).employeeId || "").trim();
+        const rEmail = String((r as any).email || "").toLowerCase().trim();
+
         const isIdMatch =
-          String(r.entityId) === String(s.id) ||
-          String(r.entityId) === String(s.empId) ||
-          String((r as any).staffId) === String(s.id) ||
-          String((r as any).staffId) === String(s.empId) ||
-          String((r as any).employeeId) === String(s.id) ||
-          String((r as any).employeeId) === String(s.empId) ||
-          (r.entityId && (String(r.entityId).toLowerCase().includes("drv") || String(r.entityId).toLowerCase().includes("driver")) && ((s.designation || "").toLowerCase().includes("driver") || (s.department || "").toLowerCase().includes("transport"))) ||
-          isNameMatch ||
-          isEmailMatch;
-        return isDateMatch && isStaffEntity && isIdMatch;
+          (sId && (rEntityId === sId || rStaffId === sId || rEmployeeId === sId)) ||
+          (sEmpId && (rEntityId === sEmpId || rStaffId === sEmpId || rEmployeeId === sEmpId));
+
+        const isEmailMatch = !!sEmail && !!rEmail && sEmail === rEmail;
+
+        return isIdMatch || isEmailMatch;
       });
-
-
 
       // 3. Check if this staff is the logged in teacher and has checked in today
       const isCurrentLoggedInTeacher =
-        (teacher && (teacher.id === s.id || teacher.empId === s.empId || teacher.id === s.empId || teacher.empId === s.id)) ||
-        (dbTeacher && (dbTeacher.id === s.id || dbTeacher.empId === s.empId || dbTeacher.id === s.empId || dbTeacher.empId === s.id));
+        (dbTeacher && (String(dbTeacher.id) === String(s.id) || String(dbTeacher.empId) === String(s.empId))) ||
+        (user?.email && s.email && user.email.toLowerCase().trim() === s.email.toLowerCase().trim());
+
+      const defCheckInTime = schoolProfile?.staffCheckInTime || "08:30 AM";
 
       if (approvedLeave) {
         newStatusMap[s.id] = approvedLeave.isHalfDay ? "HalfDay" : "Leave";
@@ -2461,7 +2476,7 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
       } else if (existing) {
         const normSt = normalizeStatus(existing.status);
         newStatusMap[s.id] = normSt;
-        newInTimeMap[s.id] = existing.inTime || (normSt === "Present" || normSt === "Late" ? "08:30 AM" : "");
+        newInTimeMap[s.id] = existing.inTime || (normSt === "Present" || normSt === "Late" ? defCheckInTime : "");
         newOutTimeMap[s.id] = existing.outTime || "";
         newRemarksMap[s.id] = existing.remarks || "";
       } else if (isToday && isCurrentLoggedInTeacher && persCheckInTime) {
@@ -2638,12 +2653,12 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
       setInTimeMap((prev) => ({
         ...prev,
         [empId]:
-          prev[empId] && prev[empId] !== "00:00" ? prev[empId] : "08:30 AM",
+          prev[empId] && prev[empId] !== "00:00" ? prev[empId] : (schoolProfile?.staffCheckInTime || "08:30 AM"),
       }));
       setOutTimeMap((prev) => ({
         ...prev,
         [empId]:
-          prev[empId] && prev[empId] !== "00:00" ? prev[empId] : "04:30 PM",
+          prev[empId] && prev[empId] !== "00:00" ? prev[empId] : (schoolProfile?.staffCheckOutTime || "05:00 PM"),
       }));
     } else {
       setInTimeMap((prev) => ({ ...prev, [empId]: "" }));
@@ -2684,14 +2699,14 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
       setInTimeMap((prev) => {
         const next = { ...prev };
         currentTabStaffList.forEach((s) => {
-          next[s.id] = "08:30 AM";
+          next[s.id] = schoolProfile?.staffCheckInTime || "08:30 AM";
         });
         return next;
       });
       setOutTimeMap((prev) => {
         const next = { ...prev };
         currentTabStaffList.forEach((s) => {
-          next[s.id] = "04:30 PM";
+          next[s.id] = schoolProfile?.staffCheckOutTime || "05:00 PM";
         });
         return next;
       });
@@ -3004,12 +3019,12 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
               const inTime =
                 existingRecordForTimes?.inTime ||
                 ((status as string) === "Present" || (status as string) === "Late"
-                  ? "08:30 AM"
+                  ? (schoolProfile?.staffCheckInTime || "08:30 AM")
                   : "");
               const outTime =
                 existingRecordForTimes?.outTime ||
                 ((status as string) === "Present" || (status as string) === "Late"
-                  ? "04:30 PM"
+                  ? (schoolProfile?.staffCheckOutTime || "05:00 PM")
                   : "");
               const remarks = existingRecordForTimes?.remarks || "";
 

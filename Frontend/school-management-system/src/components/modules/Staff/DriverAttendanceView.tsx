@@ -13,26 +13,21 @@ import { teacherCheckInApi, teacherCheckOutApi, fetchTeacherTodayAttendanceApi }
 
 export const DriverAttendanceView: React.FC = () => {
   const { user } = useAuth();
-  const { staff = [], driverMasters = [], attendance = [], markAttendance, holidays = [] } = useData();
+  const { staff = [], driverMasters = [], attendance = [], markAttendance, holidays = [], schoolProfile } = useData();
   const { addToast } = useToast();
 
   const todayStr = useMemo(() => new Date().toISOString().split('T')[0], []);
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth());
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
 
-  // 1. Identify logged-in Driver
+  // 1. Identify logged-in Driver strictly
   const matchedDriver = useMemo(() => {
     const userEmail = (user?.email || '').trim().toLowerCase();
-    const userName = (user?.name || '').trim().toLowerCase();
-    const userPhone = (user?.phone || '').trim().toLowerCase();
     const userEmpId = (user?.id || (user as any)?.empId || (user as any)?.employeeId || '').trim().toLowerCase();
 
     const fromMaster = driverMasters.find(d =>
-      (userEmpId && (d.employeeId?.toLowerCase() === userEmpId || (d as any).empId?.toLowerCase() === userEmpId || String(d.id).toLowerCase() === userEmpId)) ||
       (userEmail && d.email?.toLowerCase() === userEmail) ||
-      (userPhone && d.mobileNumber?.replace(/\D/g, '') === userPhone.replace(/\D/g, '')) ||
-      (userName && d.driverName?.toLowerCase() === userName) ||
-      (userName && (d.driverName?.toLowerCase().includes(userName) || userName.includes(d.driverName?.toLowerCase())))
+      (userEmpId && (d.employeeId?.toLowerCase() === userEmpId || (d as any).empId?.toLowerCase() === userEmpId || String(d.id).toLowerCase() === userEmpId))
     );
 
     if (fromMaster) return fromMaster;
@@ -41,15 +36,10 @@ export const DriverAttendanceView: React.FC = () => {
       const sEmpId = (s.empId || (s as any).employeeId || '').toLowerCase();
       const sId = String(s.id).toLowerCase();
       const sEmail = (s.email || '').toLowerCase();
-      const sPhone = (s.phone || '').replace(/\D/g, '');
-      const sFullName = `${s.firstName || ''} ${s.lastName || ''}`.trim().toLowerCase();
-      const sName = (s.name || '').trim().toLowerCase();
 
       return (
-        (userEmpId && (sEmpId === userEmpId || sId === userEmpId)) ||
         (userEmail && sEmail === userEmail) ||
-        (userPhone && sPhone && sPhone === userPhone.replace(/\D/g, '')) ||
-        (userName && (sFullName === userName || sName === userName || sFullName.includes(userName) || userName.includes(sFullName)))
+        (userEmpId && (sEmpId === userEmpId || sId === userEmpId))
       );
     });
 
@@ -57,42 +47,71 @@ export const DriverAttendanceView: React.FC = () => {
       return {
         id: fromStaff.id,
         driverName: `${fromStaff.firstName || ''} ${fromStaff.lastName || ''}`.trim() || fromStaff.name || 'Driver',
-        employeeId: fromStaff.empId || fromStaff.employeeId || fromStaff.id || ''
+        employeeId: fromStaff.empId || fromStaff.employeeId || fromStaff.id || '',
+        department: fromStaff.department || 'Transport Dept',
+        designation: fromStaff.designation || 'Driver',
       };
     }
 
     return {
       id: user?.id || '1',
       driverName: user?.name || user?.email || 'Driver',
-      employeeId: (user as any)?.empId || (user as any)?.employeeId || user?.id || ''
+      employeeId: (user as any)?.empId || (user as any)?.employeeId || user?.id || '',
+      department: 'Transport Dept',
+      designation: 'Driver',
     };
   }, [user, driverMasters, staff]);
 
-  // 2. Attendance State
-  const [checkInTime, setCheckInTime] = useState<string | null>(() => {
-    const storedDate = localStorage.getItem("driver_attendance_date");
-    if (storedDate && storedDate !== todayStr) {
-      localStorage.removeItem("driver_check_in_time");
-      localStorage.removeItem("driver_check_out_time");
-      localStorage.removeItem("driver_is_checked_out");
-      localStorage.setItem("driver_attendance_date", todayStr);
-      return null;
+  // 2. Attendance State (No localStorage)
+  const [checkInTime, setCheckInTime] = useState<string | null>(null);
+  const [checkOutTime, setCheckOutTime] = useState<string | null>(null);
+  const [isCheckedOut, setIsCheckedOut] = useState<boolean>(false);
+
+  // Sync attendance state from DataContext attendance records
+  useEffect(() => {
+    const driverId = String(matchedDriver.id);
+    const driverEmpId = String(matchedDriver.employeeId);
+    const driverEmail = (user?.email || '').toLowerCase().trim();
+
+    const todayRec = (attendance || []).find((r) => {
+      const rDate = String(r.date || "").split("T")[0];
+      if (rDate !== todayStr) return false;
+      const isStaff = !r.entityType || r.entityType.toLowerCase() === "staff";
+      if (!isStaff) return false;
+
+      const rEntityId = String(r.entityId || "");
+      const rStaffId = String((r as any).staffId || "");
+      const rEmployeeId = String((r as any).employeeId || "");
+      const rEmail = String((r as any).email || "").toLowerCase().trim();
+
+      const isIdMatch =
+        (driverId && (rEntityId === driverId || rStaffId === driverId || rEmployeeId === driverId)) ||
+        (driverEmpId && (rEntityId === driverEmpId || rStaffId === driverEmpId || rEmployeeId === driverEmpId));
+
+      const isEmailMatch = !!driverEmail && !!rEmail && driverEmail === rEmail;
+
+      return isIdMatch || isEmailMatch;
+    });
+
+    if (todayRec) {
+      if (todayRec.inTime) {
+        setCheckInTime(`${todayStr}T${todayRec.inTime}`);
+      } else {
+        setCheckInTime(null);
+      }
+      if (todayRec.outTime) {
+        setCheckOutTime(`${todayStr}T${todayRec.outTime}`);
+        setIsCheckedOut(true);
+      } else {
+        setCheckOutTime(null);
+        setIsCheckedOut(false);
+      }
+    } else {
+      setCheckInTime(null);
+      setCheckOutTime(null);
+      setIsCheckedOut(false);
     }
-    return localStorage.getItem("driver_check_in_time");
-  });
-
-  const [checkOutTime, setCheckOutTime] = useState<string | null>(() => {
-    const storedDate = localStorage.getItem("driver_attendance_date");
-    if (storedDate && storedDate !== todayStr) return null;
-    const isOut = localStorage.getItem("driver_is_checked_out") === "true";
-    return isOut ? localStorage.getItem("driver_check_out_time") : null;
-  });
-
-  const [isCheckedOut, setIsCheckedOut] = useState<boolean>(() => {
-    const storedDate = localStorage.getItem("driver_attendance_date");
-    if (storedDate && storedDate !== todayStr) return false;
-    return localStorage.getItem("driver_is_checked_out") === "true";
-  });
+  }, [attendance, matchedDriver, todayStr, user?.email]);
 
   const [workingHours, setWorkingHours] = useState<string>('0h 0m');
   const [currentTime, setCurrentTime] = useState<string>(() => new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }));
@@ -144,20 +163,17 @@ export const DriverAttendanceView: React.FC = () => {
   useEffect(() => {
     let isMounted = true;
     const loadTodayStatus = async () => {
+      if (!user?.email && !user?.id) return;
       try {
         const res: any = await fetchTeacherTodayAttendanceApi();
-        if (isMounted) {
-          const attendanceData = res?.attendance || res;
+        if (isMounted && res) {
+          const attendanceData = res?.attendance ?? (res?.inTime ? res : null);
           if (attendanceData && attendanceData.inTime) {
             const inTimeStr = `${todayStr}T${attendanceData.inTime}`;
             setCheckInTime(inTimeStr);
-            localStorage.setItem('driver_check_in_time', inTimeStr);
-            localStorage.setItem('driver_attendance_date', todayStr);
             if (attendanceData.outTime) {
               const outTimeStr = `${todayStr}T${attendanceData.outTime}`;
               setCheckOutTime(outTimeStr);
-              localStorage.setItem('driver_check_out_time', outTimeStr);
-              localStorage.setItem('driver_is_checked_out', 'true');
               setIsCheckedOut(true);
             }
           }
@@ -166,7 +182,7 @@ export const DriverAttendanceView: React.FC = () => {
     };
     loadTodayStatus();
     return () => { isMounted = false; };
-  }, [todayStr]);
+  }, [todayStr, user?.email, user?.id]);
 
   const handleCheckIn = async (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -174,24 +190,35 @@ export const DriverAttendanceView: React.FC = () => {
       try { await teacherCheckInApi(); } catch {}
       const isoStr = new Date().toISOString();
       const formattedTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-      localStorage.setItem('driver_check_in_time', isoStr);
-      localStorage.removeItem('driver_check_out_time');
-      localStorage.setItem('driver_is_checked_out', 'false');
-      localStorage.setItem('driver_attendance_date', todayStr);
       setCheckInTime(isoStr);
       setCheckOutTime(null);
       setIsCheckedOut(false);
 
       const staffMember = staff.find(s =>
         (user?.email && s.email?.toLowerCase() === user.email.toLowerCase()) ||
-        (user?.name && `${s.firstName || ''} ${s.lastName || ''}`.trim().toLowerCase() === user.name.toLowerCase().trim()) ||
         String(s.id) === String(matchedDriver.id) ||
         s.empId === matchedDriver.employeeId
       );
 
       const staffId = staffMember?.id || matchedDriver.id || '3';
       const staffEmpId = staffMember?.empId || staffMember?.employeeId || matchedDriver.employeeId || 'STF-2026-0003';
-      const staffFullName = (user?.name && user.name.toLowerCase() !== 'user') ? user.name : (staffMember ? `${staffMember.firstName} ${staffMember.lastName}` : (matchedDriver.driverName || 'Sai Kiran V'));
+      const staffFullName = (user?.name && user.name.toLowerCase() !== 'user') ? user.name : (staffMember ? `${staffMember.firstName} ${staffMember.lastName}` : (matchedDriver.driverName || 'Driver'));
+
+      const now = new Date();
+      const checkInMinutes = now.getHours() * 60 + now.getMinutes();
+      const parseMins = (t?: string) => {
+        if (!t) return 510;
+        const m = t.match(/(\d+):(\d+)\s*(AM|PM)?/i);
+        if (!m) return 510;
+        let h = parseInt(m[1], 10);
+        const mn = parseInt(m[2], 10);
+        if (m[3]?.toUpperCase() === 'PM' && h < 12) h += 12;
+        if (m[3]?.toUpperCase() === 'AM' && h === 12) h = 0;
+        return h * 60 + mn;
+      };
+      const expMinutes = parseMins(schoolProfile?.staffCheckInTime);
+      const graceMinutes = Number(schoolProfile?.staffGracePeriodMinutes ?? 15);
+      const computedStatus = (checkInMinutes > expMinutes + graceMinutes) ? 'Late' : 'Present';
 
       if (markAttendance) {
         markAttendance([{
@@ -201,13 +228,14 @@ export const DriverAttendanceView: React.FC = () => {
           employeeId: String(staffId),
           empId: String(staffEmpId),
           employeeName: staffFullName,
+          email: user?.email || staffMember?.email || '',
           entityType: 'Staff',
           date: todayStr,
-          status: 'Present',
+          status: computedStatus,
           inTime: formattedTime,
           department: staffMember?.department || matchedDriver?.department || 'Transport Dept',
           designation: staffMember?.designation || matchedDriver?.designation || 'Driver',
-          remarks: 'Driver Shift Check-In'
+          remarks: computedStatus === 'Late' ? 'Late Driver Check-In' : 'Driver Shift Check-In'
         }]);
       }
       addToast('success', 'Duty Check-In Marked', `Checked in successfully at ${formattedTime}`);
@@ -222,21 +250,18 @@ export const DriverAttendanceView: React.FC = () => {
       try { await teacherCheckOutApi(); } catch {}
       const isoStr = new Date().toISOString();
       const formattedTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-      localStorage.setItem('driver_check_out_time', isoStr);
-      localStorage.setItem('driver_is_checked_out', 'true');
       setCheckOutTime(isoStr);
       setIsCheckedOut(true);
 
       const staffMember = staff.find(s =>
         (user?.email && s.email?.toLowerCase() === user.email.toLowerCase()) ||
-        (user?.name && `${s.firstName || ''} ${s.lastName || ''}`.trim().toLowerCase() === user.name.toLowerCase().trim()) ||
         String(s.id) === String(matchedDriver.id) ||
         s.empId === matchedDriver.employeeId
       );
 
       const staffId = staffMember?.id || matchedDriver.id || '3';
       const staffEmpId = staffMember?.empId || staffMember?.employeeId || matchedDriver.employeeId || 'STF-2026-0003';
-      const staffFullName = (user?.name && user.name.toLowerCase() !== 'user') ? user.name : (staffMember ? `${staffMember.firstName} ${staffMember.lastName}` : (matchedDriver.driverName || 'Sai Kiran V'));
+      const staffFullName = (user?.name && user.name.toLowerCase() !== 'user') ? user.name : (staffMember ? `${staffMember.firstName} ${staffMember.lastName}` : (matchedDriver.driverName || 'Driver'));
 
       if (markAttendance) {
         markAttendance([{
@@ -246,10 +271,11 @@ export const DriverAttendanceView: React.FC = () => {
           employeeId: String(staffId),
           empId: String(staffEmpId),
           employeeName: staffFullName,
+          email: user?.email || staffMember?.email || '',
           entityType: 'Staff',
           date: todayStr,
           status: 'Present',
-          inTime: checkInTime ? new Date(checkInTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '08:00 AM',
+          inTime: checkInTime ? new Date(checkInTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : (schoolProfile?.staffCheckInTime || '08:30 AM'),
           outTime: formattedTime,
           department: staffMember?.department || matchedDriver?.department || 'Transport Dept',
           designation: staffMember?.designation || matchedDriver?.designation || 'Driver',
