@@ -11,7 +11,6 @@ using SMS.Api.Models;
 namespace SMS.Api.Controllers
 {
     [ApiController]
-    [Route("api/[controller]")]
     [Route("api/branches")]
     public class BranchesController : ControllerBase
     {
