@@ -461,28 +461,28 @@ public class CreateFinanceHostelConfigDto
 public class FinanceUniformConfigDto
 {
     public int Id { get; set; }
-    public string AcademicYear { get; set; } = "2026-2027";
+    public string AcademicYear { get; set; } = string.Empty;
     public string Branch { get; set; } = string.Empty;
-    public string ClassName { get; set; } = "Class 10";
+    public string ClassName { get; set; } = string.Empty;
     public string Gender { get; set; } = "Unisex"; // "Male", "Female", "Unisex"
-    public string UniformPackage { get; set; } = "Full Kit";
+    public string UniformPackage { get; set; } = string.Empty;
     public string? UniformItemId { get; set; }
     public string FeePlan { get; set; } = "Annual"; // "One Time", "Annual", "Term-wise"
-    public decimal FeeAmount { get; set; } = 3500m;
-    public string EffectiveFrom { get; set; } = "2026-09-02";
+    public decimal FeeAmount { get; set; } = 0m;
+    public string EffectiveFrom { get; set; } = string.Empty;
     public string Status { get; set; } = "Active"; // "Active", "Inactive"
 }
 
 public class CreateFinanceUniformConfigDto
 {
-    public string? AcademicYear { get; set; } = "2026-2027";
-    public string? Branch { get; set; } = string.Empty;
-    public string ClassName { get; set; } = "Class 10";
+    public string? AcademicYear { get; set; }
+    public string? Branch { get; set; }
+    public string ClassName { get; set; } = string.Empty;
     public string Gender { get; set; } = "Unisex";
-    public string UniformPackage { get; set; } = "Full Kit";
+    public string UniformPackage { get; set; } = string.Empty;
     public string? UniformItemId { get; set; }
     public string? FeePlan { get; set; } = "Annual";
-    public decimal FeeAmount { get; set; } = 3500m;
+    public decimal FeeAmount { get; set; } = 0m;
     public string? EffectiveFrom { get; set; }
     public string Status { get; set; } = "Active";
 }

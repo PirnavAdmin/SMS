@@ -1973,101 +1973,154 @@ public class FinanceMasterRepository : IFinanceMasterRepository
 
     public async Task<List<FinanceUniformConfigDto>> GetUniformFeeConfigsAsync(string? search, string? className, string? academicYear, string? status)
     {
-        var dbFeeHeads = await _context.FeeHeads.AsNoTracking().Where(f => f.Category == "Uniform").ToListAsync();
-        var list = new List<FinanceUniformConfigDto>();
-        foreach (var fh in dbFeeHeads)
+        var query = _context.UniformFeeConfigs.AsNoTracking().AsQueryable();
+
+        if (!string.IsNullOrWhiteSpace(search))
         {
-            list.Add(new FinanceUniformConfigDto
-            {
-                Id = fh.Id,
-                AcademicYear = "2026-2027",
-                Branch = string.Empty,
-                ClassName = "All Classes",
-                Gender = "Unisex",
-                UniformPackage = fh.Name ?? "Full Uniform Set",
-                UniformItemId = "UNI-SET",
-                FeePlan = "Annual",
-                FeeAmount = fh.DefaultAmount,
-                EffectiveFrom = "2026-06-01",
-                Status = "Active"
-            });
+            var s = search.Trim().ToLower();
+            query = query.Where(u => u.ClassName.ToLower().Contains(s) ||
+                                     u.PackageOrItemName.ToLower().Contains(s) ||
+                                     (u.Gender != null && u.Gender.ToLower().Contains(s)));
         }
 
-        return list;
+        if (!string.IsNullOrWhiteSpace(className) && !string.Equals(className.Trim(), "All Classes", StringComparison.OrdinalIgnoreCase))
+        {
+            var c = className.Trim().ToLower();
+            query = query.Where(u => u.ClassName.ToLower() == c);
+        }
+
+        if (!string.IsNullOrWhiteSpace(academicYear) && !string.Equals(academicYear.Trim(), "All Years", StringComparison.OrdinalIgnoreCase))
+        {
+            var ay = academicYear.Trim().ToLower();
+            query = query.Where(u => u.AcademicYear != null && u.AcademicYear.ToLower() == ay);
+        }
+
+        if (!string.IsNullOrWhiteSpace(status) && !string.Equals(status.Trim(), "All Status", StringComparison.OrdinalIgnoreCase))
+        {
+            var st = status.Trim().ToLower();
+            query = query.Where(u => u.Status != null && u.Status.ToLower() == st);
+        }
+
+        var dbItems = await query.OrderByDescending(u => u.Id).ToListAsync();
+
+        return dbItems.Select(u => new FinanceUniformConfigDto
+        {
+            Id = u.Id,
+            AcademicYear = u.AcademicYear ?? string.Empty,
+            Branch = u.Branch ?? string.Empty,
+            ClassName = u.ClassName,
+            Gender = u.Gender ?? "Unisex",
+            UniformPackage = u.PackageOrItemName,
+            UniformItemId = u.UniformItemId,
+            FeePlan = u.FeePlan ?? "Annual",
+            FeeAmount = u.FeeAmount,
+            EffectiveFrom = u.EffectiveFrom ?? string.Empty,
+            Status = u.Status ?? "Active"
+        }).ToList();
     }
 
     public async Task<FinanceUniformConfigDto?> GetUniformFeeConfigByIdAsync(int id)
     {
-        var list = await GetUniformFeeConfigsAsync(null, null, null, null);
-        return list.FirstOrDefault(u => u.Id == id);
+        var u = await _context.UniformFeeConfigs.AsNoTracking().FirstOrDefaultAsync(x => x.Id == id);
+        if (u == null) return null;
+
+        return new FinanceUniformConfigDto
+        {
+            Id = u.Id,
+            AcademicYear = u.AcademicYear ?? string.Empty,
+            Branch = u.Branch ?? string.Empty,
+            ClassName = u.ClassName,
+            Gender = u.Gender ?? "Unisex",
+            UniformPackage = u.PackageOrItemName,
+            UniformItemId = u.UniformItemId,
+            FeePlan = u.FeePlan ?? "Annual",
+            FeeAmount = u.FeeAmount,
+            EffectiveFrom = u.EffectiveFrom ?? string.Empty,
+            Status = u.Status ?? "Active"
+        };
     }
 
     public async Task<FinanceUniformConfigDto> CreateUniformFeeConfigAsync(CreateFinanceUniformConfigDto dto)
     {
-        var feeHead = new FeeHead
+        var entity = new UniformFeeConfig
         {
-            Name = dto.UniformPackage ?? "Uniform Set",
-            Category = "Uniform",
-            Frequency = dto.FeePlan ?? "Annual",
-            Mandatory = false,
-            DefaultAmount = dto.FeeAmount,
-            Status = "Active"
+            AcademicYear = dto.AcademicYear?.Trim() ?? string.Empty,
+            Branch = dto.Branch?.Trim() ?? string.Empty,
+            ClassName = dto.ClassName?.Trim() ?? string.Empty,
+            Gender = dto.Gender?.Trim() ?? "Unisex",
+            PackageOrItemName = dto.UniformPackage?.Trim() ?? string.Empty,
+            UniformItemId = dto.UniformItemId?.Trim() ?? string.Empty,
+            FeePlan = dto.FeePlan?.Trim() ?? "Annual",
+            FeeAmount = dto.FeeAmount >= 0 ? dto.FeeAmount : 0m,
+            EffectiveFrom = dto.EffectiveFrom?.Trim() ?? DateTime.UtcNow.ToString("yyyy-MM-dd"),
+            Status = dto.Status?.Trim() ?? "Active",
+            CreatedAt = DateTime.UtcNow,
+            UpdatedAt = DateTime.UtcNow
         };
-        _context.FeeHeads.Add(feeHead);
+
+        _context.UniformFeeConfigs.Add(entity);
         await _context.SaveChangesAsync();
 
         return new FinanceUniformConfigDto
         {
-            Id = feeHead.Id,
-            AcademicYear = dto.AcademicYear ?? "2026-2027",
-            Branch = dto.Branch ?? string.Empty,
-            ClassName = dto.ClassName,
-            Gender = dto.Gender,
-            UniformPackage = dto.UniformPackage ?? "",
-            UniformItemId = dto.UniformItemId,
-            FeePlan = dto.FeePlan ?? "Annual",
-            FeeAmount = dto.FeeAmount,
-            EffectiveFrom = dto.EffectiveFrom ?? DateTime.Now.ToString("yyyy-MM-dd"),
-            Status = dto.Status
+            Id = entity.Id,
+            AcademicYear = entity.AcademicYear,
+            Branch = entity.Branch,
+            ClassName = entity.ClassName,
+            Gender = entity.Gender,
+            UniformPackage = entity.PackageOrItemName,
+            UniformItemId = entity.UniformItemId,
+            FeePlan = entity.FeePlan,
+            FeeAmount = entity.FeeAmount,
+            EffectiveFrom = entity.EffectiveFrom,
+            Status = entity.Status
         };
     }
 
     public async Task<FinanceUniformConfigDto?> UpdateUniformFeeConfigAsync(int id, CreateFinanceUniformConfigDto dto)
     {
-        var feeHead = await _context.FeeHeads.FirstOrDefaultAsync(f => f.Id == id && f.Category == "Uniform");
-        if (feeHead != null)
-        {
-            feeHead.Name = dto.UniformPackage ?? feeHead.Name;
-            feeHead.DefaultAmount = dto.FeeAmount;
-            feeHead.Frequency = dto.FeePlan ?? feeHead.Frequency;
-            await _context.SaveChangesAsync();
-        }
+        var entity = await _context.UniformFeeConfigs.FirstOrDefaultAsync(u => u.Id == id);
+        if (entity == null) return null;
+
+        if (dto.AcademicYear != null) entity.AcademicYear = dto.AcademicYear.Trim();
+        if (dto.Branch != null) entity.Branch = dto.Branch.Trim();
+        if (!string.IsNullOrWhiteSpace(dto.ClassName)) entity.ClassName = dto.ClassName.Trim();
+        if (!string.IsNullOrWhiteSpace(dto.Gender)) entity.Gender = dto.Gender.Trim();
+        if (!string.IsNullOrWhiteSpace(dto.UniformPackage)) entity.PackageOrItemName = dto.UniformPackage.Trim();
+        if (dto.UniformItemId != null) entity.UniformItemId = dto.UniformItemId.Trim();
+        if (!string.IsNullOrWhiteSpace(dto.FeePlan)) entity.FeePlan = dto.FeePlan.Trim();
+        if (dto.FeeAmount >= 0) entity.FeeAmount = dto.FeeAmount;
+        if (dto.EffectiveFrom != null) entity.EffectiveFrom = dto.EffectiveFrom.Trim();
+        if (!string.IsNullOrWhiteSpace(dto.Status)) entity.Status = dto.Status.Trim();
+        entity.UpdatedAt = DateTime.UtcNow;
+
+        await _context.SaveChangesAsync();
 
         return new FinanceUniformConfigDto
         {
-            Id = id,
-            AcademicYear = dto.AcademicYear ?? "2026-2027",
-            Branch = dto.Branch ?? string.Empty,
-            ClassName = dto.ClassName,
-            Gender = dto.Gender,
-            UniformPackage = dto.UniformPackage ?? "",
-            UniformItemId = dto.UniformItemId,
-            FeePlan = dto.FeePlan ?? "Annual",
-            FeeAmount = dto.FeeAmount,
-            EffectiveFrom = dto.EffectiveFrom ?? DateTime.Now.ToString("yyyy-MM-dd"),
-            Status = dto.Status
+            Id = entity.Id,
+            AcademicYear = entity.AcademicYear ?? string.Empty,
+            Branch = entity.Branch ?? string.Empty,
+            ClassName = entity.ClassName,
+            Gender = entity.Gender ?? "Unisex",
+            UniformPackage = entity.PackageOrItemName,
+            UniformItemId = entity.UniformItemId,
+            FeePlan = entity.FeePlan ?? "Annual",
+            FeeAmount = entity.FeeAmount,
+            EffectiveFrom = entity.EffectiveFrom ?? string.Empty,
+            Status = entity.Status ?? "Active"
         };
     }
 
     public async Task<bool> DeleteUniformFeeConfigAsync(int id)
     {
-        var feeHead = await _context.FeeHeads.FirstOrDefaultAsync(f => f.Id == id && f.Category == "Uniform");
-        if (feeHead != null)
+        var entity = await _context.UniformFeeConfigs.FirstOrDefaultAsync(u => u.Id == id);
+        if (entity != null)
         {
-            _context.FeeHeads.Remove(feeHead);
+            _context.UniformFeeConfigs.Remove(entity);
             await _context.SaveChangesAsync();
             return true;
         }
-        return true;
+        return false;
     }
 }

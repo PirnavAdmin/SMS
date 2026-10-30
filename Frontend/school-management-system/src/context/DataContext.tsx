@@ -24720,14 +24720,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         status: cData.status || "Active",
       });
       if (apiRes?.success && apiRes?.data?.id) {
-        const candidateId = String(apiRes.data.id);
-        // Only accept candidateId if it starts with FUC- and does NOT collide with any existing config
-        if (
-          candidateId.startsWith("FUC-") &&
-          !financeUniformConfigs.some((c) => c && c.id === candidateId)
-        ) {
-          assignedId = candidateId;
-        }
+        assignedId = String(apiRes.data.id);
       }
     } catch (e) {
       console.warn("API createUniformFeeConfig failed, saving locally:", e);
