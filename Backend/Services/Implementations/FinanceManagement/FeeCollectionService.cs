@@ -26,6 +26,11 @@ public class FeeCollectionService : IFeeCollectionService
         return _repository.GetStudentFeeProfileAsync(studentId, academicYear);
     }
 
+    public Task<StudentFeeProfileResponseDto?> GetStudentFeeProfileAsync(string studentId, string? academicYear)
+    {
+        return _repository.GetStudentFeeProfileAsync(studentId, academicYear);
+    }
+
     public Task<CollectFeePaymentResponseDto> CollectPaymentAsync(CollectFeePaymentRequestDto request)
     {
         return _repository.CollectPaymentAsync(request);
@@ -86,6 +91,11 @@ public class FeeCollectionService : IFeeCollectionService
     }
 
     public Task<StudentFeeProfileResponseDto?> RecalculateStudentFeeProfileAsync(int studentId, string? academicYear)
+    {
+        return _repository.RecalculateStudentFeeProfileAsync(studentId, academicYear);
+    }
+
+    public Task<StudentFeeProfileResponseDto?> RecalculateStudentFeeProfileAsync(string studentId, string? academicYear)
     {
         return _repository.RecalculateStudentFeeProfileAsync(studentId, academicYear);
     }
