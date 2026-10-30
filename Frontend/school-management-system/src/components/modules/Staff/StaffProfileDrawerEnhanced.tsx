@@ -13,7 +13,12 @@ import {
   Download,
   ShieldCheck,
   Sparkles,
-  ChevronRight
+  ChevronRight,
+  ExternalLink,
+  CheckCircle2,
+  Clock,
+  AlertCircle,
+  Calendar
 } from 'lucide-react';
 import { Staff, StaffDocument, StaffEducationRecord, StaffExperienceRecord } from '../../../types';
 import { StaffLetterType, GeneratedStaffLetterRecord } from '../../../types/staffLetter';
@@ -22,7 +27,10 @@ import { Badge } from '../../common/Badge';
 import { formatCurrency } from '../../../utils/currency';
 import { fetchStaffByIdApi } from '../../../api/staff';
 import { StaffLetterModal } from './Letters/StaffLetterModal';
+import { PayslipModal } from './PayslipModal';
+import { normalizeStaffType } from './staffFlowOptions';
 import { getLettersForStaff } from '../../../utils/staffLetterTemplates';
+import { resolveMediaUrl } from '../../../utils/mediaUtils';
 
 type DrawerTab =
   | 'overview'
@@ -56,8 +64,8 @@ const tabs: { id: DrawerTab; label: string; icon: React.ComponentType<{ classNam
   { id: 'leave', label: 'Leave', icon: CalendarDays },
 ];
 
-function getCategoryLabel(category?: string) {
-  return category === 'Teacher' ? 'Teaching Staff' : 'Non-Teaching Staff';
+function getCategoryLabel(category?: string | null) {
+  return normalizeStaffType(category || undefined);
 }
 
 function normalize(value: string) {
@@ -73,6 +81,8 @@ function normalizeStaffRecord(raw: any): Staff {
     const type = d.type || d.documentType || d.docType || 'Certificate';
     const uploadedDate = d.uploadedDate || d.uploadedAt || d.uploadDate || '';
     const verificationStatus = d.verificationStatus || (d.isVerified ? 'Verified' : (d.status || 'Pending Verification'));
+    const rawUrl = d.fileUrl || d.url || d.filePath || d.documentPath || d.path || d.file || (d as any).file_url || '';
+    const fileUrl = rawUrl ? resolveMediaUrl(rawUrl) : '';
     return {
       ...d,
       id: d.id || String(Math.random()),
@@ -84,7 +94,7 @@ function normalizeStaffRecord(raw: any): Staff {
       uploadedAt: uploadedDate,
       verificationStatus,
       status: verificationStatus,
-      fileUrl: d.fileUrl || '',
+      fileUrl,
     };
   });
 
@@ -153,7 +163,7 @@ function normalizeStaffRecord(raw: any): Staff {
   const aadhaarNumber = raw.aadhaarNumber || raw.AadhaarNumber || (raw as any).aadhaar || '';
   const dob = raw.dob || raw.dateOfBirth ? String(raw.dob || raw.dateOfBirth).split('T')[0] : '';
   const joiningDate = raw.joiningDate ? String(raw.joiningDate).split('T')[0] : '';
-  const employeeCategory = raw.employeeCategory || raw.category || (raw.role === 'Teacher' ? 'Teaching Staff' : 'Non-Teaching Staff');
+  const employeeCategory = normalizeStaffType(raw.employeeCategory || raw.category || (raw.role === 'Teacher' ? 'Teaching Staff' : 'Non-Teaching Staff'));
   const role = raw.role || raw.systemRole || (employeeCategory === 'Teaching Staff' ? 'Teacher' : 'Staff');
   const id = String(raw.staffId || raw.StaffId || raw.id || '');
   const branch = raw.branch || raw.branchName || raw.BranchName || '';
@@ -342,6 +352,7 @@ export const StaffProfileDrawer: React.FC<StaffProfileDrawerProps> = ({ staff: s
   const staff = liveStaff || initialMatched;
   const [activeTab, setActiveTab] = useState<DrawerTab>('overview');
   const [previewDoc, setPreviewDoc] = useState<StaffDocument | null>(null);
+  const [viewingPayslip, setViewingPayslip] = useState<any>(null);
   const [imgErr, setImgErr] = useState(false);
 
   // Staff Letter Generation & Viewer State
@@ -349,6 +360,25 @@ export const StaffProfileDrawer: React.FC<StaffProfileDrawerProps> = ({ staff: s
   const [selectedLetterType, setSelectedLetterType] = useState<StaffLetterType>('offer');
   const [selectedLetterRecord, setSelectedLetterRecord] = useState<GeneratedStaffLetterRecord | undefined>(undefined);
   const [staffLetters, setStaffLetters] = useState<GeneratedStaffLetterRecord[]>([]);
+
+  // Keep only the last updated letter per letterType (e.g. 1 offer letter, 1 relieving letter, 1 experience letter)
+  const latestStaffLetters = useMemo(() => {
+    const sorted = [...staffLetters].sort((a, b) => {
+      const d1 = new Date(b.issueDate || (b as any).updatedAt || (b as any).createdAt || 0).getTime();
+      const d2 = new Date(a.issueDate || (a as any).updatedAt || (a as any).createdAt || 0).getTime();
+      return d1 - d2;
+    });
+
+    const seen = new Set<string>();
+    const unique: GeneratedStaffLetterRecord[] = [];
+    for (const ltr of sorted) {
+      if (!seen.has(ltr.letterType)) {
+        seen.add(ltr.letterType);
+        unique.push(ltr);
+      }
+    }
+    return unique;
+  }, [staffLetters]);
 
   const refreshStaffLetters = () => {
     if (staff?.id || staff?.empId) {
@@ -448,6 +478,29 @@ export const StaffProfileDrawer: React.FC<StaffProfileDrawerProps> = ({ staff: s
   );
   const classList = Array.from(new Set([...(staff.assignedClasses || []), ...classAssignments.map(c => `${c.className}-${c.section}`)]));
   const qualificationDocs = staffDocs.filter(doc => /certificate|degree|qualification|resume|education/i.test(`${doc.title || (doc as any).documentTitle || ''} ${doc.type || (doc as any).documentType || ''}`));
+  
+  const formatAttendanceDate = (dateStr: string) => {
+    if (!dateStr) return { day: '--', month: '--', full: '--', weekday: '--' };
+    try {
+      const d = new Date(dateStr);
+      if (!isNaN(d.getTime())) {
+        const day = String(d.getDate()).padStart(2, '0');
+        const month = d.toLocaleString('en-US', { month: 'short' });
+        const weekday = d.toLocaleString('en-US', { weekday: 'short' });
+        const year = d.getFullYear();
+        return { day, month, full: `${day} ${month} ${year}`, weekday };
+      }
+    } catch {}
+    return { day: '--', month: '--', full: dateStr, weekday: '--' };
+  };
+
+  const formatPunchTime = (timeStr?: string) => {
+    if (!timeStr || timeStr === '--' || timeStr === 'undefined' || timeStr === 'null') {
+      return 'Not Marked';
+    }
+    return timeStr;
+  };
+
   const educationRecords = (staff.qualifications || []) as StaffEducationRecord[];
   const experienceRecords = (staff.experienceRecords || []) as StaffExperienceRecord[];
   const visibleTabs = tabs;
@@ -473,7 +526,6 @@ export const StaffProfileDrawer: React.FC<StaffProfileDrawerProps> = ({ staff: s
           <InfoLine label="PAN Number" value={staff.panNumber || (staff as any).panNo || (staff as any).pan || 'Not Provided'} />
           <InfoLine label="Aadhaar Number" value={staff.aadhaarNumber || (staff as any).aadhaar || 'Not Provided'} />
           <InfoLine label="Profile Status" value={profileStatus} />
-          <InfoLine label="Primary Subject" value={staff.primarySubject || 'Not Assigned'} />
           <InfoLine label="Classes" value={classList.length > 0 ? classList.join(', ') : 'Not Assigned'} />
         </div>
       </SectionBlock>
@@ -527,18 +579,12 @@ export const StaffProfileDrawer: React.FC<StaffProfileDrawerProps> = ({ staff: s
         <InfoLine label="Branch" value={staff.branch || '—'} />
         <InfoLine label="Department" value={department} />
         <InfoLine label="Designation" value={designation} />
-        <InfoLine label="Employment Type" value={(staff as any).employeeType || 'Permanent'} />
-        <InfoLine label="Reporting Manager" value={(staff as any).reportingManager} />
-        <InfoLine label="Status" value={(staff as any).employmentStatus || staff.status} />
-        <InfoLine label="Date of Joining" value={staff.joiningDate} />
-        <InfoLine label="Confirmation Date" value={(staff as any).confirmationDate} />
-        <InfoLine label="Shift" value={(staff as any).workShift} />
-        <InfoLine label="Weekly Off" value={(staff as any).weeklyOff} />
-        <InfoLine label="Attendance Type" value={(staff as any).attendanceType} />
         <InfoLine label="Employee Code" value={staff.empId || staff.teacherCode || (staff as any).employeeCode || 'Not Assigned'} />
+        <InfoLine label="Status" value={(staff as any).employmentStatus || staff.status || 'Active'} />
+        <InfoLine label="Employment Type" value={(staff as any).employeeType || staff.employmentType || 'Permanent'} />
+        <InfoLine label="Date of Joining" value={staff.joiningDate} />
         <InfoLine label="PAN Number" value={staff.panNumber || (staff as any).panNo || (staff as any).pan || 'Not Provided'} />
-        <InfoLine label="Biometric ID" value={(staff as any).biometricId} />
-        <InfoLine label="Staff Role" value={staff.role === 'Teacher' ? 'Teacher' : (staff.role === 'Staff' ? 'Non-Teaching Staff' : staff.role || 'Non-Teaching Staff')} />
+        <InfoLine label="Aadhaar Number" value={staff.aadhaarNumber || (staff as any).aadhaar || 'Not Provided'} />
       </div>
     </SectionBlock>
   );
@@ -615,41 +661,56 @@ export const StaffProfileDrawer: React.FC<StaffProfileDrawerProps> = ({ staff: s
 
   const renderExperience = () => (
     <SectionBlock title="Experience" subtitle="Previous organizations and work history.">
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <MetricCard label="Records" value={experienceRecords.length || (staff.experienceYears ? 1 : 0)} tone="brand" />
-        <MetricCard label="Total Experience" value={`${staff.experienceYears || 0} years`} tone="emerald" />
-        <MetricCard label="Certificates" value={experienceRecords.filter(record => record.certificateFileUrl || (record as any).certificateFileName).length} tone="amber" />
-      </div>
-
-      <div className="mt-5 space-y-3">
+      <div className="space-y-3">
         {experienceRecords.length > 0 ? (
-          experienceRecords.map((record, index) => (
-            <div key={record.id || `${index}`} className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/70 px-4 py-4">
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <p className="text-sm font-bold text-slate-900 dark:text-white">
-                    {record.organization || record.previousSchool || (record as any).previousOrganization || 'Experience Record'}
-                  </p>
-                  <p className="text-[10px] text-slate-500">{record.designation || (record as any).designationHeld || 'Designation not provided'}</p>
+          experienceRecords.map((record, index) => {
+            const joining = record.joiningDate || (record as any).fromDate;
+            const relieving = record.relievingDate || (record as any).toDate;
+            const hasDates = Boolean((joining && joining !== 'Not Provided') || (relieving && relieving !== 'Not Provided'));
+            const expDuration = record.totalExperience || (record as any).yearsOfExperience;
+
+            return (
+              <div key={record.id || `${index}`} className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/70 px-4 py-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-bold text-slate-900 dark:text-white">
+                      {record.organization || record.previousSchool || (record as any).previousOrganization || 'Experience Record'}
+                    </p>
+                    {(record.designation || (record as any).designationHeld) && (
+                      <p className="text-[10px] text-slate-500">
+                        {record.designation || (record as any).designationHeld}
+                      </p>
+                    )}
+                  </div>
+                  {expDuration && (
+                    <Badge variant="info" size="sm">
+                      {String(expDuration).includes('year') ? expDuration : `${expDuration} years`}
+                    </Badge>
+                  )}
                 </div>
-                <Badge variant="info" size="sm">
-                  {record.totalExperience ? (String(record.totalExperience).includes('year') ? record.totalExperience : `${record.totalExperience} years`) : 'N/A'}
-                </Badge>
+
+                {hasDates && (
+                  <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-3">
+                    {joining && joining !== 'Not Provided' && (
+                      <InfoLine label="Joining Date" value={joining} />
+                    )}
+                    {relieving && relieving !== 'Not Provided' && (
+                      <InfoLine label="Relieving Date" value={relieving} />
+                    )}
+                  </div>
+                )}
               </div>
-              <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-3">
-                <InfoLine label="Joining Date" value={record.joiningDate || (record as any).fromDate || 'Not Provided'} />
-                <InfoLine label="Relieving Date" value={record.relievingDate || (record as any).toDate || 'Not Provided'} />
-                <InfoLine label="Certificate" value={record.certificateFileName || (record.certificateFileUrl ? 'Uploaded' : 'Not Uploaded')} />
-                <InfoLine label="Previous School" value={record.previousSchool || record.organization || (record as any).previousOrganization || 'Not Provided'} />
-              </div>
-            </div>
-          ))
+            );
+          })
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <InfoLine label="Total Experience" value={`${staff.experienceYears || 0} years`} />
-            <InfoLine label="Previous Organization" value={(staff as any).previousOrganization || 'Not Provided'} />
-            <InfoLine label="Designation" value={(staff as any).previousDesignation || (staff as any).designationHeld || 'Not Provided'} />
-            <InfoLine label="Experience Certificate" value={(staff as any).experienceCertificate || 'Not Uploaded'} />
+            {(staff as any).previousOrganization && (
+              <InfoLine label="Previous Organization" value={(staff as any).previousOrganization} />
+            )}
+            {(staff as any).previousDesignation && (
+              <InfoLine label="Designation" value={(staff as any).previousDesignation} />
+            )}
           </div>
         )}
       </div>
@@ -701,33 +762,150 @@ export const StaffProfileDrawer: React.FC<StaffProfileDrawerProps> = ({ staff: s
     </SectionBlock>
   );
 
-  const renderAttendance = () => (
-    <SectionBlock title="Attendance" subtitle="Recent attendance records and summary counts.">
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <MetricCard label="Present" value={attendanceCounts.Present || 0} tone="emerald" />
-        <MetricCard label="Absent" value={attendanceCounts.Absent || 0} tone="amber" />
-        <MetricCard label="Late" value={attendanceCounts.Late || 0} tone="brand" />
-        <MetricCard label="Leave" value={attendanceCounts.Leave || 0} tone="slate" />
-      </div>
-      <div className="mt-5 space-y-2">
-        {attendanceLogs.length === 0 ? (
-          <p className="text-sm text-slate-500 italic">No attendance records found for this staff member in the current branch.</p>
-        ) : (
-          attendanceLogs.slice(0, 8).map(item => (
-            <div key={item.id || `${item.date}-${item.entityId}`} className="flex items-center justify-between rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/70 px-4 py-3">
-              <div>
-                <p className="text-sm font-bold text-slate-900 dark:text-white">{item.date}</p>
-                <p className="text-[10px] text-slate-500">{item.inTime || '--'} to {item.outTime || '--'}</p>
+    const renderAttendance = () => {
+    const presentCount = attendanceCounts['Present'] || 0;
+    const halfDayCount = (attendanceCounts['HalfDay'] || 0) + (attendanceCounts['Half Day'] || 0);
+    const absentCount = attendanceCounts['Absent'] || 0;
+    const lateCount = attendanceCounts['Late'] || 0;
+    const leaveCount = attendanceCounts['Leave'] || 0;
+    const totalMarked = attendanceLogs.length;
+    const attendanceRate = totalMarked > 0 
+      ? Math.min(100, Math.round(((presentCount + (halfDayCount * 0.5)) / totalMarked) * 100))
+      : 100;
+
+    return (
+      <SectionBlock title="Attendance" subtitle="Recent attendance records and summary counts.">
+        {/* Executive Summary Card with Soft Modern Tones */}
+        <div className="p-5 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 shadow-xs space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-100 dark:border-slate-800">
+            <div className="flex items-center gap-3.5">
+              <div className="w-12 h-12 rounded-2xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center font-black border border-emerald-200/80 dark:border-emerald-800/60 shrink-0">
+                <CalendarCheck2 className="w-6 h-6" />
               </div>
-              <Badge variant={item.status === 'Present' ? 'success' : item.status === 'Late' ? 'warning' : 'neutral'} size="sm">
-                {item.status}
-              </Badge>
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="text-2xl font-black text-slate-900 dark:text-white">{attendanceRate}%</span>
+                  <span className="text-xs font-bold text-slate-400">Attendance Rate</span>
+                </div>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  {totalMarked > 0 
+                    ? `${presentCount + halfDayCount} days present/half-day out of ${totalMarked} recorded sessions` 
+                    : 'No attendance logs recorded yet'}
+                </p>
+              </div>
             </div>
-          ))
-        )}
-      </div>
-    </SectionBlock>
-  );
+            <div className="flex items-center gap-1.5 self-start sm:self-auto">
+              <span className="px-3 py-1 rounded-full text-xs font-bold bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300">
+                {totalMarked} Records
+              </span>
+            </div>
+          </div>
+
+          {/* Metric Chips Row (soft modern colors, NOT solid neon blocks) */}
+          <div className="grid grid-cols-2 sm:grid-cols-5 gap-2.5">
+            <div className="p-3 rounded-2xl bg-emerald-50/70 dark:bg-emerald-950/30 border border-emerald-200/70 dark:border-emerald-800/40 text-center">
+              <p className="text-[10px] font-black uppercase tracking-wider text-emerald-700 dark:text-emerald-300">Present</p>
+              <p className="text-lg font-black text-emerald-800 dark:text-emerald-200 mt-0.5">{presentCount}</p>
+            </div>
+            <div className="p-3 rounded-2xl bg-amber-50/70 dark:bg-amber-950/30 border border-amber-200/70 dark:border-amber-800/40 text-center">
+              <p className="text-[10px] font-black uppercase tracking-wider text-amber-700 dark:text-amber-300">Half Day</p>
+              <p className="text-lg font-black text-amber-800 dark:text-amber-200 mt-0.5">{halfDayCount}</p>
+            </div>
+            <div className="p-3 rounded-2xl bg-rose-50/70 dark:bg-rose-950/30 border border-rose-200/70 dark:border-rose-800/40 text-center">
+              <p className="text-[10px] font-black uppercase tracking-wider text-rose-700 dark:text-rose-300">Absent</p>
+              <p className="text-lg font-black text-rose-800 dark:text-rose-200 mt-0.5">{absentCount}</p>
+            </div>
+            <div className="p-3 rounded-2xl bg-sky-50/70 dark:bg-sky-950/30 border border-sky-200/70 dark:border-sky-800/40 text-center">
+              <p className="text-[10px] font-black uppercase tracking-wider text-sky-700 dark:text-sky-300">Late</p>
+              <p className="text-lg font-black text-sky-800 dark:text-sky-200 mt-0.5">{lateCount || '—'}</p>
+            </div>
+            <div className="p-3 rounded-2xl bg-slate-100/70 dark:bg-slate-800/40 border border-slate-200/70 dark:border-slate-700/40 text-center">
+              <p className="text-[10px] font-black uppercase tracking-wider text-slate-600 dark:text-slate-400">Leave</p>
+              <p className="text-lg font-black text-slate-800 dark:text-slate-200 mt-0.5">{leaveCount || '—'}</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Activity Logs List */}
+        <div className="mt-5 space-y-3">
+          <div className="flex items-center justify-between gap-3">
+            <h4 className="text-xs font-black uppercase tracking-[0.35em] text-slate-400">Recent Attendance Logs</h4>
+            <Badge variant="neutral" size="sm">{attendanceLogs.length} Records</Badge>
+          </div>
+          {attendanceLogs.length === 0 ? (
+            <div className="p-6 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/60 text-center">
+              <p className="text-sm text-slate-500 italic">No attendance records found for this staff member in the current branch.</p>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {attendanceLogs.map(item => {
+                const dateObj = formatAttendanceDate(item.date);
+                const inTime = formatPunchTime(item.inTime);
+                const outTime = formatPunchTime(item.outTime);
+                const isPresent = item.status === 'Present';
+                const isHalfDay = (item.status as string) === 'HalfDay' || (item.status as string) === 'Half Day';
+                const isAbsent = item.status === 'Absent';
+                const isLate = item.status === 'Late';
+
+                return (
+                  <div
+                    key={item.id || `${item.date}-${item.entityId}-${item.inTime}`}
+                    className="flex flex-col sm:flex-row sm:items-center justify-between p-3.5 rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-2xs hover:border-slate-300 dark:hover:border-slate-700 transition gap-3"
+                  >
+                    {/* Left: Date Display */}
+                    <div className="flex items-center gap-3">
+                      <div className="w-12 h-12 rounded-xl bg-slate-100 dark:bg-slate-800 flex flex-col items-center justify-center shrink-0 border border-slate-200/60 dark:border-slate-700/60">
+                        <span className="text-[10px] font-black uppercase text-slate-400">{dateObj.weekday || dateObj.month}</span>
+                        <span className="text-base font-black text-slate-800 dark:text-slate-100 leading-tight">{dateObj.day}</span>
+                      </div>
+                      <div>
+                        <p className="text-xs font-bold text-slate-900 dark:text-white">{dateObj.full}</p>
+                        <div className="flex items-center gap-1.5 text-[11px] text-slate-500 mt-0.5">
+                          <Clock className="w-3 h-3 text-slate-400" />
+                          <span>In: <strong className="text-slate-700 dark:text-slate-300 font-medium">{inTime}</strong></span>
+                          <span className="text-slate-300 dark:text-slate-600">&bull;</span>
+                          <span>Out: <strong className="text-slate-700 dark:text-slate-300 font-medium">{outTime}</strong></span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Right: Status Pill */}
+                    <div className="flex items-center gap-2 self-start sm:self-auto">
+                      {isPresent && (
+                        <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800">
+                          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" /> Present
+                        </span>
+                      )}
+                      {isHalfDay && (
+                        <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800">
+                          <Clock className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" /> Half Day
+                        </span>
+                      )}
+                      {isAbsent && (
+                        <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold bg-rose-50 text-rose-700 border border-rose-200 dark:bg-rose-950/40 dark:text-rose-300 dark:border-rose-800">
+                          <AlertCircle className="w-3.5 h-3.5 text-rose-600 dark:text-rose-400" /> Absent
+                        </span>
+                      )}
+                      {isLate && (
+                        <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold bg-sky-50 text-sky-700 border border-sky-200 dark:bg-sky-950/40 dark:text-sky-300 dark:border-sky-800">
+                          <Clock className="w-3.5 h-3.5 text-sky-600 dark:text-sky-400" /> Late
+                        </span>
+                      )}
+                      {!isPresent && !isHalfDay && !isAbsent && !isLate && (
+                        <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold bg-slate-100 text-slate-700 border border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700">
+                          {item.status || 'Marked'}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      </SectionBlock>
+    );
+  };
 
   const renderSubjects = () => (
     <SectionBlock title="Subjects" subtitle="Mapped subjects and specializations.">
@@ -805,70 +983,161 @@ export const StaffProfileDrawer: React.FC<StaffProfileDrawerProps> = ({ staff: s
     </SectionBlock>
   );
 
-  const renderPayroll = () => (
-    <SectionBlock title="Payroll" subtitle="Read-only salary structure, effective date, and payslip history.">
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <InfoLine label="Salary Structure" value={staff.salaryStructureName || currentStructure?.structureName || 'Not Assigned'} />
-        <InfoLine label="Salary Effective Date" value={staff.salaryStructureEffectiveDate || 'Not Provided'} />
-        <InfoLine label="Gross Salary" value={formatCurrency(grossSalary)} />
-        <InfoLine label="Net Salary" value={formatCurrency(netSalary)} />
-      </div>
+    const renderPayroll = () => {
+    const structureName = staff.salaryStructureName || currentStructure?.structureName || 'Standard Scale';
+    const effectiveDate = staff.salaryStructureEffectiveDate || (staff as any).salaryEffectiveDate || 'Effective Date Not Set';
+    const standardDeductions = Math.max(0, grossSalary - netSalary);
+    const latestPayslip = payslipHistory[0];
 
-      <div className="mt-5 grid grid-cols-1 md:grid-cols-3 gap-4">
-        <MetricCard
-          label="Latest Payslip"
-          value={payslipHistory[0]?.month || 'No Payslip'}
-          tone="brand"
-        />
-        <MetricCard
-          label="Payment Status"
-          value={payslipHistory[0]?.status || 'Not Paid'}
-          tone={payslipHistory[0]?.status === 'Paid' ? 'emerald' : 'amber'}
-        />
-        <MetricCard
-          label="Payslips"
-          value={payslipHistory.length}
-          tone="slate"
-        />
-      </div>
-
-      <div className="mt-5 space-y-3">
-        <div className="flex items-center justify-between gap-3">
-          <h4 className="text-xs font-black uppercase tracking-[0.35em] text-slate-400">Salary History</h4>
-          <Badge variant="info" size="sm">{payslipHistory.length} Records</Badge>
-        </div>
-        {payslipHistory.length === 0 ? (
-          <p className="text-sm text-slate-500 italic">No payroll history found for this staff member.</p>
-        ) : (
-          payslipHistory.map(p => (
-            <div key={p.id} className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/70 px-4 py-3">
-              <div className="flex items-center justify-between gap-3">
-                <div>
-                  <p className="text-sm font-bold text-slate-900 dark:text-white">{p.month}</p>
-                  <p className="text-[10px] text-slate-500">{p.department} | {p.designation}</p>
-                </div>
-                <Badge variant={p.status === 'Paid' ? 'success' : 'info'} size="sm">{p.status}</Badge>
+    return (
+      <SectionBlock title="Payroll" subtitle="Read-only salary structure, effective date, and payslip history.">
+        {/* Executive Compensation Overview Card */}
+        <div className="p-5 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 shadow-xs space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-100 dark:border-slate-800">
+            <div className="flex items-center gap-3.5">
+              <div className="w-12 h-12 rounded-2xl bg-sky-50 dark:bg-sky-950/60 text-sky-600 dark:text-sky-400 flex items-center justify-center font-black border border-sky-200/80 dark:border-sky-800/60 shrink-0">
+                <WalletCards className="w-6 h-6" />
               </div>
-              <div className="mt-3 grid grid-cols-3 gap-2 text-center">
-                <div className="rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-2">
-                  <p className="text-[10px] text-slate-400 uppercase font-black">Gross</p>
-                  <p className="text-sm font-black text-slate-900 dark:text-white">{formatCurrency(p.grossSalary || p.basicSalary || 0)}</p>
-                </div>
-                <div className="rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-2">
-                  <p className="text-[10px] text-slate-400 uppercase font-black">Deductions</p>
-                  <p className="text-sm font-black text-slate-900 dark:text-white">{formatCurrency((p.leaveDeduction || 0) + (p.otherDeductions || 0) + (p.pfDeduction || 0) + (p.lopDeduction || 0))}</p>
-                </div>
-                <div className="rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-2">
-                  <p className="text-[10px] text-slate-400 uppercase font-black">Net</p>
-                  <p className="text-sm font-black text-slate-900 dark:text-white">{formatCurrency(p.netSalary || 0)}</p>
-                </div>
+              <div>
+                <p className="text-[10px] font-black uppercase tracking-wider text-slate-400">Monthly Net Salary</p>
+                <p className="text-2xl font-black text-slate-900 dark:text-white leading-tight">{formatCurrency(netSalary)}</p>
               </div>
             </div>
-          ))
-        )}
-      </div>
-    </SectionBlock>
-  );
+
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="inline-flex items-center gap-1 px-3 py-1 rounded-xl text-xs font-bold bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300">
+                <Briefcase className="w-3.5 h-3.5 text-slate-400" /> Structure: {structureName}
+              </span>
+              <span className="inline-flex items-center gap-1 px-3 py-1 rounded-xl text-xs font-bold bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300">
+                <CalendarDays className="w-3.5 h-3.5 text-slate-400" /> {effectiveDate}
+              </span>
+            </div>
+          </div>
+
+          {/* Metric Chips Row (soft modern colors, NOT solid neon blocks) */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200/80 dark:border-slate-700/60">
+              <p className="text-[10px] font-black uppercase tracking-wider text-slate-400">Gross Salary</p>
+              <p className="text-base font-black text-slate-900 dark:text-white mt-0.5">{formatCurrency(grossSalary)}</p>
+            </div>
+            <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200/80 dark:border-slate-700/60">
+              <p className="text-[10px] font-black uppercase tracking-wider text-slate-400">Total Deductions</p>
+              <p className="text-base font-black text-rose-600 dark:text-rose-400 mt-0.5">{formatCurrency(standardDeductions)}</p>
+            </div>
+            <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200/80 dark:border-slate-700/60">
+              <p className="text-[10px] font-black uppercase tracking-wider text-slate-400">Latest Payslip</p>
+              <div className="flex items-center justify-between gap-2 mt-0.5">
+                <p className="text-base font-black text-slate-900 dark:text-white truncate">{latestPayslip?.month || 'No Payslips'}</p>
+                {latestPayslip && (
+                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                    latestPayslip.status === 'Paid'
+                      ? 'bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950 dark:text-emerald-300'
+                      : 'bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-950 dark:text-amber-300'
+                  }`}>
+                    {latestPayslip.status}
+                  </span>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Payslip History Section */}
+        <div className="mt-5 space-y-3">
+          <div className="flex items-center justify-between gap-3">
+            <h4 className="text-xs font-black uppercase tracking-[0.35em] text-slate-400">Payslip History</h4>
+            <Badge variant="info" size="sm">{payslipHistory.length} Records</Badge>
+          </div>
+
+          {payslipHistory.length === 0 ? (
+            <div className="p-6 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/60 text-center">
+              <p className="text-sm text-slate-500 italic">No payroll history found for this staff member.</p>
+            </div>
+          ) : (
+            <div className="space-y-2.5">
+              {payslipHistory.map(p => {
+                const payGross = Number(p.grossSalary || p.basicSalary || 0);
+                let payNet = Number(p.netSalary) || 0;
+
+                // Deductions calculation safely handled
+                let payDeductions = 0;
+                if (Array.isArray(p.deductions) && p.deductions.length > 0) {
+                  payDeductions = p.deductions.reduce((s, d) => s + (Number(d.amount) || 0), 0);
+                } else if (payGross > payNet && payNet > 0) {
+                  payDeductions = payGross - payNet;
+                } else {
+                  const pf = Number(p.pfDeduction) || 0;
+                  const leave = Number(p.leaveDeduction) || Number(p.lopDeduction) || 0;
+                  const other = Number(p.otherDeductions) || 0;
+                  payDeductions = pf + leave + other;
+                }
+
+                // Avoid crazy deductions exceeding gross due to test data
+                if (payDeductions > payGross && payGross > 0) {
+                  payDeductions = Math.min(payDeductions, payGross);
+                }
+                if (payNet === 0 && payGross > 0) {
+                  payNet = Math.max(0, payGross - payDeductions);
+                }
+
+                return (
+                  <div
+                    key={p.id}
+                    className="flex flex-col sm:flex-row sm:items-center justify-between p-4 rounded-2xl border border-slate-200/90 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-2xs hover:border-sky-300 dark:hover:border-sky-800 transition gap-4"
+                  >
+                    {/* Left: Month & Role */}
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-xl bg-sky-50 dark:bg-sky-950/60 text-sky-600 dark:text-sky-400 flex items-center justify-center shrink-0 border border-sky-100 dark:border-sky-900/40">
+                        <FileText className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-bold text-slate-900 dark:text-white">{p.month}</p>
+                        <p className="text-[11px] text-slate-500">{p.department || department} &bull; {p.designation || designation}</p>
+                      </div>
+                    </div>
+
+                    {/* Middle: Financial Breakdown */}
+                    <div className="grid grid-cols-3 gap-4 text-center sm:text-right py-2 sm:py-0 border-y sm:border-y-0 border-slate-100 dark:border-slate-800">
+                      <div>
+                        <p className="text-[10px] uppercase font-bold text-slate-400">Gross</p>
+                        <p className="text-xs font-bold text-slate-800 dark:text-slate-200 mt-0.5">{formatCurrency(payGross)}</p>
+                      </div>
+                      <div>
+                        <p className="text-[10px] uppercase font-bold text-slate-400">Deductions</p>
+                        <p className="text-xs font-bold text-rose-600 dark:text-rose-400 mt-0.5">-{formatCurrency(payDeductions)}</p>
+                      </div>
+                      <div>
+                        <p className="text-[10px] uppercase font-bold text-slate-400">Net Pay</p>
+                        <p className="text-xs font-black text-emerald-600 dark:text-emerald-400 mt-0.5">{formatCurrency(payNet)}</p>
+                      </div>
+                    </div>
+
+                    {/* Right: Status & Action */}
+                    <div className="flex items-center gap-2 self-end sm:self-auto shrink-0">
+                      <span className={`px-2.5 py-1 rounded-full text-[10px] font-black uppercase ${
+                        p.status === 'Paid'
+                          ? 'bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950 dark:text-emerald-300'
+                          : 'bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-950 dark:text-amber-300'
+                      }`}>
+                        {p.status}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setViewingPayslip(p)}
+                        className="px-3 py-1.5 rounded-xl bg-sky-50 dark:bg-sky-950/40 text-sky-700 dark:text-sky-300 hover:bg-sky-100 dark:hover:bg-sky-900/60 text-xs font-bold border border-sky-200 dark:border-sky-800 flex items-center gap-1.5 cursor-pointer transition shadow-2xs"
+                      >
+                        <Eye className="w-3.5 h-3.5" /> View
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      </SectionBlock>
+    );
+  };
 
   const renderDocuments = () => (
     <SectionBlock title="Documents & Letters" subtitle="Official institutional letters, uploaded employee records and requirement checklist.">
@@ -879,9 +1148,6 @@ export const StaffProfileDrawer: React.FC<StaffProfileDrawerProps> = ({ staff: s
             <h4 className="text-sm font-black text-slate-900 dark:text-white flex items-center gap-2">
               <FileText className="w-4 h-4 text-sky-600 dark:text-sky-400" /> Official Institutional Letters & HR Documents
             </h4>
-            <p className="text-xs text-slate-500 dark:text-slate-400 font-normal mt-0.5">
-              Generate, preview, customize, and issue standard institutional letters with official school letterhead.
-            </p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <button
@@ -922,12 +1188,12 @@ export const StaffProfileDrawer: React.FC<StaffProfileDrawerProps> = ({ staff: s
 
         {/* List of Issued Letters for this staff member */}
         <div className="space-y-2">
-          {staffLetters.length === 0 ? (
+          {latestStaffLetters.length === 0 ? (
             <div className="p-3 bg-white/70 dark:bg-slate-900/60 rounded-2xl border border-sky-100 dark:border-slate-800 text-center text-xs text-slate-500 italic">
               No official HR letters generated yet. Click any button above to generate a new Offer or Relieving Letter.
             </div>
           ) : (
-            staffLetters.map((ltr) => (
+            latestStaffLetters.map((ltr) => (
               <div
                 key={ltr.id}
                 className="flex items-center justify-between p-3 rounded-2xl bg-white dark:bg-slate-900 border border-sky-200/80 dark:border-slate-800 shadow-2xs"
@@ -1258,31 +1524,89 @@ export const StaffProfileDrawer: React.FC<StaffProfileDrawerProps> = ({ staff: s
       </div>
 
       {previewDoc && (
-        <div className="fixed inset-0 z-[60] bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-[75] bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4">
           <div className="w-full max-w-3xl max-h-[90vh] bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-2xl flex flex-col overflow-hidden">
             <div className="px-5 py-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
               <div>
                 <p className="text-sm font-black text-slate-900 dark:text-white">{previewDoc.title}</p>
-                <p className="text-[11px] text-slate-500 mt-1">{previewDoc.type} | Uploaded {previewDoc.uploadedDate}</p>
+                <p className="text-[11px] text-slate-500 mt-1">{previewDoc.type} | Uploaded {previewDoc.uploadedDate || 'Recently'}</p>
               </div>
-              <button
-                type="button"
-                onClick={() => setPreviewDoc(null)}
-                className="p-2 rounded-xl text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800"
-              >
-                <X className="w-5 h-5" />
-              </button>
+              <div className="flex items-center gap-2">
+                {(() => {
+                  const resolvedUrl = resolveMediaUrl(previewDoc.fileUrl || (previewDoc as any).url || (previewDoc as any).filePath);
+                  if (resolvedUrl && resolvedUrl !== '#') {
+                    return (
+                      <a
+                        href={resolvedUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="px-3 py-1.5 rounded-xl bg-sky-50 dark:bg-sky-950 text-sky-700 dark:text-sky-300 text-xs font-bold hover:bg-sky-100 flex items-center gap-1 border border-sky-200 dark:border-sky-800"
+                        title="Open in new window"
+                      >
+                        <ExternalLink className="w-3.5 h-3.5" /> Open
+                      </a>
+                    );
+                  }
+                  return null;
+                })()}
+                <button
+                  type="button"
+                  onClick={() => setPreviewDoc(null)}
+                  className="p-2 rounded-xl text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
             </div>
-            <div className="flex-1 overflow-y-auto p-4 bg-slate-50 dark:bg-slate-950">
-              {previewDoc.fileUrl && previewDoc.fileUrl.startsWith('data:image') ? (
-                <img src={previewDoc.fileUrl} alt={previewDoc.title} className="max-h-[70vh] mx-auto object-contain rounded-2xl shadow-lg" />
-              ) : previewDoc.fileUrl && previewDoc.fileUrl !== '#' ? (
-                <iframe src={previewDoc.fileUrl} title={previewDoc.title} className="w-full h-[70vh] rounded-2xl border-0 bg-white" />
-              ) : (
-                <div className="h-[60vh] flex items-center justify-center text-slate-400">No preview available.</div>
-              )}
+            <div className="flex-1 overflow-y-auto p-4 bg-slate-50 dark:bg-slate-950 flex items-center justify-center min-h-[300px]">
+              {(() => {
+                const rawUrl = previewDoc.fileUrl || (previewDoc as any).url || (previewDoc as any).filePath || (previewDoc as any).path;
+                const resolvedUrl = resolveMediaUrl(rawUrl);
+
+                if (!resolvedUrl || resolvedUrl === '#') {
+                  return (
+                    <div className="h-[50vh] flex flex-col items-center justify-center text-center p-6 gap-3">
+                      <div className="w-16 h-16 rounded-2xl bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 flex items-center justify-center border border-amber-200 dark:border-amber-800">
+                        <FileText className="w-8 h-8" />
+                      </div>
+                      <p className="text-sm font-bold text-slate-800 dark:text-slate-200">{previewDoc.title}</p>
+                      <p className="text-xs text-slate-500 max-w-sm">
+                        This document record was verified and registered in the system. If you recently updated it, the file will display as soon as synchronization completes.
+                      </p>
+                      <Badge variant="warning" size="sm">{previewDoc.verificationStatus || 'Pending Verification'}</Badge>
+                    </div>
+                  );
+                }
+
+                const isImage =
+                  resolvedUrl.startsWith('data:image') ||
+                  resolvedUrl.startsWith('blob:') ||
+                  /\.(jpe?g|png|webp|gif|svg)($|\?)/i.test(resolvedUrl) ||
+                  /photo|picture|avatar|image/i.test(previewDoc.type || previewDoc.title || '');
+
+                if (isImage) {
+                  return (
+                    <img
+                      src={resolvedUrl}
+                      alt={previewDoc.title}
+                      className="max-h-[70vh] max-w-full mx-auto object-contain rounded-2xl shadow-lg ring-1 ring-slate-200 dark:ring-slate-800"
+                    />
+                  );
+                }
+
+                return (
+                  <iframe
+                    src={resolvedUrl}
+                    title={previewDoc.title}
+                    className="w-full h-[70vh] rounded-2xl border-0 bg-white shadow-xs"
+                  />
+                );
+              })()}
             </div>
-            <div className="px-5 py-4 border-t border-slate-100 dark:border-slate-800 flex justify-end">
+            <div className="px-5 py-4 border-t border-slate-100 dark:border-slate-800 flex justify-between items-center">
+              <div>
+                <span className="text-xs text-slate-400 font-mono">Status: {previewDoc.verificationStatus || 'Attached'}</span>
+              </div>
               <button
                 type="button"
                 onClick={() => setPreviewDoc(null)}
@@ -1293,6 +1617,15 @@ export const StaffProfileDrawer: React.FC<StaffProfileDrawerProps> = ({ staff: s
             </div>
           </div>
         </div>
+      )}
+
+      
+      {viewingPayslip && (
+        <PayslipModal
+          payslip={viewingPayslip}
+          staffMember={staff}
+          onClose={() => setViewingPayslip(null)}
+        />
       )}
 
       {staff && (

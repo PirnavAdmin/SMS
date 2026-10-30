@@ -233,7 +233,7 @@ export const PayrollDrawer: React.FC<PayrollDrawerProps> = ({ staff, isOpen, onC
             <StaffAvatar staff={staff} />
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-2">
-                <Badge variant={staff.employeeCategory === 'Teacher' ? 'info' : 'neutral'} size="sm">{staff.employeeCategory === 'Teacher' ? 'Teaching Staff' : 'Non-Teaching Staff'}</Badge>
+                <Badge variant={staff.employeeCategory === 'Teacher' || (staff.employeeCategory as string) === 'Teaching Staff' || staff.role === 'Teacher' ? 'info' : 'neutral'} size="sm">{staff.employeeCategory === 'Teacher' || (staff.employeeCategory as string) === 'Teaching Staff' || staff.role === 'Teacher' ? 'Teaching Staff' : 'Non-Teaching Staff'}</Badge>
                 <span className="text-[10px] font-black uppercase tracking-[0.35em] text-slate-400">{staff.empId}</span>
               </div>
               <h2 className="mt-1 truncate text-base font-black text-slate-900 dark:text-white">{staff.firstName} {staff.lastName}</h2>
