@@ -28,13 +28,6 @@ export const PrintableStaffLetter: React.FC<PrintableStaffLetterProps> = ({
   // Resolve effective signature image from payload, global settings, or school profile
   const effectiveSignature = useMemo(() => {
     if (payload.signatureImageUrl) return payload.signatureImageUrl;
-    try {
-      const saved = localStorage.getItem('edu_db_global_letter_settings');
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (parsed.signatureImageUrl) return parsed.signatureImageUrl;
-      }
-    } catch (e) {}
     return (activeSchoolProfile as any)?.signature || (activeSchoolProfile as any)?.principalSignature || '';
   }, [payload.signatureImageUrl, activeSchoolProfile]);
 

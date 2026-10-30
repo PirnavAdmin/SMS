@@ -241,13 +241,6 @@ export const StaffLetterModal: React.FC<StaffLetterModalProps> = ({
   );
 
   const getGlobalSignature = () => {
-    try {
-      const saved = localStorage.getItem('edu_db_global_letter_settings');
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (parsed.signatureImageUrl) return parsed.signatureImageUrl;
-      }
-    } catch (e) {}
     return (schoolProfile as any)?.signature || (schoolProfile as any)?.principalSignature || '';
   };
 
@@ -1515,17 +1508,13 @@ export const StaffLetterModal: React.FC<StaffLetterModalProps> = ({
                                   addToast('success', 'Signature Loaded', 'Signature applied successfully.');
                                   e.target.value = '';
                                   try {
-                                    const savedStr = localStorage.getItem('edu_db_global_letter_settings');
-                                    const savedSettings = savedStr ? JSON.parse(savedStr) : {};
                                     const newSettings = {
-                                      ...savedSettings,
                                       signatureImageUrl: result,
-                                      signatoryName: payload.authorizedSignatoryName || savedSettings.signatoryName || '',
-                                      signatoryTitle: payload.authorizedSignatoryTitle || savedSettings.signatoryTitle || '',
-                                      probationMonths: payload.probationMonths ?? savedSettings.probationMonths ?? 0,
-                                      noticePeriodDays: payload.noticePeriodDays ?? savedSettings.noticePeriodDays ?? 30,
+                                      signatoryName: payload.authorizedSignatoryName || '',
+                                      signatoryTitle: payload.authorizedSignatoryTitle || '',
+                                      probationMonths: payload.probationMonths ?? 0,
+                                      noticePeriodDays: payload.noticePeriodDays ?? 30,
                                     };
-                                    localStorage.setItem('edu_db_global_letter_settings', JSON.stringify(newSettings));
                                     window.dispatchEvent(new CustomEvent('global_signature_updated', { detail: result }));
                                     saveGlobalLetterSettingsApi(newSettings).catch(() => {});
                                   } catch (err) {}
@@ -1545,14 +1534,15 @@ export const StaffLetterModal: React.FC<StaffLetterModalProps> = ({
                               isCustomSignatureModifiedRef.current = true;
                               setPayload((prev) => ({ ...prev, signatureImageUrl: '' }));
                               try {
-                                const savedStr = localStorage.getItem('edu_db_global_letter_settings');
-                                const savedSettings = savedStr ? JSON.parse(savedStr) : {};
                                 const newSettings = {
-                                  ...savedSettings,
                                   signatureImageUrl: '',
+                                  signatoryName: payload.authorizedSignatoryName || '',
+                                  signatoryTitle: payload.authorizedSignatoryTitle || '',
+                                  probationMonths: payload.probationMonths ?? 0,
+                                  noticePeriodDays: payload.noticePeriodDays ?? 30,
                                 };
-                                localStorage.setItem('edu_db_global_letter_settings', JSON.stringify(newSettings));
                                 window.dispatchEvent(new CustomEvent('global_signature_updated', { detail: '' }));
+                                saveGlobalLetterSettingsApi(newSettings).catch(() => {});
                               } catch (err) {}
                               addToast('info', 'Signature Removed', 'Custom signature removed.');
                             }}
