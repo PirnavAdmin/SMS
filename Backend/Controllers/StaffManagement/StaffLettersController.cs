@@ -381,9 +381,6 @@ public class StaffLettersController : ControllerBase
         {
             await EnsureTablesExistAsync();
 
-            var school = await _context.Schools.FirstOrDefaultAsync();
-            var dynamicPrincipalName = school?.PrincipalName ?? string.Empty;
-
             var settings = await _context.GlobalLetterSettings.FirstOrDefaultAsync(s => s.Id == 1);
             if (settings == null)
             {
@@ -392,8 +389,8 @@ public class StaffLettersController : ControllerBase
                     success = true,
                     data = new GlobalLetterSettingsDto
                     {
-                        SignatoryName = dynamicPrincipalName,
-                        SignatoryTitle = !string.IsNullOrWhiteSpace(dynamicPrincipalName) ? "Principal & Authorized Signatory" : string.Empty,
+                        SignatoryName = string.Empty,
+                        SignatoryTitle = "Principal & Authorized Signatory",
                         ProbationMonths = 6,
                         NoticePeriodDays = 30,
                         SignatureImageUrl = null,
@@ -413,19 +410,22 @@ public class StaffLettersController : ControllerBase
                 catch { }
             }
 
-            var effectiveSignatory = !string.IsNullOrWhiteSpace(settings.SignatoryName) 
-                ? settings.SignatoryName 
-                : dynamicPrincipalName;
+            var signatoryName = settings.SignatoryName ?? string.Empty;
+            if (signatoryName.Trim().Equals("Dr. Eleanor Vance", StringComparison.OrdinalIgnoreCase) ||
+                signatoryName.Trim().Equals("Eleanor Vance", StringComparison.OrdinalIgnoreCase))
+            {
+                signatoryName = string.Empty;
+            }
 
             return Ok(new
             {
                 success = true,
                 data = new GlobalLetterSettingsDto
                 {
-                    SignatoryName = settings.SignatoryName ?? string.Empty,
-                    SignatoryTitle = settings.SignatoryTitle ?? string.Empty,
-                    ProbationMonths = settings.ProbationMonths,
-                    NoticePeriodDays = settings.NoticePeriodDays,
+                    SignatoryName = signatoryName,
+                    SignatoryTitle = !string.IsNullOrWhiteSpace(settings.SignatoryTitle) ? settings.SignatoryTitle : "Principal & Authorized Signatory",
+                    ProbationMonths = settings.ProbationMonths > 0 ? settings.ProbationMonths : 6,
+                    NoticePeriodDays = settings.NoticePeriodDays > 0 ? settings.NoticePeriodDays : 30,
                     SignatureImageUrl = settings.SignatureImageUrl,
                     SealImageUrl = settings.SealImageUrl,
                     MasterTerms = termsList ?? new List<string>()

@@ -12,6 +12,7 @@ import { useData } from '../../../context/DataContext';
 import { useAuth } from '../../../context/AuthContext';
 import { useToast } from '../../../context/ToastContext';
 import { apiClient } from '../../../api/client';
+import { printPayslip as printPayslipTemplate } from '../../../utils/payslipTemplate';
 
 type MainTab = 'dashboard' | 'config' | 'structures' | 'processing' | 'payslips' | 'reports';
 type ConfigTab = 'general' | 'components' | 'leave' | 'attendance' | 'deductions' | 'cycle' | 'overtime' | 'settings';
@@ -3011,35 +3012,14 @@ const AssignmentPanel = ({
 };
 
 const StaffPayslipsInline = ({ canDownload }: { canDownload: boolean }) => {
-  const { payslips, staff, addToast } = useData() as any;
+  const { payslips, staff, addToast, schoolProfile } = useData() as any;
   const { toast } = useToast() as any;
   const currentToast = toast || addToast;
 
-  const printPayslip = (id: string) => {
-    const element = document.getElementById(id);
-    if (!element) return;
-    const win = window.open('', '_blank');
-    if (!win) return;
-    win.document.write(`<html><head><title>Payslip</title><style>
-      @page { size: A4 portrait; margin: 8mm; }
-      @media print {
-        html, body { height: 100vh; margin: 0 !important; padding: 5px !important; box-sizing: border-box; page-break-inside: avoid !important; }
-      }
-      * { box-sizing: border-box; }
-      body { font-family: system-ui, -apple-system, sans-serif; padding: 20px 24px; color: #0f172a; line-height: 1.3; font-size: 11px; }
-      .container { max-width: 800px; margin: 0 auto; border: 1px solid #e2e8f0; padding: 20px; border-radius: 12px; }
-      .header { display: flex; justify-content: space-between; border-bottom: 2px solid #e2e8f0; padding-bottom: 12px; margin-bottom: 12px; }
-      .school-title { font-size: 18px; font-weight: 800; color: #0284c7; }
-      .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 16px; font-size: 11px; margin-bottom: 14px; }
-      .section-title { font-size: 12px; font-weight: 800; color: #475569; text-transform: uppercase; margin-bottom: 6px; border-bottom: 1px solid #e2e8f0; padding-bottom: 4px; }
-      table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 11px; }
-      th, td { border: 1px solid #cbd5e1; padding: 6px 8px; text-align: left; }
-      th { background-color: #f8fafc; font-weight: 800; }
-      .net-salary { font-size: 18px; font-weight: 900; color: #16a34a; text-align: right; margin-top: 14px; border-top: 2px solid #e2e8f0; padding-top: 8px; }
-      .footer-grid { display: flex; justify-content: space-between; align-items: flex-end; margin-top: 30px; font-size: 11px; }
-      .sig-block { text-align: center; border-top: 1px solid #cbd5e1; width: 180px; padding-top: 6px; }
-    </style></head><body><div class="container">${element.innerHTML}</div><script>window.print()</script></body></html>`);
-    win.document.close();
+  const printPayslip = (p: any) => {
+    if (!p) return;
+    const matchedStaff = (staff || []).find((s: any) => s.id === p.employeeId || s.empId === p.empId);
+    printPayslipTemplate(p, matchedStaff, schoolProfile);
   };
 
   const handlePublishAll = () => {
@@ -3195,7 +3175,7 @@ const StaffPayslipsInline = ({ canDownload }: { canDownload: boolean }) => {
 
               {/* Action buttons */}
               <div className="mt-4 flex flex-wrap justify-end gap-2 border-t pt-3 border-slate-100 dark:border-slate-800">
-                <Button onClick={() => printPayslip(`payslip-content-${p.id}`)}><Printer className="h-3.5 w-3.5" /> Print Slip</Button>
+                <Button onClick={() => printPayslip(p)}><Printer className="h-3.5 w-3.5" /> Print Slip</Button>
                 <Button disabled={!canDownload} onClick={() => currentToast('success', 'PDF Downloaded', `Downloaded PDF slip for ${p.employeeName}`)}><Download className="h-3.5 w-3.5" /> Download PDF</Button>
                 <Button disabled={!canDownload} onClick={() => currentToast('success', 'Email Sent', `Payslip successfully emailed to ${p.employeeName}`)}><Mail className="h-3.5 w-3.5" /> Email</Button>
               </div>

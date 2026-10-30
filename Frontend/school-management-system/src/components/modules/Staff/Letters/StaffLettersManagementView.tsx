@@ -95,6 +95,12 @@ export const StaffLettersManagementView: React.FC<StaffLettersManagementViewProp
   const [letterToDelete, setLetterToDelete] = useState<GeneratedStaffLetterRecord | null>(null);
   const [termToDeleteIndex, setTermToDeleteIndex] = useState<number | null>(null);
 
+  const isMockSignatory = (name?: string | null): boolean => {
+    if (!name) return true;
+    const normalized = name.trim().toLowerCase();
+    return normalized === '' || normalized === 'dr. eleanor vance' || normalized === 'eleanor vance';
+  };
+
   // Global Template Settings State - pure database synced, no hardcoded / mock defaults
   const [globalTerms, setGlobalTerms] = useState<string[]>([]);
   const [newTermInput, setNewTermInput] = useState('');
@@ -103,7 +109,9 @@ export const StaffLettersManagementView: React.FC<StaffLettersManagementViewProp
       const saved = localStorage.getItem('edu_db_global_letter_settings');
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (parsed.signatoryName && parsed.signatoryName !== 'Dr. Eleanor Vance') return parsed.signatoryName;
+        if (parsed.signatoryName && !isMockSignatory(parsed.signatoryName)) {
+          return parsed.signatoryName;
+        }
       }
     } catch (e) {}
     return '';
@@ -193,7 +201,7 @@ export const StaffLettersManagementView: React.FC<StaffLettersManagementViewProp
       .then((res) => {
         if (isMounted && res?.data) {
           const s = res.data;
-          if (s.signatoryName && s.signatoryName !== 'Dr. Eleanor Vance') {
+          if (s.signatoryName && !isMockSignatory(s.signatoryName)) {
             setGlobalSignatoryName(s.signatoryName);
           } else {
             setGlobalSignatoryName('');
@@ -208,7 +216,7 @@ export const StaffLettersManagementView: React.FC<StaffLettersManagementViewProp
             localStorage.setItem(
               'edu_db_global_letter_settings',
               JSON.stringify({
-                signatoryName: s.signatoryName && s.signatoryName !== 'Dr. Eleanor Vance' ? s.signatoryName : '',
+                signatoryName: s.signatoryName && !isMockSignatory(s.signatoryName) ? s.signatoryName : '',
                 signatoryTitle: s.signatoryTitle,
                 probationMonths: s.probationMonths,
                 noticePeriodDays: s.noticePeriodDays,
@@ -756,9 +764,13 @@ export const StaffLettersManagementView: React.FC<StaffLettersManagementViewProp
                   </label>
                   <input
                     type="text"
-                    placeholder="Enter authorized signatory full name..."
                     value={globalSignatoryName}
-                    onChange={(e) => setGlobalSignatoryName(e.target.value)}
+                    onChange={(e) => {
+                      setGlobalSignatoryName(e.target.value);
+                      if (settingsErrors.signatoryName) {
+                        setSettingsErrors((prev) => ({ ...prev, signatoryName: undefined }));
+                      }
+                    }}
                     placeholder="Enter Authorized Signatory Full Name"
                     className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-850 border border-sky-200 dark:border-sky-800 font-bold text-slate-900 dark:text-white outline-none focus:ring-1 focus:ring-sky-500"
                   />
@@ -775,9 +787,13 @@ export const StaffLettersManagementView: React.FC<StaffLettersManagementViewProp
                   </label>
                   <input
                     type="text"
-                    placeholder="e.g. Principal & Authorized Signatory"
                     value={globalSignatoryTitle}
-                    onChange={(e) => setGlobalSignatoryTitle(e.target.value)}
+                    onChange={(e) => {
+                      setGlobalSignatoryTitle(e.target.value);
+                      if (settingsErrors.signatoryTitle) {
+                        setSettingsErrors((prev) => ({ ...prev, signatoryTitle: undefined }));
+                      }
+                    }}
                     placeholder="Enter Signatory Title & Designation"
                     className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-850 border border-sky-200 dark:border-sky-800 font-bold text-slate-900 dark:text-white outline-none focus:ring-1 focus:ring-sky-500"
                   />

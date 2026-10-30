@@ -2293,6 +2293,18 @@ export interface Payslip {
   lopDeduction: number;
   netSalary: number;
   bankAccount: string;
+  bankName?: string;
+  panNumber?: string;
+  panCard?: string;
+  pfNumber?: string;
+  uanNumber?: string;
+  totalWorkingDays?: number;
+  lopDays?: number;
+  paidDays?: number;
+  gender?: string;
+  workLocation?: string;
+  joiningDate?: string;
+  dateOfJoining?: string;
   disbursedDate: string;
   paymentDate?: string;
   leaveDetails?: {

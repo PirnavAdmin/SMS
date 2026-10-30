@@ -547,7 +547,6 @@ export const LibrarianAttendanceView: React.FC = () => {
                     console.warn("Check-in API notice:", e);
                   }
 
-                  localStorage.setItem('teacher_check_in_time', now.toISOString());
                   saveLibrarianAttendance([newRec, ...librarianAttendance.filter(r => r.date !== todayStr || (r.staffId !== currentStaffId && r.staffName !== currentStaffName))]);
 
                   // Sync to DataContext Daily Attendance so Admin Staff Attendance receives the record
