@@ -589,7 +589,7 @@ export const ReportCards: React.FC<ReportCardsProps> = ({
                                   {res.studentName}
                                 </span>
                                 <span className="text-[10px] text-slate-400 font-medium">
-                                  Adm: {res.admissionNo || res.studentId} • {res.className} - {res.section}
+                                  ID: {res.studentId || res.admissionNo} • {res.className} - {res.section}
                                 </span>
                               </div>
                             </td>

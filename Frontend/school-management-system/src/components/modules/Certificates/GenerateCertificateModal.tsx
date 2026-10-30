@@ -896,7 +896,7 @@ export const GenerateCertificateModal: React.FC<GenerateCertificateModalProps> =
                             isStudentDropdownOpen
                               ? studentSearchQuery
                               : selectedStudent
-                                ? `${selectedStudent.firstName} ${selectedStudent.lastName} (${selectedStudent.admissionNo}) — ${formatClassDisplayName(selectedStudent.className, selectedStudent.section)}`
+                                ? `${selectedStudent.firstName} ${selectedStudent.lastName} (ID: ${selectedStudent.id}) — ${formatClassDisplayName(selectedStudent.className, selectedStudent.section)}`
                                 : studentSearchQuery
                           }
                           onFocus={() => {
@@ -990,7 +990,7 @@ export const GenerateCertificateModal: React.FC<GenerateCertificateModalProps> =
                                   >
                                     <div className="truncate">
                                       <span className="font-bold">{s.firstName} {s.lastName}</span>{' '}
-                                      <span className="font-mono text-[11px] text-sky-600 dark:text-sky-400 font-semibold">({s.admissionNo})</span>
+                                      <span className="font-mono text-[11px] text-sky-600 dark:text-sky-400 font-semibold">(ID: {s.id})</span>
                                     </div>
                                     <div className="text-[11px] font-medium text-slate-400 shrink-0 ml-2">
                                       {formattedClass}
@@ -1116,7 +1116,7 @@ export const GenerateCertificateModal: React.FC<GenerateCertificateModalProps> =
                                   />
                                 </th>
                                 <th className="p-3">Student Name</th>
-                                <th className="p-3">Admission No.</th>
+                                <th className="p-3">Student ID</th>
                                 <th className="p-3">Class & Section</th>
                                 <th className="p-3 whitespace-nowrap min-w-[5.5rem]">Roll No</th>
                               </tr>
@@ -1143,7 +1143,7 @@ export const GenerateCertificateModal: React.FC<GenerateCertificateModalProps> =
                                       />
                                     </td>
                                     <td className="p-3 font-extrabold">{s.firstName} {s.lastName}</td>
-                                    <td className="p-3 font-mono text-sky-600 dark:text-sky-400 font-bold">{s.admissionNo}</td>
+                                    <td className="p-3 font-mono text-sky-600 dark:text-sky-400 font-bold">{s.id}</td>
                                     <td className="p-3">{s.className} - {s.section}</td>
                                     <td className="p-3 font-mono whitespace-nowrap min-w-[5.5rem]">{s.rollNo || '—'}</td>
                                   </tr>
@@ -1170,7 +1170,7 @@ export const GenerateCertificateModal: React.FC<GenerateCertificateModalProps> =
                         {selectedStudent.firstName} {selectedStudent.lastName}
                       </h4>
                       <p className="text-[11px] text-slate-500 font-mono">
-                        Adm No: {selectedStudent.admissionNo} • {formatClassDisplayName(selectedStudent.className, selectedStudent.section)}
+                        Student ID: {selectedStudent.id} • {formatClassDisplayName(selectedStudent.className, selectedStudent.section)}
                       </p>
                     </div>
                   </div>

@@ -9,6 +9,7 @@ import { ConfirmModal } from '../../common/ConfirmModal';
 
 interface TransferRecord {
   id: number;
+  studentId?: string | number;
   studentName: string;
   admissionNo: string;
   actionType: 'Room Transfer' | 'Bed Vacate';
@@ -291,6 +292,7 @@ export const HostelTransferVacateView: React.FC = () => {
 
     const newRecord: TransferRecord = {
       id: Date.now(),
+      studentId: selectedStudentId,
       studentName: stName,
       admissionNo: admNo,
       actionType,
@@ -362,7 +364,7 @@ export const HostelTransferVacateView: React.FC = () => {
           <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
           <input
             type="text"
-            placeholder="Search student, adm no, room..."
+            placeholder="Search student, student ID, room..."
             value={searchQuery}
             onChange={e => setSearchQuery(e.target.value)}
             className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-900 dark:text-white focus:ring-2 focus:ring-sky-500 outline-none transition-all"
@@ -406,7 +408,7 @@ export const HostelTransferVacateView: React.FC = () => {
               <thead className="bg-slate-50 dark:bg-slate-800/80 uppercase font-extrabold text-[10px] tracking-wider text-slate-500 border-b border-slate-200 dark:border-slate-800">
                 <tr>
                   <th className="py-3.5 px-5">Student</th>
-                  <th className="py-3.5 px-5">Adm No</th>
+                  <th className="py-3.5 px-5">Student ID</th>
                   <th className="py-3.5 px-5">Action Type</th>
                   <th className="py-3.5 px-5">Current Room</th>
                   <th className="py-3.5 px-5">Target Room / Fee Adjustment</th>
@@ -424,7 +426,7 @@ export const HostelTransferVacateView: React.FC = () => {
                   filtered.map(r => (
                     <tr key={r.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/50 transition-colors">
                       <td className="py-3.5 px-5 font-bold text-slate-900 dark:text-white">{r.studentName}</td>
-                      <td className="py-3.5 px-5 font-mono text-slate-500">{r.admissionNo}</td>
+                      <td className="py-3.5 px-5 font-mono text-slate-500">{r.studentId || r.admissionNo}</td>
                       <td className="py-3.5 px-5 font-bold text-sky-600 dark:text-sky-400">{r.actionType}</td>
                       <td className="py-3.5 px-5 text-slate-600 font-semibold">{r.fromHostel} (#{r.fromRoom})</td>
                       <td className="py-3.5 px-5">
@@ -494,7 +496,7 @@ export const HostelTransferVacateView: React.FC = () => {
                 >
                   <option value="" disabled>Select Resident Student...</option>
                   {displayStudentsList.map(st => (
-                    <option key={st.id} value={String(st.id ?? '')}>{st.firstName} {st.lastName} ({st.admissionNo})</option>
+                    <option key={st.id} value={String(st.id ?? '')}>{st.firstName} {st.lastName} (ID: {st.id})</option>
                   ))}
                 </select>
               </div>

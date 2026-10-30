@@ -701,7 +701,7 @@ export const AttendanceView = () => {
       const match = studentAttendance.find(
         (record: any) =>
           String(record.date || '').split('T')[0] === targetDate &&
-          (String(record.studentId) === String(studentId) || String(record.admissionNo) === String(studentId)) &&
+          String(record.studentId) === String(studentId) &&
           record.remarks
       );
       if (match?.remarks) {
@@ -1266,11 +1266,11 @@ export const AttendanceView = () => {
         let sheetName = "Attendance";
 
         if (dateMode === 'Daily') {
-          rows.push(["Admission No", "Student Name", "Class", "Section", "Status", "Remarks"]);
+          rows.push(["Student ID", "Student Name", "Class", "Section", "Status", "Remarks"]);
           filteredStudents.forEach(s => {
             const status = getAttendanceStatus(s) || 'Unmarked';
             const remark = getStudentRemark(s.id, date) || "";
-            rows.push([s.admissionNo || s.rollNo, `${s.firstName} ${s.lastName}`, s.className, s.section, status, remark]);
+            rows.push([s.id, `${s.firstName} ${s.lastName}`, s.className, s.section, status, remark]);
           });
           filename = `Attendance_${selectedClass.replace(/\s+/g, '_')}_${selectedSection.replace(/\s+/g, '_')}_${date}`;
           sheetName = `Daily_${date}`;
@@ -1280,7 +1280,7 @@ export const AttendanceView = () => {
             const holCheck = checkSundayOrHoliday(d, holidays);
             return holCheck.isHoliday ? `${dayNum} (H)` : dayNum;
           });
-          rows.push(["Admission No", "Student Name", "Class", "Section", ...dateHeaders, "Present (P)", "Half Day (HD)", "Late (L)", "Absent (A)", "Holiday (H)", "Attendance %"]);
+          rows.push(["Student ID", "Student Name", "Class", "Section", ...dateHeaders, "Present (P)", "Half Day (HD)", "Late (L)", "Absent (A)", "Holiday (H)", "Attendance %"]);
          
           filteredStudents.forEach(s => {
             let pCount = 0;
@@ -1304,7 +1304,7 @@ export const AttendanceView = () => {
            
             const netWorkingDays = matrixDates.length - hCount;
             const pct = netWorkingDays > 0 ? Math.round(((pCount + lCount + (hdCount * 0.5)) / netWorkingDays) * 100) : 100;
-            rows.push([s.admissionNo || s.rollNo, `${s.firstName} ${s.lastName}`, s.className, s.section, ...dateCells, pCount, hdCount, lCount, aCount, hCount, `${pct}%`]);
+            rows.push([s.id, `${s.firstName} ${s.lastName}`, s.className, s.section, ...dateCells, pCount, hdCount, lCount, aCount, hCount, `${pct}%`]);
           });
           filename = `Attendance_${selectedClass.replace(/\s+/g, '_')}_${selectedSection.replace(/\s+/g, '_')}_${dateMode === 'Monthly' ? month : `${startDate}_to_${endDate}`}`;
           sheetName = "Matrix Register";
@@ -1761,7 +1761,7 @@ export const AttendanceView = () => {
                 <table className="w-full text-center border-collapse text-xs">
                   <thead>
                     <tr className="bg-slate-50 dark:bg-slate-800/40 text-slate-500 font-bold uppercase tracking-wider border-b border-slate-200 dark:border-slate-800">
-                      <th className="py-3 px-4 w-28 whitespace-nowrap text-center">Admission No</th>
+                      <th className="py-3 px-4 w-28 whitespace-nowrap text-center">Student ID</th>
                       <th className="py-3 px-4 whitespace-nowrap text-center">Student Name</th>
                       <th className="py-3 px-4 text-center whitespace-nowrap">Attendance Status</th>
                       <th className="py-3 px-4 whitespace-nowrap text-center">Remarks (Optional)</th>
@@ -1783,7 +1783,7 @@ export const AttendanceView = () => {
                         return (
                           <tr key={st.id} className={`hover:bg-slate-50/80 dark:hover:bg-slate-800/30 text-slate-850 dark:text-slate-200 border-b border-slate-100/50 dark:border-slate-800/50 ${idx % 2 === 0 ? 'bg-white dark:bg-slate-900' : 'bg-slate-50/30 dark:bg-slate-800/10'}`}>
                             <td className="py-3.5 px-4 font-mono font-bold text-sky-600 dark:text-sky-400 whitespace-nowrap text-center">
-                              {st.admissionNo || st.rollNo}
+                              {st.id}
                             </td>
                             <td className="py-3.5 px-4 text-center">
                               <div className="flex flex-col items-center justify-center">
@@ -1947,7 +1947,7 @@ export const AttendanceView = () => {
                             <tr key={st.id} className={`hover:bg-slate-50/80 dark:hover:bg-slate-800/30 text-slate-855 dark:text-slate-200 ${idx % 2 === 0 ? 'bg-white dark:bg-slate-900' : 'bg-slate-50/30 dark:bg-slate-800/10'}`}>
                               <td className={`py-2 px-3 whitespace-nowrap sticky left-0 z-10 border-r border-slate-200 dark:border-slate-700 shadow-sm text-center ${idx % 2 === 0 ? 'bg-white dark:bg-slate-900' : 'bg-slate-50 dark:bg-slate-800'}`}>
                                 <span className="font-extrabold text-slate-900 dark:text-white block text-center">{st.firstName} {st.lastName}</span>
-                                <span className="text-[9px] font-mono text-slate-400 block text-center">{st.admissionNo || st.rollNo} • {st.className}-{st.section}</span>
+                                <span className="text-[9px] font-mono text-slate-400 block text-center">ID: {st.id} • {st.className}-{st.section}</span>
                               </td>
                               {matrixDates.map(d => {
                                 const status = getMatrixStatus(st, d);
@@ -2046,7 +2046,7 @@ export const AttendanceView = () => {
                 )}
                 <div>
                   <h3 className="text-sm font-black text-slate-900 dark:text-white">{profileStudent.firstName} {profileStudent.lastName}</h3>
-                  <p className="text-[10px] text-slate-400 font-mono">Admission Code: {profileStudent.admissionNo} &bull; Class {profileStudent.className}-{profileStudent.section}</p>
+                  <p className="text-[10px] text-slate-400 font-mono">Student ID: {profileStudent.id} &bull; Class {profileStudent.className}-{profileStudent.section}</p>
                 </div>
               </div>
               <button onClick={() => setProfileStudent(null)} className="p-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-500 font-bold">✕</button>

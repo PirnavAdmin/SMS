@@ -481,7 +481,7 @@ export const VehicleTripDetailsModal: React.FC<VehicleTripDetailsModalProps> = (
                                       <p className="font-bold text-slate-900 dark:text-white">{student.studentName}</p>
                                       <p className="text-[10px] text-slate-400">{formatClassSection(student.className, student.section)} • Roll #{student.rollNo}</p>
                                     </div>
-                                    <span className="font-mono text-[10px] text-slate-400">{student.admissionNo}</span>
+                                    <span className="font-mono text-[10px] text-slate-400">ID: {student.id}</span>
                                   </div>
                                 ))}
                             </div>
@@ -565,7 +565,7 @@ export const VehicleTripDetailsModal: React.FC<VehicleTripDetailsModalProps> = (
                                       <p className="font-bold text-slate-900 dark:text-white">{student.studentName}</p>
                                       <p className="text-[10px] text-slate-400">{formatClassSection(student.className, student.section)} • Roll #{student.rollNo}</p>
                                     </div>
-                                    <span className="font-mono text-[10px] text-slate-400">{student.admissionNo}</span>
+                                    <span className="font-mono text-[10px] text-slate-400">ID: {student.id}</span>
                                   </div>
                                 ))}
                             </div>
@@ -596,7 +596,7 @@ export const VehicleTripDetailsModal: React.FC<VehicleTripDetailsModalProps> = (
                   <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
                   <input
                     type="text"
-                    placeholder="Search student, adm no, parent..."
+                    placeholder="Search student, student ID, parent..."
                     value={studentSearch}
                     onChange={e => setStudentSearch(e.target.value)}
                     className="w-full pl-9 pr-4 py-2 rounded-xl bg-white dark:bg-slate-900 border text-xs text-slate-900 dark:text-white outline-none"
@@ -644,7 +644,7 @@ export const VehicleTripDetailsModal: React.FC<VehicleTripDetailsModalProps> = (
                     <table className="w-full text-left border-collapse text-xs">
                       <thead>
                         <tr className="bg-slate-100/70 dark:bg-slate-800/60 text-slate-500 font-bold uppercase tracking-wider border-b border-slate-200 dark:border-slate-800">
-                          <th className="py-3 px-4">Adm No</th>
+                          <th className="py-3 px-4">Student ID</th>
                           <th className="py-3 px-4">Student Name</th>
                           <th className="py-3 px-4">Class-Sec</th>
                           <th className="py-3 px-4">Pickup Point</th>
@@ -657,7 +657,7 @@ export const VehicleTripDetailsModal: React.FC<VehicleTripDetailsModalProps> = (
                       <tbody className="divide-y divide-slate-100 dark:divide-slate-800/80 font-medium">
                         {filteredStudents.map(student => (
                           <tr key={student.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40">
-                            <td className="py-3 px-4 font-mono font-bold text-slate-500">{student.admissionNo}</td>
+                            <td className="py-3 px-4 font-mono font-bold text-slate-500">{student.id}</td>
                             <td className="py-3 px-4 font-bold text-slate-900 dark:text-white">{student.studentName}</td>
                             <td className="py-3 px-4 font-semibold text-slate-700 dark:text-slate-300">{formatClassSection(student.className, student.section)}</td>
                             <td className="py-3 px-4 font-bold text-sky-600 dark:text-sky-400">{student.pickupPoint}</td>

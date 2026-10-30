@@ -79,9 +79,7 @@ export const PrintableReportCard: React.FC<PrintableReportCardProps> = ({
   const result = propProcessedResult || allProcessedResults.find(r => 
     r.examId === activeExam.id && 
     (
-      String(r.studentId) === String(activeStudent.id) ||
-      (activeStudent.rollNo && String(r.rollNo) === String(activeStudent.rollNo)) ||
-      (activeStudent.admissionNo && String(r.admissionNo) === String(activeStudent.admissionNo))
+      String(r.studentId) === String(activeStudent.id)
     )
   );
   const isReleased = activeExam.publishStatus === 'Published' || activeExam.status === 'Results Published' || result?.status === 'Published';
@@ -92,9 +90,7 @@ export const PrintableReportCard: React.FC<PrintableReportCardProps> = ({
     : allExamMarks.filter(m => 
         m.examId === activeExam.id && 
         (
-          String(m.studentId) === String(activeStudent.id) ||
-          (activeStudent.rollNo && String((m as any).rollNo) === String(activeStudent.rollNo)) ||
-          (activeStudent.admissionNo && String((m as any).admissionNo) === String(activeStudent.admissionNo))
+          String(m.studentId) === String(activeStudent.id)
         )
       );
 
@@ -360,8 +356,8 @@ export const PrintableReportCard: React.FC<PrintableReportCardProps> = ({
           <p className="font-black text-slate-900 dark:text-white text-xs mt-0.5">{activeStudent.firstName} {activeStudent.lastName}</p>
         </div>
         <div>
-          <span className="block text-[10px] uppercase font-bold text-slate-400">Roll / Admission No</span>
-          <p className="font-mono font-black text-slate-800 dark:text-slate-200 text-xs mt-0.5">{activeStudent.rollNo || 'N/A'} / {activeStudent.admissionNo || activeStudent.id}</p>
+          <span className="block text-[10px] uppercase font-bold text-slate-400">Student ID / Roll No</span>
+          <p className="font-mono font-black text-slate-800 dark:text-slate-200 text-xs mt-0.5">ID: {activeStudent.id} / Roll: {activeStudent.rollNo || 'N/A'}</p>
         </div>
         <div>
           <span className="block text-[10px] uppercase font-bold text-slate-400">Class & Section</span>

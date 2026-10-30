@@ -30,8 +30,9 @@ export const MarksEntryTable: React.FC<MarksEntryTableProps> = ({
     const q = searchQuery.toLowerCase();
     const fullName = `${student.firstName} ${student.lastName}`.toLowerCase();
     const rollNo = (student.rollNo || '').toLowerCase();
-    const admissionNo = (student.admissionNo || student.id || '').toLowerCase();
-    return fullName.includes(q) || rollNo.includes(q) || admissionNo.includes(q);
+    const studentId = String(student.id || '').toLowerCase();
+    const admissionNo = (student.admissionNo || '').toLowerCase();
+    return fullName.includes(q) || rollNo.includes(q) || studentId.includes(q) || admissionNo.includes(q);
   });
 
   const calculateGrade = (percent: number, rules: GradeConfig[]): string => {
@@ -122,8 +123,8 @@ export const MarksEntryTable: React.FC<MarksEntryTableProps> = ({
                       <div className="font-extrabold text-slate-900 dark:text-white text-xs leading-tight">
                         {student.firstName} {student.lastName}
                       </div>
-                      <div className="text-[10px] text-slate-400 font-mono mt-0.5">
-                        {student.admissionNo || student.id}
+                      <div className="text-[10px] text-sky-600 dark:text-sky-400 font-mono font-bold mt-0.5">
+                        ID: {student.id}
                       </div>
                     </div>
                   </td>

@@ -3247,7 +3247,7 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
                                     className="w-4 h-4 rounded text-sky-600 focus:ring-sky-500 cursor-pointer accent-sky-600"
                                   />
                                 </th>
-                                <th className="py-3.5 px-4 whitespace-nowrap">Admission No</th>
+                                <th className="py-3.5 px-4 whitespace-nowrap">Student ID</th>
                                 <th className="py-3.5 px-4 whitespace-nowrap">Student Name</th>
                                 <th className="py-3.5 px-4 whitespace-nowrap">Current Section</th>
                                 <th className="py-3.5 px-4 text-center whitespace-nowrap">Assign Section</th>
@@ -3284,7 +3284,10 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
                                         />
                                       </td>
                                       <td className="py-3 px-4 font-mono text-slate-500 dark:text-slate-400 font-bold whitespace-nowrap align-middle">
-                                        {admissionDisplay}
+                                        <span className="font-mono font-bold text-sky-600 dark:text-sky-400">{stud.id}</span>
+                                        {stud.admissionNo && (
+                                          <span className="text-[10px] text-slate-400 block font-normal">Adm: {stud.admissionNo}</span>
+                                        )}
                                       </td>
                                       <td className="py-3 px-4 text-slate-900 dark:text-white font-extrabold whitespace-nowrap align-middle">
                                         {stud.firstName} {stud.lastName}

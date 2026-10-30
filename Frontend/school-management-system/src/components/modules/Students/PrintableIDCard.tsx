@@ -181,8 +181,11 @@ export const PrintableIDCard: React.FC<PrintableIDCardProps> = ({
 
               <div className="w-full grid grid-cols-2 gap-2 p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800 text-[10px] print:bg-slate-50 print:border-slate-200 print:text-black">
                 <div>
-                  <span className="text-slate-400 font-medium block print:text-slate-600">Admission No:</span>
-                  <span className="font-mono font-black text-slate-900 dark:text-white print:text-black">{liveStudent.admissionNo}</span>
+                  <span className="text-slate-400 font-medium block print:text-slate-600">Student ID:</span>
+                  <span className="font-mono font-black text-brand-700 dark:text-brand-300 print:text-black">{liveStudent.id}</span>
+                  {liveStudent.admissionNo && (
+                    <span className="text-[8px] text-slate-400 block font-mono print:text-slate-500">Adm: {liveStudent.admissionNo}</span>
+                  )}
                 </div>
                 <div>
                   <span className="text-slate-400 font-medium block print:text-slate-600">Date of Birth:</span>
@@ -205,7 +208,7 @@ export const PrintableIDCard: React.FC<PrintableIDCardProps> = ({
 
               <div className="w-full flex items-end justify-between pt-1 border-t border-slate-100 dark:border-slate-800/80 print:border-slate-300">
                 <div className="shrink-0">
-                  {renderBarcode(liveStudent.admissionNo)}
+                  {renderBarcode(liveStudent.id ? String(liveStudent.id) : (liveStudent.admissionNo || 'STU-000'))}
                 </div>
                 <div className="text-right">
                   <div className="h-5 flex items-end justify-end">

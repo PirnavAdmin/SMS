@@ -90,7 +90,6 @@ export const StudentProfileDrawer: React.FC<StudentProfileDrawerProps> = ({
     if (!student) return null;
     return (studentTransports || []).find(t =>
       t.studentId === student.id ||
-      (student.admissionNo && t.admissionNo === student.admissionNo) ||
       (t.studentName && `${student.firstName} ${student.lastName}`.trim().toLowerCase() === t.studentName.trim().toLowerCase())
     ) || null;
   }, [studentTransports, student]);
@@ -98,7 +97,7 @@ export const StudentProfileDrawer: React.FC<StudentProfileDrawerProps> = ({
   // Real-time live student instance from DataContext
   const liveStudent = useMemo(() => {
     if (!student) return student;
-    const found = (students || []).find(s => s.id === student.id || (student.admissionNo && s.admissionNo === student.admissionNo));
+    const found = (students || []).find(s => s.id === student.id);
     return found || student;
   }, [students, student]);
 
@@ -181,7 +180,6 @@ export const StudentProfileDrawer: React.FC<StudentProfileDrawerProps> = ({
     if (!student) return [];
     return (feePayments || []).filter(p =>
       p.studentId === student.id ||
-      (student.admissionNo && p.admissionNo === student.admissionNo) ||
       (p.studentName && `${student.firstName} ${student.lastName}`.trim().toLowerCase() === p.studentName.trim().toLowerCase())
     );
   }, [feePayments, student]);
@@ -189,11 +187,7 @@ export const StudentProfileDrawer: React.FC<StudentProfileDrawerProps> = ({
   // Real attendance logs for student
   const studentAttendanceLogs = useMemo(() => {
     if (!student) return [];
-    return (attendance || []).filter(a =>
-      a.entityId === student.id ||
-      (student.admissionNo && a.entityId === student.admissionNo) ||
-      (student.rollNo && a.entityId === student.rollNo)
-    ).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    return (attendance || []).filter(a => a.entityId === student.id).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
   }, [attendance, student]);
 
   // Real attendance statistics
@@ -246,7 +240,6 @@ export const StudentProfileDrawer: React.FC<StudentProfileDrawerProps> = ({
     if (!student) return [];
     return (examMarks || []).filter(m =>
       m.studentId === student.id ||
-      (student.admissionNo && m.studentId === student.admissionNo) ||
       (m.studentName && `${student.firstName} ${student.lastName}`.trim().toLowerCase() === m.studentName.trim().toLowerCase())
     );
   }, [examMarks, student]);
@@ -298,7 +291,7 @@ export const StudentProfileDrawer: React.FC<StudentProfileDrawerProps> = ({
       return (b.attendancePct || 0) - (a.attendancePct || 0);
     });
 
-    const rankIndex = sorted.findIndex(s => s.id === student.id || s.admissionNo === student.admissionNo);
+    const rankIndex = sorted.findIndex(s => s.id === student.id);
     return { rank: rankIndex >= 0 ? rankIndex + 1 : 1, total: classmates.length };
   }, [students, student]);
 
@@ -497,7 +490,7 @@ export const StudentProfileDrawer: React.FC<StudentProfileDrawerProps> = ({
                 </Badge>
               </div>
               <p className="text-xs sm:text-sm text-brand-100">
-                {liveStudent.className}-{liveStudent.section} • Roll: <strong className="text-white">{liveStudent.rollNo}</strong> • Adm: <strong className="text-white">{liveStudent.admissionNo}</strong> • <span className="font-bold text-amber-300">{liveStudent.branch || matchingAdmission?.branch || '-'}</span>
+                ID: <strong className="text-white font-mono">{liveStudent.id}</strong> • {liveStudent.className}-{liveStudent.section} • Roll: <strong className="text-white">{liveStudent.rollNo}</strong> • Adm: <strong className="text-white">{liveStudent.admissionNo}</strong> • <span className="font-bold text-amber-300">{liveStudent.branch || matchingAdmission?.branch || '-'}</span>
               </p>
               <div className="flex items-center gap-4 pt-1 text-xs text-white/90 flex-wrap">
                 <span className="flex items-center gap-1.5"><Mail className="w-3.5 h-3.5 opacity-80" /> {studentEmail}</span>
@@ -1147,15 +1140,15 @@ export const StudentProfileDrawer: React.FC<StudentProfileDrawerProps> = ({
               ) : (
                 <div className="space-y-3">
                   {student.academicHistory.map((h) => {
-                    const stAtt = (attendance || []).filter((a) => a.entityId === student.id || a.entityId === student.admissionNo);
+                    const stAtt = (attendance || []).filter((a) => a.entityId === student.id);
                     const attPct = stAtt.length > 0 ? Math.round((stAtt.filter((a) => a.status === 'Present').length / stAtt.length) * 100) : 0;
 
-                    const stMarks = (examMarks || []).filter((m) => m.studentId === student.id || m.studentId === student.admissionNo);
+                    const stMarks = (examMarks || []).filter((m) => m.studentId === student.id);
                     const totalObt = stMarks.reduce((sum, m) => sum + (m.marksObtained || 0), 0);
                     const totalMax = stMarks.reduce((sum, m) => sum + (m.totalMarks || 100), 0);
                     const examPct = totalMax > 0 ? Math.round((totalObt / totalMax) * 100) : 0;
 
-                    const stPay = (feePayments || []).filter((p) => (p.studentId === student.id || p.admissionNo === student.admissionNo) && p.paymentDate?.includes(h.academicYear));
+                    const stPay = (feePayments || []).filter((p) => p.studentId === student.id && p.paymentDate?.includes(h.academicYear));
                     const paidAmt = stPay.reduce((sum, p) => sum + (p.amountPaid || 0), 0);
                     const stAssign = (studentFeeAssignments || []).find((a) => a.studentId === student.id && a.academicYear === h.academicYear);
                     const totalFee = (stAssign as any)?.finalAmount || 0;
@@ -1363,8 +1356,11 @@ export const StudentProfileDrawer: React.FC<StudentProfileDrawerProps> = ({
                       {/* Key Identity Data Grid */}
                       <div className="w-full grid grid-cols-2 gap-2 p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800 text-[10px]">
                         <div>
-                          <span className="text-slate-400 font-medium block">Admission No:</span>
-                          <span className="font-mono font-black text-slate-900 dark:text-white">{liveStudent.admissionNo}</span>
+                          <span className="text-slate-400 font-medium block">Student ID:</span>
+                          <span className="font-mono font-black text-brand-700 dark:text-brand-300">{liveStudent.id}</span>
+                          {liveStudent.admissionNo && (
+                            <span className="text-[8px] text-slate-400 block font-mono">Adm: {liveStudent.admissionNo}</span>
+                          )}
                         </div>
                         <div>
                           <span className="text-slate-400 font-medium block">Date of Birth:</span>
@@ -1388,7 +1384,7 @@ export const StudentProfileDrawer: React.FC<StudentProfileDrawerProps> = ({
                       {/* Barcode & Signature */}
                       <div className="w-full flex items-end justify-between pt-1 border-t border-slate-100 dark:border-slate-800/80">
                         <div className="shrink-0">
-                          {renderBarcode(liveStudent.admissionNo)}
+                          {renderBarcode(liveStudent.id ? String(liveStudent.id) : (liveStudent.admissionNo || 'STU-000'))}
                         </div>
                         <div className="text-right">
                           <div className="h-5 flex items-end justify-end">
