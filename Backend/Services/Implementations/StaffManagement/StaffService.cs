@@ -522,6 +522,10 @@ public class StaffService : IStaffService
         var oldFullName = $"{staff.FirstName} {staff.LastName}".Trim();
 
         if (!string.IsNullOrWhiteSpace(dto.EmployeeCategory)) staff.EmployeeCategory = dto.EmployeeCategory;
+    if (!string.IsNullOrWhiteSpace(dto.ProfilePhoto)) staff.ProfilePhoto = dto.ProfilePhoto;
+    else if (!string.IsNullOrWhiteSpace(dto.Avatar)) staff.ProfilePhoto = dto.Avatar;
+    if (!string.IsNullOrWhiteSpace(dto.BranchName)) staff.BranchName = dto.BranchName;
+    else if (!string.IsNullOrWhiteSpace(dto.Branch)) staff.BranchName = dto.Branch;
         staff.FirstName = dto.FirstName;
         staff.MiddleName = dto.MiddleName;
         staff.LastName = dto.LastName;
@@ -601,6 +605,13 @@ public class StaffService : IStaffService
 
         // Sync Documents
         staff.Documents.Clear();
+        var photoDoc = dto.Documents?.FirstOrDefault(d => 
+            (!string.IsNullOrWhiteSpace(d.DocumentType) && (d.DocumentType.Contains("Photo") || d.DocumentType.Contains("Profile Picture"))) ||
+            (!string.IsNullOrWhiteSpace(d.DocumentTitle) && (d.DocumentTitle.Contains("Photo") || d.DocumentTitle.Contains("Profile Picture"))));
+        if (photoDoc != null && !string.IsNullOrWhiteSpace(photoDoc.FileUrl))
+        {
+            staff.ProfilePhoto = photoDoc.FileUrl;
+        }
         if (dto.Documents != null)
         {
             foreach (var d in dto.Documents)
@@ -866,6 +877,9 @@ public class StaffService : IStaffService
             SalaryStructureName = s.SalaryStructureName,
             SalaryStructureEffectiveDate = s.SalaryStructureEffectiveDate?.ToString("yyyy-MM-dd"),
             GrossSalary = s.GrossSalary ?? s.MonthlySalary ?? 0m,
+            ProfilePhoto = s.ProfilePhoto ?? s.Documents.FirstOrDefault(d => d.DocumentType.Contains("Photo") || d.DocumentType.Contains("Profile"))?.FileUrl,
+            Avatar = s.ProfilePhoto ?? s.Documents.FirstOrDefault(d => d.DocumentType.Contains("Photo") || d.DocumentType.Contains("Profile"))?.FileUrl,
+                        Branch = s.BranchName ?? "",
             NetSalary = s.NetSalary ?? s.MonthlySalary ?? 0m,
             AccountHolderName = s.AccountHolderName,
             AccountNumber = s.AccountNumber,
@@ -899,6 +913,7 @@ public class StaffService : IStaffService
                 StaffDocumentId = d.StaffDocumentId,
                 StaffId = d.StaffId,
                 DocumentType = d.DocumentType,
+                DocumentTitle = d.DocumentType,
                 FileUrl = d.FileUrl,
                 IsRequired = d.IsRequired,
                 Status = d.Status,
