@@ -137,6 +137,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (!isTokenValid()) {
         if (hadPreviousSession) {
           localStorage.setItem('session_timeout_occurred', 'true');
+          const currentMod = localStorage.getItem('active_module');
+          if (currentMod && currentMod !== 'dashboard' && !localStorage.getItem('session_resume_module')) {
+            localStorage.setItem('session_resume_module', currentMod);
+          }
         }
         localStorage.removeItem('auth_user');
         localStorage.removeItem('user');
@@ -145,11 +149,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         localStorage.removeItem('roles');
         localStorage.removeItem('active_selected_class_id');
         localStorage.removeItem('active_class_tab');
-    localStorage.removeItem('training_active_tab');
-    localStorage.removeItem('settings_active_tab');
-    localStorage.removeItem('certificates_view_active_tab');
-    localStorage.removeItem('staff_attendance_active_tab');
-        localStorage.setItem('active_module', 'dashboard');
+        localStorage.removeItem('training_active_tab');
+        localStorage.removeItem('staff_attendance_active_tab');
         return null;
       }
       const saved = localStorage.getItem('auth_user');

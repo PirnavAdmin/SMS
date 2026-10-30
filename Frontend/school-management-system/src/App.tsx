@@ -85,6 +85,12 @@ const MainLayout: React.FC = () => {
   const { staff, driverMasters, students, admissions } = useData();
   const [activeModule, setActiveModuleState] = useState<string>(() => {
     try {
+      const resume = localStorage.getItem("session_resume_module");
+      if (resume && resume !== "dashboard") {
+        localStorage.setItem("active_module", resume);
+        localStorage.removeItem("session_resume_module");
+        return resume;
+      }
       const saved = localStorage.getItem("active_module");
       return saved || "dashboard";
     } catch {
@@ -226,11 +232,14 @@ const MainLayout: React.FC = () => {
   useEffect(() => {
     if (!isAuthenticated) {
       if (prevAuthenticated.current) {
-        // User transitioned from authenticated -> logged out
+        // User transitioned from authenticated -> logged out or session expired
+        const resumeMod = localStorage.getItem("session_resume_module") || localStorage.getItem("active_module");
         setActiveModuleState("dashboard");
         try {
+          if (resumeMod && resumeMod !== "dashboard") {
+            localStorage.setItem("session_resume_module", resumeMod);
+          }
           localStorage.setItem("active_module", "dashboard");
-          localStorage.removeItem("session_resume_module");
           if (window.location.hash !== "#login") {
             window.location.hash = "#login";
           }
