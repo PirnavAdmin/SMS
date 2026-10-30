@@ -21,7 +21,7 @@ interface LoginViewProps {
   initialRole?: string;
 }
 
-export const LoginView: React.FC<LoginViewProps> = ({ onBack }) => {
+export const LoginView: React.FC<LoginViewProps> = ({ onBack, initialRole }) => {
   const { login, sendOtp, verifyOtp, resetPasswordWithOtp } = useAuth();
   const { addToast } = useToast();
 
@@ -282,7 +282,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onBack }) => {
     setError('');
     setLoading(true);
     try {
-      await login(identifier.trim(), password);
+      await login(identifier.trim(), password, initialRole as any);
       addToast('success', 'Authentication Successful', `Welcome back to ${schoolName || 'the Campus Portal'}!`);
     } catch (err: any) {
       const errorMessage = err?.message || '';
