@@ -1934,15 +1934,18 @@ public class FeeCollectionRepository : IFeeCollectionRepository
 
         // 2. Tuition / Academic Fees Calculation
         var assignments = await _context.StudentFeeAssignments.AsNoTracking().ToListAsync();
-        var dynamicStructuresQuery = _context.DynamicFeeStructures.AsNoTracking()
-            .Where(d => d.Status == "Active" || string.IsNullOrEmpty(d.Status));
+        var allStructures = await _context.DynamicFeeStructures.AsNoTracking()
+            .Where(d => d.Status == "Active" || string.IsNullOrEmpty(d.Status))
+            .ToListAsync();
+
+        var dynamicStructuresEnumerable = allStructures.AsEnumerable();
 
         if (!string.IsNullOrWhiteSpace(branch) && !branch.Equals("All", StringComparison.OrdinalIgnoreCase) && !branch.Equals("All Branches", StringComparison.OrdinalIgnoreCase))
         {
             string bClean = branch.Trim().ToLower();
             string bKeyword = System.Text.RegularExpressions.Regex.Replace(bClean, @"\b(branch|campus|school)\b", "").Trim();
 
-            dynamicStructuresQuery = dynamicStructuresQuery.Where(d =>
+            dynamicStructuresEnumerable = dynamicStructuresEnumerable.Where(d =>
                 string.IsNullOrEmpty(d.Branch) ||
                 d.Branch.Equals("All", StringComparison.OrdinalIgnoreCase) ||
                 d.Branch.Equals("All Branches", StringComparison.OrdinalIgnoreCase) ||
@@ -1957,14 +1960,14 @@ public class FeeCollectionRepository : IFeeCollectionRepository
             var matchYear = System.Text.RegularExpressions.Regex.Match(academicYear, @"\d{4}");
             string yearSub = matchYear.Success ? matchYear.Value : academicYear;
 
-            dynamicStructuresQuery = dynamicStructuresQuery.Where(d =>
+            dynamicStructuresEnumerable = dynamicStructuresEnumerable.Where(d =>
                 string.IsNullOrEmpty(d.AcademicYear) ||
                 d.AcademicYear.Equals("All", StringComparison.OrdinalIgnoreCase) ||
-                d.AcademicYear.Contains(academicYear) ||
-                d.AcademicYear.Contains(yearSub));
+                d.AcademicYear.Contains(academicYear, StringComparison.OrdinalIgnoreCase) ||
+                d.AcademicYear.Contains(yearSub, StringComparison.OrdinalIgnoreCase));
         }
 
-        var dynamicStructures = await dynamicStructuresQuery.ToListAsync();
+        var dynamicStructures = dynamicStructuresEnumerable.ToList();
         var validStructureIds = dynamicStructures.Select(d => d.Id).ToHashSet();
         var validStructuresDict = dynamicStructures.ToDictionary(d => d.Id);
 
@@ -2421,12 +2424,224 @@ public class FeeCollectionRepository : IFeeCollectionRepository
             finesCollected = finesExpected;
         }
 
-        decimal totalOutstanding = Math.Max(0m, totalExpected - totalCollected);
-        decimal totalDiscounts = validPayments.Sum(p => p.DiscountAmount);
+        // Student-Wise Fee Payment Policy & Term-Wise Pending Dues Calculation
+        string yearPrefix = !string.IsNullOrWhiteSpace(academicYear) && !academicYear.Equals("All", StringComparison.OrdinalIgnoreCase)
+            ? (System.Text.RegularExpressions.Regex.IsMatch(academicYear, @"\d{4}") ? System.Text.RegularExpressions.Regex.Match(academicYear, @"\d{4}").Value : academicYear)
+            : "2026";
+
+        var schedule = await _context.FeeSchedules.AsNoTracking()
+            .Include(s => s.Terms)
+            .FirstOrDefaultAsync(s => s.AcademicYear.Contains(yearPrefix) || s.Status == "Active" || s.Status == "Published");
+
+        var scheduleTerms = schedule?.Terms?.OrderBy(t => t.Sequence).ToList() ?? new List<FeeScheduleTerm>();
+
+        if (scheduleTerms.Count == 0)
+        {
+            var ayEntity = await _context.AcademicYears.AsNoTracking()
+                .FirstOrDefaultAsync(y => y.AcademicYearName.Contains(yearPrefix) || y.IsCurrent);
+            if (ayEntity != null)
+            {
+                var generatedTerms = SMS.Api.Services.Implementations.FinanceManagement.AcademicYearTermCalculator.GenerateTermsFromAcademicYear(ayEntity, 4, 15);
+                foreach (var gt in generatedTerms)
+                {
+                    scheduleTerms.Add(new FeeScheduleTerm
+                    {
+                        TermName = gt.TermName,
+                        Sequence = gt.Sequence,
+                        DueDate = gt.DueDate,
+                        PercentageShare = gt.PercentageShare > 0 ? (decimal)gt.PercentageShare : 25m
+                    });
+                }
+            }
+            else
+            {
+                scheduleTerms = new List<FeeScheduleTerm>
+                {
+                    new FeeScheduleTerm { TermName = "Term 1", Sequence = 1, DueDate = $"{yearPrefix}-06-15", PercentageShare = 25m },
+                    new FeeScheduleTerm { TermName = "Term 2", Sequence = 2, DueDate = $"{yearPrefix}-09-15", PercentageShare = 25m },
+                    new FeeScheduleTerm { TermName = "Term 3", Sequence = 3, DueDate = $"{yearPrefix}-12-15", PercentageShare = 25m },
+                    new FeeScheduleTerm { TermName = "Term 4", Sequence = 4, DueDate = $"{int.Parse(yearPrefix) + 1}-03-15", PercentageShare = 25m },
+                };
+            }
+        }
 
         DateTime today = DateTime.UtcNow.Date;
-        DateTime todayUtc = today;
         DateTime todayIst = DateTime.UtcNow.AddHours(5.5).Date;
+        DateTime effectiveToday = todayIst;
+
+        decimal totalPendingDues = 0m;
+
+        foreach (var s in activeStudents)
+        {
+            string sIdStr = s.StudentId.ToString();
+            string sAdmNo = s.AdmissionNumber ?? "";
+
+            decimal stTuition = 0m;
+            if (assignmentDict.TryGetValue(sIdStr, out decimal assignedAmt))
+            {
+                stTuition = assignedAmt;
+            }
+            else
+            {
+                string stClassName = GetStudentClassName(s);
+                var matchedDfs = dynamicStructures.FirstOrDefault(d => 
+                    !string.IsNullOrEmpty(d.ClassName) && 
+                    !string.IsNullOrEmpty(stClassName) && 
+                    MatchesClassName(d.ClassName, stClassName));
+                if (matchedDfs != null)
+                {
+                    stTuition = matchedDfs.TotalAmount;
+                }
+            }
+
+            decimal stTransport = 0m;
+            if (studentTransportMap.TryGetValue(sIdStr, out decimal tAmt))
+            {
+                stTransport = tAmt;
+            }
+            else if (!string.IsNullOrEmpty(sAdmNo) && studentTransportMap.TryGetValue(sAdmNo, out decimal tAmt2))
+            {
+                stTransport = tAmt2;
+            }
+
+            decimal stHostel = 0m;
+            if (studentHostelMap.TryGetValue(sIdStr, out decimal hAmt))
+            {
+                stHostel = hAmt;
+            }
+            else if (!string.IsNullOrEmpty(sAdmNo) && studentHostelMap.TryGetValue(sAdmNo, out decimal hAmt2))
+            {
+                stHostel = hAmt2;
+            }
+
+            decimal stUniform = uniformDistributions
+                .Where(u => (u.StudentId.HasValue && u.StudentId.Value == s.StudentId) ||
+                            (!string.IsNullOrEmpty(sAdmNo) && !string.IsNullOrEmpty(u.AdmissionNo) && u.AdmissionNo.Equals(sAdmNo, StringComparison.OrdinalIgnoreCase)))
+                .Sum(u => u.TotalAmount);
+
+            decimal stFines = validPayments
+                .Where(p => p.StudentId == sIdStr || (!string.IsNullOrEmpty(sAdmNo) && p.StudentId == sAdmNo))
+                .Sum(p => p.FineAmount);
+
+            decimal stTotalAnnual = stTuition + stTransport + stHostel + stUniform + stFines;
+
+            decimal stPaid = validPayments
+                .Where(p => p.StudentId == sIdStr || (!string.IsNullOrEmpty(sAdmNo) && p.StudentId == sAdmNo))
+                .Sum(p => p.Amount);
+
+            decimal directUniformPaid = uniformDistributions
+                .Where(u => u.PaymentStatus == "Paid" &&
+                            ((u.StudentId.HasValue && u.StudentId.Value == s.StudentId) ||
+                             (!string.IsNullOrEmpty(sAdmNo) && !string.IsNullOrEmpty(u.AdmissionNo) && u.AdmissionNo.Equals(sAdmNo, StringComparison.OrdinalIgnoreCase))))
+                .Sum(u => u.TotalAmount);
+
+            if (directUniformPaid > 0 && uniformCollectedFromPayments == 0m)
+            {
+                stPaid += directUniformPaid;
+            }
+
+            if (stTotalAnnual > 0m && stPaid > stTotalAnnual)
+            {
+                stPaid = stTotalAnnual;
+            }
+
+            var studentAssignment = validAssignments.FirstOrDefault(a => a.StudentId == sIdStr);
+            var studentAdmApp = allActiveAdmissions.FirstOrDefault(a => 
+                a.Id == s.StudentId ||
+                (!string.IsNullOrEmpty(sAdmNo) && (a.AdmissionNo == sAdmNo || a.RegistrationNo == sAdmNo)));
+
+            string rawPolicy = studentAssignment?.FeePolicy ?? "Full Annual Fee";
+            string policyNorm = rawPolicy.Trim().ToLower();
+
+            bool isAnnualPolicy = policyNorm.Contains("annual") || 
+                                  policyNorm.Contains("full") || 
+                                  policyNorm.Contains("one time") || 
+                                  policyNorm.Contains("one-time") ||
+                                  (!policyNorm.Contains("term") && !policyNorm.Contains("quarter") && !policyNorm.Contains("monthly") && !policyNorm.Contains("pro-rata"));
+
+            decimal stPending = 0m;
+
+            if (isAnnualPolicy)
+            {
+                // ANNUAL FEE POLICY:
+                // Pending Amount = Total Annual Fee - Total Amount Paid
+                // Display remaining unpaid annual fee as pending regardless of term due dates.
+                stPending = Math.Max(0m, stTotalAnnual - stPaid);
+            }
+            else
+            {
+                // TERM-WISE FEE POLICY:
+                // Calculate pending dues based on configured installment due dates.
+                // Include ONLY installments whose due dates have arrived (Due Date <= Current Date).
+                // Exclude future installments from pending dues.
+                // Subtract payments already made against each installment.
+                // Support partial payments and fully paid installments.
+                int termCount = Math.Max(1, scheduleTerms.Count);
+                decimal runningPaidForTerms = stPaid;
+                decimal previousTermsSum = 0m;
+
+                for (int tIdx = 0; tIdx < termCount; tIdx++)
+                {
+                    var termConfig = scheduleTerms[tIdx];
+                    decimal share = termConfig.PercentageShare > 0 ? termConfig.PercentageShare : (100m / termCount);
+
+                    decimal recurringTotal = stTuition + stTransport + stHostel;
+                    decimal termAmount = (tIdx == termCount - 1)
+                        ? Math.Max(0m, recurringTotal - previousTermsSum)
+                        : Math.Round(recurringTotal * (share / 100m), 2);
+
+                    if (tIdx == 0)
+                    {
+                        termAmount += (stUniform + stFines);
+                    }
+                    previousTermsSum += Math.Round(recurringTotal * (share / 100m), 2);
+
+                    decimal paidForTerm = Math.Min(termAmount, runningPaidForTerms);
+                    runningPaidForTerms -= paidForTerm;
+                    decimal unpaidTerm = Math.Max(0m, termAmount - paidForTerm);
+
+                    DateTime termDueDate;
+                    bool parsedDate = DateTime.TryParse(termConfig.DueDate, out termDueDate);
+                    bool isDueOrPast = parsedDate ? (termDueDate.Date <= effectiveToday) : (termConfig.Sequence == 1);
+
+                    if (isDueOrPast)
+                    {
+                        stPending += unpaidTerm;
+                    }
+                }
+            }
+
+            totalPendingDues += stPending;
+        }
+
+        if (totalExpected > 0m && totalPendingDues > (totalExpected - totalCollected))
+        {
+            totalPendingDues = Math.Max(0m, totalExpected - totalCollected);
+        }
+
+        decimal totalOutstanding = totalPendingDues;
+        decimal totalDiscounts = validPayments.Sum(p => p.DiscountAmount);
+
+        // Dynamic Liquidity Accounts from database
+        var accounts = await _context.FinancialAccounts.AsNoTracking()
+            .Where(a => a.Status == "Active" || string.IsNullOrEmpty(a.Status))
+            .ToListAsync();
+
+        decimal cashBal = accounts.Count > 0
+            ? accounts.Where(a => a.Type.Equals("Cash", StringComparison.OrdinalIgnoreCase) || a.Type.Contains("Petty", StringComparison.OrdinalIgnoreCase)).Sum(a => a.CurrentBalance)
+            : validPayments.Where(p => p.PaymentMethod == "Cash").Sum(p => p.Amount);
+
+        decimal bankBal = accounts.Count > 0
+            ? accounts.Where(a => !a.Type.Equals("Cash", StringComparison.OrdinalIgnoreCase) && !a.Type.Contains("Petty", StringComparison.OrdinalIgnoreCase)).Sum(a => a.CurrentBalance)
+            : validPayments.Where(p => p.PaymentMethod != "Cash").Sum(p => p.Amount);
+
+        decimal scholarshipsUtilized = validPayments.Sum(p => p.DiscountAmount);
+        decimal scholarshipsAllocated = await _context.StudentScholarships.AsNoTracking()
+            .Where(s => s.Status == "Active" || string.IsNullOrEmpty(s.Status))
+            .SumAsync(s => s.DiscountValue);
+        if (scholarshipsAllocated == 0m) scholarshipsAllocated = scholarshipsUtilized;
+
+        DateTime todayUtc = today;
         decimal todayCollection = validPayments
             .Where(p => p.PaymentDate.Date == todayUtc || p.PaymentDate.Date == todayIst || p.PaymentDate.AddHours(5.5).Date == todayIst)
             .Sum(p => p.Amount);
@@ -2822,8 +3037,11 @@ public class FeeCollectionRepository : IFeeCollectionRepository
         {
             TotalExpectedRevenue = totalExpected,
             TotalCollectedRevenue = totalCollected,
-            TotalOutstandingDues = totalOutstanding,
+            TotalOutstandingDues = totalPendingDues,
+            TotalPendingDues = totalPendingDues,
             TotalConcessionsGranted = totalDiscounts,
+            CashBalance = cashBal,
+            BankBalance = bankBal,
             TodayCollectionAmount = todayCollection,
             MonthlyCollectionAmount = monthCollection,
             StudentsPaidCount = studentsPaidCount,
@@ -2841,7 +3059,7 @@ public class FeeCollectionRepository : IFeeCollectionRepository
             TransportRevenue = transportCollectedTotal,
             HostelRevenue = hostelCollected,
             UniformRevenue = uniformCollected,
-            ScholarshipsGranted = totalDiscounts,
+            ScholarshipsGranted = Math.Max(scholarshipsAllocated, scholarshipsUtilized),
             FineCollected = finesCollected,
 
             ClassWiseRevenue = classWiseList,

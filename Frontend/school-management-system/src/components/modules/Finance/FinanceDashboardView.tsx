@@ -63,11 +63,15 @@ export const FinanceDashboardView: React.FC<FinanceDashboardViewProps> = ({ onNa
         fetchFinanceDataRef.current ? fetchFinanceDataRef.current() : Promise.resolve(),
       ]);
 
-      if (dashRes.status === "fulfilled" && dashRes.value?.data) {
-        setApiStats(dashRes.value.data);
-        setApiError(null);
+      if (dashRes.status === "fulfilled" && dashRes.value) {
+        const stats = dashRes.value.data || dashRes.value;
+        if (stats && (typeof stats.totalExpectedRevenue === "number" || typeof stats.totalOutstandingDues === "number")) {
+          setApiStats(stats);
+          setApiError(null);
+        }
       } else if (dashRes.status === "rejected") {
-        setApiError("Failed to fetch finance dashboard metrics from backend.");
+        console.warn("fetchFinanceDashboardStatsApi notice:", dashRes.reason);
+        setApiError(dashRes.reason?.message || "Failed to fetch finance dashboard metrics from backend.");
       }
       setLastUpdated(new Date());
       if (isManual) {
@@ -120,6 +124,9 @@ export const FinanceDashboardView: React.FC<FinanceDashboardViewProps> = ({ onNa
     const classMap = new Map<string, { className: string; expected: number; collected: number; studentCount: number }>();
     const categoryMap = new Map<string, { categoryName: string; expectedAmount: number; collectedAmount: number }>();
 
+    let totalPendingPolicyDues = 0;
+    const todayStr = new Date().toISOString().slice(0, 10);
+
     (students || []).forEach((st) => {
       const ledger = getStudentFeeLedger ? getStudentFeeLedger(st.id, selectedAcademicYear) : null;
       if (!ledger) return;
@@ -131,6 +138,32 @@ export const FinanceDashboardView: React.FC<FinanceDashboardViewProps> = ({ onNa
 
       expected += stExp;
       collected += stColl;
+
+      // Student-wise Payment Policy Logic:
+      const policyLower = String((ledger as any).feePolicy || (st as any).feePolicy || (st as any).feeCalculationMethod || "Full Annual Fee")
+        .toLowerCase()
+        .trim();
+      const isFullAnnual = policyLower.includes("full") || policyLower.includes("annual") || policyLower.includes("one time") || policyLower.includes("one-time") ||
+        (!policyLower.includes("term") && !policyLower.includes("quarter") && !policyLower.includes("monthly") && !policyLower.includes("pro-rata"));
+
+      let stPending = 0;
+      if (isFullAnnual) {
+        // Annual Policy: Entire unpaid annual fee is pending regardless of term due dates
+        stPending = Math.max(0, stExp - stColl);
+      } else {
+        // Term-wise Policy: Only installments whose due dates have arrived (Due Date <= Current Date)
+        if (ledger.installments && ledger.installments.length > 0) {
+          ledger.installments.forEach((inst: any) => {
+            const instDue = inst.dueDate ? String(inst.dueDate).slice(0, 10) : "";
+            if (!instDue || instDue <= todayStr) {
+              stPending += Number(inst.dueAmount || 0);
+            }
+          });
+        } else {
+          stPending = Math.max(0, stExp - stColl);
+        }
+      }
+      totalPendingPolicyDues += stPending;
 
       const cName = st.className || "Unassigned";
       if (!classMap.has(cName)) {
@@ -215,7 +248,7 @@ export const FinanceDashboardView: React.FC<FinanceDashboardViewProps> = ({ onNa
     return {
       expected,
       collected: finalCollected,
-      pending: Math.max(0, expected - finalCollected),
+      pending: Math.min(Math.max(0, expected - finalCollected), totalPendingPolicyDues),
       classWise,
       categories,
       hostelExp,
@@ -268,7 +301,15 @@ export const FinanceDashboardView: React.FC<FinanceDashboardViewProps> = ({ onNa
 
   const totalCollected = computedCollected;
   const totalExpected = computedExpected;
-  const totalPending = Math.max(0, totalExpected - totalCollected);
+  const totalPending = React.useMemo(() => {
+    if (apiStats && typeof apiStats.totalPendingDues === "number") {
+      return Number(apiStats.totalPendingDues);
+    }
+    if (apiStats && typeof apiStats.totalOutstandingDues === "number") {
+      return Number(apiStats.totalOutstandingDues);
+    }
+    return localStats.pending;
+  }, [apiStats, localStats.pending]);
   const todaysCollection = Number(apiStats?.todayCollectionAmount || 0);
 
   // Module Specific Expected, Collected, Pending Amounts
@@ -339,18 +380,29 @@ export const FinanceDashboardView: React.FC<FinanceDashboardViewProps> = ({ onNa
   const scholarshipAmount = Number(apiStats?.scholarshipsGranted || apiStats?.totalConcessionsGranted || localStats.concessions || 0);
 
   const cashBalance = React.useMemo(() => {
+    if (apiStats && typeof apiStats.cashBalance === "number" && apiStats.cashBalance > 0) {
+      return Number(apiStats.cashBalance);
+    }
     return (financialAccounts || [])
       .filter((a) => a.accountType === "Cash" || a.accountType === "Petty Cash Account" || (a.accountType || "").toLowerCase().includes("cash"))
       .reduce((sum, a) => sum + Number(a.currentBalance || 0), 0);
-  }, [financialAccounts]);
+  }, [apiStats, financialAccounts]);
 
   const bankBalance = React.useMemo(() => {
+    if (apiStats && typeof apiStats.bankBalance === "number" && apiStats.bankBalance > 0) {
+      return Number(apiStats.bankBalance);
+    }
     return (financialAccounts || [])
       .filter((a) => a.accountType !== "Cash" && a.accountType !== "Petty Cash Account" && !(a.accountType || "").toLowerCase().includes("cash"))
       .reduce((sum, a) => sum + Number(a.currentBalance || 0), 0);
-  }, [financialAccounts]);
+  }, [apiStats, financialAccounts]);
 
-  const totalLiquidity = cashBalance + bankBalance;
+  const totalLiquidity = React.useMemo(() => {
+    if (apiStats && typeof apiStats.totalLiquidity === "number" && apiStats.totalLiquidity > 0) {
+      return Number(apiStats.totalLiquidity);
+    }
+    return cashBalance + bankBalance;
+  }, [apiStats, cashBalance, bankBalance]);
 
   const normalizedCategoryBreakdown = React.useMemo(() => {
     if (!apiStats?.categoryBreakdown || !Array.isArray(apiStats.categoryBreakdown) || apiStats.categoryBreakdown.length === 0) {

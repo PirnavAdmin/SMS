@@ -733,19 +733,6 @@ public class FinanceService : IFinanceService
 
     public async Task<StudentFeeAssignmentDto> CreateStudentFeeAssignmentAsync(StudentFeeAssignmentDto dto)
     {
-        var existing = (await _repo.GetStudentFeeAssignmentsAsync()).FirstOrDefault(x => x.StudentId == dto.StudentId);
-        if (existing != null)
-        {
-            existing.DynamicFeeStructureId = dto.DynamicFeeStructureId ?? existing.DynamicFeeStructureId;
-            existing.TotalAmount = dto.TotalAmount > 0 ? dto.TotalAmount : existing.TotalAmount;
-            existing.DueAmount = existing.TotalAmount - existing.PaidAmount;
-            existing.FeePolicy = !string.IsNullOrWhiteSpace(dto.FeePolicy) ? dto.FeePolicy : existing.FeePolicy;
-            existing.Status = !string.IsNullOrWhiteSpace(dto.Status) ? dto.Status : "Active";
-            await _repo.UpdateStudentFeeAssignmentAsync(existing);
-            dto.Id = existing.Id;
-            return dto;
-        }
-
         var model = new StudentFeeAssignment
         {
             StudentId = dto.StudentId,
@@ -758,6 +745,9 @@ public class FinanceService : IFinanceService
         };
         var res = await _repo.CreateStudentFeeAssignmentAsync(model);
         dto.Id = res.Id;
+        dto.FeePolicy = res.FeePolicy;
+        dto.TotalAmount = res.TotalAmount;
+        dto.DueAmount = res.DueAmount;
         return dto;
     }
 

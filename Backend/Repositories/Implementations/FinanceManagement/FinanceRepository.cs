@@ -183,6 +183,44 @@ public class FinanceRepository : IFinanceRepository
 
     public async Task<StudentFeeAssignment> CreateStudentFeeAssignmentAsync(StudentFeeAssignment assignment)
     {
+        var allAssignments = await _context.StudentFeeAssignments.ToListAsync();
+        string sId = assignment.StudentId?.Trim().ToLower() ?? "";
+        
+        var student = await _context.Students.AsNoTracking()
+            .FirstOrDefaultAsync(s => s.StudentId.ToString() == sId || (s.AdmissionNumber != null && s.AdmissionNumber.ToLower() == sId));
+
+        var existing = allAssignments.FirstOrDefault(x =>
+            (x.StudentId != null && x.StudentId.Trim().ToLower() == sId) ||
+            (student != null && (
+                (x.StudentId != null && x.StudentId.Trim().ToLower() == student.StudentId.ToString()) ||
+                (x.StudentId != null && student.AdmissionNumber != null && x.StudentId.Trim().ToLower() == student.AdmissionNumber.ToLower())
+            )));
+
+        if (existing != null)
+        {
+            existing.DynamicFeeStructureId = assignment.DynamicFeeStructureId ?? existing.DynamicFeeStructureId;
+            existing.TotalAmount = assignment.TotalAmount > 0 ? assignment.TotalAmount : existing.TotalAmount;
+            existing.DueAmount = Math.Max(0m, existing.TotalAmount - existing.PaidAmount);
+            existing.FeePolicy = !string.IsNullOrWhiteSpace(assignment.FeePolicy) ? assignment.FeePolicy : existing.FeePolicy;
+            existing.Status = !string.IsNullOrWhiteSpace(assignment.Status) ? assignment.Status : "Active";
+            _context.StudentFeeAssignments.Update(existing);
+
+            var duplicates = allAssignments.Where(x => x.Id != existing.Id && (
+                (x.StudentId != null && x.StudentId.Trim().ToLower() == sId) ||
+                (student != null && (
+                    (x.StudentId != null && x.StudentId.Trim().ToLower() == student.StudentId.ToString()) ||
+                    (x.StudentId != null && student.AdmissionNumber != null && x.StudentId.Trim().ToLower() == student.AdmissionNumber.ToLower())
+                ))
+            )).ToList();
+            if (duplicates.Count > 0)
+            {
+                _context.StudentFeeAssignments.RemoveRange(duplicates);
+            }
+
+            await _context.SaveChangesAsync();
+            return existing;
+        }
+
         _context.StudentFeeAssignments.Add(assignment);
         await _context.SaveChangesAsync();
         return assignment;
