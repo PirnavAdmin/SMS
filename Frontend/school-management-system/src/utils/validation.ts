@@ -1,5 +1,5 @@
 import { parseDateOnly, compareDates, formatDateForDisplay } from './dateValidation';
-import { VALID_INDIAN_STATES } from './postalLookup';
+import { VALID_INDIAN_STATES, COUNTRY_DIAL_CODES } from './postalLookup';
 
 export const BLOOD_GROUPS = ['A+', 'A-', 'B+', 'B-', 'O+', 'O-', 'AB+', 'AB-'] as const;
 export const CASTE_CATEGORIES = ['General', 'OBC', 'BC', 'SC', 'ST', 'EWS', 'Others'] as const;
@@ -67,6 +67,108 @@ export function sanitizePhoneInput(input: string, maxDigits: number = 10): strin
   const digitsOnly = input.replace(/\D/g, '');
   return digitsOnly.slice(0, maxDigits);
 }
+
+/**
+ * Dynamically formats any phone number string into a consistent predefined format:
+ * +<CountryCode>-<SubscriberNumber> (e.g. +91-9823200009).
+ * Dynamically identifies country dial codes (supporting international prefixes)
+ * without hardcoding individual phone records.
+ */
+export function formatPhoneNumber(
+  phone: string | number | null | undefined,
+  defaultCountryCode: string = '+91'
+): string {
+  if (phone === null || phone === undefined) return 'N/A';
+
+  const raw = String(phone).trim();
+  if (
+    !raw ||
+    raw.toLowerCase() === 'n/a' ||
+    raw === '-' ||
+    raw.toLowerCase() === 'null' ||
+    raw.toLowerCase() === 'undefined'
+  ) {
+    return 'N/A';
+  }
+
+  // Remove whitespace
+  const trimmed = raw.replace(/\s+/g, '');
+
+  // Sorted dial codes from longest to shortest to prevent prefix collision (+971 vs +9)
+  const sortedCodes = (COUNTRY_DIAL_CODES || [{ code: '+91' }])
+    .map(c => c.code)
+    .sort((a, b) => b.length - a.length);
+
+  // 1. If starts with '+', extract country code and subscriber digits
+  if (trimmed.startsWith('+')) {
+    for (const dialCode of sortedCodes) {
+      if (trimmed.startsWith(dialCode)) {
+        let remainder = trimmed.slice(dialCode.length);
+        if (remainder.startsWith('-')) remainder = remainder.slice(1);
+        const localDigits = remainder.replace(/\D/g, '');
+        if (localDigits.length > 0) {
+          return `${dialCode}-${localDigits}`;
+        }
+      }
+    }
+    const plusMatch = trimmed.match(/^\+(\d{1,4})[\-\s]?(.*)$/);
+    if (plusMatch) {
+      const code = `+${plusMatch[1]}`;
+      const localDigits = plusMatch[2].replace(/\D/g, '');
+      if (localDigits.length > 0) {
+        return `${code}-${localDigits}`;
+      }
+    }
+  }
+
+  // Extract all numeric digits
+  const allDigits = trimmed.replace(/\D/g, '');
+  if (!allDigits) return 'N/A';
+
+  // 2. International prefix starting with '00' (e.g. 00919823200009)
+  if (allDigits.startsWith('00')) {
+    const without00 = allDigits.slice(2);
+    for (const dialCode of sortedCodes) {
+      const codeDigits = dialCode.replace(/\D/g, '');
+      if (without00.startsWith(codeDigits)) {
+        const local = without00.slice(codeDigits.length);
+        if (local.length > 0) {
+          return `${dialCode}-${local}`;
+        }
+      }
+    }
+  }
+
+  // 3. Indian number with '91' prefix and 12 digits (e.g. 919823200009)
+  if (allDigits.startsWith('91') && allDigits.length === 12) {
+    return `+91-${allDigits.slice(2)}`;
+  }
+
+  // 4. Standard 10-digit mobile number (e.g. 9823200009)
+  if (allDigits.length === 10) {
+    return `${defaultCountryCode}-${allDigits}`;
+  }
+
+  // 5. 11-digit mobile starting with '0' (e.g. 09823200009)
+  if (allDigits.length === 11 && allDigits.startsWith('0')) {
+    return `${defaultCountryCode}-${allDigits.slice(1)}`;
+  }
+
+  // 6. Check if starts with any known country dial code without '+'
+  for (const dialCode of sortedCodes) {
+    const codeDigits = dialCode.replace(/\D/g, '');
+    if (codeDigits.length >= 2 && allDigits.startsWith(codeDigits)) {
+      const local = allDigits.slice(codeDigits.length);
+      if (local.length >= 6 && local.length <= 11) {
+        return `${dialCode}-${local}`;
+      }
+    }
+  }
+
+  // 7. Generic fallback for numbers of 7-11 digits
+  return `${defaultCountryCode}-${allDigits}`;
+}
+
 
 /**
  * Validates an Indian GST Registration Number (GSTIN).

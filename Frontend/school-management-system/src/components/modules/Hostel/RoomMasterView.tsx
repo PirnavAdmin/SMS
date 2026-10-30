@@ -432,11 +432,13 @@ export const RoomMasterView: React.FC<RoomMasterViewProps> = ({ selectedHostelFi
                       setFormHostelId(e.target.value);
                       setFormFloorLevel('');
                     }}
-                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold text-slate-900 dark:text-white"
+                    className={`w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold cursor-pointer transition-all ${
+                      !formHostelId ? 'text-slate-400 dark:text-slate-500 font-sans font-medium' : 'text-slate-900 dark:text-white'
+                    }`}
                     disabled={isSubmitting}
                     required
                   >
-                    <option value="" disabled>Select Hostel Block...</option>
+                    <option value="" disabled className="text-slate-400 dark:text-slate-500 font-sans italic bg-white dark:bg-slate-900">Select Hostel Block...</option>
                     {(targetBlocks || [])
                       .filter(h => h != null)
                       .map((h, idx) => {
@@ -479,11 +481,13 @@ export const RoomMasterView: React.FC<RoomMasterViewProps> = ({ selectedHostelFi
                     <select 
                       value={formFloorLevel} 
                       onChange={e => setFormFloorLevel(e.target.value)} 
-                      className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold text-slate-900 dark:text-white"
+                      className={`w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold cursor-pointer transition-all ${
+                        !formFloorLevel ? 'text-slate-400 dark:text-slate-500 font-sans font-medium' : 'text-slate-900 dark:text-white'
+                      }`}
                       disabled={isSubmitting || !formHostelId}
                       required
                     >
-                      <option value="" disabled>{!formHostelId ? 'Select Hostel Block first...' : 'Select Floor Level...'}</option>
+                      <option value="" disabled className="text-slate-400 dark:text-slate-500 font-sans italic bg-white dark:bg-slate-900">{!formHostelId ? 'Select Hostel Block first...' : 'Select Floor Level...'}</option>
                       {floorList.map((fl, idx) => (
                         <option key={`fl_opt_${idx}`} value={fl}>
                           {fl}
@@ -512,11 +516,13 @@ export const RoomMasterView: React.FC<RoomMasterViewProps> = ({ selectedHostelFi
                   <select 
                     value={formRoomTypeId} 
                     onChange={e => setFormRoomTypeId(e.target.value)} 
-                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold text-slate-900 dark:text-white"
+                    className={`w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold cursor-pointer transition-all ${
+                      !formRoomTypeId ? 'text-slate-400 dark:text-slate-500 font-sans font-medium' : 'text-slate-900 dark:text-white'
+                    }`}
                     disabled={isSubmitting}
                     required
                   >
-                    <option value="" disabled>Select room sharing...</option>
+                    <option value="" disabled className="text-slate-400 dark:text-slate-500 font-sans italic bg-white dark:bg-slate-900">Select room sharing...</option>
                     {(roomTypes || []).map(rt => {
                       const hasAcInSpec = (rt.roomTypeSpecification || '').toLowerCase().includes('ac');
                       const acLabel = rt.acType && !hasAcInSpec ? ` (${rt.acType})` : '';

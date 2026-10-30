@@ -7,6 +7,7 @@ import { useData } from '../../../../context/DataContext';
 import { ExportButton } from '../../../common/ExportButton';
 import { SchoolPrintHeader } from '../../../common/SchoolPrintHeader';
 import { fetchReportDataApi, fetchPrintReportTemplateApi } from '../../../../api/reports';
+import { formatPhoneNumber } from '../../../../utils/validation';
 
 export const ReportsView: React.FC = () => {
   const { students, staff, feePayments, attendance, examMarks, academicClasses } = useData();
@@ -97,9 +98,15 @@ export const ReportsView: React.FC = () => {
   const currentDataset = useMemo(() => {
     switch (activeTab) {
       case 'students':
-        return filteredStudents;
+        return filteredStudents.map(s => ({
+          ...s,
+          phone: formatPhoneNumber(s.fatherPhone || s.phone || (s as any).motherPhone || (s as any).guardianPhone)
+        }));
       case 'staff':
-        return filteredStaff;
+        return filteredStaff.map(st => ({
+          ...st,
+          phone: formatPhoneNumber(st.phone || (st as any).mobileNumber || (st as any).mobile)
+        }));
       case 'fees':
         return filteredFeePayments;
       case 'exams':
@@ -385,7 +392,7 @@ export const ReportsView: React.FC = () => {
                             {s.className} - {s.section || 'A'}
                           </td>
                           <td className="px-4 py-3.5 text-slate-500">{s.fatherName || s.motherName || 'N/A'}</td>
-                          <td className="px-4 py-3.5 font-mono text-slate-600 whitespace-nowrap">{s.fatherPhone || s.phone || 'N/A'}</td>
+                          <td className="px-4 py-3.5 font-mono text-slate-600 whitespace-nowrap">{formatPhoneNumber(s.fatherPhone || s.phone || (s as any).motherPhone || (s as any).guardianPhone)}</td>
                           <td className="px-4 py-3.5 whitespace-nowrap">
                             <span className="px-2.5 py-0.5 rounded-md text-[10px] font-extrabold bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 border border-emerald-200 whitespace-nowrap inline-block">
                               {s.status || 'Active'}
@@ -434,7 +441,7 @@ export const ReportsView: React.FC = () => {
                               {st.employeeCategory || (st.role === 'Teacher' ? 'Teaching' : 'Staff')}
                             </span>
                           </td>
-                          <td className="px-4 py-3.5 font-mono text-slate-600 whitespace-nowrap">{st.phone || 'N/A'}</td>
+                          <td className="px-4 py-3.5 font-mono text-slate-600 whitespace-nowrap">{formatPhoneNumber(st.phone || (st as any).mobileNumber || (st as any).mobile)}</td>
                         </tr>
                       ))
                     )}

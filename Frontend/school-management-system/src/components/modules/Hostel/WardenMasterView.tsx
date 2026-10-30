@@ -5,6 +5,7 @@ import { useToast } from '../../../context/ToastContext';
 import { Badge } from '../../common/Badge';
 import { ExportButton } from '../../common/ExportButton';
 import { ConfirmModal } from '../../common/ConfirmModal';
+import { DateInput } from '../../common/DateInput';
 import { getWardens, getStaffCandidates, getHostelBlocks, assignWarden, deleteWarden, HostelBlock, StaffCandidate } from '../../../api/hostel';
 
 interface WardenRecord {
@@ -40,7 +41,7 @@ export const WardenMasterView: React.FC = () => {
   const [selectedHostelId, setSelectedHostelId] = useState('');
   const [selectedBlock, setSelectedBlock] = useState('Block A');
   const [selectedFloor, setSelectedFloor] = useState('Floor 1');
-  const [assignmentDate, setAssignmentDate] = useState(new Date().toISOString().split('T')[0]);
+  const [assignmentDate, setAssignmentDate] = useState('');
 
   const fetchData = useCallback(async () => {
     try {
@@ -123,18 +124,27 @@ export const WardenMasterView: React.FC = () => {
   }, [staffList]);
 
   const handleOpenAdd = () => {
-    setSelectedStaffId(wardenCandidates.length > 0 ? String(wardenCandidates[0].staffId ?? '101') : '101');
-    setSelectedHostelId(hostels.length > 0 ? String(hostels[0].hostelId ?? '1') : '1');
+    setSelectedStaffId('');
+    setSelectedHostelId('');
     setSelectedBlock('Block A');
     setSelectedFloor('Floor 1');
-    setAssignmentDate(new Date().toISOString().split('T')[0]);
+    setAssignmentDate('');
     setIsModalOpen(true);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedStaffId || !selectedHostelId) {
-      addToast('warning', 'Selection Required', 'Please select an employee and a hostel.');
+    if (!selectedStaffId) {
+      addToast('warning', 'Selection Required', 'Please select a hostel warden.');
+      return;
+    }
+    if (!selectedHostelId) {
+      addToast('warning', 'Selection Required', 'Please select a hostel block.');
+      return;
+    }
+
+    if (!assignmentDate || !assignmentDate.trim()) {
+      addToast('warning', 'Selection Required', 'Please select an assignment date.');
       return;
     }
 
@@ -151,10 +161,14 @@ export const WardenMasterView: React.FC = () => {
         employeeId: staffMember.employeeId,
         wardenName: staffMember.staffName,
         mobileNumber: staffMember.phone || '0000000000',
-        emailAddress: staffMember.email || 'no-email@school.edu'
+        emailAddress: staffMember.email || 'no-email@school.edu',
+        assignedDate: assignmentDate
       });
       addToast('success', 'Hostel Warden Assigned', `Assigned ${staffMember.staffName} successfully.`);
       setIsModalOpen(false);
+      setSelectedStaffId('');
+      setSelectedHostelId('');
+      setAssignmentDate('');
       fetchData();
     } catch (error: any) {
       addToast('error', 'Assignment Failed', error.message);
@@ -302,14 +316,27 @@ export const WardenMasterView: React.FC = () => {
 
             <form onSubmit={handleSubmit} className="space-y-3 text-xs">
               <div>
-                <label className="block font-semibold mb-1">Select Hostel Warden <span className="text-rose-500">*</span></label>
+                <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">
+                  Select Hostel Warden <span className="text-rose-500 font-bold ml-0.5">*</span>
+                </label>
                 <select
                   value={selectedStaffId}
                   onChange={e => setSelectedStaffId(e.target.value)}
-                  className="w-full max-w-full px-3 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold text-slate-900 dark:text-white truncate outline-none cursor-pointer"
+                  required
+                  className={`w-full max-w-full px-3 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-bold truncate outline-none cursor-pointer focus:ring-2 focus:ring-sky-500 transition-all ${
+                    !selectedStaffId
+                      ? 'text-slate-400 dark:text-slate-500 font-normal'
+                      : 'text-slate-900 dark:text-white'
+                  }`}
                 >
+                  <option value="" disabled hidden className="text-slate-400 dark:text-slate-500">
+                    Select Hostel Warden
+                  </option>
+                  <option value="" className="text-slate-400 dark:text-slate-500">
+                    Select Hostel Warden
+                  </option>
                   {wardenCandidates.map(s => (
-                    <option key={s.staffId} value={s.staffId}>
+                    <option key={s.staffId} value={s.staffId} className="text-slate-900 dark:text-white font-medium">
                       {s.staffName} ({s.designation})
                     </option>
                   ))}
@@ -318,16 +345,29 @@ export const WardenMasterView: React.FC = () => {
               </div>
 
               <div>
-                <label className="block font-semibold mb-1">Select Hostel Block <span className="text-rose-500">*</span></label>
+                <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">
+                  Select Hostel Block <span className="text-rose-500 font-bold ml-0.5">*</span>
+                </label>
                 <select
                   value={selectedHostelId}
                   onChange={e => setSelectedHostelId(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold text-sky-600 dark:text-sky-400"
+                  required
+                  className={`w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-bold truncate outline-none cursor-pointer focus:ring-2 focus:ring-sky-500 transition-all ${
+                    !selectedHostelId
+                      ? 'text-slate-400 dark:text-slate-500 font-normal'
+                      : 'text-sky-600 dark:text-sky-400'
+                  }`}
                 >
+                  <option value="" disabled hidden className="text-slate-400 dark:text-slate-500">
+                    Select Hostel Block
+                  </option>
+                  <option value="" className="text-slate-400 dark:text-slate-500">
+                    Select Hostel Block
+                  </option>
                   {hostels
                     .filter(h => h && h.hostelId && h.hostelName && !h.hostelName.includes('undefined'))
                     .map(h => (
-                      <option key={h.hostelId} value={h.hostelId}>
+                      <option key={h.hostelId} value={h.hostelId} className="text-slate-900 dark:text-white font-medium">
                         {h.hostelName} ({h.hostelType || 'Boys Hostel'})
                       </option>
                     ))}
@@ -335,12 +375,15 @@ export const WardenMasterView: React.FC = () => {
               </div>
 
               <div>
-                <label className="block font-semibold mb-1">Assignment Date</label>
-                <input
-                  type="date"
+                <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">
+                  Assignment Date <span className="text-rose-500 font-bold ml-0.5">*</span>
+                </label>
+                <DateInput
                   value={assignmentDate}
                   onChange={e => setAssignmentDate(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-mono font-bold text-slate-900 dark:text-white"
+                  placeholder="Select Assignment Date"
+                  required
+                  className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-bold text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 placeholder:font-normal outline-none focus:ring-2 focus:ring-sky-500 transition-all"
                 />
               </div>
 

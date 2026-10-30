@@ -1,11 +1,16 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { Layers, Plus, Edit, Trash2, Search, ChevronDown, Building2 } from 'lucide-react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { Layers, Plus, Edit, Trash2, Search, ChevronDown, Building2, AlertTriangle } from 'lucide-react';
 import { useToast } from '../../../context/ToastContext';
 import { useAuth } from '../../../context/AuthContext';
 import { ConfirmModal } from '../../common/ConfirmModal';
 import { Pagination } from '../../common/Pagination';
 import { SearchableSelect } from '../../common/SearchableSelect';
 import { getRoomTypes, createRoomType, updateRoomType, deleteRoomType, getHostelBlocks, createRoom, RoomType, HostelBlock } from '../../../api/hostel';
+
+export const MAX_ROOMS_PER_CATEGORY = 50;
+export const MAX_ROOMS_PER_FLOOR = 100;
+export const MAX_TOTAL_BLOCK_ROOMS = 500;
+export const MAX_BEDS_PER_ROOM = 10;
 
 interface CustomAllocation {
   categoryName: string;
@@ -149,6 +154,117 @@ export const RoomTypeMasterView: React.FC = () => {
     });
   };
 
+  const configValidation = useMemo(() => {
+    let grandRooms = 0;
+    let grandBeds = 0;
+    let grandAcRooms = 0;
+    let grandNonAcRooms = 0;
+    const floorErrors: { [floorIndex: number]: string[] } = {};
+    const categoryErrors: { [key: string]: boolean } = {};
+
+    floorConfigs.forEach(fc => {
+      const errors: string[] = [];
+      const customRooms = (fc.customAllocations || []).reduce((acc, c) => acc + (Number(c.count) || 0), 0);
+      const customBeds = (fc.customAllocations || []).reduce((acc, c) => acc + ((Number(c.count) || 0) * (Number(c.bedCapacity) || 1)), 0);
+
+      const sCount = Number(fc.singleSharing) || 0;
+      const dCount = Number(fc.doubleSharing) || 0;
+      const tCount = Number(fc.tripleSharing) || 0;
+      const fCount = Number(fc.fourSharing) || 0;
+
+      if (sCount > MAX_ROOMS_PER_CATEGORY) {
+        errors.push(`1-Share (${sCount}) exceeds max ${MAX_ROOMS_PER_CATEGORY} rooms`);
+        categoryErrors[`${fc.floorIndex}-singleSharing`] = true;
+      }
+      if (dCount > MAX_ROOMS_PER_CATEGORY) {
+        errors.push(`2-Share (${dCount}) exceeds max ${MAX_ROOMS_PER_CATEGORY} rooms`);
+        categoryErrors[`${fc.floorIndex}-doubleSharing`] = true;
+      }
+      if (tCount > MAX_ROOMS_PER_CATEGORY) {
+        errors.push(`3-Share (${tCount}) exceeds max ${MAX_ROOMS_PER_CATEGORY} rooms`);
+        categoryErrors[`${fc.floorIndex}-tripleSharing`] = true;
+      }
+      if (fCount > MAX_ROOMS_PER_CATEGORY) {
+        errors.push(`4-Share (${fCount}) exceeds max ${MAX_ROOMS_PER_CATEGORY} rooms`);
+        categoryErrors[`${fc.floorIndex}-fourSharing`] = true;
+      }
+
+      (fc.customAllocations || []).forEach((ca, cIdx) => {
+        const caCount = Number(ca.count) || 0;
+        if (caCount > MAX_ROOMS_PER_CATEGORY) {
+          errors.push(`"${ca.categoryName || 'Custom'}" (${caCount}) exceeds max ${MAX_ROOMS_PER_CATEGORY} rooms`);
+          categoryErrors[`${fc.floorIndex}-custom-${cIdx}`] = true;
+        }
+      });
+
+      const floorRooms = sCount + dCount + tCount + fCount + customRooms;
+      const floorBeds = (sCount * 1) + (dCount * 2) + (tCount * 3) + (fCount * 4) + customBeds;
+
+      if (floorRooms > MAX_ROOMS_PER_FLOOR) {
+        errors.push(`Floor total (${floorRooms} rooms) exceeds maximum limit of ${MAX_ROOMS_PER_FLOOR} rooms`);
+      }
+
+      if (errors.length > 0) {
+        floorErrors[fc.floorIndex] = errors;
+      }
+
+      grandRooms += floorRooms;
+      grandBeds += floorBeds;
+
+      if (sCount > 0) {
+        if (fc.singleAc === 'AC') grandAcRooms += sCount; else grandNonAcRooms += sCount;
+      }
+      if (dCount > 0) {
+        if (fc.doubleAc === 'AC') grandAcRooms += dCount; else grandNonAcRooms += dCount;
+      }
+      if (tCount > 0) {
+        if (fc.tripleAc === 'AC') grandAcRooms += tCount; else grandNonAcRooms += tCount;
+      }
+      if (fCount > 0) {
+        if (fc.fourAc === 'AC') grandAcRooms += fCount; else grandNonAcRooms += fCount;
+      }
+      (fc.customAllocations || []).forEach(ca => {
+        const cCount = Number(ca.count) || 0;
+        if (ca.acType === 'AC') grandAcRooms += cCount; else grandNonAcRooms += cCount;
+      });
+    });
+
+    const hasFloorErrors = Object.keys(floorErrors).length > 0;
+    const hasGrandOverflow = grandRooms > MAX_TOTAL_BLOCK_ROOMS;
+    const isExcessive = hasFloorErrors || hasGrandOverflow;
+    const isEmpty = grandRooms === 0;
+
+    return {
+      grandRooms,
+      grandBeds,
+      grandAcRooms,
+      grandNonAcRooms,
+      floorErrors,
+      categoryErrors,
+      hasFloorErrors,
+      hasGrandOverflow,
+      isExcessive,
+      isEmpty,
+      isValid: !isExcessive && !isEmpty
+    };
+  }, [floorConfigs]);
+
+  const handleStep2Next = () => {
+    if (configValidation.isEmpty) {
+      addToast('Please enter room counts for at least one floor before continuing.', 'warning');
+      return;
+    }
+    if (configValidation.hasFloorErrors || configValidation.hasGrandOverflow) {
+      if (configValidation.hasGrandOverflow) {
+        addToast(`Total rooms (${configValidation.grandRooms}) exceeds maximum allowed threshold of ${MAX_TOTAL_BLOCK_ROOMS} rooms.`, 'error');
+      } else {
+        addToast(`Room creation threshold exceeded. Please ensure each category is ≤ ${MAX_ROOMS_PER_CATEGORY} rooms and floor total is ≤ ${MAX_ROOMS_PER_FLOOR} rooms.`, 'error');
+      }
+      return;
+    }
+    setActiveModalTab('overview');
+  };
+
   const handleFloorConfigChange = (floorIndex: number, field: keyof FloorSharingConfig, value: any) => {
     updateAndSaveFloorConfigs(prev =>
       prev.map(fc => (fc.floorIndex === floorIndex ? { ...fc, [field]: value } : fc))
@@ -255,6 +371,16 @@ export const RoomTypeMasterView: React.FC = () => {
       return;
     }
 
+    if (configValidation.isExcessive || configValidation.isEmpty) {
+      if (configValidation.hasGrandOverflow) {
+        addToast(`Cannot save: Total rooms (${configValidation.grandRooms}) exceeds maximum allowed threshold of ${MAX_TOTAL_BLOCK_ROOMS} rooms.`, 'error');
+      } else {
+        addToast(`Cannot save: Room counts exceed allowed threshold (Max ${MAX_ROOMS_PER_CATEGORY} per category, ${MAX_ROOMS_PER_FLOOR} per floor).`, 'error');
+      }
+      setActiveModalTab('sharing');
+      return;
+    }
+
     setIsSubmitting(true);
     try {
       let totalCreatedRooms = 0;
@@ -330,8 +456,14 @@ export const RoomTypeMasterView: React.FC = () => {
 
             totalCreatedRooms++;
             totalCreatedBeds += cat.capacity;
+            if (totalCreatedRooms >= MAX_TOTAL_BLOCK_ROOMS) {
+              console.warn('Room creation stopped: maximum total block rooms reached.');
+              break;
+            }
           }
+          if (totalCreatedRooms >= MAX_TOTAL_BLOCK_ROOMS) break;
         }
+        if (totalCreatedRooms >= MAX_TOTAL_BLOCK_ROOMS) break;
       }
 
       // If no floor matrix was set up, create default room type configuration
@@ -712,6 +844,17 @@ export const RoomTypeMasterView: React.FC = () => {
               {/* TAB 2: FLOOR-BY-FLOOR ROOM SHARING & PER-SHARING AC SELECTION */}
               {activeModalTab === 'sharing' && (
                 <div className="space-y-3.5 animate-in fade-in">
+                  {configValidation.isExcessive && (
+                    <div className="p-3 bg-rose-50 dark:bg-rose-950/50 border border-rose-300 dark:border-rose-800 rounded-2xl flex items-start gap-2.5 text-xs text-rose-800 dark:text-rose-200 shadow-sm animate-in fade-in">
+                      <AlertTriangle className="w-4 h-4 text-rose-500 shrink-0 mt-0.5" />
+                      <div className="space-y-0.5">
+                        <span className="font-bold block">Room creation threshold exceeded!</span>
+                        <span className="text-[11px] text-rose-600 dark:text-rose-400 block">
+                          Allowed limits: Max {MAX_ROOMS_PER_CATEGORY} rooms per category • Max {MAX_ROOMS_PER_FLOOR} rooms per floor • Max {MAX_TOTAL_BLOCK_ROOMS} rooms in total. Unrealistic room configurations cannot be processed.
+                        </span>
+                      </div>
+                    </div>
+                  )}
                   {!selectedBlock ? (
                     <div className="p-6 text-center bg-slate-50 dark:bg-slate-800/40 rounded-2xl border border-dashed border-slate-200 dark:border-slate-700 text-slate-400 font-semibold">
                       Please select a Hostel Block in Step 1 first to configure floor sharing and AC options.
@@ -747,25 +890,52 @@ export const RoomTypeMasterView: React.FC = () => {
                                     {roomRangeText}
                                   </span>
                                 </div>
-                                <span className="text-[11px] font-bold text-slate-600 dark:text-slate-300 font-mono">
+                                <span className={`text-[11px] font-bold font-mono ${
+                                  configValidation.floorErrors[fc.floorIndex] ? 'text-rose-600 dark:text-rose-400 font-extrabold' : 'text-slate-600 dark:text-slate-300'
+                                }`}>
                                   {totalRoomsOnFloor} Rooms ({totalBedsOnFloor} Beds Capacity)
                                 </span>
                               </div>
 
+                              {configValidation.floorErrors[fc.floorIndex] && (
+                                <div className="p-2.5 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 flex items-start gap-2 text-[11px] font-semibold text-rose-700 dark:text-rose-300">
+                                  <AlertTriangle className="w-3.5 h-3.5 text-rose-500 shrink-0 mt-0.5" />
+                                  <div className="space-y-0.5">
+                                    {configValidation.floorErrors[fc.floorIndex].map((err: string, eIdx: number) => (
+                                      <div key={eIdx}>• {err}</div>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+
                               {/* Per-Sharing Category & AC Selection Matrix */}
                               <div className="grid grid-cols-4 gap-2.5 text-center">
                                 {/* 1-Share */}
-                                <div className="p-2 bg-white dark:bg-slate-900 rounded-xl border border-slate-200/70 dark:border-slate-700/70 space-y-1.5">
-                                  <label className="text-[10px] font-bold text-slate-600 dark:text-slate-300 block">1-Share (1 Bed)</label>
+                                <div className={`p-2 bg-white dark:bg-slate-900 rounded-xl border space-y-1.5 transition-all ${
+                                  configValidation.categoryErrors[`${fc.floorIndex}-singleSharing`]
+                                    ? 'border-rose-500 bg-rose-50/40 dark:bg-rose-950/30'
+                                    : 'border-slate-200/70 dark:border-slate-700/70'
+                                }`}>
+                                  <div className="flex items-center justify-between">
+                                    <label className="text-[10px] font-bold text-slate-600 dark:text-slate-300">1-Share (1 Bed)</label>
+                                    <span className="text-[9px] text-slate-400 font-semibold">Max {MAX_ROOMS_PER_CATEGORY}</span>
+                                  </div>
                                   <input
                                     type="number"
                                     min={0}
-                                    max={50}
+                                    max={MAX_ROOMS_PER_CATEGORY}
                                     value={fc.singleSharing || ''}
                                     placeholder="0"
                                     onChange={e => handleFloorConfigChange(fc.floorIndex, 'singleSharing', Number(e.target.value))}
-                                    className="w-full px-2 py-1.5 rounded-lg text-center bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-800 dark:text-slate-200 outline-none"
+                                    className={`w-full px-2 py-1.5 rounded-lg text-center border text-xs font-bold outline-none transition-all ${
+                                      configValidation.categoryErrors[`${fc.floorIndex}-singleSharing`]
+                                        ? 'border-rose-500 bg-rose-50 dark:bg-rose-950/50 text-rose-700 dark:text-rose-300 ring-1 ring-rose-500'
+                                        : 'bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 focus:ring-2 focus:ring-sky-500'
+                                    }`}
                                   />
+                                  {configValidation.categoryErrors[`${fc.floorIndex}-singleSharing`] && (
+                                    <span className="text-[9px] font-bold text-rose-600 dark:text-rose-400 block">Exceeds max ({MAX_ROOMS_PER_CATEGORY})</span>
+                                  )}
                                   <button
                                     type="button"
                                     onClick={() => handleAcToggle(fc.floorIndex, 'singleAc')}
@@ -780,17 +950,31 @@ export const RoomTypeMasterView: React.FC = () => {
                                 </div>
 
                                 {/* 2-Share */}
-                                <div className="p-2 bg-white dark:bg-slate-900 rounded-xl border border-slate-200/70 dark:border-slate-700/70 space-y-1.5">
-                                  <label className="text-[10px] font-bold text-slate-600 dark:text-slate-300 block">2-Share (2 Beds)</label>
+                                <div className={`p-2 bg-white dark:bg-slate-900 rounded-xl border space-y-1.5 transition-all ${
+                                  configValidation.categoryErrors[`${fc.floorIndex}-doubleSharing`]
+                                    ? 'border-rose-500 bg-rose-50/40 dark:bg-rose-950/30'
+                                    : 'border-slate-200/70 dark:border-slate-700/70'
+                                }`}>
+                                  <div className="flex items-center justify-between">
+                                    <label className="text-[10px] font-bold text-slate-600 dark:text-slate-300">2-Share (2 Beds)</label>
+                                    <span className="text-[9px] text-slate-400 font-semibold">Max {MAX_ROOMS_PER_CATEGORY}</span>
+                                  </div>
                                   <input
                                     type="number"
                                     min={0}
-                                    max={50}
+                                    max={MAX_ROOMS_PER_CATEGORY}
                                     value={fc.doubleSharing || ''}
                                     placeholder="0"
                                     onChange={e => handleFloorConfigChange(fc.floorIndex, 'doubleSharing', Number(e.target.value))}
-                                    className="w-full px-2 py-1.5 rounded-lg text-center bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-800 dark:text-slate-200 outline-none"
+                                    className={`w-full px-2 py-1.5 rounded-lg text-center border text-xs font-bold outline-none transition-all ${
+                                      configValidation.categoryErrors[`${fc.floorIndex}-doubleSharing`]
+                                        ? 'border-rose-500 bg-rose-50 dark:bg-rose-950/50 text-rose-700 dark:text-rose-300 ring-1 ring-rose-500'
+                                        : 'bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 focus:ring-2 focus:ring-sky-500'
+                                    }`}
                                   />
+                                  {configValidation.categoryErrors[`${fc.floorIndex}-doubleSharing`] && (
+                                    <span className="text-[9px] font-bold text-rose-600 dark:text-rose-400 block">Exceeds max ({MAX_ROOMS_PER_CATEGORY})</span>
+                                  )}
                                   <button
                                     type="button"
                                     onClick={() => handleAcToggle(fc.floorIndex, 'doubleAc')}
@@ -805,17 +989,31 @@ export const RoomTypeMasterView: React.FC = () => {
                                 </div>
 
                                 {/* 3-Share */}
-                                <div className="p-2 bg-white dark:bg-slate-900 rounded-xl border border-slate-200/70 dark:border-slate-700/70 space-y-1.5">
-                                  <label className="text-[10px] font-bold text-slate-600 dark:text-slate-300 block">3-Share (3 Beds)</label>
+                                <div className={`p-2 bg-white dark:bg-slate-900 rounded-xl border space-y-1.5 transition-all ${
+                                  configValidation.categoryErrors[`${fc.floorIndex}-tripleSharing`]
+                                    ? 'border-rose-500 bg-rose-50/40 dark:bg-rose-950/30'
+                                    : 'border-slate-200/70 dark:border-slate-700/70'
+                                }`}>
+                                  <div className="flex items-center justify-between">
+                                    <label className="text-[10px] font-bold text-slate-600 dark:text-slate-300">3-Share (3 Beds)</label>
+                                    <span className="text-[9px] text-slate-400 font-semibold">Max {MAX_ROOMS_PER_CATEGORY}</span>
+                                  </div>
                                   <input
                                     type="number"
                                     min={0}
-                                    max={50}
+                                    max={MAX_ROOMS_PER_CATEGORY}
                                     value={fc.tripleSharing || ''}
                                     placeholder="0"
                                     onChange={e => handleFloorConfigChange(fc.floorIndex, 'tripleSharing', Number(e.target.value))}
-                                    className="w-full px-2 py-1.5 rounded-lg text-center bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-800 dark:text-slate-200 outline-none"
+                                    className={`w-full px-2 py-1.5 rounded-lg text-center border text-xs font-bold outline-none transition-all ${
+                                      configValidation.categoryErrors[`${fc.floorIndex}-tripleSharing`]
+                                        ? 'border-rose-500 bg-rose-50 dark:bg-rose-950/50 text-rose-700 dark:text-rose-300 ring-1 ring-rose-500'
+                                        : 'bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 focus:ring-2 focus:ring-sky-500'
+                                    }`}
                                   />
+                                  {configValidation.categoryErrors[`${fc.floorIndex}-tripleSharing`] && (
+                                    <span className="text-[9px] font-bold text-rose-600 dark:text-rose-400 block">Exceeds max ({MAX_ROOMS_PER_CATEGORY})</span>
+                                  )}
                                   <button
                                     type="button"
                                     onClick={() => handleAcToggle(fc.floorIndex, 'tripleAc')}
@@ -830,17 +1028,31 @@ export const RoomTypeMasterView: React.FC = () => {
                                 </div>
 
                                 {/* 4-Share */}
-                                <div className="p-2 bg-white dark:bg-slate-900 rounded-xl border border-slate-200/70 dark:border-slate-700/70 space-y-1.5">
-                                  <label className="text-[10px] font-bold text-slate-600 dark:text-slate-400 block">4-Share (4 Beds)</label>
+                                <div className={`p-2 bg-white dark:bg-slate-900 rounded-xl border space-y-1.5 transition-all ${
+                                  configValidation.categoryErrors[`${fc.floorIndex}-fourSharing`]
+                                    ? 'border-rose-500 bg-rose-50/40 dark:bg-rose-950/30'
+                                    : 'border-slate-200/70 dark:border-slate-700/70'
+                                }`}>
+                                  <div className="flex items-center justify-between">
+                                    <label className="text-[10px] font-bold text-slate-600 dark:text-slate-400">4-Share (4 Beds)</label>
+                                    <span className="text-[9px] text-slate-400 font-semibold">Max {MAX_ROOMS_PER_CATEGORY}</span>
+                                  </div>
                                   <input
                                     type="number"
                                     min={0}
-                                    max={50}
+                                    max={MAX_ROOMS_PER_CATEGORY}
                                     value={fc.fourSharing || ''}
                                     placeholder="0"
                                     onChange={e => handleFloorConfigChange(fc.floorIndex, 'fourSharing', Number(e.target.value))}
-                                    className="w-full px-2 py-1.5 rounded-lg text-center bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-800 dark:text-slate-200 outline-none"
+                                    className={`w-full px-2 py-1.5 rounded-lg text-center border text-xs font-bold outline-none transition-all ${
+                                      configValidation.categoryErrors[`${fc.floorIndex}-fourSharing`]
+                                        ? 'border-rose-500 bg-rose-50 dark:bg-rose-950/50 text-rose-700 dark:text-rose-300 ring-1 ring-rose-500'
+                                        : 'bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 focus:ring-2 focus:ring-sky-500'
+                                    }`}
                                   />
+                                  {configValidation.categoryErrors[`${fc.floorIndex}-fourSharing`] && (
+                                    <span className="text-[9px] font-bold text-rose-600 dark:text-rose-400 block">Exceeds max ({MAX_ROOMS_PER_CATEGORY})</span>
+                                  )}
                                   <button
                                     type="button"
                                     onClick={() => handleAcToggle(fc.floorIndex, 'fourAc')}
@@ -884,10 +1096,14 @@ export const RoomTypeMasterView: React.FC = () => {
                                         <input
                                           type="number"
                                           min={1}
-                                          max={20}
+                                          max={MAX_ROOMS_PER_CATEGORY}
                                           value={ca.count}
                                           onChange={e => handleCustomAllocationChange(fc.floorIndex, cIdx, 'count', Number(e.target.value))}
-                                          className="w-10 px-1 py-1 rounded-lg text-center text-xs font-bold text-slate-800 dark:text-slate-200 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 outline-none"
+                                          className={`w-14 px-1 py-1 rounded-lg text-center text-xs font-bold outline-none border transition-all ${
+                                            configValidation.categoryErrors[`${fc.floorIndex}-custom-${cIdx}`]
+                                              ? 'border-rose-500 bg-rose-50 text-rose-700 dark:bg-rose-950/50 dark:text-rose-300'
+                                              : 'text-slate-800 dark:text-slate-200 bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700'
+                                          }`}
                                         />
                                       </div>
                                       <button
@@ -960,7 +1176,6 @@ export const RoomTypeMasterView: React.FC = () => {
                           </div>
                           <div>
                             <span className="text-[10px] text-slate-400 font-bold block uppercase">Location</span>
-                <span className="font-semibold text-slate-800 dark:text-slate-200 truncate block">{selectedBlock.address || '-'}</span>
                             <span className="font-semibold text-slate-800 dark:text-slate-200 truncate block">{selectedBlock.address || '-'}</span>
                           </div>
                         </div>
@@ -1030,6 +1245,19 @@ export const RoomTypeMasterView: React.FC = () => {
                           })}
                         </div>
                       </div>
+
+                      {/* Unrealistic Threshold Alert */}
+                      {configValidation.isExcessive && (
+                        <div className="p-3.5 bg-rose-50 dark:bg-rose-950/50 border border-rose-300 dark:border-rose-800 rounded-2xl flex items-start gap-2.5 text-xs text-rose-800 dark:text-rose-200 shadow-sm animate-in fade-in">
+                          <AlertTriangle className="w-5 h-5 text-rose-500 shrink-0 mt-0.5" />
+                          <div className="space-y-1">
+                            <span className="font-bold block text-rose-700 dark:text-rose-300">Unrealistic Room Configuration ({configValidation.grandRooms} Rooms)</span>
+                            <span className="text-[11px] text-rose-600 dark:text-rose-400 block leading-relaxed">
+                              The configured room count exceeds allowable system thresholds (Max {MAX_ROOMS_PER_CATEGORY} rooms per category, {MAX_ROOMS_PER_FLOOR} rooms per floor, {MAX_TOTAL_BLOCK_ROOMS} total rooms per block). Please click "Back" and adjust the room numbers to reasonable business limits before saving.
+                            </span>
+                          </div>
+                        </div>
+                      )}
 
                       {/* Grand Totals Summary Box */}
                       {(() => {
@@ -1162,8 +1390,13 @@ export const RoomTypeMasterView: React.FC = () => {
                   {activeModalTab === 'sharing' && (
                     <button
                       type="button"
-                      onClick={() => setActiveModalTab('overview')}
-                      className="px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white text-xs font-bold shadow-md shadow-sky-500/20 transition-all"
+                      onClick={handleStep2Next}
+                      disabled={configValidation.isExcessive || configValidation.isEmpty}
+                      className={`px-4 py-2 rounded-xl text-xs font-bold shadow-md transition-all ${
+                        configValidation.isExcessive || configValidation.isEmpty
+                          ? 'bg-slate-200 text-slate-400 dark:bg-slate-800 dark:text-slate-600 cursor-not-allowed'
+                          : 'bg-sky-600 hover:bg-sky-500 text-white shadow-sky-500/20'
+                      }`}
                     >
                       Next ➔
                     </button>
@@ -1172,8 +1405,12 @@ export const RoomTypeMasterView: React.FC = () => {
                   {activeModalTab === 'overview' && (
                     <button
                       type="submit"
-                      disabled={isSubmitting}
-                      className="px-5 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white text-xs font-bold shadow-md shadow-sky-500/20 transition-all disabled:opacity-50"
+                      disabled={isSubmitting || configValidation.isExcessive || configValidation.isEmpty}
+                      className={`px-5 py-2 rounded-xl text-xs font-bold shadow-md transition-all ${
+                        isSubmitting || configValidation.isExcessive || configValidation.isEmpty
+                          ? 'bg-slate-200 text-slate-400 dark:bg-slate-800 dark:text-slate-600 cursor-not-allowed opacity-60'
+                          : 'bg-sky-600 hover:bg-sky-500 text-white shadow-sky-500/20'
+                      }`}
                     >
                       {isSubmitting ? 'Saving...' : 'Save'}
                     </button>

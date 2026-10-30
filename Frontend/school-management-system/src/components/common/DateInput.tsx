@@ -41,6 +41,11 @@ export const DateInput: React.FC<DateInputProps> = ({
     const val = e.target.value;
     setTextValue(val);
 
+    if (!val.trim()) {
+      onChange({ target: { value: '' } });
+      return;
+    }
+
     // If matches DD-MM-YYYY or DD/MM/YYYY format or YYYY-MM-DD
     let iso = formatToISO(val);
     if (iso && iso.match(/^\d{4}-\d{2}-\d{2}$/)) {
@@ -83,6 +88,9 @@ export const DateInput: React.FC<DateInputProps> = ({
       }
       setTextValue(formatToDDMMYYYY(iso, '-'));
       onChange({ target: { value: iso } });
+    } else {
+      setTextValue('');
+      onChange({ target: { value: '' } });
     }
   };
 
