@@ -894,6 +894,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
                               role.toLowerCase() === "parent" ||
                                 role.toLowerCase() === "student"
                                 ? "parent-hostel-details"
+                                : role.toLowerCase().includes("warden")
+                                ? "hostel-masters"
                                 : "hostel-dashboard",
                             );
                           }
@@ -939,14 +941,18 @@ export const Sidebar: React.FC<SidebarProps> = ({
                               (sub.id === "warden-attendance" &&
                                 ["warden-attendance", "hostel-warden-attendance"].includes(activeModule)) ||
                               (sub.id === "hostel-masters" &&
-                                [
-                                  "hostel-masters",
-                                  "hostel-master",
-                                  "hostel-blocks",
-                                  "hostel-room-type",
-                                  "hostel-room-master",
-                                  "hostel-rooms",
-                                ].includes(activeModule)) ||
+                                (
+                                  [
+                                    "hostel-masters",
+                                    "hostel-master",
+                                    "hostel-blocks",
+                                    "hostel-room-type",
+                                    "hostel-room-master",
+                                    "hostel-rooms",
+                                    "hostel-wardens",
+                                  ].includes(activeModule) ||
+                                  (safeRole.includes("warden") && ["hostel", "hostel-dashboard"].includes(activeModule))
+                                )) ||
                               (sub.id === "hostel-student-hostel" &&
                                 [
                                   "hostel-student-hostel",

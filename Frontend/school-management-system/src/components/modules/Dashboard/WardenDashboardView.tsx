@@ -343,9 +343,6 @@ export const WardenDashboardView: React.FC<WardenDashboardViewProps> = ({
               🏢 {assignedBlockName}
             </span>
           </div>
-          <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium mt-0.5">
-            Hostel facility management, occupancy status, and student outpass monitoring
-          </p>
         </div>
 
         {/* Right side: Campus Building Graphic Illustration */}
@@ -475,7 +472,7 @@ export const WardenDashboardView: React.FC<WardenDashboardViewProps> = ({
         <div className="flex items-center justify-between">
           <h3 className="text-sm font-bold text-slate-900 dark:text-white">Hostel Quick Actions</h3>
           <button 
-            onClick={() => onNavigate && onNavigate('hostel')} 
+            onClick={() => onNavigate && onNavigate('hostel-masters')} 
             className="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-sky-50 text-sky-700 dark:bg-slate-850 dark:text-sky-400 text-xs font-bold hover:bg-sky-100 border border-sky-200 dark:border-sky-800 transition-colors shrink-0 cursor-pointer"
           >
             <Building2 className="w-3.5 h-3.5 text-sky-500" />
@@ -730,19 +727,19 @@ export const WardenDashboardView: React.FC<WardenDashboardViewProps> = ({
             </div>
           </div>
 
-          {/* Warden Night Duty & Curfew Tracker Card */}
+          {/* Hostel Schedule & Timings Card */}
           <div className="bg-white dark:bg-slate-900 border border-sky-300 dark:border-sky-800 shadow-xs hover:border-sky-400 dark:hover:border-sky-600 transition-all duration-300 p-4 sm:p-4.5 rounded-2xl space-y-2.5">
             <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-2">
               <div className="flex items-center gap-2">
                 <div className="w-7 h-7 rounded-lg bg-emerald-50 dark:bg-emerald-950 text-emerald-600 dark:text-emerald-400 flex items-center justify-center border border-emerald-100 dark:border-emerald-900">
-                  <ShieldCheck className="w-4 h-4" />
+                  <Clock className="w-4 h-4" />
                 </div>
                 <h3 className="text-xs font-bold text-slate-900 dark:text-white">
-                  Duty & Curfew Tracker
+                  Hostel Schedule & Timings
                 </h3>
               </div>
               <span className="text-[10px] font-black text-emerald-600 bg-emerald-50 dark:bg-emerald-950 px-2 py-0.5 rounded-full border border-emerald-200/60 dark:border-emerald-800">
-                Active Duty
+                Daily Routine
               </span>
             </div>
 

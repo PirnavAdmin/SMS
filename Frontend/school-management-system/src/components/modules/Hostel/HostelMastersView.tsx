@@ -6,12 +6,24 @@ import { RoomTypeMasterView } from './RoomTypeMasterView';
 import { RoomMasterView } from './RoomMasterView';
 import { WardenMasterView } from './WardenMasterView';
 
-export const HostelMastersView: React.FC = () => {
+interface HostelMastersViewProps {
+  initialSubTab?: 'blocks' | 'room-types' | 'rooms' | 'wardens';
+}
+
+export const HostelMastersView: React.FC<HostelMastersViewProps> = ({
+  initialSubTab = 'blocks'
+}) => {
   const { user, role } = useAuth();
   const userRole = (role || user?.role || '').toLowerCase();
   const isWarden = userRole.includes('warden');
 
-  const [activeSubTab, setActiveSubTab] = useState<'blocks' | 'room-types' | 'rooms' | 'wardens'>('blocks');
+  const [activeSubTab, setActiveSubTab] = useState<'blocks' | 'room-types' | 'rooms' | 'wardens'>(initialSubTab);
+
+  React.useEffect(() => {
+    if (initialSubTab) {
+      setActiveSubTab(initialSubTab);
+    }
+  }, [initialSubTab]);
   const [sharedHostelFilter, setSharedHostelFilter] = useState('');
 
   const allSubTabs = [
