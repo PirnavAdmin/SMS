@@ -245,7 +245,7 @@ export const HostelTransferVacateView: React.FC = () => {
   // Fee Settlement fields
   const [totalFeePaid, setTotalFeePaid] = useState<number>(60000);
   const [monthsStayed, setMonthsStayed] = useState<number>(3);
-  const [feeAdjustmentMode, setFeeAdjustmentMode] = useState<'Credit to Tuition Fee' | 'Refund Cash/Bank' | 'Non-Refundable'>('Credit to Tuition Fee');
+  const [feeAdjustmentMode, setFeeAdjustmentMode] = useState<string>('');
 
   const hostellers = (students || []).filter(s => s && (s.studentType === 'Hosteller' || s.studentType === 'Residential' || (s as any).isHostelRequired));
 
@@ -262,7 +262,7 @@ export const HostelTransferVacateView: React.FC = () => {
     setReason('');
     setTotalFeePaid(60000);
     setMonthsStayed(3);
-    setFeeAdjustmentMode('Credit to Tuition Fee');
+    setFeeAdjustmentMode('');
     setIsModalOpen(true);
   };
 
@@ -275,6 +275,11 @@ export const HostelTransferVacateView: React.FC = () => {
 
     if (!actionType) {
       addToast('Please select an action type.', 'warning');
+      return;
+    }
+
+    if (actionType === 'Bed Vacate' && !feeAdjustmentMode) {
+      addToast('Please select a Fee Settlement & Adjustment Mode.', 'warning');
       return;
     }
 
@@ -443,7 +448,7 @@ export const HostelTransferVacateView: React.FC = () => {
                   <th className="py-3.5 px-5">Target Room / Fee Adjustment</th>
                   <th className="py-3.5 px-5">Date</th>
                   <th className="py-3.5 px-5 text-center">Status</th>
-                  <th className="py-3.5 px-5 text-right">Actions</th>
+                  <th className="py-3.5 px-5 text-center">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-medium">
@@ -487,12 +492,12 @@ export const HostelTransferVacateView: React.FC = () => {
                           {r.status}
                         </span>
                       </td>
-                      <td className="py-3.5 px-5 text-right">
-                        <div className="flex items-center justify-end gap-2">
+                      <td className="py-3.5 px-5 text-center align-middle">
+                        <div className="flex items-center justify-center gap-2 min-h-[32px]">
                           {r.status === 'Pending' && (
-                            <button onClick={() => handleApprove(r.id)} className="p-1 rounded-lg text-emerald-600 hover:bg-emerald-50" title="Approve & Release Bed"><CheckCircle2 className="w-4 h-4" /></button>
+                            <button onClick={() => handleApprove(r.id)} className="p-1.5 rounded-lg text-emerald-600 hover:bg-emerald-50 transition-colors cursor-pointer" title="Approve & Release Bed"><CheckCircle2 className="w-4 h-4" /></button>
                           )}
-                          <button onClick={() => setDeletingRecord(r)} className="p-1 rounded-lg text-slate-400 hover:text-rose-600"><Trash2 className="w-4 h-4" /></button>
+                          <button onClick={() => setDeletingRecord(r)} className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors cursor-pointer flex items-center justify-center" title="Delete Record"><Trash2 className="w-4 h-4" /></button>
                         </div>
                       </td>
                     </tr>
@@ -675,9 +680,11 @@ export const HostelTransferVacateView: React.FC = () => {
                     <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Fee Settlement & Adjustment Mode <span className="text-rose-500">*</span></label>
                     <select
                       value={feeAdjustmentMode}
-                      onChange={e => setFeeAdjustmentMode(e.target.value as any)}
-                      className="w-full px-3 py-2 rounded-xl bg-white dark:bg-slate-800 border font-bold text-sky-600 outline-none"
+                      onChange={e => setFeeAdjustmentMode(e.target.value)}
+                      required
+                      className="w-full px-3 py-2 rounded-xl bg-white dark:bg-slate-800 border font-bold text-sky-600 outline-none cursor-pointer"
                     >
+                      <option value="">Select Fee Settlement & Adjustment Mode</option>
                       <option value="Credit to Tuition Fee">Credit Balance to Student Tuition Dues (Recommended)</option>
                       <option value="Refund Cash/Bank">Direct Cash / Bank Refund Voucher to Parent</option>
                       <option value="Non-Refundable">Non-Refundable (As per School Policy)</option>

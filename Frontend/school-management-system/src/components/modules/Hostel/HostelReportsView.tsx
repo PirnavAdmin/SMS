@@ -1,4 +1,4 @@
-﻿// @ts-nocheck
+// @ts-nocheck
 import React, { useState, useEffect, useMemo } from 'react';
 import { FileSpreadsheet, Printer, FileText, Search } from 'lucide-react';
 import { useData } from '../../../context/DataContext';
@@ -10,6 +10,7 @@ import { SchoolPrintHeader } from '../../common/SchoolPrintHeader';
 import { SearchableSelect } from '../../common/SearchableSelect';
 import { getHostelBlocks, getRooms, getAllocations, getWardens, formatRoomNumber, HostelBlock, HostelRoom, BedAllocation, WardenRecord } from '../../../api/hostel';
 import { normalizeStudentType } from '../../../utils/studentTypeUtils';
+import { formatPhoneNumber } from '../../../utils/validation';
 
 const ENTERPRISE_HOSTEL_REPORTS = [
   'Block Report',
@@ -20,7 +21,7 @@ const ENTERPRISE_HOSTEL_REPORTS = [
 
 export const HostelReportsView: React.FC = () => {
   const { addToast } = useToast();
-  const { user, role } = useAuth();
+  const { user, role, selectedAcademicYear } = useAuth();
   const userRole = (role || user?.role || '').toLowerCase();
   const isWarden = userRole.includes('warden');
 
@@ -28,7 +29,7 @@ export const HostelReportsView: React.FC = () => {
   const students = Array.isArray(dataContext?.students) ? dataContext.students : [];
   const admissions = Array.isArray(dataContext?.admissions) ? dataContext.admissions : [];
 
-  const [selectedReport, setSelectedReport] = useState<string>('Block Report');
+  const [selectedReport, setSelectedReport] = useState<string>('');
   const [manualReportInput, setManualReportInput] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [filterHostel, setFilterHostel] = useState('');
@@ -200,17 +201,42 @@ export const HostelReportsView: React.FC = () => {
 
       case 'Block Report': {
         if (reportBlocks.length === 0) return [];
-        return reportBlocks.map(b => ({
-          'Block Code': b.hostelCode || `BLK-${b.hostelId}`,
-          'Block Name': b.hostelName || `Block #${b.hostelId}`,
-          'Category': b.hostelType || 'Boys Hostel',
-          'Total Floors': (b as any).totalFloors || 1,
-          'Warden Name': b.wardenName || 'Unassigned',
-          'Primary Mobile': b.primaryMobileNumber || 'N/A',
-          'Location': b.address || '-',
-      'Location': b.address || '-',
-          'Status': b.status || 'Active'
-        }));
+        return reportBlocks.map(b => {
+          const isAssigned = Boolean(
+            b.wardenName &&
+            b.wardenName.toLowerCase() !== 'unassigned' &&
+            b.wardenName.toLowerCase() !== 'not assigned' &&
+            b.wardenName.toLowerCase() !== 'n/a'
+          );
+
+          // Find assigned warden in wardens list to resolve real phone number
+          const matchedWarden = wardens.find(w =>
+            (w.wardenName && b.wardenName && w.wardenName.toLowerCase().trim() === b.wardenName.toLowerCase().trim()) ||
+            (w.hostelName && b.hostelName && w.hostelName.toLowerCase().trim() === b.hostelName.toLowerCase().trim()) ||
+            (w.hostelId && b.hostelId && String(w.hostelId) === String(b.hostelId))
+          );
+
+          let rawMobile = (b.primaryMobileNumber || matchedWarden?.mobileNumber || '').trim();
+          const isDummyMobile = !rawMobile || /^[0\s-]+$/.test(rawMobile) || rawMobile.toLowerCase() === 'n/a' || rawMobile.toLowerCase() === 'null';
+
+          const wardenName = isAssigned ? b.wardenName : 'Not Assigned';
+          const primaryMobile = isAssigned && !isDummyMobile ? formatPhoneNumber(rawMobile) : 'Not Available';
+
+          // Clean Location display
+          const rawLocation = (b.address || (b as any).location || '').trim();
+          const location = rawLocation && rawLocation !== '-' ? rawLocation : 'Not Available';
+
+          return {
+            'Block Code': b.hostelCode || `BLK-${b.hostelId}`,
+            'Block Name': b.hostelName || `Block #${b.hostelId}`,
+            'Category': b.hostelType || 'Boys Hostel',
+            'Total Floors': (b as any).totalFloors || 1,
+            'Warden Name': wardenName,
+            'Primary Mobile': primaryMobile,
+            'Location': location,
+            'Status': b.status || 'Active'
+          };
+        });
       }
 
       case 'Warden Report': {
@@ -397,22 +423,24 @@ export const HostelReportsView: React.FC = () => {
         <div className="flex items-center gap-2 flex-wrap">
           <button
             onClick={handlePrint}
-            className="px-3.5 py-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 font-bold text-xs flex items-center gap-1.5 shadow-sm"
+            title="Print or save report preview"
+            className="px-3.5 py-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 font-bold text-xs flex items-center gap-1.5 shadow-sm cursor-pointer transition-colors"
           >
             <Printer className="w-4 h-4 text-sky-600" /> Print
           </button>
 
           <button
             onClick={handlePdfExport}
-            className="px-3.5 py-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 font-bold text-xs flex items-center gap-1.5 shadow-sm"
+            title="Generate and download formatted PDF report"
+            className="px-3.5 py-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 font-bold text-xs flex items-center gap-1.5 shadow-sm cursor-pointer transition-colors"
           >
             <FileText className="w-4 h-4 text-rose-600" /> Export PDF
           </button>
 
           <ExportButton
             data={reportData}
-            filename={`Hostel_${selectedReport.replace(/\s+/g, '_')}_Report`}
-            label="Download"
+            filename={`Hostel_${(selectedReport || 'Report').replace(/\s+/g, '_')}_Report`}
+            label="Export Excel / CSV"
           />
         </div>
       </div>
@@ -468,7 +496,7 @@ export const HostelReportsView: React.FC = () => {
               }}
               className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-bold text-xs cursor-pointer outline-none focus:border-sky-500 h-[38px]"
             >
-              <option value="">-- Select Hostel Report --</option>
+              <option value="">-- Select Hostel Report Category --</option>
               {ENTERPRISE_HOSTEL_REPORTS.map(r => (
                 <option key={r} value={r}>{r}</option>
               ))}
@@ -547,10 +575,19 @@ export const HostelReportsView: React.FC = () => {
         </div>
       ) : (
         <div id="printable-content" className="glass-card rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 overflow-hidden shadow-md space-y-3 p-4">
-          <SchoolPrintHeader title={`Hostel Report - ${effectiveReportName}`} subtitle={`Total Records: ${reportData.length}`} />
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b border-slate-100 dark:border-slate-800 pb-3 no-print">
-            <h3 className="font-black text-base text-slate-900 dark:text-white">{effectiveReportName}</h3>
-            <span className="text-xs font-bold text-sky-600 dark:text-sky-400 bg-sky-50 dark:bg-sky-950 px-3 py-1 rounded-full">
+          <SchoolPrintHeader
+            title={`Hostel Report - ${effectiveReportName}`}
+            subtitle={`Total Records: ${reportData.length}`}
+            academicYear={selectedAcademicYear}
+          />
+          <div className="flex items-center justify-between gap-4 border-b border-slate-100 dark:border-slate-800 pb-3 px-1 no-print">
+            <div className="flex items-center gap-2.5">
+              <div className="w-2.5 h-2.5 rounded-full bg-sky-500 shrink-0" />
+              <h3 className="font-black text-base sm:text-lg text-slate-900 dark:text-white tracking-tight leading-none">
+                {effectiveReportName}
+              </h3>
+            </div>
+            <span className="text-xs font-bold text-sky-700 dark:text-sky-300 bg-sky-50 dark:bg-sky-950/80 border border-sky-200 dark:border-sky-800/60 px-3 py-1.5 rounded-full shrink-0 flex items-center leading-none">
               Total Records: {reportData.length}
             </span>
           </div>
