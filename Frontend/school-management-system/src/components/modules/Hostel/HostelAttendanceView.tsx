@@ -293,7 +293,7 @@ export const HostelAttendanceView: React.FC = () => {
         if (sId) seenKeys.add(sId);
         list.push({
           ...a,
-          allocationId: a.allocationId || `alloc_${idx + 1}`
+          allocationId: Number(a.allocationId) || (idx + 1)
         });
       }
     });

@@ -1155,7 +1155,7 @@ export const StudentList: React.FC<{ onNavigate?: (module: string) => void }> = 
               <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
               <input
                 type="text"
-                placeholder="Search student name, adm no..."
+                placeholder="Search..."
                 value={wardenSearchQuery}
                 onChange={e => { setWardenSearchQuery(e.target.value); setWardenCurrentPage(1); }}
                 className="w-full pl-9 pr-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-sky-500/20"

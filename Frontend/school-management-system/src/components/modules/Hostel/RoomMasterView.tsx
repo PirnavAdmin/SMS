@@ -460,21 +460,10 @@ export const RoomMasterView: React.FC<RoomMasterViewProps> = ({ selectedHostelFi
                   const selBlock = (blocks || []).find(b => b && b.hostelId !== undefined && String(b.hostelId) === formHostelId);
                   let floorList: string[] = [];
                   if (selBlock) {
-                    const stored = localStorage.getItem(`edu_db_floor_sharing_config_${selBlock.hostelId}`);
-                    if (stored) {
-                      try {
-                        const parsed = JSON.parse(stored);
-                        if (Array.isArray(parsed) && parsed.length > 0) {
-                          floorList = parsed.map((f: any) => f.floorLabel || `Floor #${f.floorIndex + 1}`);
-                        }
-                      } catch (e) {}
-                    }
-                    if (floorList.length === 0) {
-                      const count = Math.max(1, Number((selBlock as any).totalFloors || (selBlock as any).totalBuildingFloors || 2));
-                      floorList = Array.from({ length: count }, (_, i) =>
-                        i === 0 ? 'Ground Floor' : i === 1 ? '1st Floor' : i === 2 ? '2nd Floor' : i === 3 ? '3rd Floor' : `${i}th Floor`
-                      );
-                    }
+                    const count = Math.max(1, Number((selBlock as any).totalFloors || (selBlock as any).totalBuildingFloors || 4));
+                    floorList = Array.from({ length: count }, (_, i) =>
+                      i === 0 ? 'Ground Floor' : i === 1 ? '1st Floor' : i === 2 ? '2nd Floor' : i === 3 ? '3rd Floor' : `${i}th Floor`
+                    );
                   }
 
                   return (

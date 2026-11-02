@@ -5,10 +5,10 @@ import { useToast } from '../../../context/ToastContext';
 import { useAuth } from '../../../context/AuthContext';
 import { SearchableSelect } from '../../common/SearchableSelect';
 import { ConfirmModal } from '../../common/ConfirmModal';
-import { getHostelBlocks, getAllocations, formatRoomNumber, HostelBlock, BedAllocation } from '../../../api/hostel';
+import { getHostelBlocks, getAllocations, formatRoomNumber, HostelBlock, BedAllocation, getOutpasses, createOutpass, updateOutpassStatus, deleteOutpass } from '../../../api/hostel';
 
 interface OutpassRecord {
-  id: number;
+  id: number | string;
   studentId?: string | number;
   studentName: string;
   admissionNo: string;
@@ -20,8 +20,6 @@ interface OutpassRecord {
   reason: string;
   status: 'Approved' | 'Pending' | 'Rejected' | 'Completed' | 'Cancelled';
 }
-
-const OUTPASSES_STORE_KEY = 'edu_db_hostel_outpasses';
 
 const DEFAULT_INITIAL_OUTPASSES: OutpassRecord[] = [];
 
@@ -195,26 +193,28 @@ export const HostelOutpassLeaveView: React.FC = () => {
     return merged;
   }, [students, wardenAssignedBlocks, blocks, allocations]);
 
-  const [records, setRecords] = useState<OutpassRecord[]>(() => {
-    if (typeof window !== 'undefined') {
-      const stored = localStorage.getItem(OUTPASSES_STORE_KEY);
-      if (stored) {
-        try {
-          const parsed = JSON.parse(stored);
-          if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-        } catch (e) {}
-      }
-    }
-    return DEFAULT_INITIAL_OUTPASSES;
-  });
+  const [records, setRecords] = useState<OutpassRecord[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
 
-  const saveRecords = (newRecords: OutpassRecord[]) => {
-    setRecords(newRecords);
-    if (typeof window !== 'undefined') {
-      localStorage.setItem(OUTPASSES_STORE_KEY, JSON.stringify(newRecords));
-      window.dispatchEvent(new Event('hostel_outpasses_updated'));
+  const loadOutpasses = async () => {
+    try {
+      setIsLoading(true);
+      const data = await getOutpasses();
+      setRecords(data || []);
+    } catch (err) {
+      console.warn("Failed to load outpasses from server:", err);
+    } finally {
+      setIsLoading(false);
     }
   };
+
+  useEffect(() => {
+    loadOutpasses();
+    window.addEventListener('hostel_outpasses_updated', loadOutpasses);
+    return () => {
+      window.removeEventListener('hostel_outpasses_updated', loadOutpasses);
+    };
+  }, []);
 
   const [searchQuery, setSearchQuery] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
@@ -273,7 +273,7 @@ export const HostelOutpassLeaveView: React.FC = () => {
     setIsModalOpen(true);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedStudentId || !departureDate || !returnDate) {
       addToast('Please complete all required fields.', 'warning');
@@ -297,8 +297,7 @@ export const HostelOutpassLeaveView: React.FC = () => {
 
     const defaultBlockName = wardenAssignedBlocks[0]?.hostelName || 'Hostel Block';
 
-    const newRecord: OutpassRecord = {
-      id: Date.now(),
+    const newRecord = {
       studentId: selectedStudentId,
       studentName: selectedSt ? `${selectedSt.firstName || ''} ${selectedSt.lastName || ''}`.trim() : 'Student',
       admissionNo: selectedSt?.admissionNo || `ADM-2026-${selectedStudentId}`,
@@ -307,27 +306,43 @@ export const HostelOutpassLeaveView: React.FC = () => {
       outpassType,
       departureDate,
       returnDate,
-      reason: reason || 'Personal work',
-      status: 'Pending'
+      reason: reason || 'Personal work'
     };
 
-    saveRecords([newRecord, ...records]);
-    addToast(isWarden ? 'Outpass / Leave issued successfully.' : 'Outpass / Leave request submitted successfully.', 'success');
-    setIsSubmitting(false);
-    setIsModalOpen(false);
+    try {
+      await createOutpass(newRecord);
+      window.dispatchEvent(new Event('hostel_outpasses_updated'));
+      await loadOutpasses();
+      addToast(isWarden ? 'Outpass / Leave issued successfully.' : 'Outpass / Leave request submitted successfully.', 'success');
+    } catch (err: any) {
+      addToast(err?.message || 'Failed to issue outpass on server', 'error');
+    } finally {
+      setIsSubmitting(false);
+      setIsModalOpen(false);
+    }
   };
 
-  const handleStatusChange = (id: number, newStatus: 'Approved' | 'Rejected' | 'Completed' | 'Cancelled') => {
-    const updated = records.map(r => r.id === id ? { ...r, status: newStatus } : r);
-    saveRecords(updated);
-    addToast(`Outpass request marked as ${newStatus}.`, 'info');
+  const handleStatusChange = async (id: number | string, newStatus: 'Approved' | 'Rejected' | 'Completed' | 'Cancelled') => {
+    try {
+      await updateOutpassStatus(id, newStatus, user?.name || (isWarden ? 'Hostel Warden' : 'Admin'));
+      setRecords(prev => prev.map(r => r.id === id ? { ...r, status: newStatus } : r));
+      window.dispatchEvent(new Event('hostel_outpasses_updated'));
+      addToast(`Outpass request marked as ${newStatus}.`, 'info');
+    } catch (err: any) {
+      addToast(err?.message || 'Failed to update outpass status', 'error');
+    }
   };
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     if (!deletingRecord) return;
-    const updated = records.filter(r => r.id !== deletingRecord.id);
-    saveRecords(updated);
-    addToast('Outpass record deleted.', 'success');
+    try {
+      await deleteOutpass(deletingRecord.id);
+      setRecords(prev => prev.filter(r => r.id !== deletingRecord.id));
+      window.dispatchEvent(new Event('hostel_outpasses_updated'));
+      addToast('Outpass record deleted.', 'success');
+    } catch (err: any) {
+      addToast(err?.message || 'Failed to delete outpass', 'error');
+    }
     setDeletingRecord(null);
   };
 

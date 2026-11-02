@@ -6216,10 +6216,6 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
                 "hostel_blocks",
                 JSON.stringify(mappedBlocks),
               );
-              localStorage.setItem(
-                "edu_db_hostel_blocks",
-                JSON.stringify(mappedBlocks),
-              );
             } catch (e) {}
           }
           if (

@@ -33,23 +33,8 @@ interface FloorSharingConfig {
   customAllocations?: CustomAllocation[];
 }
 
-const getStoredFloorConfigs = (hostelId: string): FloorSharingConfig[] | null => {
-  if (typeof window === 'undefined' || !hostelId) return null;
-  const stored = localStorage.getItem(`edu_db_floor_sharing_config_${hostelId}`);
-  if (stored) {
-    try {
-      const parsed = JSON.parse(stored);
-      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-    } catch (e) {}
-  }
-  return null;
-};
-
-const saveStoredFloorConfigs = (hostelId: string, configs: FloorSharingConfig[]) => {
-  if (typeof window !== 'undefined' && hostelId && configs && configs.length > 0) {
-    localStorage.setItem(`edu_db_floor_sharing_config_${hostelId}`, JSON.stringify(configs));
-  }
-};
+const getStoredFloorConfigs = (_hostelId: string): FloorSharingConfig[] | null => null;
+const saveStoredFloorConfigs = (_hostelId: string, _configs: FloorSharingConfig[]) => {};
 
 export const RoomTypeMasterView: React.FC = () => {
   const { addToast } = useToast();

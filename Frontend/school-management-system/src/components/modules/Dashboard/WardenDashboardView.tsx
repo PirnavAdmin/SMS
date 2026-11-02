@@ -25,7 +25,7 @@ import { useAuth } from "../../../context/AuthContext";
 import { useData } from "../../../context/DataContext";
 import { useHostel } from "../../../context/HostelContext";
 import { useToast } from "../../../context/ToastContext";
-import { getHostelBlocks, getRooms, getAllocations, getWardens } from "../../../api/hostel";
+import { getHostelBlocks, getRooms, getAllocations, getWardens, getOutpasses, updateOutpassStatus } from "../../../api/hostel";
 
 interface WardenDashboardViewProps {
   onNavigate?: (module: string) => void;
@@ -198,14 +198,7 @@ export const WardenDashboardView: React.FC<WardenDashboardViewProps> = ({
     });
 
     if (matched.length > 0) return matched;
-
-    const defaultWardenBlock = allBlks.find(b =>
-      (b.hostelName || b.name || '').toLowerCase().includes('ramachandra') ||
-      (b.hostelName || b.name || '').toLowerCase().includes('bhanu') ||
-      (b.hostelName || b.name || '').toLowerCase().includes('boys')
-    );
-
-    return defaultWardenBlock ? [defaultWardenBlock] : (allBlks.length > 0 ? [allBlks[0]] : []);
+    return allBlks.length > 0 ? [allBlks[0]] : [];
   }, [blocks, contextBlocks, user]);
 
   const activeBlockIds = useMemo(() => {
@@ -224,7 +217,7 @@ export const WardenDashboardView: React.FC<WardenDashboardViewProps> = ({
     const blocksCap = targetBlocks.reduce((acc, b) => acc + (Number((b as any).totalCapacity) || Number((b as any).capacity) || 0), 0);
     if (roomsCap > 0) return roomsCap;
     if (blocksCap > 0) return blocksCap;
-    return contextBeds.length > 0 ? contextBeds.length : 12;
+    return contextBeds.length > 0 ? contextBeds.length : 0;
   }, [activeBlockRooms, targetBlocks, contextBeds]);
 
   const occupiedBedsCount = useMemo(() => {
@@ -238,36 +231,23 @@ export const WardenDashboardView: React.FC<WardenDashboardViewProps> = ({
   const vacantBedsCount = Math.max(0, totalBedsCount - occupiedBedsCount);
   const bedOccupancyPct = totalBedsCount > 0 ? Math.min(100, Math.round((occupiedBedsCount / totalBedsCount) * 100)) : 0;
 
-  // Outpass Records State
-  const [outpassRecords, setOutpassRecords] = useState<OutpassItem[]>(() => {
-    try {
-      const saved = localStorage.getItem("edu_db_hostel_outpasses");
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed)) return parsed;
-      }
-    } catch {}
-    return [];
-  });
+  // Outpass Records State (Dynamic API Integration)
+  const [outpassRecords, setOutpassRecords] = useState<OutpassItem[]>([]);
 
   useEffect(() => {
-    const syncOutpasses = () => {
+    const fetchOutpasses = async () => {
       try {
-        const saved = localStorage.getItem("edu_db_hostel_outpasses");
-        if (saved) {
-          const parsed = JSON.parse(saved);
-          if (Array.isArray(parsed)) {
-            setOutpassRecords(parsed);
-          }
-        }
-      } catch {}
+        const data = await getOutpasses();
+        setOutpassRecords(data || []);
+      } catch (err) {
+        console.warn("Failed to load outpasses:", err);
+      }
     };
 
-    window.addEventListener("hostel_outpasses_updated", syncOutpasses);
-    window.addEventListener("storage", syncOutpasses);
+    fetchOutpasses();
+    window.addEventListener("hostel_outpasses_updated", fetchOutpasses);
     return () => {
-      window.removeEventListener("hostel_outpasses_updated", syncOutpasses);
-      window.removeEventListener("storage", syncOutpasses);
+      window.removeEventListener("hostel_outpasses_updated", fetchOutpasses);
     };
   }, []);
 
@@ -286,7 +266,7 @@ export const WardenDashboardView: React.FC<WardenDashboardViewProps> = ({
     const allBlks = blocks.length > 0 ? blocks : contextBlocks;
     if (allBlks.length > 0) {
       return allBlks.map((b) => {
-        const total = Number((b as any).totalCapacity) || Number((b as any).capacity) || 12;
+        const total = Number((b as any).totalCapacity) || Number((b as any).capacity) || 0;
         const bAllocs = allocations.filter(a => String(a.hostelId) === String(b.hostelId || b.id) && (a.status === 'Active' || !a.status));
         const occupied = bAllocs.length > 0 ? bAllocs.length : ((b as any).occupiedBeds !== undefined ? (b as any).occupiedBeds : 0);
         
@@ -318,23 +298,20 @@ export const WardenDashboardView: React.FC<WardenDashboardViewProps> = ({
   // Assigned block name for the logged-in warden
   const assignedBlockName = useMemo(() => {
     if (targetBlocks.length > 0) {
-      return targetBlocks[0].name || (targetBlocks[0] as any).hostelName || 'Bhanu Block';
+      return targetBlocks[0].name || (targetBlocks[0] as any).hostelName || 'Hostel Facility';
     }
-    return 'Bhanu Block';
+    return 'Hostel Facility';
   }, [targetBlocks]);
 
   const displayName = useMemo(() => {
     return (user?.name || '').trim();
   }, [user]);
 
-  // Handle Approve / Reject Outpass directly from Dashboard
-  const handleUpdateOutpassStatus = (id: string | number, newStatus: "Approved" | "Rejected") => {
-    const updated = outpassRecords.map(item =>
-      item.id === id ? { ...item, status: newStatus } : item
-    );
-    setOutpassRecords(updated);
+  // Handle Approve / Reject Outpass directly from Dashboard (Server Sync)
+  const handleUpdateOutpassStatus = async (id: string | number, newStatus: "Approved" | "Rejected") => {
     try {
-      localStorage.setItem("edu_db_hostel_outpasses", JSON.stringify(updated));
+      await updateOutpassStatus(id, newStatus, displayName || "Hostel Warden");
+      setOutpassRecords(prev => prev.map(item => item.id === id ? { ...item, status: newStatus } : item));
       window.dispatchEvent(new Event("hostel_outpasses_updated"));
       addToast(
         newStatus === 'Approved' ? 'success' : 'info',
@@ -343,6 +320,7 @@ export const WardenDashboardView: React.FC<WardenDashboardViewProps> = ({
       );
     } catch (e) {
       console.error("Failed to update outpass status:", e);
+      addToast("Failed to update outpass status on server.", "error");
     }
   };
 

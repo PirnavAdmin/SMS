@@ -607,7 +607,7 @@ export const StudentHostelAssignmentView: React.FC = () => {
 
   const handleVacate = async (a: BedAllocation) => {
     try {
-      await vacateStudentAllocation(a.studentId, a.admissionNo, a.allocationId);
+      await vacateStudentAllocation(a.studentId, a.admissionNo, a.allocationId ? String(a.allocationId) : undefined);
       addToast('success', 'Room Vacated', 'The bed allocation has been vacated.');
       if (dataContext?.deleteStudentHostelAssignment && a.allocationId) {
         dataContext.deleteStudentHostelAssignment(String(a.allocationId));

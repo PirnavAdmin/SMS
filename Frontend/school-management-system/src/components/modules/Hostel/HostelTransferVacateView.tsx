@@ -3,12 +3,12 @@ import { ArrowRightLeft, Plus, Search, CheckCircle2, Trash2, ChevronDown } from 
 import { useData } from '../../../context/DataContext';
 import { useAuth } from '../../../context/AuthContext';
 import { useToast } from '../../../context/ToastContext';
-import { getHostelBlocks, getAllocations, vacateAllocation, createAllocation, updateStudentAllocationBlock, vacateStudentAllocation } from '../../../api/hostel';
+import { getHostelBlocks, getAllocations, vacateAllocation, createAllocation, updateStudentAllocationBlock, vacateStudentAllocation, getTransferVacateRequests, createTransferVacateRequest, deleteTransferVacateRequest } from '../../../api/hostel';
 import { SearchableSelect } from '../../common/SearchableSelect';
 import { ConfirmModal } from '../../common/ConfirmModal';
 
 interface TransferRecord {
-  id: number;
+  id: number | string;
   studentId?: string | number;
   studentName: string;
   admissionNo: string;
@@ -26,8 +26,6 @@ interface TransferRecord {
   refundableBalance?: number;
   feeAdjustmentMode?: string;
 }
-
-const TRANSFERS_STORE_KEY = 'edu_db_hostel_transfers';
 
 const DEFAULT_INITIAL_TRANSFERS: TransferRecord[] = [];
 
@@ -206,25 +204,24 @@ export const HostelTransferVacateView: React.FC = () => {
     return Array.from(new Set([...dynamicNames, ...fallbackNames]));
   }, [blocks]);
 
-  const [records, setRecords] = useState<TransferRecord[]>(() => {
-    if (typeof window !== 'undefined') {
-      const stored = localStorage.getItem(TRANSFERS_STORE_KEY);
-      if (stored) {
-        try {
-          const parsed = JSON.parse(stored);
-          if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-        } catch (e) {}
-      }
-    }
-    return DEFAULT_INITIAL_TRANSFERS;
-  });
+  const [records, setRecords] = useState<TransferRecord[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
 
-  const saveRecords = (newRecords: TransferRecord[]) => {
-    setRecords(newRecords);
-    if (typeof window !== 'undefined') {
-      localStorage.setItem(TRANSFERS_STORE_KEY, JSON.stringify(newRecords));
+  const loadTransfers = async () => {
+    try {
+      setIsLoading(true);
+      const data = await getTransferVacateRequests();
+      setRecords(data || []);
+    } catch (err) {
+      console.warn("Failed to load transfers from server:", err);
+    } finally {
+      setIsLoading(false);
     }
   };
+
+  useEffect(() => {
+    loadTransfers();
+  }, []);
 
   const [searchQuery, setSearchQuery] = useState('');
   const [filterAction, setFilterAction] = useState('');
@@ -317,7 +314,7 @@ export const HostelTransferVacateView: React.FC = () => {
       try {
         const allocs = await getAllocations();
         const matchAlloc = allocs.find(a => String(a.studentId) === String(selectedStudentId) || a.admissionNo === admNo);
-        await vacateStudentAllocation(selectedStudentId, admNo, matchAlloc?.allocationId);
+        await vacateStudentAllocation(selectedStudentId, admNo, matchAlloc?.allocationId ? String(matchAlloc.allocationId) : undefined);
       } catch (err) {
         console.error('Failed to vacate student allocation:', err);
       }
@@ -345,7 +342,19 @@ export const HostelTransferVacateView: React.FC = () => {
       } : {})
     };
 
-    saveRecords([newRecord, ...records]);
+    try {
+      await createTransferVacateRequest({
+        studentId: selectedStudentId,
+        studentName: stName,
+        actionType,
+        destinationHostelName: targetBlock,
+        destinationRoomNumber: targetRoom,
+        reason: reason || (actionType === 'Bed Vacate' ? 'Opted out to Non-Residential' : 'Personal request')
+      });
+      await loadTransfers();
+    } catch (e) {
+      setRecords(prev => [newRecord, ...prev]);
+    }
 
     try {
       const freshAllocs = await getAllocations();
@@ -358,16 +367,17 @@ export const HostelTransferVacateView: React.FC = () => {
     setActionType('');
   };
 
-  const handleApprove = (id: number) => {
-    const updated = records.map(r => r.id === id ? { ...r, status: 'Completed' as const } : r);
-    saveRecords(updated);
+  const handleApprove = (id: number | string) => {
+    setRecords(prev => prev.map(r => r.id === id ? { ...r, status: 'Completed' as const } : r));
     addToast('Transfer/Vacate request completed successfully. Bed released to available status.', 'success');
   };
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     if (!deletingRecord) return;
-    const updated = records.filter(r => r.id !== deletingRecord.id);
-    saveRecords(updated);
+    try {
+      await deleteTransferVacateRequest(deletingRecord.id);
+    } catch (e) {}
+    setRecords(prev => prev.filter(r => r.id !== deletingRecord.id));
     addToast('Record removed.', 'success');
     setDeletingRecord(null);
   };
