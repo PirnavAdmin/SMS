@@ -272,7 +272,7 @@ export const SettingsView: React.FC = () => {
     | "audit"
   >(() => {
     try {
-      const saved = localStorage.getItem("settings_active_tab");
+      const saved = sessionStorage.getItem("settings_active_tab") || localStorage.getItem("settings_active_tab");
       const validTabs = [
         "my-profile",
         "profile",
@@ -294,6 +294,7 @@ export const SettingsView: React.FC = () => {
     setActiveTabState(tab);
     try {
       localStorage.setItem("settings_active_tab", tab);
+      sessionStorage.setItem("settings_active_tab", tab);
     } catch {}
   };
 
@@ -664,6 +665,43 @@ export const SettingsView: React.FC = () => {
   });
 
   const [idForm, setIdForm] = useState<IdSequenceSettings>(() => getIdSequenceSettings());
+  const [editingIdCards, setEditingIdCards] = useState<Record<string, boolean>>({
+    student: false,
+    teaching: false,
+    nonTeaching: false,
+    admission: false,
+  });
+  const [idFormBackup, setIdFormBackup] = useState<IdSequenceSettings | null>(null);
+
+  const handleStartEditIdCard = (cardKey: string) => {
+    setIdFormBackup({ ...idForm });
+    setEditingIdCards(prev => ({ ...prev, [cardKey]: true }));
+  };
+
+  const handleCancelEditIdCard = (cardKey: string) => {
+    if (idFormBackup) {
+      setIdForm({ ...idFormBackup });
+      saveIdSequenceSettings(idFormBackup);
+    }
+    setEditingIdCards(prev => ({ ...prev, [cardKey]: false }));
+  };
+
+  const handleSaveIdCard = async (cardKey: string, cardTitle: string) => {
+    try {
+      setEditingIdCards({ student: false, teaching: false, nonTeaching: false, admission: false });
+                    saveIdSequenceSettings(idForm);
+      const res = await updateIdSequenceSettingsApi(idForm);
+      if (res && (res.success || res.data)) {
+        addToast("success", `${cardTitle} Saved`, "Format sequence updated successfully.");
+      } else {
+        addToast("success", `${cardTitle} Saved`, "Format sequence updated.");
+      }
+    } catch (err) {
+      console.warn("Error saving ID sequence settings to backend API:", err);
+      addToast("error", "Sync Warning", "Could not sync ID sequence settings to backend API.");
+    }
+    setEditingIdCards(prev => ({ ...prev, [cardKey]: false }));
+  };
 
   useEffect(() => {
     let isMounted = true;
@@ -2213,13 +2251,13 @@ export const SettingsView: React.FC = () => {
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200 dark:border-slate-800">
             <div>
               <h3 className="font-bold text-sm text-slate-900 dark:text-white flex items-center gap-2">
-                <Building2 className="w-4 h-4 text-indigo-600" /> Campus &
+                <Building2 className="w-4 h-4 text-sky-600 dark:text-sky-400" /> Campus &
                 Branch Master
               </h3>
             </div>
             <button
               onClick={handleOpenAddCampus}
-              className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs flex items-center gap-1.5 shadow-md transition-colors"
+              className="px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs flex items-center gap-1.5 shadow-md shadow-sky-500/20 transition-all cursor-pointer"
             >
               <Plus className="w-4 h-4" /> Add Campus Branch
             </button>
@@ -2232,7 +2270,7 @@ export const SettingsView: React.FC = () => {
                 className="glass-card p-5 rounded-3xl space-y-3 border border-slate-200 dark:border-slate-800 relative group"
               >
                 <div className="flex items-center justify-between">
-                  <span className="font-mono font-bold text-[10px] text-indigo-600 bg-indigo-50 dark:bg-indigo-950 px-2 py-0.5 rounded-md">
+                  <span className="font-mono font-bold text-[10px] text-sky-700 bg-sky-50 dark:text-sky-300 dark:bg-sky-950/80 border border-sky-200/80 dark:border-sky-800/60 px-2.5 py-0.5 rounded-md">
                     {campus.code}
                   </span>
                   <span
@@ -2278,7 +2316,7 @@ export const SettingsView: React.FC = () => {
                 <div className="pt-2 border-t border-slate-100 dark:border-slate-800 flex items-center justify-end gap-2">
                   <button
                     onClick={() => handleOpenEditCampus(campus)}
-                    className="p-1.5 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-950 rounded-lg transition-colors"
+                    className="p-1.5 text-slate-500 hover:text-sky-600 hover:bg-sky-50 dark:hover:bg-sky-950 rounded-lg transition-colors cursor-pointer"
                   >
                     <Edit className="w-4 h-4" />
                   </button>
@@ -2461,7 +2499,11 @@ export const SettingsView: React.FC = () => {
           {/* 2 Cards Per Row Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Card 1: Student ID */}
-            <div className="group relative p-6 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs hover:shadow-xl hover:-translate-y-1.5 hover:border-sky-400 dark:hover:border-sky-500 hover:shadow-sky-500/10 transition-all duration-300 ease-out space-y-4">
+            <div className={`group relative p-6 rounded-2xl bg-white dark:bg-slate-900 border transition-all duration-300 ease-out space-y-4 ${
+              editingIdCards.student
+                ? "ring-2 ring-sky-500/30 border-sky-400 dark:border-sky-500 shadow-md shadow-sky-500/10"
+                : "border-slate-200 dark:border-slate-800 shadow-xs"
+            }`}>
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2.5">
                   <div className="w-9 h-9 rounded-xl bg-sky-50 dark:bg-sky-950/60 text-sky-600 dark:text-sky-400 flex items-center justify-center border border-sky-100 dark:border-sky-900/40 group-hover:scale-110 transition-transform duration-200">
@@ -2472,9 +2514,40 @@ export const SettingsView: React.FC = () => {
                     <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">Automatic serial format for student enrollment</p>
                   </div>
                 </div>
-                <span className="px-2.5 py-1 rounded-full text-[11px] font-bold bg-sky-50 dark:bg-sky-950/60 text-sky-700 dark:text-sky-300 border border-sky-200 dark:border-sky-800/60">
-                  Student
-                </span>
+                <div className="flex items-center gap-2">
+                  <span className="px-2.5 py-1 rounded-full text-[11px] font-bold bg-sky-50 dark:bg-sky-950/60 text-sky-700 dark:text-sky-300 border border-sky-200 dark:border-sky-800/60">
+                    Student
+                  </span>
+                  {!editingIdCards.student ? (
+                    <button
+                      type="button"
+                      onClick={() => handleStartEditIdCard('student')}
+                      className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold text-sky-600 dark:text-sky-400 bg-sky-50 dark:bg-sky-950/50 hover:bg-sky-100 dark:hover:bg-sky-900/60 border border-sky-200 dark:border-sky-800 transition cursor-pointer"
+                      title="Edit Student ID sequence"
+                    >
+                      <Edit className="w-3.5 h-3.5" /> Edit
+                    </button>
+                  ) : (
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => handleCancelEditIdCard('student')}
+                        className="p-1 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700 transition cursor-pointer"
+                        title="Cancel"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleSaveIdCard('student', 'Student ID')}
+                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold text-white bg-sky-600 hover:bg-sky-500 shadow-xs transition cursor-pointer"
+                        title="Save changes"
+                      >
+                        <Check className="w-3.5 h-3.5" /> Save
+                      </button>
+                    </div>
+                  )}
+                </div>
               </div>
 
               {/* Black Live Preview Box */}
@@ -2492,6 +2565,7 @@ export const SettingsView: React.FC = () => {
                     <label className="block text-xs font-bold text-slate-600 dark:text-slate-300 mb-1.5">ID Prefix</label>
                     <input
                       type="text"
+                      disabled={!editingIdCards.student}
                       placeholder="e.g. STU"
                       value={idForm.studentIdPrefix || ""}
                       onChange={e => {
@@ -2499,19 +2573,28 @@ export const SettingsView: React.FC = () => {
                         setIdForm(next);
                         saveIdSequenceSettings(next);
                       }}
-                      className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 font-mono font-bold text-xs text-slate-900 dark:text-white focus:bg-white dark:focus:bg-slate-900 focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20 transition hover:border-slate-300 dark:hover:border-slate-600"
+                      className={`w-full px-3 py-2 rounded-xl border font-mono font-bold text-xs transition ${
+                        !editingIdCards.student
+                          ? "bg-slate-100/70 dark:bg-slate-800/40 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-800 cursor-not-allowed select-none"
+                          : "bg-slate-50 dark:bg-slate-800/80 border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:bg-white dark:focus:bg-slate-900 focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20 hover:border-slate-300 dark:hover:border-slate-600"
+                      }`}
                     />
                   </div>
                   <div>
                     <label className="block text-xs font-bold text-slate-600 dark:text-slate-300 mb-1.5">Tag Placement</label>
                     <select
+                      disabled={!editingIdCards.student}
                       value={idForm.studentIdPosition || ""}
                       onChange={e => {
                         const next = { ...idForm, studentIdPosition: e.target.value as any };
                         setIdForm(next);
                         saveIdSequenceSettings(next);
                       }}
-                      className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 font-semibold text-xs text-slate-900 dark:text-white focus:bg-white dark:focus:bg-slate-900 focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20 transition hover:border-slate-300 dark:hover:border-slate-600 cursor-pointer"
+                      className={`w-full px-3 py-2 rounded-xl border font-semibold text-xs transition ${
+                        !editingIdCards.student
+                          ? "bg-slate-100/70 dark:bg-slate-800/40 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-800 cursor-not-allowed select-none"
+                          : "bg-slate-50 dark:bg-slate-800/80 border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:bg-white dark:focus:bg-slate-900 focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20 hover:border-slate-300 dark:hover:border-slate-600 cursor-pointer"
+                      }`}
                     >
                       <option value="" disabled>Select Tag Placement</option>
                       <option value="start">Start (Prefix - Year - Number)</option>
@@ -2526,6 +2609,7 @@ export const SettingsView: React.FC = () => {
                     <label className="block text-xs font-bold text-slate-600 dark:text-slate-300 mb-1.5">Starting Number</label>
                     <input
                       type="number"
+                      disabled={!editingIdCards.student}
                       placeholder="e.g. 1"
                       value={idForm.studentIdStartNo || ""}
                       onChange={e => {
@@ -2534,19 +2618,28 @@ export const SettingsView: React.FC = () => {
                         setIdForm(next);
                         saveIdSequenceSettings(next);
                       }}
-                      className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 font-mono font-bold text-xs text-slate-900 dark:text-white focus:bg-white dark:focus:bg-slate-900 focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20 transition hover:border-slate-300 dark:hover:border-slate-600"
+                      className={`w-full px-3 py-2 rounded-xl border font-mono font-bold text-xs transition ${
+                        !editingIdCards.student
+                          ? "bg-slate-100/70 dark:bg-slate-800/40 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-800 cursor-not-allowed select-none"
+                          : "bg-slate-50 dark:bg-slate-800/80 border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:bg-white dark:focus:bg-slate-900 focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20 hover:border-slate-300 dark:hover:border-slate-600"
+                      }`}
                     />
                   </div>
                   <div>
                     <label className="block text-xs font-bold text-slate-600 dark:text-slate-300 mb-1.5">Digit Padding</label>
                     <select
+                      disabled={!editingIdCards.student}
                       value={idForm.studentIdPadding || ""}
                       onChange={e => {
                         const next = { ...idForm, studentIdPadding: e.target.value ? Number(e.target.value) : ("" as any) };
                         setIdForm(next);
                         saveIdSequenceSettings(next);
                       }}
-                      className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 font-semibold text-xs text-slate-900 dark:text-white focus:bg-white dark:focus:bg-slate-900 focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20 transition hover:border-slate-300 dark:hover:border-slate-600 cursor-pointer"
+                      className={`w-full px-3 py-2 rounded-xl border font-semibold text-xs transition ${
+                        !editingIdCards.student
+                          ? "bg-slate-100/70 dark:bg-slate-800/40 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-800 cursor-not-allowed select-none"
+                          : "bg-slate-50 dark:bg-slate-800/80 border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:bg-white dark:focus:bg-slate-900 focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20 hover:border-slate-300 dark:hover:border-slate-600 cursor-pointer"
+                      }`}
                     >
                       <option value="" disabled>Select Digit Padding</option>
                       <option value={3}>3 Digits (001)</option>
@@ -2561,13 +2654,18 @@ export const SettingsView: React.FC = () => {
                   <div>
                     <label className="block text-xs font-bold text-slate-600 dark:text-slate-300 mb-1.5">Separator Symbol</label>
                     <select
+                      disabled={!editingIdCards.student}
                       value={idForm.studentIdSeparator ?? ""}
                       onChange={e => {
                         const next = { ...idForm, studentIdSeparator: e.target.value };
                         setIdForm(next);
                         saveIdSequenceSettings(next);
                       }}
-                      className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 font-semibold text-xs text-slate-900 dark:text-white focus:bg-white dark:focus:bg-slate-900 focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20 transition hover:border-slate-300 dark:hover:border-slate-600 cursor-pointer"
+                      className={`w-full px-3 py-2 rounded-xl border font-semibold text-xs transition ${
+                        !editingIdCards.student
+                          ? "bg-slate-100/70 dark:bg-slate-800/40 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-800 cursor-not-allowed select-none"
+                          : "bg-slate-50 dark:bg-slate-800/80 border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:bg-white dark:focus:bg-slate-900 focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20 hover:border-slate-300 dark:hover:border-slate-600 cursor-pointer"
+                      }`}
                     >
                       <option value="" disabled>Select Separator Symbol</option>
                       <option value="-">Hyphen (-)</option>
@@ -2579,16 +2677,21 @@ export const SettingsView: React.FC = () => {
                   </div>
                   <div>
                     <label className="block text-xs font-bold text-slate-600 dark:text-slate-300 mb-1.5">Include Year</label>
-                    <label className="flex items-center gap-2 px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 cursor-pointer font-semibold text-xs text-slate-800 dark:text-slate-200 hover:border-slate-300 dark:hover:border-slate-600 transition">
+                    <label className={`flex items-center gap-2 px-3 py-2 rounded-xl border font-semibold text-xs transition ${
+                      !editingIdCards.student
+                        ? "bg-slate-100/70 dark:bg-slate-800/40 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-800 cursor-not-allowed select-none"
+                        : "bg-slate-50 dark:bg-slate-800/80 border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 hover:border-slate-300 dark:hover:border-slate-600 cursor-pointer"
+                    }`}>
                       <input
                         type="checkbox"
+                        disabled={!editingIdCards.student}
                         checked={idForm.studentIdIncludeYear}
                         onChange={e => {
                           const next = { ...idForm, studentIdIncludeYear: e.target.checked };
                           setIdForm(next);
                           saveIdSequenceSettings(next);
                         }}
-                        className="w-4 h-4 rounded text-sky-600 focus:ring-sky-500/20 cursor-pointer"
+                        className="w-4 h-4 rounded text-sky-600 focus:ring-sky-500/20 cursor-pointer disabled:cursor-not-allowed"
                       />
                       <span>Include Current Year</span>
                     </label>
@@ -2598,7 +2701,11 @@ export const SettingsView: React.FC = () => {
             </div>
 
             {/* Card 2: Teaching Staff ID */}
-            <div className="group relative p-6 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs hover:shadow-xl hover:-translate-y-1.5 hover:border-indigo-400 dark:hover:border-indigo-500 hover:shadow-indigo-500/10 transition-all duration-300 ease-out space-y-4">
+            <div className={`group relative p-6 rounded-2xl bg-white dark:bg-slate-900 border transition-all duration-300 ease-out space-y-4 ${
+              editingIdCards.teaching
+                ? "ring-2 ring-indigo-500/30 border-indigo-400 dark:border-indigo-500 shadow-md shadow-indigo-500/10"
+                : "border-slate-200 dark:border-slate-800 shadow-xs"
+            }`}>
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2.5">
                   <div className="w-9 h-9 rounded-xl bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 flex items-center justify-center border border-indigo-100 dark:border-indigo-900/40 group-hover:scale-110 transition-transform duration-200">
@@ -2609,9 +2716,40 @@ export const SettingsView: React.FC = () => {
                     <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">Automatic serial format for faculty & teachers</p>
                   </div>
                 </div>
-                <span className="px-2.5 py-1 rounded-full text-[11px] font-bold bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800/60">
-                  Teaching Staff
-                </span>
+                <div className="flex items-center gap-2">
+                  <span className="px-2.5 py-1 rounded-full text-[11px] font-bold bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800/60">
+                    Teaching Staff
+                  </span>
+                  {!editingIdCards.teaching ? (
+                    <button
+                      type="button"
+                      onClick={() => handleStartEditIdCard('teaching')}
+                      className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/50 hover:bg-indigo-100 dark:hover:bg-indigo-900/60 border border-indigo-200 dark:border-indigo-800 transition cursor-pointer"
+                      title="Edit Teaching Staff ID sequence"
+                    >
+                      <Edit className="w-3.5 h-3.5" /> Edit
+                    </button>
+                  ) : (
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => handleCancelEditIdCard('teaching')}
+                        className="p-1 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700 transition cursor-pointer"
+                        title="Cancel"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleSaveIdCard('teaching', 'Teaching Staff ID')}
+                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-500 shadow-xs transition cursor-pointer"
+                        title="Save changes"
+                      >
+                        <Check className="w-3.5 h-3.5" /> Save
+                      </button>
+                    </div>
+                  )}
+                </div>
               </div>
 
               {/* Black Live Preview Box */}
@@ -2629,6 +2767,7 @@ export const SettingsView: React.FC = () => {
                     <label className="block text-xs font-bold text-slate-600 dark:text-slate-300 mb-1.5">ID Prefix</label>
                     <input
                       type="text"
+                      disabled={!editingIdCards.teaching}
                       placeholder="e.g. TCH"
                       value={idForm.teachingIdPrefix || ""}
                       onChange={e => {
@@ -2636,19 +2775,28 @@ export const SettingsView: React.FC = () => {
                         setIdForm(next);
                         saveIdSequenceSettings(next);
                       }}
-                      className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 font-mono font-bold text-xs text-slate-900 dark:text-white focus:bg-white dark:focus:bg-slate-900 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition hover:border-slate-300 dark:hover:border-slate-600"
+                      className={`w-full px-3 py-2 rounded-xl border font-mono font-bold text-xs transition ${
+                        !editingIdCards.teaching
+                          ? "bg-slate-100/70 dark:bg-slate-800/40 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-800 cursor-not-allowed select-none"
+                          : "bg-slate-50 dark:bg-slate-800/80 border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:bg-white dark:focus:bg-slate-900 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 hover:border-slate-300 dark:hover:border-slate-600"
+                      }`}
                     />
                   </div>
                   <div>
                     <label className="block text-xs font-bold text-slate-600 dark:text-slate-300 mb-1.5">Tag Placement</label>
                     <select
+                      disabled={!editingIdCards.teaching}
                       value={idForm.teachingIdPosition || ""}
                       onChange={e => {
                         const next = { ...idForm, teachingIdPosition: e.target.value as any };
                         setIdForm(next);
                         saveIdSequenceSettings(next);
                       }}
-                      className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 font-semibold text-xs text-slate-900 dark:text-white focus:bg-white dark:focus:bg-slate-900 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition hover:border-slate-300 dark:hover:border-slate-600 cursor-pointer"
+                      className={`w-full px-3 py-2 rounded-xl border font-semibold text-xs transition ${
+                        !editingIdCards.teaching
+                          ? "bg-slate-100/70 dark:bg-slate-800/40 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-800 cursor-not-allowed select-none"
+                          : "bg-slate-50 dark:bg-slate-800/80 border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:bg-white dark:focus:bg-slate-900 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 hover:border-slate-300 dark:hover:border-slate-600 cursor-pointer"
+                      }`}
                     >
                       <option value="" disabled>Select Tag Placement</option>
                       <option value="start">Start (Prefix - Year - Number)</option>
@@ -2663,6 +2811,7 @@ export const SettingsView: React.FC = () => {
                     <label className="block text-xs font-bold text-slate-600 dark:text-slate-300 mb-1.5">Starting Number</label>
                     <input
                       type="number"
+                      disabled={!editingIdCards.teaching}
                       placeholder="e.g. 1"
                       value={idForm.teachingIdStartNo || ""}
                       onChange={e => {
@@ -2671,19 +2820,28 @@ export const SettingsView: React.FC = () => {
                         setIdForm(next);
                         saveIdSequenceSettings(next);
                       }}
-                      className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 font-mono font-bold text-xs text-slate-900 dark:text-white focus:bg-white dark:focus:bg-slate-900 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition hover:border-slate-300 dark:hover:border-slate-600"
+                      className={`w-full px-3 py-2 rounded-xl border font-mono font-bold text-xs transition ${
+                        !editingIdCards.teaching
+                          ? "bg-slate-100/70 dark:bg-slate-800/40 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-800 cursor-not-allowed select-none"
+                          : "bg-slate-50 dark:bg-slate-800/80 border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:bg-white dark:focus:bg-slate-900 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 hover:border-slate-300 dark:hover:border-slate-600"
+                      }`}
                     />
                   </div>
                   <div>
                     <label className="block text-xs font-bold text-slate-600 dark:text-slate-300 mb-1.5">Digit Padding</label>
                     <select
+                      disabled={!editingIdCards.teaching}
                       value={idForm.teachingIdPadding || ""}
                       onChange={e => {
                         const next = { ...idForm, teachingIdPadding: e.target.value ? Number(e.target.value) : ("" as any) };
                         setIdForm(next);
                         saveIdSequenceSettings(next);
                       }}
-                      className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 font-semibold text-xs text-slate-900 dark:text-white focus:bg-white dark:focus:bg-slate-900 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition hover:border-slate-300 dark:hover:border-slate-600 cursor-pointer"
+                      className={`w-full px-3 py-2 rounded-xl border font-semibold text-xs transition ${
+                        !editingIdCards.teaching
+                          ? "bg-slate-100/70 dark:bg-slate-800/40 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-800 cursor-not-allowed select-none"
+                          : "bg-slate-50 dark:bg-slate-800/80 border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:bg-white dark:focus:bg-slate-900 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 hover:border-slate-300 dark:hover:border-slate-600 cursor-pointer"
+                      }`}
                     >
                       <option value="" disabled>Select Digit Padding</option>
                       <option value={3}>3 Digits (001)</option>
@@ -2698,13 +2856,18 @@ export const SettingsView: React.FC = () => {
                   <div>
                     <label className="block text-xs font-bold text-slate-600 dark:text-slate-300 mb-1.5">Separator Symbol</label>
                     <select
+                      disabled={!editingIdCards.teaching}
                       value={idForm.teachingIdSeparator ?? ""}
                       onChange={e => {
                         const next = { ...idForm, teachingIdSeparator: e.target.value };
                         setIdForm(next);
                         saveIdSequenceSettings(next);
                       }}
-                      className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 font-semibold text-xs text-slate-900 dark:text-white focus:bg-white dark:focus:bg-slate-900 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition hover:border-slate-300 dark:hover:border-slate-600 cursor-pointer"
+                      className={`w-full px-3 py-2 rounded-xl border font-semibold text-xs transition ${
+                        !editingIdCards.teaching
+                          ? "bg-slate-100/70 dark:bg-slate-800/40 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-800 cursor-not-allowed select-none"
+                          : "bg-slate-50 dark:bg-slate-800/80 border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:bg-white dark:focus:bg-slate-900 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 hover:border-slate-300 dark:hover:border-slate-600 cursor-pointer"
+                      }`}
                     >
                       <option value="" disabled>Select Separator Symbol</option>
                       <option value="-">Hyphen (-)</option>
@@ -2716,16 +2879,21 @@ export const SettingsView: React.FC = () => {
                   </div>
                   <div>
                     <label className="block text-xs font-bold text-slate-600 dark:text-slate-300 mb-1.5">Include Year</label>
-                    <label className="flex items-center gap-2 px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 cursor-pointer font-semibold text-xs text-slate-800 dark:text-slate-200 hover:border-slate-300 dark:hover:border-slate-600 transition">
+                    <label className={`flex items-center gap-2 px-3 py-2 rounded-xl border font-semibold text-xs transition ${
+                      !editingIdCards.teaching
+                        ? "bg-slate-100/70 dark:bg-slate-800/40 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-800 cursor-not-allowed select-none"
+                        : "bg-slate-50 dark:bg-slate-800/80 border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 hover:border-slate-300 dark:hover:border-slate-600 cursor-pointer"
+                    }`}>
                       <input
                         type="checkbox"
+                        disabled={!editingIdCards.teaching}
                         checked={idForm.teachingIdIncludeYear}
                         onChange={e => {
                           const next = { ...idForm, teachingIdIncludeYear: e.target.checked };
                           setIdForm(next);
                           saveIdSequenceSettings(next);
                         }}
-                        className="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500/20 cursor-pointer"
+                        className="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500/20 cursor-pointer disabled:cursor-not-allowed"
                       />
                       <span>Include Current Year</span>
                     </label>
@@ -2735,7 +2903,11 @@ export const SettingsView: React.FC = () => {
             </div>
 
             {/* Card 3: Non-Teaching Staff ID */}
-            <div className="group relative p-6 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs hover:shadow-xl hover:-translate-y-1.5 hover:border-fuchsia-400 dark:hover:border-fuchsia-500 hover:shadow-fuchsia-500/10 transition-all duration-300 ease-out space-y-4">
+            <div className={`group relative p-6 rounded-2xl bg-white dark:bg-slate-900 border transition-all duration-300 ease-out space-y-4 ${
+              editingIdCards.nonTeaching
+                ? "ring-2 ring-fuchsia-500/30 border-fuchsia-400 dark:border-fuchsia-500 shadow-md shadow-fuchsia-500/10"
+                : "border-slate-200 dark:border-slate-800 shadow-xs"
+            }`}>
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2.5">
                   <div className="w-9 h-9 rounded-xl bg-fuchsia-50 dark:bg-fuchsia-950/60 text-fuchsia-600 dark:text-fuchsia-400 flex items-center justify-center border border-fuchsia-100 dark:border-fuchsia-900/40 group-hover:scale-110 transition-transform duration-200">
@@ -2746,9 +2918,40 @@ export const SettingsView: React.FC = () => {
                     <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">Automatic serial format for administrative & support staff</p>
                   </div>
                 </div>
-                <span className="px-2.5 py-1 rounded-full text-[11px] font-bold bg-fuchsia-50 dark:bg-fuchsia-950/60 text-fuchsia-700 dark:text-fuchsia-300 border border-fuchsia-200 dark:border-fuchsia-800/60">
-                  Non-Teaching
-                </span>
+                <div className="flex items-center gap-2">
+                  <span className="px-2.5 py-1 rounded-full text-[11px] font-bold bg-fuchsia-50 dark:bg-fuchsia-950/60 text-fuchsia-700 dark:text-fuchsia-300 border border-fuchsia-200 dark:border-fuchsia-800/60">
+                    Non-Teaching
+                  </span>
+                  {!editingIdCards.nonTeaching ? (
+                    <button
+                      type="button"
+                      onClick={() => handleStartEditIdCard('nonTeaching')}
+                      className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold text-fuchsia-600 dark:text-fuchsia-400 bg-fuchsia-50 dark:bg-fuchsia-950/50 hover:bg-fuchsia-100 dark:hover:bg-fuchsia-900/60 border border-fuchsia-200 dark:border-fuchsia-800 transition cursor-pointer"
+                      title="Edit Non-Teaching Staff ID sequence"
+                    >
+                      <Edit className="w-3.5 h-3.5" /> Edit
+                    </button>
+                  ) : (
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => handleCancelEditIdCard('nonTeaching')}
+                        className="p-1 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700 transition cursor-pointer"
+                        title="Cancel"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleSaveIdCard('nonTeaching', 'Non-Teaching Staff ID')}
+                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold text-white bg-fuchsia-600 hover:bg-fuchsia-500 shadow-xs transition cursor-pointer"
+                        title="Save changes"
+                      >
+                        <Check className="w-3.5 h-3.5" /> Save
+                      </button>
+                    </div>
+                  )}
+                </div>
               </div>
 
               {/* Black Live Preview Box */}
@@ -2766,6 +2969,7 @@ export const SettingsView: React.FC = () => {
                     <label className="block text-xs font-bold text-slate-600 dark:text-slate-300 mb-1.5">ID Prefix</label>
                     <input
                       type="text"
+                      disabled={!editingIdCards.nonTeaching}
                       placeholder="e.g. NTS"
                       value={idForm.nonTeachingIdPrefix || ""}
                       onChange={e => {
@@ -2773,19 +2977,28 @@ export const SettingsView: React.FC = () => {
                         setIdForm(next);
                         saveIdSequenceSettings(next);
                       }}
-                      className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 font-mono font-bold text-xs text-slate-900 dark:text-white focus:bg-white dark:focus:bg-slate-900 focus:border-fuchsia-500 focus:ring-2 focus:ring-fuchsia-500/20 transition hover:border-slate-300 dark:hover:border-slate-600"
+                      className={`w-full px-3 py-2 rounded-xl border font-mono font-bold text-xs transition ${
+                        !editingIdCards.nonTeaching
+                          ? "bg-slate-100/70 dark:bg-slate-800/40 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-800 cursor-not-allowed select-none"
+                          : "bg-slate-50 dark:bg-slate-800/80 border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:bg-white dark:focus:bg-slate-900 focus:border-fuchsia-500 focus:ring-2 focus:ring-fuchsia-500/20 hover:border-slate-300 dark:hover:border-slate-600"
+                      }`}
                     />
                   </div>
                   <div>
                     <label className="block text-xs font-bold text-slate-600 dark:text-slate-300 mb-1.5">Tag Placement</label>
                     <select
+                      disabled={!editingIdCards.nonTeaching}
                       value={idForm.nonTeachingIdPosition || ""}
                       onChange={e => {
                         const next = { ...idForm, nonTeachingIdPosition: e.target.value as any };
                         setIdForm(next);
                         saveIdSequenceSettings(next);
                       }}
-                      className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 font-semibold text-xs text-slate-900 dark:text-white focus:bg-white dark:focus:bg-slate-900 focus:border-fuchsia-500 focus:ring-2 focus:ring-fuchsia-500/20 transition hover:border-slate-300 dark:hover:border-slate-600 cursor-pointer"
+                      className={`w-full px-3 py-2 rounded-xl border font-semibold text-xs transition ${
+                        !editingIdCards.nonTeaching
+                          ? "bg-slate-100/70 dark:bg-slate-800/40 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-800 cursor-not-allowed select-none"
+                          : "bg-slate-50 dark:bg-slate-800/80 border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:bg-white dark:focus:bg-slate-900 focus:border-fuchsia-500 focus:ring-2 focus:ring-fuchsia-500/20 hover:border-slate-300 dark:hover:border-slate-600 cursor-pointer"
+                      }`}
                     >
                       <option value="" disabled>Select Tag Placement</option>
                       <option value="start">Start (Prefix - Year - Number)</option>
@@ -2800,6 +3013,7 @@ export const SettingsView: React.FC = () => {
                     <label className="block text-xs font-bold text-slate-600 dark:text-slate-300 mb-1.5">Starting Number</label>
                     <input
                       type="number"
+                      disabled={!editingIdCards.nonTeaching}
                       placeholder="e.g. 1"
                       value={idForm.nonTeachingIdStartNo || ""}
                       onChange={e => {
@@ -2808,19 +3022,28 @@ export const SettingsView: React.FC = () => {
                         setIdForm(next);
                         saveIdSequenceSettings(next);
                       }}
-                      className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 font-mono font-bold text-xs text-slate-900 dark:text-white focus:bg-white dark:focus:bg-slate-900 focus:border-fuchsia-500 focus:ring-2 focus:ring-fuchsia-500/20 transition hover:border-slate-300 dark:hover:border-slate-600"
+                      className={`w-full px-3 py-2 rounded-xl border font-mono font-bold text-xs transition ${
+                        !editingIdCards.nonTeaching
+                          ? "bg-slate-100/70 dark:bg-slate-800/40 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-800 cursor-not-allowed select-none"
+                          : "bg-slate-50 dark:bg-slate-800/80 border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:bg-white dark:focus:bg-slate-900 focus:border-fuchsia-500 focus:ring-2 focus:ring-fuchsia-500/20 hover:border-slate-300 dark:hover:border-slate-600"
+                      }`}
                     />
                   </div>
                   <div>
                     <label className="block text-xs font-bold text-slate-600 dark:text-slate-300 mb-1.5">Digit Padding</label>
                     <select
+                      disabled={!editingIdCards.nonTeaching}
                       value={idForm.nonTeachingIdPadding || ""}
                       onChange={e => {
                         const next = { ...idForm, nonTeachingIdPadding: e.target.value ? Number(e.target.value) : ("" as any) };
                         setIdForm(next);
                         saveIdSequenceSettings(next);
                       }}
-                      className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 font-semibold text-xs text-slate-900 dark:text-white focus:bg-white dark:focus:bg-slate-900 focus:border-fuchsia-500 focus:ring-2 focus:ring-fuchsia-500/20 transition hover:border-slate-300 dark:hover:border-slate-600 cursor-pointer"
+                      className={`w-full px-3 py-2 rounded-xl border font-semibold text-xs transition ${
+                        !editingIdCards.nonTeaching
+                          ? "bg-slate-100/70 dark:bg-slate-800/40 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-800 cursor-not-allowed select-none"
+                          : "bg-slate-50 dark:bg-slate-800/80 border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:bg-white dark:focus:bg-slate-900 focus:border-fuchsia-500 focus:ring-2 focus:ring-fuchsia-500/20 hover:border-slate-300 dark:hover:border-slate-600 cursor-pointer"
+                      }`}
                     >
                       <option value="" disabled>Select Digit Padding</option>
                       <option value={3}>3 Digits (001)</option>
@@ -2835,13 +3058,18 @@ export const SettingsView: React.FC = () => {
                   <div>
                     <label className="block text-xs font-bold text-slate-600 dark:text-slate-300 mb-1.5">Separator Symbol</label>
                     <select
+                      disabled={!editingIdCards.nonTeaching}
                       value={idForm.nonTeachingIdSeparator ?? ""}
                       onChange={e => {
                         const next = { ...idForm, nonTeachingIdSeparator: e.target.value };
                         setIdForm(next);
                         saveIdSequenceSettings(next);
                       }}
-                      className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 font-semibold text-xs text-slate-900 dark:text-white focus:bg-white dark:focus:bg-slate-900 focus:border-fuchsia-500 focus:ring-2 focus:ring-fuchsia-500/20 transition hover:border-slate-300 dark:hover:border-slate-600 cursor-pointer"
+                      className={`w-full px-3 py-2 rounded-xl border font-semibold text-xs transition ${
+                        !editingIdCards.nonTeaching
+                          ? "bg-slate-100/70 dark:bg-slate-800/40 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-800 cursor-not-allowed select-none"
+                          : "bg-slate-50 dark:bg-slate-800/80 border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:bg-white dark:focus:bg-slate-900 focus:border-fuchsia-500 focus:ring-2 focus:ring-fuchsia-500/20 hover:border-slate-300 dark:hover:border-slate-600 cursor-pointer"
+                      }`}
                     >
                       <option value="" disabled>Select Separator Symbol</option>
                       <option value="-">Hyphen (-)</option>
@@ -2853,16 +3081,21 @@ export const SettingsView: React.FC = () => {
                   </div>
                   <div>
                     <label className="block text-xs font-bold text-slate-600 dark:text-slate-300 mb-1.5">Include Year</label>
-                    <label className="flex items-center gap-2 px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 cursor-pointer font-semibold text-xs text-slate-800 dark:text-slate-200 hover:border-slate-300 dark:hover:border-slate-600 transition">
+                    <label className={`flex items-center gap-2 px-3 py-2 rounded-xl border font-semibold text-xs transition ${
+                      !editingIdCards.nonTeaching
+                        ? "bg-slate-100/70 dark:bg-slate-800/40 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-800 cursor-not-allowed select-none"
+                        : "bg-slate-50 dark:bg-slate-800/80 border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 hover:border-slate-300 dark:hover:border-slate-600 cursor-pointer"
+                    }`}>
                       <input
                         type="checkbox"
+                        disabled={!editingIdCards.nonTeaching}
                         checked={idForm.nonTeachingIdIncludeYear}
                         onChange={e => {
                           const next = { ...idForm, nonTeachingIdIncludeYear: e.target.checked };
                           setIdForm(next);
                           saveIdSequenceSettings(next);
                         }}
-                        className="w-4 h-4 rounded text-fuchsia-600 focus:ring-fuchsia-500/20 cursor-pointer"
+                        className="w-4 h-4 rounded text-fuchsia-600 focus:ring-fuchsia-500/20 cursor-pointer disabled:cursor-not-allowed"
                       />
                       <span>Include Current Year</span>
                     </label>
@@ -2872,7 +3105,11 @@ export const SettingsView: React.FC = () => {
             </div>
 
             {/* Card 4: Admission No */}
-            <div className="group relative p-6 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs hover:shadow-xl hover:-translate-y-1.5 hover:border-emerald-400 dark:hover:border-emerald-500 hover:shadow-emerald-500/10 transition-all duration-300 ease-out space-y-4">
+            <div className={`group relative p-6 rounded-2xl bg-white dark:bg-slate-900 border transition-all duration-300 ease-out space-y-4 ${
+              editingIdCards.admission
+                ? "ring-2 ring-emerald-500/30 border-emerald-400 dark:border-emerald-500 shadow-md shadow-emerald-500/10"
+                : "border-slate-200 dark:border-slate-800 shadow-xs"
+            }`}>
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2.5">
                   <div className="w-9 h-9 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center border border-emerald-100 dark:border-emerald-900/40 group-hover:scale-110 transition-transform duration-200">
@@ -2883,9 +3120,40 @@ export const SettingsView: React.FC = () => {
                     <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">Automatic serial format for new student admissions</p>
                   </div>
                 </div>
-                <span className="px-2.5 py-1 rounded-full text-[11px] font-bold bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800/60">
-                  Admission No
-                </span>
+                <div className="flex items-center gap-2">
+                  <span className="px-2.5 py-1 rounded-full text-[11px] font-bold bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800/60">
+                    Admission No
+                  </span>
+                  {!editingIdCards.admission ? (
+                    <button
+                      type="button"
+                      onClick={() => handleStartEditIdCard('admission')}
+                      className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/50 hover:bg-emerald-100 dark:hover:bg-emerald-900/60 border border-emerald-200 dark:border-emerald-800 transition cursor-pointer"
+                      title="Edit Admission Number sequence"
+                    >
+                      <Edit className="w-3.5 h-3.5" /> Edit
+                    </button>
+                  ) : (
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => handleCancelEditIdCard('admission')}
+                        className="p-1 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700 transition cursor-pointer"
+                        title="Cancel"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleSaveIdCard('admission', 'Admission Number')}
+                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-500 shadow-xs transition cursor-pointer"
+                        title="Save changes"
+                      >
+                        <Check className="w-3.5 h-3.5" /> Save
+                      </button>
+                    </div>
+                  )}
+                </div>
               </div>
 
               {/* Black Live Preview Box */}
@@ -2903,6 +3171,7 @@ export const SettingsView: React.FC = () => {
                     <label className="block text-xs font-bold text-slate-600 dark:text-slate-300 mb-1.5">Admission Prefix</label>
                     <input
                       type="text"
+                      disabled={!editingIdCards.admission}
                       placeholder="e.g. ADM"
                       value={idForm.admissionNoPrefix || ""}
                       onChange={e => {
@@ -2910,19 +3179,28 @@ export const SettingsView: React.FC = () => {
                         setIdForm(next);
                         saveIdSequenceSettings(next);
                       }}
-                      className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 font-mono font-bold text-xs text-slate-900 dark:text-white focus:bg-white dark:focus:bg-slate-900 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition hover:border-slate-300 dark:hover:border-slate-600"
+                      className={`w-full px-3 py-2 rounded-xl border font-mono font-bold text-xs transition ${
+                        !editingIdCards.admission
+                          ? "bg-slate-100/70 dark:bg-slate-800/40 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-800 cursor-not-allowed select-none"
+                          : "bg-slate-50 dark:bg-slate-800/80 border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:bg-white dark:focus:bg-slate-900 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 hover:border-slate-300 dark:hover:border-slate-600"
+                      }`}
                     />
                   </div>
                   <div>
                     <label className="block text-xs font-bold text-slate-600 dark:text-slate-300 mb-1.5">Tag Placement</label>
                     <select
+                      disabled={!editingIdCards.admission}
                       value={idForm.admissionNoPosition || ""}
                       onChange={e => {
                         const next = { ...idForm, admissionNoPosition: e.target.value as any };
                         setIdForm(next);
                         saveIdSequenceSettings(next);
                       }}
-                      className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 font-semibold text-xs text-slate-900 dark:text-white focus:bg-white dark:focus:bg-slate-900 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition hover:border-slate-300 dark:hover:border-slate-600 cursor-pointer"
+                      className={`w-full px-3 py-2 rounded-xl border font-semibold text-xs transition ${
+                        !editingIdCards.admission
+                          ? "bg-slate-100/70 dark:bg-slate-800/40 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-800 cursor-not-allowed select-none"
+                          : "bg-slate-50 dark:bg-slate-800/80 border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:bg-white dark:focus:bg-slate-900 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 hover:border-slate-300 dark:hover:border-slate-600 cursor-pointer"
+                      }`}
                     >
                       <option value="" disabled>Select Tag Placement</option>
                       <option value="start">Start (Prefix - Year - Number)</option>
@@ -2937,6 +3215,7 @@ export const SettingsView: React.FC = () => {
                     <label className="block text-xs font-bold text-slate-600 dark:text-slate-300 mb-1.5">Starting Number</label>
                     <input
                       type="number"
+                      disabled={!editingIdCards.admission}
                       placeholder="e.g. 1"
                       value={idForm.admissionNoStartNo || ""}
                       onChange={e => {
@@ -2945,19 +3224,28 @@ export const SettingsView: React.FC = () => {
                         setIdForm(next);
                         saveIdSequenceSettings(next);
                       }}
-                      className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 font-mono font-bold text-xs text-slate-900 dark:text-white focus:bg-white dark:focus:bg-slate-900 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition hover:border-slate-300 dark:hover:border-slate-600"
+                      className={`w-full px-3 py-2 rounded-xl border font-mono font-bold text-xs transition ${
+                        !editingIdCards.admission
+                          ? "bg-slate-100/70 dark:bg-slate-800/40 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-800 cursor-not-allowed select-none"
+                          : "bg-slate-50 dark:bg-slate-800/80 border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:bg-white dark:focus:bg-slate-900 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 hover:border-slate-300 dark:hover:border-slate-600"
+                      }`}
                     />
                   </div>
                   <div>
                     <label className="block text-xs font-bold text-slate-600 dark:text-slate-300 mb-1.5">Digit Padding</label>
                     <select
+                      disabled={!editingIdCards.admission}
                       value={idForm.admissionNoPadding || ""}
                       onChange={e => {
                         const next = { ...idForm, admissionNoPadding: e.target.value ? Number(e.target.value) : ("" as any) };
                         setIdForm(next);
                         saveIdSequenceSettings(next);
                       }}
-                      className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 font-semibold text-xs text-slate-900 dark:text-white focus:bg-white dark:focus:bg-slate-900 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition hover:border-slate-300 dark:hover:border-slate-600 cursor-pointer"
+                      className={`w-full px-3 py-2 rounded-xl border font-semibold text-xs transition ${
+                        !editingIdCards.admission
+                          ? "bg-slate-100/70 dark:bg-slate-800/40 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-800 cursor-not-allowed select-none"
+                          : "bg-slate-50 dark:bg-slate-800/80 border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:bg-white dark:focus:bg-slate-900 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 hover:border-slate-300 dark:hover:border-slate-600 cursor-pointer"
+                      }`}
                     >
                       <option value="" disabled>Select Digit Padding</option>
                       <option value={3}>3 Digits (001)</option>
@@ -2972,13 +3260,18 @@ export const SettingsView: React.FC = () => {
                   <div>
                     <label className="block text-xs font-bold text-slate-600 dark:text-slate-300 mb-1.5">Separator Symbol</label>
                     <select
+                      disabled={!editingIdCards.admission}
                       value={idForm.admissionNoSeparator ?? ""}
                       onChange={e => {
                         const next = { ...idForm, admissionNoSeparator: e.target.value };
                         setIdForm(next);
                         saveIdSequenceSettings(next);
                       }}
-                      className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 font-semibold text-xs text-slate-900 dark:text-white focus:bg-white dark:focus:bg-slate-900 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition hover:border-slate-300 dark:hover:border-slate-600 cursor-pointer"
+                      className={`w-full px-3 py-2 rounded-xl border font-semibold text-xs transition ${
+                        !editingIdCards.admission
+                          ? "bg-slate-100/70 dark:bg-slate-800/40 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-800 cursor-not-allowed select-none"
+                          : "bg-slate-50 dark:bg-slate-800/80 border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:bg-white dark:focus:bg-slate-900 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 hover:border-slate-300 dark:hover:border-slate-600 cursor-pointer"
+                      }`}
                     >
                       <option value="" disabled>Select Separator Symbol</option>
                       <option value="-">Hyphen (-)</option>
@@ -2990,16 +3283,21 @@ export const SettingsView: React.FC = () => {
                   </div>
                   <div>
                     <label className="block text-xs font-bold text-slate-600 dark:text-slate-300 mb-1.5">Include Year</label>
-                    <label className="flex items-center gap-2 px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 cursor-pointer font-semibold text-xs text-slate-800 dark:text-slate-200 hover:border-slate-300 dark:hover:border-slate-600 transition">
+                    <label className={`flex items-center gap-2 px-3 py-2 rounded-xl border font-semibold text-xs transition ${
+                      !editingIdCards.admission
+                        ? "bg-slate-100/70 dark:bg-slate-800/40 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-800 cursor-not-allowed select-none"
+                        : "bg-slate-50 dark:bg-slate-800/80 border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 hover:border-slate-300 dark:hover:border-slate-600 cursor-pointer"
+                    }`}>
                       <input
                         type="checkbox"
+                        disabled={!editingIdCards.admission}
                         checked={idForm.admissionNoIncludeYear}
                         onChange={e => {
                           const next = { ...idForm, admissionNoIncludeYear: e.target.checked };
                           setIdForm(next);
                           saveIdSequenceSettings(next);
                         }}
-                        className="w-4 h-4 rounded text-emerald-600 focus:ring-emerald-500/20 cursor-pointer"
+                        className="w-4 h-4 rounded text-emerald-600 focus:ring-emerald-500/20 cursor-pointer disabled:cursor-not-allowed"
                       />
                       <span>Include Current Year</span>
                     </label>
@@ -3329,7 +3627,7 @@ export const SettingsView: React.FC = () => {
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold shadow-md"
+                  className="px-5 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-bold shadow-md shadow-sky-500/20 transition-all cursor-pointer"
                 >
                   Save Campus
                 </button>

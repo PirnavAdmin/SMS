@@ -85,10 +85,12 @@ const MainLayout: React.FC = () => {
   const { staff, driverMasters, students, admissions } = useData();
   const [activeModule, setActiveModuleState] = useState<string>(() => {
     try {
-      const resume = localStorage.getItem("session_resume_module");
+      const isTimeout = localStorage.getItem("session_timeout_occurred") === "true";
+      const resume = isTimeout ? localStorage.getItem("session_resume_module") : null;
       if (resume && resume !== "dashboard") {
         localStorage.setItem("active_module", resume);
         localStorage.removeItem("session_resume_module");
+        localStorage.removeItem("session_timeout_occurred");
         return resume;
       }
       const saved = localStorage.getItem("active_module");
@@ -233,11 +235,18 @@ const MainLayout: React.FC = () => {
     if (!isAuthenticated) {
       if (prevAuthenticated.current) {
         // User transitioned from authenticated -> logged out or session expired
-        const resumeMod = localStorage.getItem("session_resume_module") || localStorage.getItem("active_module");
+        const isTimeout = localStorage.getItem("session_timeout_occurred") === "true";
         setActiveModuleState("dashboard");
         try {
-          if (resumeMod && resumeMod !== "dashboard") {
-            localStorage.setItem("session_resume_module", resumeMod);
+          if (isTimeout) {
+            const resumeMod = localStorage.getItem("session_resume_module") || localStorage.getItem("active_module");
+            if (resumeMod && resumeMod !== "dashboard") {
+              localStorage.setItem("session_resume_module", resumeMod);
+            }
+          } else {
+            localStorage.removeItem("session_resume_module");
+            localStorage.removeItem("settings_active_tab");
+            try { sessionStorage.removeItem("settings_active_tab"); } catch {}
           }
           localStorage.setItem("active_module", "dashboard");
           if (window.location.hash !== "#login") {
@@ -248,12 +257,18 @@ const MainLayout: React.FC = () => {
       }
     } else {
       if (!prevAuthenticated.current) {
-        const resumeMod = localStorage.getItem("session_resume_module") || localStorage.getItem("active_module");
+        const isTimeout = localStorage.getItem("session_timeout_occurred") === "true";
+        const resumeMod = isTimeout ? localStorage.getItem("session_resume_module") : null;
         const targetMod = (resumeMod && resumeMod !== "dashboard") ? resumeMod : "dashboard";
         setActiveModuleState(targetMod);
         try {
           localStorage.setItem("active_module", targetMod);
           localStorage.removeItem("session_resume_module");
+          localStorage.removeItem("session_timeout_occurred");
+          if (!isTimeout) {
+            localStorage.removeItem("settings_active_tab");
+            try { sessionStorage.removeItem("settings_active_tab"); } catch {}
+          }
           if (window.location.hash === "#login") {
             window.history.replaceState(null, "", window.location.pathname + window.location.search);
           }

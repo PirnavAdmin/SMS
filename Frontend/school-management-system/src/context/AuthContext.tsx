@@ -344,9 +344,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const logout = () => {
     try {
-      const currentMod = localStorage.getItem('active_module');
-      if (currentMod && currentMod !== 'dashboard') {
-        localStorage.setItem('session_resume_module', currentMod);
+      const isTimeout = localStorage.getItem('session_timeout_occurred') === 'true';
+      if (!isTimeout) {
+        localStorage.removeItem('session_resume_module');
+        localStorage.removeItem('settings_active_tab');
+        try { sessionStorage.removeItem('settings_active_tab'); } catch {}
+        localStorage.setItem('active_module', 'dashboard');
+      } else {
+        const currentMod = localStorage.getItem('active_module');
+        if (currentMod && currentMod !== 'dashboard') {
+          localStorage.setItem('session_resume_module', currentMod);
+        }
       }
     } catch {}
     setUser(null);
@@ -360,6 +368,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     localStorage.removeItem('active_class_tab');
     localStorage.removeItem('training_active_tab');
     localStorage.removeItem('staff_attendance_active_tab');
+    localStorage.removeItem('settings_active_tab');
+    try { sessionStorage.removeItem('settings_active_tab'); } catch {}
   };
 
   useEffect(() => {
@@ -499,13 +509,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       localStorage.setItem('auth_token', realToken);
       localStorage.setItem('auth_token_timestamp', Date.now().toString());
       localStorage.setItem('roles', JSON.stringify(roles));
-      const resumeMod = localStorage.getItem('session_resume_module');
+      const isTimeout = localStorage.getItem('session_timeout_occurred') === 'true';
+      const resumeMod = isTimeout ? localStorage.getItem('session_resume_module') : null;
       if (resumeMod && resumeMod !== 'dashboard') {
         localStorage.setItem('active_module', resumeMod);
-      } else if (!localStorage.getItem('active_module')) {
+      } else {
         localStorage.setItem('active_module', 'dashboard');
+        localStorage.removeItem('settings_active_tab');
+        try { sessionStorage.removeItem('settings_active_tab'); } catch {}
       }
       localStorage.removeItem('session_resume_module');
+      localStorage.removeItem('session_timeout_occurred');
 
       return true;
     } catch (err: any) {
