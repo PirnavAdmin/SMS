@@ -22,7 +22,7 @@ namespace SMS.Api.Models
         public string ClassName { get; set; } = string.Empty;
 
         [MaxLength(50)]
-        public string? Gender { get; set; } = "Unisex";
+        public string? Gender { get; set; }
 
         [Required]
         [MaxLength(200)]
@@ -32,7 +32,7 @@ namespace SMS.Api.Models
         public string? UniformItemId { get; set; }
 
         [MaxLength(50)]
-        public string? FeePlan { get; set; } = "Annual";
+        public string? FeePlan { get; set; }
 
         [Column(TypeName = "decimal(18,2)")]
         public decimal FeeAmount { get; set; } = 0m;

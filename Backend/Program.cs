@@ -2444,7 +2444,7 @@ using (var scope = app.Services.CreateScope())
                                                           (s.FatherMobile == appItem.FatherContact && s.StudentName == $"{appItem.FirstName} {appItem.LastName}".Trim()));
                             if (matchedStudent != null && matchedStudent.RollNumber != appItem.RegistrationNo)
                             {
-                                matchedStudent.RollNumber = appItem.RegistrationNo;
+                                matchedStudent.RollNumber = appItem.RegistrationNo ?? string.Empty;
                             }
                         }
 
@@ -2491,7 +2491,7 @@ using (var scope = app.Services.CreateScope())
                                 matchedStudent.RollNumber = newStudentId;
                                 if (string.IsNullOrWhiteSpace(matchedStudent.AdmissionNumber) || matchedStudent.AdmissionNumber.StartsWith("REG-"))
                                 {
-                                    matchedStudent.AdmissionNumber = appItem.AdmissionNo;
+                                    matchedStudent.AdmissionNumber = appItem.AdmissionNo ?? string.Empty;
                                 }
                             }
 
@@ -2549,7 +2549,7 @@ using (var scope = app.Services.CreateScope())
                                                           (s.FatherMobile == appItem.FatherContact && s.StudentName == $"{appItem.FirstName} {appItem.LastName}".Trim()));
                             if (matchedStudent != null && matchedStudent.RollNumber != appItem.RegistrationNo)
                             {
-                                matchedStudent.RollNumber = appItem.RegistrationNo;
+                                matchedStudent.RollNumber = appItem.RegistrationNo ?? string.Empty;
                             }
                         }
 

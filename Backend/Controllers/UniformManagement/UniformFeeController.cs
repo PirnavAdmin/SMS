@@ -38,7 +38,9 @@ public class UniformFeeController : ControllerBase
             if (!string.IsNullOrWhiteSpace(search))
             {
                 string s = search.Trim().ToLower();
-                query = query.Where(f => f.ClassName.ToLower().Contains(s) || f.PackageOrItemName.ToLower().Contains(s) || f.Gender.ToLower().Contains(s));
+                query = query.Where(f => (f.ClassName != null && f.ClassName.ToLower().Contains(s)) ||
+                                         (f.PackageOrItemName != null && f.PackageOrItemName.ToLower().Contains(s)) ||
+                                         (f.Gender != null && f.Gender.ToLower().Contains(s)));
             }
 
             if (!string.IsNullOrWhiteSpace(className) && className.Trim().ToLower() != "all classes")
@@ -52,12 +54,12 @@ public class UniformFeeController : ControllerBase
             var dtos = dbItems.Select(f => new UniformFeeConfigDto
             {
                 Id = f.Id,
-                ClassName = f.ClassName,
-                PackageOrItemName = f.PackageOrItemName,
-                Gender = f.Gender,
-                AcademicYear = f.AcademicYear,
+                ClassName = f.ClassName ?? string.Empty,
+                PackageOrItemName = f.PackageOrItemName ?? string.Empty,
+                Gender = f.Gender ?? string.Empty,
+                AcademicYear = f.AcademicYear ?? string.Empty,
                 FeeAmount = f.FeeAmount,
-                Status = f.Status,
+                Status = f.Status ?? string.Empty,
                 CreatedAt = f.CreatedAt
             }).ToList();
 
@@ -75,11 +77,11 @@ public class UniformFeeController : ControllerBase
         var dbClasses = new List<string>();
         try
         {
-            dbClasses = (await _context.Classes.AsNoTracking()
-                .Where(c => c.ClassName != null)
-                .Select(c => c.ClassName)
+            dbClasses = await _context.Classes.AsNoTracking()
+                .Where(c => !string.IsNullOrWhiteSpace(c.ClassName))
+                .Select(c => c.ClassName!)
                 .Distinct()
-                .ToListAsync())!;
+                .ToListAsync();
         }
         catch { }
 
@@ -107,11 +109,11 @@ public class UniformFeeController : ControllerBase
         var dbCategories = new List<string>();
         try
         {
-            dbCategories = (await _context.UniformCategories.AsNoTracking()
+            dbCategories = await _context.UniformCategories.AsNoTracking()
                 .Where(c => !string.IsNullOrWhiteSpace(c.CategoryName))
-                .Select(c => c.CategoryName)
+                .Select(c => c.CategoryName!)
                 .Distinct()
-                .ToListAsync())!;
+                .ToListAsync();
         }
         catch { }
 
@@ -184,12 +186,12 @@ public class UniformFeeController : ControllerBase
             data = new UniformFeeConfigDto
             {
                 Id = item.Id,
-                ClassName = item.ClassName,
-                PackageOrItemName = item.PackageOrItemName,
-                Gender = item.Gender,
-                AcademicYear = item.AcademicYear,
+                ClassName = item.ClassName ?? string.Empty,
+                PackageOrItemName = item.PackageOrItemName ?? string.Empty,
+                Gender = item.Gender ?? string.Empty,
+                AcademicYear = item.AcademicYear ?? string.Empty,
                 FeeAmount = item.FeeAmount,
-                Status = item.Status,
+                Status = item.Status ?? string.Empty,
                 CreatedAt = item.CreatedAt
             }
         });
@@ -198,12 +200,17 @@ public class UniformFeeController : ControllerBase
     [HttpPost]
     public async Task<IActionResult> CreateUniformFeeConfig([FromBody] CreateUniformFeeConfigDto dto)
     {
+        if (dto == null || string.IsNullOrWhiteSpace(dto.ClassName) || string.IsNullOrWhiteSpace(dto.PackageOrItemName))
+        {
+            return BadRequest(new { success = false, message = "Class Name and Uniform Package / Item Name are required." });
+        }
+
         var entity = new UniformFeeConfig
         {
-            ClassName = !string.IsNullOrWhiteSpace(dto.ClassName) ? dto.ClassName.Trim() : "All Classes",
-            PackageOrItemName = !string.IsNullOrWhiteSpace(dto.PackageOrItemName) ? dto.PackageOrItemName.Trim() : "Uniform Package",
-            Gender = !string.IsNullOrWhiteSpace(dto.Gender) ? dto.Gender.Trim() : "Unisex",
-            AcademicYear = !string.IsNullOrWhiteSpace(dto.AcademicYear) ? dto.AcademicYear.Trim() : "",
+            ClassName = dto.ClassName.Trim(),
+            PackageOrItemName = dto.PackageOrItemName.Trim(),
+            Gender = !string.IsNullOrWhiteSpace(dto.Gender) ? dto.Gender.Trim() : string.Empty,
+            AcademicYear = !string.IsNullOrWhiteSpace(dto.AcademicYear) ? dto.AcademicYear.Trim() : string.Empty,
             FeeAmount = dto.FeeAmount >= 0 ? dto.FeeAmount : 0m,
             Status = !string.IsNullOrWhiteSpace(dto.Status) ? dto.Status.Trim() : "Active",
             CreatedAt = DateTime.UtcNow
@@ -215,12 +222,12 @@ public class UniformFeeController : ControllerBase
         var resultDto = new UniformFeeConfigDto
         {
             Id = entity.Id,
-            ClassName = entity.ClassName,
-            PackageOrItemName = entity.PackageOrItemName,
-            Gender = entity.Gender,
-            AcademicYear = entity.AcademicYear,
+            ClassName = entity.ClassName ?? string.Empty,
+            PackageOrItemName = entity.PackageOrItemName ?? string.Empty,
+            Gender = entity.Gender ?? string.Empty,
+            AcademicYear = entity.AcademicYear ?? string.Empty,
             FeeAmount = entity.FeeAmount,
-            Status = entity.Status,
+            Status = entity.Status ?? string.Empty,
             CreatedAt = entity.CreatedAt
         };
 
@@ -245,12 +252,12 @@ public class UniformFeeController : ControllerBase
         var resultDto = new UniformFeeConfigDto
         {
             Id = entity.Id,
-            ClassName = entity.ClassName,
-            PackageOrItemName = entity.PackageOrItemName,
-            Gender = entity.Gender,
-            AcademicYear = entity.AcademicYear,
+            ClassName = entity.ClassName ?? string.Empty,
+            PackageOrItemName = entity.PackageOrItemName ?? string.Empty,
+            Gender = entity.Gender ?? string.Empty,
+            AcademicYear = entity.AcademicYear ?? string.Empty,
             FeeAmount = entity.FeeAmount,
-            Status = entity.Status,
+            Status = entity.Status ?? string.Empty,
             CreatedAt = entity.CreatedAt
         };
 

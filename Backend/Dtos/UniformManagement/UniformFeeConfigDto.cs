@@ -11,22 +11,22 @@ namespace SMS.Api.Dtos
         public int Id { get; set; }
 
         [JsonPropertyName("className")]
-        public string ClassName { get; set; } = "Class 10";
+        public string ClassName { get; set; } = string.Empty;
 
         [JsonPropertyName("classGrade")]
         public string ClassGrade => ClassName;
 
         [JsonPropertyName("packageOrItemName")]
-        public string PackageOrItemName { get; set; } = "Full Kit";
+        public string PackageOrItemName { get; set; } = string.Empty;
 
         [JsonPropertyName("uniformPackage")]
         public string UniformPackage => PackageOrItemName;
 
         [JsonPropertyName("gender")]
-        public string Gender { get; set; } = "Unisex";
+        public string Gender { get; set; } = string.Empty;
 
         [JsonPropertyName("academicYear")]
-        public string AcademicYear { get; set; } = "2025-2026";
+        public string AcademicYear { get; set; } = string.Empty;
 
         [JsonPropertyName("feeAmount")]
         [JsonConverter(typeof(FlexibleDecimalConverter))]
@@ -43,7 +43,7 @@ namespace SMS.Api.Dtos
     {
         [Required(ErrorMessage = "Class Name is required.")]
         [JsonPropertyName("className")]
-        public string ClassName { get; set; } = "Class 10";
+        public string ClassName { get; set; } = string.Empty;
 
         [JsonPropertyName("classGrade")]
         public string? ClassGradeAlias
@@ -54,7 +54,7 @@ namespace SMS.Api.Dtos
 
         [Required(ErrorMessage = "Uniform Package / Item Name is required.")]
         [JsonPropertyName("packageOrItemName")]
-        public string PackageOrItemName { get; set; } = "Full Kit";
+        public string PackageOrItemName { get; set; } = string.Empty;
 
         [JsonPropertyName("uniformPackage")]
         public string? UniformPackageAlias
@@ -64,10 +64,10 @@ namespace SMS.Api.Dtos
         }
 
         [JsonPropertyName("gender")]
-        public string Gender { get; set; } = "Unisex";
+        public string Gender { get; set; } = string.Empty;
 
         [JsonPropertyName("academicYear")]
-        public string AcademicYear { get; set; } = "2025-2026";
+        public string AcademicYear { get; set; } = string.Empty;
 
         [JsonPropertyName("feeAmount")]
         [JsonConverter(typeof(FlexibleDecimalConverter))]
