@@ -412,6 +412,12 @@ export function validateDOB(dateStr: string): { isValid: boolean; error?: string
 export function formatToDDMMYYYY(isoDate: string, separator: string = '-'): string {
   if (!isoDate) return '';
   const clean = isoDate.trim();
+  if (clean.length === 8 && /^\d{8}$/.test(clean)) {
+    const y = parseInt(clean.slice(4, 8), 10);
+    if (y >= 1900 && y <= 2100) {
+      return `${clean.slice(0, 2)}${separator}${clean.slice(2, 4)}${separator}${clean.slice(4, 8)}`;
+    }
+  }
   const parts = clean.split(/[-/]/);
   if (parts.length === 3) {
     if (parts[0].length === 4) {
@@ -430,7 +436,14 @@ export function formatToDDMMYYYY(isoDate: string, separator: string = '-'): stri
  */
 export function formatToISO(ddmmyyyy: string): string {
   if (!ddmmyyyy) return '';
-  const parts = ddmmyyyy.split(/[-/]/);
+  const clean = ddmmyyyy.trim();
+  if (clean.length === 8 && /^\d{8}$/.test(clean)) {
+    const y = parseInt(clean.slice(4, 8), 10);
+    if (y >= 1900 && y <= 2100) {
+      return `${clean.slice(4, 8)}-${clean.slice(2, 4)}-${clean.slice(0, 2)}`;
+    }
+  }
+  const parts = clean.split(/[-/]/);
   if (parts.length === 3) {
     if (parts[0].length === 4) return ddmmyyyy; // already ISO YYYY-MM-DD
     return `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;

@@ -11,6 +11,7 @@ import { useData, formatAcademicYear } from '../../../context/DataContext';
 import { useAuth } from '../../../context/AuthContext';
 import { useToast } from '../../../context/ToastContext';
 import { PrintableCertificateContainer, PrintableBatchCertificatesContainer } from './PrintableCertificateContainer';
+import { DateInput } from '../../common/DateInput';
 import { INITIAL_CERTIFICATE_TYPES, INITIAL_CERTIFICATE_TEMPLATES } from '../Settings/CertificateSettingsTab';
 import { getFieldsForCertificateType } from '../../../utils/certificateFields';
 import { formatDateDDMMYYYY } from '../../../utils/dateValidation';
@@ -1279,46 +1280,60 @@ export const GenerateCertificateModal: React.FC<GenerateCertificateModalProps> =
                               <option key={opt} value={opt}>{opt}</option>
                             ))}
                           </select>
-                        ) : (
-                          <input
-                            type={field.type === 'date' ? 'date' : field.type === 'number' ? 'number' : 'text'}
+                        ) : field.type === 'date' ? (
+                          <DateInput
                             value={value}
                             disabled={!!existingRecord}
                             min={computedMin}
                             max={computedMax}
+                            separator="/"
+                            placeholder="DD/MM/YYYY"
+                            disableClamping={true}
                             onChange={(e) => {
                               const newVal = e.target.value;
-                              if (field.type === 'date') {
-                                if (newVal && newVal > todayStr) {
+                              if (newVal && newVal > todayStr) {
+                                setValidationErrors(prev => ({
+                                  ...prev,
+                                  [field.key]: `${field.label} cannot be a future date.`
+                                }));
+                              } else if (isToDateField) {
+                                if (newVal && matchingFromVal && newVal <= matchingFromVal) {
+                                  const fromLabel = activeFields.find(o => o.key === matchingFromKey)?.label || 'From Date';
                                   setValidationErrors(prev => ({
                                     ...prev,
-                                    [field.key]: `${field.label} cannot be a future date.`
+                                    [field.key]: `${field.label} cannot be on or before ${fromLabel}.`
                                   }));
-                                } else if (isToDateField) {
-                                  if (newVal && matchingFromVal && newVal <= matchingFromVal) {
-                                    const fromLabel = activeFields.find(o => o.key === matchingFromKey)?.label || 'From Date';
-                                    setValidationErrors(prev => ({
-                                      ...prev,
-                                      [field.key]: `${field.label} cannot be on or before ${fromLabel}.`
-                                    }));
-                                  } else {
-                                    setValidationErrors(prev => ({ ...prev, [field.key]: '' }));
-                                  }
-                                } else if (isFromDateField) {
-                                  if (newVal && matchingToVal && matchingToVal <= newVal) {
-                                    const toLabel = activeFields.find(o => o.key === matchingToKey)?.label || 'To Date';
-                                    setValidationErrors(prev => ({
-                                      ...prev,
-                                      [matchingToKey!]: `${toLabel} cannot be on or before ${field.label}.`
-                                    }));
-                                  } else if (matchingToKey && matchingToVal && matchingToVal > newVal) {
-                                    setValidationErrors(prev => ({ ...prev, [matchingToKey]: '' }));
-                                  }
-                                  setValidationErrors(prev => ({ ...prev, [field.key]: '' }));
-                                } else if (validationErrors[field.key]) {
+                                } else {
                                   setValidationErrors(prev => ({ ...prev, [field.key]: '' }));
                                 }
+                              } else if (isFromDateField) {
+                                if (newVal && matchingToVal && matchingToVal <= newVal) {
+                                  const toLabel = activeFields.find(o => o.key === matchingToKey)?.label || 'To Date';
+                                  setValidationErrors(prev => ({
+                                    ...prev,
+                                    [matchingToKey!]: `${toLabel} cannot be on or before ${field.label}.`
+                                  }));
+                                } else if (matchingToKey && matchingToVal && matchingToVal > newVal) {
+                                  setValidationErrors(prev => ({ ...prev, [matchingToKey]: '' }));
+                                }
+                                setValidationErrors(prev => ({ ...prev, [field.key]: '' }));
                               } else if (validationErrors[field.key]) {
+                                setValidationErrors(prev => ({ ...prev, [field.key]: '' }));
+                              }
+                              setCertificateSpecificData(prev => ({ ...prev, [field.key]: newVal }));
+                            }}
+                            className={`w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-xs font-bold text-slate-900 dark:text-white outline-none transition-all ${
+                              error ? 'border-rose-500 ring-2 ring-rose-500/20' : 'border-slate-200 dark:border-slate-700'
+                            }`}
+                          />
+                        ) : (
+                          <input
+                            type={field.type === 'number' ? 'number' : 'text'}
+                            value={value}
+                            disabled={!!existingRecord}
+                            onChange={(e) => {
+                              const newVal = e.target.value;
+                              if (validationErrors[field.key]) {
                                 setValidationErrors(prev => ({ ...prev, [field.key]: '' }));
                               }
                               setCertificateSpecificData(prev => ({ ...prev, [field.key]: newVal }));

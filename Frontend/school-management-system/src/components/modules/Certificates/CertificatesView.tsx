@@ -13,7 +13,7 @@ import { useToast } from '../../../context/ToastContext';
 import { GenerateCertificateModal } from './GenerateCertificateModal';
 import { INITIAL_CERTIFICATE_TYPES } from '../Settings/CertificateSettingsTab';
 import { formatDateDDMMYYYY } from '../../../utils/dateValidation';
-import { compareClassesAscending } from '../../../utils/classSorter';
+import { compareClassesAscending, matchesClassName } from '../../../utils/classSorter';
 
 export interface CertificatesViewProps {
   onNavigateToSettings?: () => void;
@@ -186,8 +186,8 @@ export const CertificatesView: React.FC<CertificatesViewProps> = ({ onNavigateTo
 
   // Filter States for Generate Certificate Tab
   const [genSearchQuery, setGenSearchQuery] = useState('');
-  const [genClassFilter, setGenClassFilter] = useState('ALL');
-  const [genSectionFilter, setGenSectionFilter] = useState('ALL');
+  const [genClassFilter, setGenClassFilter] = useState('');
+  const [genSectionFilter, setGenSectionFilter] = useState('');
 
   // Modal State
   const [isGenerateModalOpen, setIsGenerateModalOpen] = useState(false);
@@ -206,24 +206,30 @@ export const CertificatesView: React.FC<CertificatesViewProps> = ({ onNavigateTo
   const availableGenSections = useMemo(() => {
     const secSet = new Set<string>();
     students.forEach(s => {
-      if (s.section && (genClassFilter === 'ALL' || s.className === genClassFilter)) {
+      if (s.section && (!genClassFilter || genClassFilter === 'ALL' || matchesClassName(s.className, genClassFilter))) {
         secSet.add(s.section);
       }
     });
     return Array.from(secSet).sort();
   }, [students, genClassFilter]);
 
+  // Check if any filter has been selected for Generate tab
+  const isFilterSelected = useMemo(() => {
+    return Boolean(genClassFilter || genSectionFilter || genSearchQuery.trim());
+  }, [genClassFilter, genSectionFilter, genSearchQuery]);
+
   // Filtered Students for Generate Certificate Tab
   const filteredStudentsForGen = useMemo(() => {
+    if (!isFilterSelected) return [];
     return students.filter(s => {
       const q = genSearchQuery.toLowerCase().trim();
       const fullName = `${s.firstName || ''} ${s.lastName || ''}`.toLowerCase();
-      const matchesSearch = !q || fullName.includes(q) || (s.admissionNo || '').toLowerCase().includes(q);
-      const matchesClass = genClassFilter === 'ALL' || s.className === genClassFilter;
-      const matchesSection = genSectionFilter === 'ALL' || s.section === genSectionFilter;
+      const matchesSearch = !q || fullName.includes(q) || (s.admissionNo || '').toLowerCase().includes(q) || String(s.id || '').toLowerCase().includes(q);
+      const matchesClass = !genClassFilter || genClassFilter === 'ALL' || matchesClassName(s.className, genClassFilter);
+      const matchesSection = !genSectionFilter || genSectionFilter === 'ALL' || s.section === genSectionFilter;
       return matchesSearch && matchesClass && matchesSection;
     });
-  }, [students, genSearchQuery, genClassFilter, genSectionFilter]);
+  }, [students, genSearchQuery, genClassFilter, genSectionFilter, isFilterSelected]);
 
   // Filtered History Records
   const filteredHistory = useMemo(() => {
@@ -486,9 +492,10 @@ export const CertificatesView: React.FC<CertificatesViewProps> = ({ onNavigateTo
                   value={genClassFilter}
                   onChange={val => {
                     setGenClassFilter(val);
-                    setGenSectionFilter('ALL');
+                    setGenSectionFilter('');
                   }}
                   options={[
+                    { value: '', label: 'Select Class' },
                     { value: 'ALL', label: 'All Classes' },
                     ...sortedClasses.map(c => ({ value: c, label: c }))
                   ]}
@@ -499,6 +506,7 @@ export const CertificatesView: React.FC<CertificatesViewProps> = ({ onNavigateTo
                 value={genSectionFilter}
                 onChange={val => setGenSectionFilter(val)}
                 options={[
+                  { value: '', label: 'Select Section' },
                   { value: 'ALL', label: 'All Sections' },
                   ...availableGenSections.map(sec => ({ value: sec, label: `Section ${sec}` }))
                 ]}
@@ -507,7 +515,17 @@ export const CertificatesView: React.FC<CertificatesViewProps> = ({ onNavigateTo
           </div>
 
           {/* STUDENTS GRID */}
-          {filteredStudentsForGen.length === 0 ? (
+          {!isFilterSelected ? (
+            <div className="p-12 text-center glass-card rounded-3xl border border-slate-200/80 dark:border-slate-800 space-y-3">
+              <div className="w-12 h-12 rounded-2xl bg-sky-50 dark:bg-sky-950 text-sky-600 dark:text-sky-400 mx-auto flex items-center justify-center">
+                <Filter className="w-6 h-6" />
+              </div>
+              <p className="text-sm font-bold text-slate-700 dark:text-slate-300">Select a Filter to View Students</p>
+              <p className="text-xs text-slate-400 max-w-md mx-auto">
+                Please select a Class or Section, or enter a student name/ID in the search bar to display students and generate certificates.
+              </p>
+            </div>
+          ) : filteredStudentsForGen.length === 0 ? (
             <div className="p-12 text-center glass-card rounded-3xl border border-slate-200/80 dark:border-slate-800">
               <p className="text-sm font-bold text-slate-500">No matching students found.</p>
               <p className="text-xs text-slate-400 mt-1">Try adjusting your search query or class/section filters.</p>

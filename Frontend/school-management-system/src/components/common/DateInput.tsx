@@ -3,7 +3,7 @@ import { Calendar } from 'lucide-react';
 import { formatToDDMMYYYY, formatToISO } from '../../utils/dateValidation';
 
 interface DateInputProps {
-  value: string; // ISO (YYYY-MM-DD) or DD-MM-YYYY
+  value: string; // ISO (YYYY-MM-DD) or DD-MM-YYYY or DD/MM/YYYY
   onChange: (e: { target: { value: string } }) => void;
   className?: string;
   required?: boolean;
@@ -13,6 +13,8 @@ interface DateInputProps {
   placeholder?: string;
   max?: string;
   min?: string;
+  separator?: '/' | '-';
+  disableClamping?: boolean;
 }
 
 export const DateInput: React.FC<DateInputProps> = ({
@@ -23,19 +25,23 @@ export const DateInput: React.FC<DateInputProps> = ({
   disabled = false,
   id,
   name,
-  placeholder = 'DD-MM-YYYY',
+  placeholder = 'DD/MM/YYYY',
   max,
-  min
+  min,
+  separator,
+  disableClamping = false
 }) => {
   const datePickerRef = useRef<HTMLInputElement>(null);
 
-  // Maintain text state in DD-MM-YYYY format
-  const [textValue, setTextValue] = useState(() => formatToDDMMYYYY(value, '-'));
+  const activeSep = separator || (placeholder && placeholder.includes('-') ? '-' : '/');
+
+  // Maintain text state in DD/MM/YYYY or DD-MM-YYYY format
+  const [textValue, setTextValue] = useState(() => formatToDDMMYYYY(value || '', activeSep));
 
   // Sync internal textValue when external value prop changes
   useEffect(() => {
-    setTextValue(formatToDDMMYYYY(value, '-'));
-  }, [value]);
+    setTextValue(formatToDDMMYYYY(value || '', activeSep));
+  }, [value, activeSep]);
 
   const handleTextChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const val = e.target.value;
@@ -46,16 +52,18 @@ export const DateInput: React.FC<DateInputProps> = ({
       return;
     }
 
-    // If matches DD-MM-YYYY or DD/MM/YYYY format or YYYY-MM-DD
+    // If matches DD-MM-YYYY or DD/MM/YYYY format or YYYY-MM-DD or 8-digit DDMMYYYY
     let iso = formatToISO(val);
     if (iso && iso.match(/^\d{4}-\d{2}-\d{2}$/)) {
-      if (max && iso > max) {
-        iso = max;
-        setTextValue(formatToDDMMYYYY(max, '-'));
-      }
-      if (min && iso < min) {
-        iso = min;
-        setTextValue(formatToDDMMYYYY(min, '-'));
+      if (!disableClamping) {
+        if (max && iso > max) {
+          iso = max;
+          setTextValue(formatToDDMMYYYY(max, activeSep));
+        }
+        if (min && iso < min) {
+          iso = min;
+          setTextValue(formatToDDMMYYYY(min, activeSep));
+        }
       }
       onChange({ target: { value: iso } });
     }
@@ -64,13 +72,15 @@ export const DateInput: React.FC<DateInputProps> = ({
   const handleTextBlur = () => {
     let iso = formatToISO(textValue);
     if (iso && iso.match(/^\d{4}-\d{2}-\d{2}$/)) {
-      if (max && iso > max) {
-        iso = max;
+      if (!disableClamping) {
+        if (max && iso > max) {
+          iso = max;
+        }
+        if (min && iso < min) {
+          iso = min;
+        }
       }
-      if (min && iso < min) {
-        iso = min;
-      }
-      setTextValue(formatToDDMMYYYY(iso, '-'));
+      setTextValue(formatToDDMMYYYY(iso, activeSep));
       onChange({ target: { value: iso } });
     } else if (!textValue) {
       onChange({ target: { value: '' } });
@@ -80,13 +90,15 @@ export const DateInput: React.FC<DateInputProps> = ({
   const handlePickerChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     let iso = e.target.value;
     if (iso) {
-      if (max && iso > max) {
-        iso = max;
+      if (!disableClamping) {
+        if (max && iso > max) {
+          iso = max;
+        }
+        if (min && iso < min) {
+          iso = min;
+        }
       }
-      if (min && iso < min) {
-        iso = min;
-      }
-      setTextValue(formatToDDMMYYYY(iso, '-'));
+      setTextValue(formatToDDMMYYYY(iso, activeSep));
       onChange({ target: { value: iso } });
     } else {
       setTextValue('');
@@ -122,6 +134,7 @@ export const DateInput: React.FC<DateInputProps> = ({
         value={textValue}
         onChange={handleTextChange}
         onBlur={handleTextBlur}
+        onDoubleClick={openCalendar}
         placeholder={placeholder}
         disabled={disabled}
         required={required}
@@ -133,7 +146,7 @@ export const DateInput: React.FC<DateInputProps> = ({
         onClick={openCalendar}
         disabled={disabled}
         tabIndex={-1}
-        className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors"
+        className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors cursor-pointer"
         title="Open Calendar"
       >
         <Calendar className="h-4 w-4" />

@@ -1,6 +1,7 @@
 import React from 'react';
 import { GraduationCap } from 'lucide-react';
 import { useData } from '../../context/DataContext';
+import { useAuth } from '../../context/AuthContext';
 import { resolveMediaUrl } from '../../utils/mediaUtils';
 
 interface SchoolPrintHeaderProps {
@@ -9,6 +10,7 @@ interface SchoolPrintHeaderProps {
   className?: string;
   showAlways?: boolean; // if true, shows on screen preview as well as print
   compact?: boolean;
+  academicYear?: string;
 }
 
 export const SchoolPrintHeader: React.FC<SchoolPrintHeaderProps> = ({
@@ -16,9 +18,11 @@ export const SchoolPrintHeader: React.FC<SchoolPrintHeaderProps> = ({
   subtitle,
   className = '',
   showAlways = false,
-  compact = false
+  compact = false,
+  academicYear: propAcademicYear
 }) => {
-  const { schoolProfile } = useData();
+  const { schoolProfile, academicYears } = useData();
+  const { selectedAcademicYear } = useAuth();
 
   const logoUrl = resolveMediaUrl(schoolProfile?.logoUrl);
   const schoolName = schoolProfile?.name || 'Pirnav Educational Institutions';
@@ -27,7 +31,16 @@ export const SchoolPrintHeader: React.FC<SchoolPrintHeaderProps> = ({
   const phone = schoolProfile?.phone || '+91 9123456789';
   const email = schoolProfile?.email || 'contact@pirnavschools.edu';
   const website = schoolProfile?.website || 'https://pirnavschools.edu';
-  const academicYear = schoolProfile?.academicYear || '';
+  
+  // Resolve academic year with robust fallback hierarchy
+  const activeAYRecord = (academicYears || []).find((a: any) => a.isCurrentAcademicYear || a.status === 'Active');
+  const fallbackAY = activeAYRecord?.academicYear || (activeAYRecord as any)?.year || '2026-27';
+  const academicYear =
+    propAcademicYear ||
+    schoolProfile?.academicYear ||
+    selectedAcademicYear ||
+    localStorage.getItem('selected_academic_year') ||
+    fallbackAY;
 
   return (
     <div
