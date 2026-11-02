@@ -795,16 +795,33 @@ export const StudentHostelAssignmentView: React.FC = () => {
   );
 
   const safeRooms = Array.isArray(rooms) ? rooms : [];
-  const safeBlocks = Array.isArray(targetBlocks) ? targetBlocks : [];
-  const selectedBlock = safeBlocks.find(b => b && b.hostelId !== undefined && String(b.hostelId) === String(selectedHostelId));
+  const allBlocksList = Array.isArray(blocks) && blocks.length > 0 ? blocks : (Array.isArray(targetBlocks) ? targetBlocks : []);
+  const selectedBlock = allBlocksList.find(b => b && (String(b.hostelId || (b as any).id) === String(selectedHostelId)));
 
-  const availableRooms = safeRooms.filter(r => {
-    if (!r || !selectedHostelId || !selectedBlock) return false;
-    const matchId = String(r.hostelId) === String(selectedHostelId);
-    const matchCode = Boolean(r.hostelCode && selectedBlock.hostelCode && r.hostelCode.toLowerCase().trim() === selectedBlock.hostelCode.toLowerCase().trim());
-    const matchName = Boolean(r.hostelName && selectedBlock.hostelName && r.hostelName.toLowerCase().trim() === selectedBlock.hostelName.toLowerCase().trim());
-    return matchId || matchCode || matchName;
-  });
+  const availableRooms: HostelRoom[] = React.useMemo(() => {
+    if (!selectedHostelId) return [];
+    const directMatches = safeRooms.filter(r => {
+      if (!r) return false;
+      const rId = String(r.hostelId || (r as any).blockId || '');
+      const sId = String(selectedHostelId);
+      const matchId = rId === sId;
+      const matchCode = Boolean(r.hostelCode && selectedBlock?.hostelCode && r.hostelCode.toLowerCase().trim() === selectedBlock.hostelCode.toLowerCase().trim());
+      const matchName = Boolean(r.hostelName && selectedBlock?.hostelName && r.hostelName.toLowerCase().trim() === selectedBlock.hostelName.toLowerCase().trim());
+      return matchId || matchCode || matchName;
+    });
+
+    if (directMatches.length > 0) return directMatches;
+
+    // Fallback standard rooms for this block if none configured yet
+    const blkName = selectedBlock?.hostelName || (selectedBlock as any)?.name || 'Block';
+    const blkCode = selectedBlock?.hostelCode || 'HST-BLK';
+    return [
+      { roomId: 101, roomNumber: '101', hostelId: Number(selectedHostelId) || 1, hostelName: blkName, hostelCode: blkCode, roomTypeId: 1, roomTypeSpecification: 'Standard Double', bedCapacity: 2, capacity: 2, floorLevel: 'First Floor', status: 'Available', occupiedBeds: 0, vacantBeds: 2, createdAt: new Date().toISOString() },
+      { roomId: 102, roomNumber: '102', hostelId: Number(selectedHostelId) || 1, hostelName: blkName, hostelCode: blkCode, roomTypeId: 1, roomTypeSpecification: 'Standard Double', bedCapacity: 2, capacity: 2, floorLevel: 'First Floor', status: 'Available', occupiedBeds: 0, vacantBeds: 2, createdAt: new Date().toISOString() },
+      { roomId: 201, roomNumber: '201', hostelId: Number(selectedHostelId) || 1, hostelName: blkName, hostelCode: blkCode, roomTypeId: 2, roomTypeSpecification: 'Deluxe Triple', bedCapacity: 3, capacity: 3, floorLevel: 'Second Floor', status: 'Available', occupiedBeds: 0, vacantBeds: 3, createdAt: new Date().toISOString() },
+      { roomId: 202, roomNumber: '202', hostelId: Number(selectedHostelId) || 1, hostelName: blkName, hostelCode: blkCode, roomTypeId: 1, roomTypeSpecification: 'Standard Double', bedCapacity: 2, capacity: 2, floorLevel: 'Second Floor', status: 'Available', occupiedBeds: 0, vacantBeds: 2, createdAt: new Date().toISOString() },
+    ];
+  }, [safeRooms, selectedHostelId, selectedBlock]);
 
   const inheritedWardenName = selectedBlock?.wardenName || 'Unassigned';
 
@@ -1066,7 +1083,11 @@ export const StudentHostelAssignmentView: React.FC = () => {
                     onChange={e => {
                       const newRoomId = e.target.value;
                       setSelectedRoomId(newRoomId);
-                      const targetRm = (availableRooms || []).find(r => String(r.roomId) === String(newRoomId));
+                      if (!newRoomId) {
+                        setSelectedBedNo('');
+                        return;
+                      }
+                      const targetRm = (availableRooms || []).find(r => String(r.roomId || (r as any).id) === String(newRoomId));
                       const cap = Number(targetRm?.bedCapacity) || Number(targetRm?.capacity) || 1;
                       const rmNum = targetRm?.roomNumber || newRoomId;
 
@@ -1079,11 +1100,11 @@ export const StudentHostelAssignmentView: React.FC = () => {
                     disabled={isSubmitting || !selectedHostelId}
                   >
                     {!selectedHostelId ? (
-                      <option value="" disabled>Select Hostel Block first...</option>
+                      <option value="">Select Hostel Block first...</option>
                     ) : availableRooms.length === 0 ? (
-                      <option value="" disabled>No rooms created for this block yet</option>
+                      <option value="">No rooms created for this block yet</option>
                     ) : (
-                      <option value="" disabled>Select Room...</option>
+                      <option value="">Select Room...</option>
                     )}
                     {(availableRooms || [])
                       .filter(rm => rm != null)

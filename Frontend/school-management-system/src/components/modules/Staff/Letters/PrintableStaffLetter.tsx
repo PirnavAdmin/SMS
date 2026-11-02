@@ -31,6 +31,46 @@ export const PrintableStaffLetter: React.FC<PrintableStaffLetterProps> = ({
     return (activeSchoolProfile as any)?.signature || (activeSchoolProfile as any)?.principalSignature || '';
   }, [payload.signatureImageUrl, activeSchoolProfile]);
 
+  const isWarden = useMemo(() => {
+    const text = `${payload.designation || ''} ${payload.department || ''}`.toLowerCase();
+    return text.includes('warden') || text.includes('hostel');
+  }, [payload.designation, payload.department]);
+
+  const isAccountant = useMemo(() => {
+    const text = `${payload.designation || ''} ${payload.department || ''}`.toLowerCase();
+    return text.includes('account') || text.includes('finance');
+  }, [payload.designation, payload.department]);
+
+  const relievingDutyDescription = useMemo(() => {
+    if (isWarden) {
+      return "assigned hostel administration, student residential welfare, and campus safety responsibilities.";
+    }
+    if (isAccountant) {
+      return "assigned institutional financial, accounting, and fee ledger management responsibilities.";
+    }
+    return "assigned academic, classroom instruction, and administrative responsibilities.";
+  }, [isWarden, isAccountant]);
+
+  const experienceResponsibilities = useMemo(() => {
+    if (isWarden) {
+      return "Hostel administration, student accommodation & room allocation, student welfare & safety oversight, discipline monitoring, and outpass/leave management.";
+    }
+    if (isAccountant) {
+      return "Financial fee ledger maintenance, fee collection reconciliation, payroll processing, accounting records, and audit compliance.";
+    }
+    return "Academic instruction, lesson planning, student mentoring, classroom governance, and institutional co-curricular contributions.";
+  }, [isWarden, isAccountant]);
+
+  const experienceAppraisal = useMemo(() => {
+    if (isWarden) {
+      return `During the tenure with us, ${payload.candidateName} exhibited exceptional administrative vigilance, moral integrity, student empathy, and high standards of residential campus governance.`;
+    }
+    if (isAccountant) {
+      return `During the tenure with us, ${payload.candidateName} exhibited exceptional financial integrity, accuracy in fiscal management, and dedicated compliance with institutional financial protocols.`;
+    }
+    return `During the tenure with us, ${payload.candidateName} exhibited exceptional professional competence, moral integrity, and high pedagogical standards.`;
+  }, [isWarden, isAccountant, payload.candidateName]);
+
   return (
     <div
       style={{
@@ -259,7 +299,7 @@ export const PrintableStaffLetter: React.FC<PrintableStaffLetterProps> = ({
             </p>
 
             <p className="text-justify text-slate-800 text-[11px] leading-relaxed">
-              During tenure with <strong>{schoolName}</strong>, <strong>{payload.candidateName}</strong> was found to be sincere, dedicated, and diligent in discharging the assigned academic and administrative responsibilities.
+              During tenure with <strong>{schoolName}</strong>, <strong>{payload.candidateName}</strong> was found to be sincere, dedicated, and diligent in discharging the {relievingDutyDescription}
             </p>
 
             <p className="text-slate-800 text-[11px]">
@@ -292,7 +332,7 @@ export const PrintableStaffLetter: React.FC<PrintableStaffLetterProps> = ({
 
             <div className="p-3 rounded-lg bg-slate-50 border border-slate-200 my-2 text-[10.5px] space-y-1.5">
               <p>
-                <strong>Roles & Responsibilities Undertaken:</strong> Academic instruction, lesson planning, student mentoring, classroom governance, and institutional co-curricular contributions.
+                <strong>Roles & Responsibilities Undertaken:</strong> {experienceResponsibilities}
               </p>
               <p>
                 <strong>Overall Conduct & Performance:</strong> <span className="font-bold text-emerald-700">{payload.conductRating || 'Exemplary'}</span>
@@ -300,7 +340,7 @@ export const PrintableStaffLetter: React.FC<PrintableStaffLetterProps> = ({
             </div>
 
             <p className="text-justify leading-relaxed text-[11px]">
-              During the tenure with us, <strong>{payload.candidateName}</strong> exhibited exceptional professional competence, moral integrity, and high pedagogical standards.
+              {experienceAppraisal}
             </p>
 
             <p className="text-justify text-[11px]">

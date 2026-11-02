@@ -25,7 +25,7 @@ import { useAuth } from "../../../context/AuthContext";
 import { useData } from "../../../context/DataContext";
 import { useHostel } from "../../../context/HostelContext";
 import { useToast } from "../../../context/ToastContext";
-import { getHostelBlocks, getRooms, getAllocations } from "../../../api/hostel";
+import { getHostelBlocks, getRooms, getAllocations, getWardens } from "../../../api/hostel";
 
 interface WardenDashboardViewProps {
   onNavigate?: (module: string) => void;
@@ -144,18 +144,21 @@ export const WardenDashboardView: React.FC<WardenDashboardViewProps> = ({
   const [blocks, setBlocks] = useState<any[]>([]);
   const [rooms, setRooms] = useState<any[]>([]);
   const [allocations, setAllocations] = useState<any[]>([]);
+  const [wardens, setWardens] = useState<any[]>([]);
 
   useEffect(() => {
     const fetchMetrics = async () => {
       try {
-        const [bData, rData, aData] = await Promise.all([
+        const [bData, rData, aData, wData] = await Promise.all([
           getHostelBlocks().catch(() => []),
           getRooms().catch(() => []),
-          getAllocations().catch(() => [])
+          getAllocations().catch(() => []),
+          getWardens().catch(() => [])
         ]);
         setBlocks(Array.isArray(bData) && bData.length > 0 ? bData : contextBlocks);
         setRooms(Array.isArray(rData) && rData.length > 0 ? rData : contextRooms);
         setAllocations(Array.isArray(aData) ? aData : []);
+        setWardens(Array.isArray(wData) ? wData : []);
       } catch (e) {
         console.warn('Failed to load hostel metrics:', e);
       }
@@ -164,9 +167,11 @@ export const WardenDashboardView: React.FC<WardenDashboardViewProps> = ({
     const handleSync = () => fetchMetrics();
     window.addEventListener("hostel_outpasses_updated", handleSync);
     window.addEventListener("residential_students_updated", handleSync);
+    window.addEventListener("hostel_wardens_updated", handleSync);
     return () => {
       window.removeEventListener("hostel_outpasses_updated", handleSync);
       window.removeEventListener("residential_students_updated", handleSync);
+      window.removeEventListener("hostel_wardens_updated", handleSync);
     };
   }, []);
 
@@ -284,10 +289,22 @@ export const WardenDashboardView: React.FC<WardenDashboardViewProps> = ({
         const total = Number((b as any).totalCapacity) || Number((b as any).capacity) || 12;
         const bAllocs = allocations.filter(a => String(a.hostelId) === String(b.hostelId || b.id) && (a.status === 'Active' || !a.status));
         const occupied = bAllocs.length > 0 ? bAllocs.length : ((b as any).occupiedBeds !== undefined ? (b as any).occupiedBeds : 0);
+        
+        // Find assigned warden from master or block record
+        const matchedWarden = wardens.find((w: any) =>
+          String(w.hostelId || w.blockId) === String(b.hostelId || b.id) ||
+          (w.hostelName && b.hostelName && String(w.hostelName).toLowerCase().trim() === String(b.hostelName).toLowerCase().trim()) ||
+          (w.hostelName && b.name && String(w.hostelName).toLowerCase().trim() === String(b.name).toLowerCase().trim())
+        );
+
+        const rawWarden = b.wardenName || (b as any).warden || matchedWarden?.wardenName || matchedWarden?.staffName || matchedWarden?.name || '';
+        const isUnassigned = !rawWarden || rawWarden.toLowerCase().includes('unassigned') || rawWarden.toLowerCase().includes('not assigned');
+
         return {
           id: String(b.id || (b as any).hostelId || ''),
           name: b.name || (b as any).hostelName || `Hostel Block ${b.id}`,
-          warden: b.wardenName || "Unassigned",
+          warden: isUnassigned ? 'Unassigned' : rawWarden,
+          isUnassigned,
           totalBeds: total,
           occupiedBeds: occupied,
           pct: Math.min(100, Math.round((occupied / Math.max(1, total)) * 100)),
@@ -296,7 +313,7 @@ export const WardenDashboardView: React.FC<WardenDashboardViewProps> = ({
     }
 
     return [];
-  }, [blocks, contextBlocks, allocations]);
+  }, [blocks, contextBlocks, allocations, wardens]);
 
   // Assigned block name for the logged-in warden
   const assignedBlockName = useMemo(() => {
@@ -398,7 +415,7 @@ export const WardenDashboardView: React.FC<WardenDashboardViewProps> = ({
 
         {/* Card 2: Bed Capacity & Occupancy */}
         <div
-          onClick={() => onNavigate && onNavigate("hostel-student-hostel")}
+          onClick={() => onNavigate && onNavigate("hostel-rooms")}
           className="bg-white dark:bg-slate-900 border border-sky-300 dark:border-sky-800 shadow-xs hover:shadow-md hover:border-sky-400 dark:hover:border-sky-600 hover:-translate-y-0.5 transition-all duration-300 p-3.5 sm:p-4 rounded-2xl flex items-center justify-between cursor-pointer group"
         >
           <div className="space-y-1 text-left min-w-0 pr-2">
@@ -412,7 +429,7 @@ export const WardenDashboardView: React.FC<WardenDashboardViewProps> = ({
               </span>
             </p>
             <span className="text-[11px] font-bold text-slate-500 flex items-center gap-1 group-hover:text-indigo-600 transition-colors">
-              {bedOccupancyPct}% Occupied <ArrowRight className="w-3 h-3" />
+              Hostel Beds • {bedOccupancyPct}% Occupied <ArrowRight className="w-3 h-3" />
             </span>
           </div>
           <div className="p-3 rounded-2xl bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 group-hover:bg-indigo-600 group-hover:text-white transition-all duration-300 border border-indigo-200 dark:border-indigo-800 shrink-0">
@@ -599,9 +616,25 @@ export const WardenDashboardView: React.FC<WardenDashboardViewProps> = ({
                         <h4 className="font-extrabold text-slate-900 dark:text-white text-xs">
                           {block.name}
                         </h4>
-                        <p className="text-[10px] text-slate-400 font-medium mt-0.5">
-                          Assigned Warden: <span className="text-sky-600 dark:text-sky-400 font-bold">{block.warden}</span>
-                        </p>
+                        <div className="flex items-center gap-1.5 mt-0.5">
+                          <span className="text-[10px] text-slate-400 font-medium">Assigned Warden:</span>
+                          {!block.isUnassigned ? (
+                            <span className="text-sky-600 dark:text-sky-400 font-bold text-[10px]">{block.warden}</span>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onNavigate && onNavigate("hostel-blocks");
+                              }}
+                              className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9.5px] font-black bg-amber-100 text-amber-800 dark:bg-amber-950/80 dark:text-amber-300 border border-amber-300 dark:border-amber-800 hover:bg-amber-200 transition-colors cursor-pointer"
+                              title="Click to assign warden"
+                            >
+                              <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
+                              Action Required: Unassigned
+                            </button>
+                          )}
+                        </div>
                       </div>
                       <div className="text-right">
                         <span className="font-black text-indigo-600 dark:text-indigo-400 font-mono text-xs block">

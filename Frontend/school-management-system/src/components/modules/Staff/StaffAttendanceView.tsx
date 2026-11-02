@@ -42,6 +42,7 @@ import {
   ChevronLeft,
   Edit,
   RotateCcw,
+  ChevronDown,
 } from "lucide-react";
 import { formatToDDMMYYYY, formatToISO, checkSundayOrHoliday, parseAcademicYearRange, getTargetMonthInAY } from "../../../utils/dateValidation";
 import { exportToExcel } from "../../../utils/excelExport";
@@ -269,6 +270,25 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
   const [personalFilterMonth, setPersonalFilterMonth] = useState("All");
   const [personalSearchQuery, setPersonalSearchQuery] = useState("");
   const [persDateMode, setPersDateMode] = useState<"Daily" | "Monthly" | "Custom Range">("Monthly");
+  const [persDateModeDropdownOpen, setPersDateModeDropdownOpen] = useState(false);
+  const persDateModeRef = useRef<HTMLDivElement>(null);
+  const DATE_MODE_OPTIONS: Array<"Daily" | "Monthly" | "Custom Range"> = ["Daily", "Monthly", "Custom Range"];
+
+  useEffect(() => {
+    const handleOutsideClick = (e: MouseEvent) => {
+      if (persDateModeRef.current && !persDateModeRef.current.contains(e.target as Node)) {
+        setPersDateModeDropdownOpen(false);
+      }
+    };
+    if (persDateModeDropdownOpen) {
+      document.addEventListener("mousedown", handleOutsideClick);
+    }
+    return () => {
+      document.removeEventListener("mousedown", handleOutsideClick);
+    };
+  }, [persDateModeDropdownOpen]);
+
+  const activeRegEmployee = teacher;
   const [persMonthInputVal, setPersMonthInputVal] = useState<string>(() => {
     const range = parseAcademicYearRange(selectedAcademicYear, academicYears);
     const d = new Date();
@@ -1325,30 +1345,52 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
           {/* Control Filters Row */}
           <div className="glass-card p-4 rounded-2xl border border-sky-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 space-y-4 shadow-sm">
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 items-start">
-              {/* Date Mode */}
-              <div>
-                <select
-                  value={persDateMode}
-                  onChange={(e) => {
-                    const nextMode = e.target.value as "Daily" | "Monthly" | "Custom Range";
-                    setPersDateMode(nextMode);
-                    if (nextMode === "Custom Range") {
-                      const y = persRegYear;
-                      const m = String(persRegMonth + 1).padStart(2, "0");
-                      const daysInM = new Date(y, persRegMonth + 1, 0).getDate();
-                      setPersFromDate(`${y}-${m}-01`);
-                      setPersToDate(`${y}-${m}-${String(daysInM).padStart(2, "0")}`);
-                    } else {
-                      setPersFromDate("");
-                      setPersToDate("");
-                    }
-                  }}
-                  className="w-full px-2.5 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none focus:border-brand-500 transition-colors cursor-pointer"
+              {/* Date Mode Custom Theme Dropdown */}
+              <div ref={persDateModeRef} className="relative">
+                <button
+                  type="button"
+                  onClick={() => setPersDateModeDropdownOpen(prev => !prev)}
+                  className="w-full flex items-center justify-between px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white hover:border-sky-400 focus:border-sky-500 outline-none transition-colors cursor-pointer"
                 >
-                  <option value="Daily">Daily</option>
-                  <option value="Monthly">Monthly</option>
-                  <option value="Custom Range">Custom Range</option>
-                </select>
+                  <span>{persDateMode}</span>
+                  <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform duration-200 ${persDateModeDropdownOpen ? 'rotate-180 text-sky-600' : ''}`} />
+                </button>
+
+                {persDateModeDropdownOpen && (
+                  <div className="absolute left-0 top-full mt-1.5 w-full min-w-[160px] bg-white dark:bg-slate-900 rounded-xl shadow-xl border border-sky-100 dark:border-slate-800 py-1.5 z-50 animate-in fade-in zoom-in-95 duration-150">
+                    {DATE_MODE_OPTIONS.map((opt) => {
+                      const isSelected = persDateMode === opt;
+                      return (
+                        <button
+                          key={opt}
+                          type="button"
+                          onClick={() => {
+                            setPersDateMode(opt);
+                            setPersDateModeDropdownOpen(false);
+                            if (opt === "Custom Range") {
+                              const y = persRegYear;
+                              const m = String(persRegMonth + 1).padStart(2, "0");
+                              const daysInM = new Date(y, persRegMonth + 1, 0).getDate();
+                              setPersFromDate(`${y}-${m}-01`);
+                              setPersToDate(`${y}-${m}-${String(daysInM).padStart(2, "0")}`);
+                            } else {
+                              setPersFromDate("");
+                              setPersToDate("");
+                            }
+                          }}
+                          className={`w-full flex items-center justify-between px-3 py-2 text-xs transition-colors cursor-pointer ${
+                            isSelected
+                              ? 'bg-sky-50 text-sky-700 dark:bg-sky-950/60 dark:text-sky-300 font-extrabold'
+                              : 'text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/60 font-semibold'
+                          }`}
+                        >
+                          <span>{opt}</span>
+                          {isSelected && <Check className="w-3.5 h-3.5 text-sky-600 dark:text-sky-400 shrink-0" />}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
 
               {/* Date / Month Selection */}
@@ -1517,17 +1559,7 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
                   </span>
                 </div>
 
-                <div className="flex flex-wrap items-center gap-3">
-                  <select
-                    value={teacher.id}
-                    disabled
-                    className="px-2.5 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none cursor-default"
-                  >
-                    <option value={teacher.id}>
-                      {teacher.firstName} {teacher.lastName} (1)
-                    </option>
-                  </select>
-                </div>
+
               </div>
 
               {/* Monthly Matrix Table */}
@@ -1539,7 +1571,7 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
                     {persDateMode === "Custom Range" && persFromDate && persToDate
                       ? `Custom Range (${formatToDDMMYYYY(persFromDate, "-")} to ${formatToDDMMYYYY(persToDate, "-")})`
                       : `${persMonthNames[persRegMonth]} ${persRegYear}`}{" "}
-                    ({teacher.designation || teacher.department || "Staff"})
+                    ({activeRegEmployee.designation || activeRegEmployee.department || "Staff"})
                   </h3>
                 </div>
 
@@ -1587,8 +1619,8 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
                     <tbody className="divide-y divide-slate-100 dark:divide-slate-800/80 font-semibold">
                       {(() => {
                         const q = personalSearchQuery.toLowerCase().trim();
-                        const fullName = `${teacher.firstName} ${teacher.lastName}`.toLowerCase();
-                        const empCode = String(teacher.empId || teacher.id || "").toLowerCase();
+                        const fullName = `${activeRegEmployee.firstName} ${activeRegEmployee.lastName}`.toLowerCase();
+                        const empCode = String(activeRegEmployee.empId || activeRegEmployee.id || "").toLowerCase();
                         if (q && !fullName.includes(q) && !empCode.includes(q)) {
                           return (
                             <tr>
@@ -1604,22 +1636,17 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
                         let lCount = 0;
                         let hdCount = 0;
 
-                        const teacherId = String(teacher?.id || "").toLowerCase().trim();
-                        const dbId = dbTeacher?.id ? String(dbTeacher.id).toLowerCase().trim() : "";
-                        const dbEmpId = dbTeacher?.empId ? String(dbTeacher.empId).toLowerCase().trim() : "";
-                        const userId = user?.id ? String(user.id).toLowerCase().trim() : "";
-                        const userEmpId = (user as any)?.empId ? String((user as any)?.empId).toLowerCase().trim() : "";
+                        const regStaffId = String(activeRegEmployee?.id || "").toLowerCase().trim();
+                        const regEmpId = String(activeRegEmployee?.empId || "").toLowerCase().trim();
 
                         const rowCells = persRegisterDaysList.map((item, idx) => {
                           const rec = (attendance || []).find((r) => {
                             const isStaff = !r.entityType || r.entityType.toLowerCase() === "staff";
                             const rEntityId = String(r.entityId || (r as any).staffId || "").toLowerCase().trim();
+                            const rEmpCode = String((r as any).employeeId || (r as any).empId || "").toLowerCase().trim();
                             const isId =
-                              (teacherId && rEntityId === teacherId) ||
-                              (dbId && rEntityId === dbId) ||
-                              (dbEmpId && rEntityId === dbEmpId) ||
-                              (userId && rEntityId === userId) ||
-                              (userEmpId && rEntityId === userEmpId);
+                              (regStaffId && (rEntityId === regStaffId || rEmpCode === regStaffId)) ||
+                              (regEmpId && (rEntityId === regEmpId || rEmpCode === regEmpId));
                             const rDate = formatToISO(String(r.date || "").split("T")[0].split(" ")[0]);
                             return isStaff && isId && rDate === item.dateStr;
                           });
@@ -1691,22 +1718,22 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
                         const totalRecordedDays = pCount + aCount + lCount + hdCount;
 
                         return (
-                          <tr className="group hover:bg-slate-50 dark:hover:bg-slate-800/60 text-slate-800 dark:text-slate-200">
+                          <tr key={`pers_reg_row_${activeRegEmployee.id}`} className="group hover:bg-slate-50 dark:hover:bg-slate-800/60 text-slate-800 dark:text-slate-200">
                             <td
                               className="py-2 px-3 font-mono font-bold text-brand-600 dark:text-brand-400 sticky left-0 bg-white dark:bg-slate-900 group-hover:bg-slate-50 dark:group-hover:bg-slate-800 z-10 w-[160px] min-w-[160px] max-w-[160px] border-b border-r border-slate-200 dark:border-slate-800 whitespace-nowrap text-left"
                               style={{ left: 0, width: 160, minWidth: 160, maxWidth: 160 }}
                             >
-                              {teacher.empId || teacher.id}
+                              {activeRegEmployee.empId || activeRegEmployee.id}
                             </td>
                             <td
                               className="py-2 px-3 sticky left-[160px] bg-white dark:bg-slate-900 group-hover:bg-slate-50 dark:group-hover:bg-slate-800 z-10 w-[180px] min-w-[180px] max-w-[180px] border-b border-r border-slate-200 dark:border-slate-800 whitespace-nowrap text-left shadow-[2px_0_4px_rgba(0,0,0,0.04)] dark:shadow-[2px_0_4px_rgba(0,0,0,0.2)]"
                               style={{ left: 160, width: 180, minWidth: 180, maxWidth: 180 }}
                             >
                               <span className="font-extrabold text-slate-900 dark:text-white block">
-                                {teacher.firstName} {teacher.lastName}
+                                {activeRegEmployee.firstName} {activeRegEmployee.lastName}
                               </span>
                               <span className="text-[10px] text-slate-400 block mt-0.5">
-                                {dbTeacher?.email || user?.email || ""}
+                                {(activeRegEmployee as any).email || (activeRegEmployee.id === teacher.id ? (dbTeacher?.email || user?.email || "") : "")}
                               </span>
                             </td>
                             {rowCells}

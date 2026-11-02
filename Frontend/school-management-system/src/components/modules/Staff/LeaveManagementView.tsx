@@ -680,6 +680,14 @@ export const LeaveManagementView: React.FC = () => {
     : Boolean(applyForm.fromDate && applyForm.toDate && applyForm.toDate >= applyForm.fromDate);
   const isInvalidDateRange = Boolean(!applyForm.isHalfDay && applyForm.fromDate && applyForm.toDate && applyForm.toDate < applyForm.fromDate);
 
+  const isApplyFormValid = Boolean(
+    applyForm.leaveTypeId &&
+    hasValidDates &&
+    !isInvalidDateRange &&
+    applyForm.reason?.trim() &&
+    (isSelfServiceStaff || applyForm.employeeId)
+  );
+
   const formatLeaveDateRange = (from?: string, to?: string) => {
     if (!from && !to) return '-';
     if (!to) return from || '-';
@@ -1340,7 +1348,10 @@ export const LeaveManagementView: React.FC = () => {
                   {(() => {
                     const baseApps = isSelfServiceStaff ? myApplications : campusApplications;
                     const filteredList = baseApps.filter(app => {
-                      const nameMatch = Boolean(searchError) || !query.trim() || app.employeeName.toLowerCase().includes(query.trim().toLowerCase());
+                      const qClean = query.trim().toLowerCase();
+                      const nameMatch = !qClean || 
+                        app.employeeName.toLowerCase().includes(qClean) ||
+                        (app.empId && app.empId.toLowerCase().includes(qClean));
                       const catMatch = filterCategory === 'All' || app.employeeCategory === filterCategory;
                       const statusMatch = filterStatus === 'All' || (app.status || '').toLowerCase() === filterStatus.toLowerCase();
                       const typeMatch = filterType === 'All' || app.leaveTypeName === filterType;
@@ -1348,8 +1359,34 @@ export const LeaveManagementView: React.FC = () => {
                     });
 
                     if (filteredList.length === 0) {
-                      if (searchError) {
-                        return null;
+                      if (query.trim()) {
+                        return (
+                          <tr>
+                            <td colSpan={10} className="py-12 text-center">
+                              <div className="flex flex-col items-center justify-center gap-2 max-w-sm mx-auto">
+                                <div className="w-10 h-10 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-400">
+                                  <Search className="w-5 h-5" />
+                                </div>
+                                <p className="text-sm font-bold text-slate-800 dark:text-slate-200">
+                                  No matching records found
+                                </p>
+                                <p className="text-xs text-slate-500 dark:text-slate-400">
+                                  No leave applications match &ldquo;<span className="font-semibold text-slate-700 dark:text-slate-200">{query.trim()}</span>&rdquo;. Please check your spelling or adjust your filters.
+                                </p>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setQuery('');
+                                    setSearchError(undefined);
+                                  }}
+                                  className="mt-1 text-xs font-bold text-brand-600 hover:text-brand-700 underline cursor-pointer"
+                                >
+                                  Clear Search
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        );
                       }
                       return (
                         <tr>
@@ -1533,24 +1570,58 @@ export const LeaveManagementView: React.FC = () => {
                 </tr>
               </thead>
               <tbody className="divide-y font-medium text-slate-705 dark:text-slate-300">
-                {paginatedStaffForBalance.map((s, idx) => {
-                  const rem = getEmployeeRemainingBalances(s);
-                  const used = getEmployeeApprovedUsedLeaves(s.id, s.empId);
-                  return (
-                    <tr key={s.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50">
-                      <td className="py-3 px-4 font-mono font-bold text-slate-500 text-center">{(balanceCurrentPage - 1) * balancePageSize + idx + 1}</td>
-                      <td className="py-3 px-4 text-center">
-                        <p className="font-bold text-slate-800 dark:text-slate-100">{s.firstName} {s.lastName}</p>
-                        <p className="text-[10px] text-slate-400">{s.designation} • {s.empId}</p>
-                      </td>
-                      <td className="py-3 px-4 font-mono font-bold text-slate-700 dark:text-slate-300 text-center">{rem.casual} {rem.casual === 1 ? 'Day' : 'Days'}</td>
-                      <td className="py-3 px-4 font-mono font-bold text-slate-700 dark:text-slate-300 text-center">{rem.sick} {rem.sick === 1 ? 'Day' : 'Days'}</td>
-                      <td className="py-3 px-4 font-mono font-bold text-slate-700 dark:text-slate-300 text-center">{rem.earned} {rem.earned === 1 ? 'Day' : 'Days'}</td>
-                      <td className="py-3 px-4 font-mono font-bold text-slate-700 dark:text-slate-300 text-center">{used.total} {used.total === 1 ? 'Day' : 'Days'}</td>
-                      <td className="py-3 px-4 font-mono font-black text-brand-600 dark:text-brand-400 text-center">{rem.total} {rem.total === 1 ? 'Day' : 'Days'}</td>
-                    </tr>
-                  );
-                })}
+                {paginatedStaffForBalance.length === 0 ? (
+                  <tr>
+                    <td colSpan={7} className="py-12 text-center">
+                      <div className="flex flex-col items-center justify-center gap-2 max-w-sm mx-auto">
+                        <div className="w-10 h-10 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-400">
+                          <Search className="w-5 h-5" />
+                        </div>
+                        <p className="text-sm font-bold text-slate-800 dark:text-slate-200">
+                          No matching records found
+                        </p>
+                        <p className="text-xs text-slate-500 dark:text-slate-400">
+                          {query.trim() ? (
+                            <>No employee balance records match &ldquo;<span className="font-semibold text-slate-700 dark:text-slate-200">{query.trim()}</span>&rdquo;. Please check your spelling or adjust your filters.</>
+                          ) : (
+                            'No employee leave balance records found.'
+                          )}
+                        </p>
+                        {query.trim() && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setQuery('');
+                              setSearchError(undefined);
+                            }}
+                            className="mt-1 text-xs font-bold text-brand-600 hover:text-brand-700 underline cursor-pointer"
+                          >
+                            Clear Search
+                          </button>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                ) : (
+                  paginatedStaffForBalance.map((s, idx) => {
+                    const rem = getEmployeeRemainingBalances(s);
+                    const used = getEmployeeApprovedUsedLeaves(s.id, s.empId);
+                    return (
+                      <tr key={s.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50">
+                        <td className="py-3 px-4 font-mono font-bold text-slate-500 text-center">{(balanceCurrentPage - 1) * balancePageSize + idx + 1}</td>
+                        <td className="py-3 px-4 text-center">
+                          <p className="font-bold text-slate-800 dark:text-slate-100">{s.firstName} {s.lastName}</p>
+                          <p className="text-[10px] text-slate-400">{s.designation} • {s.empId}</p>
+                        </td>
+                        <td className="py-3 px-4 font-mono font-bold text-slate-700 dark:text-slate-300 text-center">{rem.casual} {rem.casual === 1 ? 'Day' : 'Days'}</td>
+                        <td className="py-3 px-4 font-mono font-bold text-slate-700 dark:text-slate-300 text-center">{rem.sick} {rem.sick === 1 ? 'Day' : 'Days'}</td>
+                        <td className="py-3 px-4 font-mono font-bold text-slate-700 dark:text-slate-300 text-center">{rem.earned} {rem.earned === 1 ? 'Day' : 'Days'}</td>
+                        <td className="py-3 px-4 font-mono font-bold text-slate-700 dark:text-slate-300 text-center">{used.total} {used.total === 1 ? 'Day' : 'Days'}</td>
+                        <td className="py-3 px-4 font-mono font-black text-brand-600 dark:text-brand-400 text-center">{rem.total} {rem.total === 1 ? 'Day' : 'Days'}</td>
+                      </tr>
+                    );
+                  })
+                )}
               </tbody>
             </table>
 
@@ -1893,7 +1964,7 @@ export const LeaveManagementView: React.FC = () => {
                   <button type="button" onClick={() => setIsApplyOpen(false)} className="px-3.5 py-1.5 font-bold bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-lg text-xs transition-colors">Cancel</button>
                   <button
                     type="submit"
-                    disabled={isSubmitting}
+                    disabled={isSubmitting || !isApplyFormValid}
                     className="px-4 py-1.5 font-extrabold text-white bg-brand-600 hover:bg-brand-500 rounded-lg text-xs shadow-md transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {isSubmitting ? 'Submitting...' : editingApplication ? 'Save Changes' : 'Submit Request'}
