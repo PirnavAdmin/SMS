@@ -299,13 +299,12 @@ export const HostelMasterView: React.FC = () => {
             />
           </div>
 
-          <div className="flex items-center gap-2 w-full sm:w-auto">
-            <span className="text-xs font-extrabold text-slate-600 dark:text-slate-300">Filter:</span>
+          <div className="flex items-center gap-2.5 w-full sm:w-auto justify-end">
             <select
               value={filterType}
               onChange={e => setFilterType(e.target.value)}
-              className={`px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-xs font-bold cursor-pointer outline-none transition-all ${
-                !filterType ? 'text-slate-400 dark:text-slate-500 font-medium' : 'text-slate-900 dark:text-white'
+              className={`px-3.5 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold cursor-pointer outline-none h-[38px] transition-all hover:border-sky-400 ${
+                !filterType ? 'text-slate-400 dark:text-slate-500 font-medium' : 'text-slate-800 dark:text-slate-200'
               }`}
             >
               <option value="" className="text-slate-400 dark:text-slate-500 font-sans italic bg-white dark:bg-slate-900">Select Hostel...</option>

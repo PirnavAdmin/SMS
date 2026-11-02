@@ -1148,28 +1148,27 @@ export const StudentList: React.FC<{ onNavigate?: (module: string) => void }> = 
         </div>
 
         {/* Warden Filters Bar */}
-        <div className="glass-card p-4 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-4">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-            {/* Search Input */}
-            <div className="relative col-span-1 sm:col-span-2 lg:col-span-1">
-              <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+        <div className="glass-card p-3.5 sm:p-4 rounded-2xl bg-white dark:bg-slate-900 border border-sky-300 dark:border-sky-800 shadow-xs space-y-3">
+          <div className="flex flex-col md:flex-row items-center justify-between gap-3">
+            {/* Search Input on Left */}
+            <div className="relative w-full md:w-72 lg:w-80">
+              <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
               <input
                 type="text"
                 placeholder="Search..."
                 value={wardenSearchQuery}
                 onChange={e => { setWardenSearchQuery(e.target.value); setWardenCurrentPage(1); }}
-                className="w-full pl-9 pr-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-sky-500/20"
+                className="w-full pl-9 pr-3.5 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20 transition-all h-[38px]"
               />
             </div>
 
-            {/* Dynamic Assigned Block Dropdown */}
-            <div className="flex items-center gap-2">
-              <Building2 className="w-4 h-4 text-sky-600 shrink-0" />
+            {/* Neat Filter Group on Right Side */}
+            <div className="flex flex-wrap items-center justify-end gap-2.5 w-full md:w-auto">
               {wardenTargetBlocks.length > 0 ? (
                 <select
                   value={wardenSelectedBlockId || (wardenTargetBlocks?.[0] ? String(wardenTargetBlocks[0]?.hostelId || wardenTargetBlocks[0]?.id || '') : '')}
                   onChange={e => { setWardenSelectedBlockId(e.target.value); setWardenCurrentPage(1); }}
-                  className="w-full px-3 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none cursor-pointer h-[38px]"
+                  className="px-3.5 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-800 dark:text-slate-200 outline-none cursor-pointer h-[38px] hover:border-sky-400 focus:border-sky-500 transition-colors"
                 >
                   {!isWardenRole && <option value="All">All Hostel Blocks</option>}
                   {wardenTargetBlocks.map(b => (
@@ -1179,45 +1178,33 @@ export const StudentList: React.FC<{ onNavigate?: (module: string) => void }> = 
                   ))}
                 </select>
               ) : (
-                <div className="w-full px-3 py-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center h-[38px] truncate">
+                <div className="px-3.5 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center h-[38px] truncate">
                   {wardenAssignedBlockName}
                 </div>
               )}
-            </div>
 
-            {/* Floor Filter */}
-            <div className="flex items-center gap-2">
-              <Layers className="w-4 h-4 text-sky-600 shrink-0" />
+              {/* Floor Filter */}
               <select
                 value={wardenSelectedFloor}
                 onChange={e => { setWardenSelectedFloor(e.target.value); setWardenCurrentPage(1); }}
-                className="w-full px-3 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none cursor-pointer"
+                className="px-3.5 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-800 dark:text-slate-200 outline-none cursor-pointer h-[38px] hover:border-sky-400 focus:border-sky-500 transition-colors"
               >
                 {wardenFloorOptions.map(f => (
                   <option key={f} value={f}>{f}</option>
                 ))}
               </select>
-            </div>
 
-            {/* Room Filter */}
-            <div className="flex items-center gap-2">
-              <Home className="w-4 h-4 text-sky-600 shrink-0" />
+              {/* Room Filter */}
               <select
                 value={wardenSelectedRoom}
                 onChange={e => { setWardenSelectedRoom(e.target.value); setWardenCurrentPage(1); }}
-                className="w-full px-3 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none cursor-pointer"
+                className="px-3.5 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-800 dark:text-slate-200 outline-none cursor-pointer h-[38px] hover:border-sky-400 focus:border-sky-500 transition-colors"
               >
                 {wardenRoomOptions.map(r => (
                   <option key={r} value={r}>{r}</option>
                 ))}
               </select>
-            </div>
-          </div>
 
-          {/* Active Filter Pills Bar */}
-          <div className="flex items-center justify-between text-xs font-extrabold text-slate-500 border-t border-slate-100 dark:border-slate-800 pt-3">
-            <div className="flex items-center gap-2">
-              <span>Showing <strong className="text-slate-900 dark:text-white">{wardenHostelStudents.length}</strong> Resident Hostel Students</span>
               {(wardenSelectedFloor !== 'All Floors' || wardenSelectedRoom !== 'All Rooms' || wardenSearchQuery) && (
                 <button
                   onClick={() => {
@@ -1226,12 +1213,17 @@ export const StudentList: React.FC<{ onNavigate?: (module: string) => void }> = 
                     setWardenSearchQuery('');
                     setWardenCurrentPage(1);
                   }}
-                  className="px-2.5 py-1 rounded-lg bg-rose-50 text-rose-600 dark:bg-rose-950/60 dark:text-rose-400 font-bold hover:bg-rose-100 transition-colors text-[11px] cursor-pointer"
+                  className="px-3 py-2 rounded-xl bg-rose-50 text-rose-600 dark:bg-rose-950/60 dark:text-rose-400 font-bold hover:bg-rose-100 transition-colors text-xs cursor-pointer h-[38px]"
                 >
                   Clear Filters
                 </button>
               )}
             </div>
+          </div>
+
+          {/* Active Filter Status */}
+          <div className="flex items-center justify-between text-xs font-extrabold text-slate-500 border-t border-slate-100 dark:border-slate-800 pt-2.5">
+            <span>Showing <strong className="text-slate-900 dark:text-white">{wardenHostelStudents.length}</strong> Resident Hostel Students</span>
           </div>
         </div>
 

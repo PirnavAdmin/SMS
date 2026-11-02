@@ -543,39 +543,34 @@ export const HostelAttendanceView: React.FC = () => {
       </div>
 
       {/* Top Search & Filter Bar */}
-      <div className="glass-card p-5 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm space-y-3">
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
-          <div>
-            <label className="block text-[10px] font-extrabold text-slate-400 uppercase tracking-wider mb-1">Search Student</label>
-            <div className="relative">
-              <Search className="w-4 h-4 absolute left-3.5 top-2.5 text-slate-400" />
-              <input
-                type="text"
-                placeholder="Search by name, student ID, room..."
-                value={searchQuery}
-                onChange={e => {
-                  setSearchQuery(e.target.value);
-                  setCurrentPage(1);
-                }}
-                className="w-full pl-9 pr-4 py-2 text-xs rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none"
-              />
-            </div>
+      <div className="glass-card p-4 rounded-2xl bg-white dark:bg-slate-900 border border-sky-300 dark:border-sky-800 shadow-xs space-y-3">
+        <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3">
+          {/* Left: Search input */}
+          <div className="relative w-full lg:w-72">
+            <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+            <input
+              type="text"
+              placeholder="Search by name, student ID, room..."
+              value={searchQuery}
+              onChange={e => {
+                setSearchQuery(e.target.value);
+                setCurrentPage(1);
+              }}
+              className="w-full pl-9 pr-4 py-2 text-xs rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none focus:border-sky-500 h-[38px]"
+            />
           </div>
 
-          <div>
-            <label className="block text-[10px] font-extrabold text-slate-400 uppercase tracking-wider mb-1">Attendance Date <span className="text-rose-500 font-bold ml-0.5">*</span></label>
+          {/* Right: Date, Block, Room filters */}
+          <div className="flex flex-wrap items-center justify-end gap-2.5 w-full lg:w-auto">
             <input
               type="date"
               value={selectedDate}
               onChange={e => setSelectedDate(e.target.value)}
-              className="w-full px-3 py-2 text-xs rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white font-mono font-bold outline-none"
+              className="px-3 py-2 text-xs rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white font-mono font-bold outline-none h-[38px] cursor-pointer"
             />
-          </div>
 
-          <div>
-            <label className="block text-[10px] font-extrabold text-slate-400 uppercase tracking-wider mb-1">Hostel Block</label>
             {isWarden ? (
-              <div className="w-full px-3 py-2 text-xs rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sky-600 dark:text-sky-400 font-bold">
+              <div className="px-3.5 py-2 text-xs rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 font-bold h-[38px] flex items-center">
                 {targetBlocks[0]?.hostelName || 'Assigned Hostel Block'}
               </div>
             ) : (
@@ -585,7 +580,7 @@ export const HostelAttendanceView: React.FC = () => {
                   setSelectedBlockId(e.target.value);
                   setCurrentPage(1);
                 }}
-                className="w-full px-3 py-2 text-xs rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white font-bold outline-none"
+                className="px-3.5 py-2 text-xs rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 font-bold outline-none h-[38px] cursor-pointer hover:border-sky-400 transition-colors"
               >
                 <option value="All">All Blocks</option>
                 {(targetBlocks || [])
@@ -600,17 +595,14 @@ export const HostelAttendanceView: React.FC = () => {
                   })}
               </select>
             )}
-          </div>
 
-          <div>
-            <label className="block text-[10px] font-extrabold text-slate-400 uppercase tracking-wider mb-1">Room / Floor</label>
             <select
               value={selectedRoomId}
               onChange={e => {
                 setSelectedRoomId(e.target.value);
                 setCurrentPage(1);
               }}
-              className="w-full px-3 py-2 text-xs rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white font-bold outline-none"
+              className="px-3.5 py-2 text-xs rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 font-bold outline-none h-[38px] cursor-pointer hover:border-sky-400 transition-colors"
             >
               <option value="">All Rooms</option>
               {(filteredRooms || [])

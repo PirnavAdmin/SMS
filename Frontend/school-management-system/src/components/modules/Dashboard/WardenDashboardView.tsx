@@ -334,9 +334,6 @@ export const WardenDashboardView: React.FC<WardenDashboardViewProps> = ({
               <span>{greeting}, {displayName || "Hostel Warden"}!</span>
               <span className="text-base inline-block hover:rotate-12 transition-transform select-none" role="img" aria-label="wave">👋</span>
             </h1>
-            <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-sky-100 text-sky-800 dark:bg-sky-950/80 dark:text-sky-300 border border-sky-300 dark:border-sky-800 flex items-center gap-1">
-              🏢 {assignedBlockName}
-            </span>
           </div>
         </div>
 

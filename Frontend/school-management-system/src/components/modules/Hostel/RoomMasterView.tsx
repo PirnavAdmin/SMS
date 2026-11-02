@@ -299,17 +299,16 @@ export const RoomMasterView: React.FC<RoomMasterViewProps> = ({ selectedHostelFi
           />
         </div>
 
-        <div className="flex items-center gap-2 w-full sm:w-auto flex-wrap">
-          <span className="text-xs font-extrabold text-slate-600 dark:text-slate-300">Filter:</span>
+        <div className="flex items-center gap-2.5 w-full sm:w-auto flex-wrap justify-end">
           {isWarden ? (
-            <div className="px-3 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-sky-600 dark:text-sky-400">
+            <div className="px-3.5 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-800 dark:text-slate-200 h-[38px] flex items-center">
               {targetBlocks[0]?.hostelName || 'Assigned Hostel Block'}
             </div>
           ) : (
             <select
               value={filterHostel}
               onChange={e => { setFilterHostel(e.target.value); setCurrentPage(1); }}
-              className="px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-xs font-bold text-slate-900 dark:text-white outline-none"
+              className="px-3.5 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-800 dark:text-slate-200 outline-none cursor-pointer h-[38px] hover:border-sky-400 transition-colors"
             >
               <option value="">Select Hostel...</option>
               <option value="All">All Hostels</option>
@@ -328,18 +327,15 @@ export const RoomMasterView: React.FC<RoomMasterViewProps> = ({ selectedHostelFi
           )}
 
           {/* Floor Filter */}
-          <div className="flex items-center gap-1.5">
-            <Layers className="w-3.5 h-3.5 text-sky-500 shrink-0" />
-            <select
-              value={filterFloor}
-              onChange={e => { setFilterFloor(e.target.value); setCurrentPage(1); }}
-              className="px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none cursor-pointer"
-            >
-              {availableFloorOptions.map(f => (
-                <option key={f} value={f}>{f}</option>
-              ))}
-            </select>
-          </div>
+          <select
+            value={filterFloor}
+            onChange={e => { setFilterFloor(e.target.value); setCurrentPage(1); }}
+            className="px-3.5 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-800 dark:text-slate-200 outline-none cursor-pointer h-[38px] hover:border-sky-400 transition-colors"
+          >
+            {availableFloorOptions.map(f => (
+              <option key={f} value={f}>{f}</option>
+            ))}
+          </select>
         </div>
       </div>
 

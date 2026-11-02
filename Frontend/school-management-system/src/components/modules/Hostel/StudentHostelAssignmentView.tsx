@@ -848,23 +848,23 @@ export const StudentHostelAssignmentView: React.FC = () => {
           <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
           <input
             type="text"
-            placeholder="Search student, adm no, room..."
+            placeholder="Search ..."
             value={searchQuery}
             onChange={e => setSearchQuery(e.target.value)}
             className="w-full pl-9 pr-4 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-xs text-slate-900 dark:text-white outline-none"
           />
         </div>
 
-        <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap w-full sm:w-auto">
+        <div className="flex items-center gap-2.5 flex-wrap sm:flex-nowrap w-full sm:w-auto justify-end">
           {isWarden ? (
-            <div className="px-3 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center h-[38px] truncate">
+            <div className="px-3.5 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center h-[38px] truncate">
               {targetBlocks[0]?.hostelName || 'Assigned Hostel Block'}
             </div>
           ) : (
             <select
               value={filterHostel}
               onChange={e => setFilterHostel(e.target.value)}
-              className="px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-xs font-bold text-slate-900 dark:text-white outline-none cursor-pointer"
+              className="px-3.5 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-800 dark:text-slate-200 outline-none cursor-pointer h-[38px] hover:border-sky-400 transition-colors"
             >
               <option value="">Select Hostel...</option>
               <option value="All">All Hostels</option>
@@ -885,7 +885,7 @@ export const StudentHostelAssignmentView: React.FC = () => {
           <select
             value={filterFloor}
             onChange={e => setFilterFloor(e.target.value)}
-            className="px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-xs font-bold text-slate-900 dark:text-white outline-none cursor-pointer"
+            className="px-3.5 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-800 dark:text-slate-200 outline-none cursor-pointer h-[38px] hover:border-sky-400 transition-colors"
           >
             {availableFloorOptions.map((f: string) => (
               <option key={f} value={f}>{f}</option>
@@ -895,7 +895,7 @@ export const StudentHostelAssignmentView: React.FC = () => {
           <select
             value={filterRoom}
             onChange={e => setFilterRoom(e.target.value)}
-            className="px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-xs font-bold text-slate-900 dark:text-white outline-none cursor-pointer"
+            className="px-3.5 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-800 dark:text-slate-200 outline-none cursor-pointer h-[38px] hover:border-sky-400 transition-colors"
           >
             {availableRoomOptions.map((r: string) => (
               <option key={r} value={r}>{r}</option>
