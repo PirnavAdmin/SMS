@@ -2460,7 +2460,7 @@ export const SettingsView: React.FC = () => {
       {activeTab === "automated-ids" && (
         <div className="space-y-5 animate-in fade-in">
           {/* Top Banner Header Card */}
-          <div className="p-4 sm:p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="p-4 sm:p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs flex items-center justify-between gap-4">
             <div className="flex items-center gap-3">
               <div className="w-9 h-9 rounded-xl bg-sky-50 dark:bg-sky-950/50 text-sky-600 dark:text-sky-400 flex items-center justify-center border border-sky-100 dark:border-sky-900/50 shrink-0">
                 <Layers className="w-5 h-5" />
@@ -2469,30 +2469,10 @@ export const SettingsView: React.FC = () => {
                 <h3 className="font-extrabold text-slate-900 dark:text-white text-base">
                   Automated ID & Serial Number Sequence Settings
                 </h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400">
+                  Configure dynamic numbering formats for students, staff, and admissions. Click the edit icon on any card to modify.
+                </p>
               </div>
-            </div>
-
-            <div className="flex items-center gap-2.5 shrink-0">
-              <button
-                type="button"
-                onClick={async () => {
-                  try {
-                    saveIdSequenceSettings(idForm);
-                    const res = await updateIdSequenceSettingsApi(idForm);
-                    if (res && (res.success || res.data)) {
-                      addToast("success", "Automated Settings Saved", "All ID sequence formatting rules synced successfully to database.");
-                    } else {
-                      addToast("success", "Automated Settings Saved", "All ID sequence formatting rules updated.");
-                    }
-                  } catch (err) {
-                    console.warn("Error saving ID sequence settings to backend API:", err);
-                    addToast("error", "Sync Warning", "Could not sync ID sequence settings to backend API.");
-                  }
-                }}
-                className="px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs shadow-md flex items-center gap-1.5 transition cursor-pointer"
-              >
-                <Save className="w-4 h-4" /> Save All ID Formats
-              </button>
             </div>
           </div>
 
@@ -2514,36 +2494,33 @@ export const SettingsView: React.FC = () => {
                     <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">Automatic serial format for student enrollment</p>
                   </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  <span className="px-2.5 py-1 rounded-full text-[11px] font-bold bg-sky-50 dark:bg-sky-950/60 text-sky-700 dark:text-sky-300 border border-sky-200 dark:border-sky-800/60">
-                    Student
-                  </span>
+                <div>
                   {!editingIdCards.student ? (
                     <button
                       type="button"
                       onClick={() => handleStartEditIdCard('student')}
-                      className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold text-sky-600 dark:text-sky-400 bg-sky-50 dark:bg-sky-950/50 hover:bg-sky-100 dark:hover:bg-sky-900/60 border border-sky-200 dark:border-sky-800 transition cursor-pointer"
-                      title="Edit Student ID sequence"
+                      className="p-2 rounded-xl text-slate-500 hover:text-sky-600 hover:bg-sky-50 dark:hover:bg-sky-950/50 border border-transparent hover:border-sky-200 dark:hover:border-sky-800 transition cursor-pointer"
+                      title="Edit Student ID format"
                     >
-                      <Edit className="w-3.5 h-3.5" /> Edit
+                      <Edit className="w-4 h-4" />
                     </button>
                   ) : (
-                    <div className="flex items-center gap-1.5">
+                    <div className="flex items-center gap-1">
                       <button
                         type="button"
                         onClick={() => handleCancelEditIdCard('student')}
-                        className="p-1 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700 transition cursor-pointer"
+                        className="p-1.5 rounded-xl text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700 transition cursor-pointer"
                         title="Cancel"
                       >
-                        <X className="w-3.5 h-3.5" />
+                        <X className="w-4 h-4" />
                       </button>
                       <button
                         type="button"
                         onClick={() => handleSaveIdCard('student', 'Student ID')}
-                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold text-white bg-sky-600 hover:bg-sky-500 shadow-xs transition cursor-pointer"
+                        className="p-1.5 rounded-xl bg-sky-600 hover:bg-sky-500 text-white shadow-xs transition cursor-pointer"
                         title="Save changes"
                       >
-                        <Check className="w-3.5 h-3.5" /> Save
+                        <Check className="w-4 h-4" />
                       </button>
                     </div>
                   )}
@@ -2716,36 +2693,33 @@ export const SettingsView: React.FC = () => {
                     <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">Automatic serial format for faculty & teachers</p>
                   </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  <span className="px-2.5 py-1 rounded-full text-[11px] font-bold bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800/60">
-                    Teaching Staff
-                  </span>
+                <div>
                   {!editingIdCards.teaching ? (
                     <button
                       type="button"
                       onClick={() => handleStartEditIdCard('teaching')}
-                      className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/50 hover:bg-indigo-100 dark:hover:bg-indigo-900/60 border border-indigo-200 dark:border-indigo-800 transition cursor-pointer"
-                      title="Edit Teaching Staff ID sequence"
+                      className="p-2 rounded-xl text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-950/50 border border-transparent hover:border-indigo-200 dark:hover:border-indigo-800 transition cursor-pointer"
+                      title="Edit Teaching Staff ID format"
                     >
-                      <Edit className="w-3.5 h-3.5" /> Edit
+                      <Edit className="w-4 h-4" />
                     </button>
                   ) : (
-                    <div className="flex items-center gap-1.5">
+                    <div className="flex items-center gap-1">
                       <button
                         type="button"
                         onClick={() => handleCancelEditIdCard('teaching')}
-                        className="p-1 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700 transition cursor-pointer"
+                        className="p-1.5 rounded-xl text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700 transition cursor-pointer"
                         title="Cancel"
                       >
-                        <X className="w-3.5 h-3.5" />
+                        <X className="w-4 h-4" />
                       </button>
                       <button
                         type="button"
                         onClick={() => handleSaveIdCard('teaching', 'Teaching Staff ID')}
-                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-500 shadow-xs transition cursor-pointer"
+                        className="p-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white shadow-xs transition cursor-pointer"
                         title="Save changes"
                       >
-                        <Check className="w-3.5 h-3.5" /> Save
+                        <Check className="w-4 h-4" />
                       </button>
                     </div>
                   )}
@@ -2918,36 +2892,33 @@ export const SettingsView: React.FC = () => {
                     <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">Automatic serial format for administrative & support staff</p>
                   </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  <span className="px-2.5 py-1 rounded-full text-[11px] font-bold bg-fuchsia-50 dark:bg-fuchsia-950/60 text-fuchsia-700 dark:text-fuchsia-300 border border-fuchsia-200 dark:border-fuchsia-800/60">
-                    Non-Teaching
-                  </span>
+                <div>
                   {!editingIdCards.nonTeaching ? (
                     <button
                       type="button"
                       onClick={() => handleStartEditIdCard('nonTeaching')}
-                      className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold text-fuchsia-600 dark:text-fuchsia-400 bg-fuchsia-50 dark:bg-fuchsia-950/50 hover:bg-fuchsia-100 dark:hover:bg-fuchsia-900/60 border border-fuchsia-200 dark:border-fuchsia-800 transition cursor-pointer"
-                      title="Edit Non-Teaching Staff ID sequence"
+                      className="p-2 rounded-xl text-slate-500 hover:text-fuchsia-600 hover:bg-fuchsia-50 dark:hover:bg-fuchsia-950/50 border border-transparent hover:border-fuchsia-200 dark:hover:border-fuchsia-800 transition cursor-pointer"
+                      title="Edit Non-Teaching Staff ID format"
                     >
-                      <Edit className="w-3.5 h-3.5" /> Edit
+                      <Edit className="w-4 h-4" />
                     </button>
                   ) : (
-                    <div className="flex items-center gap-1.5">
+                    <div className="flex items-center gap-1">
                       <button
                         type="button"
                         onClick={() => handleCancelEditIdCard('nonTeaching')}
-                        className="p-1 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700 transition cursor-pointer"
+                        className="p-1.5 rounded-xl text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700 transition cursor-pointer"
                         title="Cancel"
                       >
-                        <X className="w-3.5 h-3.5" />
+                        <X className="w-4 h-4" />
                       </button>
                       <button
                         type="button"
                         onClick={() => handleSaveIdCard('nonTeaching', 'Non-Teaching Staff ID')}
-                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold text-white bg-fuchsia-600 hover:bg-fuchsia-500 shadow-xs transition cursor-pointer"
+                        className="p-1.5 rounded-xl bg-fuchsia-600 hover:bg-fuchsia-500 text-white shadow-xs transition cursor-pointer"
                         title="Save changes"
                       >
-                        <Check className="w-3.5 h-3.5" /> Save
+                        <Check className="w-4 h-4" />
                       </button>
                     </div>
                   )}
@@ -3120,36 +3091,33 @@ export const SettingsView: React.FC = () => {
                     <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">Automatic serial format for new student admissions</p>
                   </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  <span className="px-2.5 py-1 rounded-full text-[11px] font-bold bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800/60">
-                    Admission No
-                  </span>
+                <div>
                   {!editingIdCards.admission ? (
                     <button
                       type="button"
                       onClick={() => handleStartEditIdCard('admission')}
-                      className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/50 hover:bg-emerald-100 dark:hover:bg-emerald-900/60 border border-emerald-200 dark:border-emerald-800 transition cursor-pointer"
-                      title="Edit Admission Number sequence"
+                      className="p-2 rounded-xl text-slate-500 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950/50 border border-transparent hover:border-emerald-200 dark:hover:border-emerald-800 transition cursor-pointer"
+                      title="Edit Admission Number format"
                     >
-                      <Edit className="w-3.5 h-3.5" /> Edit
+                      <Edit className="w-4 h-4" />
                     </button>
                   ) : (
-                    <div className="flex items-center gap-1.5">
+                    <div className="flex items-center gap-1">
                       <button
                         type="button"
                         onClick={() => handleCancelEditIdCard('admission')}
-                        className="p-1 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700 transition cursor-pointer"
+                        className="p-1.5 rounded-xl text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700 transition cursor-pointer"
                         title="Cancel"
                       >
-                        <X className="w-3.5 h-3.5" />
+                        <X className="w-4 h-4" />
                       </button>
                       <button
                         type="button"
                         onClick={() => handleSaveIdCard('admission', 'Admission Number')}
-                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-500 shadow-xs transition cursor-pointer"
+                        className="p-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white shadow-xs transition cursor-pointer"
                         title="Save changes"
                       >
-                        <Check className="w-3.5 h-3.5" /> Save
+                        <Check className="w-4 h-4" />
                       </button>
                     </div>
                   )}
