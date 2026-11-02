@@ -399,12 +399,22 @@ public class EmailNotificationService : IEmailNotificationService
 
             // Capture exact structured error message
             string detailedReason;
+            var fullEx = ex.ToString();
             if (ex is SmtpException smtpEx)
             {
                 if (smtpEx.Message.Contains("Daily user sending limit exceeded", StringComparison.OrdinalIgnoreCase) ||
-                    smtpEx.Message.Contains("5.4.5", StringComparison.OrdinalIgnoreCase))
+                    smtpEx.Message.Contains("5.4.5", StringComparison.OrdinalIgnoreCase) ||
+                    fullEx.Contains("5.4.5", StringComparison.OrdinalIgnoreCase))
                 {
                     detailedReason = "Provider SMTP daily sending limit reached (5.4.5 Daily user sending limit exceeded). Queued for retry.";
+                }
+                else if (fullEx.Contains("net_io_connectionclosed", StringComparison.OrdinalIgnoreCase) ||
+                         fullEx.Contains("535", StringComparison.OrdinalIgnoreCase) ||
+                         fullEx.Contains("BadCredentials", StringComparison.OrdinalIgnoreCase) ||
+                         fullEx.Contains("Username and Password not accepted", StringComparison.OrdinalIgnoreCase) ||
+                         (smtpEx.StatusCode == SmtpStatusCode.GeneralFailure && primaryHost.Contains("gmail", StringComparison.OrdinalIgnoreCase)))
+                {
+                    detailedReason = "SMTP Authentication Failed: Gmail rejected the username or password (535 5.7.8 Bad Credentials). Gmail requires a 16-character Google App Password (not your personal account password). Please generate an App Password in your Google Account Security settings.";
                 }
                 else
                 {
@@ -417,8 +427,8 @@ public class EmailNotificationService : IEmailNotificationService
             }
 
             result.Success = false;
-            result.ErrorMessage = detailedReason;
-            return result;
+                        result.ErrorMessage = detailedReason;
+                        return result;
         }
     }
 
