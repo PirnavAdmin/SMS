@@ -128,18 +128,32 @@ public class AdmissionsController : ControllerBase
         {
             await _schoolService.RejectApplicationAsync(app.Id);
         }
-        else if (dto.Status.Equals("Enrolled", System.StringComparison.OrdinalIgnoreCase) || dto.Status.Equals("Admitted", System.StringComparison.OrdinalIgnoreCase))
+        AdmissionApplicationResponseDto? enrolledAppDetails = null;
+        if (dto.Status.Equals("Enrolled", System.StringComparison.OrdinalIgnoreCase) || dto.Status.Equals("Admitted", System.StringComparison.OrdinalIgnoreCase))
         {
             enrolledAdmissionNo = await _schoolService.EnrollStudentAsync(app.Id);
-            var updatedApp = await _schoolService.GetApplicationByIdAsync(app.Id);
-            enrolledRegNo = updatedApp?.RegistrationNo;
+            enrolledAppDetails = await _schoolService.GetApplicationByIdAsync(app.Id);
+            enrolledRegNo = enrolledAppDetails?.RegistrationNo;
         }
         else
         {
             await _schoolService.UpdateApplicationStatusAsync(app.Id, dto.Status);
         }
 
-        return Ok(new { success = true, message = $"Status updated to '{dto.Status}' successfully.", admissionNo = enrolledAdmissionNo, studentId = enrolledRegNo, registrationNo = enrolledRegNo });
+        return Ok(new 
+        { 
+            success = true, 
+            message = $"Status updated to '{dto.Status}' successfully.", 
+            admissionNo = enrolledAdmissionNo, 
+            studentId = enrolledRegNo, 
+            registrationNo = enrolledRegNo,
+            parentEmail = enrolledAppDetails?.ParentEmail,
+            emailSent = enrolledAppDetails?.ParentEmailStatus == "Email Sent",
+            emailStatus = enrolledAppDetails?.ParentEmailStatus ?? "Pending",
+            emailFailureReason = enrolledAppDetails?.ParentEmailFailureReason,
+            welcomeEmailSentAt = enrolledAppDetails?.WelcomeEmailSentAt,
+            hasParentAccount = enrolledAppDetails?.HasParentAccount ?? false
+        });
     }
 
     [HttpPost("{id}/reject")]
@@ -174,7 +188,32 @@ public class AdmissionsController : ControllerBase
             message = "Student enrolled successfully into active database.", 
             admissionNo = admNo,
             studentId = updatedApp?.RegistrationNo,
-            registrationNo = updatedApp?.RegistrationNo 
+            registrationNo = updatedApp?.RegistrationNo,
+            parentEmail = updatedApp?.ParentEmail,
+            emailSent = updatedApp?.ParentEmailStatus == "Email Sent",
+            emailStatus = updatedApp?.ParentEmailStatus ?? "Pending",
+            emailFailureReason = updatedApp?.ParentEmailFailureReason,
+            welcomeEmailSentAt = updatedApp?.WelcomeEmailSentAt,
+            hasParentAccount = updatedApp?.HasParentAccount ?? false
+        });
+    }
+
+    [HttpPost("{id}/resend-welcome-email")]
+    [AllowAnonymous]
+    public async Task<IActionResult> ResendWelcomeEmail(string id)
+    {
+        var result = await _schoolService.ResendParentWelcomeEmailAsync(id);
+        return Ok(new
+        {
+            success = result.Success,
+            emailSent = result.Success,
+            status = result.Status,
+            message = result.Success 
+                ? "Parent welcome email sent successfully." 
+                : (result.ErrorMessage ?? "Failed to deliver parent welcome email."),
+            failureReason = result.ErrorMessage,
+            sentAt = result.SentAt,
+            providerUsed = result.ProviderUsed
         });
     }
 }

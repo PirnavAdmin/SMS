@@ -1925,6 +1925,34 @@ public class FeeCollectionRepository : IFeeCollectionRepository
         }
 
         var activeStudents = await studentQuery.ToListAsync();
+
+        var allDeletedAdmissions = await _context.AdmissionApplications.AsNoTracking()
+            .Where(a => a.IsDeleted || a.Status == "Deleted" || a.Status == "Rejected" || a.Status == "Withdrawn")
+            .ToListAsync();
+
+        var deletedAdmNos = allDeletedAdmissions
+            .SelectMany(a => new[] { a.AdmissionNo, a.RegistrationNo, a.Id.ToString() })
+            .Where(x => !string.IsNullOrEmpty(x))
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        var explicitlyDeletedStudents = await _context.Students.AsNoTracking()
+            .Where(s => s.IsDeleted || s.Status == "Inactive")
+            .ToListAsync();
+        foreach (var ds in explicitlyDeletedStudents)
+        {
+            deletedAdmNos.Add(ds.StudentId.ToString());
+            if (!string.IsNullOrEmpty(ds.AdmissionNumber)) deletedAdmNos.Add(ds.AdmissionNumber);
+            if (!string.IsNullOrEmpty(ds.RollNumber)) deletedAdmNos.Add(ds.RollNumber);
+        }
+
+        activeStudents = activeStudents.Where(s => 
+            !s.IsDeleted && 
+            s.Status != "Inactive" &&
+            !deletedAdmNos.Contains(s.StudentId.ToString()) &&
+            (s.AdmissionNumber == null || !deletedAdmNos.Contains(s.AdmissionNumber)) &&
+            (s.RollNumber == null || !deletedAdmNos.Contains(s.RollNumber))
+        ).ToList();
+
         var studentIdsSet = activeStudents.Select(s => s.StudentId.ToString()).ToHashSet(StringComparer.OrdinalIgnoreCase);
         var admNosSet = activeStudents.Where(s => s.AdmissionNumber != null).Select(s => s.AdmissionNumber!).ToHashSet(StringComparer.OrdinalIgnoreCase);
 
@@ -1957,6 +1985,13 @@ public class FeeCollectionRepository : IFeeCollectionRepository
             string admIdStr = adm.Id.ToString();
             string admNo = adm.AdmissionNo ?? "";
             string regNo = adm.RegistrationNo ?? "";
+
+            if (deletedAdmNos.Contains(admIdStr) || 
+                (!string.IsNullOrEmpty(admNo) && deletedAdmNos.Contains(admNo)) ||
+                (!string.IsNullOrEmpty(regNo) && deletedAdmNos.Contains(regNo)))
+            {
+                continue;
+            }
 
             bool alreadyInActive = studentIdsSet.Contains(admIdStr) || 
                                    (!string.IsNullOrEmpty(admNo) && admNosSet.Contains(admNo)) ||
@@ -2054,9 +2089,19 @@ public class FeeCollectionRepository : IFeeCollectionRepository
         var validStructureIds = dynamicStructures.Select(d => d.Id).ToHashSet();
         var validStructuresDict = dynamicStructures.ToDictionary(d => d.Id);
 
-        // Filter assignments so orphan assignments pointing to deleted fee structures are never counted
+        // Filter assignments so orphan assignments pointing to deleted fee structures or deleted students are never counted
+        var activeIdentSet = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var s in activeStudents)
+        {
+            activeIdentSet.Add(s.StudentId.ToString());
+            if (!string.IsNullOrEmpty(s.AdmissionNumber)) activeIdentSet.Add(s.AdmissionNumber);
+            if (!string.IsNullOrEmpty(s.RollNumber)) activeIdentSet.Add(s.RollNumber);
+        }
+
         var validAssignments = assignments
             .Where(a => (a.Status == "Active" || string.IsNullOrEmpty(a.Status)) &&
+                        !deletedAdmNos.Contains(a.StudentId) &&
+                        (activeIdentSet.Contains(a.StudentId) || (!string.IsNullOrEmpty(a.StudentId) && activeIdentSet.Contains(a.StudentId.Trim()))) &&
                         (!a.DynamicFeeStructureId.HasValue || validStructureIds.Contains(a.DynamicFeeStructureId.Value)))
             .ToList();
 

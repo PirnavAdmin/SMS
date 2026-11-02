@@ -52,6 +52,7 @@ public interface ISchoolService
     Task<bool> DeleteApplicationAsync(int id);
     Task<bool> RejectApplicationAsync(int id);
     Task<string?> EnrollStudentAsync(int id);
+    Task<EmailDeliveryResultDto> ResendParentWelcomeEmailAsync(string identifier);
     Task<bool> UpdateApplicationStatusAsync(int id, string status);
 
     // Leave Management Operations

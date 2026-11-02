@@ -6,6 +6,7 @@ using System.Net.Mail;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
+using SMS.Api.Dtos;
 using SMS.Api.Services.Interfaces;
 
 public class EmailNotificationService : IEmailNotificationService
@@ -162,63 +163,67 @@ public class EmailNotificationService : IEmailNotificationService
         string? portalUrl = null,
         string? schoolName = null)
     {
+        var result = await SendParentWelcomeEmailWithResultAsync(
+            parentEmail,
+            parentName,
+            studentName,
+            admissionNo,
+            loginEmail,
+            initialPassword,
+            isNewAccount,
+            portalUrl,
+            schoolName);
+        return result.Success;
+    }
+
+    public async Task<EmailDeliveryResultDto> SendParentWelcomeEmailWithResultAsync(
+        string parentEmail,
+        string parentName,
+        string studentName,
+        string admissionNo,
+        string loginEmail,
+        string initialPassword,
+        bool isNewAccount,
+        string? portalUrl = null,
+        string? schoolName = null)
+    {
+        var result = new EmailDeliveryResultDto();
+
         if (string.IsNullOrWhiteSpace(parentEmail) || !parentEmail.Contains('@'))
         {
-            _logger.LogWarning("[EMAIL] Skipped sending parent welcome email. Invalid or empty email: {Email}", parentEmail);
-            return false;
+            var msg = $"Skipped sending parent welcome email. Invalid or empty email: '{parentEmail}'";
+            _logger.LogWarning("[EMAIL] {Message}", msg);
+            result.Success = false;
+            result.ErrorMessage = msg;
+            return result;
         }
 
-        try
+        var cleanSchoolName = !string.IsNullOrWhiteSpace(schoolName) ? schoolName.Trim() : "Pirnav Schools";
+        var cleanParentName = !string.IsNullOrWhiteSpace(parentName) ? parentName.Trim() : "Parent / Guardian";
+        var cleanStudentName = !string.IsNullOrWhiteSpace(studentName) ? studentName.Trim() : "Student";
+        var cleanAdmNo = !string.IsNullOrWhiteSpace(admissionNo) ? admissionNo.Trim() : "N/A";
+        var cleanLoginEmail = !string.IsNullOrWhiteSpace(loginEmail) ? loginEmail.Trim() : parentEmail.Trim();
+
+        var loginUrl = !string.IsNullOrWhiteSpace(portalUrl) 
+            ? portalUrl 
+            : (_configuration["AppUrl"] ?? "http://localhost:5173/login");
+
+        if (!loginUrl.EndsWith("/#login") && !loginUrl.Contains("login"))
         {
-            var smtpHost = _configuration["Smtp:Host"] ?? "smtp.gmail.com";
-            var smtpPort = int.TryParse(_configuration["Smtp:Port"], out var p) ? p : 587;
-            var senderEmail = _configuration["Smtp:Email"] ?? "pirnavsms@gmail.com";
-            var senderPassword = _configuration["Smtp:Password"] ?? "";
+            loginUrl = loginUrl.TrimEnd('/') + "/login";
+        }
 
-            if (string.IsNullOrWhiteSpace(senderPassword))
-            {
-                _logger.LogWarning("[EMAIL] SMTP Password not configured. Welcome email not sent.");
-                return false;
-            }
+        string passwordRowHtml = isNewAccount
+            ? $@"<tr>
+                    <td style=""padding: 8px 0; color: #64748b; font-size: 13px; font-weight: 600;"">Initial Password:</td>
+                    <td style=""padding: 8px 0; color: #0284c7; font-size: 14px; font-weight: 700; font-family: monospace;"">{WebUtility.HtmlEncode(initialPassword)}</td>
+                </tr>"
+            : $@"<tr>
+                    <td style=""padding: 8px 0; color: #64748b; font-size: 13px; font-weight: 600;"">Password:</td>
+                    <td style=""padding: 8px 0; color: #10b981; font-size: 14px; font-weight: 600;"">Your existing Parent Portal password</td>
+                </tr>";
 
-            var cleanSchoolName = !string.IsNullOrWhiteSpace(schoolName) ? schoolName.Trim() : "Pirnav Schools";
-            var cleanParentName = !string.IsNullOrWhiteSpace(parentName) ? parentName.Trim() : "Parent / Guardian";
-            var cleanStudentName = !string.IsNullOrWhiteSpace(studentName) ? studentName.Trim() : "Student";
-            var cleanAdmNo = !string.IsNullOrWhiteSpace(admissionNo) ? admissionNo.Trim() : "N/A";
-            var cleanLoginEmail = !string.IsNullOrWhiteSpace(loginEmail) ? loginEmail.Trim() : parentEmail.Trim();
-
-            var loginUrl = !string.IsNullOrWhiteSpace(portalUrl) 
-                ? portalUrl 
-                : (_configuration["AppUrl"] ?? "http://localhost:5173");
-
-            if (!loginUrl.EndsWith("/#login") && !loginUrl.Contains("login"))
-            {
-                loginUrl = loginUrl.TrimEnd('/') + "/#login";
-            }
-
-            using var client = new SmtpClient(smtpHost, smtpPort)
-            {
-                UseDefaultCredentials = false,
-                Credentials = new NetworkCredential(senderEmail, senderPassword),
-                EnableSsl = true
-            };
-
-            string passwordRowHtml = isNewAccount
-                ? $@"<tr>
-                        <td style=""padding: 8px 0; color: #64748b; font-size: 13px; font-weight: 600;"">Initial Password:</td>
-                        <td style=""padding: 8px 0; color: #0284c7; font-size: 14px; font-weight: 700; font-family: monospace;"">{WebUtility.HtmlEncode(initialPassword)}</td>
-                    </tr>"
-                : $@"<tr>
-                        <td style=""padding: 8px 0; color: #64748b; font-size: 13px; font-weight: 600;"">Password:</td>
-                        <td style=""padding: 8px 0; color: #10b981; font-size: 14px; font-weight: 600;"">Your existing Parent Portal password</td>
-                    </tr>";
-
-            var mailMessage = new MailMessage
-            {
-                From = new MailAddress(senderEmail, $"{cleanSchoolName} Management"),
-                Subject = $"Welcome to {cleanSchoolName} - Parent Portal Access for {cleanStudentName}",
-                IsBodyHtml = true,
-                Body = $@"
+        string emailBodyHtml = $@"
 <!DOCTYPE html>
 <html>
 <head>
@@ -298,18 +303,122 @@ public class EmailNotificationService : IEmailNotificationService
         </tr>
     </table>
 </body>
-</html>"
+</html>";
+
+        // Primary SMTP configuration
+        var primaryHost = _configuration["Smtp:Host"] ?? "smtp.gmail.com";
+        var primaryPort = int.TryParse(_configuration["Smtp:Port"], out var pp) ? pp : 587;
+        var primaryEmail = _configuration["Smtp:Email"] ?? "pirnavsms@gmail.com";
+        var primaryPassword = _configuration["Smtp:Password"] ?? "";
+
+        // Backup / Secondary SMTP configuration
+        var backupHost = _configuration["Smtp:Backup:Host"] ?? _configuration["Smtp:Secondary:Host"];
+        var backupPort = int.TryParse(_configuration["Smtp:Backup:Port"] ?? _configuration["Smtp:Secondary:Port"], out var bp) ? bp : 587;
+        var backupEmail = _configuration["Smtp:Backup:Email"] ?? _configuration["Smtp:Secondary:Email"];
+        var backupPassword = _configuration["Smtp:Backup:Password"] ?? _configuration["Smtp:Secondary:Password"];
+
+        if (string.IsNullOrWhiteSpace(primaryPassword))
+        {
+            var msg = "SMTP Password not configured in application settings. Welcome email not sent.";
+            _logger.LogWarning("[EMAIL] {Message}", msg);
+            result.Success = false;
+            result.ErrorMessage = msg;
+            return result;
+        }
+
+        // Try primary provider
+        try
+        {
+            using var client = new SmtpClient(primaryHost, primaryPort)
+            {
+                UseDefaultCredentials = false,
+                Credentials = new NetworkCredential(primaryEmail, primaryPassword),
+                EnableSsl = true,
+                Timeout = 15000
             };
 
+            using var mailMessage = new MailMessage
+            {
+                From = new MailAddress(primaryEmail, $"{cleanSchoolName} Management"),
+                Subject = $"Welcome to {cleanSchoolName} - Parent Portal Access for {cleanStudentName}",
+                IsBodyHtml = true,
+                Body = emailBodyHtml
+            };
             mailMessage.To.Add(parentEmail);
+
             await client.SendMailAsync(mailMessage);
-            _logger.LogInformation("[EMAIL] Parent welcome credentials email sent successfully to {Email} for student {Student} ({AdmNo})", parentEmail, cleanStudentName, cleanAdmNo);
-            return true;
+            _logger.LogInformation("[EMAIL] Parent welcome credentials email successfully sent to {Email} via primary SMTP ({Host})", parentEmail, primaryHost);
+
+            result.Success = true;
+            result.SentAt = DateTime.UtcNow;
+            result.ProviderUsed = primaryHost;
+            result.ErrorMessage = null;
+            return result;
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "[EMAIL ERROR] Failed to send parent welcome email to {Email}", parentEmail);
-            return false;
+            _logger.LogWarning(ex, "[EMAIL] Primary SMTP ({Host}) delivery failed for {Email}: {Message}", primaryHost, parentEmail, ex.Message);
+
+            // Attempt backup provider if configured
+            if (!string.IsNullOrWhiteSpace(backupHost) && !string.IsNullOrWhiteSpace(backupPassword))
+            {
+                try
+                {
+                    _logger.LogInformation("[EMAIL] Attempting fallback to backup SMTP ({Host}) for {Email}", backupHost, parentEmail);
+                    using var backupClient = new SmtpClient(backupHost, backupPort)
+                    {
+                        UseDefaultCredentials = false,
+                        Credentials = new NetworkCredential(backupEmail, backupPassword),
+                        EnableSsl = true,
+                        Timeout = 15000
+                    };
+
+                    using var backupMail = new MailMessage
+                    {
+                        From = new MailAddress(backupEmail ?? primaryEmail, $"{cleanSchoolName} Management"),
+                        Subject = $"Welcome to {cleanSchoolName} - Parent Portal Access for {cleanStudentName}",
+                        IsBodyHtml = true,
+                        Body = emailBodyHtml
+                    };
+                    backupMail.To.Add(parentEmail);
+
+                    await backupClient.SendMailAsync(backupMail);
+                    _logger.LogInformation("[EMAIL] Parent welcome email delivered successfully via backup SMTP ({Host}) to {Email}", backupHost, parentEmail);
+
+                    result.Success = true;
+                    result.SentAt = DateTime.UtcNow;
+                    result.ProviderUsed = backupHost;
+                    result.ErrorMessage = null;
+                    return result;
+                }
+                catch (Exception backupEx)
+                {
+                    _logger.LogError(backupEx, "[EMAIL ERROR] Backup SMTP ({Host}) also failed for {Email}: {Message}", backupHost, parentEmail, backupEx.Message);
+                }
+            }
+
+            // Capture exact structured error message
+            string detailedReason;
+            if (ex is SmtpException smtpEx)
+            {
+                if (smtpEx.Message.Contains("Daily user sending limit exceeded", StringComparison.OrdinalIgnoreCase) ||
+                    smtpEx.Message.Contains("5.4.5", StringComparison.OrdinalIgnoreCase))
+                {
+                    detailedReason = "Provider SMTP daily sending limit reached (5.4.5 Daily user sending limit exceeded). Queued for retry.";
+                }
+                else
+                {
+                    detailedReason = $"SMTP Error ({smtpEx.StatusCode}): {smtpEx.Message}";
+                }
+            }
+            else
+            {
+                detailedReason = ex.Message;
+            }
+
+            result.Success = false;
+            result.ErrorMessage = detailedReason;
+            return result;
         }
     }
 

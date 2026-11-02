@@ -439,6 +439,7 @@ import {
   deleteAdmissionApi,
   enrollAdmissionApi,
   rejectAdmissionApi,
+  resendParentWelcomeEmailApi,
 } from "../api/admission";
 import * as TransportAPI from "../api/transport";
 import * as FinanceAPI from "../api/finance";
@@ -782,6 +783,7 @@ interface DataContextType {
     id: string,
     status: AdmissionApplication["status"],
   ) => Promise<string | null>;
+  resendParentWelcomeEmail: (id: string | number) => Promise<any>;
   fetchAdmissions: () => Promise<void>;
   fetchStudents: () => Promise<void>;
   fetchStaff: () => Promise<void>;
@@ -5096,18 +5098,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
               };
             });
 
-            const mappedIds = new Set(mappedResult.map((s) => s.id));
-            const mappedAdmNos = new Set(
-              mappedResult.filter((s) => s.admissionNo).map((s) => s.admissionNo),
-            );
-
-            const extraFromPrev = (prev || []).filter(
-              (p) =>
-                !mappedIds.has(p.id) &&
-                (!p.admissionNo || !mappedAdmNos.has(p.admissionNo)),
-            );
-
-            return [...mappedResult, ...extraFromPrev];
+            return mappedResult;
           });
         }
       } catch (err) {
@@ -7492,10 +7483,33 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   };
 
-  const deleteStudent = (id: string) => {
-    setStudents((prev) => prev.filter((s) => s.id !== id));
+  const deleteStudent = async (id: string) => {
+    try {
+      const numericId = parseInt(id, 10);
+      if (!isNaN(numericId)) {
+        await deleteStudentApi(numericId);
+      }
+    } catch (err) {
+      console.warn("[deleteStudent] Backend API call warning:", err);
+    }
+    setStudents((prev) => prev.filter((s) => s.id !== id && (s as any).studentId !== id));
+    setAdmissions((prev) =>
+      prev.filter(
+        (a) =>
+          a.id !== id &&
+          (a as any).registrationNo !== id &&
+          a.applicationNo !== id,
+      ),
+    );
+    setStudentFeeAssignments((prev) => prev.filter((a) => a.studentId !== id));
     setStudentFeeLedgers((prev) => prev.filter((l) => l.studentId !== id));
     logActivity("Deleted Student", `Removed student ID ${id}`);
+    try {
+      if (fetchStudents) fetchStudents();
+      if (fetchFinanceData) fetchFinanceData();
+    } catch (e) {
+      console.warn("Post-deletion refresh notice:", e);
+    }
   };
 
   const promoteStudent = (
@@ -9612,7 +9626,16 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
             a.applicationNo !== id,
         ),
       );
+      setStudents((prev) => prev.filter((s) => s.id !== id && s.admissionNo !== id && (s as any).studentId !== id));
+      setStudentFeeAssignments((prev) => prev.filter((a) => a.studentId !== id));
+      setStudentFeeLedgers((prev) => prev.filter((l) => l.studentId !== id));
       logActivity("Deleted Admission Record", `Removed application ID ${id}`);
+      try {
+        if (fetchStudents) fetchStudents();
+        if (fetchFinanceData) fetchFinanceData();
+      } catch (e) {
+        console.warn("Post-admission-deletion refresh notice:", e);
+      }
     } catch (err) {
       console.warn(
         "[deleteAdmission] Remote API delete call warning/bypassed:",
@@ -9626,6 +9649,15 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
             a.applicationNo !== id,
         ),
       );
+      setStudents((prev) => prev.filter((s) => s.id !== id && s.admissionNo !== id && (s as any).studentId !== id));
+      setStudentFeeAssignments((prev) => prev.filter((a) => a.studentId !== id));
+      setStudentFeeLedgers((prev) => prev.filter((l) => l.studentId !== id));
+      try {
+        if (fetchStudents) fetchStudents();
+        if (fetchFinanceData) fetchFinanceData();
+      } catch (e) {
+        console.warn("Post-admission-deletion refresh notice:", e);
+      }
     }
   };
 
@@ -10180,6 +10212,23 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           "Updated Application Status",
           `Changed application ID ${id} to ${status}`,
         );
+
+        if (status === "Enrolled") {
+          if (json?.emailSent) {
+            addToast(
+              "success",
+              "Enrollment & Welcome Email Sent",
+              `Student enrolled successfully! Welcome credentials delivered to ${json?.parentEmail || "parent"}.`
+            );
+          } else if (json?.emailStatus === "Email Failed" || json?.emailFailureReason) {
+            addToast(
+              "warning",
+              "Student Enrolled (Email Deferred)",
+              `Student enrolled successfully. Parent account created, but welcome email delivery was deferred: ${json?.emailFailureReason || "Daily sending quota limit reached"}. You can retry using the 'Resend Email' button.`
+            );
+          }
+        }
+
         try {
           await fetchAdmissions();
         } catch (fetchErr) {
@@ -10208,6 +10257,38 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       }, 500);
     }
     return null;
+  };
+
+  const resendParentWelcomeEmail = async (id: string | number) => {
+    try {
+      const res: any = await resendParentWelcomeEmailApi(id);
+      if (res && res.success) {
+        addToast(
+          "success",
+          "Email Delivered",
+          res.message || "Parent welcome credentials email sent successfully."
+        );
+      } else {
+        addToast(
+          "error",
+          "Email Delivery Failed",
+          res?.message || res?.failureReason || "Could not deliver welcome email."
+        );
+      }
+      try {
+        await fetchAdmissions();
+      } catch (e) {
+        console.error("Failed to refresh admissions", e);
+      }
+      return res;
+    } catch (err: any) {
+      addToast(
+        "error",
+        "Action Failed",
+        err?.message || "Failed to resend welcome email."
+      );
+      throw err;
+    }
   };
 
   const addAcademicClass = async (clsData: Omit<AcademicClass, "id">) => {
@@ -26900,6 +26981,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         updateAdmission,
         deleteAdmission,
         updateAdmissionStatus,
+        resendParentWelcomeEmail,
         fetchAdmissions,
         fetchStudents,
         fetchStaff,
