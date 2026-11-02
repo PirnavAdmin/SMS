@@ -4,13 +4,16 @@ import {
   Search, Filter, Printer, RefreshCw, Layers, ShieldCheck, CheckCircle2, ChevronLeft, ChevronRight, Edit3, HelpCircle
 } from 'lucide-react';
 import { useData } from '../../../../context/DataContext';
+import { useAuth } from '../../../../context/AuthContext';
 import { ExportButton } from '../../../common/ExportButton';
 import { SchoolPrintHeader } from '../../../common/SchoolPrintHeader';
-import { fetchReportDataApi, fetchPrintReportTemplateApi } from '../../../../api/reports';
 import { formatPhoneNumber } from '../../../../utils/validation';
+import { formatDateDDMMYYYY } from '../../../../utils/dateValidation';
+import { matchesClassName } from '../../../../utils/classSorter';
 
 export const ReportsView: React.FC = () => {
-  const { students, staff, feePayments, attendance, examMarks, academicClasses } = useData();
+  const { students, staff, feePayments, examMarks, academicClasses } = useData();
+  const { selectedAcademicYear } = useAuth();
 
   // Dropdown Filter States
   const [selectedModule, setSelectedModule] = useState<string>(''); // Default empty prompt
@@ -34,6 +37,49 @@ export const ReportsView: React.FC = () => {
     return selectedModule || 'students';
   }, [selectedModule]);
 
+  // Handle module change and reset irrelevant filter states
+  const handleModuleChange = (newModule: string) => {
+    setSelectedModule(newModule);
+    if (newModule !== 'MANUAL') {
+      setManualModuleInput('');
+    }
+    // Clean up irrelevant filters when switching module to prevent hidden stale filters
+    if (newModule === 'students' || newModule === 'fees' || newModule === 'exams') {
+      setSelectedDepartment('');
+      setManualDeptInput('');
+    } else if (newModule === 'staff') {
+      setSelectedClass('');
+      setManualClassInput('');
+    }
+  };
+
+  // Determine relevance of class and department filters per selected module
+  const isClassFilterRelevant = useMemo(() => {
+    if (!selectedModule) return true;
+    return selectedModule === 'students' || selectedModule === 'fees' || selectedModule === 'exams' || selectedModule === 'MANUAL';
+  }, [selectedModule]);
+
+  const isDeptFilterRelevant = useMemo(() => {
+    if (!selectedModule) return true;
+    return selectedModule === 'staff' || selectedModule === 'MANUAL';
+  }, [selectedModule]);
+
+  // Context-aware search placeholder
+  const searchPlaceholder = useMemo(() => {
+    switch (selectedModule) {
+      case 'students':
+        return 'Search by student name, ID, class...';
+      case 'staff':
+        return 'Search by employee name, ID, department...';
+      case 'fees':
+        return 'Search by receipt, student name...';
+      case 'exams':
+        return 'Search by student ID, subject...';
+      default:
+        return 'Search records by name, ID, or keywords...';
+    }
+  }, [selectedModule]);
+
   // Reset page when filters change
   React.useEffect(() => {
     setPage(1);
@@ -42,6 +88,9 @@ export const ReportsView: React.FC = () => {
   // Effective filter values (handles dropdown selection OR manual input)
   const effectiveClass = selectedClass === 'MANUAL' ? manualClassInput : selectedClass;
   const effectiveDept = selectedDepartment === 'MANUAL' ? manualDeptInput : selectedDepartment;
+
+  // Active query term from search box or manual query input
+  const effectiveQuery = (searchQuery || (selectedModule === 'MANUAL' ? manualModuleInput : '')).toLowerCase().trim();
 
   // Live Auto-Rendering Data Computations
   const totalRevenue = useMemo(() => {
@@ -58,41 +107,65 @@ export const ReportsView: React.FC = () => {
 
   // Filtered Student List
   const filteredStudents = useMemo(() => {
-    if (!selectedModule && !searchQuery) return [];
+    if (!selectedModule && !searchQuery && !manualModuleInput) return [];
     return (students || []).filter(s => {
-      const matchesSearch = `${s.firstName} ${s.lastName} ${s.admissionNo} ${s.className}`.toLowerCase().includes(searchQuery.toLowerCase());
-      const matchesClass = !effectiveClass || effectiveClass === 'All' || s.className.toLowerCase().includes(effectiveClass.toLowerCase());
+      const q = effectiveQuery;
+      const matchesSearch = !q || `${s.firstName} ${s.lastName} ${s.admissionNo} ${s.className} ${s.id || ''}`.toLowerCase().includes(q);
+      const matchesClass = !effectiveClass || effectiveClass === 'All' || matchesClassName(s.className, effectiveClass);
       return matchesSearch && matchesClass;
     });
-  }, [students, searchQuery, effectiveClass, selectedModule]);
+  }, [students, effectiveQuery, effectiveClass, selectedModule, manualModuleInput, searchQuery]);
 
   // Filtered Staff List
   const filteredStaff = useMemo(() => {
-    if (!selectedModule && !searchQuery) return [];
+    if (!selectedModule && !searchQuery && !manualModuleInput) return [];
     return (staff || []).filter(s => {
-      const matchesSearch = `${s.firstName} ${s.lastName} ${s.empId} ${s.department} ${s.designation}`.toLowerCase().includes(searchQuery.toLowerCase());
+      const q = effectiveQuery;
+      const matchesSearch = !q || `${s.firstName} ${s.lastName} ${s.empId} ${s.department} ${s.designation}`.toLowerCase().includes(q);
       const matchesDept = !effectiveDept || effectiveDept === 'All' || (s.department || '').toLowerCase().includes(effectiveDept.toLowerCase());
       return matchesSearch && matchesDept;
     });
-  }, [staff, searchQuery, effectiveDept, selectedModule]);
+  }, [staff, effectiveQuery, effectiveDept, selectedModule, manualModuleInput, searchQuery]);
 
-  // Filtered Fee Payments
+  // Filtered Fee Payments (Filters by Academic Class and Search Query)
   const filteredFeePayments = useMemo(() => {
-    if (!selectedModule && !searchQuery) return [];
+    if (!selectedModule && !searchQuery && !manualModuleInput) return [];
+    const q = effectiveQuery;
     return (feePayments || []).filter(p => {
-      return `${p.studentName} ${p.receiptNo} ${p.paymentMode} ${p.feeHeadName || ''}`.toLowerCase().includes(searchQuery.toLowerCase());
+      const matchesSearch = !q || `${p.studentName || ''} ${p.receiptNo || ''} ${p.paymentMode || ''} ${p.feeHeadName || ''} ${p.className || ''}`.toLowerCase().includes(q);
+      
+      // Resolve class from payment record or look up student
+      let paymentClass = p.className || '';
+      if (!paymentClass && p.studentId) {
+        const matchedStudent = students.find(s => String(s.id) === String(p.studentId) || s.admissionNo === p.admissionNo || s.admissionNo === p.studentId);
+        if (matchedStudent) paymentClass = matchedStudent.className;
+      }
+
+      const matchesClass = !effectiveClass || effectiveClass === 'All' || matchesClassName(paymentClass, effectiveClass);
+      return matchesSearch && matchesClass;
     });
-  }, [feePayments, searchQuery, selectedModule]);
+  }, [feePayments, effectiveQuery, effectiveClass, selectedModule, students, manualModuleInput, searchQuery]);
 
   // Filtered Exam Marks
   const filteredExamMarks = useMemo(() => {
-    if (!selectedModule && !searchQuery) return [];
+    if (!selectedModule && !searchQuery && !manualModuleInput) return [];
+    const q = effectiveQuery;
     return (examMarks || []).filter(m => {
-      const matchesSearch = `${m.studentId} ${m.subject} ${m.grade || ''}`.toLowerCase().includes(searchQuery.toLowerCase());
-      const matchesClass = !effectiveClass || effectiveClass === 'All' || (m as any).className?.toLowerCase().includes(effectiveClass.toLowerCase());
+      const matchesSearch = !q || `${m.studentId} ${m.subject} ${m.grade || ''}`.toLowerCase().includes(q);
+      const matchesClass = !effectiveClass || effectiveClass === 'All' || matchesClassName((m as any).className, effectiveClass);
       return matchesSearch && matchesClass;
     });
-  }, [examMarks, searchQuery, effectiveClass, selectedModule]);
+  }, [examMarks, effectiveQuery, effectiveClass, selectedModule, manualModuleInput, searchQuery]);
+
+  // Student map helper for quick lookup
+  const studentMap = useMemo(() => {
+    const map = new Map<string, any>();
+    students.forEach(s => {
+      if (s.id) map.set(String(s.id), s);
+      if (s.admissionNo) map.set(s.admissionNo, s);
+    });
+    return map;
+  }, [students]);
 
   // Get active dataset for pagination and export
   const currentDataset = useMemo(() => {
@@ -108,7 +181,10 @@ export const ReportsView: React.FC = () => {
           phone: formatPhoneNumber(st.phone || (st as any).mobileNumber || (st as any).mobile)
         }));
       case 'fees':
-        return filteredFeePayments;
+        return filteredFeePayments.map(p => ({
+          ...p,
+          formattedDate: formatDateDDMMYYYY(p.paymentDate || (p as any).date)
+        }));
       case 'exams':
         return filteredExamMarks;
       default:
@@ -141,13 +217,17 @@ export const ReportsView: React.FC = () => {
     return 'SCHOOL ADMINISTRATIVE MASTER REPORT';
   }, [activeTab]);
 
+  // Compute number of active visible filter columns to layout nicely
+  const visibleFilterCount = (isClassFilterRelevant ? 1 : 0) + (isDeptFilterRelevant ? 1 : 0) + 2; // +2 for Module and Search
+
   return (
     <div id="printable-content" className="printable-area space-y-6 animate-in fade-in text-left">
       
       {/* Official School Header for Print Output */}
       <SchoolPrintHeader
         title={reportTitle}
-        subtitle={`Filter: ${effectiveClass !== 'All' ? `Class ${effectiveClass}` : 'All Classes'}${effectiveDept !== 'All' ? ` • Dept: ${effectiveDept}` : ''} • Total Records: ${currentDataset.length}`}
+        subtitle={`Filter: ${effectiveClass && effectiveClass !== 'All' ? `Class ${effectiveClass}` : 'All Classes'}${effectiveDept && effectiveDept !== 'All' ? ` • Dept: ${effectiveDept}` : ''} • Total Records: ${currentDataset.length}`}
+        academicYear={selectedAcademicYear}
       />
 
       {/* Top Header Banner */}
@@ -216,24 +296,29 @@ export const ReportsView: React.FC = () => {
         </div>
       </div>
 
-      {/* EXPLICIT DROPDOWN FILTERS & SEARCH TOOLBAR (SINGLE ROW) */}
-      <div className="p-4 rounded-3xl bg-white dark:bg-slate-900 border border-sky-400 dark:border-sky-500 shadow-sm space-y-2.5 text-xs print:hidden">
+      {/* EXPLICIT DROPDOWN FILTERS & SEARCH TOOLBAR */}
+      <div className="p-4 rounded-3xl bg-white dark:bg-slate-900 border border-sky-400 dark:border-sky-500 shadow-sm space-y-3 text-xs print:hidden">
 
-        {/* Single Row Filters Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-3 items-end">
+        {/* Dynamic Context-Aware Filters Grid (expands to fill row when irrelevant filters are hidden) */}
+        <div className={`grid grid-cols-1 md:grid-cols-2 ${visibleFilterCount === 3 ? 'lg:grid-cols-3' : 'lg:grid-cols-12'} gap-3 items-end`}>
           
           {/* 1. Report Module Dropdown */}
-          <div className="lg:col-span-3">
-            <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1 truncate">
+          <div className={visibleFilterCount === 3 ? 'lg:col-span-1' : 'lg:col-span-3'}>
+            <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
               Report Module <span className="text-rose-500 font-bold ml-0.5">*</span>
             </label>
             <select
               value={selectedModule}
-              onChange={e => {
-                setSelectedModule(e.target.value);
-                if (e.target.value !== 'MANUAL') setManualModuleInput('');
-              }}
-              className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-bold text-xs cursor-pointer outline-none focus:border-sky-500 h-[38px]"
+              onChange={e => handleModuleChange(e.target.value)}
+              title={
+                selectedModule === 'students' ? 'Student Directory Report' :
+                selectedModule === 'staff' ? 'Staff HR & Payroll Report' :
+                selectedModule === 'fees' ? 'Financial Fee Ledger Report' :
+                selectedModule === 'exams' ? 'Academic Exam Marks Report' :
+                selectedModule === 'MANUAL' ? 'Custom / Manual Report Entry' :
+                '-- Select Report Module --'
+              }
+              className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-bold text-xs cursor-pointer outline-none focus:border-sky-500 h-[38px] truncate"
             >
               <option value="">-- Select Report Module --</option>
               <option value="students">🎓 Student Directory Report ({students.length})</option>
@@ -244,64 +329,71 @@ export const ReportsView: React.FC = () => {
             </select>
           </div>
 
-          {/* 2. Academic Class Dropdown (for Students & Exams) */}
-          <div className="lg:col-span-3">
-            <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1 truncate">
-              Academic Class Filter
-            </label>
-            <select
-              value={selectedClass}
-              onChange={e => {
-                setSelectedClass(e.target.value);
-                if (e.target.value !== 'MANUAL') setManualClassInput('');
-              }}
-              className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-bold text-xs cursor-pointer outline-none focus:border-sky-500 h-[38px]"
-            >
-              <option value="">-- Select Academic Class --</option>
-              <option value="All">All Academic Classes</option>
-              {academicClasses.map(c => (
-                <option key={c.id} value={c.name}>{c.name}</option>
-              ))}
-              <option value="MANUAL">✍️ Custom / Manual Class Entry</option>
-            </select>
-          </div>
+          {/* 2. Academic Class Dropdown (displayed only when relevant to the report type) */}
+          {isClassFilterRelevant && (
+            <div className={visibleFilterCount === 3 ? 'lg:col-span-1' : 'lg:col-span-3'}>
+              <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
+                Academic Class Filter
+              </label>
+              <select
+                value={selectedClass}
+                onChange={e => {
+                  setSelectedClass(e.target.value);
+                  if (e.target.value !== 'MANUAL') setManualClassInput('');
+                }}
+                title={selectedClass ? `Class: ${selectedClass}` : '-- Select Academic Class --'}
+                className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-bold text-xs cursor-pointer outline-none focus:border-sky-500 h-[38px] truncate"
+              >
+                <option value="">-- Select Academic Class --</option>
+                <option value="All">All Academic Classes</option>
+                {academicClasses.map(c => (
+                  <option key={c.id} value={c.name}>{c.name}</option>
+                ))}
+                <option value="MANUAL">✍️ Custom / Manual Class Entry</option>
+              </select>
+            </div>
+          )}
 
-          {/* 3. Department / Role Filter (for Staff) */}
-          <div className="lg:col-span-3">
-            <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1 truncate">
-              Department / Category Filter
-            </label>
-            <select
-              value={selectedDepartment}
-              onChange={e => {
-                setSelectedDepartment(e.target.value);
-                if (e.target.value !== 'MANUAL') setManualDeptInput('');
-              }}
-              className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-bold text-xs cursor-pointer outline-none focus:border-sky-500 h-[38px]"
-            >
-              <option value="">-- Select Department --</option>
-              <option value="All">All Departments</option>
-              <option value="Academics">Academics</option>
-              <option value="Administration">Administration</option>
-              <option value="Sports">Sports & Physical Ed.</option>
-              <option value="Accounts">Accounts & Finance</option>
-              <option value="Transport">Transport Cell</option>
-              <option value="MANUAL">✍️ Custom / Manual Dept Entry</option>
-            </select>
-          </div>
+          {/* 3. Department / Role Filter (displayed only when relevant to staff or custom) */}
+          {isDeptFilterRelevant && (
+            <div className={visibleFilterCount === 3 ? 'lg:col-span-1' : 'lg:col-span-3'}>
+              <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
+                Department / Category Filter
+              </label>
+              <select
+                value={selectedDepartment}
+                onChange={e => {
+                  setSelectedDepartment(e.target.value);
+                  if (e.target.value !== 'MANUAL') setManualDeptInput('');
+                }}
+                title={selectedDepartment ? `Department: ${selectedDepartment}` : '-- Select Department --'}
+                className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-bold text-xs cursor-pointer outline-none focus:border-sky-500 h-[38px] truncate"
+              >
+                <option value="">-- Select Department --</option>
+                <option value="All">All Departments</option>
+                <option value="Academics">Academics</option>
+                <option value="Administration">Administration</option>
+                <option value="Sports">Sports & Physical Ed.</option>
+                <option value="Accounts">Accounts & Finance</option>
+                <option value="Transport">Transport Cell</option>
+                <option value="MANUAL">✍️ Custom / Manual Dept Entry</option>
+              </select>
+            </div>
+          )}
 
-          {/* 4. Search Bar */}
-          <div className="lg:col-span-3">
-            <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1 truncate">
+          {/* 4. Search Filtered Records */}
+          <div className={visibleFilterCount === 3 ? 'lg:col-span-1' : 'lg:col-span-3'}>
+            <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
               Search Filtered Records
             </label>
             <div className="relative">
               <Search className="w-4 h-4 absolute left-3 top-2.5 text-slate-400" />
               <input
                 type="text"
-                placeholder="Search report by title or description..."
+                placeholder={searchPlaceholder}
                 value={searchQuery}
                 onChange={e => setSearchQuery(e.target.value)}
+                title={searchPlaceholder}
                 className="w-full pl-9 pr-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-semibold outline-none focus:border-sky-500 transition h-[38px] text-xs"
               />
             </div>
@@ -309,36 +401,63 @@ export const ReportsView: React.FC = () => {
 
         </div>
 
-        {/* Custom manual inputs if selected */}
+        {/* Custom / Manual Input Panel (Issues 1 & 2: Clear labels, placeholders, and guidance) */}
         {(selectedModule === 'MANUAL' || selectedClass === 'MANUAL' || selectedDepartment === 'MANUAL') && (
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1">
-            {selectedModule === 'MANUAL' && (
-              <input
-                type="text"
-                placeholder="Type custom report query..."
-                value={manualModuleInput}
-                onChange={e => setManualModuleInput(e.target.value)}
-                className="w-full px-3 py-1.5 rounded-xl bg-sky-50 dark:bg-sky-950/60 border border-sky-300 text-xs font-bold"
-              />
-            )}
-            {selectedClass === 'MANUAL' && (
-              <input
-                type="text"
-                placeholder="Type manual class (e.g. Class 10-B)..."
-                value={manualClassInput}
-                onChange={e => setManualClassInput(e.target.value)}
-                className="w-full px-3 py-1.5 rounded-xl bg-sky-50 dark:bg-sky-950/60 border border-sky-300 text-xs font-bold"
-              />
-            )}
-            {selectedDepartment === 'MANUAL' && (
-              <input
-                type="text"
-                placeholder="Type manual department..."
-                value={manualDeptInput}
-                onChange={e => setManualDeptInput(e.target.value)}
-                className="w-full px-3 py-1.5 rounded-xl bg-sky-50 dark:bg-sky-950/60 border border-sky-300 text-xs font-bold"
-              />
-            )}
+          <div className="p-3.5 rounded-2xl bg-sky-50/70 dark:bg-sky-950/40 border border-sky-200 dark:border-sky-800/60 space-y-2.5 animate-in fade-in">
+            <div className="flex items-center gap-1.5 text-sky-700 dark:text-sky-300 font-black text-xs">
+              <Edit3 className="w-4 h-4" />
+              <span>Custom / Manual Entry Details</span>
+            </div>
+            
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              {selectedModule === 'MANUAL' && (
+                <div className="space-y-1">
+                  <label className="block font-bold text-slate-700 dark:text-slate-300 text-[11px]">
+                    Custom Report Query / Keywords
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="Enter custom report title or search keywords..."
+                    value={manualModuleInput}
+                    onChange={e => setManualModuleInput(e.target.value)}
+                    className="w-full px-3 py-2 rounded-xl bg-white dark:bg-slate-900 border border-sky-300 dark:border-sky-700 text-xs font-semibold text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-sky-500"
+                  />
+                  <p className="text-[10px] text-slate-400">Filters live records across all matching fields.</p>
+                </div>
+              )}
+
+              {selectedClass === 'MANUAL' && (
+                <div className="space-y-1">
+                  <label className="block font-bold text-slate-700 dark:text-slate-300 text-[11px]">
+                    Manual Academic Class
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="Type class name (e.g. Class 10-A)..."
+                    value={manualClassInput}
+                    onChange={e => setManualClassInput(e.target.value)}
+                    className="w-full px-3 py-2 rounded-xl bg-white dark:bg-slate-900 border border-sky-300 dark:border-sky-700 text-xs font-semibold text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-sky-500"
+                  />
+                  <p className="text-[10px] text-slate-400">Matches any student class with this prefix.</p>
+                </div>
+              )}
+
+              {selectedDepartment === 'MANUAL' && (
+                <div className="space-y-1">
+                  <label className="block font-bold text-slate-700 dark:text-slate-300 text-[11px]">
+                    Manual Department
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="Type department name (e.g. Transport Cell)..."
+                    value={manualDeptInput}
+                    onChange={e => setManualDeptInput(e.target.value)}
+                    className="w-full px-3 py-2 rounded-xl bg-white dark:bg-slate-900 border border-sky-300 dark:border-sky-700 text-xs font-semibold text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-sky-500"
+                  />
+                  <p className="text-[10px] text-slate-400">Matches faculty/staff department.</p>
+                </div>
+              )}
+            </div>
           </div>
         )}
       </div>
@@ -360,18 +479,18 @@ export const ReportsView: React.FC = () => {
           </div>
         ) : (
           <>
-            {/* STUDENT DIRECTORY REPORT TABLE */}
+            {/* 1. STUDENT DIRECTORY REPORT TABLE */}
             {activeTab === 'students' && (
               <div className="overflow-x-auto">
-                <table className="w-full text-left border-collapse min-w-[760px] print:min-w-0">
+                <table className="w-full text-left border-collapse table-auto text-xs print:min-w-0">
                   <thead>
                     <tr className="border-b border-slate-100 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-950/60 text-[10px] font-black uppercase text-slate-400 tracking-wider">
-                      <th className="px-4 py-3.5 whitespace-nowrap">Admission No</th>
-                      <th className="px-4 py-3.5 whitespace-nowrap">Student Name</th>
-                      <th className="px-4 py-3.5 whitespace-nowrap">Class & Section</th>
-                      <th className="px-4 py-3.5 whitespace-nowrap">Guardian Details</th>
-                      <th className="px-4 py-3.5 whitespace-nowrap">Phone Number</th>
-                      <th className="px-4 py-3.5 whitespace-nowrap">Status</th>
+                      <th className="px-3.5 py-3 whitespace-nowrap w-[16%]">Admission No</th>
+                      <th className="px-3.5 py-3 w-[22%]">Student Name</th>
+                      <th className="px-3.5 py-3 whitespace-nowrap w-[16%]">Class & Section</th>
+                      <th className="px-3.5 py-3 w-[20%]">Guardian Details</th>
+                      <th className="px-3.5 py-3 whitespace-nowrap w-[14%]">Phone Number</th>
+                      <th className="px-3.5 py-3 whitespace-nowrap w-[12%]">Status</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-medium">
@@ -384,17 +503,17 @@ export const ReportsView: React.FC = () => {
                     ) : (
                       (paginatedData as any[]).map(s => (
                         <tr key={s.id} className="hover:bg-slate-50/60 dark:hover:bg-slate-800/30 transition-colors">
-                          <td className="px-4 py-3.5 font-mono font-bold text-sky-600 whitespace-nowrap">{s.admissionNo}</td>
-                          <td className="px-4 py-3.5 font-extrabold text-slate-900 dark:text-white">
+                          <td className="px-3.5 py-3 font-mono font-bold text-sky-600 whitespace-nowrap">{s.admissionNo}</td>
+                          <td className="px-3.5 py-3 font-extrabold text-slate-900 dark:text-white">
                             {s.firstName} {s.lastName}
                           </td>
-                          <td className="px-4 py-3.5 font-bold text-slate-700 dark:text-slate-300 whitespace-nowrap">
+                          <td className="px-3.5 py-3 font-bold text-slate-700 dark:text-slate-300 whitespace-nowrap">
                             {s.className} - {s.section || 'A'}
                           </td>
-                          <td className="px-4 py-3.5 text-slate-500">{s.fatherName || s.motherName || 'N/A'}</td>
-                          <td className="px-4 py-3.5 font-mono text-slate-600 whitespace-nowrap">{formatPhoneNumber(s.fatherPhone || s.phone || (s as any).motherPhone || (s as any).guardianPhone)}</td>
-                          <td className="px-4 py-3.5 whitespace-nowrap">
-                            <span className="px-2.5 py-0.5 rounded-md text-[10px] font-extrabold bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 border border-emerald-200 whitespace-nowrap inline-block">
+                          <td className="px-3.5 py-3 text-slate-500">{s.fatherName || s.motherName || 'N/A'}</td>
+                          <td className="px-3.5 py-3 font-mono text-slate-600 whitespace-nowrap">{formatPhoneNumber(s.fatherPhone || s.phone || (s as any).motherPhone || (s as any).guardianPhone)}</td>
+                          <td className="px-3.5 py-3 whitespace-nowrap">
+                            <span className="px-2.5 py-0.5 rounded-md text-[10px] font-extrabold bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 border border-emerald-200 whitespace-nowrap inline-block print:border-none print:bg-transparent print:p-0 print:text-slate-900 print:text-xs print:font-semibold">
                               {s.status || 'Active'}
                             </span>
                           </td>
@@ -406,18 +525,18 @@ export const ReportsView: React.FC = () => {
               </div>
             )}
 
-            {/* STAFF HR REPORT TABLE */}
+            {/* 2. STAFF HR REPORT TABLE (Issue 7 & 10: Fluid responsive columns without scrollbar; clean text in print) */}
             {activeTab === 'staff' && (
               <div className="overflow-x-auto">
-                <table className="w-full text-left border-collapse min-w-[760px] print:min-w-0">
+                <table className="w-full text-left border-collapse table-auto text-xs print:min-w-0">
                   <thead>
                     <tr className="border-b border-slate-100 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-950/60 text-[10px] font-black uppercase text-slate-400 tracking-wider">
-                      <th className="px-4 py-3.5 whitespace-nowrap">Emp ID</th>
-                      <th className="px-4 py-3.5 whitespace-nowrap">Employee Name</th>
-                      <th className="px-4 py-3.5 whitespace-nowrap">Department</th>
-                      <th className="px-4 py-3.5 whitespace-nowrap">Designation</th>
-                      <th className="px-4 py-3.5 whitespace-nowrap">Role Type</th>
-                      <th className="px-4 py-3.5 whitespace-nowrap">Contact Phone</th>
+                      <th className="px-3.5 py-3 whitespace-nowrap w-[15%]">Emp ID</th>
+                      <th className="px-3.5 py-3 w-[22%]">Employee Name</th>
+                      <th className="px-3.5 py-3 w-[18%]">Department</th>
+                      <th className="px-3.5 py-3 w-[18%]">Designation</th>
+                      <th className="px-3.5 py-3 whitespace-nowrap w-[12%]">Role Type</th>
+                      <th className="px-3.5 py-3 whitespace-nowrap w-[15%]">Contact Phone</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-medium">
@@ -430,18 +549,18 @@ export const ReportsView: React.FC = () => {
                     ) : (
                       (paginatedData as any[]).map(st => (
                         <tr key={st.id} className="hover:bg-slate-50/60 dark:hover:bg-slate-800/30 transition-colors">
-                          <td className="px-4 py-3.5 font-mono font-bold text-sky-600 whitespace-nowrap">{st.empId || st.id}</td>
-                          <td className="px-4 py-3.5 font-extrabold text-slate-900 dark:text-white">
+                          <td className="px-3.5 py-3 font-mono font-bold text-sky-600 whitespace-nowrap">{st.empId || st.id}</td>
+                          <td className="px-3.5 py-3 font-extrabold text-slate-900 dark:text-white">
                             {st.firstName} {st.lastName}
                           </td>
-                          <td className="px-4 py-3.5 font-bold text-slate-700 dark:text-slate-300">{st.department || 'Academics'}</td>
-                          <td className="px-4 py-3.5 text-slate-600">{st.designation || st.role}</td>
-                          <td className="px-4 py-3.5 whitespace-nowrap">
-                            <span className="px-2.5 py-0.5 rounded-md text-[10px] font-extrabold bg-sky-100 text-sky-800 dark:bg-sky-950 dark:text-sky-300 border border-sky-200 whitespace-nowrap inline-block">
+                          <td className="px-3.5 py-3 font-bold text-slate-700 dark:text-slate-300">{st.department || 'Academics'}</td>
+                          <td className="px-3.5 py-3 text-slate-600">{st.designation || st.role}</td>
+                          <td className="px-3.5 py-3 whitespace-nowrap">
+                            <span className="px-2.5 py-0.5 rounded-md text-[10px] font-extrabold bg-sky-100 text-sky-800 dark:bg-sky-950 dark:text-sky-300 border border-sky-200 whitespace-nowrap inline-block print:border-none print:bg-transparent print:p-0 print:text-slate-900 print:text-xs print:font-semibold">
                               {st.employeeCategory || (st.role === 'Teacher' ? 'Teaching' : 'Staff')}
                             </span>
                           </td>
-                          <td className="px-4 py-3.5 font-mono text-slate-600 whitespace-nowrap">{formatPhoneNumber(st.phone || (st as any).mobileNumber || (st as any).mobile)}</td>
+                          <td className="px-3.5 py-3 font-mono text-slate-600 whitespace-nowrap">{formatPhoneNumber(st.phone || (st as any).mobileNumber || (st as any).mobile)}</td>
                         </tr>
                       ))
                     )}
@@ -450,18 +569,18 @@ export const ReportsView: React.FC = () => {
               </div>
             )}
 
-            {/* FINANCIAL FEE LEDGER REPORT TABLE */}
+            {/* 3. FINANCIAL FEE LEDGER REPORT TABLE (Issue 3: Filter by class, display student class, format payment date) */}
             {activeTab === 'fees' && (
               <div className="overflow-x-auto">
-                <table className="w-full text-left border-collapse min-w-[760px] print:min-w-0">
+                <table className="w-full text-left border-collapse table-auto text-xs print:min-w-0">
                   <thead>
                     <tr className="border-b border-slate-100 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-950/60 text-[10px] font-black uppercase text-slate-400 tracking-wider">
-                      <th className="px-4 py-3.5 whitespace-nowrap">Receipt No</th>
-                      <th className="px-4 py-3.5 whitespace-nowrap">Student Name</th>
-                      <th className="px-4 py-3.5 whitespace-nowrap">Fee Category</th>
-                      <th className="px-4 py-3.5 whitespace-nowrap">Amount Paid</th>
-                      <th className="px-4 py-3.5 whitespace-nowrap">Payment Mode</th>
-                      <th className="px-4 py-3.5 whitespace-nowrap">Date</th>
+                      <th className="px-3.5 py-3 whitespace-nowrap w-[16%]">Receipt No</th>
+                      <th className="px-3.5 py-3 w-[24%]">Student Name & Class</th>
+                      <th className="px-3.5 py-3 w-[18%]">Fee Category</th>
+                      <th className="px-3.5 py-3 whitespace-nowrap w-[14%]">Amount Paid</th>
+                      <th className="px-3.5 py-3 whitespace-nowrap w-[14%]">Payment Mode</th>
+                      <th className="px-3.5 py-3 whitespace-nowrap w-[14%]">Date</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-medium">
@@ -472,34 +591,49 @@ export const ReportsView: React.FC = () => {
                         </td>
                       </tr>
                     ) : (
-                      (paginatedData as any[]).map(p => (
-                        <tr key={p.id} className="hover:bg-slate-50/60 dark:hover:bg-slate-800/30 transition-colors">
-                          <td className="px-4 py-3.5 font-mono font-bold text-sky-600 whitespace-nowrap">{p.receiptNo || p.id}</td>
-                          <td className="px-4 py-3.5 font-extrabold text-slate-900 dark:text-white">{p.studentName || 'Student'}</td>
-                          <td className="px-4 py-3.5 font-bold text-slate-700 dark:text-slate-300">{p.feeHeadName || p.category || 'Tuition Fee'}</td>
-                          <td className="px-4 py-3.5 font-mono font-black text-emerald-600 whitespace-nowrap">₹{Number(p.amount || 0).toLocaleString('en-IN')}</td>
-                          <td className="px-4 py-3.5 font-bold text-slate-600 whitespace-nowrap">{p.paymentMode || 'Online'}</td>
-                          <td className="px-4 py-3.5 font-mono text-slate-500 whitespace-nowrap">{p.paymentDate || p.date || '2026-08-10'}</td>
-                        </tr>
-                      ))
+                      (paginatedData as any[]).map(p => {
+                        const studentObj = studentMap.get(String(p.studentId)) || studentMap.get(p.admissionNo);
+                        const displayClass = p.className || studentObj?.className || '';
+                        const displaySection = studentObj?.section ? ` - ${studentObj.section}` : '';
+
+                        return (
+                          <tr key={p.id} className="hover:bg-slate-50/60 dark:hover:bg-slate-800/30 transition-colors">
+                            <td className="px-3.5 py-3 font-mono font-bold text-sky-600 whitespace-nowrap">{p.receiptNo || p.id}</td>
+                            <td className="px-3.5 py-3">
+                              <p className="font-extrabold text-slate-900 dark:text-white">{p.studentName || 'Student'}</p>
+                              {displayClass && (
+                                <p className="text-[10px] text-sky-600 dark:text-sky-400 font-semibold mt-0.5">
+                                  Class: {displayClass}{displaySection}
+                                </p>
+                              )}
+                            </td>
+                            <td className="px-3.5 py-3 font-bold text-slate-700 dark:text-slate-300">{p.feeHeadName || p.category || 'Tuition Fee'}</td>
+                            <td className="px-3.5 py-3 font-mono font-black text-emerald-600 whitespace-nowrap">₹{Number(p.amount || 0).toLocaleString('en-IN')}</td>
+                            <td className="px-3.5 py-3 font-bold text-slate-600 whitespace-nowrap">{p.paymentMode || 'Online'}</td>
+                            <td className="px-3.5 py-3 font-mono text-slate-600 whitespace-nowrap">
+                              {formatDateDDMMYYYY(p.paymentDate || (p as any).date)}
+                            </td>
+                          </tr>
+                        );
+                      })
                     )}
                   </tbody>
                 </table>
               </div>
             )}
 
-            {/* ACADEMIC EXAM MARKS REPORT TABLE */}
+            {/* 4. ACADEMIC EXAM MARKS REPORT TABLE */}
             {activeTab === 'exams' && (
               <div className="overflow-x-auto">
-                <table className="w-full text-left border-collapse min-w-[760px] print:min-w-0">
+                <table className="w-full text-left border-collapse table-auto text-xs print:min-w-0">
                   <thead>
                     <tr className="border-b border-slate-100 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-950/60 text-[10px] font-black uppercase text-slate-400 tracking-wider">
-                      <th className="px-4 py-3.5 whitespace-nowrap">Student ID</th>
-                      <th className="px-4 py-3.5 whitespace-nowrap">Exam / Subject</th>
-                      <th className="px-4 py-3.5 whitespace-nowrap">Marks Obtained</th>
-                      <th className="px-4 py-3.5 whitespace-nowrap">Total Marks</th>
-                      <th className="px-4 py-3.5 whitespace-nowrap">Grade</th>
-                      <th className="px-4 py-3.5 whitespace-nowrap">Remarks</th>
+                      <th className="px-3.5 py-3 whitespace-nowrap w-[15%]">Student ID</th>
+                      <th className="px-3.5 py-3 w-[25%]">Exam / Subject</th>
+                      <th className="px-3.5 py-3 whitespace-nowrap w-[15%]">Marks Obtained</th>
+                      <th className="px-3.5 py-3 whitespace-nowrap w-[15%]">Total Marks</th>
+                      <th className="px-3.5 py-3 whitespace-nowrap w-[15%]">Grade</th>
+                      <th className="px-3.5 py-3 w-[15%]">Remarks</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-medium">
@@ -512,12 +646,12 @@ export const ReportsView: React.FC = () => {
                     ) : (
                       (paginatedData as any[]).map(m => (
                         <tr key={m.id} className="hover:bg-slate-50/60 dark:hover:bg-slate-800/30 transition-colors">
-                          <td className="px-4 py-3.5 font-mono font-bold text-sky-600 whitespace-nowrap">{m.studentId}</td>
-                          <td className="px-4 py-3.5 font-extrabold text-slate-900 dark:text-white">{m.subject}</td>
-                          <td className="px-4 py-3.5 font-mono font-bold text-slate-900 dark:text-white whitespace-nowrap">{m.marksObtained}</td>
-                          <td className="px-4 py-3.5 font-mono text-slate-500 whitespace-nowrap">{m.totalMarks}</td>
-                          <td className="px-4 py-3.5 font-bold text-emerald-600 whitespace-nowrap">{m.grade || 'A1'}</td>
-                          <td className="px-4 py-3.5 text-slate-500">{m.remarks || 'Evaluated'}</td>
+                          <td className="px-3.5 py-3 font-mono font-bold text-sky-600 whitespace-nowrap">{m.studentId}</td>
+                          <td className="px-3.5 py-3 font-extrabold text-slate-900 dark:text-white">{m.subject}</td>
+                          <td className="px-3.5 py-3 font-mono font-bold text-slate-900 dark:text-white whitespace-nowrap">{m.marksObtained}</td>
+                          <td className="px-3.5 py-3 font-mono text-slate-500 whitespace-nowrap">{m.totalMarks}</td>
+                          <td className="px-3.5 py-3 font-bold text-emerald-600 whitespace-nowrap">{m.grade || 'A1'}</td>
+                          <td className="px-3.5 py-3 text-slate-500">{m.remarks || 'Evaluated'}</td>
                         </tr>
                       ))
                     )}
