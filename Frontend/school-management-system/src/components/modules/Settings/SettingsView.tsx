@@ -1430,14 +1430,14 @@ export const SettingsView: React.FC = () => {
   };
 
   return (
-    <div className="space-y-6 animate-in fade-in">
+    <div className="space-y-3 animate-in fade-in">
       {/* Settings Header */}
-      <div className="flex items-center gap-3">
-        <div className="p-2 bg-sky-50 dark:bg-sky-950/40 rounded-xl text-sky-600 dark:text-sky-400 border border-sky-100 dark:border-sky-900/50">
-          <SettingsIcon className="w-6 h-6 text-[#0088cc] dark:text-sky-400" />
+      <div className="flex items-center gap-2.5">
+        <div className="p-1.5 bg-sky-50 dark:bg-sky-950/40 rounded-lg text-sky-600 dark:text-sky-400 border border-sky-100 dark:border-sky-900/50">
+          <SettingsIcon className="w-5 h-5 text-[#0088cc] dark:text-sky-400" />
         </div>
-        <h2 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight">
-          School Settings
+        <h2 className="text-xl font-black text-slate-900 dark:text-white tracking-tight">
+          Settings
         </h2>
       </div>
 
@@ -2469,9 +2469,6 @@ export const SettingsView: React.FC = () => {
                 <h3 className="font-extrabold text-slate-900 dark:text-white text-base">
                   Automated ID & Serial Number Sequence Settings
                 </h3>
-                <p className="text-xs text-slate-500 dark:text-slate-400">
-                  Configure dynamic numbering formats for students, staff, and admissions. Click the edit icon on any card to modify.
-                </p>
               </div>
             </div>
           </div>
