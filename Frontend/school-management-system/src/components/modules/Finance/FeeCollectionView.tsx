@@ -560,7 +560,7 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
         const nameParts = fullName.split(" ");
         const fName = adm.firstName || nameParts[0] || "Student";
         const lName = adm.lastName || nameParts.slice(1).join(" ") || "";
-        const targetCls = adm.appliedClass || (adm as any).appliedClassGrade || adm.targetClass || adm.className || "Class 1";
+        const targetCls = adm.appliedClass || (adm as any).appliedClassGrade || adm.targetClass || adm.className || (academicClasses && academicClasses[0] ? academicClasses[0].name : "Nursery");
 
         const dynamicStudentId =
           (adm as any).studentId ||

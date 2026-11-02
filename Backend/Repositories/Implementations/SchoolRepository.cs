@@ -422,7 +422,26 @@ public class SchoolRepository : ISchoolRepository
             else
             {
                 var cleanBranch = filter.Branch.Trim().ToLower();
-                query = query.Where(s => s.Branch != null && (s.Branch.BranchName.ToLower() == cleanBranch || s.Branch.BranchName.ToLower().Contains(cleanBranch)));
+                var keyword = System.Text.RegularExpressions.Regex.Replace(cleanBranch, @"\b(branch|campus|school)\b", "").Trim();
+
+                var matchedBranchIds = await _context.Branches.AsNoTracking()
+                    .Where(b => b.BranchName.ToLower() == cleanBranch ||
+                                b.BranchName.ToLower().Contains(cleanBranch) ||
+                                cleanBranch.Contains(b.BranchName.ToLower()) ||
+                                (!string.IsNullOrEmpty(keyword) && (b.BranchName.ToLower().Contains(keyword) || keyword.Contains(b.BranchName.ToLower()))) ||
+                                (!string.IsNullOrEmpty(keyword) && b.Address != null && (b.Address.ToLower().Contains(keyword) || keyword.Contains(b.Address.ToLower()))) ||
+                                (!string.IsNullOrEmpty(b.BranchCode) && b.BranchCode.ToLower() == cleanBranch))
+                    .Select(b => b.BranchId)
+                    .ToListAsync();
+
+                if (matchedBranchIds.Count > 0)
+                {
+                    query = query.Where(s => matchedBranchIds.Contains(s.BranchId));
+                }
+                else
+                {
+                    query = query.Where(s => s.Branch != null && (s.Branch.BranchName.ToLower() == cleanBranch || s.Branch.BranchName.ToLower().Contains(cleanBranch)));
+                }
             }
         }
 

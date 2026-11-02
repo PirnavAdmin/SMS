@@ -265,19 +265,21 @@ export const FinanceDashboardView: React.FC<FinanceDashboardViewProps> = ({ onNa
 
   // Dashboard financial metrics sourced directly and dynamically from the backend API stats or ledger fallback
   const computedExpected = React.useMemo(() => {
-    if (apiStats && typeof apiStats.totalExpectedRevenue === 'number' && apiStats.totalExpectedRevenue > 0) {
+    if (apiStats && typeof apiStats.totalExpectedRevenue === 'number') {
       return Number(apiStats.totalExpectedRevenue);
     }
     return localStats.expected;
   }, [apiStats, localStats.expected]);
 
   const computedCollected = React.useMemo(() => {
-    let coll = localStats.collected;
-    if (apiStats && typeof apiStats.totalCollectedRevenue === 'number' && apiStats.totalCollectedRevenue > 0) {
-      coll = Number(apiStats.totalCollectedRevenue);
+    if (apiStats && typeof apiStats.totalCollectedRevenue === 'number') {
+      return Number(apiStats.totalCollectedRevenue);
     }
-    return computedExpected > 0 ? Math.min(computedExpected, coll) : coll;
-  }, [apiStats, localStats.collected, computedExpected]);
+    return localStats.collected;
+  }, [apiStats, localStats.collected]);
+
+  const totalCollected = computedCollected;
+  const totalExpected = Math.max(computedExpected, computedCollected);
 
   const computedClassWiseRevenue = React.useMemo(() => {
     const raw = (apiStats?.classWiseRevenue && Array.isArray(apiStats.classWiseRevenue) && apiStats.classWiseRevenue.length > 0)
@@ -286,21 +288,19 @@ export const FinanceDashboardView: React.FC<FinanceDashboardViewProps> = ({ onNa
     return (raw || []).map((c: any) => {
       const exp = Number(c.expectedAmount ?? c.totalExpectedRevenue ?? 0);
       const coll = Number(c.collectedAmount ?? c.totalCollectedRevenue ?? 0);
-      const safeColl = exp > 0 ? Math.min(exp, coll) : coll;
+      const safeExp = Math.max(exp, coll);
       return {
         ...c,
-        totalExpectedRevenue: exp,
-        expectedAmount: exp,
-        totalCollectedRevenue: safeColl,
-        collectedAmount: safeColl,
-        totalPendingRevenue: Math.max(0, exp - safeColl),
-        collectionPercentage: exp > 0 ? Math.round((safeColl / exp) * 100) : 0,
+        totalExpectedRevenue: safeExp,
+        expectedAmount: safeExp,
+        totalCollectedRevenue: coll,
+        collectedAmount: coll,
+        totalPendingRevenue: Math.max(0, safeExp - coll),
+        collectionPercentage: safeExp > 0 ? Math.round((coll / safeExp) * 100) : (coll > 0 ? 100 : 0),
       };
     });
   }, [apiStats, localStats.classWise]);
 
-  const totalCollected = computedCollected;
-  const totalExpected = computedExpected;
   const totalPending = React.useMemo(() => {
     if (apiStats && typeof apiStats.totalPendingDues === "number") {
       return Number(apiStats.totalPendingDues);
@@ -313,13 +313,6 @@ export const FinanceDashboardView: React.FC<FinanceDashboardViewProps> = ({ onNa
   const todaysCollection = Number(apiStats?.todayCollectionAmount || 0);
 
   // Module Specific Expected, Collected, Pending Amounts
-  const hostelExpected = React.useMemo(() => {
-    if (apiStats && typeof apiStats.hostelExpected === 'number' && apiStats.hostelExpected > 0) {
-      return Number(apiStats.hostelExpected);
-    }
-    return localStats.hostelExp;
-  }, [apiStats, localStats.hostelExp]);
-
   const hostelCollected = React.useMemo(() => {
     if (apiStats && typeof apiStats.hostelCollected === 'number' && apiStats.hostelCollected > 0) {
       return Number(apiStats.hostelCollected);
@@ -327,14 +320,14 @@ export const FinanceDashboardView: React.FC<FinanceDashboardViewProps> = ({ onNa
     return localStats.hostelColl;
   }, [apiStats, localStats.hostelColl]);
 
-  const hostelPending = Math.max(0, hostelExpected - hostelCollected);
+  const hostelExpected = React.useMemo(() => {
+    const exp = (apiStats && typeof apiStats.hostelExpected === 'number' && apiStats.hostelExpected > 0)
+      ? Number(apiStats.hostelExpected)
+      : localStats.hostelExp;
+    return Math.max(exp, hostelCollected);
+  }, [apiStats, localStats.hostelExp, hostelCollected]);
 
-  const transportExpected = React.useMemo(() => {
-    if (apiStats && typeof apiStats.transportExpected === 'number' && apiStats.transportExpected > 0) {
-      return Number(apiStats.transportExpected);
-    }
-    return localStats.transportExp;
-  }, [apiStats, localStats.transportExp]);
+  const hostelPending = Math.max(0, hostelExpected - hostelCollected);
 
   const transportCollected = React.useMemo(() => {
     if (apiStats && typeof apiStats.transportCollected === 'number' && apiStats.transportCollected > 0) {
@@ -343,14 +336,14 @@ export const FinanceDashboardView: React.FC<FinanceDashboardViewProps> = ({ onNa
     return localStats.transportColl;
   }, [apiStats, localStats.transportColl]);
 
-  const transportPending = Math.max(0, transportExpected - transportCollected);
+  const transportExpected = React.useMemo(() => {
+    const exp = (apiStats && typeof apiStats.transportExpected === 'number' && apiStats.transportExpected > 0)
+      ? Number(apiStats.transportExpected)
+      : localStats.transportExp;
+    return Math.max(exp, transportCollected);
+  }, [apiStats, localStats.transportExp, transportCollected]);
 
-  const uniformExpected = React.useMemo(() => {
-    if (apiStats && typeof apiStats.uniformExpected === 'number' && apiStats.uniformExpected > 0) {
-      return Number(apiStats.uniformExpected);
-    }
-    return localStats.uniformExp;
-  }, [apiStats, localStats.uniformExp]);
+  const transportPending = Math.max(0, transportExpected - transportCollected);
 
   const uniformCollected = React.useMemo(() => {
     if (apiStats && typeof apiStats.uniformCollected === 'number' && apiStats.uniformCollected > 0) {
@@ -358,6 +351,13 @@ export const FinanceDashboardView: React.FC<FinanceDashboardViewProps> = ({ onNa
     }
     return localStats.uniformColl;
   }, [apiStats, localStats.uniformColl]);
+
+  const uniformExpected = React.useMemo(() => {
+    const exp = (apiStats && typeof apiStats.uniformExpected === 'number' && apiStats.uniformExpected > 0)
+      ? Number(apiStats.uniformExpected)
+      : localStats.uniformExp;
+    return Math.max(exp, uniformCollected);
+  }, [apiStats, localStats.uniformExp, uniformCollected]);
 
   const uniformPending = Math.max(0, uniformExpected - uniformCollected);
 
@@ -432,16 +432,17 @@ export const FinanceDashboardView: React.FC<FinanceDashboardViewProps> = ({ onNa
 
       const exp = Number(cat.expectedAmount || 0);
       const coll = Number(cat.collectedAmount || 0);
+      const safeExp = Math.max(exp, coll);
 
       if (!map.has(name)) {
         map.set(name, {
           categoryName: name,
-          expectedAmount: exp,
+          expectedAmount: safeExp,
           collectedAmount: coll,
         });
       } else {
         const existing = map.get(name)!;
-        existing.expectedAmount = Math.max(existing.expectedAmount, exp);
+        existing.expectedAmount = Math.max(existing.expectedAmount, safeExp);
         existing.collectedAmount = Math.max(existing.collectedAmount, coll);
       }
     }

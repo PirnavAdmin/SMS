@@ -2294,11 +2294,11 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     StudentFeeLedger[]
   >(() => {
     const version = localStorage.getItem(
-      "edu_db_full_ledgers_v116_no_hardcoded_dues",
+      "edu_db_full_ledgers_v120_clean_real_db_records",
     );
     if (!version) {
       localStorage.setItem(
-        "edu_db_full_ledgers_v116_no_hardcoded_dues",
+        "edu_db_full_ledgers_v120_clean_real_db_records",
         "true",
       );
       localStorage.removeItem("student_fee_ledgers");
@@ -2307,6 +2307,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       localStorage.removeItem("edu_db_student_fee_installments");
       localStorage.removeItem("edu_db_fee_payments");
       localStorage.removeItem("fee_payments");
+      localStorage.removeItem("edu_db_full_ledgers_v116_no_hardcoded_dues");
       localStorage.removeItem("edu_db_full_ledgers_v112_exact_classes");
       localStorage.removeItem("edu_db_full_ledgers_v110_dynamic_only");
       localStorage.removeItem("edu_db_full_ledgers_v105_realmysql");
@@ -9683,7 +9684,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
             registrationNo: matchedSt.admissionNo || String(matchedSt.id),
             applicantName:
               `${matchedSt.firstName || ""} ${matchedSt.lastName || ""}`.trim(),
-            appliedClass: matchedSt.className || "Class 1",
+            appliedClass: matchedSt.className || (academicClasses && academicClasses[0] ? academicClasses[0].name : "Nursery"),
             gender: matchedSt.gender || "Male",
             status: matchedSt.status === "Inactive" ? "Rejected" : "Enrolled",
             phone: matchedSt.phone || (matchedSt as any).fatherPhone || "",
@@ -17085,7 +17086,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
                 (matchedAdm as any).appliedClassGrade ||
                 matchedAdm.targetClass ||
                 matchedAdm.className ||
-                "Class 1",
+                (academicClasses && academicClasses[0] ? academicClasses[0].name : "Nursery"),
               section: matchedAdm.section || "",
               gender: matchedAdm.gender || "Male",
               studentType:

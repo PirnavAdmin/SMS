@@ -1913,6 +1913,23 @@ public class FeeCollectionRepository : IFeeCollectionRepository
             }
         }
 
+        var matchedBranchNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        if (matchedBranchIds.Count > 0)
+        {
+            foreach (var b in allBranches.Where(x => matchedBranchIds.Contains(x.BranchId)))
+            {
+                if (!string.IsNullOrWhiteSpace(b.BranchName)) matchedBranchNames.Add(b.BranchName.Trim());
+                if (!string.IsNullOrWhiteSpace(b.BranchCode)) matchedBranchNames.Add(b.BranchCode.Trim());
+                if (!string.IsNullOrWhiteSpace(b.Address)) matchedBranchNames.Add(b.Address.Trim());
+            }
+        }
+        if (!string.IsNullOrWhiteSpace(branch))
+        {
+            matchedBranchNames.Add(branch.Trim());
+            string bKeywordOnly = System.Text.RegularExpressions.Regex.Replace(branch.Trim(), @"\b(branch|campus|school)\b", "", System.Text.RegularExpressions.RegexOptions.IgnoreCase).Trim();
+            if (!string.IsNullOrWhiteSpace(bKeywordOnly)) matchedBranchNames.Add(bKeywordOnly);
+        }
+
         if (!string.IsNullOrWhiteSpace(academicYear) && !academicYear.Equals("All", StringComparison.OrdinalIgnoreCase))
         {
             var matchYear = System.Text.RegularExpressions.Regex.Match(academicYear, @"\d{4}");
@@ -2000,6 +2017,7 @@ public class FeeCollectionRepository : IFeeCollectionRepository
             if (!alreadyInActive)
             {
                 bool branchMatches = string.IsNullOrWhiteSpace(branch) || branch.Equals("All", StringComparison.OrdinalIgnoreCase) || branch.Equals("All Branches", StringComparison.OrdinalIgnoreCase) ||
+                    (matchedBranchNames.Count > 0 && !string.IsNullOrEmpty(adm.BranchName) && (matchedBranchNames.Contains(adm.BranchName) || matchedBranchNames.Any(mbn => adm.BranchName.Contains(mbn, StringComparison.OrdinalIgnoreCase) || mbn.Contains(adm.BranchName, StringComparison.OrdinalIgnoreCase)))) ||
                     (!string.IsNullOrEmpty(adm.BranchName) && (adm.BranchName.ToLower().Contains(admBranchClean) || admBranchClean.Contains(adm.BranchName.ToLower())));
 
                 if (branchMatches)
@@ -2070,6 +2088,8 @@ public class FeeCollectionRepository : IFeeCollectionRepository
                 d.Branch.ToLower() == bClean ||
                 d.Branch.ToLower().Contains(bClean) ||
                 bClean.Contains(d.Branch.ToLower()) ||
+                matchedBranchNames.Contains(d.Branch) ||
+                matchedBranchNames.Any(mbn => d.Branch.Contains(mbn, StringComparison.OrdinalIgnoreCase) || mbn.Contains(d.Branch, StringComparison.OrdinalIgnoreCase)) ||
                 (!string.IsNullOrEmpty(bKeyword) && (d.Branch.ToLower().Contains(bKeyword) || bKeyword.Contains(d.Branch.ToLower()))));
         }
 
@@ -2531,26 +2551,17 @@ public class FeeCollectionRepository : IFeeCollectionRepository
         decimal sumModuleCollected = tuitionCollected + hostelCollected + transportCollectedTotal + uniformCollected + finesCollected;
         decimal totalCollected = Math.Max(rawPaymentsTotal, sumModuleCollected);
 
-        // A school or student can never collect more than the expected fee dynamically
-        if (totalExpected > 0m && totalCollected > totalExpected)
+        // Dynamically ensure expected revenue accounts for all confirmed payments collected
+        if (hostelCollected > hostelExpected) hostelExpected = hostelCollected;
+        if (transportCollectedTotal > transportExpected) transportExpected = transportCollectedTotal;
+        if (uniformCollected > uniformExpected) uniformExpected = uniformCollected;
+        if (finesCollected > finesExpected) finesExpected = finesCollected;
+        if (tuitionCollected > tuitionExpected) tuitionExpected = tuitionCollected;
+
+        totalExpected = tuitionExpected + hostelExpected + transportExpected + uniformExpected + finesExpected;
+        if (totalCollected > totalExpected)
         {
-            totalCollected = totalExpected;
-        }
-        if (transportExpected > 0m && transportCollectedTotal > transportExpected)
-        {
-            transportCollectedTotal = transportExpected;
-        }
-        if (hostelExpected > 0m && hostelCollected > hostelExpected)
-        {
-            hostelCollected = hostelExpected;
-        }
-        if (uniformExpected > 0m && uniformCollected > uniformExpected)
-        {
-            uniformCollected = uniformExpected;
-        }
-        if (finesExpected > 0m && finesCollected > finesExpected)
-        {
-            finesCollected = finesExpected;
+            totalExpected = totalCollected;
         }
 
         // Student-Wise Fee Payment Policy & Term-Wise Pending Dues Calculation
@@ -2904,7 +2915,7 @@ public class FeeCollectionRepository : IFeeCollectionRepository
                 }
             }
 
-            if (classExpected > 0m && classCollected > classExpected) classCollected = classExpected;
+            if (classCollected > classExpected) classExpected = classCollected;
 
             classWiseList.Add(new ClassWiseCollectionShareDto
             {
@@ -3121,7 +3132,7 @@ public class FeeCollectionRepository : IFeeCollectionRepository
         {
             decimal exp = entry.Expected;
             decimal coll = entry.Collected;
-            if (exp > 0m && coll > exp) coll = exp;
+            if (coll > exp) exp = coll;
 
             categoryBreakdown.Add(new FeeCategoryCollectionSummaryDto
             {
