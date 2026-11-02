@@ -23,7 +23,8 @@ import {
   X,
   FileSpreadsheet,
   Phone,
-  AlertTriangle
+  AlertTriangle,
+  Loader2
 } from 'lucide-react';
 import { FinanceTransportConfig, PickupPoint } from '../../../types';
 import { useData, matchesAcademicYear } from '../../../context/DataContext';
@@ -50,7 +51,9 @@ export const FinanceTransportConfigView: React.FC = () => {
     admissions = [],
     addFinanceTransportConfig,
     updateFinanceTransportConfig,
-    deleteFinanceTransportConfig
+    deleteFinanceTransportConfig,
+    deleteRouteMaster,
+    deletePickupPoint
   } = useData();
 
   const { selectedAcademicYear } = useAuth();
@@ -94,6 +97,53 @@ export const FinanceTransportConfigView: React.FC = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingConfig, setEditingConfig] = useState<FinanceTransportConfig | null>(null);
   const [deletingConfig, setDeletingConfig] = useState<FinanceTransportConfig | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<{
+    row: {
+      pickup: PickupPoint;
+      route: any;
+      customConfig?: any;
+    };
+    studentCount: number;
+  } | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  const handleConfirmDelete = async () => {
+    if (!deleteTarget) return;
+    const { pickup, route, customConfig } = deleteTarget.row;
+    setIsDeleting(true);
+    try {
+      if (customConfig && customConfig.id) {
+        try {
+          deleteFinanceTransportConfig(customConfig.id);
+        } catch (e) {
+          console.warn("Failed to delete customConfig:", e);
+        }
+      }
+
+      const isSynthetic = !pickup.id || String(pickup.id).startsWith('route-base-');
+      if (!isSynthetic) {
+        await deletePickupPoint(String(pickup.id));
+      }
+
+      const otherStops = (pickupPoints || []).filter(p =>
+        p.id !== pickup.id &&
+        (String(p.routeId) === String(route.id) || (p.routeName && route.routeName && p.routeName.trim().toLowerCase() === route.routeName.trim().toLowerCase()))
+      );
+
+      if (isSynthetic || otherStops.length === 0) {
+        await deleteRouteMaster(String(route.id));
+        addToast('success', 'Route & Fee Config Deleted', `Successfully removed route "${route.routeName}" and its rate configuration.`);
+      } else {
+        addToast('success', 'Pickup Stop Deleted', `Successfully removed stop "${pickup.pickupName}" from route "${route.routeName}".`);
+      }
+    } catch (err: any) {
+      console.error("Delete failed:", err);
+      addToast('error', 'Delete Failed', err?.message || 'Could not delete transport configuration.');
+    } finally {
+      setIsDeleting(false);
+      setDeleteTarget(null);
+    }
+  };
 
   // Route Students Modal & Inspection State
   const [selectedRouteForStudents, setSelectedRouteForStudents] = useState<any | null>(null);
@@ -1071,11 +1121,12 @@ export const FinanceTransportConfigView: React.FC = () => {
                 <th className="py-3.5 px-4 text-right">Term-Wise ({scheduleTerms.length} Terms)</th>
                 <th className="py-3.5 px-4 text-center">Active Policy</th>
                 <th className="py-3.5 px-4 text-center">Students</th>
+                <th className="py-3.5 px-4 text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800/80 font-medium">
               {pickupMatrix.length > 0 ? (
-                pickupMatrix.map(({ pickup, route, assignment, isAC, fees, customConfig }) => {
+                pickupMatrix.map(({ pickup, route, assignment, vehicle, isAC, fees, customConfig }) => {
                   const effectiveAnnual = customConfig?.feePlan === 'Annual' && customConfig?.feeAmount ? customConfig.feeAmount : fees.oneTimeAnnual;
                   const effectiveTerm = (customConfig?.feePlan === 'Quarterly' || (customConfig?.feePlan as any) === 'Term-wise') && customConfig?.feeAmount
                     ? customConfig.feeAmount
@@ -1159,12 +1210,61 @@ export const FinanceTransportConfigView: React.FC = () => {
                           );
                         })()}
                       </td>
+
+                      {/* Actions */}
+                      <td className="py-3 px-4 text-right whitespace-nowrap">
+                        <div className="flex items-center justify-end gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (customConfig) {
+                                handleOpenEdit(customConfig);
+                              } else {
+                                setEditingConfig(null);
+                                setForm({
+                                  routeId: String(route.id),
+                                  routeName: route.routeName || '',
+                                  vehicleId: assignment?.vehicleId ? String(assignment.vehicleId) : '',
+                                  vehicleNumber: vehicle?.vehicleNumber || '',
+                                  driverId: assignment?.driverId ? String(assignment.driverId) : '',
+                                  driverName: '',
+                                  pickupPointId: pickup.id && !String(pickup.id).startsWith('route-base-') ? String(pickup.id) : '',
+                                  pickupName: pickup.pickupName || '',
+                                  feePlan: globalPolicy === 'One-Time' ? 'Annual' : 'Quarterly',
+                                  feeAmount: globalPolicy === 'One-Time' ? effectiveAnnual : effectiveTerm,
+                                  effectiveFrom: new Date().toISOString().split('T')[0],
+                                  status: 'Active'
+                                });
+                                setIsModalOpen(true);
+                              }
+                            }}
+                            title={customConfig ? "Edit custom transport fee override" : "Set custom rate override for this stop"}
+                            className="p-1.5 rounded-lg text-slate-400 hover:text-sky-600 hover:bg-sky-50 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                          >
+                            <Edit className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const routeStudents = getRouteStudentsList(route);
+                              setDeleteTarget({
+                                row: { pickup, route, customConfig },
+                                studentCount: routeStudents.length
+                              });
+                            }}
+                            title="Delete rate configuration / route stop"
+                            className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors cursor-pointer"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </td>
                     </tr>
                   );
                 })
               ) : (
                 <tr>
-                  <td colSpan={9} className="py-8 text-center text-slate-400">
+                  <td colSpan={10} className="py-8 text-center text-slate-400">
                     No pickup points found matching search criteria.
                   </td>
                 </tr>
@@ -1635,19 +1735,55 @@ export const FinanceTransportConfigView: React.FC = () => {
         </div>
       )}
 
-      {/* Delete Confirmation */}
+      {/* Delete Confirmation Modal */}
       <ConfirmModal
-        isOpen={!!deletingConfig}
-        onCancel={() => setDeletingConfig(null)}
-        onConfirm={() => {
-          if (deletingConfig) {
-            deleteFinanceTransportConfig(deletingConfig.id);
-            addToast('info', 'Transport Override Deleted');
-            setDeletingConfig(null);
-          }
+        isOpen={!!deleteTarget}
+        isLoading={isDeleting}
+        onCancel={() => {
+          if (!isDeleting) setDeleteTarget(null);
         }}
-        title="Delete Transport Fee Override"
-        message={`Are you sure you want to remove custom transport pricing for ${deletingConfig?.pickupName}?`}
+        onConfirm={handleConfirmDelete}
+        title={
+          deleteTarget?.row.customConfig
+            ? "Remove Transport Fee Override"
+            : deleteTarget?.row.pickup.id && !String(deleteTarget.row.pickup.id).startsWith('route-base-')
+            ? "Delete Pickup Stop & Rate"
+            : "Delete Transport Route"
+        }
+        confirmLabel={isDeleting ? "Deleting..." : "Delete"}
+        variant="danger"
+        message={
+          deleteTarget && (
+            <div className="space-y-3">
+              <p>
+                Are you sure you want to remove{" "}
+                <strong className="text-slate-900 dark:text-white font-bold">
+                  {deleteTarget.row.pickup.pickupName || deleteTarget.row.route.routeName}
+                </strong>{" "}
+                on route{" "}
+                <strong className="text-slate-900 dark:text-white font-bold">
+                  {deleteTarget.row.route.routeName}
+                </strong>
+                {deleteTarget.row.route.routeCode ? ` (${deleteTarget.row.route.routeCode})` : ""}?
+              </p>
+
+              {deleteTarget.row.customConfig && (
+                <div className="p-2.5 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 text-amber-800 dark:text-amber-300 text-xs">
+                  This will remove the custom pricing override and reset this stop to standard kilometer slab rates.
+                </div>
+              )}
+
+              {deleteTarget.studentCount > 0 && (
+                <div className="p-2.5 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 text-rose-800 dark:text-rose-300 text-xs flex items-start gap-2">
+                  <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
+                  <span>
+                    <strong>Warning:</strong> {deleteTarget.studentCount} student(s) are currently assigned to this route. Deleting it may impact their transport allocation.
+                  </span>
+                </div>
+              )}
+            </div>
+          )
+        }
       />
     </div>
   );
