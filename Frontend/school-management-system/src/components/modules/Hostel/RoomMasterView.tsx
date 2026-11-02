@@ -269,7 +269,7 @@ export const RoomMasterView: React.FC<RoomMasterViewProps> = ({ selectedHostelFi
   };
 
   return (
-    <div className="space-y-6 animate-in fade-in">
+    <div className="space-y-3.5 animate-in fade-in">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white flex items-center gap-2">
@@ -287,7 +287,7 @@ export const RoomMasterView: React.FC<RoomMasterViewProps> = ({ selectedHostelFi
         )}
       </div>
 
-      <div className="glass-card p-4 rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-4 border border-slate-200 dark:border-slate-800 shadow-sm">
+      <div className="glass-card p-3 rounded-xl flex flex-col sm:flex-row items-center justify-between gap-2.5 border border-slate-200/80 dark:border-slate-800 shadow-xs">
         <div className="relative w-full sm:w-72">
           <Search className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
           <input
@@ -295,20 +295,20 @@ export const RoomMasterView: React.FC<RoomMasterViewProps> = ({ selectedHostelFi
             placeholder="Search room number, hostel..."
             value={searchQuery}
             onChange={e => { setSearchQuery(e.target.value); setCurrentPage(1); }}
-            className="w-full pl-9 pr-4 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-xs text-slate-900 dark:text-white outline-none"
+            className="w-full pl-8 pr-3.5 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border text-xs text-slate-900 dark:text-white outline-none h-[34px]"
           />
         </div>
 
         <div className="flex items-center gap-2.5 w-full sm:w-auto flex-wrap justify-end">
           {isWarden ? (
-            <div className="px-3.5 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-800 dark:text-slate-200 h-[38px] flex items-center">
+            <div className="px-3 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-800 dark:text-slate-200 h-[34px] flex items-center">
               {targetBlocks[0]?.hostelName || 'Assigned Hostel Block'}
             </div>
           ) : (
             <select
               value={filterHostel}
               onChange={e => { setFilterHostel(e.target.value); setCurrentPage(1); }}
-              className="px-3.5 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-800 dark:text-slate-200 outline-none cursor-pointer h-[38px] hover:border-sky-400 transition-colors"
+              className="px-3 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-800 dark:text-slate-200 outline-none cursor-pointer h-[34px] hover:border-sky-400 transition-colors"
             >
               <option value="">Select Hostel...</option>
               <option value="All">All Hostels</option>
@@ -330,7 +330,7 @@ export const RoomMasterView: React.FC<RoomMasterViewProps> = ({ selectedHostelFi
           <select
             value={filterFloor}
             onChange={e => { setFilterFloor(e.target.value); setCurrentPage(1); }}
-            className="px-3.5 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-800 dark:text-slate-200 outline-none cursor-pointer h-[38px] hover:border-sky-400 transition-colors"
+            className="px-3 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-800 dark:text-slate-200 outline-none cursor-pointer h-[34px] hover:border-sky-400 transition-colors"
           >
             {availableFloorOptions.map(f => (
               <option key={f} value={f}>{f}</option>
@@ -357,7 +357,7 @@ export const RoomMasterView: React.FC<RoomMasterViewProps> = ({ selectedHostelFi
         <div className="py-12 text-center text-slate-400 font-bold">No rooms found.</div>
       ) : (
         <div className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5">
             {paginatedRooms.map((rm, idx) => {
               const matchingRt = (roomTypes || []).find(rt => String(rt.roomTypeId) === String(rm.roomTypeId ?? (rm as any).room_type_id));
               const roomCategoryLabel = rm.roomTypeSpecification || matchingRt?.roomTypeSpecification || 'Standard Room';
@@ -366,7 +366,7 @@ export const RoomMasterView: React.FC<RoomMasterViewProps> = ({ selectedHostelFi
               const vac = typeof rm.vacantBeds === 'number' ? rm.vacantBeds : Math.max(0, cap - occ);
 
               return (
-              <div key={`rm-card-${rm.roomId || idx}-${rm.roomNumber || idx}-${idx}`} className="glass-card p-5 rounded-3xl space-y-4 border border-slate-200/80 dark:border-slate-800 relative group hover:border-sky-500/50 transition-all">
+              <div key={`rm-card-${rm.roomId || idx}-${rm.roomNumber || idx}-${idx}`} className="glass-card p-3.5 sm:p-4 rounded-xl space-y-3 border border-slate-200/80 dark:border-slate-800 relative group hover:border-sky-500/50 transition-all shadow-xs">
                 <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
                   <div>
                     <span className="font-mono text-xs font-black text-sky-600 dark:text-sky-400">{formatRoomNumber(rm.roomNumber)}</span>

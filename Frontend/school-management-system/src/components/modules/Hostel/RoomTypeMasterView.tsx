@@ -543,12 +543,12 @@ export const RoomTypeMasterView: React.FC = () => {
   );
 
   return (
-    <div className="space-y-6 animate-in fade-in">
+    <div className="space-y-3.5 animate-in fade-in">
       {!isWarden && (
         <div className="flex justify-end">
           <button
             onClick={handleOpenAdd}
-            className="px-4 py-2.5 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs shadow-lg shadow-sky-500/20 flex items-center gap-2 transition-all"
+            className="px-3 py-1.5 rounded-lg bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs shadow-sm flex items-center gap-1.5 transition-all"
           >
             <Plus className="w-4 h-4" /> Add Room Type
           </button>
@@ -556,7 +556,7 @@ export const RoomTypeMasterView: React.FC = () => {
       )}
 
       {/* Filter Bar */}
-      <div className="glass-card p-4 rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-4 border border-slate-200 dark:border-slate-800 shadow-sm">
+      <div className="glass-card p-3 rounded-xl flex flex-col sm:flex-row items-center justify-between gap-2.5 border border-slate-200/80 dark:border-slate-800 shadow-xs">
         <div className="relative w-full sm:w-80">
           <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
           <input
@@ -564,7 +564,7 @@ export const RoomTypeMasterView: React.FC = () => {
             placeholder="Search by category or specification..."
             value={searchQuery}
             onChange={e => setSearchQuery(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-900 dark:text-white outline-none"
+            className="w-full pl-10 pr-4 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-900 dark:text-white outline-none"
           />
         </div>
 
@@ -594,7 +594,7 @@ export const RoomTypeMasterView: React.FC = () => {
               placeholder="Type category (e.g. Deluxe)..."
               value={manualFilterInput}
               onChange={e => setManualFilterInput(e.target.value)}
-              className="px-3.5 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-900 dark:text-white outline-none w-full sm:w-56"
+              className="px-3.5 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-900 dark:text-white outline-none w-full sm:w-56"
               autoFocus
             />
           )}
@@ -620,12 +620,12 @@ export const RoomTypeMasterView: React.FC = () => {
             <table className="w-full text-left text-xs text-slate-700 dark:text-slate-300">
               <thead className="bg-slate-50 dark:bg-slate-800/80 uppercase font-extrabold text-[10px] tracking-wider text-slate-500 border-b border-slate-200 dark:border-slate-800">
                 <tr>
-                  <th className="py-3.5 px-5">Room Category</th>
-                  <th className="py-3.5 px-5 text-center">Bed Capacity</th>
-                  <th className="py-3.5 px-5 text-center">AC / NON AC</th>
-                  <th className="py-3.5 px-5">Description</th>
-                  <th className="py-3.5 px-5 text-center">Status</th>
-                  {!isWarden && <th className="py-3.5 px-5 text-right">Actions</th>}
+                  <th className="py-2 px-3">Room Category</th>
+                  <th className="py-2 px-3 text-center">Bed Capacity</th>
+                  <th className="py-2 px-3 text-center">AC / NON AC</th>
+                  <th className="py-2 px-3">Description</th>
+                  <th className="py-2 px-3 text-center">Status</th>
+                  {!isWarden && <th className="py-2 px-3 text-right">Actions</th>}
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-medium">
@@ -640,25 +640,25 @@ export const RoomTypeMasterView: React.FC = () => {
                 ) : (
                   paginated.map((rt, idx) => (
                     <tr key={`rt-row-${rt.roomTypeId || idx}-${idx}`} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/50 transition-colors">
-                      <td className="py-3.5 px-5 font-bold text-slate-900 dark:text-white">{rt.roomTypeSpecification}</td>
-                      <td className="py-3.5 px-5 text-center">
+                      <td className="py-2 px-3 font-bold text-slate-900 dark:text-white">{rt.roomTypeSpecification}</td>
+                      <td className="py-2 px-3 text-center">
                         <span className="px-2.5 py-1 rounded-full text-[11px] font-extrabold bg-sky-100 text-sky-800 dark:bg-sky-950 dark:text-sky-300">
                           {rt.bedCapacity} Beds
                         </span>
                       </td>
-                      <td className="py-3.5 px-5 text-center">
+                      <td className="py-2 px-3 text-center">
                         <span className={`px-2.5 py-1 rounded-full text-[11px] font-extrabold ${rt.acType === 'AC' ? 'bg-indigo-100 text-indigo-800 dark:bg-indigo-950 dark:text-indigo-300' : 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300'}`}>
                           {rt.acType}
                         </span>
                       </td>
-                      <td className="py-3.5 px-5 text-slate-500 max-w-xs truncate">{rt.description || 'No description provided'}</td>
-                      <td className="py-3.5 px-5 text-center">
+                      <td className="py-2 px-3 text-slate-500 max-w-xs truncate">{rt.description || 'No description provided'}</td>
+                      <td className="py-2 px-3 text-center">
                         <span className={`px-2.5 py-1 rounded-full text-[11px] font-extrabold ${rt.status === 'Active' ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300' : 'bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300'}`}>
                           {rt.status}
                         </span>
                       </td>
                       {!isWarden && (
-                        <td className="py-3.5 px-5 text-right">
+                        <td className="py-2 px-3 text-right">
                           <div className="flex items-center justify-end gap-2">
                             <button onClick={() => handleOpenEdit(rt)} className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-sky-600"><Edit className="w-4 h-4" /></button>
                             <button onClick={() => setDeletingRt(rt)} className="p-1.5 rounded-lg hover:bg-rose-50 text-rose-600"><Trash2 className="w-4 h-4" /></button>
@@ -1305,7 +1305,7 @@ export const RoomTypeMasterView: React.FC = () => {
                                 <select
                                   value={formStatus}
                                   onChange={e => setFormStatus(e.target.value)}
-                                  className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-xs font-bold text-slate-800 dark:text-slate-200 outline-none"
+                                  className="w-full px-3 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border text-xs font-bold text-slate-800 dark:text-slate-200 outline-none"
                                 >
                                   <option value="Active">Active</option>
                                   <option value="Inactive">Inactive</option>
@@ -1318,7 +1318,7 @@ export const RoomTypeMasterView: React.FC = () => {
                                   placeholder="Standard features, layout descriptions..."
                                   value={formDescription}
                                   onChange={e => setFormDescription(e.target.value)}
-                                  className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-xs font-medium text-slate-800 dark:text-slate-200 outline-none"
+                                  className="w-full px-3 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border text-xs font-medium text-slate-800 dark:text-slate-200 outline-none"
                                 />
                               </div>
                             </div>

@@ -826,24 +826,24 @@ export const StudentHostelAssignmentView: React.FC = () => {
   const inheritedWardenName = selectedBlock?.wardenName || 'Unassigned';
 
   return (
-    <div className="space-y-6 animate-in fade-in">
+    <div className="space-y-3.5 animate-in fade-in">
       <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
         <div>
-          <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white flex items-center gap-2">
-            <UserPlus className="w-6 h-6 text-sky-500" /> Student Room Allocations
+          <h2 className="text-base sm:text-lg font-black text-slate-900 dark:text-white flex items-center gap-2">
+            <UserPlus className="w-5 h-5 text-sky-500" /> Student Room Allocations
           </h2>
         </div>
 
         <button
           onClick={handleOpenAdd}
-          className="px-4 py-2.5 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs shadow-lg shadow-sky-500/20 flex items-center gap-2 transition-all"
+          className="px-3 py-1.5 rounded-lg bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs shadow-sm flex items-center gap-1.5 transition-all"
         >
           <Plus className="w-4 h-4" /> Allocate Room & Bed
         </button>
       </div>
 
       {/* Filter Bar */}
-      <div className="glass-card p-4 rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-4 border border-slate-200 dark:border-slate-800 shadow-sm">
+      <div className="glass-card p-3 rounded-xl flex flex-col sm:flex-row items-center justify-between gap-2.5 border border-slate-200/80 dark:border-slate-800 shadow-xs">
         <div className="relative w-full sm:w-72">
           <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
           <input
@@ -851,20 +851,20 @@ export const StudentHostelAssignmentView: React.FC = () => {
             placeholder="Search ..."
             value={searchQuery}
             onChange={e => setSearchQuery(e.target.value)}
-            className="w-full pl-9 pr-4 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-xs text-slate-900 dark:text-white outline-none"
+            className="w-full pl-8 pr-3.5 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border text-xs text-slate-900 dark:text-white outline-none h-[34px]"
           />
         </div>
 
         <div className="flex items-center gap-2.5 flex-wrap sm:flex-nowrap w-full sm:w-auto justify-end">
           {isWarden ? (
-            <div className="px-3.5 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center h-[38px] truncate">
+            <div className="px-3 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center h-[34px] truncate">
               {targetBlocks[0]?.hostelName || 'Assigned Hostel Block'}
             </div>
           ) : (
             <select
               value={filterHostel}
               onChange={e => setFilterHostel(e.target.value)}
-              className="px-3.5 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-800 dark:text-slate-200 outline-none cursor-pointer h-[38px] hover:border-sky-400 transition-colors"
+              className="px-3 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-800 dark:text-slate-200 outline-none cursor-pointer h-[34px] hover:border-sky-400 transition-colors"
             >
               <option value="">Select Hostel...</option>
               <option value="All">All Hostels</option>
@@ -885,7 +885,7 @@ export const StudentHostelAssignmentView: React.FC = () => {
           <select
             value={filterFloor}
             onChange={e => setFilterFloor(e.target.value)}
-            className="px-3.5 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-800 dark:text-slate-200 outline-none cursor-pointer h-[38px] hover:border-sky-400 transition-colors"
+            className="px-3 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-800 dark:text-slate-200 outline-none cursor-pointer h-[34px] hover:border-sky-400 transition-colors"
           >
             {availableFloorOptions.map((f: string) => (
               <option key={f} value={f}>{f}</option>
@@ -895,7 +895,7 @@ export const StudentHostelAssignmentView: React.FC = () => {
           <select
             value={filterRoom}
             onChange={e => setFilterRoom(e.target.value)}
-            className="px-3.5 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-800 dark:text-slate-200 outline-none cursor-pointer h-[38px] hover:border-sky-400 transition-colors"
+            className="px-3 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-800 dark:text-slate-200 outline-none cursor-pointer h-[34px] hover:border-sky-400 transition-colors"
           >
             {availableRoomOptions.map((r: string) => (
               <option key={r} value={r}>{r}</option>
@@ -924,13 +924,13 @@ export const StudentHostelAssignmentView: React.FC = () => {
           <table className="w-full text-left text-xs">
             <thead className="bg-slate-50 dark:bg-slate-800/80 border-b border-slate-200/80 dark:border-slate-800 text-slate-500 font-extrabold uppercase tracking-wider text-[10px]">
               <tr>
-                <th className="py-3.5 px-5">Student Name</th>
-                <th className="py-3.5 px-5">Admission ID</th>
-                <th className="py-3.5 px-5">Hostel Facility</th>
-                <th className="py-3.5 px-5">Room & Bed</th>
-                <th className="py-3.5 px-5">Joining Date</th>
-                <th className="py-3.5 px-5">Status</th>
-                <th className="py-3.5 px-5 text-right">Actions</th>
+                <th className="py-2 px-3">Student Name</th>
+                <th className="py-2 px-3">Admission ID</th>
+                <th className="py-2 px-3">Hostel Facility</th>
+                <th className="py-2 px-3">Room & Bed</th>
+                <th className="py-2 px-3">Joining Date</th>
+                <th className="py-2 px-3">Status</th>
+                <th className="py-2 px-3 text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-medium">
@@ -943,28 +943,28 @@ export const StudentHostelAssignmentView: React.FC = () => {
                   <tr key={`alloc_tr_${a.allocationId || a.studentId || 'item'}_${idx}`} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40">
                     <td
                       onClick={() => setViewStudentModal(a as any)}
-                      className="py-3.5 px-5 font-bold text-sky-600 dark:text-sky-400 hover:underline cursor-pointer"
+                      className="py-2 px-3 font-bold text-sky-600 dark:text-sky-400 hover:underline cursor-pointer"
                       title="Click to view student hostel details"
                     >
                       <span>{a.studentName}</span>
                     </td>
-                    <td className="py-3.5 px-5 font-mono text-slate-500">{a.admissionNo}</td>
+                    <td className="py-2 px-3 font-mono text-slate-500">{a.admissionNo}</td>
                     <td className="py-3.5 px-4 font-bold text-slate-800 dark:text-slate-200 whitespace-nowrap">
                       {a.hostelName && isNaN(Number(a.hostelName))
                         ? a.hostelName
                         : (blocks.find(b => String(b.hostelId ?? '') === String(a.hostelName || (a as any).hostelId))?.hostelName || `Block #${a.hostelName || '1'}`)}
                     </td>
-                    <td className="py-3.5 px-5 font-mono font-bold">
+                    <td className="py-2 px-3 font-mono font-bold">
                       {a.isPendingAdmitted ? (
                         <span className="text-amber-600">Unassigned (Needs Room)</span>
                       ) : (
                         <span className="text-emerald-600">{formatRoomNumber(a.roomNumber)} ({a.bedNumber || 'BED-1'})</span>
                       )}
                     </td>
-                    <td className="py-3.5 px-5 text-slate-500 font-mono text-xs">
+                    <td className="py-2 px-3 text-slate-500 font-mono text-xs">
                       {a.joiningDate ? a.joiningDate.split('T')[0] : 'N/A'}
                     </td>
-                    <td className="py-3.5 px-5">
+                    <td className="py-2 px-3">
                       {a.isPendingAdmitted ? (
                         <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300">
                           Pending Bed
@@ -975,7 +975,7 @@ export const StudentHostelAssignmentView: React.FC = () => {
                         </span>
                       )}
                     </td>
-                    <td className="py-3.5 px-5 text-right flex justify-end gap-2">
+                    <td className="py-2 px-3 text-right flex justify-end gap-2">
                       {a.isPendingAdmitted ? (
                         <button
                           onClick={() => handleOpenAddForStudent((a as any).rawStudentId)}

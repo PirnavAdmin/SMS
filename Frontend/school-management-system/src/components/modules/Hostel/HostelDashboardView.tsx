@@ -278,12 +278,12 @@ export const HostelDashboardView: React.FC<HostelDashboardViewProps> = ({ onNavi
   );
 
   return (
-    <div className="space-y-6 animate-in fade-in">
+    <div className="space-y-3.5 animate-in fade-in">
       {/* Header with Title and Quick Action Buttons */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200/60 dark:border-slate-800 pb-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200/60 dark:border-slate-800 pb-2">
         <div>
-          <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white flex items-center gap-2">
-            <Home className="w-7 h-7 text-sky-500" /> Hostel Dashboard
+          <h2 className="text-base sm:text-lg font-black text-slate-900 dark:text-white flex items-center gap-2">
+            <Home className="w-5 h-5 text-sky-500" /> Hostel Dashboard
           </h2>
         </div>
       </div>

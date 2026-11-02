@@ -459,37 +459,37 @@ export const HostelAttendanceView: React.FC = () => {
   };
 
   return (
-    <div className="space-y-6 animate-in fade-in">
+    <div className="space-y-3.5 animate-in fade-in">
       {/* Top Main Heading & Save Log Button */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white flex items-center gap-2">
-          <Calendar className="w-6 h-6 text-sky-500" /> Hostel Attendance
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+        <h2 className="text-base sm:text-lg font-black text-slate-900 dark:text-white flex items-center gap-2">
+          <Calendar className="w-5 h-5 text-sky-500" /> Hostel Attendance
         </h2>
 
         <button
           onClick={handleSaveAttendance}
-          className="px-5 py-2.5 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-extrabold text-xs shadow-lg shadow-sky-500/20 flex items-center gap-2 transition-all"
+          className="px-3 py-1.5 rounded-lg bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs shadow-sm flex items-center gap-1.5 transition-all"
         >
-          <Save className="w-4 h-4" /> Save Attendance Log
+          <Save className="w-3.5 h-3.5" /> Save Attendance Log
         </button>
       </div>
 
       {/* Sub-Navigation Bar matching Staff Attendance: Left Shift Pills | Right View Mode & Export */}
-      <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+      <div className="flex flex-col md:flex-row items-center justify-between gap-2.5">
         {/* Left: Morning & Night Shift Pills */}
-        <div className="flex items-center gap-2 bg-slate-100 dark:bg-slate-900 p-1 rounded-2xl border border-slate-200 dark:border-slate-800">
+        <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-900 p-1 rounded-xl border border-slate-200 dark:border-slate-800">
           <button
             onClick={() => {
               setAttendanceShift('morning');
               setCurrentPage(1);
             }}
-            className={`px-4 py-2 rounded-xl text-xs font-black flex items-center gap-2 transition-all ${
+            className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all ${
               attendanceShift === 'morning'
-                ? 'bg-sky-600 text-white shadow-md shadow-sky-500/20'
-                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                ? 'bg-sky-600 text-white shadow-sm'
+                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white font-medium'
             }`}
           >
-            <Sun className="w-4 h-4 text-amber-300" /> Morning Attendance
+            <Sun className="w-3.5 h-3.5 text-amber-300" /> Morning Attendance
           </button>
 
           <button
@@ -497,24 +497,24 @@ export const HostelAttendanceView: React.FC = () => {
               setAttendanceShift('night');
               setCurrentPage(1);
             }}
-            className={`px-4 py-2 rounded-xl text-xs font-black flex items-center gap-2 transition-all ${
+            className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all ${
               attendanceShift === 'night'
-                ? 'bg-sky-600 text-white shadow-md shadow-sky-500/20'
-                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                ? 'bg-sky-600 text-white shadow-sm'
+                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white font-medium'
             }`}
           >
-            <Moon className="w-4 h-4 text-indigo-300" /> Night Attendance
+            <Moon className="w-3.5 h-3.5 text-indigo-300" /> Night Attendance
           </button>
         </div>
 
         {/* Right: Daily/Monthly Pills & Export Report Button */}
         <div className="flex items-center gap-2 flex-wrap">
-          <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-900 p-1 rounded-2xl border border-slate-200 dark:border-slate-800">
+          <div className="flex items-center gap-0.5 bg-slate-100 dark:bg-slate-900 p-0.5 rounded-lg border border-slate-200 dark:border-slate-800">
             <button
               onClick={() => setViewMode('daily')}
-              className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all ${
+              className={`px-2.5 py-1 rounded-md text-xs font-semibold transition-all ${
                 viewMode === 'daily'
-                  ? 'bg-white dark:bg-slate-800 text-sky-600 shadow-sm'
+                  ? 'bg-white dark:bg-slate-800 text-sky-600 shadow-xs'
                   : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
               }`}
             >
@@ -523,9 +523,9 @@ export const HostelAttendanceView: React.FC = () => {
 
             <button
               onClick={() => setViewMode('monthly')}
-              className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all ${
+              className={`px-2.5 py-1 rounded-md text-xs font-semibold transition-all ${
                 viewMode === 'monthly'
-                  ? 'bg-white dark:bg-slate-800 text-sky-600 shadow-sm'
+                  ? 'bg-white dark:bg-slate-800 text-sky-600 shadow-xs'
                   : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
               }`}
             >
@@ -535,15 +535,15 @@ export const HostelAttendanceView: React.FC = () => {
 
           <button
             onClick={handlePdfExport}
-            className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-xs shadow-md shadow-emerald-500/20 flex items-center gap-1.5 transition-all"
+            className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-sm flex items-center gap-1.5 transition-all"
           >
-            <FileSpreadsheet className="w-4 h-4" /> Export Report
+            <FileSpreadsheet className="w-3.5 h-3.5" /> Export Report
           </button>
         </div>
       </div>
 
       {/* Top Search & Filter Bar */}
-      <div className="glass-card p-4 rounded-2xl bg-white dark:bg-slate-900 border border-sky-300 dark:border-sky-800 shadow-xs space-y-3">
+      <div className="glass-card p-3 rounded-xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-2">
         <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3">
           {/* Left: Search input */}
           <div className="relative w-full lg:w-72">
@@ -556,7 +556,7 @@ export const HostelAttendanceView: React.FC = () => {
                 setSearchQuery(e.target.value);
                 setCurrentPage(1);
               }}
-              className="w-full pl-9 pr-4 py-2 text-xs rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none focus:border-sky-500 h-[38px]"
+              className="w-full pl-8 pr-3.5 py-1.5 text-xs rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none focus:border-sky-500 h-[34px]"
             />
           </div>
 
@@ -566,11 +566,11 @@ export const HostelAttendanceView: React.FC = () => {
               type="date"
               value={selectedDate}
               onChange={e => setSelectedDate(e.target.value)}
-              className="px-3 py-2 text-xs rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white font-mono font-bold outline-none h-[38px] cursor-pointer"
+              className="px-2.5 py-1.5 text-xs rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white font-mono font-bold outline-none h-[34px] cursor-pointer"
             />
 
             {isWarden ? (
-              <div className="px-3.5 py-2 text-xs rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 font-bold h-[38px] flex items-center">
+              <div className="px-3 py-1.5 text-xs rounded-lg bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 font-bold h-[34px] flex items-center">
                 {targetBlocks[0]?.hostelName || 'Assigned Hostel Block'}
               </div>
             ) : (
@@ -580,7 +580,7 @@ export const HostelAttendanceView: React.FC = () => {
                   setSelectedBlockId(e.target.value);
                   setCurrentPage(1);
                 }}
-                className="px-3.5 py-2 text-xs rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 font-bold outline-none h-[38px] cursor-pointer hover:border-sky-400 transition-colors"
+                className="px-3 py-1.5 text-xs rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 font-bold outline-none h-[34px] cursor-pointer hover:border-sky-400 transition-colors"
               >
                 <option value="All">All Blocks</option>
                 {(targetBlocks || [])
@@ -602,7 +602,7 @@ export const HostelAttendanceView: React.FC = () => {
                 setSelectedRoomId(e.target.value);
                 setCurrentPage(1);
               }}
-              className="px-3.5 py-2 text-xs rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 font-bold outline-none h-[38px] cursor-pointer hover:border-sky-400 transition-colors"
+              className="px-3 py-1.5 text-xs rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 font-bold outline-none h-[34px] cursor-pointer hover:border-sky-400 transition-colors"
             >
               <option value="">All Rooms</option>
               {(filteredRooms || [])
@@ -621,8 +621,8 @@ export const HostelAttendanceView: React.FC = () => {
       </div>
 
       {/* ATTENDANCE SUMMARY CARD */}
-      <div className="glass-card p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm space-y-4">
-        <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
+      <div className="glass-card p-3.5 sm:p-4 rounded-xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-3">
+        <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-2">
           <h3 className="text-xs font-black uppercase tracking-wider text-slate-700 dark:text-slate-300 flex items-center gap-2">
             <UserCheck className="w-4 h-4 text-sky-500" /> ATTENDANCE SUMMARY ({attendanceShift.toUpperCase()})
           </h3>
@@ -631,29 +631,29 @@ export const HostelAttendanceView: React.FC = () => {
 
         {/* 5 KPI Stat Cards */}
         <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
-          <div className="p-4 rounded-2xl bg-sky-50/70 dark:bg-sky-950/40 border border-sky-100 dark:border-sky-900/50 text-center">
-            <p className="text-[10px] font-black uppercase text-sky-600 dark:text-sky-400 tracking-wider">TOTAL STUDENTS</p>
-            <p className="text-2xl font-black text-slate-900 dark:text-white mt-1">{totalStudentsCount}</p>
+          <div className="p-2.5 rounded-lg bg-sky-50/70 dark:bg-sky-950/40 border border-sky-100 dark:border-sky-900/50 text-center">
+            <p className="text-[9px] font-black uppercase text-sky-600 dark:text-sky-400 tracking-wider">TOTAL STUDENTS</p>
+            <p className="text-lg font-black font-mono text-slate-900 dark:text-white mt-0.5">{totalStudentsCount}</p>
           </div>
 
-          <div className="p-4 rounded-2xl bg-emerald-50/70 dark:bg-emerald-950/40 border border-emerald-100 dark:border-emerald-900/50 text-center">
-            <p className="text-[10px] font-black uppercase text-emerald-600 dark:text-emerald-400 tracking-wider">PRESENT</p>
-            <p className="text-2xl font-black text-emerald-600 dark:text-emerald-400 mt-1">{presentCount}</p>
+          <div className="p-2.5 rounded-lg bg-emerald-50/70 dark:bg-emerald-950/40 border border-emerald-100 dark:border-emerald-900/50 text-center">
+            <p className="text-[9px] font-black uppercase text-emerald-600 dark:text-emerald-400 tracking-wider">PRESENT</p>
+            <p className="text-lg font-black font-mono text-emerald-600 dark:text-emerald-400 mt-0.5">{presentCount}</p>
           </div>
 
-          <div className="p-4 rounded-2xl bg-rose-50/70 dark:bg-rose-950/40 border border-rose-100 dark:border-rose-900/50 text-center">
-            <p className="text-[10px] font-black uppercase text-rose-600 dark:text-rose-400 tracking-wider">ABSENT</p>
-            <p className="text-2xl font-black text-rose-600 dark:text-rose-400 mt-1">{absentCount}</p>
+          <div className="p-2.5 rounded-lg bg-rose-50/70 dark:bg-rose-950/40 border border-rose-100 dark:border-rose-900/50 text-center">
+            <p className="text-[9px] font-black uppercase text-rose-600 dark:text-rose-400 tracking-wider">ABSENT</p>
+            <p className="text-lg font-black font-mono text-rose-600 dark:text-rose-400 mt-0.5">{absentCount}</p>
           </div>
 
-          <div className="p-4 rounded-2xl bg-blue-50/70 dark:bg-blue-950/40 border border-blue-100 dark:border-blue-900/50 text-center">
-            <p className="text-[10px] font-black uppercase text-blue-600 dark:text-blue-400 tracking-wider">ON LEAVE</p>
-            <p className="text-2xl font-black text-blue-600 dark:text-blue-400 mt-1">{leaveCount}</p>
+          <div className="p-2.5 rounded-lg bg-blue-50/70 dark:bg-blue-950/40 border border-blue-100 dark:border-blue-900/50 text-center">
+            <p className="text-[9px] font-black uppercase text-blue-600 dark:text-blue-400 tracking-wider">ON LEAVE</p>
+            <p className="text-lg font-black font-mono text-blue-600 dark:text-blue-400 mt-0.5">{leaveCount}</p>
           </div>
 
-          <div className="p-4 rounded-2xl bg-amber-50/70 dark:bg-amber-950/40 border border-amber-100 dark:border-amber-900/50 text-center col-span-2 sm:col-span-1">
-            <p className="text-[10px] font-black uppercase text-amber-600 dark:text-amber-400 tracking-wider">HALF DAY</p>
-            <p className="text-2xl font-black text-amber-600 dark:text-amber-400 mt-1">{lateCount}</p>
+          <div className="p-2.5 rounded-lg bg-amber-50/70 dark:bg-amber-950/40 border border-amber-100 dark:border-amber-900/50 text-center col-span-2 sm:col-span-1">
+            <p className="text-[9px] font-black uppercase text-amber-600 dark:text-amber-400 tracking-wider">HALF DAY</p>
+            <p className="text-lg font-black font-mono text-amber-600 dark:text-amber-400 mt-0.5">{lateCount}</p>
           </div>
         </div>
 
@@ -664,28 +664,28 @@ export const HostelAttendanceView: React.FC = () => {
             <button
               type="button"
               onClick={() => handleBulkAction('Present')}
-              className="px-3.5 py-1.5 rounded-xl bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 font-extrabold text-xs hover:bg-emerald-200 transition-all"
+              className="px-2.5 py-1 rounded-md bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 font-bold text-[11px] hover:bg-emerald-200 transition-all"
             >
               Mark All Present
             </button>
             <button
               type="button"
               onClick={() => handleBulkAction('Absent')}
-              className="px-3.5 py-1.5 rounded-xl bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-300 font-extrabold text-xs hover:bg-rose-200 transition-all"
+              className="px-2.5 py-1 rounded-md bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-300 font-bold text-[11px] hover:bg-rose-200 transition-all"
             >
               Mark All Absent
             </button>
             <button
               type="button"
               onClick={() => handleBulkAction('Leave')}
-              className="px-3.5 py-1.5 rounded-xl bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300 font-extrabold text-xs hover:bg-blue-200 transition-all"
+              className="px-2.5 py-1 rounded-md bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300 font-bold text-[11px] hover:bg-blue-200 transition-all"
             >
               Mark All Leave
             </button>
             <button
               type="button"
               onClick={handleClearSelection}
-              className="px-3.5 py-1.5 rounded-xl bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300 font-extrabold text-xs hover:bg-slate-200 transition-all"
+              className="px-2.5 py-1 rounded-md bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300 font-bold text-[11px] hover:bg-slate-200 transition-all"
             >
               Clear Selection
             </button>
@@ -694,18 +694,18 @@ export const HostelAttendanceView: React.FC = () => {
       </div>
 
       {/* Student Attendance Roster Table */}
-      <div className="glass-card rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 overflow-hidden shadow-sm p-4 space-y-4">
+      <div className="glass-card rounded-xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 overflow-hidden shadow-xs p-3 space-y-3">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs text-slate-700 dark:text-slate-300 border-collapse">
             <thead className="bg-slate-50 dark:bg-slate-800/80 uppercase font-extrabold text-[10px] tracking-wider text-slate-500 border-b border-slate-200 dark:border-slate-800">
               <tr>
-                <th className="py-3 px-4">STUDENT ID</th>
-                <th className="py-3 px-4">STUDENT NAME</th>
-                <th className="py-3 px-4">HOSTEL BLOCK</th>
-                <th className="py-3 px-4">ROOM & BED NO</th>
-                <th className="py-3 px-4 text-center">ATTENDANCE STATUS</th>
-                <th className="py-3 px-4 text-center">IN TIME</th>
-                <th className="py-3 px-4 text-center">OUT TIME</th>
+                <th className="py-2 px-3">STUDENT ID</th>
+                <th className="py-2 px-3">STUDENT NAME</th>
+                <th className="py-2 px-3">HOSTEL BLOCK</th>
+                <th className="py-2 px-3">ROOM & BED NO</th>
+                <th className="py-2 px-3 text-center">ATTENDANCE STATUS</th>
+                <th className="py-2 px-3 text-center">IN TIME</th>
+                <th className="py-2 px-3 text-center">OUT TIME</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-medium">
@@ -723,31 +723,31 @@ export const HostelAttendanceView: React.FC = () => {
                   const currentSt = getAttendanceStatus(itemKey);
                   return (
                     <tr key={`alloc_${a.allocationId}_${idx}`} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/50 transition-colors">
-                      <td className="py-3.5 px-4 font-mono font-bold text-slate-500 whitespace-nowrap">{a.studentId || a.admissionNo}</td>
-                      <td className="py-3.5 px-4 font-bold text-slate-900 dark:text-white text-xs whitespace-nowrap">
+                      <td className="py-2 px-3 font-mono font-bold text-slate-500 whitespace-nowrap">{a.studentId || a.admissionNo}</td>
+                      <td className="py-2 px-3 font-bold text-slate-900 dark:text-white text-xs whitespace-nowrap">
                         {a.studentName}
                       </td>
-                      <td className="py-3.5 px-4 font-bold text-slate-800 dark:text-slate-200 whitespace-nowrap">
+                      <td className="py-2 px-3 font-bold text-slate-800 dark:text-slate-200 whitespace-nowrap">
                         {a.hostelName && isNaN(Number(a.hostelName))
                           ? a.hostelName
                           : (blocks.find(b => String(b.hostelId ?? '') === String(a.hostelName || a.hostelId))?.hostelName || `Block #${a.hostelName || '1'}`)}
                       </td>
-                      <td className="py-3.5 px-4 font-semibold text-slate-700 dark:text-slate-300 whitespace-nowrap font-mono">
+                      <td className="py-2 px-3 font-semibold text-slate-700 dark:text-slate-300 whitespace-nowrap font-mono">
                         {formatRoomNumber(a.roomNumber)} ({a.bedNumber || 'BED-1'})
                       </td>
-                      <td className="py-3.5 px-4">
+                      <td className="py-2 px-3">
                         <div className="flex items-center justify-center gap-1.5 whitespace-nowrap">
                           {(['Present', 'Absent', 'Late', 'Leave'] as const).map(st => (
                             <button
                               key={st}
                               type="button"
                               onClick={() => handleStatusChange(itemKey, st)}
-                              className={`px-3 py-1.5 rounded-xl text-xs font-extrabold whitespace-nowrap transition-all ${
+                              className={`px-2 py-1 rounded-md text-[11px] font-bold whitespace-nowrap transition-all ${
                                 currentSt === st
-                                  ? st === 'Present' ? 'bg-emerald-600 text-white shadow-md shadow-emerald-500/25 scale-[1.02]' :
-                                    st === 'Absent' ? 'bg-rose-600 text-white shadow-md shadow-rose-500/25 scale-[1.02]' :
-                                    st === 'Late' ? 'bg-amber-500 text-white shadow-md shadow-amber-500/25 scale-[1.02]' :
-                                    'bg-blue-600 text-white shadow-md shadow-blue-500/25 scale-[1.02]'
+                                  ? st === 'Present' ? 'bg-emerald-600 text-white shadow-sm' :
+                                    st === 'Absent' ? 'bg-rose-600 text-white shadow-sm' :
+                                    st === 'Late' ? 'bg-amber-500 text-white shadow-sm' :
+                                    'bg-blue-600 text-white shadow-sm'
                                   : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700'
                               }`}
                             >
@@ -756,20 +756,20 @@ export const HostelAttendanceView: React.FC = () => {
                           ))}
                         </div>
                       </td>
-                      <td className="py-3.5 px-4 text-center whitespace-nowrap">
+                      <td className="py-2 px-3 text-center whitespace-nowrap">
                         <input
                           type="text"
                           value={getInTime(itemKey)}
                           onChange={e => handleInTimeChange(itemKey, e.target.value)}
-                          className="px-3 py-1.5 text-xs rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-center font-mono font-bold w-28 outline-none focus:ring-2 focus:ring-sky-500"
+                          className="px-2 py-1 text-xs rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-center font-mono font-bold w-24 outline-none focus:ring-1 focus:ring-sky-500 h-[30px]"
                         />
                       </td>
-                      <td className="py-3.5 px-4 text-center whitespace-nowrap">
+                      <td className="py-2 px-3 text-center whitespace-nowrap">
                         <input
                           type="text"
                           value={getOutTime(itemKey)}
                           onChange={e => handleOutTimeChange(itemKey, e.target.value)}
-                          className="px-3 py-1.5 text-xs rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-center font-mono font-bold w-28 outline-none focus:ring-2 focus:ring-sky-500"
+                          className="px-2 py-1 text-xs rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-center font-mono font-bold w-24 outline-none focus:ring-1 focus:ring-sky-500 h-[30px]"
                         />
                       </td>
                     </tr>

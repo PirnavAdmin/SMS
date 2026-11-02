@@ -267,18 +267,18 @@ export const HostelMasterView: React.FC = () => {
   });
 
   return (
-    <div className="space-y-6 animate-in fade-in">
+    <div className="space-y-3.5 animate-in fade-in">
       {/* Header Action Bar */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white flex items-center gap-2">
-            <Building2 className="w-6 h-6 text-sky-500" /> Hostels
+          <h2 className="text-base sm:text-lg font-black text-slate-900 dark:text-white flex items-center gap-2">
+            <Building2 className="w-5 h-5 text-sky-500" /> Hostels
           </h2>
         </div>
         {!isWarden && (
           <button
             onClick={handleOpenAdd}
-            className="px-4 py-2.5 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs shadow-lg shadow-sky-500/20 flex items-center gap-2 transition-all"
+            className="px-3 py-1.5 rounded-lg bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs shadow-sm flex items-center gap-1.5 transition-all"
           >
             <Plus className="w-4 h-4" /> Add New Hostel Block
           </button>
@@ -287,7 +287,7 @@ export const HostelMasterView: React.FC = () => {
 
       {/* Filter Bar */}
       {!isWarden && (
-        <div className="glass-card p-4 rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-4">
+        <div className="glass-card p-3 rounded-xl flex flex-col sm:flex-row items-center justify-between gap-2.5 border border-slate-200/80 dark:border-slate-800 shadow-xs">
           <div className="relative w-full sm:w-72">
             <Search className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
             <input
@@ -295,7 +295,7 @@ export const HostelMasterView: React.FC = () => {
               placeholder="Search by name or code..."
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
-              className="w-full pl-9 pr-4 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-xs text-slate-900 dark:text-white outline-none"
+              className="w-full pl-8 pr-3.5 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border text-xs text-slate-900 dark:text-white outline-none h-[34px]"
             />
           </div>
 
@@ -303,7 +303,7 @@ export const HostelMasterView: React.FC = () => {
             <select
               value={filterType}
               onChange={e => setFilterType(e.target.value)}
-              className={`px-3.5 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold cursor-pointer outline-none h-[38px] transition-all hover:border-sky-400 ${
+              className={`px-3 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold cursor-pointer outline-none h-[34px] transition-all hover:border-sky-400 ${
                 !filterType ? 'text-slate-400 dark:text-slate-500 font-medium' : 'text-slate-800 dark:text-slate-200'
               }`}
             >
@@ -337,7 +337,7 @@ export const HostelMasterView: React.FC = () => {
         </div>
       ) : (
         /* Hostels Grid */
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5">
           {loading ? (
             <div className="col-span-full py-12 text-center text-slate-400 font-semibold italic">Loading Hostels...</div>
           ) : filteredHostels.length === 0 ? (
@@ -354,7 +354,7 @@ export const HostelMasterView: React.FC = () => {
               const displayTitle = h.hostelName || (h as any).name || (h as any).blockName || `Block #${h.hostelId}`;
 
               return (
-                <div key={`h-card-${h.hostelId || idx}-${h.hostelCode || idx}-${idx}`} className="glass-card p-5 rounded-3xl space-y-4 border border-slate-200/80 dark:border-slate-800 relative group hover:border-sky-500/50 transition-all">
+                <div key={`h-card-${h.hostelId || idx}-${h.hostelCode || idx}-${idx}`} className="glass-card p-3.5 sm:p-4 rounded-xl space-y-3 border border-slate-200/80 dark:border-slate-800 relative group hover:border-sky-500/50 transition-all shadow-xs">
                   <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
                     <div>
                       <span className="font-mono text-xs font-black text-sky-600 dark:text-sky-400">{h.hostelCode}</span>

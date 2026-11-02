@@ -794,14 +794,14 @@ export const StudentList: React.FC<{ onNavigate?: (module: string) => void }> = 
               <table className="w-full text-center border-collapse">
                 <thead>
                   <tr className="bg-slate-50/70 dark:bg-slate-800/50 border-b border-slate-200/80 dark:border-slate-800 text-[10px] uppercase tracking-wider font-extrabold text-slate-400">
-                    <th className="py-3.5 px-4 font-black text-center w-12">S.NO</th>
-                    <th className="py-3.5 px-4 font-black text-center">ADMISSION NO</th>
-                    <th className="py-3.5 px-4 font-black text-center">STUDENT NAME</th>
-                    <th className="py-3.5 px-4 font-black text-center">CLASS & SECTION</th>
-                    <th className="py-3.5 px-4 font-black text-center whitespace-nowrap min-w-[5.5rem]">ROLL NO</th>
-                    <th className="py-3.5 px-4 font-black text-center">PARENT CONTACT</th>
-                    <th className="py-3.5 px-4 font-black text-center">STATUS</th>
-                    <th className="py-3.5 px-4 font-black text-center">ACTIONS</th>
+                    <th className="py-2 px-3 font-black text-center w-12">S.NO</th>
+                    <th className="py-2 px-3 font-black text-center">ADMISSION NO</th>
+                    <th className="py-2 px-3 font-black text-center">STUDENT NAME</th>
+                    <th className="py-2 px-3 font-black text-center">CLASS & SECTION</th>
+                    <th className="py-2 px-3 font-black text-center whitespace-nowrap min-w-[5.5rem]">ROLL NO</th>
+                    <th className="py-2 px-3 font-black text-center">PARENT CONTACT</th>
+                    <th className="py-2 px-3 font-black text-center">STATUS</th>
+                    <th className="py-2 px-3 font-black text-center">ACTIONS</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60 text-xs">
@@ -1135,12 +1135,12 @@ export const StudentList: React.FC<{ onNavigate?: (module: string) => void }> = 
 
   if (isWardenRole) {
     return (
-      <div className="space-y-6 animate-in fade-in duration-200 pb-12">
+      <div className="space-y-3.5 animate-in fade-in duration-200 pb-6">
         {/* Warden Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-black text-slate-900 dark:text-white flex items-center gap-2.5">
-              <Home className="w-7 h-7 text-sky-600 dark:text-sky-400" />
+            <h1 className="text-base sm:text-lg font-black text-slate-900 dark:text-white flex items-center gap-2">
+              <Home className="w-5 h-5 text-sky-600 dark:text-sky-400" />
               Hostel Students
             </h1>
           </div>
@@ -1148,7 +1148,7 @@ export const StudentList: React.FC<{ onNavigate?: (module: string) => void }> = 
         </div>
 
         {/* Warden Filters Bar */}
-        <div className="glass-card p-3.5 sm:p-4 rounded-2xl bg-white dark:bg-slate-900 border border-sky-300 dark:border-sky-800 shadow-xs space-y-3">
+        <div className="glass-card p-3 rounded-xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-2">
           <div className="flex flex-col md:flex-row items-center justify-between gap-3">
             {/* Search Input on Left */}
             <div className="relative w-full md:w-72 lg:w-80">
@@ -1158,7 +1158,7 @@ export const StudentList: React.FC<{ onNavigate?: (module: string) => void }> = 
                 placeholder="Search..."
                 value={wardenSearchQuery}
                 onChange={e => { setWardenSearchQuery(e.target.value); setWardenCurrentPage(1); }}
-                className="w-full pl-9 pr-3.5 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20 transition-all h-[38px]"
+                className="w-full pl-9 pr-3.5 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20 transition-all h-[34px]"
               />
             </div>
 
@@ -1168,7 +1168,7 @@ export const StudentList: React.FC<{ onNavigate?: (module: string) => void }> = 
                 <select
                   value={wardenSelectedBlockId || (wardenTargetBlocks?.[0] ? String(wardenTargetBlocks[0]?.hostelId || wardenTargetBlocks[0]?.id || '') : '')}
                   onChange={e => { setWardenSelectedBlockId(e.target.value); setWardenCurrentPage(1); }}
-                  className="px-3.5 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-800 dark:text-slate-200 outline-none cursor-pointer h-[38px] hover:border-sky-400 focus:border-sky-500 transition-colors"
+                  className="px-3 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-800 dark:text-slate-200 outline-none cursor-pointer h-[34px] hover:border-sky-400 focus:border-sky-500 transition-colors"
                 >
                   {!isWardenRole && <option value="All">All Hostel Blocks</option>}
                   {wardenTargetBlocks.map(b => (
@@ -1178,7 +1178,7 @@ export const StudentList: React.FC<{ onNavigate?: (module: string) => void }> = 
                   ))}
                 </select>
               ) : (
-                <div className="px-3.5 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center h-[38px] truncate">
+                <div className="px-3 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center h-[34px] truncate">
                   {wardenAssignedBlockName}
                 </div>
               )}
@@ -1187,7 +1187,7 @@ export const StudentList: React.FC<{ onNavigate?: (module: string) => void }> = 
               <select
                 value={wardenSelectedFloor}
                 onChange={e => { setWardenSelectedFloor(e.target.value); setWardenCurrentPage(1); }}
-                className="px-3.5 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-800 dark:text-slate-200 outline-none cursor-pointer h-[38px] hover:border-sky-400 focus:border-sky-500 transition-colors"
+                className="px-3 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-800 dark:text-slate-200 outline-none cursor-pointer h-[34px] hover:border-sky-400 focus:border-sky-500 transition-colors"
               >
                 {wardenFloorOptions.map(f => (
                   <option key={f} value={f}>{f}</option>
@@ -1198,7 +1198,7 @@ export const StudentList: React.FC<{ onNavigate?: (module: string) => void }> = 
               <select
                 value={wardenSelectedRoom}
                 onChange={e => { setWardenSelectedRoom(e.target.value); setWardenCurrentPage(1); }}
-                className="px-3.5 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-800 dark:text-slate-200 outline-none cursor-pointer h-[38px] hover:border-sky-400 focus:border-sky-500 transition-colors"
+                className="px-3 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-800 dark:text-slate-200 outline-none cursor-pointer h-[34px] hover:border-sky-400 focus:border-sky-500 transition-colors"
               >
                 {wardenRoomOptions.map(r => (
                   <option key={r} value={r}>{r}</option>
@@ -1213,7 +1213,7 @@ export const StudentList: React.FC<{ onNavigate?: (module: string) => void }> = 
                     setWardenSearchQuery('');
                     setWardenCurrentPage(1);
                   }}
-                  className="px-3 py-2 rounded-xl bg-rose-50 text-rose-600 dark:bg-rose-950/60 dark:text-rose-400 font-bold hover:bg-rose-100 transition-colors text-xs cursor-pointer h-[38px]"
+                  className="px-3 py-2 rounded-xl bg-rose-50 text-rose-600 dark:bg-rose-950/60 dark:text-rose-400 font-bold hover:bg-rose-100 transition-colors text-xs cursor-pointer h-[34px]"
                 >
                   Clear Filters
                 </button>
@@ -1233,14 +1233,14 @@ export const StudentList: React.FC<{ onNavigate?: (module: string) => void }> = 
             <table className="w-full text-left border-collapse text-xs">
               <thead>
                 <tr className="bg-slate-50 dark:bg-slate-800/60 text-slate-500 font-extrabold uppercase tracking-wider border-b border-slate-100 dark:border-slate-800">
-                  <th className="py-3.5 px-4">Student ID</th>
-                  <th className="py-3.5 px-4 whitespace-nowrap min-w-[5.5rem]">Roll No</th>
-                  <th className="py-3.5 px-4">Student Name</th>
-                  <th className="py-3.5 px-4">Class & Sec</th>
-                  <th className="py-3.5 px-4">Hostel Block & Room</th>
-                  <th className="py-3.5 px-4">Guardian Contact</th>
-                  <th className="py-3.5 px-4">Status</th>
-                  <th className="py-3.5 px-4 text-right">Actions</th>
+                  <th className="py-2 px-3">Student ID</th>
+                  <th className="py-2 px-3 whitespace-nowrap min-w-[5.5rem]">Roll No</th>
+                  <th className="py-2 px-3">Student Name</th>
+                  <th className="py-2 px-3">Class & Sec</th>
+                  <th className="py-2 px-3">Hostel Block & Room</th>
+                  <th className="py-2 px-3">Guardian Contact</th>
+                  <th className="py-2 px-3">Status</th>
+                  <th className="py-2 px-3 text-right">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-medium">
@@ -1265,13 +1265,13 @@ export const StudentList: React.FC<{ onNavigate?: (module: string) => void }> = 
 
                     return (
                       <tr key={s.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors">
-                        <td className="py-3.5 px-4 font-mono font-bold text-brand-600 dark:text-brand-400">
+                        <td className="py-2 px-3 font-mono font-bold text-brand-600 dark:text-brand-400">
                           {s.id}
                         </td>
-                        <td className="py-3.5 px-4 font-mono text-slate-600 dark:text-slate-400 whitespace-nowrap min-w-[5.5rem]">
+                        <td className="py-2 px-3 font-mono text-slate-600 dark:text-slate-400 whitespace-nowrap min-w-[5.5rem]">
                           {s.rollNo}
                         </td>
-                        <td className="py-3.5 px-4">
+                        <td className="py-2 px-3">
                           <div className="flex items-center gap-2.5">
                             {s.photoUrl ? (
                               <img src={s.photoUrl} alt="" className="w-8 h-8 rounded-full object-cover border border-slate-200" />
@@ -1286,10 +1286,10 @@ export const StudentList: React.FC<{ onNavigate?: (module: string) => void }> = 
                             </div>
                           </div>
                         </td>
-                        <td className="py-3.5 px-4 font-extrabold text-slate-800 dark:text-slate-200">
+                        <td className="py-2 px-3 font-extrabold text-slate-800 dark:text-slate-200">
                           {s.className} - {s.section}
                         </td>
-                        <td className="py-3.5 px-4">
+                        <td className="py-2 px-3">
                           <div className="flex flex-col">
                             <span className="font-extrabold text-slate-900 dark:text-white">
                               {displayBlock}
@@ -1299,15 +1299,15 @@ export const StudentList: React.FC<{ onNavigate?: (module: string) => void }> = 
                             </span>
                           </div>
                         </td>
-                      <td className="py-3.5 px-4 text-slate-600 dark:text-slate-400 font-mono">
+                      <td className="py-2 px-3 text-slate-600 dark:text-slate-400 font-mono">
                         {s.fatherPhone || s.guardianPhone || s.contactPhone || '9876543210'}
                       </td>
-                      <td className="py-3.5 px-4">
+                      <td className="py-2 px-3">
                         <span className="px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-400 font-extrabold text-[10px] border border-emerald-200 dark:border-emerald-900/40">
                           {s.status || 'Active'}
                         </span>
                       </td>
-                      <td className="py-3.5 px-4 text-right">
+                      <td className="py-2 px-3 text-right">
                         <button
                           onClick={() => setSelectedStudent(s)}
                           className="px-3 py-1 rounded-xl bg-sky-50 dark:bg-sky-950/60 text-sky-700 dark:text-sky-300 font-bold hover:bg-sky-100 transition-colors text-xs cursor-pointer inline-flex items-center gap-1"

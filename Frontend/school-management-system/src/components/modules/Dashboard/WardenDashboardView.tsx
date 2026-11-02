@@ -379,9 +379,7 @@ export const WardenDashboardView: React.FC<WardenDashboardViewProps> = ({
             <p className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white mt-0.5 truncate" title={assignedBlockName}>
               {assignedBlockName}
             </p>
-            <span className="text-[11px] font-bold text-slate-500 flex items-center gap-1 group-hover:text-sky-600 transition-colors">
-              Hostel Facility <ArrowRight className="w-3 h-3" />
-            </span>
+
           </div>
           <div className="p-3 rounded-2xl bg-sky-50 dark:bg-sky-950/40 text-sky-600 dark:text-sky-400 group-hover:bg-sky-600 group-hover:text-white transition-all duration-300 border border-sky-200 dark:border-sky-800 shrink-0">
             <Building2 className="w-5 h-5" />
@@ -403,9 +401,7 @@ export const WardenDashboardView: React.FC<WardenDashboardViewProps> = ({
                 / {totalBedsCount} Beds
               </span>
             </p>
-            <span className="text-[11px] font-bold text-slate-500 flex items-center gap-1 group-hover:text-indigo-600 transition-colors">
-              Hostel Beds • {bedOccupancyPct}% Occupied <ArrowRight className="w-3 h-3" />
-            </span>
+            
           </div>
           <div className="p-3 rounded-2xl bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 group-hover:bg-indigo-600 group-hover:text-white transition-all duration-300 border border-indigo-200 dark:border-indigo-800 shrink-0">
             <Bed className="w-5 h-5" />
@@ -427,9 +423,7 @@ export const WardenDashboardView: React.FC<WardenDashboardViewProps> = ({
                 Available
               </span>
             </p>
-            <span className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1 group-hover:underline">
-              Ready for Allocation <ArrowRight className="w-3 h-3" />
-            </span>
+            
           </div>
           <div className="p-3 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 group-hover:bg-emerald-600 group-hover:text-white transition-all duration-300 border border-emerald-200 dark:border-emerald-800 shrink-0">
             <CheckCircle2 className="w-5 h-5" />
@@ -449,9 +443,7 @@ export const WardenDashboardView: React.FC<WardenDashboardViewProps> = ({
               {activeOutpassCount}{" "}
               <span className="text-xs font-semibold text-slate-400 font-sans">Active</span>
             </p>
-            <span className="text-[11px] font-bold text-amber-600 dark:text-amber-400 flex items-center gap-1 group-hover:underline">
-              {pendingOutpassCount > 0 ? `${pendingOutpassCount} Pending Review` : "All Requests Handled"} <ArrowRight className="w-3 h-3" />
-            </span>
+            
           </div>
           <div className="p-3 rounded-2xl bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 group-hover:bg-amber-600 group-hover:text-white transition-all duration-300 border border-amber-200 dark:border-amber-800 shrink-0">
             <LogOut className="w-5 h-5" />
@@ -775,7 +767,7 @@ export const WardenDashboardView: React.FC<WardenDashboardViewProps> = ({
 
             <div className="flex items-center justify-between pt-1 text-[11px] text-slate-500">
               <span className="flex items-center gap-1 font-medium">
-                <Phone className="w-3 h-3 text-slate-400" /> Emergency Hotline: Ext 104
+                {/* <Phone className="w-3 h-3 text-slate-400" /> Emergency Hotline: Ext 104 */}
               </span>
               <button
                 onClick={() => onNavigate && onNavigate("hostel-attendance")}
