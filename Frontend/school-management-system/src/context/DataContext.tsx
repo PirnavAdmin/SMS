@@ -22803,6 +22803,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const saveStudentAttendance = (record: any) => {
     const recordDate = String(record.date || "").split("T")[0];
+    const isUnmarked = !record.status || record.status === 'null' || record.status === '-';
+
     setStudentAttendance((prev) => {
       const recStudentId = String(record.studentId || record.id || "").trim();
       const recRoll = String(record.rollNo || "").trim();
@@ -22828,6 +22830,11 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           (recName && rName && rName === recName);
         return !isMatch;
       });
+
+      if (isUnmarked) {
+        return filtered;
+      }
+
       const updated = [...filtered, { ...record, date: recordDate }];
       return updated;
     });
@@ -22836,6 +22843,10 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         window.dispatchEvent(new Event("attendance_updated"));
       } catch {}
     }, 0);
+
+    if (isUnmarked) {
+      return;
+    }
 
     const numId = Number(record.studentId || record.id);
     const validStudentId = !isNaN(numId) && numId > 0 ? numId : undefined;
@@ -22888,12 +22899,16 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           recs.forEach((r: any) => {
             const rDate = String(r.date || payload.date || "").split("T")[0];
             const k = `${r.studentId || r.id}_${rDate}_${r.subject || payload.subject || ""}_${r.period || payload.period || ""}`;
-            map.set(k, {
-              ...r,
-              date: rDate,
-              className: r.className || payload.className,
-              section: r.section || payload.section,
-            });
+            if (!r.status || r.status === '-' || r.status === 'null') {
+              map.delete(k);
+            } else {
+              map.set(k, {
+                ...r,
+                date: rDate,
+                className: r.className || payload.className,
+                section: r.section || payload.section,
+              });
+            }
           });
           const updated = Array.from(map.values());
           return updated;
@@ -22904,9 +22919,15 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           } catch {}
         }, 0);
 
-        const response = await saveBulkStudentAttendanceApi(payload);
-        fetchStudentAttendanceData();
-        return response;
+        const validRecords = recs.filter((r: any) => r.status && r.status !== '-' && r.status !== 'null');
+        if (validRecords.length > 0) {
+          const response = await saveBulkStudentAttendanceApi({
+            ...payload,
+            records: validRecords,
+          });
+          fetchStudentAttendanceData();
+          return response;
+        }
       }
     } catch (err) {
       console.warn("Bulk attendance save failed:", err);
