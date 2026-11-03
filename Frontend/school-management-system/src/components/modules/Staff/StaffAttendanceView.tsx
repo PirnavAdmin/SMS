@@ -154,6 +154,10 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
     userRole === "teacher" ||
     userRole === "class-teacher" ||
     userRole === "driver" ||
+    userRole === "librarian" ||
+    userRole.includes("librarian") ||
+    userRole.includes("warden") ||
+    userRole.includes("accountant") ||
     !canMarkAttendance;
 
   // Find logged-in teacher / staff profile from DataContext staff

@@ -207,7 +207,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     activeModule === "uniform";
   const isLibraryActive =
     activeModule.startsWith("library") ||
-    activeModule === "librarian-attendance";
+    (safeRole.includes("librarian") ? false : activeModule === "librarian-attendance");
   const isStaffActive =
     activeModule.startsWith("staff-") ||
     activeModule === "staff" ||
@@ -444,6 +444,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
       ? [
           { id: "library", label: "Digital Library", icon: Library },
         ]
+      : safeRole.includes("librarian")
+      ? [
+          { id: "library", label: "Digital Library", icon: Library },
+          { id: "library-timetable", label: "Library Timetable", icon: Clock },
+        ]
       : [
           { id: "library", label: "Digital Library", icon: Library },
           { id: "librarian-attendance", label: "Librarian Attendance", icon: CalendarCheck },
@@ -620,7 +625,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
       isFinanceSection: true,
       items: [
         { id: "library", label: "Library", icon: Library },
-        { id: "librarian-attendance", label: "Librarian Attendance", icon: CalendarCheck },
+        ...(safeRole.includes('librarian') ? [] : [
+          { id: "librarian-attendance", label: "Librarian Attendance", icon: CalendarCheck }
+        ]),
         { id: "library-timetable", label: "Library Timetable", icon: Clock },
         { id: "inventory", label: "Inventory", icon: Package },
       ],
@@ -729,6 +736,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
               }
               if (safeRole === "student") {
                 if (item.id === "librarian-attendance" || item.id === "library-timetable") {
+                  return false;
+                }
+              }
+              if (safeRole.includes("librarian")) {
+                if (item.id === "librarian-attendance") {
                   return false;
                 }
               }
@@ -1507,8 +1519,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
                                   "staff-directory",
                                   "staff-non-teaching",
                                 ].includes(activeModule)) ||
-                              (sub.id === "staff-attendance" &&
-                                ["staff-attendance", "attendance-staff"].includes(activeModule)) ||
+                              ((sub.id === "staff-attendance" || sub.id === "librarian-attendance") &&
+                                ["staff-attendance", "attendance-staff", "librarian-attendance", "library-attendance"].includes(activeModule)) ||
                               (sub.id === "staff-leave" &&
                                 ["staff-leave", "leave-management"].includes(activeModule)) ||
                               (isPayroll &&
