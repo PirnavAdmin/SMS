@@ -108,21 +108,27 @@ export const isTokenValid = (): boolean => {
     }
   } catch {}
 
+  if (hasValidJwtExp) return true;
+
   // 2. Check 24-hour token timestamp
   const timestampStr = localStorage.getItem('auth_token_timestamp');
   if (timestampStr) {
     const timestamp = Number(timestampStr);
     if (!isNaN(timestamp)) {
       const age = Date.now() - timestamp;
-      if (age < 0 || age >= TOKEN_EXPIRATION_MS) {
+      if (age >= TOKEN_EXPIRATION_MS) {
         return false;
       }
       return true;
     }
+  } else {
+    try {
+      localStorage.setItem('auth_token_timestamp', String(Date.now()));
+    } catch {}
+    return true;
   }
 
-  // If JWT had an unexpired exp, consider it valid even if timestamp was missing
-  return hasValidJwtExp;
+  return true;
 };
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -388,6 +394,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   useEffect(() => {
     const checkSessionValidity = () => {
+      if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return;
       if (token && !isTokenValid()) {
         console.warn('Session expired: token duration reached.');
         try {
