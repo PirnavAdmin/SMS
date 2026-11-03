@@ -1,5 +1,5 @@
 import React from 'react';
-import { ChevronDown, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from 'lucide-react';
 
 export interface PaginationProps {
   currentPage: number;
@@ -57,8 +57,6 @@ export const Pagination: React.FC<PaginationProps> = ({
     }
     return pages;
   };
-
-  const effectiveOptions = Array.from(new Set([itemsPerPage, ...itemsPerPageOptions])).sort((a, b) => a - b);
   const hasBorder = showBorder && !className.includes('border-t-0') && !className.includes('border-none');
   const hasPt = !className.includes('pt-0');
   const hasPb = !className.includes('pb-0');
@@ -71,31 +69,6 @@ export const Pagination: React.FC<PaginationProps> = ({
         <span className="font-black text-slate-800 dark:text-slate-200">{endItem}</span> of{' '}
         <span className="font-black text-slate-800 dark:text-slate-200">{totalItems}</span> {label}
       </div>
-
-      {/* Center: Page Size Selector (balanced middle placement) */}
-      {onItemsPerPageChange && (
-        <div className="flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400 font-semibold shrink-0">
-          <span>Show:</span>
-          <div className="relative">
-            <select
-              value={itemsPerPage}
-              onChange={e => {
-                onItemsPerPageChange(Number(e.target.value));
-                onPageChange(1);
-              }}
-              style={{ WebkitAppearance: 'none', MozAppearance: 'none', appearance: 'none' }}
-              className="appearance-none pl-3 pr-7 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-black text-slate-800 dark:text-slate-200 outline-none cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors focus:ring-2 focus:ring-sky-500/20"
-            >
-              {effectiveOptions.map(opt => (
-                <option key={opt} value={opt}>
-                  {opt} {label}
-                </option>
-              ))}
-            </select>
-            <ChevronDown className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
-          </div>
-        </div>
-      )}
 
       {/* Right side: Page Navigation */}
       <div className="flex items-center gap-1 shrink-0 flex-wrap justify-end">
@@ -140,7 +113,7 @@ export const Pagination: React.FC<PaginationProps> = ({
                   {p}
                 </button>
               ) : (
-                <span key={`ellipsis-${idx}`} className="px-1 text-xs text-slate-400 font-bold select-none">
+                <span key={`ellipsis-${idx}`} className="w-6 h-8 flex items-center justify-center leading-none text-xs text-slate-400 font-bold select-none">
                   ...
                 </span>
               )

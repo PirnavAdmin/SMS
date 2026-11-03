@@ -62,6 +62,13 @@ const DEFAULT_ACCOUNTANT_DUTIES = [
   'Financial Auditing & Compliance'
 ];
 
+const DEFAULT_LIBRARIAN_DUTIES = [
+  'Library Cataloging & Book Acquisition Management',
+  'Circulation Desk Oversight (Issue, Return & Renewals)',
+  'Digital Library & Reading Hall Administration',
+  'Library Member Registrations & Fine Reconciliation'
+];
+
 export const TeacherProfileView: React.FC = () => {
   const { user } = useAuth();
   const { staff = [], teacherAssignments = [], timetable = [], academicClasses = [], updateStaff } = useData();
@@ -70,6 +77,7 @@ export const TeacherProfileView: React.FC = () => {
   const userRoleStr = (user?.role || '').toLowerCase().trim();
   const isWarden = userRoleStr.includes('warden');
   const isAccountant = userRoleStr.includes('accountant') || userRoleStr === 'finance';
+  const isLibrarian = userRoleStr.includes('librarian');
 
   const [apiProfile, setApiProfile] = useState<TeacherSelfProfile | null>(null);
   const [apiAssignments, setApiAssignments] = useState<any | null>(null);
@@ -130,9 +138,9 @@ export const TeacherProfileView: React.FC = () => {
         presentAddress: apiProfile.address || '',
         emergencyContact: apiProfile.emergencyContact || '',
         branch: apiProfile.branch || user?.branch || '',
-        department: apiProfile.department || (isAccountant ? 'Finance & Accounts' : isWarden ? 'Hostel Management' : 'Academics'),
-        designation: apiProfile.designation || (isAccountant ? 'Accountant' : isWarden ? 'Hostel Warden' : 'Teacher'),
-        role: apiProfile.designation || (isAccountant ? 'Accountant' : isWarden ? 'Hostel Warden' : 'Teacher'),
+        department: apiProfile.department || (isAccountant ? 'Finance & Accounts' : isWarden ? 'Hostel Management' : isLibrarian ? 'Library Administration' : 'Academics'),
+        designation: apiProfile.designation || (isAccountant ? 'Accountant' : isWarden ? 'Hostel Warden' : isLibrarian ? 'Librarian' : 'Teacher'),
+        role: apiProfile.designation || (isAccountant ? 'Accountant' : isWarden ? 'Hostel Warden' : isLibrarian ? 'Librarian' : 'Teacher'),
         joiningDate: apiProfile.joiningDate ? String(apiProfile.joiningDate).split('T')[0] : '',
         qualification: apiProfile.qualification || '',
         experience: apiProfile.experience || '',
@@ -194,7 +202,7 @@ export const TeacherProfileView: React.FC = () => {
     }
 
     // 5. Fallback: Return dynamic profile object from logged in user (DO NOT use user account id as empId)
-    const rawName = user?.name || (isAccountant ? 'Accountant' : isWarden ? 'Hostel Warden' : 'Faculty Member');
+    const rawName = user?.name || (isAccountant ? 'Accountant' : isWarden ? 'Hostel Warden' : isLibrarian ? 'Librarian' : 'Faculty Member');
     const nameParts = rawName.split(' ');
     return {
       id: userEmpId || '',
@@ -214,8 +222,8 @@ export const TeacherProfileView: React.FC = () => {
       assignedClasses: [],
       assignedSections: [],
       assignedSubjects: [],
-      department: isAccountant ? 'Finance & Accounts' : isWarden ? 'Hostel Management' : ((user as any)?.department || 'Academics'),
-      designation: isAccountant ? 'Accountant' : isWarden ? 'Hostel Warden' : ((user as any)?.designation || 'Teacher'),
+      department: isAccountant ? 'Finance & Accounts' : isWarden ? 'Hostel Management' : isLibrarian ? 'Library Administration' : ((user as any)?.department || 'Academics'),
+      designation: isAccountant ? 'Accountant' : isWarden ? 'Hostel Warden' : isLibrarian ? 'Librarian' : ((user as any)?.designation || 'Teacher'),
       qualification: (user as any)?.qualification || '',
       experience: (user as any)?.experience || '',
       branch: user?.branch || '',
@@ -475,7 +483,7 @@ export const TeacherProfileView: React.FC = () => {
       ? user.name
       : (!isGenericAdminName && dbFullName)
       ? dbFullName
-      : (isAccountant ? 'Accountant' : isWarden ? 'Hostel Warden' : 'Faculty Member');
+      : (isAccountant ? 'Accountant' : isWarden ? 'Hostel Warden' : isLibrarian ? 'Librarian' : 'Faculty Member');
 
     const fallbackDept = isAccountant
       ? 'Finance & Accounts'
@@ -505,6 +513,11 @@ export const TeacherProfileView: React.FC = () => {
       String(dbTeacher?.role || '').toLowerCase().includes('accountant') ||
       String(dbTeacher?.department || '').toLowerCase().includes('finance');
 
+    const isLibrarianStaff = isLibrarian ||
+      String(dbTeacher?.designation || '').toLowerCase().includes('librarian') ||
+      String(dbTeacher?.role || '').toLowerCase().includes('librarian') ||
+      String(dbTeacher?.department || '').toLowerCase().includes('library');
+
     const effectiveEmergencyContact = localEdit?.emergencyContact ||
       (dbTeacher as any)?.emergencyContact ||
       (dbTeacher as any)?.alternateMobile ||
@@ -516,17 +529,19 @@ export const TeacherProfileView: React.FC = () => {
       (dbTeacher as any)?.qualification ||
       dbTeacher?.highestQualification ||
       (user as any)?.qualification ||
-      (isWardenStaff ? 'B.A. / Diploma in Hostel & Student Welfare Admin' : isAccountantStaff ? 'B.Com / M.Com (Finance & Accounts)' : 'Bachelor of Education (B.Ed)');
+      (isWardenStaff ? 'B.A. / Diploma in Hostel & Student Welfare Admin' : isAccountantStaff ? 'B.Com / M.Com (Finance & Accounts)' : isLibrarianStaff ? 'Master of Library & Information Science (M.Lib.I.Sc)' : 'Bachelor of Education (B.Ed)');
 
     const effectiveExperience = localEdit?.experience ||
       (dbTeacher as any)?.experience ||
       (user as any)?.experience ||
-      (isWardenStaff ? '3+ Years in Hostel & Student Residential Care' : isAccountantStaff ? '4+ Years in Educational Accounts & Auditing' : '5+ Years in Secondary Education');
+      (isWardenStaff ? '3+ Years in Hostel & Student Residential Care' : isAccountantStaff ? '4+ Years in Educational Accounts & Auditing' : isLibrarianStaff ? '3+ Years in Library Operations & Information Science' : '5+ Years in Secondary Education');
 
     const effectiveAssignedSubjects = isWardenStaff
       ? (Array.isArray(dbTeacher?.assignedSubjects) && dbTeacher.assignedSubjects.length > 0 ? dbTeacher.assignedSubjects : DEFAULT_WARDEN_DUTIES)
       : isAccountantStaff
       ? (Array.isArray(dbTeacher?.assignedSubjects) && dbTeacher.assignedSubjects.length > 0 ? dbTeacher.assignedSubjects : DEFAULT_ACCOUNTANT_DUTIES)
+      : isLibrarianStaff
+      ? (Array.isArray(dbTeacher?.assignedSubjects) && dbTeacher.assignedSubjects.length > 0 ? dbTeacher.assignedSubjects : DEFAULT_LIBRARIAN_DUTIES)
       : (dynamicAssignedSubjects.length > 0 ? dynamicAssignedSubjects : (Array.isArray(dbTeacher?.assignedSubjects) && dbTeacher.assignedSubjects.length > 0 ? dbTeacher.assignedSubjects : []));
 
     return {
@@ -994,10 +1009,10 @@ export const TeacherProfileView: React.FC = () => {
               {/* Assigned Classes / Department */}
               <div className="bg-slate-50 dark:bg-slate-850 rounded-2xl p-3.5 border border-sky-200/70 dark:border-slate-700 space-y-2 flex flex-col items-center text-center h-full">
                 <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider block text-center w-full">
-                  {(user?.role || '').toLowerCase().includes('warden') || (user?.role || '').toLowerCase().includes('accountant') || (user?.role || '').toLowerCase() === 'finance' ? 'DEPARTMENT' : 'ASSIGNED CLASSES'}
+                  {(user?.role || '').toLowerCase().includes('warden') || (user?.role || '').toLowerCase().includes('accountant') || (user?.role || '').toLowerCase() === 'finance' || (user?.role || '').toLowerCase().includes('librarian') ? 'DEPARTMENT' : 'ASSIGNED CLASSES'}
                 </span>
                 <div className="flex flex-wrap justify-center items-center gap-1.5 w-full">
-                  {(user?.role || '').toLowerCase().includes('warden') || (user?.role || '').toLowerCase().includes('accountant') || (user?.role || '').toLowerCase() === 'finance' ? (
+                  {(user?.role || '').toLowerCase().includes('warden') || (user?.role || '').toLowerCase().includes('accountant') || (user?.role || '').toLowerCase() === 'finance' || (user?.role || '').toLowerCase().includes('librarian') ? (
                     <span className="bg-sky-100 dark:bg-sky-950/80 text-sky-800 dark:text-sky-300 text-xs font-extrabold px-3 py-1.5 rounded-xl border border-sky-200 dark:border-sky-800 text-center">
                       {profile.department || 'Not Specified'}
                     </span>
@@ -1018,7 +1033,7 @@ export const TeacherProfileView: React.FC = () => {
               {/* Assigned Subjects / Duties */}
               <div className="bg-slate-50 dark:bg-slate-850 rounded-2xl p-3.5 border border-sky-200/70 dark:border-slate-700 space-y-2 flex flex-col items-center text-center h-full">
                 <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider block text-center w-full">
-                  {(user?.role || '').toLowerCase().includes('warden') || (user?.role || '').toLowerCase().includes('accountant') || (user?.role || '').toLowerCase() === 'finance' ? 'CORE RESPONSIBILITIES' : 'ASSIGNED SUBJECTS'}
+                  {(user?.role || '').toLowerCase().includes('warden') || (user?.role || '').toLowerCase().includes('accountant') || (user?.role || '').toLowerCase() === 'finance' || (user?.role || '').toLowerCase().includes('librarian') ? 'CORE RESPONSIBILITIES' : 'ASSIGNED SUBJECTS'}
                 </span>
                 <div className="flex flex-wrap justify-center items-center gap-1.5 w-full">
                   {profile.assignedSubjects && profile.assignedSubjects.length > 0 ? (
@@ -1029,7 +1044,7 @@ export const TeacherProfileView: React.FC = () => {
                     ))
                   ) : (
                     <span className="text-slate-400 dark:text-slate-500 text-xs font-medium italic">
-                      {isWarden ? 'No Specific Duties Assigned' : isAccountant ? 'No Finance Duties Assigned' : 'No Subjects Assigned'}
+                      {isWarden ? 'No Specific Duties Assigned' : isAccountant ? 'No Finance Duties Assigned' : isLibrarian ? 'No Library Duties Assigned' : 'No Subjects Assigned'}
                     </span>
                   )}
                 </div>
@@ -1252,7 +1267,7 @@ export const TeacherProfileView: React.FC = () => {
             <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
               <div>
                 <h3 className="text-base font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
-                  <Edit2 className="w-4 h-4 text-sky-600" /> Edit {isWarden ? 'Warden' : isAccountant ? 'Accountant' : (dbTeacher?.designation || 'Teacher')} Profile
+                  <Edit2 className="w-4 h-4 text-sky-600" /> Edit {isWarden ? 'Warden' : isAccountant ? 'Accountant' : isLibrarian ? 'Librarian' : (dbTeacher?.designation || 'Teacher')} Profile
                 </h3>
               </div>
               <button

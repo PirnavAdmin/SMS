@@ -40,7 +40,7 @@ export const SchoolPrintHeader: React.FC<SchoolPrintHeaderProps> = ({
     schoolProfile?.academicYear ||
     selectedAcademicYear ||
     localStorage.getItem('selected_academic_year') ||
-    fallbackAY;
+    fallbackAY || '2026-27';
 
   return (
     <div
@@ -104,7 +104,7 @@ export const SchoolPrintHeader: React.FC<SchoolPrintHeaderProps> = ({
             <span>•</span>
             <span>Board: {schoolProfile?.boardType || 'CBSE'}</span>
             <span>•</span>
-            <span>Acad. Year: {academicYear}</span>
+            <span>Acad. Year: {academicYear || '2026-27'}</span>
           </div>
         </div>
 

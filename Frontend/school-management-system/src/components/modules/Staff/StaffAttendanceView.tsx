@@ -44,6 +44,7 @@ import {
   RotateCcw,
   ChevronDown,
 } from "lucide-react";
+import { getDepartmentOptions, getDesignationOptions } from "./staffFlowOptions";
 import { formatToDDMMYYYY, formatToISO, checkSundayOrHoliday, parseAcademicYearRange, getTargetMonthInAY } from "../../../utils/dateValidation";
 import { exportToExcel } from "../../../utils/excelExport";
 import { DailyAttendance, Staff } from "../../../types";
@@ -109,6 +110,10 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
     lastAttendanceResponse,
     driverMasters = [],
     academicYears = [],
+    departments = [],
+    designations = [],
+    fetchDepartments,
+    fetchDesignations,
   } = useData();
   const { addToast } = useToast();
   const { user, role, selectedBranch, selectedAcademicYear } = useAuth();
@@ -124,6 +129,11 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
   const canOverrideLeave = ["admin", "super admin", "principal", "hr"].includes(
     userRole,
   );
+
+  useEffect(() => {
+    fetchDepartments?.();
+    fetchDesignations?.();
+  }, [fetchDepartments, fetchDesignations]);
 
   const todayStr = new Date().toLocaleDateString('en-CA');
 
@@ -2264,88 +2274,161 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
     setIsEditingDaily(false);
   }, [activeTab, attendanceDate, viewMode]);
 
-  // Non-Teaching Departments List
-  const nonTeachingDepartments = [
-    "Administration",
-    "Finance & Accounts",
-    "Human Resources",
-    "Transport",
-    "Hostel",
-    "Information Technology",
-    "Security",
-    "Maintenance",
-    "Housekeeping",
-    "Medical",
-  ];
-
   // Helper check for teaching staff
   const isTeachingStaff = (s: Staff) => {
     return (
       s.employeeCategory === "Teacher" ||
       (s.employeeCategory as string) === "Teaching Staff" ||
-      s.role === "Teacher"
+      s.role === "Teacher" ||
+      (s.role || "").toLowerCase() === "teacher"
     );
   };
 
-  // Derive unique lists for dropdowns
+  // Derive dynamic department lists for dropdowns
   const teachingDepts = useMemo(() => {
-    const list = (staff || [])
+    const fromMaster = getDepartmentOptions("Teaching Staff", departments);
+    const fromStaff = (staff || [])
       .filter((s) => isTeachingStaff(s))
-      .map((s) => s.department)
+      .map((s) => (s.department || "").trim())
       .filter(Boolean);
-    return Array.from(
-      new Set([
-        "Academics",
-        "Mathematics",
-        "Science",
-        "English",
-        "Social Science",
-        "Languages",
-        "Computer Science",
-        ...list,
-      ]),
-    );
-  }, [staff]);
 
-  const teachingDesignations = useMemo(() => {
-    const list = (staff || [])
-      .filter((s) => isTeachingStaff(s))
-      .map((s) => s.designation)
+    const seen = new Set<string>();
+    const result: string[] = [];
+    [...fromMaster, ...fromStaff].forEach((dept) => {
+      const trimmed = (dept || "").trim();
+      if (!trimmed) return;
+      const key = trimmed.toLowerCase();
+      if (!seen.has(key)) {
+        seen.add(key);
+        result.push(trimmed);
+      }
+    });
+
+    return result.sort((a, b) => a.localeCompare(b));
+  }, [departments, staff]);
+
+  const nonTeachingDepts = useMemo(() => {
+    const fromMaster = getDepartmentOptions("Non-Teaching Staff", departments);
+    const fromStaff = (staff || [])
+      .filter((s) => !isTeachingStaff(s))
+      .map((s) => (s.department || "").trim())
       .filter(Boolean);
-    return Array.from(
-      new Set([
-        "Principal",
-        "Vice Principal",
-        "Academic Coordinator",
-        "HOD",
-        "Class Teacher",
-        "Subject Teacher",
-        "Senior Teacher",
-        ...list,
-      ]),
+    const fromDrivers = (driverMasters || [])
+      .map((d: any) => (d.department || "Transport").trim())
+      .filter(Boolean);
+
+    const seen = new Set<string>();
+    const result: string[] = [];
+    [...fromMaster, ...fromStaff, ...fromDrivers].forEach((dept) => {
+      const trimmed = (dept || "").trim();
+      if (!trimmed) return;
+      const key = trimmed.toLowerCase();
+      if (!seen.has(key)) {
+        seen.add(key);
+        result.push(trimmed);
+      }
+    });
+
+    return result.sort((a, b) => a.localeCompare(b));
+  }, [departments, staff, driverMasters]);
+
+  // Derive dynamic designation lists for dropdowns
+  const teachingDesignations = useMemo(() => {
+    const fromMaster = getDesignationOptions(
+      "Teaching Staff",
+      teachingDept !== "All" ? teachingDept : "",
+      designations,
     );
-  }, [staff]);
+    const fromStaff = (staff || [])
+      .filter(
+        (s) =>
+          isTeachingStaff(s) &&
+          (teachingDept === "All" ||
+            (s.department || "").toLowerCase() === teachingDept.toLowerCase()),
+      )
+      .map((s) => (s.designation || "").trim())
+      .filter(Boolean);
+
+    // Fallback to all teaching staff designations if department filter in staff has none
+    const fallbackStaff =
+      fromStaff.length === 0
+        ? (staff || [])
+            .filter((s) => isTeachingStaff(s))
+            .map((s) => (s.designation || "").trim())
+            .filter(Boolean)
+        : [];
+
+    const seen = new Set<string>();
+    const result: string[] = [];
+    [...fromMaster, ...fromStaff, ...fallbackStaff].forEach((des) => {
+      const trimmed = (des || "").trim();
+      if (!trimmed) return;
+      const key = trimmed.toLowerCase();
+      if (!seen.has(key)) {
+        seen.add(key);
+        result.push(trimmed);
+      }
+    });
+
+    return result.sort((a, b) => a.localeCompare(b));
+  }, [designations, staff, teachingDept]);
 
   const nonTeachingDesignations = useMemo(() => {
-    const list = (staff || [])
-      .filter((s) => !isTeachingStaff(s))
-      .map((s) => s.designation)
-      .filter(Boolean);
-    return Array.from(
-      new Set([
-        "Office Administrator",
-        "Accountant",
-        "HR Executive",
-        "System Administrator",
-        "Transport Incharge",
-        "Warden",
-        "Security Guard",
-        "Maintenance Engineer",
-        "Staff Nurse",
-        ...list,
-      ]),
+    const fromMaster = getDesignationOptions(
+      "Non-Teaching Staff",
+      nonTeachingDept !== "All" ? nonTeachingDept : "",
+      designations,
     );
-  }, [staff]);
+    const fromStaff = (staff || [])
+      .filter(
+        (s) =>
+          !isTeachingStaff(s) &&
+          (nonTeachingDept === "All" ||
+            (s.department || "").toLowerCase() === nonTeachingDept.toLowerCase()),
+      )
+      .map((s) => (s.designation || "").trim())
+      .filter(Boolean);
+
+    const fromDrivers = (driverMasters || [])
+      .map((d: any) => (d.designation || "Driver").trim())
+      .filter(Boolean);
+
+    // Fallback to all non-teaching staff designations if department filter in staff has none
+    const fallbackStaff =
+      fromStaff.length === 0
+        ? (staff || [])
+            .filter((s) => !isTeachingStaff(s))
+            .map((s) => (s.designation || "").trim())
+            .filter(Boolean)
+        : [];
+
+    const seen = new Set<string>();
+    const result: string[] = [];
+    [...fromMaster, ...fromStaff, ...fromDrivers, ...fallbackStaff].forEach((des) => {
+      const trimmed = (des || "").trim();
+      if (!trimmed) return;
+      const key = trimmed.toLowerCase();
+      if (!seen.has(key)) {
+        seen.add(key);
+        result.push(trimmed);
+      }
+    });
+
+    return result.sort((a, b) => a.localeCompare(b));
+  }, [designations, staff, driverMasters, nonTeachingDept]);
+
+  // Reset designation if it is no longer valid for the selected department
+  useEffect(() => {
+    if (teachingDesignation !== "All" && !teachingDesignations.includes(teachingDesignation)) {
+      setTeachingDesignation("All");
+    }
+  }, [teachingDept, teachingDesignations, teachingDesignation]);
+
+  useEffect(() => {
+    if (nonTeachingDesignation !== "All" && !nonTeachingDesignations.includes(nonTeachingDesignation)) {
+      setNonTeachingDesignation("All");
+    }
+  }, [nonTeachingDept, nonTeachingDesignations, nonTeachingDesignation]);
 
   // Check Holiday or Weekend Status for attendanceDate
   const holidayEvent = useMemo(() => {
@@ -2434,16 +2517,56 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
 
   // Helper to normalize status strings to standard TitleCase enum
   const normalizeStatus = useCallback((raw: string | undefined): "Present" | "Absent" | "Late" | "HalfDay" | "Leave" => {
-    if (!raw) return "Present";
+    if (!raw) return "Absent";
     const val = String(raw).trim().toLowerCase();
-    if (val === "absent") return "Absent";
+    if (val === "present") return "Present";
+    if (val === "late") return "Late";
     if (val === "leave" || val === "on leave" || val === "onleave") return "Leave";
     if (val === "halfday" || val === "half day" || val === "half-day") return "HalfDay";
-    if (val === "late") return "Late";
-    return "Present";
+    if (val === "absent") return "Absent";
+    return "Absent";
   }, []);
 
-  // Populate / Sync local attendance maps whenever attendanceDate or staff changes
+  // Unified staff list combining staff and driverMasters to prevent ID collisions and missing entries
+  const allStaffList = useMemo(() => {
+    const driverItems = (driverMasters || []).map((d) => ({
+      id: String(d.id),
+      empId: d.employeeId || `DRV-${d.id}`,
+      firstName: d.driverName,
+      lastName: '',
+      designation: (d as any).designation || 'Driver',
+      department: (d as any).department || 'Transport',
+      email: d.email || '',
+      phone: d.mobileNumber || '',
+      status: d.status || 'Active',
+      employeeCategory: 'Non-Teaching',
+      branch: (d as any).branch || (selectedBranch && selectedBranch !== 'All' && selectedBranch !== 'All Branches' ? selectedBranch : '') || ''
+    }));
+
+    const combined = [...(staff || [])];
+    const existingIds = new Set(combined.map((s) => String(s.id)));
+
+    driverItems.forEach((dItem) => {
+      const exists = combined.some(
+        (s) =>
+          (s.empId && dItem.empId && String(s.empId).trim().toLowerCase() === String(dItem.empId).trim().toLowerCase()) ||
+          (s.email && dItem.email && s.email.trim().toLowerCase() === dItem.email.trim().toLowerCase()) ||
+          (`${s.firstName || ''} ${s.lastName || ''}`.trim().toLowerCase() === dItem.firstName.trim().toLowerCase() && (s.department || '').toLowerCase().includes('transport'))
+      );
+      if (!exists) {
+        const uniqueId = existingIds.has(String(dItem.id)) ? `driver-${dItem.id}` : String(dItem.id);
+        existingIds.add(uniqueId);
+        combined.push({
+          ...dItem,
+          id: uniqueId,
+        } as any);
+      }
+    });
+
+    return combined;
+  }, [staff, driverMasters, selectedBranch]);
+
+  // Populate / Sync local attendance maps whenever attendanceDate or allStaffList changes
   useEffect(() => {
     if (isDirty) return;
 
@@ -2455,7 +2578,7 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
     const targetDate = String(attendanceDate).split("T")[0];
     const isToday = targetDate === todayStr;
 
-    staff.forEach((s) => {
+    allStaffList.forEach((s) => {
       // 1. Check Approved Leave for this staff and this date
       const approvedLeave =
         getApprovedLeave(s.id, targetDate) ||
@@ -2526,7 +2649,7 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
     setOverrideLeaveSet(new Set());
   }, [
     attendanceDate,
-    staff,
+    allStaffList,
     attendanceHash,
     leaveApplications,
     normalizeStatus,
@@ -2570,34 +2693,7 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
 
   // Filter Active Non-Teaching Staff
   const nonTeachingStaffList = useMemo(() => {
-    const driverItems = (driverMasters || []).map(d => ({
-      id: String(d.id),
-      empId: d.employeeId || String(d.id),
-      firstName: d.driverName,
-      lastName: '',
-      designation: 'Driver',
-      department: 'Transport Dept',
-      email: d.email || '',
-      phone: d.mobileNumber || '',
-      status: d.status || 'Active',
-      employeeCategory: 'Non-Teaching',
-      branch: (d as any).branch || (selectedBranch && selectedBranch !== 'All' && selectedBranch !== 'All Branches' ? selectedBranch : '') || ''
-    }));
-
-    const combinedStaff = [...staff];
-    driverItems.forEach(dItem => {
-      const exists = combinedStaff.some(s =>
-        String(s.id) === String(dItem.id) ||
-        String(s.empId) === String(dItem.empId) ||
-        (s.email && dItem.email && s.email.toLowerCase() === dItem.email.toLowerCase()) ||
-        `${s.firstName || ''} ${s.lastName || ''}`.trim().toLowerCase() === dItem.firstName.toLowerCase().trim()
-      );
-      if (!exists) {
-        combinedStaff.push(dItem as any);
-      }
-    });
-
-    return combinedStaff.filter((s) => {
+    return allStaffList.filter((s) => {
       if (isTeachingStaff(s) || s.status === "Inactive") return false;
       if (selectedBranch && selectedBranch !== "All" && selectedBranch !== "All Branches" && selectedBranch !== "All Campuses") {
         const staffBranch = (s.branch || "").trim().toLowerCase();
@@ -2617,7 +2713,7 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
         (s.empId || "").toLowerCase().includes(q);
       return deptMatch && desMatch && searchMatch;
     });
-  }, [staff, driverMasters, selectedBranch, nonTeachingDept, nonTeachingDesignation, nonTeachingQuery]);
+  }, [allStaffList, selectedBranch, nonTeachingDept, nonTeachingDesignation, nonTeachingQuery]);
 
   // Active working staff list for currently selected tab
   const currentTabStaffList =
@@ -2629,25 +2725,35 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
     return currentTabStaffList.slice(start, start + pageSize);
   }, [currentTabStaffList, dailyPage, pageSize]);
 
-  // Live Summary Metrics Computation
+  // Live Summary Metrics Computation (Dynamic & strictly in sync with table rows)
   const liveSummaryStats = useMemo(() => {
-    let total = currentTabStaffList.length;
+    const total = currentTabStaffList.length;
     let present = 0;
     let absent = 0;
     let leave = 0;
     let halfDay = 0;
 
     currentTabStaffList.forEach((s) => {
+      const approvedLeave =
+        getApprovedLeave(s.id, attendanceDate) ||
+        (s.empId ? getApprovedLeave(s.empId, attendanceDate) : undefined);
       const rawSt = attendanceMap[s.id];
-      const st = normalizeStatus(rawSt);
-      if (st === "Present" || st === "Late") present++;
-      else if (st === "Absent") absent++;
-      else if (st === "Leave") leave++;
-      else if (st === "HalfDay") halfDay++;
+      const effectiveStatus = rawSt || (approvedLeave ? (approvedLeave.isHalfDay ? "HalfDay" : "Leave") : "Absent");
+      const st = normalizeStatus(effectiveStatus);
+
+      if (st === "Present" || st === "Late") {
+        present++;
+      } else if (st === "Leave") {
+        leave++;
+      } else if (st === "HalfDay") {
+        halfDay++;
+      } else {
+        absent++;
+      }
     });
 
     return { total, present, absent, leave, halfDay };
-  }, [currentTabStaffList, attendanceMap, normalizeStatus]);
+  }, [currentTabStaffList, attendanceMap, normalizeStatus, attendanceDate, leaveApplications]);
 
   // Search Input Validation State
   const currentSearchQuery = activeTab === "teaching" ? teachingQuery : nonTeachingQuery;
@@ -2713,7 +2819,7 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
         const approvedLeave = getApprovedLeave(s.id, attendanceDate);
         if (!approvedLeave || overrideLeaveSet.has(s.id) || canOverrideLeave) {
           if (bulkStatus === "Clear") {
-            delete next[s.id];
+            next[s.id] = "Absent";
           } else {
             next[s.id] = bulkStatus;
           }
@@ -2785,23 +2891,30 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
   const executeSaveAttendance = async () => {
     setIsSaving(true);
     try {
-      const activeStaffCategoryList = (staff || []).filter((s) => {
+      const activeStaffCategoryList = (allStaffList || []).filter((s) => {
         const isTeacher = isTeachingStaff(s);
         const isCorrectCategory = activeTab === "teaching" ? isTeacher : !isTeacher;
         return isCorrectCategory && s.status !== "Inactive";
       });
 
-      const recordsToSave: DailyAttendance[] = activeStaffCategoryList.map((s) => ({
-        date: attendanceDate,
-        entityType: "Staff",
-        entityId: s.id,
-        status: normalizeStatus(attendanceMap[s.id]),
-        inTime: inTimeMap[s.id] || "",
-        outTime: outTimeMap[s.id] || "",
-        department: s.department || "",
-        designation: s.designation || "",
-        remarks: remarksMap[s.id] || "",
-      }));
+      const recordsToSave: DailyAttendance[] = activeStaffCategoryList.map((s) => {
+        const approvedLeave =
+          getApprovedLeave(s.id, attendanceDate) ||
+          (s.empId ? getApprovedLeave(s.empId, attendanceDate) : undefined);
+        const rawSt = attendanceMap[s.id];
+        const effectiveStatus = rawSt || (approvedLeave ? (approvedLeave.isHalfDay ? "HalfDay" : "Leave") : "Absent");
+        return {
+          date: attendanceDate,
+          entityType: "Staff",
+          entityId: s.id,
+          status: normalizeStatus(effectiveStatus),
+          inTime: inTimeMap[s.id] || "",
+          outTime: outTimeMap[s.id] || "",
+          department: s.department || "",
+          designation: s.designation || "",
+          remarks: remarksMap[s.id] || "",
+        };
+      });
 
       const success = await markAttendance(recordsToSave);
       if (success) {
@@ -3559,7 +3672,7 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
               className="w-full px-2.5 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none focus:border-brand-500 transition-colors cursor-pointer"
             >
               <option value="All">All Departments</option>
-              {(activeTab === "teaching" ? teachingDepts : nonTeachingDepartments).map((dept) => (
+              {(activeTab === "teaching" ? teachingDepts : nonTeachingDepts).map((dept) => (
                 <option key={dept} value={dept}>
                   {dept}
                 </option>
@@ -3835,7 +3948,7 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
                         const isLeaveLocked =
                           !!approvedLeave && !overrideLeaveSet.has(s.id);
                         const currentStatus =
-                          attendanceMap[s.id] || (approvedLeave ? "Leave" : "Absent");
+                          attendanceMap[s.id] || (approvedLeave ? (approvedLeave.isHalfDay ? "HalfDay" : "Leave") : "Absent");
 
                         return (
                           <tr

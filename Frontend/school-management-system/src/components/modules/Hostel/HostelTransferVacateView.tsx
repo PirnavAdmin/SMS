@@ -505,9 +505,9 @@ export const HostelTransferVacateView: React.FC = () => {
                       <td className="py-2 px-3 text-center align-middle">
                         <div className="flex items-center justify-center gap-2 min-h-[32px]">
                           {r.status === 'Pending' && (
-                            <button onClick={() => handleApprove(r.id)} className="p-1.5 rounded-lg text-emerald-600 hover:bg-emerald-50 transition-colors cursor-pointer" title="Approve & Release Bed"><CheckCircle2 className="w-4 h-4" /></button>
+                            <button onClick={() => handleApprove(r.id)} className="w-8 h-8 rounded-lg flex items-center justify-center text-emerald-600 hover:bg-emerald-50 transition-colors cursor-pointer" title="Approve & Release Bed"><CheckCircle2 className="w-4 h-4" /></button>
                           )}
-                          <button onClick={() => setDeletingRecord(r)} className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors cursor-pointer flex items-center justify-center" title="Delete Record"><Trash2 className="w-4 h-4" /></button>
+                          <button onClick={() => setDeletingRecord(r)} className="w-8 h-8 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors cursor-pointer flex items-center justify-center" title="Delete Record"><Trash2 className="w-4 h-4" /></button>
                         </div>
                       </td>
                     </tr>
@@ -553,7 +553,7 @@ export const HostelTransferVacateView: React.FC = () => {
                 </label>
                 <select
                   value={actionType}
-                  onChange={e => setActionType(e.target.value as any)}
+                  onChange={e => { setActionType(e.target.value as any); setFeeAdjustmentMode(''); }}
                   required
                   className={`w-full px-3 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-bold focus:outline-none focus:ring-2 focus:ring-sky-500 cursor-pointer transition-all ${
                     !actionType

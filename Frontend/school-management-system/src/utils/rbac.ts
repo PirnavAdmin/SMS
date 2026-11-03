@@ -78,7 +78,7 @@ export const ROLE_PERMISSIONS: Record<Role, ModuleId[]> = {
     "communication",
     "events",
   ],
-  Librarian: ["dashboard", "library", "communication", "events", "training"],
+  Librarian: ["dashboard", "library", "communication", "events", "staff"],
   "Transport Manager": [
     "dashboard",
     "transport",
@@ -179,7 +179,7 @@ export const hasModuleAccess = (
   if (moduleId === "transfer-certificates") moduleId = "certificates";
   if (moduleId === "librarian-attendance") moduleId = "library";
   if (moduleId === "library-timetable") moduleId = "library";
-  if (moduleId === "warden-profile") moduleId = "staff";
+  if (moduleId === "warden-profile" || moduleId === "teacher-profile" || moduleId === "teacher-my-profile" || moduleId === "driver-profile") moduleId = "staff";
   if (moduleId === "roles") moduleId = "users";
   const baseModule = moduleId.split("-")[0] as ModuleId;
   const lookupRole = normalizeRoleForRbac(role);

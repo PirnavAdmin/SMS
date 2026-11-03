@@ -440,7 +440,7 @@ export const HostelReportsView: React.FC = () => {
           <ExportButton
             data={reportData}
             filename={`Hostel_${(selectedReport || 'Report').replace(/\s+/g, '_')}_Report`}
-            label="Export Excel / CSV"
+            label="Export Excel"
           />
         </div>
       </div>
@@ -578,7 +578,7 @@ export const HostelReportsView: React.FC = () => {
           <SchoolPrintHeader
             title={`Hostel Report - ${effectiveReportName}`}
             subtitle={`Total Records: ${reportData.length}`}
-            academicYear={selectedAcademicYear}
+            academicYear={selectedAcademicYear || "2026-27"}
           />
           <div className="flex items-center justify-between gap-4 border-b border-slate-100 dark:border-slate-800 pb-3 px-1 no-print">
             <div className="flex items-center gap-2.5">

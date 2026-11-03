@@ -587,6 +587,8 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ initialPhase = 'phase1
   const [modalData, setModalData] = useState<any>(null);
   const [deletingItem, setDeletingItem] = useState<{ type: string; id: string; title: string } | null>(null);
   const [selectedRackForInspect, setSelectedRackForInspect] = useState<BookRack | null>(null);
+  const [confirmReturnIssue, setConfirmReturnIssue] = useState<BookIssueRecord | null>(null);
+  const [confirmRenewIssue, setConfirmRenewIssue] = useState<BookIssueRecord | null>(null);
 
   const getRackCapacityInfo = (r: BookRack, booksList: BookItem[]) => {
     const rackKey = `${r.rackNo} (${r.shelfNo})`.toLowerCase().trim();
@@ -594,8 +596,9 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ initialPhase = 'phase1
       const bRack = (b.rackNo || '').toLowerCase().trim();
       return bRack.includes(r.rackNo.toLowerCase()) || rackKey.includes(bRack);
     });
-    const totalOnShelf = matchedBooks.reduce((sum, b) => sum + (b.totalCopies || 0), 0);
-    const capacity = r.capacity || 50;
+    const rawCap = Number(r.capacity) || 50;
+    const capacity = Math.min(5000, Math.max(1, Math.round(rawCap)));
+    const totalOnShelf = Math.min(5000, Math.max(0, Math.round(matchedBooks.reduce((sum, b) => sum + (b.totalCopies || 0), 0))));
     const remainingSpace = Math.max(0, capacity - totalOnShelf);
     const isFull = remainingSpace <= 0;
     const statusLabel = isFull ? 'Not Available (Full)' : `Available (${remainingSpace} spaces left)`;
@@ -1007,13 +1010,13 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ initialPhase = 'phase1
                   <div className="flex items-center gap-2">
                     <span className="text-xs font-bold text-slate-400">{c.totalBooksCount || 0} Books</span>
                     {!isReadOnlyAccess && (
-                      <button onClick={() => setDeletingItem({ type: 'category', id: c.id, title: c.name })} className="p-1 text-slate-400 hover:text-rose-600 transition-colors">
+                      <button onClick={() => setDeletingItem({ type: 'category', id: c.id, title: c.name })} className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors cursor-pointer" title="Delete Category">
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>
                     )}
                   </div>
                 </div>
-                <h4 className="text-base font-extrabold text-slate-900 dark:text-white">{c.name}</h4>
+                <h4 className="text-base font-extrabold text-slate-900 dark:text-white break-words line-clamp-2" title={c.name}>{c.name}</h4>
                 <p className="text-xs text-slate-500 font-medium">{c.description}</p>
               </div>
             ))}
@@ -1045,15 +1048,15 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ initialPhase = 'phase1
             {authors.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage).map(a => (
               <div key={a.id} className="glass-card p-5 rounded-3xl bg-white dark:bg-slate-900 border space-y-2">
                 <div className="flex items-center justify-between">
-                  <h4 className="text-sm font-black text-slate-900 dark:text-white">{a.name}</h4>
+                  <h4 className="text-sm font-black text-slate-900 dark:text-white break-words line-clamp-1" title={a.name}>{a.name}</h4>
                   {!isReadOnlyAccess && (
-                    <button onClick={() => setDeletingItem({ type: 'author', id: a.id, title: a.name })} className="p-1 text-slate-400 hover:text-rose-600 transition-colors">
+                    <button onClick={() => setDeletingItem({ type: 'author', id: a.id, title: a.name })} className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors cursor-pointer" title="Delete Author">
                       <Trash2 className="w-3.5 h-3.5" />
                     </button>
                   )}
                 </div>
-                <p className="text-xs font-semibold text-sky-600 dark:text-sky-400">Publisher: {a.publisher}</p>
-                <p className="text-[11px] text-slate-500">{a.biography || 'Educational Author'}</p>
+                <p className="text-xs font-semibold text-sky-600 dark:text-sky-400 break-words line-clamp-1">Publisher: {a.publisher}</p>
+                <p className="text-[11px] text-slate-500 break-words line-clamp-2">{a.biography || 'Educational Author'}</p>
                 <div className="pt-2 border-t text-[11px] font-bold text-slate-400">{a.booksCount || 10} Titles Published</div>
               </div>
             ))}
@@ -1125,7 +1128,7 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ initialPhase = 'phase1
                     <div className="flex items-center gap-2">
                       <span className="text-[11px] font-bold text-slate-500">{r.shelfNo}</span>
                       {!isReadOnlyAccess && (
-                        <button onClick={() => setDeletingItem({ type: 'rack', id: r.id, title: `${r.rackNo} (${r.shelfNo})` })} className="p-1 text-slate-400 hover:text-rose-600 transition-colors">
+                        <button onClick={() => setDeletingItem({ type: 'rack', id: r.id, title: `${r.rackNo} (${r.shelfNo})` })} className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors cursor-pointer" title="Delete Rack">
                           <Trash2 className="w-3.5 h-3.5" />
                         </button>
                       )}
@@ -1151,15 +1154,15 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ initialPhase = 'phase1
                   <div className="space-y-1.5 pt-2 border-t text-[11px] font-bold">
                     <div className="flex justify-between items-center text-slate-600 dark:text-slate-300">
                       <span>Total Capacity:</span>
-                      <span className="font-mono">{capacity} Books</span>
+                      <span className="font-mono">{capacity.toLocaleString()} Books</span>
                     </div>
                     <div className="flex justify-between items-center text-slate-700 dark:text-slate-200">
                       <span>Stored Copies:</span>
-                      <span className="font-mono font-black">{totalOnShelf} Copies</span>
+                      <span className="font-mono font-black">{totalOnShelf.toLocaleString()} Copies</span>
                     </div>
                     <div className="flex justify-between items-center text-emerald-600 dark:text-emerald-400">
                       <span>Remaining Space:</span>
-                      <span className="font-mono font-black">{info.remainingSpace} Spaces</span>
+                      <span className="font-mono font-black">{info.remainingSpace.toLocaleString()} Spaces</span>
                     </div>
 
                     {/* Visual Progress Bar */}
@@ -1280,7 +1283,7 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ initialPhase = 'phase1
       }
 
       return (
-        <div className="w-full glass-card p-6 rounded-3xl bg-white dark:bg-slate-900 border shadow-lg space-y-4 animate-in fade-in">
+        <div className="max-w-4xl mx-auto glass-card p-6 rounded-3xl bg-white dark:bg-slate-900 border shadow-lg space-y-4 animate-in fade-in">
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b pb-3.5">
             <h3 className="text-base font-black text-slate-900 dark:text-white flex items-center gap-2">
               <Plus className="w-5 h-5 text-sky-500" /> Issue Book to Student / Staff
@@ -1311,6 +1314,11 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ initialPhase = 'phase1
             e.preventDefault();
             const form = e.target as any;
             const dDate = form.dueDate.value;
+            const iDate = new Date().toISOString().split('T')[0];
+            if (dDate < iDate) {
+              addToast('warning', 'Invalid Due Date', 'Due Date cannot be earlier than Issue Date.');
+              return;
+            }
 
             if (issueMode === 'catalog') {
               const bId = selectedBook?.id || form.bookId?.value;
@@ -1369,10 +1377,35 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ initialPhase = 'phase1
               setBookSearchQuery('');
             } else {
               // Manual Entry Mode
-              const manualMemId = form.manualMemberId.value;
-              const manualMemName = form.manualMemberName.value;
-              const manualMemRole = form.manualMemberRole.value;
-              const manualBookTitle = form.manualBookTitle.value;
+              const manualMemId = (form.manualMemberId?.value || '').trim();
+              const manualMemName = (form.manualMemberName?.value || '').trim();
+              const manualMemRole = form.manualMemberRole?.value || '';
+              const manualBookTitle = (form.manualBookTitle?.value || '').trim();
+
+              if (!manualMemId || manualMemId.length > 20) {
+                addToast('warning', 'Validation Error', 'Member ID cannot exceed 20 characters.');
+                return;
+              }
+              if (!manualMemName || manualMemName.length < 2) {
+                addToast('warning', 'Validation Error', 'Member Full Name must be at least 2 characters.');
+                return;
+              }
+              if (!/^[a-zA-Z\s\.\-]+$/.test(manualMemName)) {
+                addToast('warning', 'Validation Error', 'Member Full Name must contain alphabetic characters only.');
+                return;
+              }
+              if (manualMemName.length > 40) {
+                addToast('warning', 'Validation Error', 'Member Full Name cannot exceed 40 characters.');
+                return;
+              }
+              if (!manualMemRole) {
+                addToast('warning', 'Validation Error', 'Please select a Borrower Role.');
+                return;
+              }
+              if (!manualBookTitle || manualBookTitle.length < 2) {
+                addToast('warning', 'Validation Error', 'Book Title must be at least 2 characters.');
+                return;
+              }
 
               const matchedBk = books.find(b => b.title.toLowerCase() === manualBookTitle.toLowerCase() || String(b.id) === manualBookTitle);
               const bookIdToUse = matchedBk ? matchedBk.id : `BK-MAN-${Date.now()}`;
@@ -1666,15 +1699,16 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ initialPhase = 'phase1
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   <div>
                     <label className="block font-bold mb-1">Member ID / Admission No <span className="text-rose-500 font-bold ml-0.5">*</span></label>
-                    <input type="text" name="manualMemberId" placeholder="Enter Member ID" required className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold" />
+                    <input type="text" name="manualMemberId" placeholder="Enter Member ID" maxLength={20} required className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold" />
                   </div>
                   <div>
                     <label className="block font-bold mb-1">Member Full Name <span className="text-rose-500 font-bold ml-0.5">*</span></label>
-                    <input type="text" name="manualMemberName" placeholder="Enter Member Name" required className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold" />
+                    <input type="text" name="manualMemberName" placeholder="Enter Member Name" minLength={2} maxLength={40} required className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold" />
                   </div>
                   <div>
                     <label className="block font-bold mb-1">Borrower Role <span className="text-rose-500 font-bold ml-0.5">*</span></label>
-                    <select name="manualMemberRole" required className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold">
+                    <select name="manualMemberRole" required defaultValue="" className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold cursor-pointer">
+                      <option value="" disabled>Select Borrower Role</option>
                       <option value="Student">Student</option>
                       <option value="Teacher">Teacher</option>
                       <option value="Staff">Staff</option>
@@ -1758,28 +1792,7 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ initialPhase = 'phase1
                       <td className="py-3 px-4 text-center whitespace-nowrap">
                         <div className="flex items-center justify-center gap-1.5">
                           {!isReadOnlyAccess ? (
-                            <button onClick={async () => {
-                              try { await LibraryAPI.returnBookApi(iss.id); } catch (err) {}
-                              contextReturnBook(iss.id);
-                              await loadBackendData();
-                              if (calculatedFine > 0) {
-                                const newFine: LibraryFineRecord = {
-                                  id: `FIN-${Date.now()}`,
-                                  issueId: iss.id,
-                                  memberId: iss.borrowerId,
-                                  memberName: iss.borrowerName,
-                                  memberRole: iss.borrowerRole,
-                                  bookTitle: iss.bookTitle,
-                                  overdueDays: lateDays,
-                                  fineAmount: calculatedFine,
-                                  paymentStatus: 'Unpaid',
-                                  createdDate: new Date().toISOString().split('T')[0],
-                                  remarks: `Late return fine for ${lateDays} days`
-                                };
-                                saveFines([newFine, ...fineRecords]);
-                              }
-                              addToast('success', 'Book Returned', `Marked "${iss.bookTitle}" as returned.${calculatedFine > 0 ? ` Overdue fine of ${formatCurrency(calculatedFine)} added.` : ''}`);
-                            }} className="px-3.5 py-1.5 rounded-xl bg-emerald-600 text-white font-extrabold text-[11px] hover:bg-emerald-500 transition-all shadow-sm">
+                            <button onClick={() => setConfirmReturnIssue(iss)} className="px-3.5 py-1.5 rounded-xl bg-emerald-600 text-white font-extrabold text-[11px] hover:bg-emerald-500 transition-all shadow-sm cursor-pointer">
                               Return
                             </button>
                           ) : (
@@ -1836,14 +1849,7 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ initialPhase = 'phase1
                     <td className="py-3 px-4 text-center whitespace-nowrap">
                       <div className="flex items-center justify-center gap-1.5">
                         {!isReadOnlyAccess ? (
-                          <button onClick={async () => {
-                            const newDueDate = new Date(new Date(iss.dueDate).getTime() + 14 * 86400000).toISOString().split('T')[0];
-                            try { await LibraryAPI.renewBookApi(iss.id, 14); } catch (err) {}
-                            iss.dueDate = newDueDate;
-                            iss.renewCount = (iss.renewCount || 0) + 1;
-                            iss.status = 'Renewed';
-                            addToast('success', 'Issue Renewed', `Extended due date for "${iss.bookTitle}" to ${newDueDate}`);
-                          }} className="px-3.5 py-1.5 rounded-xl bg-sky-600 text-white font-extrabold text-[11px] hover:bg-sky-500 transition-all shadow-sm">
+                          <button onClick={() => setConfirmRenewIssue(iss)} className="px-3.5 py-1.5 rounded-xl bg-sky-600 text-white font-extrabold text-[11px] hover:bg-sky-500 transition-all shadow-sm cursor-pointer">
                             Extend +14 Days
                           </button>
                         ) : (
@@ -2709,22 +2715,40 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ initialPhase = 'phase1
             <form onSubmit={async (e) => {
               e.preventDefault();
               const f = e.target as any;
+              const cName = (f.name?.value || '').trim();
+              const cCode = (f.code?.value || '').trim();
+              const cDesc = (f.description?.value || '').trim();
+
+              if (!cName || cName.length < 2) {
+                addToast('warning', 'Validation Error', 'Category Name must be at least 2 characters.');
+                return;
+              }
+              if (!/^[a-zA-Z\s\-]+$/.test(cName)) {
+                addToast('warning', 'Validation Error', 'Category Name must contain alphabetic characters only (letters, spaces, and hyphens).');
+                return;
+              }
+              if (cName.length > 35) {
+                addToast('warning', 'Validation Error', 'Category Name cannot exceed 35 characters.');
+                return;
+              }
+
               const newC: BookCategory = {
                 id: `CAT-${Date.now()}`,
-                name: f.name.value,
-                code: f.code.value,
-                description: f.description.value,
+                name: cName,
+                code: cCode,
+                description: cDesc,
                 totalBooksCount: 0
               };
               try { await LibraryAPI.createCategoryApi(newC); } catch (err) {}
               saveCategories([...categories, newC]);
-              addToast('success', 'Category Created', `Added category ${newC.name}`);
+              const displayCatName = cName.length > 30 ? cName.slice(0, 30) + '...' : cName;
+              addToast('success', 'Category Created', `Added category "${displayCatName}"`);
               setModalType(null);
             }} className="space-y-3 text-xs">
-              <div><label className="block font-bold mb-1">Category Name <span className="text-rose-500 font-bold ml-0.5">*</span></label><input type="text" name="name" required placeholder="e.g. Computer Science" className="w-full px-3 py-2 rounded-xl bg-slate-50 border font-bold" /></div>
-              <div><label className="block font-bold mb-1">Category Code <span className="text-rose-500 font-bold ml-0.5">*</span></label><input type="text" name="code" required placeholder="e.g. CS" className="w-full px-3 py-2 rounded-xl bg-slate-50 border font-mono font-bold" /></div>
-              <div><label className="block font-bold mb-1">Description</label><input type="text" name="description" placeholder="Short summary..." className="w-full px-3 py-2 rounded-xl bg-slate-50 border" /></div>
-              <div className="flex justify-end gap-2 pt-2"><button type="button" onClick={() => setModalType(null)} className="px-4 py-2 rounded-xl border font-bold">Cancel</button><button type="submit" className="px-4 py-2 rounded-xl bg-sky-600 text-white font-extrabold">Save Category</button></div>
+              <div><label className="block font-bold mb-1">Category Name <span className="text-rose-500 font-bold ml-0.5">*</span></label><input type="text" name="name" required minLength={2} maxLength={35} placeholder="e.g. Computer Science" className="w-full px-3 py-2 rounded-xl bg-slate-50 border font-bold" /></div>
+              <div><label className="block font-bold mb-1">Category Code <span className="text-rose-500 font-bold ml-0.5">*</span></label><input type="text" name="code" required maxLength={15} placeholder="e.g. CS" className="w-full px-3 py-2 rounded-xl bg-slate-50 border font-mono font-bold" /></div>
+              <div><label className="block font-bold mb-1">Description</label><input type="text" name="description" maxLength={150} placeholder="Short summary..." className="w-full px-3 py-2 rounded-xl bg-slate-50 border" /></div>
+              <div className="flex justify-end gap-2 pt-2"><button type="button" onClick={() => setModalType(null)} className="px-4 py-2 rounded-xl border font-bold">Cancel</button><button type="submit" className="px-4 py-2 rounded-xl bg-sky-600 text-white font-extrabold cursor-pointer">Save Category</button></div>
             </form>
           </div>
         </div>
@@ -2737,22 +2761,57 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ initialPhase = 'phase1
             <form onSubmit={async (e) => {
               e.preventDefault();
               const f = e.target as any;
+              const aName = (f.name?.value || '').trim();
+              const aPublisher = (f.publisher?.value || '').trim();
+              const aBio = (f.biography?.value || '').trim();
+
+              if (!aName || aName.length < 2) {
+                addToast('warning', 'Validation Error', 'Author Name must be at least 2 characters.');
+                return;
+              }
+              if (!/^[a-zA-Z\s\.\-]+$/.test(aName)) {
+                addToast('warning', 'Validation Error', 'Author Name must contain alphabetic characters only.');
+                return;
+              }
+              if (aName.length > 40) {
+                addToast('warning', 'Validation Error', 'Author Name cannot exceed 40 characters.');
+                return;
+              }
+
+              if (!aPublisher || aPublisher.length < 2) {
+                addToast('warning', 'Validation Error', 'Publisher must be at least 2 characters.');
+                return;
+              }
+              if (!/^[a-zA-Z0-9\s\.\-\(\)\&]+$/.test(aPublisher)) {
+                addToast('warning', 'Validation Error', 'Publisher contains invalid characters.');
+                return;
+              }
+              if (aPublisher.length > 50) {
+                addToast('warning', 'Validation Error', 'Publisher cannot exceed 50 characters.');
+                return;
+              }
+              if (aBio.length > 500) {
+                addToast('warning', 'Validation Error', 'Biography cannot exceed 500 characters.');
+                return;
+              }
+
               const newA: BookAuthor = {
                 id: `ATH-${Date.now()}`,
-                name: f.name.value,
-                publisher: f.publisher.value,
-                biography: f.biography.value,
+                name: aName,
+                publisher: aPublisher,
+                biography: aBio,
                 booksCount: 0
               };
               try { await LibraryAPI.createAuthorApi(newA); } catch (err) {}
               saveAuthors([...authors, newA]);
-              addToast('success', 'Author Added', `Added ${newA.name}`);
+              const displayAuthorName = aName.length > 30 ? aName.slice(0, 30) + '...' : aName;
+              addToast('success', 'Author Added', `Added "${displayAuthorName}"`);
               setModalType(null);
             }} className="space-y-3 text-xs">
-              <div><label className="block font-bold mb-1">Author Name <span className="text-rose-500 font-bold ml-0.5">*</span></label><input type="text" name="name" required placeholder="e.g. R.D. Sharma" className="w-full px-3 py-2 rounded-xl bg-slate-50 border font-bold" /></div>
-              <div><label className="block font-bold mb-1">Publisher <span className="text-rose-500 font-bold ml-0.5">*</span></label><input type="text" name="publisher" required placeholder="e.g. Oxford Press" className="w-full px-3 py-2 rounded-xl bg-slate-50 border font-bold" /></div>
-              <div><label className="block font-bold mb-1">Biography</label><input type="text" name="biography" placeholder="Short biography..." className="w-full px-3 py-2 rounded-xl bg-slate-50 border" /></div>
-              <div className="flex justify-end gap-2 pt-2"><button type="button" onClick={() => setModalType(null)} className="px-4 py-2 rounded-xl border font-bold">Cancel</button><button type="submit" className="px-4 py-2 rounded-xl bg-sky-600 text-white font-extrabold">Save Author</button></div>
+              <div><label className="block font-bold mb-1">Author Name <span className="text-rose-500 font-bold ml-0.5">*</span></label><input type="text" name="name" required minLength={2} maxLength={40} placeholder="e.g. R.D. Sharma" className="w-full px-3 py-2 rounded-xl bg-slate-50 border font-bold" /></div>
+              <div><label className="block font-bold mb-1">Publisher <span className="text-rose-500 font-bold ml-0.5">*</span></label><input type="text" name="publisher" required minLength={2} maxLength={50} placeholder="e.g. Oxford Press" className="w-full px-3 py-2 rounded-xl bg-slate-50 border font-bold" /></div>
+              <div><label className="block font-bold mb-1">Biography</label><textarea name="biography" maxLength={500} rows={2} placeholder="Short biography (max 500 chars)..." className="w-full px-3 py-2 rounded-xl bg-slate-50 border" /></div>
+              <div className="flex justify-end gap-2 pt-2"><button type="button" onClick={() => setModalType(null)} className="px-4 py-2 rounded-xl border font-bold">Cancel</button><button type="submit" className="px-4 py-2 rounded-xl bg-sky-600 text-white font-extrabold cursor-pointer">Save Author</button></div>
             </form>
           </div>
         </div>
@@ -2765,26 +2824,72 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ initialPhase = 'phase1
             <form onSubmit={async (e) => {
               e.preventDefault();
               const f = e.target as any;
+              const rNo = (f.rackNo?.value || '').trim();
+              const sNo = (f.shelfNo?.value || '').trim();
+              const rFloor = (f.floor?.value || '').trim();
+              const rSection = (f.section?.value || '').trim();
+              const rCap = parseInt(f.capacity?.value, 10);
+
+              if (!rNo || rNo.length < 2) {
+                addToast('warning', 'Validation Error', 'Rack Number must be at least 2 characters.');
+                return;
+              }
+              if (!/^[a-zA-Z0-9\-\s]+$/.test(rNo)) {
+                addToast('warning', 'Validation Error', 'Rack Number must be alphanumeric (letters, numbers, hyphens).');
+                return;
+              }
+              if (rNo.length > 20) {
+                addToast('warning', 'Validation Error', 'Rack Number cannot exceed 20 characters.');
+                return;
+              }
+
+              if (!sNo) {
+                addToast('warning', 'Validation Error', 'Shelf Number is required.');
+                return;
+              }
+              if (!/^[a-zA-Z0-9\-\s]+$/.test(sNo)) {
+                addToast('warning', 'Validation Error', 'Shelf Number must be alphanumeric.');
+                return;
+              }
+              if (sNo.length > 20) {
+                addToast('warning', 'Validation Error', 'Shelf Number cannot exceed 20 characters.');
+                return;
+              }
+
+              if (rFloor && rFloor.length > 30) {
+                addToast('warning', 'Validation Error', 'Floor / Building cannot exceed 30 characters.');
+                return;
+              }
+              if (rSection && rSection.length > 20) {
+                addToast('warning', 'Validation Error', 'Section cannot exceed 20 characters.');
+                return;
+              }
+
+              if (isNaN(rCap) || rCap < 1 || rCap > 5000) {
+                addToast('warning', 'Validation Error', 'Capacity must be an integer between 1 and 5,000.');
+                return;
+              }
+
               const newR: BookRack = {
                 id: `RCK-${Date.now()}`,
-                rackNo: f.rackNo.value,
-                shelfNo: f.shelfNo.value,
-                floor: f.floor.value,
-                section: f.section.value,
-                capacity: Number(f.capacity.value) || 50,
+                rackNo: rNo,
+                shelfNo: sNo,
+                floor: rFloor || 'Ground Floor',
+                section: rSection || 'General Section',
+                capacity: rCap,
                 occupiedCount: 0
               };
               try { await LibraryAPI.createRackApi(newR); } catch (err) {}
               saveRacks([...racks, newR]);
-              addToast('success', 'Rack Added', `Added ${newR.rackNo}`);
+              addToast('success', 'Rack Added', `Added ${newR.rackNo} (${newR.shelfNo})`);
               setModalType(null);
             }} className="space-y-3 text-xs">
-              <div><label className="block font-bold mb-1">Rack Number <span className="text-rose-500 font-bold ml-0.5">*</span></label><input type="text" name="rackNo" required placeholder="e.g. Rack E-05" className="w-full px-3 py-2 rounded-xl bg-slate-50 border font-bold" /></div>
-              <div><label className="block font-bold mb-1">Shelf Number <span className="text-rose-500 font-bold ml-0.5">*</span></label><input type="text" name="shelfNo" required placeholder="e.g. Shelf 1" className="w-full px-3 py-2 rounded-xl bg-slate-50 border font-bold" /></div>
-              <div><label className="block font-bold mb-1">Floor / Building</label><input type="text" name="floor" placeholder="e.g. Ground Floor" className="w-full px-3 py-2 rounded-xl bg-slate-50 border" /></div>
-              <div><label className="block font-bold mb-1">Section</label><input type="text" name="section" placeholder="e.g. Reference Section" className="w-full px-3 py-2 rounded-xl bg-slate-50 border" /></div>
-              <div><label className="block font-bold mb-1">Capacity</label><input type="number" name="capacity" placeholder="e.g. 50" min="1" className="w-full px-3 py-2 rounded-xl bg-slate-50 border font-mono" /></div>
-              <div className="flex justify-end gap-2 pt-2"><button type="button" onClick={() => setModalType(null)} className="px-4 py-2 rounded-xl border font-bold">Cancel</button><button type="submit" className="px-4 py-2 rounded-xl bg-sky-600 text-white font-extrabold">Save Location</button></div>
+              <div><label className="block font-bold mb-1">Rack Number <span className="text-rose-500 font-bold ml-0.5">*</span></label><input type="text" name="rackNo" required minLength={2} maxLength={20} placeholder="e.g. Rack E-05" className="w-full px-3 py-2 rounded-xl bg-slate-50 border font-bold" /></div>
+              <div><label className="block font-bold mb-1">Shelf Number <span className="text-rose-500 font-bold ml-0.5">*</span></label><input type="text" name="shelfNo" required maxLength={20} placeholder="e.g. Shelf 1" className="w-full px-3 py-2 rounded-xl bg-slate-50 border font-bold" /></div>
+              <div><label className="block font-bold mb-1">Floor / Building</label><input type="text" name="floor" maxLength={30} placeholder="e.g. Ground Floor" className="w-full px-3 py-2 rounded-xl bg-slate-50 border" /></div>
+              <div><label className="block font-bold mb-1">Section</label><input type="text" name="section" maxLength={20} placeholder="e.g. Reference Section" className="w-full px-3 py-2 rounded-xl bg-slate-50 border" /></div>
+              <div><label className="block font-bold mb-1">Capacity (Max 5,000) <span className="text-rose-500 font-bold ml-0.5">*</span></label><input type="number" name="capacity" required placeholder="e.g. 50" min={1} max={5000} className="w-full px-3 py-2 rounded-xl bg-slate-50 border font-mono font-bold" /></div>
+              <div className="flex justify-end gap-2 pt-2"><button type="button" onClick={() => setModalType(null)} className="px-4 py-2 rounded-xl border font-bold">Cancel</button><button type="submit" className="px-4 py-2 rounded-xl bg-sky-600 text-white font-extrabold cursor-pointer">Save Location</button></div>
             </form>
           </div>
         </div>
@@ -3168,7 +3273,7 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ initialPhase = 'phase1
                 <label className="block font-bold mb-1 text-slate-700 dark:text-slate-300">
                   Select Book <span className="text-rose-500 font-bold ml-0.5">*</span>
                 </label>
-                <select name="bookId" required className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold text-xs text-slate-900 dark:text-white cursor-pointer focus:ring-2 focus:ring-sky-500">
+                <select name="bookId" required onFocus={() => setShowModalMemberDropdown(false)} onClick={() => setShowModalMemberDropdown(false)} className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold text-xs text-slate-900 dark:text-white cursor-pointer focus:ring-2 focus:ring-sky-500">
                   <option value="">Select Book...</option>
                   {books.map(b => (
                     <option key={b.id} value={b.id}>
@@ -3377,20 +3482,36 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ initialPhase = 'phase1
             </h3>
             <form onSubmit={async (e) => {
               e.preventDefault();
-              if (!bookForm.title.trim() || !bookForm.author.trim()) {
-                addToast('warning', 'Validation Error', 'Please enter Book Title and Author Name.');
+              const bTitle = bookForm.title.trim();
+              const bAuthor = bookForm.author.trim();
+              const bIsbn = bookForm.isbn.trim();
+
+              if (!bTitle || bTitle.length < 2) {
+                addToast('warning', 'Validation Error', 'Book Title must be at least 2 characters long.');
                 return;
+              }
+              if (!bAuthor || bAuthor.length < 2) {
+                addToast('warning', 'Validation Error', 'Author Name must be at least 2 characters long.');
+                return;
+              }
+              if (bIsbn) {
+                const isbnValidChars = /^[0-9\-]{9,17}[0-9xX]?$/.test(bIsbn);
+                const bareDigits = bIsbn.replace(/[\-\s]/g, '');
+                if (!isbnValidChars || (bareDigits.length !== 10 && bareDigits.length !== 13)) {
+                  addToast('warning', 'Invalid ISBN', 'Please enter a valid 10-digit or 13-digit ISBN (e.g. 978-0-13-489123-4).');
+                  return;
+                }
               }
 
               if (modalType === 'editBook' && modalData) {
                 const updatedBk: BookItem = {
                   ...modalData,
-                  title: bookForm.title.trim(),
-                  author: bookForm.author.trim(),
+                  title: bTitle,
+                  author: bAuthor,
                   category: bookForm.category,
-                  isbn: bookForm.isbn.trim(),
-                  totalCopies: Number(bookForm.totalCopies) || 1,
-                  availableCopies: Number(bookForm.totalCopies) || 1,
+                  isbn: bIsbn || modalData.isbn,
+                  totalCopies: Math.min(5000, Number(bookForm.totalCopies) || 1),
+                  availableCopies: Math.min(5000, Number(bookForm.totalCopies) || 1),
                   rackNo: bookForm.rackNo
                 };
                 try {
@@ -3436,6 +3557,8 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ initialPhase = 'phase1
                 <input
                   type="text"
                   required
+                  minLength={2}
+                  maxLength={100}
                   value={bookForm.title}
                   onChange={e => setBookForm(prev => ({ ...prev, title: e.target.value }))}
                   placeholder="Enter book title"
@@ -3448,6 +3571,8 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ initialPhase = 'phase1
                 <input
                   type="text"
                   required
+                  minLength={2}
+                  maxLength={50}
                   value={bookForm.author}
                   onChange={e => setBookForm(prev => ({ ...prev, author: e.target.value }))}
                   placeholder="Enter author name"
@@ -3509,14 +3634,16 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ initialPhase = 'phase1
                   {racks.map(r => {
                     const info = getRackCapacityInfo(r, books);
                     const rackVal = `${r.rackNo} (${r.shelfNo})`;
-                    const statusText = info.isFull ? '🔴 FULL (0 space left)' : `🟢 Available (${info.remainingSpace} spaces left)`;
+                    const safeRem = Math.min(5000, Number(info.remainingSpace) || 0);
+                    const statusText = info.isFull ? '🔴 FULL (0 space left)' : `🟢 Available (${safeRem.toLocaleString()} spaces left)`;
+                    const sec = r.section ? (r.section.length > 20 ? r.section.slice(0, 20) + '...' : r.section) : '';
                     return (
                       <option 
                         key={r.id} 
                         value={rackVal}
                         className={info.isFull ? 'text-rose-500 font-bold' : 'text-emerald-600 font-bold'}
                       >
-                        {r.rackNo} ({r.shelfNo}) {r.section ? `• ${r.section}` : ''} — {statusText}
+                        {r.rackNo} ({r.shelfNo}) {sec ? `• ${sec}` : ''} — {statusText}
                       </option>
                     );
                   })}
@@ -3720,6 +3847,69 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ initialPhase = 'phase1
         />
       )}
 
+      {/* Return Book Confirmation Modal */}
+      {confirmReturnIssue && (
+        <ConfirmModal
+          isOpen={Boolean(confirmReturnIssue)}
+          onCancel={() => setConfirmReturnIssue(null)}
+          onConfirm={async () => {
+            const iss = confirmReturnIssue;
+            setConfirmReturnIssue(null);
+            try { await LibraryAPI.returnBookApi(iss.id); } catch (err) {}
+            contextReturnBook(iss.id);
+            await loadBackendData();
+            const isOverdue = new Date(iss.dueDate) < new Date();
+            const lateDays = isOverdue ? Math.max(1, Math.floor((Date.now() - new Date(iss.dueDate).getTime()) / 86400000)) : 0;
+            const ruleForRole = rules.find(r => r.userRole.toLowerCase() === (iss.borrowerRole || 'Student').toLowerCase()) || rules[0];
+            const dailyRate = ruleForRole ? ruleForRole.dailyFineRate : 5;
+            const calculatedFine = lateDays * dailyRate;
+            if (calculatedFine > 0) {
+              const newFine: LibraryFineRecord = {
+                id: `FIN-${Date.now()}`,
+                issueId: iss.id,
+                memberId: iss.borrowerId,
+                memberName: iss.borrowerName,
+                memberRole: iss.borrowerRole,
+                bookTitle: iss.bookTitle,
+                overdueDays: lateDays,
+                fineAmount: calculatedFine,
+                paymentStatus: 'Unpaid',
+                createdDate: new Date().toISOString().split('T')[0],
+                remarks: `Late return fine for ${lateDays} days`
+              };
+              saveFines([newFine, ...fineRecords]);
+            }
+            addToast('success', 'Book Returned', `Marked "${iss.bookTitle}" as returned.${calculatedFine > 0 ? ` Overdue fine of ${formatCurrency(calculatedFine)} added.` : ''}`);
+          }}
+          title="Confirm Book Return"
+          message={`Are you sure you want to return "${confirmReturnIssue.bookTitle}" borrowed by ${confirmReturnIssue.borrowerName}?`}
+          confirmLabel="Confirm Return"
+          variant="primary"
+        />
+      )}
+
+      {/* Renewal Confirmation Modal */}
+      {confirmRenewIssue && (
+        <ConfirmModal
+          isOpen={Boolean(confirmRenewIssue)}
+          onCancel={() => setConfirmRenewIssue(null)}
+          onConfirm={async () => {
+            const iss = confirmRenewIssue;
+            setConfirmRenewIssue(null);
+            const newDueDate = new Date(new Date(iss.dueDate).getTime() + 14 * 86400000).toISOString().split('T')[0];
+            try { await LibraryAPI.renewBookApi(iss.id, 14); } catch (err) {}
+            iss.dueDate = newDueDate;
+            iss.renewCount = (iss.renewCount || 0) + 1;
+            iss.status = 'Renewed';
+            addToast('success', 'Issue Renewed', `Extended due date for "${iss.bookTitle}" to ${newDueDate}`);
+          }}
+          title="Confirm Issue Renewal"
+          message={`Are you sure you want to renew "${confirmRenewIssue.bookTitle}" for ${confirmRenewIssue.borrowerName} and extend the due date by 14 days?`}
+          confirmLabel="Extend +14 Days"
+          variant="primary"
+        />
+      )}
+
       {/* Rack Stored Books Inspection Modal */}
       {selectedRackForInspect && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm animate-in fade-in">
@@ -3751,10 +3941,10 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ initialPhase = 'phase1
             {/* Quick Metrics Summary Bar */}
             {(() => {
               const matchedBooks = books.filter(b => (b.rackNo || '').toLowerCase().includes(selectedRackForInspect.rackNo.toLowerCase()) || (selectedRackForInspect.rackNo || '').toLowerCase().includes((b.rackNo || '').toLowerCase()));
-              const totalCopies = matchedBooks.reduce((sum, b) => sum + (b.totalCopies || 0), 0);
-              const availableCopies = matchedBooks.reduce((sum, b) => sum + (b.availableCopies || 0), 0);
+              const totalCopies = Math.min(5000, matchedBooks.reduce((sum, b) => sum + (b.totalCopies || 0), 0));
+              const availableCopies = Math.min(5000, matchedBooks.reduce((sum, b) => sum + (b.availableCopies || 0), 0));
               const issuedCopies = Math.max(0, totalCopies - availableCopies);
-              const capacity = selectedRackForInspect.capacity || 50;
+              const capacity = Math.min(5000, selectedRackForInspect.capacity || 50);
 
               return (
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
@@ -3797,12 +3987,13 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ initialPhase = 'phase1
                   <table className="w-full text-left text-xs border-collapse">
                     <thead>
                       <tr className="bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-extrabold border-b border-slate-200 dark:border-slate-700">
-                        <th className="py-3 px-4">Book Title & Author</th>
-                        <th className="py-3 px-4">ISBN</th>
-                        <th className="py-3 px-4">Category</th>
-                        <th className="py-3 px-4 text-center">Total Copies</th>
-                        <th className="py-3 px-4 text-center">Available</th>
-                        <th className="py-3 px-4 text-center">Issued Out</th>
+                        <th className="py-3 px-4 min-w-[160px]">Book Title</th>
+                        <th className="py-3 px-4 min-w-[130px]">Author Name</th>
+                        <th className="py-3 px-4 whitespace-nowrap">ISBN</th>
+                        <th className="py-3 px-4 whitespace-nowrap">Category</th>
+                        <th className="py-3 px-4 text-center whitespace-nowrap">Total Copies</th>
+                        <th className="py-3 px-4 text-center whitespace-nowrap">Available</th>
+                        <th className="py-3 px-4 text-center whitespace-nowrap">Issued Out</th>
                         <th className="py-3 px-4 text-center whitespace-nowrap">ACTION</th>
                       </tr>
                     </thead>
@@ -3811,13 +4002,15 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ initialPhase = 'phase1
                         const issuedCount = Math.max(0, (b.totalCopies || 0) - (b.availableCopies || 0));
                         return (
                           <tr key={b.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/50 transition-colors">
-                            <td className="py-3 px-4">
-                              <p className="font-extrabold text-slate-900 dark:text-white">{b.title}</p>
-                              <p className="text-[11px] text-slate-500 font-semibold">{b.author}</p>
+                            <td className="py-3 px-4 font-extrabold text-slate-900 dark:text-white break-words min-w-[160px]">
+                              {b.title}
                             </td>
-                            <td className="py-3 px-4 font-mono text-[11px] text-slate-600 dark:text-slate-400">{b.isbn || 'N/A'}</td>
-                            <td className="py-3 px-4">
-                              <span className="px-2.5 py-1 rounded-lg bg-sky-50 dark:bg-sky-950/60 text-sky-700 dark:text-sky-300 font-bold border border-sky-200 dark:border-sky-800 text-[11px]">
+                            <td className="py-3 px-4 font-semibold text-slate-700 dark:text-slate-300 break-words min-w-[130px]">
+                              {b.author}
+                            </td>
+                            <td className="py-3 px-4 font-mono text-[11px] text-slate-600 dark:text-slate-400 whitespace-nowrap">{b.isbn || 'N/A'}</td>
+                            <td className="py-3 px-4 whitespace-nowrap">
+                              <span className="px-2.5 py-1 rounded-lg bg-sky-50 dark:bg-sky-950/60 text-sky-700 dark:text-sky-300 font-bold border border-sky-200 dark:border-sky-800 text-[11px] max-w-[140px] truncate block" title={b.category}>
                                 {b.category}
                               </span>
                             </td>

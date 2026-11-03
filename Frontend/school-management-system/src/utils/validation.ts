@@ -1725,8 +1725,7 @@ function setGlobalInputError(input: HTMLInputElement | HTMLTextAreaElement, erro
       anchor.style.position = 'relative';
     }
 
-    anchor.style.marginBottom = '26px';
-    anchor.style.alignSelf = 'flex-start';
+    // Kept zero margin on absolute anchors to prevent layout shift (Bug 19)
 
     errEl.style.position = 'absolute';
     errEl.style.left = '0';
