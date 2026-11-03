@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
   Search, Sun, Moon, Bell, Shield, LogOut, Key, Calendar, CheckCircle2,
-  Megaphone, Building2, Plus, Edit, Trash2, ChevronDown, X, Menu
+  Megaphone, Building2, Plus, Edit, Trash2, ChevronDown, X, Menu, User
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
@@ -769,13 +769,23 @@ export const Header: React.FC<HeaderProps> = ({ collapsed, setCollapsed, onOpenS
                 <p className="text-[10px] text-slate-500 dark:text-slate-400">{displayRole} • {currentStaff?.email || user?.email}</p>
               </div>
 
-              {['Admin', 'Super Admin', 'Teacher'].includes(role) && (
+              {['Admin', 'Super Admin', 'Teacher', 'Librarian', 'Hostel Warden', 'Accountant', 'Driver'].some(r => (role || '').toLowerCase().includes(r.toLowerCase())) && (
                 <button
-                  onClick={() => { setShowUserMenu(false); onNavigate?.('profile-completion'); }}
+                  onClick={() => {
+                    setShowUserMenu(false);
+                    const cleanRole = (role || '').toLowerCase();
+                    if (cleanRole === 'driver') {
+                      onNavigate?.('driver-profile');
+                    } else if (['teacher', 'librarian', 'warden', 'hostel warden', 'accountant', 'finance'].some(r => cleanRole.includes(r))) {
+                      onNavigate?.('teacher-profile');
+                    } else {
+                      onNavigate?.('profile-completion');
+                    }
+                  }}
                   className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors cursor-pointer"
                 >
-                  <Edit className="w-4 h-4 text-sky-500" />
-                  <span>Edit Profile</span>
+                  <User className="w-4 h-4 text-sky-500" />
+                  <span>My Profile</span>
                 </button>
               )}
 
