@@ -48,19 +48,56 @@ export const DriverPayslipsView: React.FC = () => {
     const userName = (user?.name || '').trim().toLowerCase();
     const userEmpId = (user?.id || (user as any)?.empId || '').trim().toLowerCase();
 
-    const fromMaster = driverMasters.find(d =>
-      (userEmpId && (d.employeeId?.toLowerCase() === userEmpId || String(d.id) === userEmpId)) ||
-      (userEmail && d.email?.toLowerCase() === userEmail) ||
-      (userName && d.driverName?.toLowerCase() === userName)
-    );
+    const fromMaster = (() => {
+      if (userEmail) {
+        const byEmail = driverMasters.find(d => d.email && d.email.toLowerCase().trim() === userEmail);
+        if (byEmail) return byEmail;
+      }
+      if (userEmpId) {
+        const byEmpId = driverMasters.find(d => (d.employeeId?.toLowerCase() === userEmpId || String(d.id) === userEmpId));
+        if (byEmpId) return byEmpId;
+      }
+      if (userName && userName !== 'user' && userName !== 'administrator') {
+        const byName = driverMasters.find(d => {
+          const dName = (d.driverName || '').trim().toLowerCase();
+          const matches = dName === userName || dName.includes(userName) || userName.includes(dName);
+          if (!matches) return false;
+          if (userEmail && d.email && d.email.toLowerCase().trim() !== userEmail) {
+            return d.email.toLowerCase().includes('gamal.com') || d.email.toLowerCase().replace(/@.*/, '') === userEmail.replace(/@.*/, '');
+          }
+          return true;
+        });
+        if (byName) return byName;
+      }
+      return null;
+    })();
 
     if (fromMaster) return fromMaster;
 
-    const fromStaff = staff.find(s =>
-      (userEmpId && (s.employeeId?.toLowerCase() === userEmpId || String(s.id) === userEmpId)) ||
-      (userEmail && s.email?.toLowerCase() === userEmail) ||
-      (userName && `${s.firstName || ''} ${s.lastName || ''}`.trim().toLowerCase() === userName)
-    );
+    const fromStaff = (() => {
+      if (userEmail) {
+        const byEmail = staff.find(s => s.email && s.email.toLowerCase().trim() === userEmail);
+        if (byEmail) return byEmail;
+      }
+      if (userEmpId) {
+        const byEmpId = staff.find(s => (s.employeeId?.toLowerCase() === userEmpId || String(s.id) === userEmpId || s.empId?.toLowerCase() === userEmpId));
+        if (byEmpId) return byEmpId;
+      }
+      if (userName && userName !== 'user' && userName !== 'administrator') {
+        const byName = staff.find(s => {
+          const sFullName = `${s.firstName || ''} ${s.lastName || ''}`.trim().toLowerCase();
+          const sName = (s.name || '').trim().toLowerCase();
+          const matches = sFullName === userName || sName === userName || sFullName.includes(userName) || userName.includes(sFullName);
+          if (!matches) return false;
+          if (userEmail && s.email && s.email.toLowerCase().trim() !== userEmail) {
+            return s.email.toLowerCase().includes('gamal.com') || s.email.toLowerCase().replace(/@.*/, '') === userEmail.replace(/@.*/, '');
+          }
+          return true;
+        });
+        if (byName) return byName;
+      }
+      return null;
+    })();
 
     if (fromStaff) {
       return {

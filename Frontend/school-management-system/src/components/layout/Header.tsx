@@ -45,6 +45,12 @@ export const Header: React.FC<HeaderProps> = ({ collapsed, setCollapsed, onOpenS
     const userId = String(user.id || (user as any)?.empId || '').trim();
     const userName = (user.name || '').toLowerCase().trim();
 
+    // Priority 1: Exact user email match (unique and highest fidelity)
+    if (userEmail) {
+      const emailMatch = staff.find(s => s.email && s.email.toLowerCase().trim() === userEmail);
+      if (emailMatch) return emailMatch;
+    }
+
     if (userId) {
       const idMatch = staff.find(s => 
         (s.id && String(s.id).trim().toLowerCase() === userId.toLowerCase()) || 
@@ -65,11 +71,6 @@ export const Header: React.FC<HeaderProps> = ({ collapsed, setCollapsed, onOpenS
     if (userPhone && userPhone.length >= 10) {
       const phoneMatch = staff.find(s => s.phone && s.phone.replace(/\D/g, '').endsWith(userPhone));
       if (phoneMatch) return phoneMatch;
-    }
-
-    if (userEmail) {
-      const emailMatch = staff.find(s => s.email && s.email.toLowerCase().trim() === userEmail);
-      if (emailMatch) return emailMatch;
     }
 
     // Match in driverMasters if Driver

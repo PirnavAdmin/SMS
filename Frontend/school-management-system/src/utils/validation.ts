@@ -1337,12 +1337,13 @@ export function parseDrivingLicense(license: string): ParsedDrivingLicense {
   };
 
   // 1. Check Standard Sarathi Parivahan / Slash- or Hyphen-Separated Format:
-  // SS + optional sep + RR[A-Z]? + optional sep + YYYY + optional sep + NNNNNNN (6-7 digits)
+  // SS + optional sep + RR/RRR[A-Z]? (supports 2-3 digit RTO / unit office codes, e.g. AP33120150002643) + optional sep + YYYY + optional sep + NNNNNNN (6-7 digits)
   const sarathiMatch = normalized.match(
-    /^([A-Z]{2})[\-\/\s]?(\d{2}[A-Z]?)[\-\/\s]?(\d{4})[\-\/\s]?(\d{6,7})$/
+    /^([A-Z]{2})[\-\/\s]?(\d{2,3}[A-Z]?|\d{2}[\-\/\s]\d)[\-\/\s]?(19\d{2}|20\d{2})[\-\/\s]?(\d{6,7})$/
   );
   if (sarathiMatch) {
-    const [, stateCode, rtoCode, yearStr, serialStr] = sarathiMatch;
+    const [, stateCode, rawRtoCode, yearStr, serialStr] = sarathiMatch;
+    const rtoCode = rawRtoCode.replace(/[\-\/\s]/g, "");
     const yr = isValidIssueYear(yearStr);
     if (
       VALID_INDIAN_DL_STATE_CODES.has(stateCode) &&

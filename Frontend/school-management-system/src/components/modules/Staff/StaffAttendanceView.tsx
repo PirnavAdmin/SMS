@@ -208,6 +208,9 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
     return {
       id: resolvedEmpId || String(user?.id || ""),
       empId: resolvedEmpId || String(user?.id || ""),
+      dbId: dbTeacher?.id ? String(dbTeacher.id) : "",
+      staffId: (dbTeacher as any)?.staffId || dbTeacher?.id || (user as any)?.staffId || "",
+      email: dbTeacher?.email || user?.email || "",
       firstName: firstName || "Staff",
       lastName: lastName || "",
       designation: resolvedDesig,
@@ -904,6 +907,33 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
     dbTeacher,
   ]);
 
+  // Filter leave applications for the active logged-in employee (staff/teacher/driver/librarian)
+  const myLeaveApplications = useMemo(() => {
+    const regStaffId = String(activeRegEmployee?.id || "").toLowerCase().trim();
+    const regEmpId = String(activeRegEmployee?.empId || "").toLowerCase().trim();
+    const dbStaffId = String(dbTeacher?.id || "").toLowerCase().trim();
+    const uId = String(user?.id || "").toLowerCase().trim();
+    const uEmail = String(user?.email || "").toLowerCase().trim();
+    const fullName = `${activeRegEmployee?.firstName || teacher?.firstName || ""} ${activeRegEmployee?.lastName || teacher?.lastName || ""}`.toLowerCase().trim();
+
+    return (leaveApplications || []).filter((la: any) => {
+      const laEmpId = String(la.employeeId || la.empId || "").toLowerCase().trim();
+      const laEmail = String(la.email || "").toLowerCase().trim();
+      const laName = String(la.employeeName || la.staffName || "").toLowerCase().trim();
+
+      const matchId =
+        (regStaffId && (laEmpId === regStaffId || laEmpId.includes(regStaffId))) ||
+        (regEmpId && (laEmpId === regEmpId || laEmpId.includes(regEmpId))) ||
+        (dbStaffId && (laEmpId === dbStaffId || laEmpId.includes(dbStaffId))) ||
+        (uId && (laEmpId === uId || laEmpId.includes(uId)));
+
+      const matchEmail = uEmail && laEmail && (laEmail === uEmail || laEmail.replace(/@.*/, "") === uEmail.replace(/@.*/, ""));
+      const matchName = fullName && laName && (laName === fullName || (fullName.length >= 3 && (laName.includes(fullName) || fullName.includes(laName))));
+
+      return matchId || matchEmail || matchName;
+    });
+  }, [leaveApplications, activeRegEmployee, dbTeacher, user, teacher]);
+
   const personalMonthlyStats = useMemo(() => {
     let present = 0;
     let absent = 0;
@@ -911,26 +941,69 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
     let leave = 0;
     let totalMinutes = 0;
 
-    fullHistory.forEach((rec) => {
-      const st = (rec.status || "").toLowerCase();
-      if (st.includes("late")) {
-        late += 1;
-        present += 1;
-      } else if (st.includes("present")) {
-        present += 1;
-      } else if (st.includes("absent")) {
-        absent += 1;
-      } else if (st.includes("leave")) {
-        leave += 1;
+    const targetMonth = persDateMode === "Monthly" && persRegMonth !== undefined ? persRegMonth : new Date().getMonth();
+    const targetYear = persDateMode === "Monthly" && persRegYear !== undefined ? persRegYear : new Date().getFullYear();
+
+    const daysCount = new Date(targetYear, targetMonth + 1, 0).getDate();
+    const regStaffId = String(activeRegEmployee?.id || "").toLowerCase().trim();
+    const regEmpId = String(activeRegEmployee?.empId || "").toLowerCase().trim();
+    const dbStaffId = String(dbTeacher?.id || "").toLowerCase().trim();
+    const uId = String(user?.id || "").toLowerCase().trim();
+    const uEmail = String(user?.email || "").toLowerCase().trim();
+
+    for (let d = 1; d <= daysCount; d++) {
+      const dateStr = `${targetYear}-${String(targetMonth + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+      const dayObj = new Date(targetYear, targetMonth, d);
+      const isWeekend = dayObj.getDay() === 0;
+      const isHoliday = checkSundayOrHoliday(dateStr, holidays).isHoliday;
+
+      const rec = (attendance || []).find((r) => {
+        const isStaff = !r.entityType || r.entityType.toLowerCase() === "staff";
+        const rEntityId = String(r.entityId || (r as any).staffId || "").toLowerCase().trim();
+        const rEmpCode = String((r as any).employeeId || (r as any).empId || "").toLowerCase().trim();
+        const rEmail = String((r as any).email || "").toLowerCase().trim();
+        const rDate = formatToISO(String(r.date || "").split("T")[0].split(" ")[0]);
+        const isId =
+          (regStaffId && (rEntityId === regStaffId || rEmpCode === regStaffId)) ||
+          (regEmpId && (rEntityId === regEmpId || rEmpCode === regEmpId)) ||
+          (dbStaffId && (rEntityId === dbStaffId || rEmpCode === dbStaffId)) ||
+          (uId && (rEntityId === uId || rEmpCode === uId)) ||
+          (uEmail && rEmail && rEmail === uEmail);
+        return isStaff && isId && rDate === dateStr;
+      });
+
+      const hasLeave = (myLeaveApplications || []).some((la: any) => {
+        const sDate = String(la.startDate || "").split("T")[0];
+        const eDate = String(la.endDate || la.startDate || "").split("T")[0];
+        return dateStr >= sDate && dateStr <= eDate && (la.status === "Approved" || la.status === "Pending");
+      });
+
+      let st = rec?.status;
+      if (dateStr === todayStr && persCheckInTime) {
+        st = todayStatus;
+      } else if (!st && hasLeave) {
+        st = "Leave";
+      } else if (!st && !isWeekend && !isHoliday && dateStr < todayStr) {
+        st = "Absent";
       }
 
-      if (rec.workingHours && rec.workingHours.includes("h")) {
-        const parts = rec.workingHours.split("h");
-        const h = parseInt(parts[0]) || 0;
-        const m = parseInt(parts[1]?.replace("m", "")) || 0;
-        totalMinutes += h * 60 + m;
+      if (st) {
+        const lower = st.toLowerCase();
+        if (lower.includes("late")) {
+          late += 1;
+          present += 1;
+          totalMinutes += 8 * 60;
+        } else if (lower.includes("present")) {
+          present += 1;
+          totalMinutes += 8 * 60;
+        } else if (lower.includes("absent")) {
+          absent += 1;
+        } else if (lower.includes("leave") || lower.includes("halfday")) {
+          leave += 1;
+          if (lower.includes("halfday")) totalMinutes += 4 * 60;
+        }
       }
-    });
+    }
 
     const totalHrs = Math.floor(totalMinutes / 60);
     const remMins = totalMinutes % 60;
@@ -943,7 +1016,20 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
       leave,
       totalHoursDisplay
     };
-  }, [fullHistory, persCheckInTime]);
+  }, [
+    persDateMode,
+    persRegMonth,
+    persRegYear,
+    attendance,
+    holidays,
+    todayStr,
+    persCheckInTime,
+    todayStatus,
+    activeRegEmployee,
+    dbTeacher,
+    user,
+    myLeaveApplications
+  ]);
 
   const handleApplyLeaveSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -1652,28 +1738,72 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
 
                         const regStaffId = String(activeRegEmployee?.id || "").toLowerCase().trim();
                         const regEmpId = String(activeRegEmployee?.empId || "").toLowerCase().trim();
+                        const dbStaffId = String(dbTeacher?.id || (activeRegEmployee as any)?.dbId || "").toLowerCase().trim();
+                        const dbEmpCode = String(dbTeacher?.empId || (dbTeacher as any)?.employeeId || "").toLowerCase().trim();
+                        const uId = String(user?.id || "").toLowerCase().trim();
+                        const uStaffId = String((user as any)?.staffId || (activeRegEmployee as any)?.staffId || "").toLowerCase().trim();
+                        const uEmpCode = String((user as any)?.empId || "").toLowerCase().trim();
+                        const uEmail = String(user?.email || "").toLowerCase().trim();
+                        const dbEmail = String(dbTeacher?.email || "").toLowerCase().trim();
+                        const empFullName = `${activeRegEmployee?.firstName || ""} ${activeRegEmployee?.lastName || ""}`.toLowerCase().trim();
+                        const numericRegId = regEmpId.replace(/\D/g, "");
 
                         const rowCells = persRegisterDaysList.map((item, idx) => {
                           const rec = (attendance || []).find((r) => {
                             const isStaff = !r.entityType || r.entityType.toLowerCase() === "staff";
                             const rEntityId = String(r.entityId || (r as any).staffId || "").toLowerCase().trim();
+                            const rStaffId = String((r as any).staffId || "").toLowerCase().trim();
                             const rEmpCode = String((r as any).employeeId || (r as any).empId || "").toLowerCase().trim();
-                            const isId =
-                              (regStaffId && (rEntityId === regStaffId || rEmpCode === regStaffId)) ||
-                              (regEmpId && (rEntityId === regEmpId || rEmpCode === regEmpId));
-                            const rDate = formatToISO(String(r.date || "").split("T")[0].split(" ")[0]);
-                            return isStaff && isId && rDate === item.dateStr;
-                          });
+                            const rEmail = String((r as any).email || "").toLowerCase().trim();
+                            const rName = String((r as any).staffName || (r as any).fullName || (r as any).name || (r as any).employeeName || "").toLowerCase().trim();
 
-                          const status =
-                            item.dateStr === todayStr && persCheckInTime
-                              ? todayStatus
-                              : rec?.status;
+                            const isIdMatch =
+                              (regStaffId && (rEntityId === regStaffId || rStaffId === regStaffId || rEmpCode === regStaffId)) ||
+                              (regEmpId && (rEntityId === regEmpId || rStaffId === regEmpId || rEmpCode === regEmpId)) ||
+                              (dbStaffId && (rEntityId === dbStaffId || rStaffId === dbStaffId || rEmpCode === dbStaffId)) ||
+                              (dbEmpCode && (rEntityId === dbEmpCode || rStaffId === dbEmpCode || rEmpCode === dbEmpCode)) ||
+                              (uId && (rEntityId === uId || rStaffId === uId || rEmpCode === uId)) ||
+                              (uStaffId && (rEntityId === uStaffId || rStaffId === uStaffId || rEmpCode === uStaffId)) ||
+                              (uEmpCode && (rEntityId === uEmpCode || rStaffId === uEmpCode || rEmpCode === uEmpCode));
+
+                            const isEmailMatch = (uEmail && rEmail && (rEmail === uEmail || rEmail.replace(/@.*/, '') === uEmail.replace(/@.*/, ''))) ||
+                                                 (dbEmail && rEmail && (rEmail === dbEmail || rEmail.replace(/@.*/, '') === dbEmail.replace(/@.*/, '')));
+
+                            const isNameMatch = empFullName && rName && (
+                              rName === empFullName ||
+                              (empFullName.length >= 3 && (rName.includes(empFullName) || empFullName.includes(rName)))
+                            );
+
+                            const numericEntityId = rEntityId.replace(/\D/g, "");
+                            const isNumericMatch = !!numericEntityId && (
+                              numericEntityId === dbStaffId ||
+                              numericEntityId === uStaffId ||
+                              (numericRegId && (numericRegId === numericEntityId || numericRegId.endsWith(numericEntityId)))
+                            );
+
+                            const rDate = formatToISO(String(r.date || "").split("T")[0].split(" ")[0]);
+                            return isStaff && (isIdMatch || isEmailMatch || isNameMatch || isNumericMatch) && rDate === item.dateStr;
+                          });
 
                           const dayObj = new Date(item.dateStr);
                           const isWeekend = !isNaN(dayObj.getTime()) && dayObj.getDay() === 0;
                           const holidayCheck = checkSundayOrHoliday(item.dateStr, holidays);
                           const isHoliday = holidayCheck.isHoliday && holidayCheck.type === "Holiday";
+                          const isFuture = item.dateStr > todayStr;
+                          const isToday = item.dateStr === todayStr;
+
+                          const hasLeave = (myLeaveApplications || []).some((la: any) => {
+                            const sDate = String(la.startDate || "").split("T")[0];
+                            const eDate = String(la.endDate || la.startDate || "").split("T")[0];
+                            return item.dateStr >= sDate && item.dateStr <= eDate && (la.status === "Approved" || la.status === "Pending");
+                          });
+
+                          let status = rec?.status;
+                          if (isToday && persCheckInTime) {
+                            status = todayStatus;
+                          } else if (!status && hasLeave) {
+                            status = "Leave";
+                          }
 
                           let code = "";
                           let badgeStyle = "";
@@ -1708,10 +1838,16 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
                             code = "W";
                             badgeStyle =
                               "text-slate-400 bg-slate-100 dark:bg-slate-800/60 font-semibold";
-                          } else {
+                          } else if (isFuture || isToday) {
                             code = "";
                             badgeStyle =
                               "border border-dashed border-slate-200 dark:border-slate-800 bg-transparent text-transparent";
+                          } else {
+                            // Past working day without check-in: staff is Absent (dynamic reflection)
+                            code = "A";
+                            badgeStyle =
+                              "text-rose-500 bg-rose-50 dark:bg-rose-950/30 border border-rose-500/20";
+                            aCount++;
                           }
 
                           return (
@@ -2492,20 +2628,24 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
   // Fetch monthly attendance logs from API when filters change
   useEffect(() => {
     if ((viewMode === "monthly" || isPersonalView) && fetchMonthlyAttendance) {
-      const activeDept =
-        activeTab === "teaching" ? teachingDept : nonTeachingDept;
-      const m = regMonth + 1;
-      const y = regYear;
+      const activeDept = isPersonalView
+        ? (teacher?.department || undefined)
+        : (activeTab === "teaching" ? teachingDept : nonTeachingDept);
+      const m = isPersonalView ? persRegMonth + 1 : regMonth + 1;
+      const y = isPersonalView ? persRegYear : regYear;
       fetchMonthlyAttendance(m, y, activeDept);
     }
   }, [
     regMonth,
     regYear,
+    persRegMonth,
+    persRegYear,
     activeTab,
     teachingDept,
     nonTeachingDept,
     viewMode,
     isPersonalView,
+    teacher?.department,
     fetchMonthlyAttendance,
   ]);
 
@@ -3435,15 +3575,38 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
             let hdCount = 0;
 
             const dayStatuses = registerDaysList.map((item) => {
-              const record = (attendance || []).find(
-                (r) =>
-                  r.entityType === "Staff" &&
-                  r.entityId === s.id &&
-                  r.date === item.dateStr,
-              );
+              const sId = String(s.id || "").toLowerCase().trim();
+              const sEmpId = String(s.empId || (s as any).employeeId || "").toLowerCase().trim();
+              const sEmail = String(s.email || "").toLowerCase().trim();
+              const sName = `${s.firstName || ""} ${s.lastName || ""}`.toLowerCase().trim();
+
+              const record = (attendance || []).find((r) => {
+                const isStaff = !r.entityType || r.entityType.toLowerCase() === "staff";
+                if (!isStaff) return false;
+                const rDate = formatToISO(String(r.date || "").split("T")[0].split(" ")[0]);
+                if (rDate !== item.dateStr) return false;
+
+                const rEntityId = String(r.entityId || (r as any).staffId || "").toLowerCase().trim();
+                const rStaffId = String((r as any).staffId || "").toLowerCase().trim();
+                const rEmpCode = String((r as any).employeeId || (r as any).empId || "").toLowerCase().trim();
+                const rEmail = String((r as any).email || "").toLowerCase().trim();
+                const rName = String((r as any).staffName || (r as any).fullName || (r as any).name || (r as any).employeeName || "").toLowerCase().trim();
+
+                const isIdMatch =
+                  (sId && (rEntityId === sId || rStaffId === sId || rEmpCode === sId)) ||
+                  (sEmpId && (rEntityId === sEmpId || rStaffId === sEmpId || rEmpCode === sEmpId));
+
+                const isEmailMatch = sEmail && rEmail && (rEmail === sEmail || rEmail.replace(/@.*/, '') === sEmail.replace(/@.*/, ''));
+                const isNameMatch = sName && rName && (rName === sName || (sName.length >= 3 && (rName.includes(sName) || sName.includes(rName))));
+
+                return isIdMatch || isEmailMatch || isNameMatch;
+              });
+
+              const approvedLeave = getApprovedLeave(s.id, item.dateStr) || (s.empId ? getApprovedLeave(s.empId, item.dateStr) : undefined);
+
               let code = "-";
               if (record) {
-                if (record.status === "Present") {
+                if (record.status === "Present" || record.status === "Late") {
                   code = "P";
                   pCount++;
                 } else if (record.status === "Absent") {
@@ -3453,8 +3616,7 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
                   code = "L";
                   lCount++;
                 } else if (
-                  record.status === "HalfDay" ||
-                  record.status === "Late"
+                  record.status === "HalfDay"
                 ) {
                   code = "HD";
                   pCount += 0.5;
@@ -3464,10 +3626,21 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
                 const isBeforeJoining = s.joiningDate && item.dateStr < s.joiningDate;
                 const isHoliday = getIsHoliday(item.dateStr, s);
                 const isWeekend = getIsWeekend(item.dateStr);
+                const isFuture = item.dateStr > todayStr;
+                const isToday = item.dateStr === todayStr;
+
                 if (isBeforeJoining) code = "-";
-                else if (isHoliday) code = "H";
+                else if (approvedLeave) {
+                  code = approvedLeave.isHalfDay ? "HD" : "L";
+                  if (approvedLeave.isHalfDay) hdCount++;
+                  else lCount++;
+                } else if (isHoliday) code = "H";
                 else if (isWeekend) code = "W";
-                else code = "-";
+                else if (isFuture || isToday) code = "-";
+                else {
+                  code = "A";
+                  aCount++;
+                }
               }
               return code;
             });
@@ -4379,26 +4552,51 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
                         let hdCount = 0;
 
                         const rowCells = registerDaysList.map((item, idx) => {
-                          const record = (attendance || []).find(
-                            (r) =>
-                              r.entityType === "Staff" &&
-                              r.entityId === s.id &&
-                              r.date === item.dateStr,
-                          );
+                          const sId = String(s.id || "").toLowerCase().trim();
+                          const sEmpId = String(s.empId || (s as any).employeeId || "").toLowerCase().trim();
+                          const sEmail = String(s.email || "").toLowerCase().trim();
+                          const sName = `${s.firstName || ""} ${s.lastName || ""}`.toLowerCase().trim();
+
+                          const record = (attendance || []).find((r) => {
+                            const isStaff = !r.entityType || r.entityType.toLowerCase() === "staff";
+                            if (!isStaff) return false;
+                            const rDate = formatToISO(String(r.date || "").split("T")[0].split(" ")[0]);
+                            if (rDate !== item.dateStr) return false;
+
+                            const rEntityId = String(r.entityId || (r as any).staffId || "").toLowerCase().trim();
+                            const rStaffId = String((r as any).staffId || "").toLowerCase().trim();
+                            const rEmpCode = String((r as any).employeeId || (r as any).empId || "").toLowerCase().trim();
+                            const rEmail = String((r as any).email || "").toLowerCase().trim();
+                            const rName = String((r as any).staffName || (r as any).fullName || (r as any).name || (r as any).employeeName || "").toLowerCase().trim();
+
+                            const isIdMatch =
+                              (sId && (rEntityId === sId || rStaffId === sId || rEmpCode === sId)) ||
+                              (sEmpId && (rEntityId === sEmpId || rStaffId === sEmpId || rEmpCode === sEmpId));
+
+                            const isEmailMatch = sEmail && rEmail && (rEmail === sEmail || rEmail.replace(/@.*/, '') === sEmail.replace(/@.*/, ''));
+                            const isNameMatch = sName && rName && (rName === sName || (sName.length >= 3 && (rName.includes(sName) || sName.includes(rName))));
+
+                            return isIdMatch || isEmailMatch || isNameMatch;
+                          });
 
                           const key = `${s.id}_${item.dateStr}`;
                           const localEdit = monthlyEditsMap[key];
+
+                          const approvedLeave = getApprovedLeave(s.id, item.dateStr) || (s.empId ? getApprovedLeave(s.empId, item.dateStr) : undefined);
 
                           const status =
                             localEdit !== undefined
                               ? localEdit
                               : record
                               ? record.status
+                              : approvedLeave
+                              ? (approvedLeave.isHalfDay ? "HalfDay" : "Leave")
                               : undefined;
 
                           const isWeekend = getIsWeekend(item.dateStr);
                           const isHoliday = getIsHoliday(item.dateStr, s);
                           const isFuture = item.dateStr > todayStr;
+                          const isToday = item.dateStr === todayStr;
                           const isBeforeJoining =
                             s.joiningDate && item.dateStr < s.joiningDate;
 
@@ -4440,10 +4638,16 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
                               code = "W";
                               badgeStyle =
                                 "text-slate-400 bg-slate-100 dark:bg-slate-800/60 font-semibold";
-                            } else {
+                            } else if (isFuture || isToday) {
                               code = "";
                               badgeStyle =
                                 "border border-dashed border-slate-200 dark:border-slate-800 bg-transparent text-transparent";
+                            } else {
+                              // Past working day without check-in: staff is Absent (same as user view)
+                              code = "A";
+                              badgeStyle =
+                                "text-rose-500 bg-rose-50 dark:bg-rose-950/30 border border-rose-500/20";
+                              aCount++;
                             }
                           }
 

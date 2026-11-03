@@ -22061,6 +22061,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
               date: String(item.date).split("T")[0].split(" ")[0],
               entityType: "Staff",
               entityId: item.staffId?.toString() || item.id?.toString() || "",
+              employeeId: item.employeeId || "",
+              staffId: item.staffId?.toString() || "",
+              staffName: item.fullName || item.staffName || "",
               status:
                 item.status === "Half Day"
                   ? "HalfDay"

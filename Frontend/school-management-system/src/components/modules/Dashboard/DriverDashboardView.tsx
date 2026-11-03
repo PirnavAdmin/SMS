@@ -62,14 +62,35 @@ export const DriverDashboardView: React.FC<DriverDashboardViewProps> = ({ onNavi
     const userPhone = (user?.phone || '').trim().toLowerCase();
     const userEmpId = (user?.id || '').trim().toLowerCase();
 
-    // Try matching in driverMasters
-    const fromMaster = driverMasters.find(d =>
-      (userEmpId && (d.employeeId?.toLowerCase() === userEmpId || String(d.id) === userEmpId)) ||
-      (userEmail && d.email?.toLowerCase() === userEmail) ||
-      (userPhone && d.mobileNumber?.replace(/\D/g, '') === userPhone.replace(/\D/g, '')) ||
-      (userName && d.driverName?.toLowerCase() === userName) ||
-      (userName && (d.driverName?.toLowerCase().includes(userName) || userName.includes(d.driverName?.toLowerCase())))
-    );
+    // Priority 1: Match from driverMasters or staff by exact user email
+    const fromMaster = (() => {
+      if (userEmail) {
+        const byEmail = driverMasters.find(d => d.email && d.email.toLowerCase().trim() === userEmail);
+        if (byEmail) return byEmail;
+      }
+      if (userEmpId) {
+        const byEmpId = driverMasters.find(d => (d.employeeId?.toLowerCase() === userEmpId || String(d.id) === userEmpId));
+        if (byEmpId) return byEmpId;
+      }
+      if (userPhone && userPhone.length >= 10) {
+        const cleanPhone = userPhone.slice(-10);
+        const byPhone = driverMasters.find(d => (d.mobileNumber || '').replace(/\D/g, '').endsWith(cleanPhone));
+        if (byPhone) return byPhone;
+      }
+      if (userName && userName !== 'user' && userName !== 'administrator') {
+        const byName = driverMasters.find(d => {
+          const dName = (d.driverName || '').trim().toLowerCase();
+          const matches = dName === userName || dName.includes(userName) || userName.includes(dName);
+          if (!matches) return false;
+          if (userEmail && d.email && d.email.toLowerCase().trim() !== userEmail) {
+            return d.email.toLowerCase().includes('gamal.com') || d.email.toLowerCase().replace(/@.*/, '') === userEmail.replace(/@.*/, '');
+          }
+          return true;
+        });
+        if (byName) return byName;
+      }
+      return null;
+    })();
 
     if (fromMaster) {
       return {
@@ -78,22 +99,39 @@ export const DriverDashboardView: React.FC<DriverDashboardViewProps> = ({ onNavi
       };
     }
 
-    // Try matching in staff
-    const fromStaff = staff.find(s => {
-      const sEmpId = (s.empId || (s as any).employeeId || '').toLowerCase();
-      const sId = String(s.id).toLowerCase();
-      const sEmail = (s.email || '').toLowerCase();
-      const sPhone = (s.phone || (s as any).mobileNumber || '').replace(/\D/g, '');
-      const sFullName = `${s.firstName || ''} ${s.lastName || ''}`.trim().toLowerCase();
-      const sName = (s.name || '').trim().toLowerCase();
-
-      return (
-        (userEmpId && (sEmpId === userEmpId || sId === userEmpId)) ||
-        (userEmail && sEmail === userEmail) ||
-        (userPhone && sPhone && sPhone === userPhone.replace(/\D/g, '')) ||
-        (userName && (sFullName === userName || sName === userName || sFullName.includes(userName) || userName.includes(sFullName)))
-      );
-    });
+    // Try matching in staff prioritizing exact user email
+    const fromStaff = (() => {
+      if (userEmail) {
+        const byEmail = staff.find(s => s.email && s.email.toLowerCase().trim() === userEmail);
+        if (byEmail) return byEmail;
+      }
+      if (userEmpId) {
+        const byEmpId = staff.find(s => {
+          const sEmpId = (s.empId || (s as any).employeeId || String(s.id)).toLowerCase();
+          return sEmpId === userEmpId;
+        });
+        if (byEmpId) return byEmpId;
+      }
+      if (userPhone && userPhone.length >= 10) {
+        const cleanPhone = userPhone.slice(-10);
+        const byPhone = staff.find(s => (s.phone || (s as any).mobileNumber || '').replace(/\D/g, '').endsWith(cleanPhone));
+        if (byPhone) return byPhone;
+      }
+      if (userName && userName !== 'user' && userName !== 'administrator') {
+        const byName = staff.find(s => {
+          const sFullName = `${s.firstName || ''} ${s.lastName || ''}`.trim().toLowerCase();
+          const sName = (s.name || '').trim().toLowerCase();
+          const matches = sFullName === userName || sName === userName || sFullName.includes(userName) || userName.includes(sFullName);
+          if (!matches) return false;
+          if (userEmail && s.email && s.email.toLowerCase().trim() !== userEmail) {
+            return s.email.toLowerCase().includes('gamal.com') || s.email.toLowerCase().replace(/@.*/, '') === userEmail.replace(/@.*/, '');
+          }
+          return true;
+        });
+        if (byName) return byName;
+      }
+      return null;
+    })();
 
     if (fromStaff) {
       const staffName = `${fromStaff.firstName || ''} ${fromStaff.lastName || ''}`.trim() || fromStaff.name;
