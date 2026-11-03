@@ -361,18 +361,18 @@ export const HostelOutpassLeaveView: React.FC = () => {
   });
 
   return (
-    <div className="space-y-6 animate-in fade-in">
+    <div className="space-y-3.5 animate-in fade-in">
       <div className="flex justify-end">
         <button
           onClick={handleOpenAdd}
-          className="px-4 py-2.5 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs shadow-lg shadow-sky-500/20 flex items-center gap-2 transition-all"
+          className="px-3 py-1.5 rounded-lg bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs shadow-sm flex items-center gap-1.5 transition-all"
         >
           <Plus className="w-4 h-4" /> {actionLabel}
         </button>
       </div>
 
       {/* Filter Bar */}
-      <div className="glass-card p-4 rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-4 border border-slate-200 dark:border-slate-800 shadow-sm">
+      <div className="glass-card p-3 rounded-xl flex flex-col sm:flex-row items-center justify-between gap-2.5 border border-slate-200/80 dark:border-slate-800 shadow-xs">
         <div className="relative w-full sm:w-80">
           <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
           <input
@@ -380,7 +380,7 @@ export const HostelOutpassLeaveView: React.FC = () => {
             placeholder="Search student, student ID, room..."
             value={searchQuery}
             onChange={e => setSearchQuery(e.target.value)}
-            className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-900 dark:text-white focus:ring-2 focus:ring-sky-500 outline-none transition-all"
+            className="w-full pl-10 pr-4 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-900 dark:text-white focus:ring-2 focus:ring-sky-500 outline-none transition-all"
           />
         </div>
 
@@ -417,19 +417,19 @@ export const HostelOutpassLeaveView: React.FC = () => {
           </div>
         </div>
       ) : (
-        <div className="glass-card rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 overflow-hidden shadow-md">
+        <div className="glass-card rounded-xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 overflow-hidden shadow-xs">
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs text-slate-700 dark:text-slate-300">
               <thead className="bg-slate-50 dark:bg-slate-800/80 uppercase font-extrabold text-[10px] tracking-wider text-slate-500 border-b border-slate-200 dark:border-slate-800">
                 <tr>
-                  <th className="py-3.5 px-5">Student</th>
-                  <th className="py-3.5 px-5">Student ID</th>
-                  <th className="py-3.5 px-5">Hostel & Room</th>
-                  <th className="py-3.5 px-5">Outpass Type</th>
-                  <th className="py-3.5 px-5">Departure</th>
-                  <th className="py-3.5 px-5">Expected Return</th>
-                  <th className="py-3.5 px-5 text-center">Status</th>
-                  <th className="py-3.5 px-5 text-right">Actions</th>
+                  <th className="py-2 px-3">Student</th>
+                  <th className="py-2 px-3">Student ID</th>
+                  <th className="py-2 px-3">Hostel & Room</th>
+                  <th className="py-2 px-3">Outpass Type</th>
+                  <th className="py-2 px-3">Departure</th>
+                  <th className="py-2 px-3">Expected Return</th>
+                  <th className="py-2 px-3 text-center">Status</th>
+                  <th className="py-2 px-3 text-right">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-medium">
@@ -440,13 +440,13 @@ export const HostelOutpassLeaveView: React.FC = () => {
                 ) : (
                   filtered.map(r => (
                     <tr key={r.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/50 transition-colors">
-                      <td className="py-3.5 px-5 font-bold text-slate-900 dark:text-white">{r.studentName}</td>
-                      <td className="py-3.5 px-5 font-mono text-slate-500">{r.studentId || r.admissionNo}</td>
-                      <td className="py-3.5 px-5 font-semibold text-sky-600 dark:text-sky-400">{r.hostelName} ({formatRoomNumber(r.roomNumber)})</td>
-                      <td className="py-3.5 px-5 font-bold text-slate-800 dark:text-slate-200">{r.outpassType}</td>
-                      <td className="py-3.5 px-5 text-slate-500 font-mono text-[11px]">{r.departureDate}</td>
-                      <td className="py-3.5 px-5 text-slate-500 font-mono text-[11px]">{r.returnDate}</td>
-                      <td className="py-3.5 px-5 text-center">
+                      <td className="py-2 px-3 font-bold text-slate-900 dark:text-white">{r.studentName}</td>
+                      <td className="py-2 px-3 font-mono text-slate-500">{r.studentId || r.admissionNo}</td>
+                      <td className="py-2 px-3 font-semibold text-sky-600 dark:text-sky-400">{r.hostelName} ({formatRoomNumber(r.roomNumber)})</td>
+                      <td className="py-2 px-3 font-bold text-slate-800 dark:text-slate-200">{r.outpassType}</td>
+                      <td className="py-2 px-3 text-slate-500 font-mono text-[11px]">{r.departureDate}</td>
+                      <td className="py-2 px-3 text-slate-500 font-mono text-[11px]">{r.returnDate}</td>
+                      <td className="py-2 px-3 text-center">
                         <span className={`px-2.5 py-1 rounded-full text-[10px] font-extrabold ${
                           r.status === 'Approved' ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300' :
                           r.status === 'Pending' ? 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300' :
@@ -456,7 +456,7 @@ export const HostelOutpassLeaveView: React.FC = () => {
                           {r.status}
                         </span>
                       </td>
-                      <td className="py-3.5 px-5 text-right">
+                      <td className="py-2 px-3 text-right">
                         <div className="flex items-center justify-end gap-2">
                           {r.status === 'Pending' && (
                             <>

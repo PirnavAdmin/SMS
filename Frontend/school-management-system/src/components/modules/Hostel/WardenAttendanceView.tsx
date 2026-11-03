@@ -336,7 +336,7 @@ export const WardenAttendanceView: React.FC = () => {
   ];
 
   return (
-    <div className="space-y-6 animate-in fade-in pb-12">
+    <div className="space-y-3.5 animate-in fade-in pb-6">
       {/* 2. Primary Duty Check-In / Check-Out Hero Card */}
       <div className="glass-card p-6 rounded-3xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xs space-y-6">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 dark:border-slate-800 pb-4">

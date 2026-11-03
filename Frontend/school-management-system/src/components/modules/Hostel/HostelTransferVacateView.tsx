@@ -392,18 +392,18 @@ export const HostelTransferVacateView: React.FC = () => {
   });
 
   return (
-    <div className="space-y-6 animate-in fade-in">
+    <div className="space-y-3.5 animate-in fade-in">
       <div className="flex justify-end">
         <button
           onClick={handleOpenAdd}
-          className="px-4 py-2.5 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs shadow-lg shadow-sky-500/20 flex items-center gap-2 transition-all"
+          className="px-3 py-1.5 rounded-lg bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs shadow-sm flex items-center gap-1.5 transition-all"
         >
           <Plus className="w-4 h-4" /> Request Transfer / Vacate
         </button>
       </div>
 
       {/* Filter Bar */}
-      <div className="glass-card p-4 rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-4 border border-slate-200 dark:border-slate-800 shadow-sm">
+      <div className="glass-card p-3 rounded-xl flex flex-col sm:flex-row items-center justify-between gap-2.5 border border-slate-200/80 dark:border-slate-800 shadow-xs">
         <div className="relative w-full sm:w-80">
           <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
           <input
@@ -411,7 +411,7 @@ export const HostelTransferVacateView: React.FC = () => {
             placeholder="Search student, student ID, room..."
             value={searchQuery}
             onChange={e => setSearchQuery(e.target.value)}
-            className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-900 dark:text-white focus:ring-2 focus:ring-sky-500 outline-none transition-all"
+            className="w-full pl-10 pr-4 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-900 dark:text-white focus:ring-2 focus:ring-sky-500 outline-none transition-all"
           />
         </div>
 
@@ -446,19 +446,19 @@ export const HostelTransferVacateView: React.FC = () => {
           </div>
         </div>
       ) : (
-        <div className="glass-card rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 overflow-hidden shadow-md">
+        <div className="glass-card rounded-xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 overflow-hidden shadow-xs">
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs text-slate-700 dark:text-slate-300">
               <thead className="bg-slate-50 dark:bg-slate-800/80 uppercase font-extrabold text-[10px] tracking-wider text-slate-500 border-b border-slate-200 dark:border-slate-800">
                 <tr>
-                  <th className="py-3.5 px-5">Student</th>
-                  <th className="py-3.5 px-5">Student ID</th>
-                  <th className="py-3.5 px-5">Action Type</th>
-                  <th className="py-3.5 px-5">Current Room</th>
-                  <th className="py-3.5 px-5">Target Room / Fee Adjustment</th>
-                  <th className="py-3.5 px-5">Date</th>
-                  <th className="py-3.5 px-5 text-center">Status</th>
-                  <th className="py-3.5 px-5 text-center">Actions</th>
+                  <th className="py-2 px-3">Student</th>
+                  <th className="py-2 px-3">Student ID</th>
+                  <th className="py-2 px-3">Action Type</th>
+                  <th className="py-2 px-3">Current Room</th>
+                  <th className="py-2 px-3">Target Room / Fee Adjustment</th>
+                  <th className="py-2 px-3">Date</th>
+                  <th className="py-2 px-3 text-center">Status</th>
+                  <th className="py-2 px-3 text-center">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-medium">
@@ -469,11 +469,11 @@ export const HostelTransferVacateView: React.FC = () => {
                 ) : (
                   filtered.map(r => (
                     <tr key={r.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/50 transition-colors">
-                      <td className="py-3.5 px-5 font-bold text-slate-900 dark:text-white">{r.studentName}</td>
-                      <td className="py-3.5 px-5 font-mono text-slate-500">{r.studentId || r.admissionNo}</td>
-                      <td className="py-3.5 px-5 font-bold text-sky-600 dark:text-sky-400">{r.actionType}</td>
-                      <td className="py-3.5 px-5 text-slate-600 font-semibold">{r.fromHostel} (#{r.fromRoom})</td>
-                      <td className="py-3.5 px-5">
+                      <td className="py-2 px-3 font-bold text-slate-900 dark:text-white">{r.studentName}</td>
+                      <td className="py-2 px-3 font-mono text-slate-500">{r.studentId || r.admissionNo}</td>
+                      <td className="py-2 px-3 font-bold text-sky-600 dark:text-sky-400">{r.actionType}</td>
+                      <td className="py-2 px-3 text-slate-600 font-semibold">{r.fromHostel} (#{r.fromRoom})</td>
+                      <td className="py-2 px-3">
                         {r.actionType === 'Bed Vacate' ? (
                           <div className="space-y-1">
                             <span className="text-emerald-600 font-bold block">✓ Old Bed Released to Available</span>
@@ -493,8 +493,8 @@ export const HostelTransferVacateView: React.FC = () => {
                           </div>
                         )}
                       </td>
-                      <td className="py-3.5 px-5 text-slate-500 font-mono text-[11px]">{r.requestDate}</td>
-                      <td className="py-3.5 px-5 text-center">
+                      <td className="py-2 px-3 text-slate-500 font-mono text-[11px]">{r.requestDate}</td>
+                      <td className="py-2 px-3 text-center">
                         <span className={`px-2.5 py-1 rounded-full text-[10px] font-extrabold ${
                           r.status === 'Completed' ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300' :
                           'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300'
@@ -502,7 +502,7 @@ export const HostelTransferVacateView: React.FC = () => {
                           {r.status}
                         </span>
                       </td>
-                      <td className="py-3.5 px-5 text-center align-middle">
+                      <td className="py-2 px-3 text-center align-middle">
                         <div className="flex items-center justify-center gap-2 min-h-[32px]">
                           {r.status === 'Pending' && (
                             <button onClick={() => handleApprove(r.id)} className="p-1.5 rounded-lg text-emerald-600 hover:bg-emerald-50 transition-colors cursor-pointer" title="Approve & Release Bed"><CheckCircle2 className="w-4 h-4" /></button>
@@ -534,7 +534,7 @@ export const HostelTransferVacateView: React.FC = () => {
                 <select
                   value={selectedStudentId}
                   onChange={e => setSelectedStudentId(e.target.value)}
-                  className={`w-full px-3 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-bold focus:outline-none focus:ring-2 focus:ring-sky-500 cursor-pointer transition-all ${
+                  className={`w-full px-3 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-bold focus:outline-none focus:ring-2 focus:ring-sky-500 cursor-pointer transition-all ${
                     !selectedStudentId ? 'text-slate-400 dark:text-slate-500 font-sans font-medium' : 'text-slate-900 dark:text-white'
                   }`}
                   disabled={isSubmitting}
@@ -555,7 +555,7 @@ export const HostelTransferVacateView: React.FC = () => {
                   value={actionType}
                   onChange={e => setActionType(e.target.value as any)}
                   required
-                  className={`w-full px-3 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-bold focus:outline-none focus:ring-2 focus:ring-sky-500 cursor-pointer transition-all ${
+                  className={`w-full px-3 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-bold focus:outline-none focus:ring-2 focus:ring-sky-500 cursor-pointer transition-all ${
                     !actionType
                       ? 'text-slate-400 dark:text-slate-500 font-normal'
                       : 'text-sky-600 dark:text-sky-400'
@@ -584,7 +584,7 @@ export const HostelTransferVacateView: React.FC = () => {
                     <select
                       value={targetBlock}
                       onChange={e => { setTargetBlock(e.target.value); setTargetRoom(''); setTargetBed(''); }}
-                      className={`w-full px-3 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold cursor-pointer transition-all ${
+                      className={`w-full px-3 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border font-bold cursor-pointer transition-all ${
                         !targetBlock ? 'text-slate-400 dark:text-slate-500 font-medium' : 'text-slate-900 dark:text-white'
                       }`}
                       required
@@ -604,7 +604,7 @@ export const HostelTransferVacateView: React.FC = () => {
                       <select
                         value={targetRoom}
                         onChange={e => { setTargetRoom(e.target.value); setTargetBed(''); }}
-                        className={`w-full px-3 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold cursor-pointer transition-all ${
+                        className={`w-full px-3 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border font-bold cursor-pointer transition-all ${
                           !targetRoom ? 'text-slate-400 dark:text-slate-500 font-sans font-medium' : 'font-mono text-slate-900 dark:text-white'
                         }`}
                         required
@@ -621,7 +621,7 @@ export const HostelTransferVacateView: React.FC = () => {
                       <select
                         value={targetBed}
                         onChange={e => setTargetBed(e.target.value)}
-                        className={`w-full px-3 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold cursor-pointer transition-all ${
+                        className={`w-full px-3 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border font-bold cursor-pointer transition-all ${
                           !targetBed ? 'text-slate-400 dark:text-slate-500 font-sans font-medium' : 'font-mono text-slate-900 dark:text-white'
                         }`}
                         required
@@ -710,7 +710,7 @@ export const HostelTransferVacateView: React.FC = () => {
                   placeholder="e.g. Switched to Non-Residential / Day Scholar after 3 months"
                   value={reason}
                   onChange={e => setReason(e.target.value)}
-                  className="w-full px-3 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border font-medium text-slate-900 dark:text-white outline-none"
+                  className="w-full px-3 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border font-medium text-slate-900 dark:text-white outline-none"
                 />
               </div>
 

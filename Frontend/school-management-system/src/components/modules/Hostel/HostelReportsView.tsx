@@ -411,12 +411,12 @@ export const HostelReportsView: React.FC = () => {
   };
 
   return (
-    <div className="space-y-6 animate-in fade-in">
+    <div className="space-y-3.5 animate-in fade-in">
       {/* Page Header (Hidden in Print) */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 no-print">
         <div>
-          <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white flex items-center gap-2">
-            <FileSpreadsheet className="w-6 h-6 text-sky-500" /> Hostel Reports
+          <h2 className="text-base sm:text-lg font-black text-slate-900 dark:text-white flex items-center gap-2">
+            <FileSpreadsheet className="w-5 h-5 text-sky-500" /> Hostel Reports
           </h2>
         </div>
 
@@ -424,7 +424,7 @@ export const HostelReportsView: React.FC = () => {
           <button
             onClick={handlePrint}
             title="Print or save report preview"
-            className="px-3.5 py-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 font-bold text-xs flex items-center gap-1.5 shadow-sm cursor-pointer transition-colors"
+            className="px-3 py-1.5 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 font-bold text-xs flex items-center gap-1.5 shadow-sm cursor-pointer transition-colors"
           >
             <Printer className="w-4 h-4 text-sky-600" /> Print
           </button>
@@ -432,7 +432,7 @@ export const HostelReportsView: React.FC = () => {
           <button
             onClick={handlePdfExport}
             title="Generate and download formatted PDF report"
-            className="px-3.5 py-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 font-bold text-xs flex items-center gap-1.5 shadow-sm cursor-pointer transition-colors"
+            className="px-3 py-1.5 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 font-bold text-xs flex items-center gap-1.5 shadow-sm cursor-pointer transition-colors"
           >
             <FileText className="w-4 h-4 text-rose-600" /> Export PDF
           </button>
@@ -446,14 +446,14 @@ export const HostelReportsView: React.FC = () => {
       </div>
 
       {/* Filter Bar with Report Selector (Hidden in Print) */}
-      <div className="glass-card p-4 rounded-2xl space-y-4 border border-slate-200 dark:border-slate-800 shadow-sm text-xs no-print">
+      <div className="glass-card p-3 rounded-xl space-y-2.5 border border-slate-200/80 dark:border-slate-800 shadow-xs text-xs no-print">
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           
           {/* 1. Hostel Block Filter */}
           <div>
             <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">Hostel Block Filter</label>
             {isWarden ? (
-              <div className="w-full px-3 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-bold text-xs text-slate-700 dark:text-slate-200 flex items-center h-[38px]">
+              <div className="w-full px-3 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-bold text-xs text-slate-700 dark:text-slate-200 flex items-center h-[34px]">
                 {targetBlocks[0]?.hostelName || 'Assigned Hostel Block'}
               </div>
             ) : (
@@ -465,7 +465,7 @@ export const HostelReportsView: React.FC = () => {
                     if (e.target.value !== 'MANUAL') setManualHostelInput('');
                     setCurrentPage(1);
                   }}
-                  className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-bold text-xs cursor-pointer outline-none focus:border-sky-500 h-[38px]"
+                  className="w-full px-3 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-bold text-xs cursor-pointer outline-none focus:border-sky-500 h-[34px]"
                 >
                   {blockFilterOptions.map(opt => (
                     <option key={opt.value} value={opt.value}>{opt.label}</option>
@@ -494,7 +494,7 @@ export const HostelReportsView: React.FC = () => {
                 setSelectedReport(e.target.value);
                 if (e.target.value !== 'MANUAL') setManualReportInput('');
               }}
-              className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-bold text-xs cursor-pointer outline-none focus:border-sky-500 h-[38px]"
+              className="w-full px-3 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-bold text-xs cursor-pointer outline-none focus:border-sky-500 h-[34px]"
             >
               <option value="">-- Select Hostel Report Category --</option>
               {ENTERPRISE_HOSTEL_REPORTS.map(r => (
@@ -524,7 +524,7 @@ export const HostelReportsView: React.FC = () => {
                 if (e.target.value !== 'MANUAL') setManualTabInput('');
                 setCurrentPage(1);
               }}
-              className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-bold text-xs cursor-pointer outline-none focus:border-sky-500 h-[38px]"
+              className="w-full px-3 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-bold text-xs cursor-pointer outline-none focus:border-sky-500 h-[34px]"
             >
               {tabFilterOptions.map(opt => (
                 <option key={opt.value} value={opt.value}>{opt.label}</option>
@@ -610,7 +610,7 @@ export const HostelReportsView: React.FC = () => {
                   {paginatedData.map((row, idx) => (
                     <tr key={idx} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors">
                       {Object.values(row).map((val: any, valIdx) => (
-                        <td key={valIdx} className="py-3.5 px-4 text-slate-800 dark:text-slate-200 font-semibold">
+                        <td key={valIdx} className="py-2 px-3 text-slate-800 dark:text-slate-200 font-semibold">
                           {String(val)}
                         </td>
                       ))}
