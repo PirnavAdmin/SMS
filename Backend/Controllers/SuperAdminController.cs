@@ -22,8 +22,20 @@ public class SuperAdminController : ControllerBase
     }
 
     // =========================================================
-    // 1. AUTHENTICATION ENDPOINTS
+    // 1. AUTHENTICATION & SUPER ADMIN SETUP / ACCOUNT CREATION
     // =========================================================
+
+    [HttpGet("setup-status")]
+    [AllowAnonymous]
+    public async Task<IActionResult> GetSetupStatus()
+    {
+        var count = await _saService.GetSuperAdminCountAsync();
+        return Ok(new
+        {
+            isConfigured = count > 0,
+            superAdminCount = count
+        });
+    }
 
     [HttpPost("login")]
     [AllowAnonymous]
@@ -32,6 +44,41 @@ public class SuperAdminController : ControllerBase
         if (!ModelState.IsValid) return BadRequest(ModelState);
         var result = await _saService.SuperAdminLoginAsync(dto);
         return Ok(result);
+    }
+
+    [HttpPost("setup")]
+    [HttpPost("create-superadmin")]
+    [AllowAnonymous]
+    public async Task<ActionResult<AuthResponseDto>> CreateSuperAdmin([FromBody] SuperAdminCreateDto dto)
+    {
+        if (!ModelState.IsValid) return BadRequest(ModelState);
+
+        var existingSuperAdminCount = await _saService.GetSuperAdminCountAsync();
+        int? currentUserId = null;
+
+        // Bootstrap guard:
+        // If 0 Super Admins exist, allow initial bootstrap setup without authorization.
+        // If 1 or more already exist, require authenticated Super Admin credentials.
+        if (existingSuperAdminCount > 0)
+        {
+            if (User.Identity == null || !User.Identity.IsAuthenticated)
+            {
+                return Unauthorized(new { message = "Authentication required. Existing Super Admin must authorize creating additional Super Admins." });
+            }
+
+            if (!User.IsInRole("SuperAdmin") && !User.IsInRole("Super Admin"))
+            {
+                return StatusCode(403, new { message = "Only Super Admins can create new Super Admin accounts." });
+            }
+
+            currentUserId = GetCurrentUserId();
+        }
+
+        var created = await _saService.CreateSuperAdminAsync(dto, currentUserId);
+
+        // Auto-login upon creation so client gets token and user profile immediately
+        var loginResponse = await _saService.SuperAdminLoginAsync(new LoginRequestDto(dto.Email, dto.Password, "SuperAdmin"));
+        return Ok(loginResponse);
     }
 
     [HttpPost("refresh-token")]
@@ -84,7 +131,7 @@ public class SuperAdminController : ControllerBase
     // =========================================================
 
     [HttpGet("dashboard/summary")]
-    [Authorize(Roles = "SuperAdmin")]
+    [Authorize(Roles = "SuperAdmin,Super Admin")]
     public async Task<ActionResult<SuperAdminDashboardSummaryDto>> GetDashboardSummary()
     {
         var summary = await _saService.GetDashboardSummaryAsync();
@@ -96,7 +143,7 @@ public class SuperAdminController : ControllerBase
     // =========================================================
 
     [HttpGet("schools")]
-    [Authorize(Roles = "SuperAdmin")]
+    [Authorize(Roles = "SuperAdmin,Super Admin")]
     public async Task<ActionResult<List<SchoolResponseDto>>> GetAllSchools([FromQuery] string? search)
     {
         var schools = await _saService.GetAllSchoolsAsync(search);
@@ -104,7 +151,7 @@ public class SuperAdminController : ControllerBase
     }
 
     [HttpGet("schools/{id:int}")]
-    [Authorize(Roles = "SuperAdmin")]
+    [Authorize(Roles = "SuperAdmin,Super Admin")]
     public async Task<ActionResult<SchoolResponseDto>> GetSchoolById(int id)
     {
         var school = await _saService.GetSchoolByIdAsync(id);
@@ -112,7 +159,7 @@ public class SuperAdminController : ControllerBase
     }
 
     [HttpPost("schools")]
-    [Authorize(Roles = "SuperAdmin")]
+    [Authorize(Roles = "SuperAdmin,Super Admin")]
     public async Task<ActionResult<SchoolResponseDto>> CreateSchool([FromBody] SchoolCreateDto dto)
     {
         if (!ModelState.IsValid) return BadRequest(ModelState);
@@ -122,7 +169,7 @@ public class SuperAdminController : ControllerBase
     }
 
     [HttpPut("schools/{id:int}")]
-    [Authorize(Roles = "SuperAdmin")]
+    [Authorize(Roles = "SuperAdmin,Super Admin")]
     public async Task<ActionResult<SchoolResponseDto>> UpdateSchool(int id, [FromBody] SchoolUpdateDto dto)
     {
         if (!ModelState.IsValid) return BadRequest(ModelState);
@@ -132,7 +179,7 @@ public class SuperAdminController : ControllerBase
     }
 
     [HttpDelete("schools/{id:int}")]
-    [Authorize(Roles = "SuperAdmin")]
+    [Authorize(Roles = "SuperAdmin,Super Admin")]
     public async Task<IActionResult> DeleteSchool(int id)
     {
         var userId = GetCurrentUserId();
@@ -141,7 +188,7 @@ public class SuperAdminController : ControllerBase
     }
 
     [HttpPatch("schools/{id:int}/status")]
-    [Authorize(Roles = "SuperAdmin")]
+    [Authorize(Roles = "SuperAdmin,Super Admin")]
     public async Task<ActionResult<SchoolResponseDto>> ToggleSchoolStatus(int id, [FromQuery] string status)
     {
         if (string.IsNullOrWhiteSpace(status)) return BadRequest("Status is required.");
@@ -153,7 +200,7 @@ public class SuperAdminController : ControllerBase
     }
 
     [HttpGet("schools/{id:int}/users-summary")]
-    [Authorize(Roles = "SuperAdmin")]
+    [Authorize(Roles = "SuperAdmin,Super Admin")]
     public async Task<ActionResult<SchoolUsersSummaryDto>> GetSchoolUsersSummary(int id)
     {
         var summary = await _saService.GetSchoolUsersSummaryAsync(id);
@@ -165,7 +212,7 @@ public class SuperAdminController : ControllerBase
     // =========================================================
 
     [HttpGet("admins")]
-    [Authorize(Roles = "SuperAdmin")]
+    [Authorize(Roles = "SuperAdmin,Super Admin")]
     public async Task<ActionResult<List<AdminResponseDto>>> GetAdmins([FromQuery] string? search)
     {
         var admins = await _saService.GetAdminsAsync(search);
@@ -173,7 +220,7 @@ public class SuperAdminController : ControllerBase
     }
 
     [HttpPost("admins")]
-    [Authorize(Roles = "SuperAdmin")]
+    [Authorize(Roles = "SuperAdmin,Super Admin")]
     public async Task<ActionResult<AdminResponseDto>> CreateAdmin([FromBody] AdminCreateDto dto)
     {
         if (!ModelState.IsValid) return BadRequest(ModelState);
@@ -183,7 +230,7 @@ public class SuperAdminController : ControllerBase
     }
 
     [HttpPut("admins/{id:int}")]
-    [Authorize(Roles = "SuperAdmin")]
+    [Authorize(Roles = "SuperAdmin,Super Admin")]
     public async Task<ActionResult<AdminResponseDto>> UpdateAdmin(int id, [FromBody] AdminUpdateDto dto)
     {
         if (!ModelState.IsValid) return BadRequest(ModelState);
@@ -193,7 +240,7 @@ public class SuperAdminController : ControllerBase
     }
 
     [HttpPost("admins/{id:int}/reset-password")]
-    [Authorize(Roles = "SuperAdmin")]
+    [Authorize(Roles = "SuperAdmin,Super Admin")]
     public async Task<IActionResult> ResetAdminPassword(int id, [FromBody] ResetPasswordBodyDto dto)
     {
         if (string.IsNullOrWhiteSpace(dto.NewPassword)) return BadRequest("New password is required.");
@@ -209,7 +256,7 @@ public class SuperAdminController : ControllerBase
     // =========================================================
 
     [HttpGet("statistics/users")]
-    [Authorize(Roles = "SuperAdmin")]
+    [Authorize(Roles = "SuperAdmin,Super Admin")]
     public async Task<ActionResult<UserStatisticsDto>> GetUserStatistics()
     {
         var stats = await _saService.GetUserStatisticsAsync();
@@ -217,7 +264,7 @@ public class SuperAdminController : ControllerBase
     }
 
     [HttpGet("audit-logs")]
-    [Authorize(Roles = "SuperAdmin")]
+    [Authorize(Roles = "SuperAdmin,Super Admin")]
     public async Task<ActionResult<List<AuditLogResponseDto>>> GetAuditLogs([FromQuery] int? schoolId, [FromQuery] int limit = 100)
     {
         var logs = await _saService.GetAuditLogsAsync(schoolId, limit);
@@ -225,7 +272,7 @@ public class SuperAdminController : ControllerBase
     }
 
     [HttpGet("notifications")]
-    [Authorize(Roles = "SuperAdmin")]
+    [Authorize(Roles = "SuperAdmin,Super Admin")]
     public async Task<ActionResult<List<SystemNotificationResponseDto>>> GetNotifications([FromQuery] int? schoolId)
     {
         var notifications = await _saService.GetNotificationsAsync(schoolId);

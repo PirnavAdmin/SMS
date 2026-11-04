@@ -104,6 +104,27 @@ public class SuperAdminRepository : ISuperAdminRepository
         return await _context.Admins.AnyAsync(a => a.Email == email);
     }
 
+    // --- Super Admin Account Management ---
+
+    public async Task<int> GetSuperAdminCountAsync()
+    {
+        return await _context.Users
+            .Include(u => u.Roles)
+            .CountAsync(u => u.Role == "SuperAdmin" || u.Role == "Super Admin" || u.Roles.Any(r => r.RoleName == "SuperAdmin" || r.RoleName == "Super Admin"));
+    }
+
+    public async Task<bool> UserExistsAsync(string email, string mobileNumber)
+    {
+        var cleanEmail = email.Trim().ToLower();
+        var cleanMobile = mobileNumber.Trim();
+        return await _context.Users.AnyAsync(u => (u.Email != null && u.Email.ToLower() == cleanEmail) || u.MobileNumber == cleanMobile);
+    }
+
+    public async Task AddUserAsync(User user)
+    {
+        await _context.Users.AddAsync(user);
+    }
+
     // --- Stats & Aggregations ---
 
     public async Task<int> GetCountByRoleAsync(string roleName, int? schoolId = null)

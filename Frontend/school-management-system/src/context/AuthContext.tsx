@@ -38,7 +38,8 @@ const defaultAdminUser: User = {
 
 export const normalizeUserRole = (roleStr: string): UserRole => {
   const clean = (roleStr || "").toLowerCase().replace(/[_\s-]+/g, " ").trim();
-  if (clean === "superadmin" || clean === "super admin" || clean === "admin") return "Admin";
+  if (clean === "superadmin" || clean === "super admin") return "Super Admin";
+  if (clean === "admin") return "Admin";
   if (clean === "principal") return "Principal";
   if (clean === "teacher" || clean === "faculty") return "Teacher";
   if (clean === "warden" || clean === "hostel warden" || clean === "hostelwarden") return "Hostel Warden";

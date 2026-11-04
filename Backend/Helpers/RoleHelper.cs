@@ -2,7 +2,7 @@ namespace SMS.Api.Helpers;
 
 public static class RoleHelper
 {
-    public const string SuperAdmin = "Super Admin";
+    public const string SuperAdmin = "SuperAdmin";
     public const string Admin = "Admin";
     public const string Principal = "Principal";
     public const string Teacher = "Teacher";
@@ -23,7 +23,7 @@ public static class RoleHelper
         if (string.IsNullOrWhiteSpace(raw)) return Staff;
 
         if (raw.Contains("superadmin") || raw.Contains("super admin") || raw.Contains("system owner"))
-            return Admin;
+            return SuperAdmin;
 
         if (raw.Contains("admin") || raw.Contains("administrator"))
             return Admin;

@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
-import { ShieldCheck, Plus, Edit, Trash2, CheckCircle2, XCircle, Users, Key, X } from 'lucide-react';
+import { ShieldCheck, Plus, Edit, Trash2, CheckCircle2, XCircle, Users, Key, X, Lock, Mail, Phone, User as UserIcon } from 'lucide-react';
 import { useData } from '../../../context/DataContext';
 import { useToast } from '../../../context/ToastContext';
 import { UserRole, CustomRole, ModulePermissions } from '../../../types';
 import { Badge } from '../../common/Badge';
 import { ConfirmModal } from '../../common/ConfirmModal';
 import { validateRoleTitle } from '../../../utils/validation';
+import { createSuperAdminApi } from '../../../api/superadmin';
 
 export const UserManagementView: React.FC = () => {
   const { customRoles, addCustomRole, updateCustomRole, deleteCustomRole } = useData();
@@ -31,6 +32,16 @@ export const UserManagementView: React.FC = () => {
   const [roleForm, setRoleForm] = useState<Partial<CustomRole>>({
     name: '',
     description: ''
+  });
+
+  // Super Admin creation modal state
+  const [isSuperAdminModalOpen, setIsSuperAdminModalOpen] = useState(false);
+  const [isSubmittingSa, setIsSubmittingSa] = useState(false);
+  const [saForm, setSaForm] = useState({
+    fullName: '',
+    email: '',
+    mobileNumber: '',
+    password: ''
   });
 
   // Matrix State for permissions
@@ -79,21 +90,64 @@ export const UserManagementView: React.FC = () => {
     setIsRoleModalOpen(false);
   };
 
+  const handleCreateSuperAdmin = async (e: React.SyntheticEvent) => {
+    e.preventDefault();
+    if (!saForm.fullName || !saForm.email || !saForm.mobileNumber || !saForm.password) {
+      addToast('error', 'Missing Information', 'Please fill in all required fields.');
+      return;
+    }
+    if (saForm.password.length < 6) {
+      addToast('error', 'Weak Password', 'Password must be at least 6 characters.');
+      return;
+    }
+
+    setIsSubmittingSa(true);
+    try {
+      const res = await createSuperAdminApi({
+        fullName: saForm.fullName.trim(),
+        email: saForm.email.trim(),
+        mobileNumber: saForm.mobileNumber.trim(),
+        password: saForm.password
+      });
+
+      addToast('success', 'Super Admin Created', `Account created for ${res?.fullName || saForm.fullName} (${saForm.email})`);
+      setIsSuperAdminModalOpen(false);
+      setSaForm({ fullName: '', email: '', mobileNumber: '', password: '' });
+    } catch (err: any) {
+      const msg = err?.message || 'Failed to create Super Admin account.';
+      addToast('error', 'Error', msg);
+    } finally {
+      setIsSubmittingSa(false);
+    }
+  };
+
   return (
     <div className="space-y-6 animate-in fade-in">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white flex items-center gap-2">
-            <ShieldCheck className="w-6 h-6 text-brand-600" /> Roles
+            <ShieldCheck className="w-6 h-6 text-brand-600" /> Roles & Access Management
           </h2>
-          </div>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+            Manage system roles, custom permissions, and root Super Admin credentials
+          </p>
+        </div>
 
-        <button
-          onClick={handleOpenAdd}
-          className="px-4 py-2 rounded-xl bg-brand-600 hover:bg-brand-500 text-white text-xs font-bold shadow-lg shadow-brand-500/20 flex items-center gap-2 transition-all self-start sm:self-auto"
-        >
-          <Plus className="w-4 h-4" /> Create Custom Role
-        </button>
+        <div className="flex items-center gap-2 flex-wrap">
+          <button
+            onClick={() => setIsSuperAdminModalOpen(true)}
+            className="px-4 py-2 rounded-xl bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-400 hover:to-orange-500 text-white text-xs font-bold shadow-lg shadow-amber-500/20 flex items-center gap-2 transition-all cursor-pointer"
+          >
+            <ShieldCheck className="w-4 h-4" /> Create Super Admin
+          </button>
+
+          <button
+            onClick={handleOpenAdd}
+            className="px-4 py-2 rounded-xl bg-brand-600 hover:bg-brand-500 text-white text-xs font-bold shadow-lg shadow-brand-500/20 flex items-center gap-2 transition-all cursor-pointer"
+          >
+            <Plus className="w-4 h-4" /> Create Custom Role
+          </button>
+        </div>
       </div>
 
       {/* Role Selector Grid */}
@@ -224,6 +278,120 @@ export const UserManagementView: React.FC = () => {
           <p className="text-xs text-slate-500 dark:text-slate-400 max-w-sm mx-auto">
             Please select a system role from the cards above to inspect or configure its granular feature permissions.
           </p>
+        </div>
+      )}
+
+      {/* Create Super Admin Modal */}
+      {isSuperAdminModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm animate-in fade-in">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-md w-full p-6 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
+              <div className="flex items-center gap-2">
+                <div className="p-2 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400">
+                  <ShieldCheck className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-slate-900 dark:text-white">Create Super Admin</h3>
+                  <p className="text-[11px] text-slate-500">Root system administrator account</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setIsSuperAdminModalOpen(false)}
+                className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-white rounded-lg transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleCreateSuperAdmin} className="space-y-3.5 text-xs">
+              <div>
+                <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">
+                  Full Name <span className="text-rose-500 font-bold ml-0.5">*</span>
+                </label>
+                <div className="relative">
+                  <UserIcon className="w-4 h-4 absolute left-3 top-2.5 text-slate-400" />
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. System Administrator"
+                    value={saForm.fullName}
+                    onChange={(e) => setSaForm({ ...saForm, fullName: e.target.value })}
+                    className="w-full pl-9 pr-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">
+                  Email Address <span className="text-rose-500 font-bold ml-0.5">*</span>
+                </label>
+                <div className="relative">
+                  <Mail className="w-4 h-4 absolute left-3 top-2.5 text-slate-400" />
+                  <input
+                    type="email"
+                    required
+                    placeholder="superadmin@pirnavschools.com"
+                    value={saForm.email}
+                    onChange={(e) => setSaForm({ ...saForm, email: e.target.value })}
+                    className="w-full pl-9 pr-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">
+                  Mobile Number <span className="text-rose-500 font-bold ml-0.5">*</span>
+                </label>
+                <div className="relative">
+                  <Phone className="w-4 h-4 absolute left-3 top-2.5 text-slate-400" />
+                  <input
+                    type="tel"
+                    required
+                    placeholder="9999999999"
+                    value={saForm.mobileNumber}
+                    onChange={(e) => setSaForm({ ...saForm, mobileNumber: e.target.value })}
+                    className="w-full pl-9 pr-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">
+                  Password <span className="text-rose-500 font-bold ml-0.5">*</span>
+                </label>
+                <div className="relative">
+                  <Lock className="w-4 h-4 absolute left-3 top-2.5 text-slate-400" />
+                  <input
+                    type="password"
+                    required
+                    minLength={6}
+                    placeholder="••••••••"
+                    value={saForm.password}
+                    onChange={(e) => setSaForm({ ...saForm, password: e.target.value })}
+                    className="w-full pl-9 pr-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500"
+                  />
+                </div>
+                <p className="text-[11px] text-slate-400 mt-1">Must be at least 6 characters</p>
+              </div>
+
+              <div className="flex justify-end gap-2 pt-3 border-t border-slate-100 dark:border-slate-800">
+                <button
+                  type="button"
+                  onClick={() => setIsSuperAdminModalOpen(false)}
+                  className="px-4 py-2 font-semibold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-xl hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSubmittingSa}
+                  className="px-4 py-2 font-bold bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-400 hover:to-orange-500 text-white rounded-xl shadow-md shadow-amber-500/20 flex items-center gap-1.5 transition-all disabled:opacity-50"
+                >
+                  {isSubmittingSa ? 'Creating...' : 'Create Super Admin'}
+                </button>
+              </div>
+            </form>
+          </div>
         </div>
       )}
 

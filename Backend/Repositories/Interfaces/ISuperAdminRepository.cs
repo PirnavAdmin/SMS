@@ -20,6 +20,11 @@ public interface ISuperAdminRepository
     Task AddAdminAsync(Admin admin);
     Task<bool> AdminEmailExistsAsync(string email, int? excludeAdminId = null);
 
+    // Super Admin Account Management
+    Task<int> GetSuperAdminCountAsync();
+    Task<bool> UserExistsAsync(string email, string mobileNumber);
+    Task AddUserAsync(User user);
+
     // Stats & Aggregations
     Task<int> GetCountByRoleAsync(string roleName, int? schoolId = null);
     Task<int> GetTotalUsersCountAsync(int? schoolId = null);
